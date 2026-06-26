@@ -23,7 +23,7 @@ export default function PaymentGateModal({ isOpen, onClose, isDarkMode }: Paymen
 
       const basePath = (window as any).__BASE_PATH__ || '';
       const pathPrefix = basePath ? `/${basePath.split('/').filter(Boolean).join('/')}` : '';
-      const successUrl = `${window.location.origin}${pathPrefix}/#services`;
+      const successUrl = `${window.location.origin}${pathPrefix}/thank-you?type=payment`;
       const cancelUrl = `${window.location.origin}${pathPrefix}/`;
 
       const fnUrl = `${import.meta.env.VITE_PUBLIC_SUPABASE_URL}/functions/v1/create-echo-checkout`;
