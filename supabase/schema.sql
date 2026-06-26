@@ -178,6 +178,102 @@ CREATE TABLE IF NOT EXISTS product_custom_values (
 -- Edge Functions
 -- ============================================================
 -- supabase/functions/create-echo-checkout/   → Stripe Checkout Session 생성
+-- supabase/functions/stripe-echo-webhook/    → Stripe Webhook (결제 완료 → paid)
 -- supabase/functions/confirm-echo-toss-payment/ → Toss 결제 승인
 -- supabase/functions/create-echo-toss-checkout/  → Toss 결제 요청
 -- supabase/functions/echo-ai-analysis/        → OpenAI AI 분석
+
+-- ============================================================
+-- 6. Row Level Security (RLS) Policies
+-- ============================================================
+
+-- Helper: admin role check
+CREATE OR REPLACE FUNCTION public.is_echo_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$;
+
+-- ── profiles ──
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "profiles_select_own_or_admin" ON profiles;
+CREATE POLICY "profiles_select_own_or_admin" ON profiles
+  FOR SELECT USING (auth.uid() = id OR public.is_echo_admin());
+
+DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
+CREATE POLICY "profiles_insert_own" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
+CREATE POLICY "profiles_update_own" ON profiles
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- ── analytics_events ──
+ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "analytics_events_insert_all" ON analytics_events;
+CREATE POLICY "analytics_events_insert_all" ON analytics_events
+  FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "analytics_events_update_own_visitor" ON analytics_events;
+CREATE POLICY "analytics_events_update_own_visitor" ON analytics_events
+  FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "analytics_events_select_admin" ON analytics_events;
+CREATE POLICY "analytics_events_select_admin" ON analytics_events
+  FOR SELECT USING (public.is_echo_admin());
+
+-- ── ai_logs ──
+ALTER TABLE ai_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "ai_logs_select_admin" ON ai_logs;
+CREATE POLICY "ai_logs_select_admin" ON ai_logs
+  FOR SELECT USING (public.is_echo_admin());
+
+-- Inserts from Edge Functions use service_role (bypasses RLS)
+
+-- ── order_headers ──
+ALTER TABLE order_headers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "order_headers_select_own_or_admin" ON order_headers;
+CREATE POLICY "order_headers_select_own_or_admin" ON order_headers
+  FOR SELECT USING (
+    customer_id = auth.uid()::text OR public.is_echo_admin()
+  );
+
+DROP POLICY IF EXISTS "order_headers_insert_own" ON order_headers;
+CREATE POLICY "order_headers_insert_own" ON order_headers
+  FOR INSERT WITH CHECK (customer_id = auth.uid()::text);
+
+-- Updates from stripe-echo-webhook use service_role (bypasses RLS)
+
+-- ── order_items ──
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "order_items_select_own_or_admin" ON order_items;
+CREATE POLICY "order_items_select_own_or_admin" ON order_items
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM order_headers oh
+      WHERE oh.id = order_items.order_id
+        AND (oh.customer_id = auth.uid()::text OR public.is_echo_admin())
+    )
+  );
+
+DROP POLICY IF EXISTS "order_items_insert_own" ON order_items;
+CREATE POLICY "order_items_insert_own" ON order_items
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM order_headers oh
+      WHERE oh.id = order_items.order_id
+        AND oh.customer_id = auth.uid()::text
+    )
+  );

@@ -56,8 +56,11 @@ export default function NotificationBell({ notifications, onMarkAllRead, onClear
       <button
         onClick={() => setOpen(!open)}
         className="relative w-9 h-9 flex items-center justify-center rounded-full border transition-all duration-300 cursor-pointer hover:bg-white/[0.04]"
-        style={{ borderColor: open ? `${C.gold}30` : `${C.graphite}60`, background: open ? `${C.gold}06` : 'transparent' }}
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        style={{
+          borderColor: open ? `${C.gold}30` : `${C.graphite}60`,
+          background: open ? `${C.gold}06` : 'transparent',
+          WebkitTapHighlightColor: 'transparent',
+        }}
       >
         <i className="ri-notification-3-line text-sm text-white/35" />
         {unreadCount > 0 && (

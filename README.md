@@ -130,12 +130,16 @@ ECHO_MVP_PRODUCTION/
    ```bash
    npx supabase functions deploy create-echo-checkout
    npx supabase functions deploy echo-ai-analysis
+   npx supabase functions deploy stripe-echo-webhook --no-verify-jwt
    ```
 5. Supabase Secrets 설정:
    ```bash
    npx supabase secrets set OPENAI_API_KEY=sk-...
    npx supabase secrets set STRIPE_SECRET_KEY=sk_live_...
+   npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
    ```
+6. Stripe Dashboard → Webhooks → `checkout.session.completed` 이벤트를
+   `https://<project-ref>.supabase.co/functions/v1/stripe-echo-webhook` 에 연결
 
 ## 인증 (Authentication)
 

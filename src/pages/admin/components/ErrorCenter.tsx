@@ -305,7 +305,7 @@ export default function ErrorCenter() {
                 </thead>
                 <tbody>
                   {filtered.map((e) => {
-                    const typeConfig = ERROR_TYPES[e.type] || { icon: 'ri-error-warning-line', color: C.silver };
+                    const typeConfig = ERROR_TYPES[e.type] || { icon: 'ri-error-warning-line', color: C.silver, label: e.type };
                     const sev = SEVERITY_CONFIG[e.severity];
                     const statusConf = STATUS_CONFIG[e.status];
                     return (
@@ -393,7 +393,7 @@ export default function ErrorCenter() {
             {/* Mobile cards */}
             <div className="md:hidden p-3 space-y-2 max-h-[600px] overflow-y-auto">
               {filtered.map((e) => {
-                const typeConfig = ERROR_TYPES[e.type] || { icon: 'ri-error-warning-line', color: C.silver };
+                const typeConfig = ERROR_TYPES[e.type] || { icon: 'ri-error-warning-line', color: C.silver, label: e.type };
                 const sev = SEVERITY_CONFIG[e.severity];
                 const statusConf = STATUS_CONFIG[e.status];
                 return (
@@ -443,7 +443,8 @@ export default function ErrorCenter() {
   );
 }
 
-// Export addError for use by other components
+// Shared utility — consumed by other admin modules
+// eslint-disable-next-line react-refresh/only-export-components
 export function addErrorToCenter(entry: Omit<ErrorEntry, 'id' | 'detectedAt'>) {
   const errors = loadErrors();
   const newError: ErrorEntry = {

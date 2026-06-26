@@ -14,6 +14,7 @@ const COLORS = [
 
 export default function AuthCanvas({ phase, mousePos }: AuthCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mousePosRef = useRef(mousePos);
   const stateRef = useRef<{
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
@@ -34,6 +35,10 @@ export default function AuthCanvas({ phase, mousePos }: AuthCanvasProps) {
     width: number;
     height: number;
   } | null>(null);
+
+  useEffect(() => {
+    mousePosRef.current = mousePos;
+  }, [mousePos]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -246,8 +251,8 @@ export default function AuthCanvas({ phase, mousePos }: AuthCanvasProps) {
 
       // Camera movement
       const baseZ = 500 - gate * 320;
-      const targetLookX = mousePos.x * 25;
-      const targetLookY = -mousePos.y * 20;
+      const targetLookX = mousePosRef.current.x * 25;
+      const targetLookY = -mousePosRef.current.y * 20;
       s.camera.position.z += (baseZ - s.camera.position.z) * 0.1;
       s.camera.position.x += (targetLookX * 0.3 - s.camera.position.x) * 0.08;
       s.camera.position.y += (targetLookY * 0.3 - s.camera.position.y) * 0.08;

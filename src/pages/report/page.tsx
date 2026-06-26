@@ -52,7 +52,7 @@ function parseReportSections(markdown: string): { title: string; content: string
 
 export default function ReportPage() {
   const navigate = useNavigate();
-  const { currentUser, isAuthenticated, loading: authLoading } = useAuth();
+  const { currentUser, isAuthenticated, hasPaid, loading: authLoading } = useAuth();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [status, setStatus] = useState<'loading' | 'generating' | 'done' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
@@ -64,12 +64,17 @@ export default function ReportPage() {
   const reportRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated or not paid
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       navigate('/auth');
+      return;
     }
-  }, [authLoading, isAuthenticated, navigate]);
+    if (!hasPaid) {
+      navigate('/?pay=1');
+    }
+  }, [authLoading, isAuthenticated, hasPaid, navigate]);
 
   // Warp-in effect
   useEffect(() => {
@@ -188,10 +193,10 @@ export default function ReportPage() {
   }, [currentUser]);
 
   useEffect(() => {
-    if (currentUser && status === 'loading') {
+    if (currentUser && hasPaid && status === 'loading') {
       fetchAndAnalyze();
     }
-  }, [currentUser, status, fetchAndAnalyze]);
+  }, [currentUser, hasPaid, status, fetchAndAnalyze]);
 
   // Animate sections in, then trigger White Door
   useEffect(() => {
@@ -225,7 +230,7 @@ export default function ReportPage() {
     return () => ctx.revert();
   }, [status, reportData]);
 
-  if (authLoading || status === 'loading') {
+  if (authLoading || status === 'loading' || !hasPaid) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="text-center">

@@ -91,33 +91,6 @@ const MissionImpossibleSection = ({ onTrialClick, onMissionClick }: MissionImpos
   const [cycleOpacity, setCycleOpacity] = useState(0);
 
   // Load YouTube IFrame API
-  const loadYouTubeAPI = useCallback(() => {
-    if (apiLoadedRef.current) return;
-    apiLoadedRef.current = true;
-
-    // If API already loaded by another component
-    if (window.YT && window.YT.Player) {
-      createPlayer();
-      return;
-    }
-
-    // Store any existing callback
-    const existingCallback = window.onYouTubeIframeAPIReady;
-
-    window.onYouTubeIframeAPIReady = () => {
-      if (existingCallback) existingCallback();
-      createPlayer();
-    };
-
-    // Load script if not already loading
-    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    }
-  }, []);
-
   const createPlayer = useCallback(() => {
     if (playerRef.current) return;
 
@@ -156,6 +129,33 @@ const MissionImpossibleSection = ({ onTrialClick, onMissionClick }: MissionImpos
       },
     });
   }, []);
+
+  const loadYouTubeAPI = useCallback(() => {
+    if (apiLoadedRef.current) return;
+    apiLoadedRef.current = true;
+
+    // If API already loaded by another component
+    if (window.YT && window.YT.Player) {
+      createPlayer();
+      return;
+    }
+
+    // Store any existing callback
+    const existingCallback = window.onYouTubeIframeAPIReady;
+
+    window.onYouTubeIframeAPIReady = () => {
+      if (existingCallback) existingCallback();
+      createPlayer();
+    };
+
+    // Load script if not already loading
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, [createPlayer]);
 
   // Start playback when section scrolls into view
   useEffect(() => {

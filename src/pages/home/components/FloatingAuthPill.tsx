@@ -20,7 +20,7 @@ const FloatingAuthPill = ({ isDarkMode, onActivate }: FloatingAuthPillProps) => 
   const [scrolledPastHero, setScrolledPastHero] = useState(false);
   const breatheRef = useRef<gsap.core.Tween | null>(null);
   const orbitRefs = useRef<gsap.core.Tween[]>([]);
-  const enterTlRef = useRef<gsap.core.Timeline | null>(null);
+  const enterTweenRef = useRef<gsap.core.Tween | null>(null);
 
   // Show after scrolling past hero
   useEffect(() => {
@@ -36,7 +36,7 @@ const FloatingAuthPill = ({ isDarkMode, onActivate }: FloatingAuthPillProps) => 
   useEffect(() => {
     if (!containerRef.current) return;
     const ctx = gsap.context(() => {
-      enterTlRef.current = gsap.fromTo(containerRef.current,
+      enterTweenRef.current = gsap.fromTo(containerRef.current,
         { opacity: 0, y: 30, scale: 0.85 },
         { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: 'elastic.out(1, 0.6)', delay: 0.4 },
       );

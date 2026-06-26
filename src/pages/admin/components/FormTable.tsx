@@ -31,6 +31,7 @@ const MOCK_SUBMISSIONS: FormSubmission[] = [
   { id: 'sub_7', name: '강다은', email: 'kang@edu.kr', company: 'EduCenter', phone: '010-7777-1111', serviceInterest: 'other', message: '교육 프로그램 맞춤 개발 가능한지 문의', submittedAt: Date.now() - 18000000, status: 'pending' },
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function loadFormSubmissions(): FormSubmission[] {
   const raw = localStorage.getItem('echo_form_submissions');
   if (raw) {
@@ -44,6 +45,7 @@ export function loadFormSubmissions(): FormSubmission[] {
   return MOCK_SUBMISSIONS;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function saveFormSubmission(data: Omit<FormSubmission, 'id' | 'submittedAt' | 'status'>) {
   const submissions = loadFormSubmissions();
   const newSubmission: FormSubmission = {

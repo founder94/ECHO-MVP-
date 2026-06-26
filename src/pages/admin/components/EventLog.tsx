@@ -33,6 +33,7 @@ function loadEvents(): LogEvent[] {
   return [];
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function addEvent(type: LogEvent['type'], message: string, status: LogEvent['status'] = 'info') {
   const events = loadEvents();
   const newEvent: LogEvent = { id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, type, message, timestamp: Date.now(), status };

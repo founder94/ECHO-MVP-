@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,8 +86,8 @@ const SAFETY_RESPONSE = `## ⚠️ 안전 안내
 혼자 판단하지 말고 가까운 사람, 전문기관, 공공기관에 도움을 요청해 주세요.
 ECHO는 위급 상황을 직접 해결하는 서비스가 아닙니다.`;
 
-// ─── AI Log recording ───
-async function recordAiLog(supabaseClient: any, log: {
+// ─── AI Log recording (service role — bypasses RLS) ───
+async function recordAiLog(supabaseAdmin: ReturnType<typeof createClient> | null, log: {
   user_id?: string;
   model: string;
   status: string;
@@ -97,8 +98,9 @@ async function recordAiLog(supabaseClient: any, log: {
   error_message?: string;
   safety_triggered: boolean;
 }) {
+  if (!supabaseAdmin) return;
   try {
-    await supabaseClient.from('ai_logs').insert({
+    await supabaseAdmin.from('ai_logs').insert({
       user_id: log.user_id || null,
       model: log.model,
       status: log.status,
@@ -217,18 +219,54 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Init Supabase client for logging
-  const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // Init Supabase admin client for logging (service role)
+  const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    : null;
 
   try {
     // ─── JWT Verification ───
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new Response(JSON.stringify({
         error: "인증이 필요합니다. 로그인 후 다시 시도해 주세요.",
         error_code: "AUTH_MISSING",
       }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({
+        error: "인증이 필요합니다. 로그인 후 다시 시도해 주세요.",
+        error_code: "AUTH_INVALID",
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const verifiedUserId = user.id;
+
+    const { data: profile, error: profileError } = await supabaseAuth
+      .from("profiles")
+      .select("payment_status")
+      .eq("id", verifiedUserId)
+      .maybeSingle();
+
+    if (profileError || profile?.payment_status !== "paid") {
+      return new Response(JSON.stringify({
+        error: "결제가 필요합니다. Premium Report 결제 후 이용해 주세요.",
+        error_code: "PAYMENT_REQUIRED",
+      }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -244,7 +282,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { answers, contactInfo, userId } = body;
+    const { answers, contactInfo } = body;
 
     if (!answers || !Array.isArray(answers) || answers.length < 3) {
       return new Response(
@@ -260,8 +298,8 @@ Deno.serve(async (req: Request) => {
     const combinedText = answers.join(" ") + (contactInfo?.name || "") + (contactInfo?.email || "");
     if (detectSafetyRisk(combinedText)) {
       // Log safety trigger
-      recordAiLog(supabaseClient, {
-        user_id: userId,
+      recordAiLog(supabaseAdmin, {
+        user_id: verifiedUserId,
         model: 'gpt-4o-mini',
         status: 'safety_triggered',
         total_tokens: 0,
@@ -312,8 +350,8 @@ Deno.serve(async (req: Request) => {
       }
 
       // Log error
-      recordAiLog(supabaseClient, {
-        user_id: userId,
+      recordAiLog(supabaseAdmin, {
+        user_id: verifiedUserId,
         model: 'gpt-4o-mini',
         status: 'error',
         total_tokens: 0,
@@ -345,8 +383,8 @@ Deno.serve(async (req: Request) => {
     const cost = estimateCost(openaiResult.model_used, openaiResult.tokens_used);
 
     // ─── Record success log ───
-    recordAiLog(supabaseClient, {
-      user_id: userId,
+    recordAiLog(supabaseAdmin, {
+      user_id: verifiedUserId,
       model: openaiResult.model_used,
       status: 'success',
       total_tokens: openaiResult.tokens_used,

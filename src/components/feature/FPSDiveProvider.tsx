@@ -8,6 +8,8 @@ interface FPSContextValue {
 
 const FPSContext = createContext<FPSContextValue | null>(null);
 
+// Hook export — colocated with provider for shared FPS context
+// eslint-disable-next-line react-refresh/only-export-components
 export function useFPSDive() {
   const ctx = useContext(FPSContext);
   if (!ctx) throw new Error('useFPSDive must be used within FPSDiveProvider');

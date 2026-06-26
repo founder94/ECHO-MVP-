@@ -104,6 +104,18 @@ export default function Home() {
   const diveLockRef = useRef(false);
   const { triggerDive } = useFPSDive();
 
+  // /report 등에서 결제 필요 시 리다이렉트된 경우 결제 모달 자동 오픈
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pay') === '1' && isAuthenticated && !hasPaid) {
+      setPaymentGateOpen(true);
+      params.delete('pay');
+      const nextSearch = params.toString();
+      const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, [isAuthenticated, hasPaid]);
+
   // Stripe 결제 완료 후 프로필 상태 자동 동기화
   useEffect(() => {
     if (!isAuthenticated || hasPaid) return;
@@ -158,38 +170,38 @@ export default function Home() {
     };
   }, [isAuthenticated, hasPaid]);
 
-  const handleTrialClick = useCallback(withMemberGate(() => {
-    setOnboardingOpen(true);
-  }), [withMemberGate]);
+  const handleTrialClick = useCallback(() => {
+    withMemberGate(() => setOnboardingOpen(true))();
+  }, [withMemberGate]);
 
-  const handleOnboardingTrialClick = useCallback(withMemberGate(() => {
-    setTrialFormOpen(true);
-  }), [withMemberGate]);
+  const handleOnboardingTrialClick = useCallback(() => {
+    withMemberGate(() => setTrialFormOpen(true))();
+  }, [withMemberGate]);
 
-  const handleMissionClick = useCallback(withMemberGate(() => {
-    setMissionCinematicOpen(true);
-  }), [withMemberGate]);
+  const handleMissionClick = useCallback(() => {
+    withMemberGate(() => setMissionCinematicOpen(true))();
+  }, [withMemberGate]);
 
-  const handleApproachClick = useCallback(withMemberGate(() => {
-    setIsApproachOverlayOpen(true);
-  }), [withMemberGate]);
+  const handleApproachClick = useCallback(() => {
+    withMemberGate(() => setIsApproachOverlayOpen(true))();
+  }, [withMemberGate]);
 
   // --- 새 경험 핸들러 ---
-  const handleAboutClick = useCallback(withMemberGate(() => {
-    setAboutSequenceOpen(true);
-  }), [withMemberGate]);
+  const handleAboutClick = useCallback(() => {
+    withMemberGate(() => setAboutSequenceOpen(true))();
+  }, [withMemberGate]);
 
-  const handleAIClick = useCallback(withPaymentGate(() => {
-    setAiSequenceOpen(true);
-  }), [withPaymentGate]);
+  const handleAIClick = useCallback(() => {
+    withPaymentGate(() => setAiSequenceOpen(true))();
+  }, [withPaymentGate]);
 
-  const handleFounderClick = useCallback(withMemberGate(() => {
-    setFounderSequenceOpen(true);
-  }), [withMemberGate]);
+  const handleFounderClick = useCallback(() => {
+    withMemberGate(() => setFounderSequenceOpen(true))();
+  }, [withMemberGate]);
 
-  const handleReportClick = useCallback(withPaymentGate(() => {
-    setReportSequenceOpen(true);
-  }), [withPaymentGate]);
+  const handleReportClick = useCallback(() => {
+    withPaymentGate(() => setReportSequenceOpen(true))();
+  }, [withPaymentGate]);
 
   useEffect(() => {
     setIsDarkMode(true);

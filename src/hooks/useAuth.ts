@@ -23,6 +23,56 @@ interface AuthState {
 
 type AuthProviderType = 'google' | 'apple' | 'kakao';
 
+function buildDefaultProfile(user: User, name: string): Profile {
+  return {
+    id: user.id,
+    email: user.email || '',
+    name,
+    age_group: null,
+    onboarding_answers: [],
+    role: null,
+    payment_status: null,
+  };
+}
+
+async function loadUserProfile(user: User): Promise<{ profile: Profile | null; hasPaid: boolean }> {
+  const name =
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split('@')[0] ||
+    '';
+
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error || !profile) {
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id: user.id,
+        email: user.email || '',
+        name,
+        age_group: null,
+        onboarding_answers: [],
+      });
+
+      if (insertError) {
+        return { profile: null, hasPaid: false };
+      }
+      return { profile: buildDefaultProfile(user, name), hasPaid: false };
+    }
+
+    return {
+      profile: profile as Profile,
+      hasPaid: profile.payment_status === 'paid',
+    };
+  } catch {
+    return { profile: null, hasPaid: false };
+  }
+}
+
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     currentUser: null,
@@ -41,33 +91,16 @@ export function useAuth() {
 
       const user = session?.user ?? null;
       if (user) {
-        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-          .then(({ data: profile, error }) => {
-            if (!mountedRef.current) return;
-            if (error || !profile) {
-              const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '';
-              supabase.from('profiles').insert({
-                id: user.id,
-                email: user.email || '',
-                name,
-                age_group: null,
-                onboarding_answers: [],
-              }).then(() => {
-                if (!mountedRef.current) return;
-                setState({ currentUser: user, profile: { id: user.id, email: user.email || '', name, age_group: null, onboarding_answers: [] }, loading: false, isAuthenticated: true, hasPaid: false });
-              }).catch(() => {
-                if (!mountedRef.current) return;
-                setState({ currentUser: user, profile: null, loading: false, isAuthenticated: true, hasPaid: false });
-              });
-              return;
-            }
-            const hasPaid = profile.payment_status === 'paid';
-            setState({ currentUser: user, profile: profile as Profile | null, loading: false, isAuthenticated: true, hasPaid });
-          })
-          .catch(() => {
-            if (!mountedRef.current) return;
-            setState({ currentUser: user, profile: null, loading: false, isAuthenticated: true, hasPaid: false });
+        void loadUserProfile(user).then(({ profile, hasPaid }) => {
+          if (!mountedRef.current) return;
+          setState({
+            currentUser: user,
+            profile,
+            loading: false,
+            isAuthenticated: true,
+            hasPaid,
           });
+        });
       } else {
         setState({
           currentUser: null,
@@ -79,37 +112,20 @@ export function useAuth() {
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mountedRef.current) return;
       const user = session?.user ?? null;
       if (user) {
-        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-          .then(({ data: profile, error }) => {
-            if (!mountedRef.current) return;
-            if (error || !profile) {
-              const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '';
-              supabase.from('profiles').insert({
-                id: user.id,
-                email: user.email || '',
-                name,
-                age_group: null,
-                onboarding_answers: [],
-              }).then(() => {
-                if (!mountedRef.current) return;
-                setState({ currentUser: user, profile: { id: user.id, email: user.email || '', name, age_group: null, onboarding_answers: [] }, loading: false, isAuthenticated: true, hasPaid: false });
-              }).catch(() => {
-                if (!mountedRef.current) return;
-                setState({ currentUser: user, profile: null, loading: false, isAuthenticated: true, hasPaid: false });
-              });
-              return;
-            }
-            const hasPaid = profile.payment_status === 'paid';
-            setState({ currentUser: user, profile: profile as Profile | null, loading: false, isAuthenticated: true, hasPaid });
-          })
-          .catch(() => {
-            if (!mountedRef.current) return;
-            setState({ currentUser: user, profile: null, loading: false, isAuthenticated: true, hasPaid: false });
+        void loadUserProfile(user).then(({ profile, hasPaid }) => {
+          if (!mountedRef.current) return;
+          setState({
+            currentUser: user,
+            profile,
+            loading: false,
+            isAuthenticated: true,
+            hasPaid,
           });
+        });
       } else {
         setState({ currentUser: null, profile: null, loading: false, isAuthenticated: false, hasPaid: false });
       }
@@ -183,19 +199,17 @@ export function useAuth() {
         if (visitorId) linkVisitorToUser(visitorId, user.id);
         recordAuthEvent('이메일 로그인', 'auth_login', user.id);
 
-        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-          .then(({ data: profile, error: pErr }) => {
-            if (mountedRef.current) {
-              const paid = profile && !pErr ? (profile as Profile).payment_status === 'paid' : false;
-              setState((prev) => ({
-                ...prev,
-                currentUser: user,
-                profile: pErr ? null : (profile as Profile | null),
-                isAuthenticated: true,
-                hasPaid: paid,
-              }));
-            }
-          });
+        void loadUserProfile(user).then(({ profile, hasPaid }) => {
+          if (mountedRef.current) {
+            setState((prev) => ({
+              ...prev,
+              currentUser: user,
+              profile,
+              isAuthenticated: true,
+              hasPaid,
+            }));
+          }
+        });
       }
 
       return { success: true };
@@ -241,6 +255,7 @@ export function useAuth() {
     profile: state.profile,
     loading: state.loading,
     isAuthenticated: state.isAuthenticated,
+    hasPaid: state.hasPaid,
     signup,
     login,
     socialLogin,
