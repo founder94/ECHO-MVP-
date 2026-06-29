@@ -3,7 +3,6 @@ import { useRef, useLayoutEffect, useEffect } from 'react';
 import gsap from 'gsap';
 import * as THREE from 'three';
 import MagneticButton from '@/components/base/MagneticButton';
-import MusicWaveform from './MusicWaveform';
 
 interface HeroProps {
   isDarkMode: boolean;
@@ -182,7 +181,7 @@ const createSegment = (zPos: number, isDarkMode: boolean) => {
   return group;
 };
 
-const Hero = ({ isDarkMode, onTrialClick, musicPlaying, onMusicToggle }: HeroProps) => {
+const Hero = ({ isDarkMode, onTrialClick }: HeroProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -489,21 +488,21 @@ const Hero = ({ isDarkMode, onTrialClick, musicPlaying, onMusicToggle }: HeroPro
               더 알아보기 <span className="text-lg">→</span>
             </Link>
           </div>
-
-          {/* ── ECHO 음파 파동 시각화 ── */}
-          {/* 디자인팀: 크기/위치 수정은 아래 wrapper의 w-[200px] / h-[50px] 값만 변경 */}
-          <div className="mt-6 md:mt-8 w-[180px] sm:w-[220px] md:w-[280px] h-[40px] sm:h-[48px] md:h-[56px] relative opacity-80 hover:opacity-100 transition-opacity duration-500">
-            <MusicWaveform
-              musicPlaying={musicPlaying ?? false}
-              isDarkMode={isDarkMode}
-              onClick={onMusicToggle}
-            />
-            <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 text-[8px] tracking-[0.2em] uppercase ${isDarkMode ? 'text-white/20' : 'text-black/20'}`}>
-              {musicPlaying ? '재생 중' : '멈춤'}
-            </div>
-          </div>
         </div>
       </div>
+
+      <a
+        href="https://marvelous-chaja-071247.netlify.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`absolute bottom-6 left-5 sm:left-8 z-20 inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200 ${
+          isDarkMode
+            ? 'border-white/20 text-white/50 hover:border-white/40 hover:text-white/80'
+            : 'border-black/15 text-black/45 hover:border-black/30 hover:text-black/70'
+        }`}
+      >
+        두잇 보러가기
+      </a>
 
       <div
         className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 ${
