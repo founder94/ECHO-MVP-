@@ -87,3 +87,44 @@
 ### 갱신 판정
 - 카드 로직(대표 원음 바이트 기준, M1 적용): **일치** 37/37.
 - 원격 호스팅 응답·바이트 동일: **확인 불가**(프록시). 사람 청취·실기기: **확인 불가**.
+
+---
+
+## Readdy M1 반영 대조 (2026-09-13 · project-13871930.zip)
+- 수신: project-13871930.zip · SHA-256 `78029a97de538649b9eefe43349cd59ec1280629ed403f57a42d1dc9fcfdf957` · 583,912 bytes · 289 파일.
+- project-13870088 대비 변경 파일: **OriginalMusicCard.tsx 1개뿐**. `.env` 동일(값 미출력).
+- 그 파일은 Claude M1 패치본(커밋 6061ee8 `OriginalMusicCard.PATCHED_M1.tsx`, readdy-v88 검사 소스)과 **바이트 동일**. 새 차이 없음 → 재수정·전체 ZIP 재요청 없음.
+- 따라서 readdy-v88 에서 실행한 type-check 0 / lint 0 / build 통과, 합성음 37/37, 원음 37/37 결과는 이 래디 반영본에 그대로 적용된다(동일 소스).
+
+## 원음 인계 ZIP (DOIT_ORIGINAL_AUDIO_ONLY_20260913.zip)
+- **미도착**(업로드 폴더에 없음). MANIFEST 크기·해시 대조 NOT RUN.
+- 지시서의 원본 파일명 `65f5bc59-e582-437a-97af-88cc38b6d259(3).mp3` / `02c258b7-43c4-40c2-b6f1-ac72d7d5be8d(3).mp3` 은 직전 직접 업로드 2개와 UUID 일치. 그 바이트(SHA-256 e38d47da… / caa47c3d…)로 원음 검사를 이미 수행. 인계 ZIP 이 오면 MANIFEST 와 이 해시를 대조하면 된다.
+- 원음 검사 방식: **전체 자연 종료**(원음 1 28.6 s, 원음 2 45.3 s 를 끝까지 재생). 종료 근처 seek 는 사용하지 않음.
+
+## 홈 → /start → DO IT 선택 → 랜딩 09 클릭 경로 (실제 앱 빌드 · 대표 원음 로컬 제공 · `tests/click-path.browser.mjs`)
+결과 **9/9 PASS** (`tests/click_path_report.json`, `evidence/path_01_home.png`·`path_02_start.png`·`path_03_landing09_playing.png`)
+| 단계 | 결과 |
+|---|---|
+| 홈: BGM 플레이어 컨테이너·"음악 켜기/끄기" 토글 존재 | PASS (YouTube 스크립트 요청은 시도됐으나 로컬 차단 → 실제 BGM 재생 없음) |
+| 홈 히어로 "시작하기" 링크 클릭 → /start | PASS |
+| /start "DO IT 시작하기" 카드 클릭 → /do-it/landing | PASS |
+| 랜딩 진입 후 홈 BGM 컴포넌트 언마운트(컨테이너 0·iframe 0) | PASS — 컴포넌트 수명만 확인 |
+| 09 구간 시작하기 버튼 아래 카드 1개(버튼 하단 484 → 카드 상단 502) | PASS |
+| 진입 시 자동 재생 없음(트랙 요청 0) | PASS |
+| 원음 1 클릭 → 대표 원음 재생, currentTime 0.18→0.88 | PASS |
+| 09 "시작하기"로 이탈(→ /do-it/1) → 카드 Audio 정지 | PASS |
+| 홈 복귀 → BGM 컴포넌트 재마운트, 카드 Audio 재생성 없음 | PASS |
+
+**범위 구분**: 홈 BGM 은 YouTube iframe 기반이라 로컬 차단 환경에서는 실제 재생·정지를 검증하지 못한다. 확인한 것은 (1) 랜딩에 BGM 컴포넌트가 없고 youtube 요청도 없다, (2) 홈 이탈 시 컴포넌트가 언마운트되며 코드상 `destroy()` 를 호출한다 — 까지다. 실제 BGM 소리가 멈추는지는 실기기에서 확인해야 한다.
+
+## 최종 판정 (2026-09-13)
+| 항목 | 판정 |
+|---|---|
+| 원음 수령·해시 | 직접 업로드 2개 수령(SHA-256 e38d47da…/caa47c3d…). 인계 ZIP·MANIFEST 미도착 → MANIFEST 대조 NOT RUN |
+| 검사 소스·M1 | project-13870088 + M1 = project-13871930(래디 반영본)과 바이트 동일. type-check 0 / lint 0 / build 통과 |
+| 실제 MP3 로컬 검사 | 일치 37/37 (전체 자연 종료 방식) + 클릭 경로 9/9 |
+| 원격 호스팅 확인 | 확인 불가(프록시 403). 로컬 재생 PASS 를 원격 PASS 로 쓰지 않음 |
+| 홈 클릭 경로·BGM | 클릭 경로 일치. BGM 실제 정지 미검증(컴포넌트 언마운트만) |
+| 사람 청취·실기기 | 미검증 |
+| Readdy M1 반영 동일성 | 일치(바이트 동일) |
+| Publish | 없음. 결제 비활성 ZIP 0fce51a0… 무변경 |
