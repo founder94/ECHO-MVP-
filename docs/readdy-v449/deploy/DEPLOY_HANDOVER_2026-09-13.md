@@ -49,3 +49,4 @@ index.html 자산: index-ClIZ7hx1.js / index-DE6Ohtm9.css 맞음/다름
 - 대표: "배포했다" (대상·deploy ID·시각 미기재).
 - Claude 측 운영 확인: do-it.company HTTP 조회 재시도 → 프록시 차단(403) → 운영 자산 대조 NOT RUN 유지.
 - 상태: **DEPLOY REPORTED BY OWNER · 미확인**. 대표의 보고 양식(새 deploy ID·시각·자산명·결제 화면) 수신 후 DEPLOY CONFIRMED 로 갱신.
+- 대표 추가 답변: 배포 종류 **A = Netlify echo-mvp-doit 에 결제 비활성 ZIP(0fce51a0…) 드래그 업로드**. 래디 Publish 아님. 새 deploy ID·자산명·결제 화면 확인값은 아직 미수신 → DEPLOY CONFIRMED 보류.
