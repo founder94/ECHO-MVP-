@@ -14,8 +14,18 @@ U=$(val VITE_PUBLIC_SUPABASE_URL); K=$(val VITE_PUBLIC_SUPABASE_ANON_KEY); T=$(v
 [ "$U" = "https://$REF.supabase.co" ]; chk $? "Supabase URL 호스트 = 의도한 운영 ref ($REF)"
 case "$K" in sb_publishable_*) chk 0 "anon 키 형식 = sb_publishable_ (공개 키)";; eyJ*) chk 0 "anon 키 형식 = JWT (role 은 별도 확인)";; *) chk 1 "anon 키 형식 미확인/비어 있음 (len=${#K})";; esac
 case "$K" in sb_secret_*) chk 1 "anon 자리에 sb_secret_ 키 → 즉시 중단";; esac
-case "$T" in test_ck_*|live_ck_*|test_gck_*|live_gck_*) chk 0 "Toss 클라이언트 키 형식 OK (${T:0:8}…, len=${#T})";; "") chk 1 "Toss 클라이언트 키 비어 있음 → 배포 금지";; *) chk 1 "Toss 클라이언트 키 형식 불일치 (len=${#T})";; esac
+# 결제 개통 게이트(src/lib/echo/toss.ts PAYMENT_GATE)로 검사 모드를 나눈다. A 서버 플래그와 무관.
+GATE=$(grep -o -E "PAYMENT_GATE: PaymentGate = '[a-z_]+'" "$SRC/src/lib/echo/toss.ts" 2>/dev/null | grep -o -E "'[a-z_]+'" | tr -d "'")
 case "$T" in test_sk_*|live_sk_*) chk 1 "Toss 시크릿 키가 클라이언트 자리에 있음 → 즉시 중단";; esac
+if [ "$GATE" = "review_pending" ]; then
+  say "MODE  결제 비활성(토스 심사 대기): 주문 생성·SDK 로드·결제창·승인 요청이 게이트로 차단됨. Toss 키 미설정은 예상 상태"
+  if [ -z "$T" ]; then chk 0 "Toss 클라이언트 키 미설정 = 예상 상태(비활성 모드)"; else chk 0 "Toss 클라이언트 키 존재하지만 게이트가 review_pending → 자동 활성화 없음 (len=${#T})"; fi
+elif [ "$GATE" = "enabled" ]; then
+  say "MODE  결제 활성: 키 누락·종류·환경 검사 적용"
+  case "$T" in test_ck_*|live_ck_*|test_gck_*|live_gck_*) chk 0 "Toss 클라이언트 키 형식 OK (${T:0:8}…, len=${#T})";; "") chk 1 "Toss 클라이언트 키 비어 있음 → 배포 금지";; *) chk 1 "Toss 클라이언트 키 형식 불일치 (len=${#T})";; esac
+else
+  chk 1 "PAYMENT_GATE 를 소스에서 찾지 못함(값: '$GATE') → 배포 금지"
+fi
 [ "$F" = "true" ]; chk $? "VITE_A_STRUCTURE_SERVER_ENABLED=true (운영 승인값과 동일)"
 # ── 2) 산출물
 [ -f "$OUT/index.html" ]; chk $? "out/index.html 존재"
@@ -25,7 +35,10 @@ for a in $(grep -o -E '(src|href)="/[^"]+"' "$OUT/index.html" | sed -E 's/.*="\/
 ! grep -q -E "sourceMappingURL=data:" "$OUT"/assets/*.js; chk $? "inline source map 없음"
 [ "$(grep -c -E 'sb_secret_|service_role|sk_live|sk_test|test_sk_|live_sk_|postgres(ql)?://|OPENAI_API_KEY' "$OUT"/assets/*.js | awk -F: '{s+=$2} END {print s}')" = 0 ]; chk $? "번들 내 서버 secret 패턴 0"
 H=$(grep -o -E "[a-z]{20}\.supabase\.co" "$OUT"/assets/*.js | sort -u | tr '\n' ' '); [ "$H" = "$REF.supabase.co " ]; chk $? "번들 내 Supabase 호스트 = $REF 만 ($H)"
-if [ -n "$T" ]; then grep -q -F "${T:0:12}" "$OUT"/assets/*.js 2>/dev/null; chk $? "번들에 Toss 클라이언트 키가 실제로 포함됨"; else chk 1 "번들 Toss 키 포함 여부: 입력이 비어 검사 불가"; fi
+if [ "$GATE" = "review_pending" ]; then
+  grep -q -F "결제 준비 중" "$OUT"/assets/*.js; chk $? "번들에 '결제 준비 중' 버튼 라벨 포함"
+  grep -q -F "현재 결제 서비스를 준비하고 있어요" "$OUT"/assets/*.js; chk $? "번들에 결제 준비 중 안내 문구 포함 (게이트 상수는 번들러가 접어 문자열로 남지 않음)"
+elif [ -n "$T" ]; then grep -q -F "${T:0:12}" "$OUT"/assets/*.js 2>/dev/null; chk $? "번들에 Toss 클라이언트 키가 실제로 포함됨"; else chk 1 "번들 Toss 키 포함 여부: 입력이 비어 검사 불가"; fi
 ! grep -q -E "readdy\.ai/preview|ixxrjb\.ready\.co|127\.0\.0\.1|zrgbatwuzhkuogbeoptt|asqxduoorrsdaixflqgo" "$OUT"/assets/*.js; chk $? "잘못된 endpoint(미리보기·옛 프로젝트·로컬) 없음"
 [ $fail = 0 ] && say "RESULT: ARTIFACT VERIFIED" || say "RESULT: ARTIFACT HOLD"
 exit $fail
