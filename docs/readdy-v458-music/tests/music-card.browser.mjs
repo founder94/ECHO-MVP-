@@ -4,7 +4,10 @@ const { chromium } = createRequire('/opt/node22/lib/node_modules/playwright/pack
 const [outDir, evidenceDir] = process.argv.slice(2); const PORT = 4175; const ORIGIN = `http://127.0.0.1:${PORT}`; const HERE = path.dirname(new URL(import.meta.url).pathname);
 fs.mkdirSync(evidenceDir, { recursive: true });
 const server = spawn(process.execPath, [path.join(HERE, '..', 'harness', 'spa-server.mjs'), outDir, String(PORT)], { stdio: ['ignore', 'pipe', 'inherit'] }); await new Promise((r) => server.stdout.once('data', r));
-const STUB = { 1: fs.readFileSync(path.join(HERE, 'stub-1.mp3')), 2: fs.readFileSync(path.join(HERE, 'stub-2.mp3')) };
+// AUDIO_1/AUDIO_2: 제공할 파일(기본 합성 대체음). D1/D2: 각 파일 길이(초, 정수 내림) — 표시 검사·이어듣기 대기 시간에 사용.
+const STUB = { 1: fs.readFileSync(process.env.AUDIO_1 || path.join(HERE, 'stub-1.mp3')), 2: fs.readFileSync(process.env.AUDIO_2 || path.join(HERE, 'stub-2.mp3')) };
+const D1 = Number(process.env.D1 || 5), D2 = Number(process.env.D2 || 3); const fmt = (d) => `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}`;
+const AUDIO_NOTE = process.env.AUDIO_1 ? '대표 제공 원음 파일(로컬 제공)' : '합성 대체음(stub)';
 const T1 = '80bd6071-35bc-4ca9-898c-cc7f3d8adc51', T2 = '7bd42734-8e58-4474-8eed-08f21c108a30';
 const audioMode = { delayMs: 0, failTrack2Once: false }; const counters = { track1: 0, track2: 0, youtube: 0, supabase: 0, otherExternal: 0, staticCdn: 0 }; const ext = [];
 const STATIC_CDN = new Set(['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net']);
@@ -50,7 +53,7 @@ await page.screenshot({ path: path.join(evidenceDir, 'music_01_initial_390.png')
 await btn(page, '원음 1').click(); s = await waitPlaying(page); const ctA = s.ct; await wait(700); const s2 = await A(page);
 rec('A. 원음 1 클릭 → 실제 재생(playing) · currentTime 증가', !s.paused && s2.ct > ctA && s.src.includes(T1), `ct ${ctA.toFixed(2)}→${s2.ct.toFixed(2)}`);
 rec('A. 재생 표시 = playing 이벤트 기준(버튼 라벨 일시정지)', (await btn(page, '일시정지').count()) === 1);
-const disp = await shown(page); rec('J. 표시 시간 ≈ 실제 currentTime', /^0:0[0-9] \/ 0:05$/.test(disp), disp);
+const disp = await shown(page); rec('J. 표시 시간 ≈ 실제 currentTime', new RegExp(`^0:0[0-9] \\/ ${fmt(D1)}$`).test(disp), disp);
 await page.screenshot({ path: path.join(evidenceDir, 'music_02_playing_390.png') });
 // D. 일시정지 → 같은 위치 재개
 await btn(page, '일시정지').click(); await wait(300); const p1 = await A(page); await wait(800); const p2 = await A(page);
@@ -60,19 +63,19 @@ rec('D. 재개: 같은 위치에서 이어짐(리셋 아님)', !r1.paused && r1.
 // B. 1→2 전환: 이전 곡 정지, 단일 엘리먼트
 await btn(page, '원음 2').click(); const b = await waitPlaying(page);
 rec('B. 원음 1→2 전환: src=원음2 · 재생 중 · Audio 인스턴스 여전히 1개(동시 재생 불가)', b.src.includes(T2) && !b.paused && b.n === 1, `n=${b.n}`);
-const dispB = await shown(page); rec('J. 전환 직후 표시 초기화(0:0x / 0:03)', /^0:0[0-9] \/ 0:03$/.test(dispB), dispB);
+const dispB = await shown(page); rec('J. 전환 직후 표시 초기화(0:0x / 0:03)', new RegExp(`^0:0[0-9] \\/ ${fmt(D2)}$`).test(dispB), dispB);
 // E. 음악 끄기 → 늦은 재시작 없음
 await btn(page, '음악 끄기').click(); await wait(200); const e1 = await A(page); await wait(2500); const e2 = await A(page);
 rec('E. 음악 끄기: paused · src 비움 · 2.5s 후에도 재시작 없음', e1.paused && e2.paused && (e2.src === '' || e2.src === ORIGIN + '/do-it/landing') && (await btn(page, '재생').isDisabled()), `src="${e2.src}"`);
 rec('E. 끄기 후 표시 0:00 / 0:00', (await shown(page)) === '0:00 / 0:00', await shown(page));
 // C. 이어 듣기 1→2 → 종료, 무한반복 없음 (5s + 3s)
 await btn(page, '이어 듣기').click(); const c1 = await waitPlaying(page); rec('C. 이어 듣기 시작: 원음 1 재생', c1.src.includes(T1) && !c1.paused);
-let switched = null; for (let i = 0; i < 90; i++) { await wait(100); const x = await A(page); if (x.src.includes(T2) && !x.paused && x.ct > 0.1) { switched = x; break; } }
+let switched = null; for (let i = 0; i < (D1 + 8) * 10; i++) { await wait(100); const x = await A(page); if (x.src.includes(T2) && !x.paused && x.ct > 0.1) { switched = x; break; } }
 rec('C. 원음 1 종료 → 원음 2 자동 이어 재생(같은 엘리먼트)', !!switched && switched.n === 1, switched ? `ct=${switched.ct.toFixed(2)}` : 'no switch');
-let endedState = null; for (let i = 0; i < 70; i++) { await wait(100); const x = await A(page); if (x.paused && x.ended) { endedState = x; break; } }
+let endedState = null; for (let i = 0; i < (D2 + 8) * 10; i++) { await wait(100); const x = await A(page); if (x.paused && x.ended) { endedState = x; break; } }
 await wait(2500); const after = await A(page);
 rec('C. 원음 2 종료 → 정지 · 2.5s 후 재시작 없음(무한반복 없음)', !!endedState && after.paused && after.src.includes(T2), after ? `paused=${after.paused} ended=${after.ended}` : '');
-rec('J. 종료 후 표시 0:00 / 0:03 · 버튼 라벨 재생', (await shown(page)) === '0:00 / 0:03' && (await btn(page, '재생').count()) === 1, await shown(page));
+rec('J. 종료 후 표시 0:00 / 0:03 · 버튼 라벨 재생', (await shown(page)) === `0:00 / ${fmt(D2)}` && (await btn(page, '재생').count()) === 1, await shown(page));
 rec('C. 이어 듣기 전체 동안 트랙 요청 횟수 정상(원음1 1회·원음2 1회 추가)', counters.track1 >= 1 && counters.track2 >= 1, JSON.stringify(counters));
 await page.screenshot({ path: path.join(evidenceDir, 'music_03_after_sequence_390.png') });
 await ctx.close();
@@ -134,5 +137,5 @@ for (const w of [360, 390, 430]) { const c = await newCtx(w); const p = await c.
   await p.screenshot({ path: path.join(evidenceDir, `music_05_section09_${w}.png`) }); await c.close(); }
 await browser.close(); server.kill();
 const fails = results.filter((r) => !r.pass).length;
-fs.writeFileSync(path.join(evidenceDir, 'music_browser_report.json'), JSON.stringify({ at: new Date().toISOString(), note: '합성 대체음(stub) 사용 · 원음·청취 검사 아님', counters, externalRequestsSample: ext.slice(0, 20), results }, null, 2));
-console.log('\ncounters', JSON.stringify(counters)); console.log(`\nRESULT: ${fails === 0 ? 'CARD LOGIC VERIFIED (stub audio)' : 'CARD LOGIC FAIL'} — fail=${fails}/${results.length}`); process.exit(fails ? 1 : 0);
+fs.writeFileSync(path.join(evidenceDir, 'music_browser_report.json'), JSON.stringify({ at: new Date().toISOString(), note: AUDIO_NOTE + ' · 사람 청취 검사 아님', audio: { D1, D2, AUDIO_1: process.env.AUDIO_1 || 'stub', AUDIO_2: process.env.AUDIO_2 || 'stub' }, counters, externalRequestsSample: ext.slice(0, 20), results }, null, 2));
+console.log('\ncounters', JSON.stringify(counters)); console.log(`\nRESULT: ${fails === 0 ? 'CARD LOGIC VERIFIED (' + AUDIO_NOTE + ')' : 'CARD LOGIC FAIL'} — fail=${fails}/${results.length}`); process.exit(fails ? 1 : 0);
