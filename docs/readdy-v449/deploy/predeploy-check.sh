@@ -21,11 +21,11 @@ case "$T" in test_sk_*|live_sk_*) chk 1 "Toss 시크릿 키가 클라이언트 �
 [ -f "$OUT/index.html" ]; chk $? "out/index.html 존재"
 for a in $(grep -o -E '(src|href)="/[^"]+"' "$OUT/index.html" | sed -E 's/.*="\/([^"]+)"/\1/'); do [ -f "$OUT/$a" ]; chk $? "자산 존재: $a"; done
 [ -f "$OUT/_redirects" ] && grep -q "/index.html" "$OUT/_redirects"; chk $? "_redirects SPA fallback"
-[ "$(find "$OUT" -name '*.map' | wc -l)" = 0 ]; chk $? ".map 파일 없음"
+[ "$(find "$OUT" -name '*.map' | wc -l)" = 0 ]; chk $? ".map 파일 없음 (있으면 ZIP 생성 시 -x '*.map' 로 제외하고 재검사)"
 ! grep -q -E "sourceMappingURL=data:" "$OUT"/assets/*.js; chk $? "inline source map 없음"
 [ "$(grep -c -E 'sb_secret_|service_role|sk_live|sk_test|test_sk_|live_sk_|postgres(ql)?://|OPENAI_API_KEY' "$OUT"/assets/*.js | awk -F: '{s+=$2} END {print s}')" = 0 ]; chk $? "번들 내 서버 secret 패턴 0"
 H=$(grep -o -E "[a-z]{20}\.supabase\.co" "$OUT"/assets/*.js | sort -u | tr '\n' ' '); [ "$H" = "$REF.supabase.co " ]; chk $? "번들 내 Supabase 호스트 = $REF 만 ($H)"
-grep -q -E "${T:0:12}" "$OUT"/assets/*.js 2>/dev/null; chk $? "번들에 Toss 클라이언트 키가 실제로 포함됨"
+if [ -n "$T" ]; then grep -q -F "${T:0:12}" "$OUT"/assets/*.js 2>/dev/null; chk $? "번들에 Toss 클라이언트 키가 실제로 포함됨"; else chk 1 "번들 Toss 키 포함 여부: 입력이 비어 검사 불가"; fi
 ! grep -q -E "readdy\.ai/preview|ixxrjb\.ready\.co|127\.0\.0\.1|zrgbatwuzhkuogbeoptt|asqxduoorrsdaixflqgo" "$OUT"/assets/*.js; chk $? "잘못된 endpoint(미리보기·옛 프로젝트·로컬) 없음"
 [ $fail = 0 ] && say "RESULT: ARTIFACT VERIFIED" || say "RESULT: ARTIFACT HOLD"
 exit $fail
