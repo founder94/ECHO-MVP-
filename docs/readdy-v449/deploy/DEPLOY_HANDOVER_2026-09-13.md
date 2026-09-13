@@ -44,3 +44,8 @@ index.html 자산: index-ClIZ7hx1.js / index-DE6Ohtm9.css 맞음/다름
 - PAYMENT_GATE='review_pending' 유지 · 토스키 요청 없음 · 키 발급만으로 자동 enabled 전환 없음.
 - success 안내 줄바꿈: 다음 릴리스 표시 개선 항목(이번 파일 재빌드 없음).
 - 운영 DB·RLS·RPC·Edge·관리자 role·KEY·P2(STAGING_QUOTA_BLOCKED)·echo-payment·4,900원·약관 변경 0.
+
+## 대표 보고 수신 (2026-09-13)
+- 대표: "배포했다" (대상·deploy ID·시각 미기재).
+- Claude 측 운영 확인: do-it.company HTTP 조회 재시도 → 프록시 차단(403) → 운영 자산 대조 NOT RUN 유지.
+- 상태: **DEPLOY REPORTED BY OWNER · 미확인**. 대표의 보고 양식(새 deploy ID·시각·자산명·결제 화면) 수신 후 DEPLOY CONFIRMED 로 갱신.
