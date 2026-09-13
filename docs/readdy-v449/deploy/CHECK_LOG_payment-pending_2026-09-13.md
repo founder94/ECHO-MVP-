@@ -58,3 +58,9 @@ RESULT: ARTIFACT VERIFIED
 
 ### 5) 배포
 - **DEPLOY NOT RUN** (Claude 수행 안 함). 업로드 대상: Netlify 사이트 `echo-mvp-doit` (7a4934db-aff3-437d-815a-ffbf49d4b819 · do-it.company) Deploys 탭에 ZIP 추출 폴더 드래그 앤 드롭. "Trigger deploy" 금지(Netlify 환경변수는 옛 ref).
+
+### 6) 소스 기준본 동일성 (2026-09-13 추가)
+- 배포 후보 소스 = Readdy 원본 ZIP `project-13865617.zip` (SHA-256 `9156ed5fb5a609ef0c46ec6efd6fd5e07f059401319bf271a4acbeb15dc054dd`) + `docs/readdy-v449/PATCH_C_payment_gate.diff`.
+- 검증: 후보의 3파일(toss.ts / payment/page.tsx / payment/success/page.tsx)에 PATCH C 를 역적용(`git apply -R`)하면 깨끗이 되돌아가며, 그 결과가 project-13865617 ZIP 원본 3파일과 바이트 동일. (V449 원본 3파일과도 동일 → 이 3파일은 V449 이후 래디 변경 없음.)
+- Readdy 가 "PATCH C 반영·build 통과"라고 보고한 최신 Readdy 소스의 원문은 미수령 → **Readdy 반영본과의 원문 동일성은 확인 불가(NOT RUN)**. 배포 후보는 위 기준본+PATCH C 이며 Readdy 반영본이 아니다.
+- 검사기 blob: 교정 전 `51327bfee126a48be8922a86eedf4e71513b144a`(df3cc00) → 교정 후 `f66e67b06a8e6cc0b0beb0c7288deca4e83ff3e6`(cbabfd2).
