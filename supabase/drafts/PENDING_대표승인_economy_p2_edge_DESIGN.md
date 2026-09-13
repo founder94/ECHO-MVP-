@@ -41,3 +41,30 @@ SUPABASE_URL · SUPABASE_ANON_KEY · SUPABASE_SERVICE_ROLE_KEY · CORS_ALLOWED_O
 
 ## 7. 이번 단계 STOP
 Edge 배포 · key_orders 생성 · 실결제 · 실지급 · 정책 row 삽입 · 가격/보상량/수수료/환불 규칙 확정.
+
+## 부록 A · key_orders 후보 명세 (2026-09-13 추가 · 설계 후보, CREATE 미실행, 승인 완료 아님)
+파일: 이 문서 부록 A. 실제 SQL 파일은 아직 없음(전략본부 검수 후 별도 PENDING SQL 로 작성).
+
+| 컬럼 | 자료형 | NULL | 기본값 | 제약·인덱스 | 작성 주체 | 변경 가능 시점 |
+|---|---|---|---|---|---|---|
+| id | uuid | not null | gen_random_uuid() | PK | 서버(Edge) | 생성 후 불변 |
+| user_id | uuid | not null | — | FK auth.users(id) · idx(user_id, created_at desc) | 서버(getUser 검증 UUID) | 불변 |
+| package_code | text | not null | — | check 형식 `^[a-z0-9_.-]{2,32}$` | 서버(요청값 검증 후) | 불변 |
+| amount_krw | integer | not null | — | check > 0 · **주문 당시 서버 가격 스냅샷** | 서버 | 불변 |
+| key_amount | integer | not null | — | check > 0 · 주문 당시 구매 KEY 수량 스냅샷 | 서버 | 불변 |
+| provider | text | not null | 'toss' | check in ('toss') | 서버 | 불변 |
+| provider_order_id | text | not null | — | **unique** (동일 결제의 다른 주문 귀속 방지) | 서버 생성 | 불변 |
+| provider_payment_key | text | null | — | unique where not null | Toss 승인 응답에서 서버 기록 | paid 전이 시 1회 |
+| status | text | not null | 'pending' | check in ('pending','paid','charged','failed','refunded') | 서버 | 아래 전이표만 |
+| request_id | uuid | not null | gen_random_uuid() | unique · key_charge_revenue 멱등 키 | 서버 생성(생성 시 확정) | 불변 |
+| charge_tx_id | uuid | null | — | FK key_ledger(id) | key_charge_revenue 성공 후 서버 | charged 전이 시 1회 |
+| fail_reason | text | null | — | — | 서버 | failed 전이 시 |
+| created_at | timestamptz | not null | now() | — | DB | 불변 |
+| paid_at | timestamptz | null | — | — | 서버 | paid 전이 시 |
+| charged_at | timestamptz | null | — | — | 서버 | charged 전이 시 |
+
+- RLS: 본인 행 SELECT 만(authenticated). INSERT/UPDATE 는 service_role(Edge) 전용. 클라이언트 쓰기 0.
+- 상태 전이(서버만): pending → paid (Toss 승인 서버 확인) → charged (key_charge_revenue ok) · pending → failed · paid → failed(charge 실패, 재처리 대상) · charged → refunded(별도 PHASE, 자동 없음).
+- 재처리: paid 인데 charged 가 아닌 주문은 같은 request_id 로 key_charge_revenue 재호출 → DB replay/cause_uniq 가 이중 충전 차단. 새 request_id 발급 금지.
+- 미확정: 취소·환불 추적 컬럼, 보존 기간, 패키지 가격표(package_code 별 amount_krw/key_amount 원천), Toss 웹훅 vs 승인 API 중 어느 경로를 정본으로 할지.
+- 검토 기준(주문자 식별·가격 스냅샷·결제/반영 상태 분리·중복 귀속 방지·재처리·환불 추적)은 위 표에 대응시켰으나 **실제 구현·검증된 것이 아니다**.
