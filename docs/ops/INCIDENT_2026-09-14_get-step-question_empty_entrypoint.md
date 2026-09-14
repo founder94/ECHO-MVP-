@@ -56,3 +56,10 @@ Claude 가 Supabase 에 직접 접속해 확인한 사실(Edge 비밀값 자체�
 - 배포: get-step-question **v13** (2026-09-14T05:19 UTC, ezbr f9d84210…). get_edge_function 재조회로 배포본에 resolveModel + `const model = resolveModel(...)` 반영 확인. verify_jwt=true 유지. DB/RLS/RPC/결제/KEY/Netlify 변경 없음. 키 미변경.
 - 한계(정직): Claude 는 인증된 사용자 요청을 스스로 만들 수 없어(JWT secret·pg_net 없음) **엔드투엔드 실행 확인은 대표 저장 1회 필요**. 배포 자체(코드에 gpt-4o-mini 반영)는 확인됨.
 - 권장: 대표가 콘솔 Secrets 에서 OPENAI_MODEL 을 `gpt-4o-mini` 로 바로잡으면 코드 보정과 무관하게 깔끔(선택).
+
+## 2026-09-14 실행 증거 최종 보고 (읽기 전용 · GPT 지시 "실행 증거 1건 확보")
+① 로그 조회: 가능. 조회 범위 = 2026-09-14T02:54:29Z(v12 배포) ~ 06:30:00Z. 소스 function_edge_logs(OPTIONS/POST 구분)·function_logs([gsq]).
+② v12 POST 존재: 있음 — 03:55:35 / 04:15:54 / 04:16:02 / 04:16:13 UTC(KST 12:55 / 13:15 / 13:16 / 13:16). v11 의 02:45 요청은 v12 로 쓰지 않음. v13(05:19:49Z 배포) 이후 요청: 0건(05:19~06:30 조회).
+③ 동일 요청 실제 기록(첫 건, 실행 ID 없음 → 시각 연속성으로만 연결): OPTIONS 200 03:55:31.200Z → [gsq] openai_http status=404 code=model_not_found model=gpt-40-mini 03:55:35.154Z → POST 200 exec 3858ms 03:55:35.170Z. 응답 본문 ok/code 는 로그에 기록되지 않으나 코드 경로상 OPENAI_HTTP → AI_ERROR(HTTP 200). 다른 세 건도 동일 [gsq] 문자열.
+④ 원인: **확정** — OPENAI_MODEL 시크릿 값 gpt-40-mini(존재하지 않는 모델) → OpenAI 404.
+⑤ 최소 조치 1가지: 시크릿 OPENAI_MODEL 을 gpt-4o-mini 로 수정(콘솔, 재배포 불필요). ※ 지시 도착 전 대표 직접 지시로 v13(코드 보정) 이미 배포됨 — 되돌리지 않음. v13 실행 증거는 아직 0건(대표 저장 1회 필요).
