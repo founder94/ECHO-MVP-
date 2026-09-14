@@ -39,3 +39,13 @@ Claude 가 Supabase 에 직접 접속해 확인한 사실(Edge 비밀값 자체�
 - **지연 4.9s 해석:** 잘못된 키면 OpenAI 가 401 을 ~0.3s 에 돌려줌(빠름). 4.9s 는 OpenAI 호출이 실제로 여러 번(생성 3회 재시도) 실행됐다는 뜻 → genSingleQuestion 이 3회 반복. 이는 **호출은 성공하지만 결과가 검증(비어 있음/길이/금지어)에서 3회 탈락 → NO_CANDIDATE** 패턴에 부합. 특히 "빈 content" 는 reasoning 계열 모델(o1/o3/gpt-5 reasoning 등)이 chat.completions 에서 visible content 를 안 주거나, temperature/top_p/response_format 파라미터와 안 맞을 때 발생.
 - **결론(Supabase 측):** 설정 누락·DB·네트워크 문제 아님. **OPENAI_MODEL 값이 현재 코드의 호출 방식과 맞지 않는 모델일 가능성이 가장 높다**(존재하지 않는 이름 또는 이 방식 미지원 모델). 확정은 (a) v12 진단 로그 1줄 또는 (b) GPT 의 OpenAI 측 검증으로.
 - Claude 자체 OpenAI API 시험은 지시(#5)대로 하지 않음. 키 값 미출력·미변경.
+
+## 2026-09-14 실행 증거 확보 — 원인 확정 (읽기 전용 로그 조회)
+- 조회 가능: 예. 범위 = v12 배포(2026-09-14T02:54:29Z) ~ 2026-09-14T05:07:00Z.
+- v12 POST 존재: 예(다수). 03:55:35 / 04:15:54 / 04:16:02 / 04:16:13 UTC.
+- 동일 요청 실제 기록(예, 첫 건 03:55 UTC):
+  - OPTIONS 200 (03:55:31.200Z) → 함수 로그 `[gsq] openai_http status=404 code=model_not_found model=gpt-40-mini` (03:55:35.154Z) → POST 200 exec 3858ms (03:55:35.170Z).
+  - Edge HTTP 200 이지만 본문은 ok:false code=AI_ERROR(OPENAI_HTTP → catch → AI_ERROR). "200=성공" 아님.
+- **원인 확정:** OPENAI_MODEL = `gpt-40-mini` (오타, 숫자 40). OpenAI 404 model_not_found. 올바른 값 `gpt-4o-mini`(알파벳 o).
+- 정정: 이전 문서의 "4.9s→3회 호출/빈 content/NO_CANDIDATE" 추정은 실제 로그로 **반증됨**. 실제는 단일 404(HTTP 오류 경로, 재시도 없음). 추정을 확정 근거로 쓰지 않음.
+- 최소 조치(1): Edge Secrets 의 OPENAI_MODEL 을 `gpt-4o-mini` 로 수정(즉시 반영, 재배포·코드 변경 불필요). 키 미변경. v13 미생성.
