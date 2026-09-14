@@ -24,3 +24,8 @@
 - v11: `OPTIONS | 200 | 2.3 s` → `POST | 200 | 4.9 s` (02:45:05). **서버는 응답함.** 대표 스크린샷(11:45, 저장 중)은 이 7초 안에 찍힌 것으로 추정.
 - 그러나 DB 에 conversations/emotions/messages 신규 행 0 (프로젝트 전체 conversations 0건 = 운영에서 start 가 성공한 적 없음) → 200 본문은 `ok:false` 실패 코드. 후보: AI_NOT_CONFIGURED(비밀값 없음) / AI_ERROR(키·모델 오류) / NO_CANDIDATE(생성 실패). 처리 4.9 s 는 OpenAI 호출이 실제로 시도된 쪽(AI_ERROR·NO_CANDIDATE)에 가깝다.
 - Claude 는 Edge 비밀값(OPENAI_API_KEY·OPENAI_MODEL)을 읽을 수 없음 → 대표가 화면 오류 문구 + Supabase Secrets 존재 여부 확인.
+
+## 2026-09-14 후속
+- v12(진단 로그 4줄) 배포 후 대표 재시도 **0건**(04:30 UTC 까지 함수 로그 없음) → 실패 코드 미확정. 재시도 대기.
+- v11 실제 응답 판정: POST 200(4.9s) 이지만 conversations 0건 → 응답 본문 ok:false. "OPTIONS/부팅/200" 만으로 성공 처리하지 않음.
+- 재발 방지: `docs/ops/edge-check/edge-predeploy-check.sh` (진입 파일 존재·내용·.txt 전용 차단·핸들러·모듈 지정자·슬러그·ref·verify_jwt·원본 SHA-256) + 픽스처 5/5. 현재 레포 index.ts 검사 OK. 이 검사 때문에 재배포하지 않음.
