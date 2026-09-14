@@ -346,23 +346,44 @@ async function callOpenAI(ai: Ai, messages: ChatMsg[], jsonMode: boolean): Promi
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), OPENAI_TIMEOUT_MS);
   try {
-    const res = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ai.apiKey}` },
-      body: JSON.stringify({
-        model: ai.model,
-        temperature: TEMPERATURE,
-        top_p: TOP_P,
-        max_tokens: CONVERSATION_MAX_TOKENS,
-        messages,
-        ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) throw new Error("OPENAI_HTTP");
+    let res: Response;
+    try {
+      res = await fetch(OPENAI_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ai.apiKey}` },
+        body: JSON.stringify({
+          model: ai.model,
+          temperature: TEMPERATURE,
+          top_p: TOP_P,
+          max_tokens: CONVERSATION_MAX_TOKENS,
+          messages,
+          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      // 진단 로그(운영 원인 추적용): 오류 종류만. 키·원문 없음.
+      console.error(`[gsq] openai_fetch_error name=${(err as Error)?.name ?? "?"} model=${ai.model}`);
+      throw err;
+    }
+    if (!res.ok) {
+      let code = "";
+      try {
+        const j = await res.json();
+        code = String(j?.error?.code ?? j?.error?.type ?? "");
+      } catch {
+        /* 본문 없음 */
+      }
+      // 진단 로그: HTTP 상태·오류 코드·모델명만. 키·원문 없음.
+      console.error(`[gsq] openai_http status=${res.status} code=${code} model=${ai.model}`);
+      throw new Error("OPENAI_HTTP");
+    }
     const data = await res.json();
     const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
-    if (!text) throw new Error("OPENAI_EMPTY");
+    if (!text) {
+      console.error(`[gsq] openai_empty finish=${String(data?.choices?.[0]?.finish_reason ?? "")} model=${ai.model}`);
+      throw new Error("OPENAI_EMPTY");
+    }
     return text;
   } finally {
     clearTimeout(timer);
@@ -403,6 +424,8 @@ async function genSingleQuestion(ai: Ai, instruction: string, userContent: strin
     const raw = await callOpenAI(ai, [{ role: "system", content: `${PERSONA} ${instruction} 질문 텍스트만 출력하고 부가 설명은 붙이지 마라.` }, { role: "user", content: userContent }], false);
     const v = validateSingleQuestion(raw);
     if (v.ok) return v.text;
+    // 진단 로그: 검증 실패 사유·길이만. 원문 없음.
+    console.error(`[gsq] validate_fail reason=${v.error} len=${raw.length} attempt=${attempt + 1}`);
   }
   throw new Error("NO_CANDIDATE");
 }
