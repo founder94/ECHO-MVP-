@@ -1,0 +1,97 @@
+--- /tmp/ks_r2.sql	2026-09-13 06:18:12.903480686 +0000
++++ /tmp/ks_p2.sql	2026-09-13 06:18:12.695480687 +0000
+@@ -8,23 +8,29 @@
+   v_uid              uuid := auth.uid();
+   v_payload_hash     text;
+   v_evt              public.key_request_events%rowtype;
+-  v_policy           jsonb;
++  v_policy           public.key_feature_policies%rowtype;
+   v_reward_allowed   boolean;
+   v_revenue_only     boolean;
+   v_payment_required boolean;
+   v_server_cost      integer;
++  v_policy_version   text;
+   v_reward_bal       integer;
+   v_revenue_bal      integer;
+   v_from_reward      integer;
+   v_from_revenue     integer;
+   v_result           jsonb;
+ begin
++  -- (1) 인증
+   if v_uid is null then raise exception 'UNAUTHORIZED' using errcode = '42501'; end if;
++  -- (2) 입력 검증
+   if p_request_id is null then raise exception 'INVALID_REQUEST_ID' using errcode = '22023'; end if;
+   if p_amount is null or p_amount <= 0 then raise exception 'INVALID_AMOUNT' using errcode = '22023'; end if;
+   if p_feature is null or btrim(p_feature) = '' then raise exception 'INVALID_FEATURE' using errcode = '22023'; end if;
++  -- (3) command-level advisory lock
+   perform pg_advisory_xact_lock(hashtext(v_uid::text), hashtext(p_request_id::text));
++  -- (4) 서버 결정 payload hash (P1 r2 와 동일 — replay 호환)
+   v_payload_hash := encode(extensions.digest(jsonb_build_object('action','key_spend','amount',p_amount,'feature',p_feature)::text, 'sha256'), 'hex');
++  -- (5) idempotency + 응답 무결성
+   select * into v_evt from public.key_request_events where user_id = v_uid and request_id = p_request_id;
+   if found then
+     if v_evt.action is distinct from 'key_spend' then raise exception 'REQUEST_CONFLICT' using errcode = '40900'; end if;
+@@ -38,20 +44,29 @@
+     insert into public.key_request_events (user_id, request_id, action, payload_hash, status)
+       values (v_uid, p_request_id, 'key_spend', v_payload_hash, 'pending') returning * into v_evt;
+   end if;
+-  v_policy := null;
+-  if v_policy is null then raise exception 'FEATURE_POLICY_MISSING' using errcode = 'P0001'; end if;
+-  v_reward_allowed   := coalesce((v_policy->>'reward_allowed')::boolean, false);
+-  v_revenue_only     := coalesce((v_policy->>'revenue_only')::boolean, false);
+-  v_payment_required := coalesce((v_policy->>'payment_required')::boolean, false);
+-  v_server_cost := coalesce((v_policy->>'cost')::integer, 0);
+-  if v_server_cost <= 0 then raise exception 'FEATURE_POLICY_MISSING' using errcode = 'P0001'; end if;
++
++  -- (6) feature 정책 — 서버 저장소 조회 (P2). 프론트 값 신뢰 금지.
++  select * into v_policy from public.key_feature_policies p where p.feature = p_feature;
++  if not found then raise exception 'FEATURE_POLICY_MISSING' using errcode = 'P0001'; end if;
++  if not v_policy.enabled then raise exception 'FEATURE_DISABLED' using errcode = 'P0001'; end if;
++
++  v_reward_allowed   := v_policy.reward_allowed;
++  v_revenue_only     := v_policy.revenue_only;
++  v_payment_required := v_policy.payment_required;
++  v_server_cost      := v_policy.cost;
++  v_policy_version   := v_policy.policy_version;
++  if v_server_cost is null or v_server_cost <= 0 then raise exception 'FEATURE_POLICY_MISSING' using errcode = 'P0001'; end if;
+   if v_server_cost <> p_amount then raise exception 'COST_MISMATCH' using errcode = 'P0001'; end if;
+   if v_payment_required then raise exception 'PAYMENT_REQUIRED' using errcode = 'P0001'; end if;
++
++  -- (7) 잔액 행 확보 + 캐시 손상 감지 + FOR UPDATE (P1 r2 동일)
+   if not exists (select 1 from public.key_balances where user_id = v_uid) then
+     if exists (select 1 from public.key_ledger where user_id = v_uid) then raise exception 'BALANCE_CACHE_CORRUPTED' using errcode = 'P0001'; end if;
+     insert into public.key_balances (user_id) values (v_uid) on conflict (user_id) do nothing;
+   end if;
+   select reward_key, revenue_key into v_reward_bal, v_revenue_bal from public.key_balances where user_id = v_uid for update;
++
++  -- (8) 차감 분기 (P1 r2 동일)
+   if v_revenue_only or not v_reward_allowed then
+     if v_revenue_bal < p_amount then raise exception 'INSUFFICIENT_REVENUE' using errcode = 'P0001'; end if;
+     v_from_reward := 0; v_from_revenue := p_amount;
+@@ -59,14 +74,23 @@
+     if (v_reward_bal::bigint + v_revenue_bal::bigint) < p_amount then raise exception 'INSUFFICIENT' using errcode = 'P0001'; end if;
+     v_from_reward := least(v_reward_bal, p_amount); v_from_revenue := p_amount - v_from_reward;
+   end if;
++
++  -- (9) 원장 append — policy_version 기록 (P2 추가)
+   if v_from_reward > 0 then
+-    insert into public.key_ledger (user_id, request_id, type, bucket, amount, source, reason) values (v_uid, p_request_id, 'spend', 'reward', -v_from_reward, p_feature, 'spend');
++    insert into public.key_ledger (user_id, request_id, type, bucket, amount, source, policy_version, reason)
++      values (v_uid, p_request_id, 'spend', 'reward', -v_from_reward, p_feature, v_policy_version, 'spend');
+   end if;
+   if v_from_revenue > 0 then
+-    insert into public.key_ledger (user_id, request_id, type, bucket, amount, source, reason) values (v_uid, p_request_id, 'spend', 'revenue', -v_from_revenue, p_feature, 'spend');
++    insert into public.key_ledger (user_id, request_id, type, bucket, amount, source, policy_version, reason)
++      values (v_uid, p_request_id, 'spend', 'revenue', -v_from_revenue, p_feature, v_policy_version, 'spend');
+   end if;
++
++  -- (10) 잔액 갱신 (원자)
+   update public.key_balances set reward_key = reward_key - v_from_reward, revenue_key = revenue_key - v_from_revenue, updated_at = now() where user_id = v_uid;
+-  v_result := jsonb_build_object('ok', true, 'requestId', p_request_id, 'spent', jsonb_build_object('reward', v_from_reward, 'revenue', v_from_revenue),
++
++  -- (11) 응답 + result_json 저장 (policyVersion 추가, 그 외 P1 r2 동일 형태)
++  v_result := jsonb_build_object('ok', true, 'requestId', p_request_id, 'policyVersion', v_policy_version,
++    'spent', jsonb_build_object('reward', v_from_reward, 'revenue', v_from_revenue),
+     'balance', jsonb_build_object('reward', v_reward_bal - v_from_reward, 'revenue', v_revenue_bal - v_from_revenue));
+   update public.key_request_events set status = 'applied', result_json = v_result, applied_at = now() where id = v_evt.id;
+   return v_result;
