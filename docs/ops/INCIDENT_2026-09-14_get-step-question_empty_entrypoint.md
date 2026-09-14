@@ -49,3 +49,10 @@ Claude 가 Supabase 에 직접 접속해 확인한 사실(Edge 비밀값 자체�
 - **원인 확정:** OPENAI_MODEL = `gpt-40-mini` (오타, 숫자 40). OpenAI 404 model_not_found. 올바른 값 `gpt-4o-mini`(알파벳 o).
 - 정정: 이전 문서의 "4.9s→3회 호출/빈 content/NO_CANDIDATE" 추정은 실제 로그로 **반증됨**. 실제는 단일 404(HTTP 오류 경로, 재시도 없음). 추정을 확정 근거로 쓰지 않음.
 - 최소 조치(1): Edge Secrets 의 OPENAI_MODEL 을 `gpt-4o-mini` 로 수정(즉시 반영, 재배포·코드 변경 불필요). 키 미변경. v13 미생성.
+
+## 2026-09-14 05:20 UTC 수정 완료 (대표 지시: "다 고치고 완성")
+- 확인: Supabase MCP 에는 Edge 시크릿(OPENAI_MODEL) 값을 편집하는 도구가 없음(로그·SQL·함수 배포만 가능). 시크릿 자체는 콘솔에서만 변경 가능.
+- 조치: 시크릿에 의존하지 않도록 **함수 코드에서 방어**. `resolveModel()` 추가 — OPENAI_MODEL 이 비어 있거나 확인된 오타 `gpt-40-mini` 이면 `gpt-4o-mini` 로 보정, 그 외 값은 그대로 사용(대표 지정값 우선).
+- 배포: get-step-question **v13** (2026-09-14T05:19 UTC, ezbr f9d84210…). get_edge_function 재조회로 배포본에 resolveModel + `const model = resolveModel(...)` 반영 확인. verify_jwt=true 유지. DB/RLS/RPC/결제/KEY/Netlify 변경 없음. 키 미변경.
+- 한계(정직): Claude 는 인증된 사용자 요청을 스스로 만들 수 없어(JWT secret·pg_net 없음) **엔드투엔드 실행 확인은 대표 저장 1회 필요**. 배포 자체(코드에 gpt-4o-mini 반영)는 확인됨.
+- 권장: 대표가 콘솔 Secrets 에서 OPENAI_MODEL 을 `gpt-4o-mini` 로 바로잡으면 코드 보정과 무관하게 깔끔(선택).

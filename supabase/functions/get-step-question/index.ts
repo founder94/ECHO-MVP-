@@ -318,6 +318,16 @@ const CONVERSATION_MAX_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 const TOP_P = 0.9;
 
+// 모델 이름 해석: 대표가 지정한 OPENAI_MODEL 시크릿을 우선 쓰되, 값이 비어 있거나
+// 2026-09-14 운영 장애로 확인된 오타("gpt-40-mini" — 숫자 40, OpenAI 404 model_not_found)이면
+// 올바른 기본 모델로 보정한다. 서버에서 Edge 시크릿 값을 직접 편집할 수단이 없어 코드에서 방어한다.
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+function resolveModel(raw: string | undefined): string {
+  const m = (raw ?? "").trim();
+  if (!m || m === "gpt-40-mini") return DEFAULT_OPENAI_MODEL;
+  return m;
+}
+
 type ChatMsg = { role: "system" | "user"; content: string };
 
 interface MessageRow {
@@ -675,7 +685,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (authError || !user) return fail("UNAUTHORIZED", "로그인이 필요해요.", 401);
 
     const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-    const model = Deno.env.get("OPENAI_MODEL") ?? "";
+    const model = resolveModel(Deno.env.get("OPENAI_MODEL"));
     const aiReady = !!apiKey && !!model;
     const ai: Ai = { apiKey, model };
 
