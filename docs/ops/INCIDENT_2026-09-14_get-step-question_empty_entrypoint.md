@@ -18,3 +18,9 @@
 ## 미확인 / 대표 확인 필요
 - 실제 start 요청 성공(OPENAI_API_KEY·OPENAI_MODEL 비밀값 존재 여부는 Claude 가 읽을 수 없음). 대표가 do-it.company 에서 마음 날씨 저장 1회 재시도 → Claude 가 로그로 응답 코드 확인.
 - 래디·Netlify·DB 변경 없음. 결제 비활성 ZIP 0fce51a0… 무관.
+
+## 재배포 후 첫 실기기 시도 (2026-09-14 02:45 UTC · KST 11:45 · iPhone Safari)
+- v10 시절 마지막 요청: `OPTIONS | 546 | 150,073 ms` (18:19:35 UTC) → 진입 파일 비어 150초 후 게이트웨이 타임아웃. 원인 재확인.
+- v11: `OPTIONS | 200 | 2.3 s` → `POST | 200 | 4.9 s` (02:45:05). **서버는 응답함.** 대표 스크린샷(11:45, 저장 중)은 이 7초 안에 찍힌 것으로 추정.
+- 그러나 DB 에 conversations/emotions/messages 신규 행 0 (프로젝트 전체 conversations 0건 = 운영에서 start 가 성공한 적 없음) → 200 본문은 `ok:false` 실패 코드. 후보: AI_NOT_CONFIGURED(비밀값 없음) / AI_ERROR(키·모델 오류) / NO_CANDIDATE(생성 실패). 처리 4.9 s 는 OpenAI 호출이 실제로 시도된 쪽(AI_ERROR·NO_CANDIDATE)에 가깝다.
+- Claude 는 Edge 비밀값(OPENAI_API_KEY·OPENAI_MODEL)을 읽을 수 없음 → 대표가 화면 오류 문구 + Supabase Secrets 존재 여부 확인.
