@@ -63,3 +63,9 @@ Claude 가 Supabase 에 직접 접속해 확인한 사실(Edge 비밀값 자체�
 ③ 동일 요청 실제 기록(첫 건, 실행 ID 없음 → 시각 연속성으로만 연결): OPTIONS 200 03:55:31.200Z → [gsq] openai_http status=404 code=model_not_found model=gpt-40-mini 03:55:35.154Z → POST 200 exec 3858ms 03:55:35.170Z. 응답 본문 ok/code 는 로그에 기록되지 않으나 코드 경로상 OPENAI_HTTP → AI_ERROR(HTTP 200). 다른 세 건도 동일 [gsq] 문자열.
 ④ 원인: **확정** — OPENAI_MODEL 시크릿 값 gpt-40-mini(존재하지 않는 모델) → OpenAI 404.
 ⑤ 최소 조치 1가지: 시크릿 OPENAI_MODEL 을 gpt-4o-mini 로 수정(콘솔, 재배포 불필요). ※ 지시 도착 전 대표 직접 지시로 v13(코드 보정) 이미 배포됨 — 되돌리지 않음. v13 실행 증거는 아직 0건(대표 저장 1회 필요).
+
+## 2026-09-14 05:27~05:29 UTC 해결 확인 (대표 실기기 · v13)
+- 대표 보고 "넘어감". 로그: OPTIONS 200 05:27:43 → **POST 200 4,474ms 05:27:47(start · OpenAI 성공)** → POST 200 276ms(resume) → 05:28:38 POST 1,898ms(answer) → 05:28:55 POST 1,248ms(answer). `[gsq]` 오류 로그 0건.
+- DB: conversations 1건 생성(05:27:47Z) → status **white_door_ready**, current_step 3, request_action choose. ai 메시지 3·user 메시지 3·emotions 1. 즉 마음 날씨 저장 → STEP 1 → STEP 2 → 이해 확인 "맞아요" → White Door 준비까지 무료 흐름 전 구간이 실제 완주됨.
+- 판정: **해결 확인**. 원인(OPENAI_MODEL 오타) → v13 코드 보정으로 해소. 시크릿 정정은 선택(권장).
+- 상태: 종결. 이번 회차 변경 0(문서만).
