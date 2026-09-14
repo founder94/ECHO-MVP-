@@ -63,3 +63,24 @@ describe('StartSaveController', () => {
     d.resolve({ ok: true, conversationId: 'c1' }); await vi.advanceTimersByTimeAsync(0); expect((await p1).kind).toBe('success');
   });
 });
+
+describe('StartSaveController · 통신 오류 vs 업무 오류 분리(현행 api.call 계약 그대로 통과)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  it('HTTP 401 → api.call 이 {ok:false, reason:"unauthorized"} 로 바꿔 줌 → failure·reason 보존·토큰 유지', async () => {
+    const c = new StartSaveController<R>({ start: async () => ({ ok: false, reason: 'unauthorized', error: '로그인이 필요해요.' }), newToken: () => 'tok-fixed-0001' });
+    const out = await c.submit('x'); expect(out.kind).toBe('failure'); if (out.kind === 'failure') expect(out.result.reason).toBe('unauthorized'); expect(c.requestToken).toBe('tok-fixed-0001');
+  });
+  it('HTTP 429 RATE_LIMITED → failure·reason rate_limited', async () => {
+    const c = new StartSaveController<R>({ start: async () => ({ ok: false, reason: 'rate_limited', error: '잠시 후 다시 시도해 주세요.' }), newToken: () => 'tok-fixed-0001' });
+    const out = await c.submit('x'); expect(out.kind).toBe('failure'); if (out.kind === 'failure') expect(out.result.reason).toBe('rate_limited');
+  });
+  it('HTTP 200 + ok:false(AI_ERROR) 는 성공으로 오판하지 않음', async () => {
+    const c = new StartSaveController<R>({ start: async () => ({ ok: false, reason: 'error', error: 'AI 응답을 받지 못했어요.' }), newToken: () => 'tok-fixed-0001' });
+    const out = await c.submit('x'); expect(out.kind).toBe('failure');
+  });
+  it('HTTP 200 + ok:true 이지만 conversationId 없음 → failure(이동 금지)', async () => {
+    const c = new StartSaveController<R>({ start: async () => ({ ok: true }), newToken: () => 'tok-fixed-0001' });
+    const out = await c.submit('x'); expect(out.kind).toBe('failure'); expect(c.requestToken).toBe('tok-fixed-0001');
+  });
+});
