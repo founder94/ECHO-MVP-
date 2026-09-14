@@ -30,3 +30,12 @@
 - v11 실제 응답 판정: POST 200(4.9s) 이지만 conversations 0건 → 응답 본문 ok:false. "OPTIONS/부팅/200" 만으로 성공 처리하지 않음.
 - 재발 방지: `docs/ops/edge-check/edge-predeploy-check.sh` (진입 파일 존재·내용·.txt 전용 차단·핸들러·모듈 지정자·슬러그·ref·verify_jwt·원본 SHA-256) + 픽스처 5/5. 현재 레포 index.ts 검사 OK. 이 검사 때문에 재배포하지 않음.
 - 03:31 UTC 재확인: v12 이후 함수 로그 0건 → 대표 재시도 아직 없음. 실제 오류 코드 확인이 최우선(재배포·키 변경 없이 대기).
+
+## 2026-09-14 Supabase 직접 진단 (Claude)
+Claude 가 Supabase 에 직접 접속해 확인한 사실(Edge 비밀값 자체는 SQL 로 볼 수 없음 — 아래는 그 외 전부):
+- vault.decrypted_secrets 에 OPENAI_* 없음(정상 — Edge secret 은 플랫폼 저장소, Postgres vault 아님). JWT secret·pg_net 접근 불가 → Claude 가 함수를 인증 요청으로 직접 호출할 수 없음(로그를 스스로 만들 수 없음).
+- conversations 0건 · auth.users 3명. 운영에서 start 성공 이력 0.
+- **오류 코드 분리(중요):** 화면 문구 "AI 응답을 받지 못했어요." = 서버 코드상 AI_ERROR 또는 NO_CANDIDATE. **AI_NOT_CONFIGURED 아님** → 서버 env 의 OPENAI_API_KEY·OPENAI_MODEL 은 **둘 다 비어 있지 않다**(값 존재 확정, 값 내용은 미확인).
+- **지연 4.9s 해석:** 잘못된 키면 OpenAI 가 401 을 ~0.3s 에 돌려줌(빠름). 4.9s 는 OpenAI 호출이 실제로 여러 번(생성 3회 재시도) 실행됐다는 뜻 → genSingleQuestion 이 3회 반복. 이는 **호출은 성공하지만 결과가 검증(비어 있음/길이/금지어)에서 3회 탈락 → NO_CANDIDATE** 패턴에 부합. 특히 "빈 content" 는 reasoning 계열 모델(o1/o3/gpt-5 reasoning 등)이 chat.completions 에서 visible content 를 안 주거나, temperature/top_p/response_format 파라미터와 안 맞을 때 발생.
+- **결론(Supabase 측):** 설정 누락·DB·네트워크 문제 아님. **OPENAI_MODEL 값이 현재 코드의 호출 방식과 맞지 않는 모델일 가능성이 가장 높다**(존재하지 않는 이름 또는 이 방식 미지원 모델). 확정은 (a) v12 진단 로그 1줄 또는 (b) GPT 의 OpenAI 측 검증으로.
+- Claude 자체 OpenAI API 시험은 지시(#5)대로 하지 않음. 키 값 미출력·미변경.
