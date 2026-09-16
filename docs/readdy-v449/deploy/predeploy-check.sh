@@ -54,7 +54,8 @@ for a in $(grep -o -E '(src|href)="/[^"]+"' "$OUT/index.html" | sed -E 's/.*="\/
 chk_zero "$(scan_js 'sourceMappingURL=data:')" "inline source map 없음"
 SECRET_RE='sb_secret_|service_role|sk_live|sk_test|test_sk_|live_sk_|postgres(ql)?://|OPENAI_API_KEY'
 chk_zero "$(scan_js "$SECRET_RE")" "번들 내 서버 secret 패턴 0"
-H=$(grep -o -E "[a-z]{20}\.supabase\.co" "$OUT"/assets/*.js | sort -u | tr '\n' ' '); [ "$H" = "$REF.supabase.co " ]; chk $? "번들 내 Supabase 호스트 = $REF 만 ($H)"
+# 2026-09-16 교정: 코드 분할 빌드(JS 여러 개)에서 grep 이 파일명을 접두로 붙여 오판하던 문제 → -h 로 파일명 생략
+H=$(grep -o -h -E "[a-z]{20}\.supabase\.co" "$OUT"/assets/*.js | sort -u | tr '\n' ' '); [ "$H" = "$REF.supabase.co " ]; chk $? "번들 내 Supabase 호스트 = $REF 만 ($H)"
 if [ "$GATE" = "review_pending" ]; then
   grep -q -F "결제 준비 중" "$OUT"/assets/*.js; chk $? "번들에 '결제 준비 중' 버튼 라벨 포함"
   grep -q -F "현재 결제 서비스를 준비하고 있어요" "$OUT"/assets/*.js; chk $? "번들에 결제 준비 중 안내 문구 포함 (게이트 상수는 번들러가 접어 문자열로 남지 않음)"

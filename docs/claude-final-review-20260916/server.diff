@@ -1,0 +1,147 @@
+--- a/supabase/functions/get-step-question/index.ts
++++ b/supabase/functions/get-step-question/index.ts
+@@ -231,7 +231,8 @@
+   for (const item of list) {
+     if (!item || typeof item !== "object") continue;
+     const o = item as Record<string, unknown>;
+-    const question = typeof o.question === "string" ? o.question.trim() : "";
++    // 후보 질문의 끝 장식(이모지·기호)은 서버가 잘라낸다(tidyQuestionText). 글자는 바꾸지 않는다.
++    const question = typeof o.question === "string" ? tidyQuestionText(o.question) : "";
+     if (!question || question.length > LIMITS.QUESTION_MAX) continue;
+     const meaning = typeof o.meaning === "string" ? o.meaning.trim().slice(0, LIMITS.MEANING_MAX) : "";
+     const anchor = typeof o.anchor === "string" ? o.anchor.trim().slice(0, LIMITS.MEANING_MAX) : "";
+@@ -259,8 +260,38 @@
+   ];
+   return groups.some((group) => group.candidate.some((word) => q.includes(word)) && !group.evidence.some((word) => e.includes(word)));
+ }
++// 2026-09-16 운영 로그 근거: [gsq] validate_fail reason=NOT_QUESTION·MULTIPLE_QUESTIONS 가 2회 연속(attempt=1,2) → NO_CANDIDATE 로
++// 사용자가 같은 화면에서 6회 연속 막힘(2026-09-16 08:09~08:10 UTC). 모델 출력의 끝 장식(이모지·기호·닫는 따옴표·마침표)과
++// 짧은 공감 되묻기("힘들었죠? …?")는 프롬프트가 아니라 서버 규칙으로 정리한다. 글자를 새로 만들지 않는다: 잘라내거나 물음표 하나를 마침표로 바꿀 뿐이다.
++const LEAD_ACK_MAX = 30;
++function tidyQuestionText(raw: string): string {
++  const text = raw.trim().replace(/^["'「『]+|["'」』]+$/g, "").trim();
++  if (text.endsWith("?")) return text;
++  const last = text.lastIndexOf("?");
++  if (last < 0) return text;
++  // 마지막 물음표 뒤에 글자·숫자가 없으면(이모지·기호·공백·닫는 따옴표만) 장식으로 보고 잘라낸다. 글자가 있으면 손대지 않는다.
++  if (/[\p{L}\p{N}]/u.test(text.slice(last + 1))) return text;
++  return text.slice(0, last + 1).trim();
++}
++function softenLeadingQuestion(text: string): string {
++  const marks = text.match(/\?/g)?.length ?? 0;
++  if (marks !== 2 || !text.endsWith("?")) return text;
++  const first = text.indexOf("?");
++  const head = text.slice(0, first);
++  // 앞의 짧은 공감 되묻기만 마침표로 바꾼다. 길면 진짜 두 질문일 수 있으므로 그대로 두어 MULTIPLE_QUESTIONS 로 거른다.
++  if (!head.trim() || head.length > LEAD_ACK_MAX || !/\p{L}/u.test(head)) return text;
++  return `${head.trimEnd()}.${text.slice(first + 1)}`;
++}
++// 진단용 형태 정보(원문 없음): 물음표 개수와 끝 모양만.
++function questionShape(raw: string): string {
++  const text = raw.trim();
++  const qmarks = text.match(/\?/g)?.length ?? 0;
++  const last = text.lastIndexOf("?");
++  const tail = last < 0 ? "none" : last === text.length - 1 ? "q" : /[\p{L}\p{N}]/u.test(text.slice(last + 1)) ? "text" : "deco";
++  return `qmarks=${qmarks} tail=${tail}`;
++}
+ function validateSingleQuestion(raw: string, maxLength: number = LIMITS.QUESTION_MAX, mustBeQuestion = true, evidence = ""): SingleResult {
+-  const text = raw.trim().replace(/^["'「]+|["'」]+$/g, "").trim();
++  const text = mustBeQuestion ? softenLeadingQuestion(tidyQuestionText(raw)) : raw.trim().replace(/^["'「]+|["'」]+$/g, "").trim();
+   if (!text) return { ok: false, error: "EMPTY" };
+   if (text.length > maxLength) return { ok: false, error: "TOO_LONG" };
+   if (containsForbiddenTerm(text)) return { ok: false, error: "FORBIDDEN" };
+@@ -548,9 +579,9 @@
+     const raw = await callOpenAI(ai, [{ role: "system", content: `${PERSONA} ${instruction} 친구처럼 바로 앞 말을 짧게 받아준 뒤, 아직 답하지 않은 새로운 정보를 부탁하는 열린 질문 하나를 써라. 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기와 예/아니오 확인 질문은 금지한다. 질문 피드백이 있으면 잘못을 짧게 인정하고 더 쉽고 다른 방향으로 묻되 그 피드백을 사용자 마음의 근거로 해석하지 마라. 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처를 만들지 마라. 전체 문장에는 물음표가 하나만 있어야 한다.` }, { role: "user", content: prompt }], false);
+     const v = validateSingleQuestion(raw, LIMITS.QUESTION_MAX, true, userContent);
+     if (v.ok && !asked.some((question) => looksSame(v.text, question, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP)) && !repeatsQuestionIntent(v.text, asked)) return v.text;
+-    // 진단 로그: 검증 실패 사유·길이만. 원문 없음.
++    // 진단 로그: 검증 실패 사유·길이·물음표 개수·끝 모양만. 원문 없음.
+     const reason = v.ok ? "REPEAT_OR_SAME_INTENT" : v.error;
+-    console.error(`[gsq] validate_fail reason=${reason} len=${raw.length} attempt=${attempt + 1}`);
++    console.error(`[gsq] validate_fail reason=${reason} len=${raw.length} ${questionShape(raw)} attempt=${attempt + 1}`);
+   }
+   throw new Error("NO_CANDIDATE");
+ }
+--- a/supabase/functions/echo-journey/index.ts
++++ b/supabase/functions/echo-journey/index.ts
+@@ -165,6 +165,15 @@
+   }
+   return out;
+ }
++// 2026-09-16: 후보 질문 끝의 장식(이모지·기호·닫는 따옴표)은 서버가 잘라낸다. 글자를 새로 만들지 않는다(get-step-question 과 같은 규칙).
++function tidyQuestionText(raw: string): string {
++  const text = raw.trim().replace(/^["'「『]+|["'」』]+$/g, "").trim();
++  if (text.endsWith("?")) return text;
++  const last = text.lastIndexOf("?");
++  if (last < 0) return text;
++  if (/[\p{L}\p{N}]/u.test(text.slice(last + 1))) return text;
++  return text.slice(0, last + 1).trim();
++}
+ function parseCandidates(raw: string): Candidate[] {
+   const parsed = extractJson(raw);
+   const list = Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" && Array.isArray((parsed as Json).candidates) ? ((parsed as Json).candidates as unknown[]) : null;
+@@ -173,7 +182,7 @@
+   for (const item of list) {
+     if (!item || typeof item !== "object") continue;
+     const o = item as Json;
+-    const question = typeof o.question === "string" ? o.question.trim() : "";
++    const question = typeof o.question === "string" ? tidyQuestionText(o.question) : "";
+     if (!question || question.length > LIMITS.QUESTION_MAX) continue;
+     const anchor = typeof o.anchor === "string" ? o.anchor.trim().slice(0, LIMITS.MEANING_MAX) : "";
+     const assumptions = Array.isArray(o.assumptions)
+@@ -245,16 +254,36 @@
+   const timeoutMs = maxTokens === REPORT_MAX_TOKENS ? REPORT_TIMEOUT_MS : QUESTION_TIMEOUT_MS;
+   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+   try {
+-    const res = await fetch(OPENAI_URL, {
+-      method: "POST",
+-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ai.apiKey}` },
+-      body: JSON.stringify({ model: ai.model, temperature: TEMPERATURE, top_p: TOP_P, max_tokens: maxTokens, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
+-      signal: ctrl.signal,
+-    });
+-    if (!res.ok) throw new Error("OPENAI_HTTP");
++    // 2026-09-16: 진단 로그를 get-step-question([gsq])과 같은 형식으로 남긴다([ej]). 오류 종류·HTTP 상태·모델명만. 키·원문 없음.
++    let res: Response;
++    try {
++      res = await fetch(OPENAI_URL, {
++        method: "POST",
++        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ai.apiKey}` },
++        body: JSON.stringify({ model: ai.model, temperature: TEMPERATURE, top_p: TOP_P, max_tokens: maxTokens, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(jsonMode ? { response_format: { type: "json_object" } } : {}) }),
++        signal: ctrl.signal,
++      });
++    } catch (err) {
++      console.error(`[ej] openai_fetch_error name=${(err as Error)?.name ?? "?"} model=${ai.model} timeout_ms=${timeoutMs}`);
++      throw err;
++    }
++    if (!res.ok) {
++      let code = "";
++      try {
++        const j = await res.json();
++        code = String(j?.error?.code ?? j?.error?.type ?? "");
++      } catch {
++        /* 본문 없음 */
++      }
++      console.error(`[ej] openai_http status=${res.status} code=${code} model=${ai.model}`);
++      throw new Error("OPENAI_HTTP");
++    }
+     const data = await res.json();
+     const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
+-    if (!text) throw new Error("OPENAI_EMPTY");
++    if (!text) {
++      console.error(`[ej] openai_empty finish=${String(data?.choices?.[0]?.finish_reason ?? "")} model=${ai.model}`);
++      throw new Error("OPENAI_EMPTY");
++    }
+     return text;
+   } finally {
+     clearTimeout(timer);
+@@ -369,7 +398,10 @@
+     const survivor = cands.find((c) => !blocked(c, block, evidenceParts, intentHistory, avoidAnchorReuse));
+     if (survivor) return renderCandidate(survivor, mode, feedbackKind);
+     blockedAll = blockedAll.concat(cands.map((c) => c.question));
++    // 진단 로그: 단계·모드·후보 수·차단 수만. 원문 없음.
++    console.error(`[ej] candidates_blocked step=${stepOf(status)} mode=${mode} parsed=${cands.length} attempt=${i + 1}`);
+   }
++  console.error(`[ej] no_candidate step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length}`);
+   throw new Error("NO_CANDIDATE");
+ }
+ async function genReport(ai: Ai, ctx: Ctx): Promise<Report> {

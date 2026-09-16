@@ -1,0 +1,1377 @@
+[
+  {
+    "width": 320,
+    "mobile": true,
+    "innerWidth": 320,
+    "docScrollWidth": 320,
+    "bodyScrollWidth": 320,
+    "rootMinHeight": "691px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 320,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      153,
+      296
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 722,
+    "card": {
+      "l": 23,
+      "r": 296,
+      "w": 272,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 45,
+        "r": 275,
+        "w": 230,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 45,
+        "r": 275,
+        "w": 230,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 45,
+        "r": 274,
+        "w": 230,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 274,
+        "w": 230,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 274,
+        "w": 229,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 274,
+        "w": 229,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 360,
+    "mobile": true,
+    "innerWidth": 360,
+    "docScrollWidth": 360,
+    "bodyScrollWidth": 360,
+    "rootMinHeight": "778px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 360,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      193,
+      336
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 809,
+    "card": {
+      "l": 23,
+      "r": 336,
+      "w": 313,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 44,
+        "r": 315,
+        "w": 270,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 44,
+        "r": 314,
+        "w": 270,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 45,
+        "r": 314,
+        "w": 270,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 314,
+        "w": 270,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 314,
+        "w": 269,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 314,
+        "w": 269,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 375,
+    "mobile": true,
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "rootMinHeight": "810px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 375,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      208,
+      351
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 841,
+    "card": {
+      "l": 23,
+      "r": 351,
+      "w": 328,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 44,
+        "r": 329,
+        "w": 285,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 44,
+        "r": 329,
+        "w": 285,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 45,
+        "r": 329,
+        "w": 285,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 329,
+        "w": 285,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 329,
+        "w": 284,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 329,
+        "w": 284,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 390,
+    "mobile": true,
+    "innerWidth": 390,
+    "docScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "rootMinHeight": "842px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 390,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      223,
+      366
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 873,
+    "card": {
+      "l": 23,
+      "r": 366,
+      "w": 343,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 44,
+        "r": 344,
+        "w": 300,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 44,
+        "r": 344,
+        "w": 300,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 45,
+        "r": 344,
+        "w": 300,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 344,
+        "w": 299,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 344,
+        "w": 299,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 344,
+        "w": 299,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 412,
+    "mobile": true,
+    "innerWidth": 412,
+    "docScrollWidth": 412,
+    "bodyScrollWidth": 412,
+    "rootMinHeight": "890px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 412,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      245,
+      388
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 921,
+    "card": {
+      "l": 23,
+      "r": 388,
+      "w": 365,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 44,
+        "r": 366,
+        "w": 322,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 44,
+        "r": 366,
+        "w": 322,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 44,
+        "r": 366,
+        "w": 322,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 366,
+        "w": 322,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 366,
+        "w": 321,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 366,
+        "w": 321,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 430,
+    "mobile": true,
+    "innerWidth": 430,
+    "docScrollWidth": 430,
+    "bodyScrollWidth": 430,
+    "rootMinHeight": "929px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 430,
+    "logoRect": [
+      24,
+      86
+    ],
+    "rightRect": [
+      263,
+      406
+    ],
+    "desktopNavDisplay": "none",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 960,
+    "card": {
+      "l": 23,
+      "r": 406,
+      "w": 383,
+      "t": 304
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 44,
+        "r": 384,
+        "w": 340,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 44,
+        "r": 384,
+        "w": 340,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 45,
+        "r": 384,
+        "w": 340,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 45,
+        "r": 384,
+        "w": 339,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 45,
+        "r": 384,
+        "w": 339,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 45,
+        "r": 384,
+        "w": 339,
+        "overflow": false
+      }
+    ],
+    "gridCols": 1,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 64,
+    "anchorHeadingTop": 63,
+    "anchorNavBottom": 64,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 768,
+    "mobile": false,
+    "innerWidth": 768,
+    "docScrollWidth": 768,
+    "bodyScrollWidth": 768,
+    "rootMinHeight": "1024px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 768,
+    "logoRect": [
+      40,
+      102
+    ],
+    "rightRect": [
+      573,
+      728
+    ],
+    "desktopNavDisplay": "flex",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 1065,
+    "card": {
+      "l": 150,
+      "r": 617,
+      "w": 467,
+      "t": 349
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 176,
+        "r": 379,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 387,
+        "r": 591,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 176,
+        "r": 379,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 387,
+        "r": 591,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 176,
+        "r": 379,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 387,
+        "r": 591,
+        "w": 204,
+        "overflow": false
+      }
+    ],
+    "gridCols": 2,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 80,
+    "anchorHeadingTop": 79,
+    "anchorNavBottom": 80,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 1024,
+    "mobile": false,
+    "innerWidth": 1024,
+    "docScrollWidth": 1024,
+    "bodyScrollWidth": 1024,
+    "rootMinHeight": "1024px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 1024,
+    "logoRect": [
+      64,
+      126
+    ],
+    "rightRect": [
+      805,
+      960
+    ],
+    "desktopNavDisplay": "flex",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 1065,
+    "card": {
+      "l": 278,
+      "r": 745,
+      "w": 467,
+      "t": 350
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 304,
+        "r": 507,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 515,
+        "r": 719,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 304,
+        "r": 507,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 515,
+        "r": 719,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 304,
+        "r": 507,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 515,
+        "r": 720,
+        "w": 204,
+        "overflow": false
+      }
+    ],
+    "gridCols": 2,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 80,
+    "anchorHeadingTop": 79,
+    "anchorNavBottom": 80,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 1280,
+    "mobile": false,
+    "innerWidth": 1280,
+    "docScrollWidth": 1280,
+    "bodyScrollWidth": 1280,
+    "rootMinHeight": "900px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 1280,
+    "logoRect": [
+      64,
+      126
+    ],
+    "rightRect": [
+      1061,
+      1216
+    ],
+    "desktopNavDisplay": "flex",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 941,
+    "card": {
+      "l": 407,
+      "r": 873,
+      "w": 467,
+      "t": 350
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 432,
+        "r": 636,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 644,
+        "r": 847,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 432,
+        "r": 636,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 644,
+        "r": 847,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 432,
+        "r": 636,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 644,
+        "r": 848,
+        "w": 204,
+        "overflow": false
+      }
+    ],
+    "gridCols": 2,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 80,
+    "anchorHeadingTop": 79,
+    "anchorNavBottom": 80,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 1440,
+    "mobile": false,
+    "innerWidth": 1440,
+    "docScrollWidth": 1440,
+    "bodyScrollWidth": 1440,
+    "rootMinHeight": "900px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 1440,
+    "logoRect": [
+      64,
+      126
+    ],
+    "rightRect": [
+      1221,
+      1376
+    ],
+    "desktopNavDisplay": "flex",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 941,
+    "card": {
+      "l": 487,
+      "r": 953,
+      "w": 467,
+      "t": 350
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 512,
+        "r": 716,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 724,
+        "r": 927,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 512,
+        "r": 716,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 724,
+        "r": 927,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 512,
+        "r": 716,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 724,
+        "r": 928,
+        "w": 204,
+        "overflow": false
+      }
+    ],
+    "gridCols": 2,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 80,
+    "anchorHeadingTop": 79,
+    "anchorNavBottom": 80,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  },
+  {
+    "width": 1920,
+    "mobile": false,
+    "innerWidth": 1920,
+    "docScrollWidth": 1920,
+    "bodyScrollWidth": 1920,
+    "rootMinHeight": "900px",
+    "navBgTop": "rgba(0, 0, 0, 0)",
+    "navRight": 1920,
+    "logoRect": [
+      64,
+      126
+    ],
+    "rightRect": [
+      1701,
+      1856
+    ],
+    "desktopNavDisplay": "flex",
+    "filteredInBg": 0,
+    "backdropInBg": 0,
+    "bgLayers": [
+      {
+        "z": "0",
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "1",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[1] pointer-events-none overflow-hidden"
+      },
+      {
+        "z": "2",
+        "pe": "none",
+        "cls": "fixed inset-0 z-[2] pointer-events-none opacity-[0.035]"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "fixed inset-0 z-[60] md:hidden bg-background-50/95 backdrop-"
+      },
+      {
+        "z": "60",
+        "pe": "auto",
+        "cls": "hidden md:block fixed inset-0 z-[60] bg-background-50/95 bac"
+      }
+    ],
+    "scrollY": 941,
+    "card": {
+      "l": 727,
+      "r": 1193,
+      "w": 467,
+      "t": 350
+    },
+    "cardMaxWidthParent": "512px",
+    "cardTransform": "none",
+    "cardZ": "10",
+    "btns": [
+      {
+        "t": "개운해요",
+        "l": 753,
+        "r": 956,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "차분해요",
+        "l": 964,
+        "r": 1167,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "조금 가라앉아요",
+        "l": 752,
+        "r": 956,
+        "w": 203,
+        "overflow": false
+      },
+      {
+        "t": "답답해요",
+        "l": 964,
+        "r": 1167,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "아직 잘 모르겠어요",
+        "l": 752,
+        "r": 956,
+        "w": 204,
+        "overflow": false
+      },
+      {
+        "t": "직접 말할게요",
+        "l": 964,
+        "r": 1168,
+        "w": 204,
+        "overflow": false
+      }
+    ],
+    "gridCols": 2,
+    "navBgScrolled": "oklch(0 0 0 / 0.75)",
+    "navHeight": 80,
+    "anchorHeadingTop": 79,
+    "anchorNavBottom": 80,
+    "checks": {
+      "horizontalScroll": true,
+      "cardInside": true,
+      "buttonsInside": true,
+      "headerNoOverlap": true,
+      "desktopNavHiddenOnMobile": true,
+      "noFilterInBgLayers": true,
+      "navHasBgWhenScrolled": true,
+      "navTransparentAtTop": true,
+      "cardNoTransform": true,
+      "anchorClearsHeader": true
+    },
+    "pass": true
+  }
+]

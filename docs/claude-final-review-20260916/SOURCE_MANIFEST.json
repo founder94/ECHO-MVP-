@@ -1,0 +1,135 @@
+{
+  "release": "ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916",
+  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310 일치)",
+  "deployed_reference": {
+    "get-step-question": "v19 (local==deployed)",
+    "echo-journey": "v10 (local==deployed)",
+    "echo-payment": "v2 (local==deployed, 끝 줄바꿈 1자 차이)",
+    "admin-dashboard": "v1",
+    "admin-conversations": "v2"
+  },
+  "groups": {
+    "server": [
+      {
+        "path": "supabase/functions/get-step-question/index.ts",
+        "status": "modified",
+        "before_sha256": "bdd8dfb3b3f1abb2513c945fcf7e5c35855278994c517da6476991f8a6595df9",
+        "after_sha256": "56ece8f371a004ac637e0b96b910c728b3dff7c452ce8d58ebb22a025bdfc02f",
+        "after_bytes": 56965
+      },
+      {
+        "path": "supabase/functions/echo-journey/index.ts",
+        "status": "modified",
+        "before_sha256": "b3b4db7cce6098d983bd8a812bd3d89c92a02aaea535f42e793fc69efd82f081",
+        "after_sha256": "ec40d0468e66bb6c6e44417805d62dbc436279543d42f04ad6d639a39ea66708",
+        "after_bytes": 44506
+      }
+    ],
+    "frontend_payment_routing": [
+      {
+        "path": "src/pages/do-it/payment/page.tsx",
+        "status": "modified",
+        "before_sha256": "9b63c983d36247923a4b5e0967d33e5704624b576fedb531c49c7d081ff6684e",
+        "after_sha256": "2630af6e2b1fd8d9bb75585b7d6d20d153c7d9fbad79d6d3fe88da74a069650a",
+        "after_bytes": 6629
+      },
+      {
+        "path": "src/pages/do-it/payment/success/page.tsx",
+        "status": "modified",
+        "before_sha256": "0af9261c93b1e081fdae2880d772013241c59466cb8eae7264143f1a9af418bb",
+        "after_sha256": "1e9caa2b5f7f94c65c935a8d6c58b1cf2542b3b7207d6f18edcb2d8a9049e1b4",
+        "after_bytes": 4734
+      }
+    ],
+    "qa": [
+      {
+        "path": "qa/step7-contract.test.mjs",
+        "status": "modified",
+        "before_sha256": "814dbe64919fd4362ba174477d0939690f842cd776b6b704188886dd233cc0d9",
+        "after_sha256": "d6d1cb9da55f82c8701ef6b796ce8f79e7c2595012e4214952697dd861c26314",
+        "after_bytes": 6271
+      },
+      {
+        "path": "qa/question-salvage.test.mjs",
+        "status": "new",
+        "before_sha256": null,
+        "after_sha256": "4169934aefa55d47c00b1f9c172abd0a947da5ac09bc5c1e24d9692136b629a8",
+        "after_bytes": 8868
+      }
+    ],
+    "packaging_restore": [
+      {
+        "path": "eslint-rules/route-element-jsx.js",
+        "status": "new",
+        "before_sha256": null,
+        "after_sha256": "3544424a7e78f12ffa8a1eb5c46377e172cdad52d3aa7bd231e1b3fab0148420",
+        "after_bytes": 2978
+      }
+    ],
+    "responsive_galaxy_fix": [
+      {
+        "path": "src/index.css",
+        "status": "modified",
+        "before_sha256": "050ce6b76f0c55be87aa76dc20634a3a837d08c0346fdf4fe315b12bf30682a9",
+        "after_sha256": "d64bf7a57bcdb0387986a5ed82c74abcdc2b3a1a4fd2a45e329bad301bbfa988",
+        "after_bytes": 17420
+      },
+      {
+        "path": "src/pages/home/page.tsx",
+        "status": "modified",
+        "before_sha256": "0b40857e9ffabc10586c36cfa7102d2962657ad380d1125b9da4c25281b36ebe",
+        "after_sha256": "3ea10c61aa1f2952a9563f740dbe1dd982132d5ae37223a1cf1f5ccbf264f1e7",
+        "after_bytes": 5603
+      },
+      {
+        "path": "src/pages/home/scrollToSection.ts",
+        "status": "new",
+        "before_sha256": null,
+        "after_sha256": "2b7a30ab3a3ad3612f6943bf5b27a23e13e59c4d22a806c8f386fd229778200f",
+        "after_bytes": 874
+      },
+      {
+        "path": "src/pages/home/components/PastelBlobs.tsx",
+        "status": "modified",
+        "before_sha256": "38056aa93e44d017a800efbaf140fb8ab7039ec60abc286b5ff93f15aedff1bf",
+        "after_sha256": "39c68e5ff5b5de7955f36929bdf8fdd76cfe7c6f31dfd6432f628b4e0ff59a94",
+        "after_bytes": 2077
+      },
+      {
+        "path": "src/pages/home/components/FloatingEffects.tsx",
+        "status": "modified",
+        "before_sha256": "f9366b69b4daa1c0d8ecdbd2971b50c8a66c10705118c6c3b44e38e76e7582a9",
+        "after_sha256": "9409bd9eeec8b89da54f08066c76ca9237c0977727d41b579cc5f61f9be8d44e",
+        "after_bytes": 17725
+      },
+      {
+        "path": "src/pages/home/components/Navbar.tsx",
+        "status": "modified",
+        "before_sha256": "5d7eaa6003d90d02f591e92e1e482b0c5a71f2d28a6f767fb3e0eed71b4af018",
+        "after_sha256": "9a2892a6713b002a6ff61a676e6685f5e611768c9febb86a12a905fe5c18db90",
+        "after_bytes": 11384
+      },
+      {
+        "path": "src/pages/home/components/Footer.tsx",
+        "status": "modified",
+        "before_sha256": "91039f79497b1f23a3bf4be0ad02021072e319132c8754179f8fdb841a42aaee",
+        "after_sha256": "03bd2a47fc626686438849d0ea277bee3dbbd7259ca9baa489aa29ff19aa9edc",
+        "after_bytes": 4805
+      },
+      {
+        "path": "src/components/ScrollToTop.tsx",
+        "status": "modified",
+        "before_sha256": "dd4b1688edfb3469d6da63b37e5636bc680d06c553c890c179afaeb01b1d138b",
+        "after_sha256": "da4a85f96398f0bc43b2c809d8368b743612188d64fea513a92e001ee0b4823a",
+        "after_bytes": 1103
+      },
+      {
+        "path": "src/components/MusicPlayer.tsx",
+        "status": "modified",
+        "before_sha256": "e8a723880e5ed2e25dde77864f2a1cd1b0bde2f2ed5819cd93d9079efe4b5e5d",
+        "after_sha256": "d15399e40fc7e514787fc4f95ac0b7b9408ab8c40b8de459eef9717623672d0f",
+        "after_bytes": 4933
+      }
+    ]
+  }
+}
