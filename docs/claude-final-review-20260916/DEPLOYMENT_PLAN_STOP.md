@@ -1,4 +1,8 @@
-# DEPLOYMENT_PLAN — 적용 상태·순서·되돌림 (2026-09-16, 3차 — 친구형 AI 수정 반영)
+# DEPLOYMENT_PLAN — 적용 상태·순서·되돌림 (2026-09-17, 4차 — 신뢰 우선 수정은 **미배포**)
+
+> **2026-09-17 상태**: 운영은 echo-journey v12 / get-step-question v21 그대로다. 이번 라운드(질문·단계 분리, 회피 문장 금지, reply 거절 검사, 확인된 기억, 리포트 이후 대화, 시도 예산)는 **코드·검사만 완료했고 배포하지 않았다**. 배포는 대표 건별 승인 사항이다.
+> 배포 대상 파일 sha256: `echo-journey/index.ts` `1fa37f17…`, `echo-journey/question-quality.ts` `8649d934…`, `get-step-question/index.ts` `b1b2c777…`
+> 되돌림: `evidence/deployed_after_v12/` 의 v12·v21 원문을 새 버전으로 배포하면 원상복구(DB·설정 변경 없음).
 
 대표 승인(2026-09-16 "승인한다") 범위: Netlify 드래그 배포, echo-journey 새 버전, get-step-question 새 버전. DB/RLS/마이그레이션/시크릿/Toss 설정은 변경하지 않는다.
 

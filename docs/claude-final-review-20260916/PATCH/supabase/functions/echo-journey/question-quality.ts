@@ -108,6 +108,56 @@ export function isMetaFeedback(text: string): boolean {
   return journeyFeedbackKind(text) !== null;
 }
 
+// ── 2026-09-17 행동 분기: 사용자가 ECHO 에게 "물은 말"인지 판정한다(단계 진행 금지 · 먼저 답하기의 근거) ──
+// "아까 내 질문에는 답하지 않았어" 처럼 앞 물음에 답하지 않았다는 지적도 '답해야 할 말'로 본다.
+const UNANSWERED_COMPLAINT =
+  /(?:질문|물어봤|물었)\S{0,10}\s*(?:답|대답)\S{0,4}\s*(?:않|안|못)|(?:답|대답)\S{0,4}\s*(?:않았|않아|않네|않고|안\s*했|못\s*했)/u;
+const USER_QUESTION =
+  /\?\s*$|(?:어떻게|어떡|뭘|무엇을|어느|왜|언제).{0,16}(?:좋을까|할까|하지|해야|일까|되나|될까|돼)|(?:답|대답)(?:을|은)?\s*(?:못|안)\s*(?:해|햐|하)|(?:답|대답)(?:을|은)?\s*(?:안|못)\s*했/u;
+export function isUnansweredComplaint(text: string): boolean {
+  return UNANSWERED_COMPLAINT.test(text.trim());
+}
+export function isUserQuestion(text: string): boolean {
+  const value = text.trim();
+  return !!value && (USER_QUESTION.test(value) || UNANSWERED_COMPLAINT.test(value));
+}
+
+// 사용자가 "앞 질문에 답하지 않았다"고 지적하면, 그 앞의 물음을 찾아 그것에 답한다(마지막 지적 문장 자체는 제외).
+export function pendingUserQuestion(ctx: EvidenceContext, exclude: string): string {
+  const skipped = exclude.trim();
+  for (const message of [...ctx.messages].reverse()) {
+    if (message.role !== "user") continue;
+    const value = message.content.trim();
+    if (!value || value === skipped || isUnansweredComplaint(value)) continue;
+    if (isUserQuestion(value)) return value;
+  }
+  return "";
+}
+
+// ECHO(제품·AI) 자체에 대한 물음인지. 이 경우 답만 하고 새 질문을 강제로 붙이지 않는다.
+const SELF_DIRECTED = [
+  /\bai\b|에이아이|인공지능|에코|echo/i,
+  UNANSWERED_COMPLAINT,
+  /(너|당신|넌|니가|네가)\s*(는|가|도)?\s*(왜|뭐|무슨|어떻게|답|기억|오타|말)/,
+  /오타|오류|버그|고장|틀리|잘못\s*(말|답|이해)/,
+  /(답|대답)(을|은)?\s*(못|안)\s*(해|햐|하|했)/,
+  /기억(해|하니|하나|나니|나|못)/,
+] as const;
+export function isSelfDirectedQuestion(text: string): boolean {
+  const value = text.trim();
+  return isUserQuestion(value) && SELF_DIRECTED.some((pattern) => pattern.test(value));
+}
+
+// 따옴표 안의 말이나 '~라고 했다'는 다른 사람의 말일 수 있다. 사용자 확정 사실로 저장하지 않는다.
+const REPORTED_SPEECH = [
+  /["“'][^"”']{2,}["”']\s*(?:라고|이라고|라며|하고)?\s*(?:했|말했|그랬|하더)/,
+  /(?:라고|이라고)\s*(?:했|말했|그랬|하더|들었)/,
+  /(?:엄마|아빠|친구|동료|팀장|상사|선생님|그\s*사람|남편|아내|형|누나|언니|오빠|동생)(?:이|가|는|도)\s*[^.!?]{0,30}(?:했|말했|그랬|하더)/,
+] as const;
+export function isReportedSpeech(text: string): boolean {
+  return REPORTED_SPEECH.some((pattern) => pattern.test(text.trim()));
+}
+
 export function isLowInformationReply(text: string): boolean {
   return LOW_INFORMATION_REPLIES.test(text.trim());
 }
@@ -149,6 +199,32 @@ export function userEvidenceParts(ctx: EvidenceContext): string[] {
   return unique(parts);
 }
 
+// 리포트의 '확정(confirmed)' 판정에만 쓰는 근거: 사용자가 스스로 밝힌 사실만 남긴다.
+// 사용자가 던진 질문(전제)과 다른 사람의 말은 확정 사실에서 제외한다(질문·앵커 용도로는 userEvidenceParts 를 계속 쓴다).
+export function confirmedEvidenceParts(ctx: EvidenceContext): string[] {
+  const parts: string[] = [];
+  const keep = (value: string) => {
+    const text = value.trim();
+    if (!text || isUserQuestion(text) || isReportedSpeech(text)) return;
+    parts.push(text);
+  };
+  if (ctx.mindText.trim()) keep(ctx.mindText);
+  for (const message of ctx.messages) {
+    if (message.role !== "user" || isLowInformationReply(message.content)) continue;
+    if (isMetaFeedback(message.content)) {
+      const corrected = correctionEvidence(message.content);
+      if (corrected) keep(corrected);
+      continue;
+    }
+    keep(message.content);
+  }
+  for (const understanding of ctx.understandings) {
+    if (understanding.self_explanation) keep(understanding.self_explanation);
+    if (understanding.correction_text) keep(understanding.correction_text);
+  }
+  return unique(parts);
+}
+
 export function userEvidenceText(ctx: EvidenceContext): string {
   return userEvidenceParts(ctx).map((part, index) => `${index + 1}. ${part}`).join("\n");
 }
@@ -181,6 +257,31 @@ export function latestJourneyQuestion(ctx: EvidenceContext, step: number): strin
     return shorter / longer >= 0.72 && (q.includes(e) || e.includes(q));
   });
   return echoed ? "" : open;
+}
+
+// 2026-09-17: 이번 단계에서 사용자가 아직 답하지 않은 ECHO 의 턴.
+// kind="question" 정상 질문 / kind="reply" 사용자의 물음에 답만 한 턴(질문 없음, 이어서 자유롭게 답할 수 있다) / "" 없음.
+// reply 턴을 "질문 없음"으로 보면 같은 단계에서 질문을 무한 재생성하므로 서버가 구분한다.
+export type OpenTurnKind = "question" | "reply" | "";
+export function latestOpenJourneyTurn(ctx: EvidenceContext, step: number): { content: string; kind: OpenTurnKind } {
+  let open = "";
+  let askedBefore = "";
+  let lastUser = "";
+  for (const message of ctx.messages) {
+    if (message.role === "user") {
+      lastUser = message.content;
+      if (message.step === step && message.message_kind === "journey_answer") open = "";
+      continue;
+    }
+    if (isJourneyQuestion(message, step)) {
+      open = message.content;
+      askedBefore = lastUser;
+    }
+  }
+  if (!open) return { content: "", kind: "" };
+  if (!/\?/.test(open) && isUserQuestion(askedBefore)) return { content: open, kind: "reply" };
+  const question = latestJourneyQuestion(ctx, step);
+  return question ? { content: question, kind: "question" } : { content: "", kind: "" };
 }
 
 export function latestUserAnswer(ctx: EvidenceContext): string {
@@ -298,6 +399,60 @@ function premiseWithoutEvidence(question: string, evidence: string): boolean {
     group.candidate.some((word) => q.includes(normalizeEvidence(word))) &&
     !group.evidence.some((word) => e.includes(normalizeEvidence(word)))
   );
+}
+
+// ── 2026-09-17 답변(reply) 품질 판정 ──
+// 고정 회피 문장을 답변 성공으로 처리하지 않는다. 잘려서 문장이 끊긴 답도 통과시키지 않는다.
+export type ReplyBlockReason =
+  | "reply_missing"
+  | "reply_question_mark"
+  | "reply_too_long"
+  | "reply_incomplete"
+  | "reply_evasive"
+  | "reply_irrelevant";
+
+const REPLY_COMPLETE = /(?:[.!…]|요|죠|다|네|까|군|데|어|아|지|음|함|예|오)\s*$/u;
+const EVASIVE_REPLY = [
+  /대신\s*정답을?\s*정해/,
+  /^(?:같이|함께)\s*찾아(?:볼게요|봐요)[.!]?$/,
+  /^(?:음|글쎄요?|잘\s*모르겠어요)[.!]?$/,
+] as const;
+// 불용 조각(조사·흔한 어미)은 관련성 판정에서 제외한다.
+const RELEVANCE_STOP = /^(?:은|는|이|가|을|를|에|의|도|와|과|로|요|죠|다|네|까|어|해|하|것|수|저|제|내|나)$/;
+
+function contentTokens(text: string): string[] {
+  return normalizeEvidence(text)
+    .split(/(?=[가-힣a-z0-9])/u)
+    .join("")
+    .match(/[가-힣]{2,}|[a-z0-9]{2,}/gu) ?? [];
+}
+
+// 답이 질문과 실제로 관련 있는지: 질문의 내용 글자와 2글자 이상 겹치는 부분이 있어야 한다.
+function sharesContent(reply: string, question: string): boolean {
+  const q = normalizeEvidence(question);
+  const r = normalizeEvidence(reply);
+  if (!q || !r) return false;
+  for (let i = 0; i < q.length - 1; i++) {
+    const pair = q.slice(i, i + 2);
+    if (RELEVANCE_STOP.test(pair)) continue;
+    if (r.includes(pair)) return true;
+  }
+  return contentTokens(question).some((token) => r.includes(token));
+}
+
+// 질문의 낱말을 그대로 쓰지 않아도, 무엇을 알고 모르는지 밝히는 답은 '응답한 것'으로 본다(대표 지시: 모르면 모른다고 밝힐 것).
+const RESPONSIVE_REPLY = /(?:제가|저는|저도|제)\s*[^.!]{0,20}(?:답|정답|모르|알|말씀|물음|질문)/u;
+
+export function replyQualityReason(reply: string, userQuestion: string, maxLength: number): ReplyBlockReason | null {
+  const text = reply.trim();
+  if (!text) return "reply_missing";
+  if (text.includes("?")) return "reply_question_mark";
+  // 길면 잘라서 통과시키지 않고 버린다(잘린 문장을 정상 답변으로 처리 금지).
+  if (text.length > maxLength) return "reply_too_long";
+  if (!REPLY_COMPLETE.test(text)) return "reply_incomplete";
+  if (EVASIVE_REPLY.some((pattern) => pattern.test(text))) return "reply_evasive";
+  if (userQuestion.trim() && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
+  return null;
 }
 
 export type QuestionBlockReason =

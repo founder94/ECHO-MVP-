@@ -167,6 +167,7 @@ class FakeDatabase {
       understanding_results: [],
       payments: [],
       reports: [],
+      doit_insights: [],
     };
     this.mutations = [];
     this.failures = [];
@@ -224,7 +225,7 @@ function createAiFetch({ tossApproved = false } = {}) {
   let questionIndex = 0;
   let summaryIndex = 0;
   let failNextOpenAi = false;
-  const calls = { openai: 0, toss: 0, questionCandidates: [] };
+  const calls = { openai: 0, toss: 0, questionCandidates: [], askedQuestions: [], systemPrompts: [] };
 
   const fetch = async (url, options = {}) => {
     const address = String(url);
@@ -250,6 +251,7 @@ function createAiFetch({ tossApproved = false } = {}) {
 
     const request = JSON.parse(options.body);
     const system = String(request.messages?.[0]?.content ?? '');
+    calls.systemPrompts.push(system);
     let content;
     if (system.includes('자기이해 리포트')) {
       content = JSON.stringify({
@@ -271,6 +273,12 @@ function createAiFetch({ tossApproved = false } = {}) {
     } else if (request.response_format) {
       const question = questions[questionIndex++ % questions.length];
       calls.questionCandidates.push(question);
+      // 2026-09-17: 사용자가 물었을 때(asked 모드)는 프롬프트에 '먼저 답할 것'이 들어온다. 그때만 reply 를 만든다.
+      const askedMatch = system.match(/먼저 답할 것\]\n"([^"]+)"/);
+      if (askedMatch) calls.askedQuestions.push(askedMatch[1]);
+      const reply = askedMatch
+        ? `${askedMatch[1].replace(/[?？]/g, '').trim().slice(0, 20)} 부분은 제가 정답을 알지 못해요. 지금까지 들은 내용으로 같이 정리해 볼게요.`
+        : '';
       content = JSON.stringify({
         candidates: [{
           acknowledgement: '편안하다고 말해주셨네요.',
@@ -279,6 +287,7 @@ function createAiFetch({ tossApproved = false } = {}) {
           assumptions: [],
           meaning: `새로운 질문 ${questionIndex}`,
           keys: [`새의미${questionIndex}`],
+          reply,
         }],
       });
     } else {
@@ -974,4 +983,207 @@ test('AI failure after a saved answer preserves the new step and allows a questi
   assert.equal(retry.body.status, 'step2');
   assert.equal(retry.body.needsQuestion, false);
   assert.match(retry.body.question, /\?$/);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-09-17 대표 지시(신뢰·재사용 가치 증명) 검사
+// ② 질문과 단계 진행 분리 / ③ 회피 문장 금지 / ⑤ 확인된 기억 / ⑥ 저장 복구·지속 대화
+// 실제 OpenAI·실제 DB 가 아니라 가짜 응답·가짜 DB 로 서버 규칙만 검사한다(로컬 모의 검사).
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function reachStep(journey, early, userId, targetStep) {
+  const conversationId = await completeFreeStage(early, userId);
+  for (let step = 3; step < targetStep; step++) {
+    await invoke(journey, userId, { action: 'ask', conversationId, token: token(`${userId}-jask-${step}`) });
+    const answered = await invoke(journey, userId, {
+      action: 'answer', conversationId, answer: `${step}단계에서 새로 떠오른 이야기를 적었어`, token: token(`${userId}-jans-${step}`),
+    });
+    assert.equal(answered.body.status, `step${step + 1}`);
+  }
+  return conversationId;
+}
+
+function captureServerLogs() {
+  const original = console.error;
+  const lines = [];
+  console.error = (...args) => { lines.push(args.join(' ')); };
+  return { lines, restore: () => { console.error = original; } };
+}
+
+test('STEP 7 에서 되물어도 단계가 넘어가지 않고 먼저 답한다(리포트로 건너뛰지 않음)', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
+
+  const conversationId = await reachStep(journey, early, 'user-step7', 7);
+  await invoke(journey, 'user-step7', { action: 'ask', conversationId, token: token('s7-ask') });
+
+  const askedBack = await invoke(journey, 'user-step7', {
+    action: 'answer', conversationId, answer: '그 뜻이 아니라 쉬고 싶다는 뜻이야. 그럼 어떻게 해야 좋을까?', token: token('s7-question'),
+  });
+  assert.equal(askedBack.body.status, 'step7', '질문했다는 이유로 report_ready 로 넘어가면 안 된다');
+  assert.equal(askedBack.body.needsQuestion, true);
+
+  const replied = await invoke(journey, 'user-step7', { action: 'ask', conversationId, token: token('s7-reply') });
+  assert.equal(replied.body.status, 'step7');
+  assert.equal(replied.body.needsQuestion, false);
+  const text = replied.body.question;
+  assert.match(text, /정답을 알지 못해요/, '사용자의 물음에 대한 답이 먼저 나와야 한다');
+  assert.ok(!/대신 정답을 정해 줄 수는 없지만/.test(text), '고정 회피 문장을 답으로 쓰지 않는다');
+  assert.equal(ai.calls.askedQuestions.length, 1);
+
+  const realAnswer = await invoke(journey, 'user-step7', {
+    action: 'answer', conversationId, answer: '쉬는 시간을 먼저 정해두고 싶어', token: token('s7-answer'),
+  });
+  assert.equal(realAnswer.body.status, 'report_ready', '진짜 답변은 정상적으로 마지막 단계를 닫는다');
+});
+
+test('ECHO 자체에 대한 물음에는 답만 하고 새 질문을 강제로 붙이지 않는다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
+
+  const conversationId = await completeFreeStage(early, 'user-meta');
+  await invoke(journey, 'user-meta', { action: 'ask', conversationId, token: token('meta-ask') });
+  const askedBack = await invoke(journey, 'user-meta', {
+    action: 'answer', conversationId, answer: 'ai도 오타가 날 수 있어?', token: token('meta-q'),
+  });
+  assert.equal(askedBack.body.status, 'step3');
+
+  const replied = await invoke(journey, 'user-meta', { action: 'ask', conversationId, token: token('meta-reply') });
+  const text = replied.body.question;
+  assert.ok(!text.includes('?'), '답만 하는 턴에는 질문을 붙이지 않는다');
+  assert.match(text, /오타/);
+  assert.equal(replied.body.needsQuestion, false, '답만 한 턴도 사용자가 이어서 말할 수 있는 상태다');
+
+  // 답만 한 턴 뒤에도 사용자는 그냥 이어서 답할 수 있고, 그때 단계가 진행된다.
+  const continued = await invoke(journey, 'user-meta', {
+    action: 'answer', conversationId, answer: '알겠어. 오늘은 마음이 조금 가벼워진 느낌이야', token: token('meta-answer'),
+  });
+  assert.equal(continued.body.status, 'step4');
+});
+
+test('STEP 1·2 에서 되물어도 단계가 넘어가지 않고 답을 받는다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+
+  const started = await invoke(early, 'user-early', { action: 'start', mindText: '오늘은 마음이 편안해', token: token('early-start') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, 'user-early', { action: 'ask', conversationId, token: token('early-ask1') });
+
+  const askedBack = await invoke(early, 'user-early', {
+    action: 'answer', conversationId, answer: '이걸 어떻게 말해야 좋을까?', token: token('early-q'),
+  });
+  assert.equal(askedBack.body.status, 'step1', 'STEP 1 에서 되물으면 STEP 2 로 넘어가지 않는다');
+
+  const replied = await invoke(early, 'user-early', { action: 'ask', conversationId, token: token('early-reply') });
+  assert.equal(replied.body.status, 'step1');
+  assert.equal(replied.body.needsQuestion, false);
+  assert.match(replied.body.question, /정답을 알지 못해요/);
+
+  const answered = await invoke(early, 'user-early', {
+    action: 'answer', conversationId, answer: '서두르지 않아도 된다는 여유야', token: token('early-answer'),
+  });
+  assert.equal(answered.body.status, 'step2', '진짜 답변은 정상적으로 다음 단계로 간다');
+});
+
+test('확인한 내용은 기억으로 남고, 거절한 해석은 기억으로 되살아나지 않는다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+
+  await completeFreeStage(early, 'user-memory');
+  const saved = db.rows.doit_insights.filter((row) => row.user_id === 'user-memory');
+  assert.equal(saved.length, 1, '맞아요로 확인한 내용이 기억으로 저장된다');
+  assert.equal(saved[0].status, 'confirmed');
+  assert.equal(saved[0].category, 'memory');
+
+  // 거절한 해석은 rejected 로 남아 다음 기억 조회에서 빠진다.
+  db.seed('doit_insights', {
+    user_id: 'user-memory', category: 'memory', text: '나는 관계에서 늘 먼저 물러난다',
+    ai_text: '관계에서 물러나는 사람', status: 'rejected', origin: 'self', revision: 1,
+  });
+  db.seed('doit_insights', {
+    user_id: 'other-user', category: 'memory', text: '다른 사람의 기억은 절대 나오면 안 된다',
+    status: 'confirmed', origin: 'ai', revision: 1,
+  });
+
+  const second = await invoke(early, 'user-memory', { action: 'start', mindText: '오늘도 마음을 적어본다', token: token('memory-start2') });
+  const conversationId = second.body.conversationId;
+  const before = ai.calls.systemPrompts.length;
+  await invoke(early, 'user-memory', { action: 'ask', conversationId, token: token('memory-ask2') });
+  const prompt = ai.calls.systemPrompts.slice(before).join('\n');
+
+  assert.match(prompt, /내가 확인한 기억/);
+  assert.ok(!prompt.includes('관계에서 늘 먼저 물러난다'), '거절한 해석은 기억으로 다시 쓰지 않는다');
+  assert.ok(!prompt.includes('다른 사람의 기억'), '다른 사용자의 기억은 절대 노출되지 않는다');
+});
+
+test('기억 조회 실패를 기억 없음으로 숨기지 않는다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+
+  const started = await invoke(early, 'user-mem-fail', { action: 'start', mindText: '오늘은 마음이 편안해', token: token('memfail-start') });
+  const conversationId = started.body.conversationId;
+  db.failOnce((context) => context.table === 'doit_insights' && context.op === 'select', 'memory lookup down');
+
+  const logs = captureServerLogs();
+  try {
+    const asked = await invoke(early, 'user-mem-fail', { action: 'ask', conversationId, token: token('memfail-ask') });
+    assert.equal(asked.body.status, 'step1', '기억 조회가 실패해도 대화는 계속된다');
+  } finally {
+    logs.restore();
+  }
+  assert.ok(logs.lines.some((line) => line.includes('memory_lookup_error')), '조회 실패는 로그로 드러나야 한다');
+});
+
+test('리포트 이후에도 완료 상태를 되돌리지 않고 대화를 이어간다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
+
+  const conversation = db.seed('conversations', { user_id: 'user-after', status: 'report_done', current_step: 8, request_token: null, request_action: null });
+  db.seed('emotions', { conversation_id: conversation.id, user_id: 'user-after', mind_text: '오늘은 마음이 편안해' });
+  db.seed('messages', { conversation_id: conversation.id, user_id: 'user-after', role: 'user', step: 7, content: '쉬는 시간을 먼저 정해두고 싶어', message_kind: 'journey_answer' });
+  db.seed('reports', { conversation_id: conversation.id, user_id: 'user-after', title: '기록', summary: '나는 여유를 중요하게 느꼈어요.', content: {}, model: 'test' });
+
+  const unpaid = await invoke(journey, 'user-after', { action: 'ask', conversationId: conversation.id, token: token('after-unpaid') });
+  assert.equal(unpaid.body.code, 'PAYMENT_REQUIRED', '결제하지 않으면 리포트 이후 대화도 열리지 않는다');
+
+  db.seed('payments', { conversation_id: conversation.id, user_id: 'user-after', status: 'paid', amount: 4900 });
+  const asked = await invoke(journey, 'user-after', { action: 'ask', conversationId: conversation.id, token: token('after-ask') });
+  assert.equal(asked.body.status, 'report_done', '완료 상태를 되돌리지 않는다');
+  assert.equal(asked.body.step, 8);
+  assert.ok(asked.body.question);
+
+  const answered = await invoke(journey, 'user-after', {
+    action: 'answer', conversationId: conversation.id, answer: '리포트를 보고 나서도 더 이야기하고 싶어', token: token('after-answer'),
+  });
+  assert.equal(answered.body.status, 'report_done');
+  const continuedMessages = db.rows.messages.filter((row) => row.conversation_id === conversation.id && row.step === 8);
+  assert.equal(continuedMessages.length, 2, '리포트 이후 대화는 step 8 메시지로만 쌓인다');
+  assert.equal(db.rows.conversations.find((row) => row.id === conversation.id).status, 'report_done');
+});
+
+test('응답이 유실돼 같은 답변을 다시 보내도 한 번만 저장된다', async () => {
+  const db = new FakeDatabase();
+  const ai = createAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
+
+  const conversationId = await completeFreeStage(early, 'user-retry');
+  await invoke(journey, 'user-retry', { action: 'ask', conversationId, token: token('retry-ask') });
+
+  const answerBody = { action: 'answer', conversationId, answer: '오늘은 천천히 쉬고 싶은 마음이야', token: token('retry-answer') };
+  const first = await invoke(journey, 'user-retry', answerBody);
+  assert.equal(first.body.status, 'step4');
+  const again = await invoke(journey, 'user-retry', answerBody);
+  assert.equal(again.body.status, 'step4', '같은 토큰 재전송은 저장된 상태를 그대로 돌려준다');
+
+  const saved = db.rows.messages.filter((row) => row.conversation_id === conversationId && row.content === '오늘은 천천히 쉬고 싶은 마음이야');
+  assert.equal(saved.length, 1, '중복 저장이 생기면 안 된다');
 });

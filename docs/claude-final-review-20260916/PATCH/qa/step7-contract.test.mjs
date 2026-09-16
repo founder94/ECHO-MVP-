@@ -30,7 +30,9 @@ test('server transition, payment gate, and report entitlement contracts are pres
   assert.match(journey, /completedConversationIds/);
   assert.match(journey, /restoreLegacyWhiteDoor/);
   assert.match(journey, /model === "gpt-40-mini"/);
-  assert.match(journey, /latestJourneyQuestion/);
+  // 2026-09-17: 열린 턴 판정으로 이름이 바뀌었다(질문 턴 + 사용자의 물음에 답만 한 턴).
+  assert.match(journey, /latestOpenJourneyTurn\(/);
+  assert.match(journey, /askedBack.*isUserQuestion|isUserQuestion\(answer\)/);
   assert.match(journey, /"journey_question"/);
   assert.match(journey, /userEvidenceText/);
   assert.doesNotMatch(journey, /STEP_THEMES/);

@@ -1,11 +1,6 @@
-// 2026-09-16 운영 실사용(대표 아이폰 캡처 9장) 근거 검사.
-// 증상: 사용자가 ECHO 에게 물은 문장("어떻게 대처하는 게 좋을까?", "질문했는데 답을 못햐?")에 답하지 않고 되묻기만 함,
-//       공감 문장이 사용자 말을 그대로 베낌(되받아치기), STEP 4 에서 후보 전부 차단 → "질문을 만들지 못했어요"
-//       (운영 로그 [ej] no_candidate step=4 mode=feedback blocked_total=6).
-// 규칙: (1) 사용자 물음 → asked 모드: 짧은 답(reply) + 질문 하나. (2) 되받아치기 공감 문장은 버린다.
-//       (3) 마지막 시도는 의도 반복 규칙을 풀어 후보를 살린다(안전·근거·거절 규칙은 유지). (4) 시도 3회.
-//       (5) 지난 여정 리포트 요약을 참고 문맥으로 넘긴다(사실 근거 아님).
-// 실제 OpenAI 호출은 없다(가짜 fetch). 사용자 원문은 로그에 남기지 않는다.
+// 2026-09-17 대표 지시(신뢰 우선) 규칙 검사 — 서버 단위 규칙만, 실제 OpenAI·DB 없음(로컬 모의 검사).
+// ② 질문과 단계 진행 분리의 판정 규칙 / ③ 고정 회피·잘린 답 금지 / ④ 거절한 뜻의 답변 재등장 금지
+// ⑦ 시도 예산(전체 대기시간 상한). 2026-09-16 실사용 캡처의 문장을 그대로 쓴다.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -38,35 +33,21 @@ async function loadExports(relativePath, exposeLine) {
   return globalThis.__echoExposed;
 }
 
-const EJ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, cleanReply, isParrot, renderCandidate, genStepQuestion, LIMITS };';
-const GSQ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, cleanReply, isParrot, followupMode, renderFollowup, genFollowupQuestion, blockReasonFor, LIMITS };';
+const EJ = 'supabase/functions/echo-journey/index.ts';
+const GSQ = 'supabase/functions/get-step-question/index.ts';
+const EJ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, confirmedEvidenceParts, latestOpenJourneyTurn, isParrot, renderCandidate, blockReason, genStepQuestion, LIMITS };';
+const GSQ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, followupMode, renderFollowup, blockReasonFor, latestOpenTurn, LIMITS };';
 
-// 대표 실사용 문장(캡처 원문 그대로, 오타 포함)
-const REAL_QUESTION_1 = '대처를 해야지 아떻게 대처하는게 좋을까?';
-const REAL_QUESTION_2 = '질문했는데 답을 못햐?';
-const REAL_QUESTION_3 = 'ai가 오타기 날수도 있어?';
-const MIND = '요즘 회사에서 눈치 보는 게 힘들어';
+// 대표가 지시서에 적은 네 문장(각 단계에서 검사하라고 한 것)
+const Q_TYPO = 'AI도 오타가 날 수 있어?';
+const Q_ADVICE = '어떻게 하는 게 좋을까?';
+const Q_IGNORED = '아까 내 질문에는 답하지 않았어';
+const Q_CORRECTION = '그 뜻이 아니라 쉬고 싶다는 뜻이야. 그럼 어떻게 해야 해?';
 const AI = { apiKey: 'test', model: 'gpt-4o-mini' };
 
-function fakeOpenAI(responder) {
-  const calls = { count: 0, systems: [] };
-  globalThis.fetch = async (url, options = {}) => {
-    assert.equal(String(url), 'https://api.openai.com/v1/chat/completions');
-    calls.count += 1;
-    const request = JSON.parse(options.body);
-    calls.systems.push(String(request.messages?.[0]?.content ?? ''));
-    const content = responder(calls.count, request);
-    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(content) }, finish_reason: 'stop' }] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  };
-  return calls;
-}
-
-const candidate = (question, extra = {}) => ({
+const candidate = (extra = {}) => ({
   acknowledgement: '눈치를 본다는 말이 마음에 남아요.',
-  question,
+  question: '눈치가 보일 때 어떤 순간이 먼저 떠오르나요?',
   anchor: '눈치',
   assumptions: [],
   meaning: 'test',
@@ -75,169 +56,225 @@ const candidate = (question, extra = {}) => ({
   ...extra,
 });
 
-test('echo-journey: 사용자가 ECHO에게 물은 문장을 질문으로 판정한다(실사용 문장 3종)', async () => {
-  const { isUserQuestion, cleanReply, isParrot } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  assert.equal(isUserQuestion(REAL_QUESTION_1), true);
-  assert.equal(isUserQuestion(REAL_QUESTION_2), true);
-  assert.equal(isUserQuestion(REAL_QUESTION_3), true);
-  assert.equal(isUserQuestion('어떻게 해야 할지 모르겠어'), true);
-  assert.equal(isUserQuestion(MIND), false);
-  assert.equal(isUserQuestion('오늘은 마음이 편안해.'), false);
-  // reply 규칙: 물음표·금지어면 버림, 160자 상한
-  assert.equal(cleanReply('  제 답이 늦었어요.  같이 찾아볼게요. '), '제 답이 늦었어요. 같이 찾아볼게요.');
-  assert.equal(cleanReply('그건 어떤가요?'), '');
-  assert.equal(cleanReply('우울증 진단이 필요해요.'), '');
-  assert.equal(cleanReply('가'.repeat(200)).length, 160);
-  // 되받아치기: 사용자 문장을 통째로 베낀 공감 문장은 버리고, 짧은 표현 인용은 허용
-  assert.equal(isParrot('대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이 느껴져요.', REAL_QUESTION_1), true);
-  assert.equal(isParrot('눈치를 본다는 말이 마음에 남아요.', MIND), false);
-  assert.equal(isParrot('', MIND), false);
+test('② 사용자가 되물은 말을 판정한다(지시서 네 문장 + ECHO 자체 물음 구분)', async () => {
+  const ej = await loadExports(EJ, EJ_EXPOSE);
+  const gsq = await loadExports(GSQ, GSQ_EXPOSE);
+  for (const fn of [ej.isUserQuestion, gsq.isUserQuestion]) {
+    assert.equal(fn(Q_TYPO), true);
+    assert.equal(fn(Q_ADVICE), true);
+    assert.equal(fn(Q_IGNORED), true);
+    assert.equal(fn(Q_CORRECTION), true);
+    assert.equal(fn('오늘은 마음이 편안해'), false);
+    assert.equal(fn('회의 때 눈치를 봐'), false);
+  }
+  // ECHO 자체에 대한 물음 → 답만 한다. 사용자 상황에 대한 물음 → 답 + 질문.
+  for (const fn of [ej.isSelfDirectedQuestion, gsq.isSelfDirectedQuestion]) {
+    assert.equal(fn(Q_TYPO), true);
+    assert.equal(fn(Q_IGNORED), true);
+    assert.equal(fn(Q_ADVICE), false);
+    assert.equal(fn(Q_CORRECTION), false);
+  }
 });
 
-test('echo-journey: asked 모드는 reply + 질문, reply 없으면 서버 고정 문장', async () => {
-  const { renderCandidate } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  const c = candidate('눈치가 보일 때 어떤 순간이 먼저 떠오르나요?', { reply: '제가 대신 정할 수는 없지만, 먼저 어떤 순간이 가장 힘든지부터 같이 볼게요.' });
-  assert.equal(renderCandidate(c, 'asked'), `${c.reply}\n\n${c.question}`);
-  const noReply = candidate('눈치가 보일 때 어떤 순간이 먼저 떠오르나요?');
-  assert.equal(renderCandidate(noReply, 'asked'), `제가 대신 정답을 정해 줄 수는 없지만, 같이 찾아볼게요.\n\n${noReply.question}`);
-  // normal 모드: 되받아치기 공감 문장은 제거되고 질문만 남는다
-  const parrot = candidate('눈치가 보일 때 어떤 순간이 먼저 떠오르나요?', { acknowledgement: '대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이 느껴져요' });
-  assert.equal(renderCandidate(parrot, 'normal', null, REAL_QUESTION_1), parrot.question);
-  assert.equal(renderCandidate(candidate('눈치가 보일 때 어떤 순간이 먼저 떠오르나요?'), 'normal', null, MIND), '눈치를 본다는 말이 마음에 남아요.\n\n눈치가 보일 때 어떤 순간이 먼저 떠오르나요?');
+test('③ 고정 회피 문장·잘린 문장·무관한 문장은 답변 성공으로 처리하지 않는다', async () => {
+  const { replyQualityReason, LIMITS } = await loadExports(EJ, EJ_EXPOSE);
+  const check = (reply, question = Q_TYPO) => replyQualityReason(reply, question, LIMITS.REPLY_MAX);
+
+  assert.equal(check(''), 'reply_missing');
+  assert.equal(check('네, 저도 오타를 낼 수 있어요. 예를 들어 앞뒤 글자가 바뀌'), 'reply_incomplete');
+  assert.equal(check('오타가 날 수 있는지 다시 볼까요?'), 'reply_question_mark');
+  assert.equal(check('제가 대신 정답을 정해 줄 수는 없지만, 같이 찾아볼게요.'), 'reply_evasive');
+  assert.equal(check('같이 찾아볼게요.'), 'reply_evasive');
+  // 160자를 넘겨 잘릴 문장은 통과시키지 않는다
+  assert.equal(check(`오타에 대해 설명하면 ${'길게 이어지는 설명이 계속됩니다. '.repeat(12)}`), 'reply_too_long');
+  // 질문과 아무 관련 없는 답
+  assert.equal(check('오늘 날씨는 맑아요.', '어떻게 대처하는 게 좋을까?'), 'reply_irrelevant');
+  // 낱말이 겹치지 않아도 '무엇을 모르는지' 밝히는 답은 응답으로 본다(회피 문장은 위에서 이미 걸러진다)
+  assert.equal(check('제가 그 상황을 다 알지는 못해요. 지금 가장 걸리는 부분부터 같이 좁혀 볼게요.', '어떻게 대처하는 게 좋을까?'), null);
+  // 정상: 질문의 표현을 실제로 다루고 문장이 끝났다
+  assert.equal(check('네, 저도 오타를 낼 수 있어요. 이상하면 바로 알려 주세요.'), null);
+  assert.equal(check('제가 정답을 정하진 않지만, 지금 가장 힘든 순간부터 같이 정리해 볼게요.', '어떻게 대처하는 게 좋을까?'), null);
 });
 
-test('echo-journey: 실사용 문장 "어떻게 대처하는게 좋을까?" → 먼저 답하고(reply) 질문 하나로 이어간다', async () => {
-  const { genStepQuestion, LIMITS } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  assert.equal(LIMITS.ATTEMPTS, 3);
+test('③ asked 모드는 검증된 답이 있을 때만 후보가 살아남는다', async () => {
+  const { blockReason } = await loadExports(EJ, EJ_EXPOSE);
+  const block = { asked: [], askedJourney: [], askedJourneyFull: [], rejectedKeys: [], rejectedTexts: [] };
+  const evidence = ['회사에서 눈치 보는 게 힘들어'];
+  const options = { intentHistory: [], userQuestion: Q_ADVICE, requireQuestion: true };
+
+  assert.equal(blockReason(candidate({ reply: '' }), block, evidence, options), 'reply_quality');
+  assert.equal(blockReason(candidate({ reply: '제가 대신 정답을 정해 줄 수는 없지만, 같이 찾아볼게요.' }), block, evidence, options), 'reply_quality');
+  const good = candidate({ reply: '제가 정답을 정하진 않지만, 어떻게 할지 함께 정리해 볼게요.', acknowledgement: '' });
+  assert.equal(blockReason(good, block, evidence, options), null);
+  // ECHO 자체 물음: 질문 품질 규칙을 요구하지 않고 답만 검사한다
+  assert.equal(blockReason(candidate({ reply: '네, 저도 오타를 낼 수 있어요.', question: '', acknowledgement: '' }), block, evidence, { intentHistory: [], userQuestion: Q_TYPO, requireQuestion: false }), null);
+});
+
+test('④ 거절한 해석은 답변 본문으로도 되살아나지 않는다', async () => {
+  const { blockReason } = await loadExports(EJ, EJ_EXPOSE);
+  const rejected = '관계에서 늘 먼저 물러나는 사람인 것 같아요';
+  const block = { asked: [], askedJourney: [], askedJourneyFull: [], rejectedKeys: ['관계', '물러나'], rejectedTexts: [rejected] };
+  const evidence = ['회사에서 눈치 보는 게 힘들어'];
+  const options = { intentHistory: [], userQuestion: '그럼 관계에서 어떻게 해야 좋을까?', requireQuestion: true };
+
+  const revived = candidate({ acknowledgement: '', reply: '관계에서 늘 먼저 물러나는 사람인 것 같아요. 그렇게 보여요.' });
+  assert.equal(blockReason(revived, block, evidence, options), 'reply_rejected');
+  // 흔한 낱말이 겹친다는 이유만으로 정상 답변을 막지 않는다
+  const normal = candidate({ acknowledgement: '', reply: '관계 이야기는 제가 정답을 정하진 않지만, 어떻게 할지 함께 정리해 볼게요.' });
+  assert.equal(blockReason(normal, block, evidence, options), null);
+});
+
+test('④ 사용자가 던진 질문과 다른 사람의 말은 확정 사실 근거에서 뺀다', async () => {
+  const { confirmedEvidenceParts } = await loadExports(EJ, EJ_EXPOSE);
   const ctx = {
-    mindText: MIND,
+    mindText: '회사에서 눈치 보는 게 힘들어',
     messages: [
-      { role: 'ai', step: 3, content: '눈치를 본다는 말이 마음에 남아요.\n\n눈치가 가장 크게 느껴지는 건 어떤 순간인가요?', message_kind: 'journey_question' },
       { role: 'user', step: 3, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'journey_answer' },
-      { role: 'ai', step: 4, content: '회의 때 의견을 말하기 전이라고 했어요.\n\n그때 몸에서는 어떤 느낌이 드나요?', message_kind: 'journey_question' },
-      { role: 'user', step: 4, content: REAL_QUESTION_1, message_kind: 'journey_answer' },
-    ],
-    understandings: [],
-    priorSummary: '나는 지난 여정에서 혼자 버티는 습관을 이야기했어요.',
-  };
-  const calls = fakeOpenAI(() => ({
-    candidates: [candidate('눈치를 볼 때 회의 말고 어디에서 그런 순간이 또 있나요?', {
-      acknowledgement: '대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이 느껴져요.',
-      reply: '제가 대신 정답을 정해 줄 수는 없어요. 다만 지금까지 말한 걸 보면 먼저 어떤 순간이 가장 힘든지 같이 보는 게 도움이 될 것 같아요.',
-    })],
-  }));
-  const text = await genStepQuestion(AI, ctx, 'step5');
-  assert.equal(calls.count, 1);
-  assert.match(calls.systems[0], /사용자가 ECHO에게 물었다 — 먼저 답할 것/);
-  assert.match(calls.systems[0], /지난 여정에서 나눈 이야기 요약/);
-  assert.match(calls.systems[0], /혼자 버티는 습관/);
-  assert.equal(text, '제가 대신 정답을 정해 줄 수는 없어요. 다만 지금까지 말한 걸 보면 먼저 어떤 순간이 가장 힘든지 같이 보는 게 도움이 될 것 같아요.\n\n눈치를 볼 때 회의 말고 어디에서 그런 순간이 또 있나요?');
-  assert.ok(!text.includes('아떻게 대처하는게 좋을까 하는 마음'), '되받아치기 공감 문장이 화면에 나오면 안 된다');
-});
-
-test('echo-journey: "질문했는데 답을 못햐?" 는 부담 피드백보다 asked 가 우선이라 답이 나온다', async () => {
-  const { genStepQuestion } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  const ctx = {
-    mindText: MIND,
-    messages: [
-      { role: 'ai', step: 3, content: '눈치가 가장 크게 느껴지는 건 어떤 순간인가요?', message_kind: 'journey_question' },
-      { role: 'user', step: 3, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'journey_answer' },
-      { role: 'ai', step: 4, content: '그때 몸에서는 어떤 느낌이 드나요?', message_kind: 'journey_question' },
-      { role: 'user', step: 4, content: REAL_QUESTION_2, message_kind: 'journey_answer' },
-    ],
-    understandings: [],
-  };
-  const calls = fakeOpenAI(() => ({
-    candidates: [candidate('회의 말고 눈치를 보게 되는 다른 장면은 어디인가요?', {
-      reply: '맞아요, 방금 물음에 제가 바로 답하지 못했어요. 이번엔 먼저 답하고 이어갈게요.',
-    })],
-  }));
-  const text = await genStepQuestion(AI, ctx, 'step5');
-  assert.equal(calls.count, 1);
-  assert.match(calls.systems[0], /먼저 답할 것/);
-  assert.ok(!calls.systems[0].includes('[질문 피드백'), 'asked 모드에서는 피드백 노트를 넣지 않는다');
-  assert.equal(text.split('\n\n')[0], '맞아요, 방금 물음에 제가 바로 답하지 못했어요. 이번엔 먼저 답하고 이어갈게요.');
-  assert.match(text.split('\n\n')[1], /\?$/);
-});
-
-test('echo-journey: 의도 반복만으로 막힌 후보는 마지막(3번째) 시도에서 살아난다', async () => {
-  const { genStepQuestion } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  const ctx = {
-    mindText: MIND,
-    messages: [
-      { role: 'ai', step: 3, content: '눈치가 보이는 건 어떤 상황인가요?', message_kind: 'journey_question' },
-      { role: 'user', step: 3, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'journey_answer' },
+      { role: 'user', step: 4, content: '그럼 어떻게 해야 좋을까?', message_kind: 'journey_answer' },
+      { role: 'user', step: 5, content: '팀장이 그건 네 일이라고 했어', message_kind: 'journey_answer' },
     ],
     understandings: [],
   };
-  // 모든 후보가 직전 질문과 같은 의도(context: 상황·장면)이지만 글자 겹침은 낮다
-  const calls = fakeOpenAI(() => ({
-    candidates: [candidate('회의 말고 어떤 장면에서 의견을 삼키게 되나요?', { anchor: '의견', acknowledgement: '의견을 말하기 전이라는 말이 남아요.' })],
-  }));
-  const text = await genStepQuestion(AI, ctx, 'step4');
-  assert.equal(calls.count, 3, '1·2번째는 의도 반복으로 차단, 3번째(완화)에서 채택');
-  assert.match(text, /회의 말고 어떤 장면에서 의견을 삼키게 되나요\?$/);
+  const parts = confirmedEvidenceParts(ctx);
+  assert.ok(parts.includes('회사에서 눈치 보는 게 힘들어'));
+  assert.ok(parts.includes('회의 때 내 의견을 말하기 전에 눈치를 봐'));
+  assert.ok(!parts.some((part) => part.includes('어떻게 해야 좋을까')), '사용자 질문의 전제는 확정 사실이 아니다');
+  assert.ok(!parts.some((part) => part.includes('네 일이라고')), '다른 사람의 말은 확정 사실이 아니다');
 });
 
-test('echo-journey: 완화 시도에서도 금지어·근거 없는 anchor 는 통과하지 못한다', async () => {
-  const { genStepQuestion } = await loadExports('supabase/functions/echo-journey/index.ts', EJ_EXPOSE);
-  const ctx = { mindText: MIND, messages: [], understandings: [] };
-  const calls = fakeOpenAI(() => ({
-    candidates: [
-      candidate('우울증 때문에 어떤 순간이 힘든가요?'),
-      candidate('연인과의 관계에서 어떤 순간이 힘든가요?', { anchor: '연인' }),
-    ],
-  }));
-  await assert.rejects(() => genStepQuestion(AI, ctx, 'step3'), /NO_CANDIDATE/);
-  assert.equal(calls.count, 3);
-});
-
-test('get-step-question: 사용자 물음 → asked 모드 reply + 질문, 되받아치기 제거, 마지막 시도 완화', async () => {
-  const { isUserQuestion, followupMode, renderFollowup, genFollowupQuestion, blockReasonFor, LIMITS } = await loadExports('supabase/functions/get-step-question/index.ts', GSQ_EXPOSE);
-  assert.equal(LIMITS.GENERATION_ATTEMPTS, 3);
-  assert.equal(isUserQuestion(REAL_QUESTION_1), true);
-  assert.equal(isUserQuestion(REAL_QUESTION_2), true);
+test('② 답만 한 턴도 사용자가 이어서 말할 수 있는 열린 턴으로 본다', async () => {
+  const { latestOpenJourneyTurn } = await loadExports(EJ, EJ_EXPOSE);
   const base = [
-    { role: 'ai', step: 1, content: '눈치가 가장 크게 느껴지는 건 어떤 순간인가요?', message_kind: 'step_question' },
-    { role: 'user', step: 1, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'step_answer' },
-    { role: 'ai', step: 2, content: '그때 몸에서는 어떤 느낌이 드나요?', message_kind: 'step_question' },
+    { role: 'ai', step: 3, content: '눈치가 보이는 건 어떤 순간인가요?', message_kind: 'journey_question' },
+    { role: 'user', step: 3, content: 'AI도 오타가 날 수 있어?', message_kind: 'journey_answer' },
   ];
-  // 운영 저장 형태: '조금 달라요' 를 누르면 understanding_choice 메시지 본문은 사용자가 직접 쓴 정정 문장이다.
-  const askedCtx = {
-    mindText: MIND,
-    messages: [...base, { role: 'user', step: 2, content: '회의 끝나면 기운이 빠져', message_kind: 'step_answer' }, { role: 'ai', step: 3, content: '회의에서 눈치를 보느라 기운이 빠지는 것 같아요.', message_kind: 'understanding_summary' }, { role: 'user', step: 3, content: REAL_QUESTION_1, message_kind: 'understanding_choice' }],
-    understandings: [{ choice: 'alittle', rejected_interpretation: null, correction_text: REAL_QUESTION_1, self_explanation: null }],
+  const replyTurn = { role: 'ai', step: 3, content: '네, 저도 오타를 낼 수 있어요. 이상하면 바로 알려 주세요.', message_kind: 'journey_question' };
+  const ctx = { mindText: '회사에서 눈치 보는 게 힘들어', messages: [...base, replyTurn], understandings: [] };
+
+  const open = latestOpenJourneyTurn(ctx, 3);
+  assert.equal(open.kind, 'reply');
+  assert.equal(open.content, replyTurn.content);
+
+  // 답한 뒤에는 열린 턴이 사라진다
+  const answered = { mindText: ctx.mindText, messages: [...ctx.messages, { role: 'user', step: 3, content: '알겠어. 오늘은 조금 가벼워', message_kind: 'journey_answer' }], understandings: [] };
+  assert.equal(latestOpenJourneyTurn(answered, 3).kind, '');
+  // 정상 질문 턴은 question 으로 판정된다
+  const questionCtx = { mindText: ctx.mindText, messages: base.slice(0, 1), understandings: [] };
+  assert.equal(latestOpenJourneyTurn(questionCtx, 3).kind, 'question');
+});
+
+test('⑦ 시도 예산: 남은 시간이 없으면 다음 시도를 시작하지 않는다', async () => {
+  const { genStepQuestion, LIMITS } = await loadExports(EJ, EJ_EXPOSE);
+  assert.equal(LIMITS.ATTEMPTS, 3);
+  assert.equal(LIMITS.DEADLINE_MS, 11_000);
+
+  const realNow = Date.now;
+  let clock = realNow();
+  Date.now = () => clock;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    clock += 6_000; // 한 번의 AI 호출이 6초 걸린 상황
+    const content = JSON.stringify({
+      candidates: [{ acknowledgement: '', question: '우울증 때문에 어떤 순간이 힘든가요?', anchor: '눈치', assumptions: [], meaning: 'x', keys: ['x'], reply: '' }],
+    });
+    return new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
-  assert.equal(followupMode(askedCtx), 'asked');
-  // 정정 문장이 '같은 질문' 지적이면 feedback, 사용자 물음이면 feedback 보다 asked 가 우선
-  assert.equal(followupMode({ ...askedCtx, messages: [...askedCtx.messages.slice(0, -1), { role: 'user', step: 3, content: '같은 질문을 또 하네', message_kind: 'understanding_choice' }] }), 'feedback');
-  assert.equal(followupMode({ ...askedCtx, messages: [...askedCtx.messages, { role: 'user', step: 4, content: REAL_QUESTION_2, message_kind: 'followup_answer' }] }), 'asked');
-  assert.equal(followupMode({ mindText: MIND, messages: [...base, { role: 'user', step: 2, content: '회의 끝나면 기운이 빠져', message_kind: 'step_answer' }], understandings: [] }), 'normal');
-  assert.equal(followupMode({ mindText: MIND, messages: [...base, { role: 'user', step: 2, content: '같은 질문을 또 하네', message_kind: 'step_answer' }], understandings: [] }), 'feedback');
+  try {
+    const ctx = { mindText: '회사에서 눈치 보는 게 힘들어', messages: [], understandings: [] };
+    await assert.rejects(() => genStepQuestion(AI, ctx, 'step3'), /NO_CANDIDATE/);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(calls, 1, '6초를 쓴 뒤에는 11초 예산 안에서 두 번째 호출을 시작하지 않는다');
+});
 
-  const c = candidate('회의 말고 눈치를 보게 되는 다른 장면은 어디인가요?', { reply: '제가 대신 정할 수는 없지만, 먼저 힘든 순간부터 같이 볼게요.' });
-  assert.equal(renderFollowup(c, 'asked', REAL_QUESTION_1), `${c.reply}\n\n${c.question}`);
-  assert.equal(renderFollowup(candidate(c.question), 'asked', REAL_QUESTION_1), `제가 대신 정답을 정해 줄 수는 없지만, 같이 찾아볼게요.\n\n${c.question}`);
-  assert.equal(renderFollowup(candidate(c.question, { acknowledgement: '대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이네요' }), 'normal', REAL_QUESTION_1), c.question);
-  assert.equal(renderFollowup(candidate(c.question), 'normal', MIND), `눈치를 본다는 말이 마음에 남아요.\n\n${c.question}`);
+test('되받아치기 공감 문장은 화면에 내지 않는다', async () => {
+  const { isParrot, renderCandidate } = await loadExports(EJ, EJ_EXPOSE);
+  const userText = '대처를 해야지 아떻게 대처하는게 좋을까?';
+  assert.equal(isParrot('대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이 느껴져요.', userText), true);
+  assert.equal(isParrot('눈치를 본다는 말이 마음에 남아요.', '회사에서 눈치 보는 게 힘들어'), false);
 
-  // asked 모드 생성: 프롬프트에 '먼저 답할 것' 노트, 결과는 reply + 질문
-  let calls = fakeOpenAI(() => ({ candidates: [candidate('회의 말고 눈치를 보게 되는 다른 장면은 어디인가요?', { reply: '제가 대신 정할 수는 없지만, 먼저 힘든 순간부터 같이 볼게요.' })] }));
-  const chosen = await genFollowupQuestion(AI, { ...askedCtx, priorSummary: '나는 지난 여정에서 혼자 버티는 습관을 이야기했어요.' });
-  assert.equal(calls.count, 1);
-  assert.match(calls.systems[0], /먼저 답할 것/);
-  assert.match(calls.systems[0], /혼자 버티는 습관/);
-  assert.equal(chosen.reply, '제가 대신 정할 수는 없지만, 먼저 힘든 순간부터 같이 볼게요.');
+  const parrot = candidate({ acknowledgement: '대처를 해야지 아떻게 대처하는게 좋을까 하는 마음이 느껴져요' });
+  assert.equal(renderCandidate(parrot, 'normal', null, userText), parrot.question);
 
-  // 의도 반복(context)만으로 막힌 후보는 3번째 시도에서 살아난다
-  const ctxBlock = { askedTexts: ['눈치가 보이는 건 어떤 상황인가요?'], rejectedKeys: [], rejectedTexts: [], evidenceTexts: [MIND, '회의 때 내 의견을 말하기 전에 눈치를 봐'] };
-  const sameIntent = candidate('회의 말고 어떤 장면에서 의견을 삼키게 되나요?', { anchor: '의견', acknowledgement: '의견을 말하기 전이라는 말이 남아요.' });
-  assert.equal(blockReasonFor(sameIntent, ctxBlock), 'repeat');
-  assert.equal(blockReasonFor(sameIntent, ctxBlock, true), null);
-  assert.equal(blockReasonFor(candidate('우울증 때문에 어떤 순간이 힘든가요?'), ctxBlock, true), 'forbidden');
-  calls = fakeOpenAI(() => ({ candidates: [sameIntent] }));
-  const normalCtx = { mindText: MIND, messages: [{ role: 'ai', step: 1, content: '눈치가 보이는 건 어떤 상황인가요?', message_kind: 'step_question' }, { role: 'user', step: 1, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'step_answer' }], understandings: [] };
-  const relaxed = await genFollowupQuestion(AI, normalCtx);
-  assert.equal(calls.count, 3);
-  assert.equal(relaxed.question, sameIntent.question);
+  const asked = candidate({ reply: '네, 저도 오타를 낼 수 있어요.' });
+  assert.equal(renderCandidate(asked, 'asked', null, Q_TYPO, true), `네, 저도 오타를 낼 수 있어요.\n\n${asked.question}`);
+  assert.equal(renderCandidate(asked, 'asked', null, Q_TYPO, false), '네, 저도 오타를 낼 수 있어요.');
+});
+
+test('get-step-question 도 같은 규칙으로 답하고 단계를 지킨다', async () => {
+  const { followupMode, renderFollowup, blockReasonFor, replyQualityReason, latestOpenTurn, LIMITS } = await loadExports(GSQ, GSQ_EXPOSE);
+  assert.equal(LIMITS.GENERATION_ATTEMPTS, 3);
+  assert.equal(LIMITS.DEADLINE_MS, 11_000);
+  assert.equal(replyQualityReason('제가 대신 정답을 정해 줄 수는 없지만, 같이 찾아볼게요.', Q_ADVICE), 'reply_evasive');
+  assert.equal(replyQualityReason('네, 저도 오타를 낼 수 있어요.', Q_TYPO), null);
+
+  const base = [
+    { role: 'ai', step: 1, content: '지금 마음에서 가장 또렷한 느낌은 무엇인가요?', message_kind: 'step_question' },
+    { role: 'user', step: 1, content: '회의 때 내 의견을 말하기 전에 눈치를 봐', message_kind: 'step_answer' },
+  ];
+  // 사용자가 물으면 피드백보다 asked 가 우선
+  assert.equal(followupMode({ mindText: '', messages: [...base, { role: 'user', step: 2, content: Q_ADVICE, message_kind: 'step_answer' }], understandings: [] }), 'asked');
+  assert.equal(followupMode({ mindText: '', messages: [...base, { role: 'user', step: 2, content: '같은 질문을 또 하네', message_kind: 'step_answer' }], understandings: [] }), 'feedback');
+  assert.equal(followupMode({ mindText: '', messages: base, understandings: [] }), 'normal');
+
+  const c = candidate({ reply: '제가 정답을 정하진 않지만, 어떻게 할지 함께 정리해 볼게요.', acknowledgement: '' });
+  assert.equal(renderFollowup(c, 'asked', Q_ADVICE, true), `${c.reply}\n\n${c.question}`);
+  assert.equal(renderFollowup(c, 'asked', Q_TYPO, false), c.reply);
+
+  const ctx = { askedTexts: [], rejectedKeys: [], rejectedTexts: ['관계에서 늘 먼저 물러나는 사람인 것 같아요'], evidenceTexts: ['회사에서 눈치 보는 게 힘들어'] };
+  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '' }), ctx, { userQuestion: Q_ADVICE }), 'reply_quality');
+  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '오늘 날씨는 맑아요.' }), ctx, { userQuestion: Q_ADVICE }), 'reply_quality');
+  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '관계에서 늘 먼저 물러나는 사람인 것 같아요.' }), ctx, { userQuestion: '그럼 관계에서 어떻게 해야 좋을까?' }), 'rejected_text');
+  assert.equal(blockReasonFor(c, ctx, { userQuestion: Q_ADVICE }), null);
+
+  // 답만 한 턴은 열린 턴(reply)으로 판정된다
+  const replyCtx = {
+    mindText: '회사에서 눈치 보는 게 힘들어',
+    messages: [...base, { role: 'user', step: 2, content: Q_TYPO, message_kind: 'step_answer' }, { role: 'ai', step: 2, content: '네, 저도 오타를 낼 수 있어요.', message_kind: 'step_question' }],
+    understandings: [],
+  };
+  assert.equal(latestOpenTurn(replyCtx, 2, 'step_question', 'step_answer').kind, 'reply');
+});
+
+test('② "아까 내 질문에는 답하지 않았어" 는 앞의 물음을 찾아 그 물음에 답한다', async () => {
+  const ej = await loadExports(EJ, EJ_EXPOSE);
+  assert.equal(ej.isUserQuestion(Q_IGNORED), true);
+
+  const ctx = {
+    mindText: '회사에서 눈치 보는 게 힘들어',
+    messages: [
+      { role: 'ai', step: 3, content: '눈치가 보이는 건 어떤 순간인가요?', message_kind: 'journey_question' },
+      { role: 'user', step: 3, content: '어떻게 대처하는 게 좋을까?', message_kind: 'journey_answer' },
+      { role: 'ai', step: 3, content: '그 순간을 조금 더 들려줄 수 있나요?', message_kind: 'journey_question' },
+      { role: 'user', step: 3, content: Q_IGNORED, message_kind: 'journey_answer' },
+    ],
+    understandings: [],
+  };
+
+  const systems = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const request = JSON.parse(options.body);
+    systems.push(String(request.messages?.[0]?.content ?? ''));
+    const content = JSON.stringify({
+      candidates: [{
+        acknowledgement: '',
+        question: '눈치가 보일 때 어떤 장면이 먼저 떠오르나요?',
+        anchor: '눈치',
+        assumptions: [],
+        meaning: 'x',
+        keys: ['눈치'],
+        reply: '앞서 어떻게 대처할지 물어봤는데 제가 답하지 못했어요. 지금 답하면, 먼저 힘든 순간을 좁혀 보는 게 도움이 돼요.',
+      }],
+    });
+    return new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+
+  const text = await ej.genStepQuestion(AI, ctx, 'step4');
+  assert.match(systems[0], /먼저 답할 것/);
+  assert.match(systems[0], /어떻게 대처하는 게 좋을까\?/, '앞의 물음을 답할 대상으로 넘겨야 한다');
+  assert.match(systems[0], /답하지 못한 것을 먼저 인정/);
+  assert.match(text, /^앞서 어떻게 대처할지 물어봤는데 제가 답하지 못했어요/);
+  assert.match(text, /\?$/, '앞 물음에 답한 뒤에는 대화를 이어갈 질문을 붙인다');
 });

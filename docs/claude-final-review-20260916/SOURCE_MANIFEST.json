@@ -1,28 +1,28 @@
 {
  "release": "ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916",
- "revision": 3,
+ "revision": 4,
  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310)",
  "groups": {
   "server": [
    {
     "path": "supabase/functions/get-step-question/index.ts",
     "status": "modified",
-    "after_sha256": "fc7c668f2f2ec70406023564be8b0939c3ec6d373489df82313af0da96cc5940",
-    "after_bytes": 64059,
+    "after_sha256": "b1b2c777582de9bb006784a465bc2768164c6d96a303c5308fa5763192d48d0c",
+    "after_bytes": 76353,
     "before_sha256": "bdd8dfb3b3f1abb2513c945fcf7e5c35855278994c517da6476991f8a6595df9"
    },
    {
     "path": "supabase/functions/echo-journey/index.ts",
     "status": "modified",
-    "after_sha256": "2feba9a7bd0b89a62a2e6cf05f577b29a32fd1eb31109597d742795e63326038",
-    "after_bytes": 51658,
+    "after_sha256": "1fa37f17c0cb3a598d0f392642f7d4993d172b27d37e47e7df3b5f45fe03c294",
+    "after_bytes": 60267,
     "before_sha256": "b3b4db7cce6098d983bd8a812bd3d89c92a02aaea535f42e793fc69efd82f081"
    },
    {
     "path": "supabase/functions/echo-journey/question-quality.ts",
-    "status": "unchanged (배포 짝 파일 동봉)",
-    "after_sha256": "3295ae75b8be843b79a31442f08705807449d3e77fcd646d8b24d531b31452ce",
-    "after_bytes": 16172,
+    "status": "modified",
+    "after_sha256": "8649d934aca3244680946a6b23395bbbc452d8f5b069cc2505dc956d203c9eb8",
+    "after_bytes": 24044,
     "before_sha256": "3295ae75b8be843b79a31442f08705807449d3e77fcd646d8b24d531b31452ce"
    }
   ],
@@ -171,38 +171,24 @@
   ],
   "qa": [
    {
-    "path": "qa/step7-contract.test.mjs",
-    "status": "modified",
-    "before_sha256": "814dbe64919fd4362ba174477d0939690f842cd776b6b704188886dd233cc0d9",
-    "after_sha256": "d6d1cb9da55f82c8701ef6b796ce8f79e7c2595012e4214952697dd861c26314",
-    "after_bytes": 6271
-   },
-   {
-    "path": "qa/question-salvage.test.mjs",
-    "status": "new",
-    "before_sha256": null,
-    "after_sha256": "4169934aefa55d47c00b1f9c172abd0a947da5ac09bc5c1e24d9692136b629a8",
-    "after_bytes": 8868
-   },
-   {
-    "path": "qa/save-controllers.test.ts",
-    "status": "modified",
-    "before_sha256": "ac12e0207ee23b6b376002c69ce82d9de6c1508747efde9e33a802479bd2ef20",
-    "after_sha256": "18ac0c3a6a13f495bf0ec1a898e1e19e13cc911adac5845c649caffcb1f2e077",
-    "after_bytes": 4594
+    "path": "qa/companion-rules.test.mjs",
+    "status": "added",
+    "after_sha256": "9770192597909a515846736c75dbdade83d9fc7933eb70cd1ae0c400b8ed7ee6",
+    "after_bytes": 18046
    },
    {
     "path": "qa/full-flow-edge-simulation.test.mjs",
     "status": "modified",
-    "before_sha256": "6743691053639ec480d7fe649c3784599054dcbe41ef7b5c40f019d53d4520f0",
-    "after_sha256": "52e56fed0ea70f9c4ef3b3822ee9243625296e8f5fd37edde306b6e1912da71a",
-    "after_bytes": 48556
+    "after_sha256": "fc4792b013a6547f236962d325ada020abf234944e37ba9ef3904094f44c81ab",
+    "after_bytes": 61802,
+    "before_sha256": "6743691053639ec480d7fe649c3784599054dcbe41ef7b5c40f019d53d4520f0"
    },
    {
-    "path": "qa/companion-rules.test.mjs",
-    "status": "added",
-    "after_sha256": "ee74a183a3a0c70dde08ca22194c8423c36ab8e9452eed1f5d982ff2b3297f30",
-    "after_bytes": 17795
+    "path": "qa/step7-contract.test.mjs",
+    "status": "modified",
+    "after_sha256": "adc4cf4b35fd9a1a87789b72326ad7cbaab86200011e4b02f0f5371ac31cdd17",
+    "after_bytes": 6469,
+    "before_sha256": "814dbe64919fd4362ba174477d0939690f842cd776b6b704188886dd233cc0d9"
    },
    {
     "path": "qa/save-first-dialog.test.mjs",
@@ -210,6 +196,19 @@
     "after_sha256": "98f7a49fd2ec9554bbc20c114f392da031162a010b6a24bb03be5b559dfa5ee6",
     "after_bytes": 3281,
     "before_sha256": "0fcae6a59a4c4300caac46245c768cccda2c753fdec9f06af682b0fc83e63333"
+   },
+   {
+    "path": "qa/question-salvage.test.mjs",
+    "status": "added",
+    "after_sha256": "4169934aefa55d47c00b1f9c172abd0a947da5ac09bc5c1e24d9692136b629a8",
+    "after_bytes": 8868
+   },
+   {
+    "path": "qa/save-controllers.test.ts",
+    "status": "modified",
+    "after_sha256": "18ac0c3a6a13f495bf0ec1a898e1e19e13cc911adac5845c649caffcb1f2e077",
+    "after_bytes": 4594,
+    "before_sha256": "ac12e0207ee23b6b376002c69ce82d9de6c1508747efde9e33a802479bd2ef20"
    }
   ],
   "packaging_restore": [
@@ -287,20 +286,16 @@
    }
   ]
  },
- "revision_note": "3차(2026-09-16): 친구형 AI 서버 수정(asked 모드·되받아치기 방지·시도 3회 완화·의도 반복 범위·지난 여정 요약) + QA 추가. 프론트 변경 없음.",
+ "revision_note": "4차(2026-09-17, 미배포): 질문/단계 분리, 고정 회피 문장 금지·답변 품질 검사, 거절 검사 reply 확대, 확인된 기억(doit_insights 재사용), 리포트 이후 대화 서버 경로, 시도 예산·토큰/사용량 로그. 프론트 변경 없음.",
  "deployed": {
+  "note": "2026-09-17 기준 운영은 v12/v21. 이번 revision 4 는 미배포.",
   "echo-journey": {
    "version": 12,
-   "ezbr_sha256": "1c0a0e53fc15f84491d95de1c862ce97d4ae8a4947eaf697d1968d19bfc1364e",
-   "updated_at_utc": "2026-09-16T20:34:58Z",
-   "index_ts_matches_local": true,
-   "question_quality_ts": "trailing newline 1 byte differs (deployed sha256 cbfa7ed4d075b72f57e88a30c7798cf4dfa70ceecc04da8b94c351b0099353ec)"
+   "ezbr_sha256": "1c0a0e53fc15f84491d95de1c862ce97d4ae8a4947eaf697d1968d19bfc1364e"
   },
   "get-step-question": {
    "version": 21,
-   "ezbr_sha256": "4ae492cdf241e8b8bab27475661208996a011621d91529e18df5a5d2838f93b8",
-   "updated_at_utc": "2026-09-16T20:43:51Z",
-   "index_ts_matches_local": true
+   "ezbr_sha256": "4ae492cdf241e8b8bab27475661208996a011621d91529e18df5a5d2838f93b8"
   }
  }
 }
