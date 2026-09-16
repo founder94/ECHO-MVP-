@@ -5,15 +5,15 @@
 ## 0. 현재 상태 (이 문서 작성 시각 기준, Supabase list_edge_functions 실측)
 | 구역 | 상태 | 비고 |
 |---|---|---|
-| echo-journey | **v11 ACTIVE, verify_jwt 켬** (updated 2026-09-16 UTC 13:xx, ezbr `71178054…`) | 로컬 `index.ts` sha256 `31fed95f…`, `question-quality.ts` `3295ae75…`. 배포본 바이트 대조 결과는 Claude 최종 보고에 기록 |
-| get-step-question | v19 (배포 작업 진행 중, v20 미확인) | 로컬 `index.ts` sha256 `56ece8f3…`. v20 이 목록에 보이고 바이트 대조가 끝난 뒤에만 "배포됨"으로 기록 |
+| echo-journey | **v11 ACTIVE, verify_jwt 켬** (updated 2026-09-16 UTC 13:xx, ezbr `71178054…`) | 로컬 `index.ts` sha256 `31fed95f…`, `question-quality.ts` `3295ae75…`. 배포본 두 파일 모두 sha256·cmp 로컬과 동일 |
+| get-step-question | **v20 ACTIVE, verify_jwt 켬** (updated 2026-09-16 UTC, ezbr `11ffc0f4…`) | 배포본 `index.ts` sha256 `56ece8f3…` = 로컬, 바이트 대조(cmp) 동일 |
 | echo-payment / admin-dashboard / admin-conversations / openai-chat / doit-understanding | 변경 없음 | — |
 | DB | 변경 없음(마이그레이션 5건 기존 적용 상태) | — |
 | Netlify | **미배포** — Codex 가 `ECHO_CLAUDE_NETLIFY_DRAG_20260916.zip`(sha256 `b89f9c19…`) 드래그 배포 | 현재 운영 배포 `6aaa6f4662ecb9daa734d6da` |
 
 ## 1. 순서
 1. Netlify: `ECHO_CLAUDE_NETLIFY_DRAG_20260916.zip` 드래그 배포 → `ready` 확인 → 운영 index.html 이 `assets/index-CqAhazqn.js` 를 부르는지 확인. (서버와 응답 계약이 같으므로 서버 앞뒤 무관)
-2. get-step-question v20: 로컬 `index.ts` 단일 파일, verify_jwt 켬. 배포 뒤 `get_edge_function` 원문 sha256 = `56ece8f3…` 대조. 미확인이면 v19 유지로 기록.
+2. get-step-question v20: 배포 완료·대조 완료(2026-09-16). 추가 작업 없음.
 3. 24시간 관찰: `validate_fail` 로그에 `qmarks= tail=` 가 붙는지, attempt 1·2 연속 실패(NO_CANDIDATE) 빈도가 이전(6회/2분)보다 줄었는지; echo-journey 는 `[ej]` 로그가 오류 시에만 남는지.
 
 ## 2. 되돌림
