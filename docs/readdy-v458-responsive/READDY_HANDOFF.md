@@ -9,7 +9,7 @@
 | # | 경로 | 상태 | 바꾼 이유 |
 |---|------|------|-----------|
 | 1 | `src/index.css` | 수정 | html/body/#root 폭 100%·가로 넘침 차단, `.echo-min-h-viewport`(100dvh+100vh 폴백), 홈 섹션 scroll-margin |
-| 2 | `src/pages/home/page.tsx` | 수정 | 최상위 `min-h-screen` → `.echo-home .echo-min-h-viewport w-full max-w-full` |
+| 2 | `src/pages/home/page.tsx` | 수정 | 최상위 `min-h-screen` → `.echo-home .echo-min-h-viewport w-full max-w-full`, 우주 사진 고정층 `pointer-events-none` |
 | 3 | `src/pages/home/scrollToSection.ts` | **신규** | 메뉴·푸터 앵커 이동을 고정 헤더 실측 높이만큼 보정 |
 | 4 | `src/pages/home/components/PastelBlobs.tsx` | 수정 | `filter: blur(100px)` 제거 → 같은 색·크기·위치의 radial-gradient (Android 직각 잘림 원인) |
 | 5 | `src/pages/home/components/FloatingEffects.tsx` | 수정 | 무지개 140vw→140%·blur 제거(마스크 페이드), 빛 기둥·구름 blur 제거→그라디언트, 구슬 backdrop-filter 제거 |

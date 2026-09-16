@@ -29,7 +29,8 @@ export default function Home() {
       {/* 2026-09-16 반응형 수정: min-h-screen(100vh) → 100dvh + 100vh 폴백(.echo-min-h-viewport), 가로 폭 100% 고정 */}
       <div className="echo-home echo-min-h-viewport relative w-full max-w-full">
         {/* Full page background image with float effect */}
-        <div className="fixed inset-0 z-0 animate-float-bg">
+        {/* 2026-09-16 반응형 수정: 배경층은 입력을 받지 않는다(pointer-events-none). 이미지·애니메이션은 그대로 */}
+        <div className="fixed inset-0 z-0 pointer-events-none animate-float-bg">
           <img
             src="https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/c125683b-65fb-46b7-abb4-538de3a9e593_compressed__3.webp"
             alt=""

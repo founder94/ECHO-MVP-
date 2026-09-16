@@ -22,8 +22,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -79,7 +79,7 @@
       {
         "t": "조금 가라앉아요",
         "l": 45,
-        "r": 274,
+        "r": 275,
         "w": 230,
         "overflow": false
       },
@@ -94,14 +94,14 @@
         "t": "아직 잘 모르겠어요",
         "l": 45,
         "r": 274,
-        "w": 229,
+        "w": 230,
         "overflow": false
       },
       {
         "t": "직접 말할게요",
         "l": 45,
         "r": 274,
-        "w": 229,
+        "w": 230,
         "overflow": false
       }
     ],
@@ -147,8 +147,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -272,8 +272,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -397,8 +397,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -430,7 +430,7 @@
     "card": {
       "l": 23,
       "r": 366,
-      "w": 343,
+      "w": 342,
       "t": 304
     },
     "cardMaxWidthParent": "512px",
@@ -453,7 +453,7 @@
       },
       {
         "t": "조금 가라앉아요",
-        "l": 45,
+        "l": 44,
         "r": 344,
         "w": 300,
         "overflow": false
@@ -462,7 +462,7 @@
         "t": "답답해요",
         "l": 45,
         "r": 344,
-        "w": 299,
+        "w": 300,
         "overflow": false
       },
       {
@@ -522,8 +522,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -647,8 +647,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -772,8 +772,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -897,8 +897,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -931,7 +931,7 @@
       "l": 278,
       "r": 745,
       "w": 467,
-      "t": 349
+      "t": 350
     },
     "cardMaxWidthParent": "512px",
     "cardTransform": "none",
@@ -1022,8 +1022,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -1147,8 +1147,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",
@@ -1272,8 +1272,8 @@
     "bgLayers": [
       {
         "z": "0",
-        "pe": "auto",
-        "cls": "fixed inset-0 z-0 animate-float-bg"
+        "pe": "none",
+        "cls": "fixed inset-0 z-0 pointer-events-none animate-float-bg"
       },
       {
         "z": "1",

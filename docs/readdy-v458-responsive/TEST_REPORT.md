@@ -48,6 +48,7 @@ className={`fixed top-0 left-0 right-0 z-50 … pt-[env(safe-area-inset-top)] ${
 scrollToSectionBelowHeader(href.replace('#', ''));   // 헤더 실측 높이만큼 보정
 // home/page.tsx
 <div className="echo-home echo-min-h-viewport relative w-full max-w-full">
+<div className="fixed inset-0 z-0 pointer-events-none animate-float-bg">  // 우주 사진층
 // index.css
 html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }  body, #root { overflow-x: clip; }
 .echo-min-h-viewport { min-height: 100vh; min-height: 100dvh; }
@@ -60,7 +61,7 @@ html, body, #root { width: 100%; max-width: 100%; overflow-x: hidden; }  body, #
 `index.html` `viewport-fit=cover` 유지 → 헤더 상단 `env(safe-area-inset-top)`, 하단 고정 버튼 2개 `env(safe-area-inset-bottom)`. 높이는 100dvh(폴백 100vh), 히어로는 기존 100svh 유지. `vw` 는 배경층에서 제거(140% 로 대체).
 
 ## 7. z-index 구조 (변경 없음)
-배경 이미지 fixed z-0 → PastelBlobs fixed z-1(pointer-events none) → FloatingEffects fixed z-1(none) → NoiseOverlay fixed z-2(none) → 콘텐츠 `relative z-10` → ScrollToTop z-40 → Navbar z-50 → ScrollProgress·전체메뉴 z-60 → MusicPlayer z-100. 실측: 배경층 z/pointer-events `0/auto, 1/none, 1/none, 2/none`, 카드 z=10.
+배경 이미지 fixed z-0 → PastelBlobs fixed z-1(pointer-events none) → FloatingEffects fixed z-1(none) → NoiseOverlay fixed z-2(none) → 콘텐츠 `relative z-10` → ScrollToTop z-40 → Navbar z-50 → ScrollProgress·전체메뉴 z-60 → MusicPlayer z-100. 실측: 배경층 z/pointer-events `0/none, 1/none, 1/none, 2/none`(우주 사진층에 pointer-events-none 추가), 카드 z=10.
 
 ## 8. 폭별 실측 (헤드리스 Chromium, ≤430px 은 Android UA·DPR 3·터치, 실제 클릭 경로로 섹션 이동)
 | 폭 | 가로스크롤 | 카드 폭 | 버튼 열 | 버튼 6개 화면 안 | 헤더 겹침 | 데스크톱 메뉴 | 배경층 filter/backdrop 잔존 | 스크롤 후 헤더 배경 | 앵커 후 제목 위치 | 결과 |

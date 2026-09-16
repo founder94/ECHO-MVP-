@@ -13,8 +13,8 @@
       "path": "src/pages/home/page.tsx",
       "status": "modified",
       "before_sha256": "0b40857e9ffabc10586c36cfa7102d2962657ad380d1125b9da4c25281b36ebe",
-      "after_sha256": "568c59eb02792f917da36854e2077681f03fcbf209d90a178eb5a33dfdaa8344",
-      "after_bytes": 5436
+      "after_sha256": "3ea10c61aa1f2952a9563f740dbe1dd982132d5ae37223a1cf1f5ccbf264f1e7",
+      "after_bytes": 5603
     },
     {
       "path": "src/pages/home/scrollToSection.ts",
