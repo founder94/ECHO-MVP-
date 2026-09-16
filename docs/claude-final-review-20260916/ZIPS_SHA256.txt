@@ -1,2 +1,7 @@
-c4199e12a338c8a74af1dc3c8a9664d55b99a318c7b5cca84350885e81ee9764  ECHO_CLAUDE_TRUST_FIRST_20260917.zip
-b89f9c19d40e35e9b4aea91fd952052c57cfe43e2dbf4d6467d2c8e8e695c63f  deliver/ECHO_CLAUDE_NETLIFY_DRAG_20260916.zip
+# 2026-09-17 최종 전달물 SHA-256 (ZIP 원본은 저장소에 넣지 않는다)
+d6fa127ecc5e360f7f8a1cc23d3b2b4e93971505ec713db3618add42f17cc00d  ECHO_CLAUDE_TRUST_FIRST_20260917.zip  (검수용, 165파일)
+308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8  ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip  (Netlify 드래그 배포용, 102파일, assets/index-PTm_2znC.js)
+
+# 운영 배포 실측 (2026-09-17)
+echo-journey       v14 ACTIVE  ezbr 21ce08f0c1adb38d0f2471358a062b954a2c05135f4ff06deece636b14f41197  verify_jwt=true  (index.ts 배포본=로컬 바이트 동일)
+get-step-question  v25 ACTIVE  ezbr 17df317b4690a1c4f152fb81b13879926773c68e2f200ce18bb8d7549c7ed73f  verify_jwt=true  (index.ts 배포본=로컬 바이트 동일)
