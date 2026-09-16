@@ -1,4 +1,4 @@
-# TEST_REPORT — ECHO 최종 검토·구현 2차 (2026-09-16, 검수문 project-13966538 반영 + Android·iPhone 마무리)
+# TEST_REPORT — ECHO 최종 검토·구현 3차 (2026-09-16, 2차 + 실사용 캡처 9장 '친구형 AI' 수정)
 
 단계 표기: **코드 수정 완료 → 로컬 검사 완료 → 대표 승인(2026-09-16 "승인한다") → 서버 함수 배포 결과는 `DEPLOYMENT_PLAN_STOP.md` 에 기록 → 운영 확인은 NOT RUN**. 운영주소·실계정·실기기 확인 전이므로 "최종 완성"이라고 쓰지 않는다.
 
@@ -43,8 +43,8 @@
 | 번들 필수 문구 4종 | 존재 |
 | Edge 단일 파일 검사기(`edge-predeploy-check.sh`) | NOT RUN(실행 도구 정책 차단; 배포 후 바이트 대조로 대체) |
 
-### 3-2. QA 스위트(node:test) — 53/53 PASS
-admin-dashboard-contract 8 · full-flow-edge-simulation 11(리포트 확정 서버 판정 단언 추가) · question-salvage 6 · save-first-dialog 4 · step7-contract 5 · question-context 14 · save-controllers 5(시간 초과 뒤 재시도 허용으로 기대값 갱신).
+### 3-2. QA 스위트(node:test) — 60/60 PASS (3차)
+admin-dashboard-contract 8 · full-flow-edge-simulation 11(리포트 확정 서버 판정 단언 추가) · question-salvage 6 · save-first-dialog 4(지연 예산: 시도 3회로 갱신) · step7-contract 5 · question-context 14 · save-controllers 5(시간 초과 뒤 재시도 허용으로 기대값 갱신) · **companion-rules 7(3차 신규: 실사용 문장 판정·asked 모드·되받아치기 제거·3번째 완화·완화에서도 금지어 차단·get-step-question 거울 규칙)**.
 
 ### 3-3. 브라우저 실행 검사(검사한 빌드, 서버 가짜 응답) — 28/28 PASS
 | 시나리오 | 확인 |
@@ -74,8 +74,9 @@ admin-dashboard-contract 8 · full-flow-edge-simulation 11(리포트 확정 서�
 | 320~1440px + Galaxy/iPhone 크기 | PASS(에뮬레이션) / 실기기 NOT RUN | 3-3 S6, 3-4 |
 | 실제 Toss 승인 · 관리자 로그인 육안 · Deno · WebKit 실기기 | NOT RUN | — |
 
-## 5. 수정 파일 (PATCH/ 35개, 그룹별 해시는 SOURCE_MANIFEST.json)
-- server(2): `get-step-question/index.ts`(tidy·soften·shape 로그), `echo-journey/index.ts`(후보 정리, `[ej]` 진단, **리포트 confirmed 서버 판정 + 프롬프트 anchor**)
+## 5. 수정 파일 (PATCH/, 그룹별 해시는 SOURCE_MANIFEST.json)
+- server(3): `get-step-question/index.ts`(2차 tidy·soften·shape 로그 + **3차 asked·되받아치기·3회·완화·지난 여정 요약**), `echo-journey/index.ts`(2차 후보 정리·`[ej]` 진단·리포트 confirmed 서버 판정 + **3차 동일 규칙**), `echo-journey/question-quality.ts`(변경 없음, 배포 짝 파일로 동봉)
+- qa 3차: `qa/companion-rules.test.mjs`(신규 7건), `qa/save-first-dialog.test.mjs`(시도 3회)
 - frontend_timeout_recovery(3): `api.ts`(40/75초 상한, reason 'timeout'), `startSave.ts`, `journeySave.ts`(시간 초과 뒤 잠금 해제)
 - frontend_payment_routing(2): 결제 승인·기결제 → `/report`
 - frontend_mobile_dvh_fallback(9): 여정 8곳 + Suspense 폴백 `echo-min-h-viewport`, `WeatherEffect.tsx` blur 제거
@@ -85,4 +86,7 @@ admin-dashboard-contract 8 · full-flow-edge-simulation 11(리포트 확정 서�
 - qa(4), packaging_restore(1)
 
 ## 6. NOT RUN 요약
-실제 Toss 승인 · 운영 관리자 로그인 육안 · Deno check/test · WebKit(iPhone Safari) 실기기 · 갤럭시 실기기 · OpenAI 실호출 · 프로필 실계정 왕복 · Edge 단일 파일 검사기(정책 차단, 배포 후 바이트 대조로 대체).
+실제 Toss 승인 · 운영 관리자 로그인 육안 · Deno check/test · WebKit(iPhone Safari) 실기기 · 갤럭시 실기기 · OpenAI 실호출 · 프로필 실계정 왕복 · Edge 단일 파일 검사기(정책 차단, 배포 후 바이트 대조로 대체) · **3차: 실기기에서 asked 모드·STEP 4 통과 재현(대표 확인 대기)**.
+
+## 7. 3차(친구형 AI) 요약
+원인·수정·증거는 `COMPANION_FIX_REPORT_20260916.md`, 결제 구조 전략은 `PRICING_STRATEGY_20260916.md`. 서버 배포 결과(v12/v21, 바이트 대조)는 `DEPLOYMENT_PLAN_STOP.md` 0장.

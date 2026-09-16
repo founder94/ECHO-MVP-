@@ -6,19 +6,21 @@
 | 파일 | 용도 | SHA-256 |
 |---|---|---|
 | `ECHO_CLAUDE_NETLIFY_DRAG_20260916.zip` | Netlify 드래그 배포용 정적 빌드(100 파일: `index.html`, `_redirects`, `_headers`, `favicon.svg`, `assets/`) | `b89f9c19d40e35e9b4aea91fd952052c57cfe43e2dbf4d6467d2c8e8e695c63f` |
-| `ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916.zip` | 검수용: PATCH 35파일(프로젝트 상대경로), server.diff, frontend.diff, 구조 의견, 매니페스트(전후 해시), 검사 보고, 배포 계획, 증거 | 최종 보고의 값 |
+| `ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916.zip` | 검수용(3차 갱신): PATCH 파일(프로젝트 상대경로, 서버 3파일·QA 포함), server.diff, frontend.diff, 구조 의견, 매니페스트(전후 해시), 검사 보고, 배포 계획, 친구형 AI 수정 보고, 결제 전략 메모, 증거 | 최종 보고의 값 |
 
 배포 전에 반드시 ZIP 의 SHA-256 을 다시 계산해 위 값과 같은지 확인한다. 다르면 배포하지 않는다.
 
 ## 1. 서버(Supabase) 상태 — Claude 가 대표 승인으로 처리
 | 함수 | 이전 | 지금 | 비고 |
 |---|---|---|---|
-| echo-journey | v10 | **v11 배포됨** (2026-09-16 UTC 13:xx) | 후보 질문 끝 장식 정리, `[ej]` 진단 로그, 리포트 confirmed 서버 판정(anchor 대조) |
-| get-step-question | v19 | v20 배포 결과는 Claude 최종 보고의 값으로 확인 | 질문 검증 규칙(tidy·soften) + 형태 로그 |
+| echo-journey | v10 → v11 | **v12 배포됨** (2026-09-16 20:34 UTC) | v11: 후보 정리·`[ej]` 로그·리포트 confirmed 서버 판정. **v12: 사용자 물음에 먼저 답하는 asked 모드, 되받아치기 방지, 시도 3회(마지막 완화), 의도 반복 범위 축소, 지난 여정 요약 이어받기** (`COMPANION_FIX_REPORT_20260916.md`) |
+| get-step-question | v19 → v20 | **v21 배포됨** (2026-09-16 20:43 UTC) | v20: 질문 검증 규칙(tidy·soften). **v21: v12 와 같은 규칙(asked·되받아치기·3회·완화·지난 여정 요약)** |
 | echo-payment / admin-dashboard / admin-conversations / openai-chat / doit-understanding | 변경 없음 | 변경 없음 | — |
 | DB / RLS / 마이그레이션 / 시크릿 | 변경 없음 | 변경 없음 | — |
 
-프론트와 서버의 응답 계약(상태값·필드)은 바뀌지 않았으므로 Netlify 배포 순서는 서버 앞뒤 어느 쪽이어도 안전하다.
+프론트와 서버의 응답 계약(상태값·필드)은 바뀌지 않았으므로 Netlify 배포 순서는 서버 앞뒤 어느 쪽이어도 안전하다. Netlify ZIP(`b89f9c19…`)은 3차에서도 그대로다(프론트 변경 없음).
+
+서버 코드 원문은 `PATCH/supabase/functions/echo-journey/index.ts`, `PATCH/supabase/functions/echo-journey/question-quality.ts`, `PATCH/supabase/functions/get-step-question/index.ts` 에 있다(이미 운영에 배포된 것과 같은 파일). Codex 가 Supabase 에 다시 올릴 필요는 없다.
 
 ## 2. Netlify 배포 순서
 1. 사이트 `echo-mvp-doit`(ID `7a4934db-aff3-437d-815a-ffbf49d4b819`) > Deploys > "Drag and drop" 에 `ECHO_CLAUDE_NETLIFY_DRAG_20260916.zip` 을 올린다. 원본(소스) 업로드가 아니라 **정적 빌드 ZIP** 이다. Netlify 가 다시 빌드하게 두지 않는다.
