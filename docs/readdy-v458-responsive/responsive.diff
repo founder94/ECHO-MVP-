@@ -1,0 +1,252 @@
+--- a/src/index.css
++++ b/src/index.css
+@@ -120,6 +120,40 @@
+     background-color: oklch(var(--foreground-50) / 0.2);
+     color: oklch(var(--foreground-50));
+   }
++
++  /* 2026-09-16 반응형 수정: 화면 폭을 넘는 장식 요소가 가로 스크롤을 만들지 않도록 문서 폭을 100% 로 고정한다.
++     색·글꼴·간격은 바꾸지 않는다. */
++  html,
++  body,
++  #root {
++    width: 100%;
++    max-width: 100%;
++    overflow-x: hidden;
++  }
++  /* body·#root 는 clip 을 지원하는 브라우저에서 clip 으로 둔다(hidden 은 스크롤 컨테이너를 만들어
++     앵커 이동·scroll-margin 계산에 끼어든다). 미지원 브라우저는 위 hidden 이 그대로 적용된다. */
++  body,
++  #root {
++    overflow-x: clip;
++  }
++}
++
++/* 2026-09-16 반응형 수정: 페이지 최상위 높이. Android Chrome 주소창이 접히고 펼쳐질 때 100vh 가 튀므로
++   100dvh 를 우선 쓰고, dvh 를 모르는 브라우저는 100vh 로 되돌아간다. */
++.echo-min-h-viewport {
++  min-height: 100vh;
++  min-height: 100dvh;
++}
++
++/* 2026-09-16 반응형 수정: 메뉴(ECHO·경험·기록) 앵커 이동 시 섹션 제목이 고정 헤더(64/80px) 뒤로 숨지 않도록
++   헤더 높이만큼 스크롤 여백을 둔다. 홈(.echo-home) 안의 id 섹션에만 적용. */
++.echo-home main section[id] {
++  scroll-margin-top: calc(4rem + env(safe-area-inset-top));
++}
++@media (min-width: 768px) {
++  .echo-home main section[id] {
++    scroll-margin-top: calc(5rem + env(safe-area-inset-top));
++  }
+ }
+ 
+ @layer components {
+--- a/src/pages/home/page.tsx
++++ b/src/pages/home/page.tsx
+@@ -26,7 +26,8 @@
+ export default function Home() {
+   return (
+     <ParallaxProvider intensity={1}>
+-      <div className="min-h-screen relative">
++      {/* 2026-09-16 반응형 수정: min-h-screen(100vh) → 100dvh + 100vh 폴백(.echo-min-h-viewport), 가로 폭 100% 고정 */}
++      <div className="echo-home echo-min-h-viewport relative w-full max-w-full">
+         {/* Full page background image with float effect */}
+         <div className="fixed inset-0 z-0 animate-float-bg">
+           <img
+--- /dev/null
++++ b/src/pages/home/scrollToSection.ts
+@@ -0,0 +1,14 @@
++// 2026-09-16 반응형 수정: 홈 안의 앵커 이동(메뉴 ECHO·경험·기록, 푸터 ECHO·기록)을 고정 헤더 높이만큼 보정한다.
++// 섹션이 overflow-hidden(ParallaxSection) 안에 있어 CSS scroll-margin 이 뷰포트까지 전달되지 않으므로
++// 헤더 실측 높이를 빼서 window 를 직접 스크롤한다. 고정 px 값은 쓰지 않는다.
++export const HOME_NAV_ATTR = 'data-echo-nav';
++
++export function scrollToSectionBelowHeader(id: string): boolean {
++  const target = document.getElementById(id);
++  if (!target) return false;
++  const nav = document.querySelector<HTMLElement>(`[${HOME_NAV_ATTR}]`);
++  const headerHeight = nav ? nav.getBoundingClientRect().height : 0;
++  const top = target.getBoundingClientRect().top + window.scrollY - headerHeight;
++  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
++  return true;
++}
+--- a/src/pages/home/components/PastelBlobs.tsx
++++ b/src/pages/home/components/PastelBlobs.tsx
+@@ -57,14 +57,16 @@
+           key={i}
+           className="absolute rounded-full animate-blob-float"
+           style={{
+-            backgroundColor: blob.color,
++            // 2026-09-16 반응형 수정: 큰 원에 filter: blur(100px) 를 걸면 Android Chrome(GPU 합성)에서
++            // 블러 레이어가 사각형 타일 경계에서 잘려 "직각으로 끊긴 초록 배경"으로 보인다.
++            // 같은 색·크기·위치·애니메이션을 유지하고, 번짐은 필터 대신 투명으로 사라지는 radial-gradient 로 표현한다.
++            background: `radial-gradient(circle at center, ${blob.color} 0%, ${blob.color} 18%, transparent 70%)`,
+             width: blob.size,
+             height: blob.size,
+             top: blob.top,
+             left: blob.left,
+             right: blob.right,
+             bottom: blob.bottom,
+-            filter: 'blur(100px)',
+             animationDelay: blob.delay,
+             animationDuration: blob.duration,
+           }}
+--- a/src/pages/home/components/FloatingEffects.tsx
++++ b/src/pages/home/components/FloatingEffects.tsx
+@@ -153,11 +153,14 @@
+           top: '-10%',
+           left: '50%',
+           transform: 'translateX(-50%)',
+-          width: '140vw',
+-          height: '70vw',
++          // 2026-09-16 반응형 수정: 140vw 대신 부모(fixed inset-0 = 화면) 기준 140%. 비율은 2:1 로 동일.
++          width: '140%',
++          aspectRatio: '2 / 1',
+           borderRadius: '50%',
+           background: 'conic-gradient(from 180deg at 50% 100%, transparent 0deg, rgba(255,180,180,0.05) 30deg, rgba(255,230,150,0.05) 60deg, rgba(160,255,200,0.05) 90deg, rgba(160,220,255,0.05) 120deg, rgba(210,180,255,0.05) 150deg, transparent 180deg)',
+-          filter: 'blur(50px)',
++          // filter: blur(50px) 제거(Android GPU 블러 잘림 원인). 가장자리는 마스크로 투명하게 사라지게 한다.
++          WebkitMaskImage: 'radial-gradient(ellipse at 50% 100%, black 40%, transparent 72%)',
++          maskImage: 'radial-gradient(ellipse at 50% 100%, black 40%, transparent 72%)',
+           animation: 'rainbow-sweep 14s ease-in-out infinite',
+         }}
+       />
+@@ -172,8 +175,9 @@
+             top: '-10%',
+             width: beam.width,
+             height: '120%',
+-            background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.04) 60%, transparent 100%)',
+-            filter: 'blur(20px)',
++            // 2026-09-16 반응형 수정: filter: blur(20px) 제거. 세로 방향 밝기는 그대로 두고
++            // 가로 가장자리를 타원 그라디언트로 투명하게 만들어 같은 "빛 기둥" 느낌을 낸다.
++            background: 'radial-gradient(ellipse 50% 50% at 50% 45%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 45%, transparent 100%)',
+             animation: `light-beam-sway ${beam.duration} ease-in-out infinite`,
+             animationDelay: beam.delay,
+             transformOrigin: 'top center',
+@@ -197,7 +201,8 @@
+             boxShadow: `inset -5px -5px 15px rgba(255,255,255,0.1), 0 0 ${parseInt(orb.size) * 0.6}px hsla(${orb.hue}, 60%, 70%, 0.15)`,
+             animation: `orb-float-3d ${orb.duration} ease-in-out infinite`,
+             animationDelay: orb.delay,
+-            backdropFilter: 'blur(2px)',
++            // 2026-09-16 반응형 수정: backdrop-filter 제거(Android 에서 뒤 배경 샘플링 시 사각 잔상 위험).
++            // 구슬 자체의 그라디언트·테두리·그림자는 그대로다.
+             perspective: '800px',
+           }}
+         >
+@@ -210,7 +215,6 @@
+               width: '25%',
+               height: '20%',
+               background: 'radial-gradient(ellipse, rgba(255,255,255,0.5) 0%, transparent 70%)',
+-              filter: 'blur(2px)',
+             }}
+           />
+         </div>
+@@ -230,11 +234,12 @@
+             animationDelay: cloud.delay,
+           }}
+         >
++          {/* 2026-09-16 반응형 수정: 구름 조각의 filter: blur 를 제거하고 같은 밝기의 타원 그라디언트로 번짐을 표현한다. */}
+           <div className="relative" style={{ width: '220px', height: '90px' }}>
+-            <div className="absolute rounded-full" style={{ width: '110px', height: '65px', background: 'rgba(255,255,255,0.07)', top: '12px', left: '25px', filter: 'blur(24px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '90px', height: '55px', background: 'rgba(255,255,255,0.05)', top: '8px', left: '70px', filter: 'blur(20px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '70px', height: '45px', background: 'rgba(255,255,255,0.04)', top: '22px', left: '5px', filter: 'blur(18px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '50px', height: '35px', background: 'rgba(255,255,255,0.06)', top: '5px', left: '120px', filter: 'blur(16px)' }} />
++            <div className="absolute rounded-full" style={{ width: '110px', height: '65px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.07) 0%, transparent 70%)', top: '12px', left: '25px' }} />
++            <div className="absolute rounded-full" style={{ width: '90px', height: '55px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)', top: '8px', left: '70px' }} />
++            <div className="absolute rounded-full" style={{ width: '70px', height: '45px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%)', top: '22px', left: '5px' }} />
++            <div className="absolute rounded-full" style={{ width: '50px', height: '35px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%)', top: '5px', left: '120px' }} />
+           </div>
+         </div>
+       ))}
+--- a/src/pages/home/components/Navbar.tsx
++++ b/src/pages/home/components/Navbar.tsx
+@@ -1,6 +1,7 @@
+ import { useState, useEffect } from 'react';
+ import { Link } from 'react-router-dom';
+ import { useAuth } from '@/context/AuthContext';
++import { HOME_NAV_ATTR, scrollToSectionBelowHeader } from '@/pages/home/scrollToSection';
+ 
+ interface AppMenuItem {
+   label: string;
+@@ -46,11 +47,8 @@
+ 
+   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+     e.preventDefault();
+-    const targetId = href.replace('#', '');
+-    const element = document.getElementById(targetId);
+-    if (element) {
+-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+-    }
++    // 2026-09-16 반응형 수정: 고정 헤더 높이만큼 보정해 섹션 제목이 헤더 뒤로 숨지 않게 한다.
++    scrollToSectionBelowHeader(href.replace('#', ''));
+     setMobileMenuOpen(false);
+     setDesktopMenuOpen(false);
+   };
+@@ -68,11 +66,15 @@
+ 
+   return (
+     <nav
+-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+-        scrolled ? 'bg-transparent' : 'bg-transparent'
++      {...{ [HOME_NAV_ATTR]: '' }}
++      // 2026-09-16 반응형 수정: 스크롤 후에도 투명이라 메뉴 글자가 본문 글자 위에 겹쳐 보였다.
++      // 스크롤 전(히어로 위)은 그대로 투명, 스크롤 후에는 테마 배경색 75% 로 본문과 분리한다(블러 없음).
++      // 상단 safe-area(노치·상태바) 만큼 안쪽 여백을 준다.
++      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 pt-[env(safe-area-inset-top)] ${
++        scrolled ? 'bg-background-50/75' : 'bg-transparent'
+       }`}
+     >
+-      <div className="w-full px-6 md:px-10 lg:px-16">
++      <div className="w-full max-w-full px-6 md:px-10 lg:px-16">
+         <div className="flex items-center justify-between h-16 md:h-20">
+           {/* Logo */}
+           <a
+--- a/src/pages/home/components/Footer.tsx
++++ b/src/pages/home/components/Footer.tsx
+@@ -1,6 +1,11 @@
+ import AnimatedSection from '@/components/AnimatedSection';
++import { scrollToSectionBelowHeader } from '@/pages/home/scrollToSection';
+ 
+ export default function Footer() {
++  // 2026-09-16 반응형 수정: 푸터의 섹션 앵커도 메뉴와 같이 고정 헤더 높이만큼 보정해 이동한다.
++  const handleAnchor = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
++    if (scrollToSectionBelowHeader(id)) e.preventDefault();
++  };
+   return (
+     <footer className="relative w-full py-10 md:py-16">
+       {/* Top blur transition */}
+@@ -61,10 +66,10 @@
+                   <a href="/" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     처음
+                   </a>
+-                  <a href="#meaning" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
++                  <a href="#meaning" onClick={(e) => handleAnchor(e, 'meaning')} className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     ECHO
+                   </a>
+-                  <a href="#jukebox" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
++                  <a href="#jukebox" onClick={(e) => handleAnchor(e, 'jukebox')} className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     기록
+                   </a>
+                 </div>
+--- a/src/components/ScrollToTop.tsx
++++ b/src/components/ScrollToTop.tsx
+@@ -20,7 +20,7 @@
+       type="button"
+       onClick={scrollToTop}
+       aria-label="Scroll to top"
+-      className={`fixed bottom-8 right-6 md:right-10 z-40 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-500 via-accent-500 to-secondary-500 text-white flex items-center justify-center transition-all duration-500 cursor-pointer hover:scale-110 animate-gradient-text ${
++      className={`fixed bottom-[calc(2rem+env(safe-area-inset-bottom))] right-6 md:right-10 z-40 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-500 via-accent-500 to-secondary-500 text-white flex items-center justify-center transition-all duration-500 cursor-pointer hover:scale-110 animate-gradient-text ${
+         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+       }`}
+     >
+--- a/src/components/MusicPlayer.tsx
++++ b/src/components/MusicPlayer.tsx
+@@ -121,7 +121,7 @@
+       <div id="youtube-music-player" className="absolute -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none" />
+ 
+       {/* 플로팅 음악 토글 버튼 */}
+-      <div className="fixed bottom-6 left-6 z-[100] flex flex-col items-start gap-2">
++      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-6 z-[100] flex flex-col items-start gap-2">
+         {/* 토글 버튼 */}
+         <button
+           type="button"
