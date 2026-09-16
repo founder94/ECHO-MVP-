@@ -64,3 +64,20 @@ test('frontend generates missing questions separately and keeps user turns visib
   assert.match(journey, /handleSubmit\('잘 모르겠어요'\)/);
   assert.match(journey, /handleSubmit\('이번 질문은 넘어갈게요'\)/);
 });
+
+// 2026-09-17: 리포트 이후 대화 화면도 '저장 먼저' 규칙을 지키는지(서버 응답 전에 화면을 만들지 않는지) 확인한다.
+test('report page continues the conversation with the save-first controller', async () => {
+  const [page, chat] = await Promise.all([
+    read('src/pages/do-it/report/page.tsx'),
+    read('src/pages/do-it/report/components/ContinueConversation.tsx'),
+  ]);
+  assert.match(page, /ContinueConversation/);
+  assert.match(page, /initialTurn=\{continueTurn\}/);
+  assert.match(chat, /JourneySaveController/);
+  assert.match(chat, /submitJourneyAnswer\(conversationId, text, token\)/);
+  // 저장 성공 뒤에만 화면에 남기고 다음 턴을 받는다.
+  assert.match(chat, /outcome\.kind === 'timeout'[\s\S]*REQUEST_TIMEOUT_MESSAGE/);
+  assert.match(chat, /setEntries\(\(previous\) => \[\.\.\.previous, \{ role: 'me', text \}\]\)[\s\S]*await loadTurn\(\)/);
+  // 하드코딩 질문 없음: 화면이 만드는 문장은 안내 문구뿐이고 질문은 서버 응답을 그대로 쓴다.
+  assert.match(chat, /state\.question/);
+});

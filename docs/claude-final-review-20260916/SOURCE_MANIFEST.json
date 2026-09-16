@@ -1,6 +1,6 @@
 {
  "release": "ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916",
- "revision": 4,
+ "revision": 5,
  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310)",
  "groups": {
   "server": [
@@ -193,8 +193,8 @@
    {
     "path": "qa/save-first-dialog.test.mjs",
     "status": "modified",
-    "after_sha256": "98f7a49fd2ec9554bbc20c114f392da031162a010b6a24bb03be5b559dfa5ee6",
-    "after_bytes": 3281,
+    "after_sha256": "fa4ed69aa23368aac4c9336289826a4f33d5df9988e761b73e56752aa653eb3d",
+    "after_bytes": 4373,
     "before_sha256": "0fcae6a59a4c4300caac46245c768cccda2c753fdec9f06af682b0fc83e63333"
    },
    {
@@ -284,9 +284,24 @@
     "after_sha256": "d15399e40fc7e514787fc4f95ac0b7b9408ab8c40b8de459eef9717623672d0f",
     "after_bytes": 4933
    }
+  ],
+  "frontend_report_continue": [
+   {
+    "path": "src/pages/do-it/report/page.tsx",
+    "status": "modified",
+    "after_sha256": "408cc0ac2c11b61b68df9db45bcb4aeb9e76942bcc773924c5587e496e9f9a6e",
+    "after_bytes": 9560,
+    "before_sha256": "ed556e2d1fb05f149f0bb7677566984692b03f3a8de3424e9dd00982c47b65da"
+   },
+   {
+    "path": "src/pages/do-it/report/components/ContinueConversation.tsx",
+    "status": "added",
+    "after_sha256": "517833a9a5b5ca00ada86cacc587d9be52ff7e56f135463714d2a836a4ee5b62",
+    "after_bytes": 5753
+   }
   ]
  },
- "revision_note": "4차(2026-09-17, 미배포): 질문/단계 분리, 고정 회피 문장 금지·답변 품질 검사, 거절 검사 reply 확대, 확인된 기억(doit_insights 재사용), 리포트 이후 대화 서버 경로, 시도 예산·토큰/사용량 로그. 프론트 변경 없음.",
+ "revision_note": "5차(2026-09-17, 대표 승인): 서버 4차 규칙 배포 + 리포트 이후 대화 화면 구현. 프론트 변경 2파일(리포트 화면 + 새 컴포넌트).",
  "deployed": {
   "note": "2026-09-17 기준 운영은 v12/v21. 이번 revision 4 는 미배포.",
   "echo-journey": {
@@ -297,5 +312,11 @@
    "version": 21,
    "ezbr_sha256": "4ae492cdf241e8b8bab27475661208996a011621d91529e18df5a5d2838f93b8"
   }
+ },
+ "netlify_zip": {
+  "file": "ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip",
+  "sha256": "308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8",
+  "files": 102,
+  "index_js": "assets/index-PTm_2znC.js"
  }
 }
