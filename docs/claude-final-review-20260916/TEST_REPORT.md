@@ -1,105 +1,88 @@
-# TEST_REPORT — ECHO 최종 검토·구현 (2026-09-16)
+# TEST_REPORT — ECHO 최종 검토·구현 2차 (2026-09-16, 검수문 project-13966538 반영 + Android·iPhone 마무리)
 
-완료 표현: **로컬 구현 및 실행한 검사 완료**. 운영 적용·운영 계정 로그인·실기기 확인은 하지 않았다(STOP).
+단계 표기: **코드 수정 완료 → 로컬 검사 완료 → 대표 승인(2026-09-16 "승인한다") → 서버 함수 배포 결과는 `DEPLOYMENT_PLAN_STOP.md` 에 기록 → 운영 확인은 NOT RUN**. 운영주소·실계정·실기기 확인 전이므로 "최종 완성"이라고 쓰지 않는다.
 
 ## 1. 실행 환경
-- 기준본: `ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip` (SHA-256 `ba8aaf98…7515`) → `PROJECT_SOURCE/`. `FULL_SOURCE_SHA256.txt` 310개 항목 전부 실제 파일과 해시 일치(한글 파일명 27개는 ZIP 인코딩 차이로 이름만 달라 해시값으로 대조). ZIP 안 파일 중 목록에 없는 것은 `CLAUDE_EXECUTION_PROMPT.md` 1개뿐.
-- 운영 원문: Supabase `zyyhhxyupizcqhxqnxuu` Edge 함수 7종을 읽기 전용으로 회수해 로컬과 diff. 6종 바이트 동일, `echo-payment` 는 끝 줄바꿈 1자만 차이(`evidence/deployed/*.diff`, `versions.json`).
-- 검사 도구: Node 22 `node:test`(TypeScript 는 `typescript.transpileModule` / `--experimental-strip-types`), Vite 8.3 build, tsc 5.8, ESLint 9, Playwright 1.56 + 헤드리스 Chromium(로컬 정적 서버, 외부 요청 전부 가로챔). Deno 없음 → `deno test/check` NOT RUN.
-- 빌드 입력: 공개값(`VITE_PUBLIC_SUPABASE_URL`, `VITE_PUBLIC_SUPABASE_ANON_KEY`=sb_publishable_ 형식, `VITE_A_STRUCTURE_SERVER_ENABLED=true`)만 사용. 인계 ZIP 에는 `.env` 가 없어(의도된 제외) 운영 배포본과 JS 해시가 같을 수 없다. 운영 배포본은 JWT 형식 anon 키로 빌드됨(번들 실측). CSS 해시는 기준본 빌드와 동일(`index-XsuS-utj.css`) → 소스 동일성의 간접 증거.
+- 기준본: `ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip` (SHA-256 `ba8aaf98…7515`) → PROJECT_SOURCE. `FULL_SOURCE_SHA256.txt` 310/310 일치.
+- 운영 원문: Supabase `zyyhhxyupizcqhxqnxuu` Edge 7종 회수. 배포 전 기준 6종 바이트 동일, echo-payment 끝 줄바꿈 1자 차이(`evidence/deployed/`).
+- 도구: Node 22 `node:test`, Vite 8.3, tsc 5.8, ESLint 9, Playwright 1.56 + 헤드리스 Chromium(외부 요청 전부 가로챔). Deno 없음. WebKit 엔진 없음(iPhone 은 크기·UA 에뮬레이션).
+- 빌드 입력: 공개값만(`VITE_PUBLIC_SUPABASE_URL`, `VITE_PUBLIC_SUPABASE_ANON_KEY` sb_publishable_ 형식, `VITE_A_STRUCTURE_SERVER_ENABLED=true`). 운영 배포본(JWT anon 키)과 JS 해시는 다르다.
 
-## 2. 기준본 대조 결과 (일치 / 불일치 / 확인 불가)
-| # | 항목 | 기대값 | 실제값 | 판정 |
-|---|---|---|---|---|
-| 1 | FULL_SOURCE_SHA256 | 310/310 | 310/310 (bad 0) | 일치 |
-| 2 | EVIDENCE/SOURCE_MANIFEST 의 12개 파일 해시 | 문서값 | admin-dashboard `301a3e…`, admin-conversations `cfc118…` 등 로컬 파일 해시 동일 | 일치 |
-| 3 | 운영 함수 = 로컬 원문 | 동일 | get-step-question v19·echo-journey v10·admin-dashboard v1·admin-conversations v2·openai-chat v2·doit-understanding v4 동일, echo-payment v2 끝 줄바꿈 1자 | 일치 |
-| 4 | 운영 배포 번들 ezbr 해시 | 문서 `721f52…`, `ec72d8…` | `list_edge_functions` 동일 | 일치 |
-| 5 | 전체 QA 47/47 | 47 통과 | 기준본 그대로 실행 47/47 통과 (`admin 8, full-flow 11, save-first 4, step7 5, question-context 14, save-controllers 5`) | 일치 |
-| 6 | TypeScript / build | PASS | 기준본 tsc 종료 0, vite build 종료 0(공개 env 필요) | 일치 |
-| 7 | ESLint PASS | PASS | 기준본 ZIP 만으로는 `Cannot find module './eslint-rules/route-element-jsx.js'` → 실행 불가. Readdy 원본에서 동일 파일 복구 후 PASS | 불일치(패키징) |
-| 8 | Netlify ZIP 99파일·재해제 동일 | 99 | EVIDENCE ZIP 99파일, `_headers`·`_redirects`·`assets/` 최상위, `.map` 0 | 일치 |
-| 9 | 번들 문구 | 고정 문구 4종, "결제하면 STEP 3~7" 0 | 4종 존재, 금지 문구 0, Supabase 호스트 1개 | 일치 |
-| 10 | 배포 기록 "DB/RLS/마이그레이션 변경 없음" | 없음 | `list_migrations`: 2026-09-16 `admin_profile_privilege_lock`, `revoke_trigger_function_rpc_access` 2건 적용됨(승인 여부는 문서에 없음) | 불일치(문서) |
-| 11 | 운영 표본 (일반 사용자 2, 오늘 STEP 7 완료 1, paid 0, 과거 white_door_ready 1) | 문서값 | profiles user 2·admin 1, conversations report_ready 3 / white_door_ready(current_step 3) 1, payments 0행, reports 0행, STEP 7 사용자 답변 journey_answer 2 + kind null 1 | 일치(오늘 기준 1건은 시각 창 검증 NOT RUN) |
-| 12 | 관리자 role 자기 승격 차단 | 차단 | 트리거 `pa_profiles_role_lock` + authenticated 의 role 컬럼 UPDATE 권한 없음 | 일치 |
-| 13 | 브라우저 쓰기 권한 | SELECT 만 | conversations·messages·emotions·understanding_results·payments·reports = SELECT only | 일치 |
-| 14 | reports RLS | 본인+완료+paid | `reports_select_paid_completed_own` 존재 | 일치 |
-| 15 | 운영 AI 오류 | — | 24시간: AbortError 0, HTTP 오류 0, 최대 실행 7.3초; `validate_fail` 15건(NOT_QUESTION 8, NOT_GROUNDED 5, MULTIPLE_QUESTIONS 2) 중 attempt 1·2 짝 실패 6곳 → NO_CANDIDATE 6회로 계산 | 불일치(실사용 막힘 → 수정) |
-| 16 | 갤럭시 Chrome 홈 배경 잘림 패치 | 반영 | 기준본 9파일이 패치 전 원본과 바이트 동일 → 미반영 | 불일치(병합) |
-| 17 | 실제 Toss 승인 | NOT RUN | 호출 0건(가짜 fetch 가 차단) | 확인 불가(정책) |
-| 18 | 관리자 계정 로그인 육안 | NOT RUN | 세션 없음 | 확인 불가 |
+## 2. 기준본·검수문 대조 (일치 / 불일치 / 확인 불가)
+| # | 항목 | 실제값 | 판정 |
+|---|---|---|---|
+| 1 | FULL_SOURCE_SHA256 310개 | 310/310 | 일치 |
+| 2 | 운영 함수 = 로컬 원문 | 6/7 동일, echo-payment 줄바꿈 1자 | 일치 |
+| 3 | 기존 QA 47/47·tsc·build | 재현 | 일치 |
+| 4 | ESLint | ZIP 에 `eslint-rules/route-element-jsx.js` 없음 → 복구 후 PASS | 불일치(패키징) |
+| 5 | 배포 기록 "DB 변경 없음" | 0916 마이그레이션 2건 적용됨 | 불일치(문서) |
+| 6 | 운영 AI 오류(24h) | AbortError 0, HTTP 오류 0; `validate_fail` 15건 → 짝 실패 6곳 = NO_CANDIDATE 6회 | 불일치(수정) |
+| 7 | 결제 승인 뒤 화면 | `/white-door` 우회 | 불일치(수정) |
+| 8 | 갤럭시 홈 패치 | 기준본 미반영 | 불일치(병합) |
+| 9 | 검수문 P0-1~P0-5, P1-2, P1-6(STEP_THEMES·sourcemap) | 현재 기준본에서 이미 해결(근거: OPINION 7장) | 일치 |
+| 10 | 검수문 P0-6 리포트 confirmed AI 결정 | `parseReport` 가 AI status 그대로 수락 | 불일치(수정) |
+| 11 | 검수문 P1-1 시간 초과 후 busy 잠금·STEP 1·2 대기 제한 없음 | 재현(save-controllers 기존 테스트가 busy 를 기대) | 불일치(수정) |
+| 12 | 검수문 P1-3 /doit/profile 예시 | `myProfile` 예시 표시 | 불일치(부분 수정) |
+| 13 | 검수문 P1-5 타로 뒤 대화 실패 시 칸 이동 | `goNext` 가 실패해도 index+1 | 불일치(수정) |
+| 14 | 검수문 P1-6 Stripe 의존성 | package.json 잔존, import 0건 | 불일치(수정) |
+| 15 | 검수문 P1-4 공간·방·미션 예시 | 예시 그대로 | 미해결(범위 밖, 보고만) |
+| 16 | RLS·role 잠금·브라우저 SELECT-only·reports paid 정책 | 실측 일치 | 일치 |
+| 17 | iOS 입력 자동 확대 위험 | 입력칸 글자 14px(text-sm) 10곳 | 불일치(수정) |
+| 18 | dvh 미지원 iOS 폴백 | `min-h-[100dvh]` 8곳 폴백 없음 | 불일치(수정) |
+| 19 | 실제 Toss 승인 / 관리자 로그인 육안 / 실기기 / Deno | — | NOT RUN |
 
 ## 3. 수정 뒤 실행한 검사
-### 3-1. 정적 검사
+### 3-1. 정적
 | 검사 | 결과 |
 |---|---|
-| `npm run type-check` (tsc --noEmit) | PASS (종료 0) |
-| `npm run lint` (eslint --max-warnings 0, 규칙 파일 복구 후) | PASS (종료 0) |
-| `npm run build` (vite 8.3, 공개 env) | PASS (`out/assets/index-Bed2Fzz_.js`, 95 자산, `.map` 0) |
-| 배포 전 검사기 `predeploy-check.sh` (코드 분할 빌드용 `grep -h` 교정 후) | ARTIFACT VERIFIED (검사기 자체 회귀 5/5) |
-| 번들 금지 패턴(`test_sk_`, `service_role`, `sb_secret_`, `OPENAI_API_KEY`, "결제하면", "STEP 3~7 개방") | 0건 |
-| 번들 필수 문구("1~7단계 대화는 무료예요", "자기이해 리포트 · 1회", "결제 준비 중", "자동 결제나 구독은 없어요") | 전부 존재 |
+| `npm run type-check` | PASS(종료 0) |
+| `npm run lint`(규칙 파일 복구 후) | PASS(종료 0) |
+| `npm run build` | PASS(`assets/index-CqAhazqn.js`, 96 자산, `.map` 0) |
+| 배포 전 검사기 `predeploy-check.sh`(코드 분할 `grep -h` 교정) | ARTIFACT VERIFIED |
+| 번들 금지 패턴(`test_sk_`, `service_role`, `sb_secret_`, `stripe`, "결제하면") | 0건 |
+| 번들 필수 문구 4종 | 존재 |
+| Edge 단일 파일 검사기(`edge-predeploy-check.sh`) | NOT RUN(실행 도구 정책 차단; 배포 후 바이트 대조로 대체) |
 
-### 3-2. QA 스위트 (node:test) — 53/53 PASS
-| 파일 | 결과 | 비고 |
-|---|---|---|
-| qa/admin-dashboard-contract.test.mjs | 8/8 | 관리자 CORS·JWT·역할 재확인·마스킹·KST 경계·0 과 오류 구분 |
-| qa/full-flow-edge-simulation.test.mjs | 11/11 | 무료 1~7 완주·결제 0건 / enabled 픽스처 결제는 STEP 7 뒤·STEP 3 되돌림 없음 / 구매자 새로고침 / 모르겠어요·짧은 답·넘어갈게요 방향 전환 / 운영 사례(반복 주제 폐기) / Plan B 정정 / 정상 답변 / 과거 진행·구매자 보존 / 거절 저장 후 다른 후속 / 미결제 리포트 차단 / 저장 뒤 AI 실패 |
-| qa/question-salvage.test.mjs (신규) | 6/6 | 끝 장식 정리, 짧은 공감 되묻기 → 마침표, 진짜 두 질문·비질문·꼬리 문장은 거절 유지, 근거·금지어 규칙 유지, 두 서버 후보 정리, 결제 후 리포트 직행 계약 |
-| qa/save-first-dialog.test.mjs | 4/4 | 저장 먼저·질문 별도, 지연 예산 |
-| qa/step7-contract.test.mjs | 5/5 | 계약 1건을 새 동작(승인 뒤 /report 직행)으로 갱신 |
-| qa/question-context.test.ts | 14/14 | 피드백·저정보·정정 근거 규칙 |
-| qa/save-controllers.test.ts | 5/5 | 시간 초과·busy·stale·토큰 유지 |
+### 3-2. QA 스위트(node:test) — 53/53 PASS
+admin-dashboard-contract 8 · full-flow-edge-simulation 11(리포트 확정 서버 판정 단언 추가) · question-salvage 6 · save-first-dialog 4 · step7-contract 5 · question-context 14 · save-controllers 5(시간 초과 뒤 재시도 허용으로 기대값 갱신).
 
-### 3-3. 브라우저 실행 검사 (검사한 빌드 그대로, 서버 함수는 가짜 응답, 390px Android 에뮬레이션) — 23/23 PASS
+### 3-3. 브라우저 실행 검사(검사한 빌드, 서버 가짜 응답) — 28/28 PASS
 | 시나리오 | 확인 |
 |---|---|
 | S1 비로그인 | `/payment`·`/report`·`/step/7` → `/login`, `/admin/mobile` → `/admin/login` |
-| S2 STEP 7 완료·미결제 | White Door 는 서버 `report_ready` 에서만 열림 → "리포트 안내 보기" → 결제 화면 "결제 준비 중"(비활성)+안내 문구+상품·설명 문구; 버튼 강제 클릭에도 echo-payment 0건·Toss 0건; `/report` 직접 진입 → 결제 안내로, 리포트 생성 요청 0건 |
-| S3 STEP 7 진행 | 저장 전 `/white-door` 직접 진입 → `/step/7` 되돌림; 서버 질문 표시; 390px 가로 스크롤 0; "이야기 마무리하기" 3회 연속 클릭 → answer 1건(토큰 포함); 저장 뒤에만 White Door; 결제 함수 0건 |
-| S4 저장 실패·재시도 | 오류 표시 + 입력 원문 보존 → 재시도 성공 → `/step/6`(서버 상태로만 이동), 두 요청의 토큰 동일, 새 단계 질문은 별도 ask 로 표시 |
-| S5 기존 구매자 | 리포트 재열람; 결제 화면 진입 시 리포트로 직행, 재결제 0건 |
-캡처: `evidence/flow-smoke/S2_payment_pending_390.png`, `S5_report_390.png`; 원본 결과 `flow-smoke_results.json`.
+| S2 STEP 7 완료·미결제 | White Door 는 서버 `report_ready` 에서만; 결제 화면 "결제 준비 중"(비활성)+문구 4종; 강제 클릭에도 주문 0·Toss 0; `/report` 직접 진입 → 결제 안내, 생성 요청 0 |
+| S3 STEP 7 진행 | 저장 전 `/white-door` → `/step/7` 되돌림; 서버 질문 표시; 390px 가로 스크롤 0; 3회 연속 클릭 → answer 1건(토큰 포함); 저장 뒤에만 White Door; 결제 함수 0 |
+| S4 저장 실패·재시도 | 오류 표시 + 원문 보존 → 재시도 성공 → `/step/6`; 두 요청 토큰 동일; 새 질문은 별도 ask |
+| S5 기존 구매자 | 리포트 재열람; 결제 화면 진입 시 리포트 직행, 재결제 0 |
+| S6 모바일 5종(Galaxy 390·360, iPhone 393·375·430, 각 UA·DPR) | `/step/7`·`/weather-check`·`/white-door`: 가로 스크롤 0, 버튼 화면 밖 0, 입력칸 글자 ≥16px |
+캡처 `evidence/flow-smoke/S6_<폭>_step7.png`, `S2_payment_pending_390.png`, `S5_report_390.png`.
 
-### 3-4. 반응형(홈, 갤럭시 패치 병합 후 코드 분할 빌드) — 11개 폭 PASS
-320/360/375/390/412/430/768/1024/1280/1440/1920: 가로 스크롤 0, 카드·버튼 6개 화면 안, 헤더 겹침 0, 배경층 filter/backdrop-filter 0, 스크롤 후 헤더 배경, 앵커 후 제목 헤더 아래. 원본 `evidence/responsive/final_results.json`.
+### 3-4. 홈 반응형 11개 폭(320~1920) — PASS(`evidence/responsive/final_results.json`)
 
-## 4. 지시서 항목별 결과
-| 지시 항목 | 결과 | 증거 |
+## 4. 지시서·검수문 검사 항목별 결과
+| 항목 | 결과 | 증거 |
 |---|---|---|
-| 정상 답변 STEP 1~7 완주 | PASS | full-flow 'current human-conversation engine…', 'review_pending allows STEP 1~7…' |
-| 모르겠어요 STEP 4부터 반복 → 같은 주제 반복 없음 | PASS | full-flow 'uncertain, brief, and skip…', 'production incident…' |
-| 말했잖아·같은 질문이야 → 사과 반복 없이 새 관점 | PASS | question-context(feedback kinds), full-flow Plan B |
-| 그게 아니에요 후 폐기 뜻 재등장 없음 | PASS | full-flow 'understanding rejection is saved first…' + `blocked()` 규칙 |
-| 직접 설명 반영 | PASS | `priorityNote` + question-context correction evidence |
-| 짧은 답·긴 답·무관한 답·공백·특수문자 | PASS(공백은 서버 BAD_REQUEST, 특수문자는 정규화 규칙) | question-salvage, question-context |
-| 저장 실패·질문 생성 실패·시간 초과·재시도·새로고침 복원 | PASS | full-flow 'AI failure after a saved answer…', save-controllers, 브라우저 S4 |
-| 중복 클릭·동시 요청 중복 저장 방지 | PASS | 브라우저 S3(1건), 서버 `claim` 조건부 UPDATE + DB unique(user_id, request_token) |
-| STEP 7 저장 전 White Door 조기 이동 없음 | PASS | 브라우저 S3, white-door 페이지 규칙 |
-| 무료 STEP 1~7 동안 결제 호출 0건 | PASS | full-flow, 브라우저 S2·S3 |
-| 미결제·타 사용자 리포트 본문 차단 | PASS | full-flow 'unpaid completed conversation…', RLS 정책, 브라우저 S2 |
-| 기존 구매자 리포트 재열람 | PASS | full-flow 'paid report entitlement survives refresh…', 브라우저 S5 |
-| 결제 후 STEP 3 되돌림 없음 | PASS | full-flow enabled 픽스처(가짜 결제 픽스처이며 Toss 승인 시험이 아님), 브라우저 S5 |
-| 관리자 아닌 사용자의 관리자 API 차단 | PASS(계약·정책) | admin-dashboard-contract, 운영 함수 requireAdmin 원문, RLS·트리거 실측 |
-| 관리자 집계 실제 0 과 오류 구분 | PASS | admin-dashboard-contract |
-| KST 오늘/7일/30일 경계 | PASS | admin-dashboard-contract |
-| type-check / lint / build | PASS / PASS / PASS | 3-1 |
-| 375/390/393/412/430px 모바일 | PASS(375·390·412·430 실측, 393 은 390·412 사이 값으로 별도 실측 NOT RUN) | 3-4, 브라우저 S3 |
-| 음악·인증·홈페이지·A 구조 회귀 | 홈 11폭 PASS; 음악 M1·인증·A 구조 파일은 이번에 변경 없음(diff 0) — 실행 회귀는 NOT RUN | frontend.diff |
-| 실제 Toss 승인 | NOT RUN(정책) | — |
-| 운영 관리자 로그인 육안 | NOT RUN | — |
-| Deno `server:check`/`server:test` | NOT RUN(환경에 Deno 없음; TypeScript transpile 경유 실행으로 대체) | — |
+| 정상 답변 1~7 완주 / 모르겠어요 반복 / 말했잖아·같은 질문 / 그게 아니에요 / 직접 설명 | PASS | full-flow 11건, question-context 14건 |
+| 저장 실패·질문 생성 실패·시간 초과·재시도·새로고침 | PASS | full-flow 'AI failure after a saved answer', save-controllers(시간 초과 뒤 같은 토큰 재시도), 브라우저 S4 |
+| 30초 무응답 뒤 입력 보존·복구 가능 | PASS(단위) | save-controllers: timeout → isInFlight false → 같은 토큰 재전송 성공 |
+| 동일 시작 요청 2회·동시 요청·응답 유실 후 재시도 | PASS | full-flow, 서버 claim + DB unique(user_id, request_token) |
+| STEP 7 조기 완료 방지 / 무료 구간 결제 0 | PASS | 브라우저 S2·S3, full-flow |
+| 미결제·타 사용자 리포트 차단 / 구매자 재열람 / 결제 후 STEP 3 되돌림 없음 | PASS | full-flow, RLS, 브라우저 S2·S5 |
+| 근거 없는 confirmed 거부 | PASS | full-flow 리포트 상태 단언 `['confirmed','confirmed','candidate','candidate']` |
+| 관리자 권한·집계·KST | PASS | admin-dashboard-contract |
+| 프로필 입력→저장→재로그인→표시 | PASS(코드 연결) / 실계정 왕복 NOT RUN | profile page `loadProfile` |
+| 320~1440px + Galaxy/iPhone 크기 | PASS(에뮬레이션) / 실기기 NOT RUN | 3-3 S6, 3-4 |
+| 실제 Toss 승인 · 관리자 로그인 육안 · Deno · WebKit 실기기 | NOT RUN | — |
 
-## 5. 수정 파일 (PATCH/, 기준본 대비 SOURCE_MANIFEST.json)
-| 그룹 | 파일 | 내용 |
-|---|---|---|
-| server | `supabase/functions/get-step-question/index.ts` | `tidyQuestionText`·`softenLeadingQuestion`·`questionShape` 추가, `validateSingleQuestion`·`parseCandidates` 에 적용, `validate_fail` 로그에 `qmarks= tail=` |
-| server | `supabase/functions/echo-journey/index.ts` | `tidyQuestionText` 를 후보 질문에 적용, `[ej] openai_fetch_error / openai_http / openai_empty / candidates_blocked / no_candidate` 진단 로그(원문 없음) |
-| frontend | `src/pages/do-it/payment/success/page.tsx`, `src/pages/do-it/payment/page.tsx` | paid 확인 뒤 `/report` 직행(White Door 우회 제거), 불필요한 재조회·상태 제거 |
-| qa | `qa/question-salvage.test.mjs`(신규), `qa/step7-contract.test.mjs` | 위 규칙 검사 6건, 계약 1건 갱신 |
-| packaging | `eslint-rules/route-element-jsx.js` | 인계 ZIP 누락분 복구(Readdy 원본과 동일) |
-| responsive | `src/index.css`, `src/pages/home/page.tsx`, `src/pages/home/scrollToSection.ts`(신규), `PastelBlobs.tsx`, `FloatingEffects.tsx`, `Navbar.tsx`, `Footer.tsx`, `src/components/ScrollToTop.tsx`, `src/components/MusicPlayer.tsx` | 2026-09-16 오전 갤럭시 Chrome 패치와 바이트 동일 |
+## 5. 수정 파일 (PATCH/ 35개, 그룹별 해시는 SOURCE_MANIFEST.json)
+- server(2): `get-step-question/index.ts`(tidy·soften·shape 로그), `echo-journey/index.ts`(후보 정리, `[ej]` 진단, **리포트 confirmed 서버 판정 + 프롬프트 anchor**)
+- frontend_timeout_recovery(3): `api.ts`(40/75초 상한, reason 'timeout'), `startSave.ts`, `journeySave.ts`(시간 초과 뒤 잠금 해제)
+- frontend_payment_routing(2): 결제 승인·기결제 → `/report`
+- frontend_mobile_dvh_fallback(9): 여정 8곳 + Suspense 폴백 `echo-min-h-viewport`, `WeatherEffect.tsx` blur 제거
+- doit_profile_and_tarot(3): `/doit/profile` 실제 값 연결, 타로 실패 시 칸 유지
+- dependency_stripe_removal(2): package.json, package-lock.json
+- responsive_galaxy_fix_and_ios_input(9): 홈 9파일 + `index.css` 모바일 입력 16px
+- qa(4), packaging_restore(1)
 
 ## 6. NOT RUN 요약
-실제 Toss 승인 · 운영 관리자 로그인 육안 · Deno 도구 · 393px 실측 · 음악/인증/A 구조 실행 회귀(변경 없음) · 실기기(갤럭시) 확인 · OpenAI 실제 호출로 `tidyQuestionText` 효과 확인(키 없음; 규칙은 단위 검사로만 확인).
+실제 Toss 승인 · 운영 관리자 로그인 육안 · Deno check/test · WebKit(iPhone Safari) 실기기 · 갤럭시 실기기 · OpenAI 실호출 · 프로필 실계정 왕복 · Edge 단일 파일 검사기(정책 차단, 배포 후 바이트 대조로 대체).

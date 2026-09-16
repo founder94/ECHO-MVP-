@@ -212,6 +212,63 @@ const gsqUnknown = async () => ({ body: { ok: false, code: 'UNKNOWN_STATE', erro
   await ctx.close();
 }
 
+// ── S6 모바일 폭(Android·iPhone 크기, Chromium 엔진) : 여정 화면 가로 스크롤 0·버튼 화면 안·입력칸 글자 16px ──
+{
+  const devices = [
+    { name: 'Galaxy S24 390', width: 390, height: 844, dpr: 3, ua: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36' },
+    { name: 'Galaxy 360', width: 360, height: 780, dpr: 3, ua: 'Mozilla/5.0 (Linux; Android 13; SM-A546S) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36' },
+    { name: 'iPhone 15 393', width: 393, height: 852, dpr: 3, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' },
+    { name: 'iPhone SE 375', width: 375, height: 667, dpr: 2, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1' },
+    { name: 'iPhone 15 Pro Max 430', width: 430, height: 932, dpr: 3, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1' },
+  ];
+  const handlers = {
+    'get-step-question': gsqUnknown,
+    'echo-journey': async (b) => b.action === 'resume'
+      ? ({ body: { ok: true, status: 'step7', step: 7, conversationId: CONV, question: '오늘 이야기에서 남기고 싶은 한 가지는 무엇인가요?', previousAnswer: '조금 여유가 생겼어요', needsQuestion: false } })
+      : ({ body: { ok: false, code: 'BAD_REQUEST' } }),
+    'echo-payment': async () => ({ body: { ok: false, code: 'PAYMENT_NOT_CONFIGURED' } }),
+  };
+  for (const d of devices) {
+    const ctx = await browser.newContext({ viewport: { width: d.width, height: d.height }, deviceScaleFactor: d.dpr, isMobile: true, hasTouch: true, locale: 'ko-KR', userAgent: d.ua });
+    await ctx.addInitScript(([k, s]) => { try { localStorage.setItem(k, JSON.stringify(s)); } catch { /* 무시 */ } }, [STORAGE_KEY, session]);
+    await ctx.route('**/*', async (route) => {
+      const u = new URL(route.request().url());
+      if (u.origin === ORIGIN) return route.continue();
+      if (u.pathname.startsWith('/auth/v1/')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(u.pathname.endsWith('/user') ? user : session) });
+      if (u.pathname.startsWith('/functions/v1/')) {
+        const fn = u.pathname.split('/')[3];
+        let body = {};
+        try { body = JSON.parse(route.request().postData() ?? '{}'); } catch { /* 빈 본문 */ }
+        const res = handlers[fn] ? await handlers[fn](body) : { body: { ok: false } };
+        return route.fulfill({ status: res.status ?? 200, contentType: 'application/json', body: JSON.stringify(res.body) });
+      }
+      return route.abort();
+    });
+    const page = await ctx.newPage();
+    const checks = [];
+    for (const [pathname, ready] of [[`/step/7?c=${CONV}`, '오늘 이야기에서 남기고 싶은'], ['/weather-check', '마음'], [`/white-door?c=${CONV}`, 'STEP 7']]) {
+      await page.goto(`${ORIGIN}${pathname}`, { waitUntil: 'load' });
+      await page.getByText(ready).first().waitFor({ timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      const m = await page.evaluate(() => {
+        const de = document.documentElement;
+        const btns = [...document.querySelectorAll('button, a[href]')].filter((b) => b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden');
+        const off = btns.filter((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && (r.left < -1 || r.right > innerWidth + 1); }).length;
+        const inputs = [...document.querySelectorAll('textarea, input')].map((el) => parseFloat(getComputedStyle(el).fontSize));
+        const root = document.querySelector('section, main, #root > div');
+        return { scrollOk: de.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth, offscreenButtons: off, inputFontMin: inputs.length ? Math.min(...inputs) : null, minH: root ? getComputedStyle(root).minHeight : null, path: location.pathname };
+      });
+      checks.push({ pathname: m.path, ...m });
+    }
+    const ok = checks.every((c) => c.scrollOk && c.offscreenButtons === 0 && (c.inputFontMin === null || c.inputFontMin >= 16));
+    record(`S6 ${d.name}px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px`, ok, JSON.stringify(checks.map((c) => `${c.pathname}:scroll=${c.scrollOk},off=${c.offscreenButtons},font=${c.inputFontMin}`)));
+    await page.goto(`${ORIGIN}/step/7?c=${CONV}`, { waitUntil: 'load' });
+    await page.getByText('오늘 이야기에서 남기고 싶은').first().waitFor({ timeout: 10000 }).catch(() => {});
+    await page.screenshot({ path: path.join(resultDir, `S6_${d.width}_step7.png`) });
+    await ctx.close();
+  }
+}
+
 await browser.close();
 server.kill();
 fs.writeFileSync(path.join(resultDir, 'flow-smoke_results.json'), JSON.stringify(results, null, 2));

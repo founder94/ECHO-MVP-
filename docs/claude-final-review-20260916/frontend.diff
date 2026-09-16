@@ -1,3 +1,89 @@
+--- a/src/lib/echo/api.ts
++++ b/src/lib/echo/api.ts
+@@ -49,6 +49,7 @@
+   | 'in_progress'
+   | 'no_candidate'
+   | 'rate_limited'
++  | 'timeout'
+   | 'error';
+ 
+ export interface ReportSection {
+@@ -218,13 +219,43 @@
+   return null;
+ }
+ 
++// 2026-09-16: 모든 서버 함수 호출에 유한 대기 상한을 둔다(STEP 1·2·이해 확인처럼 별도 컨트롤러가 없는 화면 포함).
++// 서버 최악값: 질문 생성 6초×2회, 리포트 20초×2회. 상한을 넘으면 화면은 기다림을 끝내고 입력·토큰을 유지한 채 재시도할 수 있다.
++// 요청 자체는 취소되지 않으므로(functions-js 에 AbortSignal 없음) 재시도는 같은 토큰으로 보내고 서버가 중복을 판정한다.
++export const REQUEST_TIMEOUT_MS = 40_000;
++export const REPORT_REQUEST_TIMEOUT_MS = 75_000;
++export const REQUEST_TIMEOUT_MESSAGE = '응답이 늦어지고 있어요. 작성한 내용은 그대로 있어요. 잠시 후 다시 눌러 주세요.';
++
++type Invoked = { data: unknown; error: unknown };
++type RacedInvoke = { kind: 'value'; value: Invoked } | { kind: 'timeout' };
++function raceInvoke(request: Promise<Invoked>, timeoutMs: number): Promise<RacedInvoke> {
++  return new Promise((resolve) => {
++    const timer = setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
++    request.then(
++      (value) => {
++        clearTimeout(timer);
++        resolve({ kind: 'value', value });
++      },
++      (err) => {
++        clearTimeout(timer);
++        resolve({ kind: 'value', value: { data: null, error: err } });
++      },
++    );
++  });
++}
++
+ async function call<T extends { ok: boolean; code?: string; error?: string; reason?: FlowReason }>(
+   fn: string,
+   action: string,
+   payload: Record<string, unknown>,
+ ): Promise<T> {
+   try {
+-    const { data, error } = await supabase.functions.invoke(fn, { body: { action, ...payload } });
++    const timeoutMs = action === 'report' ? REPORT_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
++    const raced = await raceInvoke(supabase.functions.invoke(fn, { body: { action, ...payload } }), timeoutMs);
++    if (raced.kind === 'timeout') {
++      return { ok: false, reason: 'timeout', code: 'CLIENT_TIMEOUT', error: REQUEST_TIMEOUT_MESSAGE } as T;
++    }
++    const { data, error } = raced.value;
+     if (error) {
+       const body = await readErrorBody(error);
+       if (body) return { ...body, ok: false, reason: mapReason(body.code) } as T;
+--- a/src/lib/echo/startSave.ts
++++ b/src/lib/echo/startSave.ts
+@@ -91,7 +91,12 @@
+ 
+     const raced = await raceTimeout(p, this.deps.timeoutMs ?? START_TIMEOUT_MS);
+     if (this.cancelled || seq !== this.seq) return { kind: 'stale' };
+-    if (raced.kind === 'timeout') return { kind: 'timeout', submittedText };
++    if (raced.kind === 'timeout') {
++      // 2026-09-16: 시간 초과 뒤에는 화면 잠금(busy)을 풀어 다시 누를 수 있게 한다. 같은 원문은 같은 토큰으로 다시 보내고,
++      // 서버가 토큰으로 중복을 판정한다(처리 중이면 IN_PROGRESS, 끝났으면 저장된 상태). 늦게 온 첫 응답은 무시된다.
++      if (this.inFlight === p) this.inFlight = null;
++      return { kind: 'timeout', submittedText };
++    }
+     if (raced.kind === 'rejected') {
+       return {
+         kind: 'failure',
+--- a/src/lib/echo/journeySave.ts
++++ b/src/lib/echo/journeySave.ts
+@@ -83,7 +83,11 @@
+ 
+     const raced = await raceTimeout(request, this.deps.timeoutMs ?? START_TIMEOUT_MS);
+     if (this.cancelled || seq !== this.seq) return { kind: 'stale' };
+-    if (raced.kind === 'timeout') return { kind: 'timeout', submittedText };
++    if (raced.kind === 'timeout') {
++      // 2026-09-16: 시간 초과 뒤 화면 잠금 해제. 같은 원문·같은 토큰으로 재시도하면 서버가 중복을 판정한다(IN_PROGRESS 또는 저장된 상태).
++      if (this.inFlight === request) this.inFlight = null;
++      return { kind: 'timeout', submittedText };
++    }
+     if (raced.kind === 'rejected') {
+       return {
+         kind: 'failure',
 --- a/src/pages/do-it/payment/page.tsx
 +++ b/src/pages/do-it/payment/page.tsx
 @@ -77,10 +77,9 @@
@@ -80,6 +166,407 @@
              </button>
              <button type="button" onClick={() => navigate('/')} className={GHOST_BUTTON}>
                처음으로
+--- a/src/pages/do-it/components/SceneShell.tsx
++++ b/src/pages/do-it/components/SceneShell.tsx
+@@ -31,7 +31,7 @@
+   const reveal = useReveal();
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/components/StepQuestionScreen.tsx
++++ b/src/pages/do-it/components/StepQuestionScreen.tsx
+@@ -195,7 +195,7 @@
+   const isRequesting = phase === 'loading';
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/start/page.tsx
++++ b/src/pages/do-it/start/page.tsx
+@@ -37,7 +37,7 @@
+   };
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport overflow-hidden">
+       {/* 배경: B구조 파스텔 */}
+       <div
+         className="absolute inset-0"
+--- a/src/pages/do-it/understanding-check/page.tsx
++++ b/src/pages/do-it/understanding-check/page.tsx
+@@ -275,7 +275,7 @@
+   const isRequesting = phase === 'loading';
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/weather-check/page.tsx
++++ b/src/pages/do-it/weather-check/page.tsx
+@@ -180,7 +180,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={iconKey} />
+       <WeatherEffect iconKey={iconKey} />
+ 
+--- a/src/pages/do-it/weather/page.tsx
++++ b/src/pages/do-it/weather/page.tsx
+@@ -132,7 +132,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={weather?.iconKey ?? null} />
+       <WeatherEffect iconKey={weather?.iconKey ?? null} />
+ 
+--- a/src/pages/do-it/white-door/page.tsx
++++ b/src/pages/do-it/white-door/page.tsx
+@@ -83,7 +83,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/weather/components/WeatherEffect.tsx
++++ b/src/pages/do-it/weather/components/WeatherEffect.tsx
+@@ -104,9 +104,9 @@
+               left: 0,
+               width: cloud.width,
+               height: cloud.height,
++              // 2026-09-16 모바일 GPU 대응: 타원 그라디언트가 이미 투명으로 사라지므로 filter: blur 를 제거한다(Android 사각 잘림·iOS 부하 방지).
+               background:
+                 'radial-gradient(ellipse at center, rgba(210,224,244,0.6) 0%, rgba(210,224,244,0) 70%)',
+-              filter: 'blur(16px)',
+               animationDelay: cloud.delay,
+               animationDuration: cloud.duration,
+             }}
+@@ -128,9 +128,11 @@
+               left: 0,
+               width: '100%',
+               height: '160px',
++              // 2026-09-16 모바일 GPU 대응: filter: blur(28px) 대신 위·아래를 마스크로 투명하게 만들어 같은 안개 띠를 낸다.
+               background:
+                 'linear-gradient(to right, transparent, rgba(214,222,232,0.30), rgba(214,222,232,0.30), transparent)',
+-              filter: 'blur(28px)',
++              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 35%, black 65%, transparent)',
++              maskImage: 'linear-gradient(to bottom, transparent, black 35%, black 65%, transparent)',
+               animationDelay: fog.delay,
+               animationDuration: fog.duration,
+             }}
+--- a/src/router/index.ts
++++ b/src/router/index.ts
+@@ -28,7 +28,7 @@
+       fallback: createElement(
+         "div",
+         {
+-          className: "min-h-[100dvh] bg-[#07111f] text-white flex flex-col items-center justify-center gap-3",
++          className: "echo-min-h-viewport bg-[#07111f] text-white flex flex-col items-center justify-center gap-3",
+           role: "status",
+           "aria-live": "polite",
+         },
+--- a/src/pages/do-it/fortune/components/ConversationFlow.tsx
++++ b/src/pages/do-it/fortune/components/ConversationFlow.tsx
+@@ -77,11 +77,14 @@
+     if (!isLast) {
+       if (perspectives.length <= index + 1) {
+         setAdvancing(true);
++        let generated = false;
+         try {
+-          await generateNext();
++          generated = await generateNext();
+         } finally {
+           setAdvancing(false);
+         }
++        // 2026-09-16: 다음 질문 생성에 실패하면 현재 칸에 머문다(질문 없는 칸으로 이동 금지). 오류 문구는 훅의 error 로 표시된다.
++        if (!generated) return;
+       }
+       setIndex((i) => i + 1);
+     }
+--- a/src/doit/hooks/useOpenAIConversation.ts
++++ b/src/doit/hooks/useOpenAIConversation.ts
+@@ -115,7 +115,8 @@
+     }
+   }, []);
+ 
+-  const generateNext = useCallback(async () => {
++  // 2026-09-16: 생성 성공 여부를 돌려준다. 실패했을 때 화면이 질문 없는 다음 칸으로 넘어가지 않게 하기 위해서다.
++  const generateNext = useCallback(async (): Promise<boolean> => {
+     setLoading(true);
+     setError(null);
+ 
+@@ -135,10 +136,12 @@
+         },
+       ]);
+       setAnswers((previous) => [...previous, emptyAnswer()]);
++      return true;
+     } catch (err) {
+       setError(
+         err instanceof Error ? err.message : "잠시 후 다시 시도해 주세요.",
+       );
++      return false;
+     } finally {
+       setLoading(false);
+     }
+--- a/src/doit/pages/do-it/profile/page.tsx
++++ b/src/doit/pages/do-it/profile/page.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react";
++import { useEffect, useState } from "react";
+ import { Link } from "react-router-dom";
+ import MobileLayout from "@/doit/components/feature/MobileLayout";
+ import GradeBadge from "@/doit/components/feature/GradeBadge";
+@@ -7,39 +7,92 @@
+ import ConnectionCard from "@/doit/components/feature/ConnectionCard";
+ import DemoNotice from "@/doit/components/feature/DemoNotice";
+ import { myProfile, spaces, connections, purposes } from "@/doit/mocks/do-it";
++import { useAuth } from "@/doit/hooks/useAuth";
++import { loadProfile, type LoadedProfile } from "@/doit/lib/profileSave";
+ 
+ const purposeMap: Record<string, string> = {};
+ purposes.forEach((p) => { purposeMap[p.id] = p.label; });
+ 
+ type TabKey = "spaces" | "keys";
+ 
++// 2026-09-16: 실제 저장한 프로필(닉네임·소개·목적·지역·생활 리듬)을 이 화면에 연결한다.
++// 등급·공간·연결·미션 수치는 아직 서버 집계가 없어 데모로 남기고, 그 사실을 화면에 그대로 적는다.
++type RealProfileState =
++  | { status: "loading" }
++  | { status: "signed_out" }
++  | { status: "none" }
++  | { status: "ok"; profile: LoadedProfile }
++  | { status: "error"; message: string };
++
++function formatJoined(iso: string | undefined): string {
++  if (!iso) return "";
++  const d = new Date(iso);
++  if (Number.isNaN(d.getTime())) return "";
++  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
++}
++
+ export default function Profile() {
+   const [tab, setTab] = useState<TabKey>("spaces");
++  const { user, loading: authLoading } = useAuth();
++  const [real, setReal] = useState<RealProfileState>({ status: "loading" });
++
++  useEffect(() => {
++    let alive = true;
++    if (authLoading) return;
++    if (!user) {
++      setReal({ status: "signed_out" });
++      return;
++    }
++    setReal({ status: "loading" });
++    void loadProfile(user.id).then((result) => {
++      if (!alive) return;
++      if (result.status === "error") setReal({ status: "error", message: result.message });
++      else if (!result.profile) setReal({ status: "none" });
++      else setReal({ status: "ok", profile: result.profile });
++    });
++    return () => {
++      alive = false;
++    };
++  }, [user, authLoading]);
+ 
+   const mySpaces = spaces.filter((s) => s.status !== "locked").slice(0, 4);
+   const myConnections = connections;
+ 
++  const profile = real.status === "ok" ? real.profile : null;
++  const displayName = profile?.nickname?.trim() || (real.status === "ok" || real.status === "none" ? "닉네임을 아직 정하지 않았어요" : "");
++  const intro = profile?.intro?.trim() || (real.status === "ok" || real.status === "none" ? "소개를 아직 적지 않았어요" : "");
++  const facts = [profile?.purposeLabel, profile?.region, profile?.lifeRhythm].filter((v): v is string => !!v && !!v.trim());
++  const joined = formatJoined(user?.created_at);
++
+   return (
+     <MobileLayout title="프로필" showNav activeTab="profile">
+       <div className="animate-fade-up pt-4">
+-        <DemoNotice text="프로필·등급은 아직 서버에 연결되지 않았어요. 아래 내용은 데모 미리보기입니다." />
++        <DemoNotice text="닉네임·소개·목적·지역은 내가 저장한 값이에요. 등급과 공간·연결·미션 수치는 아직 서버 집계가 없어 데모 미리보기로 표시돼요." />
+         {/* Profile header */}
+         <div className="mb-6 flex flex-col items-center text-center">
+           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+             <i className="ri-user-3-line text-3xl" />
+           </span>
+           <h2 className="mt-3 font-heading text-xl font-semibold text-foreground-950">
+-            {myProfile.name}
++            {real.status === "loading" && "불러오는 중…"}
++            {real.status === "signed_out" && "로그인이 필요해요"}
++            {real.status === "error" && "불러오기 실패"}
++            {(real.status === "ok" || real.status === "none") && displayName}
+           </h2>
+           <div className="mt-1">
+             <GradeBadge grade={myProfile.grade} />
+           </div>
+           <p className="mt-2 max-w-xs text-sm leading-relaxed text-foreground-500">
+-            {myProfile.bio}
+-          </p>
+-          <p className="mt-1 text-xs text-foreground-400">
+-            가입일 {myProfile.joinedAt}
++            {real.status === "error" ? real.message : real.status === "signed_out" ? "로그인하면 내가 저장한 프로필을 볼 수 있어요." : intro}
+           </p>
++          {facts.length > 0 && (
++            <p className="mt-1 text-xs text-foreground-500">{facts.join(" · ")}</p>
++          )}
++          {joined && (
++            <p className="mt-1 text-xs text-foreground-400">
++              가입일 {joined}
++            </p>
++          )}
+         </div>
+ 
+         {/* Stats */}
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,5 @@
+ {
+   "dependencies": {
+-    "@stripe/react-stripe-js": "4.0.2",
+     "@supabase/supabase-js": "2.57.4",
+     "firebase": "12.0.0",
+     "i18next": "25.4.1",
+@@ -43,4 +42,4 @@
+   },
+   "type": "module",
+   "version": "0.0.0"
+-}
+\ No newline at end of file
++}
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -8,7 +8,6 @@
+       "name": "react",
+       "version": "0.0.0",
+       "dependencies": {
+-        "@stripe/react-stripe-js": "4.0.2",
+         "@supabase/supabase-js": "2.57.4",
+         "firebase": "12.0.0",
+         "i18next": "25.4.1",
+@@ -1594,99 +1593,6 @@
+         "vitest": "^2.1.2"
+       }
+     },
+-    "../../implementation/project/node_modules/@stripe/react-stripe-js": {
+-      "version": "4.0.2",
+-      "license": "MIT",
+-      "dependencies": {
+-        "prop-types": "^15.7.2"
+-      },
+-      "devDependencies": {
+-        "@arethetypeswrong/cli": "^0.15.3",
+-        "@babel/cli": "^7.7.0",
+-        "@babel/core": "^7.7.2",
+-        "@babel/preset-env": "^7.7.1",
+-        "@babel/preset-react": "^7.7.0",
+-        "@rollup/plugin-babel": "^6.0.4",
+-        "@rollup/plugin-commonjs": "^25.0.7",
+-        "@rollup/plugin-node-resolve": "^15.2.3",
+-        "@rollup/plugin-replace": "^5.0.5",
+-        "@rollup/plugin-terser": "^0.4.4",
+-        "@storybook/react": "^6.5.0-beta.8",
+-        "@stripe/stripe-js": "^7.8.0",
+-        "@testing-library/jest-dom": "^5.16.4",
+-        "@testing-library/react": "^13.1.1",
+-        "@testing-library/react-hooks": "^8.0.0",
+-        "@types/jest": "^25.1.1",
+-        "@types/react": "^18.0.0",
+-        "@types/react-dom": "^18.0.0",
+-        "@typescript-eslint/eslint-plugin": "^2.18.0",
+-        "@typescript-eslint/parser": "^2.18.0",
+-        "babel-eslint": "^10.0.3",
+-        "babel-jest": "^24.9.0",
+-        "babel-loader": "^8.0.6",
+-        "eslint": "6.6.0",
+-        "eslint-config-airbnb": "18.0.1",
+-        "eslint-config-prettier": "^6.10.0",
+-        "eslint-plugin-import": "^2.18.2",
+-        "eslint-plugin-jest": "^22.6.3",
+-        "eslint-plugin-jsx-a11y": "^6.2.3",
+-        "eslint-plugin-prettier": "^3.1.2",
+-        "eslint-plugin-react": "^7.14.3",
+-        "eslint-plugin-react-hooks": "^1.7.0",
+-        "fork-ts-checker-webpack-plugin": "^4.0.3",
+-        "jest": "^25.1.0",
+-        "prettier": "^1.19.1",
+-        "react": "18.1.0",
+-        "react-docgen-typescript-loader": "^3.6.0",
+-        "react-dom": "18.1.0",
+-        "react-test-renderer": "^18.0.0",
+-        "rimraf": "^2.6.2",
+-        "rollup": "^4.12.0",
+-        "rollup-plugin-ts": "^3.4.5",
+-        "ts-jest": "^25.1.0",
+-        "ts-loader": "^6.2.1",
+-        "typescript": "^4.1.2"
+-      },
+-      "peerDependencies": {
+-        "@stripe/stripe-js": ">=1.44.1 <8.0.0",
+-        "react": ">=16.8.0 <20.0.0",
+-        "react-dom": ">=16.8.0 <20.0.0"
+-      }
+-    },
+-    "../../implementation/project/node_modules/@stripe/stripe-js": {
+-      "version": "7.10.0",
+-      "extraneous": true,
+-      "license": "MIT",
+-      "devDependencies": {
+-        "@arethetypeswrong/cli": "^0.15.3",
+-        "@babel/core": "^7.7.2",
+-        "@babel/preset-env": "^7.7.1",
+-        "@rollup/plugin-replace": "^2.3.1",
+-        "@types/jest": "^24.0.25",
+-        "@typescript-eslint/eslint-plugin": "^4.15.2",
+-        "@typescript-eslint/parser": "^4.15.2",
+-        "babel-eslint": "^10.0.3",
+-        "babel-jest": "^24.9.0",
+-        "conditional-type-checks": "^1.0.5",
+-        "eslint": "^6.8.0",
+-        "eslint-config-prettier": "^6.8.0",
+-        "eslint-plugin-import": "^2.18.2",
+-        "eslint-plugin-jest": "^22.6.3",
+-        "eslint-plugin-prettier": "^3.1.1",
+-        "jest": "^24.9.0",
+-        "prettier": "^1.19.1",
+-        "rimraf": "^2.6.2",
+-        "rollup": "^2.79.2",
+-        "rollup-plugin-babel": "^4.3.3",
+-        "rollup-plugin-typescript2": "^0.25.3",
+-        "ts-jest": "^24.3.0",
+-        "typescript": "~4.8.0",
+-        "zx": "^4.2.0"
+-      },
+-      "engines": {
+-        "node": ">=12.16"
+-      }
+-    },
+     "../../implementation/project/node_modules/@supabase/auth-js": {
+       "version": "2.71.1",
+       "extraneous": true,
+@@ -7795,10 +7701,6 @@
+       "resolved": "../../implementation/project/node_modules/@eslint/js",
+       "link": true
+     },
+-    "node_modules/@stripe/react-stripe-js": {
+-      "resolved": "../../implementation/project/node_modules/@stripe/react-stripe-js",
+-      "link": true
+-    },
+     "node_modules/@supabase/supabase-js": {
+       "resolved": "../../implementation/project/node_modules/@supabase/supabase-js",
+       "link": true
 --- a/qa/step7-contract.test.mjs
 +++ b/qa/step7-contract.test.mjs
 @@ -71,8 +71,9 @@
@@ -228,6 +715,52 @@
 +  assert.match(api, /case 'report_ready':\s*return '\/white-door';/);
 +  assert.match(api, /case 'report_done':\s*return '\/report';/);
 +});
+--- a/qa/save-controllers.test.ts
++++ b/qa/save-controllers.test.ts
+@@ -37,11 +37,13 @@
+   });
+ 
+   assert.equal((await controller.submit('same text')).kind, 'timeout');
+-  assert.equal((await controller.submit('same text')).kind, 'busy');
++  // 2026-09-16: 시간 초과 뒤에는 잠기지 않고(busy 아님) 같은 토큰으로 다시 보낸다. 서버가 토큰으로 중복을 판정한다.
++  assert.equal(controller.isInFlight, false);
++  assert.equal((await controller.submit('same text')).kind, 'success');
+   first.resolve({ ok: true, conversationId: 'conversation-1' });
+   await tick();
+-  assert.equal((await controller.submit('same text')).kind, 'success');
+   assert.deepEqual(tokens, ['token-a', 'token-a']);
++  assert.equal(controller.requestToken, '');
+ });
+ 
+ test('start: changed text receives a new token after a timed-out request settles', async () => {
+--- a/qa/full-flow-edge-simulation.test.mjs
++++ b/qa/full-flow-edge-simulation.test.mjs
+@@ -256,9 +256,11 @@
+         title: '오늘의 편안함을 이해하는 기록',
+         summary: '나는 편안함을 중요하게 느꼈어요. 오늘의 말을 바탕으로 나를 이해해 봤어요.',
+         sections: [
+-          { heading: '지금의 마음', body: '나는 오늘 편안하다고 직접 말했어요. 이 감정은 지금 확인된 내용이에요. 이 마음을 천천히 살펴볼 수 있어요.', status: 'confirmed' },
+-          { heading: '내가 중요하게 여긴 것', body: '나는 여유가 중요하다고 말했어요. 이것은 내 표현에서 확인한 내용이에요. 다른 뜻을 억지로 붙이지 않았어요.', status: 'confirmed' },
++          { heading: '지금의 마음', body: '나는 오늘 편안하다고 직접 말했어요. 이 감정은 지금 확인된 내용이에요. 이 마음을 천천히 살펴볼 수 있어요.', status: 'confirmed', anchor: '편안' },
++          { heading: '내가 중요하게 여긴 것', body: '나는 여유가 중요하다고 말했어요. 이것은 내 표현에서 확인한 내용이에요. 다른 뜻을 억지로 붙이지 않았어요.', status: 'confirmed', anchor: '여유' },
+           { heading: '다음에 살펴볼 것', body: '이 편안함을 이어갈 방법은 아직 후보예요. 나에게 맞는지 천천히 확인해 볼 수 있을 것 같아요. 지금 정답을 정할 필요는 없어요.', status: 'candidate' },
++          // AI 가 confirmed 라고 주장하지만 사용자 근거에 없는 표현(관계) → 서버가 candidate 로 내려야 한다
++          { heading: '반복되는 패턴', body: '나는 관계에서 늘 먼저 물러나는 편이에요. 이것은 여러 번 확인된 사실이에요. 앞으로도 같은 선택을 할 가능성이 커요.', status: 'confirmed', anchor: '관계에서 물러나' },
+         ],
+         next_step: '오늘 편안했던 이유를 한 줄로 남겨볼 수 있어요.',
+       });
+@@ -642,6 +644,11 @@
+   assert.equal(db.rows.reports.length, 0);
+   const generated = await invoke(journey, 'user-1', { action: 'report', conversationId, token: token('report2') });
+   assert.equal(generated.body.status, 'report_done');
++  // 2026-09-16: '확정' 은 서버가 결정한다. anchor 가 사용자 근거·본문에 모두 있는 항목만 confirmed, 근거 없는 '반복 패턴' 주장은 candidate.
++  assert.deepEqual(
++    generated.body.report.content.sections.map((section) => section.status),
++    ['confirmed', 'confirmed', 'candidate', 'candidate'],
++  );
+   assert.equal(generated.body.hasReport, true);
+   assert.match(generated.body.report.title, /편안함/);
+   const reopened = await invoke(journey, 'user-1', { action: 'report', conversationId, token: token('report3') });
 --- /dev/null
 +++ b/eslint-rules/route-element-jsx.js
 @@ -0,0 +1,96 @@
@@ -329,7 +862,7 @@
 +
 --- a/src/index.css
 +++ b/src/index.css
-@@ -120,6 +120,40 @@
+@@ -120,6 +120,54 @@
      background-color: oklch(var(--foreground-50) / 0.2);
      color: oklch(var(--foreground-50));
    }
@@ -356,6 +889,20 @@
 +.echo-min-h-viewport {
 +  min-height: 100vh;
 +  min-height: 100dvh;
++}
++
++/* 2026-09-16 iPhone 대응: iOS Safari 는 글자 크기 16px 미만인 입력칸에 초점이 가면 화면을 자동 확대하고 되돌리지 않는다.
++   모바일 폭에서만 입력칸 글자를 16px 로 맞춘다(색·여백·테두리는 그대로). */
++@media (max-width: 767px) {
++  #root textarea,
++  #root input[type='text'],
++  #root input[type='email'],
++  #root input[type='password'],
++  #root input[type='tel'],
++  #root input[type='search'],
++  #root input:not([type]) {
++    font-size: 16px;
++  }
 +}
 +
 +/* 2026-09-16 반응형 수정: 메뉴(ECHO·경험·기록) 앵커 이동 시 섹션 제목이 고정 헤더(64/80px) 뒤로 숨지 않도록

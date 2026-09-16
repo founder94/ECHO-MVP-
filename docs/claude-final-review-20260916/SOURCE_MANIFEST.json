@@ -1,13 +1,7 @@
 {
   "release": "ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916",
-  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310 일치)",
-  "deployed_reference": {
-    "get-step-question": "v19 (local==deployed)",
-    "echo-journey": "v10 (local==deployed)",
-    "echo-payment": "v2 (local==deployed, 끝 줄바꿈 1자 차이)",
-    "admin-dashboard": "v1",
-    "admin-conversations": "v2"
-  },
+  "revision": 2,
+  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310)",
   "groups": {
     "server": [
       {
@@ -21,8 +15,31 @@
         "path": "supabase/functions/echo-journey/index.ts",
         "status": "modified",
         "before_sha256": "b3b4db7cce6098d983bd8a812bd3d89c92a02aaea535f42e793fc69efd82f081",
-        "after_sha256": "ec40d0468e66bb6c6e44417805d62dbc436279543d42f04ad6d639a39ea66708",
-        "after_bytes": 44506
+        "after_sha256": "31fed95f2db64ec0625419520d2bd73e685194c997f1024a089673e3dd64469d",
+        "after_bytes": 45648
+      }
+    ],
+    "frontend_timeout_recovery": [
+      {
+        "path": "src/lib/echo/api.ts",
+        "status": "modified",
+        "before_sha256": "24fe3b4d4b09d7c3a5d4f7ee187d3d3efcfca94937b951f9732a0709e9ab37cd",
+        "after_sha256": "5061d6d1c7360854020182d2b985cc16d385209dfb8b5f039ca24bcabf3ca968",
+        "after_bytes": 13327
+      },
+      {
+        "path": "src/lib/echo/startSave.ts",
+        "status": "modified",
+        "before_sha256": "39fdb5c05857e864e4a33edbec86799965e00cf3a696827aecf4bb240f08778e",
+        "after_sha256": "353f4dfccb676fecc28ce2825918a923c4bbe3f67835b1171b8f8908b40482a5",
+        "after_bytes": 4118
+      },
+      {
+        "path": "src/lib/echo/journeySave.ts",
+        "status": "modified",
+        "before_sha256": "839d09f19e5a683fa1656ce63ab912e1a56b249c03eb6f2bef644c894217d565",
+        "after_sha256": "b2d01b47b90d535fa45e03a18cfb32cf70ee503cabc05a7dfb495571ac53581a",
+        "after_bytes": 3312
       }
     ],
     "frontend_payment_routing": [
@@ -41,6 +58,110 @@
         "after_bytes": 4734
       }
     ],
+    "frontend_mobile_dvh_fallback": [
+      {
+        "path": "src/pages/do-it/components/SceneShell.tsx",
+        "status": "modified",
+        "before_sha256": "acd186303362b96717326109b2c531daf201b45570c438426d1a1863d5f14726",
+        "after_sha256": "1c9affd54d97b12e9a888293a9bf37214a399eac2cccea2266f22bbbbdc43815",
+        "after_bytes": 3465
+      },
+      {
+        "path": "src/pages/do-it/components/StepQuestionScreen.tsx",
+        "status": "modified",
+        "before_sha256": "840103b1541290344ab78b8a560e13b7d0284135af296651d2dff290ee45ff6f",
+        "after_sha256": "932b469b340985250b8ec8004a997fc3cc633d346547fc5b1b72f173dbd01761",
+        "after_bytes": 13401
+      },
+      {
+        "path": "src/pages/do-it/start/page.tsx",
+        "status": "modified",
+        "before_sha256": "71eeee2ff2607bb0e2dc4a321214d94b0bafd7e9dce5321c0225be6e39dedb25",
+        "after_sha256": "6bcc45eb7c87201d6e6f2127bb0dc10408ac30158a98fdb62e66e013cdd422ed",
+        "after_bytes": 9857
+      },
+      {
+        "path": "src/pages/do-it/understanding-check/page.tsx",
+        "status": "modified",
+        "before_sha256": "e3c73b647cdddd42a09a8a1b55a73cbb297c9736e665aa836a7168f96fe0c36a",
+        "after_sha256": "8c6a589ea4361da8b9a2ed5e315a8f29afb6571aa77b203b8e203c84a21d7c19",
+        "after_bytes": 20514
+      },
+      {
+        "path": "src/pages/do-it/weather-check/page.tsx",
+        "status": "modified",
+        "before_sha256": "c4d97926f86aeb3a7989d19a54a96279c76c9d038f87d02b869caa0cb9ca2b6c",
+        "after_sha256": "d39ed59304c3c03885ae63d8dd7a716c3202c384023b0f20457945982a3aba7c",
+        "after_bytes": 10986
+      },
+      {
+        "path": "src/pages/do-it/weather/page.tsx",
+        "status": "modified",
+        "before_sha256": "d738e705fb030ea8ee3c6584e2968cfc571db5ad8bda7b5404666cdba7b14103",
+        "after_sha256": "2efcf17dfeb91e28302032695420e3873f32ab26552b8dfa98767eb3a3e8080a",
+        "after_bytes": 14197
+      },
+      {
+        "path": "src/pages/do-it/white-door/page.tsx",
+        "status": "modified",
+        "before_sha256": "af035f0c1a68955a8decdc2d4368855699c5670a8af7ca8cd3c75a15ab1199fe",
+        "after_sha256": "a11a92c0b2a9042ac1e6e62bc3f071ad00cc301bc26b58c4ac387f4df5744da3",
+        "after_bytes": 7464
+      },
+      {
+        "path": "src/pages/do-it/weather/components/WeatherEffect.tsx",
+        "status": "modified",
+        "before_sha256": "df30862af38ecab06bd71eedb1ab3cccf6308d14e38ee925641c30bee67b9d4a",
+        "after_sha256": "83188df205e8aff10ade1c4abaaba56105ac50901f429e3b0904adc5f5a04964",
+        "after_bytes": 4642
+      },
+      {
+        "path": "src/router/index.ts",
+        "status": "modified",
+        "before_sha256": "d876930e393c1910b76bd4e9ff54c71e5b50f4ac69d9de271a8b1574befa3ad9",
+        "after_sha256": "c6fb785bd10f13e555c7628a0cb2a984cdceca4b999c8dcdec44dd5cbe91d928",
+        "after_bytes": 1242
+      }
+    ],
+    "doit_profile_and_tarot": [
+      {
+        "path": "src/pages/do-it/fortune/components/ConversationFlow.tsx",
+        "status": "modified",
+        "before_sha256": "010a27eaa2dea9a38f3122abe0252d3c6e53de143045e858c505642fb95162ed",
+        "after_sha256": "0d9e1ce43359472582b4493e292b97776b6ebb90b0dd22da8d3c7da9d406311a",
+        "after_bytes": 11192
+      },
+      {
+        "path": "src/doit/hooks/useOpenAIConversation.ts",
+        "status": "modified",
+        "before_sha256": "e95560ba2d04b2e5303add0310b992ee63aa06d4b25f4872c2e5dd0cb24b4ae4",
+        "after_sha256": "36a3ddaff10667da3be37b40991ce2056e8687c16acca0c7a4d8df1d0405b903",
+        "after_bytes": 4222
+      },
+      {
+        "path": "src/doit/pages/do-it/profile/page.tsx",
+        "status": "modified",
+        "before_sha256": "e8413b54ba8e52af944aecb276b213ac3027c50496e85356c99e9f3f22d0f703",
+        "after_sha256": "2bc5db479e201c9e7ee68424a86d4a0fd119e8268498cfafbe6c312aa8876483",
+        "after_bytes": 7731
+      }
+    ],
+    "dependency_stripe_removal": [
+      {
+        "path": "package.json",
+        "status": "modified",
+        "before_sha256": "bd7ef6f641c98623de8dcdd892b40ba1c405484ffab1f50cb17cf51e5bb2985b",
+        "after_sha256": "a52d6812f3c55fcb0b573964ecb03d3003c438e11b53b6675adce6f6a4c844cc",
+        "after_bytes": 1257
+      },
+      {
+        "path": "package-lock.json",
+        "status": "modified",
+        "before_sha256": "088f4643db286a9ee54d4fb399ab9138d01e83f4996fedf14473a622ae551e6e",
+        "after_sha256": "b99bfd0eb5c3ebfed767338386510bd0866d5197a9bcf4223b8a0eaf94b910cc",
+        "after_bytes": 228142
+      }
+    ],
     "qa": [
       {
         "path": "qa/step7-contract.test.mjs",
@@ -55,6 +176,20 @@
         "before_sha256": null,
         "after_sha256": "4169934aefa55d47c00b1f9c172abd0a947da5ac09bc5c1e24d9692136b629a8",
         "after_bytes": 8868
+      },
+      {
+        "path": "qa/save-controllers.test.ts",
+        "status": "modified",
+        "before_sha256": "ac12e0207ee23b6b376002c69ce82d9de6c1508747efde9e33a802479bd2ef20",
+        "after_sha256": "18ac0c3a6a13f495bf0ec1a898e1e19e13cc911adac5845c649caffcb1f2e077",
+        "after_bytes": 4594
+      },
+      {
+        "path": "qa/full-flow-edge-simulation.test.mjs",
+        "status": "modified",
+        "before_sha256": "6743691053639ec480d7fe649c3784599054dcbe41ef7b5c40f019d53d4520f0",
+        "after_sha256": "52e56fed0ea70f9c4ef3b3822ee9243625296e8f5fd37edde306b6e1912da71a",
+        "after_bytes": 48556
       }
     ],
     "packaging_restore": [
@@ -66,13 +201,13 @@
         "after_bytes": 2978
       }
     ],
-    "responsive_galaxy_fix": [
+    "responsive_galaxy_fix_and_ios_input": [
       {
         "path": "src/index.css",
         "status": "modified",
         "before_sha256": "050ce6b76f0c55be87aa76dc20634a3a837d08c0346fdf4fe315b12bf30682a9",
-        "after_sha256": "d64bf7a57bcdb0387986a5ed82c74abcdc2b3a1a4fd2a45e329bad301bbfa988",
-        "after_bytes": 17420
+        "after_sha256": "385cb7e22b7629deab781947796b71530bdbdbfb3f9c08eadd8f83abf413a5a6",
+        "after_bytes": 17931
       },
       {
         "path": "src/pages/home/page.tsx",

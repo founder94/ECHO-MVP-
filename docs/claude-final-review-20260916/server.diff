@@ -89,7 +89,36 @@
      if (!question || question.length > LIMITS.QUESTION_MAX) continue;
      const anchor = typeof o.anchor === "string" ? o.anchor.trim().slice(0, LIMITS.MEANING_MAX) : "";
      const assumptions = Array.isArray(o.assumptions)
-@@ -245,16 +254,36 @@
+@@ -214,7 +223,16 @@
+   }
+   return b.rejectedTexts.some((r) => looksSame(`${c.acknowledgement ?? ""} ${c.question}`, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP) || (!!c.meaning && looksSame(c.meaning, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP)));
+ }
+-function parseReport(raw: string, rejectedTexts: string[]): Report | null {
++// 2026-09-16: 리포트의 '확정(confirmed)'은 AI 출력이 아니라 서버가 결정한다(Information Status).
++// 항목의 anchor(사용자 근거에서 글자 그대로 가져온 표현)가 실제 사용자 근거에 있고 본문에도 그대로 들어 있을 때만 confirmed 를 인정하고,
++// 그렇지 않으면 candidate 로 내린다. 글자는 바꾸지 않는다.
++function sectionGrounded(anchor: string, body: string, evidenceParts: string[]): boolean {
++  const a = normalizeKey(anchor);
++  if (a.length < 2) return false;
++  if (!normalizeKey(body).includes(a)) return false;
++  return evidenceParts.some((part) => normalizeKey(part).includes(a));
++}
++function parseReport(raw: string, rejectedTexts: string[], evidenceParts: string[]): Report | null {
+   const o = extractJson(raw) as Json | null;
+   if (!o || typeof o !== "object") return null;
+   const title = typeof o.title === "string" ? o.title.trim().slice(0, LIMITS.TITLE_MAX) : "";
+@@ -228,7 +246,9 @@
+     const heading = typeof x.heading === "string" ? x.heading.trim().slice(0, LIMITS.TITLE_MAX) : "";
+     const body = typeof x.body === "string" ? x.body.trim().slice(0, LIMITS.SECTION_MAX) : "";
+     if (!heading || !body) continue;
+-    sections.push({ heading, body, status: x.status === "confirmed" ? "confirmed" : "candidate" });
++    const anchor = typeof x.anchor === "string" ? x.anchor.trim().slice(0, LIMITS.MEANING_MAX) : "";
++    const confirmed = x.status === "confirmed" && sectionGrounded(anchor, body, evidenceParts);
++    sections.push({ heading, body, status: confirmed ? "confirmed" : "candidate" });
+     if (sections.length >= LIMITS.SECTIONS_MAX) break;
+   }
+   if (sections.length < LIMITS.SECTIONS_MIN) return null;
+@@ -245,16 +265,36 @@
    const timeoutMs = maxTokens === REPORT_MAX_TOKENS ? REPORT_TIMEOUT_MS : QUESTION_TIMEOUT_MS;
    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
    try {
@@ -134,7 +163,7 @@
      return text;
    } finally {
      clearTimeout(timer);
-@@ -369,7 +398,10 @@
+@@ -369,14 +409,17 @@
      const survivor = cands.find((c) => !blocked(c, block, evidenceParts, intentHistory, avoidAnchorReuse));
      if (survivor) return renderCandidate(survivor, mode, feedbackKind);
      blockedAll = blockedAll.concat(cands.map((c) => c.question));
@@ -145,3 +174,12 @@
    throw new Error("NO_CANDIDATE");
  }
  async function genReport(ai: Ai, ctx: Ctx): Promise<Report> {
+   const rejectedTexts = ctx.understandings.filter((u) => u.choice === "no" && u.rejected_interpretation).map((u) => u.rejected_interpretation as string);
+-  const system = `${PERSONA} 제공된 [사용자 근거]만 바탕으로 사용자가 '진짜 나'를 이해하도록 돕는 자기이해 리포트를 한국어로 써라. 이전 ECHO 질문·요약은 근거가 아니다. 카피의 주어는 '나/내가'다. JSON 객체로만 출력한다. 형식: {"title":"40자 이내 제목","summary":"2~3문장 요약","sections":[{"heading":"소제목","body":"3~6문장","status":"confirmed 또는 candidate"}],"next_step":"지금 해볼 수 있는 아주 작은 한 걸음 1~2문장"}. sections 는 3~5개. status 규칙: 사용자가 직접 말한 내용만으로 쓴 부분은 "confirmed", 조심스러운 해석이 섞인 부분은 "candidate" 로 표시하고 문장도 '~인 것 같아요'로 쓴다. 반드시 지켜라: 1) 사용자가 직접 설명·정정한 내용을 가장 우선으로 반영한다. 2) 거절한 해석은 표현을 바꿔도 다시 쓰지 않는다. 3) 사용자가 말하지 않은 사람·관계·사건·감정·원인·회피·상처를 만들지 않는다. 4) 진단·치료·점술·성격검사식 단정, 데이팅·궁합 표현을 쓰지 않는다.${priorityNote(ctx)}`;
++  const system = `${PERSONA} 제공된 [사용자 근거]만 바탕으로 사용자가 '진짜 나'를 이해하도록 돕는 자기이해 리포트를 한국어로 써라. 이전 ECHO 질문·요약은 근거가 아니다. 카피의 주어는 '나/내가'다. JSON 객체로만 출력한다. 형식: {"title":"40자 이내 제목","summary":"2~3문장 요약","sections":[{"heading":"소제목","body":"3~6문장","status":"confirmed 또는 candidate","anchor":"사용자 근거에서 글자 그대로 가져온 핵심 표현"}],"next_step":"지금 해볼 수 있는 아주 작은 한 걸음 1~2문장"}. sections 는 3~5개. status 규칙: 사용자가 직접 말한 내용만으로 쓴 부분은 "confirmed" 로 표시하되 그 항목의 anchor 를 본문에 그대로 인용해야 한다(서버가 사용자 근거와 대조해 인용이 없으면 candidate 로 내린다). 조심스러운 해석이 섞인 부분은 "candidate" 로 표시하고 문장도 '~인 것 같아요'로 쓴다. 반드시 지켜라: 1) 사용자가 직접 설명·정정한 내용을 가장 우선으로 반영한다. 2) 거절한 해석은 표현을 바꿔도 다시 쓰지 않는다. 3) 사용자가 말하지 않은 사람·관계·사건·감정·원인·회피·상처를 만들지 않는다. 4) 진단·치료·점술·성격검사식 단정, 데이팅·궁합 표현을 쓰지 않는다.${priorityNote(ctx)}`;
+   for (let i = 0; i < LIMITS.ATTEMPTS; i++) {
+-    const report = parseReport(await callOpenAI(ai, system, `[사용자 근거]\n${userEvidenceText(ctx)}`, true, REPORT_MAX_TOKENS), rejectedTexts);
++    const report = parseReport(await callOpenAI(ai, system, `[사용자 근거]\n${userEvidenceText(ctx)}`, true, REPORT_MAX_TOKENS), rejectedTexts, userEvidenceParts(ctx));
+     if (report) return report;
+   }
+   throw new Error("NO_CANDIDATE");

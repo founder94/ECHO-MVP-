@@ -98,5 +98,30 @@
   {
     "name": "S5 구매자가 결제 화면에 들어와도 리포트로 직행(재결제 없음)",
     "pass": true
+  },
+  {
+    "name": "S6 Galaxy S24 390px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 Galaxy 360px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone 15 393px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone SE 375px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone 15 Pro Max 430px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
   }
 ]

@@ -145,6 +145,20 @@
   min-height: 100dvh;
 }
 
+/* 2026-09-16 iPhone 대응: iOS Safari 는 글자 크기 16px 미만인 입력칸에 초점이 가면 화면을 자동 확대하고 되돌리지 않는다.
+   모바일 폭에서만 입력칸 글자를 16px 로 맞춘다(색·여백·테두리는 그대로). */
+@media (max-width: 767px) {
+  #root textarea,
+  #root input[type='text'],
+  #root input[type='email'],
+  #root input[type='password'],
+  #root input[type='tel'],
+  #root input[type='search'],
+  #root input:not([type]) {
+    font-size: 16px;
+  }
+}
+
 /* 2026-09-16 반응형 수정: 메뉴(ECHO·경험·기록) 앵커 이동 시 섹션 제목이 고정 헤더(64/80px) 뒤로 숨지 않도록
    헤더 높이만큼 스크롤 여백을 둔다. 홈(.echo-home) 안의 id 섹션에만 적용. */
 .echo-home main section[id] {

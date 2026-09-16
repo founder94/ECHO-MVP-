@@ -72,3 +72,27 @@
 - OpenAI 질문 호출 시간 제한 6초의 여유 검토(지연 추세 로그 축적 뒤).
 - `admin-conversations` CORS 개발 포트.
 - 관리자 목록 이메일 마스킹 여부 결정.
+
+## 7. 추가 검수문(project-13966538 기준, 2026-09-16) 항목 대조 — 2차
+검수문은 이번 인계본보다 앞선 ZIP(project-13966538, get-step-question 19,306바이트)을 본 것이다. 현재 기준본(PROJECT_SOURCE = 운영 v19/v10/v2)과 파일 단위로 대조했다.
+
+| 검수문 항목 | 현재 기준본 | 판정 | 근거 |
+|---|---|---|---|
+| P0-1 관리자 대화 원문 조회 없음 | `admin-conversations` v2 list/detail + `useAdminConversations.ts` + `views/Conversations.tsx`, 상세는 감사 로그 저장 성공 시만 | 해결됨 | `admin-conversations/index.ts` detail 분기 |
+| P0-2 맞아요 → white_door_ready 반환, STEP 3 미변환 | choose agree → `step3` 커밋, 과거 white_door_ready 는 echo-journey `restoreLegacyWhiteDoor` 가 agree 기록 확인 뒤 step3 | 해결됨 | `get-step-question` choose, `echo-journey` 416~438 |
+| P0-3 결제 서버 white_door_ready·alreadyPaid 상태 판정·reportEntitled 미반환·리포트 권한 검사 없음 | `PAYABLE_STATUS = "report_ready"`, alreadyPaid 는 paid 행, `reportEntitled` 반환, report/resume/list/RLS 4경로 paid 필수 | 해결됨 | `echo-payment` create, `echo-journey` 497~502·641 |
+| P0-4 시작 토큰 미사용·중복 대화·부분 저장 후 성공 응답 | start 는 (user_id, request_token) 중복 조회 + DB unique 인덱스, answer/choose 는 claim→insert→commit 실패 시 롤백, 같은 토큰 재요청은 저장 상태 반환 | 해결됨 | `get-step-question` start/answer/choose, DB `conversations_user_request_token_unique` |
+| P0-5 정정·직접 설명이 거절 배열에 섞임, 파싱 실패 원문 채택 | `correctionBlock` 이 affirmed/rejected 분리, `buildBlockContext` 는 choice='no' 의 rejected_interpretation 만 차단 재료, 파싱 실패는 SCHEMA 오류 | 해결됨 | `get-step-question` correctionBlock/buildBlockContext/parseCandidates |
+| P0-6 리포트 confirmed 를 AI 가 결정 | **미해결이었음 → 이번에 수정.** `parseReport` 가 항목 anchor 를 사용자 근거·본문과 대조해 통과한 항목만 confirmed, 아니면 candidate | 수정 | `echo-journey` sectionGrounded/parseReport, QA full-flow 리포트 상태 단언 |
+| P1-1 시간 초과 뒤 busy 잠금, STEP 1·2 대기 제한 없음 | **미해결이었음 → 이번에 수정.** 컨트롤러는 시간 초과 시 잠금 해제(같은 토큰 재시도, 서버가 중복 판정), `api.ts call()` 에 40초(리포트 75초) 상한 | 수정 | `startSave.ts`, `journeySave.ts`, `api.ts` |
+| P1-2 관리자 고정 문구 | admin-dashboard 실측값 + 오류/빈값 구분 | 해결됨 | QA admin-dashboard-contract 8건 |
+| P1-3 /doit/profile 예시 데이터 | **부분 미해결 → 이번에 수정.** 닉네임·소개·목적·지역·생활 리듬은 `loadProfile` 실제 값, 등급·수치는 데모임을 화면에 명시 | 수정(부분) | `src/doit/pages/do-it/profile/page.tsx` |
+| P1-4 공간·방·미션 예시 | 예시 데이터 그대로(A 구조, 이번 범위 밖) | 미해결(범위 밖) | 보존 지시 |
+| P1-5 타로 뒤 대화 실패 시 칸 이동 | **미해결이었음 → 이번에 수정.** 생성 실패면 현재 칸 유지 | 수정 | `ConversationFlow.tsx`, `useOpenAIConversation.ts` |
+| P1-6 STEP_THEMES 관계 고정 | `STEP_OBJECTIVES`/`STEP_LENSES` 로 교체됨(관계 가정 없음) | 해결됨 | `echo-journey` 53~68 |
+| P1-6 Stripe 의존성 | **미해결이었음 → 이번에 수정.** 소스 import 0건 확인 후 package.json·lock 에서 제거(파일 삭제 아님) | 수정 | package.json, package-lock.json |
+| P1-6 sourcemap: true | `sourcemap: false` | 해결됨 | vite.config.ts 86 |
+| P1-6 홈 '내 스토리 → 준비 중' | 그대로(정보구조 항목, 대표 결정) | 미해결(결정 사항) | Navbar appMenuItems |
+| 결제 위치 충돌(무료 STEP 3~7 vs 결제 후 개방) | 2026-09-14 FINAL LOCK(STEP 1~7 무료, 리포트만 4,900원)으로 확정됨 | 해결됨 | 인계 지시서 1장 |
+
+모바일(Android·iPhone) 마무리로 추가한 것: 여정 화면 8곳 `min-h-[100dvh]` → `echo-min-h-viewport`(100vh 폴백, iOS 15.3 이하), 모바일 폭 입력칸 글자 16px(iOS 자동 확대 방지), 날씨 효과의 `filter: blur` 제거(구름·안개, Android GPU 잘림·iOS 부하), 홈 9파일 갤럭시 패치. WebKit 엔진은 이 환경에 없어 iPhone 은 Chromium 엔진의 iPhone 크기·UA 에뮬레이션으로만 검사했다(실기기 NOT RUN).
