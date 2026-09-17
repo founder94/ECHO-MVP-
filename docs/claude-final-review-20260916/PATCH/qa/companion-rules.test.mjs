@@ -17,11 +17,13 @@ async function loadExports(relativePath, exposeLine) {
     /import \{ createClient, type SupabaseClient \} from "npm:@supabase\/supabase-js@2\.57\.4";/,
     'const createClient = () => ({});',
   );
-  if (relativePath.includes('echo-journey')) {
-    const qualityUrl = pathToFileURL(resolve(absolutePath, '..', 'question-quality.ts')).href;
-    source = source.replace('from "./question-quality.ts";', `from ${JSON.stringify(qualityUrl)};`);
-  }
-  source += `\n${exposeLine}\n//# sourceURL=${absolutePath}?companion=${Date.now()}-${Math.random()}\n`;
+  source = source.replace(/from "\.\/([\w.-]+\.ts)";/g, (_m, name) =>
+    `from ${JSON.stringify(pathToFileURL(resolve(absolutePath, '..', name)).href)};`);
+  const sibling = (name) => JSON.stringify(pathToFileURL(resolve(absolutePath, '..', name)).href).slice(1, -1);
+  const expose = exposeLine
+    .replace('__RULES__', sibling('rules.ts'))
+    .replace('__AI__', sibling('ai.ts'));
+  source += `\n${expose}\n//# sourceURL=${absolutePath}?companion=${Date.now()}-${Math.random()}\n`;
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
     fileName: absolutePath,
@@ -36,7 +38,11 @@ async function loadExports(relativePath, exposeLine) {
 const EJ = 'supabase/functions/echo-journey/index.ts';
 const GSQ = 'supabase/functions/get-step-question/index.ts';
 const EJ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, confirmedEvidenceParts, latestOpenJourneyTurn, isParrot, renderCandidate, blockReason, genStepQuestion, hasBanmal, toPoliteKorean, LIMITS };';
-const GSQ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, followupMode, renderFollowup, blockReasonFor, latestOpenTurn, hasBanmal, toPoliteKorean, validateSingleQuestion, LIMITS };';
+const GSQ_EXPOSE = [
+  'import * as __rules from "__RULES__";',
+  'import * as __ai from "__AI__";',
+  'globalThis.__echoExposed = { ...__rules, ...__ai, latestOpenTurn };',
+].join('\n');
 
 // 대표가 지시서에 적은 네 문장(각 단계에서 검사하라고 한 것)
 const Q_TYPO = 'AI도 오타가 날 수 있어?';
@@ -331,11 +337,14 @@ test('말투: 반말 후보는 차단 사유 banmal 로 막힌다 (echo-journey�
   assert.ok(['banmal', 'quality'].includes(ejReason), `기대: banmal/quality, 실제: ${ejReason}`);
 });
 
-test('질문 실패 방지: 마지막 시도 완화와 구제가 genSingleQuestion 에 실제로 있다', async () => {
-  const source = await readFile(resolve(root, GSQ), 'utf8');
+test('질문 실패 방지: 한 번에 후보 3개 + 완화 + 구제가 genSingleQuestion 에 실제로 있다', async () => {
+  const source = await readFile(resolve(root, 'supabase/functions/get-step-question/ai.ts'), 'utf8');
   const body = source.slice(source.indexOf('async function genSingleQuestion'), source.indexOf('const genStep1Question'));
-  assert.match(body, /const relaxed = attempt === LIMITS\.GENERATION_ATTEMPTS - 1/, '마지막 시도 완화가 없으면 짧은 답변에서 또 막힌다');
-  assert.match(body, /repeatsQuestionIntent\(v\.text, asked\.slice\(-INTENT_HISTORY\)\)/, '의도 반복은 최근 질문과만 비교해야 한다');
+  assert.match(body, /splitQuestionCandidates\(raw\)/, '한 번 호출로 후보 여러 개를 받아야 재시도가 줄어든다');
+  assert.match(body, /for \(const candidate of candidates\)/, '후보를 순서대로 검사해 서버가 골라야 한다');
+  assert.match(body, /const relaxed = attempt > 0/, '재시도에서 다양성 규칙을 풀지 않으면 또 막힌다');
+  assert.match(body, /repeatsQuestionIntent\(asking, asked\.slice\(-INTENT_HISTORY\)\)/, '의도 반복은 최근 질문과만, 그리고 묻는 문장끼리 비교해야 한다');
+  assert.match(body, /const asking = questionSentence\(v\.text\)/, '공감 문장까지 비교하면 STEP 2 가 STEP 1 과 같은 질문으로 오판된다');
   assert.match(body, /if \(salvage\) \{/, '안전 검사를 모두 통과한 질문은 구제해서 내보내야 한다');
   assert.match(body, /single_salvage/, '구제 사실은 로그로 남아야 한다');
   // 하드코딩 질문 금지: 구제는 모델이 만든 문장에서만 나온다.

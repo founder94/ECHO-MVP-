@@ -8,7 +8,7 @@ const read = (path) => readFile(resolve(root, path), 'utf8');
 
 test('server transition, payment gate, and report entitlement contracts are present', async () => {
   const [step, journey, payment] = await Promise.all([
-    read('supabase/functions/get-step-question/index.ts'),
+    Promise.all(['rules.ts','ai.ts','index.ts'].map((f) => read(`supabase/functions/get-step-question/${f}`))).then((xs) => xs.join('\n')),
     read('supabase/functions/echo-journey/index.ts'),
     read('supabase/functions/echo-payment/index.ts'),
   ]);

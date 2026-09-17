@@ -213,7 +213,9 @@ function parseCandidates(raw: string): Candidate[] {
       ? o.assumptions.filter((value): value is string => typeof value === "string" && !!value.trim()).slice(0, LIMITS.KEYS_MAX)
       : ["schema_missing"];
     out.push({
-      acknowledgement: politeOrSame(typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : ""),
+      // 2026-09-17 실AI: 긴 문장에서 공감 문장이 anchor 를 글자 그대로 담지 못해 후보 3개가 전부 죽었다(ack_anchor:3).
+      // 공감 문장은 선택 사항이다. 근거를 못 담으면 후보를 버리지 말고 공감 문장만 버린다.
+      acknowledgement: ackOrDrop(politeOrSame(typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : ""), anchor),
       question: politeOrSame(question),
       meaning: typeof o.meaning === "string" ? o.meaning.trim().slice(0, LIMITS.MEANING_MAX) : "",
       keys: cleanKeys(o.keys),
@@ -240,6 +242,12 @@ function isParrot(acknowledgement: string, latestUser: string): boolean {
   return overlapStats(acknowledgement, latestUser).overlap > 0.8;
 }
 interface Block { asked: string[]; askedJourney: string[]; askedJourneyFull: string[]; rejectedKeys: string[]; rejectedTexts: string[] }
+
+/** 공감 문장이 근거 표현을 담지 못하면 문장을 버린다(후보 자체는 살린다). */
+function ackOrDrop(acknowledgement: string, anchor: string): string {
+  if (!acknowledgement) return "";
+  return normalizeKey(acknowledgement).includes(normalizeKey(anchor)) ? acknowledgement : "";
+}
 
 /** 고칠 수 있으면 해요체로 바꾸고, 규칙에 없는 끝맺음이면 원문을 그대로 둔다(뒤의 검사가 차단한다). */
 function politeOrSame(text: string): string {

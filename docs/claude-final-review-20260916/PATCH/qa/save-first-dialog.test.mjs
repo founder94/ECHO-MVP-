@@ -23,7 +23,7 @@ test('STEP 3~7 answer saves and commits without waiting for a question-generatio
 });
 
 test('STEP 1~2 answer and understanding correction save before separate ask', async () => {
-  const source = await read('supabase/functions/get-step-question/index.ts');
+  const source = await Promise.all(['rules.ts','ai.ts','index.ts'].map((f) => read(`supabase/functions/get-step-question/${f}`))).then((xs) => xs.join('\n'));
   const answer = branch(source, '// ── answer ──', '// ── choose');
   const choose = branch(source, '// ── choose', 'return fail("BAD_REQUEST", "알 수 없는 요청이에요.")');
   assert.match(source, /if \(action === "ask"\)/);
@@ -34,7 +34,7 @@ test('STEP 1~2 answer and understanding correction save before separate ask', as
 
 test('question path has a bounded latency budget and smaller candidate set', async () => {
   const [step, journey] = await Promise.all([
-    read('supabase/functions/get-step-question/index.ts'),
+    Promise.all(['rules.ts','ai.ts','index.ts'].map((f) => read(`supabase/functions/get-step-question/${f}`))).then((xs) => xs.join('\n')),
     read('supabase/functions/echo-journey/index.ts'),
   ]);
   assert.match(step, /OPENAI_TIMEOUT_MS = 6_000/);

@@ -218,10 +218,9 @@ export async function loadEdgeHandler(relativePath, db, aiFetch, { paymentEnable
   if (relativePath.includes('echo-payment') && paymentEnabled) {
     source = source.replace('const PAYMENT_MODE = "review_pending" as "review_pending" | "enabled";', 'const PAYMENT_MODE = "enabled" as "review_pending" | "enabled";');
   }
-  if (relativePath.includes('echo-journey')) {
-    const qualityUrl = pathToFileURL(resolve(absolutePath, '..', 'question-quality.ts')).href;
-    source = source.replace('from "./question-quality.ts";', `from ${JSON.stringify(qualityUrl)};`);
-  }
+  // 같은 폴더의 형제 모듈(./question-quality.ts, ./rules.ts, ./ai.ts)은 파일 URL 로 바꿔 실제로 불러온다.
+  source = source.replace(/from "\.\/([\w.-]+\.ts)";/g, (_m, name) =>
+    `from ${JSON.stringify(pathToFileURL(resolve(absolutePath, '..', name)).href)};`);
   source += `\n//# sourceURL=${absolutePath}?simulation=${Date.now()}-${Math.random()}\n`;
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },

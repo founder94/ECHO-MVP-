@@ -38,7 +38,7 @@ const EVIDENCE = '오늘은 마음이 편안해\n편안해서 조금 여유가 �
 
 test('get-step-question: trailing emoji / closing quote after the question mark is trimmed, not rejected', async () => {
   const { validateSingleQuestion, tidyQuestionText } = await loadExports(
-    'supabase/functions/get-step-question/index.ts',
+    'supabase/functions/get-step-question/rules.ts',
     'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
   );
   const decorated = '편안하다고 말해주셨네요. 그 편안함이 어떤 때 가장 크게 느껴졌나요? 😊';
@@ -51,7 +51,7 @@ test('get-step-question: trailing emoji / closing quote after the question mark 
 
 test('get-step-question: a short empathetic lead-in question mark becomes a period so one real question remains', async () => {
   const { validateSingleQuestion, softenLeadingQuestion } = await loadExports(
-    'supabase/functions/get-step-question/index.ts',
+    'supabase/functions/get-step-question/rules.ts',
     'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
   );
   const twoMarks = '많이 편안했죠? 그 편안함에서 지금 가장 또렷한 느낌은 무엇인가요?';
@@ -63,7 +63,7 @@ test('get-step-question: a short empathetic lead-in question mark becomes a peri
 
 test('get-step-question: genuine double questions, non-questions and trailing sentences are still rejected', async () => {
   const { validateSingleQuestion, questionShape } = await loadExports(
-    'supabase/functions/get-step-question/index.ts',
+    'supabase/functions/get-step-question/rules.ts',
     'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
   );
   // 앞 문장이 30자보다 길면 진짜 두 질문으로 보고 거른다
@@ -85,7 +85,7 @@ test('get-step-question: genuine double questions, non-questions and trailing se
 
 test('get-step-question: grounding and forbidden-term rules still apply after tidying', async () => {
   const { validateSingleQuestion } = await loadExports(
-    'supabase/functions/get-step-question/index.ts',
+    'supabase/functions/get-step-question/rules.ts',
     'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
   );
   assert.deepEqual(validateSingleQuestion('그 상처가 어디에서 왔나요? 😊', 200, true, EVIDENCE), { ok: false, error: 'NOT_GROUNDED' });
@@ -94,7 +94,7 @@ test('get-step-question: grounding and forbidden-term rules still apply after ti
 
 test('candidate JSON questions are tidied in both servers without changing letters', async () => {
   const gsq = await loadExports(
-    'supabase/functions/get-step-question/index.ts',
+    'supabase/functions/get-step-question/rules.ts',
     'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
   );
   const raw = JSON.stringify({ candidates: [{ acknowledgement: '편안하다고 했죠.', question: '그 편안함이 어떤 때 가장 크게 느껴졌나요? ✨', anchor: '편안', assumptions: [], meaning: '때', keys: ['편안함'] }] });
