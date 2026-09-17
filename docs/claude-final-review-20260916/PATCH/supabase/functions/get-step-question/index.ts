@@ -327,7 +327,7 @@ function parseCandidates(raw: string): ParseResult {
     const assumptions = Array.isArray(o.assumptions)
       ? o.assumptions.filter((value): value is string => typeof value === "string" && !!value.trim()).slice(0, LIMITS.KEYS_MAX)
       : ["schema_missing"];
-    candidates.push({ acknowledgement: typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : "", question, meaning, keys: cleanKeys(o.keys), anchor, assumptions, reply: typeof o.reply === "string" ? cleanReply(o.reply) : "" });
+    candidates.push({ acknowledgement: politeOrSame(typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : ""), question: politeOrSame(question), meaning, keys: cleanKeys(o.keys), anchor, assumptions, reply: politeOrSame(typeof o.reply === "string" ? cleanReply(o.reply) : "") });
     if (candidates.length >= LIMITS.CANDIDATES_MAX) break;
   }
   if (!candidates.length) return { ok: false, error: "SCHEMA" };
@@ -335,7 +335,142 @@ function parseCandidates(raw: string): ParseResult {
 }
 
 // 단일 질문(STEP1·STEP2) 응답 검증: 비어 있지 않고 길이 제한·금지어 통과
-type SingleResult = { ok: true; text: string } | { ok: false; error: "EMPTY" | "TOO_LONG" | "FORBIDDEN" | "NOT_QUESTION" | "MULTIPLE_QUESTIONS" | "NOT_GROUNDED" };
+// ═══════════════ 말투: 해요체 강제 (2026-09-17 실기기 결함 #2) ═══════════════
+// 운영에서 STEP 1 질문이 "…궁금해?" 라는 반말로 나갔다. 프롬프트에 존댓말 규칙이 없었고
+// 서버에도 검사가 없었다. LLM 은 후보만 만들고 최종 문장은 서버가 정한다는 원칙대로,
+// 여기서 (1) 반말인지 판정하고 (2) 뜻을 바꾸지 않는 어미 교체만으로 해요체로 바꾼다.
+// 바꿀 수 없는 문장은 고치지 않고 차단한다(억지로 만들지 않는다).
+
+const HANGUL = /[가-힣]/u;
+const TRAILING_MARKS = /[\s"'”’」』)\]]*[.?!…]*[\s"'”’」』)\]]*$/u;
+// 해요체·합쇼체 종결. 여기에 걸리면 이미 존댓말이다.
+const POLITE_TAIL = /(요|죠|쇼|니다|니까)$/u;
+
+// 반말 종결 → 해요체. 긴 어미부터 검사한다(짧은 규칙이 먼저 먹는 것을 막는다).
+const POLITE_MAP: ReadonlyArray<readonly [string, string]> = [
+  ["는구나", "는군요"],
+  ["구나", "군요"],
+  ["잖아", "잖아요"],
+  ["거야", "거예요"],
+  ["이야", "이에요"],
+  ["어때", "어때요"],
+  ["을래", "을래요"],
+  ["ㄹ래", "ㄹ래요"],
+  ["는데", "는데요"],
+  ["일까", "일까요"],
+  ["할까", "할까요"],
+  ["았어", "았어요"],
+  ["었어", "었어요"],
+  ["겠어", "겠어요"],
+  ["겠다", "겠어요"],
+  ["았다", "았어요"],
+  ["었다", "었어요"],
+  ["야", "예요"],
+  ["까", "까요"],
+  ["래", "래요"],
+  ["데", "데요"],
+  ["니", "나요"],
+  ["냐", "나요"],
+  ["나", "나요"],
+  ["지", "죠"],
+  ["줘", "줘요"],
+  ["네", "네요"],
+  ["대", "대요"],
+  ["해", "해요"],
+  ["워", "워요"],
+  ["봐", "봐요"],
+  ["돼", "돼요"],
+  ["와", "와요"],
+  ["가", "가요"],
+  ["어", "어요"],
+  ["아", "아요"],
+  ["여", "여요"],
+];
+
+interface SentencePiece {
+  body: string; // 종결 부호를 뗀 본문
+  tail: string; // 종결 부호와 따옴표
+}
+
+// 문장 부호를 살린 채로 문장 단위로 나눈다.
+function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let buffer = "";
+  for (const ch of text) {
+    buffer += ch;
+    if (ch === "." || ch === "?" || ch === "!" || ch === "…") {
+      out.push(buffer);
+      buffer = "";
+    }
+  }
+  if (buffer.trim()) out.push(buffer);
+  return out.filter((piece) => piece.trim().length > 0);
+}
+
+function cutTail(sentence: string): SentencePiece {
+  const match = sentence.match(TRAILING_MARKS);
+  const tail = match ? match[0] : "";
+  return { body: tail ? sentence.slice(0, sentence.length - tail.length) : sentence, tail };
+}
+
+// 판정 대상 문장인지: 한글이 있고 너무 짧지 않은 문장만 본다.
+function checkable(body: string): boolean {
+  const trimmed = body.trim();
+  return trimmed.length >= 3 && HANGUL.test(trimmed);
+}
+
+function isPoliteSentence(sentence: string): boolean {
+  const { body } = cutTail(sentence);
+  const trimmed = body.trim();
+  if (!checkable(trimmed)) return true;
+  return POLITE_TAIL.test(trimmed);
+}
+
+/** 화면에 나갈 문장에 반말이 섞여 있는가. 한 문장이라도 반말이면 true. */
+function hasBanmal(text: string): boolean {
+  return splitSentences(text).some((sentence) => !isPoliteSentence(sentence));
+}
+
+function politeBody(body: string): string | null {
+  const trimmed = body.replace(/\s+$/u, "");
+  if (!checkable(trimmed)) return trimmed;
+  if (POLITE_TAIL.test(trimmed)) return trimmed;
+  for (const [from, to] of POLITE_MAP) {
+    if (trimmed.endsWith(from)) return `${trimmed.slice(0, trimmed.length - from.length)}${to}`;
+  }
+  return null;
+}
+
+/**
+ * 뜻을 바꾸지 않고 종결 어미만 해요체로 바꾼다.
+ * 규칙에 없는 끝맺음은 억지로 고치지 않고 null 을 돌려준다(그 후보는 차단된다).
+ */
+function toPoliteKorean(text: string): string | null {
+  const source = text.trim();
+  if (!source) return source;
+  const pieces = splitSentences(source);
+  let changed = false;
+  const rebuilt: string[] = [];
+  for (const piece of pieces) {
+    const leading = piece.match(/^\s*/u)?.[0] ?? "";
+    const { body, tail } = cutTail(piece.slice(leading.length));
+    const fixed = politeBody(body);
+    if (fixed === null) return null;
+    if (fixed !== body.replace(/\s+$/u, "")) changed = true;
+    rebuilt.push(`${leading}${fixed}${tail}`);
+  }
+  const result = rebuilt.join("");
+  return changed ? result : source;
+}
+
+
+/** 고칠 수 있으면 해요체로 바꾸고, 규칙에 없는 끝맺음이면 원문을 그대로 둔다(뒤의 검사가 차단한다). */
+function politeOrSame(text: string): string {
+  if (!text) return text;
+  return toPoliteKorean(text) ?? text;
+}
+
+type SingleResult = { ok: true; text: string } | { ok: false; error: "EMPTY" | "TOO_LONG" | "FORBIDDEN" | "NOT_QUESTION" | "MULTIPLE_QUESTIONS" | "NOT_GROUNDED" | "BANMAL" };
 function hasUnsupportedPremise(question: string, evidence: string): boolean {
   if (/미래.{0,30}(기억에\s*남|기억나)|(?:앞으로|훗날|몇\s*년\s*뒤).{0,30}(기억에\s*남|기억나)/.test(question)) return true;
   const q = normalizeKey(question);
@@ -379,9 +514,14 @@ function questionShape(raw: string): string {
   return `qmarks=${qmarks} tail=${tail}`;
 }
 function validateSingleQuestion(raw: string, maxLength: number = LIMITS.QUESTION_MAX, mustBeQuestion = true, evidence = ""): SingleResult {
-  const text = mustBeQuestion ? softenLeadingQuestion(tidyQuestionText(raw)) : raw.trim().replace(/^["'「]+|["'」]+$/g, "").trim();
+  let text = mustBeQuestion ? softenLeadingQuestion(tidyQuestionText(raw)) : raw.trim().replace(/^["'「]+|["'」]+$/g, "").trim();
   if (!text) return { ok: false, error: "EMPTY" };
   if (text.length > maxLength) return { ok: false, error: "TOO_LONG" };
+  // 2026-09-17 실기기 결함: STEP 1 질문이 "…궁금해?" 라는 반말로 나갔다.
+  // 뜻을 바꾸지 않는 어미 교체로 해요체를 만들고, 바꿀 수 없으면 차단한다.
+  const polite = toPoliteKorean(text);
+  if (polite === null) return { ok: false, error: "BANMAL" };
+  text = polite;
   if (containsForbiddenTerm(text)) return { ok: false, error: "FORBIDDEN" };
   if (mustBeQuestion) {
     const marks = text.match(/\?/g)?.length ?? 0;
@@ -432,7 +572,7 @@ function repeatsQuestionIntent(question: string, asked: string[]): boolean {
   return !!intent && asked.some((previous) => questionIntent(previous) === intent);
 }
 
-type BlockReason = "forbidden" | "repeat" | "rejected_meaning" | "rejected_text" | "not_question" | "not_grounded" | "assumption" | "reply_quality";
+type BlockReason = "forbidden" | "banmal" | "repeat" | "rejected_meaning" | "rejected_text" | "not_question" | "not_grounded" | "assumption" | "reply_quality";
 
 interface FilterResult {
   survivors: Candidate[];
@@ -457,6 +597,8 @@ function replyRevivesRejected(reply: string, ctx: BlockContext): boolean {
 function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOptions = {}): BlockReason | null {
   const { relaxed = false, userQuestion = "", requireQuestion = true } = options;
   if (containsForbiddenTerm(`${c.acknowledgement ?? ""}\n${c.question}\n${c.reply ?? ""}`)) return "forbidden";
+  // 말투: 해요체로 바꿀 수 없는 후보는 화면에 내지 않는다(2026-09-17 반말 결함).
+  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question} ${c.reply ?? ""}`.trim())) return "banmal";
   // ③④ 사용자가 물었으면 '답'이 실제 답이어야 하고, 거절한 뜻을 되살려서도 안 된다.
   if (userQuestion) {
     if (replyQualityReason(c.reply ?? "", userQuestion)) return "reply_quality";
@@ -627,7 +769,7 @@ async function callOpenAI(ai: Ai, messages: ChatMsg[], jsonMode: boolean, maxTok
 }
 
 const PERSONA =
-  "너는 사용자의 마음을 공감하며 이해하는 대화형 동반자 'ECHO'다. 사용자가 실제로 말한 내용만 근거로 하고 추측·판단·진단·평가를 하지 않는다. 의료·법률·점술·성격검사식 단정을 하지 않는다. 데이팅·궁합 같은 표현을 쓰지 않는다.";
+  "너는 사용자의 마음을 공감하며 이해하는 대화형 동반자 'ECHO'다. 사용자가 실제로 말한 내용만 근거로 하고 추측·판단·진단·평가를 하지 않는다. 의료·법률·점술·성격검사식 단정을 하지 않는다. 데이팅·궁합 같은 표현을 쓰지 않는다. 화면에 나가는 모든 문장은 한국어 해요체 존댓말로 쓴다. 반말(해·했어·야·니·구나·줘·어때·궁금해)로 끝내지 마라.";
 
 const CONTROL_REPLIES = new Set(["맞아요", "조금 달라요", "그게 아니에요", "직접 설명할게요"]);
 const LOW_INFORMATION_REPLIES = /^(응|어|네|예|그래|맞아|맞아요|그렇지|그렇죠|글쎄|음|모르겠어|모르겠어요|잘 모르겠어요)[.!?\s]*$/;
@@ -715,18 +857,48 @@ function latestUserFreeText(ctx: Context): string {
   return "";
 }
 
+// 2026-09-17 실기기 결함 #3: STEP 1 답변이 짧을 때("돈때문에") STEP 2 질문이 3회 모두 막혀
+// "질문을 만들지 못했어요" 로 끝났다. 원인은 (a) 의도 반복 검사를 이전 질문 '전체'와 하고
+// (b) 후속 질문 경로와 달리 마지막 시도 완화도, 구제도 없었던 것이다.
+// 이제: 의도 비교는 최근 INTENT_HISTORY 개까지만, 마지막 시도는 완화, 그래도 없으면
+// '안전·근거 검사는 모두 통과했고 의도만 겹친' 질문을 구제한다. 하드코딩 질문은 쓰지 않는다.
 async function genSingleQuestion(ai: Ai, instruction: string, userContent: string, ctx?: Context): Promise<string> {
   const feedback = ctx ? feedbackText(ctx) : "";
   const asked = ctx ? ctx.messages.filter((message) => message.role === "ai" && /\?\s*$/.test(message.content)).map((message) => message.content) : [];
+  const startedAt = Date.now();
+  let salvage = "";
+  let rejected: string[] = [];
+  let attempts = 0;
   for (let attempt = 0; attempt < LIMITS.GENERATION_ATTEMPTS; attempt++) {
-    const prompt = `[사용자 근거]\n${userContent}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}${asked.length ? `\n\n[이미 물은 질문 — 같은 뜻 반복 금지]\n${asked.join("\n")}` : ""}`;
-    const raw = await callOpenAI(ai, [{ role: "system", content: `${PERSONA} ${instruction}${priorNote(ctx)} 친구처럼 바로 앞 말을 짧게 받아준 뒤, 아직 답하지 않은 새로운 정보를 부탁하는 열린 질문 하나를 써라. 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기와 예/아니오 확인 질문은 금지한다. 질문 피드백이 있으면 잘못을 짧게 인정하고 더 쉽고 다른 방향으로 묻되 그 피드백을 사용자 마음의 근거로 해석하지 마라. 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처를 만들지 마라. 전체 문장에는 물음표가 하나만 있어야 한다.` }, { role: "user", content: prompt }], false);
+    const elapsed = Date.now() - startedAt;
+    if (attempt > 0 && elapsed + OPENAI_TIMEOUT_MS > LIMITS.DEADLINE_MS) {
+      console.error(`[gsq] single_deadline elapsed_ms=${elapsed} attempts=${attempts}`);
+      break;
+    }
+    attempts = attempt + 1;
+    const relaxed = attempt === LIMITS.GENERATION_ATTEMPTS - 1;
+    const prompt = `[사용자 근거]\n${userContent}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}${asked.length ? `\n\n[이미 물은 질문 — 같은 뜻 반복 금지]\n${asked.join("\n")}` : ""}${rejected.length ? `\n\n[방금 서버에서 막힌 질문 — 다른 뜻으로 다시 써라]\n${rejected.join("\n")}` : ""}`;
+    const raw = await callOpenAI(ai, [{ role: "system", content: `${PERSONA} ${instruction}${priorNote(ctx)} 친구처럼 편안하되 반드시 해요체 존댓말로, 바로 앞 말을 짧게 받아준 뒤, 아직 답하지 않은 새로운 정보를 부탁하는 열린 질문 하나를 써라. 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기와 예/아니오 확인 질문은 금지한다. 질문 피드백이 있으면 잘못을 짧게 인정하고 더 쉽고 다른 방향으로 묻되 그 피드백을 사용자 마음의 근거로 해석하지 마라. 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처를 만들지 마라. 전체 문장에는 물음표가 하나만 있어야 한다.` }, { role: "user", content: prompt }], false);
     const v = validateSingleQuestion(raw, LIMITS.QUESTION_MAX, true, userContent);
-    if (v.ok && !asked.some((question) => looksSame(v.text, question, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP)) && !repeatsQuestionIntent(v.text, asked)) return v.text;
+    if (v.ok) {
+      const repeatsText = asked.some((question) => looksSame(v.text, question, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP));
+      if (!repeatsText) {
+        // 의도 반복은 '다양성' 규칙이다. 최근 질문과만 비교하고, 마지막 시도에서는 풀어준다.
+        if (relaxed || !repeatsQuestionIntent(v.text, asked.slice(-INTENT_HISTORY))) return v.text;
+        // 안전·근거 검사는 모두 통과했다. 다른 후보가 없으면 이 질문을 쓴다.
+        if (!salvage) salvage = v.text;
+      }
+      rejected = rejected.concat(v.text).slice(-3);
+    }
     // 진단 로그: 검증 실패 사유·길이·물음표 개수·끝 모양만. 원문 없음.
     const reason = v.ok ? "REPEAT_OR_SAME_INTENT" : v.error;
-    console.error(`[gsq] validate_fail reason=${reason} len=${raw.length} ${questionShape(raw)} attempt=${attempt + 1}`);
+    console.error(`[gsq] validate_fail reason=${reason} len=${raw.length} ${questionShape(raw)} attempt=${attempts} relaxed=${relaxed}`);
   }
+  if (salvage) {
+    console.error(`[gsq] single_salvage attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    return salvage;
+  }
+  console.error(`[gsq] no_candidate mode=single attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");
 }
 
@@ -739,7 +911,7 @@ const genStep2Question = (ai: Ai, ctx: Context) =>
 async function genUnderstanding(ai: Ai, ctx: Context): Promise<string> {
   const latest = latestUserFreeText(ctx);
   const askedNote = isUserQuestion(latest) && !isLowInformationReply(latest)
-    ? ` 사용자가 방금 ECHO에게 물었다("${latest}"). 그 물음을 사용자 마음의 사실로 요약하지 말고, 먼저 친구처럼 1문장으로 솔직하게 답한 뒤(정답을 대신 정하지 않고, 의료·법률·재무 조언 없이, 물음표 없이) 요약을 이어라.`
+    ? ` 사용자가 방금 ECHO에게 물었다("${latest}"). 그 물음을 사용자 마음의 사실로 요약하지 말고, 먼저 친구처럼 편안한 해요체로 1문장 솔직하게 답한 뒤(정답을 대신 정하지 않고, 의료·법률·재무 조언 없이, 물음표 없이) 요약을 이어라.`
     : "";
   const system =
     `${PERSONA} 사용자의 마음 기록과 대화를 바탕으로, 사용자가 지금 어떤 마음인지 한두 문장으로 공감하며 요약해라. 확실하지 않은 부분은 '~인 것 같아요'처럼 후보로만 말한다.${askedNote}${priorNote(ctx)}${priorityNote(ctx)}\n요약 텍스트만 출력해라.`;
@@ -784,6 +956,9 @@ function followupMode(ctx: Context): FollowupMode {
 // 서버가 최종 문장을 조립한다: asked → 검증된 답(+필요할 때만 질문) / feedback → 고정 인정 문장 + 질문 / normal → 공감(되받아치기면 제거) + 질문
 // 2026-09-17: 고정 회피 문장을 답변으로 쓰지 않는다. asked 모드는 검증을 통과한 reply 가 있을 때만 만들어진다.
 function renderFollowup(candidate: Candidate, mode: FollowupMode, latestUser: string, withQuestion = true): string {
+  return politeOrSame(renderFollowupRaw(candidate, mode, latestUser, withQuestion));
+}
+function renderFollowupRaw(candidate: Candidate, mode: FollowupMode, latestUser: string, withQuestion = true): string {
   if (mode === "asked") {
     const reply = (candidate.reply ?? "").trim();
     return withQuestion && candidate.question ? `${reply}\n\n${candidate.question}` : reply;
@@ -805,7 +980,7 @@ async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candidate> {
     ? `\n\n[사용자가 ECHO에게 물었다 — 먼저 답할 것]\n"${questionToAnswer}"${pending ? `\n(사용자가 "${latest}" 라고 지적했다. 앞의 물음에 답하지 못한 것을 먼저 인정하고 그 물음에 답한다.)` : ""}\n각 후보에 "reply" 필드를 넣어라: 이 물음에 1~2문장(${LIMITS.REPLY_MAX}자 이내)으로 끝까지 완성된 문장으로 답한다. 물음 속 표현을 실제로 다루고, 모르면 무엇을 모르는지 밝힌 뒤 필요한 정보를 말한다. "대신 정답을 정해 줄 수 없다" 같은 회피 문장만 쓰면 실패로 처리된다. 정답을 대신 정하지 않고, 의료·법률·재무 조언을 하지 않으며, 물음표를 쓰지 않는다. 사용자가 ECHO 자체(오타·답을 못 함 등)를 물었으면 사실대로 인정한다.${withQuestion ? " 그 다음 question 으로 사용자 이야기를 이어간다." : " 이번에는 답만 화면에 나가므로 question 은 참고용이다."}`
     : "";
   const system =
-    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":"사용자가 질문했을 때만 1~2문장 답, 아니면 빈 문자열"} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다.${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}`;
+    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":"사용자가 질문했을 때만 1~2문장 답, 아니면 빈 문자열"} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다. 7) acknowledgement·question·reply 는 모두 해요체 존댓말로 끝낸다(반말 금지).${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}`;
   const feedback = mode === "feedback" ? feedbackText(ctx) : "";
   const user = `[사용자 근거]\n${historyText(ctx)}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}`;
 

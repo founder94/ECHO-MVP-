@@ -30,6 +30,8 @@ import {
   nextQuestionFocus,
   pendingUserQuestion,
   questionQualityReason,
+  hasBanmal,
+  toPoliteKorean,
   replyQualityReason,
   reusesJourneyAnchor,
   repeatsQuestionIntent,
@@ -126,7 +128,7 @@ const CORS = {
 };
 const FORBIDDEN_TERMS = ["진단", "치료", "처방", "증상", "우울증", "공황", "불안장애", "사주", "타로", "운세", "궁합", "점술", "법적", "소송", "변호사", "성격검사", "성격 유형", "mbti"] as const;
 const PERSONA =
-  "너는 사용자의 마음을 공감하며 이해하는 대화형 동반자 'ECHO'다. 사용자가 실제로 말한 내용만 근거로 하고 추측·판단·진단·평가를 하지 않는다. 의료·법률·점술·성격검사식 단정을 하지 않는다. 데이팅·궁합 같은 표현을 쓰지 않는다. 확실하지 않은 것은 '~인 것 같아요'처럼 후보로만 말한다.";
+  "너는 사용자의 마음을 공감하며 이해하는 대화형 동반자 'ECHO'다. 사용자가 실제로 말한 내용만 근거로 하고 추측·판단·진단·평가를 하지 않는다. 의료·법률·점술·성격검사식 단정을 하지 않는다. 데이팅·궁합 같은 표현을 쓰지 않는다. 확실하지 않은 것은 '~인 것 같아요'처럼 후보로만 말한다. 화면에 나가는 모든 문장은 한국어 해요체 존댓말로 쓴다. 반말(해·했어·야·니·구나·줘·어때·궁금해)로 끝내지 마라.";
 
 type Json = Record<string, unknown>;
 type Db = SupabaseClient;
@@ -211,13 +213,13 @@ function parseCandidates(raw: string): Candidate[] {
       ? o.assumptions.filter((value): value is string => typeof value === "string" && !!value.trim()).slice(0, LIMITS.KEYS_MAX)
       : ["schema_missing"];
     out.push({
-      acknowledgement: typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : "",
-      question,
+      acknowledgement: politeOrSame(typeof o.acknowledgement === "string" ? o.acknowledgement.trim().slice(0, 100) : ""),
+      question: politeOrSame(question),
       meaning: typeof o.meaning === "string" ? o.meaning.trim().slice(0, LIMITS.MEANING_MAX) : "",
       keys: cleanKeys(o.keys),
       anchor,
       assumptions,
-      reply: typeof o.reply === "string" ? cleanReply(o.reply) : "",
+      reply: politeOrSame(typeof o.reply === "string" ? cleanReply(o.reply) : ""),
     });
     if (out.length >= LIMITS.CANDIDATES_MAX) break;
   }
@@ -238,6 +240,13 @@ function isParrot(acknowledgement: string, latestUser: string): boolean {
   return overlapStats(acknowledgement, latestUser).overlap > 0.8;
 }
 interface Block { asked: string[]; askedJourney: string[]; askedJourneyFull: string[]; rejectedKeys: string[]; rejectedTexts: string[] }
+
+/** 고칠 수 있으면 해요체로 바꾸고, 규칙에 없는 끝맺음이면 원문을 그대로 둔다(뒤의 검사가 차단한다). */
+function politeOrSame(text: string): string {
+  if (!text) return text;
+  return toPoliteKorean(text) ?? text;
+}
+
 type BlockReason =
   | "forbidden"
   | "ack_anchor"
@@ -248,6 +257,7 @@ type BlockReason =
   | "rejected_key"
   | "rejected_text"
   | "reply_quality"
+  | "banmal"
   | "reply_rejected";
 // 후보 검사 조건. userQuestion 이 있으면(asked 모드) reply 가 반드시 있어야 하고 품질 검사를 통과해야 한다.
 interface BlockOptions {
@@ -261,6 +271,8 @@ interface BlockOptions {
 function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: BlockOptions): BlockReason | null {
   const { intentHistory, avoidAnchorReuse = false, relaxed = false, userQuestion = "", requireQuestion = true } = options;
   if (forbidden(`${c.acknowledgement ?? ""}\n${c.question}\n${c.reply ?? ""}`)) return "forbidden";
+  // 말투: 해요체로 바꿀 수 없는 후보는 화면에 내지 않는다(2026-09-17 반말 결함).
+  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question} ${c.reply ?? ""}`.trim())) return "banmal";
   if (c.acknowledgement && !normalizeKey(c.acknowledgement).includes(normalizeKey(c.anchor))) return "ack_anchor";
   // ③ 사용자가 물었으면 '답'이 실제 답이어야 한다. 고정 회피 문장·잘린 문장·무관한 문장은 실패로 본다.
   if (userQuestion) {
@@ -413,6 +425,9 @@ type QuestionMode = "normal" | "asked" | "feedback" | "brief" | "uncertain" | "f
 // 2026-09-17: 고정 회피 문장을 답변 성공으로 쓰지 않는다. asked 모드는 검증을 통과한 reply 가 있을 때만 만들어진다.
 // withQuestion=false 이면 답만 하고 질문을 붙이지 않는다(ECHO 자체에 대한 물음).
 function renderCandidate(candidate: Candidate, mode: QuestionMode, feedbackKind = journeyFeedbackKind(""), latestUser = "", withQuestion = true): string {
+  return politeOrSame(renderCandidateRaw(candidate, mode, feedbackKind, latestUser, withQuestion));
+}
+function renderCandidateRaw(candidate: Candidate, mode: QuestionMode, feedbackKind: ReturnType<typeof journeyFeedbackKind>, latestUser: string, withQuestion: boolean): string {
   if (mode === "asked") {
     const reply = (candidate.reply ?? "").trim();
     return withQuestion && candidate.question ? `${reply}\n\n${candidate.question}` : reply;

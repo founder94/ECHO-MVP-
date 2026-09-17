@@ -1,7 +1,12 @@
-# 2026-09-17 최종 전달물 SHA-256 (ZIP 원본은 저장소에 넣지 않는다)
-d6fa127ecc5e360f7f8a1cc23d3b2b4e93971505ec713db3618add42f17cc00d  ECHO_CLAUDE_TRUST_FIRST_20260917.zip  (검수용, 165파일)
-308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8  ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip  (Netlify 드래그 배포용, 102파일, assets/index-PTm_2znC.js)
+# 2026-09-17 전달물 SHA-256 (ZIP 원본은 저장소에 넣지 않는다)
+4300d404f9f8fce5d4e00ce9a2361ac1b456eed6fd531dbedc3e9a1219f1506a  ECHO_CLAUDE_NETLIFY_DRAG_20260917_FIX.zip  (실기기 결함 수정본, 102파일, assets/index-BFkOy8_F.js)
+308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8  ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip      (직전판)
 
-# 운영 배포 실측 (2026-09-17)
-echo-journey       v14 ACTIVE  ezbr 21ce08f0c1adb38d0f2471358a062b954a2c05135f4ff06deece636b14f41197  verify_jwt=true  (index.ts 배포본=로컬 바이트 동일)
-get-step-question  v25 ACTIVE  ezbr 17df317b4690a1c4f152fb81b13879926773c68e2f200ce18bb8d7549c7ed73f  verify_jwt=true  (index.ts 배포본=로컬 바이트 동일)
+# 운영 배포 (2026-09-17 07:30/07:48 KST 기준, 실기기 결함 발생 시점의 버전)
+echo-journey       v14 ACTIVE  verify_jwt=true
+get-step-question  v25 ACTIVE  verify_jwt=true
+
+# 이번 실기기 결함 수정본 — 배포 대기(대표 승인 필요)
+echo-journey/index.ts           7b09876109270b30e55e55cfdc347b505aed77e8cf7c6dd15a2a39452b4f960c  61272 B
+echo-journey/question-quality.ts 4776fbf297366532fabd7fb36e5518f0fe8d7d184fa568f89558b5c693a3f9ff  28550 B
+get-step-question/index.ts      839844f11b5df8d45c0a26fb6dbe201898d4082c43dde4e963c33dd038ceaf6a  84045 B

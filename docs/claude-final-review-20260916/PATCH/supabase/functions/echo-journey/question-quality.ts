@@ -491,3 +491,131 @@ export function questionQualityReason(candidate: GroundedCandidate, evidencePart
   if (premiseWithoutEvidence(question, evidenceParts.join("\n"))) return "unsupported_premise";
   return null;
 }
+
+// ═══════════════ 말투: 해요체 강제 (2026-09-17 실기기 결함 #2) ═══════════════
+// 운영에서 STEP 1 질문이 "…궁금해?" 라는 반말로 나갔다. 프롬프트에 존댓말 규칙이 없었고
+// 서버에도 검사가 없었다. LLM 은 후보만 만들고 최종 문장은 서버가 정한다는 원칙대로,
+// 여기서 (1) 반말인지 판정하고 (2) 뜻을 바꾸지 않는 어미 교체만으로 해요체로 바꾼다.
+// 바꿀 수 없는 문장은 고치지 않고 차단한다(억지로 만들지 않는다).
+
+const HANGUL = /[가-힣]/u;
+const TRAILING_MARKS = /[\s"'”’」』)\]]*[.?!…]*[\s"'”’」』)\]]*$/u;
+// 해요체·합쇼체 종결. 여기에 걸리면 이미 존댓말이다.
+const POLITE_TAIL = /(요|죠|쇼|니다|니까)$/u;
+
+// 반말 종결 → 해요체. 긴 어미부터 검사한다(짧은 규칙이 먼저 먹는 것을 막는다).
+const POLITE_MAP: ReadonlyArray<readonly [string, string]> = [
+  ["는구나", "는군요"],
+  ["구나", "군요"],
+  ["잖아", "잖아요"],
+  ["거야", "거예요"],
+  ["이야", "이에요"],
+  ["어때", "어때요"],
+  ["을래", "을래요"],
+  ["ㄹ래", "ㄹ래요"],
+  ["는데", "는데요"],
+  ["일까", "일까요"],
+  ["할까", "할까요"],
+  ["았어", "았어요"],
+  ["었어", "었어요"],
+  ["겠어", "겠어요"],
+  ["겠다", "겠어요"],
+  ["았다", "았어요"],
+  ["었다", "었어요"],
+  ["야", "예요"],
+  ["까", "까요"],
+  ["래", "래요"],
+  ["데", "데요"],
+  ["니", "나요"],
+  ["냐", "나요"],
+  ["나", "나요"],
+  ["지", "죠"],
+  ["줘", "줘요"],
+  ["네", "네요"],
+  ["대", "대요"],
+  ["해", "해요"],
+  ["워", "워요"],
+  ["봐", "봐요"],
+  ["돼", "돼요"],
+  ["와", "와요"],
+  ["가", "가요"],
+  ["어", "어요"],
+  ["아", "아요"],
+  ["여", "여요"],
+];
+
+interface SentencePiece {
+  body: string; // 종결 부호를 뗀 본문
+  tail: string; // 종결 부호와 따옴표
+}
+
+// 문장 부호를 살린 채로 문장 단위로 나눈다.
+function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let buffer = "";
+  for (const ch of text) {
+    buffer += ch;
+    if (ch === "." || ch === "?" || ch === "!" || ch === "…") {
+      out.push(buffer);
+      buffer = "";
+    }
+  }
+  if (buffer.trim()) out.push(buffer);
+  return out.filter((piece) => piece.trim().length > 0);
+}
+
+function cutTail(sentence: string): SentencePiece {
+  const match = sentence.match(TRAILING_MARKS);
+  const tail = match ? match[0] : "";
+  return { body: tail ? sentence.slice(0, sentence.length - tail.length) : sentence, tail };
+}
+
+// 판정 대상 문장인지: 한글이 있고 너무 짧지 않은 문장만 본다.
+function checkable(body: string): boolean {
+  const trimmed = body.trim();
+  return trimmed.length >= 3 && HANGUL.test(trimmed);
+}
+
+export function isPoliteSentence(sentence: string): boolean {
+  const { body } = cutTail(sentence);
+  const trimmed = body.trim();
+  if (!checkable(trimmed)) return true;
+  return POLITE_TAIL.test(trimmed);
+}
+
+/** 화면에 나갈 문장에 반말이 섞여 있는가. 한 문장이라도 반말이면 true. */
+export function hasBanmal(text: string): boolean {
+  return splitSentences(text).some((sentence) => !isPoliteSentence(sentence));
+}
+
+function politeBody(body: string): string | null {
+  const trimmed = body.replace(/\s+$/u, "");
+  if (!checkable(trimmed)) return trimmed;
+  if (POLITE_TAIL.test(trimmed)) return trimmed;
+  for (const [from, to] of POLITE_MAP) {
+    if (trimmed.endsWith(from)) return `${trimmed.slice(0, trimmed.length - from.length)}${to}`;
+  }
+  return null;
+}
+
+/**
+ * 뜻을 바꾸지 않고 종결 어미만 해요체로 바꾼다.
+ * 규칙에 없는 끝맺음은 억지로 고치지 않고 null 을 돌려준다(그 후보는 차단된다).
+ */
+export function toPoliteKorean(text: string): string | null {
+  const source = text.trim();
+  if (!source) return source;
+  const pieces = splitSentences(source);
+  let changed = false;
+  const rebuilt: string[] = [];
+  for (const piece of pieces) {
+    const leading = piece.match(/^\s*/u)?.[0] ?? "";
+    const { body, tail } = cutTail(piece.slice(leading.length));
+    const fixed = politeBody(body);
+    if (fixed === null) return null;
+    if (fixed !== body.replace(/\s+$/u, "")) changed = true;
+    rebuilt.push(`${leading}${fixed}${tail}`);
+  }
+  const result = rebuilt.join("");
+  return changed ? result : source;
+}

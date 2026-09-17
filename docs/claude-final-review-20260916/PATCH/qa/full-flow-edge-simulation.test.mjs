@@ -1187,3 +1187,83 @@ test('응답이 유실돼 같은 답변을 다시 보내도 한 번만 저장된
   const saved = db.rows.messages.filter((row) => row.conversation_id === conversationId && row.content === '오늘은 천천히 쉬고 싶은 마음이야');
   assert.equal(saved.length, 1, '중복 저장이 생기면 안 된다');
 });
+
+// ═══ 2026-09-17 실기기 재현 검사 ═══
+// 운영 DB 기록: STEP 1 질문이 "…궁금해?" 반말로 저장됐고, 짧은 답변("돈때문에") 뒤
+// STEP 2 질문 생성이 3회 모두 막혀 화면에 "질문을 만들지 못했어요" 가 떴다.
+// 같은 상황을 그대로 만들고, 이제는 (1) 저장되는 질문이 해요체이고 (2) 질문이 나오는지 본다.
+
+function createBanmalRepeatAiFetch() {
+  const calls = { openai: 0, plain: [] };
+  // 모델이 계속 반말로, 그리고 STEP 1 과 같은 뜻('걱정/이유')으로만 대답하는 최악의 경우.
+  const plainAnswers = [
+    '맑은 날씨인데도 걱정이 드는 이유가 무엇인지 궁금해?',
+    '그 걱정이 어떤 이유에서 오는지 궁금해?',
+    '걱정이 드는 이유를 조금 더 말해줄래?',
+    '그 걱정의 이유가 무엇인지 궁금해?',
+  ];
+  let plainIndex = 0;
+  const fetch = async (url, options = {}) => {
+    assert.equal(String(url), 'https://api.openai.com/v1/chat/completions');
+    calls.openai += 1;
+    const request = JSON.parse(options.body);
+    const wantsJson = request.response_format?.type === 'json_object';
+    if (wantsJson) {
+      const content = JSON.stringify({
+        candidates: [{
+          acknowledgement: '돈때문에라고 말해주셨네요.',
+          question: '돈에 대해 지금 가장 마음에 걸리는 부분이 무엇인지 궁금해?',
+          anchor: '돈때문에',
+          assumptions: [],
+          meaning: '돈에서 걸리는 지점 하나',
+          keys: ['돈'],
+        }],
+      });
+      return new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    }
+    const answer = plainAnswers[Math.min(plainIndex++, plainAnswers.length - 1)];
+    calls.plain.push(answer);
+    return new Response(JSON.stringify({ choices: [{ message: { content: answer }, finish_reason: 'stop' }] }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    });
+  };
+  return { fetch, calls };
+}
+
+test('실기기 재현: 반말 질문은 해요체로 저장되고, 짧은 답변 뒤에도 STEP 2 질문이 나온다', async () => {
+  const db = new FakeDatabase();
+  const ai = createBanmalRepeatAiFetch();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+
+  const started = await invoke(early, 'user-1', { action: 'start', mindText: '맑지만 걱정이야', token: token('rk-start') });
+  assert.equal(started.body.status, 'step1');
+  const conversationId = started.body.conversationId;
+
+  const step1 = await invoke(early, 'user-1', { action: 'ask', conversationId, token: token('rk-ask1') });
+  assert.equal(step1.httpStatus, 200, 'STEP 1 질문이 만들어져야 한다');
+  const step1Text = String(step1.body.question ?? '');
+  assert.ok(step1Text, 'STEP 1 질문이 비어 있으면 안 된다');
+  assert.equal(/궁금해\?/.test(step1Text), false, `반말이 그대로 나갔다: ${step1Text}`);
+  assert.match(step1Text, /(요|죠|니다)\s*\?$/u, `해요체가 아니다: ${step1Text}`);
+
+  // 운영에서 실제로 들어온 짧은 답변
+  const answered = await invoke(early, 'user-1', { action: 'answer', conversationId, answer: '돈때문에', token: token('rk-ans1') });
+  assert.equal(answered.body.status, 'step2', '짧은 답변도 정상 입력이다');
+
+  // 여기가 운영에서 "질문을 만들지 못했어요" 로 끝났던 지점이다.
+  const step2 = await invoke(early, 'user-1', { action: 'ask', conversationId, token: token('rk-ask2') });
+  assert.equal(step2.httpStatus, 200, `STEP 2 에서 또 막혔다: ${JSON.stringify(step2.body)}`);
+  const step2Text = String(step2.body.question ?? '');
+  assert.ok(step2Text, `STEP 2 질문이 비었다: ${JSON.stringify(step2.body)}`);
+  assert.equal(/궁금해\?/.test(step2Text), false, `STEP 2 도 반말이다: ${step2Text}`);
+  assert.match(step2Text, /(요|죠|니다)\s*\?$/u, `STEP 2 가 해요체가 아니다: ${step2Text}`);
+
+  // 저장된 질문도 해요체여야 한다(화면과 기록이 같아야 한다).
+  const stored = db.rows.messages.filter((row) => row.role === 'ai').map((row) => row.content);
+  assert.ok(stored.length >= 2, '질문이 저장되어야 한다');
+  for (const content of stored) {
+    assert.equal(/궁금해\?|줄래\?|어때\?/.test(content), false, `저장된 기록에 반말이 남았다: ${content}`);
+  }
+});

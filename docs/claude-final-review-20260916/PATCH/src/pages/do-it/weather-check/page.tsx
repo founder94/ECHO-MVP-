@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import WeatherBackdrop from '@/pages/do-it/weather/components/WeatherBackdrop';
 import WeatherEffect from '@/pages/do-it/weather/components/WeatherEffect';
-import type { WeatherIconKey } from '@/pages/do-it/weather/hooks/useWeather';
+import { weatherSentence, type WeatherIconKey } from '@/pages/do-it/weather/hooks/useWeather';
 import {
   clearStoryHandoff,
   clearLegacyDraft,
@@ -199,7 +199,7 @@ export default function WeatherCheckPage() {
           <h1 style={reveal(80)} className="text-[24px] leading-snug font-bold text-white mb-2">
             {hasWeather ? (
               <>
-                오늘 밖은 <span className="text-white/90">{weatherLabel}</span>예요.
+                오늘 밖은 <span className="text-white/90">{weatherSentence(iconKey)}</span>.
               </>
             ) : (
               '밖의 날씨는 확인하지 않았어요.'

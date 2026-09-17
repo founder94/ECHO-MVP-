@@ -35,8 +35,8 @@ async function loadExports(relativePath, exposeLine) {
 
 const EJ = 'supabase/functions/echo-journey/index.ts';
 const GSQ = 'supabase/functions/get-step-question/index.ts';
-const EJ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, confirmedEvidenceParts, latestOpenJourneyTurn, isParrot, renderCandidate, blockReason, genStepQuestion, LIMITS };';
-const GSQ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, followupMode, renderFollowup, blockReasonFor, latestOpenTurn, LIMITS };';
+const EJ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, confirmedEvidenceParts, latestOpenJourneyTurn, isParrot, renderCandidate, blockReason, genStepQuestion, hasBanmal, toPoliteKorean, LIMITS };';
+const GSQ_EXPOSE = 'globalThis.__echoExposed = { isUserQuestion, isSelfDirectedQuestion, replyQualityReason, followupMode, renderFollowup, blockReasonFor, latestOpenTurn, hasBanmal, toPoliteKorean, validateSingleQuestion, LIMITS };';
 
 // 대표가 지시서에 적은 네 문장(각 단계에서 검사하라고 한 것)
 const Q_TYPO = 'AI도 오타가 날 수 있어?';
@@ -277,4 +277,82 @@ test('② "아까 내 질문에는 답하지 않았어" 는 앞의 물음을 찾
   assert.match(systems[0], /답하지 못한 것을 먼저 인정/);
   assert.match(text, /^앞서 어떻게 대처할지 물어봤는데 제가 답하지 못했어요/);
   assert.match(text, /\?$/, '앞 물음에 답한 뒤에는 대화를 이어갈 질문을 붙인다');
+});
+
+// ═══ 2026-09-17 실기기 캡처 3장에서 나온 결함 ═══
+// #1 화면 문장 "대체로 맑음예요." / #2 STEP 1 질문이 반말 "…궁금해?" / #3 STEP 2 "질문을 만들지 못했어요"
+
+test('말투: 실기기에 나간 반말 질문을 해요체로 바꾸고, 존댓말은 건드리지 않는다', async () => {
+  const gsq = await loadExports(GSQ, GSQ_EXPOSE);
+  // 운영 DB에 실제로 저장된 STEP 1 질문 원문
+  const shipped = '맑은 날씨인데도 걱정이 드는 이유가 무엇인지 궁금해?';
+  assert.equal(gsq.hasBanmal(shipped), true, '운영에 나간 반말을 못 잡으면 같은 일이 또 난다');
+  assert.equal(gsq.toPoliteKorean(shipped), '맑은 날씨인데도 걱정이 드는 이유가 무엇인지 궁금해요?');
+
+  for (const [before, after] of [
+    ['지금 마음이 어때?', '지금 마음이 어때요?'],
+    ['그랬구나. 어떤 부분이 가장 무거워?', '그랬군요. 어떤 부분이 가장 무거워요?'],
+    ['그 마음이 뭐야?', '그 마음이 뭐예요?'],
+    ['어떤 생각이 드나?', '어떤 생각이 드나요?'],
+    ['조금 더 들려줄 수 있을까?', '조금 더 들려줄 수 있을까요?'],
+  ]) {
+    assert.equal(gsq.hasBanmal(before), true, `반말 판정 실패: ${before}`);
+    assert.equal(gsq.toPoliteKorean(before), after);
+  }
+
+  for (const polite of [
+    '밀린 돈이 어떤 의미인지 궁금해요?',
+    '그건 제가 잘 모르겠어요. 어떤 점이 궁금하신가요?',
+    '마음이 무거우셨겠어요. 어떤 장면이 떠오르나요?',
+  ]) {
+    assert.equal(gsq.hasBanmal(polite), false, `존댓말을 반말로 오판: ${polite}`);
+    assert.equal(gsq.toPoliteKorean(polite), polite, '존댓말 문장은 그대로 두어야 한다');
+  }
+});
+
+test('말투: 규칙에 없는 끝맺음은 억지로 고치지 않고 차단한다', async () => {
+  const gsq = await loadExports(GSQ, GSQ_EXPOSE);
+  assert.equal(gsq.toPoliteKorean('그 마음은 무엇?'), null, '못 고치는 문장을 지어내면 안 된다');
+  const v = gsq.validateSingleQuestion('그 마음은 무엇?', 200, true, '돈때문에');
+  assert.equal(v.ok, false);
+  assert.equal(v.error, 'BANMAL');
+});
+
+test('말투: 반말 후보는 차단 사유 banmal 로 막힌다 (echo-journey·get-step-question 양쪽)', async () => {
+  const ej = await loadExports(EJ, EJ_EXPOSE);
+  const gsq = await loadExports(GSQ, GSQ_EXPOSE);
+  // 해요체로 못 바꾸는 반말이 후보에 남아 있으면 화면에 내지 않는다.
+  const bad = { acknowledgement: '', question: '그 마음은 무엇?', meaning: 'x', keys: ['돈'], anchor: '돈', assumptions: [], reply: '' };
+  const evidence = ['돈때문에'];
+  const block = { asked: [], rejectedKeys: [], rejectedTexts: [], evidenceTexts: evidence };
+  assert.equal(ej.hasBanmal('그 마음은 무엇?'), true);
+  assert.equal(gsq.hasBanmal('그 마음은 무엇?'), true);
+  const ejReason = ej.blockReason(bad, { ...block, asked: [], intentHistory: [] }, evidence, {});
+  assert.ok(['banmal', 'quality'].includes(ejReason), `기대: banmal/quality, 실제: ${ejReason}`);
+});
+
+test('질문 실패 방지: 마지막 시도 완화와 구제가 genSingleQuestion 에 실제로 있다', async () => {
+  const source = await readFile(resolve(root, GSQ), 'utf8');
+  const body = source.slice(source.indexOf('async function genSingleQuestion'), source.indexOf('const genStep1Question'));
+  assert.match(body, /const relaxed = attempt === LIMITS\.GENERATION_ATTEMPTS - 1/, '마지막 시도 완화가 없으면 짧은 답변에서 또 막힌다');
+  assert.match(body, /repeatsQuestionIntent\(v\.text, asked\.slice\(-INTENT_HISTORY\)\)/, '의도 반복은 최근 질문과만 비교해야 한다');
+  assert.match(body, /if \(salvage\) \{/, '안전 검사를 모두 통과한 질문은 구제해서 내보내야 한다');
+  assert.match(body, /single_salvage/, '구제 사실은 로그로 남아야 한다');
+  // 하드코딩 질문 금지: 구제는 모델이 만든 문장에서만 나온다.
+  assert.equal(/salvage = ["'`][^"'`]/.test(body), false, '고정 질문 문자열을 구제로 쓰면 안 된다');
+});
+
+test('날씨 문장: 라벨을 그대로 붙여 "맑음예요" 를 만들지 않는다', async () => {
+  const hook = await readFile(resolve(root, 'src/pages/do-it/weather/hooks/useWeather.ts'), 'utf8');
+  const page = await readFile(resolve(root, 'src/pages/do-it/weather-check/page.tsx'), 'utf8');
+  assert.match(hook, /export function weatherSentence/, '서술형 문장 함수가 있어야 한다');
+  assert.equal(/\{weatherLabel\}<\/span>예요/.test(page), false, '라벨 + 예요 조립은 문법이 깨진다');
+  assert.match(page, /weatherSentence\(iconKey\)/, '화면은 서술형 문장을 써야 한다');
+  // 실기기에 나간 깨진 문장이 어떤 조합으로도 다시 나오지 않는지 확인한다.
+  const sentences = [...hook.matchAll(/^\s{2}\w+: '([^']+)',$/gm)].map((m) => m[1]);
+  assert.ok(sentences.length >= 10, `서술형 문장이 모자라다: ${sentences.length}`);
+  for (const sentence of sentences) {
+    assert.equal(/음$|림$|개$|비$|눈$|둥$/.test(sentence), false, `명사형이 남아 있다: ${sentence}`);
+    assert.match(sentence, /요$/, `해요체가 아니다: ${sentence}`);
+  }
 });
