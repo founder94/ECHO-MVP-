@@ -554,7 +554,10 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
       console.error(`[ej] attempts_deadline step=${stepOf(status)} mode=${mode} elapsed_ms=${elapsed} attempts=${attempts}`);
       break;
     }
-    const relaxed = i === LIMITS.ATTEMPTS - 1;
+    // 2026-09-17 운영 로그(step=6 attempts_deadline elapsed_ms=5197): 완화를 '마지막 시도'에만 걸면
+    // 2회에 5초가 지나 대기 상한에 먼저 걸려 완화된 시도가 사실상 실행되지 않았다 → 막다른 길.
+    // get-step-question 과 같이 2번째 시도부터 완화한다(빠져나갈 문을 예산 안에 둔다).
+    const relaxed = i > 0;
     const extra = blockedAll.length ? `\n\n다음 후보는 서버에서 차단되었다. 다른 뜻의 질문을 만들어라:\n${blockedAll.map((q, n) => `${n + 1}. ${q}`).join("\n")}` : "";
     const user = `[사용자 근거]\n${evidence || "(근거 없음)"}${feedback && !asked ? `\n\n[질문에 대한 피드백 — 사실 근거로 사용 금지]\n${feedback}` : ""}${extra}`;
     attempts = i + 1;
