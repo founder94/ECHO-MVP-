@@ -304,21 +304,32 @@ export async function genUnderstanding(ai: Ai, ctx: Context): Promise<string> {
 
 // 거절한 해석의 "핵심 의미"를 구조화(키 목록)한다. 저장 열이 아직 없으므로 요청 시 계산한다.
 // (PENDING SQL의 understanding_results.rejected_meaning 적용 후 저장으로 전환)
-export function extractRejectedKeys(rejectedInterpretation: string): string[] {
-  return [...new Set(rejectedInterpretation.split(/[\s,./!?"'“”‘’()[\]{}]+/).map(normalizeKey).filter((part) => part.length >= 2))].slice(0, LIMITS.KEYS_MAX);
+//
+// 2026-09-18 P0-06(사용자 원문 과차단): 거절한 요약은 규칙상 사용자 말에 근거해야 한다.
+// 그래서 문장을 통째로 쪼개 금지어로 만들면 사용자가 직접 쓴 표현("걱정","일이","상황")까지 금지된다.
+// 다음 질문은 사용자 표현을 붙잡아야 하므로(anchor 규칙) 붙잡는 순간 막혀 대화가 끊겼다.
+// 버릴 것은 'AI 가 덧붙인 의미'이지 '사용자가 한 말'이 아니다. 사용자 근거에 있는 낱말은 제외한다.
+// 표현만 바꾼 거절 해석의 재등장은 rejectedTexts(문장 유사도)가 계속 막는다.
+export function extractRejectedKeys(rejectedInterpretation: string, evidenceParts: string[] = []): string[] {
+  const userWords = evidenceParts.map(normalizeKey);
+  const fromUser = (key: string) => userWords.some((word) => word.includes(key));
+  return [...new Set(rejectedInterpretation.split(/[\s,./!?"'“”‘’()[\]{}]+/).map(normalizeKey).filter((part) => part.length >= 2))]
+    .filter((key) => !fromUser(key))
+    .slice(0, LIMITS.KEYS_MAX);
 }
 
 export function buildBlockContext(ctx: Context): BlockContext {
+  const evidenceParts = userEvidenceParts(ctx);
   const askedTexts = ctx.messages.filter((m) => m.role === "ai" && /\?\s*$/.test(m.content)).map((m) => m.content);
   const rejectedTexts: string[] = [];
   const rejectedKeys: string[] = [];
   for (const u of ctx.understandings) {
     if (u.choice !== "no" || !u.rejected_interpretation) continue;
     rejectedTexts.push(u.rejected_interpretation);
-    const keys = extractRejectedKeys(u.rejected_interpretation);
+    const keys = extractRejectedKeys(u.rejected_interpretation, evidenceParts);
     for (const k of keys) if (!rejectedKeys.includes(k)) rejectedKeys.push(k);
   }
-  return { askedTexts, rejectedKeys, rejectedTexts, evidenceTexts: userEvidenceParts(ctx) };
+  return { askedTexts, rejectedKeys, rejectedTexts, evidenceTexts: evidenceParts };
 }
 
 // 후속 질문: LLM은 후보만, 차단·선택은 서버. 모두 차단되면 재요청, 한도 초과 시 NO_CANDIDATE.

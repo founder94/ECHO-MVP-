@@ -413,10 +413,18 @@ function priorityNote(ctx: Ctx): string {
   return (affirmed.length ? `\n[사용자가 직접 설명·정정한 내용 — 가장 먼저, 가장 우선으로 반영]\n${list(affirmed)}` : "") +
     (rejected.length ? `\n[사용자가 거절한 해석 — 같은 뜻을 표현만 바꿔서도 다시 쓰지 말 것]\n${list(rejected)}` : "");
 }
-function rejectedKeysOf(rejected: string): string[] {
-  return [...new Set(rejected.split(/[\s,./!?"'“”‘’()[\]{}]+/).map(normalizeKey).filter((part) => part.length >= 2))].slice(0, LIMITS.KEYS_MAX);
+// 2026-09-18 P0-06(사용자 원문 과차단): get-step-question 과 같은 규칙.
+// 거절한 요약은 사용자 말에 근거하므로, 통째로 쪼개 금지하면 사용자 자기 표현까지 막혀 대화가 끊긴다.
+// AI 가 덧붙인 의미만 남기고, 사용자 근거에 있는 낱말은 금지어에서 뺀다.
+function rejectedKeysOf(rejected: string, evidenceParts: string[] = []): string[] {
+  const userWords = evidenceParts.map(normalizeKey);
+  const fromUser = (key: string) => userWords.some((word) => word.includes(key));
+  return [...new Set(rejected.split(/[\s,./!?"'“”‘’()[\]{}]+/).map(normalizeKey).filter((part) => part.length >= 2))]
+    .filter((key) => !fromUser(key))
+    .slice(0, LIMITS.KEYS_MAX);
 }
 function buildBlock(ctx: Ctx): Block {
+  const evidenceParts = userEvidenceParts(ctx);
   const b: Block = {
     asked: askedQuestionTexts(ctx),
     askedJourney: askedJourneyQuestionTexts(ctx),
@@ -427,7 +435,7 @@ function buildBlock(ctx: Ctx): Block {
   for (const u of ctx.understandings) {
     if (u.choice !== "no" || !u.rejected_interpretation) continue;
     b.rejectedTexts.push(u.rejected_interpretation);
-    for (const k of rejectedKeysOf(u.rejected_interpretation)) if (!b.rejectedKeys.includes(k)) b.rejectedKeys.push(k);
+    for (const k of rejectedKeysOf(u.rejected_interpretation, evidenceParts)) if (!b.rejectedKeys.includes(k)) b.rejectedKeys.push(k);
   }
   return b;
 }
