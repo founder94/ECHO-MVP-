@@ -272,10 +272,12 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
   const { intentHistory, avoidAnchorReuse = false, relaxed = false, userQuestion = "", requireQuestion = true } = options;
   if (forbidden(`${c.acknowledgement ?? ""}\n${c.question}\n${c.reply ?? ""}`)) return "forbidden";
   // 말투: 해요체로 바꿀 수 없는 후보는 화면에 내지 않는다(2026-09-17 반말 결함).
-  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question} ${c.reply ?? ""}`.trim())) return "banmal";
+  // 답(reply)만 반말이면 '답 품질 실패'로 다룬다. 그래야 질문까지 같이 죽지 않고 대화가 이어진다.
+  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question}`.trim())) return "banmal";
   if (c.acknowledgement && !normalizeKey(c.acknowledgement).includes(normalizeKey(c.anchor))) return "ack_anchor";
   // ③ 사용자가 물었으면 '답'이 실제 답이어야 한다. 고정 회피 문장·잘린 문장·무관한 문장은 실패로 본다.
   if (userQuestion) {
+    if (hasBanmal((c.reply ?? "").trim())) return "reply_quality";
     if (replyQualityReason(c.reply ?? "", userQuestion, LIMITS.REPLY_MAX)) return "reply_quality";
     // ④ 거절한 뜻은 답변 본문에도 되살리지 않는다.
     if (replyRevivesRejected(c.reply ?? "", b)) return "reply_rejected";
@@ -430,6 +432,9 @@ function renderCandidate(candidate: Candidate, mode: QuestionMode, feedbackKind 
 function renderCandidateRaw(candidate: Candidate, mode: QuestionMode, feedbackKind: ReturnType<typeof journeyFeedbackKind>, latestUser: string, withQuestion: boolean): string {
   if (mode === "asked") {
     const reply = (candidate.reply ?? "").trim();
+    // 2026-09-17 스트레스 검사: 답 후보가 매번 품질 검사에 걸리면 화면이 오류로 끝났다.
+    // 고정 회피 문장을 지어내지 않고, 검사를 통과한 질문으로 대화를 잇는다.
+    if (!reply) return candidate.question ?? "";
     return withQuestion && candidate.question ? `${reply}\n\n${candidate.question}` : reply;
   }
   if (mode === "feedback") {
@@ -528,6 +533,7 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
   const priorNote = memoryNote(ctx);
   const system = `${PERSONA} 지금은 STEP ${stepOf(status)}이다. 목적은 "${STEP_OBJECTIVES[status]}"이다. 이번 질문 방식은 "${STEP_LENSES[status]}"이고, 아직 묻지 않은 이번 초점은 "${focus}"이다. 아래 [사용자 근거]만 사실로 사용할 수 있다. 이전 ECHO 문장은 사실 근거가 아니다. 친구와 이어서 대화하듯 후보 3개를 만들되 세 후보의 표현도 서로 달라야 한다. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"80자 이내의 짧고 쉬운 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":"사용자가 질문했을 때만 1~2문장 답, 아니면 빈 문자열"} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) 바로 앞의 유효한 사용자 말인 "${latestMeaningful}"에서 자연스럽게 이어가고, 오래전 표현으로 갑자기 돌아가지 않는다. acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오로 끝나는 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 바로 앞 답변에서 아직 나오지 않은 새로운 정보 한 가지만 묻는다. 4) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 5) 따옴표 안의 말이나 '~라고 했다'는 다른 사람의 말일 수 있다. 그것을 사용자의 감정·생각으로 바꾸지 않는다. 6) 미래의 일을 이미 겪은 기억처럼 묻지 않는다. 7) 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 8) AI가 틀렸다는 피드백이나 정정이 있으면 기존 해석을 버리고 사용자가 바로잡은 표현에서만 다시 시작한다. 9) 이미 물은 질문과 같은 의도(이유·의미·감정·상황·중요함·행동·남기기·구체화·바람·반복·비교)를 다시 묻지 않는다. 10) 질문 앞 설명은 만들지 말고 물음표는 하나만 쓴다. 11) 사용자가 답하기 어려워했거나 반복을 지적했다면 최근 질문의 중심 표현(anchor)을 다시 쓰지 말고 다른 사용자 근거로 주제를 전환한다.${askedNote}${userQuestionNote}${uncertaintyNote}${priorNote}${priorityNote(ctx)}`;
   let blockedAll: string[] = [];
+  let replyOnly: Candidate | null = null;
   // 의도 반복 검사는 '바로 앞 여정 질문 2개'와만 비교한다. 대화 전체(STEP 1~)와 비교하면 12개 의도가 금방 소진돼 후반 단계가 막힌다(운영 사례).
   const intentHistory = block.askedJourney.slice(-2);
   const startedAt = Date.now();
@@ -562,6 +568,11 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
         break;
       }
       reasons[reason] = (reasons[reason] ?? 0) + 1;
+      // 답만 실패한 경우를 따로 모은다. 질문 자체가 모든 검사를 통과한 후보만 받는다.
+      if (asked && !replyOnly && (reason === "reply_quality" || reason === "reply_rejected")) {
+        const questionOnly = blockReason(c, block, evidenceParts, { intentHistory, avoidAnchorReuse, relaxed, userQuestion: "", requireQuestion: true });
+        if (!questionOnly) replyOnly = { ...c, reply: "" };
+      }
     }
     if (survivor) {
       console.error(`[ej] question_ready step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt} with_question=${withQuestion}`);
@@ -570,6 +581,10 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
     blockedAll = blockedAll.concat(cands.map((c) => c.question));
     // 진단 로그: 단계·모드·후보 수·차단 사유 수만. 원문 없음.
     console.error(`[ej] candidates_blocked step=${stepOf(status)} mode=${mode} parsed=${cands.length} attempt=${attempts} relaxed=${relaxed} reasons=${Object.entries(reasons).map(([k, v]) => `${k}:${v}`).join(",")}`);
+  }
+  if (replyOnly) {
+    console.error(`[ej] asked_reply_failed step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    return renderCandidate(replyOnly, mode, feedbackKind, latestAnswer, withQuestion);
   }
   console.error(`[ej] no_candidate step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

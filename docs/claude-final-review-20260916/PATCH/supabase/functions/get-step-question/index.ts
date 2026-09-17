@@ -598,9 +598,11 @@ function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOptions =
   const { relaxed = false, userQuestion = "", requireQuestion = true } = options;
   if (containsForbiddenTerm(`${c.acknowledgement ?? ""}\n${c.question}\n${c.reply ?? ""}`)) return "forbidden";
   // 말투: 해요체로 바꿀 수 없는 후보는 화면에 내지 않는다(2026-09-17 반말 결함).
-  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question} ${c.reply ?? ""}`.trim())) return "banmal";
+  // 답(reply)만 반말이면 '답 품질 실패'로 다룬다. 그래야 질문까지 같이 죽지 않고 대화가 이어진다.
+  if (hasBanmal(`${c.acknowledgement ?? ""} ${c.question}`.trim())) return "banmal";
   // ③④ 사용자가 물었으면 '답'이 실제 답이어야 하고, 거절한 뜻을 되살려서도 안 된다.
   if (userQuestion) {
+    if (hasBanmal((c.reply ?? "").trim())) return "reply_quality";
     if (replyQualityReason(c.reply ?? "", userQuestion)) return "reply_quality";
     if (replyRevivesRejected(c.reply ?? "", ctx)) return "rejected_text";
   }
@@ -961,6 +963,9 @@ function renderFollowup(candidate: Candidate, mode: FollowupMode, latestUser: st
 function renderFollowupRaw(candidate: Candidate, mode: FollowupMode, latestUser: string, withQuestion = true): string {
   if (mode === "asked") {
     const reply = (candidate.reply ?? "").trim();
+    // 2026-09-17 스트레스 검사: 답 후보가 3번 다 품질 검사에 걸리면 화면이 오류로 끝났다.
+    // 고정 회피 문장을 지어내지 않고, 검사를 통과한 질문으로 대화를 잇는다.
+    if (!reply) return candidate.question ?? "";
     return withQuestion && candidate.question ? `${reply}\n\n${candidate.question}` : reply;
   }
   if (mode === "feedback") return `맞아요. 같은 내용을 되묻지 않고 질문을 바꿔볼게요.\n\n${candidate.question}`;
@@ -985,6 +990,7 @@ async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candidate> {
   const user = `[사용자 근거]\n${historyText(ctx)}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}`;
 
   let blockedAll: string[] = [];
+  let replyOnly: Candidate | null = null;
   const startedAt = Date.now();
   const maxTokens = mode === "asked" ? ASKED_MAX_TOKENS : CONVERSATION_MAX_TOKENS;
   let attempts = 0;
@@ -1011,11 +1017,26 @@ async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candidate> {
       console.error(`[gsq] question_ready mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt} with_question=${withQuestion}`);
       return chosen;
     }
+    // 답만 실패한 경우를 따로 모은다. 질문 자체가 모든 검사를 통과한 후보만 받는다.
+    if (mode === "asked" && !replyOnly) {
+      for (const b of result.blocked) {
+        // gsq 는 거절 재등장을 rejected_text 로 부른다(echo-journey 의 reply_rejected 와 같은 뜻).
+        if (b.reason !== "reply_quality" && b.reason !== "rejected_text") continue;
+        if (blockReasonFor(b.candidate, block, { relaxed, userQuestion: "", requireQuestion: true })) continue;
+        replyOnly = { ...b.candidate, reply: "" };
+        break;
+      }
+    }
     blockedAll = blockedAll.concat(result.blocked.map((b) => b.candidate.question));
     // 진단 로그: 모드·후보 수·차단 사유 수만. 원문 없음.
     const reasons: Record<string, number> = {};
     for (const b of result.blocked) reasons[b.reason] = (reasons[b.reason] ?? 0) + 1;
     console.error(`[gsq] candidates_blocked mode=${mode} parsed=${candidates.length} attempt=${attempts} relaxed=${relaxed} reasons=${Object.entries(reasons).map(([k, v]) => `${k}:${v}`).join(",")}`);
+  }
+  if (replyOnly) {
+    // 답은 못 만들었지만 질문은 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
+    console.error(`[gsq] asked_reply_failed mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    return replyOnly;
   }
   console.error(`[gsq] no_candidate mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");
