@@ -1,10 +1,11 @@
 # 2026-09-17 전달물 SHA-256 (ZIP 원본은 저장소에 넣지 않는다)
+# 배포 완료: 서버 v15 / v26 (아래), 화면 ZIP 은 Codex 드래그 배포 대기
 4300d404f9f8fce5d4e00ce9a2361ac1b456eed6fd531dbedc3e9a1219f1506a  ECHO_CLAUDE_NETLIFY_DRAG_20260917_FIX.zip  (실기기 결함 수정본, 102파일, assets/index-BFkOy8_F.js)
 308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8  ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip      (직전판)
 
 # 운영 배포 (2026-09-17 07:30/07:48 KST 기준, 실기기 결함 발생 시점의 버전)
-echo-journey       v14 ACTIVE  verify_jwt=true
-get-step-question  v25 ACTIVE  verify_jwt=true
+echo-journey       v15 ACTIVE  verify_jwt=true  ezbr 478c9fac607e4dd87c1476eee69d1c52c72ee7b82f58d8cd0e01f41278c29e38
+get-step-question  v26 ACTIVE  verify_jwt=true  ezbr 558a13456234a95782005bdf26b438ca2a0c5c0be48e3b06659fa9dffd49b33a
 
 # 이번 실기기 결함 수정본 — 배포 대기(대표 승인 필요)
 echo-journey/index.ts           7b09876109270b30e55e55cfdc347b505aed77e8cf7c6dd15a2a39452b4f960c  61272 B
