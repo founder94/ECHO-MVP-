@@ -385,3 +385,49 @@ test('⑪ P0-08: 답을 못 만들어도 사용자 질문을 질문으로 되받
       `사용자 원문 근거 없이 답했다(${userQuestion}): ${head}`);
   }
 });
+
+test('⑫ P0-04: 정정을 못 다루면 마지막 시도에서 근거를 정정 문장으로 좁힌다', async () => {
+  // 2026-09-18 캐너리 #3(D): 정정("사실은 일보다 사람이 더 힘들어요") 직후 질문이 다시 일 중심이었다.
+  // 규칙은 4번 막았지만 모델이 3번 다 정정을 다룬 후보를 못 만들어 구제로 넘어갔다(correction_unreflected).
+  const CORRECTION = '조금 달라요. 반은 맞고 반은 아닌 것 같아요. 사실은 일보다 사람이 더 힘들어요';
+  const userContents = [];
+  const ai = {
+    fetch: async (_url, options = {}) => {
+      const request = JSON.parse(options.body);
+      const system = String(request.messages?.[0]?.content ?? '');
+      const userMsg = String(request.messages?.[1]?.content ?? '');
+      let content;
+      if (request.response_format) {
+        userContents.push(userMsg);
+        // 근거를 정정 문장으로 좁혀 주면 그제야 정정을 다룬 후보를 낸다(실모델의 행동을 흉내).
+        const focused = userMsg.includes('이 문장 하나만 보고');
+        content = JSON.stringify({ candidates: [focused
+          ? { acknowledgement: '사람이 더 힘들다고 하셨네요.', question: '사람과 지내며 어떤 점이 무겁게 다가오나요?', anchor: '사람이 더 힘들', assumptions: [], meaning: '사람 관계', keys: ['사람관계'], reply: '' }
+          : { acknowledgement: '일이 너무 많다고 하셨네요.', question: '일이 많아지면서 어떤 부분이 부담되나요?', anchor: '일이 너무 많아', assumptions: [], meaning: '일 부담', keys: ['일부담'], reply: '' }] });
+      } else if (system.includes('요약해라')) content = '일이 많아 지치신 것 같아요.';
+      else content = ['1. 오늘은 어떤 하루였나요?', '2. 그때 몸은 어떤 상태였나요?', '3. 요즘 떠오르는 생각은 무엇인가요?'].join('\n');
+      return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    },
+  };
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'corrfocus';
+  const started = await invoke(early, u, { action: 'start', mindText: '일이 너무 많아', token: token('cf-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('cf-a1') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '일이 너무 많아서 잠을 못 자요', token: token('cf-n1') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('cf-a2') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '돈이 제일 크게 걸려요', token: token('cf-n2') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('cf-u') });
+  await invoke(early, u, { action: 'choose', conversationId, choice: 'alittle', text: CORRECTION, token: token('cf-c') });
+
+  const before = userContents.length;
+  const follow = await invoke(early, u, { action: 'ask', conversationId, token: token('cf-f') });
+  assert.equal(follow.body.ok, true, `막다른 길: ${follow.body.code ?? ''}`);
+  const rounds = userContents.slice(before);
+  assert.ok(rounds.length >= 2, `시도가 한 번뿐이라 마지막 시도를 확인할 수 없다(${rounds.length})`);
+  assert.ok(rounds[rounds.length - 1].includes('이 문장 하나만 보고'), '마지막 시도에서 근거를 정정 문장으로 좁히지 않았다');
+  assert.ok(String(follow.body.question ?? '').includes('사람'), `정정이 다음 질문에 반영되지 않았다: ${follow.body.question}`);
+});

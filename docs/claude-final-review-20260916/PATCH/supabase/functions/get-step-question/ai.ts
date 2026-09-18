@@ -485,7 +485,13 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     const relaxed = attempt > 0;
     const extra = blockedAll.length ? `\n\n다음 후보는 서버에서 차단되었다. 다른 뜻의 질문을 만들어라:\n${blockedAll.map((q, i) => `${i + 1}. ${q}`).join("\n")}` : "";
     attempts = attempt + 1;
-    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: user + extra }], true, maxTokens);
+    // 2026-09-18 캐너리 #3(D): 정정을 다룬 후보를 3번 다 못 만들어 구제로 넘어갔다(correction_unreflected).
+    // 마지막 시도에서는 근거를 '정정 문장 하나'로 좁혀 준다. 질문은 여전히 모델이 만들고 서버가 고른다.
+    const focusOnCorrection = Boolean(block.pendingCorrection) && attempt === LIMITS.GENERATION_ATTEMPTS - 1;
+    const userContent = focusOnCorrection
+      ? `[사용자가 방금 바로잡은 말 — 이 문장 하나만 보고, 이 내용에 대해 물어라]\n${block.pendingCorrection}`
+      : user;
+    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: userContent + extra }], true, maxTokens);
     const parsed = parseCandidates(raw);
     if (!parsed.ok) {
       console.error(`[gsq] candidates_schema_fail mode=${mode} attempt=${attempts}`);
