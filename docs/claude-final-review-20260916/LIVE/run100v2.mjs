@@ -98,6 +98,17 @@ for (const k of Object.keys(TYPES)) typeStat[k] = { n: 0, ok: 0, fallback: 0, ba
 // 검사도구만 재시도를 하지 않아 외부 OpenAI 타임아웃 1건이 '대화 중단'으로 기록됐다.
 // 제품 규칙 결함과 외부 장애를 섞지 않기 위해 UI 와 같은 1회 재시도를 넣는다.
 const RETRYABLE = new Set(['AI_ERROR', 'ERROR']);
+// 2026-09-18 실AI 100회: 3시간짜리 장시간 검사에서 #72~79 가 UNAUTHORIZED 로 막혔다가
+// #80 부터 같은 토큰으로 다시 붙었다(상류 검증 일시 장애). 장시간 검사에서 인증 흔들림이
+// 제품 결함으로 기록되지 않도록, 인증 거절이 나면 한 번 다시 로그인해 이어간다.
+async function reloginOnAuthFail(res) {
+  if (res.json?.ok !== false && res.http !== 401) return null;
+  const code = String(res.json?.code ?? '');
+  if (!/UNAUTHORIZED/.test(code) && res.http !== 401) return null;
+  counters.재로그인 = (counters.재로그인 ?? 0) + 1;
+  await sleep(1500);
+  try { return (await login()).token; } catch { return null; }
+}
 async function askWithRetry(call, fn, body) {
   const first = await call(fn, body);
   if (first.json?.ok !== false || !RETRYABLE.has(first.json.code)) return first;

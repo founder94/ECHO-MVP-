@@ -62,9 +62,18 @@ export interface Ai {
 }
 
 // ── OpenAI ──
-export async function callOpenAI(ai: Ai, messages: ChatMsg[], jsonMode: boolean, maxTokens = CONVERSATION_MAX_TOKENS): Promise<string> {
+// 2026-09-18 실AI 100회·캐너리12: 남은 P0 의 대부분이 OpenAI 응답 지연(AbortError)이었다.
+// 6초 상한을 모든 시도에 똑같이 걸면, 다시 시도할 예산이 없는 마지막 호출까지 6초에 끊긴다.
+// 남은 예산이 있으면 그만큼 기다린다(같은 대기 상한 안에서 성공률만 올린다).
+export const OPENAI_TIMEOUT_MAX_MS = 9_000;
+export function callTimeoutMs(elapsedMs: number): number {
+  const room = LIMITS.DEADLINE_MS - elapsedMs - 300;
+  if (room <= OPENAI_TIMEOUT_MS) return OPENAI_TIMEOUT_MS;
+  return Math.min(room, OPENAI_TIMEOUT_MAX_MS);
+}
+export async function callOpenAI(ai: Ai, messages: ChatMsg[], jsonMode: boolean, maxTokens = CONVERSATION_MAX_TOKENS, timeoutMs = OPENAI_TIMEOUT_MS): Promise<string> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), OPENAI_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     let res: Response;
     try {
@@ -305,7 +314,7 @@ export async function genSingleQuestion(ai: Ai, instruction: string, userContent
     const relaxed = attempt > 0;
     const prompt = `[사용자 근거]\n${userContent}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}${asked.length ? `\n\n[이미 물은 질문 — 같은 뜻 반복 금지]\n${asked.join("\n")}` : ""}${rejected.length ? `\n\n[방금 서버에서 막힌 질문 — 다른 뜻으로 다시 써라]\n${rejected.join("\n")}` : ""}`;
     const system = `${PERSONA} ${instruction}${priorNote(ctx)} 친구처럼 편안하되 반드시 해요체 존댓말로, 아직 답하지 않은 새로운 정보를 부탁하는 열린 질문을 만들어라. 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기와 예/아니오 확인 질문은 금지한다. 질문 피드백이 있으면 잘못을 짧게 인정하고 더 쉽고 다른 방향으로 묻되 그 피드백을 사용자 마음의 근거로 해석하지 마라. 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처를 만들지 마라.\n서로 뜻이 다른 질문 3개를 만들어 아래 형식으로만 출력해라. 설명·머리말·꼬리말을 붙이지 마라.\n1. (질문)\n2. (질문)\n3. (질문)\n각 줄은 한 문장이고 물음표는 그 줄에 하나만 있어야 한다. 사용자가 쓴 표현을 최소 하나는 그대로 물고 가라.`;
-    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: prompt }], false);
+    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: prompt }], false, CONVERSATION_MAX_TOKENS, callTimeoutMs(elapsed));
     const candidates = splitQuestionCandidates(raw);
     for (const candidate of candidates) {
       const v = validateSingleQuestion(candidate, LIMITS.QUESTION_MAX, true, userContent, relaxed);
@@ -494,7 +503,7 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     const userContent = focusOnCorrection
       ? `[사용자가 방금 바로잡은 말 — 이 문장 하나만 보고, 이 내용에 대해 물어라]\n${block.pendingCorrection}`
       : user;
-    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: userContent + extra }], true, maxTokens);
+    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: userContent + extra }], true, maxTokens, callTimeoutMs(elapsed));
     const parsed = parseCandidates(raw);
     if (!parsed.ok) {
       console.error(`[gsq] candidates_schema_fail mode=${mode} attempt=${attempts}`);

@@ -445,3 +445,19 @@ test('⑬ STEP 3~7: 반복 규칙이 후보를 다 막아도 여정이 끊기지
     assert.ok(!src.includes(`diversityOnly && (reason === "${hard}"`), `안전 규칙 ${hard} 을 구제 대상에 넣었다`);
   }
 });
+
+test('⑭ 남은 예산이 있으면 마지막 호출을 6초에 끊지 않는다', async () => {
+  // 2026-09-18 실AI 100회·캐너리12: 남은 P0 의 대부분이 OpenAI 응답 지연(AbortError)이었다.
+  const ai = await loadRules('supabase/functions/get-step-question/ai.ts');
+  const rules = await loadRules('supabase/functions/get-step-question/rules.ts');
+  const BASE = ai.OPENAI_TIMEOUT_MS, DEADLINE = rules.LIMITS.DEADLINE_MS;
+  // 시작 직후: 남은 예산만큼(상한까지) 기다린다. 6초에 미리 끊지 않는다.
+  assert.ok(ai.callTimeoutMs(0) > BASE, '예산이 남아 있는데 6초에 끊는다');
+  assert.ok(ai.callTimeoutMs(0) <= ai.OPENAI_TIMEOUT_MAX_MS, '상한을 넘겨 기다린다');
+  // 앞 호출로 예산을 쓴 뒤에는 남은 만큼만 기다린다.
+  const mid = DEADLINE - BASE - 1500;
+  assert.ok(ai.callTimeoutMs(mid) <= DEADLINE - mid, '대기 상한을 넘겨 기다린다');
+  assert.ok(ai.callTimeoutMs(mid) >= BASE, '기본값 아래로 내려간다');
+  // 예산이 없으면 기본값 아래로 내려가지 않는다(호출 자체를 못 하게 만들지 않는다).
+  assert.equal(ai.callTimeoutMs(DEADLINE), BASE);
+});
