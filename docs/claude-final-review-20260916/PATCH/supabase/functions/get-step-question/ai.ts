@@ -487,7 +487,10 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     attempts = attempt + 1;
     // 2026-09-18 캐너리 #3(D): 정정을 다룬 후보를 3번 다 못 만들어 구제로 넘어갔다(correction_unreflected).
     // 마지막 시도에서는 근거를 '정정 문장 하나'로 좁혀 준다. 질문은 여전히 모델이 만들고 서버가 고른다.
-    const focusOnCorrection = Boolean(block.pendingCorrection) && attempt === LIMITS.GENERATION_ATTEMPTS - 1;
+    // 2026-09-18 실AI 100회: 좁히기를 '마지막 시도'에 두었더니 또 대기 상한이 먼저 걸려
+    // 사실상 실행되지 않았다(correction_unreflected 7건). 같은 실수를 세 번째로 반복했다.
+    // 다른 완화 규칙과 같이 2번째 시도부터 좁힌다(빠져나갈 문을 예산 안에 둔다).
+    const focusOnCorrection = Boolean(block.pendingCorrection) && attempt > 0;
     const userContent = focusOnCorrection
       ? `[사용자가 방금 바로잡은 말 — 이 문장 하나만 보고, 이 내용에 대해 물어라]\n${block.pendingCorrection}`
       : user;

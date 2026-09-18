@@ -583,6 +583,11 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
   let replyOnly: Candidate | null = null;
   // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
   let correctionOnly: Candidate | null = null;
+  // 2026-09-18 실AI 100회: STEP 3·6·7 에서 반복·중심표현 규칙이 후보를 전부 막아
+  // NO_CANDIDATE 로 여정이 끊겼다(7건). 반복·다양성은 '품질' 규칙이지 안전 규칙이 아니다.
+  // 안전·근거·거절 규칙(quality·rejected_key·rejected_text·forbidden·banmal)은 그대로 두고,
+  // 다양성 규칙에만 걸린 후보는 마지막에 구제한다. 같은 질문이 한 번 더 나오는 편이 낫다.
+  let diversityOnly: Candidate | null = null;
   // 의도 반복 검사는 '바로 앞 여정 질문 2개'와만 비교한다. 대화 전체(STEP 1~)와 비교하면 12개 의도가 금방 소진돼 후반 단계가 막힌다(운영 사례).
   const intentHistory = block.askedJourney.slice(-2);
   const startedAt = Date.now();
@@ -631,6 +636,7 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
       }
       // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
       if (!correctionOnly && reason === "correction_ignored") correctionOnly = c;
+      if (!diversityOnly && (reason === "repeat_intent" || reason === "repeat_text" || reason === "anchor_reuse")) diversityOnly = c;
     }
     if (survivor) {
       console.error(`[ej] question_ready step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt} with_question=${withQuestion}`);
@@ -648,6 +654,11 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
     // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
     console.error(`[ej] correction_unreflected step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
     return renderCandidate(correctionOnly, mode, feedbackKind, latestAnswer, withQuestion);
+  }
+  if (diversityOnly) {
+    // 새 뜻의 질문을 못 만들었다. 여정을 끊는 것보다 비슷한 질문을 한 번 더 내는 편이 낫다.
+    console.error(`[ej] diversity_exhausted step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    return renderCandidate(diversityOnly, mode, feedbackKind, latestAnswer, withQuestion);
   }
   console.error(`[ej] no_candidate step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

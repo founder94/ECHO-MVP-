@@ -431,3 +431,17 @@ test('⑫ P0-04: 정정을 못 다루면 마지막 시도에서 근거를 정정
   assert.ok(rounds[rounds.length - 1].includes('이 문장 하나만 보고'), '마지막 시도에서 근거를 정정 문장으로 좁히지 않았다');
   assert.ok(String(follow.body.question ?? '').includes('사람'), `정정이 다음 질문에 반영되지 않았다: ${follow.body.question}`);
 });
+
+test('⑬ STEP 3~7: 반복 규칙이 후보를 다 막아도 여정이 끊기지 않는다 (P0-09)', async () => {
+  // 2026-09-18 실AI 100회: STEP 3·6·7 에서 reasons=repeat_intent/repeat_text 로
+  // 후보 3개가 전부 막혀 NO_CANDIDATE 로 여정이 끝났다(7건).
+  // 반복·다양성은 품질 규칙이다. 안전·근거·거절 규칙은 그대로 두고 이것만 구제해야 한다.
+  const src = await readFile(resolve(root, 'supabase/functions/echo-journey/index.ts'), 'utf8');
+  assert.ok(src.includes('diversity_exhausted'), 'echo-journey 에 다양성 고갈 구제가 없다');
+  const salvaged = src.match(/reason === "(repeat_intent|repeat_text|anchor_reuse)"/g) ?? [];
+  assert.equal(salvaged.length, 3, '구제 대상이 반복·중심표현 3종이 아니다');
+  // 안전·근거·거절 규칙은 구제 대상이 아니어야 한다.
+  for (const hard of ['quality', 'rejected_key', 'rejected_text', 'forbidden', 'banmal']) {
+    assert.ok(!src.includes(`diversityOnly && (reason === "${hard}"`), `안전 규칙 ${hard} 을 구제 대상에 넣었다`);
+  }
+});

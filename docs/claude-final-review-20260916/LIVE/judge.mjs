@@ -24,7 +24,7 @@ const events = [];              // 중복 제거된 P0 사건
 const add = (code, r, cause, symptom, step) =>
   events.push({ id: `P0-E-${String(events.length + 1).padStart(3, '0')}`, p0: code, name: P0[code], 대화: r.i, 그룹: r.type, 원인: cause, 증상: symptom, STEP: step, 여정중단: !r.completed });
 
-let T = { 반복질문: 0, fallback: 0, 장문: 0, 일반론: 0 };
+let T = { 반복질문: 0, fallback: 0, 장문: 0, 일반론: 0, 접근거절: 0, 외부지연: 0 };
 const lat = [];
 let turns = 0;
 
@@ -48,7 +48,11 @@ for (const r of rows) {
     if (과차단 === true) once('06', 'rejected_key 가 사용자 원문 표현까지 금지', 'NO_CANDIDATE → 대화 진행 불가', r.stuck.at);
     else once('09', reasons ? `후보 전부 차단(${reasons.join(',')})` : '후보 전부 차단(사유 로그 없음)', 'NO_CANDIDATE → 정상 질문 제공 실패', r.stuck.at);
   } else if (stuckCode && stuckCode !== 'NEVER_FINISHED') {
-    if (/UNAUTHORIZED|FORBIDDEN/.test(stuckCode)) once('01', stuckCode, '인증/소유권 거절', r.stuck.at);
+    // 2026-09-18 판정 수정: P0-01 은 '격리 실패' — 남의 대화가 열리거나 인증 없이 통과한 경우다.
+    // 401/403 은 문이 제대로 잠긴 것이므로 P0-01 이 아니다. 접근 가능성 문제로 따로 센다.
+    // (실AI 100회 #72~79 의 UNAUTHORIZED_ASYMMETRIC_JWT 8건이 이 오분류였다. 서버는 거절했고,
+    //  #80 부터 같은 토큰으로 다시 정상 동작했다 → 만료가 아니라 상류 검증 일시 장애.)
+    if (/UNAUTHORIZED|FORBIDDEN/.test(stuckCode)) { T.접근거절 = (T.접근거절 ?? 0) + 1; continue; }
     else if (/INVALID_STATE/.test(stuckCode)) {
       if (빈응답발) once('09', '서버가 빈 문자열을 화면으로 보냄', `빈 화면 → ${stuckCode} 로 답변 거부`, r.stuck.at);
       else once('03', `${stuckCode}@${r.stuck.at}`, '상태 불일치로 진행 불가', r.stuck.at);
@@ -58,6 +62,7 @@ for (const r of rows) {
     once('09', '26턴 내 미완주', '여정 미완료', r.turns?.at(-1)?.status);
   }
 
+  if (/AI_ERROR|BAD_JSON/.test(stuckCode)) { T.외부지연 = (T.외부지연 ?? 0) + 1; }
   if (빈응답) once('09', '서버가 빈 문자열을 화면으로 보냄', '빈 화면', r.turns?.find((t) => !String(t.text || '').trim())?.status);
   if (f.includes('반말')) once('11', '해요체가 아닌 문장이 화면에 노출', '반말', null);
   if (f.includes('정정무시')) once('04', '정정 내용이 다음 질문에 반영되지 않음', '정정 무시', null);
