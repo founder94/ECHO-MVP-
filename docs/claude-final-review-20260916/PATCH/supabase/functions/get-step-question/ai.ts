@@ -432,7 +432,12 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
   const unused = unusedEvidenceParts(ctx);
   const freshNote = unused.length
     ? `\n\n[아직 한 번도 다루지 않은 사용자 근거 — 같은 질문이 반복되면 반드시 여기서 새로 시작한다]\n${unused.map((part, i) => `${i + 1}. ${part}`).join("\n")}`
-    : "\n\n[아직 다루지 않은 사용자 근거가 없다 — 억지로 새 질문을 만들지 마라. 사용자가 물었으면 답만 하고, 아니면 이미 나온 근거를 더 깊이 묻는다.]";
+    // 2026-09-18 캐너리 #6(F): 질문이 필요한 모드에서 "새 질문을 만들지 마라"고 하자
+    // 모델이 질문 아닌 문장을 냈고 서버가 not_question 으로 3번 다 막아 대화가 끊겼다.
+    // 질문을 붙이지 않아도 되는 턴에서만 그렇게 말한다.
+    : withQuestion
+      ? "\n\n[아직 다루지 않은 사용자 근거가 없다 — 이미 나온 근거를 다른 각도에서 더 깊이 묻는다.]"
+      : "\n\n[아직 다루지 않은 사용자 근거가 없다 — 억지로 새 질문을 만들지 말고 먼저 답만 해라.]";
   const correctionNote = block.pendingCorrection
     ? `\n\n[이번 질문은 반드시 이 정정을 다뤄야 한다 — 아래 낱말 중 하나를 질문에 그대로 쓴다]\n"${block.pendingCorrection}"\n쓸 낱말: ${correctionContentWords(block.pendingCorrection).join(", ")}`
     : "";

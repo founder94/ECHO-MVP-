@@ -289,3 +289,50 @@ test('⑨ 아직 안 쓴 근거를 프롬프트에 실어 준다 (질문을 지�
   // 서버가 질문을 지어내 주지 않는다: 후보 질문 문장 자체는 프롬프트에 없다.
   assert.ok(!prompt.includes('눈치를 보게 되는 때는 언제인가요?'), '서버가 질문을 하드코딩해 넣었다');
 });
+
+test('⑩ 질문이 필요한 턴에서는 "질문을 만들지 마라"고 말하지 않는다', async () => {
+  // 2026-09-18 캐너리 #6(F) 재현: 아직 안 쓴 근거가 없을 때 서버가 "새 질문을 만들지 마라"고
+  // 안내하자 모델이 질문 아닌 문장을 냈고 not_question 으로 3번 다 막혀 대화가 끊겼다.
+  const prompts = [];
+  const QUESTION = '그 긴 하루 끝에 무엇이 가장 남았나요?';
+  const ai = {
+    fetch: async (_url, options = {}) => {
+      const request = JSON.parse(options.body);
+      const system = String(request.messages?.[0]?.content ?? '');
+      prompts.push(system);
+      let content;
+      if (request.response_format) {
+        content = JSON.stringify({ candidates: [{
+          acknowledgement: '', question: QUESTION, anchor: '오늘 하루가',
+          assumptions: [], meaning: '시점', keys: ['시점'], reply: '',
+        }] });
+      } else if (system.includes('요약해라')) {
+        // 요약이 근거를 전부 다룬 상태를 만든다 → '아직 안 쓴 근거'가 0이 되는 조건.
+        content = '요즘 지쳐요, 오늘 하루가 길었어요, 몸이 무거웠어요 라고 하셨네요. 많이 힘드신 것 같아요.';
+      } else content = ['1. 오늘 하루는 어떻게 지내셨나요?', '2. 그때 몸은 어떤 상태였나요?', '3. 요즘 떠오르는 생각은 무엇인가요?'].join('\n');
+      return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    },
+  };
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'noq';
+  const started = await invoke(early, u, { action: 'start', mindText: '요즘 지쳐요', token: token('nq-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('nq-a1') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '오늘 하루가 길었어요', token: token('nq-n1') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('nq-a2') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '몸이 무거웠어요', token: token('nq-n2') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('nq-u') });
+  // 정정 내용을 이미 나온 근거로만 두어 '아직 안 쓴 근거'가 남지 않게 만든다.
+  await invoke(early, u, { action: 'choose', conversationId, choice: 'explain', text: '제가 직접 설명할게요. 오늘 하루가 길었어요', token: token('nq-c') });
+  const before = prompts.length;
+  const follow = await invoke(early, u, { action: 'ask', conversationId, token: token('nq-f') });
+  const prompt = prompts.slice(before).join('\n');
+
+  assert.ok(prompt.includes('아직 다루지 않은 사용자 근거가 없다'), '검사 전제 불성립: 아직 안 쓴 근거가 남아 있다');
+  assert.ok(!prompt.includes('억지로 새 질문을 만들지 말고'), '질문이 필요한 턴인데 질문을 만들지 말라고 했다');
+  assert.equal(follow.body.ok, true, `막다른 길: ${follow.body.code ?? ''}`);
+  assert.ok(String(follow.body.question ?? '').includes(QUESTION), '질문이 화면에 나가지 않았다');
+});
