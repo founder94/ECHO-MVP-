@@ -461,3 +461,10 @@ test('⑭ 남은 예산이 있으면 마지막 호출을 6초에 끊지 않는�
   // 예산이 없으면 기본값 아래로 내려가지 않는다(호출 자체를 못 하게 만들지 않는다).
   assert.equal(ai.callTimeoutMs(DEADLINE), BASE);
 });
+
+test('⑮ echo-journey 도 같은 대기 규칙을 쓴다 (한쪽만 고치지 않는다)', async () => {
+  const src = await readFile(resolve(root, 'supabase/functions/echo-journey/index.ts'), 'utf8');
+  assert.ok(src.includes('callTimeoutMs'), 'echo-journey 에 남은 예산 대기 규칙이 없다');
+  assert.ok(src.includes('QUESTION_TIMEOUT_MAX_MS = 9_000'), 'echo-journey 의 대기 상한이 다르다');
+  assert.ok(src.includes('callTimeoutMs(elapsed)'), 'echo-journey 생성 루프가 남은 예산을 넘기지 않는다');
+});

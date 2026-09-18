@@ -362,9 +362,17 @@ function parseReport(raw: string, rejectedTexts: string[], evidenceParts: string
 }
 
 // ── OpenAI ──
-async function callOpenAI(ai: Ai, system: string, user: string, jsonMode: boolean, maxTokens = QUESTION_MAX_TOKENS): Promise<string> {
+// get-step-question 과 같은 규칙: 남은 예산만큼(상한 9초까지) 기다린다.
+// 2026-09-18 실AI 100회·캐너리: 6초 고정 상한이 마지막 호출까지 끊어 AI_ERROR 가 최다 실패였다.
+const QUESTION_TIMEOUT_MAX_MS = 9_000;
+export function callTimeoutMs(elapsedMs: number): number {
+  const room = LIMITS.DEADLINE_MS - elapsedMs - 300;
+  if (room <= QUESTION_TIMEOUT_MS) return QUESTION_TIMEOUT_MS;
+  return Math.min(room, QUESTION_TIMEOUT_MAX_MS);
+}
+async function callOpenAI(ai: Ai, system: string, user: string, jsonMode: boolean, maxTokens = QUESTION_MAX_TOKENS, questionTimeoutMs = QUESTION_TIMEOUT_MS): Promise<string> {
   const ctrl = new AbortController();
-  const timeoutMs = maxTokens === REPORT_MAX_TOKENS ? REPORT_TIMEOUT_MS : QUESTION_TIMEOUT_MS;
+  const timeoutMs = maxTokens === REPORT_MAX_TOKENS ? REPORT_TIMEOUT_MS : questionTimeoutMs;
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     // 2026-09-16: 진단 로그를 get-step-question([gsq])과 같은 형식으로 남긴다([ej]). 오류 종류·HTTP 상태·모델명만. 키·원문 없음.
@@ -607,7 +615,7 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
     const extra = blockedAll.length ? `\n\n다음 후보는 서버에서 차단되었다. 다른 뜻의 질문을 만들어라:\n${blockedAll.map((q, n) => `${n + 1}. ${q}`).join("\n")}` : "";
     const user = `[사용자 근거]\n${evidence || "(근거 없음)"}${feedback && !asked ? `\n\n[질문에 대한 피드백 — 사실 근거로 사용 금지]\n${feedback}` : ""}${extra}`;
     attempts = i + 1;
-    const parsed = parseCandidates(await callOpenAI(ai, system, user, true, maxTokens));
+    const parsed = parseCandidates(await callOpenAI(ai, system, user, true, maxTokens, callTimeoutMs(elapsed)));
     // normal 외 모드(asked 포함)는 화면에 공감 문장을 쓰지 않으므로 비워서 검사한다(공감 문장 규칙으로 후보를 잃지 않는다).
     const cands = mode !== "normal" ? parsed.map((candidate) => ({ ...candidate, acknowledgement: "" })) : parsed;
     const reasons: Record<string, number> = {};
