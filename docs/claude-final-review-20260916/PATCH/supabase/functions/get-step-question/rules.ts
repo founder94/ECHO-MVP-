@@ -230,10 +230,15 @@ export function contentTokens(text: string): string[] {
 export const RELEVANCE_STOP = /^(?:은|는|이|가|을|를|에|의|도|와|과|로|요|죠|다|네|까|어|해|하|것|수|저|제|내|나)$/;
 // 되물음에서 의문사·지시어를 뺀 '내용 낱말'. 이것이 없으면 답이 겹칠 것 자체가 없다.
 export const QUESTION_FILLER = /^(?:어떻게|어떡해|어떤|어느|무슨|무엇|뭐야|뭔데|뭘|왜|언제|어디|누구|얼마나|그래서|그럼|그렇게|그거|그게|이게|저게|지금|내가|나는|저는|제가|해야|하면|할까|할지|좋을까|좋아|있는|있을까|건가|건데|거야|건지|인가|이야|말이야|뜻이야|생각해|생각했어|판단은|나온|했어|하는|하지)$/u;
+// 문장을 낱말 단위로 나눠 조사만 떼어 낸다. normalizeKey 는 띄어쓰기를 지우므로 먼저 나눈다.
+const WORD_PARTICLE_TAIL = /(?:으로|까지|부터|보다|이|가|은|는|을|를|에|의|도|로|와|과|만)$/u;
+export function wordTokens(text: string): string[] {
+  return text.split(/[\s,./!?"'“”‘’()\[\]{}]+/u)
+    .map((word) => normalizeKey(word).replace(WORD_PARTICLE_TAIL, ""))
+    .filter((word) => word.length >= 2);
+}
 export function questionContentWords(question: string): string[] {
-  return (question.split(/[\s,./!?"'“”‘’()\[\]{}]+/u).map((w) => w.trim()).filter(Boolean))
-    .map((w) => normalizeKey(w))
-    .filter((w) => w.length >= 2 && !QUESTION_FILLER.test(w));
+  return wordTokens(question).filter((word) => !QUESTION_FILLER.test(word));
 }
 export function sharesContent(reply: string, question: string): boolean {
   const q = normalizeKey(question);

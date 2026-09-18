@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Buffer } from 'node:buffer';
 import ts from 'typescript';
 import { root, FakeDatabase, loadEdgeHandler, invoke, token } from './_edge-harness.mjs';
@@ -16,7 +17,10 @@ import { root, FakeDatabase, loadEdgeHandler, invoke, token } from './_edge-harn
 // 순수 규칙 모듈이라 서버를 띄우지 않고 그대로 불러 쓴다(규칙을 재구현하지 않는다).
 async function loadRules(relativePath) {
   const absolutePath = resolve(root, relativePath);
-  const source = await readFile(absolutePath, 'utf8');
+  let source = await readFile(absolutePath, 'utf8');
+  // 형제 모듈(./rules.ts)은 파일 URL 로 바꿔야 data: 모듈에서 풀린다(_edge-harness 와 같은 방식).
+  source = source.replace(/from "\.\/([\w.-]+\.ts)";/g, (_m, name) =>
+    `from ${JSON.stringify(pathToFileURL(resolve(absolutePath, '..', name)).href)};`);
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
     fileName: absolutePath,
@@ -176,4 +180,112 @@ test('⑥ 관련성 규칙은 2번째 시도부터 풀린다 (빠져나갈 문�
   assert.equal(gsq.replyQualityReason('그건 무슨 뜻일까요?', Q, true), 'reply_question_mark');
   assert.equal(gsq.replyQualityReason('가'.repeat(200), Q, true), 'reply_too_long');
   assert.equal(ej.replyQualityReason('', Q, 160, true), 'reply_missing');
+});
+
+test('⑦ 질문 고갈: 아직 다루지 않은 사용자 근거를 찾아낸다', async () => {
+  const ai = await loadRules('supabase/functions/get-step-question/ai.ts');
+  const ctx = {
+    mindText: '돈 걱정이 많아',
+    messages: [
+      { role: 'ai', step: 1, content: '돈 걱정이 어떤 모습으로 오나요?', message_kind: 'step_question' },
+      { role: 'user', step: 1, content: '돈 걱정이 많아요', message_kind: 'step_answer' },
+      { role: 'user', step: 2, content: '사람들 눈치도 보여요', message_kind: 'step_answer' },
+    ],
+    understandings: [],
+  };
+  const unused = ai.unusedEvidenceParts(ctx);
+  assert.ok(unused.some((part) => part.includes('눈치')), `아직 안 쓴 근거를 못 찾았다: ${JSON.stringify(unused)}`);
+  assert.ok(!unused.some((part) => part.includes('돈 걱정이 많아요')), `이미 다룬 근거를 아직 안 쓴 것으로 봤다: ${JSON.stringify(unused)}`);
+});
+
+test('⑧ 질문이 다 막혀도 되물음에는 답하고 상태를 그대로 둔다 (P0-09)', async () => {
+  // 2026-09-18 캐너리 #6(G): 같은 되물음을 17턴 넘게 반복하자 같은 근거로 만들 새 질문이
+  // 고갈돼(reasons=repeat,not_question) NO_CANDIDATE 로 대화가 끝났다.
+  const REPLY = '제가 그렇게 본 이유는 앞서 하신 말씀 때문이에요. 제가 짚은 게 어긋났다면 바로잡아 주세요.';
+  const ai = {
+    fetch: async (_url, options = {}) => {
+      const request = JSON.parse(options.body);
+      const system = String(request.messages?.[0]?.content ?? '');
+      let content;
+      if (request.response_format) {
+        // 세 후보 모두 이미 물은 질문을 되풀이한다(서버가 repeat 으로 막는다).
+        // 답은 물음의 낱말을 다시 쓰지 않는다(예전 관련성 규칙이면 여기서도 막혔다).
+        content = JSON.stringify({ candidates: [0, 1, 2].map(() => ({
+          acknowledgement: '',
+          question: '돈 걱정이 어떤 모습으로 오나요?',
+          anchor: '돈 걱정이 많아',
+          assumptions: [],
+          meaning: '같은 질문 반복',
+          keys: ['반복'],
+          reply: REPLY,
+        })) });
+      } else if (system.includes('요약해라')) {
+        content = '돈 걱정이 크신 것 같아요.';
+      } else {
+        content = '1. 돈 걱정이 어떤 모습으로 오나요?';
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    },
+  };
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'exhaust';
+  const started = await invoke(early, u, { action: 'start', mindText: '돈 걱정이 많아', token: token('ex-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('ex-a1') });
+  const answered = await invoke(early, u, { action: 'answer', conversationId, answer: '왜 그렇게 생각했어?', token: token('ex-n1') });
+  const statusBefore = answered.body.status;
+
+  const back = await invoke(early, u, { action: 'ask', conversationId, token: token('ex-a2') });
+  assert.equal(back.body.ok, true, `막다른 길: ${back.body.code ?? ''}`);
+  const shown = String(back.body.question ?? '');
+  assert.ok(shown.includes(REPLY.slice(0, 14)), `사용자 물음에 답하지 않았다: ${shown}`);
+  // 되물음은 단계를 올리지 않는다(상태를 안전하게 유지).
+  assert.equal(back.body.status, statusBefore, '되물음인데 단계가 넘어갔다');
+});
+
+test('⑨ 아직 안 쓴 근거를 프롬프트에 실어 준다 (질문을 지어내 주지는 않는다)', async () => {
+  const prompts = [];
+  const ai = {
+    fetch: async (_url, options = {}) => {
+      const request = JSON.parse(options.body);
+      const system = String(request.messages?.[0]?.content ?? '');
+      prompts.push(system);
+      let content;
+      if (request.response_format) {
+        content = JSON.stringify({ candidates: [{
+          acknowledgement: '', question: '눈치를 보게 되는 때는 언제인가요?', anchor: '사람들 눈치도',
+          assumptions: [], meaning: '눈치 상황', keys: ['눈치'], reply: '',
+        }] });
+      } else if (system.includes('요약해라')) content = '돈 걱정이 크신 것 같아요.';
+      else content = [
+        '1. 돈 걱정이 어떤 모습으로 오나요?',
+        '2. 오늘 하루는 어떻게 지내셨나요?',
+        '3. 그때 몸은 어떤 상태였나요?',
+      ].join('\n');
+      return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    },
+  };
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'fresh';
+  const started = await invoke(early, u, { action: 'start', mindText: '돈 걱정이 많아', token: token('fr-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('fr-a1') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '돈이 자꾸 모자라요', token: token('fr-n1') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('fr-a2') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '사람들 눈치도 보여요', token: token('fr-n2') });
+  await invoke(early, u, { action: 'ask', conversationId, token: token('fr-u') });
+  await invoke(early, u, { action: 'choose', conversationId, choice: 'explain', text: '제가 직접 설명할게요. 잠이 잘 안 와요', token: token('fr-c') });
+  const before = prompts.length;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('fr-f') });
+  const prompt = prompts.slice(before).join('\n');
+  assert.ok(prompt.includes('아직 한 번도 다루지 않은 사용자 근거'), '아직 안 쓴 근거 블록이 프롬프트에 없다');
+  assert.ok(prompt.includes('사람들 눈치도 보여요'), '아직 안 쓴 근거 원문이 프롬프트에 없다');
+  // 서버가 질문을 지어내 주지 않는다: 후보 질문 문장 자체는 프롬프트에 없다.
+  assert.ok(!prompt.includes('눈치를 보게 되는 때는 언제인가요?'), '서버가 질문을 하드코딩해 넣었다');
 });
