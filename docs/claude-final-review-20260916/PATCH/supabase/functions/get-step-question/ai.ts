@@ -21,6 +21,8 @@ import {
   repeatsQuestionIntent,
   replyRevivesRejected,
   reflectsCorrection,
+  correctionContentWords,
+  containsForbiddenTerm,
   validateSingleQuestion,
   type BlockContext,
   type Candidate,
@@ -412,8 +414,13 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
   const replySchema = mode === "asked"
     ? '"아래 [사용자가 ECHO에게 물었다]의 물음에 대한 1~2문장 답. 반드시 채운다. 빈 문자열 금지"'
     : '"빈 문자열"';
+  // 2026-09-18 운영 캐너리: 정정 우선이 규칙 블록 안에 묻혀 모델이 자주 놓쳤다(correction_unreflected).
+  // 이번 질문이 반드시 다뤄야 할 정정을 맨 뒤에 한 번 더, 써야 할 낱말까지 지정해 준다.
+  const correctionNote = block.pendingCorrection
+    ? `\n\n[이번 질문은 반드시 이 정정을 다뤄야 한다 — 아래 낱말 중 하나를 질문에 그대로 쓴다]\n"${block.pendingCorrection}"\n쓸 낱말: ${correctionContentWords(block.pendingCorrection).join(", ")}`
+    : "";
   const system =
-    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":${replySchema}} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다. 7) acknowledgement·question·reply 는 모두 해요체 존댓말로 끝낸다(반말 금지).${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}`;
+    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":${replySchema}} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다. 7) acknowledgement·question·reply 는 모두 해요체 존댓말로 끝낸다(반말 금지).${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}${correctionNote}`;
   const feedback = mode === "feedback" ? feedbackText(ctx) : "";
   const user = `[사용자 근거]\n${historyText(ctx)}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}`;
 
@@ -421,6 +428,9 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
   let replyOnly: Candidate | null = null;
   // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
   let correctionOnly: Candidate | null = null;
+  // 2026-09-18 운영 캐너리: 같은 되물음이 반복되면 새 질문이 고갈돼(reasons=repeat,not_question)
+  // 답이 멀쩡한데도 대화가 끊겼다. 물었으면 먼저 답한다 — 새 질문이 없으면 답만 낸다.
+  let replyAlone: Candidate | null = null;
   const startedAt = Date.now();
   const maxTokens = mode === "asked" ? ASKED_MAX_TOKENS : CONVERSATION_MAX_TOKENS;
   let attempts = 0;
@@ -464,6 +474,17 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
       const only = result.blocked.find((b) => b.reason === "correction_ignored");
       if (only) correctionOnly = only.candidate;
     }
+    if (mode === "asked" && !replyAlone) {
+      for (const b of result.blocked) {
+        const reply = (b.candidate.reply ?? "").trim();
+        if (!reply || hasBanmal(reply)) continue;
+        if (replyQualityReason(reply, questionToAnswer)) continue;
+        if (replyRevivesRejected(reply, block)) continue;
+        if (containsForbiddenTerm(reply)) continue;
+        replyAlone = { ...b.candidate, question: "" };
+        break;
+      }
+    }
     blockedAll = blockedAll.concat(result.blocked.map((b) => b.candidate.question));
     // 진단 로그: 모드·후보 수·차단 사유 수만. 원문 없음.
     const reasons: Record<string, number> = {};
@@ -481,6 +502,11 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     // 답은 못 만들었지만 질문은 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
     console.error(`[gsq] asked_reply_failed mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
     return replyOnly;
+  }
+  if (replyAlone) {
+    // 새 질문은 못 만들었지만 답은 만들었다. 사용자의 물음에 답하는 것이 먼저다.
+    console.error(`[gsq] reply_without_question mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    return replyAlone;
   }
   if (correctionOnly) {
     // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.

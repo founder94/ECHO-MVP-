@@ -118,3 +118,46 @@ test('④ 거절 뒤 요약을 세 번 다 못 만들어도 대화가 끊기지 
   assert.ok(shown.trim(), '빈 화면이 나갔다');
   assert.notEqual(shown, SUMMARY, '거절한 해석이 그대로 다시 나왔다');
 });
+
+test('⑤ 새 질문이 고갈돼도 되물음에는 답한다 (질문 없이 답만)', async () => {
+  // 2026-09-18 운영 캐너리: 같은 되물음이 반복되면 새 질문이 고갈돼
+  // (reasons=repeat,not_question) 답이 멀쩡한데도 NO_CANDIDATE 로 대화가 끝났다.
+  const REPLY = '지금 무엇부터 해야 할지 저도 단정하기는 어려워요. 우선 마음에 걸리는 하나부터 함께 정리해볼게요.';
+  const ai = {
+    fetch: async (_url, options = {}) => {
+      const request = JSON.parse(options.body);
+      const system = String(request.messages?.[0]?.content ?? '');
+      let content;
+      if (request.response_format) {
+        // 질문은 이미 물은 것을 그대로 되풀이한다(서버가 repeat 으로 막는다). 답은 멀쩡하다.
+        content = JSON.stringify({ candidates: [{
+          acknowledgement: '',
+          question: '오늘 하루는 어떻게 지내셨나요?',
+          anchor: '일이 너무 많아',
+          assumptions: [],
+          meaning: '같은 질문 반복',
+          keys: ['반복'],
+          reply: REPLY,
+        }] });
+      } else if (system.includes('요약해라')) {
+        content = '요즘 일이 많아 지치신 것 같아요.';
+      } else {
+        content = '1. 오늘 하루는 어떻게 지내셨나요?';
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    },
+  };
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'ra';
+  const started = await invoke(early, u, { action: 'start', mindText: '일이 너무 많아', token: token('ra-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('ra-a1') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '어떻게 해야 좋을까?', token: token('ra-n1') });
+  const back = await invoke(early, u, { action: 'ask', conversationId, token: token('ra-a2') });
+  assert.equal(back.body.ok, true, `막다른 길: ${back.body.code ?? ''}`);
+  const shown = String(back.body.question ?? '');
+  assert.ok(shown.includes(REPLY.slice(0, 12)), `사용자 물음에 답하지 않았다: ${shown}`);
+});
