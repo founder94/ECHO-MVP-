@@ -256,14 +256,18 @@ export function questionHasContent(question: string): boolean {
 }
 // 질문의 낱말을 그대로 쓰지 않아도, 무엇을 알고 모르는지 밝히는 답은 '응답한 것'으로 본다.
 export const RESPONSIVE_REPLY = /(?:제가|저는|저도|제)\s*[^.!]{0,20}(?:답|정답|모르|알|말씀|물음|질문)/u;
-export function replyQualityReason(reply: string, userQuestion: string): ReplyBlockReason | null {
+// relaxedRelevance(2번째 시도부터): 관련성만 푼다. 빈 답·물음표·길이·잘림·회피는 그대로 막는다.
+// 2026-09-18 운영 근거: 관련성 규칙이 되물음의 답을 반복해서 막아 사용자의 물음이 답을 못 받았다
+// (reply_irrelevant 가 asked 차단의 최다 사유). 낱말 목록을 늘려 쫓는 대신,
+// 다른 완화 규칙과 같은 방식으로 빠져나갈 문을 예산 안에 둔다.
+export function replyQualityReason(reply: string, userQuestion: string, relaxedRelevance = false): ReplyBlockReason | null {
   const text = reply.trim();
   if (!text) return "reply_missing";
   if (text.includes("?")) return "reply_question_mark";
   if (text.length > LIMITS.REPLY_MAX) return "reply_too_long";
   if (!REPLY_COMPLETE.test(text)) return "reply_incomplete";
   if (EVASIVE_REPLY.some((pattern) => pattern.test(text))) return "reply_evasive";
-  if (userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
+  if (!relaxedRelevance && userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
   return null;
 }
 
@@ -667,7 +671,7 @@ export function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOp
   // ③④ 사용자가 물었으면 '답'이 실제 답이어야 하고, 거절한 뜻을 되살려서도 안 된다.
   if (userQuestion) {
     if (hasBanmal((c.reply ?? "").trim())) return "reply_quality";
-    if (replyQualityReason(c.reply ?? "", userQuestion)) return "reply_quality";
+    if (replyQualityReason(c.reply ?? "", userQuestion, relaxed)) return "reply_quality";
     if (replyRevivesRejected(c.reply ?? "", ctx)) return "rejected_text";
   }
   if (!requireQuestion) return null;

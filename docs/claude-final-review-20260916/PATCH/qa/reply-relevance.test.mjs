@@ -161,3 +161,19 @@ test('⑤ 새 질문이 고갈돼도 되물음에는 답한다 (질문 없이 �
   const shown = String(back.body.question ?? '');
   assert.ok(shown.includes(REPLY.slice(0, 12)), `사용자 물음에 답하지 않았다: ${shown}`);
 });
+
+test('⑥ 관련성 규칙은 2번째 시도부터 풀린다 (빠져나갈 문을 예산 안에 둔다)', () => {
+  const OFF = '오늘 날씨는 참 맑아요.';
+  const Q = '눈치 보는 건 어떻게 하는 게 좋을까?';
+  // 1번째 시도: 그대로 막는다.
+  assert.equal(gsq.replyQualityReason(OFF, Q, false), 'reply_irrelevant');
+  assert.equal(ej.replyQualityReason(OFF, Q, 160, false), 'reply_irrelevant');
+  // 2번째 시도부터: 관련성만 푼다.
+  assert.equal(gsq.replyQualityReason(OFF, Q, true), null);
+  assert.equal(ej.replyQualityReason(OFF, Q, 160, true), null);
+  // 완화해도 빈 답·물음표·길이는 그대로 막는다.
+  assert.equal(gsq.replyQualityReason('', Q, true), 'reply_missing');
+  assert.equal(gsq.replyQualityReason('그건 무슨 뜻일까요?', Q, true), 'reply_question_mark');
+  assert.equal(gsq.replyQualityReason('가'.repeat(200), Q, true), 'reply_too_long');
+  assert.equal(ej.replyQualityReason('', Q, 160, true), 'reply_missing');
+});

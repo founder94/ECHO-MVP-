@@ -288,7 +288,7 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
   // ③ 사용자가 물었으면 '답'이 실제 답이어야 한다. 고정 회피 문장·잘린 문장·무관한 문장은 실패로 본다.
   if (userQuestion) {
     if (hasBanmal((c.reply ?? "").trim())) return "reply_quality";
-    if (replyQualityReason(c.reply ?? "", userQuestion, LIMITS.REPLY_MAX)) return "reply_quality";
+    if (replyQualityReason(c.reply ?? "", userQuestion, LIMITS.REPLY_MAX, relaxed)) return "reply_quality";
     // ④ 거절한 뜻은 답변 본문에도 되살리지 않는다.
     if (replyRevivesRejected(c.reply ?? "", b)) return "reply_rejected";
   }

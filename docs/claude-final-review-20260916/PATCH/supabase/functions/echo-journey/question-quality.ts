@@ -470,7 +470,8 @@ export function questionHasContent(question: string): boolean {
     .some((word) => word.length >= 2 && !QUESTION_FILLER.test(word));
 }
 
-export function replyQualityReason(reply: string, userQuestion: string, maxLength: number): ReplyBlockReason | null {
+// relaxedRelevance(2번째 시도부터): get-step-question 과 같은 규칙.
+export function replyQualityReason(reply: string, userQuestion: string, maxLength: number, relaxedRelevance = false): ReplyBlockReason | null {
   const text = reply.trim();
   if (!text) return "reply_missing";
   if (text.includes("?")) return "reply_question_mark";
@@ -478,7 +479,7 @@ export function replyQualityReason(reply: string, userQuestion: string, maxLengt
   if (text.length > maxLength) return "reply_too_long";
   if (!REPLY_COMPLETE.test(text)) return "reply_incomplete";
   if (EVASIVE_REPLY.some((pattern) => pattern.test(text))) return "reply_evasive";
-  if (userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
+  if (!relaxedRelevance && userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
   return null;
 }
 
