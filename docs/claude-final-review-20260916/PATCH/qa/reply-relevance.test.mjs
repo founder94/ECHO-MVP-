@@ -336,3 +336,52 @@ test('⑩ 질문이 필요한 턴에서는 "질문을 만들지 마라"고 말�
   assert.equal(follow.body.ok, true, `막다른 길: ${follow.body.code ?? ''}`);
   assert.ok(String(follow.body.question ?? '').includes(QUESTION), '질문이 화면에 나가지 않았다');
 });
+
+test('⑪ P0-08: 답을 못 만들어도 사용자 질문을 질문으로 되받지 않는다', async () => {
+  // 2026-09-18 캐너리 #6(G) 확정 경로: asked_reply_failed 1건.
+  // 모델이 답 후보를 3번 다 만들지 못하면 replyOnly 구제가 '질문만' 돌려주어
+  // 사용자의 직접 질문이 무시됐다(운영 실제: "내가 언제 그렇게 말했어?" → "어떤 생각에 대해 궁금하신 건가요?").
+  // 문장 하나를 통과시키는 것이 아니라, 같은 의미군 전체에서 '질문으로 회피'가 없어야 한다.
+  const ASKS_FOR_BASIS = ['내가 언제 그렇게 말했어?', '왜 그렇게 생각했어?', '그 판단은 어디서 나온 거야?', '난 그런 말 한 적 없는데 왜 그래?'];
+  const USER_SAID = '돈이 자꾸 모자라요';
+
+  for (const userQuestion of ASKS_FOR_BASIS) {
+    const ai = {
+      fetch: async (_url, options = {}) => {
+        const request = JSON.parse(options.body);
+        const system = String(request.messages?.[0]?.content ?? '');
+        let content;
+        if (request.response_format) {
+          // 모델이 답(reply)을 끝까지 만들지 못하는 상황을 그대로 만든다. 질문은 멀쩡하다.
+          content = JSON.stringify({ candidates: [{
+            acknowledgement: '', question: '그때 어떤 장면이 먼저 떠오르나요?', anchor: '돈이 자꾸 모자라',
+            assumptions: [], meaning: '장면', keys: ['장면'], reply: '',
+          }] });
+        } else if (system.includes('요약해라')) content = '많이 힘드신 것 같아요.';
+        else content = ['1. 오늘은 어떤 하루였나요?', '2. 그때 몸은 어떤 상태였나요?', '3. 요즘 떠오르는 생각은 무엇인가요?'].join('\n');
+        return new Response(JSON.stringify({ choices: [{ message: { content } }], usage: {} }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        });
+      },
+    };
+    const db = new FakeDatabase();
+    const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+    const u = `basis-${ASKS_FOR_BASIS.indexOf(userQuestion)}`;
+    const started = await invoke(early, u, { action: 'start', mindText: '돈 걱정이 많아', token: token(`${u}-s`) });
+    const conversationId = started.body.conversationId;
+    await invoke(early, u, { action: 'ask', conversationId, token: token(`${u}-a1`) });
+    await invoke(early, u, { action: 'answer', conversationId, answer: USER_SAID, token: token(`${u}-n1`) });
+    await invoke(early, u, { action: 'ask', conversationId, token: token(`${u}-a2`) });
+    await invoke(early, u, { action: 'answer', conversationId, answer: userQuestion, token: token(`${u}-n2`) });
+
+    const back = await invoke(early, u, { action: 'ask', conversationId, token: token(`${u}-a3`) });
+    assert.equal(back.body.ok, true, `막다른 길(${userQuestion}): ${back.body.code ?? ''}`);
+    const shown = String(back.body.question ?? '');
+    const head = (shown.split('\n\n')[0] ?? '').trim();
+    assert.ok(head, `빈 화면(${userQuestion})`);
+    assert.ok(!/^[^?]*\?\s*$/.test(head), `사용자 물음을 질문으로 되받았다(${userQuestion}): ${shown}`);
+    // 없는 사실을 만들지 않았는지: 답은 사용자가 실제로 한 말에 근거해야 한다.
+    assert.ok(head.includes(USER_SAID) || head.includes(USER_SAID.replace(/요$/, '')),
+      `사용자 원문 근거 없이 답했다(${userQuestion}): ${head}`);
+  }
+});

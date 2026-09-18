@@ -23,6 +23,7 @@ import {
   reflectsCorrection,
   correctionContentWords,
   containsForbiddenTerm,
+  TRAILING_MARKS,
   wordTokens,
   validateSingleQuestion,
   type BlockContext,
@@ -161,6 +162,22 @@ export function unusedEvidenceParts(ctx: Context): string[] {
     const words = wordTokens(part);
     return words.length > 0 && !words.some((word) => saidByEcho.includes(word));
   });
+}
+// 사용자가 물었는데 검증을 통과한 답을 끝내 못 만들었을 때 쓴다.
+// 2026-09-18 운영 캐너리 #6(G) 확정 경로(asked_reply_failed 1건): 질문만 돌려주어
+// 사용자의 직접 질문이 무시됐다("내가 언제 그렇게 말했어?" → 새 질문). 이것은 P0-08 이다.
+// 없는 사실은 지어내지 않는다 — 사용자가 실제로 한 말을 그대로 인용해
+// '무엇을 근거로 삼았는지'만 밝힌다. 인용할 말이 없으면 만들지 않는다(빈 문자열).
+export const BASIS_QUOTE_MAX = 60;
+export function groundedBasisReply(ctx: Context): string {
+  const quote = userEvidenceParts(ctx)
+    .filter((part) => !isUserQuestion(part) && !containsForbiddenTerm(part))
+    .map((part) => part.split(/(?<=[.?!…])\s+/)[0].replace(TRAILING_MARKS, "").trim())
+    .filter((part) => part.length >= 2)
+    .pop();
+  if (!quote) return "";
+  const shown = quote.length > BASIS_QUOTE_MAX ? `${quote.slice(0, BASIS_QUOTE_MAX)}…` : quote;
+  return politeOrSame(`제가 본 건 "${shown}" 라고 하신 말씀이에요. 제가 잘못 짚었다면 바로잡아 주세요.`);
 }
 export function historyText(ctx: Context): string {
   return userEvidenceParts(ctx).map((part, index) => `${index + 1}. ${part}`).join("\n");
@@ -488,7 +505,8 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
         // gsq 는 거절 재등장을 rejected_text 로 부른다(echo-journey 의 reply_rejected 와 같은 뜻).
         if (b.reason !== "reply_quality" && b.reason !== "rejected_text") continue;
         if (blockReasonFor(b.candidate, block, { relaxed, userQuestion: "", requireQuestion: true })) continue;
-        replyOnly = { ...b.candidate, reply: "" };
+        // 답을 못 만들었다고 질문만 돌려주지 않는다. 사용자 말을 근거로 먼저 답한다.
+        replyOnly = { ...b.candidate, reply: groundedBasisReply(ctx) };
         break;
       }
     }
@@ -522,7 +540,7 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
   }
   if (replyOnly) {
     // 답은 못 만들었지만 질문은 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
-    console.error(`[gsq] asked_reply_failed mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    console.error(`[gsq] asked_reply_failed mode=${mode} attempts=${attempts} basis=${replyOnly.reply ? 1 : 0} ai_ms=${Date.now() - startedAt}`);
     return replyOnly;
   }
   if (replyAlone) {
