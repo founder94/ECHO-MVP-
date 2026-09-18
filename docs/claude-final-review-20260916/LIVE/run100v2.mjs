@@ -93,6 +93,19 @@ const lat = [];
 const typeStat = {};
 for (const k of Object.keys(TYPES)) typeStat[k] = { n: 0, ok: 0, fallback: 0, banmal: 0, lat: [] };
 
+// 2026-09-18 검사도구 충실도 수정: 화면(UI)은 AI 생성이 실패하면 같은 질문을 한 번 더 요청한다.
+// 서버는 답변·단계를 이미 저장해 두므로 재요청이 안전하다(qa/full-flow-edge-simulation 이 보장).
+// 검사도구만 재시도를 하지 않아 외부 OpenAI 타임아웃 1건이 '대화 중단'으로 기록됐다.
+// 제품 규칙 결함과 외부 장애를 섞지 않기 위해 UI 와 같은 1회 재시도를 넣는다.
+const RETRYABLE = new Set(['AI_ERROR', 'ERROR']);
+async function askWithRetry(call, fn, body) {
+  const first = await call(fn, body);
+  if (first.json?.ok !== false || !RETRYABLE.has(first.json.code)) return first;
+  counters.AI재시도 = (counters.AI재시도 ?? 0) + 1;
+  await sleep(700);
+  return call(fn, { ...body, token: body.token + '-r' });
+}
+
 const WINDOW = 10 * 60_000 + 20_000, BATCH = 9;
 let winStart = Date.now(), inWin = 0;
 
@@ -123,7 +136,7 @@ for (let i = 0; i < RUNS; i++) {
 
   for (let turn = 0; turn < 26 && !rec.completed; turn++) {
     const fn = EARLY.has(status) ? 'get-step-question' : 'echo-journey';
-    const q = await call(fn, { action: 'ask', conversationId: cid, token: tok(`q${i}-${turn}`) });
+    const q = await askWithRetry(call, fn, { action: 'ask', conversationId: cid, token: tok(`q${i}-${turn}`) });
     counters.요청수++; lat.push(q.ms); typeStat[type].lat.push(q.ms);
     if (q.json?.ok === false) {
       rec.stuck = { at: status, turn, code: q.json.code, ms: q.ms };
@@ -179,7 +192,7 @@ for (let i = 0; i < RUNS; i++) {
     status = a.json.status;
     if (isAskBack && status !== statusBefore) { counters.되물음후STEP증가++; rec.flags.push('되물음후STEP증가'); }
     if (isAskBack) {
-      const next = await call(fn, { action: 'ask', conversationId: cid, token: tok(`r${i}-${turn}`) });
+      const next = await askWithRetry(call, fn, { action: 'ask', conversationId: cid, token: tok(`r${i}-${turn}`) });
       counters.요청수++; lat.push(next.ms); typeStat[type].lat.push(next.ms);
       if (next.json?.ok === false) { rec.stuck = { at: `askback:${status}`, code: next.json.code }; counters.fallback++; typeStat[type].fallback++; break; }
       const reply = String(next.json.question ?? '');
