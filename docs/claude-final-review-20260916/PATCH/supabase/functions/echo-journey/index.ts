@@ -430,6 +430,9 @@ function rejectedKeysOf(rejected: string, evidenceParts: string[] = []): string[
 // 아직 어떤 AI 문장도 다루지 않은 정정·직접 설명. 있으면 이번 질문이 그것을 먼저 다뤄야 한다.
 function pendingCorrectionText(ctx: Ctx): string {
   let text = "";
+  // "그게 아니에요"(no)는 일부러 뺀다. 거절은 '이 뜻을 다시 쓰지 말라'는 지시이고,
+  // 그것은 거절 키·거절 원문 차단(P0-05)이 이미 맡는다. 여기서 다루는 것은
+  // '이 내용을 먼저 다뤄라'라고 사용자가 내놓은 정정·직접 설명뿐이다.
   for (const u of ctx.understandings) {
     if (u.choice === "alittle" && u.correction_text?.trim()) text = u.correction_text.trim();
     else if (u.choice === "explain" && u.self_explanation?.trim()) text = u.self_explanation.trim();

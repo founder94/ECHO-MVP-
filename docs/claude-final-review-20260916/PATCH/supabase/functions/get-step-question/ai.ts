@@ -172,6 +172,9 @@ export function correctionBlock(ctx: Context): { affirmed: string[]; rejected: s
 // (정정이 이미 다뤄졌으면 빈 문자열 — 계속 같은 규칙을 걸어 과차단하지 않는다.)
 export function pendingCorrectionText(ctx: Context): string {
   let text = "";
+  // "그게 아니에요"(no)는 일부러 뺀다. 거절은 '이 뜻을 다시 쓰지 말라'는 지시이고,
+  // 그것은 거절 키·거절 원문 차단(P0-05)이 이미 맡는다. 여기서 다루는 것은
+  // '이 내용을 먼저 다뤄라'라고 사용자가 내놓은 정정·직접 설명뿐이다.
   for (const u of ctx.understandings) {
     if (u.choice === "alittle" && u.correction_text?.trim()) text = u.correction_text.trim();
     else if (u.choice === "explain" && u.self_explanation?.trim()) text = u.self_explanation.trim();
