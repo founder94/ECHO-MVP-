@@ -568,12 +568,33 @@ export function validateSingleQuestion(raw: string, maxLength: number = LIMITS.Q
   return { ok: true, text };
 }
 
+// ── 정정 우선(Correction Engine) 판정 ──
+// 2026-09-18 운영 캐너리 근거: 서로 다른 정정 2건("사람이 더 힘들어요" / "시간이 없는 게 더 힘들어요")에
+// 서버가 똑같이 "일이 많아지면서 어떤 부분이 가장 힘드신가요?" 를 냈다. 정정 우선은 프롬프트 문장으로만
+// 지시되어 있었고 서버 규칙이 없었다. ECHO 원칙대로(LLM 은 후보만, 결정은 서버) 서버가 판정한다.
+// 상투어("조금 달라요" 등)는 내용이 아니므로 빼고, 남은 내용어가 하나라도 다뤄지면 반영된 것으로 본다.
+const CORRECTION_LEAD = /(?:제가\s*직접\s*설명할게요|직접\s*설명할게요|반은\s*맞고\s*반은\s*아닌\s*것\s*같아요|조금\s*달라요|그게\s*아니에요|아니에요|아니요|사실은)/gu;
+const CORRECTION_PARTICLE_TAIL = /(?:이|가|은|는|을|를|에|의|도|보다|부터|까지|으로|로|와|과)$/u;
+export function correctionContentWords(correction: string): string[] {
+  return [...new Set((correction.replace(CORRECTION_LEAD, " ").match(/[가-힣]{2,}/gu) ?? [])
+    .map((word) => word.replace(CORRECTION_PARTICLE_TAIL, ""))
+    .filter((word) => word.length >= 2))];
+}
+// 비교할 내용어가 아예 없으면 막지 않는다(빠져나갈 문 없는 차단 규칙은 두지 않는다).
+export function reflectsCorrection(text: string, correction: string): boolean {
+  const words = correctionContentWords(correction);
+  if (!words.length) return true;
+  const target = normalizeKey(text);
+  return words.some((word) => target.includes(normalizeKey(word)));
+}
+
 // ── 후보 차단(서버 상태머신) ──
 export interface BlockContext {
   askedTexts: string[]; // 이미 나온 AI 질문
   rejectedKeys: string[]; // 구조화된 거절 의미 키(정규화)
   rejectedTexts: string[]; // 거절한 해석 원문(보조 겹침 검사용)
   evidenceTexts: string[]; // 사용자가 직접 쓴 말만
+  pendingCorrection: string; // 아직 어떤 질문도 다루지 않은 정정·직접 설명(있으면 이번 질문이 먼저 다뤄야 한다)
 }
 
 export const QUESTION_INTENTS = [
@@ -597,7 +618,7 @@ export function repeatsQuestionIntent(question: string, asked: string[]): boolea
   return !!intent && asked.some((previous) => questionIntent(previous) === intent);
 }
 
-export type BlockReason = "forbidden" | "banmal" | "repeat" | "rejected_meaning" | "rejected_text" | "not_question" | "not_grounded" | "assumption" | "reply_quality";
+export type BlockReason = "forbidden" | "banmal" | "repeat" | "rejected_meaning" | "rejected_text" | "not_question" | "not_grounded" | "assumption" | "reply_quality" | "correction_ignored";
 
 export interface FilterResult {
   survivors: Candidate[];
@@ -653,6 +674,8 @@ export function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOp
     if (looksSame(c.question, a, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP)) return "repeat";
   }
   if (!relaxed && repeatsQuestionIntent(c.question, ctx.askedTexts.slice(-INTENT_HISTORY))) return "repeat";
+  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 마지막 시도에서는 풀어 준다(대화를 끊지 않는다).
+  if (!relaxed && ctx.pendingCorrection && !reflectsCorrection(c.question, ctx.pendingCorrection)) return "correction_ignored";
   if (replyRevivesRejected(c.reply ?? "", ctx)) return "rejected_text";
 
   // 1차: 의미 키 교집합 (표현이 달라도 같은 뜻이면 차단)

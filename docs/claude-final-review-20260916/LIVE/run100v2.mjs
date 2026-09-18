@@ -31,6 +31,25 @@ const tok = (s) => `r2-${s}-${Math.random().toString(36).slice(2, 10)}`;
 const norm = (s) => String(s ?? '').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
 function bigrams(s) { const n = norm(s), out = new Set(); for (let i = 0; i < n.length - 1; i++) out.add(n.slice(i, i + 2)); return out; }
 function overlap(a, b) { const x = bigrams(a), y = bigrams(b); if (!x.size || !y.size) return 0; let c = 0; for (const g of x) if (y.has(g)) c++; return c / Math.min(x.size, y.size); }
+// ── 2026-09-18 판정도구 결함 수정 (거짓 양성 P0-04) ──
+// 예전에는 정정 이후의 '모든' 서버 문장에 대해 bigram 겹침이 0이면 정정무시로 셌다.
+// 그래서 한 번 정정을 반영하고 대화가 다른 주제로 넘어가면 턴마다 계속 오판이 났다
+// (캐너리 D·F 의 정정무시 4건이 전부 이 오판이었다. 실제로는 다음 요약·질문에 반영되어 있었다).
+// FINAL LOCK P0-04 의 뜻대로 '정정 바로 다음 서버 문장' 하나만 본다.
+// 비교는 앞머리 상투어를 뺀 내용어로 하고, 비교할 내용어가 없으면 판정하지 않는다(확인 불가).
+const CORRECTION_BOILERPLATE = /(?:조금\s*달라요|그게\s*아니에요|제가\s*직접\s*설명할게요|아니요|아니에요|반은\s*맞고\s*반은\s*아닌\s*것\s*같아요|사실은)/gu;
+const PARTICLE_TAIL = /(?:이|가|은|는|을|를|에|의|도|보다|부터|까지|으로|로|와|과)$/u;
+function contentWords(text) {
+  return (String(text ?? '').replace(CORRECTION_BOILERPLATE, ' ').match(/[가-힣]{2,}/gu) ?? [])
+    .map((w) => w.replace(PARTICLE_TAIL, ''))
+    .filter((w) => w.length >= 2);
+}
+function reflectsCorrection(shown, correction) {
+  const words = contentWords(correction);
+  if (!words.length) return null; // 비교할 내용어가 없다 → 판정하지 않는다
+  const s = norm(shown);
+  return words.some((w) => s.includes(norm(w)));
+}
 function questionSentence(t) {
   const parts = String(t ?? '').split(/(?<=[.?!…])\s+/).map((s) => s.trim()).filter(Boolean);
   for (let i = parts.length - 1; i >= 0; i--) if (/\?\s*$/.test(parts[i])) return parts[i];
@@ -46,7 +65,9 @@ const TYPES = {
   B: { name: '구체적 설명', answers: ['요즘 일이 너무 많고 돈 문제까지 겹쳐서 정신이 없어', '밤에 잠이 안 오고 아침마다 몸이 무거워요', '회사 사람들 눈치 보느라 말도 제대로 못 하고 집에 오면 지쳐요', '돈 나갈 데는 많은데 일은 줄어서 불안해요'] },
   C: { name: '애매함/모름', answers: ['잘 모르겠어', '아직 모르겠어', '애매해', '뭐라고 해야 할지 모르겠어', '생각이 정리가 안 돼'] },
   D: { name: '약한 정정', choice: 'alittle', text: '조금 달라요. 반은 맞고 반은 아닌 것 같아요. 사실은 일보다 사람이 더 힘들어요' },
-  E: { name: '강한 거절', choice: 'no', text: '' },
+  // 2026-09-18 검사도구 결함 수정: 서버는 agree 가 아닌 선택에 반드시 내용을 요구한다(index.ts BAD_REQUEST).
+  // 빈 문자열을 보내던 예전 E 그룹은 제품 결함이 아니라 검사도구 결함이었다. 실제 사용자가 치는 거절 문장을 보낸다.
+  E: { name: '강한 거절', choice: 'no', text: '그게 아니에요. 제가 말한 건 그런 뜻이 전혀 아니에요' },
   F: { name: '직접 설명', choice: 'explain', text: '제가 직접 설명할게요. 돈보다 시간이 없는 게 더 힘들어요' },
   G: { name: 'AI 판단 질문', answers: ['왜 그렇게 생각했어?', '내가 언제 그렇게 말했어?', '그 판단은 어디서 나온 거야?', '무슨 뜻이야?'] },
   H: { name: '해결방법 되물음', answers: ['어떻게 해야 좋을까?', '그럼 난 뭘 하면 돼?', '지금 내가 할 수 있는 건 뭐야?', '그래서 어떻게 해?'] },
@@ -96,8 +117,9 @@ for (let i = 0; i < RUNS; i++) {
   // FINAL LOCK 판정용 원본 기록: 무엇을 보냈고, 무엇이 돌아왔고, 상태가 어떻게 바뀌었는가.
   rec.events = [];
   const ev = (o) => rec.events.push(o);
-  let status = s.json.status, chose = false, lastUser = '', rejected = '', corrected = '';
+  let status = s.json.status, chose = false, lastUser = '', rejected = '';
   const asked = [];
+  let pendingCorrection = null;
 
   for (let turn = 0; turn < 26 && !rec.completed; turn++) {
     const fn = EARLY.has(status) ? 'get-step-question' : 'echo-journey';
@@ -120,7 +142,12 @@ for (let i = 0; i < RUNS; i++) {
     if (asked.some((a) => overlap(qs, a) > 0.7)) { counters.반복질문++; rec.flags.push('반복질문'); }
     if (lastUser && lastUser.length >= 4 && overlap(qs, lastUser) === 0) { counters.맥락무시++; rec.flags.push('맥락무시'); }
     if (rejected && overlap(shown, rejected) > 0.6) { counters.거절의미재등장++; rec.flags.push('거절재등장'); }
-    if (corrected && asked.length && overlap(shown, corrected) === 0) { counters.정정무시++; rec.flags.push('정정무시'); }
+    if (pendingCorrection) {
+      const reflected = reflectsCorrection(shown, pendingCorrection);
+      if (reflected === false) { counters.정정무시++; rec.flags.push('정정무시'); }
+      if (reflected === null) rec.flags.push('정정반영_확인불가');
+      pendingCorrection = null;
+    }
     if (qs) asked.push(qs);
 
     if (q.json.status === 'report_ready' || q.json.status === 'report_done') { rec.completed = true; break; }
@@ -130,7 +157,7 @@ for (let i = 0; i < RUNS; i++) {
       const choice = !chose && t.choice ? t.choice : 'agree';
       const text = !chose && t.choice ? t.text : '';
       if (choice === 'no') rejected = String(q.json.understanding);
-      if (choice === 'alittle' || choice === 'explain') corrected = text;
+      if (choice === 'alittle' || choice === 'explain') pendingCorrection = text;
       chose = true;
       const c = await call(fn, { action: 'choose', conversationId: cid, choice, text, token: tok(`c${i}-${turn}`) });
       counters.요청수++; lat.push(c.ms); typeStat[type].lat.push(c.ms);

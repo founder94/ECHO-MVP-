@@ -43,6 +43,24 @@ export interface EvidenceContext {
 export const normalizeEvidence = (value: string): string =>
   value.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
 
+// ── 정정 우선(Correction Engine) 판정 — get-step-question/rules.ts 와 같은 규칙 ──
+// 2026-09-18 운영 캐너리 근거: 서로 다른 정정 2건에 서버가 똑같이 정정 이전 주제를 물었다.
+// 정정 우선이 프롬프트 문장으로만 지시되어 있었기 때문이다. 판정은 서버가 한다.
+const CORRECTION_LEAD = /(?:제가\s*직접\s*설명할게요|직접\s*설명할게요|반은\s*맞고\s*반은\s*아닌\s*것\s*같아요|조금\s*달라요|그게\s*아니에요|아니에요|아니요|사실은)/gu;
+const CORRECTION_PARTICLE_TAIL = /(?:이|가|은|는|을|를|에|의|도|보다|부터|까지|으로|로|와|과)$/u;
+export function correctionContentWords(correction: string): string[] {
+  return [...new Set((correction.replace(CORRECTION_LEAD, " ").match(/[가-힣]{2,}/gu) ?? [])
+    .map((word) => word.replace(CORRECTION_PARTICLE_TAIL, ""))
+    .filter((word) => word.length >= 2))];
+}
+// 비교할 내용어가 아예 없으면 막지 않는다(빠져나갈 문 없는 차단 규칙은 두지 않는다).
+export function reflectsCorrection(text: string, correction: string): boolean {
+  const words = correctionContentWords(correction);
+  if (!words.length) return true;
+  const target = normalizeEvidence(text);
+  return words.some((word) => target.includes(normalizeEvidence(word)));
+}
+
 const CONTROL_REPLIES = new Set(["맞아요", "조금 달라요", "그게 아니에요", "직접 설명할게요"]);
 // 짧은 동의나 "모르겠다" 계열 답변은 사용자의 마음에 대한 새 사실로 쓰지 않는다.
 // 실사용자는 문어체·반말·존댓말을 섞어 쓰므로 어미가 달라도 같은 답변 상태로 본다.

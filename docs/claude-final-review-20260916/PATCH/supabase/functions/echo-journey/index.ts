@@ -30,6 +30,7 @@ import {
   nextQuestionFocus,
   pendingUserQuestion,
   questionQualityReason,
+  reflectsCorrection,
   hasBanmal,
   toPoliteKorean,
   replyQualityReason,
@@ -241,7 +242,7 @@ function isParrot(acknowledgement: string, latestUser: string): boolean {
   if (a.includes(u)) return true;
   return overlapStats(acknowledgement, latestUser).overlap > 0.8;
 }
-interface Block { asked: string[]; askedJourney: string[]; askedJourneyFull: string[]; rejectedKeys: string[]; rejectedTexts: string[] }
+interface Block { asked: string[]; askedJourney: string[]; askedJourneyFull: string[]; rejectedKeys: string[]; rejectedTexts: string[]; pendingCorrection: string }
 
 /** 공감 문장이 근거 표현을 담지 못하면 문장을 버린다(후보 자체는 살린다). */
 function ackOrDrop(acknowledgement: string, anchor: string): string {
@@ -266,7 +267,8 @@ type BlockReason =
   | "rejected_text"
   | "reply_quality"
   | "banmal"
-  | "reply_rejected";
+  | "reply_rejected"
+  | "correction_ignored";
 // 후보 검사 조건. userQuestion 이 있으면(asked 모드) reply 가 반드시 있어야 하고 품질 검사를 통과해야 한다.
 interface BlockOptions {
   intentHistory: string[];
@@ -295,6 +297,8 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
   if (questionQualityReason(c, evidenceParts)) return "quality";
   if (b.asked.some((a) => looksSame(c.question, a, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP))) return "repeat_text";
   if (!relaxed && repeatsQuestionIntent(c.question, intentHistory)) return "repeat_intent";
+  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 마지막 시도에서는 풀어 준다(대화를 끊지 않는다).
+  if (!relaxed && b.pendingCorrection && !reflectsCorrection(c.question, b.pendingCorrection)) return "correction_ignored";
   const anchorKey = normalizeKey(c.anchor);
   const anchorStem = anchorKey.slice(0, Math.min(2, anchorKey.length));
   const hasDifferentEvidence = evidenceParts.some((part) => {
@@ -423,6 +427,22 @@ function rejectedKeysOf(rejected: string, evidenceParts: string[] = []): string[
     .filter((key) => !fromUser(key))
     .slice(0, LIMITS.KEYS_MAX);
 }
+// 아직 어떤 AI 문장도 다루지 않은 정정·직접 설명. 있으면 이번 질문이 그것을 먼저 다뤄야 한다.
+function pendingCorrectionText(ctx: Ctx): string {
+  let text = "";
+  for (const u of ctx.understandings) {
+    if (u.choice === "alittle" && u.correction_text?.trim()) text = u.correction_text.trim();
+    else if (u.choice === "explain" && u.self_explanation?.trim()) text = u.self_explanation.trim();
+  }
+  if (!text) return "";
+  const at = ctx.messages.findIndex((message) => message.role === "user" && message.content.trim() === text);
+  if (at < 0) return text;
+  for (let i = at + 1; i < ctx.messages.length; i++) {
+    const message = ctx.messages[i];
+    if (message.role === "ai" && reflectsCorrection(message.content, text)) return "";
+  }
+  return text;
+}
 function buildBlock(ctx: Ctx): Block {
   const evidenceParts = userEvidenceParts(ctx);
   const b: Block = {
@@ -431,6 +451,7 @@ function buildBlock(ctx: Ctx): Block {
     askedJourneyFull: askedJourneyFullTexts(ctx),
     rejectedKeys: [],
     rejectedTexts: [],
+    pendingCorrection: pendingCorrectionText(ctx),
   };
   for (const u of ctx.understandings) {
     if (u.choice !== "no" || !u.rejected_interpretation) continue;
@@ -586,7 +607,11 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
         survivor = c;
         break;
       }
-      reasons[reason] = (reasons[reason] ?? 0) + 1;
+      // 2026-09-18: reply_quality 하위 사유를 이름만 남긴다(원문 없음).
+      const detail = reason === "reply_quality" && asked
+        ? `reply_quality:${hasBanmal((c.reply ?? "").trim()) ? "banmal" : (replyQualityReason(c.reply ?? "", questionToAnswer, LIMITS.REPLY_MAX) ?? "unknown")}`
+        : reason;
+      reasons[detail] = (reasons[detail] ?? 0) + 1;
       // 답만 실패한 경우를 따로 모은다. 질문 자체가 모든 검사를 통과한 후보만 받는다.
       if (asked && !replyOnly && (reason === "reply_quality" || reason === "reply_rejected")) {
         const questionOnly = blockReason(c, block, evidenceParts, { intentHistory, avoidAnchorReuse, relaxed, userQuestion: "", requireQuestion: true });

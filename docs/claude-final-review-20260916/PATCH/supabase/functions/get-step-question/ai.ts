@@ -4,6 +4,8 @@ import {
   INTENT_HISTORY,
   LIMITS,
   blockReasonFor,
+  hasBanmal,
+  replyQualityReason,
   filterCandidates,
   isParrot,
   isSelfDirectedQuestion,
@@ -18,6 +20,7 @@ import {
   questionShape,
   repeatsQuestionIntent,
   replyRevivesRejected,
+  reflectsCorrection,
   validateSingleQuestion,
   type BlockContext,
   type Candidate,
@@ -163,6 +166,24 @@ export function correctionBlock(ctx: Context): { affirmed: string[]; rejected: s
     if (u.rejected_interpretation) rejected.push(u.rejected_interpretation);
   }
   return { affirmed, rejected };
+}
+
+// 아직 어떤 AI 문장도 다루지 않은 정정·직접 설명. 있으면 이번 질문이 그것을 먼저 다뤄야 한다.
+// (정정이 이미 다뤄졌으면 빈 문자열 — 계속 같은 규칙을 걸어 과차단하지 않는다.)
+export function pendingCorrectionText(ctx: Context): string {
+  let text = "";
+  for (const u of ctx.understandings) {
+    if (u.choice === "alittle" && u.correction_text?.trim()) text = u.correction_text.trim();
+    else if (u.choice === "explain" && u.self_explanation?.trim()) text = u.self_explanation.trim();
+  }
+  if (!text) return "";
+  const at = ctx.messages.findIndex((message) => message.role === "user" && message.content.trim() === text);
+  if (at < 0) return text;
+  for (let i = at + 1; i < ctx.messages.length; i++) {
+    const message = ctx.messages[i];
+    if (message.role === "ai" && reflectsCorrection(message.content, text)) return "";
+  }
+  return text;
 }
 
 export function priorityNote(ctx: Context): string {
@@ -329,7 +350,7 @@ export function buildBlockContext(ctx: Context): BlockContext {
     const keys = extractRejectedKeys(u.rejected_interpretation, evidenceParts);
     for (const k of keys) if (!rejectedKeys.includes(k)) rejectedKeys.push(k);
   }
-  return { askedTexts, rejectedKeys, rejectedTexts, evidenceTexts: evidenceParts };
+  return { askedTexts, rejectedKeys, rejectedTexts, evidenceTexts: evidenceParts, pendingCorrection: pendingCorrectionText(ctx) };
 }
 
 // 후속 질문: LLM은 후보만, 차단·선택은 서버. 모두 차단되면 재요청, 한도 초과 시 NO_CANDIDATE.
@@ -415,7 +436,14 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     blockedAll = blockedAll.concat(result.blocked.map((b) => b.candidate.question));
     // 진단 로그: 모드·후보 수·차단 사유 수만. 원문 없음.
     const reasons: Record<string, number> = {};
-    for (const b of result.blocked) reasons[b.reason] = (reasons[b.reason] ?? 0) + 1;
+    for (const b of result.blocked) {
+      // 2026-09-18: reply_quality 로만 뭉쳐 찍혀 어느 규칙이 막았는지 알 수 없었다.
+      // 원문은 남기지 않고 '어떤 규칙에 걸렸는지' 이름만 덧붙인다.
+      const detail = b.reason === "reply_quality" && mode === "asked"
+        ? `reply_quality:${hasBanmal((b.candidate.reply ?? "").trim()) ? "banmal" : (replyQualityReason(b.candidate.reply ?? "", questionToAnswer) ?? "unknown")}`
+        : b.reason;
+      reasons[detail] = (reasons[detail] ?? 0) + 1;
+    }
     console.error(`[gsq] candidates_blocked mode=${mode} parsed=${candidates.length} attempt=${attempts} relaxed=${relaxed} reasons=${Object.entries(reasons).map(([k, v]) => `${k}:${v}`).join(",")}`);
   }
   if (replyOnly) {
