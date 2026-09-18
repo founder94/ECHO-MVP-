@@ -231,7 +231,12 @@ test('get-step-question 도 같은 규칙으로 답하고 단계를 지킨다', 
 
   const ctx = { askedTexts: [], rejectedKeys: [], rejectedTexts: ['관계에서 늘 먼저 물러나는 사람인 것 같아요'], evidenceTexts: ['회사에서 눈치 보는 게 힘들어'] };
   assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '' }), ctx, { userQuestion: Q_ADVICE }), 'reply_quality');
-  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '오늘 날씨는 맑아요.' }), ctx, { userQuestion: Q_ADVICE }), 'reply_quality');
+  // 2026-09-18 계약 변경(운영 근거): 되물음이 "어떻게 하는 게 좋을까?" 처럼 의문사뿐이면
+  // 답이 겹칠 낱말이 없어 관련성 규칙이 모든 답을 막았다(운영 asked 차단의 절대다수 = reply_irrelevant,
+  // 그 결과 사용자의 물음이 한 번도 답을 못 받음). 그래서 내용어 없는 물음에는 관련성을 묻지 않는다.
+  // 내용어가 있는 물음에는 규칙이 그대로 살아 있다 — 아래 한 줄이 그것을 지킨다.
+  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '오늘 날씨는 맑아요.' }), ctx, { userQuestion: Q_ADVICE }), null);
+  assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '오늘 날씨는 맑아요.' }), ctx, { userQuestion: '눈치 보는 건 어떻게 하는 게 좋을까?' }), 'reply_quality');
   assert.equal(blockReasonFor(candidate({ acknowledgement: '', reply: '관계에서 늘 먼저 물러나는 사람인 것 같아요.' }), ctx, { userQuestion: '그럼 관계에서 어떻게 해야 좋을까?' }), 'rejected_text');
   assert.equal(blockReasonFor(c, ctx, { userQuestion: Q_ADVICE }), null);
 

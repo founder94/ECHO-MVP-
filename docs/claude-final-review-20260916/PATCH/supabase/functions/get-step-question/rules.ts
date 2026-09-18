@@ -224,7 +224,17 @@ export function cleanReply(raw: string): string {
 export type ReplyBlockReason = "reply_missing" | "reply_question_mark" | "reply_too_long" | "reply_incomplete" | "reply_evasive" | "reply_irrelevant";
 export const REPLY_COMPLETE = /(?:[.!…]|요|죠|다|네|까|군|데|어|아|지|음|함|예|오)\s*$/u;
 export const EVASIVE_REPLY = [/대신\s*정답을?\s*정해/, /^(?:같이|함께)\s*찾아(?:볼게요|봐요)[.!]?$/, /^(?:음|글쎄요?|잘\s*모르겠어요)[.!]?$/] as const;
+export function contentTokens(text: string): string[] {
+  return normalizeKey(text).match(/[가-힣]{2,}|[a-z0-9]{2,}/gu) ?? [];
+}
 export const RELEVANCE_STOP = /^(?:은|는|이|가|을|를|에|의|도|와|과|로|요|죠|다|네|까|어|해|하|것|수|저|제|내|나)$/;
+// 되물음에서 의문사·지시어를 뺀 '내용 낱말'. 이것이 없으면 답이 겹칠 것 자체가 없다.
+export const QUESTION_FILLER = /^(?:어떻게|어떡해|어떤|어느|무슨|무엇|뭐야|뭔데|뭘|왜|언제|어디|누구|얼마나|그래서|그럼|그렇게|그거|그게|이게|저게|지금|내가|나는|저는|제가|해야|하면|할까|할지|좋을까|좋아|있는|있을까|건가|건데|거야|건지|인가|이야|말이야|뜻이야|생각해|생각했어|판단은|나온|했어|하는|하지)$/u;
+export function questionContentWords(question: string): string[] {
+  return (question.split(/[\s,./!?"'“”‘’()\[\]{}]+/u).map((w) => w.trim()).filter(Boolean))
+    .map((w) => normalizeKey(w))
+    .filter((w) => w.length >= 2 && !QUESTION_FILLER.test(w));
+}
 export function sharesContent(reply: string, question: string): boolean {
   const q = normalizeKey(question);
   const r = normalizeKey(reply);
@@ -234,7 +244,15 @@ export function sharesContent(reply: string, question: string): boolean {
     if (RELEVANCE_STOP.test(pair)) continue;
     if (r.includes(pair)) return true;
   }
-  return false;
+  // echo-journey 와 같은 보조 규칙: 낱말 단위로도 겹치는지 본다(한 곳만 고치지 않는다).
+  return contentTokens(question).some((token) => r.includes(token));
+}
+// 2026-09-18 운영 진단: asked 모드 차단의 절대다수가 reply_irrelevant 였다.
+// "무슨 뜻이야?" "어떻게 해야 좋을까?" 처럼 되물음이 의문사·지시어만으로 되어 있으면
+// 답이 겹칠 낱말 자체가 없어 어떤 답도 통과하지 못한다 → 사용자의 물음이 영영 답을 못 받는다.
+// 겹칠 것이 없으면 관련성을 묻지 않는다(빠져나갈 문 없는 차단 규칙은 두지 않는다).
+export function questionHasContent(question: string): boolean {
+  return questionContentWords(question).length > 0;
 }
 // 질문의 낱말을 그대로 쓰지 않아도, 무엇을 알고 모르는지 밝히는 답은 '응답한 것'으로 본다.
 export const RESPONSIVE_REPLY = /(?:제가|저는|저도|제)\s*[^.!]{0,20}(?:답|정답|모르|알|말씀|물음|질문)/u;
@@ -245,7 +263,7 @@ export function replyQualityReason(reply: string, userQuestion: string): ReplyBl
   if (text.length > LIMITS.REPLY_MAX) return "reply_too_long";
   if (!REPLY_COMPLETE.test(text)) return "reply_incomplete";
   if (EVASIVE_REPLY.some((pattern) => pattern.test(text))) return "reply_evasive";
-  if (userQuestion.trim() && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
+  if (userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
   return null;
 }
 

@@ -461,6 +461,15 @@ function sharesContent(reply: string, question: string): boolean {
 // 질문의 낱말을 그대로 쓰지 않아도, 무엇을 알고 모르는지 밝히는 답은 '응답한 것'으로 본다(대표 지시: 모르면 모른다고 밝힐 것).
 const RESPONSIVE_REPLY = /(?:제가|저는|저도|제)\s*[^.!]{0,20}(?:답|정답|모르|알|말씀|물음|질문)/u;
 
+// 2026-09-18 운영 진단(get-step-question 과 같은 원인): 되물음이 의문사·지시어만으로 되어 있으면
+// 답이 겹칠 낱말 자체가 없어 어떤 답도 통과하지 못한다. 겹칠 것이 없으면 관련성을 묻지 않는다.
+const QUESTION_FILLER = /^(?:어떻게|어떡해|어떤|어느|무슨|무엇|뭐야|뭔데|뭘|왜|언제|어디|누구|얼마나|그래서|그럼|그렇게|그거|그게|이게|저게|지금|내가|나는|저는|제가|해야|하면|할까|할지|좋을까|좋아|있는|있을까|건가|건데|거야|건지|인가|이야|말이야|뜻이야|생각해|생각했어|판단은|나온|했어|하는|하지)$/u;
+export function questionHasContent(question: string): boolean {
+  return question.split(/[\s,./!?"'“”‘’()\[\]{}]+/u)
+    .map((word) => normalizeEvidence(word.trim()))
+    .some((word) => word.length >= 2 && !QUESTION_FILLER.test(word));
+}
+
 export function replyQualityReason(reply: string, userQuestion: string, maxLength: number): ReplyBlockReason | null {
   const text = reply.trim();
   if (!text) return "reply_missing";
@@ -469,7 +478,7 @@ export function replyQualityReason(reply: string, userQuestion: string, maxLengt
   if (text.length > maxLength) return "reply_too_long";
   if (!REPLY_COMPLETE.test(text)) return "reply_incomplete";
   if (EVASIVE_REPLY.some((pattern) => pattern.test(text))) return "reply_evasive";
-  if (userQuestion.trim() && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
+  if (userQuestion.trim() && questionHasContent(userQuestion) && !sharesContent(text, userQuestion) && !RESPONSIVE_REPLY.test(text)) return "reply_irrelevant";
   return null;
 }
 

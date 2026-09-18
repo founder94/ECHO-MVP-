@@ -316,15 +316,28 @@ export async function genUnderstanding(ai: Ai, ctx: Context): Promise<string> {
   const system =
     `${PERSONA} 사용자의 마음 기록과 대화를 바탕으로, 사용자가 지금 어떤 마음인지 한두 문장으로 공감하며 요약해라. 확실하지 않은 부분은 '~인 것 같아요'처럼 후보로만 말한다.${askedNote}${priorNote(ctx)}${priorityNote(ctx)}\n요약 텍스트만 출력해라.`;
   const block = buildBlockContext(ctx);
+  // 2026-09-18 운영 캐너리(E 강한 거절): 사용자가 새 내용 없이 거절하면 같은 근거로 다시 쓴 요약이
+  // 매번 거절한 뜻과 닮아 3번 다 막히고 대화가 끊겼다(understanding_reject ×3 → NO_CANDIDATE).
+  // ① 막힌 요약을 모델에게 돌려주어 다른 각도로 쓰게 하고, ② 그래도 못 만들면 대화를 끊지 않는다.
+  const blockedSummaries: string[] = [];
   for (let attempt = 0; attempt < LIMITS.GENERATION_ATTEMPTS; attempt++) {
-    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: historyText(ctx) }], false);
+    const extra = blockedSummaries.length
+      ? `\n\n[이 요약들은 서버에서 막혔다 — 사용자가 거절한 뜻과 닮았다. 다른 각도로 다시 써라]\n${blockedSummaries.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+      : "";
+    const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: historyText(ctx) + extra }], false);
     const v = validateSingleQuestion(raw, LIMITS.UNDERSTANDING_MAX, false);
     // ④ 거절한 해석은 요약에서도 같은 뜻으로 되살아나면 안 된다.
     if (v.ok && !replyRevivesRejected(v.text, block)) return v.text;
+    if (v.ok) blockedSummaries.push(v.text);
     console.error(`[gsq] understanding_reject reason=${v.ok ? "rejected_meaning" : v.error} attempt=${attempt + 1}`);
   }
-  throw new Error("NO_CANDIDATE");
+  // 빠져나갈 문: 사용자의 마음을 새로 단정하지 않고, 이해하지 못했다는 사실만 밝힌다.
+  // (거절한 뜻을 되살리지 않고, 화면을 비우지도 않으며, 사용자가 이어서 말할 수 있다.)
+  console.error(`[gsq] understanding_unresolved attempts=${LIMITS.GENERATION_ATTEMPTS}`);
+  return UNDERSTANDING_FALLBACK;
 }
+// 서버가 정한 고정 문장. 사용자에 대한 어떤 주장도 담지 않는다(미확정을 사실처럼 말하지 않는다).
+export const UNDERSTANDING_FALLBACK = "제가 아직 제대로 이해하지 못한 것 같아요. 조금만 더 들려주시면 다시 정리해볼게요.";
 
 // 거절한 해석의 "핵심 의미"를 구조화(키 목록)한다. 저장 열이 아직 없으므로 요청 시 계산한다.
 // (PENDING SQL의 understanding_results.rejected_meaning 적용 후 저장으로 전환)
