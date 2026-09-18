@@ -393,21 +393,13 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
   const userQuestionNote = mode === "asked"
     ? `\n\n[사용자가 ECHO에게 물었다 — 먼저 답할 것]\n"${questionToAnswer}"${pending ? `\n(사용자가 "${latest}" 라고 지적했다. 앞의 물음에 답하지 못한 것을 먼저 인정하고 그 물음에 답한다.)` : ""}\n각 후보에 "reply" 필드를 넣어라: 이 물음에 1~2문장(${LIMITS.REPLY_MAX}자 이내)으로 끝까지 완성된 문장으로 답한다. 물음 속 표현을 실제로 다루고, 모르면 무엇을 모르는지 밝힌 뒤 필요한 정보를 말한다. "대신 정답을 정해 줄 수 없다" 같은 회피 문장만 쓰면 실패로 처리된다. 정답을 대신 정하지 않고, 의료·법률·재무 조언을 하지 않으며, 물음표를 쓰지 않는다. 사용자가 ECHO 자체(오타·답을 못 함 등)를 물었으면 사실대로 인정한다.${withQuestion ? " 그 다음 question 으로 사용자 이야기를 이어간다." : " 이번에는 답만 화면에 나가므로 question 은 참고용이다."}`
     : "";
-  // 2026-09-18 운영 진단 로그 근거: asked 모드 차단 47건 중 39건이 reply_missing 이었다.
-  // 후보 서식 줄이 '아니면 빈 문자열'을 먼저 말해 모델이 asked 모드에서도 reply 를 비웠다.
-  // 물어본 턴에서는 서식 줄 자체가 '반드시 채운다'로 바뀐다.
-  const replySchema = mode === "asked"
-    ? '"아래 [사용자가 ECHO에게 물었다]의 물음에 대한 1~2문장 답. 반드시 채운다. 빈 문자열 금지"'
-    : '"빈 문자열"';
   const system =
-    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":${replySchema}} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다. 7) acknowledgement·question·reply 는 모두 해요체 존댓말로 끝낸다(반말 금지).${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}`;
+    `${PERSONA} 아래 [사용자 근거]만 사실로 사용해서 아직 더 알아가야 할 부분을 묻는 후보 3개를 만들어라. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"새로운 정보를 부탁하는 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":"사용자가 질문했을 때만 1~2문장 답, 아니면 빈 문자열"} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 4) 사용자가 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 5) 사용자가 직접 설명·정정한 내용을 가장 먼저 반영한다. 6) 한 번에 한 가지만 묻는다. 7) acknowledgement·question·reply 는 모두 해요체 존댓말로 끝낸다(반말 금지).${userQuestionNote}${priorNote(ctx)}${priorityNote(ctx)}`;
   const feedback = mode === "feedback" ? feedbackText(ctx) : "";
   const user = `[사용자 근거]\n${historyText(ctx)}${feedback ? `\n\n[질문 피드백 — 사실 근거로 사용하지 말 것]\n${feedback}` : ""}`;
 
   let blockedAll: string[] = [];
   let replyOnly: Candidate | null = null;
-  // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
-  let correctionOnly: Candidate | null = null;
   const startedAt = Date.now();
   const maxTokens = mode === "asked" ? ASKED_MAX_TOKENS : CONVERSATION_MAX_TOKENS;
   let attempts = 0;
@@ -417,10 +409,7 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
       console.error(`[gsq] attempts_deadline mode=${mode} elapsed_ms=${elapsed} attempts=${attempts}`);
       break;
     }
-    // 2026-09-18 운영 캐너리(v34): 완화를 '마지막 시도'에만 걸어 두었더니 2회에 5초가 지나
-    // 대기 상한(attempts_deadline)에 먼저 걸려 완화된 시도가 아예 실행되지 않았다 → 막다른 길.
-    // genSingleQuestion·echo-journey 와 같이 2번째 시도부터 완화한다(빠져나갈 문을 예산 안에 둔다).
-    const relaxed = attempt > 0;
+    const relaxed = attempt === LIMITS.GENERATION_ATTEMPTS - 1;
     const extra = blockedAll.length ? `\n\n다음 후보는 서버에서 차단되었다. 다른 뜻의 질문을 만들어라:\n${blockedAll.map((q, i) => `${i + 1}. ${q}`).join("\n")}` : "";
     attempts = attempt + 1;
     const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: user + extra }], true, maxTokens);
@@ -447,10 +436,6 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
         break;
       }
     }
-    if (!correctionOnly) {
-      const only = result.blocked.find((b) => b.reason === "correction_ignored");
-      if (only) correctionOnly = only.candidate;
-    }
     blockedAll = blockedAll.concat(result.blocked.map((b) => b.candidate.question));
     // 진단 로그: 모드·후보 수·차단 사유 수만. 원문 없음.
     const reasons: Record<string, number> = {};
@@ -468,11 +453,6 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     // 답은 못 만들었지만 질문은 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
     console.error(`[gsq] asked_reply_failed mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
     return replyOnly;
-  }
-  if (correctionOnly) {
-    // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
-    console.error(`[gsq] correction_unreflected mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
-    return correctionOnly;
   }
   console.error(`[gsq] no_candidate mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

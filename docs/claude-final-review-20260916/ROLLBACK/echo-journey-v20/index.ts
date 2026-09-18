@@ -297,6 +297,8 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
   if (questionQualityReason(c, evidenceParts)) return "quality";
   if (b.asked.some((a) => looksSame(c.question, a, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP))) return "repeat_text";
   if (!relaxed && repeatsQuestionIntent(c.question, intentHistory)) return "repeat_intent";
+  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 마지막 시도에서는 풀어 준다(대화를 끊지 않는다).
+  if (!relaxed && b.pendingCorrection && !reflectsCorrection(c.question, b.pendingCorrection)) return "correction_ignored";
   const anchorKey = normalizeKey(c.anchor);
   const anchorStem = anchorKey.slice(0, Math.min(2, anchorKey.length));
   const hasDifferentEvidence = evidenceParts.some((part) => {
@@ -312,10 +314,6 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
     }
   }
   if (b.rejectedTexts.some((r) => looksSame(`${c.acknowledgement ?? ""} ${c.question}`, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP) || (!!c.meaning && looksSame(c.meaning, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP)))) return "rejected_text";
-  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 완화 시도에서도 풀지 않는다 —
-  // 대신 여기까지 온 후보는 다른 모든 규칙을 통과했으므로, 끝까지 못 찾으면 이 후보를 구제한다
-  // (genStepQuestion 의 correctionOnly). 그래서 이 검사는 반드시 맨 마지막에 있어야 한다.
-  if (b.pendingCorrection && !reflectsCorrection(c.question, b.pendingCorrection)) return "correction_ignored";
   return null;
 }
 // ④ 거절한 해석이 답변 본문으로 되살아나는지: 문장 유사도로 본다.
@@ -573,16 +571,9 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
     ? `\n\n[사용자가 ECHO에게 물었다 — 먼저 답할 것]\n"${questionToAnswer}"${pending ? `\n(사용자가 "${latestAnswer}" 라고 지적했다. 앞의 물음에 답하지 못한 것을 먼저 인정하고 그 물음에 답한다.)` : ""}\n각 후보에 "reply" 필드를 넣어라: 이 물음에 1~2문장(${LIMITS.REPLY_MAX}자 이내)으로 끝까지 완성된 문장으로 답한다. 물음 속 표현을 실제로 다루고, 모르면 무엇을 모르는지 밝힌 뒤 필요한 정보를 말한다. "대신 정답을 정해 줄 수 없다" 같은 회피 문장만 쓰면 실패로 처리된다. 정답을 대신 정하지 않고, 의료·법률·재무 조언을 하지 않으며, 물음표를 쓰지 않는다. 사용자가 ECHO 자체(오타·답을 못 함 등)를 물었으면 사실대로 인정한다.${withQuestion ? " 그 다음 question 으로 사용자 이야기를 이어간다." : " 이번에는 답만 화면에 나가므로 question 은 참고용이다."}`
     : "";
   const priorNote = memoryNote(ctx);
-  // 2026-09-18 운영 진단 로그 근거(get-step-question 과 같은 원인): 후보 서식 줄이
-  // '아니면 빈 문자열'을 먼저 말해 모델이 물어본 턴에서도 reply 를 비웠다(reply_missing).
-  const replySchema = asked
-    ? '"아래 [사용자가 ECHO에게 물었다]의 물음에 대한 1~2문장 답. 반드시 채운다. 빈 문자열 금지"'
-    : '"빈 문자열"';
-  const system = `${PERSONA} 지금은 STEP ${stepOf(status)}이다. 목적은 "${STEP_OBJECTIVES[status]}"이다. 이번 질문 방식은 "${STEP_LENSES[status]}"이고, 아직 묻지 않은 이번 초점은 "${focus}"이다. 아래 [사용자 근거]만 사실로 사용할 수 있다. 이전 ECHO 문장은 사실 근거가 아니다. 친구와 이어서 대화하듯 후보 3개를 만들되 세 후보의 표현도 서로 달라야 한다. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"80자 이내의 짧고 쉬운 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":${replySchema}} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) 바로 앞의 유효한 사용자 말인 "${latestMeaningful}"에서 자연스럽게 이어가고, 오래전 표현으로 갑자기 돌아가지 않는다. acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오로 끝나는 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 바로 앞 답변에서 아직 나오지 않은 새로운 정보 한 가지만 묻는다. 4) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 5) 따옴표 안의 말이나 '~라고 했다'는 다른 사람의 말일 수 있다. 그것을 사용자의 감정·생각으로 바꾸지 않는다. 6) 미래의 일을 이미 겪은 기억처럼 묻지 않는다. 7) 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 8) AI가 틀렸다는 피드백이나 정정이 있으면 기존 해석을 버리고 사용자가 바로잡은 표현에서만 다시 시작한다. 9) 이미 물은 질문과 같은 의도(이유·의미·감정·상황·중요함·행동·남기기·구체화·바람·반복·비교)를 다시 묻지 않는다. 10) 질문 앞 설명은 만들지 말고 물음표는 하나만 쓴다. 11) 사용자가 답하기 어려워했거나 반복을 지적했다면 최근 질문의 중심 표현(anchor)을 다시 쓰지 말고 다른 사용자 근거로 주제를 전환한다.${askedNote}${userQuestionNote}${uncertaintyNote}${priorNote}${priorityNote(ctx)}`;
+  const system = `${PERSONA} 지금은 STEP ${stepOf(status)}이다. 목적은 "${STEP_OBJECTIVES[status]}"이다. 이번 질문 방식은 "${STEP_LENSES[status]}"이고, 아직 묻지 않은 이번 초점은 "${focus}"이다. 아래 [사용자 근거]만 사실로 사용할 수 있다. 이전 ECHO 문장은 사실 근거가 아니다. 친구와 이어서 대화하듯 후보 3개를 만들되 세 후보의 표현도 서로 달라야 한다. 각 후보는 {"acknowledgement":"anchor를 글자 그대로 포함해 바로 앞 사용자 말을 짧게 받아주는 1문장","question":"80자 이내의 짧고 쉬운 열린 질문 1개","anchor":"사용자 근거에서 글자 그대로 가져온 2~12자 핵심 표현(문장 전체 복사 금지)","assumptions":[],"meaning":"이전 질문과 다른 새 질문 의도","keys":["핵심 의미 명사구 2~5개"],"reply":"사용자가 질문했을 때만 1~2문장 답, 아니면 빈 문자열"} 형태이고, 전체를 {"candidates":[...]} JSON 객체로만 출력한다. 반드시 지켜라: 1) 바로 앞의 유효한 사용자 말인 "${latestMeaningful}"에서 자연스럽게 이어가고, 오래전 표현으로 갑자기 돌아가지 않는다. acknowledgement에는 anchor를 그대로 넣되 사용자 문장을 통째로 베끼지 말고, question에는 그대로 복사하지 않아도 된다. 2) 사용자의 말을 거의 그대로 옮기고 물음표만 붙이는 되묻기, 예/아니오로 끝나는 확인 질문, 이미 답한 내용을 다시 묻는 질문은 금지한다. 3) 바로 앞 답변에서 아직 나오지 않은 새로운 정보 한 가지만 묻는다. 4) 사용자가 말하지 않은 사람·관계·미래 장면·감정·원인·회피·상처·행동을 만들지 않는다. 5) 따옴표 안의 말이나 '~라고 했다'는 다른 사람의 말일 수 있다. 그것을 사용자의 감정·생각으로 바꾸지 않는다. 6) 미래의 일을 이미 겪은 기억처럼 묻지 않는다. 7) 거절한 해석과 같은 뜻은 표현을 바꿔도 만들지 않는다. 8) AI가 틀렸다는 피드백이나 정정이 있으면 기존 해석을 버리고 사용자가 바로잡은 표현에서만 다시 시작한다. 9) 이미 물은 질문과 같은 의도(이유·의미·감정·상황·중요함·행동·남기기·구체화·바람·반복·비교)를 다시 묻지 않는다. 10) 질문 앞 설명은 만들지 말고 물음표는 하나만 쓴다. 11) 사용자가 답하기 어려워했거나 반복을 지적했다면 최근 질문의 중심 표현(anchor)을 다시 쓰지 말고 다른 사용자 근거로 주제를 전환한다.${askedNote}${userQuestionNote}${uncertaintyNote}${priorNote}${priorityNote(ctx)}`;
   let blockedAll: string[] = [];
   let replyOnly: Candidate | null = null;
-  // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
-  let correctionOnly: Candidate | null = null;
   // 의도 반복 검사는 '바로 앞 여정 질문 2개'와만 비교한다. 대화 전체(STEP 1~)와 비교하면 12개 의도가 금방 소진돼 후반 단계가 막힌다(운영 사례).
   const intentHistory = block.askedJourney.slice(-2);
   const startedAt = Date.now();
@@ -629,8 +620,6 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
         const questionOnly = blockReason(c, block, evidenceParts, { intentHistory, avoidAnchorReuse, relaxed, userQuestion: "", requireQuestion: true });
         if (!questionOnly) replyOnly = { ...c, reply: "" };
       }
-      // 정정만 못 다룬 후보(다른 모든 규칙은 통과). 끝까지 정정을 다룬 후보가 없으면 이것으로 잇는다.
-      if (!correctionOnly && reason === "correction_ignored") correctionOnly = c;
     }
     if (survivor) {
       console.error(`[ej] question_ready step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt} with_question=${withQuestion}`);
@@ -643,11 +632,6 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
   if (replyOnly) {
     console.error(`[ej] asked_reply_failed step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
     return renderCandidate(replyOnly, mode, feedbackKind, latestAnswer, withQuestion);
-  }
-  if (correctionOnly) {
-    // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
-    console.error(`[ej] correction_unreflected step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
-    return renderCandidate(correctionOnly, mode, feedbackKind, latestAnswer, withQuestion);
   }
   console.error(`[ej] no_candidate step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

@@ -674,6 +674,8 @@ export function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOp
     if (looksSame(c.question, a, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP)) return "repeat";
   }
   if (!relaxed && repeatsQuestionIntent(c.question, ctx.askedTexts.slice(-INTENT_HISTORY))) return "repeat";
+  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 마지막 시도에서는 풀어 준다(대화를 끊지 않는다).
+  if (!relaxed && ctx.pendingCorrection && !reflectsCorrection(c.question, ctx.pendingCorrection)) return "correction_ignored";
   if (replyRevivesRejected(c.reply ?? "", ctx)) return "rejected_text";
 
   // 1차: 의미 키 교집합 (표현이 달라도 같은 뜻이면 차단)
@@ -693,10 +695,6 @@ export function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOp
     if (looksSame(c.question, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP)) return "rejected_text";
     if (c.meaning && looksSame(c.meaning, r, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP)) return "rejected_text";
   }
-  // 정정 직후 첫 질문은 정정 내용을 실제로 다뤄야 한다. 완화 시도에서도 풀지 않는다 —
-  // 대신 여기까지 온 후보는 다른 모든 규칙을 통과했으므로, 끝까지 못 찾으면 이 후보를 구제한다
-  // (genFollowupQuestion 의 correctionOnly). 그래서 이 검사는 반드시 맨 마지막에 있어야 한다.
-  if (ctx.pendingCorrection && !reflectsCorrection(c.question, ctx.pendingCorrection)) return "correction_ignored";
   return null;
 }
 

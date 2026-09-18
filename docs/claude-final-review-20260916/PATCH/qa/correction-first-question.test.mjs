@@ -121,3 +121,41 @@ test('③ 과차단 금지: 정정을 다룬 후보는 1차 시도에서 바로 
   assert.ok(String(followup.body.question ?? '').includes(REFLECTS_CORRECTION.question));
   assert.equal(ai.calls.json - before, 1, '정정을 다룬 후보인데도 다시 만들게 했다(과차단)');
 });
+
+test('④ 대기 상한 안에 빠져나갈 문이 있다: 느린 모델로 시도가 2회로 끊겨도 막다른 길이 없다', async () => {
+  // 2026-09-18 운영 캐너리(v34) 재현: 완화를 '마지막(3회째) 시도'에만 두면
+  // 2회에 5초가 지나 대기 상한에 먼저 걸려 완화가 아예 실행되지 않고 NO_CANDIDATE 가 났다.
+  // 한 번 호출에 2.6초 걸리는 모델을 두어 시도가 2회로 끊기게 만든다.
+  const ai = createAi(() => [IGNORES_CORRECTION, IGNORES_CORRECTION, IGNORES_CORRECTION]);
+  const slow = ai.fetch;
+  ai.fetch = async (url, options = {}) => {
+    const request = JSON.parse(options.body ?? '{}');
+    if (request.response_format) await new Promise((r) => setTimeout(r, 2600));
+    return slow(url, options);
+  };
+  const { early, conversationId } = await upToCorrection(ai, 'corr-4');
+
+  const followup = await invoke(early, 'corr-4', { action: 'ask', conversationId, token: token('corr-4-f') });
+  assert.equal(followup.body.ok, true, `막다른 길: ${followup.body.code ?? ''}`);
+  assert.ok(String(followup.body.question ?? '').trim(), '빈 화면이 나갔다');
+  assert.ok(ai.calls.json <= 2, `시도가 2회로 끊기지 않았다(${ai.calls.json}회) — 재현 조건이 성립하지 않음`);
+});
+
+test('⑤ 되물은 턴에서는 후보 서식이 답(reply)을 반드시 채우라고 말한다', async () => {
+  // 2026-09-18 운영 진단 로그: asked 모드 차단 47건 중 39건이 reply_missing 이었다.
+  // 원인은 후보 서식 줄이 '아니면 빈 문자열'을 먼저 말한 것. 물어본 턴에서는 그 줄이 바뀌어야 한다.
+  const ai = createAi(() => [REFLECTS_CORRECTION]);
+  const db = new FakeDatabase();
+  const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
+  const u = 'corr-5';
+  const started = await invoke(early, u, { action: 'start', mindText: MIND, token: token('c5-s') });
+  const conversationId = started.body.conversationId;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('c5-a1') });
+  await invoke(early, u, { action: 'answer', conversationId, answer: '어떻게 해야 좋을까요?', token: token('c5-n1') });
+  const before = ai.calls.systemPrompts.length;
+  await invoke(early, u, { action: 'ask', conversationId, token: token('c5-a2') });
+  const prompt = ai.calls.systemPrompts.slice(before).join('\n');
+  assert.ok(prompt.includes('[사용자가 ECHO에게 물었다'), '되물음 모드로 들어가지 않았다(검사 전제 불성립)');
+  assert.ok(prompt.includes('반드시 채운다'), '되물은 턴인데 답을 반드시 채우라고 말하지 않는다');
+  assert.ok(!prompt.includes('아니면 빈 문자열'), '되물은 턴인데 서식이 여전히 빈 문자열을 허락한다');
+});
