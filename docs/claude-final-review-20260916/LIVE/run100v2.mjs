@@ -81,7 +81,7 @@ const PLAIN = ['일이 너무 많아서 잠을 못 자요', '돈이 제일 크�
 const RUNS = Number(process.env.RUNS || 100);
 const SPREAD = process.env.SPREAD === '1';
 const OUT = process.env.OUT_FILE || 'r2-results.jsonl', PROG = process.env.PROG_FILE || 'r2-progress.log';
-writeFileSync(OUT, ''); writeFileSync(PROG, '');
+if (!Number(process.env.START || 0)) { writeFileSync(OUT, ''); writeFileSync(PROG, ''); }
 const note = (l) => { appendFileSync(PROG, l + '\n'); console.log(l); };
 
 let { token } = await login();
@@ -125,7 +125,10 @@ async function askWithRetry(call, fn, body) {
 const WINDOW = 10 * 60_000 + 20_000, BATCH = 9;
 let winStart = Date.now(), inWin = 0;
 
-for (let i = 0; i < RUNS; i++) {
+// 2026-09-19: 워커 재시작으로 100회가 27회에서 죽었다. 같은 동결 코드로 이어 돌리기 위해
+// 이미 끝난 회차를 건너뛰는 START 를 둔다. 유형 배정은 i 기준이라 A~J 각 10회가 그대로 유지된다.
+const START = Number(process.env.START || 0);
+for (let i = START; i < RUNS; i++) {
   if (inWin >= BATCH) {
     const wait = Math.max(0, winStart + WINDOW - Date.now());
     if (wait > 0) { note(`제한 대기 ${Math.round(wait / 1000)}초 (${i}/${RUNS})`); await sleep(wait); }
