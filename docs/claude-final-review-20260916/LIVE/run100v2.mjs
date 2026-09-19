@@ -109,9 +109,14 @@ async function reloginOnAuthFail(res) {
   await sleep(1500);
   try { return (await login()).token; } catch { return null; }
 }
+// 2026-09-19 최종 100회: 실제 화면(StepQuestionScreen.tsx)은 AI 실패에 자동 재시도하지 않는다.
+// in_progress(동시성 충돌)에만 다시 요청하고, 그 밖의 실패는 오류 화면 + '다시 시도하기' 버튼이다.
+// 따라서 본검사에서는 자동 재시도를 끈다(AI_RETRY=0). UI 와 같은 조건으로만 측정한다.
+const AI_RETRY = process.env.AI_RETRY === '1';
 async function askWithRetry(call, fn, body) {
   const first = await call(fn, body);
   if (first.json?.ok !== false || !RETRYABLE.has(first.json.code)) return first;
+  if (!AI_RETRY) { counters.AI재시도차단 = (counters.AI재시도차단 ?? 0) + 1; return first; }
   counters.AI재시도 = (counters.AI재시도 ?? 0) + 1;
   await sleep(700);
   return call(fn, { ...body, token: body.token + '-r' });
