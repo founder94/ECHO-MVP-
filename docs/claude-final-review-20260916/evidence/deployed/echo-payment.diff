@@ -1,0 +1,7 @@
+--- PROJECT_SOURCE/supabase/functions/echo-payment/index.ts	2026-09-16 05:36:29.000000000 +0000
++++ DEPLOYED/echo-payment/index.ts	2026-09-16 12:38:05.236648215 +0000
+@@ -284,4 +284,3 @@
+     return fail("ERROR", "서버 오류가 발생했어요.", 500);
+   }
+ });
+-

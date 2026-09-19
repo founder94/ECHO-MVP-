@@ -1,0 +1,352 @@
+{
+  "release": "ECHO_CLAUDE_FINAL_REVIEW_IMPLEMENTATION_20260916",
+  "revision": 6,
+  "baseline": "ECHO_CLAUDE_COMPLETE_HANDOFF_20260916.zip / PROJECT_SOURCE (FULL_SOURCE_SHA256 310/310)",
+  "groups": {
+    "server": [
+      {
+        "path": "supabase/functions/get-step-question/index.ts",
+        "status": "modified",
+        "after_sha256": "b1b2c777582de9bb006784a465bc2768164c6d96a303c5308fa5763192d48d0c",
+        "after_bytes": 76353,
+        "before_sha256": "bdd8dfb3b3f1abb2513c945fcf7e5c35855278994c517da6476991f8a6595df9"
+      },
+      {
+        "path": "supabase/functions/echo-journey/index.ts",
+        "status": "modified",
+        "after_sha256": "1fa37f17c0cb3a598d0f392642f7d4993d172b27d37e47e7df3b5f45fe03c294",
+        "after_bytes": 60267,
+        "before_sha256": "b3b4db7cce6098d983bd8a812bd3d89c92a02aaea535f42e793fc69efd82f081"
+      },
+      {
+        "path": "supabase/functions/echo-journey/question-quality.ts",
+        "status": "modified",
+        "after_sha256": "8649d934aca3244680946a6b23395bbbc452d8f5b069cc2505dc956d203c9eb8",
+        "after_bytes": 24044,
+        "before_sha256": "3295ae75b8be843b79a31442f08705807449d3e77fcd646d8b24d531b31452ce"
+      }
+    ],
+    "frontend_timeout_recovery": [
+      {
+        "path": "src/lib/echo/api.ts",
+        "status": "modified",
+        "before_sha256": "24fe3b4d4b09d7c3a5d4f7ee187d3d3efcfca94937b951f9732a0709e9ab37cd",
+        "after_sha256": "5061d6d1c7360854020182d2b985cc16d385209dfb8b5f039ca24bcabf3ca968",
+        "after_bytes": 13327
+      },
+      {
+        "path": "src/lib/echo/startSave.ts",
+        "status": "modified",
+        "before_sha256": "39fdb5c05857e864e4a33edbec86799965e00cf3a696827aecf4bb240f08778e",
+        "after_sha256": "353f4dfccb676fecc28ce2825918a923c4bbe3f67835b1171b8f8908b40482a5",
+        "after_bytes": 4118
+      },
+      {
+        "path": "src/lib/echo/journeySave.ts",
+        "status": "modified",
+        "before_sha256": "839d09f19e5a683fa1656ce63ab912e1a56b249c03eb6f2bef644c894217d565",
+        "after_sha256": "b2d01b47b90d535fa45e03a18cfb32cf70ee503cabc05a7dfb495571ac53581a",
+        "after_bytes": 3312
+      }
+    ],
+    "frontend_payment_routing": [
+      {
+        "path": "src/pages/do-it/payment/page.tsx",
+        "status": "modified",
+        "before_sha256": "9b63c983d36247923a4b5e0967d33e5704624b576fedb531c49c7d081ff6684e",
+        "after_sha256": "2630af6e2b1fd8d9bb75585b7d6d20d153c7d9fbad79d6d3fe88da74a069650a",
+        "after_bytes": 6629
+      },
+      {
+        "path": "src/pages/do-it/payment/success/page.tsx",
+        "status": "modified",
+        "before_sha256": "0af9261c93b1e081fdae2880d772013241c59466cb8eae7264143f1a9af418bb",
+        "after_sha256": "1e9caa2b5f7f94c65c935a8d6c58b1cf2542b3b7207d6f18edcb2d8a9049e1b4",
+        "after_bytes": 4734
+      }
+    ],
+    "frontend_mobile_dvh_fallback": [
+      {
+        "path": "src/pages/do-it/components/SceneShell.tsx",
+        "status": "modified",
+        "before_sha256": "acd186303362b96717326109b2c531daf201b45570c438426d1a1863d5f14726",
+        "after_sha256": "1c9affd54d97b12e9a888293a9bf37214a399eac2cccea2266f22bbbbdc43815",
+        "after_bytes": 3465
+      },
+      {
+        "path": "src/pages/do-it/components/StepQuestionScreen.tsx",
+        "status": "modified",
+        "before_sha256": "840103b1541290344ab78b8a560e13b7d0284135af296651d2dff290ee45ff6f",
+        "after_sha256": "932b469b340985250b8ec8004a997fc3cc633d346547fc5b1b72f173dbd01761",
+        "after_bytes": 13401
+      },
+      {
+        "path": "src/pages/do-it/start/page.tsx",
+        "status": "modified",
+        "before_sha256": "71eeee2ff2607bb0e2dc4a321214d94b0bafd7e9dce5321c0225be6e39dedb25",
+        "after_sha256": "6bcc45eb7c87201d6e6f2127bb0dc10408ac30158a98fdb62e66e013cdd422ed",
+        "after_bytes": 9857
+      },
+      {
+        "path": "src/pages/do-it/understanding-check/page.tsx",
+        "status": "modified",
+        "before_sha256": "e3c73b647cdddd42a09a8a1b55a73cbb297c9736e665aa836a7168f96fe0c36a",
+        "after_sha256": "8c6a589ea4361da8b9a2ed5e315a8f29afb6571aa77b203b8e203c84a21d7c19",
+        "after_bytes": 20514
+      },
+      {
+        "path": "src/pages/do-it/weather-check/page.tsx",
+        "status": "modified",
+        "before_sha256": "c4d97926f86aeb3a7989d19a54a96279c76c9d038f87d02b869caa0cb9ca2b6c",
+        "after_sha256": "d39ed59304c3c03885ae63d8dd7a716c3202c384023b0f20457945982a3aba7c",
+        "after_bytes": 10986
+      },
+      {
+        "path": "src/pages/do-it/weather/page.tsx",
+        "status": "modified",
+        "before_sha256": "d738e705fb030ea8ee3c6584e2968cfc571db5ad8bda7b5404666cdba7b14103",
+        "after_sha256": "2efcf17dfeb91e28302032695420e3873f32ab26552b8dfa98767eb3a3e8080a",
+        "after_bytes": 14197
+      },
+      {
+        "path": "src/pages/do-it/white-door/page.tsx",
+        "status": "modified",
+        "before_sha256": "af035f0c1a68955a8decdc2d4368855699c5670a8af7ca8cd3c75a15ab1199fe",
+        "after_sha256": "a11a92c0b2a9042ac1e6e62bc3f071ad00cc301bc26b58c4ac387f4df5744da3",
+        "after_bytes": 7464
+      },
+      {
+        "path": "src/pages/do-it/weather/components/WeatherEffect.tsx",
+        "status": "modified",
+        "before_sha256": "df30862af38ecab06bd71eedb1ab3cccf6308d14e38ee925641c30bee67b9d4a",
+        "after_sha256": "83188df205e8aff10ade1c4abaaba56105ac50901f429e3b0904adc5f5a04964",
+        "after_bytes": 4642
+      },
+      {
+        "path": "src/router/index.ts",
+        "status": "modified",
+        "before_sha256": "d876930e393c1910b76bd4e9ff54c71e5b50f4ac69d9de271a8b1574befa3ad9",
+        "after_sha256": "c6fb785bd10f13e555c7628a0cb2a984cdceca4b999c8dcdec44dd5cbe91d928",
+        "after_bytes": 1242
+      }
+    ],
+    "doit_profile_and_tarot": [
+      {
+        "path": "src/pages/do-it/fortune/components/ConversationFlow.tsx",
+        "status": "modified",
+        "before_sha256": "010a27eaa2dea9a38f3122abe0252d3c6e53de143045e858c505642fb95162ed",
+        "after_sha256": "0d9e1ce43359472582b4493e292b97776b6ebb90b0dd22da8d3c7da9d406311a",
+        "after_bytes": 11192
+      },
+      {
+        "path": "src/doit/hooks/useOpenAIConversation.ts",
+        "status": "modified",
+        "before_sha256": "e95560ba2d04b2e5303add0310b992ee63aa06d4b25f4872c2e5dd0cb24b4ae4",
+        "after_sha256": "36a3ddaff10667da3be37b40991ce2056e8687c16acca0c7a4d8df1d0405b903",
+        "after_bytes": 4222
+      },
+      {
+        "path": "src/doit/pages/do-it/profile/page.tsx",
+        "status": "modified",
+        "before_sha256": "e8413b54ba8e52af944aecb276b213ac3027c50496e85356c99e9f3f22d0f703",
+        "after_sha256": "2bc5db479e201c9e7ee68424a86d4a0fd119e8268498cfafbe6c312aa8876483",
+        "after_bytes": 7731
+      }
+    ],
+    "dependency_stripe_removal": [
+      {
+        "path": "package.json",
+        "status": "modified",
+        "before_sha256": "bd7ef6f641c98623de8dcdd892b40ba1c405484ffab1f50cb17cf51e5bb2985b",
+        "after_sha256": "a52d6812f3c55fcb0b573964ecb03d3003c438e11b53b6675adce6f6a4c844cc",
+        "after_bytes": 1257
+      },
+      {
+        "path": "package-lock.json",
+        "status": "modified",
+        "before_sha256": "088f4643db286a9ee54d4fb399ab9138d01e83f4996fedf14473a622ae551e6e",
+        "after_sha256": "b99bfd0eb5c3ebfed767338386510bd0866d5197a9bcf4223b8a0eaf94b910cc",
+        "after_bytes": 228142
+      }
+    ],
+    "qa": [
+      {
+        "path": "qa/companion-rules.test.mjs",
+        "status": "added",
+        "after_sha256": "9770192597909a515846736c75dbdade83d9fc7933eb70cd1ae0c400b8ed7ee6",
+        "after_bytes": 18046
+      },
+      {
+        "path": "qa/full-flow-edge-simulation.test.mjs",
+        "status": "modified",
+        "after_sha256": "fc4792b013a6547f236962d325ada020abf234944e37ba9ef3904094f44c81ab",
+        "after_bytes": 61802,
+        "before_sha256": "6743691053639ec480d7fe649c3784599054dcbe41ef7b5c40f019d53d4520f0"
+      },
+      {
+        "path": "qa/step7-contract.test.mjs",
+        "status": "modified",
+        "after_sha256": "adc4cf4b35fd9a1a87789b72326ad7cbaab86200011e4b02f0f5371ac31cdd17",
+        "after_bytes": 6469,
+        "before_sha256": "814dbe64919fd4362ba174477d0939690f842cd776b6b704188886dd233cc0d9"
+      },
+      {
+        "path": "qa/save-first-dialog.test.mjs",
+        "status": "modified",
+        "after_sha256": "fa4ed69aa23368aac4c9336289826a4f33d5df9988e761b73e56752aa653eb3d",
+        "after_bytes": 4373,
+        "before_sha256": "0fcae6a59a4c4300caac46245c768cccda2c753fdec9f06af682b0fc83e63333"
+      },
+      {
+        "path": "qa/question-salvage.test.mjs",
+        "status": "added",
+        "after_sha256": "4169934aefa55d47c00b1f9c172abd0a947da5ac09bc5c1e24d9692136b629a8",
+        "after_bytes": 8868
+      },
+      {
+        "path": "qa/save-controllers.test.ts",
+        "status": "modified",
+        "after_sha256": "18ac0c3a6a13f495bf0ec1a898e1e19e13cc911adac5845c649caffcb1f2e077",
+        "after_bytes": 4594,
+        "before_sha256": "ac12e0207ee23b6b376002c69ce82d9de6c1508747efde9e33a802479bd2ef20"
+      }
+    ],
+    "packaging_restore": [
+      {
+        "path": "eslint-rules/route-element-jsx.js",
+        "status": "new",
+        "before_sha256": null,
+        "after_sha256": "3544424a7e78f12ffa8a1eb5c46377e172cdad52d3aa7bd231e1b3fab0148420",
+        "after_bytes": 2978
+      }
+    ],
+    "responsive_galaxy_fix_and_ios_input": [
+      {
+        "path": "src/index.css",
+        "status": "modified",
+        "before_sha256": "050ce6b76f0c55be87aa76dc20634a3a837d08c0346fdf4fe315b12bf30682a9",
+        "after_sha256": "385cb7e22b7629deab781947796b71530bdbdbfb3f9c08eadd8f83abf413a5a6",
+        "after_bytes": 17931
+      },
+      {
+        "path": "src/pages/home/page.tsx",
+        "status": "modified",
+        "before_sha256": "0b40857e9ffabc10586c36cfa7102d2962657ad380d1125b9da4c25281b36ebe",
+        "after_sha256": "3ea10c61aa1f2952a9563f740dbe1dd982132d5ae37223a1cf1f5ccbf264f1e7",
+        "after_bytes": 5603
+      },
+      {
+        "path": "src/pages/home/scrollToSection.ts",
+        "status": "new",
+        "before_sha256": null,
+        "after_sha256": "2b7a30ab3a3ad3612f6943bf5b27a23e13e59c4d22a806c8f386fd229778200f",
+        "after_bytes": 874
+      },
+      {
+        "path": "src/pages/home/components/PastelBlobs.tsx",
+        "status": "modified",
+        "before_sha256": "38056aa93e44d017a800efbaf140fb8ab7039ec60abc286b5ff93f15aedff1bf",
+        "after_sha256": "39c68e5ff5b5de7955f36929bdf8fdd76cfe7c6f31dfd6432f628b4e0ff59a94",
+        "after_bytes": 2077
+      },
+      {
+        "path": "src/pages/home/components/FloatingEffects.tsx",
+        "status": "modified",
+        "before_sha256": "f9366b69b4daa1c0d8ecdbd2971b50c8a66c10705118c6c3b44e38e76e7582a9",
+        "after_sha256": "9409bd9eeec8b89da54f08066c76ca9237c0977727d41b579cc5f61f9be8d44e",
+        "after_bytes": 17725
+      },
+      {
+        "path": "src/pages/home/components/Navbar.tsx",
+        "status": "modified",
+        "before_sha256": "5d7eaa6003d90d02f591e92e1e482b0c5a71f2d28a6f767fb3e0eed71b4af018",
+        "after_sha256": "9a2892a6713b002a6ff61a676e6685f5e611768c9febb86a12a905fe5c18db90",
+        "after_bytes": 11384
+      },
+      {
+        "path": "src/pages/home/components/Footer.tsx",
+        "status": "modified",
+        "before_sha256": "91039f79497b1f23a3bf4be0ad02021072e319132c8754179f8fdb841a42aaee",
+        "after_sha256": "03bd2a47fc626686438849d0ea277bee3dbbd7259ca9baa489aa29ff19aa9edc",
+        "after_bytes": 4805
+      },
+      {
+        "path": "src/components/ScrollToTop.tsx",
+        "status": "modified",
+        "before_sha256": "dd4b1688edfb3469d6da63b37e5636bc680d06c553c890c179afaeb01b1d138b",
+        "after_sha256": "da4a85f96398f0bc43b2c809d8368b743612188d64fea513a92e001ee0b4823a",
+        "after_bytes": 1103
+      },
+      {
+        "path": "src/components/MusicPlayer.tsx",
+        "status": "modified",
+        "before_sha256": "e8a723880e5ed2e25dde77864f2a1cd1b0bde2f2ed5819cd93d9079efe4b5e5d",
+        "after_sha256": "d15399e40fc7e514787fc4f95ac0b7b9408ab8c40b8de459eef9717623672d0f",
+        "after_bytes": 4933
+      }
+    ],
+    "frontend_report_continue": [
+      {
+        "path": "src/pages/do-it/report/page.tsx",
+        "status": "modified",
+        "after_sha256": "408cc0ac2c11b61b68df9db45bcb4aeb9e76942bcc773924c5587e496e9f9a6e",
+        "after_bytes": 9560,
+        "before_sha256": "ed556e2d1fb05f149f0bb7677566984692b03f3a8de3424e9dd00982c47b65da"
+      },
+      {
+        "path": "src/pages/do-it/report/components/ContinueConversation.tsx",
+        "status": "added",
+        "after_sha256": "517833a9a5b5ca00ada86cacc587d9be52ff7e56f135463714d2a836a4ee5b62",
+        "after_bytes": 5753
+      }
+    ]
+  },
+  "revision_note": "6차(2026-09-17, 대표 승인 실행): 서버 4차 규칙을 운영 배포(echo-journey v14 · get-step-question v25, 배포본 바이트 대조 완료) + 리포트 이후 대화 화면 구현. 프론트 변경 2파일(리포트 화면 + 새 컴포넌트).",
+  "deployed": {
+    "note": "2026-09-17 대표 승인으로 배포 완료. 운영에서 다시 내려받아 로컬과 바이트 대조함(회수본 evidence/deployed_after_v25/). 직전 운영본 v12/v21 은 evidence/deployed_after_v12/ 에 보관 — 되돌림 기준본.",
+    "echo-journey": {
+      "version": 14,
+      "previous_version": 12,
+      "ezbr_sha256": "21ce08f0c1adb38d0f2471358a062b954a2c05135f4ff06deece636b14f41197",
+      "updated_at_kst": "2026-09-17 07:30:12",
+      "verify_jwt": true,
+      "index_ts_sha256": "1fa37f17c0cb3a598d0f392642f7d4993d172b27d37e47e7df3b5f45fe03c294",
+      "index_ts_bytes": 60267,
+      "question_quality_ts_local_sha256": "8649d934aca3244680946a6b23395bbbc452d8f5b069cc2505dc956d203c9eb8",
+      "question_quality_ts_note": "배포본 24043B / 로컬 24044B — 끝 줄바꿈 1바이트만 차이, 앞 24043B 해시 동일(dbdaf71e63820aee61347cb6922b302e9b0cdf3a8c60160dc0b19d1d9ff6bcaf)",
+      "intermediate_versions": "배포 호출 1회가 v13 을 반환했고 목록 조회에서 v14 로 확정됨. 두 판 내용 동일."
+    },
+    "get-step-question": {
+      "version": 25,
+      "previous_version": 21,
+      "ezbr_sha256": "17df317b4690a1c4f152fb81b13879926773c68e2f200ce18bb8d7549c7ed73f",
+      "updated_at_kst": "2026-09-17 07:48:11",
+      "verify_jwt": true,
+      "index_ts_sha256": "b1b2c777582de9bb006784a465bc2768164c6d96a303c5308fa5763192d48d0c",
+      "index_ts_bytes": 76353,
+      "intermediate_versions": "v22 는 전송 중 주석 글자 2개(3바이트)가 깨진 판이었고 발견 즉시 재배포했다. 실행 코드 바이트는 영향 없음. v24 는 같은 내용의 중복 배포, v23 은 호출 없이 번호만 건너뛴 자리. 최종 v25 는 로컬과 cmp 클린."
+    },
+    "unchanged": [
+      "echo-payment v2",
+      "openai-chat v2",
+      "doit-understanding v4",
+      "admin-conversations v2",
+      "admin-dashboard v1"
+    ],
+    "not_changed": [
+      "DB 스키마",
+      "RLS",
+      "마이그레이션",
+      "시크릿·운영키",
+      "Toss 결제 설정",
+      "가격 4,900원 단건",
+      "PAYMENT_GATE"
+    ]
+  },
+  "netlify_zip": {
+    "file": "ECHO_CLAUDE_NETLIFY_DRAG_20260917.zip",
+    "sha256": "308e8e5392f47bc475dd196557bfdab6ffde285e7ca91993b29c303ea4c9c4d8",
+    "files": 102,
+    "index_js": "assets/index-PTm_2znC.js"
+  }
+}

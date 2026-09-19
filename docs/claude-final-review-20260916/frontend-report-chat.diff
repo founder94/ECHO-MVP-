@@ -1,0 +1,47 @@
+--- a/src/pages/do-it/report/page.tsx
++++ b/src/pages/do-it/report/page.tsx
+@@ -16,6 +16,7 @@
+   type ReportRow,
+ } from '@/lib/echo/api';
+ import { saveDoitHandoff } from '@/doit/lib/understandingApi';
++import ContinueConversation from '@/pages/do-it/report/components/ContinueConversation';
+ 
+ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+ const REPORT_STATUSES = ['report_ready', 'report_done'] as const;
+@@ -51,6 +52,9 @@
+   const [loadingText, setLoadingText] = useState('확인하고 있어요...');
+   const [errorMessage, setErrorMessage] = useState('');
+   const [report, setReport] = useState<ReportRow | null>(null);
++  // 리포트 이후 대화: 서버가 알려준 열린 턴(질문이거나 내 물음에 답만 한 턴)을 그대로 받는다.
++  const [continueTurn, setContinueTurn] = useState('');
++  const [continueNeedsTurn, setContinueNeedsTurn] = useState(true);
+   const [handoffBusy, setHandoffBusy] = useState(false);
+   const [handoffError, setHandoffError] = useState('');
+   const tokenRef = useRef('');
+@@ -99,6 +103,8 @@
+       navigate(`/payment?c=${encodeURIComponent(conversationId)}`, { replace: true });
+       return;
+     }
++    setContinueTurn((state.question ?? '').trim());
++    setContinueNeedsTurn(state.needsQuestion !== false);
+     if (state.report) {
+       if (!isValidReportContent(state.report.content)) {
+         setPhase('error');
+@@ -189,6 +195,15 @@
+             <p className="text-[14px] leading-relaxed text-white whitespace-pre-wrap">{content.next_step}</p>
+           </div>
+ 
++          <div style={reveal(760)} className="mb-8">
++            <ContinueConversation
++              conversationId={conversationId}
++              initialTurn={continueTurn}
++              initialNeedsTurn={continueNeedsTurn}
++              onUnavailable={showFailure}
++            />
++          </div>
++
+           <div style={reveal(800)} className="flex flex-col gap-3">
+             <button type="button" onClick={() => navigate('/next-journey')} className={PRIMARY_BUTTON}>
+               다음 여정으로
+--- /dev/null
++++ b/src/pages/do-it/report/components/ContinueConversation.tsx (새 파일: PATCH/ 참조)
