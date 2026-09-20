@@ -188,7 +188,11 @@ test('⑦ 시도 예산: 남은 시간이 없으면 다음 시도를 시작하�
   };
   try {
     const ctx = { mindText: '회사에서 눈치 보는 게 힘들어', messages: [], understandings: [] };
-    await assert.rejects(() => genStepQuestion(AI, ctx, 'step3'), /NO_CANDIDATE/);
+    // 2026-09-20 계약 변경: 예산이 끝나면 더 이상 호출하지 않는 것은 그대로다. 다만 결과는 막다른 길(NO_CANDIDATE)이
+    // 아니라 사용자 원문을 인용한 이어가기다(실AI 100회 STEP 3·6 전멸 4건의 최소 수정). 예산 규칙은 아래 calls===1 이 지킨다.
+    const text = await genStepQuestion(AI, ctx, 'step3');
+    assert.ok(String(text).trim(), '예산이 끝났다고 빈 화면을 내면 안 된다');
+    assert.ok(/\?\s*$/.test(String(text).trim()), '이어가기는 물음표 하나로 끝나야 한다');
   } finally {
     Date.now = realNow;
   }

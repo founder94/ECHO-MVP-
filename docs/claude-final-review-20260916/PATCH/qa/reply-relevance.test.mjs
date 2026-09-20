@@ -400,7 +400,7 @@ test('⑫ P0-04: 정정을 못 다루면 마지막 시도에서 근거를 정정
       if (request.response_format) {
         userContents.push(userMsg);
         // 근거를 정정 문장으로 좁혀 주면 그제야 정정을 다룬 후보를 낸다(실모델의 행동을 흉내).
-        const focused = userMsg.includes('이 문장 하나만 보고');
+        const focused = userMsg.includes('위 1번은 사용자가 방금 바로잡은 말이다');
         content = JSON.stringify({ candidates: [focused
           ? { acknowledgement: '사람이 더 힘들다고 하셨네요.', question: '사람과 지내며 어떤 점이 무겁게 다가오나요?', anchor: '사람이 더 힘들', assumptions: [], meaning: '사람 관계', keys: ['사람관계'], reply: '' }
           : { acknowledgement: '일이 너무 많다고 하셨네요.', question: '일이 많아지면서 어떤 부분이 부담되나요?', anchor: '일이 너무 많아', assumptions: [], meaning: '일 부담', keys: ['일부담'], reply: '' }] });
@@ -428,7 +428,7 @@ test('⑫ P0-04: 정정을 못 다루면 마지막 시도에서 근거를 정정
   assert.equal(follow.body.ok, true, `막다른 길: ${follow.body.code ?? ''}`);
   const rounds = userContents.slice(before);
   assert.ok(rounds.length >= 2, `시도가 한 번뿐이라 마지막 시도를 확인할 수 없다(${rounds.length})`);
-  assert.ok(rounds[rounds.length - 1].includes('이 문장 하나만 보고'), '마지막 시도에서 근거를 정정 문장으로 좁히지 않았다');
+  assert.ok(rounds[rounds.length - 1].includes('위 1번은 사용자가 방금 바로잡은 말이다'), '마지막 시도에서 근거를 정정 문장으로 좁히지 않았다');
   assert.ok(String(follow.body.question ?? '').includes('사람'), `정정이 다음 질문에 반영되지 않았다: ${follow.body.question}`);
 });
 

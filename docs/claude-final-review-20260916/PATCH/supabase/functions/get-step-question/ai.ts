@@ -188,6 +188,29 @@ export function groundedBasisReply(ctx: Context): string {
   const shown = quote.length > BASIS_QUOTE_MAX ? `${quote.slice(0, BASIS_QUOTE_MAX)}…` : quote;
   return politeOrSame(`제가 본 건 "${shown}" 라고 하신 말씀이에요. 제가 잘못 짚었다면 바로잡아 주세요.`);
 }
+// 후보가 전부 막혔을 때의 마지막 이어가기. 질문을 지어내지 않는다 — 사용자가 실제로 한 말을 그대로 인용하고,
+// 그 말에 대해 열린 물음 하나만 붙인다. 새 사실 0. 읽을 때 규칙(물음표 1개·의문사·길이·해요체)을 통과하는 모양으로 만든다.
+// 2026-09-20 실AI 100회: ej STEP 3·6 unsupported_anchor 전멸 4건, gsq 내용 없는 거절 뒤 전멸 1건이 NO_CANDIDATE 로 끝났다.
+export const CONTINUATION_QUOTE_MAX = 40;
+export function groundedContinuation(ctx: Context, preferred = ""): string {
+  const candidates = preferred
+    ? [preferred]
+    : [...ctx.messages].reverse()
+      .filter((m) => m.role === "user" && m.message_kind !== "understanding_choice" && !isMetaFeedback(m.content) && !isLowInformationReply(m.content))
+      .map((m) => m.content).concat(ctx.mindText);
+  for (const raw of candidates) {
+    // 머리말("제가 직접 설명할게요.")을 먼저 떼고 나서 첫 문장을 고른다(순서가 바뀌면 빈 문자열이 된다).
+    const body = String(raw ?? "").replace(/^(?:제가\s*직접\s*설명할게요|조금\s*달라요|그게\s*아니에요)[.,]?\s*/u, "").trim();
+    const quote = body.split(/(?<=[.?!…])\s+/)[0].replace(TRAILING_MARKS, "").trim();
+    if (quote.length < 2 || containsForbiddenTerm(quote)) continue;
+    const shown = quote.length > CONTINUATION_QUOTE_MAX ? `${quote.slice(0, CONTINUATION_QUOTE_MAX)}…` : quote;
+    return politeOrSame(`"${shown}" 라고 하셨죠. 그중 어떤 부분이 지금 마음에 남아 있나요?`);
+  }
+  return "";
+}
+export function continuationCandidate(question: string): Candidate {
+  return { acknowledgement: "", question, anchor: "", assumptions: [], meaning: "", keys: [], reply: "" };
+}
 export function historyText(ctx: Context): string {
   return userEvidenceParts(ctx).map((part, index) => `${index + 1}. ${part}`).join("\n");
 }
@@ -242,7 +265,9 @@ export function priorNote(ctx?: Context): string {
   if (!memory) return "";
   const blocks: string[] = [];
   if (memory.confirmed.length) {
-    blocks.push(`[내가 확인한 기억 — 사용자가 직접 확인하거나 바로잡은 내용이다. 새 사실을 만들지 말고, 같은 주제가 나오면 이어서 반영]\n${memory.confirmed.map((item, index) => `${index + 1}. ${item}`).join("\n")}`);
+    // 2026-09-20 실AI 100회: STEP 3 직후 후보 전멸의 주된 사유가 quality:unsupported_anchor 였다.
+    // 이 기억은 AI 가 쓴 요약이라 앵커 규칙([사용자 근거]만)과 충돌한다. 모델에게 그 점을 분명히 말한다.
+    blocks.push(`[내가 확인한 기억 — 사용자가 직접 확인하거나 바로잡은 내용이다. 새 사실을 만들지 말고, 같은 주제가 나오면 이어서 반영. 앵커(anchor)는 이 기억에서 가져오지 않는다 — [사용자 근거]에서만 가져온다]\n${memory.confirmed.map((item, index) => `${index + 1}. ${item}`).join("\n")}`);
   }
   if (memory.summary) {
     blocks.push(`[지난 여정 리포트 요약 — 참고용이며 확인된 사실이 아니다. 단정하지 말 것]\n${memory.summary}`);
@@ -500,8 +525,10 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     // 사실상 실행되지 않았다(correction_unreflected 7건). 같은 실수를 세 번째로 반복했다.
     // 다른 완화 규칙과 같이 2번째 시도부터 좁힌다(빠져나갈 문을 예산 안에 둔다).
     const focusOnCorrection = Boolean(block.pendingCorrection) && attempt > 0;
+    // 2026-09-20 #58: 머리글을 바꿔 보내자 모델이 후보 모양(질문)을 잃었다(not_question:3). [사용자 근거] 머리는 그대로 두고
+    // 정정을 1번으로 올린 뒤 그 문장에 대해서만 묻게 한다.
     const userContent = focusOnCorrection
-      ? `[사용자가 방금 바로잡은 말 — 이 문장 하나만 보고, 이 내용에 대해 물어라]\n${block.pendingCorrection}`
+      ? `[사용자 근거]\n1. ${block.pendingCorrection}\n\n[위 1번은 사용자가 방금 바로잡은 말이다. 이번 후보는 모두 이 문장에 대해서만 묻고, 다른 근거로 돌아가지 않는다]`
       : user;
     const raw = await callOpenAI(ai, [{ role: "system", content: system }, { role: "user", content: userContent + extra }], true, maxTokens, callTimeoutMs(elapsed));
     const parsed = parseCandidates(raw);
@@ -549,9 +576,13 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     for (const b of result.blocked) {
       // 2026-09-18: reply_quality 로만 뭉쳐 찍혀 어느 규칙이 막았는지 알 수 없었다.
       // 원문은 남기지 않고 '어떤 규칙에 걸렸는지' 이름만 덧붙인다.
+      // 2026-09-20: not_question 은 '모양(물음표)'과 '닫힌 질문(의문사 없음)' 두 조건이 한 이름이다. 이름만 나눈다.
+      const q = b.candidate.question;
       const detail = b.reason === "reply_quality" && mode === "asked"
         ? `reply_quality:${hasBanmal((b.candidate.reply ?? "").trim()) ? "banmal" : (replyQualityReason(b.candidate.reply ?? "", questionToAnswer) ?? "unknown")}`
-        : b.reason;
+        : b.reason === "not_question"
+          ? `not_question:${!q.endsWith("?") || (q.match(/\?/g)?.length ?? 0) !== 1 ? "shape" : "closed"}`
+          : b.reason;
       reasons[detail] = (reasons[detail] ?? 0) + 1;
     }
     console.error(`[gsq] candidates_blocked mode=${mode} parsed=${candidates.length} attempt=${attempts} relaxed=${relaxed} reasons=${Object.entries(reasons).map(([k, v]) => `${k}:${v}`).join(",")}`);
@@ -567,9 +598,19 @@ export async function genFollowupQuestion(ai: Ai, ctx: Context): Promise<Candida
     return replyAlone;
   }
   if (correctionOnly) {
-    // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
-    console.error(`[gsq] correction_unreflected mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    // 2026-09-20 #58: 정정을 무시한 후보를 그대로 내보내면 화면이 과거 문제("돈")를 다시 세운다.
+    // 정정을 다룬 후보를 못 만들었으면, 정정 문장 자체를 인용해 이어간다(최신 정정 > 과거 근거).
+    const fromCorrection = groundedContinuation(ctx, block.pendingCorrection);
+    console.error(`[gsq] correction_unreflected mode=${mode} attempts=${attempts} grounded_fallback=${fromCorrection ? 1 : 0} ai_ms=${Date.now() - startedAt}`);
+    if (fromCorrection) return continuationCandidate(fromCorrection);
     return correctionOnly;
+  }
+  if (mode !== "asked") {
+    const continuation = groundedContinuation(ctx);
+    if (continuation) {
+      console.error(`[gsq] grounded_fallback mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+      return continuationCandidate(continuation);
+    }
   }
   console.error(`[gsq] no_candidate mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

@@ -316,6 +316,8 @@ function blockReason(c: Candidate, b: Block, evidenceParts: string[], options: B
   // 대신 여기까지 온 후보는 다른 모든 규칙을 통과했으므로, 끝까지 못 찾으면 이 후보를 구제한다
   // (genStepQuestion 의 correctionOnly). 그래서 이 검사는 반드시 맨 마지막에 있어야 한다.
   if (b.pendingCorrection && !reflectsCorrection(c.question, b.pendingCorrection)) return "correction_ignored";
+  // get-step-question 과 같은 규칙: 정정이 대기 중이면 앵커도 정정 문장에서만(최신 정정 > 과거 근거).
+  if (b.pendingCorrection && !normalizeKey(b.pendingCorrection).includes(normalizeKey(c.anchor))) return "correction_ignored";
   return null;
 }
 // ④ 거절한 해석이 답변 본문으로 되살아나는지: 문장 유사도로 본다.
@@ -456,6 +458,28 @@ function pendingCorrectionText(ctx: Ctx): string {
   }
   return text;
 }
+// get-step-question 의 groundedContinuation 과 같은 규칙. 후보 전멸 시 사용자 원문을 인용해 열린 물음 하나로 잇는다.
+const CONTINUATION_QUOTE_MAX = 40;
+const CONTINUATION_TRAIL = /[\s"'”’」』)\]]*[.?!…]*[\s"'”’」』)\]]*$/u;
+function groundedContinuation(ctx: Ctx, preferred = ""): string {
+  const candidates = preferred
+    ? [preferred]
+    : [...ctx.messages].reverse()
+      .filter((m) => m.role === "user" && m.message_kind !== "understanding_choice" && !isMetaFeedback(m.content) && !isLowInformationReply(m.content))
+      .map((m) => m.content).concat(ctx.mindText);
+  for (const raw of candidates) {
+    // 머리말("제가 직접 설명할게요.")을 먼저 떼고 나서 첫 문장을 고른다(순서가 바뀌면 빈 문자열이 된다).
+    const body = String(raw ?? "").replace(/^(?:제가\s*직접\s*설명할게요|조금\s*달라요|그게\s*아니에요)[.,]?\s*/u, "").trim();
+    const quote = body.split(/(?<=[.?!…])\s+/)[0].replace(CONTINUATION_TRAIL, "").trim();
+    if (quote.length < 2 || forbidden(quote)) continue;
+    const shown = quote.length > CONTINUATION_QUOTE_MAX ? `${quote.slice(0, CONTINUATION_QUOTE_MAX)}…` : quote;
+    return politeOrSame(`"${shown}" 라고 하셨죠. 그중 어떤 부분이 지금 마음에 남아 있나요?`);
+  }
+  return "";
+}
+function continuationCandidate(question: string): Candidate {
+  return { acknowledgement: "", question, anchor: "", assumptions: [], meaning: "", keys: [], reply: "" };
+}
 function buildBlock(ctx: Ctx): Block {
   const evidenceParts = userEvidenceParts(ctx);
   const b: Block = {
@@ -511,7 +535,8 @@ function memoryNote(ctx: Ctx): string {
   if (!memory) return "";
   const blocks: string[] = [];
   if (memory.confirmed.length) {
-    blocks.push(`[내가 확인한 기억 — 사용자가 직접 확인하거나 바로잡은 내용이다. 새 사실을 만들지 말고, 같은 주제가 나오면 이어서 반영]\n${memory.confirmed.map((item, index) => `${index + 1}. ${item}`).join("\n")}`);
+    // 2026-09-20 실AI 100회: STEP 3 직후 후보 전멸의 주된 사유가 quality:unsupported_anchor 였다(AI 요약에서 앵커를 가져옴).
+    blocks.push(`[내가 확인한 기억 — 사용자가 직접 확인하거나 바로잡은 내용이다. 새 사실을 만들지 말고, 같은 주제가 나오면 이어서 반영. 앵커(anchor)는 이 기억에서 가져오지 않는다 — [사용자 근거]에서만 가져온다]\n${memory.confirmed.map((item, index) => `${index + 1}. ${item}`).join("\n")}`);
   }
   if (memory.summary) {
     blocks.push(`[지난 여정 리포트 요약 — 참고용이며 확인된 사실이 아니다. 단정하지 말 것]\n${memory.summary}`);
@@ -633,9 +658,13 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
         break;
       }
       // 2026-09-18: reply_quality 하위 사유를 이름만 남긴다(원문 없음).
+      // 2026-09-20 실AI 100회: STEP 3·6 NO_CANDIDATE 4건이 전부 'quality:3' 로만 찍혀 어느 규칙인지 알 수 없었다.
+      // 하위 사유 이름만 덧붙인다(원문 없음).
       const detail = reason === "reply_quality" && asked
         ? `reply_quality:${hasBanmal((c.reply ?? "").trim()) ? "banmal" : (replyQualityReason(c.reply ?? "", questionToAnswer, LIMITS.REPLY_MAX) ?? "unknown")}`
-        : reason;
+        : reason === "quality"
+          ? `quality:${questionQualityReason(c, evidenceParts) ?? "unknown"}`
+          : reason;
       reasons[detail] = (reasons[detail] ?? 0) + 1;
       // 답만 실패한 경우를 따로 모은다. 질문 자체가 모든 검사를 통과한 후보만 받는다.
       if (asked && !replyOnly && (reason === "reply_quality" || reason === "reply_rejected")) {
@@ -659,14 +688,25 @@ async function genStepQuestion(ai: Ai, ctx: Ctx, status: StepStatus): Promise<st
     return renderCandidate(replyOnly, mode, feedbackKind, latestAnswer, withQuestion);
   }
   if (correctionOnly) {
-    // 정정을 다룬 후보를 못 만들었다. 대화를 끊는 것보다 낫다. 실패 사실은 로그로 남긴다.
-    console.error(`[ej] correction_unreflected step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+    // get-step-question 과 같은 규칙(#58): 정정을 무시한 후보를 내보내지 않고, 정정 문장을 인용해 잇는다.
+    const fromCorrection = groundedContinuation(ctx, block.pendingCorrection);
+    console.error(`[ej] correction_unreflected step=${stepOf(status)} mode=${mode} attempts=${attempts} grounded_fallback=${fromCorrection ? 1 : 0} ai_ms=${Date.now() - startedAt}`);
+    if (fromCorrection) return renderCandidate(continuationCandidate(fromCorrection), mode, feedbackKind, latestAnswer, withQuestion);
     return renderCandidate(correctionOnly, mode, feedbackKind, latestAnswer, withQuestion);
   }
   if (diversityOnly) {
     // 새 뜻의 질문을 못 만들었다. 여정을 끊는 것보다 비슷한 질문을 한 번 더 내는 편이 낫다.
     console.error(`[ej] diversity_exhausted step=${stepOf(status)} mode=${mode} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
     return renderCandidate(diversityOnly, mode, feedbackKind, latestAnswer, withQuestion);
+  }
+  if (!asked) {
+    // 2026-09-20 실AI 100회: STEP 3·6 에서 quality(unsupported_anchor·not_question) 로 전멸한 4건이 여기서 끝났다.
+    // 질문을 지어내지 않고 사용자 원문을 인용해 잇는다. 안전·근거·거절 규칙은 그대로다.
+    const continuation = groundedContinuation(ctx);
+    if (continuation) {
+      console.error(`[ej] grounded_fallback step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
+      return renderCandidate(continuationCandidate(continuation), mode, feedbackKind, latestAnswer, withQuestion);
+    }
   }
   console.error(`[ej] no_candidate step=${stepOf(status)} mode=${mode} blocked_total=${blockedAll.length} attempts=${attempts} ai_ms=${Date.now() - startedAt}`);
   throw new Error("NO_CANDIDATE");

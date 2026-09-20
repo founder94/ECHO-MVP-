@@ -724,6 +724,9 @@ export function blockReasonFor(c: Candidate, ctx: BlockContext, options: BlockOp
   // 대신 여기까지 온 후보는 다른 모든 규칙을 통과했으므로, 끝까지 못 찾으면 이 후보를 구제한다
   // (genFollowupQuestion 의 correctionOnly). 그래서 이 검사는 반드시 맨 마지막에 있어야 한다.
   if (ctx.pendingCorrection && !reflectsCorrection(c.question, ctx.pendingCorrection)) return "correction_ignored";
+  // 2026-09-20 실AI 100회 #58: 질문은 정정을 스치듯 언급해도 앵커(공감 문장의 중심)가 과거 근거("돈")에서
+  // 오면 화면은 과거 문제를 다시 주된 문제로 세운다. 최신 정정 > 과거 근거 — 정정이 대기 중이면 앵커는 정정 문장에서만.
+  if (ctx.pendingCorrection && !normalizeKey(ctx.pendingCorrection).includes(normalizeKey(c.anchor))) return "correction_ignored";
   return null;
 }
 
