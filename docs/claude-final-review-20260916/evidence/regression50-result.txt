@@ -1,0 +1,54 @@
+
+번호 | 분류    | 초기상태            | 행동                      | 기대                       | 실제                      | 판정
+1    | 진입      | 첫 방문                | / 열기                      | Plan A 랜딩 01 구간            | ECHO | 진짜 나를 찾아줘 01 — 당신의 | 렌더 PASS
+2    | 진입      | 첫 방문                | / 열기                      | "오늘 내 마음의 날씨는 어때?" 0건      | 0건                        | 렌더 PASS
+3    | 진입      | 첫 방문                | / 열기                      | "내 마음을 알면, 내가 보인다" 0건      | 0건                        | 렌더 PASS
+4    | 진입      | 첫 방문                | / 열기                      | 예전 홈 내비(ECHO 경험 기록) 0건     | 0건                        | 렌더 PASS
+5    | 진입      | 첫 방문                | / 열기                      | 날씨 선택 UI 없음                | 없음                        | 렌더 PASS
+6    | 진입      | 소스                  | router 의 / 정의 확인          | MAIN_ENTRY_PATH 로 이동       | Navigate to MAIN_ENTRY_PA | 코드 PASS
+7    | 진입      | 소스                  | MAIN_ENTRY_PATH 값         | /do-it/landing             | /do-it/landing            | 코드 PASS
+8    | 진입      | 빌드 산출물              | 첫 화면 번들 문자열               | 금지 문구 0건                   | entry=index-C_Dm88fl.js   | 코드 PASS
+9    | 진입      | 첫 방문                | /do-it/landing 직접 열기      | 랜딩 렌더                      | ECHO | 진짜 나를 찾아줘 01 — 당신의 | 렌더 PASS
+10   | 진입      | 첫 방문                | 없는 경로 열기                  | NotFound 화면                | ECHO | 진짜 나를 찾아줘 404 This | 렌더 PASS
+11   | 로그인     | 소스                  | defaultReturnPath 확인      | MAIN_ENTRY_PATH 반환         | MAIN_ENTRY_PATH           | 코드 PASS
+12   | 로그인     | 소스                  | app-mode=echo 만으로 /weathe | 복귀하지 않음                    | entryPathForMode 참조 0     | 코드 PASS
+13   | 로그인     | 소스                  | 외부 주소 returnPath 차단       | 내부 경로만 허용                  | 정규식+스킴 차단                 | 코드 PASS
+14   | 로그인     | 소스                  | sanitizeReturnPath 기본값    | defaultReturnPath 대체       | 기본값 대체                    | 코드 PASS
+15   | 로그인     | 소스                  | callback 중복 실행 가드         | handledRef 존재              | handledRef                | 코드 PASS
+16   | 로그인     | 소스                  | 로그인 취소 처리                 | access_denied 안내           | 취소 분기 존재                  | 코드 PASS
+17   | 로그인     | 소스                  | 세션 대기 제한시간                | SESSION_WAIT_MS 존재         | 제한시간 존재                   | 코드 PASS
+18   | 로그인     | 소스                  | redirectTo 가 내부 도메인       | window.location.origin 사용  | origin 기반                 | 코드 PASS
+19   | 로그인     | 소스                  | 관리자 복귀는 일반 로그인과 분리        | admin 전용 redirect          | adminRedirectUrl 분리       | 코드 PASS
+20   | 로그인     | 실제 Google 왕복        | 로그인 후 복귀 확인               | Plan A 복귀                  | 실제 OAuth 왕복을 이 환경에서 실행하지  | 확인 불가
+21   | 체험      | 랜딩                  | 시작하기 누름                   | /do-it/1 로 이동              | /do-it/1                  | 코드 PASS
+22   | 체험      | /do-it/4            | 시작하기 누름                   | /doit/start-journey 로 이동   | /doit/start-journey       | 코드 PASS
+23   | 체험      | /do-it/4            | 여정 다시 고르기 버튼              | 존재하지 않음                    | 0건                        | 렌더 PASS
+24   | 체험      | /do-it/4            | 화면 렌더                     | 시작하기 버튼 노출                 | 노출                        | 렌더 PASS
+25   | 체험      | start-journey       | 로그인 필요 시                  | /login 으로 보내고 복귀 경로 전달     | from=START_JOURNEY_PATH   | 코드 PASS
+26   | 체험      | start-journey       | 목적 선택 후                   | purpose 를 DB 에 저장          | profiles.upsert           | 코드 PASS
+27   | 체험      | start-journey       | 다음 화면                     | /doit/spaces 로 이동          | /doit/spaces              | 코드 PASS
+28   | 체험      | 랜딩 흐름               | 가짜 완료·가짜 로딩 setTimeout    | 진행 위조 없음                   | 가짜 진행 0                   | 코드 PASS
+29   | Purpose | 선택 저장               | savePurpose 호출            | 서버 저장                      | savePurpose 사용            | 코드 PASS
+30   | Purpose | 미선택                 | purposeId 없음 처리           | null 처리 분기 존재              | null 기본값                  | 코드 PASS
+31   | Purpose | 선택지 목록              | DB 단일 진실 원천 사용            | 프론트 하드코딩 없음                | 선택지 목록이 프론트 하드코딩(저장은 DB p | 목표 미달
+32   | Profile | 저장                  | saveProfileText upsert    | profiles 테이블               | 존재                        | 코드 PASS
+33   | Profile | 읽기                  | loadProfile 존재            | 읽기 함수 구현                   | 존재                        | 코드 PASS
+34   | Profile | 기존값                 | upsert 로 보존               | 없으면 생성·있으면 갱신              | upsert 주석 확인              | 코드 PASS
+35   | Profile | 가짜 데이터              | 등급·통계가 가짜인지 사용자에게 알리는가    | 데모임을 명시                    | DemoNotice 표기 + loadProfi | 코드 PASS
+36   | legacy  | / 에서 출발             | 링크만 따라 /weather 도달        | 도달 불가                      | reach.mjs 판정              | 코드 PASS
+37   | legacy  | / 에서 출발             | /understanding-check 도달   | 도달 불가                      | reach.mjs 판정              | 코드 PASS
+38   | legacy  | 설정 화면               | ECHO door 링크              | 노출 0건                      | 주석 제외 0건 (세션 없이 렌더 불가)    | 코드 PASS
+39   | legacy  | 설정 화면               | 여정 다시 고르기                 | 노출 0건                      | 주석 제외 0건 (세션 없이 렌더 불가)    | 코드 PASS
+40   | legacy  | app-mode=echo 재방문   | /doit/choose 자동 이동        | Plan A 로 이동                | 자동 /weather 이동 제거         | 코드 PASS
+41   | 관리자     | 일반 사용자              | 관리자 화면 접근                 | role!=admin 이면 차단          | role 검사                   | 코드 PASS
+42   | 관리자     | 데이터                 | mock 사용 여부                | 실제 Edge 함수 호출              | admin-conversations 호출    | 코드 PASS
+43   | 관리자     | 대시보드                | 데이터 출처                    | admin-dashboard 호출         | admin-dashboard 호출        | 코드 PASS
+44   | 결제      | 게이트                 | PAYMENT_GATE 값            | review_pending             | review_pending            | 코드 PASS
+45   | 결제      | 가격                  | 리포트 단건 금액                 | 4900                       | 4900                      | 코드 PASS
+46   | 결제      | Stripe              | 실행 코드                     | 0건                         | src 내 0건                  | 코드 PASS
+47   | KEY     | 키 화면                | 데모 표기                     | 사용자에게 데모임을 알림              | 데모 안내 + isDemo 분기 (세션 없이  | 코드 PASS
+48   | 등급      | Just Try            | 준비 중 표기                   | 준비 중 노출                    | 준비 중 배지 (세션 없이 렌더 불가)     | 코드 PASS
+49   | 보안      | 빌드 산출물              | .js.map 과 sourceMappingUR | 0건                         | map=0 smu=0               | 코드 PASS
+50   | 보안      | 빌드 산출물              | Secret 문자열                | 0건                         | 0건                        | 코드 PASS
+
+집계: {"렌더 PASS":9,"코드 PASS":39,"확인 불가":1,"목표 미달":1}
