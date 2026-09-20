@@ -117,6 +117,9 @@ const RUNS = Number(process.env.RUNS || 100);
 const SPREAD = process.env.SPREAD === '1';
 const OUT = process.env.OUT_FILE || 'final100v3-results.jsonl', PROG = process.env.PROG_FILE || 'final100v3-progress.log';
 const STATE = `${OUT}.state.json`;
+const TEST_RUN_ID = process.env.TEST_RUN_ID || OUT.replace(/\.jsonl$/, '');
+const STOP_FILE = `${OUT}.STOP`; // 무결성 감시기(integrity-watch.sh)나 검사기 자신이 만들면 즉시 멈춘다
+let consecutiveStartErrors = 0;
 const note = (l) => { appendFileSync(PROG, l + '\n'); console.log(l); };
 
 // ── 상태 파일: 시작 시각 목록·완료 줄 수·거절 횟수·재시도 증거 ──
@@ -178,10 +181,11 @@ async function askWithRetry(call, fn, body) {
 }
 
 for (let i = START; i < RUNS; i++) {
+  if (existsSync(STOP_FILE)) { note(`STOP 파일 감지 → 검사 중단 (${i}/${RUNS}) 사유: ${readFileSync(STOP_FILE, 'utf8').trim().slice(0, 200)}`); break; }
   if (i > 0 && i % 20 === 0 && !DRY) { try { ({ token } = await login()); note('토큰 갱신'); } catch (e) { note('토큰 갱신 실패 ' + e.message); } }
   const keys = Object.keys(TYPES);
   const type = keys[(SPREAD ? i : Math.floor(i / 10)) % keys.length];
-  const rec = { i, type, turns: [], stuck: null, completed: false, flags: [], startedAt: null };
+  const rec = { i, test_run_id: TEST_RUN_ID, type, turns: [], stuck: null, completed: false, flags: [], startedAt: null, conversationId: null, gsqVersion: null };
   const call = async (fn, body) => { const t0 = Date.now(); const r = await post(`${URL}/functions/v1/${fn}`, { apikey: ANON, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body); return { ms: Date.now() - t0, ...r }; };
 
   // ── 실제 시작을 보장한다: 서버가 RATE_LIMITED 면 결과 줄을 쓰지 않고 기다렸다 같은 회차를 다시 연다 ──
@@ -208,9 +212,13 @@ for (let i = START; i < RUNS; i++) {
     rec.stuck = { at: 'start', code: s.json?.code, http: s.http }; counters.서버오류++;
     appendFileSync(OUT, JSON.stringify(rec) + '\n'); saveState();
     note(`${i + 1}/${RUNS} [${type}] 시작 실패 code=${s.json?.code} http=${s.http}`);
+    consecutiveStartErrors++;
+    if (consecutiveStartErrors >= 2) { writeFileSync(STOP_FILE, `연속 시작 실패 ${consecutiveStartErrors}회 code=${s.json?.code} at i=${i} ${new Date().toISOString()}`); note('연속 시작 실패 2회 → STOP 파일 생성, 검사 중단'); break; }
     continue;
   }
   const cid = s.json.conversationId;
+  rec.conversationId = cid;
+  consecutiveStartErrors = 0;
   rec.events = [];
   const ev = (o) => rec.events.push(o);
   let status = s.json.status, chose = false, lastUser = '', rejected = '';
