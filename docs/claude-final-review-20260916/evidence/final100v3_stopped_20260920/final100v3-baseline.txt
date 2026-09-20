@@ -1,0 +1,22 @@
+# ECHO 최종 100회 v3 기준점 (시작) 2026-09-20T02:54:54Z
+## 제품 코드(운영 내려받기 vs 로컬 vs 저장소)
+get-step-question/ai.ts 운영=da406048a6ad44e42ddf8008303659a4af7ed73a066e774e3856526be41f1502 로컬=da406048a6ad44e42ddf8008303659a4af7ed73a066e774e3856526be41f1502 저장소=da406048a6ad44e42ddf8008303659a4af7ed73a066e774e3856526be41f1502
+get-step-question/rules.ts 운영=5bd49ceb78e0491456840b6c46375e9a5a9a1ab41ce4f3f9c01cd12c6b82022a 로컬=5bd49ceb78e0491456840b6c46375e9a5a9a1ab41ce4f3f9c01cd12c6b82022a 저장소=5bd49ceb78e0491456840b6c46375e9a5a9a1ab41ce4f3f9c01cd12c6b82022a
+get-step-question/index.ts 운영=b79390f722295734008f092416b5ba10cb2f9ad549ae73f369706b58c1bb990e 로컬=b79390f722295734008f092416b5ba10cb2f9ad549ae73f369706b58c1bb990e 저장소=b79390f722295734008f092416b5ba10cb2f9ad549ae73f369706b58c1bb990e
+echo-journey/index.ts 운영=468254ab3dc855cf77d753293c2bbdc4ccd7f824ece5cbd896a68c995d8019ab 로컬=468254ab3dc855cf77d753293c2bbdc4ccd7f824ece5cbd896a68c995d8019ab 저장소=468254ab3dc855cf77d753293c2bbdc4ccd7f824ece5cbd896a68c995d8019ab
+echo-journey/question-quality.ts 운영=599dad5f727b888c216e3a3387f73b6b7913277179ddf7a08dbea4a7a1979190 로컬=599dad5f727b888c216e3a3387f73b6b7913277179ddf7a08dbea4a7a1979190 저장소=599dad5f727b888c216e3a3387f73b6b7913277179ddf7a08dbea4a7a1979190
+일치 5/5
+git HEAD 6ed213da1e820d802bdf57cd5af71fb6c10b6708 작업트리 변경=0
+운영 get-step-question v46 ACTIVE verify_jwt=True ezbr=df08ec7342c24c92
+운영 echo-journey v26 ACTIVE verify_jwt=True ezbr=5bec72936a0ad37d
+## 검사 도구
+bd0820686558fd01ec2bda79511c7699d386953a26bfa152fae14b639391f20d run100v3.mjs
+445775197e77bdb7788c8b43b80d42f6303706dde90a7dbfab965c386f1f6249 agg100v3.mjs
+845e2e3b2f195efa6c825c5403c924e25924b3ec41232f7ef806075f6cec6848 supervise3.sh
+9116744203b70c94de8cfb08648e01bd7f84f79000fda6230e27c5dadd132743 live.mjs
+판정 규칙 버전: FINAL-3tier-20260920 (REJECTED_MEANING_REAPPEARED / USER_SOURCE_AFTER_REJECTION / LEXICAL_REUSE_ONLY / REVIEW_REQUIRED; 정정무시=정정 직후 서버 문장 1개; 401/403 은 P0 아님; 자동 재시도 없음 AI_RETRY=미설정)
+검사 환경: Supabase 프로젝트 zyyhhxyupizcqhxqnxuu 운영 Edge, 실제 OpenAI, 검사 계정 1개(비밀번호는 환경변수, 기록 안 함)
+## 이전 검사 상태
+  ls: cannot access 'final100v3-results.jsonl': No such file or directory
+  ls: cannot access 'final100v3-results.jsonl.state.json': No such file or directory
+실행 중 검사 프로세스: 0개
