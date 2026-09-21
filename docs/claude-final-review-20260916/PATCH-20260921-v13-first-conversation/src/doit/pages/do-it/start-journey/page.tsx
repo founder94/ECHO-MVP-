@@ -10,6 +10,7 @@ import { ProfileBuild } from "@/doit/app/plan-a/screens/ProfileBuild";
 import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
+import { photoSetComplete } from "@/doit/lib/photoPolicy";
 import { usePurpose } from "@/doit/hooks/usePurpose";
 import { useAuth } from "@/doit/hooks/useAuth";
 import {
@@ -173,9 +174,8 @@ export default function StartJourney() {
         loaded?.region ||
         loaded?.lifeRhythm,
     );
-    const photoComplete =
-      photos.length >= PHOTO_SLOT_COUNT &&
-      photos.some((p) => p.isPrimary);
+    // 2026-09-21: 사진 완료 = 필수 3칸(전신·패션·취미) + 대표 1장(photoPolicy). 6장 요구 폐기.
+    const photoComplete = photoSetComplete(photos);
 
     let nextStep: Step;
     if (!purposeId) {
