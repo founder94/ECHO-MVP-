@@ -20,6 +20,10 @@ interface Props {
   purposeLabel?: string | null;
   // v13: 소개 초안을 프로필 소개란에 넣는 저장 경로(페이지가 제공). 없으면 초안 기능을 숨긴다.
   onUseDraft?: (text: string) => Promise<string | null>;
+  // v13.4 회차: 이 시각 이후 기록이 "이번 대화", 그 전은 "이전 회차"(다시 보기). 없으면 전체가 한 회차.
+  roundStartedAt?: string | null;
+  // v13.4 "처음부터 다시": 페이지가 새 회차를 시작한다(목적 비우기 포함). 없으면 버튼을 숨긴다.
+  onRestart?: () => Promise<string | null>;
 }
 const DRAFT_MIN_CONFIRMED = 3;
 type Editor = { insight: CoreInsight; kind: 'correct' | 'self'; text: string; rejected: boolean };
@@ -49,6 +53,7 @@ function errorCopy(error: unknown): string {
   // v13: 저장 금지 입력(연락처·식별번호·링크·성적 표현)은 서버가 이유를 문장으로 준다. 적은 내용은 지우지 않는다.
   if (code === 'BLOCKED_CONTENT' && error instanceof UnderstandingError && error.message) return error.message;
   if (code === 'NOT_ENOUGH' && error instanceof UnderstandingError && error.message) return error.message;
+  if (code === 'RESTART_FAILED' && error instanceof UnderstandingError && error.message) return error.message;
   return '아직 결과를 확인하지 못했어요. 적은 내용은 그대로 있으니 다시 시도해 주세요.';
 }
 
@@ -64,7 +69,7 @@ function questionCard(question: CoreQuestion) {
   </div>;
 }
 
-export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft }: Props) {
+export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft, roundStartedAt = null, onRestart }: Props) {
   const { reload: reloadUnderstanding } = useUnderstanding();
   const [records, setRecords] = useState<CoreRecord[]>([]);
   const [insights, setInsights] = useState<CoreInsight[]>([]);
@@ -80,6 +85,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const [draftLines, setDraftLines] = useState<CoreDraftLine[] | null>(null);
   const [draftSaved, setDraftSaved] = useState(false);
   const [savedLookupFor, setSavedLookupFor] = useState<string | null>(null);
+  const [restartArmed, setRestartArmed] = useState(false);
   const lock = useRef(false);
   const alive = useRef(true);
   const questionVersion = useRef(0);
@@ -112,7 +118,9 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     const data = await api.load();
     if (!alive.current) return;
     setRecords(data.records); setInsights(data.insights); setLoaded(true);
-    setActiveId(current => current && data.records.some(r => r.id === current) ? current : data.records[0]?.id ?? null);
+    // v13.4: 처음 열 때는 이번 회차의 최신 기록을 고른다(이전 회차 기록은 "다시 보기"로만).
+    const firstOfRound = data.records.find(r => !roundStartedAt || !r.created_at || r.created_at >= roundStartedAt) ?? data.records[0];
+    setActiveId(current => current && data.records.some(r => r.id === current) ? current : firstOfRound?.id ?? null);
     // 거절은 됐는데 저장하지 못한 직접 설명이 있으면 그 내용으로 입력 상자를 다시 연다(자동 저장은 하지 않는다).
     const pending = loadPendingSelf(userId);
     if (pending) {
@@ -121,7 +129,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       setActiveId(pending.recordId);
       setEditor(previous => previous ?? { insight, kind: 'self', text: pending.text, rejected: insight.status === 'rejected' });
     }
-  }, [api, userId]);
+  }, [api, userId, roundStartedAt]);
   useEffect(() => {
     if (!A_STRUCTURE_SERVER_ENABLED) return;
     setBusy('이야기를 불러오고 있어요');
@@ -157,6 +165,14 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   };
   const merge = (next: CoreInsight) => setInsights(previous => [next, ...previous.filter(i => i.id !== next.id)]);
   const active = records.find(r => r.id === activeId);
+  // v13.4 회차 나누기: 이번 대화 / 이전 회차(다시 보기). 기록은 지우지 않는다.
+  const roundRecords = roundStartedAt ? records.filter(r => !r.created_at || r.created_at >= roundStartedAt) : records;
+  const pastRecords = roundStartedAt ? records.filter(r => !roundRecords.includes(r)) : [];
+  const restart = () => onRestart && run('새 회차를 시작하고 있어요', async () => {
+    const failure = await onRestart();
+    if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
+    if (alive.current) { setRestartArmed(false); setNotice('처음부터 다시 시작해요. 지난 이야기는 그대로 남아 있어요.'); }
+  });
   const candidates = insights.filter(i => i.status === 'candidate');
   const current = candidates.find(i => i.source_record_id === activeId) ?? candidates[0];
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
@@ -276,14 +292,15 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
 
   return <section className="echo-dialogue" aria-busy={!!busy}>
     <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/understanding">내가 확인한 이해</Link></header>
-    <p className="echo-eyebrow">{records.length ? '내 말로 이어가는 대화' : '내 말로 시작하는 대화'}</p>
-    {records.length
+    <p className="echo-eyebrow">{roundRecords.length ? '내 말로 이어가는 대화' : '내 말로 시작하는 대화'}</p>
+    {roundRecords.length
       ? <h1>{question ? <>내 말은 저장했어요.<br />이번엔 이걸 물어볼게요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
       : purposeLabel
         ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
         : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
-    <p className="echo-lead">{!records.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : question ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
-    {records.length > 0 && <details className="echo-history"><summary>지난 이야기 {records.length}개</summary><ol>{records.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
+    <p className="echo-lead">{!roundRecords.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : question ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
+    {roundRecords.length > 0 && <details className="echo-history"><summary>이번 대화 {roundRecords.length}개</summary><ol>{roundRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
+    {pastRecords.length > 0 && <details className="echo-history echo-history--past"><summary>이전 회차 이야기 {pastRecords.length}개 · 다시 보기</summary><ol>{pastRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {active && <div className="echo-original"><p className="echo-eyebrow">내가 남긴 말</p><p>{active.original_text || active.text}</p></div>}
     {current && !editor && <article className="echo-insight" key={current.id}>
       <span className="echo-insight-label">아직 확인하지 않은 AI의 이해</span>
@@ -309,6 +326,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
       : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void showDraft()}>확인한 말로 내 소개 초안 보기 <ChevronRight size={18} /></button>}</section>}
     {remembered.length > 0 && <details className="echo-memory"><summary>내가 확인한 이해 {remembered.length}개</summary>{remembered.map(item => <div key={item.id}><span>{item.origin === 'self' ? '직접 설명' : item.status === 'corrected' ? '내가 고친 설명' : categoryNames[item.category] ?? '확인한 이해'}</span><p>{item.text}</p><button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setEditor({ insight: item, kind: 'correct', text: item.text, rejected: false })}>지금의 나에 맞게 고치기</button></div>)}</details>}
-    <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>내 소개와 사진 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">내 소개와 사진 준비하기 <ChevronRight size={18} /></Link>}<p className="echo-fine">대화의 길이는 정해져 있지 않아요. 내 속도로 이어가세요.</p></footer>
+    <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>내 소개와 사진 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">내 소개와 사진 준비하기 <ChevronRight size={18} /></Link>}<Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{onRestart && (restartArmed
+      ? <div className="echo-restart" role="group" aria-label="처음부터 다시"><p className="echo-context">지금까지 이야기는 그대로 남고, 첫 질문부터 새로 시작해요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => void restart()}>처음부터 다시</button><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속 이어가기</button></div></div>
+      : <button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setRestartArmed(true)}>처음부터 다시 시작하기</button>)}<p className="echo-fine">대화의 길이는 정해져 있지 않아요. 내 속도로 이어가세요.</p></footer>
   </section>;
 }

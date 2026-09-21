@@ -5,6 +5,7 @@ import CoreConversation from '@/doit/components/feature/CoreConversation';
 import ConversationOpening from '@/doit/components/feature/ConversationOpening';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { loadProfile, saveProfileText } from '@/doit/lib/profileSave';
+import { roundStartOf, startNewRound } from '@/doit/lib/conversationRound';
 
 type Purpose = { id: string; label: string };
 type PurposeState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; purpose: Purpose | null };
@@ -53,5 +54,13 @@ export default function ConversationPage() {
     return saveProfileText(user.id, { nickname: profile?.nickname ?? '', intro: text, region: profile?.region ?? '', lifeRhythm: profile?.lifeRhythm ?? '' });
   };
 
-  return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} autoQuestion purposeLabel={purposeLabel} initialMessage={openingLine || undefined} onUseDraft={useDraft} />;
+  // v13.4 "처음부터 다시": 새 회차 시각을 남기고 목적을 비운다 → 첫 질문(목적 타일)부터 다시. 지난 기록은 화면 아래 "이전 회차"에서 다시 볼 수 있다.
+  const restart = async (): Promise<string | null> => {
+    const failure = await startNewRound(user.id);
+    if (failure) return failure;
+    if (alive.current) { setOpeningLine(''); setPurposeState({ kind: 'ready', purpose: null }); }
+    return null;
+  };
+
+  return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} autoQuestion purposeLabel={purposeLabel} initialMessage={openingLine || undefined} onUseDraft={useDraft} roundStartedAt={roundStartOf(user)} onRestart={restart} />;
 }
