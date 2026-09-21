@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DoItIntroFrame from '@/components/DoItIntroFrame';
+import IntroUniverse from '@/components/IntroUniverse';
 import { MAIN_ENTRY_PATH } from '@/lib/echo/appMode';
 import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
 
@@ -153,5 +154,6 @@ export default function DoItIntroPage() {
     };
   }, [reducedMotion, navigate]);
 
-  return <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} />;
+  // 3D 연출(별 워프·점으로 모이는 심볼·기울기·빛 번짐)은 동작 줄이기 설정이 아닐 때만 그린다.
+  return <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} scene={reducedMotion === false ? <IntroUniverse progress={progress} leaving={leaving} /> : null} />;
 }
