@@ -1,0 +1,18 @@
+--- bak-v13/src/pages/do-it/intro/page.tsx	2026-09-21 11:24:57.913047855 +0000
++++ check-v17/src/pages/do-it/intro/page.tsx	2026-09-21 11:24:57.937109983 +0000
+@@ -2,6 +2,7 @@
+ import { useNavigate } from 'react-router-dom';
+ import DoItIntroFrame from '@/components/DoItIntroFrame';
+ import { MAIN_ENTRY_PATH } from '@/lib/echo/appMode';
++import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
+ 
+ // 다음 화면(/do-it/landing)의 첫 배경을 미리 읽는다. 이미지 로드가 늦어도 온보딩 진행은 막지 않는다.
+ const LANDING_IMAGE =
+@@ -138,6 +139,7 @@
+       }
+       if (dt >= navAt) {
+         navigatedRef.current = true;
++        markIntroSeen();
+         navigate(MAIN_ENTRY_PATH, { replace: true });
+         return;
+       }

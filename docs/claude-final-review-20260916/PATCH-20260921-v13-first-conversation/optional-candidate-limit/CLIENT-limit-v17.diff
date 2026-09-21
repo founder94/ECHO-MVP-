@@ -1,0 +1,40 @@
+--- /tmp/claude-0/-home-user-ECHO-MVP-/32b2e916-384e-5880-bd86-61d37f6fbd49/scratchpad/v17/src/doit/lib/coreConversation.ts	2026-09-20 12:52:56.000000000 +0000
++++ optional-candidate-limit/src/doit/lib/coreConversation.ts	2026-09-21 02:15:59.307599538 +0000
+@@ -32,8 +32,9 @@
+       if (!result.record?.id) throw new Error('INVALID_RESPONSE');
+       return result.record;
+     },
+-    async generate(recordId: string) {
+-      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; kind: string } }>({ action: 'insight_generate', recordId });
++    // limit: 서버(v9b)가 생성→검사→자른 뒤 저장·반환·캐시를 같은 목록으로 한다. 서버가 v8 이면 무시된다. 화면에서 숨기지 않는다.
++    async generate(recordId: string, limit?: number) {
++      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; kind: string } }>({ action: 'insight_generate', recordId, ...(Number.isInteger(limit) && limit! >= 1 && limit! <= 3 ? { limit } : {}) });
+       if (!Array.isArray(result.insights) || !result.insights.every(item => validInsight(item) && item.source_record_id === recordId)
+         || (result.rescue && (typeof result.rescue.text !== 'string' || !result.rescue.text.trim()))) throw new Error('INVALID_RESPONSE');
+       return result;
+--- src/doit/components/feature/CoreConversation.tsx	2026-09-21 02:15:59.295488753 +0000
++++ optional-candidate-limit/src/doit/components/feature/CoreConversation.tsx	2026-09-21 02:15:59.307800973 +0000
+@@ -11,6 +11,9 @@
+ interface Props { userId: string; onContinue?: () => void }
+ type Editor = { insight: CoreInsight; kind: 'correct' | 'self'; text: string; rejected: boolean };
+ const FOLLOWUP_ENABLED = import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED === 'true';
++// [후보 수 제한 · 별도 수정안] 첫 이야기는 후보 1개를 우선 제시, 그 다음은 최대 3개. 자르는 주체는 서버(v9b)다.
++const CANDIDATE_LIMIT_FIRST = 1;
++const CANDIDATE_LIMIT_NEXT = 3;
+ const categoryNames: Record<string, string> = { value: '소중한 기준', pattern: '반복되는 모습', memory: '기억해 둘 이야기' };
+ 
+ function errorCopy(error: unknown): string {
+@@ -120,11 +123,12 @@
+   const latestEditing = editor ? insights.find(i => i.id === editor.insight.id) : undefined;
+   const editorConflict = !!editor && !!latestEditing && latestEditing.revision !== editor.insight.revision && !(editor.kind === 'self' && latestEditing.status === 'rejected');
+   const send = () => run('이야기를 정리하고 있어요', async () => {
++    const isFirst = records.length === 0;
+     const record = await api.record(draft);
+     if (!alive.current) return;
+     setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions();
+     setNotice('이야기를 저장했어요.');
+-    const result = await api.generate(record.id);
++    const result = await api.generate(record.id, isFirst ? CANDIDATE_LIMIT_FIRST : CANDIDATE_LIMIT_NEXT);
+     if (!alive.current) return;
+     setInsights(previous => [...result.insights, ...previous.filter(i => !result.insights.some(n => n.id === i.id))]);
+     setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: record.id } : null);

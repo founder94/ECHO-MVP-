@@ -1,0 +1,33 @@
+--- bak-v13/src/router/config.tsx	2026-09-21 11:24:57.906848839 +0000
++++ check-v17/src/router/config.tsx	2026-09-21 11:24:57.936976274 +0000
+@@ -30,6 +30,9 @@
+ const LockerPage = lazy(() => import('@/pages/do-it/locker/page'));
+ const NextJourneyPage = lazy(() => import('@/pages/do-it/next-journey/page'));
+ const DoItHeroPage = lazy(() => import('@/pages/do-it/hero/page'));
++// 2026-09-21 대표 지시: 심볼 온보딩(1%→100%)을 다시 연결한다. 한 브라우저 세션에 한 번만 재생하고, 그 뒤 / 는 바로 랜딩이다.
++const DoItIntroPage = lazy(() => import('@/pages/do-it/intro/page'));
++import DoItEntry from '@/pages/do-it/intro/DoItEntry';
+ const FortunePage = lazy(() => import('@/pages/do-it/fortune/page'));
+ const PhotoPage = lazy(() => import('@/pages/do-it/photo/page'));
+ const GradePage = lazy(() => import('@/pages/do-it/grade/page'));
+@@ -49,9 +52,9 @@
+ 
+ const routes: RouteObject[] = [
+   {
+-    // 메인 진입은 브랜드 소개부터 바로 표시한다. 진행률 연출로 기다리게 하지 않는다.
++    // 메인 진입: 이 세션에서 온보딩을 아직 안 봤으면 심볼 온보딩(/do-it/intro), 봤으면 바로 브랜드 소개.
+     path: '/',
+-    element: <DoItLandingPage />,
++    element: <DoItEntry landing={<DoItLandingPage />} />,
+   },
+   {
+     // 예전 B 홈(보존용). 메인 진입이 아니며 어떤 화면도 여기로 보내지 않는다.
+@@ -142,7 +145,7 @@
+   doitRoutes,
+   {
+     path: '/do-it/intro',
+-    element: <Navigate to="/do-it/landing" replace />,
++    element: <DoItIntroPage />,
+   },
+   {
+     path: '/do-it/hero',

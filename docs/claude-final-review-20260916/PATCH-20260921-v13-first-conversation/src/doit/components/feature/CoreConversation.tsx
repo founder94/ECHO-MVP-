@@ -1,0 +1,289 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUp, Check, ChevronRight, Loader2, PencilLine } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import DoItSymbol from '@/components/DoItSymbol';
+import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
+import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
+import { createCoreConversation, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
+import { clearPendingSelf, loadPendingSelf, savePendingSelf } from '@/doit/lib/conversationRecovery';
+import { blockedContentMessage, blockedContentReason, isMetaReply } from '@/doit/lib/conversationRules';
+import './core-conversation.css';
+
+interface Props {
+  userId: string;
+  onContinue?: () => void;
+  // v13: 첫 화면(목적 선택)에서 덧붙인 한 줄. 불러오기가 끝나면 한 번만 보낸다(장면 1).
+  initialMessage?: string;
+  // v13: 후보 확인이 끝나면 "이어서 이야기하기"를 누르지 않아도 다음 질문을 서버에 요청한다(장면 5). 실패하면 버튼으로 돌아간다.
+  autoQuestion?: boolean;
+  // v13: 선택한 만남(목적). 이야기가 아직 없을 때 첫 문장에 인용한다.
+  purposeLabel?: string | null;
+  // v13: 소개 초안을 프로필 소개란에 넣는 저장 경로(페이지가 제공). 없으면 초안 기능을 숨긴다.
+  onUseDraft?: (text: string) => Promise<string | null>;
+}
+const DRAFT_MIN_CONFIRMED = 3;
+type Editor = { insight: CoreInsight; kind: 'correct' | 'self'; text: string; rejected: boolean };
+const FOLLOWUP_ENABLED = import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED === 'true';
+const categoryNames: Record<string, string> = { value: '소중한 기준', pattern: '반복되는 모습', memory: '기억해 둘 이야기' };
+
+function errorCopy(error: unknown): string {
+  const code = error instanceof UnderstandingError ? error.code : '';
+  if (code === 'STALE_REVISION' || code === 'STALE_CONTEXT') return '다른 화면에서 내용이 바뀌었어요. 최신 내용을 확인한 뒤 다시 선택해 주세요.';
+  if (code === 'BAD_REQUEST' || code === 'SERVER_UPDATE_REQUIRED') return '이 기능의 서버 연결을 준비하고 있어요. 저장된 이야기는 그대로 남아 있어요.';
+  if (code === 'PENDING_INSIGHTS') return '아직 확인하지 않은 AI의 설명이 있어요. 먼저 내 생각과 맞는지 알려주세요.';
+  if (code === 'AI_NOT_CONFIGURED') return '대화 연결을 준비하고 있어요. 저장된 이야기는 그대로 남아 있어요.';
+  if (code === 'RATE_LIMITED' || code === 'IN_FLIGHT') return '앞선 요청을 처리하고 있어요. 잠시 뒤 다시 시도해 주세요.';
+  if (code === 'UNAUTHORIZED') return '로그인 상태가 바뀌었어요. 다시 로그인한 뒤 이어가 주세요.';
+  // v13: 저장 금지 입력(연락처·식별번호·링크·성적 표현)은 서버가 이유를 문장으로 준다. 적은 내용은 지우지 않는다.
+  if (code === 'BLOCKED_CONTENT' && error instanceof UnderstandingError && error.message) return error.message;
+  if (code === 'NOT_ENOUGH' && error instanceof UnderstandingError && error.message) return error.message;
+  return '아직 결과를 확인하지 못했어요. 적은 내용은 그대로 있으니 다시 시도해 주세요.';
+}
+
+export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft }: Props) {
+  const { reload: reloadUnderstanding } = useUnderstanding();
+  const [records, setRecords] = useState<CoreRecord[]>([]);
+  const [insights, setInsights] = useState<CoreInsight[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [followupQuestion, setFollowupQuestion] = useState<CoreQuestion | null>(null);
+  const [rescueQuestion, setRescueQuestion] = useState<CoreQuestion | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [draftLines, setDraftLines] = useState<CoreDraftLine[] | null>(null);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [savedLookupFor, setSavedLookupFor] = useState<string | null>(null);
+  const lock = useRef(false);
+  const alive = useRef(true);
+  const questionVersion = useRef(0);
+  const initialSent = useRef(false);
+  const autoAsked = useRef<string | null>(null);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const api = useMemo(() => createCoreConversation({
+    read: <T,>(body: Record<string, unknown>) => understandingRequest<T>(body, userId),
+    write: async <T,>(body: Record<string, unknown>) => {
+      // STALE_CONTEXT = 같은 requestId 가 예전 맥락으로 이미 처리됐다(응답 유실 뒤 정정이 바뀜). 보관 id 를 버리고
+      // 새 requestId 로 한 번만 다시 보낸다. 두 번째도 같으면 그대로 실패로 알린다(무한 반복 금지).
+      const attempt = async (retried: boolean): Promise<T> => {
+        const request = await prepareUnderstandingRequest(userId, body);
+        try {
+          const response = await understandingRequest<T>(request.body, userId);
+          request.complete();
+          return response;
+        } catch (error) {
+          if (error instanceof UnderstandingError && error.code === 'STALE_CONTEXT') {
+            request.complete();
+            if (!retried) return attempt(true);
+          }
+          throw error;
+        }
+      };
+      return attempt(false);
+    },
+  }), [userId]);
+  const load = useCallback(async () => {
+    const data = await api.load();
+    if (!alive.current) return;
+    setRecords(data.records); setInsights(data.insights); setLoaded(true);
+    setActiveId(current => current && data.records.some(r => r.id === current) ? current : data.records[0]?.id ?? null);
+    // 거절은 됐는데 저장하지 못한 직접 설명이 있으면 그 내용으로 입력 상자를 다시 연다(자동 저장은 하지 않는다).
+    const pending = loadPendingSelf(userId);
+    if (pending) {
+      const found = data.insights.find(i => i.id === pending.insightId);
+      const insight: CoreInsight = found ?? { id: pending.insightId, text: '', category: pending.category, status: 'rejected', origin: 'ai', source_record_id: pending.recordId, revision: 1, created_at: '' };
+      setActiveId(pending.recordId);
+      setEditor(previous => previous ?? { insight, kind: 'self', text: pending.text, rejected: insight.status === 'rejected' });
+    }
+  }, [api, userId]);
+  useEffect(() => {
+    if (!A_STRUCTURE_SERVER_ENABLED) return;
+    setBusy('이야기를 불러오고 있어요');
+    void load().catch(e => { if (alive.current) setError(errorCopy(e)); }).finally(() => { if (alive.current) setBusy(null); });
+  }, [load]);
+  const questionContext = insights.map(i => `${i.id}:${i.revision}:${i.status}`).sort().join('|');
+  useEffect(() => {
+    if (!activeId || !A_STRUCTURE_SERVER_ENABLED || !FOLLOWUP_ENABLED) return;
+    let current = true;
+    const version = ++questionVersion.current;
+    setFollowupQuestion(null);
+    setSavedLookupFor(null);
+    // followup_get restores only follow-up questions, not insight_generate rescue text.
+    void api.savedQuestion(activeId).then(q => { if (current && alive.current && version === questionVersion.current) setFollowupQuestion(q); }).catch(() => { /* 이전 서버에는 질문 복원 계약이 없다. 질문을 만들거나 성공으로 표시하지 않는다. */ })
+      .finally(() => { if (current && alive.current) setSavedLookupFor(`${activeId}|${questionContext}`); });
+    return () => { current = false; };
+  }, [api, activeId, questionContext]);
+  const clearQuestions = () => {
+    questionVersion.current += 1;
+    setFollowupQuestion(null); setRescueQuestion(null);
+  };
+  const run = async (label: string, task: () => Promise<void>) => {
+    if (lock.current || !A_STRUCTURE_SERVER_ENABLED) return;
+    lock.current = true; setBusy(label); setError(''); setNotice('');
+    try { await task(); }
+    catch (e) {
+      if (alive.current) { setError(errorCopy(e)); try { await load(); } catch { /* 원래 실패 문구와 입력 유지 */ } }
+    } finally {
+      // Keep the private home/understanding screens in sync even after a partial write.
+      if (alive.current) await reloadUnderstanding();
+      lock.current = false; if (alive.current) setBusy(null);
+    }
+  };
+  const merge = (next: CoreInsight) => setInsights(previous => [next, ...previous.filter(i => i.id !== next.id)]);
+  const active = records.find(r => r.id === activeId);
+  const candidates = insights.filter(i => i.status === 'candidate');
+  const current = candidates.find(i => i.source_record_id === activeId) ?? candidates[0];
+  const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
+  const hasInsights = insights.some(i => i.source_record_id === activeId);
+  const activeFollowup = followupQuestion?.sourceRecordId === activeId ? followupQuestion : null;
+  const activeRescue = rescueQuestion?.sourceRecordId === activeId ? rescueQuestion : null;
+  const question = hasInsights ? activeFollowup : activeRescue ?? activeFollowup;
+  // v13 자동 다음 질문(장면 5): 저장된 질문 조회가 끝났고 확인할 후보가 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
+  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && hasInsights && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
+    ? savedLookupFor : null;
+  useEffect(() => {
+    if (!autoKey || autoAsked.current === autoKey || !active) return;
+    autoAsked.current = autoKey;
+    const recordId = active.id;
+    void run('다음 이야기를 생각하고 있어요', async () => {
+      const version = ++questionVersion.current;
+      const next = await api.nextQuestion(recordId);
+      if (alive.current && version === questionVersion.current) setFollowupQuestion(next);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoKey]);
+  const draftReady = !!onUseDraft && remembered.length >= DRAFT_MIN_CONFIRMED;
+  const showDraft = () => run('확인한 말로 소개를 정리하고 있어요', async () => {
+    const lines = await api.profileDraft();
+    if (!alive.current) return;
+    setDraftLines(lines); setDraftSaved(false);
+  });
+  const applyDraft = () => draftLines && onUseDraft && run('소개란에 넣고 있어요', async () => {
+    const failure = await onUseDraft(draftLines.map(line => line.text).join('\n'));
+    if (!alive.current) return;
+    if (failure) { setError(failure); return; }
+    setDraftSaved(true); setNotice('내 소개란에 넣었어요. 프로필에서 언제든 고칠 수 있어요.');
+  });
+  const latestEditing = editor ? insights.find(i => i.id === editor.insight.id) : undefined;
+  const editorConflict = !!editor && !!latestEditing && latestEditing.revision !== editor.insight.revision && !(editor.kind === 'self' && latestEditing.status === 'rejected');
+  // v13 저장 금지 입력: 서버(v13)가 막지만, 화면에서도 같은 규칙으로 먼저 알려 보내지 않는다(v12 서버에서도 동작). 적은 내용은 그대로 둔다.
+  const assertStorable = (text: string) => {
+    const reason = blockedContentReason(text);
+    if (reason) throw new UnderstandingError('BLOCKED_CONTENT', blockedContentMessage(reason));
+  };
+  const sendText = async (text: string) => {
+    assertStorable(text);
+    // v13 되묻기: "무슨 뜻이에요?" 같은 말은 이야기가 아니라 앞 질문에 대한 되묻기다. 기록을 만들지 않고 앞 질문을 쉬운 말로 다시 받는다.
+    // 서버가 규칙으로 다시 판정하므로 meta=false 가 오면 보통 이야기로 저장한다(사용자 말을 버리지 않는다).
+    // v12 서버(되묻기 계약 없음)에서는 보통 이야기로 저장한다(막지 않는다).
+    if (question && activeId && isMetaReply(text)) {
+      let answer: Awaited<ReturnType<typeof api.rephrase>> = { meta: false };
+      try { answer = await api.rephrase(question.text, text); }
+      catch (e) { if (!(e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED'))) throw e; }
+      if (!alive.current) return;
+      if (answer.meta) {
+        const next = { text: answer.question, sourceRecordId: activeId };
+        if (activeFollowup) setFollowupQuestion(next); else setRescueQuestion(next);
+        setDraft('');
+        setNotice(answer.fallback ? '같은 질문이에요. 떠오르는 대로, 짧게 답해도 괜찮아요.' : '다른 말로 다시 물어볼게요.');
+        return;
+      }
+    }
+    const first = records.length === 0;
+    const record = await api.record(text);
+    if (!alive.current) return;
+    setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions();
+    setNotice('이야기를 저장했어요.');
+    // 첫 이야기는 후보 1개만(장면 1: 내 말 카드 하나). 그 뒤는 서버 기본.
+    const result = await api.generate(record.id, first ? 1 : undefined);
+    if (!alive.current) return;
+    setInsights(previous => [...result.insights, ...previous.filter(i => !result.insights.some(n => n.id === i.id))]);
+    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: record.id } : null);
+  };
+  const send = () => run('이야기를 정리하고 있어요', () => sendText(draft));
+  // v13: 첫 화면에서 덧붙인 한 줄을 불러오기 직후 한 번만 보낸다. 실패하면 입력 상자에 남겨 다시 보낼 수 있게 한다.
+  useEffect(() => {
+    if (!initialMessage || !loaded || initialSent.current || lock.current) return;
+    initialSent.current = true;
+    void run('이야기를 정리하고 있어요', () => sendText(initialMessage)).then(() => { if (alive.current && error) setDraft(initialMessage); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage, loaded]);
+  const retryGenerate = () => active && run('다시 읽고 있어요', async () => {
+    const result = await api.generate(active.id);
+    if (!alive.current) return;
+    await load();
+    if (!alive.current) return;
+    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: active.id } : null);
+  });
+  const react = (item: CoreInsight, decision: 'confirm' | 'reject') => run('내 생각을 반영하고 있어요', async () => {
+    const saved = await api.react(item, decision);
+    if (!alive.current) return;
+    merge(saved); clearQuestions();
+    setNotice(decision === 'confirm' ? '내가 확인한 이해로 저장했어요.' : '이 해석은 제외했어요. 처음 적어주신 이야기는 그대로 남겨둘게요.');
+  });
+  const saveEditor = () => editor && !editorConflict && run('직접 적은 말을 반영하고 있어요', async () => {
+    assertStorable(editor.text);
+    if (editor.kind === 'correct') {
+      const saved = await api.react(editor.insight, 'correct', editor.text);
+      if (!alive.current) return;
+      merge(saved);
+    } else {
+      const refreshed = insights.find(item => item.id === editor.insight.id);
+      const category = editor.insight.category as 'value' | 'pattern' | 'memory';
+      if (!editor.rejected && refreshed?.status !== 'rejected') {
+        const rejected = await api.react(editor.insight, 'reject');
+        if (!alive.current) return;
+        merge(rejected); setEditor(previous => previous ? { ...previous, insight: rejected, rejected: true } : null);
+      }
+      // 거절은 끝났다. 설명 저장이 실패하거나 화면이 닫혀도 내용을 잃지 않도록 이 기기 세션에 예약한다.
+      savePendingSelf(userId, { insightId: editor.insight.id, recordId: editor.insight.source_record_id, category, text: editor.text });
+      const saved = await api.explain(editor.insight.source_record_id, editor.insight.category, editor.text);
+      if (!alive.current) return;
+      merge(saved);
+      clearPendingSelf(userId);
+    }
+    clearQuestions(); setEditor(null); setNotice('직접 설명해 주신 내용으로 저장했어요.');
+  });
+
+  if (!A_STRUCTURE_SERVER_ENABLED) return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">ECHO · 내 이야기</p><h1>나를 설명하는 말은,<br />내가 정할 수 있도록.</h1><p className="echo-lead">대화와 기억을 연결하는 마지막 확인을 하고 있어요. 지금은 내 소개와 사진을 준비할 수 있어요.</p>{onContinue ? <button className="echo-primary" onClick={onContinue}>내 프로필 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-primary" to="/doit/start-journey">내 프로필 준비하기 <ChevronRight size={18} /></Link>}</section>;
+
+  return <section className="echo-dialogue" aria-busy={!!busy}>
+    <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/understanding">내가 확인한 이해</Link></header>
+    <p className="echo-eyebrow">{records.length ? '내 말로 이어가는 대화' : '내 말로 시작하는 대화'}</p>
+    {records.length
+      ? <h1>{question ? <>내 말을 이어서,<br />하나만 더 물어볼게요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
+      : purposeLabel
+        ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
+        : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
+    <p className="echo-lead">{!records.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
+    {records.length > 0 && <details className="echo-history"><summary>지난 이야기 {records.length}개</summary><ol>{records.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
+    {active && <div className="echo-original"><p className="echo-eyebrow">내가 남긴 말</p><p>{active.original_text || active.text}</p></div>}
+    {current && !editor && <article className="echo-insight" key={current.id}>
+      <span className="echo-insight-label">아직 확인하지 않은 AI의 이해</span>
+      {current.source_record_id !== activeId && <p className="echo-context">이전 이야기에서 확인을 기다리고 있어요.</p>}
+      <h2>{current.text}</h2><p className="echo-context">이 설명이 내 생각과 맞나요?</p>
+      <div className="echo-reactions">
+        <button disabled={!!busy || !loaded} onClick={() => void react(current, 'confirm')}>맞아요</button>
+        <button disabled={!!busy || !loaded} onClick={() => setEditor({ insight: current, kind: 'correct', text: '', rejected: false })}>조금 달라요</button>
+        <button disabled={!!busy || !loaded} onClick={() => void react(current, 'reject')}>그게 아니에요</button>
+        <button disabled={!!busy || !loaded} onClick={() => setEditor({ insight: current, kind: 'self', text: '', rejected: false })}>직접 설명할게요</button>
+      </div>
+      <p className="echo-fine">확인 전에는 나에 대한 사실로 표시하지 않아요.</p>
+    </article>}
+    {editor && <section className="echo-editor"><PencilLine size={20} /><h2>{editor.kind === 'correct' ? '어떤 부분을 고치면 더 맞을까요?' : '내 말로 설명해 주세요.'}</h2><p className="echo-context">{editor.rejected ? '이전 AI 해석은 제외했어요. 이제 직접 적은 내용을 저장할게요.' : '아래 내용을 저장한 뒤에 반영돼요.'}</p>{editorConflict && latestEditing && <div className="echo-error"><p>다른 화면에서 바뀐 설명: {latestEditing.text}</p><p>적어 둔 내용은 그대로 남겨뒀어요. 최신 설명을 확인한 뒤 다시 저장해 주세요.</p>{latestEditing.status !== 'rejected' && <button onClick={() => setEditor({ ...editor, insight: latestEditing })}>최신 설명을 확인했어요</button>}</div>}<label htmlFor="echo-correction" className="sr-only">내 설명</label><textarea id="echo-correction" maxLength={200} value={editor.text} disabled={!!busy} onChange={event => setEditor({ ...editor, text: event.target.value })} autoFocus rows={4} /><div className="echo-editor-footer"><span>{editor.text.length}/200</span><button disabled={!!busy} onClick={() => setEditor(null)}>닫기</button></div><button className="echo-primary" disabled={!!busy || !editor.text.trim() || editorConflict} onClick={() => void saveEditor()}>이 설명으로 저장하기 <Check size={18} /></button></section>}
+    {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
+    {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
+    {busy && <p className="echo-busy" role="status"><Loader2 size={16} className="animate-spin" />{busy}</p>}
+    {active && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
+    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && hasInsights && <div className="echo-next">{question ? <p className="echo-question">{question.text}</p> : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
+    {question && !hasInsights && <p className="echo-question">{question.text}</p>}
+    {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 AI의 이해를 먼저 확인해 주세요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
+    {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines
+      ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
+      : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void showDraft()}>확인한 말로 내 소개 초안 보기 <ChevronRight size={18} /></button>}</section>}
+    {remembered.length > 0 && <details className="echo-memory"><summary>내가 확인한 이해 {remembered.length}개</summary>{remembered.map(item => <div key={item.id}><span>{item.origin === 'self' ? '직접 설명' : item.status === 'corrected' ? '내가 고친 설명' : categoryNames[item.category] ?? '확인한 이해'}</span><p>{item.text}</p><button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setEditor({ insight: item, kind: 'correct', text: item.text, rejected: false })}>지금의 나에 맞게 고치기</button></div>)}</details>}
+    <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>내 소개와 사진 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">내 소개와 사진 준비하기 <ChevronRight size={18} /></Link>}<p className="echo-fine">대화의 길이는 정해져 있지 않아요. 내 속도로 이어가세요.</p></footer>
+  </section>;
+}
