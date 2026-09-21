@@ -174,7 +174,7 @@ function photoScreen({ checkKind = 'needs-confirmation', existing = null, failUp
       if (name.endsWith('/recentPhoto')) return { MAX_UPLOAD_PHOTO_BYTES: api.MAX_UPLOAD_PHOTO_BYTES, RecentPhotoError: api.RecentPhotoError, prepareAlbumPhoto: async () => ({ blob: photoBlob, dateCheck: { kind: checkKind } }) };
       // 2026-09-21 사진 정책(필수 3장·종류·AI 판별)은 qa/photo-policy.test.mjs 가 따로 검사한다. 여기서는 최소 흉내만 낸다.
       if (name.endsWith('/photoPolicy')) return {
-        PHOTO_SLOTS: [0, 1, 2, 3, 4, 5].map((slot) => ({ slot, category: slot < 3 ? ['full_body', 'fashion', 'hobby'][slot] : 'free', required: slot < 3, label: `slot${slot}`, hint: '' })),
+        PHOTO_SLOTS: [0, 1, 2, 3, 4, 5].map((slot) => ({ slot, category: slot < 3 ? ['full_body', 'fashion', 'hobby'][slot] : 'free', required: slot < 3, label: ['전신', '패션', '취미', '자유 1', '자유 2', '자유 3'][slot], hint: '' })),
         PHOTO_REQUIRED_COUNT: 3,
         VERDICT_LABEL: { ok: 'ok', review: 'review', rejected: 'rejected', unchecked: 'unchecked' },
         photoSetComplete: (photos) => [0, 1, 2].every((slot) => photos.some((p) => p.slot === slot)) && photos.some((p) => p.isPrimary),
@@ -206,7 +206,7 @@ function photoScreen({ checkKind = 'needs-confirmation', existing = null, failUp
   const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   const chooseAlbum = async () => {
     let tree = render();
-    nodes(tree).find((node) => node.type === 'button' && node.props['aria-label']?.startsWith('전신과 전체 분위기')).props.onClick();
+    nodes(tree).find((node) => node.type === 'button' && node.props['aria-label']?.startsWith('전신')).props.onClick();
     tree = render(); byText(tree, '앨범에서 선택').props.onClick();
     tree = render(); nodes(tree).find((node) => node.type === 'input' && node.props.type === 'file').props.onChange({ currentTarget: { files: [new Blob(['file'])], value: 'photo.jpg' } });
     await flush(); return render();
