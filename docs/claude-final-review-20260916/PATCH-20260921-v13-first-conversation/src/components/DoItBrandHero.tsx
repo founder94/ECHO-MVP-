@@ -1,6 +1,7 @@
 import { useRef, useState, type MouseEvent } from 'react';
 import DoItSymbol from './DoItSymbol';
 import { useAuth } from '@/context/AuthContext';
+import { IS_BRAND_SITE, appUrl } from '@/lib/siteRole';
 import './doit-brand-hero.css';
 
 interface Props { onStart?: () => void; motionPaused?: boolean; onToggleMotion?: () => void }
@@ -35,7 +36,10 @@ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }:
         <span className="doit-brand-company"><DoItSymbol decorative />DO IT <span>COMPANY</span></span>
         <nav aria-label="홈페이지 메뉴">
           <a href="#doit-stories">우리의 생각</a>
-          {!loading && user ? (
+          {IS_BRAND_SITE ? (
+            // 브랜드 사이트(do-it.company)에는 로그인이 없다. 앱 주소의 로그인으로 보낸다.
+            <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>
+          ) : !loading && user ? (
             <button type="button" className="doit-brand-session" onClick={() => { void handleSignOut(); }} disabled={signingOut} aria-busy={signingOut}>
               {signingOut ? '로그아웃 중' : '로그아웃'} <span aria-hidden="true">↗</span>
             </button>
@@ -53,7 +57,7 @@ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }:
         <div className="doit-brand-intro">
           <p className="doit-brand-line">사람은 프로필보다,<br /> 함께한 행동에서<br className="doit-brand-mobile-break" /> 더 많이 보이니까.</p>
           <div className="doit-brand-invitation">
-            <a className="doit-brand-start" href="/doit/start-journey" onClick={start}>지금 시작하기 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></a>
+            <a className="doit-brand-start" href={IS_BRAND_SITE ? appUrl('/doit/start-journey') : '/doit/start-journey'} onClick={start}>지금 시작하기 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></a>
             <p className="doit-brand-status">지금은 목적 선택과 프로필 준비까지.<br /> 사람 연결은 준비 중입니다.</p>
           </div>
         </div>

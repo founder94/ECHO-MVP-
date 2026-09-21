@@ -101,3 +101,14 @@
 - 초안 SQL `PENDING_20260921_profile_photo_check.sql`(실행 안 함): 결과 칸 4개 + **anon 의 profile_photos 전체 권한(TRUNCATE 포함) 회수** — 실측에서 발견한 보안 정리 항목.
 - 검사: 타입·린트·빌드 통과, 정책 검사 5개, 서버 초안 타입검사 0 오류. 실기기·실AI 0회.
 - "당신이 잠든 사이에" 문구·서브 문구는 손대지 않았다(appMode.ts·AutoSearchLaunch 그대로).
+
+## 10. 추가 — 사이트 역할 분리(브랜드 do-it.company / 제품 app.do-it.company, PWA)
+대표 확정(2026-09-21): 홈페이지 = 브랜딩, 제품 = 모바일 웹 앱(app.do-it.company). 코드 한 벌.
+- `src/lib/siteRole.ts`: `VITE_SITE_ROLE=brand|app`(없으면 통합), `VITE_APP_ORIGIN`(기본 https://app.do-it.company).
+- `router/config.tsx`: 역할별 화면 표(함수 안 lazy → 역할에 없는 화면 코드 조각은 빌드에서 빠짐). 브랜드: 온보딩·랜딩·히어로·약관만, 제품 경로는 `ExternalRedirect` 로 앱 주소 이동. 앱: 온보딩 → /doit/start-journey, 랜딩·히어로 없음.
+- 브랜드 랜딩의 "지금 시작하기"·"로그인" → 앱 주소. 브랜드에는 로그인 상태 없음.
+- `vite.config.ts` 플러그인: 앱 빌드 index.html 에 PWA 태그(manifest·apple-touch-icon·standalone), 브랜드 빌드 `_redirects` 에 제품 경로 302 → 앱 주소(화면 로드 전 서버에서 이동).
+- PWA: `public/manifest.webmanifest`, 아이콘(공식 심볼 원본에서 크기만 조정: 192/512/maskable/apple 180). **서비스워커(오프라인 캐시)는 넣지 않았다** — 수동 ZIP 배포와 캐시가 충돌해 옛 화면이 남는 사고를 막기 위해. 설치·전체 화면·아이콘까지만.
+- 빌드: `npm run build:brand`(out-brand), `npm run build:app`(out-app, A 스위치·다음 질문 스위치 ON).
+- 결과(실제 크로미움): 브랜드 7/7(온보딩→랜딩, 링크 앱 주소, 제품 경로 이동, 약관), 앱 8/9 — 실패 1은 이 검사 환경이 Supabase 인증서를 신뢰하지 못해 로그아웃 시작 화면이 오류 경계에 걸린 것(통합 빌드도 동일, 운영 실기기에서는 대표가 이미 이 화면을 정상 확인함). 번들: 브랜드 56조각 1.8MB(대화·첫 질문 문구 0), 앱 100조각 2.2MB(랜딩 문구 0).
+- 남은 일: 넷리파이 도메인 app.do-it.company 연결(대표), Supabase Auth Redirect URL 등록(대표), 브랜드 ZIP → echo-mvp-doit, 앱 ZIP → doitmobile(app 주소 연결 뒤).
