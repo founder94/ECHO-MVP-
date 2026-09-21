@@ -38,7 +38,8 @@ export function createCoreConversation(port: CorePort) {
     },
     // limit: 첫 이야기는 후보 1개(장면 1 = 내 말 카드 하나), 그 뒤는 서버 기본(최대 3개). 서버(v12+)가 자른다.
     async generate(recordId: string, limit?: 1 | 3) {
-      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; kind: string } }>({ action: 'insight_generate', recordId, ...(limit ? { limit } : {}) });
+      // v13.1 서버는 구제 질문에도 다음 주제(topic)를 붙인다. 예전 서버는 없다(있을 때만 쓴다).
+      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; kind: string; topic?: string | null } }>({ action: 'insight_generate', recordId, ...(limit ? { limit } : {}) });
       if (!Array.isArray(result.insights) || !result.insights.every(item => validInsight(item) && item.source_record_id === recordId)
         || (result.rescue && (typeof result.rescue.text !== 'string' || !result.rescue.text.trim()))) throw new Error('INVALID_RESPONSE');
       return result;

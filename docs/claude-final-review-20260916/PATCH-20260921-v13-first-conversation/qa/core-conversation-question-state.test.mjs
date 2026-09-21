@@ -76,7 +76,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
   const dependencies = {
     react: hooks,
     'react/jsx-runtime': { jsx: element, jsxs: element, Fragment: 'fragment' },
-    'lucide-react': Object.fromEntries(['ArrowUp', 'Check', 'ChevronRight', 'Loader2', 'PencilLine'].map(name => [name, `icon-${name}`])),
+    'lucide-react': Object.fromEntries(['ArrowUp', 'Check', 'ChevronRight', 'PencilLine'].map(name => [name, `icon-${name}`])),
     'react-router-dom': { Link: 'link' },
     '@/components/DoItSymbol': { default: 'brand-symbol' },
     '@/doit/hooks/useUnderstanding': { useUnderstanding: () => ({ reload: async () => undefined }) },
@@ -88,7 +88,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     },
     '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; } },
     // v13 되묻기 규칙은 qa/conversation-rules.test.mjs 가 따로 검사한다. 여기서는 최소 판정만 흉내 낸다.
-    '@/doit/lib/conversationRules': { isMetaReply: text => /무슨\s*뜻/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
+    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람의 스타일' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
     '@/doit/lib/conversationRecovery': {
       loadPendingSelf: () => store.pending,
       savePendingSelf: (_userId, next) => { store.pending = next; },

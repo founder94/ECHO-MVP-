@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, Check, ChevronRight, Loader2, PencilLine } from 'lucide-react';
+import { ArrowUp, Check, ChevronRight, PencilLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
 import { createCoreConversation, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
 import { clearPendingSelf, loadPendingSelf, savePendingSelf } from '@/doit/lib/conversationRecovery';
-import { blockedContentMessage, blockedContentReason, isMetaReply } from '@/doit/lib/conversationRules';
+import { TOPICS, blockedContentMessage, blockedContentReason, isMetaReply } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
 
 interface Props {
@@ -26,6 +26,18 @@ type Editor = { insight: CoreInsight; kind: 'correct' | 'self'; text: string; re
 const FOLLOWUP_ENABLED = import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED === 'true';
 const categoryNames: Record<string, string> = { value: '소중한 기준', pattern: '반복되는 모습', memory: '기억해 둘 이야기' };
 
+// v13.1: 서버가 저장한 질문은 "받아 주는 한 문장\n질문" 꼴일 수 있다. 첫 줄바꿈으로 나눈다. 줄바꿈이 없으면(예전 서버) 통째로 질문이다.
+function splitQuestion(text: string): { ack: string; body: string } {
+  const at = text.indexOf('\n');
+  if (at < 0) return { ack: '', body: text };
+  return { ack: text.slice(0, at).trim(), body: text.slice(at + 1).trim() || text };
+}
+// v13.1 진행 표시: 서버가 준 다음 주제(topic)가 다섯 주제 가운데 몇 번째인지. 주제가 없거나(모두 나옴) 예전 서버면 표시하지 않는다.
+function topicProgress(topic: string | null | undefined): { step: number; total: number; label: string } | null {
+  const index = TOPICS.findIndex(t => t.id === topic);
+  return index < 0 ? null : { step: index + 1, total: TOPICS.length, label: TOPICS[index].label };
+}
+
 function errorCopy(error: unknown): string {
   const code = error instanceof UnderstandingError ? error.code : '';
   if (code === 'STALE_REVISION' || code === 'STALE_CONTEXT') return '다른 화면에서 내용이 바뀌었어요. 최신 내용을 확인한 뒤 다시 선택해 주세요.';
@@ -38,6 +50,18 @@ function errorCopy(error: unknown): string {
   if (code === 'BLOCKED_CONTENT' && error instanceof UnderstandingError && error.message) return error.message;
   if (code === 'NOT_ENOUGH' && error instanceof UnderstandingError && error.message) return error.message;
   return '아직 결과를 확인하지 못했어요. 적은 내용은 그대로 있으니 다시 시도해 주세요.';
+}
+
+// v13.1 질문 카드: 받아 주는 한 문장(작게) → 진행 표시(n / 5 · 주제) → 질문(크게). 질문 본문은 echo-question 하나로 남긴다(검사 계약).
+// 컴포넌트가 아니라 그리기 함수다(qa 가짜 렌더러는 자식 컴포넌트를 호출하지 않는다).
+function questionCard(question: CoreQuestion) {
+  const { ack, body } = splitQuestion(question.text);
+  const progress = topicProgress(question.topic);
+  return <div className="echo-question-card">
+    {ack && <p className="echo-ack">{ack}</p>}
+    {progress && <p className="echo-progress"><span>{progress.step} / {progress.total}</span> · {progress.label}</p>}
+    <p className="echo-question">{body}</p>
+  </div>;
 }
 
 export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft }: Props) {
@@ -200,7 +224,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     const result = await api.generate(record.id, first ? 1 : undefined);
     if (!alive.current) return;
     setInsights(previous => [...result.insights, ...previous.filter(i => !result.insights.some(n => n.id === i.id))]);
-    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: record.id } : null);
+    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: record.id, topic: typeof result.rescue.topic === 'string' ? result.rescue.topic : null } : null);
   };
   const send = () => run('이야기를 정리하고 있어요', () => sendText(draft));
   // v13: 첫 화면에서 덧붙인 한 줄을 불러오기 직후 한 번만 보낸다. 실패하면 입력 상자에 남겨 다시 보낼 수 있게 한다.
@@ -215,7 +239,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     if (!alive.current) return;
     await load();
     if (!alive.current) return;
-    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: active.id } : null);
+    setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: active.id, topic: typeof result.rescue.topic === 'string' ? result.rescue.topic : null } : null);
   });
   const react = (item: CoreInsight, decision: 'confirm' | 'reject') => run('내 생각을 반영하고 있어요', async () => {
     const saved = await api.react(item, decision);
@@ -253,7 +277,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/understanding">내가 확인한 이해</Link></header>
     <p className="echo-eyebrow">{records.length ? '내 말로 이어가는 대화' : '내 말로 시작하는 대화'}</p>
     {records.length
-      ? <h1>{question ? <>내 말을 이어서,<br />하나만 더 물어볼게요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
+      ? <h1>{question ? <>내 말은 저장했어요.<br />이번엔 이걸 물어볼게요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
       : purposeLabel
         ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
         : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
@@ -275,10 +299,10 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {editor && <section className="echo-editor"><PencilLine size={20} /><h2>{editor.kind === 'correct' ? '어떤 부분을 고치면 더 맞을까요?' : '내 말로 설명해 주세요.'}</h2><p className="echo-context">{editor.rejected ? '이전 AI 해석은 제외했어요. 이제 직접 적은 내용을 저장할게요.' : '아래 내용을 저장한 뒤에 반영돼요.'}</p>{editorConflict && latestEditing && <div className="echo-error"><p>다른 화면에서 바뀐 설명: {latestEditing.text}</p><p>적어 둔 내용은 그대로 남겨뒀어요. 최신 설명을 확인한 뒤 다시 저장해 주세요.</p>{latestEditing.status !== 'rejected' && <button onClick={() => setEditor({ ...editor, insight: latestEditing })}>최신 설명을 확인했어요</button>}</div>}<label htmlFor="echo-correction" className="sr-only">내 설명</label><textarea id="echo-correction" maxLength={200} value={editor.text} disabled={!!busy} onChange={event => setEditor({ ...editor, text: event.target.value })} autoFocus rows={4} /><div className="echo-editor-footer"><span>{editor.text.length}/200</span><button disabled={!!busy} onClick={() => setEditor(null)}>닫기</button></div><button className="echo-primary" disabled={!!busy || !editor.text.trim() || editorConflict} onClick={() => void saveEditor()}>이 설명으로 저장하기 <Check size={18} /></button></section>}
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
     {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
-    {busy && <p className="echo-busy" role="status"><Loader2 size={16} className="animate-spin" />{busy}</p>}
+    {busy && <div className="echo-thinking" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>{busy}</p></div>}
     {active && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
-    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && hasInsights && <div className="echo-next">{question ? <p className="echo-question">{question.text}</p> : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
-    {question && !hasInsights && <p className="echo-question">{question.text}</p>}
+    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && hasInsights && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
+    {question && !hasInsights && questionCard(question)}
     {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 AI의 이해를 먼저 확인해 주세요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
     {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines
       ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
