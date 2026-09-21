@@ -42,6 +42,9 @@ function topicProgress(topic: string | null | undefined): { step: number; total:
   return index < 0 ? null : { step: index + 1, total: TOPICS.length, label: TOPICS[index].label };
 }
 
+// v13.5 첫 질문 기준 문장(대표 지시 2026-09-22 「당신이 잠든 사이」 §3). 감정·관계를 미리 단정하지 않는다. 그 뒤 질문은 전부 서버·AI 가 만든다.
+export const FIRST_QUESTION = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
+
 function errorCopy(error: unknown): string {
   const code = error instanceof UnderstandingError ? error.code : '';
   if (code === 'STALE_REVISION' || code === 'STALE_CONTEXT') return '다른 화면에서 내용이 바뀌었어요. 최신 내용을 확인한 뒤 다시 선택해 주세요.';
@@ -180,6 +183,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const activeFollowup = followupQuestion?.sourceRecordId === activeId ? followupQuestion : null;
   const activeRescue = rescueQuestion?.sourceRecordId === activeId ? rescueQuestion : null;
   const question = hasInsights ? activeFollowup : activeRescue ?? activeFollowup;
+  // v13.5(대표 지시 2026-09-22 §3): 이번 회차에 아직 아무 말도 없을 때 보이는 첫 질문 한 문장(유일한 고정 질문). 첫 화면에서 적은 한 줄이 곧 보내질 때는 숨긴다.
+  const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: FIRST_QUESTION, sourceRecordId: '' } : null;
   // v13 자동 다음 질문(장면 5): 저장된 질문 조회가 끝났고 확인할 후보가 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
   // v13.2(대표 지시 2026-09-22 "질문을 해야 내가 답을 하지"): 확인할 후보도 없고 보여 줄 질문도 없으면, 이해가 아직 없는 기록이라도 AI가 먼저 다음 질문을 한다. 빈 입력창만 두지 않는다.
   const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
@@ -298,7 +303,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       : purposeLabel
         ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
         : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
-    <p className="echo-lead">{!roundRecords.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : question ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
+    <p className="echo-lead">{question || firstQuestion ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
+    {firstQuestion && questionCard(firstQuestion)}
     {roundRecords.length > 0 && <details className="echo-history"><summary>이번 대화 {roundRecords.length}개</summary><ol>{roundRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {pastRecords.length > 0 && <details className="echo-history echo-history--past"><summary>이전 회차 이야기 {pastRecords.length}개 · 다시 보기</summary><ol>{pastRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {active && <div className="echo-original"><p className="echo-eyebrow">내가 남긴 말</p><p>{active.original_text || active.text}</p></div>}

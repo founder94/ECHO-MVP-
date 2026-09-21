@@ -26,7 +26,7 @@ function fakeDb(state) {
     };
     return c;
   };
-  const tables = () => ({ doit_records: state.records, doit_insights: state.insights, profiles: state.profiles ?? [], profile_photos: state.photos ?? [] });
+  const tables = () => ({ doit_records: state.records, doit_insights: state.insights, profiles: state.profiles ?? [], profile_photos: state.photos ?? [], doit_request_events: state.events ?? [] });
   return {
     auth: { getUser: async () => ({ data: { user: { id: USER, user_metadata: state.userMeta ?? {} } }, error: null }) },
     from: (table) => chain(tables()[table] ?? []),
@@ -66,6 +66,7 @@ function loadServer(ai, state) {
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   let handler = null;
   const calls = [];
+  const payloads = []; // { stage, user }: LLM 에 실제로 넘어간 사용자 자료(가짜 AI 기준 검사용)
   const sandbox = {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
@@ -75,6 +76,7 @@ function loadServer(ai, state) {
       const body = JSON.parse(init.body);
       const stage = stageOf(body.messages[0].content);
       calls.push(stage);
+      payloads.push({ stage, user: body.messages[1].content });
       const answer = ai[stage] ? ai[stage](body) : null;
       if (answer === 'HTTP500') return new Response(JSON.stringify({ error: { code: 'x' } }), { status: 500 });
       if (answer === 'TIMEOUT') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
@@ -88,7 +90,7 @@ function loadServer(ai, state) {
     const res = await handler(new Request('http://fn/', { method: 'POST', headers: { Authorization: 'Bearer t', 'content-type': 'application/json' }, body: JSON.stringify({ requestId: uuid(), ...payload }) }));
     return { status: res.status, body: await res.json() };
   };
-  return { call, calls };
+  return { call, calls, payloads };
 }
 
 const baseState = (over = {}) => ({ recordText: '조용한 사람', records: [{ id: 'r-old', text: '친구를 사귀고 싶어요', created_at: '2026-09-21T00:00:00Z' }], insights: [], purpose: { id: 'friend', label: '친구' }, rpcCalls: [], logs: [], gteCalls: [], ...over });
@@ -149,8 +151,8 @@ test('구제 AI 까지 실패하면 그 주제를 그대로 묻는 고정 문장
   assert.ok(!body.rescue.text.includes('부분을 조금 더 들려주실'), 'v12 캐묻기 문장이 아니어야 한다');
 });
 
-test('다음 질문(followup): ack 가 기록을 인용하지 못해도 질문은 살린다(ack 만 제거), topic 있음', async () => {
-  const state = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
+test('다음 질문(새 갈래): 짧은 답 + 행동 없음 → CHANGE_DIRECTION. ack 가 기록을 인용하지 못해도 질문은 살린다(ack 만 제거), topic 있음', async () => {
+  const state = baseState();
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
     followup: () => ({ ack: '차분한 분위기를 좋아하시는군요.', question: '그 관계에서 상대의 어떤 성향이 중요하세요? (예: 약속을 지키는 사람, 잘 들어주는 사람)', basis: '차분한 분위기', meaning: '', keys: ['성향'] }),
@@ -158,12 +160,31 @@ test('다음 질문(followup): ack 가 기록을 인용하지 못해도 질문�
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
+  assert.equal(body.strategy, 'CHANGE_DIRECTION');
   assert.equal(body.topic, 'partner_traits');
   assert.equal(body.question.text, '그 관계에서 상대의 어떤 성향이 중요하세요? (예: 약속을 지키는 사람, 잘 들어주는 사람)');
 });
 
-test('다음 질문: 판정이 불허해도 방향 질문은 ack 만 떼고 낸다', async () => {
+test('다음 질문(한 단계 더): 확인한 이해가 있으면 DEEPEN. 질문은 사용자 말과 이어져야 하고(핵심어 겹침), topic 은 없다', async () => {
   const state = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
+  const { call, payloads } = loadServer({
+    topic: () => ({ covered: ['partner_style'] }),
+    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '조용한 사람과 있을 때 어떤 장면이 제일 편하게 떠올라요?', basis: '조용한 사람', meaning: '', keys: ['조용한 사람'], proposed_strategy: 'DEEPEN', evidence: [{ claim: '조용한 사람이 좋다', supporting_user_text: '조용한 사람' }] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.equal(body.strategy, 'DEEPEN');
+  assert.equal(body.topic, null);
+  assert.equal(body.question.text, '조용한 사람이 좋다고 하셨죠.\n조용한 사람과 있을 때 어떤 장면이 제일 편하게 떠올라요?');
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.equal(sent.strategy, 'DEEPEN');
+  assert.equal(sent.record, '조용한 사람');
+  assert.ok(Array.isArray(sent.hints) && !sent.hints.includes('끌리는 사람의 스타일'), 'hints 는 아직 안 나온 주제만');
+});
+
+test('다음 질문: 판정이 불허해도 새 갈래 질문은 ack 만 떼고 낸다. 이어 묻기(DEEPEN)가 불허면 고정 대체 문장으로 이어간다(멈추지 않는다)', async () => {
+  const state = baseState();
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
     followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '상대가 알아야 할 나의 모습은 무엇인가요? (예: 느긋한 편, 계획적인 편)', basis: '조용한 사람', meaning: '', keys: ['나의 모습'] }),
@@ -172,9 +193,20 @@ test('다음 질문: 판정이 불허해도 방향 질문은 ack 만 떼고 낸�
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(body.question.text, '상대가 알아야 할 나의 모습은 무엇인가요? (예: 느긋한 편, 계획적인 편)');
   assert.equal(body.topic, 'partner_traits');
+  const state2 = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
+  const { call: call2 } = loadServer({
+    topic: () => ({ covered: ['partner_style'] }),
+    followup: () => ({ ack: '', question: '조용한 사람이 좋은 건 혹시 외로워서인가요?', basis: '조용한 사람', meaning: '외로움', keys: ['조용한 사람'] }),
+    judge: () => ({ allowed: false }),
+  }, state2);
+  const { status, body: b2 } = await call2({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.ok(!/외로/.test(b2.question.text), '단정(외로움)을 전제로 한 질문은 나가지 않는다');
+  assert.equal(b2.strategy, 'CHANGE_DIRECTION');
+  assert.ok(state2.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NOT_GROUNDED')));
 });
 
-test('다음 질문: 거절한 말과 ack 가 겹치면 ack 를 떼고 질문만, 질문 자체가 겹치면 실패(거절 재등장 금지 우선)', async () => {
+test('다음 질문: 거절 뒤에는 RECOVER_FROM_REJECTION. ack 가 거절과 겹치면 ack 를 떼고 질문만, 질문 자체가 겹치면 고정 되돌리기 문장(거절 재등장 금지 우선)', async () => {
   const rejected = { id: 'i0', text: '조용한 사람이 좋다', ai_text: '조용한 사람이 좋다', status: 'rejected', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' };
   const state = baseState({ insights: [rejected] });
   const { call } = loadServer({
@@ -183,6 +215,7 @@ test('다음 질문: 거절한 말과 ack 가 겹치면 ack 를 떼고 질문만
     judge: () => ({ allowed: true }), semantic: () => ({ blocked: [] }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(body.strategy, 'RECOVER_FROM_REJECTION');
   assert.equal(body.question.text, '요즘 사람을 만나는 일이 어떻게 느껴지세요? (예: 설렘, 부담)');
   const state2 = baseState({ insights: [rejected] });
   const { call: call2 } = loadServer({
@@ -191,10 +224,10 @@ test('다음 질문: 거절한 말과 ack 가 겹치면 ack 를 떼고 질문만
     judge: () => ({ allowed: true }),
   }, state2);
   const { status, body: b2 } = await call2({ action: 'followup_generate', recordId: RECORD });
-  // v13.4: 질문이 거절한 뜻과 겹쳐 버려져도, 방향이 있으면 그 주제를 묻는 고정 문장으로 이어간다(멈추지 않는다).
   assert.equal(status, 200);
-  assert.equal(b2.topic, 'partner_style');
-  assert.match(b2.question.text, /끌리는 사람의 스타일은 어떤가요/);
+  assert.equal(b2.strategy, 'RECOVER_FROM_REJECTION');
+  assert.match(b2.question.text, /방향을 잘못 잡았네요/);
+  assert.ok(!b2.question.text.includes('조용한 사람'), '거절한 뜻이 되살아나지 않는다');
   assert.ok(state2.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_REJECTED')));
 });
 
@@ -284,4 +317,141 @@ test('v13.4 connection_preview: 준비 상태 + 같은 목적 대기 인원 + �
   assert.deepEqual(body.common, ['조용한 곳을 선호한다']);
   const dumped = JSON.stringify(body);
   assert.ok(!dumped.includes('u2') && !dumped.includes('시끄러운'), '다른 사람의 id·글은 나가지 않는다');
+});
+
+// ── 지시서 §17 필수 QA 시나리오(가짜 AI 기준) ──────────────────────────────
+const PERSON = '예전에 친했던 사람이 자꾸 생각나요.';
+const cov = () => ({ covered: [] });
+
+test('TEST A 정상 맥락 연결: 첫 자유 답 → 서버 전략 EXPLORE_USER_MEANING, LLM 에 원문·전략이 넘어가고, 두 갈래 되묻기(CLARIFY)는 사용자 말에서 나왔을 때만 받는다', async () => {
+  const state = baseState({ recordText: PERSON, records: [] });
+  const { call, payloads } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '그 사람이 떠오를 때, 다시 가까워지고 싶은 마음에 더 가까워요? 아니면 그때의 시간이 그리운 쪽에 가까워요?', basis: '', meaning: '', keys: ['그 사람'], proposed_strategy: 'CLARIFY', evidence: [{ claim: '특정 사람이 떠오른다', supporting_user_text: '친했던 사람' }] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.equal(body.strategy, 'CLARIFY');
+  assert.match(body.question.text, /^그 사람이 떠오를 때/);
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.equal(sent.record, PERSON);
+  assert.equal(sent.strategy, 'EXPLORE_USER_MEANING');
+  assert.deepEqual(sent.rejected, []);
+});
+
+test('TEST B 잘못된 해석 거절: 거절한 뜻이 LLM 자료에 "거절"로 넘어가고, 같은 뜻의 질문은 나가지 않으며, 전략이 실제로 바뀐다', async () => {
+  const rejected = { id: 'i0', text: '다시 가까워지고 싶은 마음', ai_text: '다시 가까워지고 싶은 마음', status: 'rejected', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' };
+  const state = baseState({ recordText: PERSON, insights: [rejected] });
+  const { call, payloads } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '다시 가까워지고 싶은 마음이 큰가요?', basis: '', meaning: '재회 바람', keys: ['가까워지고'] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.equal(body.strategy, 'RECOVER_FROM_REJECTION');
+  assert.ok(!body.question.text.includes('가까워지'), '거절한 뜻이 다음 질문에 다시 나오면 안 된다');
+  assert.match(body.question.text, /방향을 잘못 잡았네요/);
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.deepEqual(sent.rejected, ['다시 가까워지고 싶은 마음']);
+  assert.equal(sent.strategy, 'RECOVER_FROM_REJECTION');
+  assert.equal(state.recordText, PERSON, '사용자 원문은 그대로');
+});
+
+test('TEST C 사용자 정정: 고친 말이 최우선 근거, 정정 전 AI 문장은 superseded 로 넘어가고, 여전히 "좋아한다"고 전제한 질문은 나가지 않는다', async () => {
+  const corrected = { id: 'i1', text: '좋아하는 게 아니라 그냥 미안한 거예요', ai_text: '그 사람을 아직 좋아한다', status: 'corrected', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' };
+  const state = baseState({ recordText: PERSON, insights: [corrected] });
+  const { call, payloads } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '아직 좋아하는 마음이 남아 있어서 그런 걸까요?', basis: '', meaning: '아직 좋아함', keys: ['좋아하는'] }),
+    judge: (body) => ({ allowed: !JSON.parse(body.messages[1].content).question.includes('좋아') }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.ok(!body.question.text.includes('좋아'), '정정 무시 질문은 나가지 않는다');
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.equal(sent.strategy, 'ACKNOWLEDGE_CORRECTION');
+  assert.equal(sent.confirmed[0].text, '좋아하는 게 아니라 그냥 미안한 거예요');
+  assert.equal(sent.confirmed[0].kind, 'corrected');
+  assert.deepEqual(sent.superseded, ['그 사람을 아직 좋아한다']);
+});
+
+test('TEST D 직접 설명: 자유 입력 원문이 다음 맥락의 중심(confirmed 첫 항목, kind self)이고, 그 말을 인용한 질문이 나간다', async () => {
+  const self = { id: 'i2', text: '좋아하는 건 아니고, 그때 제가 너무 무심했던 게 자꾸 걸려요', status: 'confirmed', origin: 'self', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' };
+  const state = baseState({ recordText: PERSON, insights: [self] });
+  const { call, payloads } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '무심했던 게 걸린다고 하셨죠.', question: '지금 그 사람에게 하고 싶은 말이 있다면 뭐예요?', basis: '무심했던', meaning: '', keys: ['그 사람'] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(body.strategy, 'EXPLORE_USER_MEANING');
+  assert.equal(body.question.text, '무심했던 게 걸린다고 하셨죠.\n지금 그 사람에게 하고 싶은 말이 있다면 뭐예요?');
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.equal(sent.confirmed[0].kind, 'self');
+  assert.equal(sent.confirmed[0].text, self.text);
+});
+
+test('TEST E 완전히 다른 주제: LLM 이 사용자 원문 인용과 함께 CHANGE_DIRECTION 을 제안하면 서버가 받는다. 인용이 원문에 없으면 받지 않는다', async () => {
+  const WORK = '사람보다 요즘 제 일이 더 걱정돼요.';
+  const state = baseState({ recordText: WORK, records: [{ id: 'r-old', text: PERSON, created_at: '2026-09-21T00:00:00Z' }] });
+  const { call } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '', meaning: '', keys: ['일'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '일이 더 걱정', supporting_user_text: '제 일이 더 걱정' }] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(body.strategy, 'CHANGE_DIRECTION');
+  assert.equal(body.topic, null);
+  assert.equal(body.question.text, '일에서 지금 제일 걱정되는 건 어떤 부분이에요?');
+  const state2 = baseState({ recordText: WORK });
+  const { call: call2 } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '', meaning: '', keys: ['걱정'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '연애가 걱정', supporting_user_text: '연애가 걱정' }] }),
+    judge: () => ({ allowed: true }),
+  }, state2);
+  const { body: b2 } = await call2({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(b2.strategy, 'EXPLORE_USER_MEANING', '원문에 없는 인용으로는 전략을 바꾸지 못한다');
+  assert.equal(b2.question.text, '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', '질문 자체는 사용자 말(걱정)과 이어지므로 나간다');
+});
+
+test('TEST F 반복 방지: 이미 물은 질문(이벤트 저장분)이 LLM 자료로 넘어가고, 같은 뜻의 질문이 다시 오면 버리고 다른 문장으로 이어간다', async () => {
+  const askedText = '받아요.\n그 사람이 떠오르면 제일 먼저 어떤 생각이 들어요?';
+  const state = baseState({ recordText: PERSON, events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T01:00:00Z', response_payload: { question: { text: askedText, sourceRecordId: RECORD } } }] });
+  const { call, payloads } = loadServer({
+    topic: cov,
+    followup: () => ({ ack: '', question: '그 사람이 떠오르면 제일 먼저 어떤 생각이 드나요?', basis: '', meaning: '', keys: ['그 사람'] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.ok(!body.question.text.includes('제일 먼저 어떤 생각'), '같은 질문을 다시 묻지 않는다');
+  const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+  assert.deepEqual(sent.asked_questions, ['그 사람이 떠오르면 제일 먼저 어떤 생각이 들어요?']);
+  assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_REPEATED')));
+});
+
+test('질문 하나 규칙(§8): 물음표 둘("아니면" 없음)·의문사 셋 문장은 버리고 대체 문장으로 이어간다', async () => {
+  for (const q of ['왜 생각나요? 그때 기분은 어땠어요?', '그 사람이 왜 생각나고 그때 어떤 기분이었고 어떻게 하고 싶은지 알려주세요.']) {
+    const state = baseState({ recordText: PERSON });
+    const { call } = loadServer({ topic: cov, followup: () => ({ ack: '', question: q, basis: '', meaning: '', keys: ['그 사람'] }), judge: () => ({ allowed: true }) }, state);
+    const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+    assert.equal(status, 200);
+    assert.notEqual(body.question.text, q);
+    assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_MULTI')), q);
+  }
+});
+
+test('§21-11 화면 응답에는 내부 진단(trace)·구제 종류(kind)가 없다. 거절 뒤 후보가 없으면 구제도 되돌리기 전략', async () => {
+  const rejected = { id: 'i0', text: '다시 가까워지고 싶은 마음', ai_text: '다시 가까워지고 싶은 마음', status: 'rejected', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' };
+  const state = baseState({ recordText: PERSON, insights: [rejected] });
+  const { call } = loadServer({ gen: noCandidates, topic: cov, rescuePlain: () => ({ question: '다시 가까워지고 싶은 마음이 큰가요?' }) }, state);
+  const { status, body } = await call({ action: 'insight_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.equal(body.trace, undefined);
+  assert.equal(body.rescue.kind, undefined);
+  assert.equal(body.rescue.strategy, 'RECOVER_FROM_REJECTION');
+  assert.match(body.rescue.text, /방향을 잘못 잡았네요/);
+  assert.ok(!body.rescue.text.includes('가까워지'));
 });

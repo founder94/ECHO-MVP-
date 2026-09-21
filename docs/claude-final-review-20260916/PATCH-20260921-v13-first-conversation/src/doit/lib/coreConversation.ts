@@ -1,7 +1,8 @@
 // 서버 응답을 그대로 사용한다. 이 파일은 질문이나 성향을 만들어 내지 않는다.
 export interface CoreRecord { id: string; text: string; original_text: string; status: string; revision: number; created_at: string }
 export interface CoreInsight { id: string; text: string; ai_text?: string; category: string; status: string; origin: string; source_record_id: string; revision: number; created_at: string }
-export interface CoreQuestion { text: string; sourceRecordId: string; topic?: string | null }
+// v13.5 strategy: 서버가 정한 다음 질문 전략 이름(화면은 표시하지 않고 보관만 한다. 없으면 예전 서버).
+export interface CoreQuestion { text: string; sourceRecordId: string; topic?: string | null; strategy?: string | null }
 // v13: 되묻기 응답. meta=false 면 되묻기가 아니므로 화면은 보통 이야기로 저장한다.
 export type CoreRephrase = { meta: false } | { meta: true; question: string; fallback: boolean };
 // v13: 확인한 말로만 만든 소개 초안. 서버가 저장하지 않으며 화면에서 '이 초안 쓰기'로 프로필에 넣는다.
@@ -39,7 +40,8 @@ export function createCoreConversation(port: CorePort) {
     // limit: 첫 이야기는 후보 1개(장면 1 = 내 말 카드 하나), 그 뒤는 서버 기본(최대 3개). 서버(v12+)가 자른다.
     async generate(recordId: string, limit?: 1 | 3) {
       // v13.1 서버는 구제 질문에도 다음 주제(topic)를 붙인다. 예전 서버는 없다(있을 때만 쓴다).
-      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; kind: string; topic?: string | null } }>({ action: 'insight_generate', recordId, ...(limit ? { limit } : {}) });
+      // v13.5 서버는 구제에 kind 를 내려보내지 않는다(내부 종류). 예전 서버가 보내도 쓰지 않는다.
+      const result = await port.write<{ insights: CoreInsight[]; rescue?: { text: string; topic?: string | null; strategy?: string | null } }>({ action: 'insight_generate', recordId, ...(limit ? { limit } : {}) });
       if (!Array.isArray(result.insights) || !result.insights.every(item => validInsight(item) && item.source_record_id === recordId)
         || (result.rescue && (typeof result.rescue.text !== 'string' || !result.rescue.text.trim()))) throw new Error('INVALID_RESPONSE');
       return result;
@@ -57,10 +59,11 @@ export function createCoreConversation(port: CorePort) {
       return result.insight;
     },
     async nextQuestion(recordId: string) {
-      const result = await port.write<{ question: CoreQuestion; topic?: string | null }>({ action: 'followup_generate', recordId });
+      const result = await port.write<{ question: CoreQuestion; topic?: string | null; strategy?: string | null }>({ action: 'followup_generate', recordId });
       if (!validQuestion(result.question, recordId)) throw new Error('INVALID_RESPONSE');
-      // 서버 질문 객체를 그대로 쓴다. v13 서버가 방향(topic)을 주면 그때만 덧붙인다.
-      return typeof result.topic === 'string' ? { ...result.question, topic: result.topic } : result.question;
+      // 서버 질문 객체를 그대로 쓴다. v13 서버가 방향(topic)·전략(strategy)을 주면 그때만 덧붙인다.
+      const extra = { ...(typeof result.topic === 'string' ? { topic: result.topic } : {}), ...(typeof result.strategy === 'string' ? { strategy: result.strategy } : {}) };
+      return Object.keys(extra).length ? { ...result.question, ...extra } : result.question;
     },
     async savedQuestion(recordId: string) {
       const result = await port.read<{ question: CoreQuestion | null }>({ action: 'followup_get', recordId });
