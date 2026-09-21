@@ -165,7 +165,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const activeRescue = rescueQuestion?.sourceRecordId === activeId ? rescueQuestion : null;
   const question = hasInsights ? activeFollowup : activeRescue ?? activeFollowup;
   // v13 자동 다음 질문(장면 5): 저장된 질문 조회가 끝났고 확인할 후보가 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
-  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && hasInsights && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
+  // v13.2(대표 지시 2026-09-22 "질문을 해야 내가 답을 하지"): 확인할 후보도 없고 보여 줄 질문도 없으면, 이해가 아직 없는 기록이라도 AI가 먼저 다음 질문을 한다. 빈 입력창만 두지 않는다.
+  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
     ? savedLookupFor : null;
   useEffect(() => {
     if (!autoKey || autoAsked.current === autoKey || !active) return;
@@ -281,7 +282,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       : purposeLabel
         ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
         : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
-    <p className="echo-lead">{!records.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
+    <p className="echo-lead">{!records.length && purposeLabel ? '어떤 사람에게 끌리는지부터, 내 말로 들려주세요. AI의 이해가 다르면 내 말로 고칠 수 있어요.' : question ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
     {records.length > 0 && <details className="echo-history"><summary>지난 이야기 {records.length}개</summary><ol>{records.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {active && <div className="echo-original"><p className="echo-eyebrow">내가 남긴 말</p><p>{active.original_text || active.text}</p></div>}
     {current && !editor && <article className="echo-insight" key={current.id}>
@@ -301,8 +302,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
     {busy && <div className="echo-thinking" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>{busy}</p></div>}
     {active && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
-    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && hasInsights && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
-    {question && !hasInsights && questionCard(question)}
+    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
+    {!FOLLOWUP_ENABLED && question && questionCard(question)}
     {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 AI의 이해를 먼저 확인해 주세요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
     {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines
       ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
