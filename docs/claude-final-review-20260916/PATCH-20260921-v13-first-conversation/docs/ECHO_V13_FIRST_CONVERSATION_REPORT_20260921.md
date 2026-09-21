@@ -158,3 +158,31 @@
 - 아직 확인 못 한 것: 실제 로그인 사용자의 대화(실제 AI 응답). 대표가 app.do-it.company 에서 실기기로 봐야 한다.
 - 화면 9차: app.do-it.company 20:35Z, do-it.company 20:35Z 배포 완료(Netlify 기록).
 - `doit-photo-check` 는 미배포(별도 승인 대기).
+
+## 12. 추가 (2026-09-22 새벽, 10차) — 브랜드·앱 로그인 상태 공유 + 구글 로그인 복귀 유실 수리
+
+### 대표가 본 현상 (실제 운영, 캡처 4장)
+1. app.do-it.company/login → Google 로그인 → 계정 선택 → **do-it.company 루트(히어로)** 로 떨어짐. 히어로는 "로그인" 그대로.
+2. app.do-it.company/doit/start-journey 로 가면 로그아웃 상태("내 계정으로 계속하기").
+
+### 원인 (진짜, 코드·설정 기준)
+- 앱의 구글 로그인 복귀 주소 = `현재 주소 + /auth/callback` = `https://app.do-it.company/auth/callback`.
+- Supabase Redirect URLs 에 이 주소가 없다(대표가 넣은 줄이 `https:app.do-it.company` 오타). 허용 목록에 없으면 Supabase 는 **Site URL(https://do-it.company) 루트**로 토큰을 붙여 보낸다.
+- 브라우저 저장소(localStorage)는 주소마다 따로다. do-it.company 에 떨어진 로그인은 app.do-it.company 에서 보이지 않는다. 그래서 앱은 로그아웃 상태.
+- 브랜드 히어로는 내가 "브랜드에는 로그인 없음"으로 고정해 항상 "로그인"만 보였다(내 설계 부족).
+
+### 고친 것 (화면 10차)
+- **세션 저장소를 도메인 쿠키(Domain=do-it.company)로**: `src/lib/supabase/sessionStorage.ts`. 두 주소가 같은 로그인 상태를 읽고 쓴다. 4KB 상한 때문에 조각(chunk)으로 나눠 저장. 쿠키를 못 쓰는 브라우저·다른 호스트(localhost·netlify 미리보기)는 기존 localStorage 그대로. 예전 localStorage 세션은 한 번 쿠키로 옮기고 지운다(유령 로그인 방지). HttpOnly 아님(브라우저 JS가 읽어야 함) — 노출 범위는 localStorage 와 같다.
+- **브랜드 히어로 로그인/로그아웃**: 공유 세션이 있으면 "로그아웃"(누르면 앱도 로그아웃), 없으면 앱 로그인으로 가는 "로그인".
+- **루트로 떨어진 로그인 복귀 처리**: `DoItEntry` 가 주소 # 뒤에 access_token 이 있으면 온보딩 대신 세션을 기다렸다가 시작 흐름(앱 주소)으로 보낸다. 세션이 안 잡히면 랜딩.
+- **브랜드→앱 넘김에서 # 부분 유지**: `ExternalRedirect` 가 hash 를 떼지 않는다(토큰 유실 방지).
+- 서버·DB 변경 없음.
+
+### 검사 (가짜 서버·로컬 기준)
+- 새 검사 `qa/session-storage.test.mjs` 6개: 도메인 판정, 조각 저장·복원, 짧아진 값 정리, 두 저장소 공유, localStorage 이전, 쿠키 차단 시 기본 저장소.
+- tsc 0 / eslint 0 / node --test 187 통과·1 실패(기존 step7-contract).
+- 실제 구글 로그인 왕복은 이 환경에서 못 한다(외부 접속 차단). 대표 실기기 확인이 필요하다.
+
+### 그래도 대표가 해야 하는 설정 (오타 수정)
+- Redirect URLs 의 `https:app.do-it.company` 삭제 → `https://app.do-it.company/auth/callback`, `https://app.do-it.company/**` 추가. Site URL → `https://app.do-it.company`.
+- 설정을 고치지 않아도 10차부터는 로그인이 do-it.company 루트로 떨어져도 앱 시작 흐름으로 이어진다(구제 경로). 고치면 바로 앱으로 돌아온다(정상 경로).

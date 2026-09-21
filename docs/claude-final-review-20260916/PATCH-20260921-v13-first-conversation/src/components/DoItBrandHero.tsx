@@ -36,13 +36,16 @@ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }:
         <span className="doit-brand-company"><DoItSymbol decorative />DO IT <span>COMPANY</span></span>
         <nav aria-label="홈페이지 메뉴">
           <a href="#doit-stories">우리의 생각</a>
-          {IS_BRAND_SITE ? (
-            // 브랜드 사이트(do-it.company)에는 로그인이 없다. 앱 주소의 로그인으로 보낸다.
-            <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>
-          ) : !loading && user ? (
+          {!loading && user ? (
+            // 로그인 상태는 브랜드·앱이 도메인 쿠키로 공유한다(sessionStorage.ts). 여기서 로그아웃하면 앱도 로그아웃된다.
             <button type="button" className="doit-brand-session" onClick={() => { void handleSignOut(); }} disabled={signingOut} aria-busy={signingOut}>
               {signingOut ? '로그아웃 중' : '로그아웃'} <span aria-hidden="true">↗</span>
             </button>
+          ) : IS_BRAND_SITE ? (
+            // 브랜드 사이트(do-it.company)에는 로그인 화면이 없다. 앱 주소의 로그인으로 보낸다.
+            <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>
+          ) : loading ? (
+            <span className="doit-brand-session" aria-hidden="true">로그인 <span>↗</span></span>
           ) : (
             <a href="/login">로그인 <span aria-hidden="true">↗</span></a>
           )}
