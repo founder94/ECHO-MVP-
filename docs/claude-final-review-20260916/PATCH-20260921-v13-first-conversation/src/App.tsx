@@ -6,6 +6,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ConsentGate from "./components/legal/ConsentGate";
+import AppBackButton from "./components/AppBackButton";
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <AuthProvider>
             <BrowserRouter basename={__BASE_PATH__}>
               <ConsentGate />
+              <AppBackButton />
               <AppRoutes />
             </BrowserRouter>
           </AuthProvider>
