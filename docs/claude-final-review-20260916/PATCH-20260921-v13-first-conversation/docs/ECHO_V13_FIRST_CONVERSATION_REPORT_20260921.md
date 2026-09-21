@@ -151,3 +151,10 @@
 1. 앱 ZIP을 두잇모바일 사이트(app.do-it.company)에 올린다(Deploys → 끌어다 놓기).
 2. 서버 `doit-understanding` v13.1 운영 배포를 승인할지 정한다(승인 전에는 질문이 예전 방식 그대로).
 3. 배포 뒤 0423doit@gmail.com 으로 대화 5장면을 실기기에서 다시 본다.
+
+### 11-1. 운영 배포 기록 (2026-09-22 05:40 KST, 대표 "서버배포승인")
+- `doit-understanding` 버전 12 → **13** (v13.1). verify_jwt 유지(true), import map 없음, 파일 1개(index.ts).
+- 검증(진짜, 운영 기준): Supabase가 돌려준 배포 파일 본문 61,950자 = 로컬 v13.1 파일과 글자 단위 동일. 토큰 없는 호출 401, 잘못된 토큰 401(게이트웨이 차단 정상).
+- 아직 확인 못 한 것: 실제 로그인 사용자의 대화(실제 AI 응답). 대표가 app.do-it.company 에서 실기기로 봐야 한다.
+- 화면 9차: app.do-it.company 20:35Z, do-it.company 20:35Z 배포 완료(Netlify 기록).
+- `doit-photo-check` 는 미배포(별도 승인 대기).
