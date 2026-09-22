@@ -88,7 +88,8 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     },
     '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; } },
     // v13 되묻기 규칙은 qa/conversation-rules.test.mjs 가 따로 검사한다. 여기서는 최소 판정만 흉내 낸다.
-    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람의 스타일' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
+    // v14.1 주제 개수가 곧 질문 개수(ASK_TOTAL)라, 가짜 목록도 실제와 같은 5개여야 한다.
+    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람' }, { id: 'together', label: '같이 하고 싶은 것' }, { id: 'self', label: '상대가 알면 좋을 나' }, { id: 'pace', label: '만나는 방식' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
     '@/doit/lib/conversationRecovery': {
       loadPendingSelf: () => store.pending,
       savePendingSelf: (_userId, next) => { store.pending = next; },
@@ -154,6 +155,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     api, calls, flush, click, type, send, content, value, store, UnderstandingError, port: () => port,
     renderBeforeEffects: render,
     questions: () => nodes().filter(node => node.props.className === 'echo-question').map(node => content(node)),
+    contentNodes: () => nodes(),
     unmount: () => { for (const slot of slots) slot?.cleanup?.(); },
   };
 }
@@ -393,4 +395,54 @@ test('a second STALE_CONTEXT is reported, not retried forever', async () => {
   await assert.rejects(h.port().write({ action: 'followup_generate', recordId: 'r1' }), error => error.code === 'STALE_CONTEXT');
   assert.equal(seen.length, 2, 'exactly two attempts');
   h.unmount();
+});
+
+// ── v14.1 대화에 끝이 있다 (대표 2026-09-22 "언제까지 내가 너랑 대화만 해야해?" / "질문 다섯개면 충분해") ──
+const manyRecords = (count) => Array.from({ length: count }, (_, i) => ({
+  id: `r${i}`, text: `답 ${i}`, original_text: `답 ${i}`, status: 'active', revision: 1, created_at: `2026-09-22T0${i}:00:00Z`,
+}));
+
+test('v14.1 시작 화면에 왜 묻는지·몇 개 묻는지 설명이 먼저 나온다', async () => {
+  const h = componentHarness({ load: async () => ({ records: [], insights: [] }) });
+  await h.flush();
+  const text = h.content();
+  assert.match(text, /다섯 가지만/, '몇 개를 묻는지 먼저 알려 준다');
+  assert.match(text, /누구를 소개할지 정하는 재료/, '왜 답해야 하는지 알려 준다');
+  assert.match(text, /다섯 개를 넘겨서 묻지 않아요/, '끝이 있다는 약속');
+  // 다섯 칸을 모두 미리 보여 준다.
+  for (const item of ['어떤 만남을 원하는지', '어떤 사람에게 끌리는지', '같이 뭘 하고 싶은지', '상대가 알면 좋을 내 모습', '어떻게 만나고 싶은지']) {
+    assert.ok(text.includes(item), `시작 안내에 "${item}" 이 없다`);
+  }
+});
+
+test('v14.1 진행은 화면 맨 위에 한 곳에서만 보인다', async () => {
+  const h = componentHarness({ load: async () => ({ records: manyRecords(2), insights: [] }) });
+  await h.flush();
+  const steps = h.contentNodes().filter(node => node.props.className === 'echo-steps');
+  assert.equal(steps.length, 1, '진행 표시는 하나여야 한다(두 개면 숫자가 엇갈린다)');
+  assert.match(h.content(), /3 \/ 5/, '두 개 답했으면 지금은 세 번째 질문이다');
+});
+
+test('v14.1 다섯 개를 채우면 질문과 입력창을 닫고 끝났다고 알린다', async () => {
+  const h = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) });
+  await h.flush();
+  const text = h.content();
+  assert.match(text, /다섯 가지, 다 들었어요/);
+  assert.match(text, /이제 상대를 찾을 차례예요/);
+  assert.match(text, /다섯 가지 답을 모두 저장했어요/);
+  // 더 묻지 않는다.
+  assert.deepEqual(h.questions(), [], '끝난 뒤에는 질문을 더 내지 않는다');
+  assert.equal(h.contentNodes().some(node => node.props.id === 'echo-message'), false, '끝난 뒤에는 입력창을 닫는다');
+  assert.equal(h.contentNodes().some(node => node.props.className === 'echo-steps'), false, '끝난 뒤에는 진행 막대를 숨긴다');
+  // 다음에 할 일을 알려 준다.
+  assert.match(text, /사진과 소개 준비하기/);
+  assert.match(text, /연결 준비 상태 보기/);
+  // 다시 시작할 길이 있다.
+  assert.match(text, /처음부터 다시 시작하기/);
+});
+
+test('v14.1 다섯 개를 채우면 다음 질문을 서버에 더 요청하지 않는다', async () => {
+  const h = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) });
+  await h.flush();
+  assert.equal(h.calls.filter(call => call.name === 'nextQuestion').length, 0, '끝난 뒤 다음 질문 요청 0건');
 });

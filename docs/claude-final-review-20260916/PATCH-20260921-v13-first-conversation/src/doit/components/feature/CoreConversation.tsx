@@ -36,11 +36,15 @@ function splitQuestion(text: string): { ack: string; body: string } {
   if (at < 0) return { ack: '', body: text };
   return { ack: text.slice(0, at).trim(), body: text.slice(at + 1).trim() || text };
 }
-// v13.1 진행 표시: 서버가 준 다음 주제(topic)가 다섯 주제 가운데 몇 번째인지. 주제가 없거나(모두 나옴) 예전 서버면 표시하지 않는다.
-function topicProgress(topic: string | null | undefined): { step: number; total: number; label: string } | null {
-  const index = TOPICS.findIndex(t => t.id === topic);
-  return index < 0 ? null : { step: index + 1, total: TOPICS.length, label: TOPICS[index].label };
+// v14.1 서버가 준 주제(topic)의 사람이 읽는 이름. 주제가 없거나 예전 서버면 표시하지 않는다.
+function topicLabel(topic: string | null | undefined): string | null {
+  return TOPICS.find(t => t.id === topic)?.label ?? null;
 }
+
+// v14.1(대표 2026-09-22 "질문 다섯개면 상대방이 어떤 사람 원하는지 충분해 / 언제까지 내가 너랑 대화만 해야해?"):
+// 대화에 끝을 만든다. 답을 다섯 개 남기면 이번 회차는 끝나고, 상대를 찾는 단계로 넘어간다.
+// 이 숫자는 TOPICS(매칭에 쓰는 칸) 개수와 같다. 서버가 주제를 다 훑었는지와 무관하게 화면에서 확실히 끝낸다.
+export const ASK_TOTAL = TOPICS.length;
 
 // v13.5 첫 질문 기준 문장(대표 지시 2026-09-22 「당신이 잠든 사이」 §3). 감정·관계를 미리 단정하지 않는다. 그 뒤 질문은 전부 서버·AI 가 만든다.
 export const FIRST_QUESTION = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
@@ -60,14 +64,15 @@ function errorCopy(error: unknown): string {
   return '아직 결과를 확인하지 못했어요. 적은 내용은 그대로 있으니 다시 시도해 주세요.';
 }
 
-// v13.1 질문 카드: 받아 주는 한 문장(작게) → 진행 표시(n / 5 · 주제) → 질문(크게). 질문 본문은 echo-question 하나로 남긴다(검사 계약).
+// v13.1 질문 카드: 받아 주는 한 문장(작게) → 주제 이름 → 질문(크게). 질문 본문은 echo-question 하나로 남긴다(검사 계약).
+// v14.1 진행 숫자(n / 5)는 화면 맨 위 한 곳에만 둔다. 두 군데서 다른 숫자가 나오면 오히려 헷갈린다.
 // 컴포넌트가 아니라 그리기 함수다(qa 가짜 렌더러는 자식 컴포넌트를 호출하지 않는다).
 function questionCard(question: CoreQuestion) {
   const { ack, body } = splitQuestion(question.text);
-  const progress = topicProgress(question.topic);
+  const topic = topicLabel(question.topic);
   return <div className="echo-question-card">
     {ack && <p className="echo-ack">{ack}</p>}
-    {progress && <p className="echo-progress"><span>{progress.step} / {progress.total}</span> · {progress.label}</p>}
+    {topic && <p className="echo-topic">{topic}</p>}
     <p className="echo-question">{body}</p>
   </div>;
 }
@@ -188,10 +193,13 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const activeRescue = rescueQuestion?.sourceRecordId === activeId ? rescueQuestion : null;
   const question = hasInsights ? activeFollowup : activeRescue ?? activeFollowup;
   // v13.5(대표 지시 2026-09-22 §3): 이번 회차에 아직 아무 말도 없을 때 보이는 첫 질문 한 문장(유일한 고정 질문). 첫 화면에서 적은 한 줄이 곧 보내질 때는 숨긴다.
+  // v14.1 이번 회차에 남긴 답의 개수 = 진행. 다섯 개를 채우면 질문을 멈춘다.
+  const answered = Math.min(roundRecords.length, ASK_TOTAL);
+  const finished = roundRecords.length >= ASK_TOTAL;
   const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: FIRST_QUESTION, sourceRecordId: '' } : null;
   // v13 자동 다음 질문(장면 5): 저장된 질문 조회가 끝났고 확인할 후보가 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
   // v13.2(대표 지시 2026-09-22 "질문을 해야 내가 답을 하지"): 확인할 후보도 없고 보여 줄 질문도 없으면, 이해가 아직 없는 기록이라도 AI가 먼저 다음 질문을 한다. 빈 입력창만 두지 않는다.
-  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
+  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
     ? savedLookupFor : null;
   useEffect(() => {
     if (!autoKey || autoAsked.current === autoKey || !active) return;
@@ -301,14 +309,33 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
 
   return <section className="echo-dialogue" aria-busy={!!busy}>
     <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/understanding">내가 확인한 이해</Link></header>
-    <p className="echo-eyebrow">{roundRecords.length ? '내 말로 이어가는 대화' : '내 말로 시작하는 대화'}</p>
-    {roundRecords.length
-      ? <h1>{question ? <>내 말은 저장했어요.<br />이번엔 이걸 물어볼게요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
-      : purposeLabel
-        ? <h1>{purposeLabel}<br />이렇게 시작할게요.</h1>
-        : <h1>잘 쓰려고 애쓰지<br />않아도 괜찮아요.</h1>}
-    <p className="echo-lead">{question || firstQuestion ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>
-    {firstQuestion && questionCard(firstQuestion)}
+    {/* v14.1 진행은 항상 보인다. 몇 개 남았는지 모르는 게 지치는 원인이었다. */}
+    {!finished && <div className="echo-steps" role="status" aria-label={`다섯 가지 중 ${answered}가지 답함`}>
+      <span className="echo-steps-count">{Math.min(answered + 1, ASK_TOTAL)} <em>/ {ASK_TOTAL}</em></span>
+      <span className="echo-steps-bar" aria-hidden="true"><i style={{ width: `${(answered / ASK_TOTAL) * 100}%` }} /></span>
+    </div>}
+    <p className="echo-eyebrow">{finished ? '다 들었어요' : roundRecords.length ? '내 말로 이어가는 대화' : '상대를 찾기 전에'}</p>
+    {finished
+      ? <h1>다섯 가지, 다 들었어요.<br />이제 상대를 찾을 차례예요.</h1>
+      : roundRecords.length
+        ? <h1>{question ? <>잘 담았어요.<br />다음 질문이에요.</> : <>지난 이야기를,<br />조금 더 이어볼까요.</>}</h1>
+        : purposeLabel
+          ? <h1>{purposeLabel}<br />다섯 가지만 물어볼게요.</h1>
+          : <h1>다섯 가지만<br />물어볼게요.</h1>}
+    {/* v14.1 시작 안내(대표 2026-09-22 "처음에 설명을 해 … 사용자가 이걸 해야 한다고 느끼게"). */}
+    {!roundRecords.length && !finished && <div className="echo-brief">
+      <p className="echo-brief-lead">이 다섯 가지 답이, <b>당신에게 누구를 소개할지 정하는 재료</b>예요.</p>
+      <ul>
+        <li><span>1</span>어떤 만남을 원하는지</li>
+        <li><span>2</span>어떤 사람에게 끌리는지</li>
+        <li><span>3</span>같이 뭘 하고 싶은지</li>
+        <li><span>4</span>상대가 알면 좋을 내 모습</li>
+        <li><span>5</span>어떻게 만나고 싶은지</li>
+      </ul>
+      <p className="echo-brief-fine">짧게 한 줄이면 충분해요. 다 적으면 AI가 조건이 맞는 사람을 찾기 시작해요. 다섯 개를 넘겨서 묻지 않아요.</p>
+    </div>}
+    {!finished && <p className="echo-lead">{question || firstQuestion ? '짧게 답해도 괜찮아요. 떠오르는 대로, 내 말로.' : '원하는 관계나 요즘 느낀 감정을 편하게 이야기해 주세요. AI의 이해가 다르면, 내 말로 고칠 수 있어요.'}</p>}
+    {firstQuestion && !finished && questionCard(firstQuestion)}
     {roundRecords.length > 0 && <details className="echo-history"><summary>이번 대화 {roundRecords.length}개</summary><ol>{roundRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {pastRecords.length > 0 && <details className="echo-history echo-history--past"><summary>이전 회차 이야기 {pastRecords.length}개 · 다시 보기</summary><ol>{pastRecords.map(record => <li key={record.id}><button disabled={!!busy || !!editor} onClick={() => { setActiveId(record.id); setNotice(''); }}>{record.text}</button></li>)}</ol></details>}
     {active && <div className="echo-original"><p className="echo-eyebrow">내가 남긴 말</p><p>{active.original_text || active.text}</p></div>}
@@ -329,16 +356,33 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
     {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
     {busy && <div className="echo-thinking" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>{busy}</p></div>}
-    {active && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
-    {FOLLOWUP_ENABLED && active && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
+    {active && !finished && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
+    {/* v14.1 다섯 가지를 다 들었으면 여기서 끝낸다. 더 묻지 않는다. */}
+    {finished && !editor && <section className="echo-done">
+      <p className="echo-done-mark"><Check size={18} /> 다섯 가지 답을 모두 저장했어요.</p>
+      <p className="echo-done-lead">이제 같은 만남을 원하는 사람 중에서, 답이 겹치는 사람을 찾기 시작해요.</p>
+      <ol className="echo-done-next">
+        <li><b>사진 3장</b>과 <b>내 소개</b>를 준비하면 연결 자격이 갖춰져요.</li>
+        <li>상대의 이름·사진은 서로의 첫 질문 뒤에 열려요.</li>
+        <li>첫 100명은 대표가 직접 확인한 뒤 연결돼요.</li>
+      </ol>
+      <div className="echo-done-actions">
+        {onContinue
+          ? <button className="echo-primary" disabled={!!busy} onClick={onContinue}>사진과 소개 준비하기 <ChevronRight size={18} /></button>
+          : <Link className="echo-primary" to="/doit/start-journey?edit=profile">사진과 소개 준비하기 <ChevronRight size={18} /></Link>}
+        <Link className="echo-secondary" to="/doit/connections">연결 준비 상태 보기 <ChevronRight size={18} /></Link>
+      </div>
+      <p className="echo-fine">더 들려주고 싶은 말이 있으면 「처음부터 다시 시작하기」로 새 회차를 열 수 있어요. 지금까지 답은 그대로 남아요.</p>
+    </section>}
+    {FOLLOWUP_ENABLED && active && !finished && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
     {!FOLLOWUP_ENABLED && question && questionCard(question)}
-    {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 골라 주세요. 「나중에 고를게요」를 누르면 이어서 적을 수 있어요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
+    {!editor && !finished && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 골라 주세요. 「나중에 고를게요」를 누르면 이어서 적을 수 있어요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
     {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines
       ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
       : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void showDraft()}>확인한 말로 내 소개 초안 보기 <ChevronRight size={18} /></button>}</section>}
     {remembered.length > 0 && <details className="echo-memory"><summary>내가 확인한 이해 {remembered.length}개</summary>{remembered.map(item => <div key={item.id}><span>{item.origin === 'self' ? '직접 설명' : item.status === 'corrected' ? '내가 고친 설명' : categoryNames[item.category] ?? '확인한 이해'}</span><p>{item.text}</p><button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setEditor({ insight: item, kind: 'correct', text: item.text, rejected: false })}>지금의 나에 맞게 고치기</button></div>)}</details>}
     <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>내 소개와 사진 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">내 소개와 사진 준비하기 <ChevronRight size={18} /></Link>}<Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{onRestart && (restartArmed
       ? <div className="echo-restart" role="group" aria-label="처음부터 다시"><p className="echo-context">지금까지 이야기는 그대로 남고, 첫 질문부터 새로 시작해요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => void restart()}>처음부터 다시</button><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속 이어가기</button></div></div>
-      : <button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setRestartArmed(true)}>처음부터 다시 시작하기</button>)}<p className="echo-fine">대화의 길이는 정해져 있지 않아요. 내 속도로 이어가세요.</p></footer>
+      : <button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setRestartArmed(true)}>처음부터 다시 시작하기</button>)}<p className="echo-fine">{finished ? '이번 회차는 끝났어요. 다시 하고 싶으면 위 버튼으로 새로 시작할 수 있어요.' : `질문은 ${ASK_TOTAL}개예요. 더 묻지 않아요.`}</p></footer>
   </section>;
 }

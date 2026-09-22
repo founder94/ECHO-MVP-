@@ -36,3 +36,27 @@
 /* v14 확인 카드의 빠져나갈 문 — 눌러야만 이어갈 수 있던 막힘을 푼다. .echo-dialogue 아래로만 적용한다. */
 .echo-dialogue .echo-defer{margin-top:14px;padding:0;border:0;background:none;color:#9aa4b4;font-size:12px;line-height:1.8;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .echo-dialogue .echo-defer:disabled{opacity:.5;cursor:default}
+/* v14.1 대화에 끝을 만든다 — 진행 표시·시작 안내·완료 화면. .echo-dialogue 아래로만 적용한다. */
+.echo-dialogue .echo-steps{display:flex;align-items:center;gap:12px;margin:0 0 22px}
+.echo-dialogue .echo-steps-count{flex:none;color:#e6ebf3;font-size:13px;font-weight:600;letter-spacing:.02em}
+.echo-dialogue .echo-steps-count em{color:#8b94a3;font-style:normal;font-weight:500}
+.echo-dialogue .echo-steps-bar{flex:1;height:2px;border-radius:2px;background:#c3ccda29;overflow:hidden}
+.echo-dialogue .echo-steps-bar i{display:block;height:100%;border-radius:2px;background:#e6ebf3;transition:width .5s cubic-bezier(.22,1,.36,1)}
+.echo-dialogue .echo-topic{margin:0 0 10px;color:#8b94a3;font-size:12px;letter-spacing:.04em}
+
+.echo-dialogue .echo-brief{margin:26px 0 8px;padding:22px 20px;border:1px solid #c2cad12d;border-radius:18px;background:#14171c}
+.echo-dialogue .echo-brief-lead{margin:0 0 16px;color:#dbe0e7;font-size:14px;line-height:1.8}
+.echo-dialogue .echo-brief-lead b{color:#f2f3f5;font-weight:600}
+.echo-dialogue .echo-brief ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.echo-dialogue .echo-brief li{display:flex;align-items:center;gap:12px;color:#c4cfdf;font-size:13px;line-height:1.7}
+.echo-dialogue .echo-brief li span{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #c3ccda3d;color:#9aa4b4;font-size:11px}
+.echo-dialogue .echo-brief-fine{margin:16px 0 0;color:#8b94a3;font-size:12px;line-height:1.8}
+
+.echo-dialogue .echo-done{margin:28px 0 8px;padding:26px 22px;border:1px solid #c2cad13d;border-radius:20px;background:#14171c}
+.echo-dialogue .echo-done-mark{display:flex;align-items:center;gap:8px;margin:0 0 16px;color:#e6ebf3;font-size:13px;font-weight:600}
+.echo-dialogue .echo-done-lead{margin:0 0 20px;color:#dbe0e7;font-size:15px;line-height:1.85}
+.echo-dialogue .echo-done-next{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:12px}
+.echo-dialogue .echo-done-next li{position:relative;padding-left:16px;color:#9aa4b4;font-size:13px;line-height:1.8}
+.echo-dialogue .echo-done-next li::before{content:"";position:absolute;left:0;top:10px;width:4px;height:4px;border-radius:50%;background:#c3ccda6b}
+.echo-dialogue .echo-done-next b{color:#dbe0e7;font-weight:600}
+.echo-dialogue .echo-done-actions{display:grid;gap:10px;margin-bottom:18px}
