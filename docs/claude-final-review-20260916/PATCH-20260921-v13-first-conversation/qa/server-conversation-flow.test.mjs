@@ -493,7 +493,7 @@ test('v13.6 AI 구제가 반복 질문을 내면 버리고, 사용자 답을 인
   const state = answeredState();
   const { call } = loadServer({ gen: noCandidates, topic: allCovered, rescuePlain: () => ({ question: '연애에 대해 어떤 점이 가장 중요하다고 생각하세요?' }) }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.match(body.rescue.text, /^"진실된마음"라고 답하셨죠\./);
+  assert.match(body.rescue.text, /^"진실된마음"라고 하셨죠\./); // v13.7 말투 조정
   assert.ok(!body.rescue.text.includes('가장 마음에 남는 부분'));
   assert.ok(state.logs.some((l) => l.includes('"step":"ai_dropped"')) && state.logs.some((l) => l.includes('"step":"quoted"')));
 });
@@ -506,4 +506,48 @@ test('v13.6 고정 대체 문장끼리는 반복으로 오인하지 않는다: �
   assert.equal(status, 200);
   assert.match(body.question.text, /그 관계에서 중요한 상대의 성향은 어떤가요/);
   assert.equal(body.topic, 'partner_traits');
+});
+
+// ── v13.7 대표 실기기 발견(2026-09-22 15:16 KST): 긴 답에 고정 문장이 나가 "상대에게 바라는 [긴 문장]는 어떤 모습인가요?"로 깨졌다 ──
+const LONG_ANSWER = '나도 진실하게 대하면 상대도 진실하게 대해줬으면 하는 바램이있어';
+const PREV_Q = '상대에게 어떤 진실한 마음을 바라나요?';
+const longState = (over = {}) => baseState({ recordText: LONG_ANSWER, events: [
+  { user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T06:14:50Z', response_payload: { question: { text: `진실된 마음이 마음에 남는다고 하셨죠.\n${PREV_Q}`, sourceRecordId: 'r-old' } } },
+], insights: [{ id: 'i1', text: '진실된 마음을 중요하게 여긴다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T06:15:00Z' }], ...over });
+
+test('v13.7 이어 묻기가 판정 불허여도 ack 를 떼고 다시 판정해 통과하면 질문만 내보낸다(고정 문장으로 안 떨어짐)', async () => {
+  const state = longState();
+  let call = 0;
+  const { call: post } = loadServer({
+    topic: allCovered,
+    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', question: '그런 믿음이 오간다고 느꼈던 순간이 있었어요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
+    judge: () => (++call === 1 ? { allowed: false } : { allowed: true }),
+  }, state);
+  const { status, body } = await post({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.equal(body.question.text, '그런 믿음이 오간다고 느꼈던 순간이 있었어요?');
+  assert.ok(state.logs.some((l) => l.includes('ack_dropped_pass')));
+});
+
+test('v13.7 두 번 다 불허면 대체 문장으로 가되, 긴 답을 통째로 끼워 넣지 않는다', async () => {
+  const state = longState();
+  const { call } = loadServer({
+    topic: allCovered,
+    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', question: '아직 그 사람을 좋아하는 건가요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
+    judge: () => ({ allowed: false }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.ok(!body.question.text.includes(LONG_ANSWER), '긴 답이 질문 문장에 통째로 들어가면 안 된다');
+  assert.ok(body.question.text.length <= 120, `대체 문장이 너무 길다: ${body.question.text.length}자`);
+  assert.match(body.question.text, /그렇군요/);
+  assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_NOT_GROUNDED')));
+});
+
+test('v13.7 짧은 답은 그대로 인용한 대체 문장을 쓴다(사람이 건넨 말처럼)', async () => {
+  const state = baseState({ recordText: '배려', events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T06:14:50Z', response_payload: { question: { text: PREV_Q, sourceRecordId: 'r-old' } } }] });
+  const { call } = loadServer({ topic: allCovered, followup: () => ({ ack: '', question: '' }) }, state);
+  const { body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.match(body.question.text, /^"배려"라고 하셨죠\./);
+  assert.match(body.question.text, /상대에게 바라는 배려는 어떤 모습일까요\?/);
 });

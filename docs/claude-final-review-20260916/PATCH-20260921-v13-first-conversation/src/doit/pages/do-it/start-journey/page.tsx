@@ -85,6 +85,9 @@ export default function StartJourney() {
   const [savedPurposeId, setSavedPurposeId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("purpose");
+  // v13.7(대표 실기기 2026-09-22 "프로필로 넘어가다가 갑자기 화면이 바뀐다"): 대화로 갈 것이 확정되면
+  // 목적·프로필 화면을 스치듯 보여 주지 않고 전환 화면 하나만 보여 준 뒤 이동한다.
+  const [leaving, setLeaving] = useState(false);
   const [selectedPurpose, setSelectedPurpose] =
     useState<PurposeSelection | null>(null);
   const [profile, setProfile] =
@@ -193,7 +196,7 @@ export default function StartJourney() {
     // ?edit 지정이 없으면 프로필 상태와 상관없이 ECHO 대화로 간다(스위치 ON일 때만).
     // v13: 목적이 없어도 대화로 간다 — 첫 질문("어떤 만남을 원하세요?")을 대화 화면이 AI 대사로 묻는다.
     const goConversation = A_STRUCTURE_SERVER_ENABLED && edit !== "profile" && edit !== "photos";
-    if (!goConversation) setStep(nextStep);
+    if (goConversation) setLeaving(true); else setStep(nextStep);
 
     // 로그인 전 목적 draft를 이제 DB에 영속화한다. 성공한 경우에만 draft를 지운다.
     if (draft) {
@@ -442,6 +445,20 @@ export default function StartJourney() {
           lifeRhythm: readyProfile.lifeRhythm ?? "",
         }
       : null);
+
+  // v13.7 대화로 이동이 확정된 동안에는 중간 화면을 그리지 않는다(화면이 튀어 보이던 원인).
+  if (leaving) {
+    return (
+      <section className="echo-dialogue" aria-busy="true">
+        <p className="echo-eyebrow">DO IT / ECHO</p>
+        <h1>대화를 준비하고 있어요.</h1>
+        <div className="echo-leaving" role="status">
+          <span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span>
+          <p>잠시만요. 지금까지 적어 주신 내용은 그대로 있어요.</p>
+        </div>
+      </section>
+    );
+  }
 
   if (step === "purpose") {
     // 저장된 목적이 현재 활성 목록에 없으면 재선택을 안내한다.
