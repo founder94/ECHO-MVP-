@@ -175,9 +175,9 @@ const RECORD_STATUS = ["confirmed", "corrected", "rejected"] as const;
 const STRATEGIES = ["EXPLORE_USER_MEANING", "CLARIFY", "DEEPEN", "CHANGE_DIRECTION", "ACKNOWLEDGE_CORRECTION", "RECOVER_FROM_REJECTION"] as const;
 type Strategy = (typeof STRATEGIES)[number];
 const STRATEGY_GUIDE: Record<Strategy, string> = {
-  EXPLORE_USER_MEANING: "사용자가 직접 쓴 말이 중심이다. record 가 last_question(직전 질문)에 대한 답이면 질문과 답을 함께 읽는다(예: 질문 '중요한 점'에 답 '진실된 마음' → 진실된 마음을 느낀 순간을 묻는다). 그 말에서 한 걸음만 더 나아가, 사용자가 지금 중요하게 여기는 사람·관계·상황·생각·마음 가운데 하나를 스스로 더 말하게 하는 질문을 만든다.",
+  EXPLORE_USER_MEANING: "사용자가 직접 쓴 말이 중심이다. record 가 last_question(직전 질문)에 대한 답이면 질문과 답을 함께 읽는다. 답이 가치·마음·성향이면 그것을 상대에게 어떤 모습으로 바라는지로 한 걸음 나아간다(대표 확정 예: 질문 '연애에서 중요한 점'에 답 '진실된 마음' → '상대에게 어떤 진실한 마음을 바라나요?'). 그 말에서 한 걸음만 더 나아가, 사용자가 지금 중요하게 여기는 사람·관계·상황·생각·마음 가운데 하나를 스스로 더 말하게 하는 질문을 만든다.",
   CLARIFY: "사용자의 말이 두 갈래로 읽힌다. 어느 쪽에 가까운지 두 갈래를 나란히 제시해('A에 더 가까워요? 아니면 B?') 사용자가 고르거나 고쳐 말하게 한다. 두 갈래 모두 사용자 말에서 나온 것이어야 한다.",
-  DEEPEN: "사용자가 확인한 이해를 바탕으로 한 단계 더 구체화한다. 같은 것을 다시 묻지 않고, 그 이해가 실제 어떤 장면·바람·망설임과 이어지는지 새 각도로 하나만 묻는다.",
+  DEEPEN: "사용자가 확인한 이해를 바탕으로 한 단계 더 구체화한다. 같은 것을 다시 묻지 않고, 그 이해가 실제 어떤 장면·바람·망설임과 이어지는지, 또는 상대에게 어떤 모습으로 바라는지 새 각도로 하나만 묻는다.",
   CHANGE_DIRECTION: "지금 말에서 더 파고들 내용이 없다. hints 가운데 아직 이야기되지 않은 것 하나를 골라 새로 열어 묻는다. 앞 말과 억지로 잇지 않아도 된다.",
   ACKNOWLEDGE_CORRECTION: "사용자가 AI 의 이해를 고쳤다. 고친 말(confirmed 의 corrected)이 유일한 전제다. superseded(고치기 전 AI 문장)를 전제로 삼거나 표현을 바꿔 되살리지 않는다. 고친 말에서 한 걸음 더 나아가 하나만 묻는다.",
   RECOVER_FROM_REJECTION: "사용자가 AI 의 이해를 거절했다. 방향을 잘못 잡았음을 짧게 인정하고, 거절한 뜻과 그 변형을 전제로 하지 않는 열린 질문으로 사용자가 실제 어떤 생각이 먼저 드는지 그대로 말하게 한다.",
@@ -487,8 +487,14 @@ function fixedDirectionQuestion(label: string): string {
 // v13.5 거절 뒤 AI 가 실패했을 때만 쓰는 고정 문장. 거절한 뜻을 되살리지 않고 방향을 사용자에게 돌려준다(지시서 §6 예시).
 const RECOVER_FIXED = "제가 방향을 잘못 잡았네요.\n그 이야기가 떠오를 때 실제로 어떤 생각이 먼저 드는지, 그대로 적어 줄래요?";
 // v13.6 마지막 대체 문장: 사용자 답을 그대로 인용해 한 걸음만 더 묻는다(AI·다른 대체 문장이 모두 막혔을 때만).
+// 조사: 받침 있으면 첫째, 없으면 둘째("진실된마음은" / "배려는").
+function particle(word: string, withFinal: string, withoutFinal: string): string {
+  const code = word.charCodeAt(word.length - 1);
+  const hangul = code >= 0xac00 && code <= 0xd7a3;
+  return hangul && (code - 0xac00) % 28 !== 0 ? withFinal : withoutFinal;
+}
 function fixedAnswerQuestion(quote: string): string {
-  return `"${quote}"라고 답하셨죠.\n그렇게 느낀 순간이 있었다면, 하나만 들려줄래요?`;
+  return `"${quote}"라고 답하셨죠.\n상대에게 바라는 ${quote}${particle(quote, "은", "는")} 어떤 모습인가요?`;
 }
 // v13.6 고정 대체 문장은 틀이 같아 글자 유사도로 비교하면 서로 "반복"으로 오인된다. 정확히 같은 문장일 때만 반복으로 본다.
 const askedExactly = (q: string, asked: string[]): boolean => asked.includes(questionBody(q));
