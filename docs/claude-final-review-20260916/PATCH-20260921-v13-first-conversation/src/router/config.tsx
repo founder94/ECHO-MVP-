@@ -110,7 +110,11 @@ function productRouteTable(): RouteObject[] {
 }
 
 // 메인 진입(/): 이 세션에서 온보딩을 아직 안 봤으면 심볼 온보딩(/do-it/intro), 봤으면 브랜드는 랜딩, 앱은 시작 흐름.
-const entryLanding = BRAND ? <DoItLandingPage /> : <Navigate to="/doit/start-journey" replace />;
+// v14.2(대표 2026-09-22 "메인 페이지에서 시작을 해야 하는데 로그인이 되어 있다는 이유만으로 여기서 시작하는 건지"):
+// 앱의 메인(/)은 시작 흐름이 아니라 **앱 홈**(하단 탭이 있는 화면)이다.
+// 전에는 / → start-journey → (로그인돼 있으면 자동으로) 대화로 replace 이동해서,
+// 메인 화면이 아예 없었고 뒤로가기도 안 됐다(두 번 다 replace 였다).
+const entryLanding = BRAND ? <DoItLandingPage /> : <Navigate to="/doit/home" replace />;
 // 앱에는 랜딩·히어로가 없다. 예전 링크는 시작 흐름으로.
 const brandRoutes: RouteObject[] = BRAND ? brandRouteTable() : [
   { path: '/do-it/hero', element: <Navigate to="/" replace /> },

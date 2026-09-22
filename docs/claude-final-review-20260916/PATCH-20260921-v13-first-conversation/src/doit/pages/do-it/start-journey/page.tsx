@@ -193,9 +193,15 @@ export default function StartJourney() {
 
     if (purposeId && edit === "profile") nextStep = "profile-build";
     if (purposeId && edit === "photos") nextStep = "photo";
-    // ?edit 지정이 없으면 프로필 상태와 상관없이 ECHO 대화로 간다(스위치 ON일 때만).
+    // v14.2: 이미 시작한 사람이 「시작하기」로 다시 들어오면, 프로필 검토 화면에 떨어뜨리지 않고
+    //   무엇을 할지 직접 고르게 한다(대화 이어가기 / 프로필 준비하기).
+    if (purposeId && !edit && A_STRUCTURE_SERVER_ENABLED) nextStep = "conversation-choice";
+    // ?edit 지정이 없으면 ECHO 대화로 간다(스위치 ON일 때만).
     // v13: 목적이 없어도 대화로 간다 — 첫 질문("어떤 만남을 원하세요?")을 대화 화면이 AI 대사로 묻는다.
-    const goConversation = A_STRUCTURE_SERVER_ENABLED && edit !== "profile" && edit !== "photos";
+    // v14.2(대표 2026-09-22): 단, **아직 시작하지 않은 사람만** 바로 대화로 보낸다.
+    //   이미 목적을 고른 사람(=돌아온 사람)까지 자동으로 대화에 넣으면 메인 화면이 사라지고
+    //   뒤로가기도 안 된다(대표 실기기 확인). 돌아온 사람은 이 화면에서 직접 고른다.
+    const goConversation = A_STRUCTURE_SERVER_ENABLED && edit !== "profile" && edit !== "photos" && !purposeId;
     if (goConversation) setLeaving(true); else setStep(nextStep);
 
     // 로그인 전 목적 draft를 이제 DB에 영속화한다. 성공한 경우에만 draft를 지운다.
@@ -506,7 +512,8 @@ export default function StartJourney() {
   }
 
   if (step === "conversation-choice") {
-    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">내 소개를 쓰기 전에</p><h1>몇 마디 나누며,<br />나를 알아가도 좋아요.</h1><p className="echo-lead">원하는 관계와 요즘의 감정을 이야기해 주세요. AI의 이해가 다르면 직접 고칠 수 있어요.</p><button className="echo-primary" onClick={() => navigate("/doit/conversation?from=journey")}>대화로 내 소개 정리하기</button><button className="echo-secondary" onClick={() => setStep("profile-build")}>먼저 프로필 만들기</button><p className="echo-fine">대화 내용이 다른 사람에게 자동 공개되지는 않아요.</p></section>;
+    // v14.2: 이미 시작한 사람도 여기로 온다. 무엇을 할지 스스로 고르게 하고, 홈으로 돌아갈 길을 함께 둔다.
+    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>이어서 할지,<br />내가 고를 수 있어요.</h1><p className="echo-lead">상대를 찾으려면 다섯 가지 답과 사진·소개가 필요해요. 순서는 정해져 있지 않아요.</p><button className="echo-primary" onClick={() => navigate("/doit/conversation?from=journey")}>대화 이어가기</button><button className="echo-secondary" onClick={() => setStep("profile-build")}>사진·소개 준비하기</button><button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">대화 내용이 다른 사람에게 자동 공개되지는 않아요.</p></section>;
   }
 
   if (step === "profile-build") {

@@ -308,7 +308,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   if (!A_STRUCTURE_SERVER_ENABLED) return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">ECHO · 내 이야기</p><h1>나를 설명하는 말은,<br />내가 정할 수 있도록.</h1><p className="echo-lead">대화와 기억을 연결하는 마지막 확인을 하고 있어요. 지금은 내 소개와 사진을 준비할 수 있어요.</p>{onContinue ? <button className="echo-primary" onClick={onContinue}>내 프로필 준비하기 <ChevronRight size={18} /></button> : <Link className="echo-primary" to="/doit/start-journey">내 프로필 준비하기 <ChevronRight size={18} /></Link>}</section>;
 
   return <section className="echo-dialogue" aria-busy={!!busy}>
-    <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/understanding">내가 확인한 이해</Link></header>
+    {/* v14.2: 대화 안에서도 항상 홈으로 나갈 길을 둔다(대표 실기기: 들어오면 나갈 데가 없었다). */}
+    <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">내가 확인한 이해</Link></header>
     {/* v14.1 진행은 항상 보인다. 몇 개 남았는지 모르는 게 지치는 원인이었다. */}
     {!finished && <div className="echo-steps" role="status" aria-label={`다섯 가지 중 ${answered}가지 답함`}>
       <span className="echo-steps-count">{Math.min(answered + 1, ASK_TOTAL)} <em>/ {ASK_TOTAL}</em></span>
