@@ -1,4 +1,4 @@
-// doit-understanding — A구조 자기이해 자산 서버 상태머신 (v13.7 · 2026-09-22)
+// doit-understanding — A구조 자기이해 자산 서버 상태머신 (v14 · 2026-09-22)
 //
 // v13 변경(대표 코드 수정 승인 2026-09-21): ① 다음 질문에 "아직 안 나온 주제" 방향(TOPICS) ② 되묻기 rephrase
 // ③ 저장 금지 입력(연락처·식별번호·링크·성적 표현) 규칙 차단 ④ 확인한 말로만 만드는 소개 초안(profile_draft).
@@ -99,12 +99,14 @@ const LIMITS = {
 // - TOPICS: 서버가 "아직 안 나온 주제"를 고를 때 쓰는 나침반. 순서는 우선순위일 뿐 고정 질문이 아니다.
 // - isMetaReply: 답이 아니라 "질문이 무슨 뜻이냐"는 되묻기인지. 짧고 질문 자체를 가리킬 때만 true.
 // - blockedContentReason: 저장하면 안 되는 입력(연락처·식별번호·링크·성적 표현). 규칙 판정이라 AI를 거치지 않는다.
+// v14(대표 2026-09-22): 주제는 "자기이해 심화"가 아니라 "상대를 골라 주려면 알아야 하는 것"이다.
+// 두 사람을 겹쳐 볼 수 있는 칸만 남긴다. 마음·감정을 파고드는 주제(mood)는 뺐다.
 export const TOPICS = [
   { id: "purpose", label: "원하는 만남" },
-  { id: "partner_style", label: "끌리는 사람의 스타일" },
-  { id: "partner_traits", label: "그 관계에서 중요한 상대의 성향" },
-  { id: "self", label: "상대가 알아야 할 나의 모습" },
-  { id: "mood", label: "요즘 사람을 만나는 일에 대한 마음" },
+  { id: "partner_style", label: "끌리는 사람" },
+  { id: "together", label: "같이 하고 싶은 것" },
+  { id: "self", label: "상대가 알면 좋을 나" },
+  { id: "pace", label: "만나는 방식" },
 ] as const;
 export type TopicId = (typeof TOPICS)[number]["id"];
 export function isTopicId(value: unknown): value is TopicId {
@@ -225,6 +227,12 @@ const REASON = {
 const MAX_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 const TOP_P = 0.9;
+// v14 변경(대표 2026-09-22 "질문이 너무 딥하다 / 우리가 사용자에 대해 알아야 할 정보만 알면 된다 /
+// 상대 매칭에 있어서 그 구분에서 알아야 할 질문을 하라"):
+// ⑬ TOPICS 를 매칭에 쓰는 칸으로 교체(mood 삭제, together·pace 추가).
+// ⑭ 질문 45자 이내·예시 없음·추상적 물음('어떤 모습일까요' 등) 금지, ack 25자 이내.
+// ⑮ 사용자 말을 조사 자리에 끼워 넣는 고정 문장 전면 삭제 — 인용은 `"..."라고 하셨죠.` 한 줄로만.
+//    (v13.7 의 14자 규칙으로도 "에너지가 뺏기가 싫어서"가 그대로 깨져 운영에 나갔다.)
 const PERSONA =
   "너는 사용자가 스스로를 이해하도록 돕는 동반자 'DO IT'이다. 사용자가 실제로 말한 내용만 근거로 하고 추측·판단·진단·평가를 하지 않는다. 가치·패턴·선택 기억을 후보로만 제시한다. 말투: 사용자를 '나'의 관점에서 돕고, 단정하지 않으며('이렇게 이해했어요' 처럼), 한 번에 질문 하나만 한다. 데이팅·소개팅·궁합·점술·심리치료·성격검사 같은 단어를 쓰지 않는다.";
 
@@ -480,10 +488,10 @@ function joinAck(ack: unknown, question: string): string {
 }
 
 // v13.1: 질문 문장 규칙(후속 질문·구제 공통). 방금 한 말을 캐묻지 않고 다음 주제를 정면으로 묻는다.
-const QUESTION_STYLE = "질문은 한 번에 핵심 하나만 묻는 열린 질문 한 개다(물음표는 하나, 'A에 더 가까워요? 아니면 B?' 꼴만 둘 허용). 사용자가 방금 한 답을 문장 안에 통째로 옮겨 붙이지 않는다 — 필요하면 핵심 낱말 한두 개만 짧게 쓴다. 사용자가 이미 한 말을 표현만 바꿔 다시 묻거나 '구체적으로'·'자세히'·'어떤 느낌' 같은 빈 되묻기를 하지 않는다. 사용자가 말하지 않은 감정·관계·의도를 전제로 넣지 않는다. 답의 예시를 붙일 때는 괄호로 두 개까지만, 사용자가 이미 한 말은 예시에 넣지 않는다. 말은 사람이 건네듯 자연스럽게, 질문은 예시까지 120자 이내다.";
-const ACK_STYLE = "ack 는 사용자가 방금 말한 내용을 사람이 듣고 짧게 받아 주는 한 문장이다(예: '그렇군요, 조용한 사람이 편하다는 말씀이죠.'). 기록이나 확인한 말 안의 표현만 쓰고 새 해석·평가·칭찬·조언·진단을 넣지 않는다. 사용자 답을 통째로 옮기지 말고 핵심 한 구절만 짧게 가져온다. '많이 힘드셨겠어요' 같은 과장된 위로나 매번 같은 말의 되풀이는 넣지 않는다. 받아 줄 말이 없으면 빈 문자열로 둔다. 40자 이내다.";
+const QUESTION_STYLE = "질문은 짧고 쉬운 한 문장이다. 물음표는 하나. 길이는 공백 포함 45자 이내이며, 한두 단어나 한 문장으로 답할 수 있어야 한다. 상대를 골라 주기 위해 알아야 할 것만 묻는다 — 어떤 사람이 좋은지, 같이 뭘 하고 싶은지, 어떻게 만나고 싶은지, 상대가 알면 좋을 내 모습. 마음속을 파고들거나 깨달음을 요구하지 않는다. '어떤 모습일까요'·'어떤 태도를 기대하나요'·'무엇을 의미하나요'·'어떤 마음인가요'·'왜 그런가요' 같은 추상적이고 무거운 물음은 쓰지 않는다. 사용자가 방금 한 답을 문장 안에 옮겨 붙이지 않는다. 사용자가 이미 한 말을 표현만 바꿔 다시 묻거나 '구체적으로'·'자세히' 같은 빈 되묻기를 하지 않는다. 사용자가 말하지 않은 감정·관계·의도를 전제로 넣지 않는다. 예시는 붙이지 않는다(질문 자체를 구체적으로 만든다). 말은 사람이 건네듯 가볍고 편안하게 한다.";
+const ACK_STYLE = "ack 는 사용자가 방금 말한 내용을 가볍게 받아 주는 한 문장이다(예: '조용한 곳이 편하시군요.'). 기록이나 확인한 말 안의 표현만 쓰고 새 해석·평가·칭찬·조언·진단을 넣지 않는다. 사용자 답을 통째로 옮기지 않는다. '많이 힘드셨겠어요' 같은 과장된 위로나 매번 같은 말의 되풀이는 넣지 않는다. 받아 줄 말이 없으면 빈 문자열로 둔다. 25자 이내다.";
 
-const GENERIC_RESCUE = "방금 남긴 기록에서 가장 마음에 남는 부분은 어디였나요?";
+const GENERIC_RESCUE = "어떤 사람이면 편하게 느껴지세요?";
 // v13.3/13.4: AI 가 실패했을 때만 쓰는, 방향 주제를 그대로 묻는 고정 문장. 캐묻기가 아니라 다음 주제로 나아간다.
 function fixedDirectionQuestion(label: string): string {
   return `방금 하신 말은 저장했어요.\n${label}은 어떤가요? 떠오르는 대로 짧게 적어도 돼요.`;
@@ -492,16 +500,16 @@ function fixedDirectionQuestion(label: string): string {
 const RECOVER_FIXED = "제가 방향을 잘못 잡았네요.\n그 이야기가 떠오를 때 실제로 어떤 생각이 먼저 드는지, 그대로 적어 줄래요?";
 // v13.6 마지막 대체 문장: 사용자 답을 그대로 인용해 한 걸음만 더 묻는다(AI·다른 대체 문장이 모두 막혔을 때만).
 // 조사: 받침 있으면 첫째, 없으면 둘째("진실된마음은" / "배려는").
-function particle(word: string, withFinal: string, withoutFinal: string): string {
-  const code = word.charCodeAt(word.length - 1);
-  const hangul = code >= 0xac00 && code <= 0xd7a3;
-  return hangul && (code - 0xac00) % 28 !== 0 ? withFinal : withoutFinal;
-}
-// v13.7 짧은 답일 때만 그대로 인용한다. 길면 통째로 끼워 넣지 않고(문장이 깨진다) 인용 없이 묻는다.
-const SHORT_QUOTE_MAX = 14;
+// v14: 사용자 말을 문장의 조사 자리에 끼워 넣지 않는다.
+// v13.7 은 14자 이하면 끼워 넣었는데, "에너지가 뺏기가 싫어서"(12자)처럼 구절이면 그대로 깨졌다
+// ("상대에게 바라는 에너지가 뺏기가 싫어서는 어떤 모습일까요?" — 운영에서 실제로 나감).
+// 인용은 `"..."라고 하셨죠.` 한 줄로만 쓴다. 이 틀은 어떤 말이 들어와도 문장이 성립한다.
+// 질문 줄에는 사용자 말을 넣지 않는다.
+// 인용 줄은 길면 화면이 무거워진다. 긴 답은 인용 없이 질문만 낸다(자르지 않는다 — 자른 인용은 뜻이 바뀐다).
+const QUOTE_LINE_MAX = 18;
 function fixedAnswerQuestion(quote: string): string {
-  if (quote.length <= SHORT_QUOTE_MAX) return `"${quote}"라고 하셨죠.\n상대에게 바라는 ${quote}${particle(quote, "은", "는")} 어떤 모습일까요?`;
-  return `그렇군요, 방금 하신 말은 그대로 담아 뒀어요.\n그 마음이 상대에게서 어떤 모습으로 보이면 "아, 이 사람이구나" 싶을까요?`;
+  const ask = "그런 사람과 같이 뭘 하고 싶으세요?";
+  return quote.length <= QUOTE_LINE_MAX ? `"${quote}"라고 하셨죠.\n${ask}` : ask;
 }
 // v13.6 고정 대체 문장은 틀이 같아 글자 유사도로 비교하면 서로 "반복"으로 오인된다. 정확히 같은 문장일 때만 반복으로 본다.
 const askedExactly = (q: string, asked: string[]): boolean => asked.includes(questionBody(q));
@@ -593,7 +601,7 @@ async function buildRescue(
   // 3) AI 없이, 사용자 자신의 말 일부만 짧게 인용해 되묻는다. v13.6: 직전 질문에 대한 답이면 답을 인용해 한 걸음 더 묻는다.
   const quote = quoteFromRecord(recordText);
   if (quote) {
-    for (const text of [lastQuestion ? fixedAnswerQuestion(quote) : "", `방금 남긴 기록에서 "${quote}" 부분을 조금 더 들려주실 수 있을까요?`]) {
+    for (const text of [lastQuestion ? fixedAnswerQuestion(quote) : "", (quote.length <= QUOTE_LINE_MAX ? `"${quote}"라고 하셨죠.\n조금만 더 들려주실래요?` : "조금만 더 들려주실래요?")]) {
       if (text && !askedExactly(text, asked) && !rescueBlocked(text, rejected)) { used("quoted"); return { kind: "quoted_question", text, strategy }; }
     }
   }

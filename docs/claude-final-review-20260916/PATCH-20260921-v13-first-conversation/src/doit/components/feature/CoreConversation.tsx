@@ -176,7 +176,11 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
     if (alive.current) { setRestartArmed(false); setNotice('처음부터 다시 시작해요. 지난 이야기는 그대로 남아 있어요.'); }
   });
-  const candidates = insights.filter(i => i.status === 'candidate');
+  // v14(대표 2026-09-22 "맞아요 계속 눌러가면서 언제까지 해야 하냐"):
+  // 확인 카드가 뜨면 입력이 아예 막혀서, 이야기를 이어가려면 매번 버튼을 눌러야 했다.
+  // '나중에 고를게요' 로 이번 화면에서만 접어 둔다. 서버 상태(candidate)는 그대로라 나중에 다시 확인할 수 있다.
+  const [deferred, setDeferred] = useState<string[]>([]);
+  const candidates = insights.filter(i => i.status === 'candidate' && !deferred.includes(i.id));
   const current = candidates.find(i => i.source_record_id === activeId) ?? candidates[0];
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
   const hasInsights = insights.some(i => i.source_record_id === activeId);
@@ -318,7 +322,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
         <button disabled={!!busy || !loaded} onClick={() => void react(current, 'reject')}>그게 아니에요</button>
         <button disabled={!!busy || !loaded} onClick={() => setEditor({ insight: current, kind: 'self', text: '', rejected: false })}>직접 설명할게요</button>
       </div>
-      <p className="echo-fine">확인 전에는 나에 대한 사실로 표시하지 않아요.</p>
+      <button className="echo-defer" disabled={!!busy || !loaded} onClick={() => setDeferred(prev => prev.includes(current.id) ? prev : [...prev, current.id])}>나중에 고를게요</button>
+      <p className="echo-fine">확인 전에는 나에 대한 사실로 표시하지 않아요. 나중에 골라도 돼요.</p>
     </article>}
     {editor && <section className="echo-editor"><PencilLine size={20} /><h2>{editor.kind === 'correct' ? '어떤 부분을 고치면 더 맞을까요?' : '내 말로 설명해 주세요.'}</h2><p className="echo-context">{editor.rejected ? '이전 AI 해석은 제외했어요. 이제 직접 적은 내용을 저장할게요.' : '아래 내용을 저장한 뒤에 반영돼요.'}</p>{editorConflict && latestEditing && <div className="echo-error"><p>다른 화면에서 바뀐 설명: {latestEditing.text}</p><p>적어 둔 내용은 그대로 남겨뒀어요. 최신 설명을 확인한 뒤 다시 저장해 주세요.</p>{latestEditing.status !== 'rejected' && <button onClick={() => setEditor({ ...editor, insight: latestEditing })}>최신 설명을 확인했어요</button>}</div>}<label htmlFor="echo-correction" className="sr-only">내 설명</label><textarea id="echo-correction" maxLength={200} value={editor.text} disabled={!!busy} onChange={event => setEditor({ ...editor, text: event.target.value })} autoFocus rows={4} /><div className="echo-editor-footer"><span>{editor.text.length}/200</span><button disabled={!!busy} onClick={() => setEditor(null)}>닫기</button></div><button className="echo-primary" disabled={!!busy || !editor.text.trim() || editorConflict} onClick={() => void saveEditor()}>이 설명으로 저장하기 <Check size={18} /></button></section>}
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
@@ -327,7 +332,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {active && !hasInsights && !question && !busy && <button className="echo-secondary" disabled={!loaded} onClick={() => void retryGenerate()}>저장한 이야기 다시 살펴보기</button>}
     {FOLLOWUP_ENABLED && active && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 이야기를 생각하고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
     {!FOLLOWUP_ENABLED && question && questionCard(question)}
-    {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 AI의 이해를 먼저 확인해 주세요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
+    {!editor && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 하고 싶은 이야기' : '어떤 사람과 어떤 관계를 원하는지, 요즘 마음은 어떤지 내 말로 들려주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="지금 떠오르는 말부터 적어주세요." maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위에서 골라 주세요. 「나중에 고를게요」를 누르면 이어서 적을 수 있어요.' : '대화는 내 계정에 저장돼요. 프로필에 자동 공개하지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
     {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines
       ? <><p className="echo-eyebrow">내가 확인한 말로만 만든 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>이 초안 소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 추측은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
       : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void showDraft()}>확인한 말로 내 소개 초안 보기 <ChevronRight size={18} /></button>}</section>}

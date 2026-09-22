@@ -33,3 +33,6 @@
 .echo-draft li p{margin:0;font-size:15px;line-height:1.8;color:#e4e7ec;white-space:pre-wrap}
 .echo-draft li span{display:block;margin-top:6px;font-size:11px;line-height:1.7;color:#9aa4b4}
 @media(min-width:700px){.echo-opening-tiles{grid-template-columns:1fr 1fr}}
+/* v14 확인 카드의 빠져나갈 문 — 눌러야만 이어갈 수 있던 막힘을 푼다. .echo-dialogue 아래로만 적용한다. */
+.echo-dialogue .echo-defer{margin-top:14px;padding:0;border:0;background:none;color:#9aa4b4;font-size:12px;line-height:1.8;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.echo-dialogue .echo-defer:disabled{opacity:.5;cursor:default}

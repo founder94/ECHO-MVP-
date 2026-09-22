@@ -4,12 +4,14 @@
 // - TOPICS: 서버가 "아직 안 나온 주제"를 고를 때 쓰는 나침반. 순서는 우선순위일 뿐 고정 질문이 아니다.
 // - isMetaReply: 답이 아니라 "질문이 무슨 뜻이냐"는 되묻기인지. 짧고 질문 자체를 가리킬 때만 true.
 // - blockedContentReason: 저장하면 안 되는 입력(연락처·식별번호·링크·성적 표현). 규칙 판정이라 AI를 거치지 않는다.
+// v14(대표 2026-09-22): 주제는 "자기이해 심화"가 아니라 "상대를 골라 주려면 알아야 하는 것"이다.
+// 두 사람을 겹쳐 볼 수 있는 칸만 남긴다. 마음·감정을 파고드는 주제(mood)는 뺐다.
 export const TOPICS = [
   { id: "purpose", label: "원하는 만남" },
-  { id: "partner_style", label: "끌리는 사람의 스타일" },
-  { id: "partner_traits", label: "그 관계에서 중요한 상대의 성향" },
-  { id: "self", label: "상대가 알아야 할 나의 모습" },
-  { id: "mood", label: "요즘 사람을 만나는 일에 대한 마음" },
+  { id: "partner_style", label: "끌리는 사람" },
+  { id: "together", label: "같이 하고 싶은 것" },
+  { id: "self", label: "상대가 알면 좋을 나" },
+  { id: "pace", label: "만나는 방식" },
 ] as const;
 export type TopicId = (typeof TOPICS)[number]["id"];
 export function isTopicId(value: unknown): value is TopicId {

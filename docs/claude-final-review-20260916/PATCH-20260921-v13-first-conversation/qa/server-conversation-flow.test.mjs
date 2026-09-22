@@ -99,11 +99,11 @@ const dirRescue = () => ({ ack: '조용한 사람이 좋다고 하셨죠.', ques
 
 test('짧은 답 + 주제 판정이 "항목별 참/거짓 객체"로 와도 → 다음 주제 질문(ack 포함, topic 있음)', async () => {
   const state = baseState();
-  const { call, calls } = loadServer({ gen: noCandidates, topic: () => ({ covered: { partner_style: true, partner_traits: false, self: false, mood: false } }), rescueDir: dirRescue }, state);
+  const { call, calls } = loadServer({ gen: noCandidates, topic: () => ({ covered: { partner_style: true, together: false, self: false, pace: false } }), rescueDir: dirRescue }, state);
   const { status, body } = await call({ action: 'insight_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.equal(body.insights.length, 0);
-  assert.equal(body.rescue.topic, 'partner_traits', '끌리는 스타일은 이미 나왔으니 다음 주제');
+  assert.equal(body.rescue.topic, 'together', '끌리는 스타일은 이미 나왔으니 다음 주제');
   assert.match(body.rescue.text, /^조용한 사람이 좋다고 하셨죠\.\n/);
   assert.ok(calls.includes('topic') && calls.includes('rescueDir'));
   assert.ok(!state.logs.some((l) => l.includes('topic_parse_failure')));
@@ -113,7 +113,7 @@ test('주제 판정이 "객체 목록"으로 와도 읽는다', async () => {
   const state = baseState();
   const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: [{ id: 'partner_style', covered: true }, { id: 'self', covered: false }] }), rescueDir: dirRescue }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.equal(body.rescue.topic, 'partner_traits');
+  assert.equal(body.rescue.topic, 'together');
 });
 
 test('주제 판정이 완전히 엉뚱한 형식이면 → 첫 주제부터 묻고 실패 모양만 로그(원문 없음)', async () => {
@@ -138,7 +138,7 @@ test('"모르겠어요" 도 정상 입력: 후보 없음 → 다음 주제 질�
   const state = baseState({ recordText: '모르겠어요' });
   const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style'] }), rescueDir: () => ({ ack: '아직 잘 모르겠다고 하셨죠.', question: '그 관계에서 상대의 어떤 성향이 중요하세요? (예: 솔직한 사람, 배려하는 사람)' }) }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.equal(body.rescue.topic, 'partner_traits');
+  assert.equal(body.rescue.topic, 'together');
   assert.ok(!/구체적|자세히/.test(body.rescue.text));
 });
 
@@ -147,7 +147,7 @@ test('구제 AI 까지 실패하면 그 주제를 그대로 묻는 고정 문장
   const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: [] }), rescueDir: () => 'TIMEOUT' }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
   assert.equal(body.rescue.topic, 'partner_style');
-  assert.match(body.rescue.text, /끌리는 사람의 스타일은 어떤가요/);
+  assert.match(body.rescue.text, /끌리는 사람은 어떤가요/);
   assert.ok(!body.rescue.text.includes('부분을 조금 더 들려주실'), 'v12 캐묻기 문장이 아니어야 한다');
 });
 
@@ -161,7 +161,7 @@ test('다음 질문(새 갈래): 짧은 답 + 행동 없음 → CHANGE_DIRECTION
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.equal(body.strategy, 'CHANGE_DIRECTION');
-  assert.equal(body.topic, 'partner_traits');
+  assert.equal(body.topic, 'together');
   assert.equal(body.question.text, '그 관계에서 상대의 어떤 성향이 중요하세요? (예: 약속을 지키는 사람, 잘 들어주는 사람)');
 });
 
@@ -180,19 +180,19 @@ test('다음 질문(한 단계 더): 확인한 이해가 있으면 DEEPEN. 질�
   const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
   assert.equal(sent.strategy, 'DEEPEN');
   assert.equal(sent.record, '조용한 사람');
-  assert.ok(Array.isArray(sent.hints) && !sent.hints.includes('끌리는 사람의 스타일'), 'hints 는 아직 안 나온 주제만');
+  assert.ok(Array.isArray(sent.hints) && !sent.hints.includes('끌리는 사람'), 'hints 는 아직 안 나온 주제만');
 });
 
 test('다음 질문: 판정이 불허해도 새 갈래 질문은 ack 만 떼고 낸다. 이어 묻기(DEEPEN)가 불허면 고정 대체 문장으로 이어간다(멈추지 않는다)', async () => {
   const state = baseState();
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
-    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '상대가 알아야 할 나의 모습은 무엇인가요? (예: 느긋한 편, 계획적인 편)', basis: '조용한 사람', meaning: '', keys: ['나의 모습'] }),
+    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '상대가 알면 좋을 나은 무엇인가요? (예: 느긋한 편, 계획적인 편)', basis: '조용한 사람', meaning: '', keys: ['나의 모습'] }),
     judge: () => ({ allowed: false }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
-  assert.equal(body.question.text, '상대가 알아야 할 나의 모습은 무엇인가요? (예: 느긋한 편, 계획적인 편)');
-  assert.equal(body.topic, 'partner_traits');
+  assert.equal(body.question.text, '상대가 알면 좋을 나은 무엇인가요? (예: 느긋한 편, 계획적인 편)');
+  assert.equal(body.topic, 'together');
   const state2 = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
   const { call: call2 } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
@@ -234,7 +234,7 @@ test('다음 질문: 거절 뒤에는 RECOVER_FROM_REJECTION. ack 가 거절과 
 test('주제가 다 나오면(5/5) 새로운 면을 여는 질문, topic 은 null', async () => {
   const state = baseState({ insights: [{ id: 'i1', text: '느긋한 편이다', status: 'confirmed', origin: 'self', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
   const { call } = loadServer({
-    topic: () => ({ covered: ['partner_style', 'partner_traits', 'self', 'mood'] }),
+    topic: () => ({ covered: ['partner_style', 'together', 'self', 'pace'] }),
     followup: () => ({ ack: '느긋한 편이라고 하셨죠.', question: '만남 뒤에 어떤 변화를 바라세요? (예: 주말이 기다려지는 것, 편하게 연락할 사람)', basis: '느긋한 편', meaning: '', keys: ['변화'] }),
     judge: () => ({ allowed: true }),
   }, state);
@@ -261,7 +261,7 @@ test('주제 판정에 최근 기록들이 함께 들어간다(같은 주제를 
   await call({ action: 'insight_generate', recordId: RECORD });
   assert.deepEqual(seen.records, ['친구를 사귀고 싶어요']);
   assert.equal(seen.record, '조용한 사람');
-  assert.deepEqual(seen.topics, ['partner_style', 'partner_traits', 'self', 'mood']);
+  assert.deepEqual(seen.topics, ['partner_style', 'together', 'self', 'pace']);
 });
 
 test('v13.4 다음 질문 생성이 어떤 이유로든 실패해도(예: AI 가 질문을 안 줌) 방향 주제를 묻는 고정 문장 + topic 으로 답한다', async () => {
@@ -269,8 +269,8 @@ test('v13.4 다음 질문 생성이 어떤 이유로든 실패해도(예: AI 가
   const { call } = loadServer({ topic: () => ({ covered: ['partner_style'] }), followup: () => ({ nothing: true }) }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.equal(body.topic, 'partner_traits');
-  assert.match(body.question.text, /그 관계에서 중요한 상대의 성향은 어떤가요/);
+  assert.equal(body.topic, 'together');
+  assert.match(body.question.text, /같이 하고 싶은 것은 어떤가요/);
   assert.ok(state.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NO_QUESTION')));
 });
 
@@ -458,7 +458,7 @@ test('§21-11 화면 응답에는 내부 진단(trace)·구제 종류(kind)가 �
 
 // ── v13.6 대표 실기기 발견(2026-09-22 09:50 KST): "연애에서 중요한 점?" → "진실된마음" → "방금 남긴 기록에서 가장 마음에 남는 부분은…"(생뚱맞음) ──
 const LAST_Q = '연애에 대해 어떤 점이 가장 중요하다고 생각하나요?';
-const allCovered = () => ({ covered: ['partner_style', 'partner_traits', 'self', 'mood'] });
+const allCovered = () => ({ covered: ['partner_style', 'together', 'self', 'pace'] });
 const answeredState = (over = {}) => baseState({ recordText: '진실된마음', events: [
   { user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T00:50:24Z', response_payload: { question: { text: LAST_Q, sourceRecordId: 'r-old' } } },
   { user_id: USER, action: 'insight_generate', status: 'applied', created_at: '2026-09-22T00:40:00Z', response_payload: { rescue: { text: '방금 남긴 기록에서 "친구" 부분을 조금 더 들려주실 수 있을까요?', kind: 'quoted_question' } } },
@@ -499,13 +499,13 @@ test('v13.6 AI 구제가 반복 질문을 내면 버리고, 사용자 답을 인
 });
 
 test('v13.6 고정 대체 문장끼리는 반복으로 오인하지 않는다: 첫 주제 문장을 이미 물었으면 다음 주제 문장으로', async () => {
-  const asked = '방금 하신 말은 저장했어요.\n끌리는 사람의 스타일은 어떤가요? 떠오르는 대로 짧게 적어도 돼요.';
+  const asked = '방금 하신 말은 저장했어요.\n끌리는 사람은 어떤가요? 떠오르는 대로 짧게 적어도 돼요.';
   const state = baseState({ recordText: '음', events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T00:50:24Z', response_payload: { question: { text: asked, sourceRecordId: 'r-old' } } }] });
   const { call } = loadServer({ topic: () => ({ covered: [] }), followup: () => ({ ack: '', question: '' }) }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.match(body.question.text, /그 관계에서 중요한 상대의 성향은 어떤가요/);
-  assert.equal(body.topic, 'partner_traits');
+  assert.match(body.question.text, /같이 하고 싶은 것은 어떤가요/);
+  assert.equal(body.topic, 'together');
 });
 
 // ── v13.7 대표 실기기 발견(2026-09-22 15:16 KST): 긴 답에 고정 문장이 나가 "상대에게 바라는 [긴 문장]는 어떤 모습인가요?"로 깨졌다 ──
@@ -529,7 +529,7 @@ test('v13.7 이어 묻기가 판정 불허여도 ack 를 떼고 다시 판정해
   assert.ok(state.logs.some((l) => l.includes('ack_dropped_pass')));
 });
 
-test('v13.7 두 번 다 불허면 대체 문장으로 가되, 긴 답을 통째로 끼워 넣지 않는다', async () => {
+test('v14 두 번 다 불허면 대체 문장으로 가되, 사용자 답을 질문 문장에 끼워 넣지 않는다', async () => {
   const state = longState();
   const { call } = loadServer({
     topic: allCovered,
@@ -538,16 +538,41 @@ test('v13.7 두 번 다 불허면 대체 문장으로 가되, 긴 답을 통째�
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.ok(!body.question.text.includes(LONG_ANSWER), '긴 답이 질문 문장에 통째로 들어가면 안 된다');
-  assert.ok(body.question.text.length <= 120, `대체 문장이 너무 길다: ${body.question.text.length}자`);
-  assert.match(body.question.text, /그렇군요/);
+  assert.ok(!body.question.text.includes(LONG_ANSWER), '긴 답은 인용 줄에도 넣지 않는다(화면이 무거워진다)');
+  assert.ok(body.question.text.length <= 45, `대체 문장이 너무 길다: ${body.question.text.length}자`);
   assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_NOT_GROUNDED')));
 });
 
-test('v13.7 짧은 답은 그대로 인용한 대체 문장을 쓴다(사람이 건넨 말처럼)', async () => {
-  const state = baseState({ recordText: '배려', events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T06:14:50Z', response_payload: { question: { text: PREV_Q, sourceRecordId: 'r-old' } } }] });
-  const { call } = loadServer({ topic: allCovered, followup: () => ({ ack: '', question: '' }) }, state);
-  const { body } = await call({ action: 'followup_generate', recordId: RECORD });
-  assert.match(body.question.text, /^"배려"라고 하셨죠\./);
-  assert.match(body.question.text, /상대에게 바라는 배려는 어떤 모습일까요\?/);
+// ── v14 대표 실기기 발견(2026-09-22 16:29 KST) ──────────────────────────────
+// v13.7 은 "14자 이하면 그대로 인용" 이었는데, 구절이 들어오면 조사 자리에서 그대로 깨졌다.
+// 운영에 실제로 나간 문장: "상대에게 바라는 에너지가 뺏기가 싫어서는 어떤 모습일까요?"
+// v14 규칙: 인용은 `"..."라고 하셨죠.` 한 줄로만. 질문 줄에는 사용자 말을 넣지 않는다.
+const BROKEN_CASE = '에너지가 뺏기가 싫어서'; // 12자 — v13.7 의 14자 문턱을 통과해 버렸다
+for (const quote of [BROKEN_CASE, '배려', '그냥 아무생각없어', '좋은 에너지면 같이 시너지를 느낄수있지만 싸우고 그럼 에너지가 서비된다']) {
+  test(`v14 대체 문장은 사용자 말을 조사 자리에 넣지 않는다: "${quote}"`, async () => {
+    const state = baseState({ recordText: quote, events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T06:14:50Z', response_payload: { question: { text: PREV_Q, sourceRecordId: 'r-old' } } }] });
+    const { call } = loadServer({ topic: allCovered, followup: () => ({ ack: '', question: '' }) }, state);
+    const { body } = await call({ action: 'followup_generate', recordId: RECORD });
+    const text = body.question.text;
+    // 사용자 말은 `"..."라고 하셨죠.` 안에서만 쓸 수 있다. 이 틀은 어떤 말이 와도 문장이 성립한다.
+    const withoutQuoteLine = text.split('\n').filter((line) => !/^"[^"]*"라고 하셨죠\.$/.test(line.trim())).join('\n');
+    assert.ok(!withoutQuoteLine.includes(quote), `인용 틀 밖에 사용자 말이 들어갔다: ${withoutQuoteLine}`);
+    // 깨진 채 운영에 나갔던 틀이 다시 나오면 안 된다.
+    assert.ok(!text.includes('상대에게 바라는'), `옛 깨진 틀이 살아 있다: ${text}`);
+    const askLine = text.split('\n').filter((line) => line.trim()).pop() ?? '';
+    assert.ok(askLine.length <= 45, `질문이 너무 길다(${askLine.length}자): ${askLine}`);
+  });
+}
+
+test('v14 질문 말투 규칙: 짧게, 예시 없이, 무거운 추상 물음 금지', () => {
+  const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
+  const style = src.slice(src.indexOf('const QUESTION_STYLE'), src.indexOf('const ACK_STYLE'));
+  assert.match(style, /45자 이내/);
+  assert.match(style, /예시는 붙이지 않는다/);
+  for (const banned of ['어떤 모습일까요', '어떤 태도를 기대하나요', '어떤 마음인가요']) {
+    assert.ok(style.includes(banned), `금지 목록에 "${banned}" 가 없다`);
+  }
+  // 조사 끼워 넣기 도우미는 없앴다.
+  assert.ok(!src.includes('function particle('), 'particle 이 남아 있으면 조사 끼워 넣기가 되살아날 수 있다');
+  assert.ok(!src.includes('SHORT_QUOTE_MAX'), 'v13.7 의 글자수 문턱이 남아 있다');
 });

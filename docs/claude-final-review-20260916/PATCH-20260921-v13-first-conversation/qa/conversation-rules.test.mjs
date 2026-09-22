@@ -36,9 +36,17 @@ test('주제: 순서대로 아직 안 나온 첫 주제를 고르고, 전부 나
   assert.equal(rules.pickNextTopic([]), 'purpose');
   assert.equal(rules.pickNextTopic(['purpose']), 'partner_style');
   assert.equal(rules.pickNextTopic(['purpose', 'self']), 'partner_style', '이미 말한 주제는 건너뛴다');
-  assert.equal(rules.pickNextTopic(['purpose', 'partner_style', 'partner_traits', 'self', 'mood']), null);
-  assert.equal(rules.isTopicId('mood'), true);
+  assert.equal(rules.pickNextTopic(['purpose', 'partner_style', 'together', 'self', 'pace']), null);
+  assert.equal(rules.isTopicId('together'), true);
   assert.equal(rules.isTopicId('궁합'), false);
+  // v14: 매칭에 쓰지 않는 주제(마음 파고들기)는 뺐다. 옛 주제 id 가 기록에 남아 있어도 다음 주제 고르기를 막지 않는다.
+  assert.equal(rules.isTopicId('mood'), false);
+  assert.equal(rules.isTopicId('partner_traits'), false);
+  assert.equal(rules.pickNextTopic(['mood', 'partner_traits']), 'purpose', '옛 id 는 무시하고 처음부터 고른다');
+  // 매칭에 필요한 칸이 전부 들어 있어야 한다.
+  assert.equal(rules.TOPICS.map((t) => t.id).join(','), 'purpose,partner_style,together,self,pace');
+  // 화면에 그대로 나오는 이름이라 짧아야 한다(진행 표시 "3 / 5 · 이름").
+  for (const t of rules.TOPICS) assert.ok(t.label.length <= 12, `${t.label} 이 너무 길다`);
 });
 
 test('되묻기 판정: 질문 자체를 묻는 짧은 말만 true, 실제 답("모르겠어요" 포함)은 false', () => {
