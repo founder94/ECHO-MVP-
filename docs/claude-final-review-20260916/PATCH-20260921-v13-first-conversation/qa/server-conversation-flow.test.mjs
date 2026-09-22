@@ -455,3 +455,55 @@ test('§21-11 화면 응답에는 내부 진단(trace)·구제 종류(kind)가 �
   assert.match(body.rescue.text, /방향을 잘못 잡았네요/);
   assert.ok(!body.rescue.text.includes('가까워지'));
 });
+
+// ── v13.6 대표 실기기 발견(2026-09-22 09:50 KST): "연애에서 중요한 점?" → "진실된마음" → "방금 남긴 기록에서 가장 마음에 남는 부분은…"(생뚱맞음) ──
+const LAST_Q = '연애에 대해 어떤 점이 가장 중요하다고 생각하나요?';
+const allCovered = () => ({ covered: ['partner_style', 'partner_traits', 'self', 'mood'] });
+const answeredState = (over = {}) => baseState({ recordText: '진실된마음', events: [
+  { user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T00:50:24Z', response_payload: { question: { text: LAST_Q, sourceRecordId: 'r-old' } } },
+  { user_id: USER, action: 'insight_generate', status: 'applied', created_at: '2026-09-22T00:40:00Z', response_payload: { rescue: { text: '방금 남긴 기록에서 "친구" 부분을 조금 더 들려주실 수 있을까요?', kind: 'quoted_question' } } },
+], ...over });
+
+test('v13.6 근거 인용이 띄어쓰기만 다르면("진실된 마음" vs "진실된마음") 후보를 버리지 않는다', async () => {
+  const state = answeredState();
+  const { call } = loadServer({
+    gen: () => ({ candidates: [{ category: 'value', text: '진실된 마음을 중요하게 여긴다', basis: '진실된 마음', keys: ['진실된마음'] }] }),
+    ground: () => ({ grounded: [0] }),
+  }, state);
+  const { status, body } = await call({ action: 'insight_generate', recordId: RECORD, limit: 1 });
+  assert.equal(status, 200);
+  assert.equal(body.insights.length, 1, '후보가 살아남아 4버튼 카드로 간다');
+});
+
+test('v13.6 주제가 다 나온 뒤 짧은 답: 새 갈래 대신 직전 질문과 답을 함께 읽고 이어 묻는다(AI 자료에 직전 질문 포함, 일반 문장으로 안 떨어짐)', async () => {
+  const state = answeredState();
+  const { call, payloads } = loadServer({
+    gen: noCandidates, topic: allCovered,
+    rescuePlain: () => ({ question: '진실된 마음을 느꼈던 순간이 있다면 언제였어요?' }),
+  }, state);
+  const { body } = await call({ action: 'insight_generate', recordId: RECORD });
+  assert.equal(body.rescue.strategy, 'EXPLORE_USER_MEANING');
+  assert.equal(body.rescue.text, '진실된 마음을 느꼈던 순간이 있다면 언제였어요?');
+  const sent = payloads.find((p) => p.stage === 'rescuePlain').user;
+  assert.ok(sent.includes('[직전 질문') && sent.includes(LAST_Q), 'AI 자료에 직전 질문이 들어간다');
+  assert.ok(state.logs.some((l) => l.includes('"stage":"rescue"') && l.includes('"step":"ai"')));
+});
+
+test('v13.6 AI 구제가 반복 질문을 내면 버리고, 사용자 답을 인용한 대체 문장으로 이어간다(일반 문장 아님)', async () => {
+  const state = answeredState();
+  const { call } = loadServer({ gen: noCandidates, topic: allCovered, rescuePlain: () => ({ question: '연애에 대해 어떤 점이 가장 중요하다고 생각하세요?' }) }, state);
+  const { body } = await call({ action: 'insight_generate', recordId: RECORD });
+  assert.match(body.rescue.text, /^"진실된마음"라고 답하셨죠\./);
+  assert.ok(!body.rescue.text.includes('가장 마음에 남는 부분'));
+  assert.ok(state.logs.some((l) => l.includes('"step":"ai_dropped"')) && state.logs.some((l) => l.includes('"step":"quoted"')));
+});
+
+test('v13.6 고정 대체 문장끼리는 반복으로 오인하지 않는다: 첫 주제 문장을 이미 물었으면 다음 주제 문장으로', async () => {
+  const asked = '방금 하신 말은 저장했어요.\n끌리는 사람의 스타일은 어떤가요? 떠오르는 대로 짧게 적어도 돼요.';
+  const state = baseState({ recordText: '음', events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T00:50:24Z', response_payload: { question: { text: asked, sourceRecordId: 'r-old' } } }] });
+  const { call } = loadServer({ topic: () => ({ covered: [] }), followup: () => ({ ack: '', question: '' }) }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200);
+  assert.match(body.question.text, /그 관계에서 중요한 상대의 성향은 어떤가요/);
+  assert.equal(body.topic, 'partner_traits');
+});
