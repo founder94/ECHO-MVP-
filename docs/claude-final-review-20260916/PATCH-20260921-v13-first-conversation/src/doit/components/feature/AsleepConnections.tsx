@@ -8,7 +8,8 @@ import './asleep-connections.css';
 
 // "당신이 잠든 사이" (대표 확정 2026-09-21 연결 원칙 · 2026-09-22 지시 "저장한 걸로 사람을 매칭").
 // 서버(doit-understanding v13.4 connection_preview)가 돌려주는 건 숫자와 내 말뿐이다. 다른 사람의 이름·사진·글은 첫 질문 뒤에야 열린다(blind-first).
-// 이 화면은 실제 연결을 만들지 않는다. 자격이 갖춰지면 서버가 후보를 정하고, 첫 100명은 대표가 직접 승인한다.
+// 이 화면은 실제 연결을 만들지 않는다. 숫자는 '겹침 수'일 뿐 추천이 아니다(대표 지시 2026-09-22: 후보 수 표시와 실제 추천을 구분한다).
+// 상대의 이름·사진·글은 이 화면에서 절대 보이지 않는다. 대화 횟수(예: 7회)로 추천이 열리지 않는다 — 자격·동의·상호 조건·승인이 먼저다.
 interface Preview {
   purpose: string | null;
   readiness: { confirmed: number; confirmed_needed: number; photos: number; photos_needed: number; intro: boolean; phone_verified: boolean };
@@ -60,13 +61,14 @@ function Ready({ preview }: { preview: Preview }) {
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">{preview.purpose ? `원하는 만남 · ${preview.purpose}` : '원하는 만남을 아직 고르지 않았어요'}</p>
       <ul className="doit-asleep-check">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span><Link to={row.to}>{row.label}</Link><strong>{row.detail}</strong></li>)}</ul>
-      <p className="doit-asleep-status">{preview.eligible ? '연결 자격이 갖춰졌어요. 서버가 후보를 고르고, 대표가 확인한 뒤 첫 질문이 열려요.' : '자격이 갖춰지면 서버가 후보를 고르기 시작해요. 그 전까지는 아무에게도 보이지 않아요.'}</p>
+      <p className="doit-asleep-status">{preview.eligible ? '연결 자격은 갖춰졌어요. 실제 상대 추천은 아직 열리지 않았어요 — 준비되면 여기서 알려드려요.' : '자격이 갖춰져야 연결을 시작할 수 있어요. 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
     </div>
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">지금 같은 만남을 기다리는 사람</p>
       <p className="doit-asleep-number"><strong>{preview.waiting}</strong>명 <span>· 그중 내가 확인한 말과 겹치는 사람 <strong>{preview.candidates}</strong>명</span></p>
       {preview.common.length > 0 && <ul className="doit-asleep-common">{preview.common.map(text => <li key={text}>"{text}"</li>)}</ul>}
       {preview.waiting === 0 && <p className="doit-asleep-status">아직 같은 만남을 고른 다른 사람이 없어요. 내 이야기는 그대로 쌓여요.</p>}
+      <p className="doit-asleep-status">이 숫자는 추천이 아니라 겹친 사람 수예요. 상대의 이름·사진은 열리지 않아요. 대화를 몇 번 했는지로 추천이 열리지도 않아요.</p>
       <p className="doit-product-footnote">{preview.note}</p>
     </div>
     <Link className="doit-product-action" to="/doit/conversation">대화 이어가기<span aria-hidden="true">↗</span></Link>
