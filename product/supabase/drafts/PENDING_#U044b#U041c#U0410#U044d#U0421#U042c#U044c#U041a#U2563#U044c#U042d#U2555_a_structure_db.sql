@@ -1,0 +1,143 @@
+-- =====================================================================
+-- PENDING_대표승인  A구조(DO IT) 데이터 구조 초안
+-- 작성일: 2026-09-08
+-- 상태: 초안(DRAFT). 대표 승인 전 절대 실행 금지.
+--
+-- 이 파일은 "실행해서는 안 되는" 설계 초안이다.
+-- 아래 항목 전부는 데이터베이스·RLS·저장소 정책·서버 함수 변경이 필요하며
+-- 대표 승인(STOP) 항목이다. 승인 전까지 어떤 SQL도 실행하지 않는다.
+--
+-- 현재 src/doit/ 아래 A구조 화면은 mocks/do-it.ts 기반의 데모이며,
+-- 실제 저장·권한 검증·서버 상태는 전무하다. 아래 초안이 승인·적용된 뒤에만
+-- 프런트에서 실데이터를 연결할 수 있다.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 1. 사용자 등급 (Red → Silver → Gold → Perfume → Platinum → Black)
+--    - 등급은 결제로 구매 불가, 서버가 행동 누적 결과로만 결정.
+--    - 프런트는 profiles.grade 를 "표시만" 한다(클라이언트 계산 금지).
+--    - 승급 점수·등급별 혜택은 확정값 없음 → 임의로 만들지 않는다.
+-- ---------------------------------------------------------------------
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS grade TEXT DEFAULT 'red';
+-- (등급 산정 로직은 서버 함수/상태머신에서만 수행. 초안 단계에서 수치 미확정.)
+
+-- ---------------------------------------------------------------------
+-- 2. KEY 지갑 (Reward KEY / Revenue KEY 분리)
+--    - 보상 KEY(활동·기여) 와 수익 KEY(결제) 를 컬럼으로 분리.
+--    - 사용 시 보상 KEY 우선 차감 → 부족분만 수익 KEY 차감(서버 트랜잭션).
+--    - 클라이언트에서 잔액 직접 증가 금지. 결제 검증 후에만 지급.
+--    - KEY로 등급/신뢰/특정인 접근/강제 연결 구매 금지, 사용자 간 거래 금지.
+-- ---------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS key_balances (
+--   user_id      uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+--   reward_key   integer NOT NULL DEFAULT 0,
+--   revenue_key  integer NOT NULL DEFAULT 0,
+--   updated_at   timestamptz NOT NULL DEFAULT now()
+-- );
+-- CREATE TABLE IF NOT EXISTS key_ledger (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   type         text NOT NULL CHECK (type IN ('earn','spend','charge')),
+--   bucket       text NOT NULL CHECK (bucket IN ('reward','revenue')),
+--   amount       integer NOT NULL,
+--   title        text,
+--   created_at   timestamptz NOT NULL DEFAULT now()
+-- );
+-- (KEY 판매 가격·유효기간은 확정값 없음 → 활성화 금지.)
+
+-- ---------------------------------------------------------------------
+-- 3. 프로필 사진 6장 (전신/스타일/운동·취미/활동/매력 포인트/생활 방식)
+--    - 카메라 촬영 → 자연 보정(자르기·회전·밝기·색감)만 허용.
+--    - 얼굴·체형 변형, 과도 필터 금지.
+--    - 원본·잠금 사진은 공개 주소에 두지 않음. 보호된 Storage + RLS.
+-- ---------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS profile_photos (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   slot         text NOT NULL CHECK (slot IN ('full','style','hobby','activity','charm','lifestyle')),
+--   storage_path text NOT NULL,
+--   is_locked    boolean NOT NULL DEFAULT false,
+--   created_at   timestamptz NOT NULL DEFAULT now(),
+--   UNIQUE (user_id, slot)
+-- );
+-- (Storage 버킷은 private, 원본 접근은 signed URL + 권한 확인 후에만.)
+
+-- ---------------------------------------------------------------------
+-- 4. 65% 공개 · 35% 흐림 잠금
+--    - 잠금 해제 전 원본 파일을 브라우저에 전달 금지.
+--    - CSS blur 로 원본을 "숨긴 척" 하지 않음. 서버 권한 확인 후 전체 원본 제공.
+-- ---------------------------------------------------------------------
+-- ALTER TABLE profile_photos ADD COLUMN IF NOT EXISTS unlock_state TEXT DEFAULT 'locked';
+-- (65:35 는 화면 공개 방식이며 사용자 가치/등급을 뜻하지 않음.)
+
+-- ---------------------------------------------------------------------
+-- 5. 프로필 스토리 (일반 소개글과 분리된 잠금 콘텐츠)
+--    - 잠긴 스토리의 본문·원본 미디어를 프런트에 미리 넣지 않음.
+--    - KEY 차감량·해제 조건은 확정값 없음 → 버튼 비활성 + "해제 기준 확인 필요".
+-- ---------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS profile_stories (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   title        text,
+--   media_path   text,
+--   body         text,
+--   is_locked    boolean NOT NULL DEFAULT true,
+--   created_at   timestamptz NOT NULL DEFAULT now()
+-- );
+
+-- ---------------------------------------------------------------------
+-- 6. 방탈출형 이미지 대화 공간
+--    - /do-it/1~4 배경 화면은 "실제 공간"이 아님(정적 데모).
+--    - 실제 공간: 입장·이미지 방·대화/행동 미션·양자 응답·진행 상태·
+--      다음 공간 잠금·미션 완료 서버 승인·신고/나가기/차단·기록 분리·새로고침 복구.
+-- ---------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS space_members (
+--   space_id     uuid NOT NULL,
+--   user_id      uuid NOT NULL,
+--   role         text,
+--   joined_at    timestamptz NOT NULL DEFAULT now(),
+--   PRIMARY KEY (space_id, user_id)
+-- );
+-- CREATE TABLE IF NOT EXISTS missions (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   space_id     uuid NOT NULL,
+--   title        text NOT NULL,
+--   description  text,
+--   sort_order   integer NOT NULL DEFAULT 0,
+--   created_at   timestamptz NOT NULL DEFAULT now()
+-- );
+-- CREATE TABLE IF NOT EXISTS member_selections (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   mission_id   uuid NOT NULL,
+--   user_id      uuid NOT NULL,
+--   response     text,
+--   created_at   timestamptz NOT NULL DEFAULT now()
+-- );
+-- (미션 미완료 시 프런트 버튼만으로 다음 방 열림 금지 → 서버 승인 필수.)
+
+-- ---------------------------------------------------------------------
+-- 7. 사주·타로 (재미용 선택 기능)
+--    - 사람 연결 최종 판단·등급 결정·미래/건강/법률 확정 표현 금지.
+--    - 이번 출시 별도 유료 결제 금지.
+--    - 기존 src/doit/fortune 은 데모 화면이며 실제 엔진·AI·저장 없음.
+-- ---------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS saju_taro_records (
+--   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--   user_id      uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+--   mode         text NOT NULL CHECK (mode IN ('saju','taro')),
+--   result       text,
+--   created_at   timestamptz NOT NULL DEFAULT now()
+-- );
+
+-- ---------------------------------------------------------------------
+-- 8. 관리자 SELECT 정책 (RLS)
+--    - 아래 테이블은 현재 관리자 SELECT 정책이 없어 RLS 로 차단됨.
+--    - 대표 승인 후 정책 추가. (기존 PENDING_대표승인_admin_read_policies.sql 참고)
+-- ---------------------------------------------------------------------
+-- space_members / missions / member_selections / key_balances / key_orders /
+-- saju_taro_records / openai_rate_limits / consents
+-- 각 테이블에 role = 'admin' 대상 SELECT 정책 필요.
+
+-- =====================================================================
+-- 끝. 본 파일은 초안이며, 승인 전 실행 금지(STOP).
+-- =====================================================================

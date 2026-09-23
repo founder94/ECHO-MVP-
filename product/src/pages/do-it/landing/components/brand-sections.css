@@ -1,0 +1,109 @@
+/* 회사 홈페이지 전용 브랜딩 구간(BrandSections). .doit-editorial 안에서만 쓴다. 전역(body/:root)·히어로 스타일은 건드리지 않는다.
+   글꼴(2026-09-23 대표 "폰트는 두껍게, AI 느낌 안 나게"): 사진 이야기 01~09 와 같은 Pretendard 를 굵게, 단색 흰 글자. 가는 바탕체·은빛 그라데이션 글자는 뺐다.
+   버튼은 메탈 실버(앱의 metal-silver.css 와 같은 금속판). */
+.doit-editorial .doit-brand-section-kicker{display:flex;align-items:center;gap:18px;margin:0 0 28px;font-size:13px;font-weight:600;letter-spacing:.02em;color:#aab1bb}
+.doit-editorial .doit-brand-section-kicker::before{content:"";display:block;width:56px;height:1px;background:#ffffff8c}
+.doit-editorial .doit-brand-section-title{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;font-weight:800;font-size:clamp(32px,6vw,64px);line-height:1.26;letter-spacing:-.045em;color:#fff;word-break:keep-all;text-wrap:balance}
+.doit-editorial .doit-brand-section-lead{max-width:600px;margin:28px 0 0;font-size:clamp(16px,1.6vw,18px);font-weight:500;line-height:1.85;letter-spacing:-.015em;color:#c3c8cf;word-break:keep-all}
+.doit-editorial .doit-brand-soon{display:inline-block;margin-left:4px;padding:2px 9px;border:1px solid #ffffff40;border-radius:999px;font-style:normal;font-size:11px;font-weight:600;letter-spacing:0;color:#d3d7dd;vertical-align:4px}
+
+/* 차별점 카드 */
+.doit-editorial .doit-brand-cards{list-style:none;margin:clamp(56px,8vw,96px) 0 0;padding:0;display:grid;grid-template-columns:1fr;gap:clamp(36px,5vw,56px) 48px}
+@media (min-width:760px){.doit-editorial .doit-brand-cards{grid-template-columns:1fr 1fr}}
+.doit-editorial .doit-brand-card{padding:26px 0 0;border-top:1px solid #ffffff38}
+.doit-editorial .doit-brand-card-no{display:block;margin-bottom:18px;font-size:13px;font-weight:700;letter-spacing:.02em;color:#8f97a2;font-variant-numeric:tabular-nums}
+.doit-editorial .doit-brand-card h3{margin:0;font-weight:800;font-size:clamp(22px,2.4vw,28px);line-height:1.35;letter-spacing:-.035em;color:#fff;word-break:keep-all}
+.doit-editorial .doit-brand-card p{margin:12px 0 0;max-width:460px;font-size:15px;font-weight:500;line-height:1.85;letter-spacing:-.01em;color:#b9bfc7;word-break:keep-all}
+
+/* 시작하는 법 */
+.doit-editorial .doit-brand-steps{list-style:none;margin:clamp(40px,6vw,64px) 0 0;padding:0;display:grid;gap:26px;max-width:640px}
+.doit-editorial .doit-brand-steps li{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start;padding-top:22px;border-top:1px solid #ffffff38}
+.doit-editorial .doit-brand-step-no{display:block;font-size:30px;font-weight:800;line-height:1.1;letter-spacing:-.04em;color:#fff;font-variant-numeric:tabular-nums}
+.doit-editorial .doit-brand-steps h3{margin:2px 0 0;font-weight:800;font-size:clamp(20px,2.2vw,26px);line-height:1.4;letter-spacing:-.035em;color:#fff;word-break:keep-all}
+.doit-editorial .doit-brand-steps p{margin:8px 0 0;font-size:15px;font-weight:500;line-height:1.85;color:#b9bfc7;word-break:keep-all}
+
+/* 모바일로 시작하기 구간의 대표 그림(점 DOIT 지구). 그림 바탕이 검정이라 구간 바탕과 이어진다. */
+.doit-editorial .doit-brand-mobile-art{margin:0 auto clamp(40px,6vw,72px);width:min(100%,560px)}
+.doit-editorial .doit-brand-mobile-art img{display:block;width:100%;height:auto;aspect-ratio:1/1;
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 58%,transparent 72%);mask-image:radial-gradient(circle at 50% 50%,#000 58%,transparent 72%)}
+
+/* 휴대폰으로 넘어가기: 휴대폰이면 버튼, 컴퓨터면 QR */
+.doit-editorial .doit-brand-handoff{margin-top:clamp(52px,7vw,84px)}
+.doit-editorial .doit-brand-handoff p{margin:14px 0 0;font-size:14px;font-weight:500;line-height:1.85;color:#b9bfc7;word-break:keep-all}
+.doit-editorial .doit-brand-handoff strong{color:#eceef1;font-weight:600}
+.doit-editorial .doit-brand-handoff-action{display:flex;align-items:center;justify-content:center;width:100%;max-width:420px;min-height:58px;padding:0 24px;border-radius:16px;
+  background-image:linear-gradient(115deg,#fdfdfe 0%,#dfe2e7 15%,#a3aab4 33%,#f4f5f7 50%,#b8bec7 67%,#e8eaee 83%,#959da8 100%);background-size:240% 100%;
+  border:1px solid #ffffffa6;box-shadow:inset 0 1px 0 #ffffffe0,inset 0 -1px 0 #4f56606b,0 10px 26px #0000005c;color:#111317;font-size:16px;font-weight:700;text-decoration:none;text-shadow:0 1px 0 #ffffff8c;
+  animation:doit-brand-sheen 7s ease-in-out infinite alternate}
+.doit-editorial .doit-brand-handoff-desk{display:none;align-items:center;gap:32px;padding:28px;border:1px solid #ffffff1c;border-radius:24px;background:#0d0e11;max-width:640px}
+.doit-editorial .doit-brand-qr{display:block;flex:none;width:168px;height:168px;border-radius:14px;background:#f4f5f7;padding:6px}
+.doit-editorial .doit-brand-handoff-title{margin:0!important;font-weight:800;font-size:22px!important;letter-spacing:-.035em;color:#fff!important}
+.doit-editorial .doit-brand-handoff-link{display:inline-flex;align-items:center;min-height:44px;margin-top:10px;color:#dfe3e8;font-size:14px;text-underline-offset:4px}
+/* 넓은 화면 + 마우스(컴퓨터)면 QR, 그 밖(휴대폰·태블릿)은 버튼 */
+@media (min-width:900px) and (hover:hover) and (pointer:fine){
+  .doit-editorial .doit-brand-handoff-phone{display:none}
+  .doit-editorial .doit-brand-handoff-desk{display:flex}
+}
+@keyframes doit-brand-sheen{from{background-position:0% 50%}to{background-position:100% 50%}}
+@media (prefers-reduced-motion:reduce){.doit-editorial .doit-brand-handoff-action{animation:none}}
+.doit-editorial[data-motion=paused] .doit-brand-handoff-action{animation:none}
+
+/* 우주 배경 이어 가기(2026-09-23 대표 "지구본·우주·우주인·브랜드 문구·DOIT 유지하고 그대로 브랜딩용으로").
+   새 구간이 그냥 까만 면으로 끊겨 보이지 않도록, 온보딩·히어로와 같은 옅은 별빛을 깐다. 그림 파일 없이 CSS 점으로만. */
+.doit-editorial .doit-brand-section{position:relative;padding:clamp(88px,14vw,160px) max(24px,7vw);background:#000;color:#f2f3f5;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;isolation:isolate;overflow:hidden}
+.doit-editorial .doit-brand-section::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.55;
+  background-image:
+    radial-gradient(1px 1px at 8% 14%,#ffffffcc 50%,transparent 51%),
+    radial-gradient(1px 1px at 23% 62%,#ffffff99 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 37% 28%,#ffffffb3 50%,transparent 51%),
+    radial-gradient(1px 1px at 52% 81%,#ffffff80 50%,transparent 51%),
+    radial-gradient(1px 1px at 64% 9%,#ffffffa6 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 77% 47%,#ffffffbf 50%,transparent 51%),
+    radial-gradient(1px 1px at 88% 73%,#ffffff8c 50%,transparent 51%),
+    radial-gradient(1px 1px at 94% 22%,#ffffffa6 50%,transparent 51%);
+  background-size:520px 520px}
+/* 가운데에서 옅게 번지는 은빛 — 히어로의 지구 빛과 같은 결 */
+.doit-editorial .doit-brand-section::after{content:"";position:absolute;inset:-20% -10% auto;height:70%;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 0%,#c9d3e21f,transparent 65%)}
+
+/* 배경 사진(2026-09-23 대표 "홈페이지 배경에 이 사진들을 다 넣고 브랜딩해").
+   사진은 맨 뒤, 그 위에 어두운 막(위아래는 검정으로 이어져 구간끼리 끊기지 않게), 그 위에 글자. */
+.doit-editorial .doit-brand-scened::before{display:none}
+.doit-editorial .doit-brand-scene{position:absolute;inset:0;z-index:-2;display:block;width:100%;height:100%;max-width:none;object-fit:cover;pointer-events:none;user-select:none}
+.doit-editorial .doit-brand-scened::after{inset:0;height:auto;z-index:-1;
+  background:linear-gradient(180deg,#000 0%,#000000b0 16%,#0000005c 48%,#000000a8 84%,#000 100%)}
+.doit-editorial .doit-brand-scened .doit-brand-handoff-desk{background:#0a0b0ed1;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.doit-editorial .doit-brand-scened h2,
+.doit-editorial .doit-brand-scened h3,
+.doit-editorial .doit-brand-scened p{text-shadow:0 1px 14px #000000d9}
+
+/* 시작하는 법: 한 구간을 네 장면으로(점 DOIT 지구 → 단계 → 모바일로 시작하기 → 마지막 장면) */
+.doit-editorial .doit-brand-mobile{position:relative;display:block;background:#000}
+.doit-editorial .doit-brand-mobile-intro{padding-bottom:clamp(40px,6vw,64px)}
+.doit-editorial .doit-brand-steps-zone{padding-top:clamp(64px,10vw,120px);padding-bottom:clamp(88px,12vw,140px)}
+.doit-editorial .doit-brand-steps-zone .doit-brand-steps{margin-top:0}
+.doit-editorial .doit-brand-handoff-zone{padding-top:clamp(96px,14vw,180px);padding-bottom:clamp(120px,16vw,220px)}
+.doit-editorial .doit-brand-handoff-zone .doit-brand-handoff{margin-top:0}
+.doit-editorial .doit-brand-closing{padding:0;height:clamp(420px,72vh,760px)}
+.doit-editorial .doit-brand-closing::after{background:linear-gradient(180deg,#000 0%,#0000004d 30%,#00000026 60%,#000 100%)}
+
+/* 회사 소개(2026-09-23 대표 "회사 구조에 맞춰서 브랜딩 홈페이지"): 무엇을 하는 회사인지 · 서비스 · 문의 · 문서. 사업자 정보는 바로 아래 바닥글에 있다. */
+.doit-editorial .doit-brand-about{padding-bottom:clamp(72px,10vw,120px)}
+.doit-editorial .doit-brand-about-list{margin:clamp(48px,7vw,80px) 0 0;display:grid;grid-template-columns:1fr;max-width:880px}
+.doit-editorial .doit-brand-about-row{display:grid;grid-template-columns:1fr;gap:6px;padding:22px 0;border-top:1px solid #ffffff2e}
+.doit-editorial .doit-brand-about-row:last-child{border-bottom:1px solid #ffffff2e}
+@media (min-width:760px){.doit-editorial .doit-brand-about-row{grid-template-columns:180px 1fr;gap:24px}}
+.doit-editorial .doit-brand-about-row dt{font-size:14px;font-weight:700;color:#8f97a2}
+.doit-editorial .doit-brand-about-row dd{margin:0;font-size:16px;font-weight:600;line-height:1.75;letter-spacing:-.015em;color:#f2f3f5;word-break:keep-all}
+.doit-editorial .doit-brand-about-row a{color:#fff;text-decoration:underline;text-decoration-color:#ffffff66;text-underline-offset:4px}
+.doit-editorial .doit-brand-about-row a:hover{text-decoration-color:#fff}
+.doit-editorial .doit-brand-about-links{display:flex;flex-wrap:wrap;gap:8px 20px}
+
+/* 대표 인사말: 읽는 글이라 폭을 좁히고 줄 간격을 넉넉히. 끝에 이름. */
+.doit-editorial .doit-brand-greeting{border-top:1px solid #ffffff1f}
+.doit-editorial .doit-brand-greeting .doit-brand-section-title{font-size:clamp(28px,4.6vw,48px);max-width:880px}
+.doit-editorial .doit-brand-greeting-body{display:grid;gap:22px;max-width:640px;margin-top:clamp(40px,6vw,64px)}
+.doit-editorial .doit-brand-greeting-body p{margin:0;font-size:clamp(16px,1.7vw,18px);font-weight:500;line-height:1.95;letter-spacing:-.015em;color:#d5d9de;word-break:keep-all}
+.doit-editorial .doit-brand-greeting-body .doit-brand-greeting-closing{margin-top:8px;font-size:clamp(20px,2.4vw,26px);font-weight:800;line-height:1.5;letter-spacing:-.035em;color:#fff}
+.doit-editorial .doit-brand-greeting-sign{margin:clamp(40px,6vw,56px) 0 0;display:flex;align-items:baseline;gap:12px;font-size:14px;font-weight:600;color:#9aa1ab}
+.doit-editorial .doit-brand-greeting-sign strong{font-size:22px;font-weight:800;letter-spacing:-.03em;color:#fff}

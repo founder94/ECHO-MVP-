@@ -1,0 +1,65 @@
+@import "./metal-silver.css";
+@import "./doit-type.css";
+/* A 앱에만 적용. 랜딩 사진·글꼴, 운영센터, 인증·서버 동작에는 영향을 주지 않는다. */
+.doit-root .doit-product{
+  --background-50:.155 .004 260;--background-100:.12 .003 260;--background-200:.24 .005 260;--background-300:.32 .005 260;--background-400:.42 .005 260;--background-500:.50 .005 260;
+  --foreground-50:.15 .003 260;--foreground-100:.24 .003 260;--foreground-200:.34 .003 260;--foreground-300:.60 .003 260;--foreground-400:.70 .003 260;--foreground-500:.76 .003 260;--foreground-600:.81 .003 260;--foreground-700:.85 .003 260;--foreground-800:.90 .003 260;--foreground-900:.94 .003 260;--foreground-950:.97 .003 260;
+  --primary-50:.19 .006 260;--primary-100:.23 .006 260;--primary-200:.30 .006 260;--primary-500:.43 .006 260;--primary-600:.38 .006 260;--primary-700:.32 .006 260;
+  --secondary-50:.19 .004 260;--secondary-100:.23 .004 260;--secondary-200:.30 .004 260;--secondary-600:.78 .004 260;--secondary-700:.85 .004 260;
+  background:#090a0c;color:#f2f1ef;isolation:isolate;
+}
+.doit-product [class~="text-primary-600"],.doit-product [class~="text-primary-700"]{color:#d6d9df}
+.doit-product-topbar{border-color:rgba(255,255,255,.07);background:rgba(9,10,12,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.doit-product-topbar>div{height:76px;padding-inline:20px}
+.doit-product-topbar .doit-official-symbol{width:34px;height:34px;margin-right:2px}
+.doit-product-topbar h1{font-size:17px;letter-spacing:-.04em}
+.doit-product-topbar button,.doit-product-topbar a[aria-label]{min-height:44px;min-width:40px}
+.doit-product-main{padding-inline:24px}
+.doit-product-nav{background:rgba(13,14,17,.94);border-color:rgba(255,255,255,.08);box-shadow:0 -16px 32px rgba(0,0,0,.18);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.doit-product-nav a{color:#979ca6;gap:5px;padding-block:14px 12px;position:relative}
+.doit-product-nav a[aria-current="page"]{color:#f1f1ed}
+.doit-product-nav a[aria-current="page"]:before{content:"";position:absolute;top:0;width:24px;height:2px;background:#e4e5e6;box-shadow:0 2px 12px #ffffff38}
+.doit-product :is(a,button):focus-visible,.doit-profile-review :is(a,button):focus-visible{outline:2px solid #f1f1ed;outline-offset:5px}
+.doit-product-story{padding:32px 0 20px;animation:doit-product-arrive .7s ease-out both}
+.doit-product-kicker{font:500 10px/1.5 var(--font-label,system-ui);letter-spacing:.18em;text-transform:uppercase;color:#a1a5ae;margin:0 0 17px}
+.doit-product-title{font-family:var(--font-heading,"Gothic A1",sans-serif);font-size:clamp(27px,7.4vw,32px);font-weight:600;letter-spacing:-.055em;line-height:1.48;color:#f2f1ef;margin:0;word-break:keep-all;overflow-wrap:anywhere}
+.doit-product-description{font-weight:500;font-size:14px;line-height:1.9;color:#adb1ba;margin:20px 0 0;word-break:keep-all;overflow-wrap:anywhere}
+.doit-product-stage{position:relative;height:240px;display:grid;place-items:center;perspective:800px;isolation:isolate;mix-blend-mode:screen}
+.doit-product-stage:before{content:"";position:absolute;width:220px;height:92px;border-radius:50%;background:radial-gradient(ellipse,#c7cfdf18,transparent 67%);transform:translateY(57px) rotate(-12deg);pointer-events:none}
+.doit-product-stage .doit-official-symbol{width:188px;height:188px;transform:rotate(-5deg);animation:doit-symbol-settle 1.2s cubic-bezier(.2,.7,.2,1) both;filter:none;-webkit-mask-image:radial-gradient(ellipse at center,#000 55%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 55%,transparent 72%)}
+.doit-product-stage>span{position:absolute;bottom:10px;font-size:9px;letter-spacing:.3em;color:#8d929d}
+.doit-product-status{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.03em;color:#c0c4cd}
+.doit-product-status:before{content:"";width:5px;height:5px;border-radius:50%;background:#aab1bd;box-shadow:0 0 0 4px #c8d0df0b}
+.doit-product-note{padding:22px 0;margin-top:16px;border-block:1px solid rgba(255,255,255,.1)}
+.doit-product-note p{font-size:13px;line-height:1.85;color:#aeb2bb;margin:10px 0 0;word-break:keep-all}
+.doit-product-action{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:56px;padding:16px 21px;margin-top:26px;border:1px solid #ffffff35;border-radius:16px;background:linear-gradient(115deg,#f1f1ee,#d1d4d9);color:#15171b;font-size:14px;font-weight:600;text-decoration:none;box-shadow:0 6px 18px #0003,inset 0 1px 0 #fff8;transition:transform .22s,box-shadow .22s;cursor:pointer}
+.doit-product-action:active{transform:scale(.985)}
+.doit-product-action--secondary{background:transparent;border-color:#ffffff24;color:#d6d8de;box-shadow:none;margin-top:12px}
+.doit-product-footnote{font-size:11px;line-height:1.8;color:#9399a5;margin:20px 0 0}
+.doit-profile-card{position:relative;margin-top:24px;padding:28px 24px;border-radius:22px;border:1px solid #ffffff22;background:radial-gradient(ellipse at top right,#b7c6dc13,transparent 75%),linear-gradient(145deg,#1b1d22,#101114);box-shadow:0 22px 50px #0003;overflow:hidden}
+.doit-profile-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:32px}
+.doit-profile-card-head .doit-official-symbol{width:58px;height:58px;margin:-12px}
+.doit-profile-name{font:600 28px/1.45 var(--font-heading,"Gothic A1",sans-serif);letter-spacing:-.04em;overflow-wrap:anywhere;margin:0;color:#f2f1ef}
+.doit-profile-intro{font-size:14px;line-height:1.9;color:#c1c4cb;margin-top:16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.doit-profile-facts{margin-top:24px}
+.doit-profile-facts>div{padding:17px 0;border-top:1px solid #ffffff12;display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;align-items:start}
+.doit-profile-facts dt{font-size:12px;line-height:1.8;color:#9ba2ae}
+.doit-profile-facts dd{margin:0;font-size:13px;line-height:1.8;color:#e1e2e5;word-break:keep-all;overflow-wrap:anywhere}
+.doit-profile-section-label{font-size:11px;letter-spacing:.12em;color:#9da3ad;margin:30px 0 0}
+.doit-profile-review{min-height:100dvh;background:#090a0c;color:#f2f1ef;padding:28px 24px calc(36px + env(safe-area-inset-bottom));font-family:var(--font-body,"Gothic A1",sans-serif)}
+.doit-profile-review-inner{width:100%;max-width:400px;margin:auto}
+.doit-profile-review-brand{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.18em;color:#b7bbc4;margin-bottom:34px}
+.doit-profile-review-brand .doit-official-symbol{width:38px;height:38px}
+.doit-profile-review .doit-product-title{font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo",Georgia,serif}
+.doit-profile-review .doit-product-action{justify-content:center}
+.doit-product-error{color:#efb7b7;font-size:13px;line-height:1.8}
+@keyframes doit-product-arrive{from{transform:translateY(8px)}to{transform:none}}
+@keyframes doit-symbol-settle{from{transform:translateY(10px) rotate(-9deg) rotateY(-12deg)}to{transform:translateY(0) rotate(-5deg) rotateY(0)}}
+@media(hover:hover) and (pointer:fine){.doit-product-action:hover{transform:translateY(-2px);box-shadow:0 10px 22px #0005}}
+@media(max-width:360px){.doit-product-main,.doit-profile-review{padding-inline:20px}.doit-product-topbar>div{padding-inline:14px}.doit-product-topbar h1{font-size:15px}.doit-product-topbar .doit-official-symbol{width:28px;height:28px}.doit-product-stage{height:205px}}
+@media(prefers-reduced-motion:reduce){.doit-product-story,.doit-product-stage .doit-official-symbol{animation:none;transform:none}.doit-product-action{transition:none}}
+/* 밝은 실버 버튼과 어두운 금속 표면을 번갈아 써 강약을 둔다. */
+.doit-product-action{background:linear-gradient(115deg,#f2f3f1 0%,#d5d9df 38%,#e7e9ec 60%,#bbc2cc 100%);border-color:#f5f6f7a6}
+.doit-product-action--secondary{background:linear-gradient(120deg,#343a4466,#151920 54%,#30374477);border-color:#bdc6d149;color:#e4e7ec}
+.doit-profile-card{border-color:#c0cad23d;background:radial-gradient(ellipse at top right,#bbc9dd1c,transparent 70%),linear-gradient(145deg,#20242c,#101216);box-shadow:inset 0 1px 0 #ffffff0d,0 22px 50px #0003}
+.doit-product-stage:before{background:radial-gradient(ellipse,#cfdae726,transparent 68%)}

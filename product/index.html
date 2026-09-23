@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08070c" />
+    <title>DO IT COMPANY | JUST TRY.</title>
+    <meta name="description" content="사람은 프로필보다, 함께한 행동에서 더 많이 보이니까. DO IT COMPANY · ECHO" />
+    <meta property="og:title" content="DO IT COMPANY | JUST TRY." />
+    <meta property="og:description" content="사람은 프로필보다, 함께한 행동에서 더 많이 보이니까." />
+    <meta property="og:image" content="https://do-it.company/brand/doit-earth-original.png" />
+    <meta property="og:url" content="https://do-it.company/" />
+    <!-- 온보딩(1%→100%)이 실제로 쓰는 그림. 이게 늦게 오면 심볼이 화면에서 통째로 사라지므로 가장 먼저 받는다. -->
+    <link rel="preload" as="image" href="/brand/doit-symbol-intro.webp" type="image/webp" fetchpriority="high" />
+    <!-- 다음 화면(랜딩) 배경. 같은 그림·같은 자리 그대로이고, 받아오는 차례만 뒤로 둔다.
+         (앞서 받으면 화면을 그리는 코드와 온보딩 심볼이 밀려 심볼이 늦게 뜬다.) -->
+    <link rel="preload" as="image" href="/brand/doit-earth-original.png" fetchpriority="low" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <!-- 앱 화면 글꼴(2026-09-23): 제목·질문·내가 쓴 말 = 고운바탕, 안내 문장 = 고운돋움. 뒤에서 받아 화면을 멈추지 않는다. -->
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <!-- 예전 화면들이 쓰는 글꼴. 전에는 화면 조각 스타일(doit.css) 안에서 @import 로 받아, 구글 폰트가 막히면
+       화면 조각 불러오기가 오류로 끝나 제품 화면 전체가 "화면을 불러오지 못했어요"로 멈췄다. 여기로 옮겨 뒤에서 받는다. -->
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Gothic+A1:wght@400;500;600;700&family=Archivo+Black&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css" media="print" onload="this.media='all'">
+  <style>
+    html, body, #root { min-height: 100%; margin: 0; }
+    body { background: #08070c; }
+  </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

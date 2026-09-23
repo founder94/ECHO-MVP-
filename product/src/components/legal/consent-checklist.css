@@ -1,0 +1,15 @@
+/* 약관 동의 체크 목록 — .legal-consent 아래로만 적용한다(전역 오염 없음). */
+.legal-consent{margin:0;padding:0;border:0;min-width:0}
+.legal-consent-legend{font-size:12px;font-weight:600;letter-spacing:.04em;color:#c4c9d2;margin-bottom:12px}
+.legal-consent-row{display:flex;align-items:flex-start;gap:12px;min-height:44px;padding:8px 0;cursor:pointer;font-size:13px;line-height:1.7;color:#d8dbe1;word-break:keep-all}
+.legal-consent-row input{flex-shrink:0;width:20px;height:20px;margin:2px 0 0;accent-color:#e4e7ec;cursor:pointer}
+.legal-consent-all{padding:12px 14px;border:1px solid #ffffff2e;border-radius:12px;font-weight:600;color:#f2f3f5}
+.legal-consent-list{list-style:none;margin:8px 0 0;padding:0 2px}
+.legal-consent-list>li{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-bottom:1px solid #ffffff0d}
+.legal-consent-list>li:last-child{border-bottom:0}
+.legal-consent-list .legal-consent-row{flex:1}
+.legal-consent-required{font-style:normal;color:#f0c9a8}
+.legal-consent-optional{font-style:normal;color:#9ba2ae}
+.legal-consent-doc{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:8px 4px;font-size:12px;color:#aebbd0;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.legal-consent-hint{margin:10px 0 0;font-size:11px;line-height:1.8;color:#939ba8}
+.legal-consent:disabled .legal-consent-row{cursor:default;opacity:.6}
