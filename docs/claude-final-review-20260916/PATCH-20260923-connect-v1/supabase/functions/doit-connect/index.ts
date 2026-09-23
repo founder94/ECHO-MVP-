@@ -1,4 +1,7 @@
-// doit-connect — 연결 서버 (v1 · 2026-09-23)
+// doit-connect — 연결 서버 (v1.1 · 2026-09-24)
+//
+// v1.1(대표 2026-09-24 "그렇게 바꿔"): 연결 자격의 「맞다고 한 말 5개」를 「이번 회차 다섯 가지 질문에 모두 답함」으로 바꾼다
+// (doit-understanding connection_preview 와 같은 기준 = 화면의 n / 5). 맞다고 한 말은 두 사람의 겹친 말을 찾는 데만 쓴다.
 //
 // 근거: 대표 확정 연결 원칙(2026-09-21) "전화 인증 필수 → 확인한 이해 5개 + 필수 사진 3장 + 소개 = 연결 자격 →
 // 목적 호환 + 확인한 말 공통점으로 서버가 후보 결정 → AI 첫 질문 동시 공개(blind-first) → 첫 100명 대표 수동 승인",
@@ -39,7 +42,7 @@ const LIMITS = {
   RATE_MAX_PER_WINDOW: 60,
   REPEAT_SIM: 0.6,              // doit-understanding 과 같은 값(겹친 말 판정)
   REPEAT_OVERLAP: 0.7,
-  CONNECT_CONFIRMED_NEEDED: 5,  // 연결 자격: 맞다고 한 말 5개(대표 승인 2026-09-21, doit-understanding 과 같다)
+  CONNECT_ANSWERS_NEEDED: 5,    // 연결 자격: 이번 회차 다섯 가지 질문에 모두 답함(대표 2026-09-24, doit-understanding 과 같다)
   CONNECT_PHOTOS_NEEDED: 3,     // 연결 자격: 필수 사진 3장(전신·패션·취미)
   COMMON_MAX: 3,                // 쌍마다 보여 줄 겹친 말 최대 개수(한쪽 기준)
   POOL_MAX: 500,                // 한 번에 살펴볼 사람 상한
@@ -177,6 +180,7 @@ interface Member {
   bio: string;
   phoneVerified: boolean;
   confirmed: string[];
+  answers: number;
   requiredPhotos: number;
   eligible: boolean;
   missing: string[];
@@ -209,11 +213,19 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   const rows = profiles ?? [];
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
-  const [{ data: photos }, { data: insights }, auth] = await Promise.all([
+  const [{ data: photos }, { data: insights }, { data: records }, auth] = await Promise.all([
     admin.from("profile_photos").select("user_id, slot").in("user_id", ids),
     admin.from("doit_insights").select("user_id, text, created_at").in("user_id", ids).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
+    admin.from("doit_records").select("user_id, status, created_at").in("user_id", ids).order("created_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
     authInfoOf(admin, new Set(ids)),
   ]);
+  // 이번 회차에 남긴 내 답 수(아니라고 한 기록 제외) — 화면의 n / 5 와 같은 기준.
+  const answers = new Map<string, number>();
+  for (const row of records ?? []) {
+    const uid = String(row.user_id);
+    if (row.status === "rejected" || !inRound(str(row.created_at) || undefined, auth.get(uid)?.since ?? null)) continue;
+    answers.set(uid, (answers.get(uid) ?? 0) + 1);
+  }
   const slots = new Map<string, Set<number>>();
   for (const p of photos ?? []) {
     const s = Number(p.slot);
@@ -237,13 +249,14 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     const missing: string[] = [];
     if (!p.purpose_id) missing.push("purpose");
     if (!phoneVerified) missing.push("phone");
-    if (mine.length < LIMITS.CONNECT_CONFIRMED_NEEDED) missing.push("confirmed");
+    const answered = answers.get(id) ?? 0;
+    if (answered < LIMITS.CONNECT_ANSWERS_NEEDED) missing.push("answers");
     if (requiredPhotos < LIMITS.CONNECT_PHOTOS_NEEDED) missing.push("photos");
     if (!bio) missing.push("intro");
     return {
       id, nickname: cleanText(p.nickname) || cleanText(p.display_name) || "이름 없음",
       purposeId: p.purpose_id ? String(p.purpose_id) : null, purposeLabel: p.purpose_label ? String(p.purpose_label) : null,
-      bio, phoneVerified, confirmed: mine, requiredPhotos, eligible: missing.length === 0, missing,
+      bio, phoneVerified, confirmed: mine, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
     };
   });
 }
@@ -507,7 +520,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
       }
       candidates.sort((p, q) => Number(q.score) - Number(p.score));
-      const missing: Record<string, number> = { purpose: 0, phone: 0, confirmed: 0, photos: 0, intro: 0 };
+      const missing: Record<string, number> = { purpose: 0, phone: 0, answers: 0, photos: 0, intro: 0 };
       for (const m of members) for (const k of m.missing) missing[k] = (missing[k] ?? 0) + 1;
       logDiag({ action, pool: members.length, eligible: eligible.length, candidates: candidates.length });
       return json({ ok: true, pool: members.length, eligible: eligible.length, missing, candidates: candidates.slice(0, LIMITS.CANDIDATES_MAX) }, 200, origin);

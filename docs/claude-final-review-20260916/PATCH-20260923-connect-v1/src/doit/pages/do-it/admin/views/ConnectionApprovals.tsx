@@ -1,5 +1,5 @@
 // 연결 승인 — 대표가 직접 보는 곳(연결 원칙 2026-09-21 "첫 100명 대표 수동 승인").
-// 후보는 서버(doit-connect)가 고른다: 연결 자격(전화 인증·맞다고 한 말 5개·필수 사진 3장·소개) + 같은 목적 + 겹친 말.
+// 후보는 서버(doit-connect)가 고른다: 연결 자격(전화 인증·다섯 가지 질문에 모두 답함·필수 사진 3장·소개) + 같은 목적 + 맞다고 한 말 겹침.
 // 승인하면 서버가 두 사람에게 같은 첫 질문을 만든다. 넘기면 그 쌍은 다시 후보로 나오지 않는다.
 // 이 화면은 이야기 내용을 보여 주지 않는다(서버가 개수만 준다).
 import { useCallback, useEffect, useState } from "react";
@@ -12,7 +12,7 @@ type Load<T> = { kind: "loading" } | { kind: "error"; message: string } | { kind
 const MISSING_LABEL: Record<keyof AdminCandidates["missing"], string> = {
   purpose: "목적 없음",
   phone: "전화 인증 안 함",
-  confirmed: "맞다고 한 말 5개 미만",
+  answers: "다섯 가지 질문을 다 답하지 않음",
   photos: "필수 사진 3장 미만",
   intro: "소개 없음",
 };

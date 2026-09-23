@@ -13,7 +13,8 @@ import './asleep-connections.css';
 // v1 연결(2026-09-23): 대표가 승인한 연결만 「내 연결」(ConnectionMatches, 서버 doit-connect)에 나온다. 상대 이름·사진은 둘 다 첫 질문에 답한 뒤에만.
 interface Preview {
   purpose: string | null;
-  readiness: { confirmed: number; confirmed_needed: number; photos: number; photos_needed: number; intro: boolean; phone_verified: boolean };
+  // v14.2(대표 2026-09-24): 자격 칸은 「다섯 가지 질문에 모두 답함」(answers). confirmed 는 맞다고 한 말 수(겹친 말 찾기용)로만 남는다.
+  readiness: { answers: number; answers_needed: number; confirmed: number; photos: number; photos_needed: number; intro: boolean; phone_verified: boolean };
   eligible: boolean; waiting: number; candidates: number; common: string[]; note: string;
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; preview: Preview };
@@ -54,7 +55,7 @@ export default function AsleepConnections() {
 function Ready({ preview }: { preview: Preview }) {
   const r = preview.readiness;
   const rows: { label: string; done: boolean; detail: string; to: string }[] = [
-    { label: '맞다고 한 말', done: r.confirmed >= r.confirmed_needed, detail: `${Math.min(r.confirmed, r.confirmed_needed)} / ${r.confirmed_needed}`, to: '/doit/conversation' },
+    { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: '/doit/conversation' },
     { label: '필수 사진(전신·패션·취미)', done: r.photos >= r.photos_needed, detail: `${Math.min(r.photos, r.photos_needed)} / ${r.photos_needed}`, to: '/doit/start-journey?edit=photos' },
     { label: '내 소개', done: r.intro, detail: r.intro ? '있음' : '아직', to: '/doit/start-journey?edit=profile' },
     { label: '전화 인증', done: r.phone_verified, detail: r.phone_verified ? '했음' : '아직', to: '/doit/verify?next=/doit/connections' },

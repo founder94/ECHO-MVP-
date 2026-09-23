@@ -26,7 +26,7 @@ export interface AdminCandidate {
 }
 export interface AdminCandidates {
   pool: number; eligible: number;
-  missing: { purpose: number; phone: number; confirmed: number; photos: number; intro: number };
+  missing: { purpose: number; phone: number; answers: number; photos: number; intro: number };
   candidates: AdminCandidate[];
 }
 export interface AdminMatch {

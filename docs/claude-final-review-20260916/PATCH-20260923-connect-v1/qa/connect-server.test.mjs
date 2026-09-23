@@ -105,6 +105,7 @@ function world(over = {}) {
         { id: ID.d, role: 'user', nickname: '사진부족', purpose_id: 'friend', purpose_label: '친구', bio: '반가워요', verification_status: 'verified' },
       ],
       profile_photos: [...photos(ID.a), ...photos(ID.b), ...photos(ID.c), ...photos(ID.d, 1)],
+      doit_records: [ID.a, ID.b, ID.c, ID.d].flatMap((uid) => [1, 2, 3, 4, 5].map((i) => ({ user_id: uid, status: 'confirmed', text: `답 ${i}`, created_at: '2026-09-23T01:00:00Z' }))),
       doit_insights: [
         ...confirmedRows(ID.a, [...COMMON, ...OWN_A]), ...confirmedRows(ID.b, [...COMMON, ...OWN_B]),
         ...confirmedRows(ID.c, [...COMMON, ...OWN_B]), ...confirmedRows(ID.d, [...COMMON, ...OWN_B]),
@@ -174,12 +175,12 @@ test('후보: 전화 인증이 없는 사람은 자격이 없다(프로필도 pe
   assert.equal(r.body.missing.phone, 1);
 });
 
-test('후보: 새 회차를 시작하기 전 맞다고 한 말은 세지 않는다', async () => {
+test('후보: 새 회차를 시작하기 전 답·맞다고 한 말은 세지 않는다', async () => {
   const s = world();
   s.users[ID.a] = { ...s.users[ID.a], user_metadata: { doit_round_started_at: '2026-09-23T05:00:00Z' } };
   const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
   assert.equal(r.body.candidates.length, 0);
-  assert.equal(r.body.missing.confirmed, 1);
+  assert.equal(r.body.missing.answers, 1, '새 회차 이전 답은 세지 않는다');
 });
 
 test('후보: 차단한 사이·이미 결정한 쌍은 다시 나오지 않는다', async () => {
@@ -368,6 +369,28 @@ test('복사본 동기화: 겹침 판정·저장 금지 규칙이 doit-understan
   const blocked = (src) => cut(src, 'const BLOCKED_PATTERNS', 'return null;\n}').replace(/^export /gm, '');
   assert.equal(blocked(conn), blocked(und));
   const num = (src, key) => src.match(new RegExp(`${key}: ([0-9.]+)`))?.[1];
-  for (const key of ['REPEAT_SIM', 'REPEAT_OVERLAP', 'CONNECT_CONFIRMED_NEEDED', 'CONNECT_PHOTOS_NEEDED']) assert.equal(num(conn, key), num(und, key), key);
+  for (const key of ['REPEAT_SIM', 'REPEAT_OVERLAP', 'CONNECT_ANSWERS_NEEDED', 'CONNECT_PHOTOS_NEEDED']) assert.equal(num(conn, key), num(und, key), key);
   assert.ok(!/Deno\.env\.get\("OPENAI_URL/.test(conn), '호출 주소는 환경변수로 바꿀 수 없다');
+});
+
+test('v1.1 자격 = 다섯 가지 질문에 모두 답함: 맞아요가 적어도(겹친 말만 있으면) 후보, 답이 4개면 맞아요가 많아도 후보 아님', async () => {
+  const s = world();
+  s.tables.doit_insights = [...confirmedRows(ID.a, [COMMON[0]]), ...confirmedRows(ID.b, [COMMON[0]])];
+  s.tables.profile_photos = [...photos(ID.a), ...photos(ID.b)];
+  let r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 1, '맞아요 1개씩이어도 다섯 가지를 다 답했고 겹치면 후보');
+  const s2 = world();
+  s2.tables.doit_records = s2.tables.doit_records.filter((x) => !(x.user_id === ID.a && x.text === '답 5'));
+  r = await loadServer(s2)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, 'A 는 답이 4개라 자격 없음(맞아요 5개가 있어도)');
+  assert.equal(r.body.missing.answers, 1);
+  const s3 = world();
+  s3.tables.doit_records = s3.tables.doit_records.map((x) => (x.user_id === ID.a && x.text === '답 5' ? { ...x, status: 'rejected' } : x));
+  r = await loadServer(s3)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, '아니라고 한 기록은 답으로 세지 않는다');
+  const s4 = world();
+  s4.tables.doit_insights = [...confirmedRows(ID.a, OWN_A), ...confirmedRows(ID.b, OWN_B)];
+  r = await loadServer(s4)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, '자격이 있어도 맞다고 한 말이 겹치지 않으면 후보가 아니다');
+  assert.equal(r.body.eligible, 3, 'A·B·C(목적 다름) 모두 자격은 있다 — 후보가 안 나오는 이유는 겹친 말이 없어서');
 });
