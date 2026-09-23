@@ -91,8 +91,10 @@ const COMMON = ['조용한 곳에서 대화하는 걸 좋아해요', '약속을 
 const OWN_A = ['산책을 자주 해요', '책 읽는 걸 즐겨요', '주말엔 요리를 해요'];
 const OWN_B = ['영화를 자주 봐요', '고양이를 키워요', '아침형 인간이에요'];
 
+const CONSENTED = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: '2026-09-23T00:00:00Z' };
+
 function world(over = {}) {
-  const user = (id, phone = true, meta = {}) => ({ id, phone: phone ? '821000000000' : '', phone_confirmed_at: phone ? '2026-09-23T00:00:00Z' : null, user_metadata: meta });
+  const user = (id, phone = true, meta = CONSENTED) => ({ id, phone: phone ? '821000000000' : '', phone_confirmed_at: phone ? '2026-09-23T00:00:00Z' : null, user_metadata: { ...meta } });
   const state = {
     current: ID.a, logs: [], writes: [], aiCalls: [],
     users: { [ID.admin]: user(ID.admin), [ID.a]: user(ID.a), [ID.b]: user(ID.b), [ID.c]: user(ID.c), [ID.d]: user(ID.d) },
@@ -391,6 +393,99 @@ test('v1.1 자격 = 다섯 가지 질문에 모두 답함: 맞아요가 적어�
   const s4 = world();
   s4.tables.doit_insights = [...confirmedRows(ID.a, OWN_A), ...confirmedRows(ID.b, OWN_B)];
   r = await loadServer(s4)(ID.admin, { action: 'admin_candidates' });
-  assert.equal(r.body.candidates.length, 0, '자격이 있어도 맞다고 한 말이 겹치지 않으면 후보가 아니다');
-  assert.equal(r.body.eligible, 3, 'A·B·C(목적 다름) 모두 자격은 있다 — 후보가 안 나오는 이유는 겹친 말이 없어서');
+  assert.equal(r.body.candidates.length, 1, 'v1.2: 겹친 말이 없어도 같은 목적이면 목록에 남는다');
+  assert.equal(r.body.candidates[0].no_common, true, '겹친 말 없음으로 표시');
+  assert.equal(r.body.candidates[0].score, 0);
+  assert.equal(r.body.eligible, 3, 'A·B·C(목적 다름) 모두 자격은 있다');
+});
+
+// ── v1.2 (대표 2026-09-24 "최종완성하라고") ──
+const ID_E = '50000000-0000-4000-8000-00000000000e';
+function withE(s) {
+  s.users[ID_E] = { id: ID_E, phone: '821000000001', phone_confirmed_at: '2026-09-23T00:00:00Z', user_metadata: { ...CONSENTED } };
+  s.tables.profiles.push({ id: ID_E, role: 'user', nickname: '새벽', purpose_id: 'friend', purpose_label: '친구', bio: '반가워요', verification_status: 'verified' });
+  s.tables.profile_photos.push(...photos(ID_E));
+  s.tables.doit_records.push(...[1, 2, 3, 4, 5].map((i) => ({ user_id: ID_E, status: 'confirmed', text: `답 ${i}`, created_at: '2026-09-23T01:00:00Z' })));
+  s.tables.doit_insights.push(...confirmedRows(ID_E, ['밤하늘 사진을 찍어요']));
+  return s;
+}
+
+test('v1.2 후보: 겹친 말 있는 쌍이 앞, 겹친 말 없는 같은 목적 쌍은 뒤에 no_common 으로 남는다', async () => {
+  const s = withE(world());
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b, c.no_common]), [
+    [ID.a, ID.b, false], [ID.a, ID_E, true], [ID.b, ID_E, true],
+  ], '겹친 쌍 먼저, 겹친 말 없는 쌍은 뒤');
+  assert.ok(r.body.candidates.filter((c) => c.no_common).every((c) => c.common_a.length === 0 && c.common_b.length === 0 && c.score === 0));
+  assert.ok(!r.body.candidates.some((c) => [c.user_a, c.user_b].includes(ID.c)), '목적이 다르면 겹친 말이 없어도 여전히 후보 아님');
+});
+
+test('v1.2 승인: 겹친 말 없는 쌍은 noCommonOk 없이는 저장하지 않고, 있으면 목적만으로 첫 질문을 만든다', async () => {
+  const s = withE(world());
+  const call = loadServer(s);
+  let r = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID_E, decision: 'approve' });
+  assert.equal(r.status, 409);
+  assert.equal(r.body.code, 'NOT_ELIGIBLE');
+  assert.equal(s.tables.doit_matches.length, 0);
+  assert.equal(s.aiCalls.length, 0);
+  r = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID_E, decision: 'approve', noCommonOk: 'true' });
+  assert.equal(r.status, 409, '문자열 "true" 는 확인으로 치지 않는다');
+  r = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID_E, decision: 'approve', noCommonOk: true });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.question_source, 'ai');
+  const sent = JSON.parse(s.aiCalls[0].messages[1].content);
+  assert.deepEqual(sent, { purpose: '친구', first_person: [], second_person: [] }, 'AI 에는 목적만 간다(각자의 말은 안 보낸다)');
+  assert.equal(JSON.stringify(s.tables.doit_matches[0].common), '[]');
+});
+
+test('v1.2 동의: 연결 동의 전에는 첫 답을 저장하지 않는다(공개의 방아쇠), 동의하면 보낼 수 있다', async () => {
+  const s = world();
+  s.users[ID.a].user_metadata = {};
+  const call = loadServer(s);
+  await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  const matchId = s.tables.doit_matches[0].id;
+  let r = await call(ID.a, { action: 'my_matches' });
+  assert.equal(r.body.consented, false);
+  r = await call(ID.a, { action: 'answer', matchId, text: '숲길이요' });
+  assert.equal(r.status, 409);
+  assert.equal(r.body.code, 'CONSENT_REQUIRED');
+  assert.equal(s.tables.doit_match_answers.length, 0);
+  s.users[ID.a].user_metadata = { doit_connect_consent_version: 'connect-v0', doit_connect_consent_at: '2026-09-23T00:00:00Z' };
+  assert.equal((await call(ID.a, { action: 'answer', matchId, text: '숲길이요' })).body.code, 'CONSENT_REQUIRED', '옛 판 동의는 다시 묻는다');
+  s.users[ID.a].user_metadata = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: 'not-a-date' };
+  assert.equal((await call(ID.a, { action: 'answer', matchId, text: '숲길이요' })).body.code, 'CONSENT_REQUIRED', '시각이 이상하면 동의로 치지 않는다');
+  s.users[ID.a].user_metadata = { ...CONSENTED };
+  assert.equal((await call(ID.a, { action: 'my_matches' })).body.consented, true);
+  assert.equal((await call(ID.a, { action: 'answer', matchId, text: '숲길이요' })).status, 200);
+  assert.ok(!s.logs.some((l) => l.includes('숲길이요')));
+});
+
+test('v1.2 my_turns: 내 차례만 센다(답할 질문·새로 열림·상대가 보낸 말), 이름·내용은 없다', async () => {
+  const s = withE(world());
+  const call = loadServer(s);
+  await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID_E, decision: 'approve', noCommonOk: true });
+  const [ab, ae] = s.tables.doit_matches.map((m) => m.id);
+  let r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body, { ok: true, open: 2, turns: { answer: 2, reply: 0, opened: 0 } });
+  await call(ID.a, { action: 'answer', matchId: ab, text: '숲길이요' });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body.turns, { answer: 1, reply: 0, opened: 0 }, '내가 답하고 상대를 기다리는 건 내 차례가 아니다');
+  await call(ID.b, { action: 'answer', matchId: ab, text: '한강이요' });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body.turns, { answer: 1, reply: 0, opened: 1 }, '둘 다 답해 열렸고 아직 아무 말 없음');
+  await call(ID.b, { action: 'message', matchId: ab, text: '반가워요' });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body.turns, { answer: 1, reply: 1, opened: 0 }, '상대가 마지막으로 말함');
+  await call(ID.a, { action: 'message', matchId: ab, text: '저도요' });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body.turns, { answer: 1, reply: 0, opened: 0 }, '내가 마지막으로 말하면 내 차례 아님');
+  for (const x of [NICK_B, '새벽', '한강이요', '반가워요', ID.b, ID_E]) assert.ok(!JSON.stringify(r.body).includes(x), `my_turns 에 "${x}" 없음`);
+  await call(ID.a, { action: 'leave', matchId: ae, block: false, report: false });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.deepEqual(r.body, { ok: true, open: 1, turns: { answer: 0, reply: 0, opened: 0 } }, '끝난 연결은 세지 않는다');
+  s.tables.blocks.push({ blocker_id: ID.b, blocked_user_id: ID.a });
+  r = await call(ID.a, { action: 'my_turns' });
+  assert.equal(r.body.open, 0, '상대가 차단하면 세지 않는다');
 });

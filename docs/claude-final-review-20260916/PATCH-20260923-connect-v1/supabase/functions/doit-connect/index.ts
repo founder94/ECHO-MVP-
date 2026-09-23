@@ -1,4 +1,11 @@
-// doit-connect — 연결 서버 (v1.1 · 2026-09-24)
+// doit-connect — 연결 서버 (v1.2 · 2026-09-24)
+//
+// v1.2(대표 2026-09-24 "최종완성하라고"): 막힌 곳 세 군데를 푼다.
+//  (a) 겹친 말이 없는 같은 목적 쌍도 후보 목록 맨 뒤에 "겹친 말 없음"으로 보여 준다(빠져나갈 문). 추천 순서는 그대로 겹친 말 우선이고,
+//      겹친 말 없는 쌍은 관리자가 noCommonOk 로 한 번 더 확인해야 승인된다. 첫 질문은 목적만 보고 만든다.
+//  (b) 연결 동의: 첫 답을 보내면 둘 다 답한 순간 상대에게 내 닉네임·대표 사진·소개·첫 답이 보인다. 그래서 첫 답 전에
+//      동의(user_metadata.doit_connect_consent_version = CONNECT_CONSENT_VERSION)를 서버가 확인한다. 동의 전에는 아무것도 공개되지 않는다.
+//  (c) my_turns: 앱 홈이 가볍게 "내 차례"(답할 첫 질문·상대가 보낸 이야기·새로 열린 연결)만 센다. 내용·이름은 내려 주지 않는다.
 //
 // v1.1(대표 2026-09-24 "그렇게 바꿔"): 연결 자격의 「맞다고 한 말 5개」를 「이번 회차 다섯 가지 질문에 모두 답함」으로 바꾼다
 // (doit-understanding connection_preview 와 같은 기준 = 화면의 n / 5). 맞다고 한 말은 두 사람의 겹친 말을 찾는 데만 쓴다.
@@ -10,8 +17,8 @@
 // 하는 일
 // ① phone_sync: 로그인 정보에 문자 인증이 끝난 번호가 있으면 profiles.verification_status 를 verified 로 맞춘다.
 //    화면이 "인증됐다"고 말해도 믿지 않는다 — Auth 서버가 돌려준 phone_confirmed_at 만 본다. 번호는 돌려주지도 기록하지도 않는다.
-// ② admin_candidates(관리자): 연결 자격을 갖춘 사람 중 같은 목적 + 맞다고 한 말이 겹치는 쌍을 서버가 고른다.
-//    차단한 사이·이미 결정한 쌍은 빼고, 겹친 말이 없으면 후보가 아니다.
+// ② admin_candidates(관리자): 연결 자격을 갖춘 사람 중 같은 목적 쌍을 서버가 고른다. 맞다고 한 말이 겹치는 쌍이 앞,
+//    겹친 말 없는 쌍은 뒤(no_common, v1.2). 차단한 사이·이미 결정한 쌍은 뺀다.
 // ③ admin_decide(관리자): 대표가 승인하면 AI 가 두 사람에게 같은 첫 질문을 만든다(검사에 걸리면 고정 문장). 넘기기도 기록한다.
 //    결정 순간에 자격·목적·차단·겹침을 서버가 다시 확인한다(화면이 보낸 값을 믿지 않는다).
 // ④ my_matches: 내 연결. 두 사람이 모두 첫 질문에 답하기 전에는 상대의 이름·사진·소개·답을 절대 내려 주지 않는다(blind-first).
@@ -32,7 +39,7 @@ type Db = SupabaseClient;
 
 const ACTIONS = new Set([
   "phone_sync",
-  "my_matches", "answer", "message", "leave",
+  "my_matches", "my_turns", "answer", "message", "leave",
   "admin_candidates", "admin_matches", "admin_decide",
 ]);
 
@@ -65,6 +72,7 @@ const CODES = {
   NOT_FOUND: "NOT_FOUND",
   INVALID_STATE: "INVALID_STATE",
   NOT_ELIGIBLE: "NOT_ELIGIBLE",
+  CONSENT_REQUIRED: "CONSENT_REQUIRED",
   BLOCKED_CONTENT: "BLOCKED_CONTENT",
   RATE_LIMITED: "RATE_LIMITED",
   TOO_LARGE: "TOO_LARGE",
@@ -85,6 +93,8 @@ function resolveModel(raw: string | undefined): string {
 const BANNED_WORDS = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
 // 첫 질문에서 묻지 않는 것: 연락처·사는 곳·직장·나이·몸·외모. 처음 만나는 사이에 부담이 되거나 개인정보다.
 const PRIVATE_ASK = /연락처|번호|주소|사는\s*곳|어디\s*살|직장|회사|학교|나이|몇\s*살|키가|몸무게|외모|사진|인스타|카톡|아이디/;
+// 연결 동의 판(화면 src/doit/lib/connectApi.ts 의 같은 이름 값과 같아야 한다 — 검사가 확인한다).
+const CONNECT_CONSENT_VERSION = "connect-v1";
 const FIRST_QUESTION_FALLBACK = "처음 만난 사람에게 가장 먼저 들려주고 싶은 내 이야기는 뭐예요?";
 
 const ALLOWED_ORIGINS = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "")
@@ -151,6 +161,11 @@ function roundStartOf(user: { user_metadata?: Record<string, unknown> | null }):
   return typeof v === "string" && !Number.isNaN(Date.parse(v)) ? v : null;
 }
 const inRound = (createdAt: string | undefined, since: string | null): boolean => !since || !createdAt || createdAt >= since;
+// 연결 동의 — 화면이 로그인 정보(user_metadata)에 남긴 판과 시각. 판이 다르면(문구가 바뀌면) 다시 묻는다.
+function consentedToConnect(user: { user_metadata?: Record<string, unknown> | null }): boolean {
+  const m = user.user_metadata ?? {};
+  return m.doit_connect_consent_version === CONNECT_CONSENT_VERSION && typeof m.doit_connect_consent_at === "string" && !Number.isNaN(Date.parse(m.doit_connect_consent_at));
+}
 
 const rateBuckets = new Map<string, number[]>();
 function rateLimited(userId: string): boolean {
@@ -303,7 +318,7 @@ async function callOpenAI(apiKey: string, model: string, system: string, user: s
 
 const FIRST_QUESTION_SYSTEM =
   "너는 'DO IT'이다. 같은 만남을 원하는 두 사람이 처음으로 서로에게 답할 질문 하나를 만든다. " +
-  "아래 자료는 두 사람이 각자 '맞아요'라고 한 말 중 서로 겹치는 부분이다. 두 사람 모두 편하게 답할 수 있고, 답을 읽으면 서로를 조금 알게 되는 질문을 만든다. " +
+  "아래 자료는 두 사람이 각자 '맞아요'라고 한 말 중 서로 겹치는 부분이다(비어 있으면 원하는 만남만 보고 만든다). 두 사람 모두 편하게 답할 수 있고, 답을 읽으면 서로를 조금 알게 되는 질문을 만든다. " +
   "규칙: 한 문장, 물음표 하나, 공백 포함 45자 이내. 자료의 문장을 그대로 옮기지 않는다. 연락처·사는 곳·직장·학교·나이·몸·외모·사진을 묻지 않는다. " +
   "마음속을 파고들거나 진단하지 않는다. 데이팅·소개팅·궁합·점술·심리치료·성격검사 같은 단어를 쓰지 않는다. " +
   "JSON {\"question\":\"...\"} 로만 답한다.";
@@ -443,7 +458,38 @@ Deno.serve(async (req: Request): Promise<Response> => {
         out.push(item);
       }
       logDiag({ action, matches: out.length });
-      return json({ ok: true, matches: out }, 200, origin);
+      return json({ ok: true, matches: out, consented: consentedToConnect(user) }, 200, origin);
+    }
+
+    // (c) 내 차례만 센다. 앱 홈 카드용 — 이름·질문·이야기 내용은 내려 주지 않는다.
+    if (action === "my_turns") {
+      const [{ data: asA }, { data: asB }] = await Promise.all([
+        admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_a", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
+        admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_b", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
+      ]);
+      const blocked = await blockedPairs(admin, [userId]);
+      const rows = [...(asA ?? []), ...(asB ?? [])].map((m) => ({ id: String(m.id), partnerId: String(m.user_a) === userId ? String(m.user_b) : String(m.user_a) }))
+        .filter((m) => !blocked.has(pairKey(userId, m.partnerId)));
+      const answers = await answersOf(admin, rows.map((r) => r.id));
+      const turns = { answer: 0, reply: 0, opened: 0 };
+      const revealedIds: string[] = [];
+      for (const m of rows) {
+        const got = answers.get(m.id) ?? new Map();
+        if (!got.has(userId)) turns.answer++;
+        else if (got.has(m.partnerId)) revealedIds.push(m.id);
+      }
+      if (revealedIds.length) {
+        const { data: msgs } = await admin.from("doit_match_messages").select("match_id, sender_id, created_at").in("match_id", revealedIds).order("created_at", { ascending: false }).limit(revealedIds.length * LIMITS.MESSAGES_SHOWN);
+        const last = new Map<string, string>();
+        for (const r of msgs ?? []) if (!last.has(String(r.match_id))) last.set(String(r.match_id), String(r.sender_id));
+        for (const id of revealedIds) {
+          const sender = last.get(id);
+          if (!sender) turns.opened++;          // 둘 다 답해 서로 열렸고 아직 아무도 말하지 않음
+          else if (sender !== userId) turns.reply++; // 마지막 말이 상대 것
+        }
+      }
+      logDiag({ action, open: rows.length, ...turns });
+      return json({ ok: true, open: rows.length, turns }, 200, origin);
     }
 
     if (action === "answer" || action === "message") {
@@ -460,6 +506,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const blocked = await blockedPairs(admin, [userId]);
       if (found.match.status !== "approved" || blocked.has(pairKey(userId, found.partnerId))) return fail(CODES.INVALID_STATE, "끝난 연결이에요.", 409, origin);
       if (action === "answer") {
+        // (b) 첫 답은 공개의 방아쇠다 — 동의가 없으면 저장하지 않는다(적은 글은 화면에 그대로 남는다).
+        if (!consentedToConnect(user)) { logDiag({ action, consent: false }); return fail(CODES.CONSENT_REQUIRED, "첫 답을 보내기 전에 무엇이 상대에게 보이는지 확인해 주세요.", 409, origin); }
         const { error } = await admin.from("doit_match_answers").insert({ match_id: matchId, user_id: userId, answer: text });
         if (error) {
           if ((error as { code?: string }).code === "23505") return fail(CODES.INVALID_STATE, "이미 답을 보냈어요.", 409, origin);
@@ -511,18 +559,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if (blocked.has(key) || done.has(key)) continue;
           const [a, b] = x.id < y.id ? [x, y] : [y, x];
           const common = commonOf(a, b);
-          if (!common.a.length) continue;
+          // (a) 겹친 말이 없어도 같은 목적이면 목록 맨 뒤에 남긴다(no_common). 점수 0 이라 겹친 쌍보다 앞에 오지 않는다.
           candidates.push({
             user_a: a.id, user_b: b.id, purpose: a.purposeLabel,
             a: { nickname: a.nickname, confirmed: a.confirmed.length }, b: { nickname: b.nickname, confirmed: b.confirmed.length },
-            common_a: common.a, common_b: common.b, score: common.a.length + common.b.length,
+            common_a: common.a, common_b: common.b, score: common.a.length + common.b.length, no_common: common.a.length === 0,
           });
         }
       }
       candidates.sort((p, q) => Number(q.score) - Number(p.score));
       const missing: Record<string, number> = { purpose: 0, phone: 0, answers: 0, photos: 0, intro: 0 };
       for (const m of members) for (const k of m.missing) missing[k] = (missing[k] ?? 0) + 1;
-      logDiag({ action, pool: members.length, eligible: eligible.length, candidates: candidates.length });
+      logDiag({ action, pool: members.length, eligible: eligible.length, candidates: candidates.length, no_common: candidates.filter((c) => c.no_common === true).length });
       return json({ ok: true, pool: members.length, eligible: eligible.length, missing, candidates: candidates.slice(0, LIMITS.CANDIDATES_MAX) }, 200, origin);
     }
 
@@ -562,14 +610,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         logDiag({ action, decision });
         return json({ ok: true, status: "rejected" }, 200, origin);
       }
-      // 승인 순간에 다시 확인한다: 두 사람 모두 자격, 같은 목적, 차단 없음, 겹친 말 있음.
+      // 승인 순간에 다시 확인한다: 두 사람 모두 자격, 같은 목적, 차단 없음, 겹친 말 있음(없으면 관리자 확인 noCommonOk).
       const members = await loadMembers(admin, [ua, ub]);
       const a = members.find((m) => m.id === ua), b = members.find((m) => m.id === ub);
       if (!a || !b || !a.eligible || !b.eligible) return fail(CODES.NOT_ELIGIBLE, "두 사람 중 연결 자격이 없는 사람이 있어요.", 409, origin);
       if (!a.purposeId || a.purposeId !== b.purposeId) return fail(CODES.NOT_ELIGIBLE, "원하는 만남이 서로 달라요.", 409, origin);
       if ((await blockedPairs(admin, [ua])).has(pairKey(ua, ub))) return fail(CODES.NOT_ELIGIBLE, "둘 중 한 사람이 상대를 차단했어요.", 409, origin);
       const common = commonOf(a, b);
-      if (!common.a.length) return fail(CODES.NOT_ELIGIBLE, "겹친 말이 없어요.", 409, origin);
+      // (a) 겹친 말 없는 쌍은 관리자가 그 사실을 보고 한 번 더 누른 경우(noCommonOk)만 승인한다.
+      if (!common.a.length && body.noCommonOk !== true) return fail(CODES.NOT_ELIGIBLE, "겹친 말이 없는 쌍이에요. 그래도 이으려면 「겹친 말 없이 승인」을 눌러 주세요.", 409, origin);
       const first = await firstQuestionFor(a.purposeLabel, common);
       const { error } = await admin.from("doit_matches").insert({
         user_a: ua, user_b: ub, purpose_id: a.purposeId, common: common.a, first_question: first.question, status: "approved", decided_by: userId,
@@ -578,7 +627,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if ((error as { code?: string }).code === "23505") return fail(CODES.INVALID_STATE, "이미 결정한 쌍이에요.", 409, origin);
         return fail(CODES.ERROR, "저장하지 못했어요.", 500, origin);
       }
-      logDiag({ action, decision, question: first.source, reason: first.reason ?? null });
+      logDiag({ action, decision, question: first.source, reason: first.reason ?? null, no_common: common.a.length === 0 });
       return json({ ok: true, status: "approved", first_question: first.question, question_source: first.source }, 200, origin);
     }
 

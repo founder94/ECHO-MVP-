@@ -112,3 +112,88 @@ test('새 화면 문구에 쓰지 않는 단어가 없다', () => {
   const banned = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
   for (const p of [VERIFY, MATCHES, ASLEEP, 'src/doit/pages/do-it/admin/views/ConnectionApprovals.tsx', 'src/doit/lib/phoneVerify.ts']) assert.ok(!banned.test(read(p)), p);
 });
+
+// ── v1.2 (대표 2026-09-24 "최종완성하라고"): 연결 동의 · 홈 「내 차례」 · 겹친 말 없는 후보 · 약관 초안 ──
+function loadConnectApi(calls = []) {
+  const out = ts.transpileModule(read('src/doit/lib/connectApi.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {};
+  const supabase = { auth: { updateUser: async (x) => { calls.push(['updateUser', x]); return { error: null }; } } };
+  const stubs = { '@/lib/supabase/client': { supabase }, '@/doit/lib/understandingApi': { serverFunctionRequest: async (fn, body) => { calls.push([fn, body]); return calls.reply ?? { ok: true }; } } };
+  vm.runInNewContext(out, { exports, Date, Number, Math, JSON, Array, require: (n) => { if (!(n in stubs)) throw new Error(`Unexpected dependency ${n}`); return stubs[n]; } });
+  return exports;
+}
+
+test('v1.2 연결 동의: 화면과 서버의 동의 판이 같고, 동의는 판과 시각을 함께 남긴다', async () => {
+  const server = read('supabase/functions/doit-connect/index.ts');
+  const serverVersion = server.match(/const CONNECT_CONSENT_VERSION = "([^"]+)"/)?.[1];
+  const calls = [];
+  const api = loadConnectApi(calls);
+  assert.equal(api.CONNECT_CONSENT_VERSION, serverVersion);
+  assert.equal(await api.giveConnectConsent(), null);
+  const data = calls[0][1].data;
+  assert.equal(data.doit_connect_consent_version, serverVersion);
+  assert.ok(!Number.isNaN(Date.parse(data.doit_connect_consent_at)));
+});
+
+test('v1.2 연결 동의 칸: 서버가 상대에게 보내는 칸을 모두 알리고, 동의 전에는 답 입력창이 없다', () => {
+  const s = read(MATCHES);
+  const server = read('supabase/functions/doit-connect/index.ts');
+  // 서버가 공개 뒤 내려 주는 상대 정보 칸 → 동의 문구에 모두 있어야 한다.
+  const partnerBlock = server.slice(server.indexOf('item.partner = {'), server.indexOf('};', server.indexOf('item.partner = {')));
+  const shown = { nickname: '닉네임', photo: '대표 사진', bio: '소개', purpose: '고른 만남', answer: '이 질문에 쓴 답' };
+  for (const [key, words] of Object.entries(shown)) {
+    assert.match(partnerBlock, new RegExp(`\\b${key}`), `서버가 ${key} 를 보낸다`);
+    assert.ok(s.includes(words), `동의 문구에 「${words}」`);
+  }
+  assert.match(s, /\{stage === 'ask' && !consented && <div className="doit-match-consent"/);
+  assert.match(s, /\{stage === 'ask' && consented && <>/, '답 입력창은 동의한 뒤에만');
+  assert.match(s, /e\.code === 'CONSENT_REQUIRED'\) onConsentLost\(\)/, '서버가 동의를 다시 요구하면 동의 칸으로');
+  assert.match(s, /아직 답하고 싶지 않으면 그대로 두셔도 돼요/, '빠져나갈 문');
+  assert.match(s, /전화번호와 이메일은 보이지 않아요/);
+});
+
+test('v1.2 홈 「내 차례」: 먼저 할 일 하나만, 할 일이 없으면 아무것도 안 그린다', () => {
+  const { turnsMessage } = loadConnectApi();
+  assert.equal(turnsMessage({ answer: 0, reply: 0, opened: 0 }), null);
+  assert.match(turnsMessage({ answer: 1, reply: 3, opened: 1 }).title, /첫 질문/);
+  assert.match(turnsMessage({ answer: 2, reply: 0, opened: 0 }).title, /첫 질문 2개/);
+  assert.match(turnsMessage({ answer: 0, reply: 2, opened: 1 }).title, /서로 열렸어요/);
+  assert.match(turnsMessage({ answer: 0, reply: 1, opened: 0 }).title, /이야기를 보냈어요/);
+  const card = read('src/doit/components/feature/ConnectionTurnsCard.tsx');
+  assert.match(card, /if \(!message\) return null;/);
+  assert.match(card, /\.catch\(\(\) => \{ if \(alive\) setTurns\(null\); \}\)/, '못 불러오면 조용히 숨긴다(홈을 막지 않음)');
+  assert.match(card, /to="\/doit\/connections"/);
+  assert.match(read('src/doit/pages/do-it/home/page.tsx'), /\{A_STRUCTURE_SERVER_ENABLED && user && <ConnectionTurnsCard userId=\{user\.id\} \/>\}/);
+});
+
+test('v1.2 fetchMyTurns: 서버 값이 이상하면 0 으로 읽는다(음수·글자·빈 값)', async () => {
+  const calls = [];
+  calls.reply = { ok: true, open: '3', turns: { answer: -1, reply: 2.7, opened: null } };
+  const api = loadConnectApi(calls);
+  const out = await api.fetchMyTurns('u1');
+  assert.equal(JSON.stringify(out), JSON.stringify({ open: 0, turns: { answer: 0, reply: 2, opened: 0 } }));
+  assert.equal(JSON.stringify(calls[0][1]), JSON.stringify({ action: 'my_turns' }));
+});
+
+test('v1.2 연결 승인: 겹친 말 없는 쌍은 표시하고, 두 번 눌러야 noCommonOk 로 승인한다', async () => {
+  const v = read('src/doit/pages/do-it/admin/views/ConnectionApprovals.tsx');
+  assert.match(v, /<Pill tone="secondary">겹친 말 없음<\/Pill>/);
+  assert.match(v, /c\.no_common && confirmKey !== key/, '첫 누름은 확인 단계로만');
+  assert.match(v, /decideMatch\(c\.user_a, c\.user_b, decision, decision === "approve" && c\.no_common === true\)/);
+  const calls = [];
+  const api = loadConnectApi(calls);
+  await api.decideMatch('a', 'b', 'approve');
+  await api.decideMatch('a', 'b', 'approve', true);
+  assert.equal('noCommonOk' in calls[0][1], false, '겹친 쌍 승인에는 확인값을 보내지 않는다');
+  assert.equal(calls[1][1].noCommonOk, true);
+});
+
+test('v1.2 약관 초안: 연결되면 무엇이 보이는지·전화번호 수집·운영자 확인을 적고, "준비 중" 문장은 뺐다', () => {
+  const d = read('src/lib/legal/documents.ts');
+  assert.ok(!/사람 연결 기능은 현재 준비 중/.test(d));
+  assert.match(d, /전화 인증 시: 휴대폰 번호/);
+  assert.match(d, /닉네임·대표 사진·소개·고른 만남·첫 답/);
+  assert.match(d, /운영자가 직접 확인해 승인합니다/);
+  assert.match(d, /\[대표 확인: 문자 발송 업체/, '모르는 값은 지어내지 않고 대표 확인으로 남긴다');
+  assert.match(d, /export const LEGAL_VERSION = 'v1\.0';/, '판 올리기(재동의)는 대표 결정 — 이번에 바꾸지 않음');
+});

@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, leaveMatch, sendMatchAnswer, sendMatchMessage, type MyMatch } from '@/doit/lib/connectApi';
+import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, type MyMatch } from '@/doit/lib/connectApi';
 import './connect.css';
 
 // 내 연결 — 대표가 승인한 연결만 여기 온다(연결 원칙 2026-09-21).
 // 순서: 같은 첫 질문 → 둘 다 답하면 이름·사진·소개·서로의 답이 열림(blind-first) → 이야기.
 // 상대 정보는 서버가 조건을 확인한 뒤에만 내려 준다. 화면은 받은 것만 그린다.
+// v1.2: 첫 답이 공개의 방아쇠라, 처음 답하기 전에 무엇이 상대에게 보이는지 보여 주고 동의를 받는다(서버도 다시 확인).
 const REFRESH_MS = 30_000;
 
-type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; matches: MyMatch[] };
+type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; matches: MyMatch[]; consented: boolean };
 
 function errorText(e: unknown, fallback: string): string {
   return e instanceof UnderstandingError && e.message ? e.message : fallback;
@@ -21,8 +22,8 @@ export default function ConnectionMatches({ userId }: { userId: string }) {
   const refresh = useCallback(async () => {
     const mine = ++seq.current;
     try {
-      const matches = await fetchMyMatches(userId);
-      if (mine === seq.current) setLoad({ kind: 'ready', matches });
+      const { matches, consented } = await fetchMyMatches(userId);
+      if (mine === seq.current) setLoad({ kind: 'ready', matches, consented });
     } catch (e) {
       if (mine !== seq.current) return;
       const missing = e instanceof UnderstandingError && (e.code === 'NETWORK_ERROR' || e.code === 'BAD_REQUEST');
@@ -48,11 +49,20 @@ export default function ConnectionMatches({ userId }: { userId: string }) {
       <p className="doit-asleep-label">내 연결 {load.matches.filter(m => m.status === 'open').length}</p>
       <button type="button" className="doit-connect-link" onClick={() => void refresh()}>새로 보기</button>
     </div>
-    {load.matches.map(m => <MatchCard key={m.id} match={m} userId={userId} onChanged={refresh} />)}
+    {load.matches.map(m => <MatchCard key={m.id} match={m} userId={userId} consented={load.consented} onConsented={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: true } : prev)} onConsentLost={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: false } : prev)} onChanged={refresh} />)}
   </section>;
 }
 
-function MatchCard({ match, userId, onChanged }: { match: MyMatch; userId: string; onChanged: () => Promise<void> }) {
+interface MatchCardProps {
+  match: MyMatch;
+  userId: string;
+  consented: boolean;
+  onConsented: () => void;
+  onConsentLost: () => void;
+  onChanged: () => Promise<void>;
+}
+
+function MatchCard({ match, userId, consented, onConsented, onConsentLost, onChanged }: MatchCardProps) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,10 +84,22 @@ function MatchCard({ match, userId, onChanged }: { match: MyMatch; userId: strin
       setDraft('');
       await onChanged();
     } catch (e) {
+      // 동의 판이 바뀌었거나 저장이 안 됐으면 동의 칸으로 돌아간다. 적은 답은 그대로 둔다.
+      if (e instanceof UnderstandingError && e.code === 'CONSENT_REQUIRED') onConsentLost();
       setError(errorText(e, '보내지 못했어요. 적은 내용은 그대로 있어요. 다시 눌러 주세요.'));
     } finally {
       setBusy(false);
     }
+  };
+
+  const consent = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const failed = await giveConnectConsent();
+    setBusy(false);
+    if (failed) setError(failed);
+    else onConsented();
   };
 
   const leave = async (report: boolean) => {
@@ -113,7 +135,19 @@ function MatchCard({ match, userId, onChanged }: { match: MyMatch; userId: strin
     <p className="doit-match-kicker">두 사람에게 같은 질문</p>
     <p className="doit-match-question">{match.first_question}</p>
 
-    {stage === 'ask' && <>
+    {stage === 'ask' && !consented && <div className="doit-match-consent" role="group" aria-label="답하기 전에 확인">
+      <p className="doit-match-kicker">답하기 전에 확인해 주세요</p>
+      <ul>
+        <li>두 사람이 모두 답하면, 상대에게 내 <b>닉네임 · 대표 사진 · 소개 · 고른 만남 · 이 질문에 쓴 답</b>이 보여요.</li>
+        <li>둘 다 답하기 전에는 아무것도 보이지 않아요.</li>
+        <li>전화번호와 이메일은 보이지 않아요. 연락처와 링크는 보낼 수도 없어요.</li>
+        <li>「이 연결 그만하기」를 누르면 언제든 끝나고, 더 보이지 않아요.</li>
+      </ul>
+      <button className="doit-product-action" type="button" onClick={() => void consent()} disabled={busy}>{busy ? '저장하는 중' : '확인했어요, 답할게요'}<span aria-hidden="true">↗</span></button>
+      <p className="doit-connect-note">아직 답하고 싶지 않으면 그대로 두셔도 돼요. 답하기 전에는 아무것도 보이지 않아요.</p>
+    </div>}
+
+    {stage === 'ask' && consented && <>
       <p className="doit-connect-note">내가 답하고 상대도 답하면, 그때 서로의 이름과 사진이 열려요.</p>
       <form className="doit-connect-form" onSubmit={e => void submit(e, 'answer')}>
         <label className="doit-connect-label" htmlFor={`answer-${match.id}`}>내 답</label>

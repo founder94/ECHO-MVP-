@@ -6,6 +6,7 @@ import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { roundStartOf } from '@/doit/lib/conversationRound';
 import { ASK_TOTAL } from '@/doit/components/feature/CoreConversation';
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
+import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import '@/doit/components/feature/understanding-pages.css';
 
 function formatDate(iso: string): string {
@@ -56,6 +57,9 @@ export default function Home() {
                 </>}
           <p className="doit-product-footnote">AI가 잘못 알아들으면 바로 고쳐 주세요.<br />나를 설명하는 말은 내가 정해요.</p>
         </section>
+
+        {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}
+        {A_STRUCTURE_SERVER_ENABLED && user && <ConnectionTurnsCard userId={user.id} />}
 
         {/* 휴대폰에 앱으로 받기(2026-09-23). 이미 앱으로 열려 있으면 보이지 않는다. */}
         <InstallAppCard />

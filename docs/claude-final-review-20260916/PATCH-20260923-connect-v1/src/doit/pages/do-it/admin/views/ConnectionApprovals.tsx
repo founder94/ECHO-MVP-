@@ -1,5 +1,6 @@
 // 연결 승인 — 대표가 직접 보는 곳(연결 원칙 2026-09-21 "첫 100명 대표 수동 승인").
-// 후보는 서버(doit-connect)가 고른다: 연결 자격(전화 인증·다섯 가지 질문에 모두 답함·필수 사진 3장·소개) + 같은 목적 + 맞다고 한 말 겹침.
+// 후보는 서버(doit-connect)가 고른다: 연결 자격(전화 인증·다섯 가지 질문에 모두 답함·필수 사진 3장·소개) + 같은 목적.
+// 맞다고 한 말이 겹치는 쌍이 앞, 겹친 말 없는 쌍은 뒤(v1.2) — 뒤의 쌍은 「겹친 말 없이 승인」을 한 번 더 눌러야 열린다.
 // 승인하면 서버가 두 사람에게 같은 첫 질문을 만든다. 넘기면 그 쌍은 다시 후보로 나오지 않는다.
 // 이 화면은 이야기 내용을 보여 주지 않는다(서버가 개수만 준다).
 import { useCallback, useEffect, useState } from "react";
@@ -36,6 +37,7 @@ export default function ConnectionApprovals() {
   const [matches, setMatches] = useState<Load<AdminMatch[]>>({ kind: "loading" });
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setCandidates({ kind: "loading" });
@@ -53,7 +55,7 @@ export default function ConnectionApprovals() {
     setBusyKey(key);
     setNotice(null);
     try {
-      const out = await decideMatch(c.user_a, c.user_b, decision);
+      const out = await decideMatch(c.user_a, c.user_b, decision, decision === "approve" && c.no_common === true);
       setNotice(decision === "approve"
         ? `${c.a.nickname} · ${c.b.nickname} 연결을 열었어요. 첫 질문: "${out.first_question ?? ""}"${out.question_source === "fixed" ? " (AI 질문이 검사에 걸려 기본 질문을 썼어요)" : ""}`
         : `${c.a.nickname} · ${c.b.nickname} 쌍을 넘겼어요. 다시 후보로 나오지 않아요.`);
@@ -62,6 +64,7 @@ export default function ConnectionApprovals() {
       setNotice(message(e));
     } finally {
       setBusyKey(null);
+      setConfirmKey(null);
     }
   };
 
@@ -76,7 +79,7 @@ export default function ConnectionApprovals() {
 
       <div className="rounded-lg border border-background-200 bg-background-100 px-4 py-3 text-xs leading-relaxed text-foreground-600">
         <p className="font-semibold text-foreground-800">어떻게 고르나요</p>
-        <p className="mt-1">서버가 연결 자격을 갖춘 사람 중 <b>같은 만남을 고르고 맞다고 한 말이 겹치는</b> 두 사람을 후보로 보여 줍니다. 차단한 사이와 이미 결정한 쌍은 나오지 않습니다.</p>
+        <p className="mt-1">서버가 연결 자격을 갖춘 사람 중 <b>같은 만남을 고른</b> 두 사람을 후보로 보여 줍니다. <b>맞다고 한 말이 겹치는 쌍이 먼저</b>, 겹친 말이 없는 쌍은 뒤에 「겹친 말 없음」으로 나옵니다. 차단한 사이와 이미 결정한 쌍은 나오지 않습니다.</p>
         <p className="mt-1"><b>승인</b>하면 두 사람에게 같은 첫 질문이 가고, 둘 다 답해야 서로의 이름과 사진이 열립니다. <b>넘기기</b>는 되돌릴 수 없습니다.</p>
       </div>
 
@@ -97,7 +100,7 @@ export default function ConnectionApprovals() {
           </ul>
         </div>
         <section className="flex flex-col gap-3">
-          {candidates.data.candidates.length === 0 && <EmptyRow>지금은 후보 쌍이 없어요. 자격을 갖춘 사람이 같은 목적으로 두 명 이상 모이고, 맞다고 한 말이 겹쳐야 나와요.</EmptyRow>}
+          {candidates.data.candidates.length === 0 && <EmptyRow>지금은 후보 쌍이 없어요. 자격을 갖춘 사람이 같은 목적으로 두 명 이상 모여야 나와요.</EmptyRow>}
           {candidates.data.candidates.map((c) => {
             const key = `${c.user_a}|${c.user_b}`;
             return (
@@ -105,16 +108,22 @@ export default function ConnectionApprovals() {
                 <div className="flex flex-wrap items-center gap-2">
                   <b className="text-sm text-foreground-950">{c.a.nickname}</b><span className="text-foreground-400">·</span><b className="text-sm text-foreground-950">{c.b.nickname}</b>
                   {c.purpose && <Pill tone="primary">{c.purpose}</Pill>}
-                  <span className="text-xs text-foreground-500">겹친 말 {c.score}</span>
+                  {c.no_common ? <Pill tone="secondary">겹친 말 없음</Pill> : <span className="text-xs text-foreground-500">겹친 말 {c.score}</span>}
                 </div>
-                <div className="mt-3 grid gap-3 text-xs text-foreground-700 md:grid-cols-2">
+                {c.no_common && <p className="mt-3 text-xs leading-relaxed text-foreground-600">같은 만남을 골랐지만, 두 사람이 「맞아요」로 확인한 말 중 겹치는 게 없어요. 승인하면 첫 질문은 고른 만남만 보고 만들어요.</p>}
+                {!c.no_common && <div className="mt-3 grid gap-3 text-xs text-foreground-700 md:grid-cols-2">
                   <div><p className="font-semibold">{c.a.nickname} 님이 맞다고 한 말</p><ul className="mt-1 list-disc pl-4">{c.common_a.map((t) => <li key={t}>{t}</li>)}</ul></div>
                   <div><p className="font-semibold">{c.b.nickname} 님이 맞다고 한 말</p><ul className="mt-1 list-disc pl-4">{c.common_b.map((t) => <li key={t}>{t}</li>)}</ul></div>
-                </div>
+                </div>}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" disabled={!!busyKey} onClick={() => void decide(c, "approve")} className="rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-background-50 disabled:opacity-50">
-                    {busyKey === key ? "첫 질문을 만드는 중" : "승인하고 첫 질문 보내기"}
-                  </button>
+                  {c.no_common && confirmKey !== key
+                    ? <button type="button" disabled={!!busyKey} onClick={() => setConfirmKey(key)} className="rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-background-50 disabled:opacity-50">
+                        겹친 말 없이 승인
+                      </button>
+                    : <button type="button" disabled={!!busyKey} onClick={() => void decide(c, "approve")} className="rounded-md bg-primary-500 px-4 py-2 text-sm font-semibold text-background-50 disabled:opacity-50">
+                        {busyKey === key ? "첫 질문을 만드는 중" : c.no_common ? "그래도 승인하고 첫 질문 보내기" : "승인하고 첫 질문 보내기"}
+                      </button>}
+                  {c.no_common && confirmKey === key && !busyKey && <button type="button" onClick={() => setConfirmKey(null)} className="rounded-md border border-background-200 px-4 py-2 text-sm text-foreground-700">취소</button>}
                   <button type="button" disabled={!!busyKey} onClick={() => void decide(c, "reject")} className="rounded-md border border-background-200 px-4 py-2 text-sm text-foreground-700 disabled:opacity-50">
                     이 쌍은 넘기기
                   </button>
