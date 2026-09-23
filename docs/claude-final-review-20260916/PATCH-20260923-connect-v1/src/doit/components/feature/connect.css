@@ -1,0 +1,33 @@
+/* 전화 인증 · 내 연결 — .doit-connect / .doit-match 아래에서만. 전역(body·:root) 규칙 없음 */
+.doit-connect-note{font-size:13px;line-height:1.85;color:#aab0bc;margin:14px 0 0;word-break:keep-all;overflow-wrap:anywhere}
+.doit-connect-done{margin:22px 0 0;font-size:16px;font-weight:600;color:#eef0f3}
+.doit-connect-form{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.doit-connect-form .doit-product-action{margin-top:6px}
+.doit-connect-label{font-size:12px;letter-spacing:.04em;color:#9aa4b4}
+.doit-connect-input{width:100%;box-sizing:border-box;min-height:52px;padding:14px 16px;border:1px solid #c2cad13d;border-radius:14px;background:#14171c;color:#f2f3f5;font-size:16px;line-height:1.6;resize:vertical}
+.doit-connect-input:focus{outline:2px solid #e6ebf3;outline-offset:2px;border-color:transparent}
+.doit-connect-input--code{font-size:24px;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums}
+.doit-connect-row{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px}
+.doit-connect-link{min-height:44px;padding:10px 0;border:0;background:none;color:#d9dee7;font-size:13px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.doit-connect-link:disabled{color:#6f7886;cursor:default;text-decoration:none}
+.doit-connect .doit-product-action:disabled{opacity:.5;cursor:default}
+.doit-matches{margin:22px 0}
+.doit-matches-head{display:flex;align-items:center;justify-content:space-between}
+.doit-matches-head .doit-asleep-label{margin:0}
+.doit-match{margin:12px 0 18px;padding:22px 20px;border:1px solid #c2cad12d;border-radius:20px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
+.doit-match[data-state=closed]{opacity:.7}
+.doit-match-kicker{margin:0 0 8px;font-size:10px;letter-spacing:.14em;color:#9aa4b4}
+.doit-match-question{margin:0;font-size:18px;font-weight:700;line-height:1.6;color:#f2f3f5;word-break:keep-all;overflow-wrap:anywhere}
+.doit-match-partner{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #c2cbd514}
+.doit-match-partner img,.doit-match-photo-empty{flex:none;width:72px;height:96px;border-radius:14px;object-fit:cover;background:#22262d}
+.doit-match-partner strong{display:block;font-size:17px;color:#f2f3f5}
+.doit-match-partner span{display:block;margin-top:2px;font-size:12px;color:#9aa4b4}
+.doit-match-partner p{margin:8px 0 0;font-size:13px;line-height:1.75;color:#c5cbd5;word-break:keep-all;overflow-wrap:anywhere}
+.doit-match-answers p{margin:14px 0 0;font-size:14px;line-height:1.8;color:#dfe3ea;word-break:keep-all;overflow-wrap:anywhere}
+.doit-match-answers p>span{display:block;font-size:11px;letter-spacing:.06em;color:#9aa4b4}
+.doit-match-messages{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:16px;background:#22262d;color:#e6e9ee;font-size:14px;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
+.doit-match-messages li[data-mine=true]{align-self:flex-end;background:#d9dde4;color:#15171b}
+.doit-match-leave{margin-top:12px;padding:14px 16px;border-radius:14px;background:#1c1f25}
+.doit-match-leave p{margin:0 0 4px;font-size:13px;line-height:1.7;color:#c5cbd5}
+.doit-match-leave .doit-connect-link{margin-right:16px}
