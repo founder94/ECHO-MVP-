@@ -244,11 +244,11 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     // v12 서버(되묻기 계약 없음)에서는 보통 이야기로 저장한다(막지 않는다).
     if (question && activeId && isMetaReply(text)) {
       let answer: Awaited<ReturnType<typeof api.rephrase>> = { meta: false };
-      try { answer = await api.rephrase(question.text, text); }
+      try { answer = await api.rephrase(question.text, text, question.topic ?? null); }
       catch (e) { if (!(e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED'))) throw e; }
       if (!alive.current) return;
       if (answer.meta) {
-        const next = { text: answer.question, sourceRecordId: activeId };
+        const next = { text: answer.question, sourceRecordId: activeId, topic: question.topic ?? null };
         if (activeFollowup) setFollowupQuestion(next); else setRescueQuestion(next);
         setDraft('');
         setNotice(answer.fallback ? '같은 걸 묻는 거예요. 떠오르는 대로 짧게 적어도 돼요.' : '다른 말로 다시 물어볼게요.');

@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { visibleInRelease } from "@/doit/lib/releaseScope";
 
 interface Tab {
   key: string;
@@ -8,13 +9,16 @@ interface Tab {
   activeIcon: string;
 }
 
-const tabs: Tab[] = [
+const allTabs: Tab[] = [
   { key: "home", label: "홈", to: "/doit/home", icon: "ri-home-5-line", activeIcon: "ri-home-5-fill" },
   { key: "spaces", label: "공간", to: "/doit/spaces", icon: "ri-compass-3-line", activeIcon: "ri-compass-3-fill" },
   { key: "world", label: "월드", to: "/doit/world", icon: "ri-earth-line", activeIcon: "ri-earth-fill" },
   { key: "connections", label: "연결", to: "/doit/connections", icon: "ri-hearts-line", activeIcon: "ri-hearts-fill" },
   { key: "profile", label: "프로필", to: "/doit/profile", icon: "ri-user-3-line", activeIcon: "ri-user-3-fill" },
 ];
+
+// 출시 1.0: 공간·월드는 기능이 없어 숨긴다(src/doit/lib/releaseScope.ts).
+const tabs = allTabs.filter((tab) => visibleInRelease(tab.to));
 
 export default function BottomNav({ activeTab }: { activeTab?: string }) {
   return (

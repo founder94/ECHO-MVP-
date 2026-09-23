@@ -1,0 +1,41 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+const out = [];
+const A = 'http://localhost:4631', R = 'http://localhost:4632';
+async function visit(base, p, width, fn) {
+  const ctx = await b.newContext({ viewport: { width, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx.route(/fonts\.googleapis|fonts\.gstatic|supabase\.co/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  const page = await ctx.newPage();
+  const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(base + p); await page.waitForTimeout(3000);
+  const text = await page.locator('body').innerText();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  const extra = fn ? await fn(page, text) : { ok: true, note: '' };
+  const ok = extra.ok && errors.length === 0 && !overflow;
+  out.push(`${ok ? '통과' : '실패'} · ${base === A ? '앱' : '홈페이지'} ${p} @${width} · 가로넘침 ${overflow ? '있음' : '없음'} · 오류 ${errors.length}${errors.length ? ' ' + errors.join('|').slice(0, 160) : ''}${extra.note ? ' · ' + extra.note : ''}`);
+  await ctx.close();
+}
+const has = (s) => async (_p, t) => ({ ok: t.includes(s), note: t.includes(s) ? '' : '글자 없음: ' + s });
+for (const w of [360, 390, 430]) await visit(A, '/doit/settings', w, async (_p, t) => ({ ok: t.includes('회원 탈퇴') && t.includes('로그인한 뒤에 탈퇴할 수 있어요') && t.includes('메일로 요청하기') && !t.includes('아직 이 화면에서 처리할 수 없어요'), note: '' }));
+await visit(A, '/doit/spaces', 390, async (page) => {
+  const tabs = (await page.locator('nav[aria-label="앱 메뉴"] a').allInnerTexts()).map((s) => s.trim());
+  const bell = await page.getByRole('link', { name: '알림' }).count();
+  await page.getByRole('button', { name: '메뉴', exact: true }).click(); await page.waitForTimeout(300);
+  const t = await page.locator('body').innerText();
+  const menuOk = t.includes('다섯 가지 질문') && t.includes('나의 이해') && !/Just Try|사주·타로|등급 가이드|ECHO와 이야기하기/.test(t);
+  return { ok: JSON.stringify(tabs) === '["홈","연결","프로필"]' && bell === 0 && menuOk, note: `탭 ${JSON.stringify(tabs)} · 알림종 ${bell} · 메뉴 ${menuOk ? '정리됨' : '남음'}` };
+});
+await visit(A, '/doit/home', 390, async (page) => { const tabs = (await page.locator('nav[aria-label="앱 메뉴"] a').allInnerTexts()).map((s) => s.trim()); return { ok: !tabs.includes('공간') && !tabs.includes('월드'), note: JSON.stringify(tabs) }; });
+await visit(A, '/doit/world', 390, has('월드'));
+await visit(A, '/doit/verify', 390, has('로그인한 뒤에 인증할 수 있어요'));
+await visit(A, '/doit/connections', 390, null);
+await visit(A, '/login', 390, has('얼굴·지문으로 로그인'));
+await visit(A, '/legal/terms', 390, has('설정 → 회원 탈퇴에서 직접 계정을 해지'));
+await visit(A, '/', 390, null);
+await visit(R, '/', 390, null);
+await visit(R, '/', 1440, null);
+await visit(R, '/legal/terms', 390, has('설정 → 회원 탈퇴에서 직접 계정을 해지'));
+await visit(R, '/legal/privacy', 390, has('사람 연결 이용 시'));
+await b.close();
+console.log(out.join('\n'));
+console.log(`\n${out.filter((r) => r.startsWith('통과')).length}/${out.length}`);

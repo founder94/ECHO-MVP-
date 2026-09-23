@@ -72,9 +72,10 @@ export function createCoreConversation(port: CorePort) {
       return result.question;
     },
     // v13: 되묻기. 서버가 규칙으로 다시 판정하므로 meta=false 가 올 수 있다(그때는 보통 이야기로 저장한다).
-    async rephrase(question: string, text: string): Promise<CoreRephrase> {
+    // v14.3 지금 묻던 주제(topic)를 함께 보낸다 — AI 가 쉽게 다시 못 물으면 서버가 그 주제의 쉬운 질문으로 바꿔 준다.
+    async rephrase(question: string, text: string, topic?: string | null): Promise<CoreRephrase> {
       if (!question.trim() || !text.trim()) throw new Error('INVALID_INPUT');
-      const result = await port.write<{ meta: boolean; question?: string; fallback?: boolean }>({ action: 'rephrase', question: question.trim(), text: text.trim() });
+      const result = await port.write<{ meta: boolean; question?: string; fallback?: boolean }>({ action: 'rephrase', question: question.trim(), text: text.trim(), ...(topic ? { topic } : {}) });
       if (typeof result.meta !== 'boolean') throw new Error('INVALID_RESPONSE');
       if (!result.meta) return { meta: false };
       if (typeof result.question !== 'string' || !result.question.trim()) throw new Error('INVALID_RESPONSE');

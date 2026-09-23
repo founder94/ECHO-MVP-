@@ -14,7 +14,7 @@ export async function understandingRequest<T>(body: Record<string, unknown>, exp
 
 // 서버 함수 호출 공통: 로그인 확인 → 호출 → 오류 코드·안내 문장 꺼내기 → 그 사이 계정이 바뀌지 않았는지 다시 확인.
 // doit-understanding(대화)·doit-connect(연결)가 같은 길을 쓴다.
-export async function serverFunctionRequest<T>(fn: 'doit-understanding' | 'doit-connect', body: Record<string, unknown>, expectedUserId?: string): Promise<T> {
+export async function serverFunctionRequest<T>(fn: 'doit-understanding' | 'doit-connect' | 'doit-account', body: Record<string, unknown>, expectedUserId?: string): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session) throw new UnderstandingError('UNAUTHORIZED', '로그인한 뒤 이어서 저장해 주세요.');
   if (expectedUserId && session.user.id !== expectedUserId) throw new UnderstandingError('UNAUTHORIZED', '계정이 바뀌었어요. 현재 계정에서 다시 시도해 주세요.');

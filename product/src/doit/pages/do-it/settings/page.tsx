@@ -3,11 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import { useAuth } from "@/doit/hooks/useAuth";
 import FaceLoginSettings from "./FaceLoginSettings";
+import AccountDeletion from "./AccountDeletion";
 import "./settings.css";
-
-// 기존 홈페이지 Footer에 공개된 고객 문의 주소를 재사용한다.
-// 메일 앱만 연다. 이 화면에서 문의·삭제·탈퇴 요청을 전송하거나 접수하지 않는다.
-const SUPPORT_MAILTO = "mailto:0423doit@gmail.com";
 
 interface SettingsLinkProps {
   to: string;
@@ -116,14 +113,8 @@ export default function Settings() {
 
         <section className="doit-settings-section" aria-labelledby="settings-data-heading">
           <h3 id="settings-data-heading" className="doit-settings-heading">내 정보 관리</h3>
-          <div className="doit-settings-note">
-            <h4>데이터 삭제 · 회원 탈퇴</h4>
-            <p>아직 이 화면에서 처리할 수 없어요. 관련 문의는 아래 메일로 보내주세요.</p>
-            <a className="doit-settings-mail" href={SUPPORT_MAILTO}>
-              문의 메일 쓰기<span aria-hidden="true">↗</span>
-            </a>
-            <p className="doit-settings-mail-address">0423doit@gmail.com</p>
-          </div>
+          {/* 2026-09-24 출시 1.0: 앱 안 회원 탈퇴. 앱에서 안 되면 같은 자리의 메일 문의가 빠져나갈 문이다. */}
+          <AccountDeletion userId={user?.id ?? null} authLoading={loading} />
         </section>
 
         <section className="doit-settings-section" aria-labelledby="settings-policy-heading">

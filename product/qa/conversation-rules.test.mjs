@@ -91,3 +91,12 @@ test('서버 v13: 저장 경로 4곳(record_create/update, correct, self) 모두
   assert.ok(server.includes('judgeCoveredTopics'));
   assert.ok(!/console\.log\([^)]*(text|recordText|originalText)/.test(server), '원문을 로그에 남기는 코드가 없어야 한다');
 });
+
+// v14.3 대표 실기기(2026-09-24): 되묻기·불평을 답으로 저장했다. 진짜 답(짧은 답·"모르겠어요" 포함)은 그대로 답이어야 한다.
+test('v14.3 되묻기 판정: 실제 사용자 말투 — 되묻기·불평은 잡고, 진짜 답은 놓아준다', async () => {
+  const { isMetaReply } = rules;
+  const meta = ['활동?질문이 머이래', '딥하네', '무슨 말이야 글자 오타아니야?', '질문이 무슨 뜻이에요?', '뭔소리야', '먼말이야', '이게 뭐야', '너무 딥해', '질문이 어려워요', '헷갈려', '뭐라는거야', '활동?', '너무 어렵다', '좀 어렵네요'];
+  const answers = ['모르겠어요', '모르겠어', '취미생활이 같으면 좋지', '같은 취미활동', '깊은 대화부터 시작하고 싶어요', '천천히 깊게 알고 싶어', '말이 잘 통하는 사람', '말이 이상한 사람은 싫어', '처음엔 어려워', '낯을 가려서 처음엔 좀 어려워요', '산책', '영화 보기 ㅎㅎ', 'ㅋㅋ 몰라', '솔직한 사람이 좋아요', '등산 좋아해요!', '👍'];
+  for (const m of meta) assert.equal(isMetaReply(m), true, `되묻기: ${m}`);
+  for (const a of answers) assert.equal(isMetaReply(a), false, `진짜 답: ${a}`);
+});

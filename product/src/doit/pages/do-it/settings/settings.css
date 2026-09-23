@@ -39,3 +39,20 @@
 .doit-face .doit-face-list button{min-height:44px;padding:8px 4px;border:0;background:none;color:#d9dee7;font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer;white-space:nowrap}
 .doit-face .doit-face-list button:disabled{opacity:.5;cursor:default}
 .doit-face .doit-face-confirm{display:flex;gap:10px;margin:0}
+/* 회원 탈퇴 (2026-09-24 출시 1.0) — .doit-leave 아래로만 */
+.doit-leave .doit-leave-open{width:100%;cursor:pointer;font-family:inherit;text-align:left}
+.doit-leave>p[role=status]{margin:14px 0 0;font-size:13px;color:#c9ced7}
+.doit-leave .doit-leave-preview{margin-top:18px;padding-top:16px;border-top:1px solid #ffffff13}
+.doit-leave .doit-leave-label{margin:0;font-size:12px;font-weight:600;letter-spacing:.03em;color:#b8bdc7}
+.doit-leave .doit-leave-preview ul{list-style:none;margin:10px 0 0;padding:0}
+.doit-leave .doit-leave-preview li{padding:9px 0;border-bottom:1px solid #ffffff0b;font-size:14px;line-height:1.6;color:#e2e5ea;word-break:keep-all;overflow-wrap:anywhere}
+.doit-leave .doit-leave-preview li span{display:block;font-size:11px;color:#9ba2ae}
+.doit-leave .doit-leave-check{display:flex;align-items:center;gap:10px;min-height:44px;margin-top:16px;font-size:13px;color:#dfe2e8;cursor:pointer}
+.doit-leave .doit-leave-check input{width:20px;height:20px;flex:none;accent-color:#d9dee7}
+.doit-leave .doit-leave-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.doit-leave .doit-leave-confirm{flex:1 1 180px;min-height:48px;padding:12px 16px;border:1px solid #e0747466;border-radius:12px;background:#3a1c1ccc;color:#ffdede;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+.doit-leave .doit-leave-confirm:disabled{opacity:.45;cursor:default}
+.doit-leave .doit-leave-cancel{display:inline-flex;align-items:center;justify-content:center;flex:1 1 120px;min-height:48px;padding:12px 16px;border:1px solid #c8d0db44;border-radius:12px;background:none;color:#e3e7ee;font-size:14px;font-weight:500;font-family:inherit;text-decoration:none;cursor:pointer}
+.doit-leave .doit-leave-cancel:disabled{opacity:.5;cursor:default}
+.doit-leave .doit-leave-mail-note{margin:22px 0 0;font-size:12px;line-height:1.8;color:#9ba2ae}
+.doit-leave .doit-product-error{margin:14px 0 0}

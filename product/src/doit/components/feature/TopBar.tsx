@@ -2,6 +2,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { visibleInRelease } from "@/doit/lib/releaseScope";
 
 interface TopBarProps {
   title?: string;
@@ -10,13 +11,17 @@ interface TopBarProps {
 }
 
 // 사주·타로는 A구조의 필수 과정이 아니라, 햄버거 메뉴에서 진입하는 별도 무료 재미 기능이다.
-const MENU_ITEMS = [
-  { label: "ECHO와 이야기하기", desc: "내 말로 이야기하고, 다르면 고쳐요", to: "/doit/conversation", icon: "ri-chat-1-line" },
+const ALL_MENU_ITEMS = [
+  { label: "다섯 가지 질문", desc: "내 말로 답하고, 다르면 고쳐요", to: "/doit/conversation", icon: "ri-chat-1-line" },
   { label: "나의 이해", desc: "내가 확인하고 고친 개인 기록", to: "/doit/understanding", icon: "ri-book-open-line" },
   { label: "Just Try", desc: "시도하고, 모으고, 다시 즐겨요", to: "/doit/just-try", icon: "ri-sparkling-2-line" },
   { label: "사주·타로 (무료)", desc: "재미로 보는 무료 콘텐츠", to: "/doit/fortune", icon: "ri-magic-line" },
   { label: "등급 가이드", desc: "등급의 의미 알아보기", to: "/doit/grade", icon: "ri-medal-line" },
 ];
+
+// 출시 1.0: 동작하지 않는 기능은 메뉴에서 숨긴다(src/doit/lib/releaseScope.ts).
+const MENU_ITEMS = ALL_MENU_ITEMS.filter((item) => visibleInRelease(item.to));
+const SHOW_NOTIFICATIONS = visibleInRelease("/doit/notifications");
 
 export default function TopBar({
   title,
@@ -101,13 +106,15 @@ export default function TopBar({
 
           {showActions && (
             <>
-              <Link
-                to="/doit/notifications"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
-                aria-label="알림"
-              >
-                <i className="ri-notification-3-line text-xl" />
-              </Link>
+              {SHOW_NOTIFICATIONS && (
+                <Link
+                  to="/doit/notifications"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
+                  aria-label="알림"
+                >
+                  <i className="ri-notification-3-line text-xl" />
+                </Link>
+              )}
               <Link
                 to="/doit/settings"
                 className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
