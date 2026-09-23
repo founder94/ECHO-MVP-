@@ -250,26 +250,16 @@ test('약관: 앱 안 탈퇴와 메일 요청 둘 다 적혀 있고, 쓰지 않�
   for (const p of ['src/doit/pages/do-it/settings/AccountDeletion.tsx', 'src/doit/lib/accountApi.ts', SERVER]) assert.doesNotMatch(read(p), banned, p);
 });
 
-test('출시 1.0 메뉴: 공간·월드·Just Try·등급·알림·사주타로는 메뉴에서 빠지고, 화면 파일과 주소는 그대로 남는다', () => {
-  const scope = read('src/doit/lib/releaseScope.ts');
-  for (const p of ['/doit/spaces', '/doit/world', '/doit/just-try', '/doit/grade', '/doit/notifications', '/doit/fortune']) assert.ok(scope.includes(`'${p}'`), p);
+test('41차 메뉴: 숨김 목록은 비어 있어 운영(37차)과 같은 탭·메뉴다(대표 정정 "임의 숨김 금지"). 숨김 장치와 주소는 그대로 남는다', () => {
   const nav = read('src/doit/components/feature/BottomNav.tsx');
   assert.match(nav, /const tabs = allTabs\.filter\(\(tab\) => visibleInRelease\(tab\.to\)\);/);
-  assert.match(nav, /\{tabs\.map\(/);
   const top = read('src/doit/components/feature/TopBar.tsx');
-  assert.match(top, /const MENU_ITEMS = ALL_MENU_ITEMS\.filter\(\(item\) => visibleInRelease\(item\.to\)\);/);
-  assert.match(top, /\{MENU_ITEMS\.map\(/);
-  assert.match(top, /\{SHOW_NOTIFICATIONS && \(/);
-  assert.doesNotMatch(top, /ECHO와 이야기하기/);
-  // 숨기기만 — 주소는 그대로(대표가 기능을 열면 한 줄만 지우면 된다).
+  assert.match(top, /ECHO와 이야기하기/, '메뉴 문구도 운영과 같다');
   const routes = read('src/doit/routes.tsx');
   for (const p of ['spaces', 'world', 'just-try', 'grade', 'notifications', 'fortune']) assert.match(routes, new RegExp(`path: "${p}"`), p);
-  // 남는 탭: 홈·연결·프로필
   const compile = (p) => ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
   vm.runInNewContext(compile('src/doit/lib/releaseScope.ts'), { exports });
-  const shown = ['/doit/home', '/doit/spaces', '/doit/world', '/doit/connections', '/doit/profile'].filter(exports.visibleInRelease);
-  assert.deepEqual(shown, ['/doit/home', '/doit/connections', '/doit/profile']);
-  assert.equal(exports.visibleInRelease('/doit/conversation'), true);
-  assert.equal(exports.visibleInRelease('/doit/understanding'), true);
+  assert.equal(Object.keys(exports.HIDDEN_IN_RELEASE).length, 0);
+  for (const p of ['/doit/home', '/doit/spaces', '/doit/world', '/doit/connections', '/doit/profile', '/doit/fortune', '/doit/just-try', '/doit/grade', '/doit/notifications']) assert.equal(exports.visibleInRelease(p), true, p);
 });

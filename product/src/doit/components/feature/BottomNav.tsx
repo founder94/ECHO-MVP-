@@ -17,7 +17,7 @@ const allTabs: Tab[] = [
   { key: "profile", label: "프로필", to: "/doit/profile", icon: "ri-user-3-line", activeIcon: "ri-user-3-fill" },
 ];
 
-// 출시 1.0: 공간·월드는 기능이 없어 숨긴다(src/doit/lib/releaseScope.ts).
+// 메뉴 숨김 목록(src/doit/lib/releaseScope.ts). 41차는 비어 있어 운영과 같은 탭이다.
 const tabs = allTabs.filter((tab) => visibleInRelease(tab.to));
 
 export default function BottomNav({ activeTab }: { activeTab?: string }) {

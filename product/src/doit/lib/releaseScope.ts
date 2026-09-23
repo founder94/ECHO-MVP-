@@ -1,14 +1,8 @@
-// 출시 1.0 에서 메뉴에 보이지 않게 하는 화면 (대표 2026-09-24 "출시 1.0 진행해").
-// 처음 온 사람이 기능 없는 "준비 중" 화면이나 지금 동작하지 않는 기능으로 들어가 헷갈리지 않게 한다.
-// 화면 파일과 주소는 지우지 않는다(주소를 직접 치면 그대로 열린다). 기능이 열리면 여기서 한 줄만 지우면 다시 보인다.
-export const HIDDEN_IN_RELEASE: Readonly<Record<string, string>> = {
-  '/doit/spaces': '공간 — 참여·미션 기능 없음(준비 중 화면)',
-  '/doit/world': '월드 — 기능 없음(준비 중 화면)',
-  '/doit/just-try': 'Just Try — 보상·추천 기능 전부 준비 중',
-  '/doit/grade': '등급 가이드 — 등급 기능 없음(예시 데이터)',
-  '/doit/notifications': '알림 — 알림 기능 없음(준비 중 화면)',
-  '/doit/fortune': '사주·타로 — 사주는 준비 중, 타로 서버(openai-chat v2)가 app.do-it.company 주소를 허용하지 않아 앱에서 실패',
-};
+// 메뉴에서 숨길 화면 목록 (출시 1.0 · 2026-09-24 에 만든 자리).
+// 대표 2026-09-24 정정: "기능이 고장났다는 이유로 메뉴에서 임의 숨김 금지 · 사주·타로는 살아 있는 선택형 기능" →
+// 41차는 이 목록을 비워 운영(37차)과 같은 메뉴를 유지한다. 공간·월드·Just Try·등급·알림·사주타로를 숨길지는 대표 결정(backlog).
+// 숨기기로 결정되면 여기에 주소 한 줄씩만 넣는다(화면 파일·주소는 지우지 않는다).
+export const HIDDEN_IN_RELEASE: Readonly<Record<string, string>> = {};
 
 export function visibleInRelease(to: string): boolean {
   return !Object.prototype.hasOwnProperty.call(HIDDEN_IN_RELEASE, to);
