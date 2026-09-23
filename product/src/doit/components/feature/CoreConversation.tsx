@@ -5,10 +5,10 @@ import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
-import { createCoreConversation, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
+import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
 import { draftToIntro } from '@/doit/lib/introDraft';
 import { clearPendingSelf, loadPendingSelf, savePendingSelf } from '@/doit/lib/conversationRecovery';
-import { TOPICS, blockedContentMessage, blockedContentReason, isMetaReply } from '@/doit/lib/conversationRules';
+import { TOPICS, blockedContentMessage, blockedContentReason, isAskingAi, isMetaReply } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
 
 interface Props {
@@ -52,6 +52,8 @@ export const ASK_TOTAL = TOPICS.length;
 
 // v13.5 첫 질문 기준 문장(대표 지시 2026-09-22 「당신이 잠든 사이」 §3). 감정·관계를 미리 단정하지 않는다. 그 뒤 질문은 전부 서버·AI 가 만든다.
 export const FIRST_QUESTION = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
+// v14.4 첫 화면(ConversationOpening)의 질문. 거기서 적은 한 줄은 이 질문에 대한 답이다(서버에 직전 질문으로 알려 준다).
+export const OPENING_QUESTION = '어떤 만남을 원하세요?';
 
 function errorCopy(error: unknown): string {
   const code = error instanceof UnderstandingError ? error.code : '';
@@ -104,6 +106,11 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const questionVersion = useRef(0);
   const initialSent = useRef(false);
   const autoAsked = useRef<string | null>(null);
+  // v14.4 답마다 "그 답을 적을 때 떠 있던 질문"을 기억해 서버에 함께 보낸다(다음 질문이 직전 질문·답에서 이어지게).
+  // 새로고침하면 사라지고, 그때는 서버가 저장된 질문 기록으로 짝을 찾는다.
+  const answeredFor = useRef(new Map<string, string>());
+  // v14.4 첫 질문에 되묻기·AI 에게 한 질문을 했을 때 바뀐 첫 질문 문장(답 먼저 + 같은 질문).
+  const [firstOverride, setFirstOverride] = useState<string | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const api = useMemo(() => createCoreConversation({
     read: <T,>(body: Record<string, unknown>) => understandingRequest<T>(body, userId),
@@ -201,7 +208,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   // v14.1 이번 회차에 남긴 답의 개수 = 진행. 다섯 개를 채우면 질문을 멈춘다.
   const answered = Math.min(roundRecords.length, ASK_TOTAL);
   const finished = roundRecords.length >= ASK_TOTAL;
-  const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: FIRST_QUESTION, sourceRecordId: '' } : null;
+  const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: firstOverride ?? FIRST_QUESTION, sourceRecordId: '' } : null;
   // v13 자동 다음 질문(장면 5): 저장된 질문 조회가 끝났고 확인할 후보가 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
   // v13.2(대표 지시 2026-09-22 "질문을 해야 내가 답을 하지"): 확인할 후보도 없고 보여 줄 질문도 없으면, 이해가 아직 없는 기록이라도 AI가 먼저 다음 질문을 한다. 빈 입력창만 두지 않는다.
   const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !candidates.length && !editor && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
@@ -212,7 +219,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     const recordId = active.id;
     void run('다음 질문을 고르고 있어요', async () => {
       const version = ++questionVersion.current;
-      const next = await api.nextQuestion(recordId);
+      const next = await api.nextQuestion(recordId, answeredFor.current.get(recordId) ?? null);
       if (alive.current && version === questionVersion.current) setFollowupQuestion(next);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -237,31 +244,42 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     const reason = blockedContentReason(text);
     if (reason) throw new UnderstandingError('BLOCKED_CONTENT', blockedContentMessage(reason));
   };
-  const sendText = async (text: string) => {
+  const sendText = async (text: string, answeredOverride?: string) => {
     assertStorable(text);
+    // 사용자가 지금 보고 있는 질문(첫 고정 질문 포함).
+    const shown = question ?? firstQuestion;
     // v13 되묻기: "무슨 뜻이에요?" 같은 말은 이야기가 아니라 앞 질문에 대한 되묻기다. 기록을 만들지 않고 앞 질문을 쉬운 말로 다시 받는다.
+    // v14.4 AI 에게 하는 질문("왜 이런 걸 물어봐?")도 기록하지 않는다. 서버가 먼저 답하고(reply) 같은 질문을 다시 건넨다.
     // 서버가 규칙으로 다시 판정하므로 meta=false 가 오면 보통 이야기로 저장한다(사용자 말을 버리지 않는다).
     // v12 서버(되묻기 계약 없음)에서는 보통 이야기로 저장한다(막지 않는다).
-    if (question && activeId && isMetaReply(text)) {
+    if (shown && !answeredOverride && (isAskingAi(text) || isMetaReply(text))) {
       let answer: Awaited<ReturnType<typeof api.rephrase>> = { meta: false };
-      try { answer = await api.rephrase(question.text, text, question.topic ?? null); }
+      try { answer = await api.rephrase(shown.text, text, shown.topic ?? null); }
       catch (e) { if (!(e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED'))) throw e; }
       if (!alive.current) return;
       if (answer.meta) {
-        const next = { text: answer.question, sourceRecordId: activeId, topic: question.topic ?? null };
-        if (activeFollowup) setFollowupQuestion(next); else setRescueQuestion(next);
+        // 답(reply)은 첫 줄(받아 주는 자리), 같은 질문은 둘째 줄로 보여 준다.
+        const shownText = answer.kind === 'ask' && answer.reply ? `${answer.reply}\n${questionBodyOf(answer.question)}` : answer.question;
+        if (question) {
+          const next = { text: shownText, sourceRecordId: question.sourceRecordId, topic: question.topic ?? null };
+          if (activeFollowup) setFollowupQuestion(next); else setRescueQuestion(next);
+        } else {
+          setFirstOverride(shownText);
+        }
         setDraft('');
-        setNotice(answer.fallback ? '같은 걸 묻는 거예요. 떠오르는 대로 짧게 적어도 돼요.' : '다른 말로 다시 물어볼게요.');
+        setNotice(answer.kind === 'ask' ? '' : answer.fallback ? '같은 걸 묻는 거예요. 떠오르는 대로 짧게 적어도 돼요.' : '다른 말로 다시 물어볼게요.');
         return;
       }
     }
+    const answered = answeredOverride ?? (shown ? questionBodyOf(shown.text) : null);
     const first = records.length === 0;
     const record = await api.record(text);
     if (!alive.current) return;
-    setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions();
+    if (answered) answeredFor.current.set(record.id, answered);
+    setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions(); setFirstOverride(null);
     setNotice('이야기를 저장했어요.');
     // 첫 이야기는 후보 1개만(장면 1: 내 말 카드 하나). 그 뒤는 서버 기본.
-    const result = await api.generate(record.id, first ? 1 : undefined);
+    const result = await api.generate(record.id, first ? 1 : undefined, answered);
     if (!alive.current) return;
     setInsights(previous => [...result.insights, ...previous.filter(i => !result.insights.some(n => n.id === i.id))]);
     setRescueQuestion(result.rescue?.text ? { text: result.rescue.text, sourceRecordId: record.id, topic: typeof result.rescue.topic === 'string' ? result.rescue.topic : null } : null);
@@ -271,11 +289,11 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   useEffect(() => {
     if (!initialMessage || !loaded || initialSent.current || lock.current) return;
     initialSent.current = true;
-    void run('방금 한 말을 읽고 있어요', () => sendText(initialMessage)).then(() => { if (alive.current && error) setDraft(initialMessage); });
+    void run('방금 한 말을 읽고 있어요', () => sendText(initialMessage, OPENING_QUESTION)).then(() => { if (alive.current && error) setDraft(initialMessage); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, loaded]);
   const retryGenerate = () => active && run('한 번 더 읽고 있어요', async () => {
-    const result = await api.generate(active.id);
+    const result = await api.generate(active.id, undefined, answeredFor.current.get(active.id) ?? null);
     if (!alive.current) return;
     await load();
     if (!alive.current) return;
@@ -393,7 +411,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       </div>
       <p className="echo-fine">지금까지 답은 지우지 않아요. 「지난번 이야기」에서 다시 볼 수 있어요.</p>
     </section>}
-    {FOLLOWUP_ENABLED && active && !finished && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 질문을 고르고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
+    {FOLLOWUP_ENABLED && active && !finished && !candidates.length && !editor && <div className="echo-next">{question ? questionCard(question) : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void run('다음 질문을 고르고 있어요', async () => { const version = ++questionVersion.current; const next = await api.nextQuestion(active.id, answeredFor.current.get(active.id) ?? null); if (alive.current && version === questionVersion.current) setFollowupQuestion(next); })}>이어서 이야기하기 <ChevronRight size={18} /></button>}</div>}
     {!FOLLOWUP_ENABLED && question && questionCard(question)}
     {!editor && !finished && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (loaded && draft.trim() && !busy && !candidates.length) void send(); }}><label htmlFor="echo-message">{active ? '이어서 적기' : '어떤 사람을 만나고 싶은지 편하게 적어 주세요.'}</label><textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value)} placeholder="생각나는 대로 한 줄" maxLength={2000} rows={4} disabled={!!busy || !loaded || !!candidates.length} /><div className="echo-composer-footer"><span>{candidates.length ? '위 문장이 맞는지 먼저 골라 주세요. 「나중에 고를게요」를 누르면 바로 이어서 적을 수 있어요.' : '적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.'}</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !loaded || !draft.trim() || !!candidates.length}><ArrowUp size={20} /></button></div></form>}
     {draftReady && !editor && !candidates.length && <section className="echo-draft">{draftLines

@@ -44,6 +44,23 @@ export function isMetaReply(text: string): boolean {
   if (!t || t.length > META_MAX_LENGTH) return false;
   return META_PATTERNS.some((p) => p.test(t));
 }
+// v14.4 AI 에게 하는 질문(답이 아님): "왜 이런 걸 물어봐?", "이거 어디에 써요?", "누가 봐요?", "몇 개 남았어요?", "넌 누구야?".
+// 답으로 저장하지 않고 먼저 답한 뒤 같은 질문을 다시 건넨다. "왜"가 들어간 진짜 답("왜냐면 편해서요")을 막지 않게 묻는 대상과 묶는다.
+const ASK_AI_PATTERNS: readonly RegExp[] = [
+  /왜\s*(이런|그런|이|그|저런)?\s*(걸|거|것|질문|얘기)?\s*(을|를)?\s*(자꾸|계속)?\s*(물어|묻|알아야|알려고|궁금|필요)/,
+  /(이거|이건|이걸|여기|이\s*앱|이\s*서비스|두잇|DO\s*IT)\s*(는|은|가|이)?\s*(뭐|머|뭔|무슨|왜)\s*(야|예요|에요|하는|해|하|지|죠|인데|냐|니|데|\?)/i,
+  /(너|넌|니가|네가|너는|AI|에이아이)\s*(는|가|은)?\s*(누구|뭐|머|뭔|진짜)/i,
+  /(너|넌|너는)\s*(AI|에이아이|로봇|사람|기계)\s*(야|이야|예요|이에요|인가요|니|냐)?\s*[?？]/i,
+  /(어디에|어디|어따|누가|누구한테|누구에게)\s*(써|쓰|쓰여|쓰이|쓸|봐|보|보여|보이|공개|저장|넘어)/,
+  /(저장|공개|기록)\s*(돼요|되나요|될까요|되는\s*거(야|예요|에요|죠)?|돼|되나|될까)\s*[?？]/,
+  /(저장|공개|기록)\s*(되나요|될까요|되는\s*건가요)/,
+  /(몇\s*(개|번|가지)\s*(더|남|까지|물어|해야)|언제\s*(끝|까지)|얼마나\s*(더|남))/,
+];
+export function isAskingAi(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length > META_MAX_LENGTH) return false;
+  return ASK_AI_PATTERNS.some((p) => p.test(t));
+}
 export type BlockedReason = "phone" | "email" | "id_number" | "link" | "card" | "sexual";
 const BLOCKED_PATTERNS: readonly { reason: BlockedReason; pattern: RegExp }[] = [
   { reason: "phone", pattern: /(?:\+?82[-\s.]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/ },

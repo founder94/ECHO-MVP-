@@ -96,7 +96,8 @@ function loadServer(ai, state) {
 
 const baseState = (over = {}) => ({ recordText: '조용한 사람', records: [{ id: 'r-old', text: '친구를 사귀고 싶어요', created_at: '2026-09-21T00:00:00Z' }], insights: [], purpose: { id: 'friend', label: '친구' }, rpcCalls: [], logs: [], gteCalls: [], ...over });
 const noCandidates = () => ({ candidates: [] });
-const dirRescue = () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '어떤 사람한테 마음이 가요?' });
+// v14.4 새 갈래 구제도 방금 답을 받아 주는 첫 줄 + 이어받는 구절(link) + 그 답에서 이어지는 질문이어야 한다.
+const dirRescue = () => ({ ack: '조용한 사람이 좋다고 하셨죠.', link: '조용한 사람', question: '그런 사람이랑 만나면 같이 뭐 하고 싶어요?' });
 
 test('짧은 답 + 주제 판정이 "항목별 참/거짓 객체"로 와도 → 다음 주제 질문(ack 포함, topic 있음)', async () => {
   const state = baseState();
@@ -137,40 +138,60 @@ test('주제 판정 AI 가 HTTP 500 이어도 캐묻기로 떨어지지 않는�
 
 test('"모르겠어요" 도 정상 입력: 후보 없음 → 다음 주제 질문', async () => {
   const state = baseState({ recordText: '모르겠어요' });
-  const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style'] }), rescueDir: () => ({ ack: '아직 잘 모르겠다고 하셨죠.', question: '어떤 사람한테 마음이 가요?' }) }, state);
+  const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style'] }), rescueDir: () => ({ ack: '아직 잘 모르겠다고 하셨죠.', link: '모르겠어요', question: '천천히 떠올려도 돼요. 같이 뭐 하면 좋을까요?' }) }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
   assert.equal(body.rescue.topic, 'together');
   assert.ok(!/구체적|자세히/.test(body.rescue.text));
 });
 
-test('구제 AI 까지 실패하면 그 주제를 그대로 묻는 고정 문장(topic 유지), 캐묻기 아님', async () => {
+test('v14.4 구제 AI 까지 실패하면 새 주제로 건너뛰지 않고 방금 답에 머문다(주제별 고정 질문 없음), 캐묻기 문장도 아님', async () => {
   const state = baseState();
   const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: [] }), rescueDir: () => 'TIMEOUT' }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.equal(body.rescue.topic, 'partner_style');
-  assert.match(body.rescue.text, /어떤 사람한테 끌려요\?/); // v14.3 주제별 쉬운 질문(EASY_QUESTION)
+  assert.equal(body.rescue.topic, null, '앞 답과 무관한 새 주제를 열지 않는다');
+  assert.equal(body.rescue.text, '"조용한 사람"라고 하셨죠.\n조금만 더 들려줄래요?');
+  assert.ok(!/끌려요|같이 뭐 하고 싶어요/.test(body.rescue.text), 'v14.3 주제별 고정 질문으로 건너뛰지 않는다');
   assert.ok(!body.rescue.text.includes('부분을 조금 더 들려주실'), 'v12 캐묻기 문장이 아니어야 한다');
 });
 
-test('다음 질문(새 갈래): 짧은 답 + 행동 없음 → CHANGE_DIRECTION. ack 가 기록을 인용하지 못해도 질문은 살린다(ack 만 제거), topic 있음', async () => {
+test('v14.4 다음 질문(새 갈래): 짧은 답 → CHANGE_DIRECTION. 첫 줄이 방금 답을 받아 주고 그 답에서 이어 넘어갈 때만 나간다', async () => {
   const state = baseState();
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
-    followup: () => ({ ack: '차분한 분위기를 좋아하시는군요.', question: '어떤 사람한테 마음이 가요?', basis: '차분한 분위기', meaning: '', keys: ['성향'] }),
+    followup: () => ({ ack: '조용한 사람이 좋으시군요.', link: '조용한 사람', question: '그런 사람이랑 만나면 같이 뭐 하고 싶어요?', basis: '조용한 사람', meaning: '', keys: ['조용한 사람'] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.equal(body.strategy, 'CHANGE_DIRECTION');
   assert.equal(body.topic, 'together');
-  assert.equal(body.question.text, '어떤 사람한테 마음이 가요?');
+  assert.equal(body.question.text, '조용한 사람이 좋으시군요.\n그런 사람이랑 만나면 같이 뭐 하고 싶어요?');
+});
+
+test('v14.4 새 갈래라도 앞 답과 끊긴 질문은 나가지 않는다: 이어받는 구절 없음·근거 없는 첫 줄·첫 줄 없음 → 방금 답에 머무는 문장', async () => {
+  const cases = [
+    // 전(v13.3~v14.3)에는 첫 줄만 떼고 이 질문이 그대로 나갔다 = 대표 실기기 P0("왜 갑자기 이걸 묻지?")
+    [{ ack: '차분한 분위기를 좋아하시는군요.', question: '어떤 사람한테 마음이 가요?', basis: '차분한 분위기', meaning: '', keys: ['성향'] }, 'FOLLOWUP_NOT_LINKED'],
+    [{ ack: '', link: '조용한 사람', question: '조용한 사람이랑 같이 뭐 하고 싶어요?', basis: '', meaning: '', keys: ['조용한 사람'] }, 'FOLLOWUP_NO_BRIDGE'],
+    [{ ack: '좋아요.', link: '조용한 사람', question: '쉬는 날에는 주로 뭐 하세요?', basis: '', meaning: '', keys: ['휴일'] }, 'FOLLOWUP_NOT_LINKED'],
+  ];
+  for (const [answer, reason] of cases) {
+    const state = baseState();
+    const { call } = loadServer({ topic: () => ({ covered: ['partner_style'] }), followup: () => answer, judge: () => ({ allowed: true }) }, state);
+    const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+    assert.equal(status, 200);
+    assert.notEqual(body.question.text, answer.question, answer.question);
+    assert.equal(body.question.text, '"조용한 사람"라고 하셨죠.\n조금만 더 들려줄래요?');
+    assert.equal(body.topic, null);
+    assert.ok(state.logs.some((l) => l.includes('followup_failed') && l.includes(reason)), reason);
+  }
 });
 
 test('다음 질문(한 단계 더): 확인한 이해가 있으면 DEEPEN. 질문은 사용자 말과 이어져야 하고(핵심어 겹침), topic 은 없다', async () => {
   const state = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
   const { call, payloads } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
-    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '조용한 사람과 있을 때 어떤 장면이 제일 편하게 떠올라요?', basis: '조용한 사람', meaning: '', keys: ['조용한 사람'], proposed_strategy: 'DEEPEN', evidence: [{ claim: '조용한 사람이 좋다', supporting_user_text: '조용한 사람' }] }),
+    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', link: '조용한 사람', question: '조용한 사람과 있을 때 어떤 장면이 제일 편하게 떠올라요?', basis: '조용한 사람', meaning: '', keys: ['조용한 사람'], proposed_strategy: 'DEEPEN', evidence: [{ claim: '조용한 사람이 좋다', supporting_user_text: '조용한 사람' }] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
@@ -184,27 +205,28 @@ test('다음 질문(한 단계 더): 확인한 이해가 있으면 DEEPEN. 질�
   assert.ok(Array.isArray(sent.hints) && !sent.hints.includes('끌리는 사람'), 'hints 는 아직 안 나온 주제만');
 });
 
-test('다음 질문: 판정이 불허해도 새 갈래 질문은 ack 만 떼고 낸다. 이어 묻기(DEEPEN)가 불허면 고정 대체 문장으로 이어간다(멈추지 않는다)', async () => {
+test('v14.4 판정이 "앞뒤가 안 맞는다"고 불허하면 새 갈래든 이어 묻기든 나가지 않고 방금 답에 머문다(첫 줄만 떼고 내보내지 않는다)', async () => {
   const state = baseState();
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
-    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', question: '상대가 알아 두면 좋은 내 모습이 있어요?', basis: '조용한 사람', meaning: '', keys: ['나의 모습'] }),
+    followup: () => ({ ack: '조용한 사람이 좋다고 하셨죠.', link: '조용한 사람', question: '상대가 알아 두면 좋은 내 모습이 있어요?', basis: '조용한 사람', meaning: '', keys: ['나의 모습'] }),
     judge: () => ({ allowed: false }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
-  assert.equal(body.question.text, '상대가 알아 두면 좋은 내 모습이 있어요?');
-  assert.equal(body.topic, 'together');
+  assert.ok(!body.question.text.includes('상대가 알아 두면'), '전: 첫 줄만 떼고 이 질문이 나갔다');
+  assert.equal(body.topic, null);
+  assert.ok(state.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NOT_COHERENT')));
   const state2 = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
   const { call: call2 } = loadServer({
     topic: () => ({ covered: ['partner_style'] }),
-    followup: () => ({ ack: '', question: '조용한 사람이 좋은 건 혹시 외로워서인가요?', basis: '조용한 사람', meaning: '외로움', keys: ['조용한 사람'] }),
+    followup: () => ({ ack: '', link: '조용한 사람', question: '조용한 사람이 좋은 건 혹시 외로워서인가요?', basis: '조용한 사람', meaning: '외로움', keys: ['조용한 사람'] }),
     judge: () => ({ allowed: false }),
   }, state2);
   const { status, body: b2 } = await call2({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.ok(!/외로/.test(b2.question.text), '단정(외로움)을 전제로 한 질문은 나가지 않는다');
-  assert.equal(b2.strategy, 'CHANGE_DIRECTION');
-  assert.ok(state2.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NOT_GROUNDED')));
+  assert.equal(b2.strategy, 'DEEPEN', '대체 문장도 새 주제로 건너뛰지 않는다');
+  assert.ok(state2.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NOT_COHERENT')));
 });
 
 test('다음 질문: 거절 뒤에는 RECOVER_FROM_REJECTION. ack 가 거절과 겹치면 ack 를 떼고 질문만, 질문 자체가 겹치면 고정 되돌리기 문장(거절 재등장 금지 우선)', async () => {
@@ -236,7 +258,7 @@ test('주제가 다 나오면(5/5) 새로운 면을 여는 질문, topic 은 nul
   const state = baseState({ insights: [{ id: 'i1', text: '느긋한 편이다', status: 'confirmed', origin: 'self', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z' }] });
   const { call } = loadServer({
     topic: () => ({ covered: ['partner_style', 'together', 'self', 'pace'] }),
-    followup: () => ({ ack: '느긋한 편이라고 하셨죠.', question: '만나고 나서 어떤 게 달라지면 좋겠어요?', basis: '느긋한 편', meaning: '', keys: ['변화'] }),
+    followup: () => ({ ack: '느긋한 편이라고 하셨죠.', link: '느긋한 편', question: '만나고 나서 어떤 게 달라지면 좋겠어요?', basis: '느긋한 편', meaning: '', keys: ['변화'] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
@@ -265,13 +287,13 @@ test('주제 판정에 최근 기록들이 함께 들어간다(같은 주제를 
   assert.deepEqual(seen.topics, ['partner_style', 'together', 'self', 'pace']);
 });
 
-test('v13.4 다음 질문 생성이 어떤 이유로든 실패해도(예: AI 가 질문을 안 줌) 방향 주제를 묻는 고정 문장 + topic 으로 답한다', async () => {
+test('v14.4 다음 질문 생성이 어떤 이유로든 실패해도(예: AI 가 질문을 안 줌) 멈추지 않고, 새 주제로 건너뛰지 않고 방금 답에 머문다', async () => {
   const state = baseState({ insights: [{ id: 'i1', text: '조용한 사람에게 끌린다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z', created_at: '2026-09-22T00:00:00Z' }] });
   const { call } = loadServer({ topic: () => ({ covered: ['partner_style'] }), followup: () => ({ nothing: true }) }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.equal(body.topic, 'together');
-  assert.match(body.question.text, /만나면 같이 뭐 하고 싶어요\?/);
+  assert.equal(body.topic, null);
+  assert.equal(body.question.text, '"조용한 사람"라고 하셨죠.\n조금만 더 들려줄래요?');
   assert.ok(state.logs.some((l) => l.includes('followup_failed') && l.includes('FOLLOWUP_NO_QUESTION')));
 });
 
@@ -328,13 +350,13 @@ test('TEST A 정상 맥락 연결: 첫 자유 답 → 서버 전략 EXPLORE_USER
   const state = baseState({ recordText: PERSON, records: [] });
   const { call, payloads } = loadServer({
     topic: cov,
-    followup: () => ({ ack: '', question: '다시 만나고 싶은 쪽이에요? 아니면 추억 쪽이에요?', basis: '', meaning: '', keys: ['그 사람'], proposed_strategy: 'CLARIFY', evidence: [{ claim: '특정 사람이 떠오른다', supporting_user_text: '친했던 사람' }] }),
+    followup: () => ({ ack: '', link: '친했던 사람', question: '친했던 사람을 다시 만나고 싶어요? 아니면 추억 쪽이에요?', basis: '', meaning: '', keys: ['그 사람'], proposed_strategy: 'CLARIFY', evidence: [{ claim: '특정 사람이 떠오른다', supporting_user_text: '친했던 사람' }] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.equal(body.strategy, 'CLARIFY');
-  assert.match(body.question.text, /^다시 만나고 싶은 쪽이에요\? 아니면/);
+  assert.match(body.question.text, /^친했던 사람을 다시 만나고 싶어요\? 아니면/);
   const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
   assert.equal(sent.record, PERSON);
   assert.equal(sent.strategy, 'EXPLORE_USER_MEANING');
@@ -383,7 +405,7 @@ test('TEST D 직접 설명: 자유 입력 원문이 다음 맥락의 중심(conf
   const state = baseState({ recordText: PERSON, insights: [self] });
   const { call, payloads } = loadServer({
     topic: cov,
-    followup: () => ({ ack: '무심했던 게 걸린다고 하셨죠.', question: '지금 그 사람에게 하고 싶은 말이 있다면 뭐예요?', basis: '무심했던', meaning: '', keys: ['그 사람'] }),
+    followup: () => ({ ack: '무심했던 게 걸린다고 하셨죠.', link: '무심했던', question: '지금 그 사람에게 하고 싶은 말이 있다면 뭐예요?', basis: '무심했던', meaning: '', keys: ['그 사람'] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
@@ -399,17 +421,17 @@ test('TEST E 완전히 다른 주제: LLM 이 사용자 원문 인용과 함께 
   const state = baseState({ recordText: WORK, records: [{ id: 'r-old', text: PERSON, created_at: '2026-09-21T00:00:00Z' }] });
   const { call } = loadServer({
     topic: cov,
-    followup: () => ({ ack: '', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '', meaning: '', keys: ['일'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '일이 더 걱정', supporting_user_text: '제 일이 더 걱정' }] }),
+    followup: () => ({ ack: '요즘 일이 더 걱정되시는군요.', link: '일이 더 걱정', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '일이 더 걱정', meaning: '', keys: ['일'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '일이 더 걱정', supporting_user_text: '제 일이 더 걱정' }] }),
     judge: () => ({ allowed: true }),
   }, state);
   const { body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(body.strategy, 'CHANGE_DIRECTION');
   assert.equal(body.topic, null);
-  assert.equal(body.question.text, '일에서 지금 제일 걱정되는 건 어떤 부분이에요?');
+  assert.equal(body.question.text, '요즘 일이 더 걱정되시는군요.\n일에서 지금 제일 걱정되는 건 어떤 부분이에요?', '사용자가 스스로 옮긴 새 주제도 첫 줄로 받아 준 뒤 따라간다');
   const state2 = baseState({ recordText: WORK });
   const { call: call2 } = loadServer({
     topic: cov,
-    followup: () => ({ ack: '', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '', meaning: '', keys: ['걱정'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '연애가 걱정', supporting_user_text: '연애가 걱정' }] }),
+    followup: () => ({ ack: '', link: '걱정', question: '일에서 지금 제일 걱정되는 건 어떤 부분이에요?', basis: '', meaning: '', keys: ['걱정'], proposed_strategy: 'CHANGE_DIRECTION', evidence: [{ claim: '연애가 걱정', supporting_user_text: '연애가 걱정' }] }),
     judge: () => ({ allowed: true }),
   }, state2);
   const { body: b2 } = await call2({ action: 'followup_generate', recordId: RECORD });
@@ -480,7 +502,7 @@ test('v13.6 주제가 다 나온 뒤 짧은 답: 새 갈래 대신 직전 질문
   const state = answeredState();
   const { call, payloads } = loadServer({
     gen: noCandidates, topic: allCovered,
-    rescuePlain: () => ({ question: '진실된 마음을 느꼈던 순간이 있다면 언제였어요?' }),
+    rescuePlain: () => ({ ack: '', link: '진실된마음', question: '진실된 마음을 느꼈던 순간이 있다면 언제였어요?' }),
   }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
   assert.equal(body.rescue.strategy, 'EXPLORE_USER_MEANING');
@@ -492,21 +514,22 @@ test('v13.6 주제가 다 나온 뒤 짧은 답: 새 갈래 대신 직전 질문
 
 test('v13.6 AI 구제가 반복 질문을 내면 버리고, 사용자 답을 인용한 대체 문장으로 이어간다(일반 문장 아님)', async () => {
   const state = answeredState();
-  const { call } = loadServer({ gen: noCandidates, topic: allCovered, rescuePlain: () => ({ question: '연애에 대해 어떤 점이 가장 중요하다고 생각하세요?' }) }, state);
+  const { call } = loadServer({ gen: noCandidates, topic: allCovered, rescuePlain: () => ({ ack: '진실된 마음이 중요하시군요.', link: '진실된마음', question: '연애에 대해 어떤 점이 가장 중요하다고 생각하세요?' }) }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
   assert.match(body.rescue.text, /^"진실된마음"라고 하셨죠\./); // v13.7 말투 조정
   assert.ok(!body.rescue.text.includes('가장 마음에 남는 부분'));
   assert.ok(state.logs.some((l) => l.includes('"step":"ai_dropped"')) && state.logs.some((l) => l.includes('"step":"quoted"')));
 });
 
-test('v13.6 고정 대체 문장끼리는 반복으로 오인하지 않는다: 첫 주제 문장을 이미 물었으면 다음 주제 문장으로', async () => {
-  const asked = '알겠어요.\n어떤 사람한테 끌려요?';
+test('v14.4 대체 문장끼리는 반복으로 오인하지 않는다: 방금 답에 머무는 문장을 이미 물었으면 다음 머무는 문장으로, 한 글자 답은 인용하지 않는다', async () => {
+  const asked = '방금 한 말, 조금만 더 들려줄래요?';
   const state = baseState({ recordText: '음', events: [{ user_id: USER, action: 'followup_generate', status: 'applied', created_at: '2026-09-22T00:50:24Z', response_payload: { question: { text: asked, sourceRecordId: 'r-old' } } }] });
   const { call } = loadServer({ topic: () => ({ covered: [] }), followup: () => ({ ack: '', question: '' }) }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.match(body.question.text, /만나면 같이 뭐 하고 싶어요\?/);
-  assert.equal(body.topic, 'together');
+  assert.equal(body.question.text, '그 이야기, 한 가지만 더 들려줄래요?');
+  assert.ok(!body.question.text.includes('"음"'));
+  assert.equal(body.topic, null);
 });
 
 // ── v13.7 대표 실기기 발견(2026-09-22 15:16 KST): 긴 답에 고정 문장이 나가 "상대에게 바라는 [긴 문장]는 어떤 모습인가요?"로 깨졌다 ──
@@ -521,12 +544,12 @@ test('v13.7 이어 묻기가 판정 불허여도 ack 를 떼고 다시 판정해
   let call = 0;
   const { call: post } = loadServer({
     topic: allCovered,
-    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', question: '그런 믿음이 오간다고 느꼈던 순간이 있었어요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
+    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', link: '진실하게 대하면', question: '진실하게 대해 준다고 느꼈던 순간이 있었어요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
     judge: () => (++call === 1 ? { allowed: false } : { allowed: true }),
   }, state);
   const { status, body } = await post({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
-  assert.equal(body.question.text, '그런 믿음이 오간다고 느꼈던 순간이 있었어요?');
+  assert.equal(body.question.text, '진실하게 대해 준다고 느꼈던 순간이 있었어요?', '첫 줄을 떼도 질문 스스로 방금 답을 이어받을 때만 첫 줄 없이 나간다');
   assert.ok(state.logs.some((l) => l.includes('ack_dropped_pass')));
 });
 
@@ -534,14 +557,14 @@ test('v14 두 번 다 불허면 대체 문장으로 가되, 사용자 답을 질
   const state = longState();
   const { call } = loadServer({
     topic: allCovered,
-    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', question: '아직 그 사람을 좋아하는 건가요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
+    followup: () => ({ ack: '진실하게 대하고 싶다고 하셨죠.', link: '진실하게', question: '아직 그 사람을 좋아하는 건가요?', basis: '진실하게', meaning: '', keys: ['진실'] }),
     judge: () => ({ allowed: false }),
   }, state);
   const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
   assert.equal(status, 200);
   assert.ok(!body.question.text.includes(LONG_ANSWER), '긴 답은 인용 줄에도 넣지 않는다(화면이 무거워진다)');
   assert.ok(body.question.text.length <= 45, `대체 문장이 너무 길다: ${body.question.text.length}자`);
-  assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_NOT_GROUNDED')));
+  assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_NOT_COHERENT')));
 });
 
 // ── v14 대표 실기기 발견(2026-09-22 16:29 KST) ──────────────────────────────
@@ -711,44 +734,41 @@ test('v14.2 연결 자격 기준(5)이 질문 수(TOPICS)와 같다 — 화면�
 const DEEP_SCREENSHOT = '내가 방금 한 말이 상대방에게 도움이 될 수 있을까? 예를 들어, 내가 좋아하는 취미를 공유하면 상대방이 나를 더 잘 이해할 수 있을까?';
 const REPHRASE_STAGE = (ai) => ({ ...ai, unknown: ai.rephrase }); // 되묻기 프롬프트는 가짜 AI 가 따로 구분하지 않는다(unknown)
 
-test('v14.3 주제별 쉬운 질문: 모두 짧고 해요체 한 문장이며, 주제 이름을 끼워 조립하지 않는다("…나은 어떤가요?" 없음)', () => {
+test('v14.4 주제별 고정 질문 목록이 없다(하드코딩 질문 배열 금지) — 대체 문장은 "방금 한 말"만 가리킨다', () => {
   const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
-  const block = src.slice(src.indexOf('export const EASY_QUESTION'), src.indexOf('};', src.indexOf('export const EASY_QUESTION')));
-  const qs = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(qs.length, 5);
-  for (const q of qs) {
-    assert.ok(q.length <= 45, q);
-    assert.match(q, /요\?$/, q);
-    assert.equal((q.match(/\?/g) || []).length, 1, q);
-  }
   const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n'); // 설명 주석(옛 문장 기록)은 빼고 코드만 본다
+  assert.ok(!code.includes('EASY_QUESTION'), '주제별 고정 질문(EASY_QUESTION) 삭제');
+  assert.ok(!code.includes('GENERIC_RESCUE'), '앞 답과 무관한 일반 질문 삭제');
+  assert.ok(!code.includes('fixedDirectionQuestion'), '주제로 건너뛰는 고정 문장 삭제');
   assert.doesNotMatch(code, /\$\{label\}은 어떤가요|은 어떤가요\? 떠오르는 대로/, '주제 이름 조립 문장 삭제');
   assert.doesNotMatch(code, /그런 사람과 같이 뭘 하고 싶으세요/, '주제를 가정한 고정 문장 삭제');
+  assert.doesNotMatch(code, /앞 말과 억지로 잇지 않아도 된다/, 'v14.4 원인 문구 삭제');
 });
 
-test('v14.3 장면 재현: 「같이 하고 싶은 것」 답 뒤 AI 가 실패하면 "상대가 알면 좋을 나은 어떤가요?"가 아니라 쉬운 질문', async () => {
+test('v14.3→v14.4 장면 재현: 「같이 하고 싶은 것」 답 뒤 AI 가 실패하면 깨진 문장도, 새 주제 고정 질문도 아니라 방금 답에 머문다', async () => {
   const state = baseState({ recordText: '취미생활이 같으면 좋지' });
   const { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style', 'together'] }), rescueDir: () => 'TIMEOUT' }, state);
   const { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.equal(body.rescue.topic, 'self');
-  assert.equal(body.rescue.text, '알겠어요.\n상대가 나에 대해 알면 좋은 게 있어요?');
+  assert.equal(body.rescue.topic, null);
+  assert.equal(body.rescue.text, '"취미생활이 같으면 좋지"라고 하셨죠.\n조금만 더 들려줄래요?');
 });
 
 test('v14.3 장면 재현: AI 가 길고 두 번 묻는 반말·예시 질문을 내면 버리고 쉬운 질문으로(구제·이어 묻기 모두)', async () => {
   let state = baseState({ recordText: '취미생활이 같으면 좋지' });
-  let { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style', 'together'] }), rescueDir: () => ({ ack: '취미가 같으면 좋군요.', question: DEEP_SCREENSHOT }) }, state);
+  let { call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style', 'together'] }), rescueDir: () => ({ ack: '취미가 같으면 좋군요.', link: '취미생활', question: DEEP_SCREENSHOT }) }, state);
   let { body } = await call({ action: 'insight_generate', recordId: RECORD });
-  assert.equal(body.rescue.text, '알겠어요.\n상대가 나에 대해 알면 좋은 게 있어요?');
+  const STAY = '"취미생활이 같으면 좋지"라고 하셨죠.\n조금만 더 들려줄래요?';
+  assert.equal(body.rescue.text, STAY);
   // 물음표가 하나라 "하나 규칙"은 통과하지만 반말·예시·무거운 말·긴 문장인 경우도 구제 경로에서 버린다.
   for (const heavyOne of ['주말에 뭐 하고 싶어?', '같이 하고 싶은 걸 적어 주세요 (예: 산책, 영화)?', '상대에게 바라는 진심은 어떤 모습일까요?', '당신의 가치관과 내면에서 가장 중요한 부분은 무엇이라고 생각하시는지 들려주실 수 있을까요?']) {
     state = baseState({ recordText: '취미생활이 같으면 좋지' });
-    ({ call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style', 'together'] }), rescueDir: () => ({ ack: '', question: heavyOne }) }, state));
+    ({ call } = loadServer({ gen: noCandidates, topic: () => ({ covered: ['partner_style', 'together'] }), rescueDir: () => ({ ack: '취미가 같으면 좋군요.', link: '취미생활', question: heavyOne }) }, state));
     ({ body } = await call({ action: 'insight_generate', recordId: RECORD }));
-    assert.equal(body.rescue.text, '알겠어요.\n상대가 나에 대해 알면 좋은 게 있어요?', heavyOne);
+    assert.equal(body.rescue.text, STAY, heavyOne);
   }
   for (const heavy of [DEEP_SCREENSHOT, '상대에게 바라는 진심은 어떤 모습일까요?', '같이 하고 싶은 활동을 적어 주세요 (예: 산책, 영화)?', '주말에 뭐 하고 싶어?', '당신의 가치관과 내면에서 가장 중요한 부분은 무엇이라고 생각하시는지 들려주실 수 있을까요?']) {
     state = baseState({ insights: [{ id: 'i1', text: '취미가 같으면 좋다', status: 'confirmed', origin: 'ai', source_record_id: RECORD, updated_at: '2026-09-22T00:00:00Z', created_at: '2026-09-22T00:00:00Z' }] });
-    ({ call } = loadServer({ topic: () => ({ covered: ['partner_style', 'together'] }), followup: () => ({ ack: '', question: heavy, basis: '', meaning: '', keys: ['취미'] }), judge: () => ({ allowed: true }) }, state));
+    ({ call } = loadServer({ topic: () => ({ covered: ['partner_style', 'together'] }), followup: () => ({ ack: '', link: '조용한 사람', question: heavy, basis: '', meaning: '', keys: ['취미'] }), judge: () => ({ allowed: true }) }, state));
     ({ body } = await call({ action: 'followup_generate', recordId: RECORD }));
     assert.notEqual(body.question.text, heavy, heavy);
     assert.match(body.question.text, /요\?$/, `대신 나간 질문: ${body.question.text}`);
@@ -764,13 +784,15 @@ test('v14.3 장면 재현: 이미 답한 「같이 하고 싶은 것」을 고�
   assert.doesNotMatch(body.question.text, /"딥하네"/, '불평을 인용하지 않는다');
 });
 
-test('v14.3 되묻기: "활동?질문이 머이래" → 기록 없이 쉬운 말로. AI 가 무거운 질문을 내면 그 주제의 쉬운 질문으로', async () => {
+test('v14.4 되묻기: "활동?질문이 머이래" → 기록 없이 쉬운 말로. AI 가 무거운 질문을 내면 주제를 바꾸지 않고 앞 질문 그대로', async () => {
   let state = baseState();
   let { call } = loadServer(REPHRASE_STAGE({ rephrase: () => ({ question: DEEP_SCREENSHOT }) }), state);
   let r = await call({ action: 'rephrase', question: '천천히 깊게 알고 싶으시군요.\n어떤 활동을 함께 하고 싶나요?', text: '활동?질문이 머이래', topic: 'together' });
   assert.equal(r.status, 200);
   assert.equal(r.body.meta, true);
-  assert.equal(r.body.question, '만나면 같이 뭐 하고 싶어요?');
+  assert.equal(r.body.kind, 'rephrase');
+  assert.equal(r.body.question, '천천히 깊게 알고 싶으시군요.\n어떤 활동을 함께 하고 싶나요?', 'v14.4 새 주제 고정 질문으로 바꾸지 않는다');
+  assert.equal(r.body.fallback, true);
   assert.ok(!state.rpcCalls.some((c) => /record|finish/.test(c.name)), '되묻기는 기록을 만들지 않는다');
   ({ call } = loadServer(REPHRASE_STAGE({ rephrase: () => ({ question: '만나서 같이 하고 싶은 게 있어요?' }) }), state = baseState()));
   r = await call({ action: 'rephrase', question: '어떤 활동을 함께 하고 싶나요?', text: '무슨 말이야 글자 오타아니야?', topic: 'together' });
@@ -780,6 +802,7 @@ test('v14.3 되묻기: "활동?질문이 머이래" → 기록 없이 쉬운 말
   assert.equal(r.body.meta, false, '진짜 답은 되묻기가 아니다');
   r = await call({ action: 'rephrase', question: '어떤 활동을 함께 하고 싶나요?', text: '딥하네', topic: 'nope' });
   assert.equal(r.body.meta, true);
-  assert.equal(r.body.question, '어떤 활동을 함께 하고 싶나요?', '주제를 모르고 AI 도 실패하면 앞 질문 그대로(빠져나갈 문)');
+  assert.equal(r.body.question, '어떤 활동을 함께 하고 싶나요?', 'AI 가 실패하면 앞 질문 그대로(빠져나갈 문)');
   assert.equal(r.body.fallback, true);
+
 });

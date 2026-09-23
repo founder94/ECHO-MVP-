@@ -88,10 +88,10 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
       prepareUnderstandingRequest: transport ? transport.prepare : () => { throw new Error('External request forbidden'); },
       understandingRequest: transport ? transport.request : () => { throw new Error('External request forbidden'); },
     },
-    '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; } },
+    '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; }, questionBodyOf: text => { const parts = String(text).trim().split('\n'); return (parts.length > 1 ? parts.slice(1).join(' ') : parts[0] ?? '').trim(); } },
     // v13 되묻기 규칙은 qa/conversation-rules.test.mjs 가 따로 검사한다. 여기서는 최소 판정만 흉내 낸다.
     // v14.1 주제 개수가 곧 질문 개수(ASK_TOTAL)라, 가짜 목록도 실제와 같은 5개여야 한다.
-    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람' }, { id: 'together', label: '같이 하고 싶은 것' }, { id: 'self', label: '상대가 알면 좋을 나' }, { id: 'pace', label: '만나는 방식' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
+    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람' }, { id: 'together', label: '같이 하고 싶은 것' }, { id: 'self', label: '상대가 알면 좋을 나' }, { id: 'pace', label: '만나는 방식' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), isAskingAi: text => /왜\s*(이런\s*걸\s*)?물어/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
     '@/doit/lib/conversationRecovery': {
       loadPendingSelf: () => store.pending,
       savePendingSelf: (_userId, next) => { store.pending = next; },
@@ -507,4 +507,35 @@ test('2026-09-24 끝 화면에서도 「처음부터 다시 답하기」가 바�
   h.click('처음부터 다시');
   await h.flush();
   assert.equal(restarted, 1);
+});
+
+// ── v14.4 대화 연결성(대표 긴급 정정 2026-09-24) — 화면 쪽 약속 ──
+test('v14.4 AI 에게 한 질문("왜 이런 걸 물어봐")은 기록하지 않고, 먼저 답한 뒤 같은 질문을 다시 보여 준다(첫 질문에서도)', async () => {
+  const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
+  const h = componentHarness({
+    rephrase: async (question, text) => ({ meta: true, kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: question.split('\n').pop(), fallback: false, _text: text }),
+  });
+  await h.flush();
+  assert.deepEqual(h.questions(), [FIRST]);
+  await h.send('근데 왜 이런 걸 물어봐');
+  assert.equal(h.calls.filter((c) => c.name === 'record').length, 0, 'AI 에게 한 질문은 답으로 저장하지 않는다');
+  assert.equal(h.calls.filter((c) => c.name === 'rephrase').length, 1);
+  assert.deepEqual(h.questions(), [FIRST], '새 질문이 아니라 같은 질문');
+  assert.match(h.content(), /여기에 답한 말로 어떤 사람을 소개할지 정해요\./, '먼저 답한다');
+});
+
+test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문장)을 서버에 함께 보낸다 — 다음 질문 요청에도', async () => {
+  const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
+  const h = componentHarness({
+    record: async () => record('n1'),
+    generate: async () => ({ insights: [] }),
+    nextQuestion: async (id) => question(id, '다음 질문이에요?'),
+  }, { props: { autoQuestion: true } });
+  await h.flush();
+  await h.send('요즘 친구 생각이 자주 나요');
+  const gen = h.calls.find((c) => c.name === 'generate');
+  assert.equal(gen.args[2], FIRST, '첫 답은 첫 고정 질문에 대한 답');
+  const next = h.calls.find((c) => c.name === 'nextQuestion');
+  assert.ok(next, '확인할 후보가 없으면 화면이 다음 질문을 요청한다');
+  assert.equal(next.args[1], FIRST, '같은 답의 다음 질문 요청에도 같은 직전 질문');
 });
