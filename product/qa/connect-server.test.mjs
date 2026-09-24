@@ -489,3 +489,22 @@ test('v1.2 my_turns: 내 차례만 센다(답할 질문·새로 열림·상대�
   r = await call(ID.a, { action: 'my_turns' });
   assert.equal(r.body.open, 0, '상대가 차단하면 세지 않는다');
 });
+
+// v15.1 대표 결정 「모르겠어요 ×5 연결 자격 금지」: 후보 고르기도 화면의 준비 상태와 같은 기준(내용 있는 답)으로 센다.
+test('v15.1 후보: 「모르겠어요」·지친 말로 채운 다섯 칸은 연결 자격이 아니다(원문은 남는다)', async () => {
+  const s = world();
+  s.tables.doit_insights = [...confirmedRows(ID.a, [COMMON[0]]), ...confirmedRows(ID.b, [COMMON[0]])];
+  s.tables.profile_photos = [...photos(ID.a), ...photos(ID.b)];
+  const unsure = ['모르겠어요', '몰라', '잘 모르겠어요', '할말이없다 휴', '모르겠어'];
+  s.tables.doit_records = s.tables.doit_records.map((x) => x.user_id === ID.a ? { ...x, text: unsure[Number(x.text.slice(2)) - 1] } : x);
+  let r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, 'A 는 내용 있는 답 0 → 후보 아님');
+  assert.equal(r.body.missing.answers, 1);
+  assert.equal(s.tables.doit_records.filter((x) => x.user_id === ID.a).length, 5, '원문은 지우지 않는다');
+  const s2 = world();
+  s2.tables.doit_insights = [...confirmedRows(ID.a, [COMMON[0]]), ...confirmedRows(ID.b, [COMMON[0]])];
+  s2.tables.profile_photos = [...photos(ID.a), ...photos(ID.b)];
+  s2.tables.doit_records = s2.tables.doit_records.map((x) => x.user_id === ID.a && x.text === '답 5' ? { ...x, text: '그게 아니라 조용한 사람이 좋다는 거예요' } : x);
+  r = await loadServer(s2)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 1, '설명이 붙은 정정은 내용 있는 답으로 센다');
+});

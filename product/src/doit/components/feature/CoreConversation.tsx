@@ -7,7 +7,7 @@ import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
 import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord, type CoreTurn } from '@/doit/lib/coreConversation';
 import { draftToIntro } from '@/doit/lib/introDraft';
-import { TOPICS, blockedContentMessage, blockedContentReason, isAskingAi, isMetaReply } from '@/doit/lib/conversationRules';
+import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer, isAskingAi, isMetaReply } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
 
 interface Props {
@@ -59,6 +59,8 @@ export const ASK_TOTAL = TOPICS.length;
 export const FIRST_QUESTION = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
 // v14.4 첫 화면(ConversationOpening)의 질문. 거기서 적은 한 줄은 이 질문에 대한 답이다(서버에 직전 질문으로 알려 준다).
 export const OPENING_QUESTION = '어떤 만남을 원하세요?';
+// v15.1 정정 안내를 이미 보였는데 또 "아니에요"만 왔을 때 넘어가며 보이는 안내(서버 TURN_REPLY.moveOn 과 같은 문장 · 예전 서버 대비).
+const MOVE_ON_NOTICE = '알겠어요. 다른 걸 여쭤볼게요.';
 
 function errorCopy(error: unknown): string {
   const code = error instanceof UnderstandingError ? error.code : '';
@@ -111,6 +113,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const [pause, setPause] = useState<string | null>(null);
   // v15 "그 뜻 아니야"만 보냈을 때: 사용자가 아니라고 한 AI 문장. 다음 답과 함께 서버에 알려 정정 전 문장으로 쓰지 않게 한다.
   const [pendingCorrection, setPendingCorrection] = useState<string | null>(null);
+  // v15.1 정정 안내("어떤 뜻이었는지 한 줄로")를 이미 보였는지. 또 "아니에요"만 오면 같은 안내를 되풀이하지 않는다.
+  const [correctionPrompted, setCorrectionPrompted] = useState(false);
   const [synth, setSynth] = useState<SynthState>(SYNTH_IDLE);
   const lock = useRef(false);
   const alive = useRef(true);
@@ -198,7 +202,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const restart = () => onRestart && run('처음부터 다시 여는 중이에요', async () => {
     const failure = await onRestart();
     if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
-    if (alive.current) { setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
+    if (alive.current) { setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setCorrectionPrompted(false); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
   });
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
   // v15(명세 §2 「매 질문마다 AI 해석 카드와 4버튼을 띄우지 않는다」): 다섯 답 동안은 질문만 보인다. 후보 카드·확인 버튼은 통합 카드에만 있다.
@@ -206,6 +210,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   // v14.1 이번 회차에 남긴 답의 개수 = 진행. 다섯 개를 채우면 질문을 멈춘다.
   const answered = Math.min(roundRecords.length, ASK_TOTAL);
   const finished = roundRecords.length >= ASK_TOTAL;
+  // v15.1 다섯 칸(진행)과 연결 자격은 다르다: 「모르겠어요」 같은 답은 칸은 채우지만 자격의 "다섯 답"에는 세지 않는다(서버와 같은 규칙).
+  const uninformativeCount = roundRecords.filter(r => !informativeAnswer(r.text)).length;
   const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: firstOverride ?? FIRST_QUESTION, sourceRecordId: '' } : null;
   // v13 자동 다음 질문: 저장된 질문 조회가 끝났고 보여 줄 질문이 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
   const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !editor && !pause && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
@@ -301,7 +307,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   };
   // v15 한 턴 분류(서버 turn_classify). 예전 서버(분류 계약 없음)면 v14.4 규칙으로 되묻기·AI 에게 한 질문만 가른다.
   const classify = async (text: string, shownText: string | null): Promise<CoreTurn> => {
-    try { return await api.classify(text, shownText); }
+    // v15.1 지금 떠 있는 AI 문장을 함께 보낸다. 서버는 "그게 아니에요"일 때만 이 문장을 거절로 저장한다(이번 회차에 실제로 물은 문장일 때만).
+    try { return await api.classify(text, shownText, { correction: correctionTarget(), recordId: question?.sourceRecordId || null }); }
     catch (e) {
       if (!(e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED'))) throw e;
     }
@@ -344,9 +351,18 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       // 지친 말은 나에 대한 사실이 아니다. 해석하지 않고, 넘어가기·쉬어 가기를 고르게 한다.
       setDraft(''); setPause(turn.reply ?? ''); return;
     }
+    if (turn.kind === 'correction' && !turn.rest && (turn.again || correctionPrompted)) {
+      // v15.1 정정 안내를 이미 한 번 보였다: 같은 안내를 되풀이하지 않고(설명 책임을 넘기지 않는다) 다른 질문으로 넘어간다.
+      setDraft(''); setCorrectionPrompted(false);
+      if (active) { await requestNext(active.id, { skip: true }); if (alive.current) setNotice(turn.again && turn.reply ? turn.reply : MOVE_ON_NOTICE); }
+      else { setFirstOverride(null); setNotice(turn.reply ?? MOVE_ON_NOTICE); }
+      return;
+    }
     if (turn.kind === 'correction' && !turn.rest) {
-      // "그 뜻 아니야"만 왔다: 어떤 뜻이었는지 묻는다. 다음 답과 함께 아니라고 한 AI 문장을 서버에 알린다.
+      // "그 뜻 아니야"만 왔다: 서버가 그 AI 문장을 이미 거절로 저장했다(turn.rejected). 그다음에 어떤 뜻이었는지 한 번만 묻는다.
+      // 다음 답과 함께 아니라고 한 AI 문장도 다시 알린다(예전 서버·저장 실패 대비). 새로고침해도 서버가 저장분으로 이어 간다.
       setPendingCorrection(correctionTarget());
+      setCorrectionPrompted(true);
       replaceShown(turn.reply ?? shownBody);
       setDraft(''); return;
     }
@@ -359,7 +375,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     if (answeredQuestion) answeredFor.current.set(record.id, answeredQuestion);
     freshRecord.current = record.id;
     setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions(); setFirstOverride(null);
-    setPendingCorrection(null); setPause(null);
+    setPendingCorrection(null); setCorrectionPrompted(false); setPause(null);
     setNotice('이야기를 저장했어요.');
     // 다섯 번째 답이면 더 묻지 않는다(통합 카드는 위 효과가 받아 온다). 다음 질문 기능이 꺼진 빌드면 요청하지 않는다.
     if (willFinish || !FOLLOWUP_ENABLED) return;
@@ -464,6 +480,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {finished && synth.phase === 'done' && !editor && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 다섯 가지 답을 모두 저장했어요.</p>
       <p className="echo-done-lead">다음은 나를 보여 줄 차례예요. 사진·소개·전화 인증까지 마치면 연결을 받을 수 있어요.</p>
+      {uninformativeCount > 0 && <p className="echo-context">「모르겠어요」처럼 넘긴 답 {uninformativeCount}개는 연결 자격에 세지 않아요. 떠오르면 「처음부터 다시 답하기」로 다시 답할 수 있어요.</p>}
       <ol className="echo-done-next">
         <li><b>사진 세 장</b>, <b>짧은 소개</b>, <b>전화 인증</b>이 남았어요. 연결 탭에서 무엇이 남았는지 볼 수 있어요.</li>
         <li>상대의 이름과 사진은 서로 첫 질문을 주고받은 뒤에 보여요.</li>

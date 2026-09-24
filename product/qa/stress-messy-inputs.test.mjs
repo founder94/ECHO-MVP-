@@ -258,3 +258,13 @@ test('[미확정] 깊은 여정: 거절·정정 뒤에도 막다른 길 0건', {
   assert.ok(deepResult, '깊은 검사가 먼저 돌아야 한다');
   assert.equal(deepResult.deadEnds.length, 0, `막다른 길 ${deepResult.deadEnds.length}건: ${JSON.stringify(deepResult.deadEnds.slice(0, 4))}`);
 });
+
+// [LEGACY-01 · 테스트 결함 확인 · 2026-09-24] 위 「여정 끝까지 40회 … STEP 7 까지 끊기지 않는다」는 이름과 달리 반말 0건만 확인해서,
+// 실제로는 40번 중 30번이 followup-answer 에서 INVALID_STATE 로 끊기고 STEP 7 도달 0번인데도 통과로 세었다(v15 이전부터 같은 값).
+// 옛 ECHO STEP 1→7 흐름(get-step-question·echo-journey, 운영 중)의 별건이다. v15 범위에서 옛 흐름·결제·운영 함수는 바꾸지 않는다.
+// 숨기지 않기 위해 이름이 약속한 조건을 그대로 검사하는 todo 를 둔다(통과로 세지 않는다). 기록: docs/…/PATCH-20260924-ai-conversation-v15/LEGACY_ISSUES.md
+test('[LEGACY-01 · 테스트 결함 확인] 깊은 여정 40회가 실제로 STEP 7 까지 가고 중간 오류가 0건인가', { todo: '옛 STEP 1→7 흐름: 오류 30/40(INVALID_STATE)·STEP 7 도달 0/40 — 제품 결함인지 검사 장치 문제인지 미확정, 별건(LEGACY-01)' }, () => {
+  assert.ok(deepResult, '깊은 검사가 먼저 돌아야 한다');
+  assert.equal(deepResult.errors.length, 0, `중간 오류 ${deepResult.errors.length}건: ${JSON.stringify(deepResult.errors.slice(0, 3))}`);
+  assert.equal(deepResult.reachedStep7, deepResult.runs, `STEP 7 도달 ${deepResult.reachedStep7}/${deepResult.runs}`);
+});

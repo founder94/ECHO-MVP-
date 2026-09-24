@@ -8,6 +8,13 @@ import ts from 'typescript';
 // runner needs no DOM/browser and all server/AI operations stay in memory.
 const path = 'src/doit/components/feature/CoreConversation.tsx';
 const source = readFileSync(path, 'utf8');
+// v15.1 「내용 있는 답」 판정은 가짜로 흉내 내지 않고 실제 규칙 파일의 함수를 쓴다(화면·서버와 같은 규칙).
+const realRules = (() => {
+  const js = ts.transpileModule(readFileSync('src/doit/lib/conversationRules.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(js, { module, exports: module.exports }, { filename: 'conversationRules.ts' });
+  return module.exports;
+})();
 const record = id => ({ id, text: `내 이야기 ${id}`, original_text: `내 원문 ${id}`, status: 'confirmed', revision: 1, created_at: '2026-09-21T00:00:00Z' });
 const insight = (recordId, status = 'confirmed') => ({ id: `insight-${recordId}`, source_record_id: recordId, text: '약속을 지키는 것이 중요해요.', category: 'value', status, origin: 'ai', revision: 1, created_at: '2026-09-21T00:00:00Z' });
 const question = (recordId, text) => ({ sourceRecordId: recordId, text });
@@ -96,7 +103,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; }, questionBodyOf: text => { const parts = String(text).trim().split('\n'); return (parts.length > 1 ? parts.slice(1).join(' ') : parts[0] ?? '').trim(); } },
     // v13 되묻기 규칙은 qa/conversation-rules.test.mjs 가 따로 검사한다. 여기서는 최소 판정만 흉내 낸다.
     // v14.1 주제 개수가 곧 질문 개수(ASK_TOTAL)라, 가짜 목록도 실제와 같은 5개여야 한다.
-    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람' }, { id: 'together', label: '같이 하고 싶은 것' }, { id: 'self', label: '상대가 알면 좋을 나' }, { id: 'pace', label: '만나는 방식' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), isAskingAi: text => /왜\s*(이런\s*걸\s*)?물어/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '' },
+    '@/doit/lib/conversationRules': { TOPICS: [{ id: 'purpose', label: '원하는 만남' }, { id: 'partner_style', label: '끌리는 사람' }, { id: 'together', label: '같이 하고 싶은 것' }, { id: 'self', label: '상대가 알면 좋을 나' }, { id: 'pace', label: '만나는 방식' }], isMetaReply: text => /무슨\s*뜻/.test(String(text)), isAskingAi: text => /왜\s*(이런\s*걸\s*)?물어/.test(String(text)), blockedContentReason: () => null, blockedContentMessage: () => '', informativeAnswer: realRules.informativeAnswer },
     '@/doit/lib/conversationRecovery': {
       loadPendingSelf: () => store.pending,
       savePendingSelf: (_userId, next) => { store.pending = next; },
@@ -658,3 +665,41 @@ test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문�
   assert.equal(next.args[1], FIRST, '첫 답은 첫 고정 질문에 대한 답');
 });
 
+
+// v15.1 대표 결정 「모르겠어요 ×5 연결 자격 금지」: 다섯 칸은 끝났어도, 넘긴 답이 있으면 연결 자격에 세지 않는다고 끝 화면에서 말한다.
+test('v15.1 끝 화면: 「모르겠어요」로 넘긴 답 수를 알리고 다시 답할 길을 알려 준다 · 넘긴 답이 없으면 알리지 않는다', async () => {
+  const texts = ['진지하게 알아가고싶어', '모르겠어요', '잘 웃는 사람', '몰라', '산책이요'];
+  const recs = manyRecords(5).map((r, i) => ({ ...r, text: texts[i], original_text: texts[i] }));
+  const h = componentHarness({ load: async () => ({ records: recs, insights: [] }) });
+  await h.flush();
+  assert.match(h.content(), /「모르겠어요」처럼 넘긴 답 2개는 연결 자격에 세지 않아요/);
+  assert.match(h.content(), /처음부터 다시 답하기/);
+  const plain = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) });
+  await plain.flush();
+  assert.doesNotMatch(plain.content(), /넘긴 답/);
+});
+
+// v15.1 대표 결정 2·3 [가짜 서버 기준]: "그게 아니에요"를 분류할 때 지금 떠 있는 AI 문장을 서버에 함께 보낸다(서버가 설명을 묻기 전에 거절로 저장).
+// 안내를 보인 뒤 또 "아니야"만 오면 같은 안내를 되풀이하지 않고 다른 질문으로 넘어간다(사용자가 AI 를 관리하게 만들지 않는다).
+test('v15.1 정정: 분류 요청에 떠 있는 AI 문장·기록 번호를 함께 보내고, 두 번째 "아니야"는 안내를 되풀이하지 않고 다른 질문으로 넘어간다', async () => {
+  const PROMPT = '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?';
+  let n = 0;
+  const h = componentHarness({
+    load: async () => ({ records: [record('a')], insights: [] }),
+    savedQuestion: async id => question(id, '밝은 에너지를 주는 사람이 좋으시군요.\n그런 사람이랑 만나면 같이 뭐 하고 싶어요?'),
+    classify: async () => (++n === 1 ? { kind: 'correction', reply: PROMPT, rejected: true } : { kind: 'correction', reply: '알겠어요. 다른 걸 여쭤볼게요.', again: true, rejected: false }),
+    nextQuestion: async (id, _answered, opts) => question(id, opts?.skip ? '잘 웃는 사람과 뭐 하고 싶어요?' : 'x'),
+  });
+  await h.flush();
+  await h.send('그게 아니에요');
+  const first = h.calls.find(c => c.name === 'classify');
+  assert.equal(first.args[2].correction, '밝은 에너지를 주는 사람이 좋으시군요.', '떠 있는 AI 해석(첫 줄)을 보낸다');
+  assert.equal(first.args[2].recordId, 'a');
+  assert.deepEqual(h.questions(), ['어떤 뜻이었는지 한 줄로 알려 줄래요?']);
+  await h.send('아니야');
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '"아니야"는 답으로 저장하지 않는다');
+  const skip = h.calls.find(c => c.name === 'nextQuestion');
+  assert.equal(skip?.args[2]?.skip, true, '같은 안내 대신 다른 질문을 받는다');
+  assert.deepEqual(h.questions(), ['잘 웃는 사람과 뭐 하고 싶어요?']);
+  assert.doesNotMatch(h.content(), /어떤 뜻이었는지 한 줄로/, '정정 안내를 되풀이하지 않는다');
+});

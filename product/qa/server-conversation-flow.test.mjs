@@ -356,7 +356,8 @@ test('v13.4 connection_preview: 준비 상태 + 같은 목적 대기 인원 + �
   const { status, body } = await call({ action: 'connection_preview' });
   assert.equal(status, 200);
   assert.equal(body.purpose, '친구');
-  assert.deepEqual(body.readiness, { answers: 1, answers_needed: 5, confirmed: 2, photos: 2, photos_needed: 3, intro: true, phone_verified: false });
+  // v15.1: turns(대화 진행 칸)·uninformative(「모르겠어요」처럼 자격에 세지 않은 답) 두 칸이 더해졌다.
+  assert.deepEqual(body.readiness, { answers: 1, answers_needed: 5, turns: 1, uninformative: 0, confirmed: 2, photos: 2, photos_needed: 3, intro: true, phone_verified: false });
   assert.equal(body.eligible, false);
   assert.equal(body.waiting, 2, '같은 목적(friend) 다른 사람 2명');
   assert.equal(body.candidates, 1, '확인한 말이 겹치는 사람 1명');
@@ -818,4 +819,55 @@ test('v14.4 되묻기: "활동?질문이 머이래" → 기록 없이 쉬운 말
   assert.equal(r.body.question, '어떤 활동을 함께 하고 싶나요?', 'AI 가 실패하면 앞 질문 그대로(빠져나갈 문)');
   assert.equal(r.body.fallback, true);
 
+});
+
+// v15.1 대표 결정 「모르겠어요 ×5 연결 자격 금지」: 대화 진행 칸(turns)과 연결 자격(answers = 내용 있는 답)은 다르다.
+test('v15.1 connection_preview: 「모르겠어요」·지친 말은 원문은 남아도 연결 자격의 다섯 답에 세지 않는다(turns 와 answers 분리)', async () => {
+  const rec = (i, text) => ({ id: `u-${i}`, user_id: USER, text, status: 'confirmed', created_at: '2026-09-23T10:00:00Z' });
+  const base = {
+    profiles: [{ id: USER, purpose_id: 'friend', purpose_label: '친구', bio: '안녕하세요', verification_status: 'verified' }],
+    photos: [1, 2, 3].map((slot) => ({ user_id: USER, slot })),
+    insights: [],
+  };
+  let state = baseState({ ...base, records: ['모르겠어요', '몰라', '잘 모르겠어요', '글쎄요 딱히 없어요', '모르겠어'].map((t, i) => rec(i, t)) });
+  let body = (await loadServer({}, state).call({ action: 'connection_preview' })).body;
+  assert.equal(body.readiness.turns, 5, '대화 진행은 다섯 칸을 다 썼다');
+  assert.equal(body.readiness.answers, 0, '모르겠어요 ×5 = 내용 있는 답 0');
+  assert.equal(body.readiness.uninformative, 5);
+  assert.equal(body.eligible, false, '모르겠어요 ×5 로는 연결 자격이 생기지 않는다');
+  assert.equal(state.records.length, 5, '원문은 지우지 않는다');
+  state = baseState({ ...base, records: ['진지하게 알아가고싶어', '잘 웃는 사람', '산책이요', '할말이없다 휴', '모르겠어요'].map((t, i) => rec(i, t)) });
+  body = (await loadServer({}, state).call({ action: 'connection_preview' })).body;
+  assert.equal(body.readiness.answers, 3, '내용 있는 답 3');
+  assert.equal(body.readiness.uninformative, 2);
+  assert.equal(body.eligible, false);
+  state = baseState({ ...base, records: ['진지하게 알아가고싶어', '잘 웃는 사람', '산책이요', '그게 아니라 조용한 사람이 좋다는 거예요', '천천히요'].map((t, i) => rec(i, t)) });
+  body = (await loadServer({}, state).call({ action: 'connection_preview' })).body;
+  assert.equal(body.readiness.answers, 5, '설명이 붙은 정정·짧은 답은 센다');
+  assert.equal(body.eligible, true);
+});
+
+test('v15.1 profile_draft: 「모르겠어요」는 소개 재료가 아니다(내용 있는 답이 모자라면 AI 를 부르지 않는다)', async () => {
+  const rec = (i, text) => ({ id: `d-${i}`, user_id: USER, text, status: 'confirmed', created_at: '2026-09-23T10:00:00Z' });
+  const state = baseState({ profiles: [{ id: USER, purpose_id: 'friend', purpose_label: '' }], insights: [], records: ['모르겠어요', '몰라', '할말이없다 휴', '잘 모르겠어요', '산책이요'].map((t, i) => rec(i, t)) });
+  const { call } = loadServer({ draft: () => { throw new Error('AI 를 부르면 안 된다'); } }, state);
+  const { body } = await call({ action: 'profile_draft' });
+  assert.equal(body.code, 'NOT_ENOUGH', '내용 있는 답 1개 = 재료 부족');
+});
+
+test('v15.1 B6: 대화 중 거절한 AI 문장(이벤트 followup_reject)은 소개 초안에도 쓰지 않는다', async () => {
+  const X = '밝은 에너지를 주는 사람이 좋아요.';
+  const rec = (i, text) => ({ id: `b6-${i}`, user_id: USER, text, status: 'confirmed', created_at: '2026-09-23T10:00:00Z' });
+  const state = baseState({ profiles: [{ id: USER, purpose_id: 'friend', purpose_label: '친구' }], insights: [],
+    records: ['밝게 잘 웃는 사람이 좋아요', '주말에 산책하는 거 좋아해요', '천천히 알아가고 싶어요'].map((t, i) => rec(i, t)),
+    events: [{ user_id: USER, request_id: 'e-1', action: 'followup_reject', status: 'applied', created_at: '2026-09-23T10:01:00Z', response_payload: { rejected: X } }] });
+  const { call } = loadServer({ draft: () => ({ lines: [
+    { text: X, basis: '밝게 잘 웃는 사람이 좋아요' },
+    { text: '저는 주말에 산책하는 걸 좋아해요.', basis: '주말에 산책하는 거 좋아해요' },
+  ] }) }, state);
+  const { status, body } = await call({ action: 'profile_draft' });
+  assert.equal(status, 200);
+  const texts = (body.lines ?? []).map((l) => l.text ?? l);
+  assert.ok(!texts.some((t) => /밝은 에너지/.test(t)), `거절한 문장이 초안에 있으면 안 된다: ${JSON.stringify(texts)}`);
+  assert.ok(texts.some((t) => /산책/.test(t)), '다른 줄은 남는다');
 });

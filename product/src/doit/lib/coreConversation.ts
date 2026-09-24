@@ -14,7 +14,8 @@ export function questionBodyOf(text: string): string {
 // v15: 한 턴 분류(서버 turn_classify). 관계에 대한 답인지(answer·unsure·설명 붙은 correction), 대화 방식에 대한 말인지.
 //   ask = reply(먼저 답) + question(같은 질문) · meta = question(더 쉬운 말) · complaint·fatigue·설명 없는 correction = reply(상태 안내).
 export type TurnKind = 'answer' | 'ask' | 'meta' | 'complaint' | 'fatigue' | 'unsure' | 'correction';
-export interface CoreTurn { kind: TurnKind; reply?: string; question?: string | null; rest?: string; fallback?: boolean }
+// v15.1 again = 정정 안내를 이미 보였는데 또 설명 없는 "아니에요"(되풀이하지 않고 넘어간다) · rejected = 거절한 AI 문장이 서버에 저장됐는지.
+export interface CoreTurn { kind: TurnKind; reply?: string; question?: string | null; rest?: string; fallback?: boolean; again?: boolean; rejected?: boolean }
 // v15: 다섯 답 뒤 통합 이해 카드. items = 확인을 기다리는 AI 항목(서버가 저장한 후보). done = 이번 회차 카드를 이미 다 정함.
 export interface CoreSynthesis { items: CoreInsight[]; done: boolean; empty: boolean }
 // v13: 확인한 말로만 만든 소개 초안. 서버가 저장하지 않으며 화면에서 '이 초안 쓰기'로 프로필에 넣는다.
@@ -101,16 +102,19 @@ export function createCoreConversation(port: CorePort) {
       return { meta: true, kind: 'rephrase', question: result.question.trim(), fallback: result.fallback === true };
     },
     // v15 한 턴 분류. 서버가 저장하지 않는다. 화면은 이 결과로 기록할지(answer·unsure·설명 붙은 correction) 정한다.
-    async classify(text: string, question: string | null): Promise<CoreTurn> {
+    // v15.1 correction = 지금 떠 있는 AI 문장(받아 주는 첫 줄 또는 질문). "그게 아니에요"면 서버가 설명을 묻기 전에 이 문장을 거절로 저장한다.
+    async classify(text: string, question: string | null, opts: { correction?: string | null; recordId?: string | null } = {}): Promise<CoreTurn> {
       if (!text.trim()) throw new Error('INVALID_INPUT');
-      const result = await port.write<{ kind?: string; reply?: string; question?: string | null; rest?: string; fallback?: boolean }>({ action: 'turn_classify', text: text.trim(), ...(question ? { question } : {}) });
+      const result = await port.write<{ kind?: string; reply?: string; question?: string | null; rest?: string; fallback?: boolean; again?: boolean; rejected?: boolean }>({ action: 'turn_classify', text: text.trim(), ...(question ? { question } : {}),
+        ...(opts.correction ? { correction: opts.correction } : {}), ...(opts.recordId ? { recordId: opts.recordId } : {}) });
       const kinds: TurnKind[] = ['answer', 'ask', 'meta', 'complaint', 'fatigue', 'unsure', 'correction'];
       if (typeof result.kind !== 'string' || !kinds.includes(result.kind as TurnKind)) throw new Error('INVALID_RESPONSE');
       const kind = result.kind as TurnKind;
       if (kind === 'ask' && (typeof result.reply !== 'string' || !result.reply.trim())) throw new Error('INVALID_RESPONSE');
       if (kind === 'meta' && (typeof result.question !== 'string' || !result.question.trim())) throw new Error('INVALID_RESPONSE');
       return { kind, ...(typeof result.reply === 'string' ? { reply: result.reply.trim() } : {}), ...(typeof result.question === 'string' ? { question: result.question.trim() } : {}),
-        ...(typeof result.rest === 'string' ? { rest: result.rest.trim() } : {}), ...(result.fallback === true ? { fallback: true } : {}) };
+        ...(typeof result.rest === 'string' ? { rest: result.rest.trim() } : {}), ...(result.fallback === true ? { fallback: true } : {}),
+        ...(result.again === true ? { again: true } : {}), ...(result.rejected === true ? { rejected: true } : {}) };
     },
     // v15 통합 이해 카드. 확인을 기다리는 카드가 있으면 서버는 그것을 돌려주고 다시 만들지 않는다.
     async synthesize(): Promise<CoreSynthesis> {

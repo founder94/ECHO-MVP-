@@ -14,7 +14,9 @@ import './asleep-connections.css';
 interface Preview {
   purpose: string | null;
   // v14.2(대표 2026-09-24): 자격 칸은 「다섯 가지 질문에 모두 답함」(answers). confirmed 는 맞다고 한 말 수(겹친 말 찾기용)로만 남는다.
-  readiness: { answers: number; answers_needed: number; confirmed: number; photos: number; photos_needed: number; intro: boolean; phone_verified: boolean };
+  // v15.1: answers = 연결 자격에 세는 "내용 있는 답" 수. turns = 이번 회차에 적은 답 수(대화 진행), uninformative = 그중 「모르겠어요」처럼 세지 않은 답 수.
+  //   예전 서버(v24 이하)는 turns·uninformative 를 보내지 않는다 → 없으면 answers 와 같다고 본다.
+  readiness: { answers: number; answers_needed: number; turns?: number; uninformative?: number; confirmed: number; photos: number; photos_needed: number; intro: boolean; phone_verified: boolean };
   eligible: boolean; waiting: number; candidates: number; common: string[]; note: string;
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; preview: Preview };
@@ -54,8 +56,12 @@ export default function AsleepConnections() {
 
 function Ready({ preview }: { preview: Preview }) {
   const r = preview.readiness;
+  const turns = r.turns ?? r.answers;
+  const skipped = r.uninformative ?? 0;
+  // v15.1 다섯 칸을 다 썼는데 내용 있는 답이 모자라면(「모르겠어요」 등) 이어서 답할 곳이 없다 → 「처음부터 다시 답하기」가 빠져나갈 문이다.
+  const turnsUsedUp = turns >= r.answers_needed && r.answers < r.answers_needed;
   const rows: { label: string; done: boolean; detail: string; to: string }[] = [
-    { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: '/doit/conversation' },
+    { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: turnsUsedUp ? '/doit/conversation?restart=1' : '/doit/conversation' },
     { label: '필수 사진(전신·패션·취미)', done: r.photos >= r.photos_needed, detail: `${Math.min(r.photos, r.photos_needed)} / ${r.photos_needed}`, to: '/doit/start-journey?edit=photos' },
     { label: '내 소개', done: r.intro, detail: r.intro ? '있음' : '아직', to: '/doit/start-journey?edit=profile' },
     { label: '전화 인증', done: r.phone_verified, detail: r.phone_verified ? '했음' : '아직', to: '/doit/verify?next=/doit/connections' },
@@ -65,10 +71,11 @@ function Ready({ preview }: { preview: Preview }) {
     '다섯 가지 질문': '질문에 이어서 답하기', '필수 사진(전신·패션·취미)': '사진 채우기', '내 소개': '소개 쓰기', '전화 인증': '전화 인증하기',
   };
   const firstLeft = rows.find(row => !row.done);
-  const next = firstLeft ? { to: firstLeft.to, action: ACTIONS[firstLeft.label] ?? firstLeft.label } : null;
+  const next = firstLeft ? { to: firstLeft.to, action: firstLeft === rows[0] && turnsUsedUp ? '처음부터 다시 답하기' : ACTIONS[firstLeft.label] ?? firstLeft.label } : null;
   return <>
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">{preview.purpose ? `원하는 만남 · ${preview.purpose}` : '원하는 만남을 아직 고르지 않았어요'}</p>
+      {skipped > 0 && <p className="doit-asleep-status">「모르겠어요」처럼 넘긴 답 {skipped}개는 연결 자격에 세지 않아요. 적은 말은 그대로 남아 있어요.{turnsUsedUp ? ' 처음부터 다시 답하면 채울 수 있어요.' : ''}</p>}
       <ul className="doit-asleep-check">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span><Link to={row.to}>{row.label}</Link><strong>{row.detail}</strong></li>)}</ul>
       <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. 겹치는 사람이 있으면 대표가 직접 확인한 뒤 위 「내 연결」에 보여 드려요.' : '위 네 가지를 다 채우면 연결을 받을 수 있어요. 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
     </div>

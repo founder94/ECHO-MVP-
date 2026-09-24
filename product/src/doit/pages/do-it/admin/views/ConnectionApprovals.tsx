@@ -13,7 +13,7 @@ type Load<T> = { kind: "loading" } | { kind: "error"; message: string } | { kind
 const MISSING_LABEL: Record<keyof AdminCandidates["missing"], string> = {
   purpose: "목적 없음",
   phone: "전화 인증 안 함",
-  answers: "다섯 가지 질문을 다 답하지 않음",
+  answers: "내용 있는 답이 다섯 개가 안 됨(「모르겠어요」 등은 세지 않음)",
   photos: "필수 사진 3장 미만",
   intro: "소개 없음",
 };

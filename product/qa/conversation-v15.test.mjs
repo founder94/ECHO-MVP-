@@ -122,7 +122,9 @@ function loadServer(ai, state) {
       const body = JSON.parse(init.body);
       const stage = stageOf(body.messages[0].content);
       payloads.push({ stage, user: body.messages[1].content });
-      const answer = ai[stage] ? ai[stage](JSON.parse(body.messages[1].content), payloads.filter((p) => p.stage === stage).length) : null;
+      // 답마다 이해 후보(gen) 경로는 JSON 이 아니라 글("기록:\n…")을 보낸다 — 읽지 못하면 글 그대로 넘긴다(전: 여기서 오류가 나 gen 가짜 답이 한 번도 쓰이지 않았다).
+      const userContent = (() => { try { return JSON.parse(body.messages[1].content); } catch { return body.messages[1].content; } })();
+      const answer = ai[stage] ? ai[stage](userContent, payloads.filter((p) => p.stage === stage).length) : null;
       if (answer === 'TIMEOUT') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
       return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(answer ?? {}) } }] }), { status: 200 });
     },
@@ -407,4 +409,251 @@ test('로그에 사용자 원문이 없다(분류·질문·카드 모든 경로)
   await srv.call({ action: 'synthesis_generate' });
   const logs = s.logs.join('\n');
   for (const t of [A, B, C, D, E, '같이 산책']) assert.ok(!logs.includes(t), `로그에 원문: ${t}`);
+});
+
+// ── v15.1 대표 결정 2 「대화 중 "그게 아니에요" 지속성」 · 결정 3 「고정 정정 안내문 조건」 [가짜 AI 기준] ──
+// X = 서버가 실제로 보낸 AI 받아 주기(해석). 사용자가 "그게 아니에요" → X 를 거절로 저장 → 새로고침·재진입 뒤에도 X 는 다시 나오지 않는다.
+const X = '밝은 에너지를 주는 사람이 좋으시군요.';
+const XQ = `${X}\n그런 사람이랑 만나면 같이 뭐 하고 싶어요?`;
+const Y = '에너지 말고 그냥 잘 웃는 게 좋다는 거예요';
+const mentionsX = (text) => /에너지를\s*주는|밝은\s*에너지/.test(String(text ?? ''));
+const rejectRows = (s) => s.events.filter((e) => e.action === 'followup_reject');
+// 가짜 AI: 첫 후보는 일부러 X 를 되살린다(나쁜 모델) → 서버가 막아야 한다. 두 번째 후보는 Y 에서 이어진다.
+const composeBadThenGood = (_p, n) => n === 1
+  ? candidate({ ack: X, basis: '잘 웃는', candidate_question: '밝은 에너지를 주는 사람과 뭐 하고 싶어요?', source_meaning: '밝은 에너지', keys: ['밝은 에너지'] })
+  : candidate({ ack: '잘 웃는 사람이 좋으시군요.', basis: '잘 웃는 게 좋다', candidate_question: '잘 웃는 사람과 만나면 뭐 하고 싶어요?', source_meaning: '잘 웃는 게 좋다', keys: ['잘 웃는'] });
+const semanticX = (p) => ({ blocked: (p.candidates ?? []).filter((c) => mentionsX(c.text)).map((c) => c.i) });
+function rejectedWorld() {
+  const s = world();
+  addAnswer(s, 1, '잘 웃는 사람', 10);
+  addAsked(s, 1, XQ, 11);
+  return s;
+}
+
+test('v15.1 A·E: "그게 아니에요" → 설명을 묻기 전에 X 를 거절로 저장(DB 변경 없이 이벤트 한 줄) · 사용자 원문은 그대로 · 다음 질문에 X 없음', async () => {
+  const s = rejectedWorld();
+  const recordsBefore = JSON.stringify(s.records);
+  const { call, payloads } = loadServer({ topic: topics(['purpose', 'partner_style']), judge: allow, semantic: semanticX, compose: composeBadThenGood }, s);
+  const c = await call({ action: 'turn_classify', text: '그게 아니에요', question: XQ, correction: X, recordId: rid(1) });
+  assert.equal(c.body.kind, 'correction');
+  assert.equal(c.body.rejected, true, '같은 응답 안에서 이미 저장됐다(설명 요청보다 먼저)');
+  assert.match(c.body.reply, /어떤 뜻이었는지 한 줄로/);
+  assert.equal(rejectRows(s).length, 1);
+  assert.equal(JSON.stringify(rejectRows(s)[0].response_payload), JSON.stringify({ rejected: X }), '거절한 AI 문장만 남는다(사용자 원문 0)');
+  assert.equal(JSON.stringify(s.records), recordsBefore, 'E: 사용자 원문(doit_records)은 바뀌지 않는다');
+  assert.equal(s.inserts.filter((i) => i.table === 'doit_records').length, 0, '"그게 아니에요"는 답으로 저장하지 않는다');
+  // 같은 거절을 한 번 더 보내도 한 줄(멱등)
+  await call({ action: 'turn_classify', text: '그게 아니에요', question: XQ, correction: X, recordId: rid(1) });
+  assert.equal(rejectRows(s).length, 1);
+  // A: 설명 Y 뒤 다음 질문 — 화면이 정정 대상을 함께 보낸 경우
+  addAnswer(s, 2, Y, 50);
+  const r = await call({ action: 'followup_generate', recordId: rid(2), correction: X });
+  assert.equal(r.status, 200);
+  assert.ok(!mentionsX(r.body.question.text), `X 재등장 금지: ${r.body.question.text}`);
+  assert.equal(r.body.strategy, 'ACKNOWLEDGE_CORRECTION');
+  assert.ok(composes(payloads)[0].rejected.includes(X), 'AI 자료에도 "거절한 해석"으로 들어간다');
+  assert.equal(JSON.stringify(s.records.slice(0, 1)), JSON.stringify(JSON.parse(recordsBefore)), 'E: 앞 답도 그대로');
+  assert.equal(s.records[1].text, Y, 'E: 설명 Y 는 Y 그대로');
+  assert.ok(!s.logs.some((l) => l.includes('에너지') || l.includes('잘 웃는')), '로그에 원문·거절 문장이 없다');
+});
+
+test('v15.1 B: 거절 → 새로고침(화면이 정정 대상을 잊음) → 다음 질문에 X 없음 · 서버가 저장분으로 정정 전략을 되살린다', async () => {
+  const s = rejectedWorld();
+  s.events.push({ user_id: USER, request_id: uuid(), action: 'followup_reject', status: 'applied', target_id: rid(1), created_at: at(12), response_payload: { rejected: X } });
+  addAnswer(s, 2, Y, 13);
+  const { call, payloads } = loadServer({ topic: topics(['purpose', 'partner_style']), judge: allow, semantic: semanticX, compose: composeBadThenGood }, s);
+  const r = await call({ action: 'followup_generate', recordId: rid(2) }); // correction 없음 = 새로고침 뒤
+  assert.equal(r.status, 200);
+  assert.ok(!mentionsX(r.body.question.text), r.body.question.text);
+  assert.equal(r.body.strategy, 'ACKNOWLEDGE_CORRECTION', '직전 답과 이번 답 사이의 거절 = 이번 답은 그 정정의 설명');
+  const first = composes(payloads)[0];
+  assert.ok(first.rejected.includes(X) && first.superseded.includes(X));
+});
+
+test('v15.1 C·D: 거절 → 앱 재진입 → 여러 턴 뒤·통합 카드에서도 X 없음 · 설명 Y 가 X 보다 앞선다', async () => {
+  const s = rejectedWorld();
+  s.events.push({ user_id: USER, request_id: uuid(), action: 'followup_reject', status: 'applied', target_id: rid(1), created_at: at(12), response_payload: { rejected: X } });
+  addAnswer(s, 2, Y, 13);
+  addAnswer(s, 3, '같이 산책하고 맛있는 거 먹고 싶어요', 15);
+  const later = loadServer({ topic: topics(['purpose', 'partner_style', 'together']), judge: allow, semantic: semanticX, compose: (_p, n) => n === 1
+    ? candidate({ ack: '밝은 에너지가 좋으시군요.', basis: '산책', candidate_question: '밝은 에너지를 주는 사람과 산책하면 어때요?', source_meaning: '산책', keys: ['밝은 에너지'] })
+    : candidate({ ack: '산책이 좋으시군요.', basis: '산책하고', candidate_question: '산책은 얼마나 자주 하고 싶어요?', source_meaning: '산책하고 맛있는 거', keys: ['산책'] }) }, s);
+  const r = await later.call({ action: 'followup_generate', recordId: rid(3) });
+  assert.ok(!mentionsX(r.body.question.text), `C: 여러 턴 뒤에도 X 없음: ${r.body.question.text}`);
+  assert.notEqual(r.body.strategy, 'ACKNOWLEDGE_CORRECTION', '정정은 그 다음 답에만 걸린다(이번 답은 새 이야기)');
+  assert.ok(composes(later.payloads)[0].rejected.includes(X), 'C: 거절은 계속 차단 목록에 있다');
+  addAnswer(s, 4, '천천히 알아가고 싶어요', 17);
+  addAnswer(s, 5, '주말에 한 번 정도요', 19);
+  const synth = loadServer({ semantic: semanticX, synthesis: (p) => {
+    assert.ok(p.rejected.includes(X), 'D: 카드 자료에 X 가 "아니라고 한 해석"으로 들어간다');
+    assert.ok(p.pairs.some((x) => x.a.includes('잘 웃는 게 좋다')), 'D: 설명 Y 는 카드 재료다');
+    return { items: [
+      { text: '밝은 에너지를 주는 사람을 원해요.', basis: '잘 웃는 게 좋다', source: 1, category: 'value' },
+      { text: '잘 웃는 사람이 좋아요.', basis: '잘 웃는 게 좋다', source: 1, category: 'value' },
+      { text: '산책하고 맛있는 걸 먹고 싶어요.', basis: '산책하고 맛있는 거 먹고 싶어요', source: 2, category: 'pattern' },
+    ] };
+  } }, s);
+  const g = await synth.call({ action: 'synthesis_generate' });
+  assert.equal(g.status, 200);
+  const texts = g.body.items.map((i) => i.text);
+  assert.ok(!texts.some(mentionsX), `D: 카드에 X 없음: ${texts.join(' / ')}`);
+  assert.ok(texts.includes('잘 웃는 사람이 좋아요.'), 'D: Y 에서 나온 항목은 남는다');
+});
+
+test('v15.1 결정 3: 정정 안내는 관계 질문으로 나가지 않고(후보가 안내문과 같으면 버림) · 이미 설명했으면 다시 묻지 않고 · 두 번째 "아니에요"면 되풀이하지 않고 넘어간다', async () => {
+  // ① AI 가 정정 안내문을 질문 후보로 내면 버리고 다시 만든다(고정 대체 문장으로 쓰지 않는다)
+  const s = world(); addAnswer(s, 1, '잘 웃는 사람', 1);
+  const one = loadServer({ topic: topics(['purpose', 'partner_style']), judge: allow, compose: (_p, n) => n === 1
+    ? candidate({ ack: '잘 웃는 사람이 좋으시군요.', basis: '잘 웃는', candidate_question: '어떤 뜻이었는지 한 줄로 알려 줄래요?', source_meaning: '잘 웃는' })
+    : candidate({ ack: '잘 웃는 사람이 좋으시군요.', basis: '잘 웃는', candidate_question: '잘 웃는 사람과 뭐 하고 싶어요?', source_meaning: '잘 웃는' }) }, s);
+  const q = await one.call({ action: 'followup_generate', recordId: rid(1) });
+  assert.ok(!/어떤 뜻이었는지/.test(q.body.question.text), q.body.question.text);
+  assert.equal(composes(one.payloads).length, 2, '안내문 후보는 떨어지고 다시 만든다');
+  assert.match(JSON.stringify(composes(one.payloads)[1].rejected_candidates), /화면 안내 문장/);
+  // ② 정정 내용을 이미 말했으면(설명 붙음) 안내를 보이지 않는다 — 거절은 그래도 먼저 저장
+  const s2 = rejectedWorld();
+  const two = loadServer({}, s2);
+  const withRest = await two.call({ action: 'turn_classify', text: '그게 아니라 잘 웃는 게 좋다는 거예요', question: XQ, correction: X, recordId: rid(1) });
+  assert.equal(withRest.body.kind, 'correction');
+  assert.equal(withRest.body.rest, '잘 웃는 게 좋다는 거예요');
+  assert.equal(withRest.body.reply, undefined, '설명을 다시 요구하지 않는다');
+  assert.equal(withRest.body.rejected, true);
+  // ③ 안내를 보인 뒤 또 "아니야"만 오면 같은 안내를 되풀이하지 않는다(설명 책임을 넘기지 않는다) · 안내문 자체는 거절로 저장하지 않는다
+  const again = await two.call({ action: 'turn_classify', text: '아니야', question: '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?', correction: '제가 잘못 짚었네요.', recordId: rid(1) });
+  assert.equal(again.body.kind, 'correction');
+  assert.equal(again.body.again, true);
+  assert.doesNotMatch(again.body.reply, /어떤 뜻이었는지/);
+  assert.equal(again.body.rejected, false, '안내문은 AI 해석이 아니다 → 거절로 저장하지 않는다');
+  assert.equal(rejectRows(s2).length, 1);
+  // ④ 이번 회차에 물은 적 없는 문장은 거절로 저장하지 않는다(화면이 임의 문장을 넣을 수 없다)
+  const s3 = rejectedWorld();
+  const three = loadServer({}, s3);
+  const forged = await three.call({ action: 'turn_classify', text: '그게 아니에요', question: XQ, correction: '지어낸 문장이에요.', recordId: rid(1) });
+  assert.equal(forged.body.rejected, false);
+  assert.equal(rejectRows(s3).length, 0);
+});
+
+// ── v15.1 대표 결정 5 「글자쌍 휴리스틱 공격 검사」 [가짜 AI 기준 · 경계값은 바꾸지 않았다] ──
+// 휴리스틱(restatesAnswers·not_anchored·반복 판정)은 [휴리스틱 / 추가 검증 필요]. 두 방향으로 공격하고, 못 막거나 잘못 막는 쪽은 todo 로 남겨 보이게 한다.
+// 답은 12자보다 길게 쓴다(짧은 답은 "새 갈래 + 받아 주는 첫 줄 필수" 규칙이 먼저 걸려 휴리스틱만 따로 볼 수 없다 — 처음 만든 검사가 그 규칙에 걸려 잘못 읽혔다).
+async function probe({ answer, asked, candidateQ, ack = '', basis = '', judge = allow }) {
+  const s = world();
+  addAnswer(s, 1, '진지하게 알아가고싶어', 1);
+  addAsked(s, 1, asked, 2);
+  addAnswer(s, 2, answer, 3);
+  const { call, payloads } = loadServer({ topic: topics(['purpose', 'partner_style']), judge, compose: () => candidate({ ack, basis, candidate_question: candidateQ, source_meaning: answer, keys: [] }) }, s);
+  const r = await call({ action: 'followup_generate', recordId: rid(2) });
+  const reasons = s.logs.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((l) => l?.stage === 'compose' && l.step === 'dropped').map((l) => l.reason);
+  return { out: r.body.question?.text ?? null, code: r.body.code ?? null, strategy: r.body.strategy ?? null, drops: composes(payloads).length, reasons };
+}
+const LONG = '잘 웃고 대화가 편한 사람이 좋아요';
+test('v15.1 휴리스틱 공격 ①-a: 이미 물은 질문과 같은 뜻·다른 표현 — 판정 AI 가 막으면 나가지 않는다(명시적 실패)', async () => {
+  const judge = (p) => ({ allowed: !/스타일/.test(p.question) });
+  const r = await probe({ answer: LONG, asked: '어떤 사람한테 끌려요?', candidateQ: '끌리는 사람은 어떤 스타일이에요?', judge });
+  assert.equal(r.out, null);
+  assert.equal(r.code, 'AI_ERROR');
+  assert.deepEqual(r.reasons, ['not_coherent', 'not_coherent', 'not_coherent'], '판정 AI 불허로 떨어졌다');
+});
+test('v15.1 휴리스틱 공격 ①-b [휴리스틱 / 추가 검증 필요]: 같은 뜻·다른 표현을 글자 휴리스틱만으로도 막는가(판정 AI 가 허용할 때)', { todo: '글자쌍 반복 판정은 "어떤 사람한테 끌려요?" ↔ "끌리는 사람은 어떤 스타일이에요?" 같은 바꿔 말하기를 못 잡는다 — 판정 AI(의미)에 의존한다. 실제 AI 에서 얼마나 새는지는 LEVEL 2 필요' }, async () => {
+  const r = await probe({ answer: LONG, asked: '어떤 사람한테 끌려요?', candidateQ: '끌리는 사람은 어떤 스타일이에요?' });
+  assert.equal(r.out, null, `휴리스틱만으로는 나간다: ${r.out}`);
+});
+test('v15.1 휴리스틱 공격 ②-a: 글자는 비슷해도 자연스럽게 한 걸음 나아간 질문은 통과한다(되묻기 오판 없음)', async () => {
+  for (const [answer, q] of [
+    ['말이 잘 통하는 사람이랑 만나고 싶어요', '말이 잘 통하는 사람이랑 같이 뭐 하고 싶어요?'],
+    ['조용한 카페에서 이야기하는 거 좋아해요', '조용한 카페라면 얼마나 자주 만나고 싶어요?'],
+    ['천천히 알아가는 게 좋아요 서두르지 않고', '천천히라면 처음엔 어떻게 만나고 싶어요?'],
+  ]) {
+    const r = await probe({ answer, asked: '어떤 사람한테 끌려요?', candidateQ: q });
+    assert.equal(r.strategy, 'EXPLORE_USER_MEANING', '12자 넘는 답 = 휴리스틱만 보는 경로');
+    assert.equal(r.out, q, `${answer} → ${q} (떨어진 이유: ${r.reasons.join(',')})`);
+  }
+});
+test('v15.1 휴리스틱 공격 ②-b [휴리스틱 / 추가 검증 필요]: 뜻으로는 이어지지만 글자 조각이 없고 받아 주는 첫 줄도 없는 질문', { todo: 'not_anchored(두 글자 조각) 는 "산책…" → "걷는 거 좋아하면 어디로 가고 싶어요?" 처럼 뜻만 이어진 질문을 판정 AI 가 허용해도 떨어뜨린다(첫 줄이 있으면 통과 — ②-c). 실제 AI 가 첫 줄 없이 이런 질문을 얼마나 내는지는 LEVEL 2 필요' }, async () => {
+  const r = await probe({ answer: '산책하는 걸 제일 좋아해요 요즘', asked: '만나면 같이 뭐 하고 싶어요?', candidateQ: '걷는 거 좋아하면 어디로 가고 싶어요?' });
+  assert.equal(r.out, '걷는 거 좋아하면 어디로 가고 싶어요?', `떨어진 이유: ${r.reasons.join(',')}`);
+});
+test('v15.1 휴리스틱 공격 ②-c: 같은 질문도 방금 답을 근거로 받아 주는 첫 줄이 있으면 통과한다(빠져나갈 문)', async () => {
+  const r = await probe({ answer: '산책하는 걸 제일 좋아해요 요즘', asked: '만나면 같이 뭐 하고 싶어요?', candidateQ: '걷는 거 좋아하면 어디로 가고 싶어요?', ack: '산책을 좋아하시는군요.', basis: '산책하는 걸' });
+  assert.equal(r.out, '산책을 좋아하시는군요.\n걷는 거 좋아하면 어디로 가고 싶어요?', `떨어진 이유: ${r.reasons.join(',')}`);
+});
+
+test('v15.1 B5: 대화 중 거절한 X 는 예전 앱 경로(답마다 이해 후보 insight_generate)에서도 후보로 나오지 않는다', async () => {
+  const s = rejectedWorld();
+  s.events.push({ user_id: USER, request_id: uuid(), action: 'followup_reject', status: 'applied', target_id: rid(1), created_at: at(12), response_payload: { rejected: X } });
+  addAnswer(s, 2, '밝게 잘 웃고 대화가 편한 사람이 좋아요', 13);
+  const { call, payloads } = loadServer({ topic: topics([]), judge: allow, semantic: semanticX,
+    gen: () => ({ candidates: [
+      { category: 'value', text: X, basis: '밝게 잘 웃고', meaning: '밝은 에너지', keys: ['밝게'] }, // 답에 있는 낱말(밝게)로 근거 검사는 통과 → 거절 차단만이 막는다
+      { category: 'value', text: '대화가 편한 사람을 중요하게 봐요.', basis: '대화가 편한 사람', meaning: '대화가 편한 사람', keys: ['대화가 편한'] },
+    ] }),
+    compose: () => candidate({ ack: '', candidate_question: '대화가 편한 사람과 뭐 하고 싶어요?', basis: '대화가 편한', source_meaning: '대화가 편한 사람' }) }, s);
+  const { status, body } = await call({ action: 'insight_generate', recordId: rid(2) });
+  assert.equal(status, 200);
+  assert.ok(payloads.some((p) => p.stage === 'gen'), '이해 후보를 실제로 만들었다');
+  assert.ok(!(body.insights ?? []).some((i) => mentionsX(i.text)), `X 가 후보로 나오면 안 된다: ${JSON.stringify((body.insights ?? []).map((i) => i.text))}`);
+  assert.ok(!s.insights.some((i) => mentionsX(i.text)), '저장된 후보에도 X 없음');
+});
+
+// ── v15.1 서버 본래 역할(Conversation State Machine) · 톤 고정 [가짜 AI 기준] ──
+test('v15.1 상태 관문: 이번 회차 답이 다섯 개면 서버가 더 묻지 않는다(AI·저장 RPC 호출 0) — 화면만 멈추던 것을 서버가 결정', async () => {
+  const s = world();
+  [A, '잘 웃는 사람이요 대화가 편한', '산책하고 맛있는 거 먹기', '천천히요', '주말에 한 번 정도요'].forEach((t, i) => addAnswer(s, i + 1, t, i * 2 + 1));
+  const { call, payloads } = loadServer({ topic: topics([]), judge: allow, compose: () => { throw new Error('다섯 칸 뒤에는 AI 를 부르면 안 된다'); } }, s);
+  for (const extra of [{}, { skip: true }]) {
+    const r = await call({ action: 'followup_generate', recordId: rid(5), ...extra });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.question, null);
+    assert.equal(r.body.finished, true);
+  }
+  assert.equal(payloads.length, 0, 'AI 호출 0');
+  assert.ok(!s.rpcCalls.some((c) => c.name === 'doit_begin_followup'), '다음 질문 자리도 만들지 않는다');
+  // 아니라고 한 기록은 칸에 세지 않는다 → 네 칸이면 계속 묻는다
+  const s2 = world();
+  [A, '잘 웃는 사람이요 대화가 편한', '산책하고 맛있는 거 먹기', '천천히요'].forEach((t, i) => addAnswer(s2, i + 1, t, i * 2 + 1));
+  s2.records.push({ id: rid(9), user_id: USER, text: '지운 답', status: 'rejected', created_at: at(9) });
+  const r2 = loadServer({ topic: topics(['purpose', 'partner_style', 'together']), judge: allow, compose: () => candidate({ ack: '천천히가 좋으시군요.', basis: '천천히', candidate_question: '처음엔 얼마나 자주 보고 싶어요?', source_meaning: '천천히' }) }, s2);
+  const q2 = await r2.call({ action: 'followup_generate', recordId: rid(4) });
+  assert.ok(q2.body.question?.text, '네 칸이면 계속 묻는다');
+});
+
+test('v15.1 톤 고정: "왜"를 연달아 묻지 않는다(직전 질문이 "왜"면 "왜" 후보는 떨어지고 가벼운 다른 물음으로)', async () => {
+  const s = world();
+  addAnswer(s, 1, '진지하게 알아가고싶어', 1);
+  addAsked(s, 1, '진지한 만남이 좋으시군요.\n왜 진지한 만남이 좋아요?', 2);
+  addAnswer(s, 2, '가볍게 만나는 건 지쳐서 그런 것 같아요', 3);
+  const { call, payloads } = loadServer({ topic: topics(['purpose']), judge: allow, compose: (_p, n) => n === 1
+    ? candidate({ ack: '', basis: '지쳐서', candidate_question: '왜 가볍게 만나는 게 지쳤어요?', source_meaning: '가볍게 만나는 건 지쳐서' })
+    : candidate({ ack: '', basis: '가볍게 만나는', candidate_question: '가볍게 말고 어떻게 만나고 싶어요?', source_meaning: '가볍게 만나는 건 지쳐서' }) }, s);
+  const r = await call({ action: 'followup_generate', recordId: rid(2) });
+  const whyReasons = s.logs.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((l) => l?.stage === 'compose' && l.step === 'dropped').map((l) => l.reason);
+  assert.equal(r.body.question?.text, '가볍게 말고 어떻게 만나고 싶어요?', `떨어진 이유: ${whyReasons.join(',')}`);
+  assert.match(JSON.stringify(composes(payloads)[1].rejected_candidates), /'왜'를 연달아/);
+  // 직전 질문에 "왜"가 없으면 "왜" 한 번은 막지 않는다(규칙은 "연속"만)
+  const s2 = world();
+  addAnswer(s2, 1, '진지하게 알아가고싶어', 1);
+  addAsked(s2, 1, '어떤 만남을 원하세요?', 2);
+  addAnswer(s2, 2, '가볍게 만나는 건 지쳐서 그런 것 같아요', 3);
+  // (답을 그대로 되묻는 "왜 가볍게 만나는 게 지쳤어요?"는 되묻기 검사가 따로 막는다 — 여기서는 되묻지 않는 "왜" 하나를 쓴다)
+  const two = loadServer({ topic: topics(['purpose']), judge: allow, compose: () => candidate({ ack: '', basis: '지쳐서', candidate_question: '왜 가벼운 만남은 지쳐요?', source_meaning: '가볍게 만나는 건 지쳐서' }) }, s2);
+  assert.equal((await two.call({ action: 'followup_generate', recordId: rid(2) })).body.question?.text, '왜 가벼운 만남은 지쳐요?');
+});
+
+test('v15.1 목적·톤 관문: 판정 AI 는 관계 목적·톤 기준과 사용자가 고른 목적을 함께 받고, 불허하면 나가지 않는다(판정은 뜻 판단 — 글자 규칙으로 대신하지 않음)', async () => {
+  const s = world();
+  addAnswer(s, 1, '편하게 대화가 되는 사람이요 말이 잘 통하는', 1);
+  let seen = null;
+  const judge = (p) => { seen = p; return { allowed: !/날씨/.test(p.question) }; };
+  const { call, payloads } = loadServer({ topic: topics(['purpose']), judge, compose: (_p, n) => n === 1
+    ? candidate({ ack: '', basis: '대화가 되는', candidate_question: '대화가 되는 날엔 날씨가 어때요?', source_meaning: '편하게 대화' })
+    : candidate({ ack: '', basis: '대화가 되는', candidate_question: '대화가 잘 되는 사람과 뭐 하고 싶어요?', source_meaning: '편하게 대화' }) }, s);
+  const r = await call({ action: 'followup_generate', recordId: rid(1) });
+  assert.equal(r.body.question.text, '대화가 잘 되는 사람과 뭐 하고 싶어요?');
+  assert.equal(seen.evidence.purpose?.label, '연애로 이어질 만남을 원해요', '판정 AI 가 사용자가 고른 목적을 받는다');
+  const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
+  const judgeSystem = src.slice(src.indexOf('const judgeSystem'), src.indexOf('const judgeOnce'));
+  for (const rule of ['목적 관문', '톤 관문', '여러 정보를 요구', '과거·상처·내면·이유', '면접·설문·심문·심리상담']) assert.ok(judgeSystem.includes(rule), `판정 기준에 「${rule}」`);
+  const style = src.slice(src.indexOf('const QUESTION_STYLE'), src.indexOf('const ACK_STYLE'));
+  for (const rule of ['가볍게·짧게·심플하게', '한 번에 하나만 묻는다', '단서 하나만', '한 단계만', "'왜'를 연달아", '가볍게 답하면 가볍게', '면접·설문·심문·심리상담']) assert.ok(style.includes(rule), `질문 말투 기준에 「${rule}」`);
+  assert.ok(payloads.filter((p) => p.stage === 'judge').length >= 2);
 });
