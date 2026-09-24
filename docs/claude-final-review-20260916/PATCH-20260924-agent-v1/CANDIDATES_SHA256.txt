@@ -1,0 +1,8 @@
+# Relationship Agent v1 + 홈페이지 배포 후보 (2026-09-24 · 로컬만 · 운영 배포 미승인 · 전달 안 함)
+doit-understanding/index.ts  113e3738cc48192c92e55db4741cb9e76d9de71e0612d7530db7ee21e07d430d  227,650바이트
+1_APP_여기에올릴것_doitmobile.zip (44차 후보)  a8a74422e066cd115294cd048efec948554b6d85895369287cdc8ba1038d5ba6  3,055,493바이트 · 149개
+2_BRAND_여기에올릴것_echo-mvp-doit.zip (44차 후보)  347598828978529c6bd6e66baac7ad838d81d4b05ff3128b904df1e9c2ef3bf0  2,953,793바이트 · 106개
+두 ZIP 모두 풀어서 빌드 폴더와 차이 0 · 소스맵 0 · .env 0 · 비밀키 모양 0 · 옛 요청 이름(turn_classify·followup_generate) 0
+doit-connect/index.ts  변경 없음 (9c2bac14… = 운영 버전 5)
+앞선 v16 후보(서버 6eaaaff6… · 앱 62daa374…)는 이 후보로 대체됨(둘 다 전달·배포 안 함)
+되돌리기: 서버 = ../PATCH-20260924-v16-conversation/rollback/doit-understanding.v26.ts (fd2e1eee… = 운영 버전 26) · 앱 Netlify 6ab50bb9… · 홈페이지 Netlify = 지금 운영 배포(36차)

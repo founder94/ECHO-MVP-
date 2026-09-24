@@ -268,7 +268,7 @@ test('v16 E: 「모르겠어요」 → 규칙이 unsure 로 정함 · 칸은 채
 // ── F. AI 에게 한 질문 ──
 test('v16 F: 「왜 그걸 물어봐?」 → 저장 0 · 칸 0 · 사실 안에서만 답 · 원래 질문은 그대로 · OpenAI 1번', async () => {
   const state = fresh();
-  const { call, calls } = loadServer(() => reply({ turn_type: 'ask', acknowledgement: '여기에 답한 말로 어떤 사람을 소개할지 정해요.' }), state);
+  const { call, calls } = loadServer(() => reply({ turn_type: 'ask', answer_to_user: '여기에 답한 말로 어떤 사람을 소개할지 정해요.' }), state);
   const r = await call({ action: 'turn', text: '왜 그걸 물어봐?', answeredQuestion: '어떤 사람이면 편해요?' });
   assert.equal(r.body.kind, 'ask');
   assert.equal(r.body.saved, false);
@@ -278,7 +278,7 @@ test('v16 F: 「왜 그걸 물어봐?」 → 저장 0 · 칸 0 · 사실 안에�
 });
 test('v16 F-2: AI 답이 규칙을 어기면(물음표) 사실 목록의 가장 가까운 한 줄로 바꾼다', async () => {
   const state = fresh();
-  const { call } = loadServer(() => reply({ turn_type: 'ask', acknowledgement: '궁금하셨죠?' }), state);
+  const { call } = loadServer(() => reply({ turn_type: 'ask', answer_to_user: '궁금하셨죠?' }), state);
   const r = await call({ action: 'turn', text: '왜 그걸 물어봐?', answeredQuestion: '어떤 사람이면 편해요?' });
   assert.equal(r.body.reply, '여기에 답한 말로 어떤 사람을 소개할지 정해요.');
 });
@@ -374,7 +374,7 @@ test('v16 처음부터 시작하기 뒤: 새 회차 기록만 칸·맥락으로 
   const { call, calls } = loadServer(() => reply({ interesting_clue: '편한친구', next_question: '편한 친구는 어떤 사람이에요?' }), state);
   await call({ action: 'turn', text: '그냥 편한친구 부담없이', answeredQuestion: FIRST });
   assert.equal(calls[0].input.answered_count, 0, '지난 회차 답은 이번 칸에 안 센다');
-  assert.deepEqual(calls[0].input.recent, [], '지난 회차 답은 맥락에 안 넣는다');
+  assert.deepEqual(calls[0].input.hot_memory, [], '지난 회차 답은 맥락에 안 넣는다');
   assert.equal(state.records.length, 2, '지난 원문 삭제 0');
 });
 test('v16 AI 가 두 번 다 형식을 못 지키면 → 저장 0 · 502 · 입력창 보존 문구 (메타가 답으로 올라가지 않는다)', async () => {
@@ -461,4 +461,46 @@ test('v16 화면↔서버: 「그냥 편한친구 부담없이」 → 「활동?
   assert.equal(c.text, '편한 친구랑은 주로 어디서 봐요?');
   assert.ok(sent.every((body) => body.action === 'turn'), '화면은 turn 한 가지 요청만 보낸다');
   assert.equal(state.records.length, 1, '문제제기·다른 질문 받기는 칸을 늘리지 않는다');
+});
+
+// ── Relationship Agent v1 (대표 FINAL LOCK 2026-09-24) ──
+test('Agent v1 HOT MEMORY: 전체 대화가 아니라 최근 3턴만 · 확정·정정·거절·이미 물음은 따로', async () => {
+  const records = [1, 2, 3, 4].map((i) => ({ id: uuid(), user_id: USER, text: `답 ${i}`, original_text: `답 ${i}`, status: 'confirmed', revision: 1, created_at: `2026-09-24T11:0${i}:00.000Z` }));
+  const state = fresh({ records });
+  const { call, calls } = loadServer(() => reply({ interesting_clue: '다섯', next_question: 'x?' }), state);
+  await call({ action: 'turn', text: '다섯 번째 답이에요', answeredQuestion: '다섯 번째 질문?' });
+  const input = calls[0].input;
+  assert.deepEqual(input.hot_memory.map((t) => t.a), ['답 2', '답 3', '답 4'], '최근 3턴만');
+  for (const k of ['confirmed', 'corrected', 'unconfirmed', 'rejected', 'superseded', 'already_asked', 'purpose']) assert.ok(k in input, k);
+  assert.ok(!('recent' in input) && !('records' in input), '전체 기록을 따로 넣지 않는다');
+});
+test('Agent v1 ANSWER FIRST: AI 에게 한 질문엔 answer_to_user 로 먼저 답한다(되묻기만 하지 않는다)', async () => {
+  const state = fresh();
+  const { call } = loadServer(() => reply({ turn_type: 'ask', answer_to_user: '질문은 다섯 가지뿐이고, 다 답하면 끝나요.', next_question: '' }), state);
+  const r = await call({ action: 'turn', text: '몇 개 더 해야 돼?', answeredQuestion: '어떤 사람이면 편해요?' });
+  assert.equal(r.body.reply, '질문은 다섯 가지뿐이고, 다 답하면 끝나요.');
+  assert.equal(r.body.saved, false);
+});
+test('Agent v1 기억 후보: 사실로 저장하지 않는다 · 원문 인용이 맞는 것만 세어 관측(원문은 로그에 없음) · 확신도 관측', async () => {
+  const state = fresh();
+  const { call } = loadServer(() => reply({ interesting_clue: '편한친구', next_question: '편한 친구는 어떤 사람이에요?', confidence: 0.9,
+    memory_candidates: [{ text: '부담 없는 관계를 원한다', quote: '부담없이' }, { text: '지어낸 사실', quote: '원문에 없는 말' }] }), state);
+  const r = await call({ action: 'turn', text: '그냥 편한친구 부담없이', answeredQuestion: FIRST });
+  assert.equal(r.body.saved, true);
+  assert.equal(state.insights.length, 0, '기억 후보는 이해(사실)로 저장되지 않는다');
+  assert.ok(!('memory_candidates' in r.body), '화면에 보내지 않는다');
+  const log = turnLogs(state)[0];
+  assert.equal(log.memory_candidates, 1);
+  assert.equal(log.memory_dropped, 1);
+  assert.equal(log.confidence, 0.9);
+  assert.equal(log.provider, 'openai');
+  assert.ok(!state.logs.some((l) => l.includes('부담 없는 관계') || l.includes('지어낸 사실')));
+});
+test('Agent v1 모델 어댑터: 한 턴 경로는 어댑터(generateRelationshipTurn)로만 모델을 부른다', () => {
+  const start = SOURCE.indexOf('// ── v16 Conversation Architecture');
+  const end = SOURCE.indexOf('Deno.serve(async (req: Request)');
+  const block = SOURCE.slice(start, end).replace(/^\s*\/\/.*$/gm, '');
+  assert.match(block, /interface RelationshipTurnAdapter \{ readonly provider: string; generateRelationshipTurn\(/);
+  assert.equal((block.match(/callOpenAI\(/g) ?? []).length, 1, 'OpenAI 호출은 OpenAI 어댑터 한 곳뿐');
+  assert.match(block, /await adapter\.generateRelationshipTurn\(V16_SYSTEM/);
 });

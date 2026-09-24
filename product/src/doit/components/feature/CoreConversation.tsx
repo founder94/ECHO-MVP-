@@ -125,6 +125,9 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   // v15 이 화면에서 방금 만든 기록. 저장된 질문이 있을 수 없으므로 복원 조회를 건너뛴다
   //   (조회가 늦게 끝나면 방금 받은 다음 질문을 지우는 경합이 있었다 — 가짜 서버 검사로 발견).
   const freshRecord = useRef<string | null>(null);
+  // Relationship Agent v1(대표 FINAL LOCK §11 「앱의 실패 자동 재요청으로 LLM 호출을 중복시키지 않는다」): 서버가 이미 한 번 다시 만들어 보고도
+  //   다음 질문을 못 만든 기록은 화면이 저절로 또 요청하지 않는다. 「다음 질문 받기」는 그대로 있다(사용자가 고른다).
+  const noAutoFor = useRef<string | null>(null);
   // v14.4 답마다 "그 답을 적을 때 떠 있던 질문"을 기억해 서버에 함께 보낸다(다음 질문이 직전 질문·답에서 이어지게).
   // 새로고침하면 사라지고, 그때는 서버가 저장된 질문 기록으로 짝을 찾는다.
   const answeredFor = useRef(new Map<string, string>());
@@ -214,7 +217,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const uninformativeCount = roundRecords.filter(r => !informativeAnswer(r.text)).length;
   const firstQuestion: CoreQuestion | null = loaded && !roundRecords.length && !question && !(initialMessage && !initialSent.current) ? { text: firstOverride ?? FIRST_QUESTION, sourceRecordId: '' } : null;
   // v13 자동 다음 질문: 저장된 질문 조회가 끝났고 보여 줄 질문이 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
-  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !editor && !pause && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
+  const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !editor && !pause && !question && loaded && !busy && activeId !== noAutoFor.current && savedLookupFor === `${activeId}|${questionContext}`
     ? savedLookupFor : null;
   // v16 「다음 질문 받기」 = 이 기록이 받은 질문을 함께 보낸다 · 「다른 질문 받기」(skip) = 지금 떠 있는 질문을 보내 서버가 같은 걸 다시 묻지 않게 한다.
   const requestNext = async (recordId: string, opts: { skip?: boolean } = {}) => {
@@ -322,6 +325,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       const record = result.record;
       if (shownBody) answeredFor.current.set(record.id, shownBody);
       freshRecord.current = record.id;
+      noAutoFor.current = result.question ? null : record.id;
       questionVersion.current += 1;
       setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); setFirstOverride(null);
       // 다음 질문 기능을 끈 빌드(VITE_ECHO_FOLLOWUP_ENABLED)면 받은 질문도 보이지 않는다.

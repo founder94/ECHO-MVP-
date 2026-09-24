@@ -39,7 +39,9 @@ test('휴대폰으로 넘어가기 — 휴대폰은 앱 버튼, 컴퓨터는 앱
 
 test('아직 없는 기능은 「준비 중」으로 표시하고, 쓰면 안 되는 단어가 없다', () => {
   const s = read(SECTIONS);
-  assert.match(s, /title: '얼굴보다 대화가 먼저'[^}]*soon: true/);
+  // 대표 FINAL LOCK 2026-09-24 두 번째 구역: 아직 완성되지 않은 3·4·5 단계는 「준비 중」.
+  for (const t of ['당신이 없는 동안 찾아봐요', '왜 이 사람인지 알려드려요', '실제 만남 결과로 더 알아가요']) assert.match(s, new RegExp(`title: '${t}'[^}]*soon: true`), t);
+  for (const t of ['말해보세요', 'ECHO가 기억해요']) assert.doesNotMatch(s, new RegExp(`title: '${t}'[^}]*soon: true`), `${t} 는 지금 되는 것`);
   assert.match(s, /title: '당신이 잠든 사이'[^}]*soon: true/);
   assert.match(s, /const SOON_LABEL = '준비 중';/);
   for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사', '찾기 시작해요']) assert.ok(!s.includes(word), word);
@@ -154,4 +156,30 @@ test('휴대폰에서 앱으로 갔다가 「뒤로」로 돌아와도 시작 �
   assert.match(landing, /window\.addEventListener\('pageshow', unlock\)/);
   assert.match(landing, /window\.removeEventListener\('pageshow', unlock\)/);
   assert.match(landing, /const unlock = \(\) => \{ navLock\.current = false; \};/);
+});
+
+// 대표 FINAL LOCK 2026-09-24 「RELATIONSHIP AGENT OS + PRODUCT EXPERIENCE」 · 대표 「기존디자인 유지하고 진행해」
+test('FINAL LOCK 히어로: 문구·버튼 글자만 바뀌고 자리·클래스(디자인)는 그대로', () => {
+  const hero = read('src/components/DoItBrandHero.tsx');
+  assert.match(hero, /<p className="doit-brand-line">찾아다니는 소개팅이 아니라,<br \/> 알아갈수록<br className="doit-brand-mobile-break" \/> 찾아오는 인연\.<\/p>/);
+  assert.match(hero, /onClick=\{start\}>ECHO와 시작하기 <svg/);
+  assert.match(hero, /<p className="doit-brand-status">ECHO와 가볍게 이야기해 보세요\.<br \/> 당신이 어떤 사람과 편한지 알아갈수록,<br \/> 더 알아보고 싶은 사람을 찾아갑니다\.<\/p>/);
+  for (const cls of ['doit-brand-badge', 'doit-brand-art', 'doit-brand-intro', 'doit-brand-invitation', 'doit-brand-start', 'doit-brand-bottom']) assert.match(hero, new RegExp(`className="${cls}"`), cls);
+  assert.match(hero, /JUST TRY\./);
+  // 「소개팅」은 화면 금지어다. 이 한 줄은 대표가 FINAL LOCK 에서 직접 정한 부정문(「…이 아니라」)이라 예외로 둔다 — 히어로의 다른 곳에는 없다.
+  const withoutLine = hero.replace('찾아다니는 소개팅이 아니라,', '');
+  for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사']) assert.ok(!withoutLine.includes(word), word);
+});
+test('FINAL LOCK 두 번째 구역·Trust·Just Try: 기술어 없이 사용자 말로, 기존 카드 디자인으로', () => {
+  const s = read(SECTIONS);
+  assert.match(s, /당신이 계속<br \/>찾아다니지 않아도 돼요\./);
+  for (const t of ['말해보세요', 'ECHO가 기억해요', '당신이 없는 동안 찾아봐요', '왜 이 사람인지 알려드려요', '실제 만남 결과로 더 알아가요']) assert.match(s, new RegExp(`title: '${t}'`), t);
+  for (const t of ['틀리면 고칠 수 있어요.', '아니라고 한 건 다시 단정하지 않아요.', '확인하지 않은 걸 당신의 사실로 만들지 않아요.', '필요 이상으로 당신의 이야기를 캐묻지 않아요.']) assert.ok(s.includes(`title: '${t}'`), t);
+  assert.match(s, /좋은 관계는<br \/>완벽한 선택보다<br \/>작은 시도에서 시작됩니다\./);
+  for (const word of ['State Machine', 'Correction Engine', 'Semantic', 'Information Status', 'LLM', 'Vector', 'Agent', '상태머신', '벡터']) assert.ok(!s.includes(word), word);
+  const landing = read('src/pages/do-it/landing/page.tsx');
+  assert.match(landing, /\{!IS_APP_SITE && <BrandTrust \/>\}/);
+  assert.match(landing, /\{!IS_APP_SITE && <BrandJustTry \/>\}/);
+  assert.ok(landing.indexOf('<BrandTrust />') > landing.indexOf('id="doit-stories"') && landing.indexOf('<BrandJustTry />') < landing.indexOf('<BrandMobileStart />'));
+  assert.ok(!/brand-sections\.css/.test(read('src/pages/do-it/landing/page.tsx')), '새 스타일 파일 없음');
 });

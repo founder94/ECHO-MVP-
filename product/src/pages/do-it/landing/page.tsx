@@ -5,7 +5,7 @@ import OriginalMusicCard from '@/pages/do-it/hero/components/OriginalMusicCard';
 import DoItBrandHero from '@/components/DoItBrandHero';
 import useEditorialMotion from './components/useEditorialMotion';
 import { IS_APP_SITE, IS_BRAND_SITE, appUrl } from '@/lib/siteRole';
-import { BrandAbout, BrandDifference, BrandGreeting, BrandMobileStart, DESKTOP_QUERY, MOBILE_START_LABEL } from '@/pages/do-it/landing/components/BrandSections';
+import { BrandAbout, BrandDifference, BrandGreeting, BrandJustTry, BrandMobileStart, BrandTrust, DESKTOP_QUERY, MOBILE_START_LABEL } from '@/pages/do-it/landing/components/BrandSections';
 
 const matches = (query: string) => {
   try { return typeof window.matchMedia === 'function' && window.matchMedia(query).matches; } catch { return false; }
@@ -275,6 +275,9 @@ export default function DoItLandingPage() {
         <OriginalMusicCard />
       </LandingSection>
       </div>
+      {/* 대표 FINAL LOCK 2026-09-24: 회사 홈페이지에서만 — 지키는 것(Trust) · 작은 시도(Just Try). 한 화면에 메시지 하나. */}
+      {!IS_APP_SITE && <BrandTrust />}
+      {!IS_APP_SITE && <BrandJustTry />}
       {/* 2026-09-23: 회사 홈페이지에서만 — 시작하는 법 + 휴대폰으로 넘어가기(휴대폰은 버튼, 컴퓨터는 QR). */}
       {!IS_APP_SITE && <BrandMobileStart />}
       {/* 2026-09-23: 회사 홈페이지에서만 — 회사 소개(바닥글 사업자 정보 바로 위). */}

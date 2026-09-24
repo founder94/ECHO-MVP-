@@ -763,3 +763,20 @@ test('v15.1 정정: 떠 있는 AI 문장·기록 번호를 함께 보내고, 두
   assert.doesNotMatch(h.content(), /어떤 뜻이었는지 한 줄로/, '정정 안내를 되풀이하지 않는다');
   assert.match(h.content(), /알겠어요\. 다른 걸 여쭤볼게요\./);
 });
+
+// Relationship Agent v1(대표 FINAL LOCK §11): 서버가 이미 다시 만들어 보고도 질문을 못 만들었으면 화면이 저절로 또 요청하지 않는다(LLM 호출 중복 금지).
+test('Agent v1: 답은 저장됐고 질문만 실패하면 자동 재요청 0 · 실패를 알리고 「다음 질문 받기」는 남는다', async () => {
+  const h = componentHarness({
+    turn: async () => saved('new', null, { questionError: '다음 질문을 아직 만들지 못했어요. 적은 답은 저장돼 있어요. 「다음 질문 받기」를 눌러 주세요.' }),
+    nextQuestion: async (id) => question(id, '다시 받은 질문이에요?'),
+  }, { props: { autoQuestion: true } });
+  await h.flush();
+  await h.send('그냥 편한친구 부담없이');
+  await h.flush();
+  assert.equal(h.calls.filter((c) => c.name === 'nextQuestion').length, 0, '자동 재요청 0');
+  assert.match(h.content(), /다음 질문을 아직 만들지 못했어요/);
+  h.click('다음 질문 받기 ');
+  await h.flush();
+  assert.equal(h.calls.filter((c) => c.name === 'nextQuestion').length, 1, '사용자가 누르면 한 번');
+  assert.deepEqual(h.questions(), ['다시 받은 질문이에요?']);
+});

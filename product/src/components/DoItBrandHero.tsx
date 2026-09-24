@@ -58,10 +58,11 @@ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }:
           <img src="/brand/doit-earth-original.png" alt="" aria-hidden="true" width="1536" height="864" fetchPriority="high" decoding="async" draggable="false" />
         </h1>
         <div className="doit-brand-intro">
-          <p className="doit-brand-line">사람은 프로필보다,<br /> 함께한 행동에서<br className="doit-brand-mobile-break" /> 더 많이 보이니까.</p>
+          {/* 대표 FINAL LOCK 2026-09-24 「RELATIONSHIP AGENT OS + PRODUCT EXPERIENCE」: 히어로 문구·버튼 글자만 바꾼다(자리·크기·색·움직임은 그대로 — 대표 "기존디자인 유지"). */}
+          <p className="doit-brand-line">찾아다니는 소개팅이 아니라,<br /> 알아갈수록<br className="doit-brand-mobile-break" /> 찾아오는 인연.</p>
           <div className="doit-brand-invitation">
-            <a className="doit-brand-start" href={IS_BRAND_SITE ? appUrl('/doit/start-journey') : '/doit/start-journey'} onClick={start}>지금 시작하기 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></a>
-            <p className="doit-brand-status">지금은 목적 선택과 프로필 준비까지.<br /> 사람 연결은 준비 중입니다.</p>
+            <a className="doit-brand-start" href={IS_BRAND_SITE ? appUrl('/doit/start-journey') : '/doit/start-journey'} onClick={start}>ECHO와 시작하기 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></a>
+            <p className="doit-brand-status">ECHO와 가볍게 이야기해 보세요.<br /> 당신이 어떤 사람과 편한지 알아갈수록,<br /> 더 알아보고 싶은 사람을 찾아갑니다.</p>
           </div>
         </div>
       </div>
