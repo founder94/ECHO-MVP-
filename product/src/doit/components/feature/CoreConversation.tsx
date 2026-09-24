@@ -399,8 +399,9 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     clearQuestions(); setEditor(null); setNotice('내 말로 바꿔 저장했어요.');
   });
 
-  // 처음부터 다시: 확인 창은 한 가지 모양만 쓴다(위·아래 버튼 둘 다 이것을 연다).
-  const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 다시"><p className="echo-context">지금까지 이야기는 그대로 남고, 첫 질문부터 새로 시작해요. 다섯 가지를 다시 답할 때까지는 새 연결 후보에서 잠시 빠져요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => void restart()}>처음부터 다시</button><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속 이어가기</button></div></div>;
+  // 처음부터 시작하기: 확인 창은 한 가지 모양만 쓴다(위·아래·끝 화면 버튼 모두 이것을 연다).
+  // v15.2(대표 2026-09-24): 한 번 더 묻는 짧은 확인 — 실수로 눌러도 대화가 끝나지 않는다. 지난 이야기는 지우지 않는다(새 회차만 시작).
+  const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={() => void restart()}>처음부터 시작할게요</button></div></div>;
 
   // v15 통합 이해 카드(명세 §9·§10): 네 버튼은 여기에만 있다.
   const itemBadge = (item: CoreInsight) => item.origin === 'self' ? '내가 직접 설명한 말' : item.status === 'corrected' ? '내가 고친 말' : item.status === 'confirmed' ? '맞다고 한 말' : item.status === 'rejected' ? '뺀 말' : null;
@@ -437,10 +438,11 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       <span className="echo-steps-bar" aria-hidden="true"><i style={{ width: `${(answered / ASK_TOTAL) * 100}%` }} /></span>
     </div>}
     {/* v14.3(대표 실기기 "처음부터 다시 하기도 없어"): 맨 아래에만 있어서 화면 위에서는 보이지 않았다. 위에도 둔다. */}
-    {/* 끝 화면에서는 아래 「처음부터 다시 답하기」 버튼이 같은 일을 하므로 위 버튼은 숨긴다(홈에서 ?restart=1 로 온 확인 창은 그대로 위에 뜬다). */}
-    {onRestart && ((roundRecords.length > 0 && !finished) || restartArmed === 'top') && (restartArmed === 'top'
+    {/* 끝 화면에서는 아래 「처음부터 시작하기」 버튼이 같은 일을 하므로 위 버튼은 숨긴다(홈에서 ?restart=1 로 온 확인 창은 그대로 위에 뜬다). */}
+    {/* v15.2(대표 2026-09-24 실기기 "다음 질문을 아직 만들지 못했어요"에서 막힘): 대화에 들어온 순간부터 — 첫 답 전·오류 상태 포함 — 늘 위에 둔다. */}
+    {onRestart && (!finished || restartArmed === 'top') && (restartArmed === 'top'
       ? restartConfirm
-      : <div className="echo-restart-top"><button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('top')}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 하기</button></div>)}
+      : <div className="echo-restart-top"><button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('top')}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button></div>)}
     <p className="echo-eyebrow">{finished ? '다 들었어요' : roundRecords.length ? '대화 중' : '만나기 전에'}</p>
     {finished
       ? <h1>다섯 가지, 다 들었어요.<br />{synth.phase === 'done' ? '이제 나를 보여 줄 차례예요.' : '이해한 내용을 확인해 주세요.'}</h1>
@@ -480,7 +482,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {finished && synth.phase === 'done' && !editor && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 다섯 가지 답을 모두 저장했어요.</p>
       <p className="echo-done-lead">다음은 나를 보여 줄 차례예요. 사진·소개·전화 인증까지 마치면 연결을 받을 수 있어요.</p>
-      {uninformativeCount > 0 && <p className="echo-context">「모르겠어요」처럼 넘긴 답 {uninformativeCount}개는 연결 자격에 세지 않아요. 떠오르면 「처음부터 다시 답하기」로 다시 답할 수 있어요.</p>}
+      {uninformativeCount > 0 && <p className="echo-context">「모르겠어요」처럼 넘긴 답 {uninformativeCount}개는 연결 자격에 세지 않아요. 떠오르면 「처음부터 시작하기」로 다시 답할 수 있어요.</p>}
       <ol className="echo-done-next">
         <li><b>사진 세 장</b>, <b>짧은 소개</b>, <b>전화 인증</b>이 남았어요. 연결 탭에서 무엇이 남았는지 볼 수 있어요.</li>
         <li>상대의 이름과 사진은 서로 첫 질문을 주고받은 뒤에 보여요.</li>
@@ -494,7 +496,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
         {/* 2026-09-24 대표 실기기 "처음부터 다시 하고 싶은 사람도 있어": 끝 화면에도 바로 보이는 버튼으로 둔다. */}
         {onRestart && (restartArmed === 'done'
           ? restartConfirm
-          : <button className="echo-secondary" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed('done')}>처음부터 다시 답하기</button>)}
+          : <button className="echo-secondary" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed('done')}>처음부터 시작하기</button>)}
       </div>
       <p className="echo-fine">지금까지 답은 지우지 않아요. 「지난번 이야기」에서 다시 볼 수 있어요.</p>
     </section>}
@@ -507,6 +509,6 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {remembered.length > 0 && <details className="echo-memory"><summary>내가 맞다고 한 말 {remembered.length}개</summary>{remembered.map(item => <div key={item.id}><span>{item.origin === 'self' ? '직접 설명' : item.status === 'corrected' ? '내가 고친 설명' : categoryNames[item.category] ?? '맞다고 한 말'}</span><p>{item.text}</p><button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setEditor({ insight: item, text: item.text })}>지금의 나에 맞게 고치기</button></div>)}</details>}
     <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">사진과 소개 채우기 <ChevronRight size={18} /></Link>}<Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{onRestart && (restartArmed === 'bottom'
       ? restartConfirm
-      : <button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('bottom')}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 시작하기</button>)}<p className="echo-fine">{finished ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시」를 눌러 주세요.' : `질문은 ${ASK_TOTAL}개뿐이에요.`}</p></footer>
+      : <button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('bottom')}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>)}<p className="echo-fine">{finished ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : `질문은 ${ASK_TOTAL}개뿐이에요.`}</p></footer>
   </section>;
 }

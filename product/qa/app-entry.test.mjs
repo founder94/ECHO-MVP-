@@ -24,16 +24,19 @@ test('v14.3 처음부터 다시 — 대화 화면 위쪽에도 있고, 누른 �
   const c = await read('src/doit/components/feature/CoreConversation.tsx');
   assert.match(c, /className="echo-restart-top"/);
   // 2026-09-24 "있는데 못 찾겠어": 작은 글씨 → 테두리 있는 알약 버튼 + 되돌리기 그림.
-  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('top'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 다시 하기</);
-  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('bottom'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 다시 시작하기</);
+  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('top'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 시작하기</);
+  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('bottom'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 시작하기</);
   assert.match(await read('src/doit/components/feature/core-conversation.css'), /\.echo-dialogue \.echo-restart-pill\{[^}]*border:1px solid/);
   // 확인 창은 한 모양. 지난 이야기는 지우지 않는다고 알린다.
   assert.equal((c.match(/const restartConfirm = /g) || []).length, 1);
-  assert.match(c, /지금까지 이야기는 그대로 남고, 첫 질문부터 새로 시작해요\./);
+  // v15.2(대표 2026-09-24): 짧은 두 번째 확인 — 「계속할게요」 / 「처음부터 시작할게요」. 지난 이야기는 지우지 않는다.
+  assert.match(c, /지금 대화를 여기서 끝내고 처음부터 다시 시작할까요\? 지난 이야기는 지우지 않아요\./);
+  assert.match(c, />계속할게요</);
+  assert.match(c, />처음부터 시작할게요</);
   // 기록이 없어도 앱 홈에서 들어온 확인 창은 보이고, 아래 버튼이 눌리지 않는 채로 굳지 않는다.
-  // 2026-09-24: 끝 화면에서는 위 버튼 대신 끝 화면 안 「처음부터 다시 답하기」가 같은 일을 한다(중복 버튼 제거).
-  assert.match(c, /\(\(roundRecords\.length > 0 && !finished\) \|\| restartArmed === 'top'\)/);
-  assert.match(c, /onClick=\{\(\) => setRestartArmed\('done'\)\}>처음부터 다시 답하기</);
+  // v15.2(대표 2026-09-24): 대화에 들어온 순간부터(첫 답 전·오류 상태 포함) 위 버튼이 있다. 끝 화면에서는 끝 화면 안 버튼이 같은 일을 한다.
+  assert.match(c, /\(!finished \|\| restartArmed === 'top'\)/);
+  assert.match(c, /onClick=\{\(\) => setRestartArmed\('done'\)\}>처음부터 시작하기</);
 });
 
 test('v14.3 앱 홈의 「처음부터 다시 시작하기」는 실제로 다시 시작하는 확인 창을 연다', async () => {

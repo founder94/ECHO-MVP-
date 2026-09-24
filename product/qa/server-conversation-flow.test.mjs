@@ -196,22 +196,71 @@ test('v14.4 다음 질문(새 갈래): 짧은 답 → CHANGE_DIRECTION. 첫 줄�
   assert.equal(body.question.text, '조용한 사람이 좋으시군요.\n그런 사람이랑 만나면 같이 뭐 하고 싶어요?');
 });
 
-test('v15 새 갈래라도 방금 답을 받아 주는 첫 줄이 없으면 나가지 않는다(근거 없는 첫 줄·첫 줄 없음) → 세 번 다 떨어지면 명시적 실패', async () => {
+test('v15.2 새 갈래인데 받아 주는 첫 줄(다리)을 두 번 못 만들면 새 주제로 넘어가지 않고 방금 답에 머문다 — 다리 없는 새 주제 질문은 여전히 안 나간다', async () => {
+  // v15.1 까지 이 검사는 "세 번 다 no_bridge → 명시적 실패"를 지켰다. 대표 실기기(2026-09-24 "그냥 편한친구 부담없이")에서
+  //   바로 그 동작 때문에 두 번째 질문부터 막혔다(운영 로그: 세 요청 × 세 후보 모두 no_bridge). 이제는 두 번째 no_bridge 뒤
+  //   전략을 EXPLORE_USER_MEANING(방금 답에 머묾)으로 바꿔 마지막 후보를 만든다. 다른 검사는 그대로 모두 거친다.
   const cases = [
-    // 전(v13.3~v14.3)에는 첫 줄만 떼고 이 질문이 그대로 나갔다 = 대표 실기기 P0("왜 갑자기 이걸 묻지?")
-    { ack: '차분한 분위기를 좋아하시는군요.', question: '어떤 사람한테 마음이 가요?', basis: '차분한 분위기', meaning: '', keys: ['성향'] },
-    { ack: '', link: '조용한 사람', question: '조용한 사람이랑 같이 뭐 하고 싶어요?', basis: '', meaning: '', keys: ['조용한 사람'] },
-    { ack: '좋아요.', link: '조용한 사람', question: '쉬는 날에는 주로 뭐 하세요?', basis: '', meaning: '', keys: ['휴일'] },
+    // 근거 없는 첫 줄 + 답과 무관한 질문: 머무는 전략에서도 판정 AI 가 불허하면 나가지 않는다(가짜 판정 = 이 질문 불허).
+    { answer: { ack: '차분한 분위기를 좋아하시는군요.', question: '어떤 사람한테 마음이 가요?', basis: '차분한 분위기', meaning: '', keys: ['성향'] }, judge: false, expect: 'fail' },
+    // 첫 줄 없음 + 방금 답에서 이어지는 질문: 새 주제로는 못 나가지만 방금 답에 머무는 질문으로는 나간다.
+    { answer: { ack: '', link: '조용한 사람', question: '조용한 사람이랑 같이 뭐 하고 싶어요?', basis: '', meaning: '', keys: ['조용한 사람'] }, judge: true, expect: 'stay' },
+    // 방금 답과 나눈 말이 없는 질문: 어떤 전략에서도 not_anchored 로 떨어진다.
+    { answer: { ack: '좋아요.', link: '조용한 사람', question: '쉬는 날에는 주로 뭐 하세요?', basis: '', meaning: '', keys: ['휴일'] }, judge: true, expect: 'fail' },
   ];
-  for (const answer of cases) {
+  for (const c of cases) {
     const state = baseState();
     let gens = 0;
-    const { call } = loadServer({ topic: () => ({ covered: ['partner_style'] }), followup: () => { gens++; return answer; }, judge: () => ({ allowed: true }) }, state);
+    const { call, payloads } = loadServer({ topic: () => ({ covered: ['partner_style'] }), followup: () => { gens++; return c.answer; }, judge: () => ({ allowed: c.judge }) }, state);
     const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
-    assertExplicitFailure(status, body, answer.question.includes('쉬는 날') || !answer.link ? null : 'no_bridge', state.logs);
-    assert.equal(gens, 3, '떨어진 이유를 알려 주고 세 번까지 다시 만든다');
-    assert.ok(!JSON.stringify(body).includes(answer.question), answer.question);
+    assert.equal(gens, 3, '떨어진 이유를 알려 주고 세 번까지 만든다');
+    const sent = payloads.filter((p) => p.stage === 'followup').map((p) => JSON.parse(p.user));
+    assert.equal(sent[0].strategy, 'CHANGE_DIRECTION');
+    assert.equal(sent[2].strategy, 'EXPLORE_USER_MEANING', '두 번째 no_bridge 뒤 방금 답에 머무는 전략으로 바꾼다');
+    assert.equal(sent[2].direction, null);
+    assert.ok(state.logs.some((l) => l.includes('"step":"bridge_fallback"')));
+    if (c.expect === 'fail') {
+      assertExplicitFailure(status, body, null, state.logs);
+      assert.ok(!JSON.stringify(body).includes(c.answer.question), c.answer.question);
+    } else {
+      assert.equal(status, 200);
+      assert.equal(body.strategy, 'EXPLORE_USER_MEANING');
+      assert.equal(body.topic, null, '새 주제로 넘어간 것처럼 표시하지 않는다');
+      assert.equal(body.question.text, c.answer.question);
+    }
   }
+});
+
+test('v15.2 TEST A 대표 실기기 실패 원문 "그냥 편한친구 부담없이": 첫 줄이 방금 답의 낱말을 담으면 basis 를 바꿔 말해도 지우지 않는다 → 첫 후보로 다음 질문이 나간다(가짜 AI 기준)', async () => {
+  // 운영(v15.1, 버전 25) 로그: 이 답(12자 → 새 갈래) 뒤 세 요청 × 세 후보가 모두 no_bridge 였다. 서버는 첫 줄의 근거를
+  //   basis 칸의 글자 인용으로만 봤고, basis 를 바꿔 말한 후보는 멀쩡한 첫 줄이 지워져 "첫 줄 없음"이 됐다.
+  //   가짜 AI 가 내는 모양은 그 경우를 흉내 낸 것이다(실제 운영 후보 문장은 로그에 남기지 않아 알 수 없다 — 원문·후보 미기록 원칙).
+  const state = baseState({ recordText: '그냥 편한친구 부담없이', records: [], purpose: { id: 'friend', label: '친구' } });
+  let gens = 0;
+  const { call } = loadServer({
+    topic: () => ({ covered: [] }),
+    followup: () => { gens++; return { ack: '편한 친구를 찾으시는군요.', question: '그런 친구랑은 주로 뭐 하고 싶어요?', basis: '편하고 부담 없는 친구', meaning: '', keys: ['편한 친구'], continuation_reason: '편한 친구를 원한다는 답에서 같이 할 것으로', source_meaning: '편한 친구, 부담 없는 관계' }; },
+    judge: () => ({ allowed: true }),
+  }, state);
+  const { status, body } = await call({ action: 'followup_generate', recordId: RECORD });
+  assert.equal(status, 200, JSON.stringify(body));
+  assert.equal(gens, 1, '사용자에게 다시 누르라고 맡기지 않고 첫 후보로 나간다');
+  assert.equal(body.strategy, 'CHANGE_DIRECTION');
+  assert.equal(body.question.text, '편한 친구를 찾으시는군요.\n그런 친구랑은 주로 뭐 하고 싶어요?');
+  assert.ok(!state.logs.some((l) => l.includes('"reason":"no_bridge"')));
+});
+
+test('v15.2 첫 줄을 버린 이유를 그대로 다음 후보 요청에 알려 준다(전에는 "첫 줄이 없었다"고만 해서 같은 실수를 되풀이했다)', async () => {
+  const state = baseState();
+  const { call, payloads } = loadServer({
+    topic: () => ({ covered: ['partner_style'] }),
+    followup: () => ({ ack: '차분한 분위기를 좋아하시는군요?', question: '그런 사람이랑 같이 뭐 하고 싶어요?', basis: '조용한 사람', meaning: '', keys: ['조용한 사람'] }),
+    judge: () => ({ allowed: true }),
+  }, state);
+  await call({ action: 'followup_generate', recordId: RECORD });
+  const second = JSON.parse(payloads.filter((p) => p.stage === 'followup')[1].user);
+  assert.match(second.rejected_candidates[0].why, /물음표/);
+  assert.ok(state.logs.some((l) => l.includes('"reason":"no_bridge"') && l.includes('"detail":"ack_question"')));
 });
 
 test('다음 질문(한 단계 더): 확인한 이해가 있으면 DEEPEN. 질문은 사용자 말과 이어져야 하고(핵심어 겹침), topic 은 없다', async () => {
