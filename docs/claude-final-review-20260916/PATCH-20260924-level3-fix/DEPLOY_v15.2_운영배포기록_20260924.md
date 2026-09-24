@@ -56,3 +56,18 @@
   - HTTP 200만으로 PASS 하지 않는다. 질문 품질이 이상하면 Conversation 품질 = FAIL.
   - 운영 기록에 `step:"bridge_fallback"` 이 찍힌 경우, 그 질문이 방금 답과 이어지는지 따로 본다.
 - Conversation P0 = **FAIL 유지**. 대표 LEVEL 3 통과 전에는 PASS 후보로 올리지 않는다.
+
+## 7. 앱 43차 운영 반영 확인 (2026-09-24 20:41 KST 무렵, 읽기 전용)
+- ZIP 다시 확인:
+  - SHA-256 `c1e666d5525f7fb274af1d0a19a981c165a919bd347d75ba210035a2618c9043` = `ZIP43_SHA256.txt` 확정값.
+  - .env 0, 소스맵 0, 비밀키 모양 문자열(sk-·service_role·OPENAI_API_KEY) 0.
+- Netlify 기록(`doitmobile` 사이트 하나만, 새 사이트 없음):
+  - 현재 배포 `6ab50bb9f2081f49c9e8baf1`. 수동 drop, ready, production.
+  - 게시 시각 2026-09-24T11:39:01Z (20:39 KST). ZIP을 전달한 11:30Z 무렵보다 뒤다.
+  - 기록 문구: "93 new files uploaded — 1 generated page and 92 assets changed". 이 배포가 42차 `6ab4f006…` 를 교체했다.
+- 내용 대조:
+  - 이 작업 환경에서는 `app.do-it.company` 와 netlify.app 접속이 막혀 있다(000). 그래서 글자 단위 대조는 못 했다.
+  - 대신 42차 ZIP과 43차 ZIP을 풀어 비교했다. 43차에만 있는 파일은 92개이고 이름은 같은데 내용이 다른 파일은 index.html 1개로, 합쳐 93개다. Netlify 기록의 "1 page + 92 assets = 93"과 정확히 맞는다.
+  - 다른 빌드였다면 이 숫자가 맞기 어렵다. 그래서 43차로 판단한다. 다만 **파일 내용을 직접 대조한 것은 아니다.**
+- 되돌릴 이전 배포는 `6ab4f006cbad731637fc32b8`(42차).
+- 운영 기록(11:30~11:41Z): 배포 뒤 doit-understanding 실제 사용자 요청 0건. 대표 실기기 검사는 아직 시작 전이다.
