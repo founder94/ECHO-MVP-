@@ -36,5 +36,15 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --max-turns 10
+            --max-turns 30
+            --allowedTools "Edit,Write,Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(zip:*),Bash(sha256sum:*),Bash(mkdir:*),Bash(cp:*),Bash(ls:*),Bash(find:*)"
             --append-system-prompt "ECHO rules: Before editing, inspect the actual repository state. Never modify or deploy DB, RLS, migrations, secrets, models, payment, pricing, production data, production Edge Functions, delete files, or delete test accounts without explicit representative approval. Do not claim PASS for tests not actually run. Report PASS, FAIL, below target, or unable to verify. LLMs generate candidates only; final product decisions belong to the server state machine. Do not introduce hardcoded question arrays."
+
+      - name: Upload deployment ZIP
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-webapp-deploy
+          path: /tmp/echo-deploy/*.zip
+          if-no-files-found: ignore
+          retention-days: 7
