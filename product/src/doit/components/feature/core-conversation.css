@@ -85,3 +85,47 @@
 .echo-dialogue .echo-synthesis-items button span{font-size:11px;color:#b9c3d2;text-decoration:underline;text-underline-offset:3px}
 .echo-dialogue .echo-pause{margin:20px 0;padding:20px;border:1px solid #c2cad12d;border-radius:16px;background:#14171c}
 .echo-dialogue .echo-pause .echo-reactions{margin-top:14px}
+/* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
+   우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
+   - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
+   - 색의 출처(추측 금지):
+     ① 바탕 그라데이션·가장자리 빛 = 대표가 보낸 「오늘 내 마음의 날씨는 어때?」 화면 캡처(2026-09-24)에서 잰 색.
+        그 화면의 파스텔은 코드 값이 아니라 바깥 서버(Readdy)의 배경 사진 색이다. 사진은 쓰지 않고(바깥 주소 0) 색만 옮겼다.
+     ② 빛 번짐 6개 = 옛 코드 PastelBlobs.tsx 의 색·크기·위치 그대로(움직임은 없음).
+     ③ 덮개 = 지금 대화 화면의 바탕색 #090a0c 를 반투명으로 덮는 손잡이(--echo-pastel-veil). 대표 결정(2026-09-24 「배경색 이 색이야 그대로 써」)으로 0 = 덮지 않음.
+        실측: 지금 글자색이 모두 기준 대비(작은 글씨 4.5:1)를 넘으려면 .86 이 필요하다 — 그러면 색이 어두운 올리브로 바뀐다.
+     ④ 그래서 배경 위에 바로 놓인 글자만 짙은 남색으로(대표 선택 2026-09-24 「D. 색 그대로 + 글자 남색」). #0c1526 = 옛 B 화면 주요 버튼의 글자색.
+        어두운 카드·버튼·입력창 안의 글자는 그대로. 글꼴·크기·굵기·문구·배치 변경 0.
+   - 움직임: 옛 코드의 float-bg(20초, 1% 이동) 하나만. 날씨 입자·마우스 추적 0. 움직임 줄이기면 멈춘다. */
+.echo-dialogue.echo-dialogue--pastel{--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
+.echo-dialogue.echo-dialogue--pastel::before,
+.echo-dialogue.echo-dialogue--pastel::after{content:"";position:fixed;inset:0;pointer-events:none}
+.echo-dialogue.echo-dialogue--pastel::before{
+  z-index:-2;
+  background:
+    radial-gradient(circle calc(28rem*.7071) at calc(-6% + 14rem) calc(-8% + 14rem),rgba(160,255,200,.15) 0%,rgba(160,255,200,.15) 18%,transparent 70%),
+    radial-gradient(circle calc(24rem*.7071) at calc(105% - 12rem) calc(15% + 12rem),rgba(160,220,255,.12) 0%,rgba(160,220,255,.12) 18%,transparent 70%),
+    radial-gradient(circle calc(30rem*.7071) at calc(10% + 15rem) calc(95% - 15rem),rgba(255,235,160,.10) 0%,rgba(255,235,160,.10) 18%,transparent 70%),
+    radial-gradient(circle calc(20rem*.7071) at calc(85% - 10rem) calc(45% + 10rem),rgba(255,180,180,.12) 0%,rgba(255,180,180,.12) 18%,transparent 70%),
+    radial-gradient(circle calc(26rem*.7071) at calc(104% - 13rem) calc(108% - 13rem),rgba(160,255,220,.10) 0%,rgba(160,255,220,.10) 18%,transparent 70%),
+    radial-gradient(circle calc(32rem*.7071) at calc(-8% + 16rem) calc(75% - 16rem),rgba(200,230,255,.08) 0%,rgba(200,230,255,.08) 18%,transparent 70%),
+    radial-gradient(ellipse 70% 45% at 0% 20%,#79ee9c 0%,transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 35%,#60cfd0 0%,transparent 70%),
+    radial-gradient(ellipse 60% 40% at 0% 75%,#d88a7b 0%,transparent 70%),
+    radial-gradient(ellipse 60% 35% at 100% 92%,#96774c 0%,transparent 70%),
+    linear-gradient(180deg,#6cdfbc 0%,#80ebac 20%,#88dfaa 35%,#cae2b3 50%,#e7eaa5 62%,#f2eeb6 72%,#e4da8f 82%,#c4a96c 100%);
+  animation:float-bg 20s ease-in-out infinite;
+}
+.echo-dialogue.echo-dialogue--pastel::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
+@media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel::before{animation:none}}
+/* ④ 배경 위 글자 = 남색. 어두운 바탕이 있는 카드·버튼·입력창 안(아래 :not 목록)은 제외한다. */
+.echo-dialogue.echo-dialogue--pastel{--echo-pastel-ink:#0c1526}
+.echo-dialogue.echo-dialogue--pastel :is(h1,.echo-eyebrow,.echo-lead,.echo-ack,.echo-topic,.echo-question,.echo-original>p,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-error,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li p,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.echo-memory p,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--echo-pastel-ink);-webkit-text-fill-color:var(--echo-pastel-ink)}
+.echo-dialogue.echo-dialogue--pastel h1{background-image:none;animation:none}
+/* ⑤ 2026-09-25 목적 선택 카드 4개 = 반투명 어두운 유리 (대표 「CARD TRANSPARENCY PATCH」). 파스텔 대화 화면 안의 이 카드에만.
+   전: 배경 #171a20 · 선택 #22262e (불투명) · 테두리 rgba(195,204,218,.22) · 선택 테두리 #ffffff9c · 흐림 없음 · 설명 글자 #9ba2ae.
+   후: 같은 색을 투명도 .65 로(글자 대비 4.5:1 을 모든 카드·360/390/430·선택 전후에서 넘는 가장 옅은 값, 실측) · 흐림 10px(옛 B 카드 값) ·
+       테두리 white/14(옛 B 칩 값) · 선택 테두리는 그대로 · 설명 글자는 제목과 같은 밝기(#dbe0e7)로만 올림(대비 부족 보정). 크기·자리·글꼴·문구 0. */
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{background:rgb(23 26 32/.65);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-color:rgb(255 255 255/.14)}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{background:rgb(34 38 46/.65);border-color:#ffffff9c}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile-desc{color:#dbe0e7}

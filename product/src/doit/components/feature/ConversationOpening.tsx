@@ -59,7 +59,7 @@ export default function ConversationOpening({ userId, onDone }: Props) {
     }
   };
 
-  return <section className="echo-dialogue echo-opening" aria-busy={saving}>
+  return <section className="echo-dialogue echo-dialogue--pastel echo-opening" aria-busy={saving}>
     <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span></header>
     <p className="echo-eyebrow">첫 질문</p>
     <h1>어떤 만남을<br />원하세요?</h1>

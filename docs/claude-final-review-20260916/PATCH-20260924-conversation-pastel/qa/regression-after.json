@@ -1,0 +1,302 @@
+[
+ {
+  "name": "360 카드 선택",
+  "ok": true,
+  "detail": "aria-checked=true"
+ },
+ {
+  "name": "360 선택 바꾸기",
+  "ok": true,
+  "detail": "첫 카드 false · 셋째 true · rgba(23, 26, 32, 0.65) blur(10px)"
+ },
+ {
+  "name": "360 다음 진행(목적 저장 → 대화)",
+  "ok": true,
+  "detail": "profile_patch:null,profile_patch:hobby"
+ },
+ {
+  "name": "360 오류 0(목적)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 입력·전송·로딩 보임",
+  "ok": true,
+  "detail": "loading=true"
+ },
+ {
+  "name": "360 다음 질문 표시",
+  "ok": true,
+  "detail": "다음 질문 7번이에요?"
+ },
+ {
+  "name": "360 오류 0(전송)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 오류 문장 그대로",
+  "ok": true,
+  "detail": "다음 질문을 아직 만들지 못했어요. 적은 답은 저장돼 있어요. 「다음 질"
+ },
+ {
+  "name": "360 다음 질문 받기(재시도)",
+  "ok": true,
+  "detail": "다음 질문 10번이에요?"
+ },
+ {
+  "name": "360 오류 0(재시도)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 이 말은 답으로 남길게요",
+  "ok": true,
+  "detail": "turn,turn+asAnswer"
+ },
+ {
+  "name": "360 정정·거절 안내 표시",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 정정 뒤 다음 답에 정정 표시 전달",
+  "ok": true,
+  "detail": "turn,turn+asAnswer,turn,turn+pendingCorrection"
+ },
+ {
+  "name": "360 오류 0(정정)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 처음부터 시작하기",
+  "ok": true,
+  "detail": "profile_patch:null,auth_update,profile_patch:null,profile_patch:null"
+ },
+ {
+  "name": "360 오류 0(처음부터)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 키보드 흉내(높이 420): 입력칸 보임",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 가로 넘침 0",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "360 뒤로(홈 → 대화 → 뒤로)",
+  "ok": true,
+  "detail": "http://127.0.0.1:4707/doit/home"
+ },
+ {
+  "name": "360 오류 0(뒤로)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 카드 선택",
+  "ok": true,
+  "detail": "aria-checked=true"
+ },
+ {
+  "name": "390 선택 바꾸기",
+  "ok": true,
+  "detail": "첫 카드 false · 셋째 true · rgba(23, 26, 32, 0.65) blur(10px)"
+ },
+ {
+  "name": "390 다음 진행(목적 저장 → 대화)",
+  "ok": true,
+  "detail": "profile_patch:null,profile_patch:hobby"
+ },
+ {
+  "name": "390 오류 0(목적)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 입력·전송·로딩 보임",
+  "ok": true,
+  "detail": "loading=true"
+ },
+ {
+  "name": "390 다음 질문 표시",
+  "ok": true,
+  "detail": "다음 질문 7번이에요?"
+ },
+ {
+  "name": "390 오류 0(전송)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 오류 문장 그대로",
+  "ok": true,
+  "detail": "다음 질문을 아직 만들지 못했어요. 적은 답은 저장돼 있어요. 「다음 질"
+ },
+ {
+  "name": "390 다음 질문 받기(재시도)",
+  "ok": true,
+  "detail": "다음 질문 10번이에요?"
+ },
+ {
+  "name": "390 오류 0(재시도)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 이 말은 답으로 남길게요",
+  "ok": true,
+  "detail": "turn,turn+asAnswer"
+ },
+ {
+  "name": "390 정정·거절 안내 표시",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 정정 뒤 다음 답에 정정 표시 전달",
+  "ok": true,
+  "detail": "turn,turn+asAnswer,turn,turn+pendingCorrection"
+ },
+ {
+  "name": "390 오류 0(정정)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 처음부터 시작하기",
+  "ok": true,
+  "detail": "profile_patch:null,auth_update,profile_patch:null,profile_patch:null"
+ },
+ {
+  "name": "390 오류 0(처음부터)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 키보드 흉내(높이 420): 입력칸 보임",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 가로 넘침 0",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 뒤로(홈 → 대화 → 뒤로)",
+  "ok": true,
+  "detail": "http://127.0.0.1:4707/doit/home"
+ },
+ {
+  "name": "390 오류 0(뒤로)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 카드 선택",
+  "ok": true,
+  "detail": "aria-checked=true"
+ },
+ {
+  "name": "430 선택 바꾸기",
+  "ok": true,
+  "detail": "첫 카드 false · 셋째 true · rgba(23, 26, 32, 0.65) blur(10px)"
+ },
+ {
+  "name": "430 다음 진행(목적 저장 → 대화)",
+  "ok": true,
+  "detail": "profile_patch:null,profile_patch:hobby"
+ },
+ {
+  "name": "430 오류 0(목적)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 입력·전송·로딩 보임",
+  "ok": true,
+  "detail": "loading=true"
+ },
+ {
+  "name": "430 다음 질문 표시",
+  "ok": true,
+  "detail": "다음 질문 7번이에요?"
+ },
+ {
+  "name": "430 오류 0(전송)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 오류 문장 그대로",
+  "ok": true,
+  "detail": "다음 질문을 아직 만들지 못했어요. 적은 답은 저장돼 있어요. 「다음 질"
+ },
+ {
+  "name": "430 다음 질문 받기(재시도)",
+  "ok": true,
+  "detail": "다음 질문 10번이에요?"
+ },
+ {
+  "name": "430 오류 0(재시도)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 이 말은 답으로 남길게요",
+  "ok": true,
+  "detail": "turn,turn+asAnswer"
+ },
+ {
+  "name": "430 정정·거절 안내 표시",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 정정 뒤 다음 답에 정정 표시 전달",
+  "ok": true,
+  "detail": "turn,turn+asAnswer,turn,turn+pendingCorrection"
+ },
+ {
+  "name": "430 오류 0(정정)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 처음부터 시작하기",
+  "ok": true,
+  "detail": "profile_patch:null,auth_update,profile_patch:null,profile_patch:null"
+ },
+ {
+  "name": "430 오류 0(처음부터)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 키보드 흉내(높이 420): 입력칸 보임",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 가로 넘침 0",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "430 뒤로(홈 → 대화 → 뒤로)",
+  "ok": true,
+  "detail": "http://127.0.0.1:4707/doit/home"
+ },
+ {
+  "name": "430 오류 0(뒤로)",
+  "ok": true,
+  "detail": ""
+ }
+]

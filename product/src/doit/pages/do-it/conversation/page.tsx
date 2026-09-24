@@ -45,12 +45,12 @@ export default function ConversationPage() {
     return () => { current = false; };
   }, [userId]);
 
-  if (loading) return <div className="echo-dialogue echo-dialogue--waiting"><SymbolLoader size={132} label="로그인했는지 확인하고 있어요." /></div>;
-  if (!user) return <section className="echo-dialogue"><p className="echo-eyebrow">내 이야기</p><h1>다음에 와도,<br />이야기가 이어지도록.</h1><p className="echo-lead">로그인하면 적은 이야기가 내 계정에 남아요. 다음에 와서 이어서 하면 돼요.</p><Link className="echo-primary" to="/login" state={{ from: `/doit/conversation${search.get('from') === 'journey' ? '?from=journey' : ''}` }}>로그인하고 이야기하기</Link><Link className="echo-secondary" to="/doit/start-journey">내 프로필 준비하기</Link></section>;
+  if (loading) return <div className="echo-dialogue echo-dialogue--pastel echo-dialogue--waiting"><SymbolLoader size={132} label="로그인했는지 확인하고 있어요." /></div>;
+  if (!user) return <section className="echo-dialogue echo-dialogue--pastel"><p className="echo-eyebrow">내 이야기</p><h1>다음에 와도,<br />이야기가 이어지도록.</h1><p className="echo-lead">로그인하면 적은 이야기가 내 계정에 남아요. 다음에 와서 이어서 하면 돼요.</p><Link className="echo-primary" to="/login" state={{ from: `/doit/conversation${search.get('from') === 'journey' ? '?from=journey' : ''}` }}>로그인하고 이야기하기</Link><Link className="echo-secondary" to="/doit/start-journey">내 프로필 준비하기</Link></section>;
 
   const onContinue = () => navigate('/doit/start-journey?edit=profile');
   if (!A_STRUCTURE_SERVER_ENABLED) return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} />;
-  if (purposeState.kind === 'loading') return <div className="echo-dialogue echo-dialogue--waiting"><SymbolLoader size={132} label="지난번에 고른 만남을 가져오고 있어요." /></div>;
+  if (purposeState.kind === 'loading') return <div className="echo-dialogue echo-dialogue--pastel echo-dialogue--waiting"><SymbolLoader size={132} label="지난번에 고른 만남을 가져오고 있어요." /></div>;
   if (purposeState.kind === 'ready' && purposeState.purpose === null) {
     return <ConversationOpening key={user.id} userId={user.id} onDone={(purpose, line) => { setRestartPrompt(false); setOpeningLine(line); setPurposeState({ kind: 'ready', purpose }); }} />;
   }
