@@ -3,19 +3,21 @@ export interface CoreRecord { id: string; text: string; original_text: string; s
 export interface CoreInsight { id: string; text: string; ai_text?: string; category: string; status: string; origin: string; source_record_id: string; revision: number; created_at: string }
 // v13.5 strategy: 서버가 정한 다음 질문 전략 이름(화면은 표시하지 않고 보관만 한다. 없으면 예전 서버).
 export interface CoreQuestion { text: string; sourceRecordId: string; topic?: string | null; strategy?: string | null }
-// v13: 되묻기 응답. meta=false 면 되묻기가 아니므로 화면은 보통 이야기로 저장한다.
-// v14.4: kind "ask" = 사용자가 AI 에게 한 질문. 서버가 먼저 답(reply)하고 같은 질문(question)을 다시 건넨다. 기록을 만들지 않는다.
-export type CoreRephrase = { meta: false } | { meta: true; kind: 'rephrase' | 'ask'; question: string; reply?: string; fallback: boolean };
 // v14.4: 질문 본문(받아 주는 첫 줄 제외). 서버 questionBody 와 같은 규칙 — 저장 형식 "ack\n질문".
 export function questionBodyOf(text: string): string {
   const parts = text.trim().split('\n');
   return (parts.length > 1 ? parts.slice(1).join(' ') : parts[0] ?? '').trim();
 }
-// v15: 한 턴 분류(서버 turn_classify). 관계에 대한 답인지(answer·unsure·설명 붙은 correction), 대화 방식에 대한 말인지.
-//   ask = reply(먼저 답) + question(같은 질문) · meta = question(더 쉬운 말) · complaint·fatigue·설명 없는 correction = reply(상태 안내).
+// v15·v16 말의 종류. answer·unsure·설명 붙은 correction 만 답으로 저장된다(서버가 분류를 끝낸 뒤).
 export type TurnKind = 'answer' | 'ask' | 'meta' | 'complaint' | 'fatigue' | 'unsure' | 'correction';
-// v15.1 again = 정정 안내를 이미 보였는데 또 설명 없는 "아니에요"(되풀이하지 않고 넘어간다) · rejected = 거절한 AI 문장이 서버에 저장됐는지.
-export interface CoreTurn { kind: TurnKind; reply?: string; question?: string | null; rest?: string; fallback?: boolean; again?: boolean; rejected?: boolean }
+// v16 한 턴(서버 action "turn") 결과. 서버가 저장 여부·다음 질문을 정한다. 이 파일은 질문을 만들지 않는다.
+//   saved = 답으로 저장됨(record) · question = 다음 질문(없으면 null) · reply = 짧은 안내(AI 에게 한 질문의 답·정정 안내·쉬어 가기)
+//   pause = 지친 말 · finished = 이번 회차 다섯 칸이 찼다 · questionError = 답은 저장됐지만 다음 질문을 못 만들었다(「다음 질문 받기」로 다시)
+export interface CoreTurnResult { kind: TurnKind; saved: boolean; record: CoreRecord | null; question: CoreQuestion | null; reply?: string; pause?: boolean; finished?: boolean; again?: boolean; rejected?: boolean; questionError?: string }
+// text = 사용자가 적은 말 · recordId = 지금 이어 가는 기록(「다음 질문 받기」·「다른 질문 받기」의 기준) · asAnswer = 「이 말은 답으로 남길게요」(사용자 선택)
+// correction = 지금 떠 있는 AI 문장("그게 아니에요"면 서버가 거절로 저장) · pendingCorrection = 앞에서 아니라고 한 AI 문장(다음 답의 정정 전 문장)
+export interface CoreTurnInput { text?: string; answeredQuestion?: string | null; recordId?: string | null; skip?: boolean; asAnswer?: boolean; correction?: string | null; pendingCorrection?: string | null }
+const TURN_KINDS: TurnKind[] = ['answer', 'ask', 'meta', 'complaint', 'fatigue', 'unsure', 'correction'];
 // v15: 다섯 답 뒤 통합 이해 카드. items = 확인을 기다리는 AI 항목(서버가 저장한 후보). done = 이번 회차 카드를 이미 다 정함.
 export interface CoreSynthesis { items: CoreInsight[]; done: boolean; empty: boolean }
 // v13: 확인한 말로만 만든 소개 초안. 서버가 저장하지 않으며 화면에서 '이 초안 쓰기'로 프로필에 넣는다.
@@ -34,7 +36,28 @@ function validQuestion(question: CoreQuestion | null | undefined, recordId: stri
   return !!question && typeof question.text === 'string' && !!question.text.trim() && question.sourceRecordId === recordId;
 }
 export function createCoreConversation(port: CorePort) {
+  // v16 한 턴. 새 앱은 말하기·다음 질문 받기·다른 질문 받기를 모두 이것으로 한다(서버가 분류·저장·질문을 한 번에).
+  const turn = async (input: CoreTurnInput): Promise<CoreTurnResult> => {
+    const raw = input.text ?? '';
+    const text = raw.trim();
+    if ((!text && !input.recordId) || raw.length > 2000) throw new Error('INVALID_INPUT');
+    const result = await port.write<{ kind?: string; saved?: boolean; record?: CoreRecord | null; question?: CoreQuestion | null; reply?: string; pause?: boolean; finished?: boolean; again?: boolean; rejected?: boolean; questionError?: string }>({
+      action: 'turn', ...(text ? { text, originalText: raw } : {}), ...(input.answeredQuestion ? { answeredQuestion: questionBodyOf(input.answeredQuestion) } : {}),
+      ...(input.recordId ? { recordId: input.recordId } : {}), ...(input.skip ? { skip: true } : {}), ...(input.asAnswer ? { asAnswer: true } : {}),
+      ...(input.correction ? { correction: input.correction } : {}), ...(input.pendingCorrection ? { pendingCorrection: input.pendingCorrection } : {}),
+    });
+    if (typeof result.kind !== 'string' || !TURN_KINDS.includes(result.kind as TurnKind) || typeof result.saved !== 'boolean') throw new Error('INVALID_RESPONSE');
+    const record = result.saved ? result.record ?? null : null;
+    if (result.saved && !(record && typeof record.id === 'string' && !!record.id && typeof record.text === 'string' && Number.isInteger(record.revision))) throw new Error('INVALID_RESPONSE');
+    const question = result.question ?? null;
+    if (question && (typeof question.text !== 'string' || !question.text.trim() || typeof question.sourceRecordId !== 'string')) throw new Error('INVALID_RESPONSE');
+    if (question && record && question.sourceRecordId !== record.id) throw new Error('INVALID_RESPONSE');
+    return { kind: result.kind as TurnKind, saved: result.saved, record, question,
+      ...(typeof result.reply === 'string' ? { reply: result.reply.trim() } : {}), ...(result.pause === true ? { pause: true } : {}), ...(result.finished === true ? { finished: true } : {}),
+      ...(result.again === true ? { again: true } : {}), ...(result.rejected === true ? { rejected: true } : {}), ...(typeof result.questionError === 'string' ? { questionError: result.questionError } : {}) };
+  };
   return {
+    turn,
     async load() {
       const [r, i] = await Promise.all([
         port.read<{ records: CoreRecord[] }>({ action: 'record_list' }),
@@ -72,49 +95,17 @@ export function createCoreConversation(port: CorePort) {
       if (!validInsight(result.insight) || result.insight.source_record_id !== recordId || result.insight.origin !== 'self') throw new Error('INVALID_RESPONSE');
       return result.insight;
     },
-    // v15 opts.skip = 「다른 질문 받기」·불만 뒤 같은 답에서 새 질문 · opts.correction = 사용자가 "그 뜻 아니야"라고 한 AI 문장(정정 전 문장으로 쓰지 않게).
-    async nextQuestion(recordId: string, answeredQuestion?: string | null, opts: { skip?: boolean; correction?: string | null } = {}) {
-      const result = await port.write<{ question: CoreQuestion; topic?: string | null; strategy?: string | null }>({ action: 'followup_generate', recordId, ...(answeredQuestion ? { answeredQuestion: questionBodyOf(answeredQuestion) } : {}), ...(opts.skip ? { skip: true } : {}), ...(opts.correction ? { correction: opts.correction } : {}) });
+    // v16 「다음 질문 받기」(skip 없음 · 저장된 질문이 있으면 서버가 그것을 돌려준다) · 「다른 질문 받기」(skip). 둘 다 한 턴(turn)으로 보낸다.
+    async nextQuestion(recordId: string, answeredQuestion?: string | null, opts: { skip?: boolean } = {}) {
+      const result = await turn({ recordId, answeredQuestion, skip: opts.skip });
       if (!validQuestion(result.question, recordId)) throw new Error('INVALID_RESPONSE');
-      // 서버 질문 객체를 그대로 쓴다. v13 서버가 방향(topic)·전략(strategy)을 주면 그때만 덧붙인다.
-      const extra = { ...(typeof result.topic === 'string' ? { topic: result.topic } : {}), ...(typeof result.strategy === 'string' ? { strategy: result.strategy } : {}) };
-      return Object.keys(extra).length ? { ...result.question, ...extra } : result.question;
+      return result.question;
     },
     async savedQuestion(recordId: string) {
       const result = await port.read<{ question: CoreQuestion | null }>({ action: 'followup_get', recordId });
       if (result.question === null) return null;
       if (!validQuestion(result.question, recordId)) throw new Error('INVALID_RESPONSE');
       return result.question;
-    },
-    // v13: 되묻기. 서버가 규칙으로 다시 판정하므로 meta=false 가 올 수 있다(그때는 보통 이야기로 저장한다).
-    // v14.3 지금 묻던 주제(topic)를 함께 보낸다. v14.4 서버는 AI 가 못 하면 앞 질문을 그대로 돌려준다(주제를 바꾸지 않는다).
-    // v14.4 AI 에게 한 질문이면 kind "ask" + reply(먼저 답) + question(같은 질문).
-    async rephrase(question: string, text: string, topic?: string | null): Promise<CoreRephrase> {
-      if (!question.trim() || !text.trim()) throw new Error('INVALID_INPUT');
-      const result = await port.write<{ meta: boolean; kind?: string; question?: string; reply?: string; fallback?: boolean }>({ action: 'rephrase', question: question.trim(), text: text.trim(), ...(topic ? { topic } : {}) });
-      if (typeof result.meta !== 'boolean') throw new Error('INVALID_RESPONSE');
-      if (!result.meta) return { meta: false };
-      if (typeof result.question !== 'string' || !result.question.trim()) throw new Error('INVALID_RESPONSE');
-      if (result.kind === 'ask') {
-        if (typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('INVALID_RESPONSE');
-        return { meta: true, kind: 'ask', question: result.question.trim(), reply: result.reply.trim(), fallback: result.fallback === true };
-      }
-      return { meta: true, kind: 'rephrase', question: result.question.trim(), fallback: result.fallback === true };
-    },
-    // v15 한 턴 분류. 서버가 저장하지 않는다. 화면은 이 결과로 기록할지(answer·unsure·설명 붙은 correction) 정한다.
-    // v15.1 correction = 지금 떠 있는 AI 문장(받아 주는 첫 줄 또는 질문). "그게 아니에요"면 서버가 설명을 묻기 전에 이 문장을 거절로 저장한다.
-    async classify(text: string, question: string | null, opts: { correction?: string | null; recordId?: string | null } = {}): Promise<CoreTurn> {
-      if (!text.trim()) throw new Error('INVALID_INPUT');
-      const result = await port.write<{ kind?: string; reply?: string; question?: string | null; rest?: string; fallback?: boolean; again?: boolean; rejected?: boolean }>({ action: 'turn_classify', text: text.trim(), ...(question ? { question } : {}),
-        ...(opts.correction ? { correction: opts.correction } : {}), ...(opts.recordId ? { recordId: opts.recordId } : {}) });
-      const kinds: TurnKind[] = ['answer', 'ask', 'meta', 'complaint', 'fatigue', 'unsure', 'correction'];
-      if (typeof result.kind !== 'string' || !kinds.includes(result.kind as TurnKind)) throw new Error('INVALID_RESPONSE');
-      const kind = result.kind as TurnKind;
-      if (kind === 'ask' && (typeof result.reply !== 'string' || !result.reply.trim())) throw new Error('INVALID_RESPONSE');
-      if (kind === 'meta' && (typeof result.question !== 'string' || !result.question.trim())) throw new Error('INVALID_RESPONSE');
-      return { kind, ...(typeof result.reply === 'string' ? { reply: result.reply.trim() } : {}), ...(typeof result.question === 'string' ? { question: result.question.trim() } : {}),
-        ...(typeof result.rest === 'string' ? { rest: result.rest.trim() } : {}), ...(result.fallback === true ? { fallback: true } : {}),
-        ...(result.again === true ? { again: true } : {}), ...(result.rejected === true ? { rejected: true } : {}) };
     },
     // v15 통합 이해 카드. 확인을 기다리는 카드가 있으면 서버는 그것을 돌려주고 다시 만들지 않는다.
     async synthesize(): Promise<CoreSynthesis> {

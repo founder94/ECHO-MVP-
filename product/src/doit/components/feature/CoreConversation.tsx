@@ -5,9 +5,9 @@ import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
-import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord, type CoreTurn } from '@/doit/lib/coreConversation';
+import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
 import { draftToIntro } from '@/doit/lib/introDraft';
-import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer, isAskingAi, isMetaReply } from '@/doit/lib/conversationRules';
+import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
 
 interface Props {
@@ -113,8 +113,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const [pause, setPause] = useState<string | null>(null);
   // v15 "그 뜻 아니야"만 보냈을 때: 사용자가 아니라고 한 AI 문장. 다음 답과 함께 서버에 알려 정정 전 문장으로 쓰지 않게 한다.
   const [pendingCorrection, setPendingCorrection] = useState<string | null>(null);
-  // v15.1 정정 안내("어떤 뜻이었는지 한 줄로")를 이미 보였는지. 또 "아니에요"만 오면 같은 안내를 되풀이하지 않는다.
-  const [correctionPrompted, setCorrectionPrompted] = useState(false);
+  // v16 답으로 저장하지 않은 방금 말(되묻기·문제제기·AI 에게 한 질문·지친 말). 사용자가 「이 말은 답으로 남길게요」로 되돌릴 수 있다(빠져나갈 문).
+  const [unsaved, setUnsaved] = useState<{ text: string; answered: string | null } | null>(null);
   const [synth, setSynth] = useState<SynthState>(SYNTH_IDLE);
   const lock = useRef(false);
   const alive = useRef(true);
@@ -202,7 +202,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const restart = () => onRestart && run('처음부터 다시 여는 중이에요', async () => {
     const failure = await onRestart();
     if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
-    if (alive.current) { setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setCorrectionPrompted(false); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
+    if (alive.current) { setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setUnsaved(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
   });
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
   // v15(명세 §2 「매 질문마다 AI 해석 카드와 4버튼을 띄우지 않는다」): 다섯 답 동안은 질문만 보인다. 후보 카드·확인 버튼은 통합 카드에만 있다.
@@ -216,9 +216,10 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   // v13 자동 다음 질문: 저장된 질문 조회가 끝났고 보여 줄 질문이 없으면 서버에 다음 질문을 한 번 요청한다. 같은 상태에서는 다시 요청하지 않는다.
   const autoKey = autoQuestion && FOLLOWUP_ENABLED && A_STRUCTURE_SERVER_ENABLED && active && !finished && !editor && !pause && !question && loaded && !busy && savedLookupFor === `${activeId}|${questionContext}`
     ? savedLookupFor : null;
-  const requestNext = async (recordId: string, opts: { skip?: boolean; correction?: string | null } = {}) => {
+  // v16 「다음 질문 받기」 = 이 기록이 받은 질문을 함께 보낸다 · 「다른 질문 받기」(skip) = 지금 떠 있는 질문을 보내 서버가 같은 걸 다시 묻지 않게 한다.
+  const requestNext = async (recordId: string, opts: { skip?: boolean } = {}) => {
     const version = ++questionVersion.current;
-    const next = await api.nextQuestion(recordId, answeredFor.current.get(recordId) ?? null, opts);
+    const next = await api.nextQuestion(recordId, opts.skip ? question?.text ?? null : answeredFor.current.get(recordId) ?? null, opts);
     if (alive.current && version === questionVersion.current) setFollowupQuestion(next);
   };
   useEffect(() => {
@@ -305,83 +306,55 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     if (question) setFollowupQuestion({ ...question, text });
     else setFirstOverride(text);
   };
-  // v15 한 턴 분류(서버 turn_classify). 예전 서버(분류 계약 없음)면 v14.4 규칙으로 되묻기·AI 에게 한 질문만 가른다.
-  const classify = async (text: string, shownText: string | null): Promise<CoreTurn> => {
-    // v15.1 지금 떠 있는 AI 문장을 함께 보낸다. 서버는 "그게 아니에요"일 때만 이 문장을 거절로 저장한다(이번 회차에 실제로 물은 문장일 때만).
-    try { return await api.classify(text, shownText, { correction: correctionTarget(), recordId: question?.sourceRecordId || null }); }
-    catch (e) {
-      if (!(e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED'))) throw e;
-    }
-    if (!shownText || (!isAskingAi(text) && !isMetaReply(text))) return { kind: 'answer' };
-    try {
-      const old = await api.rephrase(shownText, text, question?.topic ?? null);
-      if (!old.meta) return { kind: 'answer' };
-      return old.kind === 'ask' ? { kind: 'ask', reply: old.reply, question: old.question } : { kind: 'meta', question: old.question, fallback: old.fallback };
-    } catch (e) {
-      if (e instanceof UnderstandingError && (e.code === 'BAD_REQUEST' || e.code === 'SERVER_UPDATE_REQUIRED')) return { kind: 'answer' };
-      throw e;
-    }
-  };
-  const sendText = async (text: string, answeredOverride?: string) => {
+  // v16 한 턴(대표 승인 2026-09-24): 서버가 말의 종류를 가른 뒤에만 답으로 저장한다(되묻기·문제제기가 답으로 올라가지 않는다).
+  //   다음 질문도 같은 요청에서 받는다(전: 분류 → 저장 → 다음 질문 = 요청 3번).
+  const sendText = async (text: string, answeredOverride?: string, asAnswer = false) => {
     assertStorable(text);
     // 사용자가 지금 보고 있는 질문(첫 고정 질문 포함).
     const shown = question ?? firstQuestion;
     const shownText = answeredOverride ?? shown?.text ?? null;
-    // v15(명세 §8): 관계에 대한 답이 아닌 말은 기록하지 않고 다섯 칸에 세지 않는다.
-    const turn = await classify(text, shownText);
-    if (!alive.current) return;
     const shownBody = shownText ? questionBodyOf(shownText) : '';
-    if (turn.kind === 'ask') {
-      // 먼저 답(첫 줄) → 같은 질문(둘째 줄). 기록하지 않는다.
-      replaceShown(shownBody ? `${turn.reply}\n${questionBodyOf(turn.question || shownBody)}` : turn.reply ?? '');
-      setDraft(''); return;
-    }
-    if (turn.kind === 'meta') {
-      replaceShown(turn.question ?? shownBody);
-      setDraft(''); setNotice(turn.fallback ? '같은 걸 묻는 거예요. 떠오르는 대로 짧게 적어도 돼요.' : '다른 말로 다시 물어볼게요.'); return;
-    }
-    if (turn.kind === 'complaint') {
-      // 짧게 인정하고, 앞 답에서 이어지는 새 질문을 받는다(같은 질문을 되풀이하지 않는다).
-      setDraft('');
-      if (active) { await requestNext(active.id, { skip: true }); if (alive.current) setNotice(turn.reply ?? ''); }
-      else replaceShown(turn.reply ? `${turn.reply.replace(/\n/g, ' ')}\n${shownBody}` : shownBody);
-      return;
-    }
-    if (turn.kind === 'fatigue') {
-      // 지친 말은 나에 대한 사실이 아니다. 해석하지 않고, 넘어가기·쉬어 가기를 고르게 한다.
-      setDraft(''); setPause(turn.reply ?? ''); return;
-    }
-    if (turn.kind === 'correction' && !turn.rest && (turn.again || correctionPrompted)) {
-      // v15.1 정정 안내를 이미 한 번 보였다: 같은 안내를 되풀이하지 않고(설명 책임을 넘기지 않는다) 다른 질문으로 넘어간다.
-      setDraft(''); setCorrectionPrompted(false);
-      if (active) { await requestNext(active.id, { skip: true }); if (alive.current) setNotice(turn.again && turn.reply ? turn.reply : MOVE_ON_NOTICE); }
-      else { setFirstOverride(null); setNotice(turn.reply ?? MOVE_ON_NOTICE); }
-      return;
-    }
-    if (turn.kind === 'correction' && !turn.rest) {
-      // "그 뜻 아니야"만 왔다: 서버가 그 AI 문장을 이미 거절로 저장했다(turn.rejected). 그다음에 어떤 뜻이었는지 한 번만 묻는다.
-      // 다음 답과 함께 아니라고 한 AI 문장도 다시 알린다(예전 서버·저장 실패 대비). 새로고침해도 서버가 저장분으로 이어 간다.
-      setPendingCorrection(correctionTarget());
-      setCorrectionPrompted(true);
-      replaceShown(turn.reply ?? shownBody);
-      setDraft(''); return;
-    }
-    // answer · unsure("모르겠어요"도 정상 답) · 설명이 붙은 correction = 원문 그대로 기록한다.
-    const correction = turn.kind === 'correction' ? correctionTarget() : pendingCorrection;
-    const answeredQuestion = shownBody || null;
-    const willFinish = roundRecords.length + 1 >= ASK_TOTAL;
-    const record = await api.record(text);
+    const result = await api.turn({ text, answeredQuestion: shownBody || null, recordId: active && !finished ? active.id : null, asAnswer, correction: correctionTarget(), pendingCorrection });
     if (!alive.current) return;
-    if (answeredQuestion) answeredFor.current.set(record.id, answeredQuestion);
-    freshRecord.current = record.id;
-    setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearQuestions(); setFirstOverride(null);
-    setPendingCorrection(null); setCorrectionPrompted(false); setPause(null);
-    setNotice('이야기를 저장했어요.');
-    // 다섯 번째 답이면 더 묻지 않는다(통합 카드는 위 효과가 받아 온다). 다음 질문 기능이 꺼진 빌드면 요청하지 않는다.
-    if (willFinish || !FOLLOWUP_ENABLED) return;
-    const version = ++questionVersion.current;
-    const next = await api.nextQuestion(record.id, answeredQuestion, { correction });
-    if (alive.current && version === questionVersion.current) setFollowupQuestion(next);
+    setUnsaved(null);
+    if (result.saved && result.record) {
+      // answer · unsure("모르겠어요"도 정상 답) · 설명이 붙은 correction = 원문 그대로 기록됐다.
+      const record = result.record;
+      if (shownBody) answeredFor.current.set(record.id, shownBody);
+      freshRecord.current = record.id;
+      questionVersion.current += 1;
+      setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); setFirstOverride(null);
+      // 다음 질문 기능을 끈 빌드(VITE_ECHO_FOLLOWUP_ENABLED)면 받은 질문도 보이지 않는다.
+      setFollowupQuestion(FOLLOWUP_ENABLED ? result.question : null);
+      setPendingCorrection(null); setPause(null);
+      setNotice('이야기를 저장했어요.');
+      // 답은 저장됐고 다음 질문만 못 만들었다: 솔직하게 알리고 「다음 질문 받기」로 다시 받는다(고정 질문으로 덮지 않는다).
+      if (FOLLOWUP_ENABLED && result.questionError) setError(result.questionError);
+      return;
+    }
+    // 답이 아닌 말: 저장 0 · 다섯 칸 0. 입력창은 비우고, 사용자가 원하면 「이 말은 답으로 남길게요」로 되돌린다.
+    setDraft('');
+    const showQuestion = (next: CoreQuestion) => { if (active && next.sourceRecordId === active.id) { questionVersion.current += 1; setFollowupQuestion(next); } else replaceShown(next.text); };
+    if (result.kind === 'correction' && !result.again) {
+      // "그 뜻 아니야"만 왔다: 서버가 그 AI 문장을 거절로 저장했다(result.rejected). 어떤 뜻이었는지 한 번만 묻는다.
+      setPendingCorrection(correctionTarget());
+      replaceShown(result.reply ?? shownBody);
+      return;
+    }
+    if (result.kind === 'correction') {
+      // 정정 안내를 이미 보였는데 또 "아니에요"만 왔다: 같은 안내를 되풀이하지 않고 다른 질문으로 넘어간다.
+      if (result.question) showQuestion(result.question); else setFirstOverride(null);
+      setNotice(result.reply ?? MOVE_ON_NOTICE);
+      if (result.questionError) setError(result.questionError);
+      return;
+    }
+    setUnsaved({ text, answered: shownText });
+    if (result.kind === 'fatigue') { setPause(result.reply ?? ''); return; }
+    // AI 에게 한 질문: 먼저 답(첫 줄) → 같은 질문(둘째 줄).
+    if (result.kind === 'ask') { replaceShown(shownBody ? `${result.reply ?? ''}\n${shownBody}` : result.reply ?? ''); return; }
+    if (result.question) showQuestion(result.question);
+    else if (result.kind === 'meta') setNotice('같은 걸 묻는 거예요. 떠오르는 대로 짧게 적어도 돼요.');
+    if (result.questionError) setError(result.questionError);
   };
   const send = () => run('방금 한 말을 읽고 있어요', () => sendText(draft));
   // v13: 첫 화면에서 덧붙인 한 줄을 불러오기 직후 한 번만 보낸다. 실패하면 입력 상자에 남겨 다시 보낼 수 있게 한다.
@@ -474,6 +447,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {finished && synthesisEditor}
     {editor && <section className="echo-editor"><PencilLine size={20} /><h2>지금의 나에 맞게 고쳐 주세요.</h2><p className="echo-context">저장하면 바로 바뀌어요.</p>{editorConflict && latestEditing && <div className="echo-error"><p>다른 화면에서 바뀐 설명: {latestEditing.text}</p><p>적어 둔 내용은 그대로 남겨뒀어요. 최신 설명을 확인한 뒤 다시 저장해 주세요.</p>{latestEditing.status !== 'rejected' && <button onClick={() => setEditor({ ...editor, insight: latestEditing })}>최신 설명을 확인했어요</button>}</div>}<label htmlFor="echo-correction" className="sr-only">내 설명</label><textarea id="echo-correction" maxLength={200} value={editor.text} disabled={!!busy} onChange={event => setEditor({ ...editor, text: event.target.value })} autoFocus rows={4} /><div className="echo-editor-footer"><span>{editor.text.length}/200</span><button disabled={!!busy} onClick={() => setEditor(null)}>닫기</button></div><button className="echo-primary" disabled={!!busy || !editor.text.trim() || editorConflict} onClick={() => void saveEditor()}>이렇게 저장할게요 <Check size={18} /></button></section>}
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
+    {/* v16 빠져나갈 문: 답이 아니라고 읽은 말을 사용자가 답으로 남긴다. */}
+    {unsaved && !finished && !editor && <div className="echo-unsaved" role="status"><p className="echo-fine">방금 말은 답으로 저장하지 않았어요.</p><button className="echo-text-button" disabled={!!busy} onClick={() => { const kept = unsaved; void run('답으로 남기고 있어요', () => sendText(kept.text, kept.answered ?? undefined, true)); }}>이 말은 답으로 남길게요</button></div>}
     {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
     {/* v15 지친 말: 기록하지 않았다. 다른 질문을 받거나 오늘은 여기까지(홈). */}

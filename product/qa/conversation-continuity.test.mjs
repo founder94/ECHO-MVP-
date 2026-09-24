@@ -337,7 +337,9 @@ test('[구조] v15 다음 질문 경로(이어 묻기·구제·다른 질문 받
   assert.equal((code.match(/composeQuestion\(apiKey, model, budget/g) ?? []).length, 2, '이어 묻기와 구제 두 곳이 같은 생성기를 부른다');
   const client = readFileSync('src/doit/components/feature/CoreConversation.tsx', 'utf8');
   assert.ok(!client.includes('api.generate('), 'v15 화면은 답마다 이해 후보(4버튼 카드)를 만들지 않는다');
-  assert.match(client, /api\.nextQuestion\(record\.id, answeredQuestion, \{ correction \}\)/, '화면이 직전 질문(과 정정 대상)을 함께 보낸다');
+  // v16: 화면은 한 턴(api.turn)으로 말과 직전 질문·정정 대상을 함께 보낸다(분류·저장·다음 질문 = 요청 1번). 옛 분류·되묻기 요청은 부르지 않는다.
+  assert.match(client, /api\.turn\(\{ text, answeredQuestion: shownBody \|\| null, recordId: active && !finished \? active\.id : null, asAnswer, correction: correctionTarget\(\), pendingCorrection \}\)/, '화면이 직전 질문(과 정정 대상)을 함께 보낸다');
+  assert.ok(!/api\.(classify|rephrase)\(/.test(client), 'v16 화면은 옛 분류·되묻기 요청을 부르지 않는다');
   assert.match(client, /sendText\(initialMessage, OPENING_QUESTION\)/, '첫 화면에서 적은 한 줄은 「어떤 만남을 원하세요?」의 답');
   assert.match(readFileSync('src/doit/components/feature/ConversationOpening.tsx', 'utf8'), /어떤 만남을<br \/>원하세요\?/);
 });

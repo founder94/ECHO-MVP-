@@ -141,14 +141,17 @@ test('malformed generation response is rejected before UI consumes it', async ()
 
 test('next question displays exactly server text tied to the requested record', async () => {
   const question = { text: '약속이 지켜졌다고 느꼈던 일을 이야기해 주실래요?', sourceRecordId: record.id };
-  const { api, calls } = harness(() => ({ question }));
+  // v16: 「다음 질문 받기」도 한 턴(turn)으로 보낸다. 서버 질문 객체를 그대로 쓴다.
+  const { api, calls } = harness(() => ({ kind: 'answer', saved: false, question }));
   assert.equal(await api.nextQuestion(record.id), question);
-  assert.equal(calls[0].body.action, 'followup_generate');
+  assert.equal(calls[0].body.action, 'turn');
   assert.equal(calls[0].body.recordId, record.id);
+  assert.equal('text' in calls[0].body, false, '새 말 없이 기록만 보낸다');
 });
 
 test('missing/foreign/empty/nontext questions cannot become displayed questions', async () => {
-  const responses = [{}, { question: { text: '다른 질문', sourceRecordId: 'other' } }, { question: { text: '   ', sourceRecordId: record.id } }, { question: { text: { unexpected: true }, sourceRecordId: record.id } }];
+  const ok = { kind: 'answer', saved: false };
+  const responses = [{}, { ...ok }, { ...ok, question: { text: '다른 질문', sourceRecordId: 'other' } }, { ...ok, question: { text: '   ', sourceRecordId: record.id } }, { ...ok, question: { text: { unexpected: true }, sourceRecordId: record.id } }];
   for (const response of responses) {
     const { api } = harness(() => response);
     await assert.rejects(api.nextQuestion(record.id), /INVALID_RESPONSE/);

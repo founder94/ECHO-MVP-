@@ -18,6 +18,8 @@ const realRules = (() => {
 const record = id => ({ id, text: `내 이야기 ${id}`, original_text: `내 원문 ${id}`, status: 'confirmed', revision: 1, created_at: '2026-09-21T00:00:00Z' });
 const insight = (recordId, status = 'confirmed') => ({ id: `insight-${recordId}`, source_record_id: recordId, text: '약속을 지키는 것이 중요해요.', category: 'value', status, origin: 'ai', revision: 1, created_at: '2026-09-21T00:00:00Z' });
 const question = (recordId, text) => ({ sourceRecordId: recordId, text });
+const saved = (id, q = null, extra = {}) => ({ kind: 'answer', saved: true, record: record(id), question: q, ...extra });
+const unsaved = (kind, extra = {}) => ({ kind, saved: false, record: null, question: null, ...extra });
 function deferred() {
   let resolve;
   let reject;
@@ -42,6 +44,8 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     generate: async () => ({ insights: [] }),
     savedQuestion: async () => null,
     nextQuestion: async () => { throw new Error('Unexpected question generation'); },
+    // v16 한 턴(분류·저장·다음 질문 = 요청 1번). 검사마다 서버 결과를 정한다. 정하지 않았는데 불리면 실패다.
+    turn: async () => { throw new Error('Unexpected turn'); },
     // v15 한 턴 분류·통합 이해 카드. 기본은 "답" · "카드를 이미 다 정함".
     classify: async () => ({ kind: 'answer' }),
     synthesize: async () => ({ items: [], done: true, empty: false }),
@@ -188,21 +192,21 @@ test('live next question survives a later saved-question null response', async (
   const next = deferred();
   const restored = [];
   const h = componentHarness({
-    nextQuestion: () => next.promise,
+    turn: () => next.promise,
     savedQuestion: () => { const request = deferred(); restored.push(request); return request.promise; },
   });
   await h.flush();
   await h.send('나에게 중요한 건 약속이에요.');
+  next.resolve(saved('new', question('new', '약속을 지키는 사람이랑 뭐 하고 싶어요?')));
+  await h.flush();
   // v15 방금 만든 기록에는 저장된 질문이 있을 수 없다 → 복원 조회를 하지 않는다(늦은 조회가 새 질문을 지우던 경합 제거).
   assert.equal(restored.length, 0);
-  next.resolve(question('new', '약속을 지키는 사람이랑 뭐 하고 싶어요?'));
-  await h.flush();
   for (const request of restored) request.resolve(null);
   await h.flush();
   assert.deepEqual(h.questions(), ['약속을 지키는 사람이랑 뭐 하고 싶어요?']);
   assert.match(h.content(), /내 원문 new/);
-  assert.equal(h.calls.filter(call => call.name === 'record').length, 1);
-  assert.equal(h.calls.some(call => call.name === 'generate'), false, 'v15 답마다 이해 후보(4버튼 카드)를 만들지 않는다');
+  assert.equal(h.calls.filter(call => call.name === 'turn').length, 1, 'v16 분류·저장·다음 질문 = 요청 1번');
+  assert.equal(h.calls.some(call => ['record', 'classify', 'nextQuestion', 'generate'].includes(call.name)), false, '옛 요청(분류·저장·다음 질문 따로)을 부르지 않는다');
 });
 
 test('"다음 질문 받기" retry asks the server again without duplicating the record', async () => {
@@ -302,7 +306,7 @@ test('a correction to another record invalidates the active follow-up on reload'
       insights: [insight('a'), otherRecordCorrected ? { ...insight('b'), status: 'corrected', revision: 2 } : insight('b')],
     }),
     savedQuestion: async id => otherRecordCorrected ? null : question(id, '과거 이해를 바탕으로 만든 A 질문'),
-    record: async () => { throw new Error('NETWORK_ERROR'); },
+    turn: async () => { throw new Error('NETWORK_ERROR'); },
   });
   await h.flush();
   assert.deepEqual(h.questions(), ['과거 이해를 바탕으로 만든 A 질문']);
@@ -313,6 +317,7 @@ test('a correction to another record invalidates the active follow-up on reload'
   assert.match(h.content(), /내 원문 a/);
   assert.deepEqual(h.questions(), []);
   assert.equal(h.calls.filter(call => call.name === 'savedQuestion').length, 2);
+  assert.equal(h.value('echo-message'), '아직 전송되지 않은 새 이야기', '보내지 못한 말은 입력창에 남는다');
 });
 
 test('next-question failure preserves the original, shows the server reason, and invents no question', async () => {
@@ -331,11 +336,12 @@ test('next-question failure preserves the original, shows the server reason, and
 });
 
 test('follow-up disabled build records the answer but asks no question', async () => {
-  const h = componentHarness({}, { followup: false });
+  const h = componentHarness({ turn: async () => saved('new', question('new', '보이면 안 되는 질문')) }, { followup: false });
   await h.flush();
   await h.send('나의 이야기');
-  assert.equal(h.calls.filter(call => call.name === 'record').length, 1);
+  assert.equal(h.calls.filter(call => call.name === 'turn').length, 1);
   assert.equal(h.calls.some(call => call.name === 'savedQuestion' || call.name === 'nextQuestion' || call.name === 'generate'), false);
+  assert.deepEqual(h.questions(), [], '다음 질문 기능을 끈 빌드는 받은 질문도 보이지 않는다');
 });
 
 test('server-disabled screen performs no requests and shows no fabricated question', async () => {
@@ -357,8 +363,8 @@ test('v15 CASE F: 다섯 답 동안은 답마다 4버튼 카드가 없고, 다�
   let n = 0;
   const items = [synthItem('s1', '천천히 알아가는 관계를 원해요.'), synthItem('s2', '대화가 편한 사람을 중요하게 봐요.')];
   const h = componentHarness({
-    record: async () => five(n++),
-    nextQuestion: async (id) => question(id, `질문 ${n + 1}이에요?`),
+    // v16 서버가 다섯 번째 답에서는 질문 없이 finished 를 준다.
+    turn: async () => { const r = five(n++); return { kind: 'answer', saved: true, record: r, question: n < 5 ? question(r.id, `질문 ${n + 1}이에요?`) : null, ...(n >= 5 ? { finished: true } : {}) }; },
     synthesize: async () => ({ items, done: false, empty: false }),
     decideSynthesis: async (decision, ids) => items.filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'confirmed', revision: 2 })),
   });
@@ -369,10 +375,11 @@ test('v15 CASE F: 다섯 답 동안은 답마다 4버튼 카드가 없고, 다�
     if (turn < 5) {
       assert.equal(reactionButtons(h).length, 0, `턴 ${turn}: 답한 뒤에도 4버튼 없음`);
       assert.match(h.content(), new RegExp(`${turn + 1} / 5`), `턴 ${turn}: 진행 표시`);
+      assert.deepEqual(h.questions(), [`질문 ${turn + 1}이에요?`]);
     }
   }
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 5);
-  assert.equal(h.calls.filter(c => c.name === 'nextQuestion').length, 4, '다섯 번째 답 뒤에는 다음 질문을 요청하지 않는다');
+  assert.equal(h.calls.filter(c => c.name === 'turn').length, 5, '한 턴에 요청 1번');
+  assert.equal(h.calls.some(c => c.name === 'nextQuestion' || c.name === 'record' || c.name === 'classify'), false, '따로 다음 질문을 요청하지 않는다');
   assert.equal(h.calls.some(c => c.name === 'generate'), false, '답마다 이해 후보를 만들지 않는다');
   assert.equal(h.calls.filter(c => c.name === 'synthesize').length, 1, '통합 카드는 한 번');
   assert.match(h.content(), /내가 이렇게 이해했어요/);
@@ -385,36 +392,45 @@ test('v15 CASE F: 다섯 답 동안은 답마다 4버튼 카드가 없고, 다�
   assert.match(h.content(), /다섯 가지 답을 모두 저장했어요/);
 });
 
-test('v15 CASE D: "뭘더 얘길해야해 너가 내 내용을 반영해서…" = 불만 → 기록하지 않고(다섯 칸 그대로) 짧게 인정한 뒤 같은 답에서 새 질문', async () => {
-  const D = '뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?';
+test('v15 CASE D·v16 B: 문제제기(「활동?갑자기?」) → 저장 0 · 칸 그대로 · 반응 + 직전 답에서 새 질문 · 「답으로 남기기」 빠져나갈 문', async () => {
+  const D = '활동?갑자기?';
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
-    savedQuestion: async id => question(id, '방금 한 말, 조금만 더 들려줄래요?'),
-    classify: async () => ({ kind: 'complaint', reply: '맞아요. 앞에서 한 말을 이어서 다시 여쭤볼게요.' }),
-    nextQuestion: async (id) => question(id, '진지하게 알아가려면 어떤 사람이면 좋겠어요?'),
+    savedQuestion: async id => question(id, '어떤 활동을 함께 하고 싶어요?'),
+    turn: async (input) => input.asAnswer ? saved('b', question('b', '또 궁금한 게 있어요?')) : unsaved('complaint', { question: question('a', '제가 너무 앞서갔네요.\n편한 친구라면 어떤 사람이 제일 편해요?') }),
   });
   await h.flush();
   assert.match(h.content(), /2 \/ 5/);
   await h.send(D);
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '관계 답변으로 저장하지 않는다');
-  assert.deepEqual(h.calls.find(c => c.name === 'classify').args[0], D);
-  const next = h.calls.find(c => c.name === 'nextQuestion');
-  assert.equal(next.args[2].skip, true, '같은 답에서 새 질문(다른 질문 받기)');
-  assert.deepEqual(h.questions(), ['진지하게 알아가려면 어떤 사람이면 좋겠어요?']);
-  assert.match(h.content(), /앞에서 한 말을 이어서 다시 여쭤볼게요/, '먼저 답한다');
+  const first = h.calls.find(c => c.name === 'turn').args[0];
+  assert.equal(first.text, D);
+  assert.equal(first.recordId, 'a', '지금 이어 가는 기록(직전 정상 답)을 함께 보낸다');
+  assert.equal(first.answeredQuestion, '어떤 활동을 함께 하고 싶어요?');
+  assert.deepEqual(h.questions(), ['편한 친구라면 어떤 사람이 제일 편해요?']);
+  assert.match(h.content(), /제가 너무 앞서갔네요/, '먼저 문제제기에 반응한다');
   assert.match(h.content(), /2 \/ 5/, '진행 숫자가 오르지 않는다');
+  assert.equal(h.calls.some(c => ['record', 'classify', 'nextQuestion'].includes(c.name)), false);
+  // 빠져나갈 문: AI 가 답을 문제제기로 잘못 읽었으면 사용자가 되돌린다.
+  assert.match(h.content(), /방금 말은 답으로 저장하지 않았어요/);
+  h.click('이 말은 답으로 남길게요');
+  await h.flush();
+  const again = h.calls.filter(c => c.name === 'turn')[1].args[0];
+  assert.equal(again.asAnswer, true);
+  assert.equal(again.text, D);
+  assert.equal(again.answeredQuestion, '어떤 활동을 함께 하고 싶어요?', '원래 받은 질문에 대한 답으로 남긴다');
+  assert.match(h.content(), /3 \/ 5/);
 });
 
 test('v15 CASE E: "할말이없다 휴" = 지친 말 → 기록하지 않고(성향으로 해석 안 함) 다른 질문 받기·오늘은 여기까지', async () => {
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
     savedQuestion: async id => question(id, '어떤 사람한테 끌려요?'),
-    classify: async () => ({ kind: 'fatigue', reply: '괜찮아요. 지금 떠오르지 않으면 이 질문은 넘어가도 돼요.' }),
+    turn: async () => unsaved('fatigue', { pause: true, reply: '괜찮아요. 지금 떠오르지 않으면 이 질문은 넘어가도 돼요.' }),
     nextQuestion: async (id) => question(id, '처음 만나면 어디서 보는 게 편해요?'),
   });
   await h.flush();
   await h.send('할말이없다 휴');
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '지친 말은 기록하지 않는다');
+  assert.equal(h.calls.some(c => c.name === 'record'), false, '지친 말은 기록하지 않는다');
   assert.equal(h.calls.some(c => c.name === 'generate'), false, '「할 말이 없다」 이해 후보를 만들지 않는다');
   assert.doesNotMatch(h.content(), /할 말이 없다\./);
   assert.match(h.content(), /넘어가도 돼요/);
@@ -422,51 +438,45 @@ test('v15 CASE E: "할말이없다 휴" = 지친 말 → 기록하지 않고(성
   assert.equal(reactionButtons(h).length, 0);
   h.click('다른 질문 받기');
   await h.flush();
-  assert.equal(h.calls.find(c => c.name === 'nextQuestion').args[2].skip, true);
+  const skip = h.calls.find(c => c.name === 'nextQuestion');
+  assert.equal(skip.args[2].skip, true);
+  assert.equal(skip.args[1], '어떤 사람한테 끌려요?', '지금 떠 있는 질문을 보내 같은 걸 다시 묻지 않게 한다');
   assert.deepEqual(h.questions(), ['처음 만나면 어디서 보는 게 편해요?']);
   assert.match(h.content(), /2 \/ 5/, '진행 숫자가 오르지 않는다');
 });
 
 test('v15 정정: "그 뜻 아니야"만 오면 기록하지 않고 어떤 뜻이었는지 묻고, 다음 답을 기록할 때 아니라고 한 AI 문장을 함께 보낸다', async () => {
-  let kind = 'correction';
+  let n = 0;
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
     savedQuestion: async id => question(id, '사람을 진지하게 알아가고 싶군요.\n어떤 사람과 진지하게 알아가고 싶어요?'),
-    classify: async () => (kind === 'correction' ? { kind, reply: '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?' } : { kind: 'answer' }),
-    record: async () => record('b'),
-    nextQuestion: async (id) => question(id, '천천히라면 처음엔 어떻게 만나고 싶어요?'),
+    turn: async () => (++n === 1 ? unsaved('correction', { reply: '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?', rejected: true }) : saved('b', question('b', '천천히라면 처음엔 어떻게 만나고 싶어요?'))),
   });
   await h.flush();
   await h.send('그 뜻 아니야');
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 0);
+  assert.equal(h.calls.filter(c => c.name === 'turn').length, 1);
+  assert.equal(h.calls.find(c => c.name === 'turn').args[0].correction, '사람을 진지하게 알아가고 싶군요.', '떠 있는 AI 해석(첫 줄)을 보낸다');
   assert.deepEqual(h.questions(), ['어떤 뜻이었는지 한 줄로 알려 줄래요?']);
-  kind = 'answer';
   await h.send('천천히 알아가고 싶다는 거야');
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 1, '설명은 원문 그대로 기록한다');
-  const next = h.calls.find(c => c.name === 'nextQuestion');
-  assert.equal(next.args[2].correction, '사람을 진지하게 알아가고 싶군요.', '아니라고 한 AI 문장(받아 주는 첫 줄)을 서버에 알린다');
+  const second = h.calls.filter(c => c.name === 'turn')[1].args[0];
+  assert.equal(second.pendingCorrection, '사람을 진지하게 알아가고 싶군요.', '아니라고 한 AI 문장(받아 주는 첫 줄)을 서버에 알린다');
+  assert.equal(second.answeredQuestion, '어떤 뜻이었는지 한 줄로 알려 줄래요?');
+  assert.deepEqual(h.questions(), ['천천히라면 처음엔 어떻게 만나고 싶어요?']);
 });
 
-test('v15 AI 에게 한 질문(ask): 기록하지 않고 먼저 답한 뒤 같은 질문(첫 질문에서도) · 예전 서버면 v14.4 되묻기로', async () => {
+test('v15 AI 에게 한 질문(ask): 기록하지 않고 먼저 답한 뒤 같은 질문(첫 질문에서도)', async () => {
   const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
   const h = componentHarness({
-    classify: async (text, shown) => ({ kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: shown }),
+    turn: async () => unsaved('ask', { reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.' }),
   });
   await h.flush();
   assert.deepEqual(h.questions(), [FIRST]);
   await h.send('근데 왜 이런 걸 물어봐');
-  assert.equal(h.calls.filter((c) => c.name === 'record').length, 0, 'AI 에게 한 질문은 답으로 저장하지 않는다');
+  assert.equal(h.calls.filter((c) => c.name === 'turn').length, 1);
+  assert.equal(h.calls.find((c) => c.name === 'turn').args[0].answeredQuestion, FIRST);
   assert.deepEqual(h.questions(), [FIRST], '새 질문이 아니라 같은 질문');
   assert.match(h.content(), /여기에 답한 말로 어떤 사람을 소개할지 정해요\./, '먼저 답한다');
-  // 예전 서버(분류 계약 없음 → BAD_REQUEST): v14.4 규칙 + 되묻기 계약으로 같은 약속을 지킨다.
-  const old = componentHarness({
-    classify: async () => { throw new old.UnderstandingError('BAD_REQUEST', 'unknown'); },
-    rephrase: async (q) => ({ meta: true, kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: q, fallback: false }),
-  });
-  await old.flush();
-  await old.send('근데 왜 이런 걸 물어봐');
-  assert.equal(old.calls.filter((c) => c.name === 'record').length, 0);
-  assert.equal(old.calls.filter((c) => c.name === 'rephrase').length, 1);
+  assert.equal(h.calls.some((c) => ['record', 'classify', 'rephrase'].includes(c.name)), false, '옛 분류·되묻기 요청을 부르지 않는다');
 });
 
 test('v15 통합 카드 — 조금 달라요(한 문장 골라 고침) · 그게 아니에요(모두 빼고 원문 보존) · 직접 설명(설명 우선으로 다시 정리)', async () => {
@@ -703,18 +713,18 @@ test('v15.2 TEST F 새로고침 뒤: 새 회차 시작 시각이 지난 답보�
 // ── v14.4 대화 연결성(대표 긴급 정정 2026-09-24) — 화면 쪽 약속 ──
 
 
-test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문장)을 서버에 함께 보낸다 — 분류·다음 질문 요청 모두', async () => {
+test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문장)을 서버에 함께 보낸다 — v16 한 턴 요청 1번', async () => {
   const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
   const h = componentHarness({
-    record: async () => record('n1'),
-    nextQuestion: async (id) => question(id, '다음 질문이에요?'),
+    turn: async () => saved('n1', question('n1', '다음 질문이에요?')),
   }, { props: { autoQuestion: true } });
   await h.flush();
   await h.send('요즘 친구 생각이 자주 나요');
-  assert.equal(h.calls.find((c) => c.name === 'classify').args[1], FIRST, '분류도 떠 있던 질문과 함께');
-  const next = h.calls.find((c) => c.name === 'nextQuestion');
-  assert.ok(next, '기록하면 곧바로 다음 질문을 요청한다');
-  assert.equal(next.args[1], FIRST, '첫 답은 첫 고정 질문에 대한 답');
+  const call = h.calls.find((c) => c.name === 'turn');
+  assert.equal(call.args[0].answeredQuestion, FIRST, '첫 답은 첫 고정 질문에 대한 답');
+  assert.equal(call.args[0].recordId, null, '첫 답 전에는 이어 가는 기록이 없다');
+  assert.deepEqual(h.questions(), ['다음 질문이에요?'], '같은 요청에서 다음 질문을 받는다');
+  assert.equal(h.calls.some((c) => c.name === 'nextQuestion'), false, '다음 질문을 따로 요청하지 않는다(자동 요청도 없음)');
 });
 
 
@@ -733,25 +743,23 @@ test('v15.1 끝 화면: 「모르겠어요」로 넘긴 답 수를 알리고 다
 
 // v15.1 대표 결정 2·3 [가짜 서버 기준]: "그게 아니에요"를 분류할 때 지금 떠 있는 AI 문장을 서버에 함께 보낸다(서버가 설명을 묻기 전에 거절로 저장).
 // 안내를 보인 뒤 또 "아니야"만 오면 같은 안내를 되풀이하지 않고 다른 질문으로 넘어간다(사용자가 AI 를 관리하게 만들지 않는다).
-test('v15.1 정정: 분류 요청에 떠 있는 AI 문장·기록 번호를 함께 보내고, 두 번째 "아니야"는 안내를 되풀이하지 않고 다른 질문으로 넘어간다', async () => {
+test('v15.1 정정: 떠 있는 AI 문장·기록 번호를 함께 보내고, 두 번째 "아니야"는 안내를 되풀이하지 않고 다른 질문으로 넘어간다', async () => {
   const PROMPT = '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?';
   let n = 0;
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
     savedQuestion: async id => question(id, '밝은 에너지를 주는 사람이 좋으시군요.\n그런 사람이랑 만나면 같이 뭐 하고 싶어요?'),
-    classify: async () => (++n === 1 ? { kind: 'correction', reply: PROMPT, rejected: true } : { kind: 'correction', reply: '알겠어요. 다른 걸 여쭤볼게요.', again: true, rejected: false }),
-    nextQuestion: async (id, _answered, opts) => question(id, opts?.skip ? '잘 웃는 사람과 뭐 하고 싶어요?' : 'x'),
+    turn: async () => (++n === 1 ? unsaved('correction', { reply: PROMPT, rejected: true }) : unsaved('correction', { reply: '알겠어요. 다른 걸 여쭤볼게요.', again: true, question: question('a', '잘 웃는 사람과 뭐 하고 싶어요?') })),
   });
   await h.flush();
   await h.send('그게 아니에요');
-  const first = h.calls.find(c => c.name === 'classify');
-  assert.equal(first.args[2].correction, '밝은 에너지를 주는 사람이 좋으시군요.', '떠 있는 AI 해석(첫 줄)을 보낸다');
-  assert.equal(first.args[2].recordId, 'a');
+  const first = h.calls.find(c => c.name === 'turn').args[0];
+  assert.equal(first.correction, '밝은 에너지를 주는 사람이 좋으시군요.', '떠 있는 AI 해석(첫 줄)을 보낸다');
+  assert.equal(first.recordId, 'a');
   assert.deepEqual(h.questions(), ['어떤 뜻이었는지 한 줄로 알려 줄래요?']);
   await h.send('아니야');
-  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '"아니야"는 답으로 저장하지 않는다');
-  const skip = h.calls.find(c => c.name === 'nextQuestion');
-  assert.equal(skip?.args[2]?.skip, true, '같은 안내 대신 다른 질문을 받는다');
+  assert.equal(h.calls.filter(c => c.name === 'turn')[1].args[0].answeredQuestion, '어떤 뜻이었는지 한 줄로 알려 줄래요?', '서버가 두 번째 「아니야」를 알아보도록 안내 문장을 보낸다');
   assert.deepEqual(h.questions(), ['잘 웃는 사람과 뭐 하고 싶어요?']);
   assert.doesNotMatch(h.content(), /어떤 뜻이었는지 한 줄로/, '정정 안내를 되풀이하지 않는다');
+  assert.match(h.content(), /알겠어요\. 다른 걸 여쭤볼게요\./);
 });
