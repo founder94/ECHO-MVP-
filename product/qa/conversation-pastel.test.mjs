@@ -39,22 +39,17 @@ test('움직임은 옛 float-bg 하나 · 움직임 줄이기면 멈춤', () => 
   assert.match(read('src/index.css'), /@keyframes float-bg/);
 });
 
-test('글자색 = 1번 이미지(옛 홈 HeroSection) 값(대표 2026-09-25 「글씨색을 1번 이미지색으로」): 남색 0 · 흰색 / white 90·70·55 · 검은 그림자 0', () => {
+test('글자색 = 대표 이미지 글씨색 #fff 하나로 통일(대표 2026-09-25 「그냥 이미지 글씨색 똑같이」): 남색 0 · 검은 그림자 0', () => {
   assert.doesNotMatch(rules, /#0c1526|--echo-pastel-ink/, '남색 글자 규칙은 없앴다');
   assert.match(block, /--conversation-text:#fff;/);
-  assert.match(block, /--conversation-text-secondary:rgb\(255 255 255\/\.7\);/);
-  assert.match(block, /--conversation-text-secondary-on-pastel:rgb\(255 255 255\/\.7\);/);
-  assert.match(block, /--conversation-text-strong:rgb\(255 255 255\/\.9\);/);
-  assert.match(block, /--conversation-text-eyebrow:rgb\(255 255 255\/\.55\);/);
+  for (const k of ['secondary', 'secondary-on-pastel', 'strong', 'eyebrow']) assert.match(block, new RegExp(`--conversation-text-${k}:#fff;`), k);
+  assert.match(block, /--conversation-text-placeholder:rgb\(255 255 255\/\.7\);/, '입력창 안내 글씨만 흐리게');
   assert.match(block, /--conversation-text-halo:none;/, '1번 이미지 글자에는 그림자가 없다');
   assert.doesNotMatch(rules, /#dbe0e7|#f2f3f5|drop-shadow|rgb\(0 0 0/, '옛 회청색 글자·검은 그림자 값 0');
-  // 1번 이미지 원본 코드 값이 그대로인지(출처 확인)
-  const hero = read('src/pages/home/components/HeroSection.tsx');
-  for (const v of ['text-white/55', 'text-white/90', 'text-white/70']) assert.ok(hero.includes(v), v);
   const onPastel = [...rules.matchAll(/([^{}]+)\{[^}]*text-shadow:var\(--conversation-text-halo\)[^}]*\}/g)].map((m) => m[1]);
   assert.equal(onPastel.length, 3);
   for (const sel of onPastel) assert.match(sel, /:not\(:is\(\.echo-brief,\.echo-done,\.echo-synthesis,\.echo-restart,\.echo-pause,\.echo-insight,\.echo-editor,\.echo-opening-tile\) \*\)$/, '판 안 글자는 따로');
-  assert.match(block, /textarea::placeholder\{color:var\(--conversation-text-secondary\)\}/);
+  assert.match(block, /textarea::placeholder\{color:var\(--conversation-text-placeholder\)\}/);
 });
 
 test('판 = 투명(대표 2026-09-25 「TRANSPARENT BUTTON / SURFACE PATCH」): 입력창·하단 카드·처음부터·목적 카드·안내/확인 카드·보내기 · 채움 0 · 흐림 0 · 테두리만', () => {

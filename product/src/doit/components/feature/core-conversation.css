@@ -143,16 +143,19 @@
   --conversation-surface-bg:transparent;
   --conversation-surface-border:#d9dfe8a6;
   --conversation-text:#fff;
-  --conversation-text-secondary:rgb(255 255 255/.7);
-  --conversation-text-secondary-on-pastel:rgb(255 255 255/.7);
-  --conversation-text-strong:rgb(255 255 255/.9);
-  --conversation-text-eyebrow:rgb(255 255 255/.55);
+  --conversation-text-secondary:#fff;
+  --conversation-text-secondary-on-pastel:#fff;
+  --conversation-text-strong:#fff;
+  --conversation-text-eyebrow:#fff;
+  --conversation-text-placeholder:rgb(255 255 255/.7);
   --conversation-text-halo:none;
 }
 /* ⑦ 2026-09-25 글자색 = 1번 이미지(옛 홈 첫 화면 「오늘 내 마음의 날씨는 어때?」, src/pages/home/components/HeroSection.tsx)의 코드 값 그대로
    (대표 「글씨색을 1번 이미지색으로」): 제목 text-white(#fff) · 「진짜 나를 찾아줘」 text-white/90 · 부문구 text-white/70 · 「ECHO」 text-white/55.
    그 화면 글자에는 그림자가 없다 → 검은 그림자(halo)도 없앤다(none). 전: 2순위 #dbe0e7 / #f2f3f5 + 검은 그림자 3겹.
-   글꼴·크기·굵기·문구·배치는 그대로(글꼴 변경은 대표 승인 전). 표준 대비는 더 낮아진다 — 보고서에 숫자로 적는다. */
+   글꼴·크기·굵기·문구·배치는 그대로(글꼴 변경은 대표 승인 전). 표준 대비는 더 낮아진다 — 보고서에 숫자로 적는다.
+   ⑧ 같은 날 대표 「그냥 이미지 글씨색 똑같이」 → 이미지 속 글씨를 직접 재니 제목·「시작하기」 = #ffffff → 화면 글씨를 모두 #fff 하나로 통일.
+   (입력창 안의 흐린 안내 글씨만 적은 글과 구분되게 white/.7 로 둔다.) */
 /* 판 = 투명(2026-09-25 대표 「TRANSPARENT BUTTON / SURFACE PATCH」: 검정·회색 채움과 유리 모두 없앤다. 파스텔이 그대로 이어져 보이게).
    바탕 = transparent · 흐림 없음 · 테두리 = 원래 「처음부터 시작하기」 테두리 #d9dfe8a6(버튼인 줄 알 수 있게). 크기·둥글기·자리·글자는 그대로. */
 .echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-surface-bg);border-color:var(--conversation-surface-border);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -160,18 +163,18 @@
 .echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:transparent}
 .echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#fff;box-shadow:inset 0 0 0 1px #fff} /* 바탕 차이가 없어져 선택 표시는 테두리로만: 흰 테두리 + 안쪽 1px(크기·자리 변화 0) */
 .echo-dialogue.echo-dialogue--pastel textarea:focus{border-color:#c2cfdd}
-/* 판 안 글자: 1순위 흰색 · 2순위 white/.7 (⑦ 1번 이미지 값) */
+/* 판 안 글자: 모두 흰색(⑧) */
 .echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-opening-tile,.echo-opening-tile-label,.echo-brief-lead,.echo-brief-lead b,.echo-brief b,.echo-done-mark,.echo-done-lead,.echo-done-next b,.echo-synthesis-items p,.echo-synthesis-items button,.echo-insight h2,.echo-editor h2,.echo-reactions button:not(:first-child)){color:var(--conversation-text)}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-restart-pill,.echo-restart-pill svg,.echo-opening-tile-desc,.echo-brief li,.echo-brief li span,.echo-brief-fine,.echo-done-next li,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-defer,.echo-context,.echo-done .echo-fine){color:var(--conversation-text-secondary)}
 .echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-surface-border)}
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-strong)} /* 선택 카드 설명은 한 단계 밝게 = 1번 이미지 「진짜 나를 찾아줘」 text-white/90 */
-.echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-secondary)}
-/* 파스텔 위 글자: 1순위 흰색 · 2순위 white/.7 · 머리말 white/.55 · 그림자 없음(⑦). 판 안(:not 목록)은 제외 */
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-strong)} /* 선택 카드 설명도 흰색(⑧) */
+.echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-placeholder)}
+/* 파스텔 위 글자: 모두 흰색 · 그림자 없음(⑦⑧). 판 안(:not 목록)은 제외 */
 .echo-dialogue.echo-dialogue--pastel :is(h1,.echo-question,.echo-original>p,.echo-draft li p,.echo-memory p,.echo-error,.echo-error p):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text);-webkit-text-fill-color:var(--conversation-text);text-shadow:var(--conversation-text-halo)}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-lead,.echo-ack,.echo-topic,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel);text-shadow:var(--conversation-text-halo)}
 .echo-dialogue.echo-dialogue--pastel .echo-eyebrow:not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-eyebrow);-webkit-text-fill-color:var(--conversation-text-eyebrow);text-shadow:var(--conversation-text-halo)}
 .echo-dialogue.echo-dialogue--pastel h1{background-image:none;animation:none}
-/* 진행 표시: 숫자는 2순위 white/.7, 채움은 흰색(바탕 white/.35 와 구분되게). 막대 바탕 white/.35 · 그림자 없음(⑦, 전에는 막대·숫자에 옅은 검은 그림자) */
+/* 진행 표시: 숫자·채움 흰색(바탕 white/.35 와 구분되게). 막대 바탕 white/.35 · 그림자 없음(⑦, 전에는 막대·숫자에 옅은 검은 그림자) */
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar{background:rgb(255 255 255/.35)}
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text);background-image:none;box-shadow:none}
 /* 보내기 버튼: 회색 그라데이션 채움만 없앤다(아이콘 색·크기·자리 그대로) */
