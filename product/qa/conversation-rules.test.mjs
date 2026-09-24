@@ -84,7 +84,8 @@ test('서버 v13: 저장 경로 4곳(record_create/update, correct, self) 모두
   const draftEnd = server.indexOf('if (action === "connection_preview")', draftStart);
   const draftBlock = server.slice(draftStart, draftEnd);
   const outside = server.slice(0, draftStart) + server.slice(draftEnd);
-  assert.equal((outside.match(/blockedContentReason\(/g) ?? []).length - 1, 6, 'RULES 정의 1 + 사용 6(create 2회·update·correct·self + v14.4 화면이 보낸 직전 질문)');
+  // v15 turn_classify(분류 전 차단)·synthesis_revise(직접 설명 저장 전)·통합 카드 항목(출력)이 같은 규칙을 거친다 → 사용 9.
+  assert.equal((outside.match(/blockedContentReason\(/g) ?? []).length - 1, 9, 'RULES 정의 1 + 사용 9(create 2회·update·correct·self + v14.4 화면이 보낸 직전 질문 + v15 분류·직접 설명·카드 항목)');
   assert.equal((draftBlock.match(/blockedContentReason\(/g) ?? []).length, 2, '소개 초안: 재료(내 답)와 출력 문장 둘 다 거른다');
   assert.ok(server.includes('"rephrase", "profile_draft"'));
   assert.ok(server.includes('BLOCKED_CONTENT: "BLOCKED_CONTENT"'));

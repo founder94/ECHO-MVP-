@@ -61,6 +61,59 @@ export function isAskingAi(text: string): boolean {
   if (!t || t.length > META_MAX_LENGTH) return false;
   return ASK_AI_PATTERNS.some((p) => p.test(t));
 }
+// v15(대표 실기기 2026-09-24 "뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?" / "할말이없다 휴"):
+// 관계에 대한 답이 아닌 말을 규칙으로 먼저 가른다. 규칙이 못 잡은 짧은 말은 서버의 AI 분류가 한 번 더 본다(turn_classify).
+// - complaint: 질문이 겉돈다·같은 걸 또 묻는다·내 말을 반영하라는 불만. 기록하지 않고, 앞 답에서 이어지는 새 질문을 받는다.
+// - fatigue: 지친 말·할 말이 없다·그만하고 싶다. 기록하지 않고 사용자의 성향으로 해석하지 않는다(다른 질문 받기·쉬어 가기).
+// - unsure: "모르겠어요"는 정상 답이다(기록하고 다섯 칸에 센다). 다만 나에 대한 사실로 만들지 않고 다음 질문을 더 쉽게 한다.
+// - correction: "그 뜻 아니야"·"잘못 이해했어"처럼 AI 가 잘못 들었다고 고치는 말. 뒤에 붙은 설명이 있으면 그 설명이 답이다.
+//   "아니요, 대화가 많은 게 좋아요"처럼 질문에 대한 부정 답은 정정이 아니다(질문이 아니라 AI 의 이해를 가리킬 때만).
+export type TurnKind = "answer" | "ask" | "meta" | "complaint" | "fatigue" | "unsure" | "correction";
+const COMPLAINT_MAX_LENGTH = 120;
+const COMPLAINT_PATTERNS: readonly RegExp[] = [
+  /(뭘|뭐를|무엇을|뭐|머)\s*(더|또)\s*(얘기|애기|이야기|말|적|써|답)/,
+  /(너|니|네|AI|에이아이)\s*(가|는|이)?\s*(알아서|내\s*(말|얘기|애기|이야기|내용|답)|반영)/i,
+  /내\s*(말|얘기|애기|이야기|내용|답)\s*(을|를|은|좀)?\s*(반영|안\s*듣|안\s*들|못\s*알아|무시)/,
+  /반영\s*(해\s*(줘|야|주)|을\s*안|이\s*안|안\s*(해|돼|되)|좀)/,
+  /(같은|똑같은|비슷한)\s*(질문|말|얘기|걸|거)/,
+  /(또|계속|자꾸)\s*(같은|똑같은|그)?\s*(질문|물어|묻)/,
+  /(질문|물어|묻)\S*\s*(이|가|은)?\s*(이상|엉뚱|뜬금|겉돌|왜\s*이래)/,
+  /(아까|이미|벌써|다)\s*(말했|얘기했|애기했|이야기했|적었|답했)/,
+];
+const FATIGUE_PATTERNS: readonly RegExp[] = [
+  /할\s*말\s*(이|은|도)?\s*(없|더\s*없)/,
+  /그만\s*(할|하|둘|두|해|하고)/,
+  /(지쳤|지친다|지쳐|피곤해|귀찮|하기\s*싫|답하기\s*싫|쓰기\s*싫)/,
+  /^(휴+|하+|에휴|아휴|후+|하아+)[\s.!~ㅠㅜ]*$/,
+  /(패스|넘어갈래|넘길래|건너뛸래|다음에\s*할래|나중에\s*할래|오늘은\s*여기까지)/,
+];
+const UNSURE_MAX_LENGTH = 24;
+const UNSURE_PATTERN = /^(음+|글쎄(요)?|잘|흠+)?[\s,.]*(모르겠|몰라|모름|글쎄|딱히\s*(없|생각)|생각\s*(이\s*)?안\s*나|아직\s*(모르|생각)|없어요?$|없음$|없는\s*것\s*같)/;
+const CORRECTION_PATTERNS: readonly RegExp[] = [
+  /^(아니|아뇨|아니야|아니요)?[\s,.]*(그게|그건|그런|그|이건|이게)\s*(뜻|말|의미)?\s*(이|은|은요)?\s*아니\S*/,
+  /잘못\s*(이해|알아|들|짚|알았|받아)\S*/,
+  /(내|제)\s*(말|뜻)\s*(은|는)\s*(그게|그런|그런\s*뜻이)?\s*아니\S*/,
+  /^아니[야요]?[\s,.!~]*$/,
+];
+export function correctionRest(text: string): string {
+  const t = text.trim();
+  for (const p of CORRECTION_PATTERNS) {
+    const m = t.match(p);
+    if (m) return t.slice((m.index ?? 0) + m[0].length).replace(/^[\s,.!~]*/, "").trim();
+  }
+  return "";
+}
+export function ruleKind(text: string): TurnKind | null {
+  const t = text.trim();
+  if (!t) return null;
+  if (isAskingAi(t)) return "ask";
+  if (t.length <= COMPLAINT_MAX_LENGTH && COMPLAINT_PATTERNS.some((p) => p.test(t))) return "complaint";
+  if (isMetaReply(t)) return "meta";
+  if (t.length <= COMPLAINT_MAX_LENGTH && FATIGUE_PATTERNS.some((p) => p.test(t))) return "fatigue";
+  if (t.length <= COMPLAINT_MAX_LENGTH && CORRECTION_PATTERNS.some((p) => p.test(t))) return "correction";
+  if (t.length <= UNSURE_MAX_LENGTH && UNSURE_PATTERN.test(t)) return "unsure";
+  return null;
+}
 export type BlockedReason = "phone" | "email" | "id_number" | "link" | "card" | "sexual";
 const BLOCKED_PATTERNS: readonly { reason: BlockedReason; pattern: RegExp }[] = [
   { reason: "phone", pattern: /(?:\+?82[-\s.]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/ },

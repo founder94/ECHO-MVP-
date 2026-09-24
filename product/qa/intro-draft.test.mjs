@@ -57,7 +57,8 @@ test('답이 모자라면 빠져나갈 문(질문에 답하러 가기), 시간 �
 
 test('대화 화면의 소개 초안도 같은 규칙 — 다섯 가지를 다 답하면 보이고, 같은 방식으로 이어 붙인다', () => {
   const s = read('src/doit/components/feature/CoreConversation.tsx');
-  assert.match(s, /const draftReady = !!onUseDraft && \(remembered\.length >= DRAFT_MIN_CONFIRMED \|\| finished\);/);
+  // v15 다섯 가지를 다 답하면 통합 이해 카드를 먼저 정하고(맞아요·고치기·직접 설명), 그 뒤에 소개 초안을 보인다.
+  assert.match(s, /const draftReady = !!onUseDraft && \(finished \? synth\.phase === 'done' : remembered\.length >= DRAFT_MIN_CONFIRMED\);/);
   assert.match(s, /onUseDraft\(draftToIntro\(draftLines\)\)/);
   assert.doesNotMatch(s, /맞다고 한 말로만 쓴 소개 초안/, '이제 재료에 내 답도 들어가니 문구가 사실과 맞아야 한다');
 });

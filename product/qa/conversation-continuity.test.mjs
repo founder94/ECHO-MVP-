@@ -61,6 +61,11 @@ function stageOf(system) {
   if (system.includes('질문의 첫 줄(받아 주는 문장)')) return 'judge';
   if (system.includes('AI 에게 질문(user_question)')) return 'ask';
   if (system.includes('무슨 뜻인지 되묻거나')) return 'rephrase';
+  // v15 이어 묻기·구제는 한 후보 생성기(composeQuestion), 판정은 새 문구.
+  if (system.includes('너는 다음 질문의 후보만 만든다')) return 'followup';
+  if (system.includes('다음 질문 후보(question)가 대화에 내보내도 되는지')) return 'judge';
+  if (system.includes('reply 를 하나로 분류하라')) return 'classify';
+  if (system.includes('"내가 이렇게 이해했어요" 카드')) return 'synthesis';
   return 'unknown';
 }
 
@@ -78,7 +83,13 @@ function loadServer(ai, state) {
       const body = JSON.parse(init.body);
       const stage = stageOf(body.messages[0].content);
       payloads.push({ stage, system: body.messages[0].content, user: body.messages[1].content });
-      const answer = ai[stage] ? ai[stage](body.messages[1].content, body.messages[0].content) : null;
+      const fn = ai[stage] ?? (stage === 'followup' ? ai.rescueDir ?? ai.rescuePlain : undefined);
+      let answer = fn ? fn(body.messages[1].content, body.messages[0].content) : null;
+      // v15 후보 계약(§4): v14.4 모양 시나리오 후보의 이어받는 구절(link)을 이어받은 뜻(source_meaning)으로 옮긴다. link·basis 가 없으면 옮기지 않는다.
+      if (stage === 'followup' && answer && typeof answer === 'object' && !('continuation_reason' in answer)) {
+        const meaning = answer.link || answer.basis || '';
+        if (meaning) answer = { ...answer, continuation_reason: '직전 답을 이어받는다', source_meaning: meaning };
+      }
       if (answer === 'TIMEOUT') return new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new Error('aborted'))));
       return new Response(JSON.stringify({ choices: [{ message: { content: typeof answer === 'string' ? answer : JSON.stringify(answer ?? {}) } }] }), { status: 200 });
     },
@@ -98,27 +109,35 @@ const lastFollowupPayload = (payloads) => JSON.parse(payloads.filter((p) => p.st
 const judgeAllow = () => ({ allowed: true });
 const topics = (covered) => () => ({ covered });
 
+// v15 계약 변경 근거(명세 2026-09-24 §6·§7): 아래 v14.4 검사들은 후보가 떨어지면 고정 안전문장("…라고 하셨죠. 조금만 더 들려줄래요?")이
+//   나가는 것을 정답으로 기대했다. 운영 실기기에서 그 문장이 대화 피로의 원인이었다(2026-09-24 09:17~09:21 KST).
+//   새 계약: 떨어진 이유를 알려 주고 최대 3번 다시 만든 뒤, 그래도 안 되면 명시적 실패(502 AI_ERROR). 글자 인용(link)은 통과 조건이 아니고,
+//   연결의 최소 방어는 "근거 있는 첫 줄 또는 방금 답과 나눈 말"(not_anchored), 최종 판정은 judge 다.
+const GENERIC = /조금만 더 들려줄래요|한 가지만 더 들려줄래요|라고 하셨죠|방금 한 말/;
+function assertExplicitFailure(status, body, reason, logs) {
+  assert.equal(status, 502);
+  assert.equal(body.code, 'AI_ERROR');
+  assert.equal(body.question, undefined);
+  assert.doesNotMatch(JSON.stringify(body), GENERIC, '고정 안전문장으로 덮지 않는다');
+  if (reason) assert.ok(logs.some((l) => l.includes('"stage":"compose"') && l.includes(`"reason":"${reason}"`)), `떨어진 이유 기록: ${reason}`);
+}
 // 대표가 지시서에 적은 장면 그대로.
 const Q1 = '사람을 만날 때 무엇이 중요해요?';
 const A1 = '편하게 대화가 되는 사람이요.';
 
-test('[맥락 단절 FAIL 재현] "편하게 대화가 되는 사람이요." 다음에 "쉬는 날에는 무엇을 하세요?"는 문법이 맞아도 나가지 않는다', async () => {
+test('[맥락 단절 FAIL 재현] "편하게 대화가 되는 사람이요." 다음에 "쉬는 날에는 무엇을 하세요?"는 판정이 허용해도 나가지 않는다(v15 결정적 최소 방어)', async () => {
   const jumps = [
-    { ack: '', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] },                                       // 이어받는 구절 없음
-    { ack: '', link: '편하게 대화가', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] },                  // 구절은 댔지만 질문이 받지 않음
-    { ack: '좋네요.', link: '대화가 되는 사람', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] },        // 빈 받아 주기 + 건너뛰기
+    [{ ack: '', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] }, 'no_reason'],
+    [{ ack: '', link: '편하게 대화가', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] }, 'not_anchored'],
+    [{ ack: '좋네요.', link: '대화가 되는 사람', question: '쉬는 날에는 무엇을 하세요?', basis: '', keys: ['휴일'] }, 'not_anchored'],
   ];
-  for (const jump of jumps) {
+  for (const [jump, reason] of jumps) {
     const state = world();
     addAnswer(state, R.r1, A1, 1);
     const { call } = loadServer({ topic: topics([]), followup: () => jump, judge: judgeAllow }, state);
     const { status, body } = await call({ action: 'followup_generate', recordId: R.r1, answeredQuestion: Q1 });
-    assert.equal(status, 200);
-    assert.ok(!body.question.text.includes('쉬는 날'), `끊긴 질문이 나갔다: ${JSON.stringify(jump)}`);
-    assert.ok(state.logs.some((l) => l.includes('FOLLOWUP_NOT_LINKED')), '끊김으로 판정한 기록');
-    // 대체 문장도 새 주제로 건너뛰지 않고 방금 답에 머문다.
-    assert.equal(body.topic, null);
-    assert.match(body.question.text, /들려줄래요\?$/);
+    assertExplicitFailure(status, body, reason, state.logs);
+    assert.ok(!JSON.stringify(body).includes('쉬는 날'), `끊긴 질문이 나갔다: ${JSON.stringify(jump)}`);
   }
 });
 
@@ -135,7 +154,7 @@ test('[정상 예] 방금 답("편하게 대화가 되는 사람")을 받아 그
   // 판정에도 같은 사슬이 들어간다(판정이 "앞뒤 연결"을 보려면 필요하다).
   const judged = JSON.parse(payloads.find((p) => p.stage === 'judge').user);
   assert.equal(judged.evidence.last_question, Q1);
-  assert.equal(judged.link, '편하게 대화가 되는 사람');
+  assert.equal(judged.source_meaning, '편하게 대화가 되는 사람', 'v15 판정 자료에 이어받은 뜻이 들어간다');
   assert.match(payloads.find((p) => p.stage === 'judge').system, /왜 갑자기 이걸 묻지/, '판정 기준에 앞뒤 연결이 들어 있다');
 });
 
@@ -145,7 +164,8 @@ test('[연속 대화 Q1→A1→Q2→A2→Q3] 매 턴 LLM 에 정확한 직전 �
   const followup = (user) => {
     const p = JSON.parse(user);
     const link = p.record.replace(/[.!?]/g, '').split(' ').slice(0, 2).join(' ');
-    return { ack: `${link}, 좋네요.`, link, question: `${link}은 어떤 때 제일 좋아요?`, basis: link, keys: [link] };
+    // v15: 방금 답을 그대로 되묻지 않고("…은 어떤 때 제일 좋아요?" 는 "제일 좋아요" 라고 답한 걸 되묻는다 → restate) 한 걸음 나아간다.
+    return { ack: `${link}, 좋네요.`, link, question: `${link}, 누구랑 하면 더 좋아요?`, basis: link, keys: [link] };
   };
   const { call, payloads } = loadServer({ topic: topics([]), followup, judge: judgeAllow }, state);
   const turns = [
@@ -199,21 +219,18 @@ test('[첫 답] 화면 고정 첫 질문·첫 화면 질문처럼 서버 기록�
   assert.equal(lastFollowupPayload(s3.payloads).last_question, null);
 });
 
-test('[구제 경로도 같은 계약] 후보가 없어 서버가 바로 질문할 때도(긴 답·짧은 답 두 길 모두) 직전 질문이 들어가고, 끊긴 질문은 버린다', async () => {
-  // 긴 답 = 방향 없는 구제(rescuePlain), 짧은 답 = 새 갈래 구제(rescueDir). 두 길 모두 AI 가 딴 주제를 내게 한다.
-  for (const [answer, stage] of [[A1, 'rescuePlain'], ['잘 웃는 사람', 'rescueDir']]) {
+test('[구제 경로도 같은 계약] 후보가 없어 서버가 바로 질문할 때도(긴 답·짧은 답 두 길 모두) 직전 질문이 들어가고, 끊긴 질문은 나가지 않는다(v15 명시적 실패)', async () => {
+  for (const answer of [A1, '잘 웃는 사람']) {
     const state = world();
     addAsked(state, Q1, 1);
     addAnswer(state, R.r1, answer, 2);
     const jump = () => ({ ack: '', link: answer.slice(0, 4), question: '쉬는 날에는 무엇을 하세요?' });
-    const { call, payloads } = loadServer({ gen: () => ({ candidates: [] }), topic: topics(['partner_style']), rescueDir: jump, rescuePlain: jump }, state);
-    const { body } = await call({ action: 'insight_generate', recordId: R.r1 });
-    assert.ok(payloads.some((p) => p.stage === stage), `${stage} 길을 실제로 탔다`);
-    assert.ok(!body.rescue.text.includes('쉬는 날'), `${stage}: 끊긴 질문이 나갔다`);
-    assert.equal(body.rescue.topic, null);
-    const sent = payloads.find((p) => p.stage === stage).user;
-    assert.ok(sent.includes(`[직전 질문`) && sent.includes(Q1), `${stage}: AI 자료에 직전 질문`);
-    assert.ok(state.logs.some((l) => l.includes('ai_not_linked')), `${stage}: 끊김으로 판정`);
+    const { call, payloads } = loadServer({ gen: () => ({ candidates: [] }), topic: topics(['partner_style']), rescueDir: jump, rescuePlain: jump, judge: judgeAllow }, state);
+    const { status, body } = await call({ action: 'insight_generate', recordId: R.r1 });
+    assertExplicitFailure(status, body, null, state.logs);
+    assert.ok(state.logs.some((l) => /"reason":"(not_anchored|no_bridge)"/.test(l)), `${answer}: 끊김으로 판정`);
+    const sent = JSON.parse(payloads.find((p) => p.stage === 'followup').user);
+    assert.equal(sent.last_question, Q1, `${answer}: AI 자료에 직전 질문`);
   }
 });
 
@@ -222,8 +239,10 @@ test('[정정 우선] "그게 아니에요" 뒤 고친 말이 이어받을 근�
   addAnswer(state, R.r1, '예전에 친했던 사람이 자꾸 생각나요', 2);
   const judge = (user) => ({ allowed: !JSON.parse(user).question.includes('좋아') });
   let s = loadServer({ topic: topics([]), followup: () => ({ ack: '', link: '미안한 거예요', question: '아직 좋아하는 마음이 미안한 거예요?', basis: '', keys: ['좋아'] }), judge }, state);
-  let { body } = await s.call({ action: 'followup_generate', recordId: R.r1 });
-  assert.ok(!body.question.text.includes('좋아'), '정정 전 해석(좋아한다)은 다음 질문에 없다');
+  const r = await s.call({ action: 'followup_generate', recordId: R.r1 });
+  assertExplicitFailure(r.status, r.body, 'rejected', state.logs); // v15 정정 전 문장(superseded)과 같은 뜻은 서버가 막는다
+  assert.ok(!JSON.stringify(r.body).includes('좋아'), '정정 전 해석(좋아한다)은 다음 질문에 없다');
+  let body;
   const sent = lastFollowupPayload(s.payloads);
   assert.equal(sent.strategy, 'ACKNOWLEDGE_CORRECTION');
   assert.deepEqual(sent.superseded, ['그 사람을 아직 좋아한다']);
@@ -236,11 +255,12 @@ test('[거절 차단] 거절한 뜻을 표현만 바꿔 다시 묻는 질문은 
   const rejected = { id: 'i0', text: '다시 가까워지고 싶은 마음', ai_text: '다시 가까워지고 싶은 마음', status: 'rejected', origin: 'ai', source_record_id: R.r1, updated_at: at(3) };
   const state = world({ insights: [rejected] });
   addAnswer(state, R.r1, '예전에 친했던 사람이 자꾸 생각나요', 2);
-  let s = loadServer({ topic: topics([]), followup: () => ({ ack: '', question: '다시 가까워지고 싶은 마음이 커요?', basis: '', keys: ['가까워지고'] }), judge: judgeAllow }, state);
-  let { body } = await s.call({ action: 'followup_generate', recordId: R.r1 });
-  assert.ok(!body.question.text.includes('가까워지'));
-  assert.match(body.question.text, /제가 잘못 알아들었네요/);
-  s = loadServer({ topic: topics([]), followup: () => ({ ack: '제가 방향을 잘못 짚었네요.', question: '그 사람이 생각나면 어떤 마음이 먼저 들어요?', basis: '', keys: ['생각나'] }), judge: judgeAllow, semantic: () => ({ blocked: [] }) }, state);
+  let s = loadServer({ topic: topics([]), followup: () => ({ ack: '', question: '다시 가까워지고 싶은 마음이 커요?', basis: '친했던 사람', keys: ['가까워지고'], continuation_reason: '떠오르는 사람', source_meaning: '친했던 사람이 생각난다' }), judge: judgeAllow }, state);
+  const r0 = await s.call({ action: 'followup_generate', recordId: R.r1 });
+  assertExplicitFailure(r0.status, r0.body, 'rejected', state.logs); // v15 고정 되돌리기 문장 없음
+  assert.ok(!JSON.stringify(r0.body).includes('가까워지'));
+  let body;
+  s = loadServer({ topic: topics([]), followup: () => ({ ack: '제가 방향을 잘못 짚었네요.', question: '그 사람이 생각나면 어떤 마음이 먼저 들어요?', basis: '', keys: ['생각나'], continuation_reason: '거절 뒤 사용자가 스스로 다시 말하게 한다', source_meaning: '친했던 사람이 자꾸 생각난다' }), judge: judgeAllow, semantic: () => ({ blocked: [] }) }, state);
   ({ body } = await s.call({ action: 'followup_generate', recordId: R.r1 }));
   assert.equal(body.strategy, 'RECOVER_FROM_REJECTION');
   assert.ok(body.question.text.endsWith('그 사람이 생각나면 어떤 마음이 먼저 들어요?'), '거절 직후 열린 질문은 방금 답 인용 없이도 나간다(거절한 뜻을 되살리지 않기 위해)');
@@ -254,8 +274,9 @@ test('[반복 방지] history 에 이미 답한 것을 다시 묻는 질문은 �
   addAnswer(state, R.r2, '말이 잘 통하는 사람이랑요', 4);
   const judge = (user) => { const j = JSON.parse(user); const answered = j.evidence.history.map((h) => h.a).join(' '); return { allowed: !(j.question.includes('같이 뭐') && answered.includes('산책')) }; };
   const s = loadServer({ topic: topics([]), followup: () => ({ ack: '말이 잘 통하는 사람이 좋으시군요.', link: '말이 잘 통하는 사람', question: '말이 잘 통하는 사람이랑 같이 뭐 하고 싶어요?', basis: '말이 잘 통하는 사람', keys: ['말이 잘 통하는'] }), judge }, state);
-  const { body } = await s.call({ action: 'followup_generate', recordId: R.r2 });
-  assert.ok(!body.question.text.includes('같이 뭐 하고 싶어요'), '이미 답한 「같이 하고 싶은 것」을 다시 묻지 않는다');
+  const { status, body } = await s.call({ action: 'followup_generate', recordId: R.r2 });
+  assertExplicitFailure(status, body, 'not_coherent', state.logs);
+  assert.ok(!JSON.stringify(body).includes('같이 뭐 하고 싶어요'), '이미 답한 「같이 하고 싶은 것」을 다시 묻지 않는다');
   const judged = JSON.parse(s.payloads.find((p) => p.stage === 'judge').user);
   assert.deepEqual(judged.evidence.history.map((h) => h.a), ['산책이요']);
   assert.equal(judged.evidence.history[0].q, '만나면 같이 뭐 하고 싶어요?');
@@ -301,21 +322,23 @@ test('[사용자 질문 판정] 실제로 치는 말: AI 에게 하는 질문은
   for (const a of answers) assert.equal(exp.isAskingAi(a), false, `답: ${a}`);
 });
 
-test('[구조] 다음 질문 경로 두 곳(이어 묻기·구제) 모두 이어받는 구절을 검사하고, 새 갈래 예외·"억지로 잇지 않아도 된다" 문구가 없다', () => {
+test('[구조] v15 다음 질문 경로(이어 묻기·구제·다른 질문 받기)는 한 후보 생성기(composeQuestion)를 쓰고, 고정 안전문장·고정 질문 목록·글자 인용 통과 조건이 없다', () => {
   const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
   const code = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
   assert.ok(!code.includes('억지로 잇지 않아도'), '원인 문구 삭제');
-  const compose = code.slice(code.indexOf('async function composeFollowup('), code.indexOf('function generationRpcError('));
-  assert.match(compose, /throw new Error\("FOLLOWUP_NOT_LINKED"\)/);
-  assert.match(compose, /throw new Error\("FOLLOWUP_NO_BRIDGE"\)/);
-  assert.match(compose, /if \(!allowed\) throw new Error\("FOLLOWUP_NOT_COHERENT"\)/, '판정 불허면 첫 줄만 떼고 내보내지 않는다');
-  assert.ok(!/if \(newBranch\) question = askedQ/.test(compose), '전: 새 갈래는 판정 불허여도 첫 줄만 떼고 냈다');
-  const rescue = code.slice(code.indexOf('async function buildRescue('), code.indexOf('// ── 후보 생성 파이프라인 ──'));
-  assert.match(rescue, /linkIn\(o\?\.link, \[recordText\]\)/);
-  assert.match(rescue, /lastNote\}\$\{historyNote\(history\)\}/, '구제 AI 자료에도 직전 질문·history');
+  for (const gone of ['STAY_PLAIN', 'STAY_LAST', 'RECOVER_FIXED', 'linkedFallback', 'buildRescue', 'function linkIn', 'function bridged', 'FOLLOWUP_NOT_LINKED']) assert.ok(!code.includes(gone), `${gone} 삭제`);
+  assert.doesNotMatch(code, /조금만 더 들려줄래요|한 가지만 더 들려줄래요/, '고정 안전문장 삭제');
+  const compose = code.slice(code.indexOf('async function composeQuestion('), code.indexOf('async function checkCandidate('));
+  assert.match(compose, /for \(let attempt = 1; attempt <= COMPOSE_ATTEMPTS; attempt\+\+\)/, '최대 3번 다시 만든다');
+  assert.match(compose, /rejected_candidates: dropped/, '떨어진 이유를 다음 생성에 알려 준다');
+  assert.match(compose, /throw new Error\(`FOLLOWUP_EXHAUSTED:\$\{lastReason\}`\)/, '그래도 안 되면 명시적 실패');
+  const check = code.slice(code.indexOf('async function checkCandidate('), code.indexOf('async function generateFollowup('));
+  for (const reason of ['multi', 'heavy', 'repeat', 'restate', 'self_flag', 'no_reason', 'not_connected', 'not_anchored', 'no_bridge', 'rejected', 'not_coherent']) assert.match(check, new RegExp(`reason: "${reason}"`), reason);
+  assert.equal((code.match(/composeQuestion\(apiKey, model, budget/g) ?? []).length, 2, '이어 묻기와 구제 두 곳이 같은 생성기를 부른다');
   const client = readFileSync('src/doit/components/feature/CoreConversation.tsx', 'utf8');
-  assert.match(client, /api\.generate\(record\.id, first \? 1 : undefined, answered\)/, '화면이 직전 질문을 함께 보낸다');
-  assert.match(client, /api\.nextQuestion\(recordId, answeredFor\.current\.get\(recordId\) \?\? null\)/);
+  assert.ok(!client.includes('api.generate('), 'v15 화면은 답마다 이해 후보(4버튼 카드)를 만들지 않는다');
+  assert.match(client, /api\.nextQuestion\(record\.id, answeredQuestion, \{ correction \}\)/, '화면이 직전 질문(과 정정 대상)을 함께 보낸다');
   assert.match(client, /sendText\(initialMessage, OPENING_QUESTION\)/, '첫 화면에서 적은 한 줄은 「어떤 만남을 원하세요?」의 답');
   assert.match(readFileSync('src/doit/components/feature/ConversationOpening.tsx', 'utf8'), /어떤 만남을<br \/>원하세요\?/);
 });
+

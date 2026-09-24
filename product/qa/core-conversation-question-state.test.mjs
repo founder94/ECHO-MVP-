@@ -35,6 +35,11 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     generate: async () => ({ insights: [] }),
     savedQuestion: async () => null,
     nextQuestion: async () => { throw new Error('Unexpected question generation'); },
+    // v15 한 턴 분류·통합 이해 카드. 기본은 "답" · "카드를 이미 다 정함".
+    classify: async () => ({ kind: 'answer' }),
+    synthesize: async () => ({ items: [], done: true, empty: false }),
+    decideSynthesis: async () => { throw new Error('Unexpected synthesis decision'); },
+    reviseSynthesis: async () => { throw new Error('Unexpected synthesis revision'); },
     react: async () => { throw new Error('Unexpected reaction'); },
     explain: async () => { throw new Error('Unexpected explanation'); },
   };
@@ -76,7 +81,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
   const dependencies = {
     react: hooks,
     'react/jsx-runtime': { jsx: element, jsxs: element, Fragment: 'fragment' },
-    'lucide-react': Object.fromEntries(['ArrowUp', 'Check', 'ChevronRight', 'PencilLine'].map(name => [name, `icon-${name}`])),
+    'lucide-react': Object.fromEntries(['ArrowUp', 'Check', 'ChevronRight', 'PencilLine', 'RotateCcw'].map(name => [name, `icon-${name}`])),
     'react-router-dom': { Link: 'link' },
     '@/components/DoItSymbol': { default: 'brand-symbol' },
     '@/components/SymbolLoader': { default: 'symbol-loader' },
@@ -162,33 +167,37 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
   };
 }
 
-test('live generation rescue survives a later saved-question null response', async () => {
-  const generation = deferred();
+// v15 계약 변경 근거(명세 2026-09-24 §2): 답마다 이해 후보(insight_generate)를 만들고 후보가 없으면 구제 질문을 보여 주던 흐름은 없다.
+//   답을 기록하면 곧바로 다음 질문(nextQuestion)을 받는다. 아래 옛 "구제(rescue)" 검사들은 같은 약속(늦게 온 응답이 새 질문을 덮지 않는다 ·
+//   기록을 두 번 만들지 않는다 · 실패하면 질문을 지어내지 않는다)을 새 흐름으로 옮긴 것이다.
+test('live next question survives a later saved-question null response', async () => {
+  const next = deferred();
   const restored = [];
   const h = componentHarness({
-    generate: () => generation.promise,
+    nextQuestion: () => next.promise,
     savedQuestion: () => { const request = deferred(); restored.push(request); return request.promise; },
   });
   await h.flush();
   await h.send('나에게 중요한 건 약속이에요.');
-  assert.equal(restored.length, 1);
-  generation.resolve({ insights: [], rescue: { text: '약속을 지킨다는 건 어떤 행동일까요?', kind: 'quoted_question' } });
+  // v15 방금 만든 기록에는 저장된 질문이 있을 수 없다 → 복원 조회를 하지 않는다(늦은 조회가 새 질문을 지우던 경합 제거).
+  assert.equal(restored.length, 0);
+  next.resolve(question('new', '약속을 지키는 사람이랑 뭐 하고 싶어요?'));
   await h.flush();
   for (const request of restored) request.resolve(null);
   await h.flush();
-  assert.deepEqual(h.questions(), ['약속을 지킨다는 건 어떤 행동일까요?']);
+  assert.deepEqual(h.questions(), ['약속을 지키는 사람이랑 뭐 하고 싶어요?']);
   assert.match(h.content(), /내 원문 new/);
   assert.equal(h.calls.filter(call => call.name === 'record').length, 1);
-  assert.equal(h.calls.filter(call => call.name === 'savedQuestion').length, 1, 'An unchanged insight context does not refetch');
+  assert.equal(h.calls.some(call => call.name === 'generate'), false, 'v15 답마다 이해 후보(4버튼 카드)를 만들지 않는다');
 });
 
-test('retry rescue remains visible after load returns a new but equivalent insights array', async () => {
+test('"다음 질문 받기" retry asks the server again without duplicating the record', async () => {
   const h = componentHarness({
     load: async () => ({ records: [record('saved')], insights: [] }),
-    generate: async () => ({ insights: [], rescue: { text: '어떤 때 그렇게 느끼셨나요?', kind: 'quoted_question' } }),
+    nextQuestion: async id => question(id, '어떤 때 그렇게 느끼셨나요?'),
   });
   await h.flush();
-  h.click('저장한 이야기 다시 살펴보기');
+  h.click('다음 질문 받기 ');
   await h.flush();
   assert.deepEqual(h.questions(), ['어떤 때 그렇게 느끼셨나요?']);
   assert.equal(h.calls.some(call => call.name === 'record'), false, 'Retry must not duplicate the original record');
@@ -213,7 +222,7 @@ for (const oldResponse of [null, question('a', '오래된 질문')]) {
       nextQuestion: async id => question(id, '지금의 생각을 더 들려주실래요?'),
     });
     await h.flush();
-    h.click('이어서 이야기하기 ');
+    h.click('다음 질문 받기 ');
     await h.flush();
     restoration.resolve(oldResponse);
     await h.flush();
@@ -221,13 +230,13 @@ for (const oldResponse of [null, question('a', '오래된 질문')]) {
   });
 }
 
-test('record switch hides a rescue immediately and never shows another record question', async () => {
+test('record switch hides a question immediately and never shows another record question', async () => {
   const h = componentHarness({
     load: async () => ({ records: [record('a'), record('b')], insights: [] }),
-    generate: async () => ({ insights: [], rescue: { text: 'A 기록에만 해당하는 질문', kind: 'quoted_question' } }),
+    nextQuestion: async id => question(id, 'A 기록에만 해당하는 질문'),
   });
   await h.flush();
-  h.click('저장한 이야기 다시 살펴보기');
+  h.click('다음 질문 받기 ');
   await h.flush();
   assert.deepEqual(h.questions(), ['A 기록에만 해당하는 질문']);
   h.click('내 이야기 b');
@@ -235,9 +244,6 @@ test('record switch hides a rescue immediately and never shows another record qu
   assert.deepEqual(h.questions(), [], 'Do not flash A question before B effect runs');
   await h.flush();
   assert.deepEqual(h.questions(), []);
-  h.click('내 이야기 a');
-  await h.flush();
-  assert.deepEqual(h.questions(), ['A 기록에만 해당하는 질문']);
 });
 
 test('late saved question from a previous record cannot leak after switching records', async () => {
@@ -295,25 +301,27 @@ test('a correction to another record invalidates the active follow-up on reload'
   assert.equal(h.calls.filter(call => call.name === 'savedQuestion').length, 2);
 });
 
-test('generation failure preserves the original without inventing a question', async () => {
+test('next-question failure preserves the original, shows the server reason, and invents no question', async () => {
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
-    generate: async () => { throw new Error('AI_ERROR'); },
+    nextQuestion: async () => { throw new h.UnderstandingError('AI_ERROR', '다음 질문을 아직 만들지 못했어요. 적은 답은 저장돼 있어요. 한 번 더 눌러 주세요.'); },
   });
   await h.flush();
-  h.click('저장한 이야기 다시 살펴보기');
+  h.click('다음 질문 받기 ');
   await h.flush();
   assert.deepEqual(h.questions(), []);
   assert.match(h.content(), /내 원문 a/);
-  assert.match(h.content(), /아직 답을 받지 못했어요/);
+  assert.match(h.content(), /다음 질문을 아직 만들지 못했어요/);
+  assert.doesNotMatch(h.content(), /조금만 더 들려줄래요/, '고정 안전문장으로 덮지 않는다');
+  h.click('다음 질문 받기 '); // 빠져나갈 문: 다시 받기 버튼이 그대로 있다
 });
 
-test('rescue remains available when follow-up generation is disabled', async () => {
-  const h = componentHarness({ generate: async () => ({ insights: [], rescue: { text: '조금 더 들려주실래요?', kind: 'quoted_question' } }) }, { followup: false });
+test('follow-up disabled build records the answer but asks no question', async () => {
+  const h = componentHarness({}, { followup: false });
   await h.flush();
   await h.send('나의 이야기');
-  assert.deepEqual(h.questions(), ['조금 더 들려주실래요?']);
-  assert.equal(h.calls.some(call => call.name === 'savedQuestion' || call.name === 'nextQuestion'), false);
+  assert.equal(h.calls.filter(call => call.name === 'record').length, 1);
+  assert.equal(h.calls.some(call => call.name === 'savedQuestion' || call.name === 'nextQuestion' || call.name === 'generate'), false);
 });
 
 test('server-disabled screen performs no requests and shows no fabricated question', async () => {
@@ -325,52 +333,176 @@ test('server-disabled screen performs no requests and shows no fabricated questi
 
 // ── 통합안(r2 이식) 추가 검사 ──
 
-test('pending direct explanation reopens the editor with its text after reload and saves without a second rejection', async () => {
-  const rejected = insight('r1', 'rejected');
-  const saved = { ...insight('r1', 'confirmed'), id: 'self-1', origin: 'self', text: '장소만 조용했으면 해요' };
-  const h = componentHarness({
-    load: async () => ({ records: [record('r1')], insights: [rejected] }),
-    explain: async () => saved,
-  }, { pending: { insightId: rejected.id, recordId: 'r1', category: 'value', text: '장소만 조용했으면 해요' } });
-  await h.flush();
-  assert.equal(h.value('echo-correction'), '장소만 조용했으면 해요');
-  assert.match(h.content(), /AI가 들은 문장은 뺐어요/);
-  h.click('이렇게 저장할게요 ');
-  await h.flush();
-  assert.deepEqual(h.calls.filter(c => c.name === 'react'), [], 'already rejected → no second rejection');
-  assert.deepEqual(h.calls.filter(c => c.name === 'explain').map(c => c.args), [['r1', 'value', '장소만 조용했으면 해요']]);
-  assert.equal(h.store.pending, null, 'reservation cleared after success');
-  assert.match(h.content(), /내 말로 바꿔 저장했어요/);
-  h.unmount();
-});
+// ── v15 「ECHO AI 대화구조 최종 구현명세」 회귀(가짜 서버 기준 — 진짜 AI 결과가 아니다) ──
+const five = (i) => ({ id: `n${i}`, text: `답 ${i}`, original_text: `답 ${i}`, status: 'confirmed', revision: 1, created_at: `2026-09-24T0${i}:00:00Z` });
+const synthItem = (id, text) => ({ id, text, category: 'value', status: 'candidate', origin: 'ai', source_record_id: 'n4', revision: 1, created_at: '2026-09-24T05:00:00Z' });
+const REACTIONS = ['맞아요', '조금 달라요', '그게 아니에요', '직접 설명할게요'];
+const reactionButtons = (h) => h.contentNodes().filter(node => node.type === 'button' && REACTIONS.includes(h.content(node)));
 
-test('explanation failure keeps the reservation with the typed text; success clears it', async () => {
-  const candidate = insight('r1', 'candidate');
-  const rejected = { ...candidate, status: 'rejected', revision: 2 };
-  // 서버 정본을 흉내: 거절이 저장되면 이후 load 는 거절된 행(revision 2)을 돌려준다.
-  const server = { insights: [candidate] };
-  let explainCalls = 0;
+test('v15 CASE F: 다섯 답 동안은 답마다 4버튼 카드가 없고, 다섯 번째 답 뒤 통합 카드에서만 4버튼이 한 번 나온다', async () => {
+  let n = 0;
+  const items = [synthItem('s1', '천천히 알아가는 관계를 원해요.'), synthItem('s2', '대화가 편한 사람을 중요하게 봐요.')];
   const h = componentHarness({
-    load: async () => ({ records: [record('r1')], insights: server.insights }),
-    react: async () => { server.insights = [rejected]; return rejected; },
-    explain: async () => { explainCalls += 1; if (explainCalls === 1) throw new Error('ERROR'); return { ...rejected, id: 'self-1', origin: 'self', status: 'confirmed', text: '내 설명' }; },
+    record: async () => five(n++),
+    nextQuestion: async (id) => question(id, `질문 ${n + 1}이에요?`),
+    synthesize: async () => ({ items, done: false, empty: false }),
+    decideSynthesis: async (decision, ids) => items.filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'confirmed', revision: 2 })),
   });
   await h.flush();
+  for (let turn = 1; turn <= 5; turn++) {
+    assert.equal(reactionButtons(h).length, 0, `턴 ${turn}: 답하기 전 4버튼 없음`);
+    await h.send(`내 답 ${turn}`);
+    if (turn < 5) {
+      assert.equal(reactionButtons(h).length, 0, `턴 ${turn}: 답한 뒤에도 4버튼 없음`);
+      assert.match(h.content(), new RegExp(`${turn + 1} / 5`), `턴 ${turn}: 진행 표시`);
+    }
+  }
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 5);
+  assert.equal(h.calls.filter(c => c.name === 'nextQuestion').length, 4, '다섯 번째 답 뒤에는 다음 질문을 요청하지 않는다');
+  assert.equal(h.calls.some(c => c.name === 'generate'), false, '답마다 이해 후보를 만들지 않는다');
+  assert.equal(h.calls.filter(c => c.name === 'synthesize').length, 1, '통합 카드는 한 번');
+  assert.match(h.content(), /내가 이렇게 이해했어요/);
+  assert.match(h.content(), /천천히 알아가는 관계를 원해요/);
+  assert.equal(reactionButtons(h).length, 4, '통합 카드 아래에서만 4버튼');
+  h.click('맞아요');
+  await h.flush();
+  assert.deepEqual(h.calls.find(c => c.name === 'decideSynthesis').args, ['confirm', ['s1', 's2']]);
+  assert.equal(reactionButtons(h).length, 0, '다 정하면 4버튼이 사라진다');
+  assert.match(h.content(), /다섯 가지 답을 모두 저장했어요/);
+});
+
+test('v15 CASE D: "뭘더 얘길해야해 너가 내 내용을 반영해서…" = 불만 → 기록하지 않고(다섯 칸 그대로) 짧게 인정한 뒤 같은 답에서 새 질문', async () => {
+  const D = '뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?';
+  const h = componentHarness({
+    load: async () => ({ records: [record('a')], insights: [] }),
+    savedQuestion: async id => question(id, '방금 한 말, 조금만 더 들려줄래요?'),
+    classify: async () => ({ kind: 'complaint', reply: '맞아요. 앞에서 한 말을 이어서 다시 여쭤볼게요.' }),
+    nextQuestion: async (id) => question(id, '진지하게 알아가려면 어떤 사람이면 좋겠어요?'),
+  });
+  await h.flush();
+  assert.match(h.content(), /2 \/ 5/);
+  await h.send(D);
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '관계 답변으로 저장하지 않는다');
+  assert.deepEqual(h.calls.find(c => c.name === 'classify').args[0], D);
+  const next = h.calls.find(c => c.name === 'nextQuestion');
+  assert.equal(next.args[2].skip, true, '같은 답에서 새 질문(다른 질문 받기)');
+  assert.deepEqual(h.questions(), ['진지하게 알아가려면 어떤 사람이면 좋겠어요?']);
+  assert.match(h.content(), /앞에서 한 말을 이어서 다시 여쭤볼게요/, '먼저 답한다');
+  assert.match(h.content(), /2 \/ 5/, '진행 숫자가 오르지 않는다');
+});
+
+test('v15 CASE E: "할말이없다 휴" = 지친 말 → 기록하지 않고(성향으로 해석 안 함) 다른 질문 받기·오늘은 여기까지', async () => {
+  const h = componentHarness({
+    load: async () => ({ records: [record('a')], insights: [] }),
+    savedQuestion: async id => question(id, '어떤 사람한테 끌려요?'),
+    classify: async () => ({ kind: 'fatigue', reply: '괜찮아요. 지금 떠오르지 않으면 이 질문은 넘어가도 돼요.' }),
+    nextQuestion: async (id) => question(id, '처음 만나면 어디서 보는 게 편해요?'),
+  });
+  await h.flush();
+  await h.send('할말이없다 휴');
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 0, '지친 말은 기록하지 않는다');
+  assert.equal(h.calls.some(c => c.name === 'generate'), false, '「할 말이 없다」 이해 후보를 만들지 않는다');
+  assert.doesNotMatch(h.content(), /할 말이 없다\./);
+  assert.match(h.content(), /넘어가도 돼요/);
+  assert.match(h.content(), /오늘은 여기까지 할게요/, '빠져나갈 문');
+  assert.equal(reactionButtons(h).length, 0);
+  h.click('다른 질문 받기');
+  await h.flush();
+  assert.equal(h.calls.find(c => c.name === 'nextQuestion').args[2].skip, true);
+  assert.deepEqual(h.questions(), ['처음 만나면 어디서 보는 게 편해요?']);
+  assert.match(h.content(), /2 \/ 5/, '진행 숫자가 오르지 않는다');
+});
+
+test('v15 정정: "그 뜻 아니야"만 오면 기록하지 않고 어떤 뜻이었는지 묻고, 다음 답을 기록할 때 아니라고 한 AI 문장을 함께 보낸다', async () => {
+  let kind = 'correction';
+  const h = componentHarness({
+    load: async () => ({ records: [record('a')], insights: [] }),
+    savedQuestion: async id => question(id, '사람을 진지하게 알아가고 싶군요.\n어떤 사람과 진지하게 알아가고 싶어요?'),
+    classify: async () => (kind === 'correction' ? { kind, reply: '제가 잘못 짚었네요.\n어떤 뜻이었는지 한 줄로 알려 줄래요?' } : { kind: 'answer' }),
+    record: async () => record('b'),
+    nextQuestion: async (id) => question(id, '천천히라면 처음엔 어떻게 만나고 싶어요?'),
+  });
+  await h.flush();
+  await h.send('그 뜻 아니야');
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 0);
+  assert.deepEqual(h.questions(), ['어떤 뜻이었는지 한 줄로 알려 줄래요?']);
+  kind = 'answer';
+  await h.send('천천히 알아가고 싶다는 거야');
+  assert.equal(h.calls.filter(c => c.name === 'record').length, 1, '설명은 원문 그대로 기록한다');
+  const next = h.calls.find(c => c.name === 'nextQuestion');
+  assert.equal(next.args[2].correction, '사람을 진지하게 알아가고 싶군요.', '아니라고 한 AI 문장(받아 주는 첫 줄)을 서버에 알린다');
+});
+
+test('v15 AI 에게 한 질문(ask): 기록하지 않고 먼저 답한 뒤 같은 질문(첫 질문에서도) · 예전 서버면 v14.4 되묻기로', async () => {
+  const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
+  const h = componentHarness({
+    classify: async (text, shown) => ({ kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: shown }),
+  });
+  await h.flush();
+  assert.deepEqual(h.questions(), [FIRST]);
+  await h.send('근데 왜 이런 걸 물어봐');
+  assert.equal(h.calls.filter((c) => c.name === 'record').length, 0, 'AI 에게 한 질문은 답으로 저장하지 않는다');
+  assert.deepEqual(h.questions(), [FIRST], '새 질문이 아니라 같은 질문');
+  assert.match(h.content(), /여기에 답한 말로 어떤 사람을 소개할지 정해요\./, '먼저 답한다');
+  // 예전 서버(분류 계약 없음 → BAD_REQUEST): v14.4 규칙 + 되묻기 계약으로 같은 약속을 지킨다.
+  const old = componentHarness({
+    classify: async () => { throw new old.UnderstandingError('BAD_REQUEST', 'unknown'); },
+    rephrase: async (q) => ({ meta: true, kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: q, fallback: false }),
+  });
+  await old.flush();
+  await old.send('근데 왜 이런 걸 물어봐');
+  assert.equal(old.calls.filter((c) => c.name === 'record').length, 0);
+  assert.equal(old.calls.filter((c) => c.name === 'rephrase').length, 1);
+});
+
+test('v15 통합 카드 — 조금 달라요(한 문장 골라 고침) · 그게 아니에요(모두 빼고 원문 보존) · 직접 설명(설명 우선으로 다시 정리)', async () => {
+  const records = [0, 1, 2, 3, 4].map(five);
+  const items = () => [synthItem('s1', '천천히 알아가는 관계를 원해요.'), synthItem('s2', '조용한 곳을 좋아해요.')];
+  // 조금 달라요
+  let h = componentHarness({
+    load: async () => ({ records, insights: [] }),
+    synthesize: async () => ({ items: items(), done: false, empty: false }),
+    react: async (item, decision, text) => ({ ...item, text, status: 'corrected', revision: 2 }),
+    decideSynthesis: async (decision, ids) => items().filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'confirmed', revision: 2 })),
+  });
+  await h.flush();
+  h.click('조금 달라요');
+  await h.flush();
+  h.click('조용한 곳을 좋아해요.이 문장 고치기');
+  await h.flush();
+  h.type('echo-synthesis-text', '시끄럽지 않은 곳이면 괜찮아요.');
+  await h.flush();
+  h.click('이렇게 저장할게요 ');
+  await h.flush();
+  assert.deepEqual(h.calls.find(c => c.name === 'react').args.slice(1), ['correct', '시끄럽지 않은 곳이면 괜찮아요.']);
+  assert.match(h.content(), /내가 고친 말/);
+  assert.equal(reactionButtons(h).length, 4, '남은 항목이 있으니 카드와 4버튼이 그대로');
+  h.click('맞아요');
+  await h.flush();
+  assert.deepEqual(h.calls.find(c => c.name === 'decideSynthesis').args, ['confirm', ['s1']], '고친 항목은 다시 확인하지 않는다');
+  // 그게 아니에요 → 직접 설명
+  h = componentHarness({
+    load: async () => ({ records, insights: [] }),
+    synthesize: async () => ({ items: items(), done: false, empty: false }),
+    decideSynthesis: async (decision, ids) => items().filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'rejected', revision: 2 })),
+    reviseSynthesis: async (text) => ({ self: { ...synthItem('self1', text), origin: 'self', status: 'confirmed' }, items: [synthItem('s3', '대화가 편한 사람을 원해요.')] }),
+  });
+  await h.flush();
+  h.click('그게 아니에요');
+  await h.flush();
+  assert.deepEqual(h.calls.find(c => c.name === 'decideSynthesis').args, ['reject', ['s1', 's2']]);
+  assert.match(h.content(), /처음 적은 답은 그대로 뒀어요/);
+  assert.doesNotMatch(h.content(), /천천히 알아가는 관계를 원해요/, '뺀 문장은 카드에서 사라진다');
   h.click('직접 설명할게요');
   await h.flush();
-  h.type('echo-correction', '내 설명');
+  h.type('echo-synthesis-text', '편하게 대화되는 사람이 제일 중요해요');
   await h.flush();
   h.click('이렇게 저장할게요 ');
   await h.flush();
-  // 컴포넌트는 vm 별도 렌름에서 객체를 만들므로(프로토타입 다름) 값만 비교한다.
-  assert.deepEqual(JSON.parse(JSON.stringify(h.store.pending)), { insightId: candidate.id, recordId: 'r1', category: 'value', text: '내 설명' }, 'reserved after reject, kept after explain failure');
-  assert.equal(h.value('echo-correction'), '내 설명', 'typed text preserved');
-  h.click('이렇게 저장할게요 ');
-  await h.flush();
-  assert.equal(h.calls.filter(c => c.name === 'react').length, 1, 'reject sent exactly once');
-  assert.equal(explainCalls, 2);
-  assert.equal(h.store.pending, null);
-  h.unmount();
+  assert.deepEqual(h.calls.find(c => c.name === 'reviseSynthesis').args, ['편하게 대화되는 사람이 제일 중요해요']);
+  assert.match(h.content(), /내가 직접 설명한 말/);
+  assert.match(h.content(), /대화가 편한 사람을 원해요/, '설명을 앞에 두고 다시 정리한 카드');
+  assert.equal(reactionButtons(h).length, 4);
 });
 
 test('STALE_CONTEXT write drops the stored request id and retries exactly once with a fresh id', async () => {
@@ -410,7 +542,7 @@ test('v14.1 시작 화면에 왜 묻는지·몇 개 묻는지 설명이 먼저 �
   const text = h.content();
   assert.match(text, /다섯 가지만/, '몇 개를 묻는지 먼저 알려 준다');
   assert.match(text, /어떤 사람을 소개할지/, '왜 답해야 하는지 알려 준다');
-  assert.match(text, /딱 다섯 개만 묻고 끝낼게요/, '끝이 있다는 약속');
+  assert.match(text, /딱 다섯 개만 묻고, 끝나면 한 번에 확인할게요/, '끝이 있다는 약속 · v15 확인은 끝에 한 번');
   // 아직 없는 기능(사람 찾기)을 한다고 약속하지 않는다.
   assert.doesNotMatch(text, /찾기 시작해요/);
   // 다섯 칸을 모두 미리 보여 준다.
@@ -510,32 +642,19 @@ test('2026-09-24 끝 화면에서도 「처음부터 다시 답하기」가 바�
 });
 
 // ── v14.4 대화 연결성(대표 긴급 정정 2026-09-24) — 화면 쪽 약속 ──
-test('v14.4 AI 에게 한 질문("왜 이런 걸 물어봐")은 기록하지 않고, 먼저 답한 뒤 같은 질문을 다시 보여 준다(첫 질문에서도)', async () => {
-  const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
-  const h = componentHarness({
-    rephrase: async (question, text) => ({ meta: true, kind: 'ask', reply: '여기에 답한 말로 어떤 사람을 소개할지 정해요.', question: question.split('\n').pop(), fallback: false, _text: text }),
-  });
-  await h.flush();
-  assert.deepEqual(h.questions(), [FIRST]);
-  await h.send('근데 왜 이런 걸 물어봐');
-  assert.equal(h.calls.filter((c) => c.name === 'record').length, 0, 'AI 에게 한 질문은 답으로 저장하지 않는다');
-  assert.equal(h.calls.filter((c) => c.name === 'rephrase').length, 1);
-  assert.deepEqual(h.questions(), [FIRST], '새 질문이 아니라 같은 질문');
-  assert.match(h.content(), /여기에 답한 말로 어떤 사람을 소개할지 정해요\./, '먼저 답한다');
-});
 
-test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문장)을 서버에 함께 보낸다 — 다음 질문 요청에도', async () => {
+
+test('v14.4 답을 보낼 때 그 답이 받은 질문(화면에 떠 있던 문장)을 서버에 함께 보낸다 — 분류·다음 질문 요청 모두', async () => {
   const FIRST = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
   const h = componentHarness({
     record: async () => record('n1'),
-    generate: async () => ({ insights: [] }),
     nextQuestion: async (id) => question(id, '다음 질문이에요?'),
   }, { props: { autoQuestion: true } });
   await h.flush();
   await h.send('요즘 친구 생각이 자주 나요');
-  const gen = h.calls.find((c) => c.name === 'generate');
-  assert.equal(gen.args[2], FIRST, '첫 답은 첫 고정 질문에 대한 답');
+  assert.equal(h.calls.find((c) => c.name === 'classify').args[1], FIRST, '분류도 떠 있던 질문과 함께');
   const next = h.calls.find((c) => c.name === 'nextQuestion');
-  assert.ok(next, '확인할 후보가 없으면 화면이 다음 질문을 요청한다');
-  assert.equal(next.args[1], FIRST, '같은 답의 다음 질문 요청에도 같은 직전 질문');
+  assert.ok(next, '기록하면 곧바로 다음 질문을 요청한다');
+  assert.equal(next.args[1], FIRST, '첫 답은 첫 고정 질문에 대한 답');
 });
+
