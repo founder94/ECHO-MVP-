@@ -16,7 +16,9 @@ export type TurnKind = 'answer' | 'ask' | 'meta' | 'complaint' | 'fatigue' | 'un
 export interface CoreTurnResult { kind: TurnKind; saved: boolean; record: CoreRecord | null; question: CoreQuestion | null; reply?: string; pause?: boolean; finished?: boolean; again?: boolean; rejected?: boolean; questionError?: string }
 // text = 사용자가 적은 말 · recordId = 지금 이어 가는 기록(「다음 질문 받기」·「다른 질문 받기」의 기준) · asAnswer = 「이 말은 답으로 남길게요」(사용자 선택)
 // correction = 지금 떠 있는 AI 문장("그게 아니에요"면 서버가 거절로 저장) · pendingCorrection = 앞에서 아니라고 한 AI 문장(다음 답의 정정 전 문장)
-export interface CoreTurnInput { text?: string; answeredQuestion?: string | null; recordId?: string | null; skip?: boolean; asAnswer?: boolean; correction?: string | null; pendingCorrection?: string | null }
+// recent(v1.1) = 이번 대화의 최근 말(저장 안 한 되묻기·문제제기 포함). 서버는 사실로 쓰지 않고 다음 말을 만들 맥락으로만 쓴다(DB 저장 0).
+export interface CoreRecentTurn { question: string | null; text: string; saved: boolean; kind: TurnKind | null }
+export interface CoreTurnInput { text?: string; answeredQuestion?: string | null; recordId?: string | null; skip?: boolean; asAnswer?: boolean; correction?: string | null; pendingCorrection?: string | null; recent?: CoreRecentTurn[] }
 const TURN_KINDS: TurnKind[] = ['answer', 'ask', 'meta', 'complaint', 'fatigue', 'unsure', 'correction'];
 // v15: 다섯 답 뒤 통합 이해 카드. items = 확인을 기다리는 AI 항목(서버가 저장한 후보). done = 이번 회차 카드를 이미 다 정함.
 export interface CoreSynthesis { items: CoreInsight[]; done: boolean; empty: boolean }
@@ -45,6 +47,7 @@ export function createCoreConversation(port: CorePort) {
       action: 'turn', ...(text ? { text, originalText: raw } : {}), ...(input.answeredQuestion ? { answeredQuestion: questionBodyOf(input.answeredQuestion) } : {}),
       ...(input.recordId ? { recordId: input.recordId } : {}), ...(input.skip ? { skip: true } : {}), ...(input.asAnswer ? { asAnswer: true } : {}),
       ...(input.correction ? { correction: input.correction } : {}), ...(input.pendingCorrection ? { pendingCorrection: input.pendingCorrection } : {}),
+      ...(input.recent?.length ? { recent: input.recent } : {}),
     });
     if (typeof result.kind !== 'string' || !TURN_KINDS.includes(result.kind as TurnKind) || typeof result.saved !== 'boolean') throw new Error('INVALID_RESPONSE');
     const record = result.saved ? result.record ?? null : null;

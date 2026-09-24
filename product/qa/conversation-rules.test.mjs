@@ -99,7 +99,8 @@ test('서버 v13: 저장 경로 4곳(record_create/update, correct, self) 모두
   const outside = server.slice(0, draftStart) + server.slice(draftEnd);
   // v15 turn_classify(분류 전 차단)·synthesis_revise(직접 설명 저장 전)·통합 카드 항목(출력)이 같은 규칙을 거친다 → 사용 9.
   // v16 한 턴(turn): 입력 원문 2(text·originalText) + 출력 3(다음 질문·짧은 반응·AI 에게 한 질문의 답) → 사용 14.
-  assert.equal((outside.match(/blockedContentReason\(/g) ?? []).length - 1, 14, 'RULES 정의 1 + 사용 14(create 2회·update·correct·self + v14.4 화면이 보낸 직전 질문 + v15 분류·직접 설명·카드 항목 + v16 입력 2·출력 3)');
+  // v1.1 앱이 보낸 최근 대화(recent)의 말·질문 2곳도 같은 규칙으로 거른다 → 사용 16.
+  assert.equal((outside.match(/blockedContentReason\(/g) ?? []).length - 1, 16, 'RULES 정의 1 + 사용 16(create 2회·update·correct·self + v14.4 화면이 보낸 직전 질문 + v15 분류·직접 설명·카드 항목 + v16 입력 2·출력 3 + v1.1 최근 대화 2)');
   assert.equal((draftBlock.match(/blockedContentReason\(/g) ?? []).length, 2, '소개 초안: 재료(내 답)와 출력 문장 둘 다 거른다');
   assert.ok(server.includes('"rephrase", "profile_draft"'));
   assert.ok(server.includes('BLOCKED_CONTENT: "BLOCKED_CONTENT"'));

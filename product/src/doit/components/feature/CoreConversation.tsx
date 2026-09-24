@@ -5,7 +5,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
-import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecord } from '@/doit/lib/coreConversation';
+import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecentTurn, type CoreRecord } from '@/doit/lib/coreConversation';
 import { draftToIntro } from '@/doit/lib/introDraft';
 import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
@@ -59,6 +59,8 @@ export const ASK_TOTAL = TOPICS.length;
 export const FIRST_QUESTION = '당신이 잠든 사이, 요즘 가장 자주 떠오르는 사람이나 마음은 뭐예요?';
 // v14.4 첫 화면(ConversationOpening)의 질문. 거기서 적은 한 줄은 이 질문에 대한 답이다(서버에 직전 질문으로 알려 준다).
 export const OPENING_QUESTION = '어떤 만남을 원하세요?';
+// v1.1 서버에 함께 보내는 최근 대화 줄 수(서버 V16_HOT_TURNS = 3 과 같다 · 서버가 다시 자른다).
+const HOT_CONTEXT_TURNS = 3;
 // v15.1 정정 안내를 이미 보였는데 또 "아니에요"만 왔을 때 넘어가며 보이는 안내(서버 TURN_REPLY.moveOn 과 같은 문장 · 예전 서버 대비).
 const MOVE_ON_NOTICE = '알겠어요. 다른 걸 여쭤볼게요.';
 
@@ -120,6 +122,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const alive = useRef(true);
   const questionVersion = useRef(0);
   const initialSent = useRef(false);
+  const recentTurns = useRef<CoreRecentTurn[]>([]);
   const autoAsked = useRef<string | null>(null);
   const synthAsked = useRef(false);
   // v15 이 화면에서 방금 만든 기록. 저장된 질문이 있을 수 없으므로 복원 조회를 건너뛴다
@@ -205,7 +208,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const restart = () => onRestart && run('처음부터 다시 여는 중이에요', async () => {
     const failure = await onRestart();
     if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
-    if (alive.current) { setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setUnsaved(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
+    if (alive.current) { recentTurns.current = []; setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setUnsaved(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
   });
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
   // v15(명세 §2 「매 질문마다 AI 해석 카드와 4버튼을 띄우지 않는다」): 다섯 답 동안은 질문만 보인다. 후보 카드·확인 버튼은 통합 카드에만 있다.
@@ -311,14 +314,18 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   };
   // v16 한 턴(대표 승인 2026-09-24): 서버가 말의 종류를 가른 뒤에만 답으로 저장한다(되묻기·문제제기가 답으로 올라가지 않는다).
   //   다음 질문도 같은 요청에서 받는다(전: 분류 → 저장 → 다음 질문 = 요청 3번).
+  // v1.1(LEVEL 3 FAIL #3): 이번 대화의 최근 말을 기억해 매 요청에 함께 보낸다 — 답으로 저장하지 않은 되묻기·문제제기도 다음 말의 맥락이다.
+  //   서버는 사실로 저장하지 않는다(DB 저장 0). 새로고침하면 비고, 그때 서버는 저장된 답으로 맥락을 만든다. 「처음부터 시작하기」면 비운다.
+  const remember = (turn: CoreRecentTurn) => { recentTurns.current = [...recentTurns.current, turn].slice(-HOT_CONTEXT_TURNS); };
   const sendText = async (text: string, answeredOverride?: string, asAnswer = false) => {
     assertStorable(text);
     // 사용자가 지금 보고 있는 질문(첫 고정 질문 포함).
     const shown = question ?? firstQuestion;
     const shownText = answeredOverride ?? shown?.text ?? null;
     const shownBody = shownText ? questionBodyOf(shownText) : '';
-    const result = await api.turn({ text, answeredQuestion: shownBody || null, recordId: active && !finished ? active.id : null, asAnswer, correction: correctionTarget(), pendingCorrection });
+    const result = await api.turn({ text, answeredQuestion: shownBody || null, recordId: active && !finished ? active.id : null, asAnswer, correction: correctionTarget(), pendingCorrection, recent: recentTurns.current });
     if (!alive.current) return;
+    remember({ question: shownBody || null, text: text.trim(), saved: result.saved, kind: result.kind });
     setUnsaved(null);
     if (result.saved && result.record) {
       // answer · unsure("모르겠어요"도 정상 답) · 설명이 붙은 correction = 원문 그대로 기록됐다.

@@ -780,3 +780,40 @@ test('Agent v1: 답은 저장됐고 질문만 실패하면 자동 재요청 0 ·
   assert.equal(h.calls.filter((c) => c.name === 'nextQuestion').length, 1, '사용자가 누르면 한 번');
   assert.deepEqual(h.questions(), ['다시 받은 질문이에요?']);
 });
+
+// Agent v1.1(LEVEL 3 FAIL #3): 답으로 저장하지 않은 말도 다음 요청의 대화 맥락으로 함께 보낸다(서버는 사실로 저장하지 않는다) · 「처음부터」면 비운다.
+test('v1.1 저장 안 한 말(「취미생활?」·문제제기)도 다음 요청의 최근 대화(recent)로 간다 · 최근 3줄 · 처음부터 시작하면 비운다', async () => {
+  const replies = [
+    unsaved('meta', { question: question('a', '취미생활에 대해 어떤 것들이 궁금한가요?') }),
+    unsaved('complaint', { question: question('a', '요즘 즐기는 취미가 있어요?') }),
+    saved('b', question('b', '셋 중에 요즘 제일 자주 하는 건 뭐예요?')),
+    saved('c', question('c', '테니스는 누구랑 쳐요?')),
+  ];
+  const h = componentHarness({
+    load: async () => ({ records: [record('a')], insights: [] }),
+    savedQuestion: async id => question(id, '편한 친구와 어떤 활동을 함께하고 싶으세요?'),
+    turn: async () => replies.shift(),
+  }, { props: { onRestart: async () => null } });
+  await h.flush();
+  await h.send('취미생활?');
+  await h.send('너가 어떤 취미가 있냐고 나한테 물어봐야하는거 아니야?');
+  await h.send('싸이클 테니스 골프');
+  const plain = (v) => JSON.parse(JSON.stringify(v)); // 화면 코드는 다른 실행 공간에서 돈다 — 값만 비교한다
+  const turns = h.calls.filter(c => c.name === 'turn').map(c => plain(c.args[0]));
+  assert.deepEqual(turns[0].recent, [], '첫 요청: 아직 최근 대화 없음');
+  assert.deepEqual(turns[1].recent, [{ question: '편한 친구와 어떤 활동을 함께하고 싶으세요?', text: '취미생활?', saved: false, kind: 'meta' }]);
+  assert.deepEqual(turns[2].recent.map(r => [r.text, r.saved, r.kind]), [['취미생활?', false, 'meta'], ['너가 어떤 취미가 있냐고 나한테 물어봐야하는거 아니야?', false, 'complaint']]);
+  assert.equal(turns[2].recent[1].question, '취미생활에 대해 어떤 것들이 궁금한가요?', '문제 삼은 질문이 함께 간다(서버가 그 방향을 버린다)');
+  await h.send('테니스요');
+  const fourth = plain(h.calls.filter(c => c.name === 'turn')[3].args[0]);
+  assert.equal(fourth.recent.length, 3, '최근 3줄만');
+  assert.deepEqual(fourth.recent.map(r => r.saved), [false, false, true]);
+  h.clickNth('처음부터 시작하기', 0);
+  await h.flush();
+  h.click('처음부터 시작할게요');
+  await h.flush();
+  replies.push(saved('d', question('d', '다음 질문?')));
+  await h.send('새로 시작한 첫 답');
+  const afterRestart = plain(h.calls.filter(c => c.name === 'turn').at(-1).args[0]);
+  assert.deepEqual(afterRestart.recent, [], '처음부터 시작하면 최근 대화를 비운다');
+});

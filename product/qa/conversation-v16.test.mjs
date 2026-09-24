@@ -147,7 +147,7 @@ test('v16 A: 「그냥 편한친구 부담없이」 → 분류 뒤 답으로 저
   assert.equal(input.user_text, '그냥 편한친구 부담없이');
   assert.equal(input.last_question, FIRST);
   for (const k of ['direction', 'hints', 'strategy', 'topic']) assert.ok(!(k in input), `서버가 주제 방향(${k})을 주지 않는다`);
-  assert.equal(input.answered_count, 0);
+  for (const k of ['answered_count', 'remaining']) assert.ok(!(k in input), `v1.1 남은 칸 수·답한 수(${k})를 LLM 에 주지 않는다`);
   const log = turnLogs(state)[0];
   assert.equal(log.llm_calls, 1);
   assert.equal(log.saved, true);
@@ -210,14 +210,33 @@ test('v16 B: 「활동?갑자기?」 = 문제제기 → 저장 0 · 칸 0 · 사
   assert.equal(restored.body.question.text, r.body.question.text);
 });
 
-test('v16 B-2: 문제제기 뒤 질문의 단서를 문제제기 문장에서 뽑으면(= 직전 답에서 출발 안 함) 서버가 떨어뜨리고 1번 다시', async () => {
+// v1.1(LEVEL 3 FAIL #3): 문제제기면 방금 문제 삼은 질문 방향은 이 턴에서 버린다. 같은 방향을 다시 물으면(거의 같은 문장 또는 AI 스스로 표시) 1번 다시.
+//   (전 v16 B-2: 문제제기 문장에서 뽑은 단서는 무조건 떨어뜨렸다 → 사용자가 "이렇게 물어봐야지"라고 방향을 말해도 따를 수 없었다.)
+test('v1.1 B-2: 문제제기 뒤 문제 삼은 질문 방향을 다시 물으면 떨어뜨리고 1번 다시(rejected_direction)', async () => {
   const { state, server, first } = await afterFirstAnswer((_i, k) => k === 1
-    ? reply({ turn_type: 'complaint', interesting_clue: '활동', next_question: '그럼 어떤 활동이 좋아요?' })
+    ? reply({ turn_type: 'complaint', interesting_clue: '편한친구', next_question: '어떤 활동을 함께 하고 싶으세요?' })
     : reply({ turn_type: 'complaint', interesting_clue: '부담없이', next_question: '부담 없다는 건 어떤 느낌이에요?' }));
   const r = await server.call({ action: 'turn', text: '활동?갑자기?', answeredQuestion: first.body.question.text, recordId: first.body.question.sourceRecordId });
   assert.equal(r.body.question.text, '부담 없다는 건 어떤 느낌이에요?');
   assert.equal(state.records.length, 1);
-  assert.deepEqual(turnLogs(state).at(-1).retry_reason, ['clue']);
+  assert.deepEqual(turnLogs(state).at(-1).retry_reason, ['rejected_direction']);
+  const skip = state.events.find((e) => e.action === 'followup_skip');
+  assert.equal(skip.response_payload.rejected_direction, '어떤 활동을 함께 하고 싶어요?', '버린 질문 방향을 기존 기록 칸에 남긴다(AI 문장 · 사용자 원문 아님)');
+});
+test('v1.1 B-2b: 낱말을 바꿔도 같은 방향이라고 AI 가 스스로 표시하면(repeats_rejected_direction) 떨어뜨린다', async () => {
+  const { state, server, first } = await afterFirstAnswer((_i, k) => k === 1
+    ? reply({ turn_type: 'complaint', interesting_clue: '편한친구', next_question: '편한 친구랑 주말에 뭐 하고 싶어요?', repeats_rejected_direction: true })
+    : reply({ turn_type: 'complaint', interesting_clue: '부담없이', next_question: '부담 없다는 건 어떤 느낌이에요?' }));
+  const r = await server.call({ action: 'turn', text: '활동?갑자기?', answeredQuestion: first.body.question.text, recordId: first.body.question.sourceRecordId });
+  assert.equal(r.body.question.text, '부담 없다는 건 어떤 느낌이에요?');
+  assert.deepEqual(turnLogs(state).at(-1).retry_reason, ['rejected_direction']);
+});
+test('v1.1 B-2c: 사용자가 원하는 질문 방향을 말하면 그 말(user_text)에서 단서를 잡아도 된다', async () => {
+  const { state, server, first } = await afterFirstAnswer(() => reply({ turn_type: 'complaint', interesting_clue: '취미', next_question: '요즘 즐기는 취미가 있어요?' }));
+  const r = await server.call({ action: 'turn', text: '너가 어떤 취미가 있냐고 나한테 물어봐야하는거 아니야?', answeredQuestion: first.body.question.text, recordId: first.body.question.sourceRecordId });
+  assert.equal(r.body.kind, 'complaint');
+  assert.equal(r.body.question.text, '요즘 즐기는 취미가 있어요?');
+  assert.deepEqual(turnLogs(state).at(-1).retry_reason, [], 'LLM 1번');
 });
 
 test('v16 B-3(회귀): AI 가 진짜 답을 불만으로 잘못 읽어도 사용자가 「답으로 남기기」를 누르면 답으로 저장된다(빠져나갈 문)', async () => {
@@ -373,8 +392,8 @@ test('v16 처음부터 시작하기 뒤: 새 회차 기록만 칸·맥락으로 
   const state = fresh({ records: [old], userMeta: { doit_round_started_at: '2026-09-24T10:00:00.000Z' } });
   const { call, calls } = loadServer(() => reply({ interesting_clue: '편한친구', next_question: '편한 친구는 어떤 사람이에요?' }), state);
   await call({ action: 'turn', text: '그냥 편한친구 부담없이', answeredQuestion: FIRST });
-  assert.equal(calls[0].input.answered_count, 0, '지난 회차 답은 이번 칸에 안 센다');
-  assert.deepEqual(calls[0].input.hot_memory, [], '지난 회차 답은 맥락에 안 넣는다');
+  assert.ok(!('answered_count' in calls[0].input), 'v1.1 칸 수는 LLM 에 주지 않는다(서버가 이번 회차만 센다)');
+  assert.deepEqual(calls[0].input.hot_context, [], '지난 회차 답은 최근 대화 맥락에 안 넣는다');
   assert.equal(state.records.length, 2, '지난 원문 삭제 0');
 });
 test('v16 AI 가 두 번 다 형식을 못 지키면 → 저장 0 · 502 · 입력창 보존 문구 (메타가 답으로 올라가지 않는다)', async () => {
@@ -470,7 +489,8 @@ test('Agent v1 HOT MEMORY: 전체 대화가 아니라 최근 3턴만 · 확정·
   const { call, calls } = loadServer(() => reply({ interesting_clue: '다섯', next_question: 'x?' }), state);
   await call({ action: 'turn', text: '다섯 번째 답이에요', answeredQuestion: '다섯 번째 질문?' });
   const input = calls[0].input;
-  assert.deepEqual(input.hot_memory.map((t) => t.a), ['답 2', '답 3', '답 4'], '최근 3턴만');
+  assert.deepEqual(input.hot_context.map((t) => t.a), ['답 2', '답 3', '답 4'], '최근 3턴만(앱이 최근 대화를 안 보내면 저장된 답으로 만든다)');
+  assert.ok(input.hot_context.every((t) => t.saved === true));
   for (const k of ['confirmed', 'corrected', 'unconfirmed', 'rejected', 'superseded', 'already_asked', 'purpose']) assert.ok(k in input, k);
   assert.ok(!('recent' in input) && !('records' in input), '전체 기록을 따로 넣지 않는다');
 });
@@ -503,4 +523,144 @@ test('Agent v1 모델 어댑터: 한 턴 경로는 어댑터(generateRelationshi
   assert.match(block, /interface RelationshipTurnAdapter \{ readonly provider: string; generateRelationshipTurn\(/);
   assert.equal((block.match(/callOpenAI\(/g) ?? []).length, 1, 'OpenAI 호출은 OpenAI 어댑터 한 곳뿐');
   assert.match(block, /await adapter\.generateRelationshipTurn\(V16_SYSTEM/);
+});
+
+// ── Agent v1.1 · LEVEL 3 FAIL #3 (대표 Galaxy 실기기 2026-09-24 22:58~23:00 KST) — 가짜 AI 기준(실제 OpenAI 아님) ──
+// 이 검사가 증명하는 것: 같은 흐름에서 서버가 LLM 에 무엇을 주고(맥락 계약), 무엇을 저장하고, 어떤 이유로 다시 만드는지.
+// 증명하지 못하는 것: 실제 OpenAI 가 이 맥락으로 좋은 질문을 만드는지 — 대표 LEVEL 3(iPhone·Galaxy)로만 판정한다.
+const FAIL3_FIRST = '이상이던 동성이던 편한친구 찾고 싶어';
+const FAIL3_Q1 = '편한 친구와 어떤 활동을 함께하고 싶으세요?';     // 운영에서 실제로 나간 첫 질문(가짜 AI 가 그대로 흉내)
+const FAIL3_Q2 = '취미생활에 대해 어떤 것들이 궁금한가요?';          // 운영에서 실제로 나간 되물음
+test('v1.1 FAIL #3 흐름: 「취미생활?」 강제 분류 0 · 저장 0 · 칸 0 · 다음 턴 맥락 포함 → 문제제기 = REPAIR(방향 폐기) → 「싸이클 테니스 골프」 저장 뒤 질문 생성', async () => {
+  const state = fresh({ profiles: [{ id: USER, purpose_label: '친구를 만나고 싶어요' }] });
+  let n = 0;
+  const { call, calls } = loadServer((input) => {
+    n += 1;
+    if (n === 1) return reply({ interesting_clue: '편한친구', next_question: FAIL3_Q1 });
+    if (n === 2) return reply({ turn_type: 'meta', interesting_clue: '취미생활', next_question: FAIL3_Q2 });
+    if (n === 3) return reply({ turn_type: 'complaint', interesting_clue: '편한친구', next_question: FAIL3_Q2 }); // 같은 되물음을 또 내면 → 버린 방향
+    if (n === 4) return reply({ turn_type: 'complaint', acknowledgement: '제가 거꾸로 물었네요.', interesting_clue: '취미', next_question: '요즘 즐기는 취미가 있어요?' });
+    if (n === 5) return reply({ interesting_clue: '테니스', next_question: FAIL3_Q1 });                       // 운영 실패와 같은 모양: 첫 질문 되풀이
+    return reply({ interesting_clue: '테니스', next_question: '셋 중에 요즘 제일 자주 하는 건 뭐예요?' });
+  }, state);
+  const recent = [];
+  const say = async (text, answeredQuestion, recordId) => {
+    const r = await call({ action: 'turn', text, answeredQuestion, ...(recordId ? { recordId } : {}), ...(recent.length ? { recent: [...recent] } : {}) });
+    recent.push({ question: answeredQuestion, text, saved: r.body.saved, kind: r.body.kind });
+    return r;
+  };
+  // ① 첫 답: 저장 · 칸 1 · LLM 입력에 남은 칸 수 없음 · 서버가 주제 방향을 주지 않음
+  const a = await say(FAIL3_FIRST, FIRST);
+  assert.equal(a.body.saved, true);
+  assert.equal(state.records.length, 1);
+  const in1 = calls[0].input;
+  for (const k of ['remaining', 'answered_count', 'direction', 'hints', 'topic']) assert.ok(!(k in in1), `LLM 입력에 ${k} 없음`);
+  assert.equal(a.body.question.text, FAIL3_Q1, '(가짜 AI 가 운영 문장을 그대로 냄 — 활동 점프 자체는 실AI 품질 문제로 LEVEL 3 에서 본다)');
+  const recordId = a.record?.id ?? a.body.record.id;
+  // ② 「취미생활?」: 서버 규칙(짧은 물음표)이 종류를 강제하지 않는다 · 저장 0 · 칸 0
+  const b = await say('취미생활?', FAIL3_Q1, recordId);
+  const in2 = calls[1].input;
+  assert.ok(!('server_turn_type' in in2), '짧은 물음표 규칙이 meta 로 강제하지 않는다 — LLM 이 뜻으로 가른다');
+  assert.deepEqual(in2.hot_context.map((h) => [h.a, h.saved]), [[FAIL3_FIRST, true]]);
+  assert.equal(b.body.saved, false);
+  assert.equal(state.records.length, 1, '칸 증가 0');
+  assert.equal(state.insights.length, 0, '사실·이해 0');
+  assert.equal(turnLogs(state).at(-1).rule, 'meta', '규칙이 본 것은 관측으로만 남는다');
+  assert.equal(turnLogs(state).at(-1).by, 'ai');
+  // ③ 「너가 어떤 취미가 있냐고…」: 앞의 저장 안 한 말이 맥락에 있다 → 문제제기 → 방금 질문(Q2) 방향 폐기 → 같은 방향이면 1번 다시
+  const c = await say('아니 같은 취미생활 너가 어떤 취미가 있냐고 나한테 물어봐야하는거 아니야?', FAIL3_Q2, recordId);
+  const in3 = calls[2].input;
+  assert.ok(!('server_turn_type' in in3));
+  assert.deepEqual(in3.hot_context.map((h) => [h.a, h.saved]), [[FAIL3_FIRST, true], ['취미생활?', false]], '저장 안 한 「취미생활?」도 다음 턴 맥락에 있다');
+  assert.equal(in3.last_answer, FAIL3_FIRST, '마지막 정상 답으로 돌아간다');
+  assert.equal(c.body.kind, 'complaint');
+  assert.equal(c.body.saved, false);
+  assert.equal(c.body.question.text, '제가 거꾸로 물었네요.\n요즘 즐기는 취미가 있어요?');
+  assert.deepEqual(turnLogs(state).at(-1).retry_reason, ['rejected_direction'], '문제 삼은 질문을 또 내면 떨어진다');
+  assert.equal(state.events.filter((e) => e.action === 'followup_skip').at(-1).response_payload.rejected_direction, FAIL3_Q2);
+  assert.equal(state.records.length, 1);
+  // ④ 「싸이클 테니스 골프」: 저장 → 첫 질문을 되풀이하면 1번 다시 → 질문이 나온다(운영에서는 두 번 다 되풀이해 실패)
+  const d = await say('싸이클 테니스 골프', '요즘 즐기는 취미가 있어요?', recordId);
+  const in4 = calls[4].input;
+  assert.deepEqual(in4.hot_context.map((h) => [h.a, h.saved]), [[FAIL3_FIRST, true], ['취미생활?', false], ['아니 같은 취미생활 너가 어떤 취미가 있냐고 나한테 물어봐야하는거 아니야?', false]]);
+  assert.ok(in4.rejected_directions.includes(FAIL3_Q2), '앞에서 버린 질문 방향이 LLM 에 간다');
+  assert.equal(d.body.saved, true);
+  assert.equal(state.records.length, 2, '정상 답 저장 · 칸 2');
+  assert.equal(d.body.question.text, '셋 중에 요즘 제일 자주 하는 건 뭐예요?');
+  const log = turnLogs(state).at(-1);
+  assert.deepEqual(log.retry_reason, ['repeat']);
+  assert.equal(log.llm_calls, 2, '예외 = 최대 2번');
+  assert.equal(log.hot_unsaved, 2);
+  assert.equal(log.hot_from, 'client');
+  assert.ok(log.directions >= 1);
+  assert.equal(calls.length, 6, '네 턴에 LLM 6번(정상 턴 1번 · 다시 만들기 2번)');
+  assert.deepEqual(legacyStages(calls), [], '옛 관문 0');
+  assert.ok(!state.logs.some((l) => l.includes('취미생활?') || l.includes('싸이클')), '사용자 원문은 로그에 없다');
+});
+test('v1.1 새로고침 뒤: 앱이 최근 대화를 잃어도 버린 질문 방향은 서버 기록으로 남는다', async () => {
+  const { state, server, first } = await afterFirstAnswer((_i, k) => k === 1
+    ? reply({ turn_type: 'complaint', interesting_clue: '부담없이', next_question: '부담 없다는 건 어떤 느낌이에요?' })
+    : reply({ interesting_clue: '산책', next_question: '산책은 주로 어디로 가요?' }));
+  await server.call({ action: 'turn', text: '활동?갑자기?', answeredQuestion: first.body.question.text, recordId: first.body.question.sourceRecordId });
+  await server.call({ action: 'turn', text: '산책이요 조용한 데로', answeredQuestion: '부담 없다는 건 어떤 느낌이에요?', recordId: first.body.question.sourceRecordId }); // recent 없음 = 새로고침
+  const input = server.calls.at(-1).input;
+  assert.ok(input.rejected_directions.includes('어떤 활동을 함께 하고 싶어요?'));
+  assert.equal(turnLogs(state).at(-1).hot_from, 'records');
+});
+test('v1.1 짧은 물음표·AI 에게 묻는 말 규칙은 종류를 강제하지 않는다 · 지친 말·정정·저장 금지 규칙은 그대로', async () => {
+  for (const text of ['취미생활?', '활동?', '왜?', '그래서?', '왜 그걸 물어봐?', '활동?갑자기?']) {
+    const state = fresh();
+    const { call, calls } = loadServer(() => reply({ turn_type: 'complaint', interesting_clue: '부담없이', next_question: '부담 없다는 건 어떤 느낌이에요?' }), state);
+    const rec = { id: uuid(), user_id: USER, text: '그냥 편한친구 부담없이', original_text: '그냥 편한친구 부담없이', status: 'confirmed', revision: 1, created_at: '2026-09-24T11:00:00.000Z' };
+    state.records.push(rec);
+    await call({ action: 'turn', text, answeredQuestion: '어떤 활동을 함께 하고 싶어요?', recordId: rec.id });
+    assert.ok(!('server_turn_type' in calls[0].input), `${text}: 서버가 강제하지 않는다`);
+    assert.equal(state.records.length, 1, `${text}: 문제제기로 읽히면 저장 0`);
+  }
+  const s1 = fresh();
+  const f = loadServer(() => { throw new Error('불리면 안 됨'); }, s1);
+  const tired = await f.call({ action: 'turn', text: '할말이없다 휴', answeredQuestion: '어떤 사람이면 편해요?' });
+  assert.equal(tired.body.kind, 'fatigue');
+  assert.equal(f.calls.length, 0, '지친 말 = 규칙 · LLM 0번');
+  const no = await f.call({ action: 'turn', text: '그게 아니에요', answeredQuestion: '어떤 사람이면 편해요?' });
+  assert.equal(no.body.kind, 'correction');
+  assert.equal(f.calls.length, 0, '설명 없는 정정 = 규칙 · LLM 0번');
+  const blocked = await f.call({ action: 'turn', text: '010-1234-5678 로 연락줘', answeredQuestion: '어떤 사람이면 편해요?' });
+  assert.equal(blocked.body.code, 'BLOCKED_CONTENT');
+  const unsure = fresh();
+  const u = loadServer(() => reply({ interesting_clue: '모르겠어요', next_question: '그럼 같이 있으면 편한 사람은 어떤 사람이에요?' }), unsure);
+  await u.call({ action: 'turn', text: '모르겠어요', answeredQuestion: '어떤 사람이면 편해요?' });
+  assert.equal(u.calls[0].input.server_turn_type, 'unsure', '「모르겠어요」는 규칙이 정한다');
+});
+test('v1.1 기억 3층: 정정·거절은 전부 · 이번 회차 확인은 전부 · 지난 회차 확인은 지금 말과 겹칠 때만 · 지난 회차 후보는 안 넣는다', async () => {
+  const at = (hm) => `2026-09-24T${hm}:00.000Z`;
+  const ins = (text, status, created, origin = 'ai') => ({ id: uuid(), user_id: USER, text, ai_text: text, status, origin, source_record_id: 'old', revision: 1, created_at: at(created), updated_at: at(created) });
+  const state = fresh({ userMeta: { doit_round_started_at: at('10:00') }, insights: [
+    ins('테니스를 좋아하는 사람을 원해요', 'confirmed', '09:00'),
+    ins('조용한 카페를 좋아해요', 'confirmed', '09:01'),
+    ins('주말에만 만날 수 있어요', 'corrected', '09:02'),
+    ins('지난 회차 후보 문장', 'candidate', '09:03'),
+    ins('이번 회차 후보 문장', 'candidate', '10:30'),
+    ins('사람 많은 모임을 좋아한다', 'rejected', '09:04'),
+  ] });
+  const { call, calls } = loadServer(() => reply({ interesting_clue: '테니스', next_question: '테니스는 얼마나 자주 쳐요?' }), state);
+  await call({ action: 'turn', text: '테니스 치는 걸 좋아해요', answeredQuestion: '요즘 즐기는 취미가 있어요?' });
+  const input = calls[0].input;
+  assert.deepEqual(input.confirmed, ['테니스를 좋아하는 사람을 원해요'], '지난 회차 확인은 지금 말과 겹치는 것만(조용한 카페는 뺌)');
+  assert.deepEqual(input.corrected, ['주말에만 만날 수 있어요'], '정정은 회차와 상관없이');
+  assert.deepEqual(input.unconfirmed, ['이번 회차 후보 문장'], '지난 회차 후보는 안 넣는다');
+  assert.ok(input.rejected.includes('사람 많은 모임을 좋아한다'), '거절은 회차와 상관없이');
+  const log = turnLogs(state).at(-1);
+  assert.equal(log.confirmed_in, 2);
+  assert.equal(log.confirmed_all, 3);
+});
+test('v1.1 프롬프트: 금지하려던 특정 낱말(활동)을 넣지 않고 · 정보 수집은 마지막 · 질문 방향 거절·저장 안 한 말 규칙이 있다', () => {
+  const start = SOURCE.indexOf('const V16_SYSTEM = ');
+  const prompt = SOURCE.slice(start, SOURCE.indexOf('JSON으로만 출력하라.`;', start));
+  assert.ok(!prompt.includes('활동'), '프롬프트에 「활동」 0');
+  assert.ok(/6 새로 알게 되는 것: 가장 마지막이다\. 빈칸을 채우거나 정보를 모으려고 묻지 않는다\./.test(prompt));
+  const order = ['1 이어짐', '2 궁금함', '3 사람다움', '4 가벼움', '5 한 걸음', '6 새로 알게 되는 것'].map((k) => prompt.indexOf(k));
+  assert.ok(order.every((v, i) => v > 0 && (i === 0 || v > order[i - 1])), '우선순위 순서 LOCK');
+  for (const k of ['rejected_directions', 'repeats_rejected_direction', 'hot_context', 'saved 가 false', 'REPAIR FIRST']) assert.ok(prompt.includes(k), k);
+  assert.ok(!/remaining|answered_count/.test(SOURCE.slice(SOURCE.indexOf('async function runV16Turn'), SOURCE.indexOf('async function storeSkipQuestion')).replace(/\/\/.*$/gm, '')), 'LLM 입력에서 남은 칸 수 제거');
 });
