@@ -652,7 +652,7 @@ test('v15.1 목적·톤 관문: 판정 AI 는 관계 목적·톤 기준과 사�
   assert.equal(seen.evidence.purpose?.label, '연애로 이어질 만남을 원해요', '판정 AI 가 사용자가 고른 목적을 받는다');
   const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
   const judgeSystem = src.slice(src.indexOf('const judgeSystem'), src.indexOf('const judgeOnce'));
-  for (const rule of ['목적 관문', '톤 관문', '여러 정보를 요구', '과거·상처·내면·이유', '면접·설문·심문·심리상담']) assert.ok(judgeSystem.includes(rule), `판정 기준에 「${rule}」`);
+  for (const rule of ['목적 관문', '톤 관문', '정보 관문', '여러 정보를 요구', '과거·상처·내면·이유', '면접·설문·심문·심리상담']) assert.ok(judgeSystem.includes(rule), `판정 기준에 「${rule}」`);
   const style = src.slice(src.indexOf('const QUESTION_STYLE'), src.indexOf('const ACK_STYLE'));
   for (const rule of ['가볍게·짧게·심플하게', '한 번에 하나만 묻는다', '단서 하나만', '한 단계만', "'왜'를 연달아", '가볍게 답하면 가볍게', '면접·설문·심문·심리상담']) assert.ok(style.includes(rule), `질문 말투 기준에 「${rule}」`);
   assert.ok(payloads.filter((p) => p.stage === 'judge').length >= 2);
