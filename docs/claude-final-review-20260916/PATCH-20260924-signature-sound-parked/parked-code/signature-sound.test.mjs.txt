@@ -1,0 +1,162 @@
+// Signature Sound + 대화 화면 B구조 스타일 검사 (2026-09-24, 대표 「SIGNATURE SOUND · FINAL UX LOCK」).
+// 가짜 오디오로 재생 규칙을 확인한다. 실제 소리를 듣는 검사가 아니다.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import ts from 'typescript';
+import vm from 'node:vm';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (p) => readFileSync(path.join(root, p), 'utf8');
+const sha = (p) => createHash('sha256').update(readFileSync(path.join(root, p))).digest('hex');
+
+function load() {
+  const js = ts.transpileModule(read('src/doit/sound/signatureSound.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const module = { exports: {} };
+  const require = (id) => { if (id === '@/assets/sound/echo-origin-1.mp3?url') return { default: '/assets/part-a.mp3' }; throw new Error(`unexpected import ${id}`); };
+  vm.runInNewContext(js, { module, exports: module.exports, require }, { filename: 'signatureSound.ts' });
+  return module.exports;
+}
+const S = load();
+
+function fakeEnv({ off = false, playError = null } = {}) {
+  const log = [];
+  const store = { off };
+  const listeners = {};
+  let failNext = playError;
+  const audio = {
+    src: '', preload: 'auto', loop: true, currentTime: 7, paused: true,
+    play() { log.push('play'); if (failNext) { const e = failNext; failNext = null; return Promise.reject(Object.assign(new Error(e), { name: e })); } this.paused = false; return Promise.resolve(); },
+    pause() { log.push('pause'); this.paused = true; },
+    addEventListener(t, f) { listeners[t] = f; },
+  };
+  return { log, store, audio, listeners, setFail: (e) => { failNext = e; }, env: { createAudio: () => { log.push('create'); return audio; }, readOff: () => store.off, writeOff: (v) => { store.off = v; log.push(`off:${v}`); } } };
+}
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+test('Part A: 「ECHO 시작하기」로 준비 → 대화 화면이 열리면 처음부터 한 번 재생 (반복 없음 · 미리 받기 없음)', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm();
+  assert.deepEqual(f.log, ['create', 'play', 'pause'], '누른 순간에는 틀자마자 멈춰 사파리 허락만 받는다(소리 0)');
+  assert.equal(f.audio.src, '/assets/part-a.mp3'); assert.equal(f.audio.loop, false); assert.equal(f.audio.preload, 'none');
+  s.enterConversation(); await flush();
+  assert.equal(f.audio.currentTime, 0); assert.equal(s.getSnapshot().state, 'playing');
+  f.listeners.ended(); assert.equal(s.getSnapshot().state, 'ended');
+});
+
+test('새로고침·그냥 다시 들어옴(준비 없음)에는 틀지 않는다 · 한 번 튼 뒤 다시 들어와도 다시 틀지 않는다', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.enterConversation(); await flush();
+  assert.deepEqual(f.log, []); assert.equal(s.getSnapshot().state, 'idle');
+  s.arm(); s.enterConversation(); await flush(); s.leave(); f.log.length = 0;
+  s.enterConversation(); await flush();
+  assert.deepEqual(f.log, [], '준비는 한 번 쓰면 없어진다');
+});
+
+test('브라우저가 재생을 막아도(NotAllowedError) 오류를 던지지 않고 「소리 켜기」 상태만 남긴다', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm(); f.setFail('NotAllowedError');
+  assert.doesNotThrow(() => s.enterConversation()); await flush();
+  assert.equal(s.getSnapshot().state, 'blocked');
+  s.toggle(); await flush();
+  assert.equal(s.getSnapshot().state, 'playing', '사용자가 버튼을 누르면 재생');
+});
+
+test('파일을 못 받는 등 다른 실패는 error — 대화는 그대로 · 멈춤(AbortError)은 실패로 세지 않는다', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm(); f.setFail('NotSupportedError'); s.enterConversation(); await flush();
+  assert.equal(s.getSnapshot().state, 'error');
+  const g = fakeEnv(); const t = S.createSignatureSound(S.PART_A_SRC, g.env);
+  t.arm(); g.setFail('AbortError'); t.enterConversation(); await flush();
+  assert.equal(t.getSnapshot().state, 'idle');
+});
+
+test('소리 끄기는 이 기기에 기억 → 다음 「ECHO 시작하기」·다시 들어옴·처음부터 시작하기에도 저절로 틀지 않는다', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm(); s.enterConversation(); await flush();
+  s.toggle();
+  assert.equal(f.store.off, true); assert.equal(s.getSnapshot().state, 'paused'); assert.equal(s.getSnapshot().off, true);
+  f.log.length = 0;
+  s.arm(); s.enterConversation(); await flush();
+  assert.deepEqual(f.log, [], '꺼 둔 사람은 준비도 재생도 하지 않는다');
+  const g = fakeEnv({ off: true }); const t = S.createSignatureSound(S.PART_A_SRC, g.env);
+  t.arm(); t.enterConversation(); await flush();
+  assert.deepEqual(g.log, [], '저장된 「소리 끔」은 새 화면에서도 지킨다');
+});
+
+test('다시 켜기 = 멈춘 자리부터(끝났으면 처음부터) · 「소리 끔」 기억 지움', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm(); s.enterConversation(); await flush(); s.toggle();
+  f.audio.currentTime = 12; s.toggle(); await flush();
+  assert.equal(f.audio.currentTime, 12); assert.equal(f.store.off, false); assert.equal(s.getSnapshot().state, 'playing');
+  f.listeners.ended(); s.toggle(); await flush();
+  assert.equal(f.audio.currentTime, 0);
+});
+
+test('대화 화면을 떠나거나 앱이 뒤로 가면 멈춘다 — 「소리 끔」 선택은 바꾸지 않는다', async () => {
+  const f = fakeEnv(); const s = S.createSignatureSound(S.PART_A_SRC, f.env);
+  s.arm(); s.enterConversation(); await flush();
+  s.leave();
+  assert.equal(f.audio.paused, true); assert.equal(s.getSnapshot().state, 'paused'); assert.equal(f.store.off, false);
+  assert.match(read('src/doit/sound/signatureSound.ts'), /visibilitychange[\s\S]{0,120}hidden[\s\S]{0,40}leave\(\)/);
+});
+
+test('Part B 는 꺼져 있다(관계 열림이 운영에서 아직 없음) · 두 곡 동시 재생 경로 0 · 볼륨 숫자 0 · 성별 선택 0', () => {
+  assert.equal(S.PART_B_ENABLED, false);
+  const src = read('src/doit/sound/signatureSound.ts');
+  assert.equal((src.match(/echo-origin-\d\.mp3\?url/g) ?? []).length, 1, 'import 하는 원음은 Part A 하나');
+  assert.doesNotMatch(src, /\.volume\s*=|loop\s*=\s*true|autoplay/i);
+  for (const f of ['src/doit/sound/signatureSound.ts', 'src/doit/sound/SoundControl.tsx']) assert.doesNotMatch(read(f), /\bgender\b|\bmale\b|\bfemale\b|듀엣/i, f);
+});
+
+test('원음은 받은 그대로(글자 단위 동일) 프로젝트 안에 있다', () => {
+  assert.equal(sha('src/assets/sound/echo-origin-1.mp3'), 'e38d47dac045590effdb02e0a1c82281d3ac85d508c17da0e11b3c4f9f335afe');
+  assert.equal(sha('src/assets/sound/echo-origin-2.mp3'), 'caa47c3da81fa470ec3d3623282ffcf747f792e3d43f536e441b8f032f68e13d');
+});
+
+test('홈페이지 자동재생 0: 준비는 앱 빌드의 시작 버튼에서만, 브랜드 주소 이동 뒤에는 닿지 않는다', () => {
+  const landing = read('src/pages/do-it/landing/page.tsx');
+  const start = landing.slice(landing.indexOf('const handleStart'), landing.indexOf('return (', landing.indexOf('const handleStart')));
+  const brandExit = start.indexOf("if (IS_BRAND_SITE) { window.location.assign");
+  const arm = start.indexOf('if (IS_APP_SITE) signatureSound().arm();');
+  assert.ok(brandExit > 0 && arm > brandExit, '브랜드 사이트는 준비 전에 앱 주소로 떠난다');
+  assert.equal((landing.match(/signatureSound\(\)/g) ?? []).length, 1);
+  for (const f of ['src/components/DoItBrandHero.tsx', 'src/pages/do-it/landing/components/BrandSections.tsx']) assert.doesNotMatch(read(f), /signatureSound|<audio|new Audio/, f);
+});
+
+test('대화 화면: 열리면 시도 · 떠나면 멈춤 · 소리 버튼은 첫 질문과 대화 두 곳 · 라벨·터치 영역', () => {
+  const page = read('src/doit/pages/do-it/conversation/page.tsx');
+  assert.match(page, /useEffect\(\(\) => \{ if \(conversationOpen\) signatureSound\(\)\.enterConversation\(\); \}, \[conversationOpen\]\);/);
+  assert.match(page, /useEffect\(\(\) => \(\) => signatureSound\(\)\.leave\(\), \[\]\);/);
+  assert.ok(page.indexOf('conversationOpen') < page.indexOf('if (loading) return'), '훅은 이른 return 앞');
+  assert.match(read('src/doit/components/feature/ConversationOpening.tsx'), /<SoundControl \/>/);
+  assert.match(read('src/doit/components/feature/CoreConversation.tsx'), /<SoundControl \/>/);
+  const ctl = read('src/doit/sound/SoundControl.tsx');
+  assert.match(ctl, /aria-pressed=\{playing\}/); assert.match(ctl, /aria-label=\{label\}/);
+  assert.match(read('src/doit/components/feature/core-conversation.css'), /\.echo-dialogue \.echo-sound\{[^}]*width:44px;height:44px/);
+});
+
+test('B구조 대화 스타일: 대화 루트 아래로만 · 바깥 사진 0 · 질문 Pretendard 700 · 흰 주요 버튼 · 움직임 줄이기 존중', () => {
+  const css = read('src/doit/components/feature/core-conversation.css');
+  const block = css.slice(css.indexOf('/* ── 2026-09-24 대화 화면 B구조 스타일'));
+  assert.ok(block.length > 1000);
+  const rules = block.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]*\{/g, '').replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+  for (const m of rules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of m[1].split(',')) {
+    const s = sel.trim(); if (!s) continue;
+    assert.match(s, /^\.echo-dialogue(\.echo-dialogue--b\b| \.echo-sound\b| \.echo-restart-top\b| \.echo-dialogue-header \.echo-sound\b)/, s);
+  }
+  assert.doesNotMatch(block, /url\(|readdy|helloreaddy|weather|parallax/i);
+  assert.doesNotMatch(block, /infinite/);
+  assert.match(block, /\.echo-dialogue\.echo-dialogue--b \.echo-question\{[^}]*font-size:24px;font-weight:700/);
+  assert.match(block, /--b-font:"Pretendard"/);
+  assert.match(block, /\.echo-dialogue\.echo-dialogue--b \.echo-primary,[\s\S]*?\{background:#fff;background-image:none;color:var\(--b-navy\)/);
+  assert.match(block, /--b-navy:#0c1526/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)\{\.echo-dialogue \*\{transition:none!important;animation:none!important\}\}/);
+  for (const f of ['src/doit/components/feature/CoreConversation.tsx', 'src/doit/components/feature/ConversationOpening.tsx']) assert.match(read(f), /echo-dialogue echo-dialogue--b/, f);
+  // 시작 흐름·가입 동의 화면(대화가 아닌 곳)은 그대로
+  assert.doesNotMatch(read('src/doit/pages/do-it/start-journey/page.tsx'), /echo-dialogue--b/);
+  assert.doesNotMatch(read('src/doit/app/plan-a/screens/SignupConsent.tsx'), /echo-dialogue--b/);
+});
