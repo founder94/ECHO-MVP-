@@ -94,8 +94,7 @@
      ② 빛 번짐 6개 = 옛 코드 PastelBlobs.tsx 의 색·크기·위치 그대로(움직임은 없음).
      ③ 덮개 = 지금 대화 화면의 바탕색 #090a0c 를 반투명으로 덮는 손잡이(--echo-pastel-veil). 대표 결정(2026-09-24 「배경색 이 색이야 그대로 써」)으로 0 = 덮지 않음.
         실측: 지금 글자색이 모두 기준 대비(작은 글씨 4.5:1)를 넘으려면 .86 이 필요하다 — 그러면 색이 어두운 올리브로 바뀐다.
-     ④ 그래서 배경 위에 바로 놓인 글자만 짙은 남색으로(대표 선택 2026-09-24 「D. 색 그대로 + 글자 남색」). #0c1526 = 옛 B 화면 주요 버튼의 글자색.
-        어두운 카드·버튼·입력창 안의 글자는 그대로. 글꼴·크기·굵기·문구·배치 변경 0.
+     ④ 글자·어두운 판은 아래 ⑥(2026-09-25 대표 「STRONG WHITE TYPOGRAPHY · UNIFIED DARK GLASS」). 2026-09-24 의 남색 글자(D안)는 대표 결정으로 없앴다.
    - 움직임: 옛 코드의 float-bg(20초, 1% 이동) 하나만. 날씨 입자·마우스 추적 0. 움직임 줄이기면 멈춘다. */
 .echo-dialogue.echo-dialogue--pastel{--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
 .echo-dialogue.echo-dialogue--pastel::before,
@@ -118,14 +117,46 @@
 }
 .echo-dialogue.echo-dialogue--pastel::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
 @media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel::before{animation:none}}
-/* ④ 배경 위 글자 = 남색. 어두운 바탕이 있는 카드·버튼·입력창 안(아래 :not 목록)은 제외한다. */
-.echo-dialogue.echo-dialogue--pastel{--echo-pastel-ink:#0c1526}
-.echo-dialogue.echo-dialogue--pastel :is(h1,.echo-eyebrow,.echo-lead,.echo-ack,.echo-topic,.echo-question,.echo-original>p,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-error,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li p,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.echo-memory p,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--echo-pastel-ink);-webkit-text-fill-color:var(--echo-pastel-ink)}
+/* ⑥ 2026-09-25 흰 글자 + 하나의 어두운 유리 (대표 「PASTEL GLASS UI FINAL VISUAL CORRECTION」 · 「WHITE TYPOGRAPHY PATCH」).
+   - 파스텔 배경(①~③)·배치·글꼴·크기·굵기·줄 간격·문구는 그대로. 바꾸는 것은 어두운 판의 바탕·흐림·테두리와 글자색뿐.
+   - 전(실측, 제각각이던 어두운 판): 입력창 #101216 · 하단 카드/다음 질문 받기 #171a20 · 처음부터 알약 #1b1f26 · 안내·확인 카드 #14171c ·
+     보기 버튼 #1c2027 · 목적 카드 rgb(23 26 32/.65) — 테두리도 .18~.65 로 제각각, 흐림은 목적 카드만.
+   - 후: 모두 아래 토큰 하나. 바탕색 = 가장 많이 쓰던 #171a20, 테두리 = 옛 B 칩 white/14, 흐림 = 옛 B 카드 10px.
+     투명도·글자 그림자 세기는 360/390/430/1440 · 민트/청록/노랑/코랄 구간에서 실측해 기준(작은 글씨 4.5:1, 큰 글씨 3:1)을 넘는 가장 옅은 값.
+   - 글자: 1순위(질문·제목·내가 남긴 말·카드 제목·입력 글자·주요 행동) = 흰색 /
+     2순위(머리말·안내·보조) = 유리 안 #dbe0e7(원래 카드 글자색) · 파스텔 위 #f2f3f5(원래 선택 카드 글자색 — 흰색보다 한 단계 약하게).
+     파스텔 위에 바로 놓인 글자에만 그림자(--conversation-text-halo)를 준다 — 글자 뒤에 판·덮개를 새로 깔지 않는다(대표 지시).
+   - 실측 한계(정직하게): 이 파스텔은 밝아서(노랑 구간 휘도 약 .8) 흰 글자는 표준 계산(그림자 제외)으로 최대 약 2:1 이다.
+     그림자 4단계를 재 보니 글자 바로 옆 1~2px 대비(중앙값)는 질문 약 1.7 → 2.4 까지만 오른다. 더 진한 윤곽(검은 1px 두 겹)도 2.4 로 같아
+     「절제된」 쪽(부드러운 3겹)을 골랐다. 표준 4.5:1 은 어두운 판·덮개 없이는 닿지 않는다 — 대표 확인 필요. */
+.echo-dialogue.echo-dialogue--pastel{
+  --conversation-glass-bg:rgb(23 26 32/var(--conversation-glass-alpha));
+  --conversation-glass-bg-strong:rgb(34 38 46/var(--conversation-glass-alpha));
+  --conversation-glass-alpha:.65;
+  --conversation-glass-border:rgb(255 255 255/.14);
+  --conversation-glass-blur:10px;
+  --conversation-text:#fff;
+  --conversation-text-secondary:#dbe0e7;
+  --conversation-text-secondary-on-pastel:#f2f3f5;
+  --conversation-text-halo:0 0 1px rgb(0 0 0/.8),0 0 3px rgb(0 0 0/.7),0 0 8px rgb(0 0 0/.45);
+}
+/* 어두운 판 = 하나의 유리 */
+.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-glass-bg);border-color:var(--conversation-glass-border);box-shadow:none;-webkit-backdrop-filter:blur(var(--conversation-glass-blur));backdrop-filter:blur(var(--conversation-glass-blur))}
+.echo-dialogue.echo-dialogue--pastel .echo-synthesis-items li{background:transparent;border-color:var(--conversation-glass-border)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:var(--conversation-glass-bg-strong)}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#ffffff9c}
+.echo-dialogue.echo-dialogue--pastel textarea:focus{border-color:#c2cfdd}
+/* 유리 안 글자: 1순위 흰색 · 2순위 #dbe0e7 */
+.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-opening-tile,.echo-opening-tile-label,.echo-brief-lead,.echo-brief-lead b,.echo-brief b,.echo-done-mark,.echo-done-lead,.echo-done-next b,.echo-synthesis-items p,.echo-synthesis-items button,.echo-insight h2,.echo-editor h2,.echo-reactions button:not(:first-child)){color:var(--conversation-text)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-restart-pill,.echo-restart-pill svg,.echo-opening-tile-desc,.echo-brief li,.echo-brief li span,.echo-brief-fine,.echo-done-next li,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-defer,.echo-context,.echo-done .echo-fine){color:var(--conversation-text-secondary)}
+.echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-glass-border)}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-secondary-on-pastel)} /* 선택 카드는 바탕이 한 단계 밝아 설명 글자도 한 단계 밝게(원래 선택 카드 글자색 #f2f3f5) */
+.echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-secondary)}
+/* 파스텔 위 글자: 1순위 흰색 · 2순위 #dbe0e7 · 둘 다 절제된 그림자. 유리 안(:not 목록)은 제외 */
+.echo-dialogue.echo-dialogue--pastel :is(h1,.echo-question,.echo-original>p,.echo-draft li p,.echo-memory p,.echo-error,.echo-error p):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text);-webkit-text-fill-color:var(--conversation-text);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-eyebrow,.echo-lead,.echo-ack,.echo-topic,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel);text-shadow:var(--conversation-text-halo)}
 .echo-dialogue.echo-dialogue--pastel h1{background-image:none;animation:none}
-/* ⑤ 2026-09-25 목적 선택 카드 4개 = 반투명 어두운 유리 (대표 「CARD TRANSPARENCY PATCH」). 파스텔 대화 화면 안의 이 카드에만.
-   전: 배경 #171a20 · 선택 #22262e (불투명) · 테두리 rgba(195,204,218,.22) · 선택 테두리 #ffffff9c · 흐림 없음 · 설명 글자 #9ba2ae.
-   후: 같은 색을 투명도 .65 로(글자 대비 4.5:1 을 모든 카드·360/390/430·선택 전후에서 넘는 가장 옅은 값, 실측) · 흐림 10px(옛 B 카드 값) ·
-       테두리 white/14(옛 B 칩 값) · 선택 테두리는 그대로 · 설명 글자는 제목과 같은 밝기(#dbe0e7)로만 올림(대비 부족 보정). 크기·자리·글꼴·문구 0. */
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{background:rgb(23 26 32/.65);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-color:rgb(255 255 255/.14)}
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{background:rgb(34 38 46/.65);border-color:#ffffff9c}
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile-desc{color:#dbe0e7}
+/* 진행 표시: 흰색 계열, 질문보다 약하게(2순위 색). 막대 바탕 white/.35 · 옅은 그림자는 눈으로 정한 값(글자가 아니라 대비 기준 계산 대상 아님) */
+.echo-dialogue.echo-dialogue--pastel .echo-steps-bar{background:rgb(255 255 255/.35)}
+.echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text-secondary-on-pastel);background-image:none;box-shadow:none}
+.echo-dialogue.echo-dialogue--pastel .echo-steps{filter:drop-shadow(0 1px 1px rgb(0 0 0/.25))}

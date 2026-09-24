@@ -11,12 +11,14 @@ const read = (p) => readFileSync(path.join(root, p), 'utf8');
 const css = read('src/doit/components/feature/core-conversation.css');
 const start = css.indexOf('/* ── 2026-09-24 대화 화면 파스텔 배경');
 const block = css.slice(start);
+// 괄호 깊이를 세며 맨 바깥 쉼표에서만 나눈다(:is(… :not(…)) 안의 쉼표는 그대로)
+const splitTop = (list) => { const out = []; let depth = 0, cur = ''; for (const ch of list) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && depth === 0) { out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out; };
 const rules = block.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@media[^{]*\{/g, '');
 
 test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로만 — 전역·다른 화면 0', () => {
   assert.ok(start > 0 && block.length > 500);
   let n = 0;
-  for (const m of rules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of m[1].split(/,(?![^(]*\))/)) {
+  for (const m of rules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of splitTop(m[1])) {
     const s = sel.trim(); if (!s) continue; n++;
     assert.match(s, /^\.echo-dialogue\.echo-dialogue--pastel\b/, s);
   }
@@ -37,16 +39,29 @@ test('움직임은 옛 float-bg 하나 · 움직임 줄이기면 멈춤', () => 
   assert.match(read('src/index.css'), /@keyframes float-bg/);
 });
 
-test('글자 남색(대표 선택 D)은 배경 위 글자만 — 어두운 카드 안은 제외', () => {
-  assert.match(block, /--echo-pastel-ink:#0c1526/);
-  assert.match(block, /:not\(:is\(\.echo-brief,\.echo-done,\.echo-synthesis,\.echo-restart,\.echo-pause,\.echo-insight,\.echo-editor,\.echo-opening-tile\) \*\)/);
+test('흰 글자(대표 2026-09-25): 남색 0 · 1순위 흰색 · 2순위 흰색 계열 · 파스텔 위 글자만 그림자', () => {
+  assert.doesNotMatch(rules, /#0c1526|--echo-pastel-ink/, '남색 글자 규칙은 없앴다');
+  assert.match(block, /--conversation-text:#fff;/);
+  assert.match(block, /--conversation-text-secondary:#dbe0e7;/);
+  assert.match(block, /--conversation-text-secondary-on-pastel:#f2f3f5;/);
+  assert.match(block, /--conversation-text-halo:0 0 1px rgb\(0 0 0\/\.8\),0 0 3px rgb\(0 0 0\/\.7\),0 0 8px rgb\(0 0 0\/\.45\);/);
+  const halo = [...rules.matchAll(/([^{}]+)\{[^}]*text-shadow:var\(--conversation-text-halo\)[^}]*\}/g)].map((m) => m[1]);
+  assert.equal(halo.length, 2);
+  for (const sel of halo) assert.match(sel, /:not\(:is\(\.echo-brief,\.echo-done,\.echo-synthesis,\.echo-restart,\.echo-pause,\.echo-insight,\.echo-editor,\.echo-opening-tile\) \*\)$/, '유리 안 글자에는 그림자 없음');
+  assert.match(block, /textarea::placeholder\{color:var\(--conversation-text-secondary\)\}/);
 });
 
-test('목적 카드 유리: 이 카드에만 · 투명도 .65 · 흐림 10px · 선택 테두리 유지', () => {
-  assert.match(block, /\.echo-dialogue\.echo-dialogue--pastel \.echo-opening-tile\{background:rgb\(23 26 32\/\.65\);-webkit-backdrop-filter:blur\(10px\);backdrop-filter:blur\(10px\);border-color:rgb\(255 255 255\/\.14\)\}/);
-  assert.match(block, /\.echo-dialogue\.echo-dialogue--pastel \.echo-opening-tile\.is-selected\{background:rgb\(34 38 46\/\.65\);border-color:#ffffff9c\}/);
-  const glassRules = [...rules.matchAll(/([^{}]+)\{[^}]*backdrop-filter[^}]*\}/g)].map((m) => m[1].trim());
-  assert.deepEqual(glassRules, ['.echo-dialogue.echo-dialogue--pastel .echo-opening-tile'], '흐림 유리는 목적 카드 하나뿐');
-  // 원래 카드 규칙(다른 화면·파스텔 밖)은 그대로
+test('어두운 판 = 하나의 유리 토큰: 입력창·하단 카드·처음부터·목적 카드·안내/확인 카드 · 투명도 .65 · 흐림 10px · 테두리 white/14', () => {
+  assert.match(block, /--conversation-glass-alpha:\.65;/);
+  assert.match(block, /--conversation-glass-bg:rgb\(23 26 32\/var\(--conversation-glass-alpha\)\);/);
+  assert.match(block, /--conversation-glass-border:rgb\(255 255 255\/\.14\);/);
+  assert.match(block, /--conversation-glass-blur:10px;/);
+  const glassRules = [...rules.matchAll(/([^{}]+)\{[^}]*backdrop-filter:blur\(var\(--conversation-glass-blur\)\)[^}]*\}/g)].map((m) => m[1].trim());
+  assert.equal(glassRules.length, 1, '유리 규칙은 한 곳');
+  for (const part of ['textarea', '.echo-secondary', '.echo-restart-pill', '.echo-opening-tile', '.echo-brief', '.echo-done', '.echo-synthesis', '.echo-restart', '.echo-pause', '.echo-insight', '.echo-editor', '.echo-reactions button:not(:first-child)']) assert.ok(glassRules[0].includes(part), part);
+  assert.doesNotMatch(glassRules[0], /echo-primary|echo-composer-footer/, '밝은 주요 버튼·보내기 버튼은 그대로');
+  assert.equal([...rules.matchAll(/backdrop-filter:blur\((?!var)/g)].length, 0, '따로 노는 흐림 값 0');
+  // 원래 규칙(파스텔 밖)은 그대로
   assert.match(css, /\.echo-opening-tile\{[^}]*background:#171a20/);
+  assert.match(css, /\.echo-dialogue textarea\{[^}]*background:#101216/);
 });
