@@ -39,9 +39,9 @@ test('휴대폰으로 넘어가기 — 휴대폰은 앱 버튼, 컴퓨터는 앱
 
 test('아직 없는 기능은 「준비 중」으로 표시하고, 쓰면 안 되는 단어가 없다', () => {
   const s = read(SECTIONS);
-  // 대표 FINAL LOCK 2026-09-24 두 번째 구역: 아직 완성되지 않은 3·4·5 단계는 「준비 중」.
-  for (const t of ['당신이 없는 동안 찾아봐요', '왜 이 사람인지 알려드려요', '실제 만남 결과로 더 알아가요']) assert.match(s, new RegExp(`title: '${t}'[^}]*soon: true`), t);
-  for (const t of ['말해보세요', 'ECHO가 기억해요']) assert.doesNotMatch(s, new RegExp(`title: '${t}'[^}]*soon: true`), `${t} 는 지금 되는 것`);
+  // 대표 최종 승인 2026-09-24 두 번째 구역: 운영에서 아직 아무도 받을 수 없는 「한 사람을 보여드립니다」만 「준비 중」.
+  assert.match(s, /line: '때가 되면, 한 사람을 보여드립니다\.', soon: true/);
+  for (const t of ['당신의 말을 기억하고.', '당신과 어울리는 결을 알아가고.']) assert.ok(s.includes(`{ line: '${t}' }`), `${t} 는 지금 되는 것`);
   assert.match(s, /title: '당신이 잠든 사이'[^}]*soon: true/);
   assert.match(s, /const SOON_LABEL = '준비 중';/);
   for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사', '찾기 시작해요']) assert.ok(!s.includes(word), word);
@@ -57,7 +57,7 @@ test('스타일은 .doit-editorial 안에서만 — 전역·히어로를 건드�
     if (prelude.startsWith('@') || /^(from|to|\d+%)$/.test(prelude)) continue;
     for (const part of prelude.split(',')) {
       checked += 1;
-      assert.match(part.trim(), /^\.doit-editorial(\[data-motion=paused\])? \.doit-brand-(section|why|mobile|soon|cards|card|steps|step|handoff|qr|scene|scened|closing|about|greeting)/, part);
+      assert.match(part.trim(), /^\.doit-editorial(\[data-motion=paused\])? \.doit-brand-(section|why|mobile|soon|verse|steps|step|handoff|qr|scene|scened|closing|about|greeting)/, part);
     }
   }
   assert.ok(checked > 40, String(checked));
@@ -158,28 +158,44 @@ test('휴대폰에서 앱으로 갔다가 「뒤로」로 돌아와도 시작 �
   assert.match(landing, /const unlock = \(\) => \{ navLock\.current = false; \};/);
 });
 
-// 대표 FINAL LOCK 2026-09-24 「RELATIONSHIP AGENT OS + PRODUCT EXPERIENCE」 · 대표 「기존디자인 유지하고 진행해」
-test('FINAL LOCK 히어로: 문구·버튼 글자만 바뀌고 자리·클래스(디자인)는 그대로', () => {
+// 대표 최종 승인 2026-09-24 「ECHO AGENT v1 / HOMEPAGE FINAL LOCK」(Hero 1안 · Quiet Luxury)
+test('HERO FINAL LOCK: Hero 1안 문구·버튼, 자리·클래스(디자인)는 그대로, 「소개팅」 예외 없음', () => {
   const hero = read('src/components/DoItBrandHero.tsx');
-  assert.match(hero, /<p className="doit-brand-line">찾아다니는 소개팅이 아니라,<br \/> 알아갈수록<br className="doit-brand-mobile-break" \/> 찾아오는 인연\.<\/p>/);
-  assert.match(hero, /onClick=\{start\}>ECHO와 시작하기 <svg/);
-  assert.match(hero, /<p className="doit-brand-status">ECHO와 가볍게 이야기해 보세요\.<br \/> 당신이 어떤 사람과 편한지 알아갈수록,<br \/> 더 알아보고 싶은 사람을 찾아갑니다\.<\/p>/);
+  assert.match(hero, /<p className="doit-brand-line">좋아하는 사람보다,<br \/> 편해지는 사람은<br className="doit-brand-mobile-break" \/> 다를 수 있으니까\.<\/p>/);
+  assert.match(hero, /onClick=\{start\}>ECHO 시작하기 <svg/);
+  assert.match(hero, /<p className="doit-brand-status">ECHO는 당신의 말을 조금씩 기억하며,<br \/> 어떤 관계가 자연스러운지 알아갑니다\.<\/p>/);
   for (const cls of ['doit-brand-badge', 'doit-brand-art', 'doit-brand-intro', 'doit-brand-invitation', 'doit-brand-start', 'doit-brand-bottom']) assert.match(hero, new RegExp(`className="${cls}"`), cls);
   assert.match(hero, /JUST TRY\./);
-  // 「소개팅」은 화면 금지어다. 이 한 줄은 대표가 FINAL LOCK 에서 직접 정한 부정문(「…이 아니라」)이라 예외로 둔다 — 히어로의 다른 곳에는 없다.
-  const withoutLine = hero.replace('찾아다니는 소개팅이 아니라,', '');
-  for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사']) assert.ok(!withoutLine.includes(word), word);
+  // 옛 「소개팅」 히어로 문구와 그 예외는 없어졌다 — 히어로 전체에 금지어 0.
+  for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사', '찾아오는 인연', 'ECHO와 시작하기']) assert.ok(!hero.includes(word), word);
 });
-test('FINAL LOCK 두 번째 구역·Trust·Just Try: 기술어 없이 사용자 말로, 기존 카드 디자인으로', () => {
+test('두 번째 구역·Trust·Just Try: 대표 문장 그대로, 카드·번호 없이, 기술어 없이', () => {
   const s = read(SECTIONS);
-  assert.match(s, /당신이 계속<br \/>찾아다니지 않아도 돼요\./);
-  for (const t of ['말해보세요', 'ECHO가 기억해요', '당신이 없는 동안 찾아봐요', '왜 이 사람인지 알려드려요', '실제 만남 결과로 더 알아가요']) assert.match(s, new RegExp(`title: '${t}'`), t);
-  for (const t of ['틀리면 고칠 수 있어요.', '아니라고 한 건 다시 단정하지 않아요.', '확인하지 않은 걸 당신의 사실로 만들지 않아요.', '필요 이상으로 당신의 이야기를 캐묻지 않아요.']) assert.ok(s.includes(`title: '${t}'`), t);
-  assert.match(s, /좋은 관계는<br \/>완벽한 선택보다<br \/>작은 시도에서 시작됩니다\./);
-  for (const word of ['State Machine', 'Correction Engine', 'Semantic', 'Information Status', 'LLM', 'Vector', 'Agent', '상태머신', '벡터']) assert.ok(!s.includes(word), word);
+  assert.match(s, /좋은 인연은<br \/>많이 보는 것보다,<br \/>조금 더 알아가는 데서 시작되니까\./);
+  for (const t of ['당신의 말을 기억하고.', '당신과 어울리는 결을 알아가고.', '때가 되면, 한 사람을 보여드립니다.']) assert.ok(s.includes(`line: '${t}'`), t);
+  assert.match(s, /당신을 함부로<br \/>정의하지 않습니다\./);
+  for (const t of ['틀리면 고치고,', '아니라고 한 것은 다시 단정하지 않고,', '아직 모르는 것은 모르는 채로 둡니다.']) assert.ok(s.includes(`'${t}'`), t);
+  assert.ok(s.includes("const TRUST_CLOSING = ['천천히 알아가는 것.', '사람에게도, AI에게도 필요하니까.'];"));
+  assert.match(s, /<p className="doit-brand-section-kicker">JUST TRY<\/p>/);
+  assert.match(s, /좋은 관계가 시작되는 데<br \/>거창한 용기는<br \/>필요하지 않을지도 모릅니다\./);
+  assert.ok(s.includes("const JUST_TRY: string[] = ['한 번의 대답.', '한 번의 선택.', '한 번의 만남.'];"));
+  assert.match(s, /작은 시도에서 시작됩니다\./);
+  // Quiet Luxury: 기능 카드·번호 나열 없음(옛 카드 틀 0), Just Try 에 버튼 없음.
+  assert.ok(!s.includes('doit-brand-card'), '카드 없음');
+  const justTry = s.slice(s.indexOf('export function BrandJustTry'), s.indexOf('export function BrandMobileStart'));
+  assert.ok(!/<a |<button/.test(justTry), 'Just Try 에 버튼·링크 없음');
+  for (const word of ['State Machine', 'Correction Engine', 'Semantic', 'Information Status', 'LLM', 'Vector', 'Agent', '상태머신', '벡터', 'Mission', 'KEY', 'Outcome']) assert.ok(!s.includes(word), word);
   const landing = read('src/pages/do-it/landing/page.tsx');
   assert.match(landing, /\{!IS_APP_SITE && <BrandTrust \/>\}/);
   assert.match(landing, /\{!IS_APP_SITE && <BrandJustTry \/>\}/);
   assert.ok(landing.indexOf('<BrandTrust />') > landing.indexOf('id="doit-stories"') && landing.indexOf('<BrandJustTry />') < landing.indexOf('<BrandMobileStart />'));
   assert.ok(!/brand-sections\.css/.test(read('src/pages/do-it/landing/page.tsx')), '새 스타일 파일 없음');
+});
+test('§7 상태 문구: 옛 「사람 연결은 준비 중」·「목적 선택과 프로필 준비까지」를 지우고 운영보다 앞서가지 않는 문장만', () => {
+  const landing = read('src/pages/do-it/landing/page.tsx').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+  assert.ok(!landing.includes('사람 연결은 준비 중입니다'));
+  assert.ok(!landing.includes('목적 선택과 프로필 준비까지'));
+  assert.match(landing, /<p>지금은 당신의 이야기를 듣는 데서 시작합니다\.<br \/>다음 단계는 ECHO가 준비하고 있습니다\.<\/p>/);
+  // 연결을 약속하는 말(찾아 드려요·매칭·연결해 드려요)을 쓰지 않는다.
+  for (const word of ['찾아 드려요', '매칭', '연결해 드려요', '연결됩니다']) assert.ok(!landing.includes(word), word);
 });

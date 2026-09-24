@@ -7,23 +7,27 @@ import './brand-sections.css';
 // - 히어로·사진 9장 이야기는 그대로 두고, 그 앞뒤에 끼운다.
 // - 지금 실제로 되는 것만 쓴다. 아직 열리지 않은 연결 기능에는 「준비 중」을 붙인다(UX 라이팅 원칙 5).
 
-// 대표 FINAL LOCK 2026-09-24 두 번째 구역: 「당신이 계속 찾아다니지 않아도 돼요.」 — 말해보세요 → 기억해요 → 찾아봐요 → 왜 이 사람인지 → 실제 만남 결과.
-// 기술어를 쓰지 않는다. 지금 되는 것은 1·2 뿐이고 3·4·5 는 아직 완성되지 않았으므로 「준비 중」을 붙인다(구현된 것처럼 보이지 않게).
-const FLOW: Array<{ title: string; body: string; soon?: boolean }> = [
-  { title: '말해보세요', body: '보기를 고르지 않아요. 편하게 한두 줄이면 돼요.' },
-  { title: 'ECHO가 기억해요', body: '한 번 한 이야기를 다시 설명하게 하지 않아요.' },
-  { title: '당신이 없는 동안 찾아봐요', body: '같은 만남을 원하는 사람 가운데서 찾아봐요.', soon: true },
-  { title: '왜 이 사람인지 알려드려요', body: '두 사람이 겹치는 이야기를 근거로 말해요.', soon: true },
-  { title: '실제 만남 결과로 더 알아가요', body: '만나 본 뒤의 이야기로 다음을 더 잘 찾아요.', soon: true },
+// 대표 최종 승인 2026-09-24 「AGENT v1 / HOMEPAGE FINAL LOCK」 두 번째 구역.
+// Quiet Luxury: 기능 카드·번호를 늘어놓지 않고 문장 세 줄만. 다 알려주지 않는다.
+// 지금 되는 것 = 말 기억(대화 기록)·결 알아가기(다섯 가지 질문 뒤 「내가 이렇게 이해했어요」).
+// 「한 사람을 보여드립니다」는 운영에서 아직 아무도 받을 수 없다(2026-09-24 운영 읽기: 전화 인증 0명·연결 0건, 문자 발송 업체 미연결)
+// → 작은 「준비 중」을 붙인다(구현된 것처럼 단정하지 않는다).
+const FLOW: Array<{ line: string; soon?: boolean }> = [
+  { line: '당신의 말을 기억하고.' },
+  { line: '당신과 어울리는 결을 알아가고.' },
+  { line: '때가 되면, 한 사람을 보여드립니다.', soon: true },
 ];
 
-// 대표 FINAL LOCK Trust: ECHO 가 지키는 것을 사용자 말로(기술어 없이). 모두 지금 실제로 동작하는 것만.
-const TRUST: Array<{ title: string; body: string }> = [
-  { title: '틀리면 고칠 수 있어요.', body: '「그게 아니에요」 한 번이면 돼요.' },
-  { title: '아니라고 한 건 다시 단정하지 않아요.', body: '고친 뜻은 다음 질문에서도 지켜요.' },
-  { title: '확인하지 않은 걸 당신의 사실로 만들지 않아요.', body: '맞다고 한 말만 나를 소개하는 데 써요.' },
-  { title: '필요 이상으로 당신의 이야기를 캐묻지 않아요.', body: '질문은 한 번에 하나, 가볍게.' },
+// 대표 최종 승인 Trust: 기술어 대신 사용자 약속으로. 셋 다 지금 대화 서버가 실제로 하는 일(정정 우선·거절 차단·미확인 분리).
+const TRUST: string[] = [
+  '틀리면 고치고,',
+  '아니라고 한 것은 다시 단정하지 않고,',
+  '아직 모르는 것은 모르는 채로 둡니다.',
 ];
+const TRUST_CLOSING = ['천천히 알아가는 것.', '사람에게도, AI에게도 필요하니까.'];
+
+// 대표 최종 승인 Just Try: 미션·열쇠·만남 결과 기능은 아직 없으므로 기능 설명·버튼을 붙이지 않는다(문장만).
+const JUST_TRY: string[] = ['한 번의 대답.', '한 번의 선택.', '한 번의 만남.'];
 
 const STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
   { title: '다섯 가지 질문에 답해요', body: '어떤 만남을 원하는지, 어떤 사람에게 끌리는지. 한 줄씩이면 충분해요.' },
@@ -32,7 +36,7 @@ const STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
 ];
 
 const SOON_LABEL = '준비 중';
-// 홈페이지 아래쪽 시작 버튼은 이 말로 통일한다(히어로 버튼은 대표 FINAL LOCK 2026-09-24 「ECHO와 시작하기」).
+// 홈페이지 아래쪽 시작 버튼은 이 말로 통일한다(히어로 버튼은 대표 최종 승인 2026-09-24 「ECHO 시작하기」).
 export const MOBILE_START_LABEL = '모바일로 시작하기';
 const DOTS_EARTH_SRC = '/brand/doit-dots-earth.webp';
 
@@ -53,51 +57,46 @@ function SceneBackdrop({ scene }: { scene: keyof typeof SCENES }) {
 // 컴퓨터(넓은 화면 + 마우스)인지. CSS 에서 QR 을 보여 주는 조건과 같은 식을 쓴다.
 export const DESKTOP_QUERY = '(min-width:900px) and (hover:hover) and (pointer:fine)';
 
-// 히어로 바로 아래: 당신이 계속 찾아다니지 않아도 돼요(대표 FINAL LOCK 두 번째 구역 · 기존 카드 디자인 그대로).
+// 히어로 바로 아래: 좋은 인연은 조금 더 알아가는 데서(대표 최종 승인 두 번째 구역).
 export function BrandDifference() {
   return (
     <section className="doit-brand-section doit-brand-scened doit-brand-why" id="doit-why" aria-labelledby="doit-why-title">
       <SceneBackdrop scene="why" />
-      <p className="doit-brand-section-kicker">ECHO와 함께라면</p>
-      <h2 id="doit-why-title" className="doit-brand-section-title">당신이 계속<br />찾아다니지 않아도 돼요.</h2>
-      <ol className="doit-brand-cards">
-        {FLOW.map((item, index) => (
-          <li key={item.title} className="doit-brand-card">
-            <span className="doit-brand-card-no" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-            <h3>{item.title}{item.soon && <>{' '}<em className="doit-brand-soon">{SOON_LABEL}</em></>}</h3>
-            <p>{item.body}</p>
-          </li>
+      <p className="doit-brand-section-kicker">ECHO</p>
+      <h2 id="doit-why-title" className="doit-brand-section-title doit-brand-section-title--quiet">좋은 인연은<br />많이 보는 것보다,<br />조금 더 알아가는 데서 시작되니까.</h2>
+      <ul className="doit-brand-verse">
+        {FLOW.map((item) => (
+          <li key={item.line}>{item.line}{item.soon && <>{' '}<em className="doit-brand-soon">{SOON_LABEL}</em></>}</li>
         ))}
-      </ol>
+      </ul>
     </section>
   );
 }
 
-// 대표 FINAL LOCK Trust: 사진 이야기 뒤. 카드 모양은 두 번째 구역과 같은 것을 쓴다(새 디자인 없음).
+// 대표 최종 승인 Trust: 사진 이야기 뒤. 제목 하나 + 약속 세 줄 + 마지막 두 줄.
 export function BrandTrust() {
   return (
     <section className="doit-brand-section doit-brand-trust" id="doit-trust" aria-labelledby="doit-trust-title">
       <p className="doit-brand-section-kicker">ECHO가 지키는 것</p>
-      <h2 id="doit-trust-title" className="doit-brand-section-title">당신의 이야기는<br />이렇게 다뤄요.</h2>
-      <ol className="doit-brand-cards">
-        {TRUST.map((item, index) => (
-          <li key={item.title} className="doit-brand-card">
-            <span className="doit-brand-card-no" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-            <h3>{item.title}</h3>
-            <p>{item.body}</p>
-          </li>
-        ))}
-      </ol>
+      <h2 id="doit-trust-title" className="doit-brand-section-title doit-brand-section-title--quiet">당신을 함부로<br />정의하지 않습니다.</h2>
+      <ul className="doit-brand-verse">
+        {TRUST.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+      <p className="doit-brand-verse-closing">{TRUST_CLOSING[0]}<br />{TRUST_CLOSING[1]}</p>
     </section>
   );
 }
 
-// 대표 FINAL LOCK Just Try: 문장 하나만. 미션·행동·열쇠 기능은 아직 없으므로 기능처럼 보이는 설명·버튼을 붙이지 않는다.
+// 대표 최종 승인 Just Try: 문장만. 버튼·기능 설명 없음.
 export function BrandJustTry() {
   return (
     <section className="doit-brand-section doit-brand-justtry" id="doit-justtry" aria-labelledby="doit-justtry-title">
-      <p className="doit-brand-section-kicker">JUST TRY.</p>
-      <h2 id="doit-justtry-title" className="doit-brand-section-title">좋은 관계는<br />완벽한 선택보다<br />작은 시도에서 시작됩니다.</h2>
+      <p className="doit-brand-section-kicker">JUST TRY</p>
+      <h2 id="doit-justtry-title" className="doit-brand-section-title doit-brand-section-title--quiet">좋은 관계가 시작되는 데<br />거창한 용기는<br />필요하지 않을지도 모릅니다.</h2>
+      <ul className="doit-brand-verse">
+        {JUST_TRY.map((line) => <li key={line}>{line}</li>)}
+      </ul>
+      <p className="doit-brand-verse-closing">작은 시도에서 시작됩니다.</p>
     </section>
   );
 }

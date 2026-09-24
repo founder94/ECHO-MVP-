@@ -271,11 +271,14 @@ export default function DoItLandingPage() {
         actionLabel={IS_BRAND_SITE ? MOBILE_START_LABEL : '시작하기'}
         onAction={handleStart}
       >
-        <p>지금은 목적 선택과 프로필 준비까지.<br />사람 연결은 준비 중입니다.</p>
+        {/* 대표 최종 승인 2026-09-24 §7: 옛 문장(「목적 선택과 프로필 준비까지 · 사람 연결은 준비 중」)은 대화가 열린 지금과 맞지 않았다.
+            허락된 문장 「이야기가 쌓이면, 다음은 ECHO가 준비합니다」도 운영 실제(전화 인증 0명·연결 0건 — 문자 발송 업체 미연결)보다 앞서가므로
+            더 보수적으로: 지금 되는 것(대화)과 아직인 것(다음 단계 준비)만 말한다. */}
+        <p>지금은 당신의 이야기를 듣는 데서 시작합니다.<br />다음 단계는 ECHO가 준비하고 있습니다.</p>
         <OriginalMusicCard />
       </LandingSection>
       </div>
-      {/* 대표 FINAL LOCK 2026-09-24: 회사 홈페이지에서만 — 지키는 것(Trust) · 작은 시도(Just Try). 한 화면에 메시지 하나. */}
+      {/* 대표 최종 승인 2026-09-24: 회사 홈페이지에서만 — 지키는 것(Trust) · 작은 시도(Just Try). 한 화면에 메시지 하나. */}
       {!IS_APP_SITE && <BrandTrust />}
       {!IS_APP_SITE && <BrandJustTry />}
       {/* 2026-09-23: 회사 홈페이지에서만 — 시작하는 법 + 휴대폰으로 넘어가기(휴대폰은 버튼, 컴퓨터는 QR). */}
