@@ -1,0 +1,4978 @@
+[
+ {
+  "cfg": {
+   "name": "S0 지금"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.4,
+    "edgeMed": 1.43
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 1.3,
+    "edgeMed": 1.34
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 1.25,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.66
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 1.23,
+    "edgeMed": 1.26
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.04
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.05
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 1.17,
+    "edgeMed": 1.27
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.07,
+    "edgeMed": 1.11
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.4,
+    "edgeMed": 1.44
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.31,
+    "edgeMed": 1.57
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.48,
+    "edgeMed": 1.61
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.47
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.12,
+    "edgeMed": 1.26
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 1.26,
+    "edgeMed": 1.46
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 1.28,
+    "edgeMed": 1.37
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.12,
+    "edgeMed": 1.14
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.4,
+    "edgeMed": 1.44
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.46
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.31,
+    "edgeMed": 1.57
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.48,
+    "edgeMed": 1.61
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.87
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 1.08,
+    "edgeMed": 1.11
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.29,
+    "edgeP10": 13.29,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.46
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.34,
+    "edgeMed": 1.37
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.27,
+    "edgeMed": 1.52
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.34,
+    "edgeMed": 1.63
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 1.26,
+    "edgeMed": 1.28
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 1,
+    "edgeMed": 1.02
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 1.04,
+    "edgeMed": 1.08
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.07
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.4,
+    "edgeMed": 1.48
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.07,
+    "edgeMed": 1.12
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 1.54,
+    "edgeMed": 1.59
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.29,
+    "edgeMed": 1.38
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 1.34,
+    "edgeMed": 1.56
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 1.41,
+    "edgeMed": 1.51
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.47
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.16,
+    "edgeMed": 1.31
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.27,
+    "edgeMed": 1.52
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.31,
+    "edgeMed": 1.44
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.12,
+    "edgeMed": 1.13
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.4,
+    "edgeMed": 1.45
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.48,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.38,
+    "edgeMed": 1.65
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.5,
+    "edgeMed": 1.6
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 1.06,
+    "edgeMed": 1.08
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 1.47,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.37,
+    "edgeMed": 1.4
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.31,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 1.31,
+    "edgeMed": 1.61
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 1.3,
+    "edgeMed": 1.32
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.04
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.05
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 1.04,
+    "edgeMed": 1.07
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 1.14,
+    "edgeMed": 1.27
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 1.14
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 1.27,
+    "edgeMed": 1.38
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.21,
+    "edgeMed": 1.37
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.36,
+    "edgeMed": 1.6
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.35,
+    "edgeMed": 1.54
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 1.43,
+    "edgeMed": 1.45
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.21,
+    "edgeMed": 1.37
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.36,
+    "edgeMed": 1.6
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.35,
+    "edgeMed": 1.54
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 1.1
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.41,
+    "edgeMed": 1.48
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.5,
+    "edgeMed": 1.51
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 1.47,
+    "edgeMed": 1.75
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 1.53,
+    "edgeMed": 1.67
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 1.03,
+    "edgeMed": 1.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ },
+ {
+  "cfg": {
+   "name": "K1",
+   "shot": 1,
+   "stroke": "0.3px rgb(0 0 0/.6)"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.41,
+    "edgeMed": 1.47
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 1.31,
+    "edgeMed": 1.61
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 1.29,
+    "edgeMed": 1.9
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 1.49,
+    "edgeMed": 2
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 1.24,
+    "edgeMed": 1.31
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.22
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.03,
+    "edgeMed": 1.26
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 1.18,
+    "edgeMed": 1.46
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.07,
+    "edgeMed": 1.18
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.41,
+    "edgeMed": 1.55
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.39,
+    "edgeMed": 1.77
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.5,
+    "edgeMed": 2.04
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.45,
+    "edgeMed": 1.6
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.14,
+    "edgeMed": 1.46
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 1.28,
+    "edgeMed": 1.67
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 1.29,
+    "edgeMed": 1.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.13,
+    "edgeMed": 1.16
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.39,
+    "edgeP10": 1.4,
+    "edgeMed": 1.55
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.44,
+    "edgeMed": 1.64
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.39,
+    "edgeMed": 1.77
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.49,
+    "edgeMed": 2.03
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.88
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 1.1,
+    "edgeMed": 1.14
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.22,
+    "edgeP10": 13.22,
+    "edgeMed": 13.49
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.45,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.34,
+    "edgeMed": 1.55
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.34,
+    "edgeMed": 1.91
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.42,
+    "edgeMed": 2.02
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 1.26,
+    "edgeMed": 1.31
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 1.01,
+    "edgeMed": 1.21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 1.05,
+    "edgeMed": 1.25
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.03,
+    "edgeMed": 1.38
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.42,
+    "edgeMed": 1.89
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.07,
+    "edgeMed": 1.18
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 1.55,
+    "edgeMed": 1.68
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.31,
+    "edgeMed": 1.53
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 1.42,
+    "edgeMed": 1.81
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 1.42,
+    "edgeMed": 2.01
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.45,
+    "edgeMed": 1.58
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.18,
+    "edgeMed": 1.5
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.31,
+    "edgeMed": 1.76
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.32,
+    "edgeMed": 1.9
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.12,
+    "edgeMed": 1.16
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.41,
+    "edgeMed": 1.57
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.48,
+    "edgeMed": 1.7
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.46,
+    "edgeMed": 1.87
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.52,
+    "edgeMed": 2.08
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 1.06,
+    "edgeMed": 1.1
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 1.48,
+    "edgeMed": 1.53
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.38,
+    "edgeMed": 1.49
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.36,
+    "edgeMed": 1.88
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 1.39,
+    "edgeMed": 2
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 1.3,
+    "edgeMed": 1.34
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.16
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.02,
+    "edgeMed": 1.24
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 1.04,
+    "edgeMed": 1.34
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 1.16,
+    "edgeMed": 1.54
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 1.21
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 1.29,
+    "edgeMed": 1.55
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.25,
+    "edgeMed": 1.53
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.39,
+    "edgeMed": 1.86
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.36,
+    "edgeMed": 2
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 1.44,
+    "edgeMed": 1.57
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.25,
+    "edgeMed": 1.53
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.39,
+    "edgeMed": 1.86
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.36,
+    "edgeMed": 2
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.09,
+    "edgeMed": 1.11
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.42,
+    "edgeMed": 1.59
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.5,
+    "edgeMed": 1.74
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 1.56,
+    "edgeMed": 1.96
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 1.55,
+    "edgeMed": 2.14
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 1.04,
+    "edgeMed": 1.13
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ },
+ {
+  "cfg": {
+   "name": "K2",
+   "shot": 1,
+   "stroke": "0.5px rgb(0 0 0/.75)",
+   "shadow": "0 0 1px rgb(0 0 0/.5)"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.71,
+    "edgeMed": 3.18
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 1.64,
+    "edgeMed": 3.16
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 1.74,
+    "edgeMed": 4.67
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 1.91,
+    "edgeMed": 4.59
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 1.48,
+    "edgeMed": 2.66
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.2,
+    "edgeMed": 2.31
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.2,
+    "edgeMed": 2.32
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 1.46,
+    "edgeMed": 2.74
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 2.18
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.57,
+    "edgeMed": 2.86
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.66,
+    "edgeMed": 3
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.87,
+    "edgeMed": 4.28
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.74,
+    "edgeMed": 3.65
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.48,
+    "edgeMed": 2.61
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 1.58,
+    "edgeMed": 2.9
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 1.61,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.37,
+    "edgeMed": 2.7
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.39,
+    "edgeP10": 1.56,
+    "edgeMed": 2.86
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.66,
+    "edgeMed": 4.11
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.65,
+    "edgeMed": 2.99
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.86,
+    "edgeMed": 4.27
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.88
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 1.34,
+    "edgeMed": 2.64
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.22,
+    "edgeP10": 13.22,
+    "edgeMed": 13.49
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.75,
+    "edgeMed": 3.24
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.67,
+    "edgeMed": 3.15
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.79,
+    "edgeMed": 4.76
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 1.86,
+    "edgeMed": 4.4
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 1.51,
+    "edgeMed": 2.69
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 1.23,
+    "edgeMed": 2.34
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 1.17,
+    "edgeMed": 2.31
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.27,
+    "edgeMed": 2.46
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.73,
+    "edgeMed": 3.7
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 2.19
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 1.93,
+    "edgeMed": 3.77
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.54,
+    "edgeMed": 2.79
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 1.66,
+    "edgeMed": 3.04
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 1.79,
+    "edgeMed": 4.3
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 1.74,
+    "edgeMed": 3.63
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.51,
+    "edgeMed": 2.69
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 1.64,
+    "edgeMed": 2.95
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.68,
+    "edgeMed": 4.18
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 1.36,
+    "edgeMed": 2.67
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.58,
+    "edgeMed": 2.91
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 1.73,
+    "edgeMed": 4.24
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.76,
+    "edgeMed": 3.09
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.89,
+    "edgeMed": 4.45
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 1.3,
+    "edgeMed": 2.64
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 1.78,
+    "edgeMed": 3.28
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 1.68,
+    "edgeMed": 3.13
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 1.79,
+    "edgeMed": 4.77
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 1.84,
+    "edgeMed": 4.31
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 1.55,
+    "edgeMed": 2.73
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.25,
+    "edgeMed": 2.33
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.21,
+    "edgeMed": 2.32
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 1.17,
+    "edgeMed": 2.37
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 1.44,
+    "edgeMed": 3.14
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 2.24
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 1.69,
+    "edgeMed": 3.36
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.54,
+    "edgeMed": 2.78
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.71,
+    "edgeMed": 3.11
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.76,
+    "edgeMed": 4.31
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 1.72,
+    "edgeMed": 3.59
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.54,
+    "edgeMed": 2.78
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.71,
+    "edgeMed": 3.11
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 1.76,
+    "edgeMed": 4.31
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.32,
+    "edgeMed": 2.61
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.61,
+    "edgeMed": 2.96
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 1.75,
+    "edgeMed": 4.28
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 1.93,
+    "edgeMed": 3.26
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 1.94,
+    "edgeMed": 4.54
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 1.3,
+    "edgeMed": 2.67
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ },
+ {
+  "cfg": {
+   "name": "K3",
+   "shot": 1,
+   "stroke": "0.75px rgb(0 0 0/.85)",
+   "shadow": "0 0 1px rgb(0 0 0/.6)"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 2.89,
+    "edgeMed": 9.56
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 2.74,
+    "edgeMed": 9.19
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 3.11,
+    "edgeMed": 14.48
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 3.12,
+    "edgeMed": 11.26
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 2.39,
+    "edgeMed": 7.64
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 2.01,
+    "edgeMed": 6.7
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 2.06,
+    "edgeMed": 6.33
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 2.36,
+    "edgeMed": 7.24
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 5.38
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.58,
+    "edgeMed": 7.48
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 2.28,
+    "edgeMed": 8.07
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 2.86,
+    "edgeMed": 10.78
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 2.81,
+    "edgeMed": 9.98
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.51,
+    "edgeMed": 6.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 2.15,
+    "edgeMed": 7.91
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 2.6,
+    "edgeMed": 10.29
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 2.31,
+    "edgeMed": 7.5
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.39,
+    "edgeP10": 1.56,
+    "edgeMed": 7.48
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 2.32,
+    "edgeMed": 10.03
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 2.25,
+    "edgeMed": 8.06
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 2.84,
+    "edgeMed": 10.76
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.88
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 2.25,
+    "edgeMed": 7.37
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.22,
+    "edgeP10": 13.22,
+    "edgeMed": 13.49
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 2.96,
+    "edgeMed": 9.66
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 2.79,
+    "edgeMed": 9.37
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 3.17,
+    "edgeMed": 14.53
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 3.06,
+    "edgeMed": 11.36
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 2.41,
+    "edgeMed": 7.63
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 2.01,
+    "edgeMed": 6.77
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 2.04,
+    "edgeMed": 6.31
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 2.11,
+    "edgeMed": 6.82
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 2.78,
+    "edgeMed": 8.83
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 5.41
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 3.12,
+    "edgeMed": 8.81
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.55,
+    "edgeMed": 7.19
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 2.33,
+    "edgeMed": 8
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 2.78,
+    "edgeMed": 10.69
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 2.81,
+    "edgeMed": 9.96
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.53,
+    "edgeMed": 6.97
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 2.28,
+    "edgeMed": 7.91
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 2.66,
+    "edgeMed": 10.43
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 2.29,
+    "edgeMed": 7.45
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.59,
+    "edgeMed": 7.51
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 2.39,
+    "edgeMed": 10.15
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 2.35,
+    "edgeMed": 8.11
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 2.9,
+    "edgeMed": 11.02
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 2.2,
+    "edgeMed": 7.35
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 3.01,
+    "edgeMed": 9.75
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 2.83,
+    "edgeMed": 9.45
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 3.1,
+    "edgeMed": 14.4
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 3.02,
+    "edgeMed": 11.31
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 2.43,
+    "edgeMed": 7.53
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 1.99,
+    "edgeMed": 6.65
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 2.08,
+    "edgeMed": 6.35
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 1.98,
+    "edgeMed": 6.58
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 2.34,
+    "edgeMed": 8.18
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 5.49
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 2.68,
+    "edgeMed": 8.23
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.56,
+    "edgeMed": 7.15
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 2.38,
+    "edgeMed": 8.1
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 2.73,
+    "edgeMed": 10.69
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 2.79,
+    "edgeMed": 9.94
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.56,
+    "edgeMed": 7.15
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 2.38,
+    "edgeMed": 8.1
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 2.73,
+    "edgeMed": 10.69
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 2.24,
+    "edgeMed": 7.31
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.61,
+    "edgeMed": 7.51
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 2.45,
+    "edgeMed": 10.23
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 2.45,
+    "edgeMed": 8.44
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 2.97,
+    "edgeMed": 11.07
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 2.16,
+    "edgeMed": 7.33
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ },
+ {
+  "cfg": {
+   "name": "K4",
+   "shot": 1,
+   "stroke": "1px #000",
+   "shadow": "0 0 2px rgb(0 0 0/.7)"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 11.37,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 12.04,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 12.9,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 13.52,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 8.94,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 7.45,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 7.93,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 8.21,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.58,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 6.79,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 10.06,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 10.46,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.52,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 6.65,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 10.03,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 9.54,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.39,
+    "edgeP10": 1.56,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 8.26,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 6.79,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 10.01,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.88
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 9.49,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.22,
+    "edgeP10": 13.22,
+    "edgeMed": 13.49
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 11.41,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 12.12,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 12.93,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 13.31,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 9.02,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 7.52,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 7.93,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 7.7,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 9.24,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 10.78,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.55,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 6.97,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 10.26,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 10.43,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.54,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 6.91,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 10.08,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 9.56,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.59,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 8.43,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 6.88,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 10.57,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 9.43,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 11.46,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 12.03,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 12.84,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 13.38,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 8.8,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 7.52,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 7.98,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 7.65,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 8.51,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 10.47,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.57,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 7.1,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 10.24,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 10.3,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.57,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 7.1,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 10.24,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 9.42,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.61,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 8.57,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 7.11,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 10.69,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 9.43,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ },
+ {
+  "cfg": {
+   "name": "K5 자막 비교용",
+   "shot": 1,
+   "stroke": "1.5px #000",
+   "shadow": "0 0 2px #000"
+  },
+  "rows": [
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.3,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.25,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.44,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.23,
+    "edgeP10": 18.91,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.17,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.58,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.25,
+    "edgeP10": 13.25,
+    "edgeMed": 13.52
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.12,
+    "edgeP10": 1.52,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.26,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.28,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 11.71,
+    "edgeP10": 11.71,
+    "edgeMed": 11.89
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.39,
+    "edgeP10": 1.56,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 2.65,
+    "edgeMed": 3.88
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.09,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 360,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.22,
+    "edgeP10": 13.22,
+    "edgeMed": 13.49
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.34,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.26,
+    "edgeP10": 18.91,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.04,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.07,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.54,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.29,
+    "edgeP10": 1.55,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.33,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.41,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.44,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.15,
+    "edgeP10": 13.15,
+    "edgeMed": 13.33
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.16,
+    "edgeP10": 1.54,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.27,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.12,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "민트",
+    "formalMin": 12.22,
+    "edgeP10": 12.21,
+    "edgeMed": 12.44
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.4,
+    "edgeP10": 1.59,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.48,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.42,
+    "edgeP10": 2.68,
+    "edgeMed": 3.93
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.06,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 390,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.74,
+    "edgeP10": 13.74,
+    "edgeMed": 13.94
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"편한 친구를 만나고 싶\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"연애로 이어질 만남을 \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.37,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"취미를 같이 할 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.31,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-label \"대화가 통하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.32,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"부담 없이 알아가며 친\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.3,
+    "edgeP10": 18.91,
+    "edgeMed": 18.91
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"연애 가능성을 열어두고\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"같은 걸 좋아하는 사람\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.02,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": ".echo-opening-tile-desc \"깊은 이야기를 나눌 수\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.03,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "opening-selected",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.14,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 1.08,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.27,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.57,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "입력 글자",
+    "kind": "typed",
+    "region": "민트",
+    "formalMin": 1.43,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-typed",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.03
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.21,
+    "edgeP10": 1.57,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.35,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.08,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "question-bottom",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 12.91,
+    "edgeP10": 12.91,
+    "edgeMed": 13.05
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-restart-pill \"처음부터 시작하기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.41,
+    "edgeP10": 1.61,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"다음 질문 받기\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.5,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"사진과 소개 채우기\"",
+    "kind": "text",
+    "region": "노랑",
+    "formalMin": 1.46,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-secondary \"당신이 잠든 사이 · \"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.53,
+    "edgeP10": 21,
+    "edgeMed": 21
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": ".echo-error p \"다음 질문을 아직 만들\"",
+    "kind": "text",
+    "region": "민트",
+    "formalMin": 1.47,
+    "edgeP10": 2.77,
+    "edgeMed": 4.06
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "입력창 안내 글(placeholder)",
+    "kind": "placeholder",
+    "region": "민트",
+    "formalMin": 1.03,
+    "edgeP10": 15.83,
+    "edgeMed": 15.83
+   },
+   {
+    "w": 430,
+    "scn": "error",
+    "label": "보내기 버튼(↑ 그림)",
+    "kind": "icon",
+    "region": "노랑",
+    "formalMin": 13.7,
+    "edgeP10": 13.76,
+    "edgeMed": 14.02
+   }
+  ]
+ }
+]
