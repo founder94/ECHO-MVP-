@@ -89,7 +89,9 @@
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
    - 색의 출처(추측 금지):
-     ① 바탕 그라데이션·가장자리 빛 = 대표가 보낸 「오늘 내 마음의 날씨는 어때?」 화면 캡처(2026-09-24)에서 잰 색.
+     ① 바탕 = 대표가 보낸 「오늘 내 마음의 날씨는 어때?」 화면 캡처(2026-09-24)에서 잰 색. 2026-09-25 대표 「배경톤도 같아 보여?」 →
+        가로 5 × 세로 11 칸(칸마다 ±70px 안의 중앙값, 흰 글자·빛 방울 제외)으로 다시 재어 줄마다 가로 그라데이션으로 칠하고 40px 흐림으로 잇는다.
+        색은 캡처에 붙은 색 설명(ICC)을 적용해 화면용(sRGB)으로 바꾼 값이다(Chrome 캔버스로 읽음). 처음에 날값으로 읽어 더 흐린 색을 옮겼던 것을 바로잡았다(2026-09-25).
         그 화면의 파스텔은 코드 값이 아니라 바깥 서버(Readdy)의 배경 사진 색이다. 사진은 쓰지 않고(바깥 주소 0) 색만 옮겼다.
      ② 빛 번짐 6개 = 옛 코드 PastelBlobs.tsx 의 색·크기·위치 그대로(움직임은 없음).
      ③ 덮개 = 지금 대화 화면의 바탕색 #090a0c 를 반투명으로 덮는 손잡이(--echo-pastel-veil). 대표 결정(2026-09-24 「배경색 이 색이야 그대로 써」)으로 0 = 덮지 않음.
@@ -99,6 +101,7 @@
 .echo-dialogue.echo-dialogue--pastel{--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
 .echo-dialogue.echo-dialogue--pastel::before,
 .echo-dialogue.echo-dialogue--pastel::after{content:"";position:fixed;inset:0;pointer-events:none}
+.echo-dialogue.echo-dialogue--pastel::before{inset:-80px} /* 바탕 흐림 40px 가 화면 가장자리에서 비지 않게 넉넉히 — 색 칸 위치는 화면 기준(80px + vw/vh)으로 잡는다 */
 .echo-dialogue.echo-dialogue--pastel::before{
   z-index:-2;
   background:
@@ -108,11 +111,18 @@
     radial-gradient(circle calc(20rem*.7071) at calc(85% - 10rem) calc(45% + 10rem),rgba(255,180,180,.12) 0%,rgba(255,180,180,.12) 18%,transparent 70%),
     radial-gradient(circle calc(26rem*.7071) at calc(104% - 13rem) calc(108% - 13rem),rgba(160,255,220,.10) 0%,rgba(160,255,220,.10) 18%,transparent 70%),
     radial-gradient(circle calc(32rem*.7071) at calc(-8% + 16rem) calc(75% - 16rem),rgba(200,230,255,.08) 0%,rgba(200,230,255,.08) 18%,transparent 70%),
-    radial-gradient(ellipse 70% 45% at 0% 20%,#79ee9c 0%,transparent 70%),
-    radial-gradient(ellipse 60% 50% at 100% 35%,#60cfd0 0%,transparent 70%),
-    radial-gradient(ellipse 60% 40% at 0% 75%,#d88a7b 0%,transparent 70%),
-    radial-gradient(ellipse 60% 35% at 100% 92%,#96774c 0%,transparent 70%),
-    linear-gradient(180deg,#6cdfbc 0%,#80ebac 20%,#88dfaa 35%,#cae2b3 50%,#e7eaa5 62%,#f2eeb6 72%,#e4da8f 82%,#c4a96c 100%);
+    linear-gradient(90deg,#43e0a9 calc(80px + 0vw),#42dcba calc(80px + 25vw),#43dbc0 calc(80px + 50vw),#3edbc2 calc(80px + 75vw),#3bd1c5 calc(80px + 100vw)) 0 0/100% calc(80px + 5vh + 1px) no-repeat,
+    linear-gradient(90deg,#31ee99 calc(80px + 0vw),#57edb5 calc(80px + 25vw),#39e9ac calc(80px + 50vw),#28e2b9 calc(80px + 75vw),#12d1c9 calc(80px + 100vw)) 0 calc(80px + 5vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#38f294 calc(80px + 0vw),#47f19e calc(80px + 25vw),#4eeea7 calc(80px + 50vw),#37d9c0 calc(80px + 75vw),#0ed2d2 calc(80px + 100vw)) 0 calc(80px + 15vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#3bed91 calc(80px + 0vw),#4df19d calc(80px + 25vw),#5de7a8 calc(80px + 50vw),#3dd2c3 calc(80px + 75vw),#0ed5d5 calc(80px + 100vw)) 0 calc(80px + 25vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#57d485 calc(80px + 0vw),#67e69b calc(80px + 25vw),#83dea4 calc(80px + 50vw),#4ecdbf calc(80px + 75vw),#18d5d5 calc(80px + 100vw)) 0 calc(80px + 35vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#9faf7d calc(80px + 0vw),#a2db92 calc(80px + 25vw),#bae0a2 calc(80px + 50vw),#79d0b7 calc(80px + 75vw),#1dd1ce calc(80px + 100vw)) 0 calc(80px + 45vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#d99279 calc(80px + 0vw),#ded38f calc(80px + 25vw),#e3e99e calc(80px + 50vw),#9ed1a4 calc(80px + 75vw),#3abeac calc(80px + 100vw)) 0 calc(80px + 55vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#e38376 calc(80px + 0vw),#eecb8a calc(80px + 25vw),#edea96 calc(80px + 50vw),#c7d18e calc(80px + 75vw),#799872 calc(80px + 100vw)) 0 calc(80px + 65vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#e17972 calc(80px + 0vw),#eab67c calc(80px + 25vw),#e9de88 calc(80px + 50vw),#cfc176 calc(80px + 75vw),#967647 calc(80px + 100vw)) 0 calc(80px + 75vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#d96d66 calc(80px + 0vw),#e09967 calc(80px + 25vw),#d9bf72 calc(80px + 50vw),#bca05f calc(80px + 75vw),#925d38 calc(80px + 100vw)) 0 calc(80px + 85vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#cb6550 calc(80px + 0vw),#cb7e4f calc(80px + 25vw),#bd9058 calc(80px + 50vw),#a77c4e calc(80px + 75vw),#844c35 calc(80px + 100vw)) 0 100%/100% calc(80px + 5vh + 1px) no-repeat;
+  filter:blur(40px);
   animation:float-bg 20s ease-in-out infinite;
 }
 .echo-dialogue.echo-dialogue--pastel::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
@@ -133,10 +143,16 @@
   --conversation-surface-bg:transparent;
   --conversation-surface-border:#d9dfe8a6;
   --conversation-text:#fff;
-  --conversation-text-secondary:#dbe0e7;
-  --conversation-text-secondary-on-pastel:#f2f3f5;
-  --conversation-text-halo:0 0 1px rgb(0 0 0/.8),0 0 3px rgb(0 0 0/.7),0 0 8px rgb(0 0 0/.45);
+  --conversation-text-secondary:rgb(255 255 255/.7);
+  --conversation-text-secondary-on-pastel:rgb(255 255 255/.7);
+  --conversation-text-strong:rgb(255 255 255/.9);
+  --conversation-text-eyebrow:rgb(255 255 255/.55);
+  --conversation-text-halo:none;
 }
+/* ⑦ 2026-09-25 글자색 = 1번 이미지(옛 홈 첫 화면 「오늘 내 마음의 날씨는 어때?」, src/pages/home/components/HeroSection.tsx)의 코드 값 그대로
+   (대표 「글씨색을 1번 이미지색으로」): 제목 text-white(#fff) · 「진짜 나를 찾아줘」 text-white/90 · 부문구 text-white/70 · 「ECHO」 text-white/55.
+   그 화면 글자에는 그림자가 없다 → 검은 그림자(halo)도 없앤다(none). 전: 2순위 #dbe0e7 / #f2f3f5 + 검은 그림자 3겹.
+   글꼴·크기·굵기·문구·배치는 그대로(글꼴 변경은 대표 승인 전). 표준 대비는 더 낮아진다 — 보고서에 숫자로 적는다. */
 /* 판 = 투명(2026-09-25 대표 「TRANSPARENT BUTTON / SURFACE PATCH」: 검정·회색 채움과 유리 모두 없앤다. 파스텔이 그대로 이어져 보이게).
    바탕 = transparent · 흐림 없음 · 테두리 = 원래 「처음부터 시작하기」 테두리 #d9dfe8a6(버튼인 줄 알 수 있게). 크기·둥글기·자리·글자는 그대로. */
 .echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-surface-bg);border-color:var(--conversation-surface-border);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -144,19 +160,19 @@
 .echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:transparent}
 .echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#fff;box-shadow:inset 0 0 0 1px #fff} /* 바탕 차이가 없어져 선택 표시는 테두리로만: 흰 테두리 + 안쪽 1px(크기·자리 변화 0) */
 .echo-dialogue.echo-dialogue--pastel textarea:focus{border-color:#c2cfdd}
-/* 판 안 글자: 1순위 흰색 · 2순위 #dbe0e7 (2026-09-25 글자 변경 0 — 그대로 둔다) */
+/* 판 안 글자: 1순위 흰색 · 2순위 white/.7 (⑦ 1번 이미지 값) */
 .echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-opening-tile,.echo-opening-tile-label,.echo-brief-lead,.echo-brief-lead b,.echo-brief b,.echo-done-mark,.echo-done-lead,.echo-done-next b,.echo-synthesis-items p,.echo-synthesis-items button,.echo-insight h2,.echo-editor h2,.echo-reactions button:not(:first-child)){color:var(--conversation-text)}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-restart-pill,.echo-restart-pill svg,.echo-opening-tile-desc,.echo-brief li,.echo-brief li span,.echo-brief-fine,.echo-done-next li,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-defer,.echo-context,.echo-done .echo-fine){color:var(--conversation-text-secondary)}
 .echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-surface-border)}
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-secondary-on-pastel)} /* 선택 카드는 바탕이 한 단계 밝아 설명 글자도 한 단계 밝게(원래 선택 카드 글자색 #f2f3f5) */
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-strong)} /* 선택 카드 설명은 한 단계 밝게 = 1번 이미지 「진짜 나를 찾아줘」 text-white/90 */
 .echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-secondary)}
-/* 파스텔 위 글자: 1순위 흰색 · 2순위 #dbe0e7 · 둘 다 절제된 그림자. 유리 안(:not 목록)은 제외 */
+/* 파스텔 위 글자: 1순위 흰색 · 2순위 white/.7 · 머리말 white/.55 · 그림자 없음(⑦). 판 안(:not 목록)은 제외 */
 .echo-dialogue.echo-dialogue--pastel :is(h1,.echo-question,.echo-original>p,.echo-draft li p,.echo-memory p,.echo-error,.echo-error p):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text);-webkit-text-fill-color:var(--conversation-text);text-shadow:var(--conversation-text-halo)}
-.echo-dialogue.echo-dialogue--pastel :is(.echo-eyebrow,.echo-lead,.echo-ack,.echo-topic,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-lead,.echo-ack,.echo-topic,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel .echo-eyebrow:not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-eyebrow);-webkit-text-fill-color:var(--conversation-text-eyebrow);text-shadow:var(--conversation-text-halo)}
 .echo-dialogue.echo-dialogue--pastel h1{background-image:none;animation:none}
-/* 진행 표시: 흰색 계열, 질문보다 약하게(2순위 색). 막대 바탕 white/.35 · 옅은 그림자는 눈으로 정한 값(글자가 아니라 대비 기준 계산 대상 아님) */
+/* 진행 표시: 숫자는 2순위 white/.7, 채움은 흰색(바탕 white/.35 와 구분되게). 막대 바탕 white/.35 · 그림자 없음(⑦, 전에는 막대·숫자에 옅은 검은 그림자) */
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar{background:rgb(255 255 255/.35)}
-.echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text-secondary-on-pastel);background-image:none;box-shadow:none}
-.echo-dialogue.echo-dialogue--pastel .echo-steps{filter:drop-shadow(0 1px 1px rgb(0 0 0/.25))}
+.echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text);background-image:none;box-shadow:none}
 /* 보내기 버튼: 회색 그라데이션 채움만 없앤다(아이콘 색·크기·자리 그대로) */
 .echo-dialogue.echo-dialogue--pastel .echo-composer-footer button{background:transparent;border-color:var(--conversation-surface-border)}
