@@ -121,8 +121,8 @@
    - 파스텔 배경(①~③)·배치·글꼴·크기·굵기·줄 간격·문구는 그대로. 바꾸는 것은 어두운 판의 바탕·흐림·테두리와 글자색뿐.
    - 전(실측, 제각각이던 어두운 판): 입력창 #101216 · 하단 카드/다음 질문 받기 #171a20 · 처음부터 알약 #1b1f26 · 안내·확인 카드 #14171c ·
      보기 버튼 #1c2027 · 목적 카드 rgb(23 26 32/.65) — 테두리도 .18~.65 로 제각각, 흐림은 목적 카드만.
-   - 후: 모두 아래 토큰 하나. 바탕색 = 가장 많이 쓰던 #171a20, 테두리 = 옛 B 칩 white/14, 흐림 = 옛 B 카드 10px.
-     투명도·글자 그림자 세기는 360/390/430/1440 · 민트/청록/노랑/코랄 구간에서 실측해 기준(작은 글씨 4.5:1, 큰 글씨 3:1)을 넘는 가장 옅은 값.
+   - 후(2026-09-25 두 번째 지시 「TRANSPARENT BUTTON / SURFACE PATCH」): 판 바탕은 모두 transparent · 흐림 없음 · 테두리 #d9dfe8a6.
+     (한때 두었던 어두운 유리 rgb(23 26 32/.65)·흐림 10px 는 대표 지시로 없앴다.)
    - 글자: 1순위(질문·제목·내가 남긴 말·카드 제목·입력 글자·주요 행동) = 흰색 /
      2순위(머리말·안내·보조) = 유리 안 #dbe0e7(원래 카드 글자색) · 파스텔 위 #f2f3f5(원래 선택 카드 글자색 — 흰색보다 한 단계 약하게).
      파스텔 위에 바로 놓인 글자에만 그림자(--conversation-text-halo)를 준다 — 글자 뒤에 판·덮개를 새로 깔지 않는다(대표 지시).
@@ -130,26 +130,24 @@
      그림자 4단계를 재 보니 글자 바로 옆 1~2px 대비(중앙값)는 질문 약 1.7 → 2.4 까지만 오른다. 더 진한 윤곽(검은 1px 두 겹)도 2.4 로 같아
      「절제된」 쪽(부드러운 3겹)을 골랐다. 표준 4.5:1 은 어두운 판·덮개 없이는 닿지 않는다 — 대표 확인 필요. */
 .echo-dialogue.echo-dialogue--pastel{
-  --conversation-glass-bg:rgb(23 26 32/var(--conversation-glass-alpha));
-  --conversation-glass-bg-strong:rgb(34 38 46/var(--conversation-glass-alpha));
-  --conversation-glass-alpha:.65;
-  --conversation-glass-border:rgb(255 255 255/.14);
-  --conversation-glass-blur:10px;
+  --conversation-surface-bg:transparent;
+  --conversation-surface-border:#d9dfe8a6;
   --conversation-text:#fff;
   --conversation-text-secondary:#dbe0e7;
   --conversation-text-secondary-on-pastel:#f2f3f5;
   --conversation-text-halo:0 0 1px rgb(0 0 0/.8),0 0 3px rgb(0 0 0/.7),0 0 8px rgb(0 0 0/.45);
 }
-/* 어두운 판 = 하나의 유리 */
-.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-glass-bg);border-color:var(--conversation-glass-border);box-shadow:none;-webkit-backdrop-filter:blur(var(--conversation-glass-blur));backdrop-filter:blur(var(--conversation-glass-blur))}
-.echo-dialogue.echo-dialogue--pastel .echo-synthesis-items li{background:transparent;border-color:var(--conversation-glass-border)}
-.echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:var(--conversation-glass-bg-strong)}
-.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#ffffff9c}
+/* 판 = 투명(2026-09-25 대표 「TRANSPARENT BUTTON / SURFACE PATCH」: 검정·회색 채움과 유리 모두 없앤다. 파스텔이 그대로 이어져 보이게).
+   바탕 = transparent · 흐림 없음 · 테두리 = 원래 「처음부터 시작하기」 테두리 #d9dfe8a6(버튼인 줄 알 수 있게). 크기·둥글기·자리·글자는 그대로. */
+.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-surface-bg);border-color:var(--conversation-surface-border);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.echo-dialogue.echo-dialogue--pastel .echo-synthesis-items li{background:transparent;border-color:var(--conversation-surface-border)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:transparent}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#fff;box-shadow:inset 0 0 0 1px #fff} /* 바탕 차이가 없어져 선택 표시는 테두리로만: 흰 테두리 + 안쪽 1px(크기·자리 변화 0) */
 .echo-dialogue.echo-dialogue--pastel textarea:focus{border-color:#c2cfdd}
-/* 유리 안 글자: 1순위 흰색 · 2순위 #dbe0e7 */
+/* 판 안 글자: 1순위 흰색 · 2순위 #dbe0e7 (2026-09-25 글자 변경 0 — 그대로 둔다) */
 .echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-opening-tile,.echo-opening-tile-label,.echo-brief-lead,.echo-brief-lead b,.echo-brief b,.echo-done-mark,.echo-done-lead,.echo-done-next b,.echo-synthesis-items p,.echo-synthesis-items button,.echo-insight h2,.echo-editor h2,.echo-reactions button:not(:first-child)){color:var(--conversation-text)}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-restart-pill,.echo-restart-pill svg,.echo-opening-tile-desc,.echo-brief li,.echo-brief li span,.echo-brief-fine,.echo-done-next li,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-defer,.echo-context,.echo-done .echo-fine){color:var(--conversation-text-secondary)}
-.echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-glass-border)}
+.echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-surface-border)}
 .echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-secondary-on-pastel)} /* 선택 카드는 바탕이 한 단계 밝아 설명 글자도 한 단계 밝게(원래 선택 카드 글자색 #f2f3f5) */
 .echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-secondary)}
 /* 파스텔 위 글자: 1순위 흰색 · 2순위 #dbe0e7 · 둘 다 절제된 그림자. 유리 안(:not 목록)은 제외 */
@@ -160,3 +158,5 @@
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar{background:rgb(255 255 255/.35)}
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text-secondary-on-pastel);background-image:none;box-shadow:none}
 .echo-dialogue.echo-dialogue--pastel .echo-steps{filter:drop-shadow(0 1px 1px rgb(0 0 0/.25))}
+/* 보내기 버튼: 회색 그라데이션 채움만 없앤다(아이콘 색·크기·자리 그대로) */
+.echo-dialogue.echo-dialogue--pastel .echo-composer-footer button{background:transparent;border-color:var(--conversation-surface-border)}

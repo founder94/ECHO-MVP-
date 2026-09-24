@@ -51,16 +51,16 @@ test('흰 글자(대표 2026-09-25): 남색 0 · 1순위 흰색 · 2순위 흰�
   assert.match(block, /textarea::placeholder\{color:var\(--conversation-text-secondary\)\}/);
 });
 
-test('어두운 판 = 하나의 유리 토큰: 입력창·하단 카드·처음부터·목적 카드·안내/확인 카드 · 투명도 .65 · 흐림 10px · 테두리 white/14', () => {
-  assert.match(block, /--conversation-glass-alpha:\.65;/);
-  assert.match(block, /--conversation-glass-bg:rgb\(23 26 32\/var\(--conversation-glass-alpha\)\);/);
-  assert.match(block, /--conversation-glass-border:rgb\(255 255 255\/\.14\);/);
-  assert.match(block, /--conversation-glass-blur:10px;/);
-  const glassRules = [...rules.matchAll(/([^{}]+)\{[^}]*backdrop-filter:blur\(var\(--conversation-glass-blur\)\)[^}]*\}/g)].map((m) => m[1].trim());
-  assert.equal(glassRules.length, 1, '유리 규칙은 한 곳');
-  for (const part of ['textarea', '.echo-secondary', '.echo-restart-pill', '.echo-opening-tile', '.echo-brief', '.echo-done', '.echo-synthesis', '.echo-restart', '.echo-pause', '.echo-insight', '.echo-editor', '.echo-reactions button:not(:first-child)']) assert.ok(glassRules[0].includes(part), part);
-  assert.doesNotMatch(glassRules[0], /echo-primary|echo-composer-footer/, '밝은 주요 버튼·보내기 버튼은 그대로');
-  assert.equal([...rules.matchAll(/backdrop-filter:blur\((?!var)/g)].length, 0, '따로 노는 흐림 값 0');
+test('판 = 투명(대표 2026-09-25 「TRANSPARENT BUTTON / SURFACE PATCH」): 입력창·하단 카드·처음부터·목적 카드·안내/확인 카드·보내기 · 채움 0 · 흐림 0 · 테두리만', () => {
+  assert.match(block, /--conversation-surface-bg:transparent;/);
+  assert.match(block, /--conversation-surface-border:#d9dfe8a6;/);
+  assert.doesNotMatch(rules, /--conversation-glass|rgb\(23 26 32|rgb\(34 38 46/, '어두운 유리 값 0');
+  const surf = [...rules.matchAll(/([^{}]+)\{background:var\(--conversation-surface-bg\)[^}]*\}/g)].map((m) => m[1].trim());
+  assert.equal(surf.length, 1, '판 규칙은 한 곳');
+  for (const part of ['textarea', '.echo-secondary', '.echo-restart-pill', '.echo-opening-tile', '.echo-brief', '.echo-done', '.echo-synthesis', '.echo-restart', '.echo-pause', '.echo-insight', '.echo-editor', '.echo-reactions button:not(:first-child)']) assert.ok(surf[0].includes(part), part);
+  assert.match(rules, /\.echo-dialogue\.echo-dialogue--pastel \.echo-composer-footer button\{background:transparent;border-color:var\(--conversation-surface-border\)\}/);
+  assert.equal([...rules.matchAll(/backdrop-filter:blur/g)].length, 0, '흐림 0');
+  assert.match(rules, /\.echo-opening-tile\.is-selected\{border-color:#fff;box-shadow:inset 0 0 0 1px #fff\}/, '선택 표시는 테두리로');
   // 원래 규칙(파스텔 밖)은 그대로
   assert.match(css, /\.echo-opening-tile\{[^}]*background:#171a20/);
   assert.match(css, /\.echo-dialogue textarea\{[^}]*background:#101216/);
