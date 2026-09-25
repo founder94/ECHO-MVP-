@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
- "approved_by": "대표 「Conversation Product Contract RESET」 — READ·설계·로컬 구현 후보·테스트 후보까지 승인",
- "run": 4,
- "mode": "core",
- "what": "core-0.1 재생: Golden 34 입력 · 모델 4개(MODEL GATE 와 같음) · 모델마다 B-1.0 실측과 짝 비교. 사전 등록 = FROZEN_INPUTS.json core_gate",
+ "approved_by": "대표 「ECHO CONVERSATION AGENT v1 · FINAL LOCK」 — TEXT 실제 AI 검사 포함",
+ "run": 5,
+ "mode": "agent",
+ "what": "echo-agent-v1 재생: 대표 휴대폰 원문 + Golden · 말투 3종 · 모델 3개. 사전 등록 = FROZEN_INPUTS.json agent_gate",
  "history": [
   {
    "run": 1,
@@ -23,12 +23,17 @@
    "mode": "model_gate",
    "actions_run": 36108344306,
    "commit": "e0de6dc"
+  },
+  {
+   "run": 4,
+   "mode": "core",
+   "actions_run": 36111514762,
+   "commit": "133ff56"
   }
  ],
  "models": [
   "gpt-4o-mini",
   "gpt-4.1-mini",
-  "gpt-4.1",
-  "gpt-4o"
+  "gpt-4.1"
  ]
 }

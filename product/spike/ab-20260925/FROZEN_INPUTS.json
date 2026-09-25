@@ -45,6 +45,10 @@
   {
    "date": "2026-09-25",
    "what": "core_gate 사전 등록(core-0.1). A·B·Golden·판정 기준 변경 0."
+  },
+  {
+   "date": "2026-09-25",
+   "what": "agent_gate 사전 등록(echo-agent-v1). A·B·core-0.1·Golden 변경 0."
   }
  ],
  "specs": {
@@ -95,5 +99,25 @@
    "closing_call": "대화를 마칠 때 1번"
   },
   "compare_with": "MODEL GATE B-1.0 실측(Actions run 36108344306, docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md)"
+ },
+ "agent_gate": {
+  "registered_at": "2026-09-25",
+  "why": "대표 「ECHO CONVERSATION AGENT v1 · FINAL LOCK」: echo-agent-v1(다섯 질문·말투 선택·매칭 프로필)을 결과를 보기 전에 고정한다. 입력 = 대표 휴대폰 시험 원문(사적이지 않은 줄) + Golden 7흐름, 모델 = 앞선 비교의 OpenAI 3개(gpt-4o 는 같은 질문 반복이 가장 많아 뺌).",
+  "agent_sha256": "09f0cebeef860bf84f029572bf2b2b7c6f60e8f86abf65287fc9f323f65dee7b",
+  "flows_sha256": "8003b022f10fae697c0e9001ee754b9e8258fd67aade2a4ee670116f0ab55933",
+  "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
+  "models": [
+   "gpt-4o-mini",
+   "gpt-4.1-mini",
+   "gpt-4.1"
+  ],
+  "params": {
+   "temperature": 0.2,
+   "top_p": 0.9,
+   "max_tokens": 768,
+   "response_format": "json_object",
+   "max_calls_per_turn": 2,
+   "closing_call": "마칠 때 1번"
+  }
  }
 }

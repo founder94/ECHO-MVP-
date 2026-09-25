@@ -1,0 +1,14 @@
+{
+ "schema": "echo-agent-test-flows-v1",
+ "note": "echo-agent-v1 실제 AI 재생 입력. F1 = 대표 휴대폰 시험(2026-09-25, core-0.1 세션 s-1790323746068) 의 대표 원문 중 사적이지 않은 줄만(저장소가 공개라 사적인 줄은 비공개 페이지 db 에만 둔다). 나머지는 Golden(golden-failures.json) 흐름을 그대로 읽는다. expect = 사람이 붙인 말의 종류(기계 집계용), mixed = 답과 항의가 섞임(항의 저장 집계에서 뺀다).",
+ "flows": [
+  { "id": "F1", "origin": "ACTUAL", "source": "대표 휴대폰 시험 2026-09-25 (페이지 db sessions/s-1790323746068-b7jlu2)", "steps": [
+   ["친구같이 편한사람", "answer"], ["깉이 있을때 어색하지않는", "answer"], ["다음질문으로 넘어가 잘문이 너무 무겁다", "repair"], ["아 어렵네", "repair"],
+   ["외롭진 않지", "answer"], ["웅", "answer"], ["그건 나도 잘몰라", "unsure"], ["응", "answer"], ["느낌 근데 질문이 왜케 많아?", "mixed"] ] }
+ ],
+ "runs": [
+  { "flow": "F1", "tone": "polite" }, { "flow": "F1", "tone": "formal" }, { "flow": "F1", "tone": "casual" },
+  { "flow": "FLOW1", "tone": "polite" }, { "flow": "FLOW2", "tone": "polite" }, { "flow": "FLOW3", "tone": "polite" }, { "flow": "FLOW4", "tone": "polite" },
+  { "flow": "FLOW5", "tone": "polite" }, { "flow": "FLOW6", "tone": "polite" }, { "flow": "FLOW7", "tone": "casual" }
+ ]
+}

@@ -1,0 +1,298 @@
+<title>ECHO 대화 시험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --night: #0f121a;
+    --night-2: #161a24;
+    --line: #2a303d;
+    --ink: #eef0f4;
+    --muted: #98a1b1;
+    --silver: #c9d0da;
+    --silver-deep: #8d96a6;
+    --warn: #e6b76a;
+    --serif: "Gowun Batang", "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
+    --sans: "Gowun Dodum", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { background: var(--night); color: var(--ink); font: 15px/1.6 var(--sans); }
+  .app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; padding-inline: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-block: 14px 10px; border-bottom: 1px solid var(--line); }
+  .brand { font: 700 15px/1 var(--serif); letter-spacing: .18em; color: var(--silver); }
+  .tag { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ghost { background: none; border: 1px solid var(--line); color: var(--muted); font: 13px var(--sans); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .ghost:focus-visible, .send:focus-visible, .start:focus-visible, .choice:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  textarea:focus { outline: none; border-color: var(--silver-deep); }
+  #log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-block: 22px 16px; }
+  .ai { font: 17px/1.75 var(--serif); color: var(--ink); max-width: 92%; white-space: pre-wrap; text-wrap: pretty; }
+  .ai .q { display: block; margin-top: 6px; color: var(--silver); }
+  .me { align-self: flex-end; max-width: 82%; background: var(--night-2); border: 1px solid var(--line); border-radius: 16px 16px 4px 16px; padding: 9px 13px; white-space: pre-wrap; }
+  .sys { font-size: 13px; color: var(--muted); margin: 0; }
+  .sys.warn { color: var(--warn); }
+  .dots { display: inline-flex; gap: 5px; padding: 6px 0; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--silver-deep); animation: pulse 1.2s infinite ease-in-out; }
+  .dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes pulse { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: .7; } }
+  .setup { display: grid; gap: 22px; padding-block: 24px; }
+  .step { display: grid; gap: 10px; }
+  .step h2 { margin: 0; font: 700 17px/1.4 var(--serif); }
+  .choices { display: grid; gap: 8px; }
+  .choice { text-align: left; background: var(--night-2); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font: 15px/1.4 var(--sans); cursor: pointer; display: grid; gap: 2px; }
+  .choice small { color: var(--muted); font-size: 12px; }
+  .choice[aria-pressed="true"] { border-color: var(--silver); box-shadow: inset 0 0 0 1px var(--silver); }
+  .start { justify-self: start; background: linear-gradient(180deg, #e9edf2, #b9c1cd); color: #141821; border: 0; border-radius: 999px; padding: 12px 22px; font: 700 15px var(--sans); cursor: pointer; }
+  .card { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
+  .card h2 { font: 700 13px/1.3 var(--sans); letter-spacing: .08em; color: var(--muted); margin: 0; }
+  .card dl { margin: 0; display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px 14px; }
+  .card dt { color: var(--muted); font-size: 13px; }
+  .card dd { margin: 0; }
+  .pill { display: inline-block; font-size: 11px; letter-spacing: .04em; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; color: var(--muted); }
+  .pill.ok { color: var(--ink); border-color: var(--silver-deep); }
+  .composer { display: grid; gap: 6px; padding-block: 10px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--night); }
+  .row { display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; min-height: 44px; max-height: 140px; background: var(--night-2); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px; font: 16px/1.45 var(--sans); }
+  textarea::placeholder { color: var(--muted); }
+  .send { background: var(--silver); color: #141821; border: 0; border-radius: 12px; min-width: 64px; height: 44px; font: 700 15px var(--sans); cursor: pointer; }
+  .send:disabled, .start:disabled { opacity: .45; cursor: default; }
+  .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; padding-top: 8px; }
+  .note { font-size: 12px; color: var(--muted); padding-block: 0 4px; margin: 0; }
+</style>
+
+<div class="app">
+  <header>
+    <span class="brand">ECHO</span>
+    <span class="tag" id="progress">대화 시험 · 대표 전용</span>
+    <button class="ghost" id="restart" type="button" hidden>처음부터</button>
+  </header>
+
+  <div id="confirmRow" class="confirm sys" hidden>
+    <span>지금 대화를 끝내고 처음부터 할까요?</span>
+    <button class="ghost" id="keep" type="button">계속할게요</button>
+    <button class="ghost" id="reset" type="button">처음부터 할게요</button>
+  </div>
+
+  <main id="log" aria-live="polite"></main>
+
+  <p class="note">시험 단계라 실제 사람 연결은 아직 없어요. 이 대화는 이 페이지에 저장되고, Claude가 읽고 고치는 데 써요.</p>
+  <form class="composer" id="composer" hidden>
+    <p class="sys" id="voiceHint" hidden>키보드의 마이크 버튼을 누르고 말하면 글로 적혀요. 다 말했으면 보내기를 눌러 주세요. ECHO의 대답은 소리로 읽어 드려요.</p>
+    <div class="row">
+      <textarea id="msg" rows="1" placeholder="편하게 적어 주세요" autocomplete="off" aria-label="메시지"></textarea>
+      <button class="send" id="send" type="submit">보내기</button>
+    </div>
+  </form>
+</div>
+
+<template id="setupTpl">
+  <section class="setup" id="setup">
+    <div class="step">
+      <h2>어떻게 이야기할까요?</h2>
+      <div class="choices" data-group="mode">
+        <button class="choice" type="button" data-value="TEXT" aria-pressed="true">글로 대화하기</button>
+        <button class="choice" type="button" data-value="VOICE" aria-pressed="false">말로 대화하기 <small>시험판 · 휴대폰 키보드 마이크로 말하고, ECHO 대답은 소리로 들어요</small></button>
+      </div>
+    </div>
+    <div class="step">
+      <h2>어떤 말투가 편하세요?</h2>
+      <div class="choices" data-group="tone">
+        <button class="choice" type="button" data-value="formal" aria-pressed="false">정중한 존댓말</button>
+        <button class="choice" type="button" data-value="polite" aria-pressed="true">편한 존댓말</button>
+        <button class="choice" type="button" data-value="casual" aria-pressed="false">편한 반말</button>
+      </div>
+    </div>
+    <p class="sys">핵심 질문은 다섯 개까지만 해요. 처음 한 번은 Claude 사용 허락 창이 떠요.</p>
+    <button class="start" id="start" type="button">대화 시작</button>
+  </section>
+</template>
+
+<script type="module">
+/*__AGENT__*/
+
+const $ = (id) => document.getElementById(id);
+const log = $('log'), msg = $('msg'), send = $('send'), composer = $('composer');
+let sample = null, db = null, st = null, sid = null, busy = false, calls = [], records = [];
+let choice = { mode: 'TEXT', tone: DEFAULT_TONE };
+const tts = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance !== 'undefined' ? window.speechSynthesis : null;
+
+const ERR = {
+  not_granted: 'Claude 사용을 허락하지 않아 대화를 할 수 없어요. 페이지를 다시 열면 허락 창이 다시 떠요.',
+  sampling_disabled: '이 계정에서는 Claude를 쓸 수 없어요.',
+  rate_limited: '잠깐 사용량이 많아요. 조금 뒤에 다시 보내 주세요.',
+  session_expired: 'claude.ai 로그인이 풀렸어요. 다시 로그인한 뒤 보내 주세요.',
+  refused: '이 말에는 답을 만들지 못했어요. 표현을 바꿔 다시 보내 주세요.',
+};
+const errText = (code) => ERR[code] ?? '답을 만들지 못했어요. 한 번 더 보내 주세요.';
+
+function add(cls, text, q) {
+  const el = document.createElement('div'); el.className = cls; el.textContent = text ?? '';
+  if (q) { const s = document.createElement('span'); s.className = 'q'; s.textContent = q; el.append(s); }
+  log.append(el); el.scrollIntoView({ block: 'end', behavior: 'smooth' }); return el;
+}
+function thinking() { const el = document.createElement('div'); el.className = 'dots'; el.setAttribute('aria-label', '답을 만들고 있어요'); el.innerHTML = '<i></i><i></i><i></i>'; log.append(el); el.scrollIntoView({ block: 'end' }); return el; }
+function progress() {
+  if (!st) { $('progress').textContent = '대화 시험 · 대표 전용'; return; }
+  const n = st.asked.filter((q) => q.type === 'core').length;
+  $('progress').textContent = st.phase === 'talk' ? `핵심 질문 ${n} / ${MAX_CORE_QUESTIONS}` : '대화를 마쳤어요';
+}
+
+// 말로 대화하기(시험판): 소리 출력 = 기기 내장 읽기. 걸린 시간은 자동 기록에 남긴다.
+function speak(text) {
+  if (!tts || st?.mode !== 'VOICE' || !text) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const u = new SpeechSynthesisUtterance(text); u.lang = 'ko-KR';
+      const ko = tts.getVoices().find((v) => /^ko/i.test(v.lang)); if (ko) u.voice = ko;
+      let t0 = 0; u.onstart = () => { t0 = performance.now(); };
+      u.onend = () => resolve(t0 ? Math.round(performance.now() - t0) : null); u.onerror = () => resolve(null);
+      tts.cancel(); tts.speak(u);
+    } catch { resolve(null); }
+  });
+}
+
+// 모델 어댑터: Claude(대표 계정, 빠른 등급). 같은 agent.mjs 를 OpenAI 재생도 쓴다.
+let lastTier = null;
+async function llm(kind, prompt, input) {
+  const t0 = performance.now();
+  try {
+    const r = await sample(prompt + '\n\n입력(JSON):\n' + JSON.stringify(input), { modelTier: 'quick', cache: false });
+    lastTier = r.modelTierApplied;
+    calls.push({ kind, ms: Math.round(performance.now() - t0), tier: r.modelTierApplied, truncated: !!r.truncated, in_chars: prompt.length + JSON.stringify(input).length, out_chars: r.text.length });
+    return r.text;
+  } catch (e) { calls.push({ kind, ms: Math.round(performance.now() - t0), error: e?.code ?? 'unknown' }); throw e; }
+}
+
+// 자동 실패 기록: 한 턴에 한 줄. 원문은 대표 전용 비공개 페이지 db 에만 남는다.
+function record(userText, response, obs, audioMs) {
+  const t = st.turns.at(-1);
+  const assistant = [response.reply, response.closing, response.question].filter(Boolean).join('\n');
+  records.push({
+    session_id: sid, input_mode: st.mode, tone: st.tone, turn_index: records.length + 1,
+    question_index: st.asked.filter((q) => q.type === 'core').length, question_purpose: t?.question_purpose ?? null, question_type: t?.question_type ?? null,
+    user_raw_text: userText, assistant_text: assistant, agent_action: response.kind ?? response.error ?? null, decision: t?.decision ?? null,
+    information_state: Object.fromEntries(Object.entries(st.slots).map(([k, v]) => [k, v.status])),
+    correction: response.kind === 'correction', rejection: response.kind === 'repair', complaint: response.kind === 'repair', skip: response.kind === 'skip', fatigue: response.kind === 'stop',
+    model_provider: 'anthropic (claude.ai sample)', model: 'Claude 빠른 등급 — 정확한 모델명은 페이지에서 알 수 없음', model_tier_applied: lastTier,
+    voice_provider: st.mode === 'VOICE' ? '기기 내장 읽기(speechSynthesis) + 키보드 받아쓰기' : null,
+    latency_ms: obs ? obs.ms.reduce((a, b) => a + b, 0) : null, llm_calls: obs?.calls ?? null, retry: obs?.retry ?? [], tokens: null, audio_output_ms: audioMs ?? null, audio_input_ms: null,
+    error: response.error ?? null, tone_mismatch_observed: assistant ? toneMismatch(st.tone, assistant) : false,
+  });
+}
+
+async function save(extra = {}) {
+  if (!db || !sid) return;
+  try {
+    await db.doc('sessions/' + sid).set({ agent: AGENT_VERSION, started: Number(sid.split('-')[1]), updated: Date.now(), mode: st.mode, tone: st.tone, phase: st.phase,
+      turns: st.turns, slots: st.slots, inferred: st.inferred, corrections: st.corrections, disputed: st.disputed, declared: st.declared, asked: st.asked, closing: st.closing, summary: st.summary,
+      profile: matchingProfile(st), records, calls, ...extra });
+  } catch { add('sys', '대화 기록을 저장하지 못했어요. 대화는 계속할 수 있어요.'); }
+}
+
+function showResult(profileObj, handoff) {
+  const box = document.createElement('section'); box.className = 'card';
+  const h = document.createElement('h2'); h.textContent = '내가 들은 것'; box.append(h);
+  const dl = document.createElement('dl');
+  for (const p of PURPOSES) {
+    const s = profileObj[p.id];
+    const dt = document.createElement('dt'); dt.textContent = p.label;
+    const dd = document.createElement('dd');
+    dd.textContent = s.items.length ? s.items.map((x) => x.note).join(' · ') + ' ' : (s.status === 'SKIPPED' ? '넘겼어요 ' : '아직 못 들었어요 ');
+    const pill = document.createElement('span'); pill.className = 'pill' + (s.status === 'CONFIRMED' ? ' ok' : ''); pill.textContent = s.status === 'CONFIRMED' ? '직접 말함' : s.status === 'SKIPPED' ? '넘김' : '모름';
+    dd.append(pill); dl.append(dt, dd);
+  }
+  if (profileObj.inferred_candidates.length) {
+    const dt = document.createElement('dt'); dt.textContent = 'AI 추측';
+    const dd = document.createElement('dd'); dd.textContent = profileObj.inferred_candidates.map((x) => x.trait).join(' · ') + ' ';
+    const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = '매칭에 쓰지 않음'; dd.append(pill); dl.append(dt, dd);
+  }
+  box.append(dl);
+  const m = document.createElement('section'); m.className = 'card';
+  const mh = document.createElement('h2'); mh.textContent = '매칭 단계'; m.append(mh);
+  const mp = document.createElement('p'); mp.className = 'sys';
+  mp.textContent = handoff.status === 'TEST_NOT_CONNECTED' ? `위에서 「직접 말함」인 것만 매칭 기준으로 넘겼어요. 시험 단계라 실제 사람 연결은 아직 없어요 (${handoff.status}).` : handoff.status;
+  m.append(mp);
+  const fix = document.createElement('p'); fix.className = 'sys'; fix.textContent = '틀린 게 있으면 그대로 말해 주세요. 바로 고칠게요.';
+  log.append(box, m, fix); fix.scrollIntoView({ block: 'end', behavior: 'smooth' });
+}
+
+function showSetup(checked = true) {
+  log.replaceChildren($('setupTpl').content.cloneNode(true));
+  for (const group of log.querySelectorAll('.choices')) {
+    group.addEventListener('click', (e) => {
+      const b = e.target.closest('.choice'); if (!b) return;
+      for (const x of group.querySelectorAll('.choice')) x.setAttribute('aria-pressed', String(x === b));
+      choice[group.dataset.group] = b.dataset.value;
+    });
+    for (const x of group.querySelectorAll('.choice')) x.setAttribute('aria-pressed', String(x.dataset.value === choice[group.dataset.group]));
+  }
+  $('start').addEventListener('click', begin);
+  if (!sample) $('start').disabled = true;
+  if (!sample && checked) { add('sys warn', '여기서는 Claude를 부를 수 없어요. claude.ai 앱이나 브라우저에서 이 페이지를 열어 주세요.'); }
+}
+
+async function begin() {
+  if (!sample) return;
+  $('start').disabled = true;
+  if (choice.mode === 'VOICE' && tts) { try { tts.speak(new SpeechSynthesisUtterance(' ')); } catch { /* 소리 준비 실패는 글로 계속 */ } }
+  st = newState({ tone: choice.tone, mode: choice.mode }); calls = []; records = [];
+  sid = 's-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  const dots = thinking();
+  try {
+    const o = await runOpening(st, llm);
+    dots.remove();
+    if (!o) { add('sys warn', '첫 질문을 만들지 못했어요. 대화 시작을 다시 눌러 주세요.'); $('start').disabled = false; return; }
+    $('setup')?.remove();
+    add('ai', o.reply, o.question);
+    if (st.mode === 'VOICE' && !tts) add('sys', '이 기기에서는 소리로 읽기를 쓸 수 없어요. 글로 계속할게요.');
+    $('voiceHint').hidden = st.mode !== 'VOICE';
+    composer.hidden = false; $('restart').hidden = false; progress(); msg.focus();
+    const audio = await speak([o.reply, o.question].filter(Boolean).join(' '));
+    records.push({ session_id: sid, input_mode: st.mode, tone: st.tone, turn_index: 0, question_index: 1, question_purpose: 'relationship_intent', question_type: 'core', user_raw_text: null,
+      assistant_text: [o.reply, o.question].filter(Boolean).join('\n'), agent_action: 'opening', model_provider: 'anthropic (claude.ai sample)', model_tier_applied: lastTier,
+      latency_ms: calls.at(-1)?.ms ?? null, tokens: null, audio_output_ms: audio, error: null, tone_mismatch_observed: toneMismatch(st.tone, [o.reply, o.question].join(' ')) });
+    save();
+  } catch (e) { dots.remove(); add('sys warn', errText(e?.code)); $('start').disabled = e?.code === 'not_granted'; }
+}
+
+async function turn(text) {
+  busy = true; send.disabled = true;
+  add('me', text); msg.value = ''; fit();
+  const dots = thinking();
+  const { response, obs } = await runTurn(st, text, llm);
+  dots.remove();
+  let audio = null;
+  if (response.error) {
+    add('sys warn', response.error === 'READ_FAILED' ? '답을 제대로 만들지 못했어요. 한 번 더 보내 주세요.' : errText(response.error === 'PROVIDER' ? response.detail : null));
+    msg.value = text; fit();
+  } else if (response.kind === 'blocked') add('sys', response.reply);
+  else if (response.finish) {
+    const line = [response.reply, response.closing].filter(Boolean).join('\n');
+    add('ai', line); showResult(response.profile, response.handoff); audio = await speak(line);
+  } else if (response.after) {
+    add('ai', response.reply || '고친 내용으로 바꿨어요.'); showResult(response.profile, response.handoff); audio = await speak(response.reply);
+  } else { add('ai', response.reply, response.question); audio = await speak([response.reply, response.question].filter(Boolean).join(' ')); }
+  record(text, response, obs, audio); progress();
+  save(response.handoff ? { handoff: response.handoff } : {});
+  busy = false; send.disabled = false; msg.focus();
+}
+
+function fit() { msg.style.height = ''; if (msg.value) msg.style.height = Math.min(Math.max(msg.scrollHeight, 44), 140) + 'px'; }
+msg.addEventListener('input', fit);
+composer.addEventListener('submit', (e) => { e.preventDefault(); const t = msg.value.trim(); if (t && !busy && st) turn(t); });
+$('restart').addEventListener('click', () => { $('confirmRow').hidden = false; });
+$('keep').addEventListener('click', () => { $('confirmRow').hidden = true; });
+$('reset').addEventListener('click', () => {
+  $('confirmRow').hidden = true; composer.hidden = true; $('restart').hidden = true; tts?.cancel();
+  st = null; sid = null; progress(); showSetup();
+  add('sys', '새 대화를 시작해요. 지난 대화 기록은 그대로 남아 있어요.');
+});
+
+showSetup(false);
+(async () => {
+  sample = await window.claude?.use?.('sample') ?? null;
+  db = await window.claude?.use?.('db') ?? null;
+  showSetup();
+})();
+</script>
