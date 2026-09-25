@@ -23,22 +23,22 @@ const enc = getEncoding('o200k_base'); // gpt-4o 계열 토크나이저. 실제 
 export const tok = (s) => enc.encode(String(s ?? '')).length;
 
 // ── LLM 가로채기 ──
-export function recorder() {
+export function recorder(model = MODEL) { // model: MODEL GATE 에서 모델만 바꿀 때(그 밖의 조건은 그대로)
   const calls = [];
   const mockFor = { current: null };
   async function llm(system, userJson, params) {
     const started = Date.now();
     let parsedIn = {}; try { parsedIn = JSON.parse(userJson); } catch { parsedIn = {}; }
     const fields = Object.fromEntries(Object.entries(parsedIn).map(([k, v]) => [k, tok(JSON.stringify(v))])); // §30 Context 구성(항목별 토큰)
-    const rec = { fields, sys_tokens: tok(system), user_tokens: tok(userJson), sys_chars: system.length, user_chars: userJson.length, params, out_tokens: null, usage: null, ms: 0, mock: !REAL };
+    const rec = { model, fields, sys_tokens: tok(system), user_tokens: tok(userJson), sys_chars: system.length, user_chars: userJson.length, params, out_tokens: null, usage: null, ms: 0, mock: !REAL };
     let content;
     if (REAL) {
       const res = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
-        body: JSON.stringify({ model: MODEL, temperature: params.temperature, top_p: params.top_p, max_tokens: params.max_tokens, messages: [{ role: 'system', content: system }, { role: 'user', content: userJson }], response_format: { type: 'json_object' } }) });
+        body: JSON.stringify({ model, temperature: params.temperature, top_p: params.top_p, max_tokens: params.max_tokens, messages: [{ role: 'system', content: system }, { role: 'user', content: userJson }], response_format: { type: 'json_object' } }) });
       const data = await res.json();
       if (!res.ok) { rec.ms = Date.now() - started; rec.error = `http_${res.status}`; calls.push(rec); throw new Error('OPENAI_HTTP'); }
       content = String(data?.choices?.[0]?.message?.content ?? '');
-      rec.usage = data?.usage ?? null; rec.in_real = rec.usage?.prompt_tokens ?? null; rec.out_real = rec.usage?.completion_tokens ?? null;
+      rec.served_model = data?.model ?? null; rec.usage = data?.usage ?? null; rec.in_real = rec.usage?.prompt_tokens ?? null; rec.out_real = rec.usage?.completion_tokens ?? null;
     } else {
       content = mockFor.current(system, JSON.parse(userJson), calls.filter((c) => c.turnKey === mockFor.key).length);
     }
@@ -135,8 +135,8 @@ export async function runA(flow, { mock = mockA } = {}) { // mock: [MOCK] 검사
   }
   return rows;
 }
-export async function runB(flow) {
-  const rec = recorder(); const s = newBState(flow.purpose); s.lastQuestion = '어떤 만남을 원하세요?';
+export async function runB(flow, { model = MODEL } = {}) {
+  const rec = recorder(model); const s = newBState(flow.purpose); s.lastQuestion = '어떤 만남을 원하세요?';
   const rows = [];
   for (const [i, [text, type, origin]] of flow.steps.entries()) {
     rec.mockFor.current = mockB(type); rec.mockFor.key = `B${i}`;
