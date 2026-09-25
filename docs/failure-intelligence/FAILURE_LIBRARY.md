@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 90건 — 증거 수준: ACTUAL 81 · CANDIDATE 7 · HYPOTHESIS 2 · 출처: ACTUAL 48 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 7
-- 상태: UNRESOLVED 43 · MITIGATED 42 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 47 · NONE 27
+- 합계 91건 — 증거 수준: ACTUAL 81 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 48 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 8
+- 상태: UNRESOLVED 43 · MITIGATED 43 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 48 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -104,6 +104,7 @@
 | GF-88 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 화면 색 끊김 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-89 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 검은 머리띠 회귀 · 화면 색 끊김 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-90 | 2026-09-25(코드 검색) | ACTUAL | CODE | F-PROMISE | 미구현 기능 노출 · 없는 기능 약속 | Product Contract | CONFIRMED | CANDIDATE | UNRESOLVED |
+| GF-91 | 2026-09-25(외부 사용자 iPho | CANDIDATE | FOUNDER_STATEMENT | F-DEPLOY | 배포 불일치 | Infrastructure | HYPOTHESIS | CANDIDATE | MITIGATED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -3042,3 +3043,36 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` · `docs/failure-intelligence/FAILURE_LIBRARY.md` |
+
+## GF-91 P0 PUBLIC_ACCESS_INCIDENT — 공유 주소가 app.do 로 잘려 다른 사이트(Facebook Poll)가 열림
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DEPLOY — 배포·운영 과정 결함 |
+| 발생 날짜 | 2026-09-25(외부 사용자 iPhone · 대표 보고) |
+| 증거 수준 | CANDIDATE |
+| 출처 | FOUNDER_STATEMENT — 대표 보고 + 대표 최신 확정(app.do 링크로 잘못 인식) · 캡처 미도착 |
+| 사용자 상황 | 외부 사용자에게 공유한 주소 |
+| 사용자 원문 | — |
+| AI 행동 | — |
+| 기대 행동 | https://app.do-it.company 가 열림 |
+| Failure Type | 배포 불일치 |
+| 원인 Layer | Infrastructure (원인 확신: HYPOTHESIS) — 주소 자동 링크(메신저) — 우리 DNS·Netlify 문제 증거 0 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | DNS 읽기: app.do-it.company = Netlify, app.do = 별개 도메인(192.53.122.28) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 공유 주소는 https:// 전체 주소로(앱 안내 2곳 고침) · DNS 변경 0 |
+| 실험 결과 | — |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 대표 확정: 외부 사용자 정상 접속 확인 · 이 환경에서 공용 해석기·인증서 확인 불가 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/P0_PUBLIC_ACCESS_INCIDENT_20260925.md` |

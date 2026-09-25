@@ -4256,6 +4256,49 @@
     "docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md",
     "docs/failure-intelligence/FAILURE_LIBRARY.md"
    ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_text": "—",
+   "id": "GF-91",
+   "title": "P0 PUBLIC_ACCESS_INCIDENT — 공유 주소가 app.do 로 잘려 다른 사이트(Facebook Poll)가 열림",
+   "family": "F-DEPLOY",
+   "date": "2026-09-25(외부 사용자 iPhone · 대표 보고)",
+   "origin": "FOUNDER_STATEMENT",
+   "origin_note": "대표 보고 + 대표 최신 확정(app.do 링크로 잘못 인식) · 캡처 미도착",
+   "situation": "외부 사용자에게 공유한 주소",
+   "ai_behavior": "—",
+   "expected": "https://app.do-it.company 가 열림",
+   "types": [
+    "배포 불일치"
+   ],
+   "layers": [
+    "Infrastructure"
+   ],
+   "layer_note": "주소 자동 링크(메신저) — 우리 DNS·Netlify 문제 증거 0",
+   "cause_confidence": "HYPOTHESIS",
+   "reproduction": "DNS 읽기: app.do-it.company = Netlify, app.do = 별개 도메인(192.53.122.28)",
+   "solution_candidates": "공유 주소는 https:// 전체 주소로(앱 안내 2곳 고침) · DNS 변경 0",
+   "mock_result": "UNKNOWN",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "대표 확정: 외부 사용자 정상 접속 확인 · 이 환경에서 공용 해석기·인증서 확인 불가",
+   "experiment": "—",
+   "evidence_level": "CANDIDATE",
+   "user_result": "UNKNOWN",
+   "real_ai": "—",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/P0_PUBLIC_ACCESS_INCIDENT_20260925.md"
+   ]
   }
  ]
 }
