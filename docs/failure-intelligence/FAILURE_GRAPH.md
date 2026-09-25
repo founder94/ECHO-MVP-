@@ -1,0 +1,92 @@
+# Failure Graph (v1 · 2026-09-25)
+
+> `docs/failure-intelligence/data/failure-graph.json` 에서 생성. 실선 = 근거 있음(ACTUAL·CODE), 점선 = HYPOTHESIS(인과 미확정).
+
+```mermaid
+graph LR
+  GF-10["GF-10 새 갈래 첫 줄 검사로 후보 9개 전부 "]
+  FS-08["FS-08 첫 줄이 방금 답 낱말을 담으면 근거 인"]
+  GF-08["GF-08 짧은 답 뒤 「활동」으로 점프 · 주제 "]
+  GF-18["GF-18 규칙 분류가 실사용 말투 답 16개 중 "]
+  FS-14["FS-14 애매한 말은 AI 분류에 맡기고 「애매하"]
+  GF-11["GF-11 되물음 「활동?갑자기?」가 답으로 저장 "]
+  GF-14["GF-14 되묻기가 답으로 저장 · 깨진 질문"]
+  FS-03["FS-03 되묻기 판정 정규식 확장(v14.3 ME"]
+  GF-05["GF-05 「취미생활?」이 되묻기로 강제됨"]
+  GF-13["GF-13 무겁고 추상적인 질문 · 고친 서버를 배"]
+  FS-02["FS-02 주제별 쉬운 고정 질문 `EASY_QUE"]
+  GF-04["GF-04 저장 안 한 문제제기를 다음 턴 AI 가"]
+  GF-01["GF-01 같은 뜻 질문 반복"]
+  GF-06["GF-06 질문 방향 제안이 되묻기(ask)로 분류"]
+  GF-03["GF-03 문제제기 뒤 질문 생성 실패(자기 표시 "]
+  GF-15["GF-15 가짜 AI 검사 전부 통과, 실제 첫 입"]
+  GF-16["GF-16 이름과 다른 것을 확인해 실패를 통과로 "]
+  GF-17["GF-17 검사 장치가 가짜 AI 답을 한 번도 읽"]
+  GF-25["GF-25 정정 두 개가 똑같은 다음 질문으로 이어"]
+  FS-15["FS-15 v34: 정정 반영 수정(옛 흐름, 20"]
+  GF-44["GF-44 옛 흐름 Guard 가 좋은 질문을 죽여"]
+  GF-47["GF-47 AI 해석을 거절하면 사용자 자신의 낱말"]
+  FS-16["FS-16 「그게 아니에요」로 거절한 문장을 낱말로"]
+  GF-22["GF-22 사용자 질문에 답하지 않고 되묻기 · 말"]
+  FS-17["FS-17 의도 태그 12종 + 대화 전체와 의도 "]
+  GF-24["GF-24 짧은 답 뒤 같은 뜻 후보 3번 막혀 대"]
+  GF-36["GF-36 「진실된마음」 뒤 생뚱맞은 구제 질문(띄"]
+  FS-20["FS-20 근거 인용 글자 일치(띄어쓰기 포함) 검"]
+  GF-02["GF-02 정상 답 뒤 질문 생성 실패(단서 글자 "]
+  GF-09["GF-09 「모르겠어요」도 다섯 칸에 들어감"]
+  GF-41["GF-41 대화에 끝이 없음"]
+  GF-34["GF-34 주제별 고정 질문이 앞 답과 무관하게 나"]
+  GF-33["GF-33 다음 질문 4번 중 3번이 고정 안전문장"]
+  GF-10 -->|FIXED_BY| FS-08
+  GF-08 -->|BROKEN_BY| FS-08
+  GF-18 -->|FIXED_BY| FS-14
+  GF-11 -->|BROKEN_BY| FS-14
+  GF-14 -->|FIXED_BY| FS-03
+  GF-05 -.->|BROKEN_BY| FS-03
+  GF-13 -->|FIXED_BY| FS-02
+  GF-04 -.->|CONTRIBUTES_TO| GF-01
+  GF-04 -.->|CONTRIBUTES_TO| GF-06
+  GF-01 -.->|TRIGGERS| GF-03
+  GF-15 -->|MASKS| GF-10
+  GF-16 -.->|CONTRIBUTES_TO| GF-15
+  GF-17 -.->|CONTRIBUTES_TO| GF-15
+  GF-25 -->|FIXED_BY| FS-15
+  GF-44 -->|BROKEN_BY| FS-15
+  GF-47 -->|BROKEN_BY| FS-16
+  GF-22 -->|BROKEN_BY| FS-17
+  GF-24 -->|BROKEN_BY| FS-17
+  GF-36 -->|FIXED_BY| FS-20
+  GF-02 -->|REGRESSION_OF| GF-36
+  GF-09 -->|REGRESSION_OF| GF-41
+  GF-34 -->|REGRESSION_OF| GF-13
+  GF-33 -->|BROKEN_BY| FS-02
+```
+
+| From | 관계 | To | 증거 | 설명 | 근거 |
+|---|---|---|---|---|---|
+| GF-10 | FIXED_BY | FS-08 | ACTUAL | v15.2 가 GF-10 대책으로 운영 배포됨 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md` |
+| GF-08 | BROKEN_BY | FS-08 | ACTUAL | FAIL #2 분석: 받아 주는 첫 줄만 있으면 이어졌다고 인정해 「활동」 점프 통과 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| GF-18 | FIXED_BY | FS-14 | ACTUAL | v15.1 규칙 축소 + 애매하면 AI(실패 시 답) | `CLAUDE.md` |
+| GF-11 | BROKEN_BY | FS-14 | ACTUAL | FAIL #2: AI 분류 「애매하면 answer」 → 되물음 저장 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| GF-14 | FIXED_BY | FS-03 | CODE | v27 ruleKind 가 「딥하네」·「활동?질문이 머이래」 를 meta 로 잡음(Replay R1) | `docs/failure-intelligence/REPLAY_결과_20260925.md` |
+| GF-05 | BROKEN_BY | FS-03 | HYPOTHESIS | 짧은 물음표 규칙이 원인인 것은 코드 확인 · 그 규칙이 v14.3 확장 때 들어왔는지는 미확인 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` |
+| GF-13 | FIXED_BY | FS-02 | ACTUAL | v14.3 쉬운 고정 질문 도입 | `CLAUDE.md` |
+| GF-04 | CONTRIBUTES_TO | GF-01 | HYPOTHESIS | 항의가 다음 턴 입력에 없어 같은 뜻을 되풀이했을 수 있음(모델 분리 안 됨) | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` |
+| GF-04 | CONTRIBUTES_TO | GF-06 | HYPOTHESIS | 앞선 「취미생활?」 이 입력에 없음 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` |
+| GF-01 | TRIGGERS | GF-03 | HYPOTHESIS | 같은 세션에서 반복 질문 → 항의 → 항의 턴 실패 순서로 관측(인과는 미확정) | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` |
+| GF-15 | MASKS | GF-10 | ACTUAL | 가짜 AI 479개 중 474 통과 뒤 배포, 첫 실제 입력 실패 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md` |
+| GF-16 | CONTRIBUTES_TO | GF-15 | HYPOTHESIS | 같은 평가 결함 계열(통과 수가 실제 품질을 과대표시) | `docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/ECHO_MASTER_CODE_최종대조_v15_20260924.md` |
+| GF-17 | CONTRIBUTES_TO | GF-15 | HYPOTHESIS | 같은 평가 결함 계열 | `CLAUDE.md` |
+| GF-25 | FIXED_BY | FS-15 | ACTUAL | v34 정정 수정 | `docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md` |
+| GF-44 | BROKEN_BY | FS-15 | ACTUAL | 막다른 길 2→5 악화(보고서 자인) | `docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md` |
+| GF-47 | BROKEN_BY | FS-16 | CODE | 거절 문장을 낱말로 쪼개 금지(31a9091 설명) | `git:31a9091` |
+| GF-22 | BROKEN_BY | FS-17 | CODE | 의도 태그 소진 → 전 후보 repeat_intent | `docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md` |
+| GF-24 | BROKEN_BY | FS-17 | CODE | 전체 비교 → 3번 막힘 | `docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md` |
+| GF-36 | FIXED_BY | FS-20 | ACTUAL | v13.6 띄어쓰기 무시 | `docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md` |
+| GF-02 | REGRESSION_OF | GF-36 | CODE | 같은 모양(글자 인용 검사로 정상 후보 탈락)이 v16 clue 로 재등장 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` |
+| GF-09 | REGRESSION_OF | GF-41 | CODE | 「다섯 답 = 끝」(GF-41 대책)이 「모르겠어요」도 세는 계약 불일치를 남김 | `CLAUDE.md` |
+| GF-34 | REGRESSION_OF | GF-13 | ACTUAL | 무거운 질문 대책(쉬운 고정 질문 FS-02)이 앞뒤 안 맞는 고정 질문을 낳음 | `CLAUDE.md` |
+| GF-33 | BROKEN_BY | FS-02 | CODE | 고정 안전문장 구제 | `docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts` |
+
+- 관계 23개 중 HYPOTHESIS 6개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).

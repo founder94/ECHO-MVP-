@@ -1,0 +1,80 @@
+{
+ "schema": "echo-failure-family-v1",
+ "families": [
+  {
+   "id": "F-REPEAT",
+   "name": "같은 뜻 반복 · 반복설명 강요",
+   "principle": "이미 들은 말·이미 물은 뜻을 다시 요구하지 않는다"
+  },
+  {
+   "id": "F-GUARD",
+   "name": "과잉 Guard(서버가 정상 후보를 죽임)",
+   "principle": "서버는 질문의 취향을 평가하지 않는다 · 질문은 선택사항"
+  },
+  {
+   "id": "F-CLASSIFY",
+   "name": "말의 종류 오분류(답·되물음·항의·정정)",
+   "principle": "한쪽으로 기운 규칙·기본값을 두지 않는다"
+  },
+  {
+   "id": "F-CONTEXT",
+   "name": "맥락 유실·오염·거절 재등장",
+   "principle": "최근 대화·정정·거절을 서버가 소유하고 매 턴 전달"
+  },
+  {
+   "id": "F-DRIFT",
+   "name": "방향이탈 · 무거운 질문",
+   "principle": "질문 출발 = 방금 정상 답 · 숨은 목차 금지"
+  },
+  {
+   "id": "F-SENTENCE",
+   "name": "문장 파손",
+   "principle": "사용자 말을 질문 문장에 끼워 넣지 않는다"
+  },
+  {
+   "id": "F-CONTRACT",
+   "name": "제품 계약 불일치",
+   "principle": "기준본과 다른 규칙은 대표 결정으로만 바꾼다"
+  },
+  {
+   "id": "F-EVAL",
+   "name": "평가 결함(가짜 통과)",
+   "principle": "가짜 AI 통과는 실제 통과가 아니다 · 실제 문장 재생·실AI 로 확인"
+  },
+  {
+   "id": "F-DEPLOY",
+   "name": "배포·운영 과정 결함",
+   "principle": "검사한 파일 = 운영 파일(지문 대조)"
+  },
+  {
+   "id": "F-PROMISE",
+   "name": "없는 기능·가짜 결과 약속",
+   "principle": "없는 기능을 있는 것처럼 보이지 않는다"
+  },
+  {
+   "id": "F-FLOW",
+   "name": "대화 구조(끝 없음·출구 없음·버튼 피로)",
+   "principle": "끝·빠져나갈 문·중간 저장이 있어야 한다"
+  },
+  {
+   "id": "F-ANSWER",
+   "name": "사용자 질문에 먼저 답하지 않음",
+   "principle": "물으면 먼저 답한다(ANSWER FIRST)"
+  },
+  {
+   "id": "F-STATUS",
+   "name": "정보 상태 오류(미확정 사실화)",
+   "principle": "사용자가 확인한 것만 사실 · 상태는 서버 소유"
+  },
+  {
+   "id": "F-STATE",
+   "name": "서버 상태 결함(질문 소실·단계 오류·전달 실패)",
+   "principle": "저장·전환은 말의 종류와 결과를 확인한 뒤"
+  },
+  {
+   "id": "F-LATENCY",
+   "name": "지연·시간 초과",
+   "principle": "한 턴 호출 수를 줄이고 실패는 빨리 알린다"
+  }
+ ]
+}

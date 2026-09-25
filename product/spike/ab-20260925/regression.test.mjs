@@ -49,7 +49,15 @@ test('Replay — A v27 알려진 실패가 운영 실제 문장으로 재현된�
   assert.equal(Math.max(...r.aRepeat.map((a) => a.max_sim)).toFixed(2), '0.39');
   assert.equal(r.rules.find((x) => x.text === '취미생활?').a_rule, 'meta', 'GF-05: 짧은 물음표 답을 규칙이 되묻기로 강제한다');
   assert.equal(r.complaint_rule, null, 'GF-06: 질문 방향 제안은 규칙이 못 잡고 AI 로 넘어간다');
+  assert.equal(r.rules.find((x) => x.text === 'ai가 오타기 날수도 있어?').a_rule, 'meta', 'GF-53: AI 에게 한 질문을 되묻기로 강제한다');
   assert.match(r.askFallback, /DO IT의 AI/, 'GF-06: ask 로 가면 고정 사실문이 나갈 수 있다');
+});
+
+test('Replay R4 — 정상 사례 역검사: A 규칙은 분명한 답 26개 중 「취미생활?」 1개를 강제, 애매한 짧은 물음표 8/8 을 되묻기로 강제(특성 검사)', () => {
+  const r = replay();
+  assert.equal(r.counter.clear.length, 26);
+  assert.deepEqual(r.counter.clear.filter((x) => x.a_rule !== null).map((x) => x.text), ['취미생활?']);
+  assert.equal(r.counter.ambiguous.filter((x) => x.a_rule === 'meta').length, 8);
 });
 
 test('Replay — B-1.0 한계: 의도 이름이 같으면 막고, 다르면 못 막는다(미탐 · 실AI 로만 판정)', () => {

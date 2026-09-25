@@ -13,6 +13,14 @@ const limit = (name) => Number(source.match(new RegExp(`${name}:\\s*([0-9.]+)`))
 const REPEAT_SIM = limit('REPEAT_SIM');
 const REPEAT_OVERLAP = limit('REPEAT_OVERLAP');
 
+// 정상 사례 역검사 입력(SYNTHETIC). 분명한 답 16개는 product/qa/conversation-rules.test.mjs(v15.1)에서 그대로 가져왔다.
+export const COUNTER_CLEAR_SYNTHETIC = ['보드게임 같은 거 같이 하고 싶어요', '맛있는 거 먹는 거 같은 거요', '같은 얘기를 해도 웃어 주는 사람', '비슷한 말을 해도 잘 들어주는 사람',
+  '연애에 지쳐서 천천히 만나고 싶어요', '가볍게 만나는 건 지쳐서 그런 것 같아요', '일이 피곤해서 주말엔 쉬고 싶어요', '귀찮게 연락 자주 하는 사람은 싫어요',
+  '연락 그만하자고 하면 서운해요', '싸우면 그만하고 싶어져요', '다 얘기했던 친구가 떠났어요', '친구한테 다 말했어요', '네 알아서 해 주는 사람이 좋아요',
+  '패스트푸드 말고 집밥 좋아해요', '지친 날엔 조용히 있고 싶어요', '아니요, 대화가 많은 게 좋아요'];
+// 「같이 뭐 하고 싶어요?」 뒤에 올 수 있는 짧은 물음표 답(「취미생활?」과 같은 모양). 정답 없음.
+export const COUNTER_AMBIGUOUS_SYNTHETIC = ['산책?', '운동?', '여행?', '영화?', '맛집?', '독서?', '드라이브?', '카페?'];
+
 export function replay() {
   const { sandbox } = loadA('아직 정하지 않았어요', recorder(), []);
   const A = sandbox; // v27 의 최상위 function 선언(ruleKind·looksSame·overlapStats·questionBody·askFallback)
@@ -49,7 +57,15 @@ export function replay() {
   const complaint = GOLDEN.find((f) => f.id === 'FLOW3').steps.find(([, , origin]) => origin.startsWith('ACTUAL(캡처'))[0];
   const askFallback = A.askFallback(complaint);
 
-  return { limits: { REPEAT_SIM, REPEAT_OVERLAP }, rules, aRepeat, bSame, bDiff, complaint_rule: A.ruleKind(complaint) ?? null, askFallback };
+  // R4 — Counter-test(정상 사례 역검사): 규칙 층이 정상 답을 답이 아닌 것으로 강제하는지.
+  //   (a) 분명한 답 = ACTUAL 정상 답(고정 입력의 expect=answer·ACTUAL) + SYNTHETIC 실사용 말투 16개(v15.1 검사에서 가져옴) → 규칙은 비워 둬야 한다(null).
+  //   (b) 애매한 짧은 물음표 답 = SYNTHETIC. 답일 수도 되물음일 수도 있어 정답이 없다 → "규칙이 강제로 정하는 수"만 센다(오탐으로 세지 않음).
+  const actualAnswers = [...new Set(GOLDEN.flatMap((f) => f.steps.filter(([, expect, origin]) => expect === 'answer' && origin === 'ACTUAL').map(([text]) => text)))];
+  const synthAnswers = COUNTER_CLEAR_SYNTHETIC;
+  const clear = [...actualAnswers.map((text) => ({ text, origin: 'ACTUAL' })), ...synthAnswers.map((text) => ({ text, origin: 'SYNTHETIC' }))].map((x) => ({ ...x, a_rule: A.ruleKind(x.text) ?? null }));
+  const ambiguous = COUNTER_AMBIGUOUS_SYNTHETIC.map((text) => ({ text, origin: 'SYNTHETIC', a_rule: A.ruleKind(text) ?? null }));
+
+  return { limits: { REPEAT_SIM, REPEAT_OVERLAP }, rules, aRepeat, bSame, bDiff, complaint_rule: A.ruleKind(complaint) ?? null, askFallback, counter: { clear, ambiguous } };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -68,6 +84,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     '- **[HEURISTIC / EXPERIMENT ONLY]** B 의 의도 비교는 이름이 정규화 뒤 같을 때만 막는다 → 다른 이름이면 미탐.', '',
     '## R3 · GF-06 질문 방향 제안', '', `- 입력(ACTUAL, 캡처 재구성): ${r.complaint_rule === null ? 'A 규칙 없음 → AI 분류로 넘어감(운영에서는 ask 로 분류됨)' : `A 규칙 = ${r.complaint_rule}`}`,
     `- A 의 ask 대체 문장(AI 답이 비었거나 걸러질 때): 「${flat(r.askFallback)}」`);
+  const cf = r.counter.clear.filter((x) => x.a_rule !== null);
+  L.push('', '## R4 · Counter-test — 정상 사례 역검사(규칙 층)', '',
+    `- 분명한 답 ${r.counter.clear.length}개(ACTUAL ${r.counter.clear.filter((x) => x.origin === 'ACTUAL').length} · SYNTHETIC ${r.counter.clear.filter((x) => x.origin === 'SYNTHETIC').length}) 중 A 규칙이 답이 아닌 것으로 강제: **${cf.length}개**${cf.length ? ' — ' + cf.map((x) => `「${x.text}」→${x.a_rule}`).join(', ') : ''}`,
+    `- 애매한 짧은 물음표 답 ${r.counter.ambiguous.length}개(SYNTHETIC) 중 A 규칙이 강제로 정함: **${r.counter.ambiguous.filter((x) => x.a_rule !== null).length}개** (${r.counter.ambiguous.map((x) => `「${x.text}」→${x.a_rule ?? '규칙 없음'}`).join(', ')})`,
+    '- 애매한 입력은 정답이 없어 오탐으로 세지 않는다. 다만 규칙이 모델보다 먼저 한쪽(되묻기)으로 정해 버린다는 것은 사실이다(GF-05 와 같은 모양).',
+    '- B-1.0 은 문자열 분류 규칙이 없어 이 층의 강제는 0 이다. 그 대신 모델이 가르며, 모델이 맞게 가르는지는 실제 AI 로만 알 수 있다(BLOCKED_BY_ENVIRONMENT).');
   const text = L.join('\n');
   if (arg('--out')) writeFileSync(arg('--out'), text); else console.log(text);
   if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify(r, null, 1));

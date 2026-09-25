@@ -1,5 +1,5 @@
 {
- "version": "golden-v1.1",
+ "version": "golden-v1.2",
  "frozen": "2026-09-25",
  "rule": "ACTUAL = 운영 기록·대표 실기기에 실제로 입력된 말(근거 문서 있음). SYNTHETIC = 예문·대체. expect 는 사람이 붙인 기대 종류(실제 AI 에 전달 안 함). 새 예문으로 ACTUAL 을 덮지 않는다.",
  "flows": [
@@ -123,7 +123,7 @@
   },
   {
    "id": "FLOW4",
-   "note": "추가 세트 — 지시서 예문(문제제기·정정·되묻기·모르겠어요·지친 말·긴 답). 실제 사용자 입력 아님",
+   "note": "추가 세트 — 지시서 예문(문제제기·정정·되묻기·모르겠어요·긴 답) + 「할말이없다 휴」는 실제 입력(2026-09-25 정정)",
    "purpose": "연애로 이어질 만남을 원해요",
    "steps": [
     {
@@ -171,13 +171,15 @@
     {
      "text": "할말이없다 휴",
      "expect": "fatigue",
-     "origin": "SYNTHETIC",
-     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+     "origin": "ACTUAL",
+     "source": "대표 실기기 2026-09-24 09:17~09:21 KST 운영 이벤트(v27 파일 머리 주석) — 앞서 SYNTHETIC 으로 잘못 표시한 것을 정정"
     }
    ],
    "source": "지시서 예문(CTO A/B 기준본 Repair 예시 · LEVEL 3 검사표) — 실제 사용자 입력 아님",
    "failures": [
-    "GF-09"
+    "GF-09",
+    "GF-33",
+    "GF-46"
    ]
   },
   {
@@ -220,6 +222,81 @@
      "expect": "repair",
      "origin": "ACTUAL",
      "source": "CLAUDE.md v14.3 — 운영 대화에서 답으로 저장된 되묻기"
+    }
+   ]
+  },
+  {
+   "id": "FLOW6",
+   "note": "ANSWER FIRST — 사용자가 AI 에게 직접 물음(ECHO 옛 흐름 2026-09-16 대표 입력 3개 + 실제 AI 검사용 스크립트 문장 2개). 목적은 기록에 없어 대체",
+   "purpose": "아직 정하지 않았어요",
+   "source": "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md · docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md · docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md",
+   "failures": [
+    "GF-22",
+    "GF-25",
+    "GF-26",
+    "GF-53"
+   ],
+   "steps": [
+    {
+     "text": "어떻게 대처하는게 좋을까?",
+     "expect": "ask",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "ai가 오타기 날수도 있어?",
+     "expect": "ask",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "질문했는데 답을 못햐?",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "내가 언제 그렇게 말했어?",
+     "expect": "repair",
+     "origin": "SYNTHETIC",
+     "source": "실제 AI 검사용 스크립트 문장(SERVER_CORE_FINAL_REPORT_20260918.md 12행)"
+    },
+    {
+     "text": "사실은 일보다 사람이 더 힘들어요",
+     "expect": "correction",
+     "origin": "SYNTHETIC",
+     "source": "실제 AI 캐너리 스크립트 문장(CANARY_FINDINGS_20260918.md 30행)"
+    }
+   ]
+  },
+  {
+   "id": "FLOW7",
+   "note": "대표 실제 입력 — 짧은 답 · 띄어쓰기 없는 답 · 질문 방향 항의(2026-09-17·22·24). 목적은 기록에 없어 대체",
+   "purpose": "편하게 지낼 친구를 원해요",
+   "source": "docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md · docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md · docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts",
+   "failures": [
+    "GF-24",
+    "GF-33",
+    "GF-36"
+   ],
+   "steps": [
+    {
+     "text": "진실된마음",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "ASLEEP 보고 §G — 대표 실기기 2026-09-22 09:50 KST"
+    },
+    {
+     "text": "돈때문에",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "FIELD_DEFECTS_20260917.md 25행 — 대표 iPhone 2026-09-17"
+    },
+    {
+     "text": "뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?",
+     "expect": "repair",
+     "origin": "ACTUAL(재구성)",
+     "source": "v27 파일 머리 주석(앞부분) + product/qa/conversation-rules.test.mjs 133행(전체 문장) — 대표 실기기 2026-09-24"
     }
    ]
   }
