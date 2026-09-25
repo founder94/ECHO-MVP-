@@ -1,0 +1,59 @@
+--- ../bak-role/vite.config.ts	2026-09-21 12:28:22.985429797 +0000
++++ vite.config.ts	2026-09-21 12:30:16.538411446 +0000
+@@ -1,6 +1,7 @@
+ import { defineConfig, loadEnv } from "vite";
+ import react from "@vitejs/plugin-react";
+ import { resolve } from "node:path";
++import { writeFileSync } from "node:fs";
+ import AutoImport from "unplugin-auto-import/vite";
+ // import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
+ 
+@@ -19,6 +20,40 @@
+     throw new Error("Production build blocked: VITE_PUBLIC_SUPABASE_URL and VITE_PUBLIC_SUPABASE_ANON_KEY are required.");
+   }
+ 
++  // 사이트 역할(대표 확정 2026-09-21): brand = do-it.company / app = app.do-it.company / 없음 = 통합.
++  const siteRole = process.env.VITE_SITE_ROLE || env.VITE_SITE_ROLE || "";
++  const appOrigin = (process.env.VITE_APP_ORIGIN || env.VITE_APP_ORIGIN || "https://app.do-it.company").replace(/\/$/, "");
++  const siteRolePlugin = {
++    name: "doit-site-role",
++    // 앱 빌드에만 PWA(홈 화면 설치) 태그를 넣는다. 브랜드 사이트는 설치 대상이 아니다.
++    transformIndexHtml(html: string) {
++      if (siteRole !== "app") return html;
++      return html.replace(
++        "</head>",
++        [
++          '    <link rel="manifest" href="/manifest.webmanifest" />',
++          '    <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />',
++          '    <meta name="apple-mobile-web-app-capable" content="yes" />',
++          '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
++          '    <meta name="apple-mobile-web-app-title" content="DO IT" />',
++          '    <meta name="mobile-web-app-capable" content="yes" />',
++          "  </head>",
++        ].join("\n"),
++      );
++    },
++    // 브랜드 빌드의 _redirects: 제품 경로는 서버에서 바로 앱 주소로 보낸다(화면 로드 전).
++    writeBundle(options: { dir?: string }) {
++      if (siteRole !== "brand" || !options.dir) return;
++      const rules = [
++        "/doit/*", "/login", "/signup", "/auth/*", "/legal/consent", "/start", "/home",
++        "/weather", "/weather-check", "/story-start", "/step/*", "/understanding-check", "/white-door",
++        "/payment/*", "/payment", "/report", "/locker", "/next-journey", "/admin/*", "/admin",
++        "/do-it/fortune", "/do-it/photo", "/do-it/grade",
++      ].map((p) => `${p}  ${appOrigin}${p.replace("*", ":splat")}  302`);
++      writeFileSync(resolve(options.dir, "_redirects"), [...rules, "/*    /index.html   200", ""].join("\n"));
++    },
++  };
++
+   return {
+   define: {
+     __BASE_PATH__: JSON.stringify(base),
+@@ -29,6 +64,7 @@
+   },
+   plugins: [
+     // ...proxyPlugins,
++    siteRolePlugin,
+     react(),
+     AutoImport({
+       imports: [

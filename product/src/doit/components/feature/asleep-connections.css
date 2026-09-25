@@ -1,0 +1,15 @@
+/* "당신이 잠든 사이" 연결 준비 화면 — .doit-asleep 아래에서만 */
+.doit-asleep-card{margin:22px 0;padding:22px 20px;border:1px solid #c2cad12d;border-radius:20px;background:radial-gradient(ellipse at top right,#c7d0e00c,transparent 70%),#14171c}
+.doit-asleep-label{font-size:10px;letter-spacing:.14em;color:#9aa4b4;margin:0 0 14px}
+.doit-asleep-check{list-style:none;margin:0;padding:0}.doit-asleep-check li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #c2cbd514;font-size:14px;color:#c5cbd5}.doit-asleep-check li:last-child{border-bottom:0}.doit-asleep-check li>span{color:#6f7886;font-size:11px}.doit-asleep-check li[data-done="true"]>span{color:#dfe6f2}.doit-asleep-check li>a{color:inherit;text-decoration:none;flex:1}.doit-asleep-check li>strong{font-weight:500;color:#eef0f3;font-variant-numeric:tabular-nums}
+.doit-asleep-number{margin:0;font-size:15px;color:#c5cbd5;line-height:1.8}.doit-asleep-number strong{font-family:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;font-size:30px;color:#f2f3f5;font-weight:500;margin-right:2px}.doit-asleep-number span{display:block;font-size:13px}
+.doit-asleep-common{list-style:none;margin:14px 0 0;padding:0;font-size:13px;color:#dfe6f2;line-height:1.9}
+.doit-asleep-status{font-size:13px;line-height:1.85;color:#aab0bc;margin:14px 0 0;word-break:keep-all}
+.doit-asleep-wait{display:flex;align-items:center;gap:14px;margin:24px 0;color:#c4cfdf;font-size:12px}.doit-asleep-wait p{margin:0}
+.doit-asleep .echo-thinking-orbit{position:relative;display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:50%}.doit-asleep .echo-thinking-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:doit-asleep-orbit 1.6s linear infinite}.doit-asleep .echo-thinking-orbit .doit-official-symbol{width:30px;height:30px}
+@keyframes doit-asleep-orbit{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.doit-asleep *{animation:none!important}}
+/* 2026-09-25 대표 「연결 준비 = 다음 할 일을 크게 · 사진·소개·전화는 작은 진행」 — 이 화면 클래스 아래로만. */
+.doit-asleep-next .doit-asleep-next-title{margin:0 0 18px;font-size:22px;line-height:1.4;font-weight:600;color:#f2f3f5;word-break:keep-all}
+.doit-asleep-next .doit-product-action{margin:0}
+.doit-asleep-check--small li{padding:7px 0;font-size:12.5px}.doit-asleep-check--small li>strong{font-size:12.5px}

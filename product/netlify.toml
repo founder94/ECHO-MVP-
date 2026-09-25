@@ -1,0 +1,27 @@
+# Netlify 배포 설정 — 2026-09-05 (A·B 통합본). 비밀값은 여기 두지 않는다(환경변수는 Netlify 대시보드에서만).
+[build]
+  # This imported project did not include a trustworthy lockfile. Install from
+  # package.json, then build. Production releases still deploy the locally
+  # verified static output package.
+  command = "npm install --no-audit --no-fund && npm run build"
+  publish = "out"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# A구조 자기이해 서버 저장 활성화 (운영 환경 전용)
+[context.production.environment]
+  VITE_A_STRUCTURE_SERVER_ENABLED = "true"
+
+# SPA: 모든 경로를 index.html 로 (새로고침·딥링크 404 방지)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,0 +1,18 @@
+'/' 에서 링크를 따라 도달 가능한 경로 24개
+
+=== B 구조·예전 홈 도달 여부 ===
+  도달 불가  /weather
+  도달 불가  /weather-check
+  도달 불가  /story-start
+  도달 불가  /step/2
+  도달 불가  /understanding-check
+  도달 불가  /white-door
+  도달 불가  /payment
+  도달 불가  /report
+  도달 불가  /locker
+  도달 불가  /next-journey
+  도달 불가  /home
+  도달 불가  /start
+
+=== 도달 가능한 전체 경로 ===
+/  /do-it/1  /do-it/2  /do-it/3  /do-it/4  /do-it/landing  /doit/first-record  /doit/grade  /doit/home  /doit/key  /doit/key/order/${p.packageId}  /doit/memory  /doit/notifications  /doit/pattern  /doit/profile  /doit/review  /doit/room  /doit/settings  /doit/spaces  /doit/start-journey  /doit/timeline  /doit/value  /login  /signup

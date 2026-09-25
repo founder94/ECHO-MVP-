@@ -1,0 +1,48 @@
+// '직접 설명할게요'의 부분 실패 복구 — r2 패치(echoTalkProgress.pendingSelf)에서 CoreConversation 으로 옮겨 온 부분.
+//
+// 서버 계약(doit-understanding v8): 직접 설명 = ① AI 후보 insight_reject → ② insight_self(별도 행, origin=self).
+// ①이 성공하고 ②가 실패하거나 화면이 닫히면, 후보는 이미 거절됐는데 내 설명은 어디에도 없다.
+// 그래서 ① 직후 설명을 이 기기 세션에 예약해 두고, 다음 진입 때 입력 상자를 그 내용으로 다시 연다.
+// - 서버가 정본이다. 여기에는 설명 원문(사용자가 방금 쓴 글)과 어느 후보·기록에 대한 것인지만 둔다. 사용자별 키.
+// - 같은 내용은 같은 requestId 로 재전송되므로(understandingApi) 서버가 중복 저장을 막는다.
+// - 자동으로 다시 저장하지 않는다. 사용자가 내용을 확인하고 '이 설명으로 저장하기'를 누른다.
+
+const KEY_PREFIX = 'doit:conversation:pending-self:';
+
+export interface PendingSelf {
+  insightId: string;
+  recordId: string;
+  category: 'value' | 'pattern' | 'memory';
+  text: string;
+}
+
+export function loadPendingSelf(userId: string): PendingSelf | null {
+  try {
+    const raw = sessionStorage.getItem(KEY_PREFIX + userId);
+    if (!raw) return null;
+    const p: unknown = JSON.parse(raw);
+    if (!p || typeof p !== 'object') return null;
+    const x = p as Partial<PendingSelf>;
+    if (typeof x.insightId !== 'string' || typeof x.recordId !== 'string' || typeof x.text !== 'string') return null;
+    if (x.category !== 'value' && x.category !== 'pattern' && x.category !== 'memory') return null;
+    return { insightId: x.insightId, recordId: x.recordId, category: x.category, text: x.text };
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingSelf(userId: string, pending: PendingSelf): void {
+  try {
+    sessionStorage.setItem(KEY_PREFIX + userId, JSON.stringify(pending));
+  } catch {
+    // 보관 불가여도 흐름을 막지 않는다(서버가 정본).
+  }
+}
+
+export function clearPendingSelf(userId: string): void {
+  try {
+    sessionStorage.removeItem(KEY_PREFIX + userId);
+  } catch {
+    // 무시
+  }
+}

@@ -1,0 +1,63 @@
+/* 앱 화면 글꼴 (대표 2026-09-23 "폰트가 너무 AI가 만들어준 느낌, 사람 냄새 나게").
+   전에는 영문 글꼴 여러 개(Fraunces·Instrument Sans·Gothic A1…)를 섞고, 대화 제목에는 불러오지도 않는 글꼴이 걸려
+   휴대폰마다 기본 글꼴로 제각각 보였다.
+   - 제목·질문·내가 쓴 말·AI가 들은 문장 = 고운바탕(붓의 결이 남은 한글 바탕체)
+   - 안내 문장 = 고운돋움(같은 집안의 손맛 있는 돋움체)
+   - 버튼·탭·작은 글씨 = 그대로(작은 글씨는 읽기 쉬운 게 먼저)
+   글꼴 파일은 index.html 에서 뒤에서 받는다. 못 받아도 아래 대체 글꼴로 읽힌다.
+   전역(body/:root)·홈 히어로·랜딩은 건드리지 않는다. */
+
+/* 제목 · 질문 · 내가 쓴 말
+   (.echo-dialogue 를 두 번 적은 것은 실수가 아니다. 대화 스타일 파일의 예전 제목 글꼴 규칙과 세기가 같아
+    이 파일이 먼저 불려 밀리지 않도록 한 단계 세게 만든 것이다.) */
+.echo-dialogue.echo-dialogue h1,
+.echo-dialogue .echo-question,
+.echo-dialogue .echo-question-card .echo-question,
+.echo-dialogue .echo-original > p:last-child,
+.doit-understanding-page .doit-product-title,
+.doit-product .doit-product-title,
+.doit-understanding-latest blockquote {
+  font-family: "Gowun Batang", "Noto Serif KR", "AppleMyungjo", "Nanum Myeongjo", serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+/* 작은 제목(카드 머리) — 바탕체 굵게 */
+.echo-dialogue .echo-insight h2,
+.echo-dialogue .echo-editor h2,
+.echo-dialogue .echo-done-lead,
+.doit-install h2,
+.doit-understanding-page .doit-understanding-notice h2 {
+  font-family: "Gowun Batang", "Noto Serif KR", "AppleMyungjo", serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* 안내 문장 */
+.echo-dialogue .echo-lead,
+.echo-dialogue .echo-ack,
+.echo-dialogue .echo-brief,
+.echo-dialogue .echo-done,
+.echo-dialogue .echo-context,
+.doit-product .doit-product-description,
+.doit-understanding-page .doit-product-description,
+.doit-understanding-page .doit-understanding-notice p,
+.doit-understanding-page .doit-understanding-empty,
+.doit-install p,
+.doit-install .doit-install-steps {
+  font-family: "Gowun Dodum", "Pretendard", system-ui, sans-serif;
+  font-weight: 400;
+}
+/* 돋움 문장 안의 강조는 같은 집안 바탕체 굵게(돋움은 굵은 글자가 없어 흉내 굵기가 뭉개진다) */
+.echo-dialogue .echo-brief b,
+.echo-dialogue .echo-done b,
+.doit-install p b,
+.doit-install .doit-install-steps b,
+.doit-install .doit-install-steps strong {
+  font-family: "Gowun Batang", "Noto Serif KR", serif;
+  font-weight: 700;
+}
+
+/* 작은 머리말 — 한글에 넓은 자간(.15em)을 주면 틀에 찍은 느낌이 난다. 조금만 띄운다. */
+.echo-dialogue .echo-eyebrow { letter-spacing: 0.04em; }
+.doit-product .doit-product-kicker,
+.doit-understanding-page .doit-product-kicker { letter-spacing: 0.06em; text-transform: none; }

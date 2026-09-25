@@ -1,0 +1,166 @@
+<title>P0 블라인드 검수</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#f4f5f7; --card:#ffffff; --ink:#15181d; --muted:#5b626d; --faint:#8a919c; --line:#dde1e7;
+  --user:#e9ecf1; --accent:#1e5a56; --accent-ink:#ffffff; --accent-soft:#e3efed; --bad:#7a3b2e; --bad-soft:#f4e9e5;
+  --focus:#2d6cdf;
+  font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --paper:#111317; --card:#1a1d22; --ink:#eceef2; --muted:#a5acb7; --faint:#7d8591; --line:#2c3139;
+    --user:#252a31; --accent:#6fc2b8; --accent-ink:#0d1a19; --accent-soft:#1d302e; --bad:#e5a494; --bad-soft:#35231f; --focus:#7aa7ff; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --paper:#111317; --card:#1a1d22; --ink:#eceef2; --muted:#a5acb7; --faint:#7d8591; --line:#2c3139;
+  --user:#252a31; --accent:#6fc2b8; --accent-ink:#0d1a19; --accent-soft:#1d302e; --bad:#e5a494; --bad-soft:#35231f; --focus:#7aa7ff; }
+body{background:var(--paper);color:var(--ink);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:640px;margin:0 auto}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);padding-block:12px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.bar h1{font-size:16px;font-weight:600;margin:0}
+.count{font-variant-numeric:tabular-nums;font-size:14px;color:var(--muted);white-space:nowrap}
+.count b{color:var(--ink)}
+.intro{margin-block:16px 8px;color:var(--muted);font-size:14px;display:grid;gap:6px}
+.intro p{margin:0}
+.save{font-size:13px;color:var(--faint);margin-block:4px 16px;min-height:1.4em}
+.items{display:grid;gap:18px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.num{font-weight:600;font-size:14px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.why{font-size:12px;color:var(--muted)}
+.ctx{font-size:13px;color:var(--muted);margin:0}
+.user{background:var(--user);border-radius:12px;padding:10px 12px;font-weight:500}
+.user small{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-bottom:2px}
+.ans{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:4px}
+.ans h3{margin:0;font-size:13px;font-weight:600;letter-spacing:.04em}
+.before{font-size:12px;color:var(--faint);margin:0}
+.line{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.line.q{font-weight:500}
+.tag{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-top:2px}
+.none{color:var(--faint);font-size:14px;margin:0}
+.pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px}
+.pick button{font:inherit;font-size:14px;font-weight:500;min-height:46px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;padding:6px 4px}
+.pick button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pick button.b[aria-pressed="true"]{background:var(--bad);color:var(--card);border-color:var(--bad)}
+.pick button:focus-visible,.copy button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.skip{font-size:13px;color:var(--muted);background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:12px 16px;margin-top:18px}
+.copy{margin-top:18px;display:grid;gap:8px}
+.copy pre{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;white-space:pre-wrap;font-family:inherit}
+.copy button{font:inherit;font-size:14px;min-height:44px;border-radius:10px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.pick button{transition:background .12s,border-color .12s}}
+</style>
+<div class="wrap">
+  <header class="bar"><h1>P0 블라인드 검수</h1><span class="count" id="count"><b>0</b> / 17 골랐어요</span></header>
+  <section class="intro">
+    <p>같은 말에 두 AI가 답했어요. 어느 쪽이 어느 AI인지는 가려 두었고, 항목마다 X·Y 순서도 섞었어요.</p>
+    <p>항목마다 하나만 누르세요. 헷갈리면 넘어가도 돼요. 방금 한 말에 먼저 반응했는지, 이미 한 말을 다시 묻지 않았는지, 따지면 인정하고 방향을 바꿨는지를 보면 돼요.</p>
+  </section>
+  <p class="save" id="save" aria-live="polite">누르면 바로 저장돼요.</p>
+  <div class="items" id="items"></div>
+  <p class="skip" id="skip"></p>
+  <section class="copy" id="copy" hidden>
+    <p class="ctx">이 화면에서는 선택이 저장되지 않아요. 다 고른 뒤 아래 내용을 복사해 채팅에 붙여 주세요.</p>
+    <pre id="summary"></pre>
+    <button type="button" id="copyBtn">선택 내용 복사</button>
+  </section>
+</div>
+<script>
+const DATA = {"items":[{"id":"P01","why":"대표 실제 항의 「나 진심이라고 적은거 같은데」 · 같은 질문 반복","example":false,"purpose":"아직 정하지 않았어요","prevUser":"가볍게 우선 사람을 알아가고 싶어","text":"나 진심이라고 적은거 같은데","X":{"before":"어떤 성격의 사람과 이야기해보고 싶으세요?","reply":"진심으로 사람을 알아가고 싶으신가 보네요.","question":"어떤 성격의 사람과 이야기해보고 싶으세요?","kept":"","note":[]},"Y":{"before":"어떤 사람을 알아가고 싶으세요?","reply":"","question":"그럼 어떤 점에서 진심이라고 느끼셨나요?","kept":"","note":[]}},{"id":"P02","why":"대표 실제 항의 「적었자네」","example":false,"purpose":"아직 정하지 않았어요","prevUser":"행동으로 보여줄때","text":"적었자네","X":{"before":"그 행동이 어떤 모습일 때 가장 좋다고 생각하세요?","reply":"","question":"","kept":"","note":["대화 끝 — 다섯 답이 모임"]},"Y":{"before":"어떤 행동이 진심을 보여준다고 생각하세요?","reply":"그렇군요. 진심을 행동으로 보여주는 것이 중요하다고 생각하시는군요.","question":"","kept":"","note":["대화 끝 — 다섯 답이 모임"]}},{"id":"P03","why":"「활동」 점프","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":null,"text":"그냥 편한친구 부담없이","X":{"before":"어떤 만남을 원하세요?","reply":"","question":"편한 친구와 함께 어떤 활동을 하고 싶으세요?","kept":"","note":[]},"Y":{"before":"어떤 만남을 원하세요?","reply":"편한 친구를 원하시는군요. 부담 없이 지낼 수 있는 관계가 중요하겠어요.","question":"편한 친구와 어떤 활동을 하고 싶으세요?","kept":"","note":[]}},{"id":"P04","why":"「활동」 점프 뒤 되물음 · 같은 질문 반복","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"그냥 편한친구 부담없이","text":"활동?갑자기?","X":{"before":"편한 친구와 어떤 활동을 하고 싶으세요?","reply":"활동에 대한 질문은 이전에 했던 것인데, 편한 친구에 대한 이야기를 하셨죠.","question":"편한 친구와 어떤 활동을 하고 싶으세요?","kept":"","note":[]},"Y":{"before":"편한 친구와 함께 어떤 활동을 하고 싶으세요?","reply":"여기에 답한 말로 어떤 사람을 소개할지 정해요.","question":"","kept":"편한 친구와 함께 어떤 활동을 하고 싶으세요?","note":[]}},{"id":"P05","why":"「취미생활?」","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"그냥 편한친구 부담없이","text":"취미생활?","X":{"before":"편한 친구와 함께 어떤 활동을 하고 싶으세요?","reply":"","question":"편한 친구와 함께 어떤 취미를 즐기고 싶으세요?","kept":"","note":[]},"Y":{"before":"편한 친구와 어떤 시간을 보내고 싶으세요?","reply":"취미생활에 대해 이야기해볼까요?","question":"가장 좋아하는 취미는 무엇인가요?","kept":"","note":[]}},{"id":"P06","why":"거절 · 질문 방향 제안","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"취미생활?","text":"아니 같은 취미생활 너가 어떤 취미가 있냐고 나한테 물어봐야 하는 거 아니야?","X":{"before":"편한 친구와 함께 어떤 취미를 즐기고 싶으세요?","reply":"저는 DO IT의 AI예요. 답을 듣고 다음 질문을 골라요.","question":"","kept":"편한 친구와 함께 어떤 취미를 즐기고 싶으세요?","note":[]},"Y":{"before":"가장 좋아하는 취미는 무엇인가요?","reply":"아, 제가 잘못 이해했네요. 당신이 어떤 취미가 있는지 물어보는 게 맞았죠.","question":"어떤 취미를 좋아하세요?","kept":"","note":[]}},{"id":"P07","why":"정상 답(취미 셋) 뒤 반응","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"아니 같은 취미생활 너가 어떤 취미가 있냐고 나한테 물어봐야 하는 거 아니야?","text":"싸이클 테니스 골프","X":{"before":"어떤 취미를 좋아하세요?","reply":"아, 제가 잘못 이해했네요. 같은 취미에 대해 물어보는 게 맞았죠.","question":"","kept":"","note":[]},"Y":{"before":"편한 친구와 함께 어떤 취미를 즐기고 싶으세요?","reply":"","question":"그 중에서 어떤 활동이 가장 즐거운 것 같아요?","kept":"","note":[]}},{"id":"P08","why":"거절 「왜 또 물어봐?」","example":true,"purpose":"연애로 이어질 만남을 원해요","prevUser":"나는 사람을 빨리 만나는 것보다 천천히 알아가고 싶어.","text":"왜 또 물어봐?","X":{"before":"그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?","reply":"","question":"","kept":"","note":["다음 질문을 만들지 못함"]},"Y":{"before":"어떤 대화를 나누고 싶으세요?","reply":"그 질문은 이미 말씀하신 대화 주제와 관련이 있었네요.","question":"","kept":"","note":[]}},{"id":"P09","why":"정정 「활동 말고 …」","example":true,"purpose":"연애로 이어질 만남을 원해요","prevUser":"아니 그게 아니라","text":"활동 말고 편하게 대화하는 사람을 원한다는 거예요","X":{"before":"어떤 활동을 함께 하고 싶으세요?","reply":"편하게 대화하는 사람을 원하시는군요.","question":"","kept":"","note":[]},"Y":{"before":"그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?","reply":"여기에 답한 말로 어떤 사람을 소개할지 정해요.","question":"","kept":"그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?","note":[]}},{"id":"P10","why":"거절 「그 질문 말고」","example":true,"purpose":"연애로 이어질 만남을 원해요","prevUser":"활동 말고 편하게 대화하는 사람을 원한다는 거예요","text":"그 질문 말고","X":{"before":"어떤 활동을 함께 하고 싶으세요?","reply":"그 질문이 아니라는 말씀이시군요.","question":"","kept":"","note":[]},"Y":{"before":"그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?","reply":"여기에 답한 말로 어떤 사람을 소개할지 정해요.","question":"","kept":"그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?","note":[]}},{"id":"P11","why":"「활동」 점프 뒤 항의","example":false,"purpose":"아직 정하지 않았어요","prevUser":"딥하네","text":"활동?질문이 머이래","X":{"before":"어떤 만남을 원하세요?","reply":"활동에 대한 질문이 부담스러운가요?","question":"","kept":"","note":[]},"Y":{"before":"그럴 때는 어떤 기분이 드나요?","reply":"","question":"어떤 활동에 대해 이야기하고 싶으신가요?","kept":"","note":[]}},{"id":"P12","why":"AI 에게 직접 질문","example":false,"purpose":"아직 정하지 않았어요","prevUser":null,"text":"어떻게 대처하는게 좋을까?","X":{"before":"어떤 만남을 원하세요?","reply":"아직 정하지 않으셨군요. 어떤 만남을 원하시는지 고민 중이신가요?","question":"","kept":"","note":[]},"Y":{"before":"어떤 만남을 원하세요?","reply":"여기에 답한 말로 어떤 사람을 소개할지 정해요.","question":"","kept":"어떤 만남을 원하세요?","note":[]}},{"id":"P13","why":"AI 에게 직접 질문","example":false,"purpose":"아직 정하지 않았어요","prevUser":"어떻게 대처하는게 좋을까?","text":"ai가 오타기 날수도 있어?","X":{"before":"어떤 만남을 원하세요?","reply":"오타가 날 수도 있어요. 질문이 어떤 의미인지 궁금해요.","question":"어떤 사람을 소개받고 싶으세요?","kept":"","note":[]},"Y":{"before":"어떤 만남을 원하세요?","reply":"","question":"AI가 오타를 낼 수도 있어요. 그럼에도 불구하고 어떤 점이 궁금하신가요?","kept":"","note":[]}},{"id":"P14","why":"AI 에게 직접 질문 · 항의","example":false,"purpose":"아직 정하지 않았어요","prevUser":"ai가 오타기 날수도 있어?","text":"질문했는데 답을 못햐?","X":{"before":"AI가 오타를 낼 수도 있어요. 그럼에도 불구하고 어떤 점이 궁금하신가요?","reply":"답변이 늦어져서 불편하셨군요.","question":"어떤 점이 궁금하신지 말씀해 주실 수 있나요?","kept":"","note":[]},"Y":{"before":"어떤 사람을 소개받고 싶으세요?","reply":"답을 못한 건 아니에요. 질문이 있었죠?","question":"어떤 성격의 사람을 만나고 싶으세요?","kept":"","note":[]}},{"id":"P15","why":"「활동」 점프","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":null,"text":"진실된마음","X":{"before":"어떤 만남을 원하세요?","reply":"","question":"진실된 마음을 가진 친구와 어떤 활동을 함께 하고 싶나요?","kept":"","note":[]},"Y":{"before":"어떤 만남을 원하세요?","reply":"진실된 마음을 원하시는군요.","question":"친구와 어떤 활동을 함께 하고 싶으세요?","kept":"","note":[]}},{"id":"P16","why":"같은 질문 반복","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"진실된마음","text":"돈때문에","X":{"before":"진실된 마음을 가진 친구와 어떤 활동을 함께 하고 싶나요?","reply":"","question":"돈 때문에 어떤 점이 걱정되나요?","kept":"","note":[]},"Y":{"before":"친구와 어떤 활동을 함께 하고 싶으세요?","reply":"돈 때문에 고민이 있으신가요?","question":"친구와 함께 어떤 활동을 하고 싶으세요?","kept":"","note":[]}},{"id":"P17","why":"거절 · 반영 요구","example":false,"purpose":"편하게 지낼 친구를 원해요","prevUser":"돈때문에","text":"뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?","X":{"before":"돈 때문에 어떤 점이 걱정되나요?","reply":"","question":"","kept":"","note":["다음 질문을 만들지 못함"]},"Y":{"before":"친구와 함께 어떤 활동을 하고 싶으세요?","reply":"말씀하신 내용을 잘 반영하지 못했네요. 제가 이전에 드린 질문이 적절하지 않았던 것 같아요.","question":"","kept":"","note":[]}}],"noDiff":["몇번째 같은말이야!!","행동이라고!!"]};
+const LABEL = { X: 'X가 낫다', Y: 'Y가 낫다', BOTH_BAD: '둘 다 별로' };
+const picks = {};
+let db = null;
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+function answer(name, a) {
+  const box = el('div', 'ans');
+  box.append(el('h3', null, '답변 ' + name));
+  if (a.before) box.append(el('p', 'before', '바로 앞 질문: ' + a.before));
+  let any = false;
+  if (a.reply) { box.append(el('p', 'line', a.reply)); any = true; }
+  if (a.question) { box.append(el('p', 'line q', a.question)); any = true; }
+  if (a.kept) { box.append(el('p', 'line q', a.kept)); box.append(el('span', 'tag', '같은 질문을 다시 띄움')); any = true; }
+  for (const n of a.note) { box.append(el('span', 'tag', n)); any = true; }
+  if (!any) box.append(el('p', 'none', '(아무 말도 하지 않음)'));
+  return box;
+}
+
+function render() {
+  const root = $('items');
+  root.textContent = '';
+  for (const it of DATA.items) {
+    const card = el('article', 'item'); card.id = it.id;
+    const head = el('div', 'head');
+    head.append(el('span', 'num', it.id + (it.example ? ' · 예문' : '')), el('span', 'why', it.why));
+    card.append(head);
+    card.append(el('p', 'ctx', '만남 목적 「' + it.purpose + '」' + (it.prevUser ? ' · 바로 앞에 한 말 「' + it.prevUser + '」' : ' · 첫 답')));
+    const u = el('div', 'user'); u.append(el('small', null, '사용자'), document.createTextNode(it.text)); card.append(u);
+    card.append(answer('X', it.X), answer('Y', it.Y));
+    const row = el('div', 'pick'); row.setAttribute('role', 'group'); row.setAttribute('aria-label', it.id + ' 판정');
+    for (const k of ['X', 'Y', 'BOTH_BAD']) {
+      const b = el('button', k === 'BOTH_BAD' ? 'b' : '', LABEL[k]); b.type = 'button';
+      b.id = it.id + '-' + k; b.dataset.item = it.id; b.dataset.choice = k;
+      b.setAttribute('aria-pressed', picks[it.id] === k ? 'true' : 'false');
+      row.append(b);
+    }
+    card.append(row);
+    root.append(card);
+  }
+  $('skip').textContent = '검수하지 않는 말: ' + DATA.noDiff.map((t) => '「' + t + '」').join(' · ') + ' — 두 AI 모두 대화가 이미 끝나 답하지 않았어요(두 쪽이 같음).';
+  refresh();
+}
+
+function refresh() {
+  let n = 0;
+  for (const it of DATA.items) {
+    const c = picks[it.id];
+    if (c) n++;
+    for (const k of ['X', 'Y', 'BOTH_BAD']) { const b = $(it.id + '-' + k); if (b) b.setAttribute('aria-pressed', c === k ? 'true' : 'false'); }
+  }
+  $('count').innerHTML = '';
+  const bold = el('b', null, String(n)); $('count').append(bold, document.createTextNode(' / ' + DATA.items.length + ' 골랐어요'));
+  $('summary').textContent = DATA.items.map((it) => it.id + ' ' + (picks[it.id] ? LABEL[picks[it.id]] : '안 고름')).join('\n');
+}
+
+function loadLocal() { try { const s = JSON.parse(localStorage.getItem('p0-picks') || '{}'); Object.assign(picks, s); } catch (e) {} }
+function saveLocal() { try { localStorage.setItem('p0-picks', JSON.stringify(picks)); } catch (e) {} }
+
+document.addEventListener('click', async (ev) => {
+  const b = ev.target.closest('.pick button');
+  if (!b) return;
+  const id = b.dataset.item, choice = b.dataset.choice;
+  const next = picks[id] === choice ? null : choice;
+  if (next) picks[id] = next; else delete picks[id];
+  refresh(); saveLocal();
+  if (!db) return;
+  $('save').textContent = '저장하는 중…';
+  try {
+    const ref = db.doc('picks/' + id);
+    if (next) await ref.set({ choice: next, at: new Date().toISOString() }); else await ref.delete();
+    $('save').textContent = id + ' 저장했어요.';
+  } catch (e) {
+    $('save').textContent = '저장하지 못했어요. 다시 눌러 주세요.';
+  }
+});
+
+$('copyBtn').addEventListener('click', async () => {
+  const text = $('summary').textContent;
+  try { await navigator.clipboard.writeText(text); $('copyBtn').textContent = '복사했어요'; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($('summary')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copyBtn').textContent = '글자를 선택해 두었어요. 길게 눌러 복사하세요'; }
+});
+
+loadLocal();
+render();
+(async () => {
+  try { db = window.claude ? await window.claude.use('db') : null; } catch (e) { db = null; }
+  if (!db) { $('save').textContent = ''; $('copy').hidden = false; return; }
+  db.collection('picks').onSnapshot((snap) => {
+    for (const d of snap.docs) { const v = d.data(); if (v && LABEL[v.choice]) picks[d.id] = v.choice; }
+    for (const id of Object.keys(picks)) if (!snap.docs.some((d) => d.id === id)) delete picks[id];
+    saveLocal(); refresh();
+  }, () => { $('copy').hidden = false; });
+})();
+</script>

@@ -1,0 +1,49 @@
+통과 360 첫 화면에 Hero 문장·CTA 모두 보임 (line 447 / cta 529 / 화면 740)
+통과 360 Hero 문구·CTA 글자 = 승인안 ("좋아하는 사람보다, 편해지는 사람은 다를 수 있으니까." / "ECHO 시작하기")
+통과 360 가로 넘침 0 (차이 0px)
+통과 360 글자 잘림·화면 밖 0 
+통과 360 구간 7개 모두 있음 
+통과 360 기능 카드 0개 (0)
+통과 360 옛 문구 0 
+통과 360 휴대폰 Hero CTA → app.do-it.company/doit/start-journey (https://app.do-it.company/doit/start-journey)
+통과 360 홈페이지 콘솔·화면 오류 0 (0건) 
+   참고(판정 제외): 떠난 뒤 가짜 앱 페이지에서 1건 — console:Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED @https://app.do-it.company/favicon.ico
+통과 360 앱 첫 화면 = 같은 Hero, 홈페이지 전용 구간 0
+통과 360 앱 Hero CTA → /doit/start-journey (로그아웃 상태 · 화면 오류 없음)
+통과 360 앱 콘솔·화면 오류 0 
+통과 390 첫 화면에 Hero 문장·CTA 모두 보임 (line 506 / cta 588 / 화면 844)
+통과 390 Hero 문구·CTA 글자 = 승인안 ("좋아하는 사람보다, 편해지는 사람은 다를 수 있으니까." / "ECHO 시작하기")
+통과 390 가로 넘침 0 (차이 0px)
+통과 390 글자 잘림·화면 밖 0 
+통과 390 구간 7개 모두 있음 
+통과 390 기능 카드 0개 (0)
+통과 390 옛 문구 0 
+통과 390 휴대폰 Hero CTA → app.do-it.company/doit/start-journey (https://app.do-it.company/doit/start-journey)
+통과 390 홈페이지 콘솔·화면 오류 0 (0건) 
+   참고(판정 제외): 떠난 뒤 가짜 앱 페이지에서 1건 — console:Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED @https://app.do-it.company/favicon.ico
+통과 390 앱 첫 화면 = 같은 Hero, 홈페이지 전용 구간 0
+통과 390 앱 Hero CTA → /doit/start-journey (로그아웃 상태 · 화면 오류 없음)
+통과 390 앱 콘솔·화면 오류 0 
+통과 430 첫 화면에 Hero 문장·CTA 모두 보임 (line 576 / cta 658 / 화면 932)
+통과 430 Hero 문구·CTA 글자 = 승인안 ("좋아하는 사람보다, 편해지는 사람은 다를 수 있으니까." / "ECHO 시작하기")
+통과 430 가로 넘침 0 (차이 0px)
+통과 430 글자 잘림·화면 밖 0 
+통과 430 구간 7개 모두 있음 
+통과 430 기능 카드 0개 (0)
+통과 430 옛 문구 0 
+통과 430 휴대폰 Hero CTA → app.do-it.company/doit/start-journey (https://app.do-it.company/doit/start-journey)
+통과 430 홈페이지 콘솔·화면 오류 0 (0건) 
+   참고(판정 제외): 떠난 뒤 가짜 앱 페이지에서 1건 — console:Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED @https://app.do-it.company/favicon.ico
+통과 430 앱 첫 화면 = 같은 Hero, 홈페이지 전용 구간 0
+통과 430 앱 Hero CTA → /doit/start-journey (로그아웃 상태 · 화면 오류 없음)
+통과 430 앱 콘솔·화면 오류 0 
+통과 1440 첫 화면에 Hero 문장·CTA 모두 보임 (line 736 / cta 672 / 화면 900)
+통과 1440 Hero 문구·CTA 글자 = 승인안 ("좋아하는 사람보다, 편해지는 사람은 다를 수 있으니까." / "ECHO 시작하기")
+통과 1440 가로 넘침 0 (차이 0px)
+통과 1440 글자 잘림·화면 밖 0 
+통과 1440 구간 7개 모두 있음 
+통과 1440 기능 카드 0개 (0)
+통과 1440 옛 문구 0 
+통과 1440 컴퓨터 Hero CTA → QR 상자가 화면 안(앱 이동 없음)
+통과 1440 홈페이지 콘솔·화면 오류 0 (0건) 
+PASS 45 / 45

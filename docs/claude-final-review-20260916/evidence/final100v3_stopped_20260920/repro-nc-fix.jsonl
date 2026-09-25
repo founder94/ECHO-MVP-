@@ -1,0 +1,15 @@
+{"id":"#10","rep":0,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"아침에 몸이 무겁게 느껴질 때 어떤 기분이 드시나요?"}
+{"id":"#14","rep":0,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"이런 불안감을 덜기 위해 어떤 생각을 하시나요?"}
+{"id":"#24","rep":0,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"그럼 지금 느끼고 계신 감정은 어떤 것인지 조금 더 말씀해 주실 수 있나요?"}
+{"id":"#41","rep":0,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"돈 문제와 관련해 어떤 상황이신지 좀 더 이야기해 주실 수 있나요?"}
+{"id":"#96","rep":0,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"아까 말한 건 좀 달라라고 하셨네요. / 그렇다면 지금 말씀하신 뜻은 어떤 부분에서 다르게 느껴지시나요?"}
+{"id":"#10","rep":1,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"\"밤에 잠이 안 오고 아침마다 몸이 무거워요\" 라고 하셨죠. 그중 어떤 부분이 지금 마음에 남아 있나요?"}
+{"id":"#14","rep":1,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"그런 불안한 마음을 어떻게 다루고 계신가요?"}
+{"id":"#24","rep":1,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"그 힘듦이 어떤 감정을 느끼게 하나요?"}
+{"id":"#41","rep":1,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"돈 문제와 관련해 어떤 해결 방법을 생각하고 계신가요?"}
+{"id":"#96","rep":1,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"아까 말한 건 좀 달라라고 하셨네요. / 그렇다면 어떤 부분이 다르게 느껴지셨나요?"}
+{"id":"#10","rep":2,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"밤에 잠이 안 오고 아침마다 몸이 무겁다고 하셨네요. / 이런 상황에서 어떤 생각이 드시나요?"}
+{"id":"#14","rep":2,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"돈 나갈 데는 많은데 일은 줄어서 불안해요. / 그런 불안한 상황에서 어떤 대안이 떠오르시나요?"}
+{"id":"#24","rep":2,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"그 힘듦이 어떤 감정으로 이어지나요?"}
+{"id":"#41","rep":2,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"일이 너무 많아서 잠을 못 자신 것 같아요. / 일이 많아지면서 어떤 변화가 있으셨나요?"}
+{"id":"#96","rep":2,"result":"ok","stuckAt":null,"code":null,"flags":[],"watched":"아까 말한 건 좀 달라라고 하셨군요. / 그렇다면 어떤 점이 달랐는지 말씀해 주실 수 있나요?"}

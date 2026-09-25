@@ -1,0 +1,87 @@
+{
+  "get-step-question": {
+    "version": 19,
+    "verify_jwt": true,
+    "ezbr_sha256": "fa140b1fcef25ba064d9dd125c0054649c259dbe9823293d2b305c4a73ea0af4",
+    "name": "get-step-question",
+    "status": "ACTIVE",
+    "updated_at": 1789550506297,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_cdc6a2b4-8536-4ee3-af60-8420977d89fd_19/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  },
+  "echo-journey": {
+    "version": 10,
+    "verify_jwt": true,
+    "ezbr_sha256": "963cb0f767e09634a0a0691a24e2dc886f914bdd34d1a6b712646091c45f7fbf",
+    "name": "echo-journey",
+    "status": "ACTIVE",
+    "updated_at": 1789550539594,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_338652b4-f7d2-45d0-a30f-3a60f398dc7f_10/source/index.ts",
+    "files": [
+      "index.ts",
+      "question-quality.ts"
+    ]
+  },
+  "echo-payment": {
+    "version": 2,
+    "verify_jwt": true,
+    "ezbr_sha256": "cf6d89503c417389e0dc3128e605e66910f0f7df9e223f96afddbb33407ad1f0",
+    "name": "echo-payment",
+    "status": "ACTIVE",
+    "updated_at": 1789452055860,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_e129aee2-beee-4803-9fd9-4cfb1da08b05_2/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  },
+  "admin-dashboard": {
+    "version": 1,
+    "verify_jwt": true,
+    "ezbr_sha256": "721f52dcfa90f65c60220d532995787870b5655b1877b32d91ee89d3c353a818",
+    "name": "admin-dashboard",
+    "status": "ACTIVE",
+    "updated_at": 1789554011210,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_5f34143a-5ebd-469e-b487-4af1c55a4f52_1/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  },
+  "admin-conversations": {
+    "version": 2,
+    "verify_jwt": true,
+    "ezbr_sha256": "ec72d8ff9974fbfb87e7155619b03bb4db9977a46b017c6754f19999f33168a9",
+    "name": "admin-conversations",
+    "status": "ACTIVE",
+    "updated_at": 1789554026662,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_1490a5c2-11d6-449d-af6a-2b20b6a09331_2/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  },
+  "openai-chat": {
+    "version": 2,
+    "verify_jwt": false,
+    "ezbr_sha256": "f809d7d7eba88a380c2f23305245ebb1ae39202f4de2f253bb2bd711e27b4ce3",
+    "name": "openai-chat (사주·타로 무료 콘텐츠)",
+    "status": "ACTIVE",
+    "updated_at": 1789191926632,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_6c9391a2-b0bc-4016-b77e-7b285211570b_2/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  },
+  "doit-understanding": {
+    "version": 4,
+    "verify_jwt": true,
+    "ezbr_sha256": "200b89550edbb30d31cf390d8c2c9de96d9f4edbe4012fb0c882d69af1d2e74e",
+    "name": "A구조 자기이해 상태머신",
+    "status": "ACTIVE",
+    "updated_at": 1789093531497,
+    "entrypoint_path": "/tmp/user_fn_zyyhhxyupizcqhxqnxuu_e179b74c-64c2-4fd1-89e1-c7e2258286a2_4/source/index.ts",
+    "files": [
+      "index.ts"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+--- ../bak-legal/router/config.tsx	2026-09-21 10:44:45.466130301 +0000
++++ src/router/config.tsx	2026-09-21 10:44:45.496330233 +0000
+@@ -12,6 +12,10 @@
+ const Signup = lazy(() => import('@/pages/signup/page'));
+ const Login = lazy(() => import('@/pages/login/page'));
+ const AuthCallbackPage = lazy(() => import('@/pages/auth/callback/page'));
++// 약관·개인정보 문서와 기존 회원 동의 화면(2026-09-21)
++const TermsPage = lazy(() => import('@/pages/legal/terms/page'));
++const PrivacyPage = lazy(() => import('@/pages/legal/privacy/page'));
++const ConsentPage = lazy(() => import('@/pages/legal/consent/page'));
+ const WeatherPage = lazy(() => import('@/pages/do-it/weather/page'));
+ const WeatherCheckPage = lazy(() => import('@/pages/do-it/weather-check/page'));
+ const StoryStartPage = lazy(() => import('@/pages/do-it/story-start/page'));
+@@ -71,6 +75,18 @@
+     element: <AuthCallbackPage />,
+   },
+   {
++    path: '/legal/terms',
++    element: <TermsPage />,
++  },
++  {
++    path: '/legal/privacy',
++    element: <PrivacyPage />,
++  },
++  {
++    path: '/legal/consent',
++    element: <ConsentPage />,
++  },
++  {
+     path: '/weather',
+     element: <WeatherPage />,
+   },

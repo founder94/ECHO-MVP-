@@ -1,0 +1,20 @@
+.doit-profile-photos{margin:28px 0;color:#f2f1ef}
+.doit-profile-photos-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.doit-profile-photos-heading h2{font:600 16px/1.5 var(--font-body,"Gothic A1",sans-serif);letter-spacing:-.035em;margin:0}
+.doit-profile-photos-heading>span{font-size:11px;color:#abb1bc}
+.doit-profile-photo-main{position:relative;overflow:hidden;border-radius:20px;background:#15181e;border:1px solid #c4ced82b;aspect-ratio:4/5;box-shadow:inset 0 1px 0 #ffffff0d,0 18px 30px #0002}
+.doit-profile-photo-main>img{display:block;width:100%;height:100%;object-fit:cover}
+.doit-profile-photo-primary{position:absolute;left:14px;bottom:14px;padding:7px 11px;background:#11151bdd;color:#eceef1;border:1px solid #e1e6ed40;border-radius:50px;font-size:11px;font-weight:600;backdrop-filter:blur(10px)}
+.doit-profile-photo-thumbnails{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin-top:10px}
+.doit-profile-photo-thumbnails button{display:grid;place-items:center;aspect-ratio:3/4;border:1px solid transparent;overflow:hidden;border-radius:9px;padding:0;background:#1b1e25;color:#afb6c1;cursor:pointer;opacity:.65}
+.doit-profile-photo-thumbnails button[aria-pressed="true"]{opacity:1;border-color:#d8dfe8;box-shadow:0 0 0 2px #cbd3de1a}
+.doit-profile-photo-thumbnails img{width:100%;height:100%;object-fit:cover;display:block}
+.doit-profile-photos-empty{min-height:185px;padding:26px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;border-radius:18px;background:linear-gradient(135deg,#212630,#121418);color:#aeb5c1;border:1px solid #c3ccd52b}
+.doit-profile-photo-main>.doit-profile-photos-empty{height:100%;border:0;border-radius:0}
+.doit-profile-photos-empty p{font-size:13px;font-weight:500;line-height:1.8;margin:0;color:#e0e3e8;word-break:keep-all}
+.doit-profile-photos-empty>span{font-size:12px;line-height:1.7}
+.doit-profile-photos-empty button,.doit-profile-photo-manage{display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px;border:1px solid #c4ccd63a;background:#232933;color:#e8ebef;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.doit-profile-photo-manage{width:100%;margin-top:12px;background:linear-gradient(110deg,#353d47,#191e27);justify-content:flex-start;min-height:50px}
+.doit-profile-photo-manage>span{margin-left:auto}
+.doit-profile-photo-note{font-size:11px;font-weight:500;line-height:1.8;color:#a5adb9;margin:12px 0 0;word-break:keep-all}
+.doit-profile-photos button:focus-visible{outline:2px solid #e6e9ee;outline-offset:4px}

@@ -1,0 +1,131 @@
+// ECHO Signature Sound (대표 「SIGNATURE SOUND · HOMEPAGE + MOBILE WEB · FINAL UX LOCK」 2026-09-24).
+// - 음악은 브랜드 장치다. 없어도 서비스는 100% 동작한다. 재생 실패는 조용히 「소리 켜기」 버튼으로만 남긴다.
+// - Part A: 앱에서 「ECHO 시작하기」를 누른 순간(사용자 동작)에 준비하고, 대화 화면이 열릴 때 한 번 튼다. 반복 재생 없음.
+// - Part B: 관계가 실제로 열리는 순간(상호 선택 → 서로 열림)이 운영에서 아직 한 번도 일어나지 않았다(연결 0건·전화 인증 0명).
+//   그래서 트리거를 연결하지 않는다(PART_B_ENABLED = false). 원음 파일만 프로젝트 안에 보관한다.
+// - 원음만 쓴다(편집·합성·속도·음높이 변경 없음). 사용자 성별로 곡을 고르지 않는다.
+// - 볼륨은 정하지 않는다(브라우저 기본값). 실제 청취 뒤 대표 결정.
+// - 저장은 이 기기의 「소리 끔」 선택 하나뿐(localStorage). 서버·DB 저장 0.
+import partATrack from '@/assets/sound/echo-origin-1.mp3?url';
+
+// 어느 원음이 Part A 인지는 대표 확인이 필요하다(남/여 대응 미확정). 짧은 원음 1(약 28.6초)을 입장곡으로 둔다 — 바꾸려면 이 줄만.
+export const PART_A_SRC: string = partATrack;
+export const PART_B_ENABLED = false;
+
+export type SoundState = 'idle' | 'playing' | 'paused' | 'ended' | 'blocked' | 'error';
+export interface SoundSnapshot { state: SoundState; off: boolean }
+
+export interface AudioLike {
+  src: string; preload: string; loop: boolean; currentTime: number; paused: boolean;
+  play(): Promise<void> | void; pause(): void;
+  addEventListener(type: 'ended' | 'error', listener: () => void): void;
+}
+export interface SoundEnv {
+  createAudio(): AudioLike;
+  readOff(): boolean;
+  writeOff(off: boolean): void;
+}
+
+const OFF_KEY = 'doit:sound';
+
+const browserEnv: SoundEnv = {
+  createAudio: () => new Audio(),
+  readOff: () => { try { return window.localStorage.getItem(OFF_KEY) === 'off'; } catch { return false; } },
+  writeOff: (off) => { try { if (off) window.localStorage.setItem(OFF_KEY, 'off'); else window.localStorage.removeItem(OFF_KEY); } catch { /* 저장 못 해도 이번 화면에서는 따른다 */ } },
+};
+
+function errorName(error: unknown): string {
+  return error && typeof error === 'object' && 'name' in error ? String((error as { name?: unknown }).name) : '';
+}
+
+export function createSignatureSound(src: string, env: SoundEnv) {
+  let audio: AudioLike | null = null;
+  let pending = false;
+  let off: boolean | null = null;
+  let snapshot: SoundSnapshot = { state: 'idle', off: false };
+  let request = 0;
+  const listeners = new Set<() => void>();
+
+  const isOff = () => (off ??= env.readOff());
+  const publish = (state: SoundState) => {
+    if (snapshot.state === state && snapshot.off === isOff()) return;
+    snapshot = { state, off: isOff() };
+    listeners.forEach((listener) => listener());
+  };
+  const element = () => {
+    if (audio) return audio;
+    const el = env.createAudio();
+    el.preload = 'none'; // 대화·AI 요청보다 먼저 받지 않는다. 재생할 때만 받는다.
+    el.loop = false;
+    el.src = src;
+    el.addEventListener('ended', () => publish('ended'));
+    el.addEventListener('error', () => { if (snapshot.state === 'playing') publish('error'); });
+    audio = el;
+    return el;
+  };
+  const start = async (fromStart: boolean) => {
+    const el = element();
+    const id = ++request;
+    if (fromStart || snapshot.state === 'ended') { try { el.currentTime = 0; } catch { /* 아직 불러오기 전 */ } }
+    try {
+      await el.play();
+      if (id === request) publish('playing');
+    } catch (error) {
+      if (id !== request) return;
+      const name = errorName(error);
+      if (name === 'AbortError') return; // 직접 멈춤·다른 요청이 앞섬 — 실패가 아니다
+      publish(name === 'NotAllowedError' ? 'blocked' : 'error');
+    }
+  };
+
+  return {
+    subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    getSnapshot(): SoundSnapshot { if (snapshot.off !== isOff()) snapshot = { ...snapshot, off: isOff() }; return snapshot; },
+    // 「ECHO 시작하기」 클릭 안에서 부른다. 사파리는 사용자 동작 안에서 한 번 play() 한 오디오만 나중에 재생을 허락한다.
+    // 바로 멈추므로 소리는 나지 않는다. 소리를 꺼 둔 사람은 준비하지 않는다.
+    arm() {
+      if (isOff()) return;
+      pending = true;
+      const el = element();
+      ++request;
+      try { const p = el.play(); el.pause(); if (p && typeof (p as Promise<void>).catch === 'function') (p as Promise<void>).catch(() => undefined); } catch { /* 준비 실패 — 대화 화면에서 다시 시도한다 */ }
+    },
+    // 대화 화면이 열렸다. 「ECHO 시작하기」로 들어온 때만 한 번 튼다(새로고침·그냥 다시 들어옴 = 틀지 않음).
+    enterConversation() {
+      if (!pending) return;
+      pending = false;
+      if (isOff()) return;
+      void start(true);
+    },
+    // 대화 화면을 떠남 · 앱이 뒤로 감: 멈춘다(「소리 끔」 선택은 바꾸지 않는다).
+    leave() {
+      pending = false;
+      ++request;
+      if (audio && !audio.paused) audio.pause();
+      if (snapshot.state === 'playing') publish('paused');
+    },
+    // 사용자가 누른 소리 버튼. 끄면 이 기기에 기억해 다음부터 저절로 틀지 않는다. 켜면 멈춘 자리부터(끝났으면 처음부터).
+    toggle() {
+      if (snapshot.state === 'playing') {
+        ++request;
+        audio?.pause();
+        off = true; env.writeOff(true);
+        publish('paused');
+        return;
+      }
+      off = false; env.writeOff(false);
+      void start(false);
+    },
+  };
+}
+
+export type SignatureSound = ReturnType<typeof createSignatureSound>;
+
+let shared: SignatureSound | null = null;
+export function signatureSound(): SignatureSound {
+  if (!shared) {
+    shared = createSignatureSound(PART_A_SRC, browserEnv);
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') shared?.leave(); });
+  }
+  return shared;
+}

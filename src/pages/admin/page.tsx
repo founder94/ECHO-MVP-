@@ -539,7 +539,7 @@ function SectionTimeList({ data }: { data: SectionTimeStat[] }) {
 // ═══════════════════════════════════════════════════════
 
 export default function AdminPage() {
-  const { currentUser, profile, loading: authLoading, isAuthenticated, logout } = useAuth();
+  const { currentUser, profile, profileStatus, loading: authLoading, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'visitors' | 'analytics' | 'activity' | 'kpi' | 'funnel' | 'live' | 'buttons' | 'openai' | 'errors' | 'users' | 'mobile' | 'features' | 'notifications' | 'release'>('overview');
   const [period, setPeriod] = useState<Period>('today');
@@ -727,8 +727,8 @@ export default function AdminPage() {
   // AUTH GATE — Supabase Auth + Role 기반 접근 제어
   // ═══════════════════════════════════════════════════════
 
-  // Loading state
-  if (authLoading) {
+  // Loading state — AUTH_SESSION 확인 중이거나 PROFILE_EXISTS 판정 중이면 아직 권한을 판단하지 않는다
+  if (authLoading || (isAuthenticated && profileStatus === 'loading')) {
     return (
       <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden" style={{ background: C.black }}>
         <div className="absolute inset-0 pointer-events-none" style={{
@@ -764,7 +764,7 @@ export default function AdminPage() {
             <i className="ri-shield-check-line text-3xl mb-3 block" style={{ color: C.gold }} />
             <p className="text-sm text-white/40 mb-4">관리자 페이지입니다.<br />로그인이 필요합니다.</p>
             <Link
-              to="/auth"
+              to="/auth?mode=login&returnTo=/admin"
               className="inline-block w-full rounded-full px-6 py-3 text-sm font-medium tracking-wide transition-all duration-300 whitespace-nowrap cursor-pointer active:scale-95"
               style={{ background: C.gold, color: C.black, WebkitTapHighlightColor: 'transparent' }}
             >
@@ -774,6 +774,32 @@ export default function AdminPage() {
           <p className="text-[10px] font-mono text-white/05">
             ECHO Admin Console v4.0
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 프로필 조회 자체가 실패한 경우 — "권한 없음"이 아니라 "판정 불가"로 표시한다
+  if (isAuthenticated && profileStatus === 'error') {
+    return (
+      <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden" style={{ background: C.black }}>
+        <div className="relative z-10 w-full max-w-sm mx-auto px-6 text-center">
+          <span className="text-[10px] font-mono tracking-[0.4em] uppercase text-white/10">Admin Console</span>
+          <h1 className="font-display font-bold text-2xl text-white mt-3 mb-1" style={{ fontFamily: 'var(--font-heading, sans-serif)' }}>
+            ECHO ADMIN
+          </h1>
+          <div className="rounded-2xl border p-6 mb-6 mt-8" style={{ borderColor: `${C.danger}30`, background: `${C.blackCard}80` }}>
+            <i className="ri-error-warning-line text-3xl mb-3 block" style={{ color: C.danger }} />
+            <p className="text-sm text-white/40 mb-4">프로필 정보를 불러오지 못했습니다.<br />네트워크 상태를 확인한 뒤 다시 시도해 주세요.</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-block w-full rounded-full px-6 py-3 text-sm font-medium tracking-wide transition-all duration-300 whitespace-nowrap cursor-pointer active:scale-95"
+              style={{ background: C.gold, color: C.black, WebkitTapHighlightColor: 'transparent' }}
+            >
+              다시 시도
+            </button>
+          </div>
         </div>
       </div>
     );

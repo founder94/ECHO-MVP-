@@ -1,0 +1,14 @@
+/* 화면 조각(chunk)을 내려받는 동안 보여 주는 조용한 대기 화면.
+   전역(body/:root)을 건드리지 않는다. .echo-route-fallback 아래로만 적용한다.
+   가짜 진행률(%)을 쓰지 않는다 — 실제로 얼마나 남았는지 알 수 없기 때문이다. */
+.echo-route-fallback{position:fixed;inset:0;z-index:40;display:grid;place-items:center;gap:18px;padding:24px;background:#08070c;color:#c4cfdf;text-align:center}
+.echo-route-fallback-inner{display:grid;place-items:center;gap:18px}
+.echo-route-fallback-orbit{position:relative;display:grid;place-items:center;width:76px;height:76px;border-radius:50%}
+.echo-route-fallback-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:echo-route-orbit 1.6s linear infinite}
+.echo-route-fallback-orbit::after{content:"";position:absolute;inset:9px;border-radius:50%;background:radial-gradient(circle,#dfe6f233,transparent 68%);animation:echo-route-breathe 2.4s ease-in-out infinite}
+.echo-route-fallback-orbit .doit-official-symbol{width:40px;height:40px;animation:echo-route-spin 6s linear infinite}
+.echo-route-fallback p{margin:0;font-size:13px;line-height:1.9;letter-spacing:.01em}
+@keyframes echo-route-orbit{to{transform:rotate(360deg)}}
+@keyframes echo-route-spin{to{transform:rotate(-360deg)}}
+@keyframes echo-route-breathe{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.echo-route-fallback *{animation:none!important}}

@@ -1,0 +1,36 @@
+PASS  진입: 목적 있음+프로필 없음 → 선택 화면(대화 / 먼저 프로필)
+PASS  선택 → /doit/conversation?from=journey 대화 화면
+PASS  진입 시 서버 쓰기·AI 호출 0
+PASS  이야기 저장 → 후보(한 번에 1개) 표시 + 4버튼
+PASS  후보 대기 중 입력창 잠김
+PASS  서버 호출: record_create → insight_generate
+PASS  맞아요 → 다음 후보 표시(차분한 성향…)
+PASS  후보 남아 있는 동안 followup_generate 호출 없음
+PASS  그게 아니에요 → rejected 저장·ai_text 보존
+PASS  후보 전부 처리 → "이어서 이야기하기" 버튼
+PASS  STALE_CONTEXT 1회 → 새 requestId 로 자동 1회 재시도
+PASS  다음 질문(서버 생성) 표시
+PASS  거절한 해석 문장이 화면에 없음
+PASS  "모르겠어요" → 기록 2건 저장 + 구제 질문 표시(후보 0, 지어내지 않음)
+PASS  프로필 준비 → start-journey?edit=profile → 프로필 입력
+PASS  [talk] 콘솔 오류 0
+PASS  [talk] 실제 OpenAI/그 외 Supabase 호출 0
+=== [talk] PASS 17 / FAIL 0 === ops: taps 7 texts 2 | ai_runs 3 replays 0 | calls: record_list,insight_list,record_list,insight_list,record_list,insight_list,record_create,insight_generate,followup_get,record_list,insight_list,followup_get,insight_confirm,record_list,insight_list,followup_get,insight_reject,record_list,insight_list,followup_get,followup_generate,followup_generate,record_list,insight_list,record_create,insight_generate,followup_get,record_list,insight_list
+PASS  직접 설명 입력 상자 열림
+PASS  거절 성공(rejected) + 설명 저장 1회 실패 → 오류 안내, 입력 유지
+PASS  실패 시 self 행 0
+PASS  설명이 이 기기 세션에 예약됨(pendingSelf)
+PASS  새로고침 → 입력 상자가 예약된 설명으로 다시 열림 + "이전 AI 해석은 제외했어요"
+PASS  새로고침 시 자동 저장·AI 호출 없음
+PASS  저장 → self 행 1(confirmed, origin=self)
+PASS  재시도는 같은 requestId · 후보 재거절 0
+PASS  예약 해제
+PASS  "직접 설명해 주신 내용으로 저장했어요" 안내
+PASS  [explain] 콘솔 오류 0
+PASS  [explain] 실제 OpenAI/그 외 Supabase 호출 0
+=== [explain] PASS 12 / FAIL 0 === ops: taps 4 texts 2 | ai_runs 1 replays 0 | calls: record_list,insight_list,record_list,insight_list,record_list,insight_list,record_create,insight_generate,followup_get,record_list,insight_list,followup_get,insight_reject,insight_self,followup_get,record_list,insight_list,record_list,insight_list,record_list,insight_list,record_list,insight_list,record_list,insight_list,followup_get,insight_self,record_list,insight_list,followup_get
+PASS  서버에만 기록+후보 → 후보 표시(원문 함께)
+PASS  복원 시 AI 재호출·기록 생성 0
+PASS  [resume] 콘솔 오류 0
+PASS  [resume] 실제 OpenAI/그 외 Supabase 호출 0
+=== [resume] PASS 4 / FAIL 0 === ops: taps 0 texts 0 | ai_runs 0 replays 0 | calls: record_list,insight_list,record_list,insight_list,record_list,insight_list,followup_get

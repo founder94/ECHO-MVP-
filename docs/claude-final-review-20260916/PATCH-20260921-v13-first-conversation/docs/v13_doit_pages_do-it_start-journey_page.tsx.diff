@@ -1,0 +1,24 @@
+--- bak-v13/src/doit/pages/do-it/start-journey/page.tsx	2026-09-21 11:24:57.901188893 +0000
++++ check-v17/src/doit/pages/do-it/start-journey/page.tsx	2026-09-21 11:26:06.283907198 +0000
+@@ -190,8 +190,9 @@
+ 
+     if (purposeId && edit === "profile") nextStep = "profile-build";
+     if (purposeId && edit === "photos") nextStep = "photo";
+-    // 목적이 있고 ?edit 지정이 없으면 프로필 상태와 상관없이 ECHO 대화로 간다(스위치 ON일 때만).
+-    const goConversation = A_STRUCTURE_SERVER_ENABLED && !!purposeId && edit !== "profile" && edit !== "photos";
++    // ?edit 지정이 없으면 프로필 상태와 상관없이 ECHO 대화로 간다(스위치 ON일 때만).
++    // v13: 목적이 없어도 대화로 간다 — 첫 질문("어떤 만남을 원하세요?")을 대화 화면이 AI 대사로 묻는다.
++    const goConversation = A_STRUCTURE_SERVER_ENABLED && edit !== "profile" && edit !== "photos";
+     if (!goConversation) setStep(nextStep);
+ 
+     // 로그인 전 목적 draft를 이제 DB에 영속화한다. 성공한 경우에만 draft를 지운다.
+@@ -235,7 +236,8 @@
+       restoredForRef.current = null;
+       setProfile(null);
+       setSelectedPurpose(null);
+-      setStep("purpose");
++      // v13: 스위치 ON이면 목적은 로그인 뒤 대화 화면이 AI 대사("어떤 만남을 원하세요?")로 묻는다. 여기서는 계정 안내로 바로 간다.
++      setStep(A_STRUCTURE_SERVER_ENABLED ? "consent" : "purpose");
+       // 단, 로그인 전 목적 draft가 남아 있으면 복원해 처음부터 다시 고르지 않게 한다.
+       const draft = loadFreshJourneyDraft();
+       if (draft) {

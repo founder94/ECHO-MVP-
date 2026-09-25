@@ -1,0 +1,2 @@
+{"i": 79, "test_run_id": "final100v4-results", "type": "H", "turns": [], "stuck": {"at": "start", "code": "BAD_JSON", "http": 0}, "completed": false, "flags": [], "startedAt": "2026-09-20T05:55:22.198Z", "conversationId": null, "gsqVersion": null}
+{"i": 80, "test_run_id": "final100v4-results", "type": "I", "turns": [], "stuck": {"at": "start", "code": "BAD_JSON", "http": 0}, "completed": false, "flags": [], "startedAt": "2026-09-20T05:55:22.213Z", "conversationId": null, "gsqVersion": null}

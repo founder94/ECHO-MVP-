@@ -1,0 +1,155 @@
+@import "./metal-silver.css";
+@import "./doit-type.css";
+@import "./pastel-bg.css";
+.echo-dialogue{max-width:620px;margin:auto;padding:28px 24px 56px;color:#f2f1ef;background:#090a0c;min-height:100dvh;font-family:var(--font-body,"Gothic A1",sans-serif)}
+.echo-dialogue *{box-sizing:border-box}.echo-dialogue-header{display:flex;align-items:center;gap:10px;margin-bottom:52px}.echo-dialogue .doit-official-symbol{width:36px;height:36px}.echo-dialogue-header>span{font-size:10px;letter-spacing:.15em;color:#a9adb5}.echo-dialogue-header>a{margin-left:auto;font-size:11px;color:#c2c7cf;text-decoration:none}
+.echo-eyebrow{color:#a0a6b2;font-size:10px;font-weight:600;letter-spacing:.15em;margin:0 0 15px}.echo-dialogue h1{font-family:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;font-size:clamp(28px,7.5vw,38px);line-height:1.55;font-weight:500;letter-spacing:-.045em;margin:0;word-break:keep-all}.echo-lead{font-size:14px;line-height:1.95;color:#b5bac3;font-weight:500;max-width:420px;margin:22px 0 36px;word-break:keep-all}
+.echo-history{font-size:12px;color:#aeb4bf;padding:16px 0}.echo-history summary,.echo-memory summary{cursor:pointer;min-height:36px}.echo-history ol{padding:0;list-style:none;max-height:200px;overflow:auto}.echo-history button{border:0;background:none;color:#c3c8d0;padding:10px 0;text-align:left;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.echo-original{padding:20px 0 24px 18px;border-left:2px solid #b5bdca44;margin:12px 0 34px}.echo-original>p:last-child{font-size:16px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:#e5e6e9}
+.echo-insight,.echo-editor{padding:26px 22px;background:radial-gradient(ellipse at top right,#c7d0e00c,transparent 70%),#14171c;border:1px solid #c2cad12d;border-radius:20px;box-shadow:inset 0 1px #ffffff0b;margin:20px 0}.echo-insight-label{font-size:10px;color:#b5becb;letter-spacing:.04em}.echo-dialogue h2{font-size:21px;line-height:1.7;font-weight:500;letter-spacing:-.035em;word-break:keep-all;overflow-wrap:anywhere;margin:18px 0}.echo-context{font-size:12px;color:#aab0bc;line-height:1.8}.echo-reactions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:25px}.echo-reactions button{min-height:48px;border:1px solid #bac3d237;background:#1c2027;color:#e0e3e9;border-radius:12px;font-size:13px;font-weight:600}.echo-reactions button:first-child{background:linear-gradient(115deg,#eeefec,#c7ced7);color:#171b21;border-color:#edf0f45c}
+.echo-fine{color:#939ba8;font-size:11px;line-height:1.8;margin:16px 0 0}.echo-notice,.echo-busy{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.8;color:#c4cfdf;margin:20px 0}.echo-notice svg,.echo-busy svg{flex-shrink:0;margin-top:3px}.echo-error{font-size:13px;line-height:1.8;color:#f0b8b8;margin:20px 0}.echo-error button{color:inherit;border:1px solid currentColor;background:transparent;padding:8px 15px;border-radius:8px}
+.echo-composer{margin:30px 0}.echo-composer label{display:block;font-size:13px;color:#c3c7d0;margin-bottom:12px}.echo-dialogue textarea{display:block;width:100%;resize:vertical;min-height:120px;max-height:320px;background:#101216;border:1px solid #adb9ca37;color:#eef0f2;border-radius:15px;padding:18px;font-weight:500;font-family:inherit;font-size:15px;line-height:1.9;outline:none}.echo-dialogue textarea:focus{border-color:#c2cfdd;box-shadow:0 0 0 3px #bac8d913}.echo-dialogue textarea::placeholder{color:#7f8998}.echo-composer-footer,.echo-editor-footer{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px}.echo-composer-footer>span,.echo-editor-footer>span{font-size:10px;line-height:1.8;color:#98a1af;max-width:270px}.echo-composer-footer button{display:grid;place-items:center;width:46px;height:46px;flex-shrink:0;border:1px solid #e5e9ee88;background:linear-gradient(135deg,#ebeeef,#bcc5d1);color:#161a20;border-radius:50%}.echo-editor-footer>button{border:0;background:none;color:#bbc2ce;font-size:12px;min-height:40px}
+.echo-primary,.echo-secondary{display:flex;align-items:center;justify-content:space-between;gap:15px;width:100%;padding:17px 20px;min-height:56px;border-radius:14px;font-size:14px;font-weight:600;text-decoration:none;margin-top:16px}.echo-primary{background:linear-gradient(120deg,#eef0ed,#c4ccd7);color:#15191e;border:1px solid #ffffff80}.echo-secondary{background:#171a20;color:#dbe0e7;border:1px solid #c3ccda38}.echo-dialogue button{cursor:pointer;transition:background .18s,opacity .18s}.echo-dialogue button:disabled{cursor:default;opacity:.42}.echo-dialogue :is(button,a):focus-visible{outline:2px solid #e0e6ee;outline-offset:4px}.echo-question{font-size:21px;line-height:1.8;font-weight:500;color:#e4e7ec;margin:28px 0;word-break:keep-all}.echo-memory{margin-top:36px;padding-top:20px;border-top:1px solid #c2cbd51f;color:#c5cbd5;font-size:12px}.echo-memory>div{padding:20px 0;border-bottom:1px solid #c2cbd514}.echo-memory>div>span{font-size:10px;color:#9aa4b4}.echo-memory p{font-size:14px;line-height:1.85;white-space:pre-wrap}.echo-text-button{background:none;border:0;color:#aebbd0;font-size:11px;padding:8px 0}.echo-dialogue-footer{margin-top:40px}.echo-editor>svg{color:#c4cedb}
+/* v13.1 질문 카드 — 받아 준 한 문장(작게) → 진행(n / 5 · 주제) → 질문(크게) */
+.echo-question-card{margin:28px 0}.echo-ack{font-size:13px;line-height:1.85;color:#aeb6c4;margin:0 0 10px;word-break:keep-all}.echo-progress{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.14em;color:#8f97a5;margin:0 0 12px}.echo-progress>span{font-variant-numeric:tabular-nums;color:#c9d0db;letter-spacing:.06em}.echo-question-card .echo-question{margin:0;font-family:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;font-size:clamp(22px,6vw,27px);line-height:1.65;letter-spacing:-.03em;color:#eef0f3}
+/* v13.1 생각 중 — 공식 심볼이 천천히 돌며 숨 쉰다(대표 지시: 로딩이 지루하지 않게). 감속 모드에서는 위의 규칙이 애니메이션을 끈다. */
+.echo-thinking{display:flex;align-items:center;gap:14px;margin:24px 0;color:#c4cfdf;font-size:12px;line-height:1.8}.echo-thinking p{margin:0}.echo-thinking-orbit{position:relative;display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:50%}.echo-thinking-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:echo-orbit 1.6s linear infinite}.echo-thinking-orbit::after{content:"";position:absolute;inset:6px;border-radius:50%;background:radial-gradient(circle,#dfe6f233,transparent 68%);animation:echo-breathe 2.4s ease-in-out infinite}.echo-thinking-orbit .doit-official-symbol{width:30px;height:30px;animation:echo-spin 6s linear infinite}
+@keyframes echo-orbit{to{transform:rotate(360deg)}}@keyframes echo-spin{to{transform:rotate(-360deg)}}@keyframes echo-breathe{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
+/* v13.7 전환 화면(시작하기 → 대화): 심볼이 도는 동안 기다리게 한다. .echo-dialogue 아래로만 적용한다. */
+.echo-dialogue .echo-leaving{display:grid;place-items:center;gap:20px;margin:44px 0 12px;text-align:center}
+.echo-dialogue .echo-leaving .echo-thinking-orbit{width:92px;height:92px}
+.echo-dialogue .echo-leaving .echo-thinking-orbit::after{inset:10px}
+.echo-dialogue .echo-leaving .echo-thinking-orbit .doit-official-symbol{width:50px;height:50px}
+.echo-dialogue .echo-leaving p{margin:0;color:#c4cfdf;font-size:13px;line-height:1.9}
+.echo-restart{margin-top:18px;padding:18px 20px;border:1px solid #c2cad12d;border-radius:16px;background:#14171c}.echo-restart .echo-reactions{margin-top:14px}.echo-history--past{opacity:.72}.echo-history--past summary{color:#9aa4b4}
+@media(min-width:768px){.echo-dialogue{padding:44px 40px 72px}.echo-dialogue-header{margin-bottom:68px}}@media(prefers-reduced-motion:reduce){.echo-dialogue *{transition:none!important;animation:none!important}}
+/* v13: 첫 질문(목적 타일) · 소개 초안 — .echo-dialogue 아래로만 적용 */
+.echo-opening-tiles{display:grid;grid-template-columns:1fr;gap:10px;margin:24px 0 8px}
+.echo-opening-tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;min-height:64px;padding:16px 18px;border-radius:14px;border:1px solid #c3ccda38;background:#171a20;color:#dbe0e7;text-align:left;transition:border-color .18s,background .18s}
+.echo-opening-tile.is-selected{border-color:#ffffff9c;background:#22262e;color:#f2f3f5}
+.echo-opening-tile-label{font-size:15px;font-weight:600;line-height:1.5}
+.echo-opening-tile-desc{font-size:12px;line-height:1.7;color:#9ba2ae}
+.echo-opening-line{margin-top:20px}
+.echo-draft{margin-top:28px;padding-top:20px;border-top:1px solid #c2cbd51f}
+.echo-draft ul{list-style:none;margin:12px 0 0;padding:0}
+.echo-draft li{padding:14px 0;border-bottom:1px solid #c2cbd514}
+.echo-draft li p{margin:0;font-size:15px;line-height:1.8;color:#e4e7ec;white-space:pre-wrap}
+.echo-draft li span{display:block;margin-top:6px;font-size:11px;line-height:1.7;color:#9aa4b4}
+@media(min-width:700px){.echo-opening-tiles{grid-template-columns:1fr 1fr}}
+/* v14 확인 카드의 빠져나갈 문 — 눌러야만 이어갈 수 있던 막힘을 푼다. .echo-dialogue 아래로만 적용한다. */
+.echo-dialogue .echo-defer{margin-top:14px;padding:0;border:0;background:none;color:#9aa4b4;font-size:12px;line-height:1.8;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.echo-dialogue .echo-defer:disabled{opacity:.5;cursor:default}
+/* v14.1 대화에 끝을 만든다 — 진행 표시·시작 안내·완료 화면. .echo-dialogue 아래로만 적용한다. */
+.echo-dialogue .echo-steps{display:flex;align-items:center;gap:12px;margin:0 0 22px}
+.echo-dialogue .echo-steps-count{flex:none;color:#e6ebf3;font-size:13px;font-weight:600;letter-spacing:.02em}
+.echo-dialogue .echo-steps-count em{color:#8b94a3;font-style:normal;font-weight:500}
+.echo-dialogue .echo-steps-bar{flex:1;height:2px;border-radius:2px;background:#c3ccda29;overflow:hidden}
+.echo-dialogue .echo-steps-bar i{display:block;height:100%;border-radius:2px;background:#e6ebf3;transition:width .5s cubic-bezier(.22,1,.36,1)}
+.echo-dialogue .echo-topic{margin:0 0 10px;color:#8b94a3;font-size:12px;letter-spacing:.04em}
+
+.echo-dialogue .echo-brief{margin:26px 0 8px;padding:22px 20px;border:1px solid #c2cad12d;border-radius:18px;background:#14171c}
+.echo-dialogue .echo-brief-lead{margin:0 0 16px;color:#dbe0e7;font-size:14px;line-height:1.8}
+.echo-dialogue .echo-brief-lead b{color:#f2f3f5;font-weight:600}
+.echo-dialogue .echo-brief ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.echo-dialogue .echo-brief li{display:flex;align-items:center;gap:12px;color:#c4cfdf;font-size:13px;line-height:1.7}
+.echo-dialogue .echo-brief li span{flex:none;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid #c3ccda3d;color:#9aa4b4;font-size:11px}
+.echo-dialogue .echo-brief-fine{margin:16px 0 0;color:#8b94a3;font-size:12px;line-height:1.8}
+
+.echo-dialogue .echo-done{margin:28px 0 8px;padding:26px 22px;border:1px solid #c2cad13d;border-radius:20px;background:#14171c}
+.echo-dialogue .echo-done-mark{display:flex;align-items:center;gap:8px;margin:0 0 16px;color:#e6ebf3;font-size:13px;font-weight:600}
+.echo-dialogue .echo-done-lead{margin:0 0 20px;color:#dbe0e7;font-size:15px;line-height:1.85}
+.echo-dialogue .echo-done-next{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:12px}
+.echo-dialogue .echo-done-next li{position:relative;padding-left:16px;color:#9aa4b4;font-size:13px;line-height:1.8}
+.echo-dialogue .echo-done-next li::before{content:"";position:absolute;left:0;top:10px;width:4px;height:4px;border-radius:50%;background:#c3ccda6b}
+.echo-dialogue .echo-done-next b{color:#dbe0e7;font-weight:600}
+.echo-dialogue .echo-done-actions{display:grid;gap:10px;margin-bottom:18px}
+
+/* v14.3 처음부터 다시 — 화면 위쪽에도 둔다 */
+.echo-dialogue .echo-restart-top{display:flex;justify-content:flex-end;margin:-10px 0 14px}
+.echo-dialogue .echo-restart-top .echo-text-button{min-height:44px}
+
+/* 2026-09-23 기다림 화면: 심볼 3D 효과를 화면 가운데에 둔다 */
+.echo-dialogue.echo-dialogue--waiting{min-height:70vh;display:grid;place-items:center}
+.echo-dialogue .echo-leaving .doit-symbol-loader{margin:12px 0}
+/* 2026-09-24 대표 실기기 "처음부터 다시 하기가 있는데 못 찾겠어": 작은 회색 글씨 → 테두리 있는 알약 버튼 + 되돌리기 그림. .echo-dialogue 안에서만. */
+.echo-dialogue .echo-restart-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 18px;border:1px solid #d9dfe8a6;border-radius:999px;background:#1b1f26;color:#eef1f5;font-size:13px;font-weight:600;letter-spacing:.01em}
+.echo-dialogue .echo-restart-pill svg{flex:none;color:#e6ebf3}
+.echo-dialogue .echo-restart-pill:not(:disabled):hover{background:#252a33;border-color:#eef1f5}
+.echo-dialogue .echo-dialogue-footer .echo-restart-pill{margin-top:18px}
+/* v15 통합 이해 카드(다섯 답 뒤 한 번만) · 지친 말 안내 — .echo-dialogue 아래로만 */
+.echo-dialogue .echo-synthesis{padding:26px 22px;background:radial-gradient(ellipse at top right,#c7d0e00c,transparent 70%),#14171c;border:1px solid #c2cad12d;border-radius:20px;box-shadow:inset 0 1px #ffffff0b;margin:20px 0}
+.echo-dialogue .echo-synthesis-items{list-style:none;margin:6px 0 18px;padding:0;display:grid;gap:10px}
+.echo-dialogue .echo-synthesis-items li{padding:14px 16px;border:1px solid #c2cad124;border-radius:14px;background:#181b21}
+.echo-dialogue .echo-synthesis-items p{margin:0;font-size:15px;line-height:1.75;color:#e6e9ee;word-break:keep-all;overflow-wrap:anywhere}
+.echo-dialogue .echo-synthesis-items li>span{display:inline-block;margin-top:6px;font-size:10px;color:#9aa4b4}
+.echo-dialogue .echo-synthesis-items button{display:grid;gap:6px;width:100%;text-align:left;background:none;border:0;padding:0;color:#e6e9ee;font-size:15px;line-height:1.75}
+.echo-dialogue .echo-synthesis-items button span{font-size:11px;color:#b9c3d2;text-decoration:underline;text-underline-offset:3px}
+.echo-dialogue .echo-pause{margin:20px 0;padding:20px;border:1px solid #c2cad12d;border-radius:16px;background:#14171c}
+.echo-dialogue .echo-pause .echo-reactions{margin-top:14px}
+/* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
+   우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
+   - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
+   - 색의 출처(추측 금지):
+     ① 바탕 = 대표가 보낸 「오늘 내 마음의 날씨는 어때?」 화면 캡처(2026-09-24)에서 잰 색. 2026-09-25 대표 「배경톤도 같아 보여?」 →
+        가로 5 × 세로 11 칸(칸마다 ±70px 안의 중앙값, 흰 글자·빛 방울 제외)으로 다시 재어 줄마다 가로 그라데이션으로 칠하고 40px 흐림으로 잇는다.
+        색은 캡처에 붙은 색 설명(ICC)을 적용해 화면용(sRGB)으로 바꾼 값이다(Chrome 캔버스로 읽음). 처음에 날값으로 읽어 더 흐린 색을 옮겼던 것을 바로잡았다(2026-09-25).
+        그 화면의 파스텔은 코드 값이 아니라 바깥 서버(Readdy)의 배경 사진 색이다. 사진은 쓰지 않고(바깥 주소 0) 색만 옮겼다.
+     ② 빛 번짐 6개 = 옛 코드 PastelBlobs.tsx 의 색·크기·위치 그대로(움직임은 없음).
+     ③ 덮개 = 지금 대화 화면의 바탕색 #090a0c 를 반투명으로 덮는 손잡이(--echo-pastel-veil). 대표 결정(2026-09-24 「배경색 이 색이야 그대로 써」)으로 0 = 덮지 않음.
+        실측: 지금 글자색이 모두 기준 대비(작은 글씨 4.5:1)를 넘으려면 .86 이 필요하다 — 그러면 색이 어두운 올리브로 바뀐다.
+     ④ 글자·어두운 판은 아래 ⑥(2026-09-25 대표 「STRONG WHITE TYPOGRAPHY · UNIFIED DARK GLASS」). 2026-09-24 의 남색 글자(D안)는 대표 결정으로 없앴다.
+   - 움직임: 옛 코드의 float-bg(20초, 1% 이동) 하나만. 날씨 입자·마우스 추적 0. 움직임 줄이기면 멈춘다. */
+/* ①~③ 바탕 규칙은 pastel-bg.css 로 옮겼다(2026-09-25 · 사용자 앱 화면과 한 벌). 모습 변화 0. */
+/* ⑥ 2026-09-25 흰 글자 + 하나의 어두운 유리 (대표 「PASTEL GLASS UI FINAL VISUAL CORRECTION」 · 「WHITE TYPOGRAPHY PATCH」).
+   - 파스텔 배경(①~③)·배치·글꼴·크기·굵기·줄 간격·문구는 그대로. 바꾸는 것은 어두운 판의 바탕·흐림·테두리와 글자색뿐.
+   - 전(실측, 제각각이던 어두운 판): 입력창 #101216 · 하단 카드/다음 질문 받기 #171a20 · 처음부터 알약 #1b1f26 · 안내·확인 카드 #14171c ·
+     보기 버튼 #1c2027 · 목적 카드 rgb(23 26 32/.65) — 테두리도 .18~.65 로 제각각, 흐림은 목적 카드만.
+   - 후(2026-09-25 두 번째 지시 「TRANSPARENT BUTTON / SURFACE PATCH」): 판 바탕은 모두 transparent · 흐림 없음 · 테두리 #d9dfe8a6.
+     (한때 두었던 어두운 유리 rgb(23 26 32/.65)·흐림 10px 는 대표 지시로 없앴다.)
+   - 글자: 1순위(질문·제목·내가 남긴 말·카드 제목·입력 글자·주요 행동) = 흰색 /
+     2순위(머리말·안내·보조) = 유리 안 #dbe0e7(원래 카드 글자색) · 파스텔 위 #f2f3f5(원래 선택 카드 글자색 — 흰색보다 한 단계 약하게).
+     파스텔 위에 바로 놓인 글자에만 그림자(--conversation-text-halo)를 준다 — 글자 뒤에 판·덮개를 새로 깔지 않는다(대표 지시).
+   - 실측 한계(정직하게): 이 파스텔은 밝아서(노랑 구간 휘도 약 .8) 흰 글자는 표준 계산(그림자 제외)으로 최대 약 2:1 이다.
+     그림자 4단계를 재 보니 글자 바로 옆 1~2px 대비(중앙값)는 질문 약 1.7 → 2.4 까지만 오른다. 더 진한 윤곽(검은 1px 두 겹)도 2.4 로 같아
+     「절제된」 쪽(부드러운 3겹)을 골랐다. 표준 4.5:1 은 어두운 판·덮개 없이는 닿지 않는다 — 대표 확인 필요. */
+.echo-dialogue.echo-dialogue--pastel{
+  --conversation-surface-bg:transparent;
+  --conversation-surface-border:#d9dfe8a6;
+  --conversation-text:#fff;
+  --conversation-text-secondary:#fff;
+  --conversation-text-secondary-on-pastel:#fff;
+  --conversation-text-strong:#fff;
+  --conversation-text-eyebrow:#fff;
+  --conversation-text-placeholder:rgb(255 255 255/.7);
+  --conversation-text-halo:none;
+}
+/* ⑦ 2026-09-25 글자색 = 1번 이미지(옛 홈 첫 화면 「오늘 내 마음의 날씨는 어때?」, src/pages/home/components/HeroSection.tsx)의 코드 값 그대로
+   (대표 「글씨색을 1번 이미지색으로」): 제목 text-white(#fff) · 「진짜 나를 찾아줘」 text-white/90 · 부문구 text-white/70 · 「ECHO」 text-white/55.
+   그 화면 글자에는 그림자가 없다 → 검은 그림자(halo)도 없앤다(none). 전: 2순위 #dbe0e7 / #f2f3f5 + 검은 그림자 3겹.
+   글꼴·크기·굵기·문구·배치는 그대로(글꼴 변경은 대표 승인 전). 표준 대비는 더 낮아진다 — 보고서에 숫자로 적는다.
+   ⑧ 같은 날 대표 「그냥 이미지 글씨색 똑같이」 → 이미지 속 글씨를 직접 재니 제목·「시작하기」 = #ffffff → 화면 글씨를 모두 #fff 하나로 통일.
+   (입력창 안의 흐린 안내 글씨만 적은 글과 구분되게 white/.7 로 둔다.) */
+/* 판 = 투명(2026-09-25 대표 「TRANSPARENT BUTTON / SURFACE PATCH」: 검정·회색 채움과 유리 모두 없앤다. 파스텔이 그대로 이어져 보이게).
+   바탕 = transparent · 흐림 없음 · 테두리 = 원래 「처음부터 시작하기」 테두리 #d9dfe8a6(버튼인 줄 알 수 있게). 크기·둥글기·자리·글자는 그대로. */
+.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-restart-pill,.echo-opening-tile,.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-reactions button:not(:first-child)){background:var(--conversation-surface-bg);border-color:var(--conversation-surface-border);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.echo-dialogue.echo-dialogue--pastel .echo-synthesis-items li{background:transparent;border-color:var(--conversation-surface-border)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-opening-tile.is-selected,.echo-restart-pill:not(:disabled):hover,.echo-reactions button:not(:first-child):not(:disabled):hover){background:transparent}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{border-color:#fff;box-shadow:inset 0 0 0 1px #fff} /* 바탕 차이가 없어져 선택 표시는 테두리로만: 흰 테두리 + 안쪽 1px(크기·자리 변화 0) */
+.echo-dialogue.echo-dialogue--pastel textarea:focus{border-color:#c2cfdd}
+/* 판 안 글자: 모두 흰색(⑧) */
+.echo-dialogue.echo-dialogue--pastel :is(textarea,.echo-secondary,.echo-opening-tile,.echo-opening-tile-label,.echo-brief-lead,.echo-brief-lead b,.echo-brief b,.echo-done-mark,.echo-done-lead,.echo-done-next b,.echo-synthesis-items p,.echo-synthesis-items button,.echo-insight h2,.echo-editor h2,.echo-reactions button:not(:first-child)){color:var(--conversation-text)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-restart-pill,.echo-restart-pill svg,.echo-opening-tile-desc,.echo-brief li,.echo-brief li span,.echo-brief-fine,.echo-done-next li,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-defer,.echo-context,.echo-done .echo-fine){color:var(--conversation-text-secondary)}
+.echo-dialogue.echo-dialogue--pastel .echo-brief li span{border-color:var(--conversation-surface-border)}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected .echo-opening-tile-desc{color:var(--conversation-text-strong)} /* 선택 카드 설명도 흰색(⑧) */
+.echo-dialogue.echo-dialogue--pastel textarea::placeholder{color:var(--conversation-text-placeholder)}
+/* 파스텔 위 글자: 모두 흰색 · 그림자 없음(⑦⑧). 판 안(:not 목록)은 제외 */
+.echo-dialogue.echo-dialogue--pastel :is(h1,.echo-question,.echo-original>p,.echo-draft li p,.echo-memory p,.echo-error,.echo-error p):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text);-webkit-text-fill-color:var(--conversation-text);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel :is(.echo-lead,.echo-ack,.echo-topic,.echo-history summary,.echo-history button,.echo-notice,.echo-busy,.echo-thinking p,.echo-fine,.echo-text-button,.echo-composer label,.echo-composer-footer>span,.echo-steps-count,.echo-steps-count em,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-draft li span,.echo-memory summary,.echo-memory>div>span,.doit-symbol-loader-label):not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel .echo-eyebrow:not(:is(.echo-brief,.echo-done,.echo-synthesis,.echo-restart,.echo-pause,.echo-insight,.echo-editor,.echo-opening-tile) *){color:var(--conversation-text-eyebrow);-webkit-text-fill-color:var(--conversation-text-eyebrow);text-shadow:var(--conversation-text-halo)}
+.echo-dialogue.echo-dialogue--pastel h1{background-image:none;animation:none}
+/* 진행 표시: 숫자·채움 흰색(바탕 white/.35 와 구분되게). 막대 바탕 white/.35 · 그림자 없음(⑦, 전에는 막대·숫자에 옅은 검은 그림자) */
+.echo-dialogue.echo-dialogue--pastel .echo-steps-bar{background:rgb(255 255 255/.35)}
+.echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text);background-image:none;box-shadow:none}
+/* 보내기 버튼: 회색 그라데이션 채움만 없앤다(아이콘 색·크기·자리 그대로) */
+.echo-dialogue.echo-dialogue--pastel .echo-composer-footer button{background:transparent;border-color:var(--conversation-surface-border)}
+.echo-dialogue.echo-dialogue--pastel .echo-done .echo-text-button{color:var(--conversation-text-secondary)} /* 2026-09-25 MASTER §4 소개 카드 「직접 쓸게요」: 판 안 보조 글자와 같은 흰색 */
