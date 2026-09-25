@@ -144,7 +144,7 @@ export function BrandMobileStart() {
             <img className="doit-brand-qr" src="/brand/app-qr.svg" width="168" height="168" alt="app.do-it.company 로 가는 QR 코드" />
             <div>
               <p className="doit-brand-handoff-title">휴대폰 카메라로 비춰 보세요.</p>
-              <p>바로 DO IT이 열려요. 주소는 <strong>app.do-it.company</strong></p>
+              <p>바로 DO IT이 열려요. 주소는 <strong>https://app.do-it.company</strong></p>
               <a className="doit-brand-handoff-link" href={startUrl}>이 컴퓨터에서 열기</a>
             </div>
           </div>
@@ -174,7 +174,7 @@ export function BrandAbout() {
         </div>
         <div className="doit-brand-about-row">
           <dt>서비스</dt>
-          <dd>DO IT 모바일 앱 · <a href={appUrl('/')}>app.do-it.company</a></dd>
+          <dd>DO IT 모바일 앱 · <a href={appUrl('/')}>https://app.do-it.company</a></dd>
         </div>
         <div className="doit-brand-about-row">
           <dt>문의</dt>

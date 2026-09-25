@@ -42,7 +42,7 @@ test('아직 없는 기능은 「준비 중」으로 표시하고, 쓰면 안 �
   // 대표 최종 승인 2026-09-24 두 번째 구역: 운영에서 아직 아무도 받을 수 없는 「한 사람을 보여드립니다」만 「준비 중」.
   assert.match(s, /line: '때가 되면, 한 사람을 보여드립니다\.', soon: true/);
   for (const t of ['당신의 말을 기억하고.', '당신과 어울리는 결을 알아가고.']) assert.ok(s.includes(`{ line: '${t}' }`), `${t} 는 지금 되는 것`);
-  assert.match(s, /title: '당신이 잠든 사이'[^}]*soon: true/);
+  assert.match(s, /title: '당신이 잠든 사이, ECHO가 찾아요'[^}]*soon: true/); // 대표 FINAL TWO-SITE LOCK(2026-09-25): 이름을 풀어 씀 · 연결 전이라 준비 중 그대로
   assert.match(s, /const SOON_LABEL = '준비 중';/);
   for (const word of ['데이팅', '소개팅', '궁합', '점술', '심리치료', '성격검사', '찾기 시작해요']) assert.ok(!s.includes(word), word);
 });
