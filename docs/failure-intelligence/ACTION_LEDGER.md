@@ -1,0 +1,88 @@
+# 행동 상태 장부 — COMPLETED · DECIDED · BLOCKED · PENDING (2026-09-25)
+
+> `docs/failure-intelligence/data/action-ledger.json` 에서 생성. 다음 행동을 만들기 전에 반드시 대조한다(저장 MASTER 3·24항).
+
+- COMPLETED 를 대표에게 다시 요구하지 않는다. 다시 요구하면 새 실패(F-ADVISOR)로 기록한다.
+- DECIDED 를 다시 묻지 않는다.
+- BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
+- PENDING 중 가장 중요한 다음 행동 하나를 고른다.
+
+## COMPLETED (18)
+
+| ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
+|---|---|---|---|---|---|
+| A-01 | OpenAI 실험 키 ECHO-B-AB-TEST-20260925 발급 | 2026-09-25 | 대표 | 대표 「대표 승인 · ECHO B안 실AI A/B 검증」 | 다시 요구 금지 |
+| A-02 | 실험 키를 Claude 채팅으로 전달 | 2026-09-25 | 대표 | 같은 지시 | 키는 저장·출력하지 않음 |
+| A-10 | GitHub 재연결 | 2026-09-25 | 대표 | CLAUDE.md(GitHub push STOP 기록) · 이후 push 정상 |  |
+| P-01 | 실제 AI A/B(고정 하네스) | 2026-09-25 | 대표 승인 + GitHub Actions | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md · run 36103690087 | 실AI A/B run1 완료(종료 코드 0 · 사전 고정 일치). 다시 요구 금지. 추가 실행은 새 행동으로 기록 |
+| A-11 | GitHub 저장소 Secret OPENAI_API_KEY_AB_TEST 등록 | 2026-09-25 | 대표 | 대표 「대표 승인 · 실AI A/B 실행 시작」 · run 36103690087 로그의 OPENAI_API_KEY: *** | 다시 요구 금지 · 키 값은 저장·출력하지 않음 |
+| P-07 | 실AI run1 P0 블라인드 검수(17칸 · 누르기만) | 2026-09-25 | 대표(휴대폰 페이지에서 17칸 선택) | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md | A 7 · B-1.0 8 · 둘 다 별로 2 → B WIN = NO · P0 FAIL. 다시 요구 금지 |
+| P-09 | MODEL GATE(P0 블라인드에서 A·B 둘 다 부족하면 개시) | 2026-09-25 | 대표 블라인드 결과 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 계정 확인(P-10) · 실행(P-11) · 대표 블라인드(P-12) 완료 |
+| P-10 | MODEL GATE 1단계: 계정 모델 목록 확인(GET /v1/models · 비용 0 · 기존 Actions 경로) | 2026-09-25 | Claude(GitHub Actions run 36107887216) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/account_models_probe.md | 132개 보임 · 같은 파라미터 200 = gpt-4o-mini·4.1·4.1-mini·4.1-nano·4o · gpt-5 계열 5개 400(max_tokens). 비용 0 에 가까움(요청 10번 · 입력 24 토큰씩) |
+| P-11 | MODEL GATE 실행: B-1.0 고정 · 모델만 4개(gpt-4o-mini 기준 · gpt-4.1-mini · gpt-4.1 · gpt-4o) | 2026-09-25 | Claude(GitHub Actions run 36108344306) | docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md | 사전 등록 일치 · 4 모델 × 34 입력 · 호출 143 · 운영 변경 0 |
+| P-12 | MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 17칸: gpt-4.1-mini 5 · gpt-4.1 4 · gpt-4o 3 · gpt-4o-mini 2 · 모두 별로 3(실제 입력 14: 5·2·2·2·3) → 모델 승자 없음 · P0 FAIL. 다시 요구 금지 |
+| P-14 | core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대표가 2026-09-25 두 번 대화(13턴·8턴) → 실패 GF-78~84. 다시 요구 금지 |
+| P-15 | core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교) | 2026-09-25 | Claude(GitHub Actions run 36111514762) | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md | 한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지 |
+| B-10 | 운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL | 2026-09-25 | HARD STOP(Edge 배포·RLS) | supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql | 시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 → 2026-09-25 운영 doit-agent 배포와 함께 관리자 「대화 에이전트」로 연결(서버 역할 확인·서비스 권한 읽기 · RLS 변경 0). |
+| C-20 | ECHO Conversation Agent 운영 서버 doit-agent 배포(버전 2 · 파일 글자 단위 동일) | 2026-09-25 | 대표 「구현 → 운영배포 → 운영검증」 FINAL | docs/claude-final-review-20260916/PATCH-20260925-agent-prod/AGENT_PROD_보고_20260925.md | 앱 화면은 대표 Netlify 업로드 뒤 운영 반영 · 실기기 확인 전 |
+| C-21 | doit-agent v1.3 운영 배포(버전 3) — 앞선 말에서 되살리기 · 같은 질문 재노출 1회 · 항의 문장 저장 0 | 2026-09-25 | 대표 「운영 실기기 캡처 검수 → 즉시 수정 PATCH」(코드·UI·에이전트 수정은 검사 뒤 운영 배포 승인) | 운영 파일 SHA-256 = 로컬(index 331316e4… · agent 898c2936…) · 401 3종 · 실AI run 10 | 대표 실기기 재확인 전 — 완료 아님 |
+| C-22 | doit-agent 버전 4 운영 배포 = echo-agent-v1.4(help·예시 한 줄·질문 구체성 기준) | 2026-09-25 | 대표 「ACTUAL USER FEEDBACK PATCH」 · 사전 등록 run 11 규칙 충족 | 운영 파일 SHA-256 = 로컬(agent db292310… · index 5699f042…) · 401 3종 | 대표·사용자 실기기 확인 전 — 완료 아님 |
+| C-23 | doit-agent v1.7 운영 배포(버전 5) — 사전 규칙 run 14 충족 | 2026-09-25 | Claude(대화 서버 자동 배포 규칙 · 대표 MASTER §23) | docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md | agent.ts c73f590c · index.ts 430260ca · 글자 단위 동일 · 401×3 |
+| C-24 | doit-agent v1.8 운영 배포(버전 6) — 사전 규칙 run 15 ①②③④ 충족 | 2026-09-25 | Claude(대화 서버 자동 배포 규칙 · 대표 MASTER §23) | docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md | agent.ts f528d2b6 · index.ts 430260ca · 운영에서 내려받아 글자 단위 동일 · 401×3 · 다른 함수 10개 버전 불변 |
+
+## DECIDED (18)
+
+| ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
+|---|---|---|---|---|---|
+| A-03 | 현재 실험 키 유지 · 폐기(Revoke)·새 발급 반복 요구 금지 | 2026-09-25 | 대표 | 헌장 L · 저장 MASTER §2 |  |
+| A-04 | Claude 환경 Edit 경로 반복 안내 금지 | 2026-09-25 | 대표 | 저장 MASTER §2 | 2026-09-24 대표 화면에서 눌리지 않음(BLOCKED B-02) |
+| A-05 | A(운영 v27) 동결 · B-1.0 동결 · 결과 보고 수정 금지 | 2026-09-25 | 대표 | CTO 기준본 · PHASE 1 | FROZEN_INPUTS.json 으로 강제 |
+| A-06 | Conversation P0 = FAIL 유지 | 2026-09-25 | 대표 | 저장 MASTER §1 |  |
+| A-07 | 실패마다 정규식 하나 추가 금지 · 문자열 품질 휴리스틱 금지 | 2026-09-25 | 대표 | B안 자율 실행 FINAL |  |
+| A-08 | Twilio(문자 인증) 연동 중단 | 2026-09-24 | 대표 | CLAUDE.md |  |
+| A-09 | 포괄 자율 실행(C항) · HARD STOP 만 승인 요청 · 중간보고 금지 | 2026-09-25 | 대표 | R&D 헌장 |  |
+| A-12 | run1 판정: A FAIL · B-1.0 FAIL · B WIN 확인 불가 · B 를 운영 후보로 확정하지 않음 | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md |  |
+| A-13 | 블라인드 전 A·B·Prompt·Intent 규칙·Guard·휴리스틱 수정 금지 · run1 보존 | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md |  |
+| A-14 | 모델 비교 = B-1.0 고정 · MODEL 만 변경 · BASELINE gpt-4o-mini(요청 이름) | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md | 후보 모델명은 공식 문서·계정 확인 뒤에만 |
+| A-15 | RUN1 결과 확정: A FAIL · B-1.0 FAIL · B WIN 아님 · Conversation P0 FAIL · VERIFIED 0 · 대표 블라인드 A 7 · B 8 · 둘 다 별로 2(실제 입력 14: 5 · 8 · 1) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md | 대표 선택 수정·재해석 금지 |
+| A-16 | 구조 LOCK: A 수정 · B-1.1 즉시 제작 · 새 Guard · 새 intent 규칙 · 새 문자열 차단 금지(RUN1 보존) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md |  |
+| A-17 | 「활동」 피드백 = 공식 사용자 평가 데이터 · 뜻 = 맥락 없는 주제 점프(GF-71) · 낱말 금지·정규식·하드코딩 질문 금지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md |  |
+| A-18 | MODEL GATE 결과: 모델 승자 없음 · 어느 모델도 P0 통과 아님 · 「활동」 점프는 모델 몫 가설 강화 · 항의·반영 요구(M11·M17)와 「돈때문에」(M16)는 네 모델 공통 실패 · 운영 모델 변경 0 | 2026-09-25 | 대표 블라인드(선택 원본 그대로 집계) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 선택 수정·재해석 금지 |
+| P-13 | 구조 Gate 개시 여부: 구조 LOCK(A-16)을 항의·반영 요구 대응(REPAIR) 한 실험에 한해 풀지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 결정 2026-09-25: B-1.1(항의 규칙 하나 추가) 승인 안 함 → Conversation Product Contract RESET(A-19). 다시 묻지 않는다 |
+| A-19 | Conversation Product Contract LOCK: 「사용자가 한 말을 정확히 이해하고, 그 이해로 같은 결의 사람을 추천·매칭」 · 첫 목적 RELATIONSHIP_INTENT · LISTEN→UNDERSTAND→ACKNOWLEDGE→REMEMBER→CURIOUS FOLLOW-UP · 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · 성공 기준 10개 | 2026-09-25 | 대표 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md | B-1.1 금지 · 모델 승자 확정 금지 |
+| A-20 | ECHO CONVERSATION AGENT v1/v1.1 FINAL LOCK(대표 텍스트 + PDF 2개): 목적 5개·핵심 질문 최대 5·꼬리질문 0(되묻기 최대 1)·말투 3종(기본 편한 존댓말)·TEXT/VOICE 같은 에이전트·매칭 프로필 CONFIRMED/INFERRED/UNKNOWN·TEST_NOT_CONNECTED·관리자 관측·자동 실패/성공 후보 | 2026-09-25 | 대표 | docs/failure-intelligence/AGENT_V1_1_20260925.md | A-19 의 「질문 수 강제 금지」를 대체(질문 수 최대 5) |
+| P-17 | 홈페이지(do-it.company) BRAND ZIP 업로드 여부 — 올리면 히어로 문구가 운영(「사람은 프로필보다…/지금 시작하기」)에서 09-24 승인본(「좋아하는 사람보다…/ECHO 시작하기」)으로 바뀜 | 2026-09-25 | 대표 결정 | 운영 main JS 와 BRAND 빌드 문구 대조 | 디자인 LOCK(승인 없는 히어로 변경 0) 때문에 올리지 않는 것이 기본 |
+
+## BLOCKED (11)
+
+| ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
+|---|---|---|---|---|---|
+| B-01 | 채팅으로 받은 Secret 을 Claude 실행 명령에 사용 | 2026-09-25 | 환경 보안 장치 | 세션 기록(자동 판정기 거부) | 우회 금지 |
+| B-02 | Claude 환경 편집(Edit)으로 환경 변수 넣기 | 2026-09-24 | 대표 화면 | CLAUDE.md 「환경 설정 안내 정정」 | 같은 경로 재안내 금지 |
+| B-03 | Netlify 도구 업로드 | 2026-09-22 | 바깥 인터넷 정책(프록시 403) | CLAUDE.md | 대표 수동 업로드 |
+| B-04 | app.do-it.company 내용 대조 | 2026-09-22 | 바깥 인터넷 정책(403) | CLAUDE.md |  |
+| B-05 | Supabase 관리 API 로 배포 | 2026-09-24 | 토큰 401 | CLAUDE.md | 대표 대시보드 붙여넣기로 대체됨 |
+| B-06 | Actions 첨부물(result.json·열쇠) 내려받기 | 2026-09-25 | 바깥 인터넷 정책(blob.core.windows.net 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 로그의 result.md 로 대신함 · 열쇠는 새 검수표로 다시 만듦 |
+| B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
+| B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
+| B-09 | 실시간 음성(말하면 듣고 목소리로 답함) — 마이크 + 음성 API 키 서버 필요 | 2026-09-25 | 플랫폼(claude.ai 페이지는 마이크 거부) + HARD STOP(운영 Edge 배포·키 사용) | docs/failure-intelligence/VOICE_RESEARCH_20260925.md | 대표 승인 시: 임시 키 발급 Edge 함수 1개 + 마이크 되는 앱 화면(Netlify) — 같은 방식으로 다시 요구하지 않는다 |
+| B-11 | Photo Trust 상태 저장(USER_CONFIRMED_RECENT / TECHNICALLY_SUPPORTED / UNKNOWN) — profile_photos 에 저장 칸이 없음 | 2026-09-25 | HARD STOP(DB Migration · 새 민감정보 처리) | profile_photos 칸 = id·user_id·slot·storage_path·is_primary·created_at·updated_at(운영 읽기) | 업로드 때 EXIF 확인·본인 확인은 이미 화면에서 함(저장 0). 관리자에는 사진 장수·대표 사진·마지막 업로드 시각만 |
+| B-12 | 사주 계산 엔진(만세력·절기·음력 변환) | 2026-09-25 | STOP — 엔진 선정·비용·생년월일 저장 정책 = 대표 결정 | 저장소 검색: 계산 코드·라이브러리·서버 0 · PENDING saju-calc 초안만 | 가짜 명식 금지 · 문구 3곳만 사실대로 고침 |
+
+## PENDING (13)
+
+| ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
+|---|---|---|---|---|---|
+| P-02 | LEVEL 3 실기기(iPhone·Galaxy) | — | 대표 | — |  |
+| P-03 | 「모르겠어요」 대화 끝 판정 | — | 대표 결정 | GF-09 |  |
+| P-04 | 전화 인증 없는 연결 자격 조건 | — | 대표 결정 | CLAUDE.md |  |
+| P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
+| P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
+| P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 · 2026-09-25: 운영 v27 호출 16번 제공자 오류 0 → gpt-5 계열 5개는 아님. 확정은 여전히 DIGEST 대조 필요(MODEL GATE 에는 필요 없음) |
+| P-16 | echo-agent-v1.1 휴대폰 시험 — 대표가 말투 고르고 글/말로 대화해 매칭 단계까지 가 보기 + 같은 페이지 「관리자」에서 방금 대화 확인 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db 에 자동 기록 → Claude 가 읽음 |
+| P-18 | Failure Intelligence 후보 7종 — PROFILE_SETUP_FRICTION · PHOTO_UPLOAD_FRICTION · PHOTO_RECENCY_UNVERIFIABLE · MATCH_REASON_UNGROUNDED · BRAND_PROMISE_MISMATCH · EXCESSIVE_ONBOARDING · USER_EFFORT_TOO_HIGH | 2026-09-25 | 대표 POST-CLAUDE FINAL MASTER §14 | 실제 발생 기록 0 → ACTUAL 승격 금지 | 관리자 자동 후보에는 현재 대화 기준 후보만(멈춤·반복·오류 등). 사용자 노력 지표 중 측정되는 것: 5개 완료·넘기기·반복·멈춤(24시간)·지연. 사진 업로드 실패·매칭까지 시간·비용은 확인 불가 |
+| P-19 | 앱 ZIP(대화 디자인 연속성 · 첫 진입/연결 준비 큰 버튼 · 사주 문구 · 대표 지정 앱 아이콘) Netlify doitmobile 업로드 | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md · ZIP SHA-256 b0af26a0…(157개 파일) | 홈페이지 ZIP 없음(보이는 변경 0) |
+| P-20 | echo-agent-v1.5 후보 채택 여부(추상 질문 16/64 → 4/63 · 사전 규칙의 same_question_again 7 ≥ 6 로 미배포) | 2026-09-25 | 대표 결정 | docs/claude-final-review-20260916/PATCH-20260925-user-feedback/REAL_AI_RUN12_result.md | 채택 방법: product/spike/agent-v1-20260925/candidate-v1.5/README.md |
+| P-21 | 두 ZIP 업로드 — 1_APP → doitmobile · 2_BRAND → echo-mvp-doit(히어로 문구가 09-24 승인본으로 바뀜) | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-user-feedback/FINAL_TWO_SITE_보고_20260925.md | APP 214efe1c… · BRAND 4d8c3551… |
+| P-22 | 개인정보 처리방침: 사진 AI 확인이 사진을 OpenAI 로 보내는 것(9/22 배포)에 대해 재동의(LEGAL_VERSION 올림)·사진 확인 일시 중지·법무 검토 중 무엇을 할지 | 2026-09-25 | 대표 결정 | src/lib/legal/documents.ts 5항 · product/supabase/functions/doit-photo-check/index.ts | 초안 문장은 실제대로 고침([대표·법무 확인 필요]) |
+| P-23 | 두 ZIP 업로드(MASTER) — 1_APP → doitmobile · 2_BRAND → echo-mvp-doit | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-master-ux | P-21 을 대체(P-21 ZIP 포함) |

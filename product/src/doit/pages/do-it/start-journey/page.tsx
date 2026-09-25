@@ -4,6 +4,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import SymbolLoader from "@/components/SymbolLoader";
 import { withTimeout } from "@/doit/lib/withTimeout";
 import { A_STRUCTURE_SERVER_ENABLED } from "@/doit/lib/understandingApi";
+import { ECHO_AGENT_ENABLED, agentGet, agentIntroMark, type AgentSession } from "@/doit/lib/agentApi";
 import "@/doit/components/feature/core-conversation.css";
 import { PurposeSelect } from "@/doit/app/plan-a/screens/PurposeSelect";
 import type { PurposeListState } from "@/doit/app/plan-a/screens/PurposeSelect";
@@ -11,9 +12,10 @@ import { SignupConsent } from "@/doit/app/plan-a/screens/SignupConsent";
 import { ProfileBuild } from "@/doit/app/plan-a/screens/ProfileBuild";
 import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
+import "@/doit/components/feature/app-pastel.css";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
 import { photoSetComplete } from "@/doit/lib/photoPolicy";
-import { requestIntroDraft } from "@/doit/lib/introDraft";
+import { requestAgentIntroDraft, requestIntroDraft } from "@/doit/lib/introDraft";
 import { usePurpose } from "@/doit/hooks/usePurpose";
 import { useAuth } from "@/doit/hooks/useAuth";
 import {
@@ -93,6 +95,14 @@ export default function StartJourney() {
   const [savedPurposeId, setSavedPurposeId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("purpose");
+  // 「무엇부터 할까요」의 큰 버튼 하나를 대화 진행으로 정한다(대표 2026-09-25). 못 읽으면 null — 「대화 시작하기」로 두고 대화 화면이 이어서 판단한다.
+  const [agentSession, setAgentSession] = useState<AgentSession | null | undefined>(undefined);
+  useEffect(() => {
+    if (step !== "conversation-choice" || !user?.id || !ECHO_AGENT_ENABLED) return;
+    let current = true;
+    agentGet(user.id).then((s) => { if (current) setAgentSession(s); }).catch(() => { if (current) setAgentSession(null); });
+    return () => { current = false; };
+  }, [step, user?.id]);
   // v13.7(대표 실기기 2026-09-22 "프로필로 넘어가다가 갑자기 화면이 바뀐다"): 대화로 갈 것이 확정되면
   // 목적·프로필 화면을 스치듯 보여 주지 않고 전환 화면 하나만 보여 준 뒤 이동한다.
   const [leaving, setLeaving] = useState(false);
@@ -109,6 +119,7 @@ export default function StartJourney() {
 
   // 언마운트 후 setState 방지용 가드(복원 함수가 비동기이므로).
   const mountedRef = useRef(true);
+  const agentDraftRef = useRef<{ text: string; sessionId: string } | null>(null); // 「AI가 대신 작성하기」로 받은 대화 초안(저장할 때 출처 기록용)
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -388,6 +399,12 @@ export default function StartJourney() {
         setSaveError(SAVE_ERROR_MESSAGE);
         return;
       }
+      // 소개 출처 기록(관리자 관측): AI 초안을 받아 저장했으면 그대로인지 고쳤는지만 남긴다. 실패해도 화면을 막지 않는다.
+      const agentDraft = agentDraftRef.current;
+      if (agentDraft && draft.intro.trim()) {
+        agentDraftRef.current = null;
+        void agentIntroMark(user.id, agentDraft.sessionId, draft.intro.trim() === agentDraft.text.trim() ? "as_is" : "edited").catch(() => undefined);
+      }
     } else {
       // 방어: 동의 단계에서 로그인을 거치므로 정상적으로는 도달하지 않지만,
       // 혹시 모를 미로그인 진입은 사진 단계 전에 로그인으로 보낸다(사진에서 오류를 띄우지 않는다).
@@ -408,8 +425,7 @@ export default function StartJourney() {
   if (loadState.kind === "error") {
     return (
       <div
-        className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: "#090a0c" }}
+        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
       >
         <p
           style={{ fontSize: 22, fontWeight: 600, color: "#f2f1ef" }}
@@ -455,8 +471,7 @@ export default function StartJourney() {
   if (loadState.kind === "loading") {
     return (
       <div
-        className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: "#090a0c" }}
+        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
       >
         <SymbolLoader size={150} label="내 프로필을 가져오고 있어요." />
         {slow && (
@@ -494,7 +509,8 @@ export default function StartJourney() {
   // v13.7 대화로 이동이 확정된 동안에는 중간 화면을 그리지 않는다(화면이 튀어 보이던 원인).
   if (leaving) {
     return (
-      <section className="echo-dialogue" aria-busy="true">
+      // 2026-09-25: 첫 질문(파스텔) 바로 앞의 이 화면만 검정이라 대화 들어가는 순간 색이 튀었다 → 같은 파스텔 바탕.
+      <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true">
         <p className="echo-eyebrow">DO IT / ECHO</p>
         <h1>첫 질문을 꺼내고 있어요.</h1>
         <div className="echo-leaving">
@@ -512,7 +528,7 @@ export default function StartJourney() {
       needsReselection(initialPurposeId, purposeState.purposes);
 
     return (
-      <PurposeSelect
+      <div className="doit-app-pastel"><PurposeSelect
         purposeState={purposeState}
         onRetry={() => void loadPurposes()}
         onNext={handlePurposeNext}
@@ -520,7 +536,7 @@ export default function StartJourney() {
         needsReselection={reselect}
         saving={saving}
         saveError={saveError}
-      />
+      /></div>
     );
   }
 
@@ -551,14 +567,26 @@ export default function StartJourney() {
 
   if (step === "conversation-choice") {
     // v14.2: 이미 시작한 사람도 여기로 온다. 무엇을 할지 스스로 고르게 하고, 홈으로 돌아갈 길을 함께 둔다.
-    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1><p className="echo-lead">연결을 받으려면 다섯 가지 답, 사진·소개, 전화 인증이 필요해요. 어느 것부터 해도 괜찮아요.</p><button className="echo-primary" onClick={() => navigate("/doit/conversation?from=journey")}>다섯 가지 질문 보기</button><button className="echo-secondary" onClick={() => setStep("profile-build")}>사진과 소개 채우기</button><button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
+    // 2026-09-25 대표 Galaxy: 버튼이 나란히 있어 무엇을 먼저 할지 몰랐다 → 큰 버튼은 하나(대화), 사진·소개는 작은 버튼. 대화를 마쳤으면 사진·소개가 큰 버튼.
+    const talkDone = agentSession?.phase === "done";
+    const introPending = talkDone && agentSession?.intro?.status === "ready" && !agentSession.intro.used;
+    const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
+    const goTalk = () => navigate("/doit/conversation?from=journey");
+    const goProfile = () => setStep("profile-build");
+    return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+      <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
+      {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
+      {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 직접 채우기</button></>
+        : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
+        : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
+      <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
 
   if (step === "profile-build") {
     return (
-      <>
+      <div className="doit-app-pastel">
         {A_STRUCTURE_SERVER_ENABLED && (
-          <div style={{ padding: "16px 24px 0", backgroundColor: "#090a0c" }}>
+          <div style={{ padding: "16px 24px 0" }}>
             <button type="button" className="echo-text-button" onClick={() => navigate("/doit/conversation")}>
               ← 질문으로 돌아가기
             </button>
@@ -570,31 +598,34 @@ export default function StartJourney() {
           saving={saving}
           saveError={saveError}
           // 2026-09-23 「AI가 대신 작성하기」: 로그인했고 대화 서버를 쓰는 때만(답이 서버에 있어야 쓸 수 있다).
-          onDraftIntro={A_STRUCTURE_SERVER_ENABLED && user ? () => requestIntroDraft(user.id) : undefined}
+          // 2026-09-25 MASTER §4: 운영 앱 대화(doit-agent)가 켜져 있으면 그 대화의 초안을 쓴다(예전 경로 profile_draft 는 운영에서 502 로 실패했다).
+          onDraftIntro={A_STRUCTURE_SERVER_ENABLED && user ? (ECHO_AGENT_ENABLED
+            ? async () => { const r = await requestAgentIntroDraft(user.id); agentDraftRef.current = r; return r.text; }
+            : () => requestIntroDraft(user.id)) : undefined}
           onGoAnswer={() => navigate("/doit/conversation?from=journey")}
         />
-      </>
+      </div>
     );
   }
 
   if (step === "photo") {
     return (
-      <PhotoCapture
+      <div className="doit-app-pastel"><PhotoCapture
         userId={user?.id ?? null}
         onNext={() => setStep("profile-review")}
         onBack={() => setStep("profile-build")}
-      />
+      /></div>
     );
   }
 
   return (
-    <ProfileReview
+    <div className="doit-app-pastel"><ProfileReview
       userId={user?.id ?? null}
       onEditPhotos={() => setStep("photo")}
       purposeLabel={selectedPurpose?.label}
       profile={profile ?? initialDraft ?? undefined}
       onNext={() => navigate("/doit/connections")}
       onEditProfile={() => setStep("profile-build")}
-    />
+    /></div>
   );
 }

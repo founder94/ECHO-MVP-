@@ -67,7 +67,7 @@ export default function FaceLoginSettings() {
         <h4>비밀번호 대신 얼굴·지문으로 들어와요</h4>
         <p>아이폰은 Face ID, 갤럭시는 지문이나 화면 잠금으로 확인해요. 얼굴·지문 정보는 휴대폰 밖으로 나가지 않고, DO IT 도 받지 않아요.</p>
 
-        {support === "in-app" && <p className="doit-face-state">카카오톡 같은 앱 안에서는 등록할 수 없어요. 사파리나 크롬에서 app.do-it.company 를 열어 주세요.</p>}
+        {support === "in-app" && <p className="doit-face-state">카카오톡 같은 앱 안에서는 등록할 수 없어요. 사파리나 크롬에서 https://app.do-it.company 를 열어 주세요.</p>}
         {support === "unsupported" && <p className="doit-face-state">이 브라우저는 얼굴·지문 로그인을 지원하지 않아요. 휴대폰의 사파리나 크롬에서 열어 주세요.</p>}
 
         {support === "ok" && serverOff && <p className="doit-face-state">얼굴 로그인은 아직 켜지지 않았어요. 켜지면 여기서 바로 등록할 수 있어요.</p>}

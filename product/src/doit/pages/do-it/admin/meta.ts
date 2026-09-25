@@ -13,10 +13,11 @@ export interface MenuMeta {
   note: string;
 }
 
-// DO IT Plan A 관리자 메뉴 16개.
+// DO IT Plan A 관리자 메뉴 17개(2026-09-25 대화 에이전트 추가).
 export const ADMIN_MENUS: MenuMeta[] = [
   { key: "dashboard", label: "운영 대시보드", icon: "ri-dashboard-line", kind: "partial", table: "여러 테이블", note: "profiles·purposes·spaces·reports·blocks·audit_logs 실조회" },
   { key: "connections", label: "연결 승인", icon: "ri-links-line", kind: "real", table: "doit_matches (서버 doit-connect)", note: "후보 계산·승인·넘기기는 서버 함수만. 관리자 역할을 서버가 다시 확인" },
+  { key: "agent", label: "대화 에이전트", icon: "ri-chat-smile-2-line", kind: "real", table: "doit_request_events agent_session/agent_turn (서버 doit-agent)", note: "관리자 역할을 서버가 다시 확인 · 실제 저장된 세션·턴만 · 원문 기본 가림" },
   { key: "conversation-logs", label: "AI 대화 기록", icon: "ri-chat-history-line", kind: "partial", table: "doit_records + doit_insights + doit_request_events", note: "본인 줄만 조회(관리자 RLS 미적용) / request_events 는 서버 전용" },
   { key: "users", label: "사용자·프로필", icon: "ri-user-line", kind: "real", table: "profiles", note: "profiles_admin_select" },
   { key: "profile-verify", label: "본인·프로필 확인 상태", icon: "ri-shield-check-line", kind: "real", table: "profiles", note: "verification_status 집계" },

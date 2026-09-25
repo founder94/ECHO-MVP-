@@ -14,6 +14,12 @@ const OWN_BACK_SELECTOR = '[aria-label="뒤로"], [aria-label="뒤로 가기"]:n
 const RECHECK_DELAYS_MS = [0, 150, 500, 1200, 2500];
 const FALLBACK_PATH = IS_BRAND_SITE ? '/' : '/doit/start-journey';
 
+// 파스텔 대화 화면 위에서는 어두운 알약이 검은 띠처럼 보였다(대표 2026-09-25 Galaxy 「뒤로 버튼 뒤 검정 배경」) → 그 화면에서만 투명 알약.
+const PASTEL_SELECTOR = '.echo-dialogue--pastel, .doit-app-pastel'; // 2026-09-25 MASTER §12: 사용자 앱 화면 전면 파스텔
+function pageIsPastel(): boolean {
+  try { return !!document.querySelector(PASTEL_SELECTOR); } catch { return false; }
+}
+
 function pageHasOwnBack(): boolean {
   try { return !!document.querySelector(OWN_BACK_SELECTOR); } catch { return false; }
 }
@@ -22,11 +28,12 @@ export default function AppBackButton() {
   const location = useLocation();
   const navigate = useNavigate();
   const [ownBack, setOwnBack] = useState(false);
+  const [onPastel, setOnPastel] = useState(false);
   const hiddenByPath = HIDDEN_PATHS.has(location.pathname.replace(/\/$/, '') || '/');
 
   useEffect(() => {
     if (hiddenByPath) return;
-    const timers = RECHECK_DELAYS_MS.map((ms) => window.setTimeout(() => setOwnBack(pageHasOwnBack()), ms));
+    const timers = RECHECK_DELAYS_MS.map((ms) => window.setTimeout(() => { setOwnBack(pageHasOwnBack()); setOnPastel(pageIsPastel()); }, ms));
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [location.pathname, hiddenByPath]);
 
@@ -37,5 +44,5 @@ export default function AppBackButton() {
     if (typeof state?.idx === 'number' && state.idx > 0) navigate(-1);
     else navigate(FALLBACK_PATH, { replace: true });
   };
-  return <button type="button" className="doit-back-pill" onClick={goBack} aria-label="뒤로 가기"><span aria-hidden="true">‹</span>뒤로</button>;
+  return <button type="button" className={onPastel ? 'doit-back-pill doit-back-pill--on-pastel' : 'doit-back-pill'} onClick={goBack} aria-label="뒤로 가기"><span aria-hidden="true">‹</span>뒤로</button>;
 }

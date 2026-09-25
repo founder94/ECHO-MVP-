@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingSection from '@/pages/do-it/landing/components/LandingSection';
 import OriginalMusicCard from '@/pages/do-it/hero/components/OriginalMusicCard';
 import DoItBrandHero from '@/components/DoItBrandHero';
 import useEditorialMotion from './components/useEditorialMotion';
 import { IS_APP_SITE, IS_BRAND_SITE, appUrl } from '@/lib/siteRole';
+import AgentChoiceLayer from '@/doit/components/feature/AgentChoiceLayer';
+import { saveAgentChoice, unlockSpeech } from '@/doit/lib/agentChoice';
+import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import { BrandAbout, BrandDifference, BrandGreeting, BrandJustTry, BrandMobileStart, BrandTrust, DESKTOP_QUERY, MOBILE_START_LABEL } from '@/pages/do-it/landing/components/BrandSections';
 
 const matches = (query: string) => {
@@ -47,7 +50,15 @@ export default function DoItLandingPage() {
   // 2026-09-20 대표 확정: 랜딩에서 "시작하기"를 누르면
   // 바로 목적 선택(/doit/start-journey)으로 간다. 우주인 4장 소개(/do-it/1~4)는
   // 랜딩과 같은 문장을 다시 보여줘서 흐름을 끊었다. 화면은 지우지 않고 링크만 뗀다.
+  // 2026-09-25 대표 「DESIGN / HERO / SYMBOL FINAL LOCK」: 앱에서 「ECHO 시작하기」를 누르면 히어로는 그대로 두고 그 위에 무채색 선택창 하나만 띄운다.
+  //   고르면 창을 닫고 원래 가던 길(/doit/start-journey)로 간다. 고른 것은 대화 화면까지 가져가 다시 묻지 않는다. 히어로 마크업·CSS 변경 0.
+  const [choosing, setChoosing] = useState(false);
+  const withChoice = IS_APP_SITE && ECHO_AGENT_ENABLED;
   const handleStart = () => {
+    if (withChoice) { setChoosing(true); return; }
+    goStart();
+  };
+  const goStart = () => {
     if (IS_BRAND_SITE && isDesktop()) {
       // 2026-09-23 대표 "모바일로 시작하기로": 컴퓨터에서는 앱으로 바로 넘기지 않고 QR 구간으로 내려간다.
       // 이동이 아니라 스크롤이라 잠그지 않는다(여러 번 눌러도 같은 자리). QR 옆 「이 컴퓨터에서 열기」가 빠져나갈 문.
@@ -63,6 +74,7 @@ export default function DoItLandingPage() {
 
   return (
     <main ref={rootRef} className="doit-editorial bg-black">
+      {choosing && <AgentChoiceLayer onClose={() => setChoosing(false)} onConfirm={(choice) => { if (choice.mode === 'VOICE') unlockSpeech(); saveAgentChoice(choice); setChoosing(false); goStart(); }} />}
       <DoItBrandHero onStart={handleStart} motionPaused={motionPaused} onToggleMotion={() => setMotionPaused((paused) => !paused)} />
       {/* 2026-09-23: 회사 홈페이지에서만 — 무엇이 다른지(히어로 바로 아래). 앱에는 나오지 않는다. */}
       {!IS_APP_SITE && <BrandDifference />}

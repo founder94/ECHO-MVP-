@@ -9,3 +9,7 @@
 .doit-asleep .echo-thinking-orbit{position:relative;display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:50%}.doit-asleep .echo-thinking-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:doit-asleep-orbit 1.6s linear infinite}.doit-asleep .echo-thinking-orbit .doit-official-symbol{width:30px;height:30px}
 @keyframes doit-asleep-orbit{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.doit-asleep *{animation:none!important}}
+/* 2026-09-25 대표 「연결 준비 = 다음 할 일을 크게 · 사진·소개·전화는 작은 진행」 — 이 화면 클래스 아래로만. */
+.doit-asleep-next .doit-asleep-next-title{margin:0 0 18px;font-size:22px;line-height:1.4;font-weight:600;color:#f2f3f5;word-break:keep-all}
+.doit-asleep-next .doit-product-action{margin:0}
+.doit-asleep-check--small li{padding:7px 0;font-size:12.5px}.doit-asleep-check--small li>strong{font-size:12.5px}

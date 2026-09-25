@@ -4,6 +4,8 @@ import { useAuth } from '@/doit/hooks/useAuth';
 import CoreConversation from '@/doit/components/feature/CoreConversation';
 import SymbolLoader from '@/components/SymbolLoader';
 import ConversationOpening from '@/doit/components/feature/ConversationOpening';
+import AgentConversation from '@/doit/components/feature/AgentConversation';
+import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { loadProfile, saveProfileText } from '@/doit/lib/profileSave';
 import { roundStartOf, startNewRound } from '@/doit/lib/conversationRound';
@@ -71,6 +73,12 @@ export default function ConversationPage() {
     if (alive.current) { setRestartPrompt(false); setOpeningLine(''); setPurposeState({ kind: 'ready', purpose: null }); }
     return null;
   };
+
+  // ECHO Conversation Agent(2026-09-25 대표 FINAL): 고른 만남과 한 줄이 첫 질문의 답이다. 그 뒤는 서버(doit-agent)가 다섯 목적 안에서 묻는다.
+  if (ECHO_AGENT_ENABLED) {
+    const firstAnswer = purposeLabel ? (openingLine.trim() ? `${purposeLabel}. ${openingLine.trim()}` : purposeLabel) : null;
+    return <AgentConversation key={`${user.id}:${roundStartOf(user) ?? ''}`} userId={user.id} firstAnswer={firstAnswer} purposeLabel={purposeLabel} onRestart={restart} onContinue={onContinue} restartPrompt={restartPrompt} />;
+  }
 
   return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} autoQuestion purposeLabel={purposeLabel} initialMessage={openingLine || undefined} onUseDraft={useDraft} roundStartedAt={roundStartOf(user)} onRestart={restart} restartPrompt={restartPrompt} />;
 }

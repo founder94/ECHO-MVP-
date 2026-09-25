@@ -7,6 +7,7 @@ import Dashboard from "../views/Dashboard";
 import Users from "../views/Users";
 import ConversationLogs from "../views/ConversationLogs";
 import ConnectionApprovals from "../views/ConnectionApprovals";
+import AgentConversations from "../views/AgentConversations";
 import ProfileVerify from "../views/ProfileVerify";
 import Purposes from "../views/Purposes";
 import Spaces from "../views/Spaces";
@@ -37,6 +38,8 @@ export default function AdminShell() {
         return <Dashboard data={data} analytics={analyticsData} />;
       case "connections":
         return <ConnectionApprovals />;
+      case "agent":
+        return <AgentConversations />;
       case "conversation-logs":
         return <ConversationLogs period={period} />;
       case "users":

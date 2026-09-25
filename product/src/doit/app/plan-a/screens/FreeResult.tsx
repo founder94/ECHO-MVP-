@@ -488,8 +488,8 @@ export function FreeResult({
                         fontSize: 11,
                       }}
                     >
-                      적어주신 내용은 다음 AI 대화에서
-                      참고돼요
+                      적은 내용은 이 화면에만 있고
+                      저장되지 않아요
                     </span>
                   </div>
                 </motion.div>

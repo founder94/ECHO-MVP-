@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "motion/react";
 import { Camera, ImagePlus, Loader2, Star, X } from "lucide-react";
 import { PhotoDrafts } from "@/pages/do-it/photo/photoDrafts";
-import { colors, serif } from "@/doit/app/plan-a/theme";
+import { colors, serif, surfaces } from "@/doit/app/plan-a/theme";
 import { PrimaryButton } from "@/doit/app/plan-a/components/PrimaryButton";
 import { CameraSheet } from "@/doit/app/plan-a/components/CameraSheet";
 import {
@@ -320,7 +320,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
     return (
       <div
         className="flex flex-col min-h-screen"
-        style={{ backgroundColor: colors.bg }}
+        style={{ backgroundColor: surfaces.page }}
       >
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
           <Camera size={32} color={colors.textFaint} />
@@ -336,7 +336,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           </p>
           <p
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               fontSize: 14,
               lineHeight: 1.6,
               marginTop: 8,
@@ -370,10 +370,10 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
     return (
       <div
         className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: colors.bg }}
+        style={{ backgroundColor: surfaces.page }}
       >
         <Loader2 size={20} color={colors.textMuted} className="animate-spin" />
-        <p style={{ fontSize: 14, color: colors.textMuted, marginTop: 10 }}>
+        <p style={{ fontSize: 14, color: surfaces.onPage, marginTop: 10 }}>
           사진을 불러오는 중…
         </p>
       </div>
@@ -384,7 +384,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
     return (
       <div
         className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: colors.bg }}
+        style={{ backgroundColor: surfaces.page }}
       >
         <p style={{ fontSize: 20, fontWeight: 600, color: colors.text }}>
           사진을 불러오지 못했어요
@@ -393,7 +393,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           style={{
             fontSize: 14,
             lineHeight: 1.6,
-            color: colors.textMuted,
+            color: surfaces.onPage,
             marginTop: 8,
             maxWidth: 320,
           }}
@@ -421,7 +421,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   return (
     <div
       className="flex flex-col min-h-screen"
-      style={{ backgroundColor: colors.bg }}
+      style={{ backgroundColor: surfaces.page }}
     >
       <div className="flex-1 overflow-y-auto px-6 pt-12 pb-4">
         <motion.div
@@ -432,7 +432,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         >
           <p
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11,
               letterSpacing: "0.2em",
               marginBottom: 10,
@@ -455,11 +455,11 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
             세 장에 담아요
           </h1>
 
-          <p style={{ color: colors.textMuted, fontSize: 14, lineHeight: 1.65 }}>
-            연결을 받으려면 전신·패션·취미 세 장이 필요해요. 지금 다 못 채워도 괜찮아요.
+          <p style={{ color: surfaces.onPage, fontSize: 14, lineHeight: 1.65 }}>
+            연결을 받으려면 전신·패션·취미 세 장이 필요해요. 처음 만나는 사람이 내 모습·옷차림·좋아하는 것을 함께 볼 수 있게요. 한 사진을 억지로 여러 칸에 맞추지 않아도 되고, 지금 다 못 채워도 괜찮아요.
             최근 2개월 안에 찍은, 지금의 나를 담아주세요.
           </p>
-          <p style={{ color: colors.textFaint, fontSize: 12, lineHeight: 1.7, marginTop: 12 }}>
+          <p style={{ color: surfaces.onPageFaint, fontSize: 12, lineHeight: 1.7, marginTop: 12 }}>
             JPG · PNG · WebP, 한 장당 최대 20MB를 선택할 수 있어요.
             저장할 때는 5MB 이하 JPG로 준비해요. 사진 등록과 본인 인증은 별개예요.
           </p>
@@ -503,7 +503,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         <div
           className="mt-4 rounded-2xl p-4 flex items-start gap-2.5"
           style={{
-            backgroundColor: colors.surface,
+            backgroundColor: surfaces.card,
             border: `1px solid ${colors.border}`,
           }}
         >
