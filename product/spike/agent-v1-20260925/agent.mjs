@@ -2,16 +2,16 @@
 // - 한 파일을 휴대폰 시험 페이지(Claude)와 실제 AI 재생(OpenAI)이 글자 그대로 같이 쓴다. 모델은 어댑터(llm 함수)만 바뀐다.
 // - TEXT·VOICE 는 같은 상태·같은 기억·같은 다섯 질문·같은 매칭 프로필을 쓴다(입출력만 다르다).
 // - 핵심 질문 최대 5개: 목적 5개(순서 = 대표 기준)마다 핵심 질문 한 번씩만. 답 하나가 여러 목적을 채우면 그 목적은 묻지 않는다.
-//   뜻을 알 수 없을 때만 되묻기(목적마다 1번 · 대화 전체 2번). 5개가 끝나면 질문을 멈추고 정리 → 매칭 프로필 → 매칭 단계로 넘긴다.
+//   뜻을 알 수 없는 답일 때만 되묻기(대화 전체 1번 — v1.1 명세). 5개가 끝나면 질문을 멈추고 정리 → 매칭 프로필 → 매칭 단계로 넘긴다.
 // - 서버(이 파일의 상태 함수)가 결정: 목적 상태 · 질문 수 · 되묻기 수 · 저장/비저장 · 정정·거절 · 대화 끝.
 //   질문 문장은 심사하지 않는다(글자쌍·n-gram 0). AI 출력에서 보는 것 = JSON 형식 · 제품 금지어 · 기억 원문 인용 · 목적 id 가 아직 안 물은 것인지.
 // - 말투는 사용자가 고른 것을 매 턴 AI 에 준다(기본 = 편한 존댓말). 사용자가 반말을 써도 따라가지 않는다.
 
-export const AGENT_VERSION = 'echo-agent-v1';
+export const AGENT_VERSION = 'echo-agent-v1.1';
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_PER_PURPOSE = 1;
-export const MAX_CLARIFY_TOTAL = 2;
+export const MAX_CLARIFY_TOTAL = 1; // v1.1 명세: 정말 이해 불가일 때만 되묻기 최대 1회
 const MAX_CALLS_PER_TURN = 2; // 형식이 깨졌을 때만 1번 더
 
 export const PURPOSES = Object.freeze([
@@ -53,7 +53,7 @@ const toneBlock = (tone) => { const t = TONES[tone] ?? TONES[DEFAULT_TONE]; retu
 export function openingPrompt(tone) {
   return `너는 ECHO 의 대화 상대다. 사용자는 ECHO 가 무엇인지 이미 들었으니 서비스 설명·긴 인사를 하지 않는다.
 ${toneBlock(tone)}
-첫 질문의 목적: 사용자가 어떤 만남을 원하는지 편하게 말하게 하는 것. 짧은 한두 문장. 보기·예시 목록을 붙이지 않는다.
+첫 질문의 목적: 사용자가 어떤 만남을 원하는지 편하게 말하게 하는 것. question 에 물음표 하나로 끝나는 질문 한 문장. reply 는 비워도 되고, 쓰면 물음표 없는 짧은 한 문장. 보기·예시 목록을 붙이지 않는다.
 JSON 하나로만 답한다: {"reply":"","question":""}`;
 }
 
@@ -62,13 +62,14 @@ export function turnPrompt(tone) {
 ${toneBlock(tone)}
 
 순서: 방금 말(latest)을 current_question 과 recent 에 비추어 정확히 이해한다 → 먼저 짧게 받아준다 → 매칭 정보를 뽑는다 → 다음 질문 하나.
+질문은 next.question 에만 쓴다. reply 에는 물음표가 들어가지 않는다(받아주기·대답만). 한 턴에 질문은 하나다.
 
 kind 하나:
 - answer: 자기 이야기·원하는 사람·만남에 대한 말(짧아도, 오타여도, 되묻는 꼴이어도 자기 이야기면 answer).
 - ask: 사용자가 너나 서비스에 질문했다 → reply 에서 먼저 제대로 답한다(서비스는 service_facts 안에서만, 모르면 모른다고).
 - correction: 네가 잘못 이해한 것을 고치며 올바른 뜻을 말한다 → 인정하고 고친 뜻을 따른다.
 - repair: 틀렸다·이미 말했다·왜 또 묻냐 같은 항의(새 내용 없음) → 짧게 인정하고 heard 의 사용자 말을 짚는다.
-- skip: 이 질문은 넘어가자·다음 질문 → 받아들이고 다음으로 간다.
+- skip: 넘어가자·다음 질문·다른 거·그 질문 말고·어렵다 → 이 주제를 끝내고 다음 목적으로 간다. 같은 뜻을 다시 묻지 않는다.
 - unsure: 모르겠다·딱히 없다.
 - stop: 지쳤다·그만하자·질문이 너무 많다.
 
@@ -80,7 +81,7 @@ wrong: correction·repair 로 이제 틀린 것이 된 heard 의 note(그대로)
 next: 다음 질문.
 - 서버가 준 open_purposes(아직 안 물은 목적) 중 하나를 골라, 방금 사용자 말에서 자연스럽게 이어지는 질문 한 문장(물음표 하나)으로 묻는다. 순서는 open_purposes 앞쪽이 기본이지만 방금 말과 더 자연스럽게 이어지는 목적이 있으면 그것을 고른다.
 - 이미 들은 것(heard)을 다시 묻지 않는다. disputed 와 같은 방향으로 묻지 않는다. 꼬리질문으로 같은 주제를 파고들지 않는다.
-- 방금 답이 current_question 의 뜻을 전혀 알 수 없을 때만, clarify_allowed 가 true 이면 type "clarify"(같은 목적으로 한 번 되묻기).
+- kind 가 answer 인데 그 뜻을 전혀 알 수 없을 때만, clarify_allowed 가 true 이면 type "clarify"(같은 목적으로 한 번 되묻기). 모르겠다·넘기자·어렵다·항의 뒤에는 되묻지 않고 다음 목적으로 간다.
 - open_purposes 가 비었거나 kind 가 stop 이면 {"type":"none"}.
 - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
 
@@ -193,7 +194,7 @@ export function applyTurn(st, latest, out) {
   const open = openPurposes(st);
   if (st.phase === 'talk' && out.kind !== 'stop') {
     const n = out.next;
-    if (n.type === 'clarify' && clarifyAllowed(st) && n.question) { ask(st, 'clarify', st.current.purpose, n.question); question = n.question; decision = 'clarify'; }
+    if (n.type === 'clarify' && out.kind === 'answer' && clarifyAllowed(st) && n.question) { ask(st, 'clarify', st.current.purpose, n.question); question = n.question; decision = 'clarify'; }
     else if (open.length && coreAsked(st).length < MAX_CORE_QUESTIONS && n.question) {
       // 고른 목적이 아직 안 물은 목적이 아니면(이미 들음·이미 물음·되묻기 한도 초과) 앞쪽 목적의 질문으로 센다 — 되돌려 보내지 않는다.
       const purpose = open.includes(n.purpose) ? n.purpose : open[0];
@@ -243,11 +244,32 @@ function finishWith(st, raw) {
 
 // ── 대화 시작(첫 핵심 질문 = 원하는 만남).
 export async function runOpening(st, llm) {
-  const o = parseJson(await llm('opening', openingPrompt(st.tone), { purpose: PURPOSES[0].goal }));
-  const reply = str(o?.reply), question = str(o?.question);
-  if (!question || BANNED_WORDS.test(reply + question) || leaksId(question)) return null;
+  let reply = '', question = '';
+  for (let i = 0; i < MAX_CALLS_PER_TURN; i++) {
+    const input = { purpose: PURPOSES[0].goal };
+    if (i) input.previous_attempt = { why: '질문은 question 한 곳에 물음표 하나로, reply 에는 물음표 없이.' };
+    const o = parseJson(await llm('opening', openingPrompt(st.tone), input));
+    reply = str(o?.reply); question = str(o?.question);
+    if (question && /[?？]/.test(question) && !/[?？]/.test(reply)) break;
+  }
+  if (!question || BANNED_WORDS.test(reply + question) || leaksId(question) || leaksId(reply)) return null;
   ask(st, 'core', PURPOSES[0].id, question);
   return { reply, question };
+}
+
+// 한 번만 다시 청하는 이유 — 모두 상태·JSON 칸 약속 확인이다(질문 문장의 좋고 나쁨을 심사하지 않는다).
+const RETRY_FEEDBACK = {
+  no_question: '아직 물을 목적(open_purposes)이 남아 있고 사용자가 그만하자고 하지 않았다. 받아준 뒤 다음 질문 하나가 필요하다.',
+  purpose_used: 'next.purpose 가 open_purposes 에 없다(이미 물었거나 이미 들은 목적). open_purposes 중 하나로 묻는다.',
+  reply_question: 'reply 에 물음표가 있었다. 질문은 next.question 하나에만 쓰고 reply 는 받아주기·대답만 쓴다.',
+};
+function retryReason(st, out, left, after) {
+  if (/[?？]/.test(out.reply)) return 'reply_question';
+  if (after || out.kind === 'stop') return '';
+  const wantsCore = out.next.question && !(out.next.type === 'clarify' && out.kind === 'answer' && clarifyAllowed(st));
+  if (wantsCore && left.length && !left.includes(out.next.purpose)) return 'purpose_used';
+  if (!out.next.question && left.length && coreAsked(st).length < MAX_CORE_QUESTIONS) return 'no_question';
+  return '';
 }
 
 // ── 한 턴. llm(kind, prompt, input) → 문자열 또는 객체. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
@@ -270,9 +292,10 @@ export async function runTurn(st, latest, llm) {
     out = parsed;
     // 상태 확인(문장 심사 아님): 물을 목적이 남았는데 stop 도 아닌데 질문이 없으면 한 번만 다시 청한다. 두 번째도 없으면 그대로 마친다.
     const left = openPurposes(st).filter((id) => !parsed.extracted.some((e) => e.purpose === id));
-    if (!after && parsed.kind !== 'stop' && !parsed.next.question && left.length && coreAsked(st).length < MAX_CORE_QUESTIONS && i + 1 < MAX_CALLS_PER_TURN) {
-      obs.retry.push('no_question'); previous = { why: '아직 물을 목적(open_purposes)이 남아 있고 사용자가 그만하자고 하지 않았다. 받아준 뒤 다음 질문 하나가 필요하다.' }; continue;
-    }
+    const last = i + 1 >= MAX_CALLS_PER_TURN;
+    const why = retryReason(st, parsed, left, after);
+    if (why && !last) { obs.retry.push(why); previous = { why: RETRY_FEEDBACK[why] }; continue; }
+    if (why) obs.retry.push(`${why}:kept`); // 두 번째도 같으면 그대로 두고 기록만 한다(대화를 멈추지 않는다)
     break;
   }
   if (!out) { st.audit.push({ kind: null, result: 'failed:format' }); return { obs, response: { error: 'READ_FAILED' } }; }

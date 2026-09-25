@@ -39,7 +39,7 @@ jobs:
         working-directory: product
         env:
           NODE_PATH: /tmp/tools/node_modules
-        run: node --test spike/ab-20260925/regression.test.mjs spike/ab-20260925/agentB.test.mjs spike/core-20260925/core.test.mjs spike/agent-v1-20260925/agent.test.mjs
+        run: node --test spike/ab-20260925/regression.test.mjs spike/ab-20260925/agentB.test.mjs spike/core-20260925/core.test.mjs spike/agent-v1-20260925/agent.test.mjs spike/agent-v1-20260925/admin.test.mjs
       - name: 실행 종류(run-request.json 의 mode · 없으면 ab)
         id: mode
         run: echo "mode=$(node -e "console.log(require('./product/spike/ab-20260925/run-request.json').mode||'ab')")" >> "$GITHUB_OUTPUT"

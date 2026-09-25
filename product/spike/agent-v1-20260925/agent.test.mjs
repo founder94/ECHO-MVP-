@@ -7,20 +7,22 @@ const fake = (...outs) => { const calls = []; const llm = async (kind, prompt, i
 const T = (o) => ({ kind: 'answer', understood: '', reply: '그렇군요.', extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'none', purpose: '', question: '' }, ...o });
 const Q = (purpose, question, type = 'core') => ({ next: { type, purpose, question } });
 const CLOSE = { summary: [], closing: '이제 조금 알 것 같아요.' };
-async function opened(tone) { const st = A.newState({ tone }); await A.runOpening(st, fake({ reply: '', question: '어떤 만남을 원하는지 편하게 말해 주세요.' }).llm); return st; }
+async function opened(tone) { const st = A.newState({ tone }); await A.runOpening(st, fake({ reply: '', question: '어떤 만남을 원하는지 편하게 말해 줄래요?' }).llm); return st; }
 
 test('첫 질문: AI 가 만든 문장 = 핵심 질문 1(원하는 만남) · 목적 id 가 새어 나온 문장은 받지 않음', async () => {
   const st = await opened();
   assert.deepEqual(st.asked.map((q) => [q.type, q.purpose]), [['core', 'relationship_intent']]);
-  assert.equal(await A.runOpening(A.newState(), fake({ reply: '', question: 'RELATIONSHIP_INTENT' }).llm), null, '대표 시험에서 실제로 나온 새어 나온 이름');
+  assert.equal(await A.runOpening(A.newState(), fake({ reply: '', question: 'RELATIONSHIP_INTENT' }, { reply: '', question: 'RELATIONSHIP_INTENT' }).llm), null, '대표 시험에서 실제로 나온 새어 나온 이름');
+  const st2 = A.newState(); const f = fake({ reply: '어떤 만남을 원해요?', question: '편하게 말해 주세요.' }, { reply: '반가워요.', question: '어떤 만남을 원하는지 말해 줄래요?' });
+  assert.deepEqual(await A.runOpening(st2, f.llm), { reply: '반가워요.', question: '어떤 만남을 원하는지 말해 줄래요?' }); assert.equal(f.calls.length, 2, '반응에 물음표·질문 칸에 물음표 없음 → 한 번 다시');
   assert.equal(await A.runOpening(A.newState(), fake({ reply: '', question: 'relationship_intent 를 말해 주세요?' }).llm), null);
 });
 
-test('핵심 질문은 5개를 넘지 않는다: AI 가 같은 목적만 계속 골라도 서버가 안 물은 목적으로 세고, 5개 뒤에는 질문 없이 마친다', async () => {
+test('핵심 질문은 5개를 넘지 않는다: AI 가 이미 물은 목적을 고르면 한 번 다시 청하고, 또 같으면 안 물은 목적으로 센다 · 5개 뒤에는 질문 없이 마친다', async () => {
   const st = await opened();
   const outs = [];
-  for (let i = 0; i < 5; i++) outs.push(T({ extracted: [], ...Q('relationship_intent', `질문 ${i + 2}?`) }));
-  const { llm, calls } = fake(outs[0], outs[1], outs[2], outs[3], outs[4], CLOSE);
+  for (let i = 0; i < 4; i++) outs.push(T({ extracted: [], ...Q('relationship_intent', `질문 ${i + 2}?`) }), T({ extracted: [], ...Q('relationship_intent', `질문 ${i + 2}?`) }));
+  const { llm, calls } = fake(...outs, T({ kind: 'answer' }), CLOSE);
   const rs = [];
   for (const t of ['음', '글쎄', '편한 사람', '천천히', '거짓말 싫어']) rs.push((await A.runTurn(st, t, llm)).response);
   assert.equal(st.asked.filter((q) => q.type === 'core').length, 5);
@@ -28,6 +30,7 @@ test('핵심 질문은 5개를 넘지 않는다: AI 가 같은 목적만 계속 
   assert.equal(rs.at(-1).finish, true); assert.equal(rs.at(-1).question, null);
   assert.equal(rs.at(-1).handoff.status, 'TEST_NOT_CONNECTED'); assert.deepEqual(rs.at(-1).handoff.candidates, []);
   assert.equal(calls.filter((c) => c.kind === 'closing').length, 1);
+  assert.ok(st.audit.every((a) => a.core_asked <= 5));
 });
 
 test('한 답이 여러 목적을 채우면 그 목적은 묻지 않는다 → 5개보다 적게 끝날 수 있다', async () => {
@@ -42,15 +45,19 @@ test('한 답이 여러 목적을 채우면 그 목적은 묻지 않는다 → 5
   assert.equal(st.asked.filter((q) => q.type === 'core').length, 2);
 });
 
-test('되묻기: 목적마다 1번 · 대화 전체 2번 · 한도를 넘긴 되묻기는 안 물은 목적의 핵심 질문으로 센다', async () => {
+test('되묻기: 뜻을 알 수 없는 답(answer) 뒤에만 · 대화 전체 1번 · 모르겠다 뒤에는 되묻지 않고 다음 목적', async () => {
   const st = await opened();
   const { llm } = fake(
-    T({ kind: 'unsure', ...Q('relationship_intent', '어떤 뜻인지 한 번만 더 말해 줄래요?', 'clarify') }),
-    T({ kind: 'unsure', ...Q('relationship_intent', '다시 한 번?', 'clarify') }));
+    T({ kind: 'answer', ...Q('relationship_intent', '어떤 뜻인지 한 번만 더 말해 줄래요?', 'clarify') }),
+    T({ kind: 'answer', ...Q('relationship_intent', '다시 한 번?', 'clarify') }), T({ kind: 'answer', ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   assert.equal((await A.runTurn(st, 'ㅁㄴㅇ', llm)).response.question_type, 'clarify');
   const r = (await A.runTurn(st, 'ㅋㅋ', llm)).response;
   assert.equal(r.question_type, 'core'); assert.equal(r.question_purpose, 'attraction_comfort');
   assert.equal(st.clarify.total, 1);
+  const st2 = await opened();
+  const f = fake(T({ kind: 'unsure', ...Q('relationship_intent', '조금만 더 말해 줄래요?', 'clarify') }), T({ kind: 'unsure', ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const r2 = (await A.runTurn(st2, '모르겠어', f.llm)).response;
+  assert.equal(st2.clarify.total, 0); assert.equal(r2.question_purpose, 'attraction_comfort');
 });
 
 test('항의·넘기기·그만: 매칭 정보로 저장 0 · 넘긴 목적은 SKIPPED · 그만이면 들은 만큼으로 마침', async () => {
@@ -102,6 +109,16 @@ test('질문에 내부 id 가 새면 질문 없음으로 보고 한 번 다시 �
   const a = fake(T({ ...Q('attraction_comfort', 'attraction_comfort 는 어때요?') }), T({ ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   const r = await A.runTurn(st, '편한 만남', a.llm);
   assert.deepEqual(r.obs.retry, ['no_question']); assert.equal(r.response.question, '어떤 사람이 편해요?');
+});
+
+test('반응(reply)에 물음표가 있으면 한 번 다시 청함 · 두 번째도 그러면 그대로 두고 기록만', async () => {
+  const st = await opened();
+  const a = fake(T({ reply: '좋네요. 어떤 점이 좋아요?', ...Q('attraction_comfort', '어떤 사람이 편해요?') }), T({ reply: '좋네요.', ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const r = await A.runTurn(st, '편한 만남', a.llm);
+  assert.deepEqual(r.obs.retry, ['reply_question']); assert.equal(r.response.reply, '좋네요.');
+  const b = fake(T({ reply: '음?', ...Q('values_character', '뭘 봐요?') }), T({ reply: '음?', ...Q('values_character', '뭘 봐요?') }));
+  const r2 = await A.runTurn(st, '어색하지 않은 사람', b.llm);
+  assert.deepEqual(r2.obs.retry, ['reply_question', 'reply_question:kept']); assert.equal(r2.response.question, '뭘 봐요?');
 });
 
 test('물을 목적이 남았는데 질문이 없으면 한 번만 다시 청함(상태 확인) · 형식이 두 번 깨지면 실패를 그대로 알림', async () => {

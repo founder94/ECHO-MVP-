@@ -59,13 +59,27 @@
   .send:disabled, .start:disabled { opacity: .45; cursor: default; }
   .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; padding-top: 8px; }
   .note { font-size: 12px; color: var(--muted); padding-block: 0 4px; margin: 0; }
+  .hbtns { display: flex; gap: 6px; }
+  #admin { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 22px; padding-block: 18px 24px; }
+  #admin h2 { margin: 0 0 8px; font: 700 15px/1.3 var(--serif); }
+  #admin section { display: grid; gap: 8px; }
+  .kv { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 4px 12px; margin: 0; font-variant-numeric: tabular-nums; }
+  .kv dt { color: var(--muted); font-size: 13px; } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .list { display: grid; gap: 6px; }
+  .sess { text-align: left; background: var(--night-2); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font: 13px/1.5 var(--sans); cursor: pointer; }
+  .sess[aria-pressed="true"] { border-color: var(--silver); }
+  .turn { border-left: 2px solid var(--line); padding-left: 10px; display: grid; gap: 3px; font-size: 13px; }
+  .turn .u { color: var(--ink); } .turn .a { color: var(--silver); white-space: pre-wrap; } .turn .m { color: var(--muted); font-size: 12px; }
+  .cand { font-size: 13px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; } th, td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; white-space: nowrap; }
 </style>
 
 <div class="app">
   <header>
     <span class="brand">ECHO</span>
     <span class="tag" id="progress">대화 시험 · 대표 전용</span>
-    <button class="ghost" id="restart" type="button" hidden>처음부터</button>
+    <span class="hbtns"><button class="ghost" id="adminBtn" type="button" hidden>관리자</button><button class="ghost" id="restart" type="button" hidden>처음부터</button></span>
   </header>
 
   <div id="confirmRow" class="confirm sys" hidden>
@@ -75,6 +89,7 @@
   </div>
 
   <main id="log" aria-live="polite"></main>
+  <main id="admin" hidden></main>
 
   <p class="note">시험 단계라 실제 사람 연결은 아직 없어요. 이 대화는 이 페이지에 저장되고, Claude가 읽고 고치는 데 써요.</p>
   <form class="composer" id="composer" hidden>
@@ -110,6 +125,7 @@
 
 <script type="module">
 /*__AGENT__*/
+/*__ADMIN__*/
 
 const $ = (id) => document.getElementById(id);
 const log = $('log'), msg = $('msg'), send = $('send'), composer = $('composer');
@@ -289,10 +305,80 @@ $('reset').addEventListener('click', () => {
   add('sys', '새 대화를 시작해요. 지난 대화 기록은 그대로 남아 있어요.');
 });
 
+// ── 관리자(관측 전용). 읽기만 한다 — 운영 모델·프롬프트·키·DB 를 바꾸는 기능 없음.
+// 권한: 이 페이지 db 규칙이 서버에서 읽기를 편집자(소유자 포함)로 막는다. 버튼 숨김은 편의일 뿐 보호 장치가 아니다.
+let adminOn = false, selected = null;
+const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
+function kv(obj, labels) { const dl = el('dl', 'kv'); for (const [k, label] of labels) { dl.append(el('dt', null, label), el('dd', null, obj[k] == null ? '기록 없음' : String(obj[k]))); } return dl; }
+async function renderAdmin() {
+  const box = $('admin'); box.replaceChildren(el('p', 'sys', '기록을 읽고 있어요.'));
+  let docs;
+  try { const snap = await db.collection('sessions').get(); docs = snap.docs.filter((d) => d.exists).map((d) => normalizeSession(d.id, d.data())); }
+  catch { box.replaceChildren(el('p', 'sys warn', '기록을 읽지 못했어요(권한이 없거나 연결이 끊겼어요).')); return; }
+  docs.sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0));
+  const d = dashboard(docs);
+  const s1 = el('section'); s1.append(el('h2', null, '대시보드'), kv(d, [['sessions', '세션'], ['in_progress', '진행 중'], ['done', '마침'], ['text', 'TEXT'], ['voice', 'VOICE'], ['progress_unknown', '질문 번호 없음(옛 core-0.1 시험)'],
+    ['matching_ready', '매칭 단계로 넘어감'], ['failure_candidates', '실패 후보'], ['success_candidates', '성공 후보'], ['ai_calls', 'AI 호출'], ['ai_errors', 'AI 오류'], ['latency_p50', '응답 p50(ms)'], ['latency_p95', '응답 p95(ms)'], ['tokens', '토큰'], ['cost', '비용']]));
+  s1.append(el('p', 'sys', '질문 진행(에이전트 v1.x 세션): ' + Object.entries(d.progress).map(([n, c]) => `${n}/5 ${c}건`).join(' · ') + (d.matching_status.length ? ' · 매칭 상태: ' + d.matching_status.join(', ') : '')));
+  const s2 = el('section'); s2.append(el('h2', null, '대화 보기'));
+  const list = el('div', 'list');
+  for (const s of docs) {
+    const b = el('button', 'sess', `${new Date(s.started ?? s.updated ?? 0).toLocaleString('ko-KR')} · ${s.agent} · ${s.mode ?? '-'} · ${s.tone ?? '말투 기록 없음'} · ${s.turns.length}턴 · ${s.phase === 'done' ? '마침' : '진행 중'}${s.core != null ? ` · 핵심 질문 ${s.core}/5` : ''}`);
+    b.type = 'button'; b.setAttribute('aria-pressed', String(selected === s.id)); b.addEventListener('click', () => { selected = s.id; renderAdmin(); }); list.append(b);
+  }
+  if (!docs.length) list.append(el('p', 'sys', '아직 저장된 대화가 없어요.'));
+  s2.append(list);
+  const cur = docs.find((s) => s.id === selected) ?? null;
+  const s3 = el('section'); const s4 = el('section');
+  if (cur) {
+    s2.append(el('p', 'sys', `세션 ${cur.id}`));
+    for (const t of cur.turns) {
+      const w = el('div', 'turn');
+      if (t.prev_ai) w.append(el('div', 'm', 'ECHO(앞): ' + t.prev_ai));
+      if (t.user != null) w.append(el('div', 'u', '사용자: ' + t.user));
+      w.append(el('div', 'a', 'ECHO: ' + (t.assistant || '(없음)')));
+      const flags = Object.entries(t.flags).filter(([, v]) => v).map(([k]) => k).join(',');
+      w.append(el('div', 'm', [`#${t.i}`, t.question_index != null ? `질문 진행 ${t.question_index}/5` : null, t.question_purpose ? `답한 목적 ${t.question_purpose}` : null, t.action, flags || null, t.model, t.latency != null ? `${t.latency}ms` : null, t.error ? `오류 ${t.error}` : null, t.tone_mismatch ? '말투 불일치(추정)' : null, t.retry?.length ? `재요청 ${t.retry.join(',')}` : null].filter(Boolean).join(' · ')));
+      s2.append(w);
+    }
+    s3.append(el('h2', null, '매칭 프로필'));
+    if (cur.profile) {
+      const dl = el('dl', 'kv');
+      for (const p of PURPOSES) { const x = cur.profile[p.id]; dl.append(el('dt', null, p.label), el('dd', null, `${x?.status ?? 'UNKNOWN'}${x?.items?.length ? ' · ' + x.items.map((i) => i.note).join(' / ') : ''}`)); }
+      dl.append(el('dt', null, '추측(INFERRED)'), el('dd', null, (cur.profile.inferred_candidates ?? []).map((i) => i.trait).join(' / ') || '없음'));
+      dl.append(el('dt', null, '정정'), el('dd', null, String((cur.profile.user_corrections ?? []).length)), el('dt', null, '거절된 해석'), el('dd', null, String((cur.profile.rejected_meanings ?? []).length)));
+      dl.append(el('dt', null, 'MBTI / 혈액형'), el('dd', null, `${cur.profile.mbti?.value ?? 'UNKNOWN'} / ${cur.profile.blood_type?.value ?? 'UNKNOWN'}`));
+      dl.append(el('dt', null, '매칭 상태'), el('dd', null, cur.handoff ? `${cur.handoff.status} · 후보 ${cur.handoff.candidates.length}` : '아직 매칭 단계 전'));
+      s3.append(dl);
+    } else if (cur.facts) s3.append(el('p', 'sys', `옛 core-0.1 시험: 들은 정보 ${cur.facts.length}개(목적 5개 구조 이전 — 매칭 프로필 없음)`));
+    else s3.append(el('p', 'sys', '프로필 기록 없음'));
+    const c = candidates(cur);
+    s4.append(el('h2', null, `실패·성공 후보 (실패 ${c.failure.length} · 성공 ${c.success.length})`));
+    for (const x of [...c.failure.map((y) => ['실패', y]), ...c.success.map((y) => ['성공', y])]) {
+      const w = el('div', 'cand'); w.append(el('div', null, `${x[0]} · ${x[1].type} · 턴 ${x[1].turn ?? '-'} · ${x[1].evidence} · ${x[1].status}`), el('div', 'sys', x[1].note ?? ''));
+      if (x[1].user) w.append(el('div', 'sys', '사용자: ' + x[1].user)); s4.append(w);
+    }
+  } else s3.append(el('p', 'sys', '위 목록에서 세션을 고르면 대화·프로필·후보가 보여요.'));
+  const o = observability(docs);
+  const s5 = el('section'); s5.append(el('h2', null, 'AI 관측'), el('p', 'sys', `재요청 ${o.retries} · 대체 경로 ${o.fallback} · 프롬프트 버전 = 세션의 에이전트 이름`));
+  const wrap = el('div', 'scroll'); const tb = el('table'); const hr = el('tr'); for (const h of ['경로', '호출', '오류', '잘림', 'p50', 'p95', '토큰', '비용']) hr.append(el('th', null, h)); tb.append(hr);
+  for (const r of o.rows) { const tr = el('tr'); for (const v of [r.key, r.calls, r.errors, r.truncated, r.p50, r.p95, r.tokens, r.cost]) tr.append(el('td', null, v == null ? '-' : String(v))); tb.append(tr); }
+  wrap.append(tb); s5.append(wrap);
+  const refresh = el('button', 'ghost', '다시 읽기'); refresh.type = 'button'; refresh.addEventListener('click', renderAdmin);
+  box.replaceChildren(s1, s2, s3, s4, s5, refresh);
+}
+$('adminBtn').addEventListener('click', () => {
+  adminOn = !adminOn; $('admin').hidden = !adminOn; log.hidden = adminOn; composer.hidden = adminOn || !st || false;
+  $('adminBtn').textContent = adminOn ? '대화로' : '관리자'; if (adminOn) renderAdmin();
+});
+
 showSetup(false);
 (async () => {
   sample = await window.claude?.use?.('sample') ?? null;
   db = await window.claude?.use?.('db') ?? null;
+  const user = await window.claude?.use?.('user') ?? null;
   showSetup();
+  let admin = false; try { admin = !!(user && (user.isOwner() || user.canEdit())); } catch { admin = false; }
+  $('adminBtn').hidden = !(admin && db);
 })();
 </script>

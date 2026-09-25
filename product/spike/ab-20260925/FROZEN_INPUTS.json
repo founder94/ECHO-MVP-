@@ -49,6 +49,10 @@
   {
    "date": "2026-09-25",
    "what": "agent_gate 사전 등록(echo-agent-v1). A·B·core-0.1·Golden 변경 0."
+  },
+  {
+   "date": "2026-09-25",
+   "what": "agent_gate v1 실행 완료(Actions run 36114445447, agent 09f0cebeef86…). 결과를 본 뒤 v1.1 명세(PDF)와 관측 실패(반응 안 질문·이미 물은 목적 재사용·되묻기 한도)에 맞춰 에이전트를 고쳤으므로 새 지문으로 다시 등록한다 — v1 결과는 보존."
   }
  ],
  "specs": {
@@ -102,8 +106,8 @@
  },
  "agent_gate": {
   "registered_at": "2026-09-25",
-  "why": "대표 「ECHO CONVERSATION AGENT v1 · FINAL LOCK」: echo-agent-v1(다섯 질문·말투 선택·매칭 프로필)을 결과를 보기 전에 고정한다. 입력 = 대표 휴대폰 시험 원문(사적이지 않은 줄) + Golden 7흐름, 모델 = 앞선 비교의 OpenAI 3개(gpt-4o 는 같은 질문 반복이 가장 많아 뺌).",
-  "agent_sha256": "09f0cebeef860bf84f029572bf2b2b7c6f60e8f86abf65287fc9f323f65dee7b",
+  "why": "대표 「ECHO CONVERSATION AGENT v1 · FINAL LOCK」: echo-agent-v1(다섯 질문·말투 선택·매칭 프로필)을 결과를 보기 전에 고정한다. 입력 = 대표 휴대폰 시험 원문(사적이지 않은 줄) + Golden 7흐름, 모델 = 앞선 비교의 OpenAI 3개(gpt-4o 는 같은 질문 반복이 가장 많아 뺌). · v1.1: 되묻기 대화 전체 1번·answer 뒤에만, 반응 안 물음표·이미 물은 목적·질문 없음은 한 번만 다시 청함(상태·JSON 칸 확인), 첫 질문은 question 칸에.",
+  "agent_sha256": "4d4a3ab45a8874f7fd2a21925e8857ad64f5d90459ec6dc85e26345f1973e380",
   "flows_sha256": "8003b022f10fae697c0e9001ee754b9e8258fd67aade2a4ee670116f0ab55933",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
@@ -118,6 +122,7 @@
    "response_format": "json_object",
    "max_calls_per_turn": 2,
    "closing_call": "마칠 때 1번"
-  }
+  },
+  "version": "echo-agent-v1.1"
  }
 }

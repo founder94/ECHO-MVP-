@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
- "approved_by": "대표 「ECHO CONVERSATION AGENT v1 · FINAL LOCK」 — TEXT 실제 AI 검사 포함",
- "run": 5,
+ "approved_by": "대표 「ECHO CONVERSATION AGENT v1.1 FINAL FULL SPEC」(PDF) — 실제 AI 검사 포함",
+ "run": 6,
  "mode": "agent",
- "what": "echo-agent-v1 재생: 대표 휴대폰 원문 + Golden · 말투 3종 · 모델 3개. 사전 등록 = FROZEN_INPUTS.json agent_gate",
+ "what": "echo-agent-v1.1 재생: v1 과 같은 입력·말투·모델 3개. 사전 등록 = FROZEN_INPUTS.json agent_gate(v1.1)",
  "history": [
   {
    "run": 1,
@@ -29,6 +29,12 @@
    "mode": "core",
    "actions_run": 36111514762,
    "commit": "133ff56"
+  },
+  {
+   "run": 5,
+   "mode": "agent",
+   "actions_run": 36114445447,
+   "commit": "5411c2c"
   }
  ],
  "models": [
