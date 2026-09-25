@@ -2,9 +2,9 @@
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
  "approved_by": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §23 실제 AI 검사",
- "run": 14,
+ "run": 15,
  "mode": "prod_agent",
- "what": "v1.7 — v1.6 + AI 용 주제 이름 생활 말(판정 규칙 prod_agent_gate.why_v8)",
+ "what": "v1.8 — 소개 초안 뜻 왜곡 수정(판정 규칙 prod_agent_gate.why_v9)",
  "history": [
   {
    "run": 1,
@@ -83,6 +83,12 @@
    "mode": "prod_agent",
    "actions_run": 36138550587,
    "commit": "d917445"
+  },
+  {
+   "run": 14,
+   "mode": "prod_agent",
+   "actions_run": 36139695084,
+   "commit": "70c1466"
   }
  ],
  "models": [

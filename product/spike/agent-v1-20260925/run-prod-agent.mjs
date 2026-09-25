@@ -98,6 +98,8 @@ export function stats(A, runs) {
     intro_status: runs.map((r) => r.intro?.status ?? 'none').join(','),
     intro_dropped: JSON.stringify(runs.reduce((a, r) => { for (const [k, v] of Object.entries(r.intro?.dropped ?? {})) a[k] = (a[k] ?? 0) + v; return a; }, {})),
     intro_chars_max: Math.max(0, ...runs.map((r) => (r.intro?.lines ?? []).map((l) => l.text).join(' ').length)),
+    // v1.8 판정 ④(사전 등록): 소개 초안 중 「저는 … 사람이에요/입니다/이라고」처럼 나를 사람으로 설명하는데 바람 낱말(좋·원·바라·찾·끌·만나)이 없는 문장 수 [HEURISTIC · 대표 run 14 사례 「저는 다정한 사람이라고 생각해요」]
+    intro_self_claim: runs.reduce((n, r) => n + (r.intro?.lines ?? []).filter((l) => /저는/.test(l.text) && /사람(이에요|입니다|이라고|이야|이다)/.test(l.text) && !/(좋|원하|원해|바라|찾|끌|만나)/.test(l.text)).length, 0),
     heavy_questions: rows.filter((x) => x.question && /느끼(나요|세요|시나요)|중요하게|어떤 편|성향|가치관|의미/.test(x.question)).length,
     example_copy: rows.filter((x) => x.question && /같이있어도부담없고편하다싶은사람은어떤사람|이런건좋고,?이런건싫다싶은게있나요/.test(x.question.replace(/\s+/g, ''))).length,
     questions_total: rows.filter((x) => x.question).length,
