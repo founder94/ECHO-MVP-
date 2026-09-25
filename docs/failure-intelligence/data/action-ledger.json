@@ -437,7 +437,7 @@
   {
    "id": "P-17",
    "what": "홈페이지(do-it.company) BRAND ZIP 업로드 여부 — 올리면 히어로 문구가 운영(「사람은 프로필보다…/지금 시작하기」)에서 09-24 승인본(「좋아하는 사람보다…/ECHO 시작하기」)으로 바뀜",
-   "state": "PENDING",
+   "state": "DECIDED",
    "date": "2026-09-25",
    "by": "대표 결정",
    "evidence": "운영 main JS 와 BRAND 빌드 문구 대조",
@@ -478,6 +478,33 @@
    "by": "STOP — 엔진 선정·비용·생년월일 저장 정책 = 대표 결정",
    "evidence": "저장소 검색: 계산 코드·라이브러리·서버 0 · PENDING saju-calc 초안만",
    "note": "가짜 명식 금지 · 문구 3곳만 사실대로 고침"
+  },
+  {
+   "id": "C-22",
+   "what": "doit-agent 버전 4 운영 배포 = echo-agent-v1.4(help·예시 한 줄·질문 구체성 기준)",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표 「ACTUAL USER FEEDBACK PATCH」 · 사전 등록 run 11 규칙 충족",
+   "evidence": "운영 파일 SHA-256 = 로컬(agent db292310… · index 5699f042…) · 401 3종",
+   "note": "대표·사용자 실기기 확인 전 — 완료 아님"
+  },
+  {
+   "id": "P-20",
+   "what": "echo-agent-v1.5 후보 채택 여부(추상 질문 16/64 → 4/63 · 사전 규칙의 same_question_again 7 ≥ 6 로 미배포)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 결정",
+   "evidence": "docs/claude-final-review-20260916/PATCH-20260925-user-feedback/REAL_AI_RUN12_result.md",
+   "note": "채택 방법: product/spike/agent-v1-20260925/candidate-v1.5/README.md"
+  },
+  {
+   "id": "P-21",
+   "what": "두 ZIP 업로드 — 1_APP → doitmobile · 2_BRAND → echo-mvp-doit(히어로 문구가 09-24 승인본으로 바뀜)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 수동 업로드(이 환경 Netlify 차단)",
+   "evidence": "docs/claude-final-review-20260916/PATCH-20260925-user-feedback/FINAL_TWO_SITE_보고_20260925.md",
+   "note": "APP 214efe1c… · BRAND 4d8c3551…"
   }
  ]
 }
