@@ -1,0 +1,7 @@
+{
+ "purpose": "실AI A/B 1회 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
+ "requested_at": "2026-09-25",
+ "approved_by": "대표 「대표 승인 · 실AI A/B 실행 시작」 (GitHub Secret OPENAI_API_KEY_AB_TEST 등록 완료)",
+ "run": 1,
+ "frozen_inputs": "product/spike/ab-20260925/FROZEN_INPUTS.json 과 같아야 실행된다(다르면 종료 코드 3)"
+}
