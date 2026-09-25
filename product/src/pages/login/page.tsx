@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeReturnPath } from '@/lib/auth/returnPath';
+import DoItSymbol from '@/components/DoItSymbol';
 import { PASSKEY_ERROR_TEXT, currentPasskeySupport, signInWithFace } from '@/lib/auth/passkey';
 
 export default function Login() {
@@ -73,12 +74,9 @@ export default function Login() {
     <div className="min-h-screen bg-background-50 flex flex-col">
       {/* Top logo bar */}
       <header className="w-full px-6 md:px-10 lg:px-16 py-5">
-        <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
-          <img
-            src="https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/5912610a-d750-489e-a762-bc08e53ee2aa_compressed_DO-it_logo.webp"
-            alt="DO-IT"
-            className="h-7 md:h-9 w-auto"
-          />
+        <Link to="/" aria-label="DO IT 홈으로" className="inline-flex min-h-[44px] items-center gap-2.5 hover:opacity-80 transition-opacity">
+          <DoItSymbol decorative className="!h-8 !w-8 md:!h-10 md:!w-10" />
+          <span className="text-lg font-bold tracking-tight text-white">DO IT</span>
         </Link>
       </header>
 
@@ -87,7 +85,7 @@ export default function Login() {
         <div className="w-full max-w-md">
           {/* Heading */}
           <div className="text-center mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary-300 via-secondary-300 to-accent-300 bg-clip-text text-transparent animate-gradient-text mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
               로그인
             </h1>
             <p className="text-sm text-foreground-400 leading-relaxed">
@@ -146,7 +144,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={status !== 'idle'}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 text-background-50 text-sm font-semibold hover:opacity-90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 animate-gradient-text cursor-pointer"
+              className="w-full py-3 rounded-xl bg-white text-[#080808] text-sm font-semibold hover:bg-white/85 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
             >
               {status === 'submitting' ? (
                 <>
@@ -213,7 +211,7 @@ export default function Login() {
             {/* Signup link */}
             <p className="text-center text-xs text-foreground-500 pt-2">
               아직 계정이 없으신가요?{' '}
-              <Link to="/signup" state={{ from }} className="text-primary-400 hover:text-primary-300 transition-colors">
+              <Link to="/signup" state={{ from }} className="inline-flex min-h-[44px] items-center px-1 text-white underline underline-offset-4 hover:text-white/80 transition-colors">
                 가입하기
               </Link>
             </p>
@@ -223,7 +221,7 @@ export default function Login() {
           <div className="text-center mt-6">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs text-foreground-500 hover:text-foreground-300 transition-colors"
+              className="inline-flex min-h-[44px] items-center gap-1.5 px-3 text-xs text-foreground-500 hover:text-foreground-300 transition-colors"
             >
               <i className="ri-arrow-left-line" />
               홈으로 돌아가기
