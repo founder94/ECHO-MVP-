@@ -29,6 +29,26 @@ jobs:
         working-directory: product
         run: npm ci
 
+      - name: Recover public Supabase build config from current production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          html="$(curl -fsSL https://app.do-it.company/)"
+          mapfile -t assets < <(printf '%s' "$html" | grep -oE 'src="[^"]+\\.js"' | sed -E 's/^src="//;s/"$//')
+          : > /tmp/app-js.txt
+          for asset in "${assets[@]}"; do
+            if [[ "$asset" == http* ]]; then url="$asset"; else url="https://app.do-it.company${asset}"; fi
+            curl -fsSL "$url" >> /tmp/app-js.txt
+            printf '\n' >> /tmp/app-js.txt
+          done
+          supabase_url="$(grep -oE 'https://[a-z0-9-]+\\.supabase\\.co' /tmp/app-js.txt | head -1)"
+          supabase_key="$(grep -oE 'sb_publishable_[A-Za-z0-9_-]+' /tmp/app-js.txt | head -1)"
+          test -n "$supabase_url"
+          test -n "$supabase_key"
+          echo "VITE_PUBLIC_SUPABASE_URL=$supabase_url" >> "$GITHUB_ENV"
+          echo "VITE_PUBLIC_SUPABASE_ANON_KEY=$supabase_key" >> "$GITHUB_ENV"
+          echo "Recovered public client build configuration from current production bundle."
+
       - name: Type check
         working-directory: product
         run: npm run type-check
