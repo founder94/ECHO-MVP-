@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v1.9"; // v1.5 후보(대표 결정 P-20 대기)에서는 AI 용 주제 이름 하나만 가져왔다 — 나머지(help_same 재요청·예시 낱말 목록)는 들어 있지 않다
+export const AGENT_VERSION = "echo-agent-v2.0"; // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_TOTAL = 1;
@@ -65,9 +65,22 @@ const FROM_LATEST = new Set<Kind>(["answer", "correction", "ask", "repair"]);
 // 운영 실측 2026-09-25: 「능력이좀 있는사람」「정해놓은건 없구 사람봐가면서 정해지는거 같아」가 답인데 저장 0 → 정리에 「아직 몰라요」.
 const RAW_NOTE_MAX = 60;
 // 「모르겠어요·딱히 없어요·글쎄요」 같은 말 전체가 이것뿐이면 답으로 남기지 않는다(목록에 딱 맞을 때만 — 「어른스러운 사람」 같은 답은 남는다).
-const NON_ANSWERS = new Set(["몰라", "몰라요", "모르겠어", "모르겠어요", "모르겠다", "모르겠네요", "모름", "잘모르겠어", "잘모르겠어요", "글쎄", "글쎄요", "딱히", "딱히요", "딱히없어", "딱히없어요", "딱히없음", "딱히없는것같아", "딱히없는것같아요", "없어", "없어요", "없음", "없는것같아", "없는것같아요", "아직몰라", "아직몰라요", "아직모르겠어요", "생각안해봤어", "생각안해봤어요", "음", "네", "응", "ㅇㅇ", "아니", "아니요"]);
+const NON_ANSWERS = new Set(["몰라", "몰라요", "모르겠어", "모르겠어요", "모르겠다", "모르겠네요", "모름", "잘모르겠어", "잘모르겠어요", "글쎄", "글쎄요", "딱히", "딱히요", "딱히없어", "딱히없어요", "딱히없음", "딱히없는것같아", "딱히없는것같아요", "없어", "없어요", "없음", "없는것같아", "없는것같아요", "아직몰라", "아직몰라요", "아직모르겠어요", "생각안해봤어", "생각안해봤어요", "음", "네", "응", "ㅇㅇ", "아니", "아니요", "웅", "응응", "넵", "넹", "네네", "ㅇㅋ", "오케이", "그래", "맞아", "맞아요"]);
 const NOT_AN_ANSWER = (t: string) => { const k = squash(t).replace(/[.!~?…,]+/g, ""); return NON_ANSWERS.has(k) || /^[ㅋㅎㅠㅜ\s.!~?…,]+$/.test(t); }; // 자모(ㅋ)는 NFKC 에서 바뀌므로 원문으로 본다
 const RECENT_TURNS = 10;
+// ── v2.0 서버 말 종류 가드(AI OS · 결정적). LLM 이 answer 라고 해도 아래 모양이면 서버가 종류를 바로잡는다(답으로 저장하지 않음).
+// 실제 AI run 16(v1.9, gpt-4o-mini): 「나 진심이라고 적은거 같은데」(이미 말했다는 항의)가 answer 로 읽혀 답으로 저장됐다(complaint_saved 1).
+// 모양만 본다(뜻 판정 아님) — 앞선 말을 가리키는 항의 · 질문이 많다/무겁다 · 다음 질문으로 넘어가 달라.
+const PAST_REF = /(아까|이미|전에|앞에서|방금)\s*.{0,10}(말했|말한|적었|적은|얘기했|얘기한|했잖|했는데)|말했잖|적었잖|했잖아|(말|적|얘기)(했|한|은)\s*(거|것)\s*같은데|왜\s*(또|자꾸|계속)\s*(물어|묻)|또\s*물어|같은\s*(걸|거|질문)\s*(또|다시)/;
+const FATIGUE = /질문.{0,6}(너무|넘|왜케|왜\s*이렇게|진짜)?\s*(많|무겁|어렵|길|힘들)|그만\s*(물어|묻)/;
+const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
+export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
+  if (kind !== "answer") return { kind, rule: null };
+  if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
+  if (PAST_REF.test(text)) return { kind: "repair", rule: "past_reference" };
+  if (FATIGUE.test(text)) return { kind: "repair", rule: "fatigue" };
+  return { kind, rule: null };
+}
 export const BANNED_WORDS = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
 // 저장 금지 입력(연락처·식별번호·링크) — 기존 결정(2026-09-21). 이 경우와 대화 상한만 고정 안내를 쓴다.
 export const PRIVATE_DATA = /(01[016789][-\s.]?\d{3,4}[-\s.]?\d{4})|([\w.+-]+@[\w-]+\.[\w.]+)|(https?:\/\/|www\.)|(\d{6}[-\s]?[1-4]\d{6})/;
@@ -145,7 +158,7 @@ JSON 하나로만 답한다: {"summary":[{"purpose":"","text":""}],"closing":"",
 }
 
 // 소개 초안 규칙 — 마칠 때(closing)와 「다시 쓰기」(intro)가 같은 문장을 쓴다.
-const INTRO_RULE = `intro: 다른 사람에게 보여 줄 내 소개 초안. 1인칭(「저는」)으로 2~${INTRO_MAX_LINES}문장, 모두 합쳐 ${INTRO_MAX}자 이내. heard 에 있는 사용자 말로만 쓴다(없는 사실·성격 평가·장점 과장·미래 약속 금지, 추측을 사실처럼 쓰지 않는다). 각 문장의 basis 에는 그 문장이 기댄 heard 의 quote 를 글자 그대로 복사한다. 사용자 말을 길게 그대로 옮기지 말고 자연스럽고 담백하게 다듬는다. 연락처·링크·실명·나이 같은 개인 정보는 넣지 않는다. heard 가 비었으면 intro 는 [].
+const INTRO_RULE = `intro: 다른 사람에게 보여 줄 내 소개 초안. 1인칭(「저는」)으로 2~${INTRO_MAX_LINES}문장, 모두 합쳐 ${INTRO_MAX}자 이내. heard 에 있는 사용자 말로만 쓴다(없는 사실·성격 평가·장점 과장·미래 약속 금지, 추측을 사실처럼 쓰지 않는다). 각 문장의 basis 에는 그 문장이 기댄 heard 의 quote 를 글자 그대로 복사한다. 사용자 말을 길게 그대로 옮기지 말고 자연스럽고 담백하게 다듬는다. 연락처·링크·실명·나이 같은 개인 정보는 넣지 않는다. heard 가 비었으면 intro 는 []. rejected 는 사용자가 아니라고 한 뜻이다 — 소개에 쓰지 않는다.
 heard 의 말은 대부분 내가 바라는 만남·사람·방식에 대한 말이다. 상대에게 바라는 모습을 나를 설명하는 사실로 바꾸지 않는다(「다정한 사람」은 「다정한 사람이 좋아요」이지 「저는 다정한 사람이에요」가 아니다). 나에 대한 문장은 사용자가 자기 자신에 대해 말한 것만 쓴다. 알아보기 어려운 오타 조각은 뜻이 분명할 때만 자연스럽게 고쳐 쓰고, 분명하지 않으면 그 말은 쓰지 않는다.`;
 
 export function introPrompt(tone: Tone): string {
@@ -159,7 +172,7 @@ JSON 하나로만 답한다: {"intro":[{"text":"","basis":""}]}`;
 type Json = Record<string, unknown>;
 export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "RETRACTED" }
 export interface Asked { type: "core" | "clarify"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null }
-export interface TurnRec { n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
+export interface TurnRec { guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
   slots: Record<string, { status: "UNKNOWN" | "CONFIRMED" | "SKIPPED"; items: Item[] }>;
@@ -253,16 +266,20 @@ export function cleanHint(v: unknown): string {
 export interface TurnResponse { kind: string; reply: string; question: string | null; saved: boolean; extracted: { purpose: string; note: string }[]; recovered: string[]; finish: boolean; question_type: string | null; question_purpose: string | null }
 
 // ── 서버 결정(결정적). LLM 출력은 후보다.
-export function applyTurn(st: AgentState, latest: string, out: Parsed, opts: { limitReached?: boolean } = {}): TurnResponse {
+export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: { limitReached?: boolean } = {}): TurnResponse {
   const text = String(latest ?? "").trim();
+  const g = guardKind(text, llmOut.kind);
+  const out: Parsed = g.rule ? { ...llmOut, kind: g.kind } : llmOut;
   const turn: TurnRec = { n: st.turns.length + 1, ai: st.current?.text ?? null, question_purpose: st.current?.purpose ?? null, question_type: st.current?.type ?? null, user: text, kind: out.kind };
+  if (g.rule) turn.guard = { from: llmOut.kind, to: g.kind, rule: g.rule };
   st.turns.push(turn);
   const kept: { purpose: string; note: string; turn: number }[] = [];
   const inText = (q: string) => !!q && squash(text).includes(squash(q));
   // 인용이 나온 사용자 말의 턴 번호. 이번 말(허용된 종류일 때) → 앞선 말(가까운 것부터). 사용자 말에 없는 인용은 받지 않는다(AI 가 지어낸 것일 수 있다).
   const quoteTurn = (q: string): number | null => {
     if (!squash(q)) return null;
-    if (FROM_LATEST.has(out.kind) && inText(q)) return turn.n;
+    // v2.0: 서버 가드가 항의·피로·넘기기로 바로잡은 말은 이번 말에서 아무것도 받지 않는다(앞선 말에서 되살리기만).
+    if (FROM_LATEST.has(out.kind) && !g.rule && inText(q)) return turn.n;
     for (let k = st.turns.length - 2; k >= 0; k--) if (squash(st.turns[k].user).includes(squash(q))) return st.turns[k].n;
     return null;
   };
@@ -288,6 +305,12 @@ export function applyTurn(st: AgentState, latest: string, out: Parsed, opts: { l
     if (out.kind === "correction") st.corrections.push(text);
     if (st.current?.text) st.disputed.push(st.current.text);
     for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (i.note === w && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) i.status = "RETRACTED";
+    // v2.0 정정 엔진: 정정(correction)으로 이번 말에서 새 뜻을 받은 목적은, 그 목적의 옛 뜻을 거둔다(최신 사용자 말 우선 · 원문 turns 는 지우지 않는다).
+    if (out.kind === "correction") {
+      let n = 0;
+      for (const k of kept.filter((x) => x.turn === turn.n)) for (const i of st.slots[k.purpose].items) if (i.status === "CONFIRMED" && i.turn < turn.n) { i.status = "RETRACTED"; n++; }
+      if (n) turn.superseded = n;
+    }
     for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
   }
   if (out.kind === "skip" && st.current && st.slots[st.current.purpose].status === "UNKNOWN") st.slots[st.current.purpose].status = "SKIPPED";
@@ -368,12 +391,22 @@ export function matchingHandoff(profile: MatchingProfile) {
     declared: { mbti: profile.mbti.value, blood_type: profile.blood_type.value }, inferred_ignored: profile.inferred_candidates.length, candidates: [] as unknown[] };
 }
 
+// 거절된 뜻(사용자가 틀렸다고 해 거둔 AI 정리). 지금 확인된 뜻과 같은 글자는 빼고(다시 확인된 뜻), 너무 짧은 조각은 막지 않는다.
+const rejectedForAi = (st: AgentState) => PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED").map((i) => i.note)).slice(-5);
+export function rejectedNotes(st: AgentState): string[] {
+  const live = new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").map((i) => squash(i.note))));
+  return [...new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED").map((i) => squash(i.note))))].filter((r) => r.length >= 3 && !live.has(r));
+}
+
 // ── 소개 초안 정리. 서버가 보는 것: 형식 · 근거(basis 가 확인된 사용자 말(quote) 안에 있음) · 금지 입력 · 글자 수. 문장 품질 심사 0.
 // 버린 이유는 코드로만 센다(문장 원문은 상태에만 · 로그 0) — 2026-09-25 운영 502(doit-understanding profile_draft)는 버린 이유가 남지 않아 원인을 좁히지 못했다.
 export function cleanIntro(st: AgentState, raw: unknown): { lines: IntroLine[]; dropped: Record<string, number> } {
   // 근거 = 확인된 정보의 인용·요약 + 그 정보가 나온 사용자 원문 전체(AI 가 저장된 인용보다 길게 복사해도 사용자가 실제로 친 글자면 인정 — 운영 502 와 같은 모양을 막는다).
   const confirmed = PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED"));
-  const turnsUsed = new Set(confirmed.map((i) => i.turn));
+  // v2.0 거절 뜻 차단: 거둔(RETRACTED) 뜻이 나온 말은 원문 전체를 근거로 받지 않는다(그 말의 확인된 인용만 근거) · 거둔 뜻을 담은 문장은 버린다.
+  const rejected = rejectedNotes(st);
+  const retractedTurns = new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED").map((i) => i.turn)));
+  const turnsUsed = new Set(confirmed.map((i) => i.turn).filter((n) => !retractedTurns.has(n)));
   const sources = [...confirmed.flatMap((i) => [squash(i.quote), squash(i.note)]), ...st.turns.filter((t) => turnsUsed.has(t.n)).map((t) => squash(t.user))].filter((x) => x.length >= 2);
   const dropped: Record<string, number> = {};
   const drop = (why: string) => { dropped[why] = (dropped[why] ?? 0) + 1; };
@@ -383,6 +416,7 @@ export function cleanIntro(st: AgentState, raw: unknown): { lines: IntroLine[]; 
     if (!text) { drop("empty"); continue; }
     const b = squash(basis);
     if (b.length < 2 || !sources.some((src) => src.includes(b) || (src.length >= 4 && b.includes(src)))) { drop("no_basis"); continue; }
+    if (rejected.some((r) => squash(text).includes(r) || b.includes(r))) { drop("rejected"); continue; }
     if (BANNED_WORDS.test(text)) { drop("banned_word"); continue; }
     if (PRIVATE_DATA.test(text)) { drop("private_data"); continue; }
     if (leaksId(text)) { drop("id_leak"); continue; }
@@ -507,7 +541,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
   const response: Json = { ...applyTurn(st, text, out, { limitReached }) };
   if (response.finish) {
     let raw: string | null = null;
-    try { raw = await call(llm, obs, "closing", closingPrompt(st.tone), { heard: heardQuoted(st), corrections: st.corrections.slice(-3) }); } catch { obs.retry.push("closing"); }
+    try { raw = await call(llm, obs, "closing", closingPrompt(st.tone), { heard: heardQuoted(st), corrections: st.corrections.slice(-3), rejected: rejectedForAi(st) }); } catch { obs.retry.push("closing"); }
     Object.assign(response, finishWith(st, raw));
   }
   return { obs, response };
@@ -518,7 +552,7 @@ export async function draftIntro(st: AgentState, llm: Llm, obs: Obs = { calls: [
   if (!heardQuoted(st).length) { setIntro(st, [], null); return { obs, intro: st.intro!, limited: false }; }
   if ((st.intro?.tries ?? 0) >= INTRO_TRIES_MAX) return { obs, intro: st.intro ?? { status: "failed", lines: [], dropped: {}, tries: INTRO_TRIES_MAX, error: "limit", used: null, used_at: null }, limited: true };
   let raw: unknown = null; let error: string | null = null;
-  try { const o = parseJson(await call(llm, obs, "intro", introPrompt(st.tone), { heard: heardQuoted(st), corrections: st.corrections.slice(-3) })); raw = o ? o.intro : null; if (!o) error = "read_failed"; }
+  try { const o = parseJson(await call(llm, obs, "intro", introPrompt(st.tone), { heard: heardQuoted(st), corrections: st.corrections.slice(-3), rejected: rejectedForAi(st) })); raw = o ? o.intro : null; if (!o) error = "read_failed"; }
   catch { error = "provider"; obs.retry.push("intro"); }
   setIntro(st, raw, error);
   return { obs, intro: st.intro!, limited: false };

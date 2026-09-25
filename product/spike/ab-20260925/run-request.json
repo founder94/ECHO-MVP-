@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-26",
- "approved_by": "대표 「v1.9 실제 AI 검사하고 배포 승인」(2026-09-26) — 배포는 같은 날 PRE-DEPLOY 지시(doit-agent 재배포 금지)로 보류",
- "run": 16,
+ "approved_by": "대표 「v1.9 실제 AI 검사하고 배포 승인」 + 「END-TO-END PIPELINE FINAL LOCK」(2026-09-26 · 7) 실제 AI 검사) — 배포는 보류(운영배포 0)",
+ "run": 17,
  "mode": "prod_agent",
- "what": "v1.9 — 답 놓침 수정(판정 규칙 prod_agent_gate.why_v10) · 이 실행은 deploy/final-app-web-20260925 브랜치에서 돈다",
+ "what": "v2.0 — AI OS 최소 운영형(판정 규칙 prod_agent_gate.why_v11) · deploy/final-app-web-20260925 브랜치",
  "history": [
   {
    "run": 1,
@@ -95,6 +95,12 @@
    "mode": "prod_agent",
    "actions_run": 36141532032,
    "commit": "1079cfe"
+  },
+  {
+   "run": 16,
+   "mode": "prod_agent",
+   "actions_run": 36166275489,
+   "commit": "54192bd"
   }
  ],
  "models": [

@@ -199,12 +199,25 @@ test('같은 요청 재전송 → 저장된 결과 · AI 다시 안 부름 · �
   assert.equal(old.status, 409); assert.equal(old.body.code, 'ROUND_CHANGED');
 });
 
-test('AI 실패 → 502 · 상태·기록 저장 0(다시 보낼 수 있음)', async () => {
+// v2.0(2026-09-26 AI OS · Failure Intelligence): 실패한 턴도 관리자 관측용으로 기존 표에 status failed 한 줄(코드·수치만)을 남긴다.
+// 대화 상태·매칭 기록은 여전히 0 이고, 같은 요청을 다시 보내면 정상으로 이어진다.
+test('AI 실패 → 502 · 상태·기록 저장 0 · 실패 관측 1줄(원문 0) · 다시 보낼 수 있음', async () => {
   const s = newState(); const h = load(s);
   s.ai.push('HTTP500');
-  const r = await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' });
+  const requestId = rid();
+  const r = await h.call({ action: 'agent_start', requestId, firstAnswer: '친구' });
   assert.equal(r.status, 502);
-  assert.equal((s.tables.doit_request_events ?? []).length, 0); assert.equal((s.tables.doit_records ?? []).length, 0);
+  const events = s.tables.doit_request_events ?? [];
+  assert.equal(events.filter((e) => e.status === 'applied').length, 0, '대화 상태 저장 0');
+  assert.equal((s.tables.doit_records ?? []).length, 0);
+  const failed = events.filter((e) => e.status === 'failed');
+  assert.equal(failed.length, 1);
+  assert.equal(failed[0].action, 'agent_turn'); assert.notEqual(failed[0].request_id, requestId, '다시 보낼 요청과 부딪히지 않는 새 id');
+  assert.equal(failed[0].response_payload.record.kind, 'error'); assert.equal(failed[0].response_payload.record.error, 'PROVIDER');
+  assert.ok(!JSON.stringify(failed[0]).includes('친구'), '사용자 원문 0');
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const again = await h.call({ action: 'agent_start', requestId, firstAnswer: '친구' });
+  assert.equal(again.status, 200, '같은 요청을 다시 보내면 이어진다');
 });
 
 test('관리자: 일반 사용자 403 · 관리자는 실제 저장된 세션·턴 기록만 읽음(쓰기 0)', async () => {
