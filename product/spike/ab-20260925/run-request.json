@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
- "approved_by": "대표 「계속 진행해. 포괄 승인 범위 안에서 모델 비교 실제 AI 실행까지 끝내고 최종 결과만 보고해 … 모델만 변경해」",
- "run": 3,
- "mode": "model_gate",
- "what": "MODEL GATE: B-1.0(구조·Prompt·Context·파라미터) 고정 · Golden 34 입력 · 모델만 4개(첫째 = 기준 gpt-4o-mini). 사전 등록 = FROZEN_INPUTS.json model_gate",
+ "approved_by": "대표 「Conversation Product Contract RESET」 — READ·설계·로컬 구현 후보·테스트 후보까지 승인",
+ "run": 4,
+ "mode": "core",
+ "what": "core-0.1 재생: Golden 34 입력 · 모델 4개(MODEL GATE 와 같음) · 모델마다 B-1.0 실측과 짝 비교. 사전 등록 = FROZEN_INPUTS.json core_gate",
  "history": [
   {
    "run": 1,
@@ -17,6 +17,12 @@
    "mode": "models",
    "actions_run": 36107887216,
    "commit": "809c3cd"
+  },
+  {
+   "run": 3,
+   "mode": "model_gate",
+   "actions_run": 36108344306,
+   "commit": "e0de6dc"
   }
  ],
  "models": [

@@ -41,6 +41,10 @@
   {
    "at": "2026-09-25",
    "reason": "MODEL GATE 사전 등록(실AI 실행 전): B-1.0·입력·판정 기준 지문 그대로, 모델 목록만 등록. 결과를 본 뒤 목록·B 를 바꾸면 실행기가 종료 코드 3 으로 멈춘다."
+  },
+  {
+   "date": "2026-09-25",
+   "what": "core_gate 사전 등록(core-0.1). A·B·Golden·판정 기준 변경 0."
   }
  ],
  "specs": {
@@ -69,5 +73,27 @@
     "max_calls_per_turn": 2
    }
   }
+ },
+ "core_gate": {
+  "registered_at": "2026-09-25",
+  "why": "대표 「Conversation Product Contract RESET」: 새 최소 코어(core-0.1)를 결과를 보기 전에 고정한다. 모델마다 B-1.0 → core-0.1 구조만 바꿔 비교(모델은 MODEL GATE 와 같은 4개 · 같은 파라미터).",
+  "core_sha256": "409f1936580cee728d0d1cd1adfec19501eaec5ea938a13d5d101cfbafefd63f",
+  "models": [
+   "gpt-4o-mini",
+   "gpt-4.1-mini",
+   "gpt-4.1",
+   "gpt-4o"
+  ],
+  "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
+  "specs_sha256": "380d6fb38fa0960ea83ae722e03061e2e503016ad0a51cc935a8cdb3c889e319",
+  "params": {
+   "temperature": 0.2,
+   "top_p": 0.9,
+   "max_tokens": 768,
+   "response_format": "json_object",
+   "max_calls_per_turn": 2,
+   "closing_call": "대화를 마칠 때 1번"
+  },
+  "compare_with": "MODEL GATE B-1.0 실측(Actions run 36108344306, docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md)"
  }
 }
