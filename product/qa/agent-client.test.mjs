@@ -53,7 +53,7 @@ test('같은 질문 되풀이 후보: 먼저 답한 뒤 같은 질문을 다시 
 test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓말) · 글/말 · 빠져나갈 문 · 처음부터 · 목소리 저장 0', () => {
   const pkg = JSON.parse(src('package.json'));
   assert.match(pkg.scripts['build:app'], /VITE_ECHO_AGENT_ENABLED=true/); assert.doesNotMatch(pkg.scripts['build:brand'], /VITE_ECHO_AGENT_ENABLED/);
-  const ui = src('src/doit/components/feature/AgentConversation.tsx');
+  const ui = src('src/doit/components/feature/AgentConversation.tsx') + src('src/doit/components/feature/AgentChoiceLayer.tsx') + src('src/doit/lib/agentChoice.ts');
   const api = src('src/doit/lib/agentApi.ts');
   assert.match(api, /DEFAULT_AGENT_TONE: AgentTone = 'polite'/);
   for (const label of ['편한 존댓말', '정중한 존댓말', '편한 반말']) assert.ok(api.includes(label));
@@ -66,7 +66,7 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   assert.deepEqual(imports, ['core-conversation.css', 'agent-choice.css']);
   // 새 CSS 는 선택창 하나(.echo-choice-*)뿐이고, 대화 화면 루트 아래로만 적용된다.
   const choice = src('src/doit/components/feature/agent-choice.css');
-  for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-dialogue \.echo-choice-/, `선택창 밖 규칙: ${part}`);
+  for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-choice-layer( |$)/, `선택창 밖 규칙: ${part}`);
   assert.ok(!/body|:root|html/.test(choice.replace(/\/\*[\s\S]*?\*\//g, '')), '전역 규칙 0');
   const css = choice + src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css');
   const classes = [...new Set([...ui.matchAll(/className=["{]['"]?([^"'}]+)/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith('echo-')))];
@@ -91,4 +91,15 @@ test('앱 홈 진행: 에이전트 대화가 있으면 서버 상태(몇 번째 
   const home = src('src/doit/pages/do-it/home/page.tsx');
   assert.match(home, /const done = useAgent \? agent\.session\?\.phase === 'done'/);
   assert.match(home, /agentGet\(userId\)/);
+});
+
+test('히어로: 앱에서만 선택창을 띄우고 히어로 부품(DoItBrandHero·CSS)은 손대지 않는다 · 고른 것은 대화 화면까지 가져간다', () => {
+  const landing = src('src/pages/do-it/landing/page.tsx');
+  assert.match(landing, /const withChoice = IS_APP_SITE && ECHO_AGENT_ENABLED;/);
+  assert.match(landing, /saveAgentChoice\(choice\); setChoosing\(false\); goStart\(\);/);
+  const conv = src('src/doit/components/feature/AgentConversation.tsx');
+  assert.match(conv, /takeAgentChoice\(\)/);
+  const layer = src('src/doit/components/feature/agent-choice.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(layer, /\.echo-choice-layer\{[^}]*background:transparent/, '뒤 화면 덮개 0');
+  assert.ok(!/overflow:\s*hidden|backdrop-filter/.test(layer.split('.echo-choice-layer .echo-choice-card')[0]), '스크롤 잠금·흐림 0');
 });

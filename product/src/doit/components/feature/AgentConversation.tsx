@@ -4,9 +4,10 @@ import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { AGENT_PURPOSE_LABELS, AGENT_TONES, DEFAULT_AGENT_TONE, agentGet, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
+import { AGENT_PURPOSE_LABELS, DEFAULT_AGENT_TONE, agentGet, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
-import './agent-choice.css';
+import AgentChoiceLayer from './AgentChoiceLayer';
+import { takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
 
 interface Props {
   userId: string;
@@ -29,14 +30,15 @@ const SKIP_TEXT = '이 질문은 넘어갈게요';
 const STOP_TEXT = '오늘은 여기까지 할게요';
 
 const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
-function speak(text: string) {
+function speak(text: string, onState?: (speaking: boolean) => void) {
   if (!canSpeak() || !text.trim()) return;
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ko-KR';
+    if (onState) { u.onstart = () => onState(true); u.onend = () => onState(false); u.onerror = () => onState(false); }
     window.speechSynthesis.speak(u);
-  } catch { /* 읽기 실패는 글로 이어 간다 */ }
+  } catch { onState?.(false); /* 읽기 실패는 글로 이어 간다 */ }
 }
 
 // ECHO Conversation Agent 화면. 질문·진행·저장은 서버(doit-agent)가 정한다. 이 화면은 보이고 보내기만 한다.
@@ -52,10 +54,13 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
   const [choosing, setChoosing] = useState(true);
   const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
   const alive = useRef(true);
   const inFlight = useRef(false);
+  const heroStarted = useRef(false);
+  const [heroChoice, setHeroChoice] = useState<AgentChoice | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; if (canSpeak()) window.speechSynthesis.cancel(); }; }, []);
 
   const load = useCallback(async () => {
@@ -64,6 +69,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       const s = await agentGet(userId);
       if (!alive.current) return;
       setSession(s); setLoaded(true);
+      // 히어로 「ECHO 시작하기」에서 이미 고른 방식·말투가 있으면 선택창을 다시 띄우지 않고 그대로 시작한다(한 번 쓰면 지운다).
+      const chosen = takeAgentChoice();
+      if (!s && chosen) { setChoosing(false); setHeroChoice(chosen); }
     } catch {
       if (alive.current) setLoadError(LOAD_ERROR);
     }
@@ -83,12 +91,12 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   // 새 AI 말만 읽어 준다(말로 대화하기). 보낸 뒤 받은 말만 — 불러온 지난 대화는 읽지 않는다.
   const speakNew = (before: AgentSession | null, after: AgentSession) => {
     if (after.mode !== 'VOICE') return;
-    speak(after.messages.slice(before?.messages.length ?? 0).filter(m => m.role === 'ai').map(m => m.text).join(' '));
+    speak(after.messages.slice(before?.messages.length ?? 0).filter(m => m.role === 'ai').map(m => m.text).join(' '), setSpeaking);
   };
 
-  const start = () => void run('첫 이야기를 듣고 있어요', async () => {
-    if (mode === 'VOICE') speak(' '); // 아이폰은 첫 소리를 누름 안에서 시작해야 한다
-    const s = await agentStart(userId, { tone, mode, ...(firstAnswer ? { firstAnswer } : {}) });
+  const start = (choice: AgentChoice = { tone, mode }) => void run('첫 이야기를 듣고 있어요', async () => {
+    if (choice.mode === 'VOICE') speak(' '); // 아이폰은 첫 소리를 누름 안에서 시작해야 한다
+    const s = await agentStart(userId, { tone: choice.tone, mode: choice.mode, ...(firstAnswer ? { firstAnswer } : {}) });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
   });
@@ -96,7 +104,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const send = (text: string) => {
     const t = text.trim();
     if (!session || !t) return;
-    void run('듣고 있어요', async () => {
+    void run(session.mode === 'VOICE' ? '생각하는 중이에요' : '듣고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX));
       if (!alive.current) return;
       speakNew(session, r.session); setSession(r.session);
@@ -104,6 +112,13 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
     });
   };
+
+  useEffect(() => {
+    if (!loaded || session || !heroChoice || heroStarted.current) return;
+    heroStarted.current = true; setTone(heroChoice.tone); setMode(heroChoice.mode); start(heroChoice);
+    // start 는 매 렌더 새로 만들어지는 함수라 넣지 않는다(한 번만 시작 — heroStarted 로 막음).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, session, heroChoice]);
 
   const restart = () => void run('처음부터 준비하고 있어요', async () => {
     const failure = await onRestart();
@@ -126,24 +141,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     <p className="echo-eyebrow">만나기 전에</p>
     {purposeLabel ? <h1>{purposeLabel}<br />다섯 가지만 물어볼게요.</h1> : <h1>다섯 가지만<br />물어볼게요.</h1>}
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
-    {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={start}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
+    {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
-    {choosing && !busy && <div className="echo-choice-layer" role="dialog" aria-modal="true" aria-labelledby="echo-choice-title">
-      <div className="echo-choice-card">
-        <p id="echo-choice-title" className="echo-choice-title">어떻게 이야기할까요?</p>
-        <p className="echo-choice-label">대화 방식</p>
-        <div className="echo-choice-options" role="radiogroup" aria-label="대화 방식">
-          <button type="button" role="radio" aria-checked={mode === 'TEXT'} className={mode === 'TEXT' ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setMode('TEXT')}>글로 대화하기</button>
-          <button type="button" role="radio" aria-checked={mode === 'VOICE'} className={mode === 'VOICE' ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setMode('VOICE')}>말로 대화하기</button>
-        </div>
-        {mode === 'VOICE' && <p className="echo-choice-note">{canSpeak() ? '말할 때는 휴대폰 키보드의 마이크를 눌러 주세요. 말한 내용은 글자로 보내지고, ECHO 대답은 소리로 읽어 드려요. 목소리는 저장하지 않아요.' : '이 기기에서는 소리로 읽을 수 없어요. 글로 이어 갈게요.'}</p>}
-        <p className="echo-choice-label">말투</p>
-        <div className="echo-choice-options" role="radiogroup" aria-label="말투">
-          {AGENT_TONES.map(t => <button key={t.id} type="button" role="radio" aria-checked={tone === t.id} className={tone === t.id ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setTone(t.id)}>{t.label}</button>)}
-        </div>
-        <button type="button" className="echo-choice-confirm" onClick={() => { setChoosing(false); start(); }}>이렇게 시작하기</button>
-      </div>
-    </div>}
+    {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
   </section>;
 
   const done = session.phase === 'done';
@@ -171,7 +171,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       {ack && <p className="echo-ack">{ack}</p>}
       <p className="echo-question">{question}</p>
     </div>}
-    {session.mode === 'VOICE' && canSpeak() && lastAi && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => speak(lastAi)}>다시 듣기</button>}
+    {session.mode === 'VOICE' && canSpeak() && lastAi && (speaking
+      ? <p className="echo-notice" role="status">ECHO 가 말하는 중이에요 <button type="button" className="echo-text-button" onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }}>소리 멈추기</button></p>
+      : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => speak(lastAi, setSpeaking)}>다시 듣기</button>)}
     {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => setDraft(text)}>{text}</button></li>)}</ol></details>}
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
     {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
