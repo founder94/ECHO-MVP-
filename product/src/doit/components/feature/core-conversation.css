@@ -154,7 +154,8 @@
 .echo-dialogue.echo-dialogue--pastel .echo-composer-footer button{background:transparent;border-color:var(--conversation-surface-border)}
 /* ── 2026-09-25 대화 화면 UI 최종 수정 (대표 「앱 UI 최종 요구」) ──
    범위 = .echo-dialogue.echo-dialogue--pastel 아래로만(시작하기 이후 질문/대화 화면). 히어로·시작 흐름·전역 0.
-   ① 은색 버튼 안 어두운 글씨도 흰색: 금속판 바탕(.echo-primary, .echo-reactions 첫 버튼)은 그대로 두고 글자만 흰색으로 바꾼다.
+   ① [대표 2026-09-25 번복: 은색 버튼 흰 글씨는 대비 1~2.3:1 로 읽기 어려워 원래의 어두운 글씨로 되돌림 — 아래 설명은 기록용]
+      은색 버튼 안 어두운 글씨도 흰색: 금속판 바탕(.echo-primary, .echo-reactions 첫 버튼)은 그대로 두고 글자만 흰색으로 바꾼다.
       (전에는 대표 결정으로 은색 버튼 글자를 어둡게 그대로 뒀다 — 이번 지시로 뒤집힌다.) 새 그림자를 더하지 않고, 금속판을 위해 있던
       흰 글자 그림자(metal-silver.css)는 흰 글자와 겹쳐 보이지 않으므로 없앤다(추가 아님, 제거).
    ② 글씨 굵기 한 단계: 요청 예시(400→500, 500→600)를 그대로 지키되, 고운바탕·고운돋움은 index.html 에 400·700 굵기 파일만 있어
@@ -162,7 +163,6 @@
       700(굵게)로 튈 위험이 있다 — 700/800 금지 조건을 어길 수 있어 그 글꼴을 쓰는 글씨(h1·질문·인용문·안내 문장류)는 굵기를 건드리지
       않는다. 기본 글꼴(Gothic A1, index.html 에 400/500/600/700 모두 로드됨)을 쓰는 라벨·안내·목록 글씨만 정확히 한 단계 올린다.
       이미 600(버튼·머리말 등)인 것은 700 이 되므로 그대로 둔다. 새 색은 만들지 않는다. */
-.echo-dialogue.echo-dialogue--pastel :is(.echo-primary,.echo-reactions button:first-child){color:#fff;text-shadow:none}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-progress,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-composer-footer>span,.echo-composer label,.echo-fine,.echo-notice,.echo-busy,.echo-error,.echo-error p,.echo-text-button,.echo-history summary,.echo-history button,.echo-draft li p,.echo-draft li span,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-memory p,.echo-memory>div>span,.echo-memory summary,.echo-synthesis-items p,.echo-synthesis-items button,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-topic,.echo-opening-tile-desc,.echo-defer){font-weight:500}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-steps-count em,textarea){font-weight:600}
 .echo-dialogue.echo-dialogue--pastel .echo-done .echo-text-button{color:var(--conversation-text-secondary)} /* 2026-09-25 MASTER §4 소개 카드 「직접 쓸게요」: 판 안 보조 글자와 같은 흰색 */
