@@ -13,9 +13,11 @@
 //   ④ AI 에게 이 대화의 사용자 말을 최근 10턴까지 보인다.
 // v1.4(2026-09-25, 실제 외부 사용자 피드백 「질문이 좀 모호한거 같네 … 예시같은게 있어도 좋을것 같구」): 질문 수·목적은 그대로.
 //   ① 질문 말투 기준(구체적·생활 말·바로 답할 수 있음)을 같은 호출 안에서 스스로 확인한다(심사 호출 추가 0 · 고정 질문 0)
+// v1.5(같은 날, 실AI run 11 을 본 뒤): 「예를 들면?」 뒤에 같은 문장을 그대로 다시 낸 경우 한 번 더 쉬운 말로 청함(help_same · 상태 비교) ·
+//   예시는 끝맺음 없는 낱말 목록(말투와 안 부딪힘) · AI 에게 보이는 목적 이름(label)을 생활 말로(모델이 label 을 옮겨 써 「방식은 어떤 게…」가 나왔다). 화면의 목적 이름은 그대로.
 //   ② 질문마다 선택으로 보는 한 줄 예시(hint: 답의 범위만 · 답을 대신 써 주지 않음) ③ 「예를 들면?·무슨 뜻이야?」= help: 저장 0 · 질문 수 0 · 짧게 설명하고 같은 목적을 더 쉽게 다시 묻는다(질문마다 2번까지, 그 뒤는 다음 목적).
 
-export const AGENT_VERSION = "echo-agent-v1.4";
+export const AGENT_VERSION = "echo-agent-v1.5";
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_TOTAL = 1;
@@ -25,11 +27,11 @@ const MAX_CALLS_PER_TURN = 2;
 export const FIRST_QUESTION = "어떤 만남을 원하세요?";
 
 export const PURPOSES = Object.freeze([
-  { id: "relationship_intent", label: "원하는 만남", goal: "어떤 만남을 원하는지" },
-  { id: "attraction_comfort", label: "편하거나 끌리는 사람", goal: "어떤 사람에게 편함·관심·끌림을 느끼는지" },
-  { id: "values_character", label: "사람을 볼 때 중요한 것", goal: "사람을 볼 때 중요하게 보는 것" },
-  { id: "relationship_style", label: "알아가는 방식과 속도", goal: "어떤 방식과 속도로 알아가는 게 편한지" },
-  { id: "boundaries", label: "꼭 있었으면 하는 것 · 피하고 싶은 것", goal: "꼭 있었으면 하는 것이나 피하고 싶은 것" },
+  { id: "relationship_intent", label: "원하는 만남(친구·연애 등)", goal: "어떤 만남을 원하는지" },
+  { id: "attraction_comfort", label: "같이 있으면 편하거나 끌리는 사람", goal: "어떤 사람에게 편함·관심·끌림을 느끼는지" },
+  { id: "values_character", label: "사람을 만날 때 먼저 보게 되는 점", goal: "사람을 볼 때 중요하게 보는 것" },
+  { id: "relationship_style", label: "연락과 만남의 속도(자주 연락 · 천천히)", goal: "어떤 방식과 속도로 알아가는 게 편한지" },
+  { id: "boundaries", label: "이것만은 싫다 · 이건 꼭 있었으면", goal: "꼭 있었으면 하는 것이나 피하고 싶은 것" },
 ]);
 export const PIDS = PURPOSES.map((p) => p.id);
 const labelOf = (id: string) => PURPOSES.find((p) => p.id === id)?.label ?? id;
@@ -88,7 +90,7 @@ kind 하나:
 - ask: 사용자가 너나 서비스에 물음을 던졌다(자기 바람을 말한 것은 ask 가 아니다) → reply 에서 먼저 제대로 답한다(서비스는 service_facts 안에서만, 모르면 모른다고). 그다음 next 는 current_question 과 같은 목적으로, 답을 못 받은 그 질문을 한 번 더 자연스럽게 묻는다(새 목적으로 넘어가지 않는다). 단 current_question.shown_again 이 true 면 이미 한 번 다시 물은 것이니 다시 묻지 않고 open_purposes 로 넘어간다.
 - correction: 네가 잘못 이해한 것을 고치며 올바른 뜻을 말한다 → 인정하고 고친 뜻을 따른다.
 - repair: 틀렸다·이미 말했다·왜 또 묻냐 같은 항의(새 내용 없음) → 짧게 인정한다. 이미 말했다는 뜻이면 recent 의 앞선 사용자 말에서 그 내용을 찾아 extracted 에 넣고(quote 는 그 앞선 말에서 그대로) reply 에서 그 말을 짚는다. 같은 질문을 다시 하지 않는다.
-- help: 질문 뜻을 몰라 되묻는 말(예를 들면?·무슨 뜻이야?·뭐라고 답해?·어떤 거?·잘 모르겠는데 무슨 말이야) → reply 에 짧은 설명과 예시 개념 2~3개(한두 문장, 예: 연락 방식·약속·생활습관 같은 것). next 는 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문. 단 current_question.helps 가 ${MAX_HELP_PER_QUESTION} 이상이면 다시 설명하지 말고 open_purposes 로 넘어간다.
+- help: 질문 뜻을 몰라 되묻는 말(예를 들면?·무슨 뜻이야?·뭐라고 답해?·어떤 거?·잘 모르겠는데 무슨 말이야) → reply 에 짧은 설명과 예시 개념 2~3개(한두 문장, 예: 연락 방식·약속·생활습관 같은 것). next 는 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문(current_question.text 와 다른 문장, 실제 장면 하나를 넣어서). 단 current_question.helps 가 ${MAX_HELP_PER_QUESTION} 이상이면 다시 설명하지 말고 open_purposes 로 넘어간다.
 - skip: 넘어가자·다음 질문·다른 거·그 질문 말고·어렵다 → 이 주제를 끝내고 다음 목적으로 간다. 같은 뜻을 다시 묻지 않는다.
 - unsure: 질문은 알아들었는데 딱히 없다·모르겠다(바람이 없다는 뜻). 질문 자체를 모르겠다는 뜻이면 help 다. 애매하고 current_question.helps 가 0 이면 help.
 - stop: 지쳤다·그만하자·질문이 너무 많다.
@@ -109,7 +111,7 @@ next: 다음 질문.
 - open_purposes 가 비었거나 kind 가 stop 이면 {"type":"none"}.
 - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
 - 질문 말투 기준(묻기 전에 스스로 확인해 check 에 적는다): context = 방금 말·앞선 말과 이어진다 · concrete = 가치·방식·스타일·느낌 같은 추상 낱말만으로 묻지 않고 연락·약속·처음 만났을 때·주말처럼 실제 장면을 떠올릴 수 있다 · answerable = 35~52세 보통 사람이 설명 없이 바로 한 줄로 답할 수 있다. 하나라도 아니면 더 쉬운 문장으로 바꿔서 낸다. 짧은 한 문장, 상담·심리검사·면접 말투 금지.
-- next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 한 줄(${HINT_MAX}자 이내, 물음표 없이, 예: 「예: 연락 방식, 약속, 생활습관처럼요.」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
+- next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 낱말 목록(${HINT_MAX}자 이내, 「예:」로 시작, 낱말 2~3개를 「·」로 잇고 끝맺음·물음표 없이, 예: 「예: 연락 · 약속 · 주말」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
 
 쓰지 않는 단어: 데이팅, 소개팅, 궁합, 점술, 심리치료, 성격검사. 사용자가 말하지 않은 감정·사정을 사실처럼 말하지 않는다. 상담사·면접관·설문 말투와 과장된 공감을 쓰지 않는다.
 
@@ -370,6 +372,7 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   no_question: "아직 물을 목적(open_purposes)이 남아 있고 사용자가 그만하자고 하지 않았다. 받아준 뒤 다음 질문 하나가 필요하다.",
   purpose_used: "next.purpose 가 open_purposes 에 없다(이미 물었거나 이미 들은 목적). open_purposes 중 하나로 묻는다.",
   reply_question: "reply 에 물음표가 있었다. 질문은 next.question 하나에만 쓰고 reply 는 받아주기·대답만 쓴다.",
+  help_same: "kind 가 help 인데 next.question 이 지금 질문과 같은 문장이다. 사용자는 그 문장이 어려웠다. 같은 목적을 실제 장면 하나를 넣은 더 쉬운 다른 문장으로 묻는다.",
   help_question: "kind 가 help 다. reply 에 짧은 설명·예시를 쓰고, next.question 에 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문 하나를 쓴다.",
   asked_before: "next.question 이 이 대화에서 이미 한 질문과 같다. 사용자가 이미 말한 것은 extracted 에 넣고, open_purposes 의 다른 목적을 묻는다.",
 };
@@ -378,7 +381,7 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (after || out.kind === "stop") return "";
   // ask 는 지금 질문을 서버가 그대로 둔다(질문마다 한 번). 이미 한 번 다시 보였으면 다른 종류와 같이 다음 질문을 본다.
   if (out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) && !out.extracted.some((e) => e.purpose === st.current!.purpose)) return "";
-  if (out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION) return out.next.question ? "" : "help_question"; // 더 쉬운 같은 목적 질문이 있어야 한다
+  if (out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION) { if (!out.next.question) return "help_question"; return squash(out.next.question) === squash(st.current.text) ? "help_same" : ""; } // 더 쉬운, 다른 같은 목적 질문이 있어야 한다
   if (out.next.question && st.asked.some((a) => squash(a.text) === squash(out.next.question))) return "asked_before";
   const wantsCore = out.next.question && !(out.next.type === "clarify" && out.kind === "answer" && clarifyAllowed(st));
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";
