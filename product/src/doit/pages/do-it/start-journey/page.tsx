@@ -4,7 +4,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import SymbolLoader from "@/components/SymbolLoader";
 import { withTimeout } from "@/doit/lib/withTimeout";
 import { A_STRUCTURE_SERVER_ENABLED } from "@/doit/lib/understandingApi";
-import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from "@/doit/lib/agentApi";
+import { ECHO_AGENT_ENABLED, agentGet, agentIntroMark, type AgentSession } from "@/doit/lib/agentApi";
 import "@/doit/components/feature/core-conversation.css";
 import { PurposeSelect } from "@/doit/app/plan-a/screens/PurposeSelect";
 import type { PurposeListState } from "@/doit/app/plan-a/screens/PurposeSelect";
@@ -14,7 +14,7 @@ import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
 import { photoSetComplete } from "@/doit/lib/photoPolicy";
-import { requestIntroDraft } from "@/doit/lib/introDraft";
+import { requestAgentIntroDraft, requestIntroDraft } from "@/doit/lib/introDraft";
 import { usePurpose } from "@/doit/hooks/usePurpose";
 import { useAuth } from "@/doit/hooks/useAuth";
 import {
@@ -118,6 +118,7 @@ export default function StartJourney() {
 
   // 언마운트 후 setState 방지용 가드(복원 함수가 비동기이므로).
   const mountedRef = useRef(true);
+  const agentDraftRef = useRef<{ text: string; sessionId: string } | null>(null); // 「AI가 대신 작성하기」로 받은 대화 초안(저장할 때 출처 기록용)
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -397,6 +398,12 @@ export default function StartJourney() {
         setSaveError(SAVE_ERROR_MESSAGE);
         return;
       }
+      // 소개 출처 기록(관리자 관측): AI 초안을 받아 저장했으면 그대로인지 고쳤는지만 남긴다. 실패해도 화면을 막지 않는다.
+      const agentDraft = agentDraftRef.current;
+      if (agentDraft && draft.intro.trim()) {
+        agentDraftRef.current = null;
+        void agentIntroMark(user.id, agentDraft.sessionId, draft.intro.trim() === agentDraft.text.trim() ? "as_is" : "edited").catch(() => undefined);
+      }
     } else {
       // 방어: 동의 단계에서 로그인을 거치므로 정상적으로는 도달하지 않지만,
       // 혹시 모를 미로그인 진입은 사진 단계 전에 로그인으로 보낸다(사진에서 오류를 띄우지 않는다).
@@ -589,7 +596,10 @@ export default function StartJourney() {
           saving={saving}
           saveError={saveError}
           // 2026-09-23 「AI가 대신 작성하기」: 로그인했고 대화 서버를 쓰는 때만(답이 서버에 있어야 쓸 수 있다).
-          onDraftIntro={A_STRUCTURE_SERVER_ENABLED && user ? () => requestIntroDraft(user.id) : undefined}
+          // 2026-09-25 MASTER §4: 운영 앱 대화(doit-agent)가 켜져 있으면 그 대화의 초안을 쓴다(예전 경로 profile_draft 는 운영에서 502 로 실패했다).
+          onDraftIntro={A_STRUCTURE_SERVER_ENABLED && user ? (ECHO_AGENT_ENABLED
+            ? async () => { const r = await requestAgentIntroDraft(user.id); agentDraftRef.current = r; return r.text; }
+            : () => requestIntroDraft(user.id)) : undefined}
           onGoAnswer={() => navigate("/doit/conversation?from=journey")}
         />
       </>

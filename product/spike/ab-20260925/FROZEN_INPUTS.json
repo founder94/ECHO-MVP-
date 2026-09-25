@@ -128,7 +128,7 @@
  "prod_agent_gate": {
   "registered_at": "2026-09-25",
   "why": "대표 「구현 → 운영배포 → 운영검증」 FINAL: 운영 서버 doit-agent 가 쓰는 agent.ts(echo-agent-v1.2 — v1.1 에서 말투 예시 문장 삭제·첫 질문 = 목적 타일·먼저 답한 뒤 지금 질문 유지·대화 상한)를 결과를 보기 전에 고정한다. 입력·모델은 v1.1 재생과 같다.",
-  "agent_ts_sha256": "5758b3dc5552cc1c82b950afe82c35fecf15e4c2453c431a6c73f3ce55158db6",
+  "agent_ts_sha256": "f80e619dfa7753009d5192e02a504ad18ef24be67fd23333413eca5da4cd0ea4",
   "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
@@ -142,9 +142,9 @@
    "max_tokens": 768,
    "response_format": "json_object",
    "max_calls_per_turn": 2,
-   "closing_call": "마칠 때 1번"
+   "closing_call": "마칠 때 1번(요약·마무리·소개 초안을 같은 호출에서)"
   },
-  "version": "echo-agent-v1.5 (help_same · 예시 낱말 목록 · AI 용 목적 이름 생활 말)",
+  "version": "echo-agent-v1.6 (v1.4 위에: 밝고 가벼운 말투 지침 · 좋은 것/싫은 것 이름 · 마칠 때 소개 초안 2~4문장 · v1.5 변경 미포함)",
   "history": [
    {
     "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
@@ -178,12 +178,20 @@
     "version": "echo-agent-v1.4 (run 11 — 사전 규칙 충족)",
     "actions_run": 36129571721,
     "commit": "c9a8e32"
+   },
+   {
+    "agent_ts_sha256": "5758b3dc5552cc1c82b950afe82c35fecf15e4c2453c431a6c73f3ce55158db6",
+    "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+    "version": "echo-agent-v1.5 (run 12 — 사전 규칙 미충족 · 후보로만)",
+    "actions_run": null,
+    "commit": null
    }
   ],
   "why_v2": "run 7(실제 AI)에서 질문이 목적 설명 문장을 옮겨 쓴 설문 말투였고, 오타가 있는 답은 인용을 고쳐 써서 저장되지 않았다. 프롬프트만 고쳤다(구조·상태·검사 변경 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영 기본)에서 치명 지표(핵심 질문 5 초과·끝난 뒤 질문·내부 이름·금지어·오류·말투 어긋남·항의 저장)가 run 7 보다 나빠지지 않고 설문 옮겨 쓰기(label_copy)가 줄면 이 판을 배포, 아니면 run 7 판을 배포한다.",
   "why_v3": "run 8 에서 끝난 뒤 말에 직전 반응(last_reply)을 넣었더니 gpt-4o-mini 가 그 문장을 되풀이했다(되풀이 5→12). 그 한 줄만 run 7 로 되돌린 최종 파일을 운영 배포 전에 한 번 더 실제 AI 로 돌린다. 결정 규칙(결과 보기 전): 치명 지표가 run 8 보다 나빠지지 않으면 이 파일을 배포한다.",
   "why_v4": "대표 Galaxy 운영 실측(2026-09-25, 세션 8eb0da33): 다섯 번째 답이 ask 로 읽혀 같은 질문이 다시 나왔고 「아까 말했는데」 뒤 그 답이 되살아나지 않은 채 끝났다. 상태 사용만 고쳤다(문장 가드 추가 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영)에서 치명 지표(over_5·끝난 뒤 질문·내부 이름·금지어·오류·항의 저장)가 run 9 보다 나빠지지 않고, F2(합성)의 「꼭 있었으면 하는 것」이 채워지면 배포한다. 나빠지면 배포하지 않고 v1.2 를 둔다.",
   "why_v5": "실제 외부 사용자 피드백(2026-09-25 「질문이 좀 모호한거 같네 … 예시같은게 있어도 좋을것 같구 … 구체적인 질문이 더 편하게 와닿을것 같기도 하고」). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영)에서 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted)가 모두 0이고, help_classified 가 F3 의 help 6개 중 4개 이상이며, 추상 낱말 질문 비율(가치·방식·스타일·느낌·성향 · 관측용 HEURISTIC)이 run 10 의 12/42(29%)보다 낮으면 배포한다. 하나라도 아니면 배포하지 않고 v1.3 을 둔다.",
-  "why_v6": "run 11(v1.4)은 사전 규칙을 충족했지만 결과를 보니 help 뒤 같은 문장 재출력(same_question_again 6)·반말에서 예시가 「~요」로 끝남·label 을 옮겨 쓴 추상 질문이 보였다. 입력(흐름)은 run 11 과 같다. 결과를 보기 전 결정 규칙: gpt-4o-mini 에서 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 · help_classified ≥ 4/6 · same_question_again < 6 · abstract_questions 비율 ≤ run 11(16/64) 이면 v1.5 배포. 아니면 v1.4(run 11 규칙 충족)를 배포한다."
+  "why_v6": "run 11(v1.4)은 사전 규칙을 충족했지만 결과를 보니 help 뒤 같은 문장 재출력(same_question_again 6)·반말에서 예시가 「~요」로 끝남·label 을 옮겨 쓴 추상 질문이 보였다. 입력(흐름)은 run 11 과 같다. 결과를 보기 전 결정 규칙: gpt-4o-mini 에서 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 · help_classified ≥ 4/6 · same_question_again < 6 · abstract_questions 비율 ≤ run 11(16/64) 이면 v1.5 배포. 아니면 v1.4(run 11 규칙 충족)를 배포한다.",
+  "why_v7": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §2 질문을 밝고 가볍게 · §4 5문답 종료 후 AI 프로필 초안 자동 생성. 입력(흐름)·모델은 run 11·12 와 같다. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 ② intro_ready(마친 대화 중 확인된 말이 있는 대화에서 소개 초안 status=ready) 80% 이상 ③ 추상 낱말 질문 비율(abstract_questions/questions_total · HEURISTIC)이 run 11 의 25% 이하. 셋 다 맞으면 v1.6 을 운영에 배포하고, 하나라도 아니면 배포하지 않고 v1.4(운영 버전 4)를 둔다. heavy_questions·example_copy(말투 예시를 그대로 옮긴 질문)·intro_dropped 는 관측만 하고 판정에 쓰지 않는다(결과 본 뒤 규칙 변경 금지)."
  }
 }

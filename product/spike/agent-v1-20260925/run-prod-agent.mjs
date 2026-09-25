@@ -33,7 +33,7 @@ export async function loadAgent() {
 const KIND_OF = { answer: 'answer', repair: 'repair', correction: 'correction', ask: 'ask', help: 'help', unsure: 'unsure', fatigue: 'stop', mixed: 'answer' };
 let seq = 0;
 const mock = (expect) => (_sys, input) => {
-  if (input.latest === undefined) return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.' });
+  if (input.latest === undefined) { const h = (input.heard ?? []).find((x) => x.quote); return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.', intro: h ? [{ text: '[MOCK] 저는 소개 문장이에요.', basis: h.quote }] : [] }); }
   const kind = KIND_OF[expect] ?? 'answer'; const open = input.open_purposes ?? [];
   return JSON.stringify({ kind, understood: '', reply: `[MOCK] 받아주기 ${++seq}.`, inferred: [], declared: null, wrong: [],
     extracted: ['answer', 'correction'].includes(kind) && input.current_question ? [{ purpose: input.current_question.purpose, note: `m${seq}`, quote: String(input.latest).replace(/\s/g, '').slice(0, 2) }] : [],
@@ -56,7 +56,7 @@ export async function runFlow(A, flowId, tone, model) {
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
       finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase };
+  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null };
 }
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -93,6 +93,14 @@ export function stats(A, runs) {
     id_leak: rows.filter((x) => A.leaksId(lines(x))).length,
     banned: rows.filter((x) => BANNED.test(lines(x))).length,
     confirmed_items: sum(runs.map((r) => r.profile.confirmed_preferences.length)), inferred_items: sum(runs.map((r) => r.profile.inferred_candidates.length)),
+    // v1.6(2026-09-25 대표 MASTER §2·§4): 소개 초안 · 무거운 말투(관측) · 말투 예시를 그대로 옮긴 질문(관측)
+    intro_ready: `${runs.filter((r) => r.intro?.status === 'ready').length}/${runs.filter((r) => r.phase !== 'talk' && r.profile.confirmed_preferences.length).length}`,
+    intro_status: runs.map((r) => r.intro?.status ?? 'none').join(','),
+    intro_dropped: JSON.stringify(runs.reduce((a, r) => { for (const [k, v] of Object.entries(r.intro?.dropped ?? {})) a[k] = (a[k] ?? 0) + v; return a; }, {})),
+    intro_chars_max: Math.max(0, ...runs.map((r) => (r.intro?.lines ?? []).map((l) => l.text).join(' ').length)),
+    heavy_questions: rows.filter((x) => x.question && /느끼(나요|세요|시나요)|중요하게|어떤 편|성향|가치관|의미/.test(x.question)).length,
+    example_copy: rows.filter((x) => x.question && /같이있어도부담없고편하다싶은사람은어떤사람|이런건좋고,?이런건싫다싶은게있나요/.test(x.question.replace(/\s+/g, ''))).length,
+    questions_total: rows.filter((x) => x.question).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }
@@ -116,6 +124,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const m of MODELS) for (const r of out[m]) {
     L.push(`## ${m} · ${r.flow} · 말투 ${r.tone} · 핵심 질문 ${r.core} · 되묻기 ${r.clarify} · ${r.phase !== 'talk' ? '마침' : '안 끝남'}`, '', '| # | 사용자 | 종류·저장 | 출력 |', '|---|---|---|---|');
     for (const x of r.rows) L.push(`| ${x.i} | ${flat(x.text)} | ${x.kind ?? '-'}${x.saved ? '·저장' : ''}${x.qtype ? `·${x.qtype}:${x.qpurpose}` : ''}${x.after ? '·끝난 뒤' : ''} | ${flat([x.reply && `💬 ${x.reply}`, x.question && `❓ ${x.question}`, x.hint && `💡 ${x.hint}`, x.finish && '(마무리)', x.error && `⚠️ ${x.error}`].filter(Boolean).join(' / '))} |`);
+    if (r.intro) L.push(`- 소개 초안: ${r.intro.status}${r.intro.lines.length ? ` — ${flat(r.intro.lines.map((l) => l.text).join(' '))}` : ''}${Object.keys(r.intro.dropped ?? {}).length ? ` · 버림 ${JSON.stringify(r.intro.dropped)}` : ''}`, '');
     L.push('');
   }
   const text = L.join('\n');

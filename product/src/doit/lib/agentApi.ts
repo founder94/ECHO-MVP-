@@ -27,7 +27,10 @@ export interface AgentSession {
   messages: { role: 'ai' | 'user'; text: string }[];
   summary: { purpose: string; text: string }[]; closing: string | null;
   profile: AgentProfile | null; handoff: { status: string } | null;
+  intro?: AgentIntro | null; // 서버 v1.6 · 대화가 끝났을 때만
 }
+// 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
+export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
 export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean }
 
 export const AGENT_PURPOSE_LABELS: Record<string, string> = {
@@ -66,4 +69,16 @@ export async function agentTurn(userId: string, sessionId: string, text: string)
   const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text });
   if (!validSession(r.session) || !r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
   return r;
+}
+
+// 소개 초안 다시 쓰기(AI 1번 · 대화 한 번에 3번까지) · 사용자가 고른 것 기록(출처 표시: 이대로/고쳐서/직접).
+export async function agentIntro(userId: string, sessionId: string): Promise<{ session: AgentSession; limited: boolean }> {
+  const r = await write<{ session: AgentSession; limited?: boolean }>(userId, { action: 'agent_intro', sessionId });
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  return { session: r.session, limited: r.limited === true };
+}
+export async function agentIntroMark(userId: string, sessionId: string, how: 'as_is' | 'edited' | 'own'): Promise<AgentSession> {
+  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_intro_mark', sessionId, how });
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  return r.session;
 }

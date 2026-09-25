@@ -342,3 +342,81 @@ test('help 에 쉬운 질문이 없으면 한 번 다시 청한다(help_question
   assert.ok(s.aiCalls.every((c) => !/심사|judge/i.test(c.system.slice(0, 40))));
 });
 
+
+// ── v1.6(2026-09-25 대표 MASTER §2·§4): 밝고 가벼운 말투 지침 · 대화를 마칠 때 같은 호출에서 소개 초안 · 다시 쓰기 · 고른 것 기록.
+async function finishedSession(s, h, closingOut) {
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  s.ai.push(T({ kind: 'stop' }), closingOut);
+  const end = await say('오늘은 여기까지 할게요');
+  return { sid, end };
+}
+
+test('v1.6 말투: 밝고 가볍게 지침 · 좋은 것/싫은 것 이름이 AI 지시에 들어간다(그대로 옮겨 쓰지 말라는 문장 포함)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구' });
+  const sys = s.aiCalls[0].system; const input = s.aiCalls[0].input;
+  assert.ok(sys.includes('밝고 가볍게') && sys.includes('그대로 옮겨 쓸 문장이 아니다'));
+  assert.ok(input.open_purposes.some((p) => p.label === '이건 좋고 이건 싫다 싶은 것'));
+});
+
+test('v1.6 소개 초안: 마칠 때 같은 호출 · 근거(내가 친 글자) 있는 문장만 · 개인 정보·금지어 버림 · 버린 이유는 코드로만 · 로그에 원문 0', async () => {
+  const s = newState(); const h = load(s);
+  const { end } = await finishedSession(s, h, { summary: [], closing: '이제 조금 알 것 같아요.', intro: [
+    { text: '저는 편하게 만날 수 있는 친구를 찾고 있어요.', basis: '편하게' },
+    { text: '저는 요리를 아주 잘해요.', basis: '요리' },                // 근거 없음(말한 적 없음)
+    { text: '연락은 010-1234-5678 로 주세요.', basis: '편하게' },       // 개인 정보
+    { text: '소개팅 말고 편한 만남이 좋아요.', basis: '편하게' },        // 쓰지 않는 단어
+  ] });
+  assert.equal(s.aiCalls.at(-1).system.includes('intro'), true);
+  assert.equal(s.aiCalls.filter((c) => c.system.includes('소개 초안')).length, 1, '마칠 때 AI 1번(추가 호출 0)');
+  assert.ok(s.aiCalls.at(-1).input.heard.every((x) => typeof x.quote === 'string'), '근거 확인용 원문 인용이 들어간다');
+  const intro = end.body.session.intro;
+  assert.equal(intro.status, 'ready'); assert.deepEqual(intro.lines, ['저는 편하게 만날 수 있는 친구를 찾고 있어요.']);
+  assert.equal(intro.text, '저는 편하게 만날 수 있는 친구를 찾고 있어요.'); assert.equal(intro.tries_left, 2); assert.equal(intro.used, null);
+  const stored = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state.intro;
+  assert.deepEqual(stored.dropped, { no_basis: 1, private_data: 1, banned_word: 1 });
+  const log = h.logs.map((l) => JSON.parse(l)).find((l) => l.step === 'turn' && l.intro);
+  assert.equal(log.intro, 'ready'); assert.equal(log.intro_lines, 1); assert.deepEqual(log.intro_dropped, { no_basis: 1, private_data: 1, banned_word: 1 });
+  assert.ok(!h.logs.some((l) => /요리|010-1234|편하게 만날/.test(l)), '로그에 문장 원문 0');
+});
+
+test('v1.6 소개 다시 쓰기: 대화 중 409 · 실패 → 다시 쓰기 AI 1번 · 3번 상한 뒤 AI 0 · 들은 말 없으면 none(AI 0) · 고른 것 기록', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  assert.equal((await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid })).status, 409, '대화 중에는 쓰지 않는다');
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
+  const end = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' });
+  assert.equal(end.body.session.intro.status, 'failed'); assert.equal(end.body.session.intro.text, '');
+  const n0 = s.aiCalls.length;
+  s.ai.push({ intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  const r1 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(r1.status, 200); assert.equal(s.aiCalls.length, n0 + 1); assert.equal(r1.body.session.intro.status, 'ready'); assert.equal(r1.body.session.intro.tries_left, 1);
+  s.ai.push('HTTP500');
+  const r2 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(r2.body.session.intro.status, 'failed'); assert.equal(r2.body.session.intro.tries_left, 0);
+  const r3 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(r3.body.limited, true); assert.equal(s.aiCalls.length, n0 + 2, '상한 뒤 AI 0');
+  assert.equal((await h.call({ action: 'agent_intro_mark', requestId: rid(), sessionId: sid, how: 'hack' })).status, 400);
+  const m = await h.call({ action: 'agent_intro_mark', requestId: rid(), sessionId: sid, how: 'own' });
+  assert.equal(m.body.session.intro.used, 'own');
+  const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state.intro;
+  assert.equal(st.used, 'own'); assert.ok(st.used_at);
+  assert.equal(s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length, 2, '소개 동작은 턴 기록을 만들지 않는다');
+
+  // 들은 말이 없는 대화: 소개를 쓰지 않는다(AI 0).
+  const s2 = newState(); const h2 = load(s2);
+  s2.ai.push(T({ kind: 'skip', ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const st2 = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '음' });
+  s2.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [] });
+  const e2 = await h2.call({ action: 'agent_turn', requestId: rid(), sessionId: st2.body.session.id, text: '그만' });
+  assert.equal(e2.body.session.intro.status, 'none');
+  const k = s2.aiCalls.length;
+  const again = await h2.call({ action: 'agent_intro', requestId: rid(), sessionId: st2.body.session.id });
+  assert.equal(again.body.session.intro.status, 'none'); assert.equal(s2.aiCalls.length, k, '재료가 없으면 AI 를 부르지 않는다');
+});

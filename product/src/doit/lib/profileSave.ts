@@ -20,7 +20,8 @@ export interface ProfileTextDraft {
 type ProfilePatch =
   | { purpose_id: string; purpose_label: string }
   | { purpose_id: null; purpose_label: null }
-  | { nickname: string; bio: string; region: string; life_rhythm: string };
+  | { nickname: string; bio: string; region: string; life_rhythm: string }
+  | { bio: string };
 
 async function saveOwnProfile(userId: string, patch: ProfilePatch): Promise<string | null> {
   const supabase = getSupabase();
@@ -75,6 +76,11 @@ export async function savePurpose(
 // v13.4 "처음부터 다시": 목적을 비워 첫 질문("어떤 만남을 원하세요?")부터 다시 시작한다. 기록·이해는 지우지 않는다.
 export async function clearPurpose(userId: string): Promise<string | null> {
   return saveOwnProfile(userId, { purpose_id: null, purpose_label: null });
+}
+
+// 소개만 저장 → bio (2026-09-25 대화 끝 화면 「이대로 사용할게요」·「조금 고칠게요」). 닉네임·지역 등 다른 칸은 건드리지 않는다.
+export async function saveIntroText(userId: string, intro: string): Promise<string | null> {
+  return saveOwnProfile(userId, { bio: intro });
 }
 
 // 프로필 텍스트 저장 → nickname/bio/region/life_rhythm

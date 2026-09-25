@@ -14,7 +14,8 @@ type Json = Record<string, unknown>;
 
 const SESSION_ACTION = "agent_session";
 const TURN_ACTION = "agent_turn";
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "admin_sessions", "admin_session"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_intro", "agent_intro_mark", "admin_sessions", "admin_session"]);
+const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
 const BODY_MAX_BYTES = 32 * 1024;
@@ -113,6 +114,8 @@ export function sessionView(id: string, stored: Stored) {
     current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
     profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
+    // v1.6 소개 초안: 문장과 상태만(근거 인용·버린 이유는 관리자 화면에서만).
+    intro: done && st.intro ? { status: st.intro.status, text: A.introText(st.intro), lines: st.intro.lines.map((l) => l.text), tries_left: Math.max(0, A.INTRO_TRIES_MAX - st.intro.tries), used: st.intro.used } : null,
   };
 }
 
@@ -185,7 +188,8 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     payload_hash: await sha256(`${sessionId}:${text}`), applied_revision: rev + 1, response_payload: { turn: turnOut, record } });
   logDiag({ step: "turn", kind, saved: record.saved, decision: record.decision, q: record.question_index, calls: obs.calls.length, retry: obs.retry,
     tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0),
-    model: obs.calls.find((c) => c.model)?.model ?? null, record_error: recordError, turn_log_error: !!turnError, ms: record.total_ms });
+    model: obs.calls.find((c) => c.model)?.model ?? null, record_error: recordError, turn_log_error: !!turnError, ms: record.total_ms,
+    ...(response.finish ? { intro: st.intro?.status ?? null, intro_lines: st.intro?.lines.length ?? 0, intro_dropped: st.intro?.dropped ?? {}, intro_error: st.intro?.error ?? null } : {}) });
   return json({ ok: true, session: view, turn: turnOut }, 200, ctx.origin);
 }
 
@@ -280,6 +284,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null });
       return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
+    }
+
+    // v1.6 소개 초안 다시 쓰기 · 사용자가 고른 것 기록(agent_intro · agent_intro_mark). 판 번호로 동시 쓰기를 막는다. 턴 기록·doit_records 는 만들지 않는다.
+    if (action === "agent_intro" || action === "agent_intro_mark") {
+      const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
+      const { data: row } = await admin.from("doit_request_events").select("request_id, created_at, applied_revision, response_payload")
+        .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
+      if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
+      const stored = row.response_payload as unknown as Stored;
+      if (stored.state.phase === "talk") return fail("NOT_READY", "다섯 가지 이야기를 마친 뒤에 소개를 쓸 수 있어요.", 409, origin);
+      const rev = Number(row.applied_revision ?? 0);
+      let obs: A.Obs = { calls: [], retry: [] }; let limited = false;
+      if (action === "agent_intro_mark") {
+        const how = typeof body.how === "string" && INTRO_USES.has(body.how) ? body.how as "as_is" | "edited" | "own" : null;
+        if (!how) return fail("BAD_REQUEST", "잘못된 요청이에요.", 400, origin);
+        const base = stored.state.intro ?? { status: "none" as const, lines: [], dropped: {}, tries: 0, error: null, used: null, used_at: null };
+        stored.state.intro = { ...base, used: how, used_at: new Date().toISOString() };
+      } else {
+        if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
+      }
+      if (!limited) {
+        const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
+          .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
+        if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
+      }
+      const intro = stored.state.intro;
+      logDiag({ step: action, intro: intro?.status ?? null, lines: intro?.lines.length ?? 0, dropped: intro?.dropped ?? {}, error: intro?.error ?? null, used: intro?.used ?? null, limited,
+        calls: obs.calls.length, tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0), model: obs.calls.find((c) => c.model)?.model ?? null });
+      return json({ ok: true, session: sessionView(sid, stored), limited }, 200, origin);
     }
 
     // agent_turn

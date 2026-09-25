@@ -7,6 +7,7 @@ import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { AGENT_PURPOSE_LABELS, DEFAULT_AGENT_TONE, agentGet, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
+import AgentIntroCard from './AgentIntroCard';
 import { takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
 
 interface Props {
@@ -55,6 +56,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
+  const [introSaved, setIntroSaved] = useState(false); // 이 화면에서 소개를 저장했다
   const [hintFor, setHintFor] = useState<string | null>(null); // 「예시 보기」를 연 질문(질문이 바뀌면 저절로 닫힌다)
   const [choosing, setChoosing] = useState(true);
   const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
@@ -157,6 +159,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const lastAi = [...msgs].reverse().find(m => m.role === 'ai')?.text ?? '';
   const answered = Math.max(session.progress.asked - 1, 0);
   const profile = session.profile;
+  const introChosen = introSaved || !!session.intro?.used; // 소개를 이미 골랐다(이대로·고침·직접)
 
   return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
@@ -193,11 +196,14 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       </ol>}
       <p className="echo-context">내가 직접 말한 것만 적었어요. AI 추측은 넣지 않았어요. 지금은 이 정리로 바로 누군가와 연결되지는 않아요.</p>
       <div className="echo-done-actions">
-        <button className="echo-primary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>
+        {/* 한 번에 할 일 하나(대표 MASTER §10): 소개를 고르기 전에는 아래 소개 카드가 주요 행동이고, 고른 뒤에는 사진이 주요 행동이다. */}
+        {introChosen && <button className="echo-primary" disabled={!!busy} onClick={onContinue}>사진 채우러 가기 <ChevronRight size={18} /></button>}
         <Link className="echo-secondary" to="/doit/connections">연결까지 남은 것 보기 <ChevronRight size={18} /></Link>
         {restartArmed === 'done' ? restartConfirm : <button className="echo-secondary" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed('done')}>처음부터 시작하기</button>}
       </div>
     </section>}
+    {done && <AgentIntroCard userId={userId} session={session} onSession={setSession} onSaved={() => setIntroSaved(true)} />}
+    {done && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
     <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (!busy && draft.trim()) send(draft); }}>
       <label htmlFor="echo-message">{done ? '고칠 게 있으면 적어 주세요' : session.mode === 'VOICE' ? '키보드의 마이크를 눌러 말해 주세요' : '이어서 적기'}</label>
       <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder="생각나는 대로 한 줄" maxLength={TEXT_MAX} rows={4} disabled={!!busy} />
