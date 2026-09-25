@@ -70,6 +70,8 @@ export default function AgentConversations() {
         <StatCard label="AI 호출(오류)" value={`${d.ai_calls} (${d.ai_errors})`} sub={`지연 p50 ${d.latency_p50 ?? "-"}ms · p95 ${d.latency_p95 ?? "-"}ms`} status="success" />
         <StatCard label="토큰 입력 · 출력" value={`${d.input_tokens.toLocaleString()} · ${d.output_tokens.toLocaleString()}`} sub="OpenAI 응답의 usage 합계" status="success" />
         <StatCard label="비용" value="확인 불가" sub={d.cost} status="success" />
+        <StatCard label="진행 중 하루 넘게 멈춤" value={d.stalled} sub="중도 이탈 후보" status="success" />
+        <StatCard label="사진 올린 사람 · 대표 사진" value={`${d.with_photos} · ${d.with_primary}`} sub="최근 2개월 확인 상태는 저장 칸이 없어 기록 없음" status="success" />
       </div>}
 
       {load.kind === "ready" && tab === "sessions" && <section className="flex flex-col gap-3">
@@ -97,6 +99,7 @@ export default function AgentConversations() {
             <ul className="mt-2 flex flex-col gap-1">{PURPOSE_IDS.map((id) => <li key={id}><b>{AGENT_PURPOSE_LABELS[id]}</b> · {p[id]?.status ?? "기록 없음"}{p[id]?.items?.length ? ` — ${p[id].items!.map((i) => `${i.note}(「${hide(i.quote, showRaw)}」)`).join(", ")}` : ""}</li>)}</ul>
             <p className="mt-2">MBTI {p.mbti?.value ?? "UNKNOWN"} · 혈액형 {p.blood_type?.value ?? "UNKNOWN"} (직접 말했을 때만 CONFIRMED)</p>
             <p className="mt-1">추측(INFERRED · 매칭에 안 씀): {(p.inferred_candidates ?? []).map((i) => i.trait).join(", ") || "없음"}</p>
+            <p className="mt-1">사진 {s.photos ? `${s.photos.count}장 · 대표 사진 ${s.photos.primary ? "있음" : "없음"} · 마지막으로 올린 날 ${fmtDate(s.photos.last_updated_at)}` : "기록 없음"} · 최근 2개월 확인 상태 = 기록 없음(저장 칸 없음)</p>
             <p className="mt-1">정정 {(p.user_corrections ?? []).length}건 · 문제 삼은 질문·거둔 뜻 {(p.rejected_meanings ?? []).length}건 · 후보 0(연결 서버가 아직 이 프로필을 읽지 않음)</p>
           </article>; })}
       </section>}

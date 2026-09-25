@@ -222,7 +222,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const userIds = [...new Set(rows.map((r) => r.user_id))];
         const { data: profs } = userIds.length ? await admin.from("profiles").select("id, nickname").in("id", userIds) : { data: [] };
         const nick = new Map(((profs ?? []) as { id: string; nickname: string | null }[]).map((p) => [p.id, p.nickname]));
-        return json({ ok: true, sessions: rows.map((r) => ({ id: r.request_id, user: r.user_id.slice(0, 8), nickname: nick.get(r.user_id) ?? null, created_at: r.created_at, updated_at: r.updated_at, stored: r.response_payload })),
+        // 사진은 이미 있는 칸만 읽는다(장수·대표 사진·마지막으로 올린 시각). 사진 파일·주소는 주지 않는다. 최근 2개월 확인 상태는 저장하는 칸이 없다(새 칸 = 승인 필요).
+        const { data: photoRows } = userIds.length ? await admin.from("profile_photos").select("user_id, is_primary, updated_at").in("user_id", userIds) : { data: [] };
+        const photos = new Map<string, { count: number; primary: boolean; last_updated_at: string | null }>();
+        for (const ph of (photoRows ?? []) as { user_id: string; is_primary: boolean | null; updated_at: string | null }[]) {
+          const cur = photos.get(ph.user_id) ?? { count: 0, primary: false, last_updated_at: null };
+          cur.count++; if (ph.is_primary) cur.primary = true; if (ph.updated_at && (!cur.last_updated_at || ph.updated_at > cur.last_updated_at)) cur.last_updated_at = ph.updated_at;
+          photos.set(ph.user_id, cur);
+        }
+        return json({ ok: true, sessions: rows.map((r) => ({ id: r.request_id, user: r.user_id.slice(0, 8), nickname: nick.get(r.user_id) ?? null, created_at: r.created_at, updated_at: r.updated_at, stored: r.response_payload, photos: photos.get(r.user_id) ?? { count: 0, primary: false, last_updated_at: null } })),
           turns: ((turns ?? []) as { target_id: string; created_at: string; response_payload: Json | null }[]).map((t) => ({ session_id: t.target_id, created_at: t.created_at, record: (t.response_payload as Json | null)?.record ?? null })) }, 200, origin);
       }
       const id = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";

@@ -57,7 +57,7 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   const api = src('src/doit/lib/agentApi.ts');
   assert.match(api, /DEFAULT_AGENT_TONE: AgentTone = 'polite'/);
   for (const label of ['편한 존댓말', '정중한 존댓말', '편한 반말']) assert.ok(api.includes(label));
-  for (const t of ['글로 대화하기', '말로 대화하기', '정중한 존댓말', '이 질문 넘어가기', '여기까지 할게요', '처음부터 시작하기', '사진과 소개 채우기', '연결까지 남은 것 보기', '다시 듣기']) assert.ok((ui + api).includes(t), t);
+  for (const t of ['글로 시작하기', '말로 시작하기', '당신의 결을 알려주세요', '말투 · ', '정중한 존댓말', '이 질문 넘어가기', '여기까지 할게요', '처음부터 시작하기', '사진과 소개 채우기', '연결까지 남은 것 보기', '다시 듣기']) assert.ok((ui + api).includes(t), t);
   assert.ok(!/getUserMedia|MediaRecorder|AudioContext/.test(ui), '마이크 녹음·음성 원본 수집 코드 0(기기 받아쓰기만)');
   assert.ok(!/데이팅|소개팅|궁합|점술|심리치료|성격검사/.test(ui + api), '금지어 0');
   assert.ok(!/setTimeout/.test(ui), '가짜 진행 타이머 0');

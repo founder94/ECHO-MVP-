@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (12)
+## COMPLETED (14)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -23,6 +23,8 @@
 | P-12 | MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 17칸: gpt-4.1-mini 5 · gpt-4.1 4 · gpt-4o 3 · gpt-4o-mini 2 · 모두 별로 3(실제 입력 14: 5·2·2·2·3) → 모델 승자 없음 · P0 FAIL. 다시 요구 금지 |
 | P-14 | core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대표가 2026-09-25 두 번 대화(13턴·8턴) → 실패 GF-78~84. 다시 요구 금지 |
 | P-15 | core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교) | 2026-09-25 | Claude(GitHub Actions run 36111514762) | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md | 한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지 |
+| B-10 | 운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL | 2026-09-25 | HARD STOP(Edge 배포·RLS) | supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql | 시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 → 2026-09-25 운영 doit-agent 배포와 함께 관리자 「대화 에이전트」로 연결(서버 역할 확인·서비스 권한 읽기 · RLS 변경 0). |
+| C-20 | ECHO Conversation Agent 운영 서버 doit-agent 배포(버전 2 · 파일 글자 단위 동일) | 2026-09-25 | 대표 「구현 → 운영배포 → 운영검증」 FINAL | docs/claude-final-review-20260916/PATCH-20260925-agent-prod/AGENT_PROD_보고_20260925.md | 앱 화면은 대표 Netlify 업로드 뒤 운영 반영 · 실기기 확인 전 |
 
 ## DECIDED (17)
 
@@ -59,9 +61,9 @@
 | B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
 | B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
 | B-09 | 실시간 음성(말하면 듣고 목소리로 답함) — 마이크 + 음성 API 키 서버 필요 | 2026-09-25 | 플랫폼(claude.ai 페이지는 마이크 거부) + HARD STOP(운영 Edge 배포·키 사용) | docs/failure-intelligence/VOICE_RESEARCH_20260925.md | 대표 승인 시: 임시 키 발급 Edge 함수 1개 + 마이크 되는 앱 화면(Netlify) — 같은 방식으로 다시 요구하지 않는다 |
-| B-10 | 운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL | 2026-09-25 | HARD STOP(Edge 배포·RLS) | supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql | 시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 |
+| B-11 | Photo Trust 상태 저장(USER_CONFIRMED_RECENT / TECHNICALLY_SUPPORTED / UNKNOWN) — profile_photos 에 저장 칸이 없음 | 2026-09-25 | HARD STOP(DB Migration · 새 민감정보 처리) | profile_photos 칸 = id·user_id·slot·storage_path·is_primary·created_at·updated_at(운영 읽기) | 업로드 때 EXIF 확인·본인 확인은 이미 화면에서 함(저장 0). 관리자에는 사진 장수·대표 사진·마지막 업로드 시각만 |
 
-## PENDING (7)
+## PENDING (9)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -72,3 +74,5 @@
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
 | P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 · 2026-09-25: 운영 v27 호출 16번 제공자 오류 0 → gpt-5 계열 5개는 아님. 확정은 여전히 DIGEST 대조 필요(MODEL GATE 에는 필요 없음) |
 | P-16 | echo-agent-v1.1 휴대폰 시험 — 대표가 말투 고르고 글/말로 대화해 매칭 단계까지 가 보기 + 같은 페이지 「관리자」에서 방금 대화 확인 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db 에 자동 기록 → Claude 가 읽음 |
+| P-17 | 홈페이지(do-it.company) BRAND ZIP 업로드 여부 — 올리면 히어로 문구가 운영(「사람은 프로필보다…/지금 시작하기」)에서 09-24 승인본(「좋아하는 사람보다…/ECHO 시작하기」)으로 바뀜 | 2026-09-25 | 대표 결정 | 운영 main JS 와 BRAND 빌드 문구 대조 | 디자인 LOCK(승인 없는 히어로 변경 0) 때문에 올리지 않는 것이 기본 |
+| P-18 | Failure Intelligence 후보 7종 — PROFILE_SETUP_FRICTION · PHOTO_UPLOAD_FRICTION · PHOTO_RECENCY_UNVERIFIABLE · MATCH_REASON_UNGROUNDED · BRAND_PROMISE_MISMATCH · EXCESSIVE_ONBOARDING · USER_EFFORT_TOO_HIGH | 2026-09-25 | 대표 POST-CLAUDE FINAL MASTER §14 | 실제 발생 기록 0 → ACTUAL 승격 금지 | 관리자 자동 후보에는 현재 대화 기준 후보만(멈춤·반복·오류 등). 사용자 노력 지표 중 측정되는 것: 5개 완료·넘기기·반복·멈춤(24시간)·지연. 사진 업로드 실패·매칭까지 시간·비용은 확인 불가 |

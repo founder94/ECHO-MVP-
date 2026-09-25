@@ -410,11 +410,47 @@
   {
    "id": "B-10",
    "what": "운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL",
-   "state": "BLOCKED",
+   "state": "COMPLETED",
    "date": "2026-09-25",
    "by": "HARD STOP(Edge 배포·RLS)",
    "evidence": "supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql",
-   "note": "시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체"
+   "note": "시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 → 2026-09-25 운영 doit-agent 배포와 함께 관리자 「대화 에이전트」로 연결(서버 역할 확인·서비스 권한 읽기 · RLS 변경 0)."
+  },
+  {
+   "id": "C-20",
+   "what": "ECHO Conversation Agent 운영 서버 doit-agent 배포(버전 2 · 파일 글자 단위 동일)",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표 「구현 → 운영배포 → 운영검증」 FINAL",
+   "evidence": "docs/claude-final-review-20260916/PATCH-20260925-agent-prod/AGENT_PROD_보고_20260925.md",
+   "note": "앱 화면은 대표 Netlify 업로드 뒤 운영 반영 · 실기기 확인 전"
+  },
+  {
+   "id": "B-11",
+   "what": "Photo Trust 상태 저장(USER_CONFIRMED_RECENT / TECHNICALLY_SUPPORTED / UNKNOWN) — profile_photos 에 저장 칸이 없음",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "HARD STOP(DB Migration · 새 민감정보 처리)",
+   "evidence": "profile_photos 칸 = id·user_id·slot·storage_path·is_primary·created_at·updated_at(운영 읽기)",
+   "note": "업로드 때 EXIF 확인·본인 확인은 이미 화면에서 함(저장 0). 관리자에는 사진 장수·대표 사진·마지막 업로드 시각만"
+  },
+  {
+   "id": "P-17",
+   "what": "홈페이지(do-it.company) BRAND ZIP 업로드 여부 — 올리면 히어로 문구가 운영(「사람은 프로필보다…/지금 시작하기」)에서 09-24 승인본(「좋아하는 사람보다…/ECHO 시작하기」)으로 바뀜",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 결정",
+   "evidence": "운영 main JS 와 BRAND 빌드 문구 대조",
+   "note": "디자인 LOCK(승인 없는 히어로 변경 0) 때문에 올리지 않는 것이 기본"
+  },
+  {
+   "id": "P-18",
+   "what": "Failure Intelligence 후보 7종 — PROFILE_SETUP_FRICTION · PHOTO_UPLOAD_FRICTION · PHOTO_RECENCY_UNVERIFIABLE · MATCH_REASON_UNGROUNDED · BRAND_PROMISE_MISMATCH · EXCESSIVE_ONBOARDING · USER_EFFORT_TOO_HIGH",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 POST-CLAUDE FINAL MASTER §14",
+   "evidence": "실제 발생 기록 0 → ACTUAL 승격 금지",
+   "note": "관리자 자동 후보에는 현재 대화 기준 후보만(멈춤·반복·오류 등). 사용자 노력 지표 중 측정되는 것: 5개 완료·넘기기·반복·멈춤(24시간)·지연. 사진 업로드 실패·매칭까지 시간·비용은 확인 불가"
   }
  ]
 }

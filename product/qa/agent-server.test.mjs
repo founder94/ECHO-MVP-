@@ -213,11 +213,14 @@ test('관리자: 일반 사용자 403 · 관리자는 실제 저장된 세션·�
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' })).body.session.id;
   assert.equal((await h.call({ action: 'admin_sessions' })).status, 403);
   assert.equal((await h.call({ action: 'admin_session', sessionId: sid })).status, 403);
+  s.tables.profile_photos = [{ user_id: ID.user, slot: 1, is_primary: true, storage_path: 'photos/u1/a.jpg', updated_at: '2026-09-19T00:00:00Z' }, { user_id: ID.user, slot: 2, is_primary: false, storage_path: 'photos/u1/b.jpg', updated_at: '2026-09-20T00:00:00Z' }];
   s.authUser = { id: ID.admin, user_metadata: {} };
   const before = JSON.stringify(s.tables);
   const list = await h.call({ action: 'admin_sessions' });
   assert.equal(list.status, 200); assert.equal(list.body.sessions.length, 1); assert.equal(list.body.sessions[0].nickname, '나');
   assert.equal(list.body.turns.length, 1); assert.equal(list.body.turns[0].record.calls[0].input_tokens, 1000);
+  assert.deepEqual(JSON.parse(JSON.stringify(list.body.sessions[0].photos)), { count: 2, primary: true, last_updated_at: '2026-09-20T00:00:00Z' }, '사진은 있는 칸(장수·대표·올린 시각)만');
+  assert.ok(!JSON.stringify(list.body).includes('storage_path') && !JSON.stringify(list.body).includes('photos/u1'), '사진 파일 주소 0');
   const one = await h.call({ action: 'admin_session', sessionId: sid });
   assert.equal(one.body.session.stored.state.turns[0].user, '친구');
   assert.equal(JSON.stringify(s.tables), before, '관리자 읽기는 쓰기 0');

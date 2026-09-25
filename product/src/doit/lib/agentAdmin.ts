@@ -7,13 +7,14 @@ export const PURPOSE_IDS = ['relationship_intent', 'attraction_comfort', 'values
 
 interface StateTurn { n: number; ai: string | null; question_purpose: string | null; user: string; kind: string; reply?: string; question?: string | null; decision?: string; saved?: boolean }
 interface StoredState { tone: string; mode: string; phase: string; turns: StateTurn[]; asked: { type: string; purpose: string; text: string }[]; closing: string | null; corrections: string[]; disputed: string[] }
-export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
+export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
+export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
 export interface CallRec { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface TurnRecord { turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
 export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null }
-export interface Session { id: string; user: string; nickname: string | null; agent: string; mode: string; tone: string; phase: string; created_at: string; updated_at: string; core: number; clarify: number; turns: Turn[]; profile: Record<string, unknown> | null; handoff: { status?: string } | null; records: TurnRecord[] }
+export interface Session { id: string; user: string; nickname: string | null; agent: string; mode: string; tone: string; phase: string; created_at: string; updated_at: string; core: number; clarify: number; turns: Turn[]; profile: Record<string, unknown> | null; handoff: { status?: string } | null; records: TurnRecord[]; photos: PhotoInfo | null }
 
 export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
   const st = raw.stored?.state;
@@ -26,14 +27,15 @@ export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
   });
   return { id: raw.id, user: raw.user, nickname: raw.nickname, agent: raw.stored?.agent ?? '알 수 없음', mode: st?.mode ?? '기록 없음', tone: st?.tone ?? '기록 없음', phase: st?.phase === 'talk' ? 'talk' : 'done',
     created_at: raw.created_at, updated_at: raw.updated_at, core: (st?.asked ?? []).filter(q => q.type === 'core').length, clarify: (st?.asked ?? []).filter(q => q.type === 'clarify').length,
-    turns, profile: raw.stored?.profile ?? null, handoff: raw.stored?.handoff ?? null, records };
+    turns, profile: raw.stored?.profile ?? null, handoff: raw.stored?.handoff ?? null, records, photos: raw.photos ?? null };
 }
 
 const pct = (xs: number[], p: number): number | null => { if (!xs.length) return null; const v = [...xs].sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)]; };
 const calls = (sessions: Session[]) => sessions.flatMap(s => s.records.flatMap(r => r.calls ?? []));
 const sum = (xs: (number | null)[]) => xs.reduce<number>((n, x) => n + (Number.isFinite(x) ? (x as number) : 0), 0);
 
-export function dashboard(sessions: Session[]) {
+const STALL_MS = 24 * 60 * 60 * 1000; // 진행 중인데 하루 넘게 말이 없으면 「멈춤」(중도 이탈 후보)
+export function dashboard(sessions: Session[], now: number = Date.now()) {
   const cs = calls(sessions);
   const ok = cs.filter(c => !c.error);
   const cand = sessions.map(candidates);
@@ -42,6 +44,8 @@ export function dashboard(sessions: Session[]) {
   return {
     sessions: sessions.length, in_progress: count(s => s.phase === 'talk'), done: count(s => s.phase === 'done'),
     text: count(s => s.mode === 'TEXT'), voice: count(s => s.mode === 'VOICE'),
+    stalled: count(s => s.phase === 'talk' && now - Date.parse(s.updated_at) > STALL_MS),
+    with_photos: count(s => (s.photos?.count ?? 0) > 0), with_primary: count(s => !!s.photos?.primary),
     tones: { formal: count(s => s.tone === 'formal'), polite: count(s => s.tone === 'polite'), casual: count(s => s.tone === 'casual') },
     progress: Object.fromEntries([0, 1, 2, 3, 4, 5].map(n => [n, count(s => s.core === n)])) as Record<number, number>,
     flags: { correction: recs.filter(r => r.flags?.correction).length, rejection: recs.filter(r => r.flags?.rejection).length, skip: recs.filter(r => r.flags?.skip).length, fatigue: recs.filter(r => r.flags?.fatigue).length, ask: recs.filter(r => r.flags?.ask).length },
