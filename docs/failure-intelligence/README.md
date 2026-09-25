@@ -13,7 +13,7 @@
 
 | 구성 | 파일 | 상태 | 증거 수준 |
 |---|---|---|---|
-| Failure Library | `FAILURE_LIBRARY.md` ← `data/failures.json` | 운영 중 · 68건 | 항목마다 출처(ACTUAL·REAL_AI_SCRIPTED·CODE·SYNTHETIC·FOUNDER_STATEMENT)·원인 확신·방어 수준·사용자 피해 표시 |
+| Failure Library | `FAILURE_LIBRARY.md` ← `data/failures.json` | 운영 중 · 69건 | 항목마다 출처(ACTUAL·REAL_AI_SCRIPTED·CODE·SYNTHETIC·FOUNDER_STATEMENT)·원인 확신·방어 수준·사용자 피해 표시 |
 | Failure Taxonomy | `FAILURE_TAXONOMY.md` · `data/families.json` | 운영 중 | Layer 6 · Type 32(`data/types.json`) · Family 16(AI 조언자 실패 F-ADVISOR 포함) |
 | Golden Failure Set | `product/spike/ab-20260925/golden-failures.json` | 고정(`FROZEN_INPUTS.json`, 변경 이력 포함) · 34 입력 · ACTUAL 24 | 입력마다 ACTUAL/SYNTHETIC + 근거 문서 |
 | Failure Compiler | `product/spike/failure-intelligence/failure-compiler.mjs` | 프로토타입 | CANDIDATE — 뼈대 모드는 지금 사용 가능 · 모델 모드는 가짜 AI 로만 검사(실AI BLOCKED) · 결과는 항상 HUMAN_APPROVAL_REQUIRED |
@@ -23,7 +23,7 @@
 | Failed Solutions Archive | `FAILED_SOLUTIONS_ARCHIVE.md` ← `data/failed-solutions.json` | 운영 중 · 21건 | 지우지 않음 |
 | Verified Defense Registry | `VERIFIED_DEFENSE_REGISTRY.md` | 운영 중 | REAL_AI_VERIFIED 0 |
 | Model Capability Registry | `MODEL_CAPABILITY_REGISTRY.md` | 운영 중 | 모델 탓으로 분리된 실패 0 |
-| Failure Graph | `FAILURE_GRAPH.md` ← `data/failure-graph.json` | 운영 중 · 관계 29 | 관계마다 ACTUAL·CODE·HYPOTHESIS 표시 |
+| Failure Graph | `FAILURE_GRAPH.md` ← `data/failure-graph.json` | 운영 중 · 관계 30 | 관계마다 ACTUAL·CODE·HYPOTHESIS 표시 |
 | 저장 MASTER | `STORAGE_MASTER_20260925.md` | 대표 승인 2026-09-25 | 최상위 저장 기준 |
 | 행동 상태 장부 | `ACTION_LEDGER.md` ← `data/action-ledger.json` | 운영 중 | COMPLETED·DECIDED·BLOCKED·PENDING — 다음 행동 전 대조 |
 | Golden 판정 기준 | `product/spike/ab-20260925/golden-specs.json` | 사전 고정 · 20 spec | 기계 판정(저장·오류·반응·고정 문장) + 사람 판정 질문 |

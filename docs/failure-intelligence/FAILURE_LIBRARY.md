@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 68건 — 증거 수준: ACTUAL 64 · CANDIDATE 3 · HYPOTHESIS 1 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 12 · FOUNDER_STATEMENT 3
-- 상태: UNRESOLVED 33 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 18
+- 합계 69건 — 증거 수준: ACTUAL 64 · CANDIDATE 3 · HYPOTHESIS 2 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 13 · FOUNDER_STATEMENT 3
+- 상태: UNRESOLVED 34 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 19
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -82,6 +82,7 @@
 | GF-66 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 정정무시 · Repair 실패 · 오분류 · 고정 대체 질문 | Orchestration · Model | MIXED | NONE | UNRESOLVED |
 | GF-67 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · Repair 실패 · 가짜 진행 | Model · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
 | GF-68 | 2026-09-25(run1 실행 06: | ACTUAL | CODE | F-EVAL | 실험 변수 미고정 · 검사 결함 | Evaluation | CONFIRMED | NONE | UNRESOLVED |
+| GF-69 | 2026-09-25 06:37~06:39 | HYPOTHESIS | REAL_AI_SCRIPTED | F-DRIFT | 방향이탈 | Model · Context | HYPOTHESIS | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -336,7 +337,7 @@
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW2 |
-| 관련 실패(Graph) | BROKEN_BY→FS-08(ACTUAL) |
+| 관련 실패(Graph) | BROKEN_BY→FS-08(ACTUAL) · GF-69→CONTRIBUTES_TO(HYPOTHESIS) |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-09 「모르겠어요」도 다섯 칸에 들어감
@@ -2294,3 +2295,36 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md` · `product/spike/ab-20260925/FROZEN_INPUTS.json` · `docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md` |
+
+## GF-69 MODEL_ACTIVITY_JUMP — 「편한 친구」·「진실된 마음」 뒤 두 구조 모두 「활동」 질문으로 점프(모델 원인 후보)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1(gpt-4o-mini) |
+| 증거 수준 | HYPOTHESIS |
+| 출처 | REAL_AI_SCRIPTED — 실제 AI + 고정 입력(대표 실제 입력) · 운영 서버 아님. 관측은 실제, 원인(모델)은 가설 |
+| 사용자 상황 | 목적 「편하게 지낼 친구를 원해요」 · FLOW2#1 · FLOW3#1 · FLOW7#1(+ FLOW4#3 B) |
+| 사용자 원문 | 「그냥 편한친구 부담없이」, 「진실된마음」 |
+| AI 행동 | A: 「편한 친구와 함께 어떤 활동을 하고 싶으세요?」·「진실된 마음을 가진 친구와 어떤 활동을 함께 하고 싶나요?」 / B: 「편한 친구와 어떤 활동을 하고 싶으세요?」·「친구와 어떤 활동을 함께 하고 싶으세요?」 — B 입력에는 주제 칸·남은 수가 없고 B 프롬프트에 「활동」 낱말 0 |
+| 기대 행동 | 방금 말(「부담없이」·「진실된 마음」)에서 이어 묻기 |
+| Failure Type | 방향이탈 |
+| 원인 Layer | Model · Context (원인 확신: HYPOTHESIS) — Model(같은 모델에서 구조가 달라도 같은 점프) — HYPOTHESIS. 목적 문구 「편하게 지낼 친구」 자체가 활동을 부를 가능성(Context)도 남음. 모델 비교(MODEL GATE) 전 확정 금지 |
+| 사용자 피해 · 감정 | 운영 원래 사례에서 대표 「활동?갑자기?」(GF-08·GF-11) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회 · A 3칸 · B 3칸 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | MODEL GATE: B-1.0 고정 · 모델만 변경해 같은 입력으로 비교 |
+| 실험 결과 | docs/failure-intelligence/MODEL_GATE_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] A·B 둘 다 관측 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기) |
+| Golden Test | FLOW2, FLOW3, FLOW7 |
+| 관련 실패(Graph) | CONTRIBUTES_TO→GF-08(HYPOTHESIS) |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` |

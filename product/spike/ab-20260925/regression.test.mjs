@@ -131,3 +131,17 @@ test('run1 검수표 재생성: 결과표를 그대로 읽고, 봉한 열쇠로 
   const k0 = key[0]; const picked = items.map((i, n) => ({ ...i, choice: n === 0 ? 'X' : null }));
   const s = score(picked, key); assert.equal(s.all[k0.X], 1); assert.equal(s.all.NONE, 33);
 });
+
+test('P0 블라인드(run1): 17칸 · 두 답이 같은 칸 제외 · 페이지에 A/B 정체 없음 · 봉한 열쇠 17', async () => {
+  const { buildP0 } = await import('./p0-blind.mjs');
+  const E = path.join(HERE, '../../../docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925');
+  const { items, noDiff } = buildP0(readFileSync(path.join(E, 'result.md'), 'utf8'), () => false);
+  assert.equal(items.length, 17);
+  assert.deepEqual(noDiff.map((x) => x.text), ['몇번째 같은말이야!!', '행동이라고!!']);
+  for (const x of noDiff) assert.deepEqual(x.A, { ...x.B, before: x.A.before }, '제외 칸은 두 답이 같아야 한다');
+  const page = readFileSync(path.join(E, 'p0-blind-review.html'), 'utf8');
+  assert.ok(!/_key|"flow"|"turn"/.test(page), '페이지에 열쇠·흐름 번호가 없어야 한다');
+  const key = JSON.parse(Buffer.from(JSON.parse(readFileSync(path.join(E, 'p0-blind-key.sealed.json'), 'utf8')).sealed, 'base64').toString('utf8'));
+  assert.equal(key.length, 17);
+  assert.ok(key.every((k) => ['A', 'B'].includes(k.X) && k.X !== k.Y));
+});

@@ -220,12 +220,12 @@
   },
   {
    "id": "P-07",
-   "what": "실AI run1 블라인드 검수(34칸)",
+   "what": "실AI run1 P0 블라인드 검수(17칸 · 누르기만)",
    "state": "PENDING",
    "date": "2026-09-25",
    "by": "대표",
-   "evidence": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md",
-   "note": "B WIN 판정의 전제 · Claude 는 승자를 고르지 않음"
+   "evidence": "https://claude.ai/artifact/AbG59HLy8DusMzNKHwUqTq · docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_REVIEW_RUN1.md",
+   "note": "34칸 전체는 P0 결과가 필요할 때만 2차. 대표에게 번호 다시 타이핑 요구 금지(GF-58). Claude 는 승자를 고르지 않음"
   },
   {
    "id": "B-08",
@@ -244,6 +244,42 @@
    "by": "대표(Supabase 화면 확인 1회)",
    "evidence": "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md",
    "note": "확정 전 run2 실행 금지 · 모델 임의 선택 금지"
+  },
+  {
+   "id": "A-12",
+   "what": "run1 판정: A FAIL · B-1.0 FAIL · B WIN 확인 불가 · B 를 운영 후보로 확정하지 않음",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/MODEL_GATE_20260925.md",
+   "note": ""
+  },
+  {
+   "id": "A-13",
+   "what": "블라인드 전 A·B·Prompt·Intent 규칙·Guard·휴리스틱 수정 금지 · run1 보존",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/MODEL_GATE_20260925.md",
+   "note": ""
+  },
+  {
+   "id": "A-14",
+   "what": "모델 비교 = B-1.0 고정 · MODEL 만 변경 · BASELINE gpt-4o-mini(요청 이름)",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/MODEL_GATE_20260925.md",
+   "note": "후보 모델명은 공식 문서·계정 확인 뒤에만"
+  },
+  {
+   "id": "P-09",
+   "what": "MODEL GATE(P0 블라인드에서 A·B 둘 다 부족하면 개시)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 블라인드 결과",
+   "evidence": "docs/failure-intelligence/MODEL_GATE_20260925.md",
+   "note": "계정 모델 목록 확인(GET /v1/models, 비용 0)은 Gate 개시 때"
   }
  ]
 }

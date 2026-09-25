@@ -241,6 +241,14 @@
    "evidence": "ACTUAL",
    "note": "[REAL run1] 항의 저장으로 대화가 끝나 뒤의 항의가 AI 에 가지 않음",
    "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+  },
+  {
+   "from": "GF-69",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-08",
+   "evidence": "HYPOTHESIS",
+   "note": "[REAL run1] 주제 입력이 없는 B 에서도 같은 「활동」 점프 → 모델 몫 가설",
+   "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
   }
  ]
 }

@@ -17,7 +17,7 @@
 | P-01 | 실제 AI A/B(고정 하네스) | 2026-09-25 | 대표 승인 + GitHub Actions | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md · run 36103690087 | 실AI A/B run1 완료(종료 코드 0 · 사전 고정 일치). 다시 요구 금지. 추가 실행은 새 행동으로 기록 |
 | A-11 | GitHub 저장소 Secret OPENAI_API_KEY_AB_TEST 등록 | 2026-09-25 | 대표 | 대표 「대표 승인 · 실AI A/B 실행 시작」 · run 36103690087 로그의 OPENAI_API_KEY: *** | 다시 요구 금지 · 키 값은 저장·출력하지 않음 |
 
-## DECIDED (7)
+## DECIDED (10)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -28,6 +28,9 @@
 | A-07 | 실패마다 정규식 하나 추가 금지 · 문자열 품질 휴리스틱 금지 | 2026-09-25 | 대표 | B안 자율 실행 FINAL |  |
 | A-08 | Twilio(문자 인증) 연동 중단 | 2026-09-24 | 대표 | CLAUDE.md |  |
 | A-09 | 포괄 자율 실행(C항) · HARD STOP 만 승인 요청 · 중간보고 금지 | 2026-09-25 | 대표 | R&D 헌장 |  |
+| A-12 | run1 판정: A FAIL · B-1.0 FAIL · B WIN 확인 불가 · B 를 운영 후보로 확정하지 않음 | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md |  |
+| A-13 | 블라인드 전 A·B·Prompt·Intent 규칙·Guard·휴리스틱 수정 금지 · run1 보존 | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md |  |
+| A-14 | 모델 비교 = B-1.0 고정 · MODEL 만 변경 · BASELINE gpt-4o-mini(요청 이름) | 2026-09-25 | 대표 | docs/failure-intelligence/MODEL_GATE_20260925.md | 후보 모델명은 공식 문서·계정 확인 뒤에만 |
 
 ## BLOCKED (8)
 
@@ -42,7 +45,7 @@
 | B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
 | B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
 
-## PENDING (7)
+## PENDING (8)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -51,5 +54,6 @@
 | P-04 | 전화 인증 없는 연결 자격 조건 | — | 대표 결정 | CLAUDE.md |  |
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
-| P-07 | 실AI run1 블라인드 검수(34칸) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md | B WIN 판정의 전제 · Claude 는 승자를 고르지 않음 |
+| P-07 | 실AI run1 P0 블라인드 검수(17칸 · 누르기만) | 2026-09-25 | 대표 | https://claude.ai/artifact/AbG59HLy8DusMzNKHwUqTq · docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_REVIEW_RUN1.md | 34칸 전체는 P0 결과가 필요할 때만 2차. 대표에게 번호 다시 타이핑 요구 금지(GF-58). Claude 는 승자를 고르지 않음 |
 | P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 |
+| P-09 | MODEL GATE(P0 블라인드에서 A·B 둘 다 부족하면 개시) | 2026-09-25 | 대표 블라인드 결과 | docs/failure-intelligence/MODEL_GATE_20260925.md | 계정 모델 목록 확인(GET /v1/models, 비용 0)은 Gate 개시 때 |

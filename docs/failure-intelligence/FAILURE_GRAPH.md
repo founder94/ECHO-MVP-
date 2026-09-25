@@ -44,6 +44,7 @@ graph LR
   GF-63["GF-63 하네스가 A 의 질문 실패·오류를 한 번"]
   GF-64["GF-64 [B-1.0] 방금 답한 질문의 의도가 "]
   GF-67["GF-67 [A·B 둘 다] 항의(「나 진심이라고 "]
+  GF-69["GF-69 MODEL_ACTIVITY_JUMP — "]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -73,6 +74,7 @@ graph LR
   GF-63 -->|MASKS| GF-02
   GF-64 -->|CONTRIBUTES_TO| GF-01
   GF-67 -->|CAUSES| GF-03
+  GF-69 -.->|CONTRIBUTES_TO| GF-08
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -106,6 +108,7 @@ graph LR
 | GF-63 | MASKS | GF-02 | CODE | 하네스가 A 질문 실패를 기록하지 못해 run1 표에서 GF-02 재현이 0 으로 보였다 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
 | GF-64 | CONTRIBUTES_TO | GF-01 | ACTUAL | [REAL run1] B 가 방금 답한 질문을 같은 턴에 다시 냄 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
 | GF-67 | CAUSES | GF-03 | ACTUAL | [REAL run1] 항의 저장으로 대화가 끝나 뒤의 항의가 AI 에 가지 않음 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
+| GF-69 | CONTRIBUTES_TO | GF-08 | HYPOTHESIS | [REAL run1] 주제 입력이 없는 B 에서도 같은 「활동」 점프 → 모델 몫 가설 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
 
-- 관계 29개 중 HYPOTHESIS 8개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 30개 중 HYPOTHESIS 9개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).

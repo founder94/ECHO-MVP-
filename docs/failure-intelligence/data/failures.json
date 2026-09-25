@@ -3195,6 +3195,56 @@
    "evidence_level": "ACTUAL",
    "mock_result": "UNKNOWN",
    "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-69",
+   "title": "MODEL_ACTIVITY_JUMP — 「편한 친구」·「진실된 마음」 뒤 두 구조 모두 「활동」 질문으로 점프(모델 원인 후보)",
+   "family": "F-DRIFT",
+   "date": "2026-09-25 06:37~06:39Z, 실AI A/B run1(gpt-4o-mini)",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "실제 AI + 고정 입력(대표 실제 입력) · 운영 서버 아님. 관측은 실제, 원인(모델)은 가설",
+   "situation": "목적 「편하게 지낼 친구를 원해요」 · FLOW2#1 · FLOW3#1 · FLOW7#1(+ FLOW4#3 B)",
+   "user_text": "「그냥 편한친구 부담없이」, 「진실된마음」",
+   "ai_behavior": "A: 「편한 친구와 함께 어떤 활동을 하고 싶으세요?」·「진실된 마음을 가진 친구와 어떤 활동을 함께 하고 싶나요?」 / B: 「편한 친구와 어떤 활동을 하고 싶으세요?」·「친구와 어떤 활동을 함께 하고 싶으세요?」 — B 입력에는 주제 칸·남은 수가 없고 B 프롬프트에 「활동」 낱말 0",
+   "expected": "방금 말(「부담없이」·「진실된 마음」)에서 이어 묻기",
+   "types": [
+    "방향이탈"
+   ],
+   "layers": [
+    "Model",
+    "Context"
+   ],
+   "layer_note": "Model(같은 모델에서 구조가 달라도 같은 점프) — HYPOTHESIS. 목적 문구 「편하게 지낼 친구」 자체가 활동을 부를 가능성(Context)도 남음. 모델 비교(MODEL GATE) 전 확정 금지",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "운영 원래 사례에서 대표 「활동?갑자기?」(GF-08·GF-11)",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REAL] 1회 · A 3칸 · B 3칸",
+   "solution_attempts": [],
+   "solution_candidates": "MODEL GATE: B-1.0 고정 · 모델만 변경해 같은 입력으로 비교",
+   "experiment": "docs/failure-intelligence/MODEL_GATE_20260925.md",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "[REAL run1] A·B 둘 다 관측",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기)",
+   "golden_flows": [
+    "FLOW2",
+    "FLOW3",
+    "FLOW7"
+   ],
+   "refs": [
+    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/MODEL_GATE_20260925.md"
+   ],
+   "evidence_level": "HYPOTHESIS",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   }
  ]
 }
