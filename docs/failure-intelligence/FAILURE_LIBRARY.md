@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 84건 — 증거 수준: ACTUAL 78 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 46 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 4
-- 상태: UNRESOLVED 42 · MITIGATED 37 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 41 · NONE 27
+- 합계 90건 — 증거 수준: ACTUAL 81 · CANDIDATE 7 · HYPOTHESIS 2 · 출처: ACTUAL 48 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 7
+- 상태: UNRESOLVED 43 · MITIGATED 42 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 47 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -98,6 +98,12 @@
 | GF-82 | 2026-09-25(대표 휴대폰 · 두  | ACTUAL | ACTUAL | F-FLOW | 출구 없음 | Orchestration · Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
 | GF-83 | 2026-09-25(대표 휴대폰 · 두  | ACTUAL | ACTUAL | F-CONTRACT | 말투 | Product Contract · Model | MIXED | CANDIDATE | MITIGATED |
 | GF-84 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-SENTENCE | 내부 이름 노출 · 문장 파손 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-85 | 2026-09-25(대표 Galaxy 운 | ACTUAL | ACTUAL | F-CLASSIFY | 이미 답한 것 재질문 · 오분류 · 질문의도 반복 | Model · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-86 | 2026-09-25(대표 Galaxy 운 | ACTUAL | ACTUAL | F-CONTEXT | 기억 복구 실패 · Context 유실 · Repair 실패 | Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-87 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 흐름 혼란 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
+| GF-88 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 화면 색 끊김 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
+| GF-89 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 검은 머리띠 회귀 · 화면 색 끊김 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
+| GF-90 | 2026-09-25(코드 검색) | ACTUAL | CODE | F-PROMISE | 미구현 기능 노출 · 없는 기능 약속 | Product Contract | CONFIRMED | CANDIDATE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -2838,3 +2844,201 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-85 ALREADY_ANSWERED_REASK — 다섯 번째 답을 「AI 에게 한 질문」으로 읽어 같은 질문을 다시 보임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25(대표 Galaxy 운영 · doit-agent v2 · 세션 8eb0da33) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 운영 DB doit_request_events agent_session 상태(읽기 전용) · 원문은 공개 저장소에 싣지 않음 |
+| 사용자 상황 | 운영 앱(Netlify 6ab64ad1) + doit-agent 버전 2(echo-agent-v1.2) + gpt-4o-mini |
+| 사용자 원문 | — |
+| AI 행동 | 오타 섞인 바람(꼭 있었으면 하는 것)을 kind=ask 로 분류 → 서버가 먼저 답하기 규칙으로 같은 질문을 그대로 다시 보임(decision keep_after_answer) · 그 답은 저장 안 됨 |
+| 기대 행동 | 답으로 받아 「꼭 있었으면 하는 것」을 채우고 다음으로 |
+| Failure Type | 이미 답한 것 재질문 · 오분류 · 질문의도 반복 |
+| 원인 Layer | Model · Orchestration (원인 확신: CONFIRMED) — 분류는 모델 몫, 같은 질문을 제한 없이 다시 보이게 둔 것은 서버 상태 규칙 몫(내 설계) |
+| 사용자 피해 · 감정 | 대표 「아까 말했는데」 |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 1턴 낭비 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL 운영] 1회 · [가짜 AI] qa/agent-server.test.mjs 「기억」 검사가 같은 모양을 재현 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.3: ask 로 읽혀도 이번 말에서 정보를 뽑으면 채움 · 같은 질문 재노출은 질문마다 1회 · 이미 한 질문과 글자까지 같은 새 질문은 다시 청함(asked_before) |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | PASS(가짜 AI) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 운영] 관측 1회 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | v1.3 로컬·실AI run 10 · 대표 실기기 재확인 전 — VERIFIED 아님 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` |
+
+## GF-86 CONTEXT_MEMORY_FAILURE — 「아까 말했는데」 뒤 앞선 답을 되살리지 못하고 끝남
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
+| 발생 날짜 | 2026-09-25(대표 Galaxy 운영 · 세션 8eb0da33) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 운영 DB 상태 읽기 전용 |
+| 사용자 상황 | GF-85 바로 다음 턴 |
+| 사용자 원문 | — |
+| AI 행동 | kind=repair → 저장 대상 아님(SAVABLE = answer·correction) · 기억 인용은 이번 말에서만 받음 → 「꼭 있었으면 하는 것」 UNKNOWN 인 채 핵심 질문 5개로 끝 · 그 질문이 거절한 뜻(rejected_meanings)에 들어감 · 두 번째 답(막연한 답)도 추출 0 |
+| 기대 행동 | 앞선 말에서 되살려 채우고 같은 질문 없이 다음으로 |
+| Failure Type | 기억 복구 실패 · Context 유실 · Repair 실패 |
+| 원인 Layer | Orchestration (원인 확신: CONFIRMED) — 인용 확인을 이번 말로만 제한한 서버 상태 규칙(내 설계) |
+| 사용자 피해 · 감정 | 대표 「아까 말했는데」 |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL 운영] 1회 · [가짜 AI] 재현 검사 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.3: 인용은 이 대화의 앞선 사용자 말에서도 받음(찾은 턴 기록) · 항의 문장은 저장 0 · 되살린 앞선 말은 그 턴의 기록으로 · AI 에 최근 10턴 |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | PASS(가짜 AI) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 운영] 관측 1회 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 대표 실기기 재확인 전 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` |
+
+## GF-87 FLOW_CONFUSION — 「오늘은 무엇부터 할까요?」·연결 준비 화면에서 먼저 할 일이 보이지 않음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
+| 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
+| 증거 수준 | CANDIDATE |
+| 출처 | FOUNDER_STATEMENT — 대표 지시문(캡처 9장은 이 세션에 0장 도착) |
+| 사용자 상황 | 앱 시작 흐름·연결 탭 |
+| 사용자 원문 | — |
+| AI 행동 | 큰 버튼 둘(다섯 가지 질문 보기·사진과 소개 채우기)이 나란히 · 연결 준비는 체크리스트 네 줄이 먼저 |
+| 기대 행동 | 다음 할 일 하나를 크게, 나머지는 작게 |
+| Failure Type | 흐름 혼란 |
+| 원인 Layer | Product Contract (원인 확신: HYPOTHESIS) — 화면 설계 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 확인(버튼 배치) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 대화 진행으로 큰 버튼 하나(대화 시작하기/이어가기/사진과 소개) · 연결 준비 맨 위 「다음 할 일」 |
+| 실험 결과 | product/src/doit/pages/do-it/start-journey/page.tsx |
+| Mock 결과 | PASS(브라우저 가짜 서버) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 대표 실기기 확인 전 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` |
+
+## GF-88 VISUAL_THEME_BREAK — 대화 중간에 파스텔이 끊기고 검정이 보임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
+| 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
+| 증거 수준 | CANDIDATE |
+| 출처 | FOUNDER_STATEMENT — 대표 지시문(캡처 0장 도착) |
+| 사용자 상황 | 앱 대화 경로 |
+| 사용자 원문 | — |
+| AI 행동 | (가설) 파스텔은 고정 바탕(::before) 한 겹뿐이라 휴대폰 주소창이 접히거나 끝까지 당길 때 비는 순간 검은 바탕이 보임 · 첫 질문 직전 전환 화면만 검정 |
+| 기대 행동 | 첫 질문부터 끝까지 파스텔 |
+| Failure Type | 화면 색 끊김 |
+| 원인 Layer | Product Contract (원인 확신: HYPOTHESIS) — 화면(CSS) — 분류표에 화면 층이 없어 제품 계약 층에 둔다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 이 환경 브라우저에서 재현 못 함(헤드리스 첫 캡처의 검은 띠는 캡처 시점 문제로 확인) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 루트에 같은 색 줄기 받침(스크롤) 추가 · 전환 화면 파스텔 |
+| 실험 결과 | product/src/doit/components/feature/core-conversation.css |
+| Mock 결과 | PASS(빈 순간 흉내에서 검은 픽셀 0) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 원인 가설 · 대표 실기기 확인 전 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` |
+
+## GF-89 BLACK_HEADER_REGRESSION — 파스텔 위 「뒤로」 알약이 검은 띠처럼 보임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
+| 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
+| 증거 수준 | CANDIDATE |
+| 출처 | FOUNDER_STATEMENT — 대표 지시문(캡처 0장 도착) |
+| 사용자 상황 | 앱 대화 화면 맨 위 |
+| 사용자 원문 | — |
+| AI 행동 | (가설) 전역 뒤로 알약이 어두운 바탕(#0b0c10cc)+검은 그림자라 파스텔 위에서 검은 덩어리로 보임 · 위 가설(GF-88)의 빈 순간과 겹칠 수 있음 |
+| 기대 행동 | 뒤로 알약 뒤 검정 0 |
+| Failure Type | 검은 머리띠 회귀 · 화면 색 끊김 |
+| 원인 Layer | Product Contract (원인 확신: HYPOTHESIS) — 화면(CSS) — 분류표에 화면 층이 없어 제품 계약 층에 둔다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 확인 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 파스텔 화면에서만 투명 알약(흰 글자·옅은 테두리·그림자 0) |
+| 실험 결과 | product/src/components/AppBackButton.tsx |
+| Mock 결과 | PASS(알약 바탕 계산값 투명) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 대표 실기기 확인 전 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` |
+
+## GF-90 SAJU_NOT_IMPLEMENTED — 사주는 입력·예시 화면뿐인데 결과를 약속하는 문장이 있었음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
+| 발생 날짜 | 2026-09-25(코드 검색) |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — 저장소 읽기 전용 검색(계산 엔진·음력 라이브러리·서버 0) |
+| 사용자 상황 | /doit/fortune |
+| 사용자 원문 | — |
+| AI 행동 | 「내 기본 사주 보기」 버튼 → 준비 중 화면 · 「시간을 모르면 시주를 제외한 범위만 보여주고」 · 「적어주신 내용은 다음 AI 대화에서 참고돼요」(전송 0) |
+| 기대 행동 | 없는 기능을 약속하지 않음 · 실제 엔진은 대표 결정 뒤 |
+| Failure Type | 미구현 기능 노출 · 없는 기능 약속 |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — 엔진 부재 + 문구 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 확인 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 문구 3곳 사실대로(이번) · 계산 엔진(만세력·절기·음력 변환)은 STOP — 대표 결정 |
+| 실험 결과 | product/src/doit/app/plan-a/screens/SajuInput.tsx |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 문구만 고침 · 사주 계산 = NOT_IMPLEMENTED |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md` · `docs/failure-intelligence/FAILURE_LIBRARY.md` |
