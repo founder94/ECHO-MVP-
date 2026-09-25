@@ -7,8 +7,8 @@ export const ECHO_AGENT_ENABLED = import.meta.env.VITE_ECHO_AGENT_ENABLED === 't
 export type AgentTone = 'formal' | 'polite' | 'casual';
 export type AgentMode = 'TEXT' | 'VOICE';
 export const AGENT_TONES: { id: AgentTone; label: string; hint: string }[] = [
-  { id: 'polite', label: '편한 존댓말', hint: '부드럽게 ~요' },
   { id: 'formal', label: '정중한 존댓말', hint: '격식 있게 ~습니다' },
+  { id: 'polite', label: '편한 존댓말', hint: '부드럽게 ~요' },
   { id: 'casual', label: '편한 반말', hint: '친구처럼 ~야' },
 ];
 export const DEFAULT_AGENT_TONE: AgentTone = 'polite';

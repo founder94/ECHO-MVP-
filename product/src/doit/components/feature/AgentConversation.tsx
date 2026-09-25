@@ -6,11 +6,14 @@ import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { AGENT_PURPOSE_LABELS, AGENT_TONES, DEFAULT_AGENT_TONE, agentGet, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
+import './agent-choice.css';
 
 interface Props {
   userId: string;
   // 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 이번 회차에 대화가 이미 있으면 쓰지 않는다.
   firstAnswer: string | null;
+  // 고른 만남(기존 대화 화면 제목에 쓴다). 없으면 제목만 짧게.
+  purposeLabel?: string | null;
   onRestart: () => Promise<string | null>;
   onContinue: () => void;
   // 앱 홈 「처음부터 다시 시작하기」(?restart=1)로 들어오면 확인 창을 연 채로 연다.
@@ -37,9 +40,9 @@ function speak(text: string) {
 }
 
 // ECHO Conversation Agent 화면. 질문·진행·저장은 서버(doit-agent)가 정한다. 이 화면은 보이고 보내기만 한다.
-// 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
-// 새로 더한 것은 말투·글/말 고르기뿐이고, 그것도 기존 첫 질문 화면(ConversationOpening)의 타일을 그대로 쓴다. 새 CSS 0.
-export default function AgentConversation({ userId, firstAnswer, onRestart, onContinue, restartPrompt = false }: Props) {
+// 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
+// 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
+export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, onRestart, onContinue, restartPrompt = false }: Props) {
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,6 +52,7 @@ export default function AgentConversation({ userId, firstAnswer, onRestart, onCo
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(true);
   const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
   const alive = useRef(true);
   const inFlight = useRef(false);
@@ -115,27 +119,31 @@ export default function AgentConversation({ userId, firstAnswer, onRestart, onCo
     {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div>}
   </section>;
 
-  // ── 시작 전: 말투·방식 고르기(기본 = 편한 존댓말 · 글로). 기존 첫 질문 화면의 배치·타일을 그대로 쓴다.
-  if (!session) return <section className="echo-dialogue echo-dialogue--pastel echo-opening" aria-busy={!!busy}>
+  // ── 시작 전(대표 「UI FINAL LOCK · 시작하기 선택창」 2026-09-25): 기존 컬러 대화 화면은 그대로 두고, 그 위에 무채색 선택창 하나만 띄운다.
+  //   대화 방식(글/말) + 말투(기본 = 편한 존댓말)를 고르면 창이 닫히고, 같은 화면에서 그 선택으로 대화를 시작한다. 새 페이지 이동 0.
+  if (!session) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
-    <p className="echo-eyebrow">시작하기 전에</p>
-    <h1>어떤 말투로<br />이야기할까요?</h1>
-    <p className="echo-lead">핵심 질문은 다섯 개까지만 해요. 대화가 끝날 때까지 이 말투를 지킬게요.</p>
-    <div className="echo-opening-tiles" role="radiogroup" aria-label="말투">
-      {AGENT_TONES.map(t => <button key={t.id} type="button" role="radio" aria-checked={tone === t.id} className={tone === t.id ? 'echo-opening-tile is-selected' : 'echo-opening-tile'} disabled={!!busy} onClick={() => setTone(t.id)}>
-        <span className="echo-opening-tile-label">{t.label}</span><span className="echo-opening-tile-desc">{t.hint}</span>
-      </button>)}
-    </div>
-    <p className="echo-eyebrow">어떻게 이야기할까요?</p>
-    <div className="echo-opening-tiles" role="radiogroup" aria-label="이야기 방식">
-      <button type="button" role="radio" aria-checked={mode === 'TEXT'} className={mode === 'TEXT' ? 'echo-opening-tile is-selected' : 'echo-opening-tile'} disabled={!!busy} onClick={() => setMode('TEXT')}><span className="echo-opening-tile-label">글로</span><span className="echo-opening-tile-desc">적어서 이야기해요</span></button>
-      <button type="button" role="radio" aria-checked={mode === 'VOICE'} className={mode === 'VOICE' ? 'echo-opening-tile is-selected' : 'echo-opening-tile'} disabled={!!busy} onClick={() => setMode('VOICE')}><span className="echo-opening-tile-label">말로</span><span className="echo-opening-tile-desc">ECHO 대답을 소리로 들어요</span></button>
-    </div>
-    {mode === 'VOICE' && <p className="echo-fine">{canSpeak() ? '말할 때는 휴대폰 키보드의 마이크 버튼을 눌러 주세요. 말한 내용은 글자로 적혀 보내져요. 목소리는 저장하지 않아요.' : '이 기기에서는 소리로 읽을 수 없어요. 글로 이어 갈게요.'}</p>}
-    {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
-    {busy ? <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>
-      : <button className="echo-primary" onClick={start}>이렇게 시작하기 <ChevronRight size={18} /></button>}
-    <p className="echo-fine">고른 건 나만 봐요.</p>
+    <p className="echo-eyebrow">만나기 전에</p>
+    {purposeLabel ? <h1>{purposeLabel}<br />다섯 가지만 물어볼게요.</h1> : <h1>다섯 가지만<br />물어볼게요.</h1>}
+    <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
+    {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={start}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
+    {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
+    {choosing && !busy && <div className="echo-choice-layer" role="dialog" aria-modal="true" aria-labelledby="echo-choice-title">
+      <div className="echo-choice-card">
+        <p id="echo-choice-title" className="echo-choice-title">어떻게 이야기할까요?</p>
+        <p className="echo-choice-label">대화 방식</p>
+        <div className="echo-choice-options" role="radiogroup" aria-label="대화 방식">
+          <button type="button" role="radio" aria-checked={mode === 'TEXT'} className={mode === 'TEXT' ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setMode('TEXT')}>글로 대화하기</button>
+          <button type="button" role="radio" aria-checked={mode === 'VOICE'} className={mode === 'VOICE' ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setMode('VOICE')}>말로 대화하기</button>
+        </div>
+        {mode === 'VOICE' && <p className="echo-choice-note">{canSpeak() ? '말할 때는 휴대폰 키보드의 마이크를 눌러 주세요. 말한 내용은 글자로 보내지고, ECHO 대답은 소리로 읽어 드려요. 목소리는 저장하지 않아요.' : '이 기기에서는 소리로 읽을 수 없어요. 글로 이어 갈게요.'}</p>}
+        <p className="echo-choice-label">말투</p>
+        <div className="echo-choice-options" role="radiogroup" aria-label="말투">
+          {AGENT_TONES.map(t => <button key={t.id} type="button" role="radio" aria-checked={tone === t.id} className={tone === t.id ? 'echo-choice-option is-selected' : 'echo-choice-option'} onClick={() => setTone(t.id)}>{t.label}</button>)}
+        </div>
+        <button type="button" className="echo-choice-confirm" onClick={() => { setChoosing(false); start(); }}>이렇게 시작하기</button>
+      </div>
+    </div>}
   </section>;
 
   const done = session.phase === 'done';
