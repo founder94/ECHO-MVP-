@@ -47,6 +47,7 @@ graph LR
   GF-69["GF-69 MODEL_ACTIVITY_JUMP — "]
   FS-22["FS-22 질문은 선택사항 — 서버가 질문을 막으면"]
   GF-70["GF-70 [B-1.0] 정정·거절 뒤 질문을 버리"]
+  GF-71["GF-71 UNNATURAL_TOPIC_JUMP /"]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -79,6 +80,8 @@ graph LR
   GF-69 -.->|CONTRIBUTES_TO| GF-08
   GF-02 -->|FIXED_BY| FS-22
   GF-70 -->|BROKEN_BY| FS-22
+  GF-69 -.->|CONTRIBUTES_TO| GF-71
+  GF-08 -->|CONTRIBUTES_TO| GF-71
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -115,6 +118,8 @@ graph LR
 | GF-69 | CONTRIBUTES_TO | GF-08 | HYPOTHESIS | [REAL run1] 주제 입력이 없는 B 에서도 같은 「활동」 점프 → 모델 몫 가설 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
 | GF-02 | FIXED_BY | FS-22 | CODE | B-1.0 은 막힌 질문을 버리고 반응만 보내 실패 안내를 없앰 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
 | GF-70 | BROKEN_BY | FS-22 | ACTUAL | 대표 블라인드: 질문 없이 멈춘 B 보다 A 선택(P09·P10) | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
+| GF-69 | CONTRIBUTES_TO | GF-71 | HYPOTHESIS | 같은 모델에서 두 구조 모두 점프 → 모델 몫 가설 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
+| GF-08 | CONTRIBUTES_TO | GF-71 | ACTUAL | 운영 v26 실제 점프 사례(대표 「활동?갑자기?」) | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` |
 
-- 관계 32개 중 HYPOTHESIS 9개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 34개 중 HYPOTHESIS 10개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).

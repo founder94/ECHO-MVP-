@@ -1,6 +1,7 @@
 # Model Capability Registry (v1 · 2026-09-25)
 
-- **BASELINE(대표 확정 2026-09-25)**: `gpt-4o-mini`(run1 요청 이름 · 세부판 확인 불가). 모델 비교는 B-1.0 구조를 고정하고 모델만 바꾼다(`MODEL_GATE_20260925.md`).
+- **BASELINE(대표 확정 2026-09-25)**: `gpt-4o-mini` — 2026-09-25 07:29Z 계정 확인 때 응답 세부판 `gpt-4o-mini-2024-07-18`(run1 당시 응답은 기록 없음).
+- **B-1.0 과 같은 파라미터로 도는 모델(계정 실측)**: gpt-4o-mini · gpt-4.1 · gpt-4.1-mini · gpt-4.1-nano · gpt-4o. **안 됨**: gpt-5 · 5-mini · 5-nano · 5.1 · 5.2(max_tokens 400). 증거 `evidence/MODEL_GATE_20260925/account_models_probe.md`. 모델 비교는 B-1.0 구조를 고정하고 모델만 바꾼다(`MODEL_GATE_20260925.md`).
 
 모델별로 **실제로 관측한 것만** 적는다. 관측 없는 칸은 「미관측」이다.
 

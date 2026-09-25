@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 70건 — 증거 수준: ACTUAL 65 · CANDIDATE 3 · HYPOTHESIS 2 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 14 · FOUNDER_STATEMENT 3
-- 상태: UNRESOLVED 35 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 20
+- 합계 71건 — 증거 수준: ACTUAL 66 · CANDIDATE 3 · HYPOTHESIS 2 · 출처: ACTUAL 36 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 14 · FOUNDER_STATEMENT 3
+- 상태: UNRESOLVED 36 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 21
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -84,6 +84,7 @@
 | GF-68 | 2026-09-25(run1 실행 06: | ACTUAL | CODE | F-EVAL | 실험 변수 미고정 · 검사 결함 | Evaluation | CONFIRMED | NONE | UNRESOLVED |
 | GF-69 | 2026-09-25 06:37~06:39 | HYPOTHESIS | REAL_AI_SCRIPTED | F-DRIFT | 방향이탈 | Model · Context | HYPOTHESIS | NONE | UNRESOLVED |
 | GF-70 | 2026-09-25(run1 출력 · 대 | ACTUAL | REAL_AI_SCRIPTED | F-FLOW | Repair 실패 · 출구 없음 | Orchestration · Model | MIXED | NONE | UNRESOLVED |
+| GF-71 | 2026-09-25(대표 피드백 07:2 | ACTUAL | ACTUAL | F-DRIFT | 방향이탈 | Model · Product Contract · Context | HYPOTHESIS | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -338,7 +339,7 @@
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW2 |
-| 관련 실패(Graph) | BROKEN_BY→FS-08(ACTUAL) · GF-69→CONTRIBUTES_TO(HYPOTHESIS) |
+| 관련 실패(Graph) | BROKEN_BY→FS-08(ACTUAL) · GF-69→CONTRIBUTES_TO(HYPOTHESIS) · CONTRIBUTES_TO→GF-71(ACTUAL) |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-09 「모르겠어요」도 다섯 칸에 들어감
@@ -2289,13 +2290,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | run1 결론은 운영 모델 확정 전까지 조건부 |
 | 역검사 결과 | — |
-| 실AI 결과 | run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정 |
+| 실AI 결과 | run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정 · 2026-09-25 추가 근거: v27 배포 뒤 운영 AI 호출 16번 · 제공자 오류 0 → 운영 모델은 max_tokens·temperature·top_p·json_object 를 받는 모델이다. 계정 확인에서 이 조건을 못 받은 gpt-5·5-mini·5-nano·5.1·5.2 는 아님. 그래도 하나로 확정은 못 함(CONFIRMATION_REQUIRED) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(운영 모델 확정 대기 · 장부 P-08) |
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md` · `product/spike/ab-20260925/FROZEN_INPUTS.json` · `docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md` |
+| 근거 | `docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md` · `product/spike/ab-20260925/FROZEN_INPUTS.json` · `docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/account_models_probe.md` |
 
 ## GF-69 MODEL_ACTIVITY_JUMP — 「편한 친구」·「진실된 마음」 뒤 두 구조 모두 「활동」 질문으로 점프(모델 원인 후보)
 
@@ -2327,7 +2328,7 @@
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기) |
 | Golden Test | FLOW2, FLOW3, FLOW7 |
-| 관련 실패(Graph) | CONTRIBUTES_TO→GF-08(HYPOTHESIS) |
+| 관련 실패(Graph) | CONTRIBUTES_TO→GF-08(HYPOTHESIS) · CONTRIBUTES_TO→GF-71(HYPOTHESIS) |
 | 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
 
 ## GF-70 [B-1.0] 정정·거절 뒤 질문을 버리고 반응만 → 대화가 멈춤(대표 블라인드에서 고정 안내문 A 보다 낮게 평가)
@@ -2362,3 +2363,36 @@
 | Golden Test | FLOW4 |
 | 관련 실패(Graph) | BROKEN_BY→FS-22(ACTUAL) |
 | 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
+
+## GF-71 UNNATURAL_TOPIC_JUMP / CONTEXT_DISCONNECTED_QUESTION — 대화 맥락과 관계없이 활동·취미 정보 수집 쪽으로 갑자기 넘어감
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25(대표 피드백 07:20Z 무렵 · run1 출력 06:37~06:39Z · 운영 사례 2026-09-24) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 사용자 평가 피드백(원문 그대로 · 공식 기록 승인) + run1 A·B 출력 + 운영 사례 GF-08 |
+| 사용자 상황 | 「편하게 지낼 친구를 원해요」 등에서 사용자가 활동·취미를 꺼내지 않았는데 AI 가 먼저 그쪽으로 묻는다 |
+| 사용자 원문 | 「그냥 편한친구 부담없이」, 「진실된마음」, 「돈때문에」 |
+| AI 행동 | A·B 모두 「편한 친구와 어떤 활동을 하고 싶으세요?」 계열 질문(run1 P03·P04·P15·P16 B) · 운영 v26 「어떤 활동을 함께 하고 싶어요?」(GF-08) |
+| 기대 행동 | 방금 한 말에서 이어지고, 서비스 취지(원하는 만남·관계에서 편한 것·중요한 것)에 맞는 질문. 사용자가 꺼내지 않은 주제로 점프하지 않음 |
+| Failure Type | 방향이탈 |
+| 원인 Layer | Model · Product Contract · Context (원인 확신: HYPOTHESIS) — 원인 미분리 — 모델(GF-69 가설) · 질문 방향이 계약으로 정해져 있지 않음(Product Contract) · 목적 문구(Context). 「활동」 낱말 금지·정규식·하드코딩 질문·새 Guard 로 고치지 않는다(대표 LOCK) |
+| 사용자 피해 · 감정 | 대표 「활동?갑자기?」·「활동?질문이 머이래」(운영 원문) · 피드백 「활동이란는 단어는 삭제하고 서비스 취지에 맞게」 |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] run1 A·B 양쪽 · 운영 v26 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | MODEL GATE 로 모델 몫 분리 → 그다음 질문 방향 계약(서비스 취지) — 순서대로 한 변수씩 |
+| 실험 결과 | MODEL GATE(B-1.0 고정·모델만 변경) |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 |
+| 사용자 결과 | 대표 피드백: 「활동이란는 단어는 삭제하고 서비스 취지에 맞게 적으면 될꺼 같아」(원문) |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(원인 HYPOTHESIS) |
+| Golden Test | FLOW2, FLOW3, FLOW7 |
+| 관련 실패(Graph) | GF-69→CONTRIBUTES_TO(HYPOTHESIS) · GF-08→CONTRIBUTES_TO(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |

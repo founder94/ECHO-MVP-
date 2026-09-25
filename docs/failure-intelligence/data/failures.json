@@ -3185,7 +3185,7 @@
    "experiment": "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md — 운영 모델 = CONFIRMATION_REQUIRED(Secret 값 읽기 불가 · 로그에 모델 이름 0 · 마지막 근거는 2026-09-20 오타 값)",
    "side_effects": "run1 결론은 운영 모델 확정 전까지 조건부",
    "counter_test": "—",
-   "real_ai": "run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정",
+   "real_ai": "run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정 · 2026-09-25 추가 근거: v27 배포 뒤 운영 AI 호출 16번 · 제공자 오류 0 → 운영 모델은 max_tokens·temperature·top_p·json_object 를 받는 모델이다. 계정 확인에서 이 조건을 못 받은 gpt-5·5-mini·5-nano·5.1·5.2 는 아님. 그래도 하나로 확정은 못 함(CONFIRMATION_REQUIRED)",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(운영 모델 확정 대기 · 장부 P-08)",
@@ -3193,7 +3193,8 @@
    "refs": [
     "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md",
     "product/spike/ab-20260925/FROZEN_INPUTS.json",
-    "docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md"
+    "docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/account_models_probe.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "UNKNOWN",
@@ -3299,6 +3300,57 @@
    "evidence_level": "ACTUAL",
    "mock_result": "PASS([MOCK] 「질문 없음은 정상」 검사 — 판정 기준 자체가 이 실패를 정상으로 봄)",
    "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-71",
+   "title": "UNNATURAL_TOPIC_JUMP / CONTEXT_DISCONNECTED_QUESTION — 대화 맥락과 관계없이 활동·취미 정보 수집 쪽으로 갑자기 넘어감",
+   "family": "F-DRIFT",
+   "date": "2026-09-25(대표 피드백 07:20Z 무렵 · run1 출력 06:37~06:39Z · 운영 사례 2026-09-24)",
+   "origin": "ACTUAL",
+   "origin_note": "대표 사용자 평가 피드백(원문 그대로 · 공식 기록 승인) + run1 A·B 출력 + 운영 사례 GF-08",
+   "situation": "「편하게 지낼 친구를 원해요」 등에서 사용자가 활동·취미를 꺼내지 않았는데 AI 가 먼저 그쪽으로 묻는다",
+   "user_text": "「그냥 편한친구 부담없이」, 「진실된마음」, 「돈때문에」",
+   "ai_behavior": "A·B 모두 「편한 친구와 어떤 활동을 하고 싶으세요?」 계열 질문(run1 P03·P04·P15·P16 B) · 운영 v26 「어떤 활동을 함께 하고 싶어요?」(GF-08)",
+   "expected": "방금 한 말에서 이어지고, 서비스 취지(원하는 만남·관계에서 편한 것·중요한 것)에 맞는 질문. 사용자가 꺼내지 않은 주제로 점프하지 않음",
+   "types": [
+    "방향이탈"
+   ],
+   "layers": [
+    "Model",
+    "Product Contract",
+    "Context"
+   ],
+   "layer_note": "원인 미분리 — 모델(GF-69 가설) · 질문 방향이 계약으로 정해져 있지 않음(Product Contract) · 목적 문구(Context). 「활동」 낱말 금지·정규식·하드코딩 질문·새 Guard 로 고치지 않는다(대표 LOCK)",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "대표 「활동?갑자기?」·「활동?질문이 머이래」(운영 원문) · 피드백 「활동이란는 단어는 삭제하고 서비스 취지에 맞게」",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REAL] run1 A·B 양쪽 · 운영 v26",
+   "solution_attempts": [],
+   "solution_candidates": "MODEL GATE 로 모델 몫 분리 → 그다음 질문 방향 계약(서비스 취지) — 순서대로 한 변수씩",
+   "experiment": "MODEL GATE(B-1.0 고정·모델만 변경)",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "[REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(원인 HYPOTHESIS)",
+   "golden_flows": [
+    "FLOW2",
+    "FLOW3",
+    "FLOW7"
+   ],
+   "refs": [
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
+    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "대표 피드백: 「활동이란는 단어는 삭제하고 서비스 취지에 맞게 적으면 될꺼 같아」(원문)"
   }
  ]
 }

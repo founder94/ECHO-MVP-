@@ -25,6 +25,21 @@
 - A 7 · B-1.0 8 · 둘 다 별로 2 → 어느 쪽도 우위 없음. 두 구조가 같은 모델에서 같은 실패(「활동」 점프·항의 저장·같은 질문)를 냈다.
 - **Gate 개시 결정** → 1단계 = 계정 모델 목록 확인(비용 0 · 장부 P-10).
 
+## 1단계 결과 — 계정 모델 확인(2026-09-25 07:29Z · Actions run 36107887216 · 증거 `evidence/MODEL_GATE_20260925/account_models_probe.md`)
+- 계정에서 보이는 모델 132개.
+- B-1.0 과 같은 파라미터(temperature 0.2 · top_p 0.9 · max_tokens · json_object)로 짧은 요청 1번씩을 보냈다.
+  - 200 = gpt-4o-mini(`gpt-4o-mini-2024-07-18`) · gpt-4.1(`2025-04-14`) · gpt-4.1-mini · gpt-4.1-nano · gpt-4o(`2024-08-06`)
+  - 400 unsupported_parameter(max_tokens) = gpt-5 · gpt-5-mini · gpt-5-nano · gpt-5.1 · gpt-5.2 → 파라미터를 바꿔야 해서 「모델만 변경」 조건이 깨진다. 이번 비교에서 뺐다.
+  - 시험 상한 10개 때문에 o3·o4-mini·gpt-5.4·gpt-5.5 등은 시험하지 않았다(확인 안 함).
+- BASELINE 세부판 = `gpt-4o-mini-2024-07-18`(07:29Z 응답 기준). run1(06:37Z) 당시 응답의 세부판은 기록하지 않았다.
+
+## 2단계 — 사전 등록(`FROZEN_INPUTS.json` model_gate)
+- 모델 4개: gpt-4o-mini(기준) · gpt-4.1-mini · gpt-4.1 · gpt-4o.
+  - gpt-4.1-nano 는 기준보다 작은 모델이라 뺐다.
+- B-1.0 `a0031fcc…` · 입력 `3100d5d4…` · 판정 `380d6fb3…` · 파라미터 그대로.
+- 목록이나 B 가 사전 등록과 다르면 실행기가 멈춘다(종료 코드 3).
+- 실행: `product/spike/ab-20260925/run-models.mjs`(Actions mode `model_gate`).
+
 ## Gate 조건 — 언제 여나
 - P0 블라인드 검수(`evidence/REAL_AB_RUN1_20260925/P0_BLIND_REVIEW_RUN1.md`)에서도 A·B 둘 다 부족하면 연다.
 - 그때 **B-1.0 구조를 그대로 고정하고 모델만 바꾼다.** 구조와 모델을 한 번에 바꾸지 않는다.
