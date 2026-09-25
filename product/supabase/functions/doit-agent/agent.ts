@@ -17,7 +17,8 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.1"; // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
+export const AGENT_VERSION = "echo-agent-v2.2"; // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
+// v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
@@ -79,10 +80,13 @@ const fnv = (t: string) => { let h = 0x811c9dc5; for (let i = 0; i < t.length; i
 // 모양만 본다(뜻 판정 아님) — 앞선 말을 가리키는 항의 · 질문이 많다/무겁다 · 다음 질문으로 넘어가 달라.
 const PAST_REF = /(아까|이미|전에|앞에서|방금)\s*.{0,10}(말했|말한|적었|적은|얘기했|얘기한|했잖|했는데)|말했잖|적었잖|했잖아|(말|적|얘기)(했|한|은)\s*(거|것)\s*같은데|왜\s*(또|자꾸|계속)\s*(물어|묻)|또\s*물어|같은\s*(걸|거|질문)\s*(또|다시)/;
 const FATIGUE = /질문.{0,6}(너무|넘|왜케|왜\s*이렇게|진짜)?\s*(많|무겁|어렵|길|힘들)|그만\s*(물어|묻)/;
+// 질문이 어렵다·뜻을 묻는 말(말 전체가 이것일 때만 · 「어려운 사람은 싫어」 같은 답은 건드리지 않는다).
+const HELP_ASK = /^\s*(아+|음+|흠+)?\s*(좀|너무|넘|진짜)?\s*(어렵(네|다|어|네요|어요|습니다|군)|무슨\s*(뜻|말)(이야|이에요|인가요|이지|야)?|예를\s*들(면|어\s*줘|어\s*주세요)?|예시\s*(좀|를)?\s*(보여\s*(줘|주세요)?|줘|주세요)?)\s*[.!~?…ㅠㅜ]*\s*$/;
 const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
 export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
+  if (HELP_ASK.test(text)) return { kind: "help", rule: "help_request" };
   if (PAST_REF.test(text)) return { kind: "repair", rule: "past_reference" };
   if (FATIGUE.test(text)) return { kind: "repair", rule: "fatigue" };
   return { kind, rule: null };

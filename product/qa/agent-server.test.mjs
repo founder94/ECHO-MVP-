@@ -293,7 +293,7 @@ test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의
   assert.deepEqual([...rec.recovered].sort(), ['boundaries']);
   // 같은 요청을 다시 보내도 기록이 늘지 않는다
   assert.equal(s.tables.doit_records.length, new Set(s.tables.doit_records.map((r) => r.request_id)).size);
-  // 관리자 후보: 다시 보인 질문 뒤 항의 = ALREADY_ANSWERED_REASK, 되살림 = MEMORY_RECOVERED
+  // 관리자 후보: 다시 보인 질문 뒤 항의 = ALREADY_ANSWERED_REASK, 되살림 = PRIOR_ANSWER_REUSED
   s.authUser = { id: ID.admin, user_metadata: {} };
   const adm = await h.call({ action: 'admin_sessions' });
   assert.equal(adm.status, 200);

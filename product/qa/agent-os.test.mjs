@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.1');
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.2');
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
@@ -43,12 +43,13 @@ test('말 종류 가드: 여러 항의·피로·넘기기 모양', () => {
     ['아까 말했는데', 'repair', 'past_reference'], ['이미 얘기했잖아', 'repair', 'past_reference'], ['왜 또 물어봐?', 'repair', 'past_reference'],
     ['말한 거 같은데', 'repair', 'past_reference'], ['질문이 너무 많아', 'repair', 'fatigue'], ['느낌 근데 질문이 왜케 많아?', 'repair', 'fatigue'],
     ['다음질문으로 넘어가 잘문이 너무 무겁다', 'skip', 'skip_request'], ['이 질문은 패스', 'skip', 'skip_request'],
+    ['아 어렵네', 'help', 'help_request'], ['무슨 뜻이야?', 'help', 'help_request'], ['예를 들면?', 'help', 'help_request'], ['좀 어렵다', 'help', 'help_request'], ['예시 좀 보여줘', 'help', 'help_request'],
   ]) assert.deepEqual(A.guardKind(text, 'answer'), { kind, rule }, text);
 });
 
 test('말 종류 가드: 실제 답은 건드리지 않는다(과차단 0)', () => {
   for (const text of ['편한 사람', '어른스러운 사람', '말을 예쁘게 하는 사람', '연락은 천천히 하는게 좋아요', '행동으로 보여줄때', '외모도 좀 받쳐줬으묜 해',
-    '친구같이 편한사람', '대화가 잘 통하는 사람', '전에 만난 사람은 너무 바빴어', '질문하는 걸 좋아하는 사람', '사람 많은 곳은 싫어']) {
+    '친구같이 편한사람', '대화가 잘 통하는 사람', '전에 만난 사람은 너무 바빴어', '질문하는 걸 좋아하는 사람', '사람 많은 곳은 싫어', '어려운 사람은 싫어', '말이 어렵지 않은 사람', '예를 들면 운동 같이 하는 사람']) {
     assert.deepEqual(A.guardKind(text, 'answer'), { kind: 'answer', rule: null }, text);
   }
   assert.deepEqual(A.guardKind('아까 말했는데', 'correction'), { kind: 'correction', rule: null }, 'answer 가 아닌 AI 판단은 그대로(가드는 답 저장 막기 전용)');
@@ -125,4 +126,15 @@ test('매칭 넘기기: 결정은 서버 · HARD 는 사용자 확인 전 0 · �
   A.applyTurn(st, '담배 피우는 사람은 싫어', out('answer', { extracted: [X('boundaries', '흡연자 피하고 싶음', '담배 피우는 사람은 싫어')] }));
   const h = A.matchingHandoff(A.matchingProfile(st));
   assert.equal(h.decision, 'SERVER'); assert.deepEqual(h.hard_filters, []); assert.equal(h.hard_candidates.length, 1); assert.deepEqual(h.candidates, []);
+});
+
+test('도움(§12): 「아 어렵네」는 답 저장 0 · 질문 수 0 · 같은 목적을 더 쉽게 다시 묻는다', () => {
+  const st = started();
+  A.applyTurn(st, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'attraction_comfort', question: '어떤 사람이 편해요?' } }));
+  const before = A.coreAsked(st).length;
+  const r = A.applyTurn(st, '아 어렵네', out('answer', { next: { type: 'core', purpose: 'attraction_comfort', question: '예를 들어 같이 있으면 마음 놓이는 사람은요?', hint: '말수가 적은 사람' } }));
+  assert.equal(r.kind, 'help'); assert.equal(r.saved, false);
+  assert.equal(A.coreAsked(st).length, before, '질문 수 그대로');
+  assert.equal(st.slots.attraction_comfort.items.length, 0);
+  assert.equal(st.turns.at(-1).decision, 'help_rephrase');
 });

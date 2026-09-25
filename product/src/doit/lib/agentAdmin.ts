@@ -87,12 +87,17 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     const q = t.assistant.split('\n').at(-1) ?? '';
     if (/[?？]$/.test(q)) { const k = q.replace(/\s+/g, ''); if (seen.has(k) && t.action !== 'ask') f('SAME_QUESTION_REPEATED', t, 'ACTUAL', `턴 ${seen.get(k)} 와 글자까지 같은 질문`); else seen.set(k, t.i); }
   }
-  if (s.phase === 'done' && s.core <= 5) ok('FINISHED_WITHIN_5', s.turns.at(-1) ?? null, 'ACTUAL', `핵심 질문 ${s.core}개로 마침`);
+  // 성공 후보 이름(2026-09-26 RELEASE CANDIDATE §22): PRIOR_ANSWER_REUSED · CORRECTION_RECOVERED · REJECTION_RESPECTED · HELP_RECOVERED · FIVE_TURN_COMPLETED · AI_PROFILE_CONFIRMED · MATCHING_READY.
+  // 한 번 성공했다고 규칙이 되지 않는다 — 늘 CANDIDATE(검토 → 반복 재현 → 검증 뒤에만 유지·승격).
+  if (s.phase === 'done' && s.core <= 5) ok('FIVE_TURN_COMPLETED', s.turns.at(-1) ?? null, 'ACTUAL', `핵심 질문 ${s.core}개로 마침`);
+  if (s.intro?.used) ok('AI_PROFILE_CONFIRMED', null, 'ACTUAL', `사용자가 소개를 ${s.intro.used === 'as_is' ? '그대로 사용' : s.intro.used === 'edited' ? '고쳐서 사용' : '직접 씀'}`);
+  if (s.phase === 'done' && s.intro?.used && s.photos?.primary && s.readiness?.phone_verified) ok('MATCHING_READY', null, 'ACTUAL', '대화·소개 확인·대표 사진·전화 인증 모두 됨');
   if (s.profile) {
     const confirmed = PURPOSE_IDS.filter(id => (s.profile?.[id] as { status?: string } | undefined)?.status === 'CONFIRMED').length;
     if (confirmed >= 3) ok('PROFILE_READY', null, 'ACTUAL', `직접 말한 목적 ${confirmed}/5`);
     const corr = (s.profile.user_corrections as string[] | undefined) ?? [];
-    if (corr.length) ok('CORRECTION_RECORDED', null, 'ACTUAL', `정정 ${corr.length}건이 프로필에 남음`);
+    const superseded = s.records.reduce((n, r) => n + (r.superseded ?? 0), 0);
+    if (corr.length || superseded) ok('CORRECTION_RECOVERED', null, 'ACTUAL', `정정 ${corr.length}건 · 정정으로 밀린 옛 값 ${superseded}개(지금 값만 매칭에 씀)`);
   }
   s.turns.forEach((t, k) => {
     const next = s.turns[k + 1];
@@ -101,7 +106,12 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     // 같은 질문을 다시 보인 바로 다음에 사용자가 항의 → 이미 답한 것을 다시 물은 후보(운영 2026-09-25 Galaxy 실측과 같은 모양). 원인은 사람이 확인.
     const prev = s.turns[k - 1];
     if (t.action === 'repair' && prev?.decision === 'keep_after_answer') f('ALREADY_ANSWERED_REASK', t, 'ACTUAL', `턴 ${prev.i} 뒤 같은 질문을 다시 보였고 사용자가 항의함`);
-    if (t.recovered.length) ok('MEMORY_RECOVERED', t, 'ACTUAL', `앞선 말에서 되살림: ${t.recovered.join(', ')}`);
+    if (t.recovered.length) ok('PRIOR_ANSWER_REUSED', t, 'ACTUAL', `앞선 말에서 되살림: ${t.recovered.join(', ')}`);
+    // 도움 뒤 같은 목적의 답이 저장됨 = 도움이 통했다(질문 수는 늘지 않음).
+    if (t.flags.help && next?.rec?.saved && next.question_purpose === t.question_purpose) ok('HELP_RECOVERED', next, 'ACTUAL', '「예를 들면?」 뒤 같은 질문에 답이 들어옴');
+    // 거절·정정 뒤 다음 질문이 문제 삼은 질문과 글자까지 같지 않음 = 거절을 존중한 후보(뜻까지 같은지는 사람이 확인).
+    const lastQ = (x: Turn | undefined) => (x?.assistant.split('\n').at(-1) ?? '').replace(/\s+/g, '');
+    if ((t.flags.rejection || t.flags.correction) && next && lastQ(next) && lastQ(next) !== lastQ(prev)) ok('REJECTION_RESPECTED', next, 'HYPOTHESIS', '거절·정정 뒤 같은 질문을 되풀이하지 않음(뜻은 사람이 확인)');
   });
   return { failure, success };
 }
@@ -169,4 +179,26 @@ export function pipelineSummary(sessions: Session[]) {
   for (const p of all) if (p.stuck) stuckCount.set(p.stuck.key, (stuckCount.get(p.stuck.key) ?? 0) + 1);
   const top = [...stuckCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => ({ key, label: PIPELINE_STAGES.find((x) => x.key === key)!.label, n }));
   return { total: sessions.length, reached, top };
+}
+
+// ── AI OS 6개 엔진 관측(2026-09-26 RELEASE CANDIDATE §5 · §33). 실제 턴 기록에서 동작 증거·문제 증거를 센다.
+// 판정: 기록 0 = UNKNOWN · 문제 증거가 있으면 PARTIAL · 동작 증거만 있으면 PASS(관측). 엔진 이름·파일이 있다는 것만으로는 PASS 가 아니다.
+export interface EngineRow { key: string; name: string; state: StageState; works: number; problems: number; evidence: string }
+export function aiOsEngines(sessions: Session[]): EngineRow[] {
+  const all = sessions.map((s) => ({ s, c: candidates(s) }));
+  const n = (f: (x: { s: Session; c: ReturnType<typeof candidates> }) => number) => all.reduce((k, x) => k + f(x), 0);
+  const typ = (list: Candidate[], t: string) => list.filter((c) => c.type === t).length;
+  const recs = sessions.flatMap((s) => s.records);
+  const items = sessions.flatMap((s) => PURPOSE_IDS.flatMap((id) => { const slot = s.profile?.[id] as { items?: { source_type?: string }[]; history?: { status?: string }[] } | undefined; return [...(slot?.items ?? []).map(() => 'CONFIRMED'), ...(slot?.history ?? []).map((h) => h.status ?? '?')]; }));
+  const inferred = sessions.reduce((k, s) => k + (((s.profile?.inferred_candidates as unknown[] | undefined) ?? []).length), 0);
+  const row = (key: string, name: string, works: number, problems: number, evidence: string): EngineRow =>
+    ({ key, name, works, problems, evidence, state: !recs.length ? 'UNKNOWN' : problems ? 'PARTIAL' : works ? 'PASS' : 'UNKNOWN' });
+  return [
+    row('memory', '맥락 기억', n((x) => typ(x.c.success, 'PRIOR_ANSWER_REUSED')), n((x) => typ(x.c.failure, 'ALREADY_ANSWERED_REASK')), '앞선 말 되살림 / 이미 답한 것 다시 물음'),
+    row('correction', '정정', n((x) => typ(x.c.success, 'CORRECTION_RECOVERED')) + recs.reduce((k, r) => k + (r.superseded ?? 0), 0), 0, '정정 기록 · 정정으로 밀린 옛 값(지금 값만 사용)'),
+    row('rejection', '거절 뜻 차단', n((x) => typ(x.c.success, 'REJECTION_RESPECTED')) + recs.filter((r) => r.guard).length, n((x) => typ(x.c.failure, 'SAME_QUESTION_REPEATED')), '거절 뒤 되풀이 안 함 · 서버 가드 / 글자까지 같은 질문 반복'),
+    row('status', '정보 상태', items.filter((x) => x === 'CONFIRMED').length, 0, `지금 값 ${items.filter((x) => x === 'CONFIRMED').length} · 밀린 값 ${items.filter((x) => x === 'SUPERSEDED').length} · 거절 ${items.filter((x) => x === 'RETRACTED').length} · 추측(매칭에 안 씀) ${inferred}`),
+    row('direction', '방향 잠금(5개 목적)', n((x) => typ(x.c.success, 'FIVE_TURN_COMPLETED')), n((x) => typ(x.c.failure, 'QUESTIONS_OVER_5')), '다섯 안에 마침 / 핵심 질문 5 초과'),
+    row('failure', '실패·성공 기록', recs.length, recs.filter((r) => r.kind === 'error').length, `턴 기록 ${recs.length} · 실패 턴 ${recs.filter((r) => r.kind === 'error').length} · 판 기록 있는 턴 ${recs.filter((r) => r.agent_version).length}`),
+  ];
 }

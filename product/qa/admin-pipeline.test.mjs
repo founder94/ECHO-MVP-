@@ -99,3 +99,24 @@ test('실패 후보마다 판(에이전트·프롬프트·모델)', () => {
   assert.equal(c.failure[0].version, 'echo-agent-v2.1 · p-1234abcd · gpt-4o-mini');
   assert.match(A.candidates(A.normalize(baseRaw(), [rec({ calls: [{ kind: 'turn', ms: 1, model: null, input_tokens: null, output_tokens: null, error: 'x' }] })])).failure[0].version, /판 기록 없음/);
 });
+
+test('성공 후보 이름(§22) · 늘 CANDIDATE', () => {
+  const raw = baseRaw({ photos: { count: 1, primary: true, last_updated_at: null }, readiness: { phone_verified: true, intro_saved: true } });
+  raw.stored.state.phase = 'done'; raw.stored.state.intro = { status: 'ready', lines: [], dropped: {}, tries: 1, error: null, used: 'edited', used_at: null };
+  const c = A.candidates(A.normalize(raw, [rec()]));
+  const types = c.success.map((x) => x.type);
+  for (const t of ['FIVE_TURN_COMPLETED', 'AI_PROFILE_CONFIRMED', 'MATCHING_READY']) assert.ok(types.includes(t), t);
+  assert.ok(c.success.every((x) => x.status === 'CANDIDATE'));
+  const noPhone = A.candidates(A.normalize({ ...raw, readiness: { phone_verified: false, intro_saved: true } }, [rec()]));
+  assert.ok(!noPhone.success.some((x) => x.type === 'MATCHING_READY'), '전화 인증 없으면 MATCHING_READY 아님');
+});
+
+test('AI OS 6개 엔진 관측: 기록 0 이면 모두 UNKNOWN · 문제 증거가 있으면 PARTIAL(이름만으로 PASS 0)', () => {
+  const empty = A.aiOsEngines([A.normalize(baseRaw(), [])]);
+  assert.equal(empty.length, 6); assert.ok(empty.every((e) => e.state === 'UNKNOWN'));
+  const raw = baseRaw(); raw.stored.state.turns = [1, 2, 3].map((n) => ({ n, ai: 'Q', question_purpose: 'relationship_intent', user: '-', kind: 'answer', question: '같은 질문?' }));
+  const s = A.normalize(raw, [rec({ turn_index: 1 }), rec({ turn_index: 2 })]);
+  s.turns.forEach((t) => { t.assistant = '같은 질문?'; });
+  const rows = Object.fromEntries(A.aiOsEngines([s]).map((e) => [e.key, e.state]));
+  assert.equal(rows.rejection, 'PARTIAL', '글자까지 같은 질문 반복 = 문제 증거');
+});

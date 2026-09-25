@@ -2,7 +2,7 @@
 // 가짜 사용자·가짜 매칭·가짜 비용 0. 사용자 원문은 기본 가림(「원문 보기」를 눌러야 보임). 이 화면은 읽기만 한다(쓰기 호출 0).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
-import { PIPELINE_STAGES, PURPOSE_IDS, candidates, dashboard, fetchAgentAdmin, observability, pipeline, pipelineSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
+import { PIPELINE_STAGES, PURPOSE_IDS, aiOsEngines, candidates, dashboard, fetchAgentAdmin, observability, pipeline, pipelineSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
 import { AGENT_PURPOSE_LABELS } from "@/doit/lib/agentApi";
 import { PanelTitle, StatCard, Pill, EmptyRow, fmtDate } from "../components/ui";
 
@@ -17,6 +17,8 @@ const FLAG: Record<string, string> = { correction: "정정", rejection: "거절"
 // 파이프라인 단계 판정: 색만으로 뜻을 전하지 않는다 — 글자를 늘 함께 쓴다(초록 = 됨 · 노랑 = 부분·대기 · 회색 = 모름·막힘(외부 연결) · 빨강 = 실패).
 const STAGE_TEXT: Record<StageState, string> = { PASS: "됨", PARTIAL: "부분", WAIT: "기다림", FAIL: "실패", BLOCKED: "막힘", UNKNOWN: "모름" };
 const STAGE_CLASS: Record<StageState, string> = { PASS: "border-[#2f8a57] bg-[#eaf6ef] text-[#1f6b41]", PARTIAL: "border-[#c98a12] bg-[#fdf3dc] text-[#7a5200]", WAIT: "border-[#c98a12] bg-[#fdf3dc] text-[#7a5200]", FAIL: "border-[#b3261e] bg-[#fdecea] text-[#8c1d18]", BLOCKED: "border-background-300 text-foreground-600", UNKNOWN: "border-background-300 text-foreground-600" };
+// 정보 출처(2026-09-26 DATA LINEAGE). AI 정리와 사용자 직접 말은 다르다.
+const SOURCE: Record<string, string> = { USER_DIRECT: "사용자 원문 그대로", AI_EXTRACTED: "AI가 사용자 말에서 정리", AI_INFERRED: "AI 추측", USER_CONFIRMED: "사용자가 확인", USER_CORRECTED: "사용자가 정정", PHOTO_INFERRED: "사진에서 추측", PROFILE_DIRECT: "프로필에 직접 입력" };
 const INTRO_STATUS: Record<string, string> = { ready: "만듦", failed: "못 만듦", none: "재료 없음" };
 const INTRO_USED: Record<string, string> = { as_is: "그대로 사용", edited: "고쳐서 사용", own: "직접 씀" };
 
@@ -44,6 +46,7 @@ export default function AgentConversations() {
   const cands = useMemo(() => sessions.map((s) => ({ s, c: candidates(s) })), [sessions]);
   const open = sessions.find((s) => s.id === openId) ?? null;
   const pipe = useMemo(() => pipelineSummary(sessions), [sessions]);
+  const engines = useMemo(() => aiOsEngines(sessions), [sessions]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,6 +73,14 @@ export default function AgentConversations() {
         <div className="rounded-lg border border-background-200 px-4 py-3 text-sm">
           <p className="font-semibold">지금 가장 많이 멈춘 곳 TOP 3</p>
           {pipe.top.length ? <ol className="mt-2 flex flex-col gap-1 text-xs">{pipe.top.map((x, k) => <li key={x.key}>{k + 1}. {x.label} — {x.n}명</li>)}</ol> : <p className="mt-2 text-xs text-foreground-500">멈춘 사람이 없어요.</p>}
+        </div>
+        <div className="rounded-lg border border-background-200 px-4 py-3 text-sm">
+          <p className="font-semibold">AI OS 6개 엔진 — 실제 턴 기록에서 본 동작</p>
+          <ul className="mt-2 flex flex-col gap-1 text-xs">{engines.map((e) => <li key={e.key} className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${STAGE_CLASS[e.state]}`}>{STAGE_TEXT[e.state]}</span>
+            <b>{e.name}</b><span className="text-foreground-600">동작 {e.works} · 문제 {e.problems} — {e.evidence}</span>
+          </li>)}</ul>
+          <p className="mt-2 text-xs text-foreground-500">기록이 없으면 「모름」. 이름이나 코드가 있다는 것만으로 「됨」이 되지 않아요. 지금 운영 서버는 v1.8이라 서버 가드·밀린 값·판 기록은 개선판 배포 뒤부터 쌓여요.</p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           {PIPELINE_STAGES.map((x) => <StatCard key={x.key} label={x.label} value={`${pipe.reached[x.key]} / ${pipe.total}`} sub="이 단계까지 된 사람" status="success" />)}
@@ -122,10 +133,10 @@ export default function AgentConversations() {
 
       {load.kind === "ready" && tab === "profile" && <section className="flex flex-col gap-3">
         {sessions.filter((s) => s.profile).length === 0 && <EmptyRow>아직 끝난 대화가 없어 매칭 프로필이 없어요.</EmptyRow>}
-        {sessions.filter((s) => s.profile).map((s) => { const p = s.profile as Record<string, { status?: string; items?: { note: string; quote: string }[]; value?: string | null }> & { inferred_candidates?: { trait: string }[]; user_corrections?: string[]; rejected_meanings?: string[] };
+        {sessions.filter((s) => s.profile).map((s) => { const p = s.profile as Record<string, { status?: string; items?: { note: string; quote: string; source_type?: string; source_turn?: number; corrected_from?: string[] }[]; history?: { note: string; status?: string }[]; value?: string | null }> & { inferred_candidates?: { trait: string }[]; user_corrections?: string[]; rejected_meanings?: string[] };
           return <article key={s.id} className="rounded-lg border border-background-200 px-4 py-3 text-xs">
             <p className="text-sm font-semibold">{s.nickname ?? s.user} <Pill tone="neutral">{s.handoff?.status ?? "상태 없음"}</Pill></p>
-            <ul className="mt-2 flex flex-col gap-1">{PURPOSE_IDS.map((id) => <li key={id}><b>{AGENT_PURPOSE_LABELS[id]}</b> · {p[id]?.status ?? "기록 없음"}{p[id]?.items?.length ? ` — ${p[id].items!.map((i) => `${i.note}(「${hide(i.quote, showRaw)}」)`).join(", ")}` : ""}</li>)}</ul>
+            <ul className="mt-2 flex flex-col gap-1">{PURPOSE_IDS.map((id) => <li key={id}><b>{AGENT_PURPOSE_LABELS[id]}</b> · {p[id]?.status ?? "기록 없음"}{p[id]?.items?.length ? ` — ${p[id].items!.map((i) => `${i.note}(「${hide(i.quote, showRaw)}」 · ${SOURCE[i.source_type ?? ""] ?? "출처 기록 없음"}${i.source_turn ? ` · 턴 ${i.source_turn}` : ""}${i.corrected_from?.length ? ` · 정정 전: ${i.corrected_from.join(", ")}` : ""})`).join(", ")}` : ""}{p[id]?.history?.length ? ` · 이력 ${p[id].history!.map((h) => `${h.note}(${h.status === "SUPERSEDED" ? "정정으로 밀림" : h.status === "RETRACTED" ? "사용자가 아니라고 함" : h.status})`).join(", ")}` : ""}</li>)}</ul>
             <p className="mt-2">MBTI {p.mbti?.value ?? "UNKNOWN"} · 혈액형 {p.blood_type?.value ?? "UNKNOWN"} (직접 말했을 때만 CONFIRMED)</p>
             <p className="mt-1">추측(INFERRED · 매칭에 안 씀): {(p.inferred_candidates ?? []).map((i) => i.trait).join(", ") || "없음"}</p>
             <p className="mt-1">사진 {s.photos ? `${s.photos.count}장 · 대표 사진 ${s.photos.primary ? "있음" : "없음"} · 마지막으로 올린 날 ${fmtDate(s.photos.last_updated_at)}` : "기록 없음"} · 최근 2개월 확인 상태 = 기록 없음(저장 칸 없음)</p>
