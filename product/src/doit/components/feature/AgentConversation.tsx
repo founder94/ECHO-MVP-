@@ -8,6 +8,7 @@ import { AGENT_PURPOSE_LABELS, DEFAULT_AGENT_TONE, agentGet, agentStart, agentTu
 import './core-conversation.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
+import InstallAppCard from './InstallAppCard';
 import { takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput } from '@/doit/lib/voiceInput';
 
@@ -212,6 +213,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     </section>}
     {done && <AgentIntroCard userId={userId} session={session} onSession={setSession} onSaved={() => setIntroSaved(true)} />}
     {done && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
+    {/* 홈 화면에 두기 제안(2026-09-26): 소개를 고른 뒤 한 번만. 소개 카드와 겹쳐 권하지 않는다. 설치 안 해도 그대로 쓴다. */}
+    {done && introChosen && <InstallAppCard />}
     <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (!busy && draft.trim()) send(draft); }}>
       <label htmlFor="echo-message">{done ? '고칠 게 있으면 적어 주세요' : session.mode === 'VOICE' ? '키보드의 마이크를 눌러 말해 주세요' : '이어서 적기'}</label>
       <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder={voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />

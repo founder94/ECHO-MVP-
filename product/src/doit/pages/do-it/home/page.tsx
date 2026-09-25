@@ -74,8 +74,8 @@ export default function Home() {
         {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}
         {A_STRUCTURE_SERVER_ENABLED && user && <ConnectionTurnsCard userId={user.id} />}
 
-        {/* 휴대폰에 앱으로 받기(2026-09-23). 이미 앱으로 열려 있으면 보이지 않는다. */}
-        <InstallAppCard />
+        {/* 홈 화면에 두기 제안(2026-09-26): 다섯 가지를 마친 뒤에만, 세션당 한 번. 이미 앱으로 열려 있으면 보이지 않는다. */}
+        {done && <InstallAppCard />}
 
         {!A_STRUCTURE_SERVER_ENABLED ? (
           <section className="doit-understanding-notice" aria-label="기록 이용 안내">

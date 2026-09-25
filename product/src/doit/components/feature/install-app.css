@@ -3,7 +3,7 @@
 /* 앱으로 받기 안내 (2026-09-23). 전역 스타일을 건드리지 않도록 .doit-install* 아래에만 둔다. */
 .doit-install{padding:23px 20px;border:1px solid #ccd4df26;border-radius:18px;background:linear-gradient(140deg,#c4cfdf0d,#12151b);margin:4px 0 28px;color:#e9eaec}
 .doit-install h2{margin:0;font-size:15px;font-weight:600;line-height:1.6;color:#e9eaec}
-.doit-install p{margin:10px 0 0;color:#aeb5bf;font-size:13px;font-weight:500;line-height:1.85;word-break:keep-all}
+.doit-install p{margin:10px 0 0;color:#e3e6ea;font-size:13px;font-weight:500;line-height:1.85;word-break:keep-all}
 .doit-install b{color:#e9eaec;font-weight:600}
 .doit-install .doit-install-note{color:#c3c9d2}
 .doit-install-steps{margin:14px 0 0;padding:0 0 0 20px;list-style:decimal outside;color:#c3c9d2;font-size:13px;font-weight:500;line-height:1.85;word-break:keep-all}
@@ -20,6 +20,7 @@
 .doit-install-secondary{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border:1px solid #ffffff2e;border-radius:999px;background:transparent;color:#e0e3e9;font-size:13px;font-weight:600;cursor:pointer}
 .doit-install .doit-install-address{margin-top:8px;font-size:12px;color:#9da5b1}
 .doit-install-address span{color:#e0e3e9;user-select:all;word-break:break-all}
-.doit-install-later{display:block;min-height:44px;margin-top:10px;padding:8px 0;border:0;background:none;color:#9da5b1;font-size:12px;font-weight:600;cursor:pointer}
+.doit-install-later{display:block;min-height:44px;margin-top:10px;padding:8px 0;border:0;background:none;color:#d5dae1;font-size:12px;font-weight:600;cursor:pointer}
 .doit-install-reopen{display:inline-flex;align-items:center;gap:16px;min-height:44px;margin:0 0 20px;padding:8px 0;border:0;background:none;color:#e0e3e9;font-size:13px;font-weight:600;cursor:pointer}
 .doit-install-reopen>span{color:#b8c0cc}
+/* 2026-09-26: 파스텔 위에서 읽히게 안내 문장·「나중에」 글자를 밝혔다(카드 바탕은 그대로). */

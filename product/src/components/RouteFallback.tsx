@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import SymbolLoader from './SymbolLoader';
+import { IS_APP_SITE } from '@/lib/siteRole';
+import { APP_PASTEL, themeColorFor } from '@/lib/themeColor';
 import './route-fallback.css';
 
 /**
@@ -21,8 +23,11 @@ export default function RouteFallback() {
 
   if (!visible) return null;
 
+  // 2026-09-26 대표 PRE-DEPLOY FIX #2: 파스텔 앱 화면(/doit) 사이에서는 기다리는 화면도 파스텔(검정 번쩍임 0). 히어로·관리자는 그대로 검정.
+  const pastel = IS_APP_SITE && themeColorFor(window.location.pathname) === APP_PASTEL;
+
   return (
-    <div className="echo-route-fallback">
+    <div className={`echo-route-fallback${pastel ? ' echo-route-fallback--pastel' : ''}`}>
       {/* 2026-09-23: 기다리는 동안 심볼 3D 효과(흩어진 빛이 D 로 모였다 흩어진다). 진행률은 만들지 않는다. */}
       <SymbolLoader size={140} label="다음 화면을 여는 중이에요." />
     </div>

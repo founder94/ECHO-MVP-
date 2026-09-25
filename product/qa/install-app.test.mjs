@@ -90,7 +90,7 @@ test('설치 창을 못 띄우면 실패로 끝내지 않고 메뉴 안내로 �
   const prompt = read('src/doit/lib/installPrompt.ts');
   assert.match(prompt, /catch \{\s*return 'unavailable';/);
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
-  assert.match(card, /setResult\(outcome === 'accepted' \? 'accepted' : 'manual'\)/);
+  assert.match(card, /setResult\(outcome === 'accepted' \? 'accepted' : 'steps'\)/);
   assert.match(card, /<AndroidSteps \/>/);
   assert.match(card, /홈 화면에 추가/);
   assert.match(card, /현재 페이지 추가/);
@@ -100,17 +100,42 @@ test('설치 신호는 앱 시작 때부터 듣는다(온보딩 중에 와도 �
   assert.match(read('src/main.tsx'), /startInstallPromptCapture\(\)/);
 });
 
-test('안내 카드는 앱 홈에 있고, 브랜드 사이트·이미 설치한 경우엔 숨는다', () => {
-  assert.match(read('src/doit/pages/do-it/home/page.tsx'), /<InstallAppCard \/>/);
+// 대표 2026-09-26 PWA INSTALL UX: 자동 설치 금지 · 다섯 가지 대화를 마친 뒤 자연스러운 때 · 세션당 한 번 · 설치 안 해도 그대로 사용.
+test('홈 화면 제안은 다섯 가지를 마친 뒤에만 보이고, 브랜드 사이트·이미 설치한 경우엔 숨는다', () => {
+  assert.match(read('src/doit/pages/do-it/home/page.tsx'), /\{done && <InstallAppCard \/>\}/);
+  // 대화 끝 화면에서는 AI 소개를 고른 뒤에만(소개 카드와 겹쳐 권하지 않는다).
+  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{done && introChosen && <InstallAppCard \/>\}/);
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
-  assert.match(card, /if \(IS_BRAND_SITE \|\| context === 'installed'\) return null;/);
+  assert.match(card, /!IS_BRAND_SITE && context !== 'installed' && eligible && open/);
+  assert.match(card, /if \(!visible\) return null;/);
 });
 
-test('"나중에"는 지우지 않고 접어 두며, 저장이 막혀도 화면이 깨지지 않는다', () => {
+test('세션당 한 번만 권하고, 저장이 막혀도 화면이 깨지지 않는다', () => {
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
-  assert.match(card, /try \{ return localStorage\.getItem/);
-  assert.match(card, /휴대폰에 앱으로 받기/);
-  assert.match(card, /나중에 할게요/);
+  assert.match(card, /try \{ return sessionStorage\.getItem\(SESSION_KEY\) === 'shown'; \} catch \{ return false; \}/);
+  assert.match(card, /useEffect\(\(\) => \{ if \(visible\) markSuggested\(\); \}, \[visible\]\);/);
+  assert.ok(!/localStorage/.test(card), '다음 방문까지 막아 두지 않는다(세션 기준)');
+});
+
+test('제안 문구와 버튼은 대표 확정 문구 그대로, 기술 용어 없이', () => {
+  const card = read('src/doit/components/feature/InstallAppCard.tsx');
+  const ui = card.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('{/*')).join('\n');
+  assert.match(ui, />ECHO를 홈 화면에 둘까요\?</);
+  assert.match(ui, />다음에는 바로 들어올 수 있어요\.</);
+  assert.match(ui, />홈 화면에 추가</);
+  assert.match(ui, />나중에</);
+  for (const word of ['PWA', 'manifest', '설치 프로그램', 'beforeinstallprompt']) {
+    const jsx = ui.match(/>[^<>{}]*</g)?.join(' ') ?? '';
+    assert.ok(!jsx.includes(word), word);
+  }
+});
+
+test('갤럭시 설치 창은 사용자가 [홈 화면에 추가]를 눌렀을 때만 띄운다', () => {
+  const card = read('src/doit/components/feature/InstallAppCard.tsx');
+  assert.match(card, /onClick=\{\(\) => void add\(\)\}>홈 화면에 추가</);
+  // promptInstall 은 add() 안에서만 부른다(화면이 열리자마자 띄우지 않는다).
+  assert.equal(card.match(/promptInstall\(\)/g)?.length, 1);
+  assert.match(card, /const add = async \(\) => \{[\s\S]*?if \(canPrompt\) \{\s*const outcome = await promptInstall\(\);/);
 });
 
 test('주소 복사가 막혀도 주소를 직접 볼 수 있다', () => {
