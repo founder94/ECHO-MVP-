@@ -80,7 +80,7 @@ export default function AgentConversations() {
             <span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${STAGE_CLASS[e.state]}`}>{STAGE_TEXT[e.state]}</span>
             <b>{e.name}</b><span className="text-foreground-600">동작 {e.works} · 문제 {e.problems} — {e.evidence}</span>
           </li>)}</ul>
-          <p className="mt-2 text-xs text-foreground-500">기록이 없으면 「모름」. 이름이나 코드가 있다는 것만으로 「됨」이 되지 않아요. 지금 운영 서버는 v1.8이라 서버 가드·밀린 값·판 기록은 개선판 배포 뒤부터 쌓여요.</p>
+          <p className="mt-2 text-xs text-foreground-500">기록이 없으면 「모름」. 이름이나 코드가 있다는 것만으로 「됨」이 되지 않아요. 서버 가드·밀린 값·판 기록은 v2.2 배포(2026-09-26) 뒤 대화부터 쌓여요.</p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
           {PIPELINE_STAGES.map((x) => <StatCard key={x.key} label={x.label} value={`${pipe.reached[x.key]} / ${pipe.total}`} sub="이 단계까지 된 사람" status="success" />)}

@@ -6,11 +6,11 @@
 
 | 판 | agent.ts SHA-256(앞 8) | 실제 AI 검사 | 운영 |
 |---|---|---|---|
-| echo-agent-v1.8 | `f528d2b6` | run 15 · 사전 규칙 4개 충족 | **지금 운영(doit-agent 버전 6)** · 직전 검증판 |
+| echo-agent-v1.8 | `f528d2b6` | run 15 · 사전 규칙 4개 충족 | doit-agent 버전 6 · **되돌리기 판(직전 검증판)** |
 | echo-agent-v1.9 | `9a1f135f` | run 16 · 규칙 ① 미달(항의 저장 1) | 올리지 않음 |
 | echo-agent-v2.0 | `3444032b` | run 17 · 사전 규칙 4개 충족 | 올리지 않음 |
 | echo-agent-v2.1 | `27eb756c` | run 18(사전 등록 `why_v12`) | 올리지 않음 |
-| echo-agent-v2.2 | `bf26a04a` | run 19(사전 등록 `why_v13`) | 대표 승인 대기 |
+| echo-agent-v2.2 | `bf26a04a` | run 19 · 사전 규칙 4개 충족 | **지금 운영(doit-agent 버전 7 · 2026-09-26 대표 승인 배포 · 내려받아 바이트 같음 확인)** |
 
 판 번호·SHA·실제 AI 결과의 원본은 `spike/ab-20260925/FROZEN_INPUTS.json` 의 `prod_agent_gate.history` 다. 턴 기록마다 `agent_version · prompt_version · policy_version · pipeline_version · model` 이 남으므로(v2.1~) 실패가 어느 판에서 났는지 관리자에서 가린다.
 

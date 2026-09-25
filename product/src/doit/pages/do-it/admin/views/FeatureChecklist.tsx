@@ -38,7 +38,7 @@ const FEATURE_ROWS: Row[] = [
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "PASS", device: "PASS", ready: "PASS" } },
   { name: "얼굴 · 지문 로그인", state: "off", what: "서버 쪽 준비가 안 돼서 화면에서 뺐어요. 준비되면 다시 켜요.",
     axes: { ui: "NA", server: "NOT_CONNECTED", db: "NA", ext: "NOT_CONNECTED", device: "NA", ready: "FAIL" } },
-  { name: "AI 대화(다섯 가지 질문)", state: "ok", what: "지금 운영판(v1.8)이 돌고 있어요. v1.9 는 실제 AI 검사(run 16)에서 항의 문장을 답으로 저장해 탈락했어요. 서버가 항의·피로를 가려내는 v2.0 은 실제 AI 검사(run 17, 운영 모델)에서 사전 기준 4개를 모두 맞췄고, 운영 반영은 대표 승인 뒤에 해요.",
+  { name: "AI 대화(다섯 가지 질문)", state: "ok", what: "운영 서버는 v2.2 예요(2026-09-26 대표 승인 배포 · 서버 버전 7 · 실제 AI 검사 run 19 통과). 서버가 항의·피로·도움 요청을 가려내 답으로 저장하지 않아요. 같은 질문 반복(검사 6회)은 아직 목표 미달이에요.",
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "PASS", device: "PASS", ready: "PARTIAL" } },
   { name: "AI 소개 초안", state: "ok", what: "대화를 마치면 AI가 소개 2~4문장을 써 주고, 사용자가 확인해야 저장돼요. 대표 실기기에서 확인했어요(서버 기록 대조는 아직).",
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "PASS", device: "PASS", ready: "PASS" } },
@@ -70,19 +70,19 @@ type Gate = "PASS" | "PARTIAL" | "FAIL" | "BLOCKED" | "UNKNOWN";
 const GATE_TEXT: Record<Gate, string> = { PASS: "PASS 됨", PARTIAL: "PARTIAL 부분", FAIL: "FAIL 안 됨", BLOCKED: "BLOCKED 막힘", UNKNOWN: "UNKNOWN 확인 불가" };
 const GATE_CLASS: Record<Gate, string> = { PASS: "text-[#1f6b41]", PARTIAL: "text-[#7a5200]", FAIL: "text-[#8c1d18]", BLOCKED: "text-[#8c1d18]", UNKNOWN: "text-foreground-600" };
 const RELEASE_GATES: { id: string; name: string; state: Gate; why: string }[] = [
-  { id: "A", name: "대화", state: "PARTIAL", why: "운영 v1.8 은 질문 5개 상한·먼저 답하기가 됨. 서버가 항의·피로를 가려내고 정정·거절·정보 출처를 지키는 v2.x 는 실제 AI 검사 뒤 대표 승인 대기(미배포)." },
-  { id: "B", name: "프로필", state: "PARTIAL", why: "AI 소개 생성·사용자 확인·고치기는 대표 실기기에서 됨. 정보 출처 추적(계보)은 v2.1 에 있고 아직 운영 전." },
+  { id: "A", name: "대화", state: "PARTIAL", why: "운영 v2.2(서버 버전 7): 질문 5개 상한·항의/피로/도움 가드·정정·거절 차단이 됨. 같은 질문 반복(실제 AI 검사 6회)·뜻 단위 거절 식별은 아직 목표 미달." },
+  { id: "B", name: "프로필", state: "PARTIAL", why: "AI 소개 생성·사용자 확인·고치기는 대표 실기기에서 됨. 정보 출처 추적(계보)은 v2.2 배포 뒤 대화부터 쌓이고(예전 대화는 출처 칸 없음), 실기기 확인 전." },
   { id: "C", name: "신뢰", state: "BLOCKED", why: "전화 인증이 실제로 안 됨(문자 발송 업체 미연결 · STOP). 사진은 올릴 수 있음." },
   { id: "D", name: "안전", state: "PARTIAL", why: "「차단하고 신고」 서버 접수·관리자 신고 화면은 있음. 실제 접수 0건, 운영자 처리 흐름은 확인 전." },
   { id: "E", name: "매칭", state: "BLOCKED", why: "서버 후보 결정 계약(자격·차단·목적·근거 검증)은 코드와 검사만 있음. 연결 서버가 아직 쓰지 않아 실제 후보 0(가짜 후보 0)." },
-  { id: "F", name: "운영", state: "PARTIAL", why: "관리자 파이프라인·실패/성공 후보·판 추적·되돌리기 순서는 있음. 실제 관리자 계정 데이터로는 확인 전, 실패 턴 기록은 v2.x 배포 뒤부터." },
+  { id: "F", name: "운영", state: "PARTIAL", why: "관리자 파이프라인·실패/성공 후보·판 추적·되돌리기 순서(v1.8)는 있음. 실제 관리자 계정 데이터로는 확인 전, 실패 턴·판 기록은 v2.2 배포(2026-09-26) 뒤부터." },
 ];
 
 // 지금 막힌 곳 TOP 3(2026-09-26 확인 · 대표 우선순위 P0/P1). 사용자별로 어디서 멈췄는지는 「대화 에이전트 → 어디서 막혔나」에 있다.
 const BOTTLENECKS = [
   "전화 인증: 문자 발송 업체가 없어 연결 자격을 갖춘 사람이 0명이에요(업체·비밀키·저장 변경은 대표 승인 필요).",
   "사람 연결: 연결 서버가 대화로 만든 매칭 프로필을 아직 읽지 않아 후보가 0명이에요(가짜 후보는 만들지 않아요).",
-  "AI 대화 개선판(v2.x): 실제 AI 검사 뒤 운영 반영은 대표 승인 대기(지금 운영은 v1.8 · 되돌리기 순서 준비됨).",
+  "AI 대화(v2.2 운영 중): 같은 질문 반복(실제 AI 검사 6회) 줄이기가 남음 · 문제 시 v1.8 로 코드만 되돌림.",
 ];
 
 export default function FeatureChecklist({ consents }: { consents: number | null }) {
