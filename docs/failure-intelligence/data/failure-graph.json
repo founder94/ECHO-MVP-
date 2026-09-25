@@ -281,6 +281,22 @@
    "evidence": "ACTUAL",
    "note": "운영 v26 실제 점프 사례(대표 「활동?갑자기?」)",
    "ref": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md"
+  },
+  {
+   "from": "GF-72",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-67",
+   "evidence": "HYPOTHESIS",
+   "note": "항의에 대한 대응 계약이 없어 네 모델 모두 실패 — 저장 문제와 같은 뿌리 가설",
+   "ref": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
+  },
+  {
+   "from": "GF-72",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-71",
+   "evidence": "HYPOTHESIS",
+   "note": "「활동」 뒤 항의(M11)를 네 모델 모두 반응만으로 끝냄",
+   "ref": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
   }
  ]
 }

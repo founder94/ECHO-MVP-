@@ -174,3 +174,17 @@ test('MODEL GATE 검수표: 옮긴 결과표를 그대로 읽음(4 모델·34턴
   assert.equal(key.length, 17);
   assert.ok(key.every((k) => [...k.order].sort().join() === Object.keys(slim).sort().join()));
 });
+
+test('MODEL GATE 블라인드 집계: 대표 선택 원본 17개 + 봉한 열쇠 → 기록된 숫자와 같음 · 알 수 없는 선택은 오류', async () => {
+  const { load, score } = await import('./model-blind-score.mjs');
+  const E = path.join(HERE, '../../../docs/failure-intelligence/evidence/MODEL_GATE_20260925');
+  const r = load(path.join(E, 'model-picks'), path.join(E, 'model-blind-key.sealed.json'));
+  assert.equal(r.n, 17); assert.equal(r.n_actual, 14);
+  assert.deepEqual(r.all, { 'gpt-4.1': 4, 'gpt-4.1-mini': 5, 'gpt-4o': 3, 'gpt-4o-mini': 2, '모두 별로': 3 });
+  assert.deepEqual(r.actual, { 'gpt-4.1': 2, 'gpt-4.1-mini': 5, 'gpt-4o': 2, 'gpt-4o-mini': 2, '모두 별로': 3 });
+  assert.deepEqual(JSON.parse(readFileSync(path.join(E, 'model-blind-score.json'), 'utf8')), r);
+  const key = [{ id: 'M01', flow: 'FLOW1', turn: 2, order: ['a', 'b'] }];
+  assert.throws(() => score(key, { M01: { choice: '⑨' } }));
+  assert.throws(() => score(key, {}));
+  assert.equal(score(key, { M01: { choice: '②' } }).rows[0].winner, 'b');
+});

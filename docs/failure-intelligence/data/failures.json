@@ -3140,7 +3140,7 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음 · [REAL MODEL GATE 대표 블라인드] 항의 칸 선택이 모델마다 갈림(M01 4o · M02 4.1-mini · M14 4.1-mini) · 「활동」 뒤 항의 M11 은 네 모델 모두 「모두 별로」",
    "golden_flows": [
     "FLOW1"
    ],
@@ -3149,7 +3149,8 @@
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
     "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
-    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
    ],
    "evidence_level": "ACTUAL",
    "solution_attempts": [],
@@ -3238,10 +3239,10 @@
    "experiment": "docs/failure-intelligence/MODEL_GATE_20260925.md",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님)",
+   "real_ai": "[REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님) · [REAL MODEL GATE 대표 블라인드] 고른 답 14개 중 질문에 「활동」 0 · M03·M15 에서 「활동」을 묻지 않은 유일한 답(gpt-4.1)을 두 번 모두 선택 → 모델 몫 가설 강화(1회·검수자 1명, 확정 아님)",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
-   "status_note": "UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기)",
+   "status_note": "UNRESOLVED(원인 HYPOTHESIS · 모델 몫 가설 강화, MODEL GATE 블라인드 2026-09-25)",
    "golden_flows": [
     "FLOW2",
     "FLOW3",
@@ -3253,7 +3254,8 @@
     "docs/failure-intelligence/MODEL_GATE_20260925.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
     "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
-    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
    ],
    "evidence_level": "HYPOTHESIS",
    "mock_result": "UNKNOWN",
@@ -3278,7 +3280,7 @@
     "Orchestration",
     "Model"
    ],
-   "layer_note": "Orchestration(막힌 질문은 버리고 반응만 · repair 에서는 null 이 낫다는 프롬프트 지침) + Model(null 선택). 대표 판정 2칸뿐 — 확정 아님",
+   "layer_note": "Orchestration(막힌 질문은 버리고 반응만 · repair 에서는 null 이 낫다는 프롬프트 지침) + Model(null 선택). 대표 판정 2칸뿐 — 확정 아님 · 2026-09-25 MODEL GATE 블라인드에서 반응만 한 답이 3칸 선택 → 근거 혼재",
    "cause_confidence": "MIXED",
    "user_harm": {
     "emotional": "UNKNOWN",
@@ -3294,7 +3296,7 @@
    "experiment": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측 · 대표 블라인드 A 선택 2/2 · [REAL MODEL GATE] 서버가 질문 버림: 4o-mini 4 · 4.1-mini 1 · 4.1 0 · 4o 0 · 정정·항의 16턴 뒤 질문 있음 7·12·10·6",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드 A 선택 2/2 · [REAL MODEL GATE] 서버가 질문 버림: 4o-mini 4 · 4.1-mini 1 · 4.1 0 · 4o 0 · 정정·항의 16턴 뒤 질문 있음 7·12·10·6 · [REAL MODEL GATE 대표 블라인드] 질문 없이 반응만 한 답이 3칸에서 선택됨(M01 gpt-4o — 네 답 중 유일한 반응만 · M08 예문 · M14) → 「반응만 = 진다」는 일관되지 않음(run1 2칸과 혼재)",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(B 후보 결함)",
@@ -3305,7 +3307,8 @@
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
     "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
-    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "PASS([MOCK] 「질문 없음은 정상」 검사 — 판정 기준 자체가 이 실패를 정상으로 봄)",
@@ -3344,7 +3347,7 @@
    "experiment": "MODEL GATE(B-1.0 고정·모델만 변경)",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 · [REAL MODEL GATE] gpt-4.1 은 「편한 친구」 뒤 「어떤 순간에 친구가 있으면 가장 편하다고 느끼세요?」 — 점프 0. 다른 세 모델은 3~5회",
+   "real_ai": "[REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 · [REAL MODEL GATE] gpt-4.1 은 「편한 친구」 뒤 「어떤 순간에 친구가 있으면 가장 편하다고 느끼세요?」 — 점프 0. 다른 세 모델은 3~5회 · [REAL MODEL GATE 대표 블라인드] 점프 칸에서는 점프 없는 답만 선택 · 「활동」 뒤 항의(M11)·「돈때문에」(M16)는 네 모델 모두 「모두 별로」",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(원인 HYPOTHESIS)",
@@ -3358,11 +3361,62 @@
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
     "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
-    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "UNKNOWN",
    "user_result": "대표 피드백: 「활동이란는 단어는 삭제하고 서비스 취지에 맞게 적으면 될꺼 같아」(원문)"
+  },
+  {
+   "id": "GF-72",
+   "title": "[네 모델 공통] 항의·반영 요구와 짧은 답에서 대표가 네 답 모두 「모두 별로」 — 모델 교체로 풀리지 않음",
+   "family": "F-CONTRACT",
+   "date": "2026-09-25(MODEL GATE 출력 07:34~07:38Z · 대표 블라인드 07:48~07:50Z)",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "실제 AI(gpt-4o-mini·gpt-4.1-mini·gpt-4.1·gpt-4o) + 고정 입력(대표 실제 입력) + 대표 블라인드 판정 · 운영 서버 아님",
+   "situation": "M11 FLOW5#5 「활동」 뒤 항의 · M16 FLOW7#2 「돈때문에」 · M17 FLOW7#3 반영 요구 — B-1.0 고정",
+   "user_text": "「활동?질문이 머이래」, 「돈때문에」, 「뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?」",
+   "ai_behavior": "M11: 네 모델 모두 반응만(질문 없음) · M16: 네 모델 모두 「돈 문제·고민」으로 받아 돈을 물음 · M17: 인정 뒤 돈 말고 바라는 점(①) · 사과만(②) · 「편하게 이야기하고 싶으신 것 같네요」(③) · 돈 문제 재질문(④)",
+   "expected": "항의·반영 요구를 받아들이고, 지금까지 한 말에서 출발하는 다음 질문 하나(REPAIR). 짧은 답은 앞 말과 이어 읽기",
+   "types": [
+    "Repair 실패",
+    "오분류"
+   ],
+   "layers": [
+    "Product Contract",
+    "Orchestration"
+   ],
+   "layer_note": "모델 4개가 모두 실패 → 모델 몫은 낮다는 가설. 항의 대응 계약이 B-1.0 에 없음(Product Contract) · 막힌 질문을 버리는 구조(Orchestration). 「돈때문에」의 원인은 미분리(대표 뜻 추정 금지)",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "운영 원래 사례에서 대표 「활동?질문이 머이래」·「너가 내 내용을 반영해서…」(원문)",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REAL] 1회 · 모델 4개 × 3칸 · 대표 블라인드 「모두 별로」 3/3",
+   "solution_attempts": [],
+   "solution_candidates": "구조 Gate: 항의·반영 요구 대응 계약(REPAIR) 한 변수 실험 — 대표 구조 LOCK(A-16) 해제 필요(장부 P-13)",
+   "experiment": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "[REAL MODEL GATE 대표 블라인드] M11·M16·M17 네 모델 모두 「모두 별로」",
+   "golden_flows": [
+    "FLOW5",
+    "FLOW7"
+   ],
+   "refs": [
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_REVIEW.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
+   ],
+   "evidence_level": "ACTUAL",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(모델 교체로 풀리지 않음 · 구조 실험 대기)",
+   "mock_result": "UNKNOWN",
+   "user_result": "대표 블라인드 「모두 별로」 3/3"
   }
  ]
 }
