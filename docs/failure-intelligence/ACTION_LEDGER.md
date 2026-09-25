@@ -22,7 +22,7 @@
 | P-11 | MODEL GATE 실행: B-1.0 고정 · 모델만 4개(gpt-4o-mini 기준 · gpt-4.1-mini · gpt-4.1 · gpt-4o) | 2026-09-25 | Claude(GitHub Actions run 36108344306) | docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md | 사전 등록 일치 · 4 모델 × 34 입력 · 호출 143 · 운영 변경 0 |
 | P-12 | MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 17칸: gpt-4.1-mini 5 · gpt-4.1 4 · gpt-4o 3 · gpt-4o-mini 2 · 모두 별로 3(실제 입력 14: 5·2·2·2·3) → 모델 승자 없음 · P0 FAIL. 다시 요구 금지 |
 
-## DECIDED (14)
+## DECIDED (16)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -40,6 +40,8 @@
 | A-16 | 구조 LOCK: A 수정 · B-1.1 즉시 제작 · 새 Guard · 새 intent 규칙 · 새 문자열 차단 금지(RUN1 보존) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md |  |
 | A-17 | 「활동」 피드백 = 공식 사용자 평가 데이터 · 뜻 = 맥락 없는 주제 점프(GF-71) · 낱말 금지·정규식·하드코딩 질문 금지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md |  |
 | A-18 | MODEL GATE 결과: 모델 승자 없음 · 어느 모델도 P0 통과 아님 · 「활동」 점프는 모델 몫 가설 강화 · 항의·반영 요구(M11·M17)와 「돈때문에」(M16)는 네 모델 공통 실패 · 운영 모델 변경 0 | 2026-09-25 | 대표 블라인드(선택 원본 그대로 집계) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 선택 수정·재해석 금지 |
+| P-13 | 구조 Gate 개시 여부: 구조 LOCK(A-16)을 항의·반영 요구 대응(REPAIR) 한 실험에 한해 풀지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 결정 2026-09-25: B-1.1(항의 규칙 하나 추가) 승인 안 함 → Conversation Product Contract RESET(A-19). 다시 묻지 않는다 |
+| A-19 | Conversation Product Contract LOCK: 「사용자가 한 말을 정확히 이해하고, 그 이해로 같은 결의 사람을 추천·매칭」 · 첫 목적 RELATIONSHIP_INTENT · LISTEN→UNDERSTAND→ACKNOWLEDGE→REMEMBER→CURIOUS FOLLOW-UP · 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · 성공 기준 10개 | 2026-09-25 | 대표 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md | B-1.1 금지 · 모델 승자 확정 금지 |
 
 ## BLOCKED (8)
 
@@ -64,4 +66,4 @@
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
 | P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 · 2026-09-25: 운영 v27 호출 16번 제공자 오류 0 → gpt-5 계열 5개는 아님. 확정은 여전히 DIGEST 대조 필요(MODEL GATE 에는 필요 없음) |
-| P-13 | 구조 Gate 개시 여부: 구조 LOCK(A-16)을 항의·반영 요구 대응(REPAIR) 한 실험에 한해 풀지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 풀리면 B-1.1 = 항의 대응 하나만 변경 · 모델 gpt-4o-mini 고정 · Golden·판정 그대로 · 사전 등록 뒤 실AI. 풀리기 전 A·B·Prompt 변경 0 |
+| P-14 | core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db sessions 에 저장 → Claude 가 읽고 분석. 17칸 검수 요구 금지 |

@@ -297,6 +297,38 @@
    "evidence": "HYPOTHESIS",
    "note": "「활동」 뒤 항의(M11)를 네 모델 모두 반응만으로 끝냄",
    "ref": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
+  },
+  {
+   "from": "GF-75",
+   "rel": "CAUSES",
+   "to": "GF-73",
+   "evidence": "ACTUAL",
+   "note": "규칙이 쌓여 질문 하나에 LLM 최대 9회 · 정상 후보 소실",
+   "ref": "docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
+  },
+  {
+   "from": "GF-74",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-71",
+   "evidence": "ACTUAL",
+   "note": "주제 칸이 사용자가 꺼내지 않은 방향을 줌",
+   "ref": "docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
+  },
+  {
+   "from": "GF-73",
+   "rel": "BROKEN_BY",
+   "to": "FS-23",
+   "evidence": "ACTUAL",
+   "note": "질문 심사 규칙 누적",
+   "ref": "docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md"
+  },
+  {
+   "from": "GF-76",
+   "rel": "MASKS",
+   "to": "GF-74",
+   "evidence": "HYPOTHESIS",
+   "note": "기계 지표가 목적 불일치를 가림",
+   "ref": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
   }
  ]
 }

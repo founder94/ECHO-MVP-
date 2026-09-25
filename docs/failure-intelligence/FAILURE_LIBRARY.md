@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 72건 — 증거 수준: ACTUAL 67 · CANDIDATE 3 · HYPOTHESIS 2 · 출처: ACTUAL 36 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 15 · FOUNDER_STATEMENT 3
-- 상태: UNRESOLVED 37 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 22
+- 합계 76건 — 증거 수준: ACTUAL 70 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 39 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 15 · FOUNDER_STATEMENT 4
+- 상태: UNRESOLVED 41 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 26
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -86,6 +86,10 @@
 | GF-70 | 2026-09-25(run1 출력 · 대 | ACTUAL | REAL_AI_SCRIPTED | F-FLOW | Repair 실패 · 출구 없음 | Orchestration · Model | MIXED | NONE | UNRESOLVED |
 | GF-71 | 2026-09-25(대표 피드백 07:2 | ACTUAL | ACTUAL | F-DRIFT | 방향이탈 | Model · Product Contract · Context | HYPOTHESIS | NONE | UNRESOLVED |
 | GF-72 | 2026-09-25(MODEL GATE  | ACTUAL | REAL_AI_SCRIPTED | F-CONTRACT | Repair 실패 · 오분류 | Product Contract · Orchestration | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-73 | 2026-09-24(운영 v26·v27  | ACTUAL | ACTUAL | F-GUARD | 과잉 Guard · 지연 | Orchestration · Product Contract | CONFIRMED | NONE | UNRESOLVED |
+| GF-74 | 2026-09-22~24(운영) · 대표 | ACTUAL | ACTUAL | F-CONTRACT | 방향이탈 · 제품 목적 가림 · 제품 계약 불일치 | Product Contract · Context | MIXED | NONE | UNRESOLVED |
+| GF-75 | 2026-09-19~25(v13 → v2 | ACTUAL | ACTUAL | F-CONTRACT | 규칙 누적 · 과잉 Guard | Product Contract · Evaluation | CONFIRMED | NONE | UNRESOLVED |
+| GF-76 | 2026-09-21~25 | CANDIDATE | FOUNDER_STATEMENT | F-EVAL | 제품 목적 가림 · Mock PASS / 실AI FAIL | Evaluation · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -2395,7 +2399,7 @@
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(원인 HYPOTHESIS) |
 | Golden Test | FLOW2, FLOW3, FLOW7 |
-| 관련 실패(Graph) | GF-69→CONTRIBUTES_TO(HYPOTHESIS) · GF-08→CONTRIBUTES_TO(ACTUAL) · GF-72→CONTRIBUTES_TO(HYPOTHESIS) |
+| 관련 실패(Graph) | GF-69→CONTRIBUTES_TO(HYPOTHESIS) · GF-08→CONTRIBUTES_TO(ACTUAL) · GF-72→CONTRIBUTES_TO(HYPOTHESIS) · GF-74→CONTRIBUTES_TO(ACTUAL) |
 | 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
 
 ## GF-72 [네 모델 공통] 항의·반영 요구와 짧은 답에서 대표가 네 답 모두 「모두 별로」 — 모델 교체로 풀리지 않음
@@ -2430,3 +2434,135 @@
 | Golden Test | FLOW5, FLOW7 |
 | 관련 실패(Graph) | CONTRIBUTES_TO→GF-67(HYPOTHESIS) · CONTRIBUTES_TO→GF-71(HYPOTHESIS) |
 | 근거 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_REVIEW.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
+
+## GF-73 OVER_ENGINEERED_CONVERSATION_CONTROL — 질문 하나를 만들려고 서버 규칙·판정 LLM 이 겹겹이 쌓여 정상 후보까지 죽임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
+| 발생 날짜 | 2026-09-24(운영 v26·v27 로그) · 대표 결정 2026-09-25 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 운영 로그(질문 하나에 OpenAI 4~5회 · 최악 9회 · 후보 9개 전부 no_bridge 로 502) + 운영 코드 v27(227,649바이트 · 2,740줄) |
+| 사용자 상황 | 운영 doit-understanding v15~v27 대화 경로 |
+| 사용자 원문 | 「그냥 편한친구 부담없이」 → 「다음 질문을 아직 만들지 못했어요」(LEVEL 3 FAIL #1·#2) |
+| AI 행동 | 연결·다리·앵커·글자쌍 반복·판정 LLM·되묻기 정규식이 후보 질문을 차례로 떨어뜨림 → 질문 실패·지연·고정 대체 문장 |
+| 기대 행동 | LLM 은 대화 후보를 만들고, 서버는 상태(원문·정정·거절·들은 정보·충족 여부)만 소유 |
+| Failure Type | 과잉 Guard · 지연 |
+| 원인 Layer | Orchestration · Product Contract (원인 확신: CONFIRMED) — 대표 결정(2026-09-25): 서버가 질문 문장을 문자열·n-gram·글자쌍 규칙으로 과도하게 심사하지 않는다 |
+| 사용자 피해 · 감정 | 대표 「질려서 못하겠다」·「몇번째 같은말이야!!」(운영 원문, CLAUDE.md 2026-09-22 기록) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 6일(2026-09-19~25) 동안 대화 P0 미통과 — 대표 실기기 반복 검사 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 운영 로그 · LEVEL 3 FAIL #2 분석 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | core-0.1: 한 턴 LLM 1번 · 서버는 상태만 · 질문 심사 0 |
+| 실험 결과 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL] 운영 로그(FAIL #2) · core-0.1 재생 결과는 CORE_REPLAY_RESULT_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(core-0.1 후보 · 대표 휴대폰 확인 전) |
+| Golden Test | FLOW2, FLOW3 |
+| 관련 실패(Graph) | GF-75→CAUSES(ACTUAL) · BROKEN_BY→FS-23(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-agent-v1.1/rollback/doit-understanding.v27.ts` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+
+## GF-74 QUESTION_ENGINE_OVER_PRODUCT_PURPOSE — 주제 칸 순서·남은 칸 수·「다섯 답 = 끝」이 질문 방향을 정해 사용자 말보다 칸 채우기가 앞섬
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 제품 계약 불일치 |
+| 발생 날짜 | 2026-09-22~24(운영) · 대표 결정 2026-09-25 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 운영 코드(TOPICS 순서 · ASK_TOTAL · remaining 입력) + 운영 대화(「활동」 점프 · 주제 이름과 질문 불일치) |
+| 사용자 상황 | v14~v27 대화: 12자 이하 답이면 새 갈래 + 주제 칸 순서로 방향 · 이번 회차 답 5개면 끝 |
+| 사용자 원문 | 「그냥 편한친구 부담없이」 → 「어떤 활동을 함께 하고 싶어요?」 · 「활동?갑자기?」 |
+| AI 행동 | 사용자가 꺼내지 않은 칸(같이 하고 싶은 것)으로 이동 · 칸 수를 채우면 이해와 관계없이 끝 |
+| 기대 행동 | 다음 질문의 출발점 = 방금 사용자 말 · 끝 = 매칭에 충분한 이해 |
+| Failure Type | 방향이탈 · 제품 목적 가림 · 제품 계약 불일치 |
+| 원인 Layer | Product Contract · Context (원인 확신: MIXED) — 칸 순서·남은 수 입력은 v1.1 에서 일부 뺐지만 「다섯 답 = 끝」과 칸 구조는 남아 있었다(B-1.0 도 유효 답 5개로 끝) |
+| 사용자 피해 · 감정 | 대표 「질려서 못하겠다」·「몇번째 같은말이야!!」(운영 원문, CLAUDE.md 2026-09-22 기록) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 6일(2026-09-19~25) 동안 대화 P0 미통과 — 대표 실기기 반복 검사 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 운영 v26·v27 · run1 · MODEL GATE |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | core-0.1: 영역은 방향만(순서 없음) · 네 영역 충족 시 마침 · 질문 수 강제 0 |
+| 실험 결과 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL] GF-08·GF-69·GF-71 관측 · core-0.1 재생 결과는 CORE_REPLAY_RESULT_20260925.md |
+| 사용자 결과 | 대표 피드백 「활동이란는 단어는 삭제하고 서비스 취지에 맞게」(GF-71) |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(core-0.1 후보) |
+| Golden Test | FLOW2, FLOW7 |
+| 관련 실패(Graph) | CONTRIBUTES_TO→GF-71(ACTUAL) · GF-76→MASKS(HYPOTHESIS) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+
+## GF-75 PATCH_ACCUMULATION — 실패마다 규칙 하나를 더하고, 그 규칙이 반대쪽 실패를 낳는 고리가 반복됨
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 제품 계약 불일치 |
+| 발생 날짜 | 2026-09-19~25(v13 → v27 → B-1.0) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — Failure Graph 의 실패 → 대책 → 반대 실패 고리(FS-08→GF-08 · FS-14→GF-11 · FS-20→GF-02) + 커밋 기록 |
+| 사용자 상황 | 대화 서버 수정 v13.1~v16·Agent v1·v1.1 · B-1.0 |
+| 사용자 원문 | —(구조 실패) |
+| AI 행동 | 반복 → 글자쌍 검사 → 정상 후보 죽음 → 대체 질문 → 되풀이 … 6일 동안 P0 미통과 |
+| 기대 행동 | 규칙을 더하기 전에 계약(무엇을 위한 대화인가)을 먼저 확정하고, 대책은 제품 목적 기준으로 평가 |
+| Failure Type | 규칙 누적 · 과잉 Guard |
+| 원인 Layer | Product Contract · Evaluation (원인 확신: CONFIRMED) — 대표 교훈(2026-09-25): 「질문 품질을 규칙으로 계속 고치는 방식이 제품 목적을 가렸다」 |
+| 사용자 피해 · 감정 | 대표 「질려서 못하겠다」·「몇번째 같은말이야!!」(운영 원문, CLAUDE.md 2026-09-22 기록) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 6일(2026-09-19~25) 동안 대화 P0 미통과 — 대표 실기기 반복 검사 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [ACTUAL] 기록 대조 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 새 규칙 누적 금지(대표 LOCK) · 계약 기준 최소 코어 |
+| 실험 결과 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(재발 방지 = 대표 LOCK) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | CAUSES→GF-73(ACTUAL) |
+| 근거 | `docs/failure-intelligence/FAILURE_GRAPH.md` · `docs/failure-intelligence/FAILED_SOLUTIONS_ARCHIVE.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+
+## GF-76 USER_OUTCOME_NEGLECT — 질문 기계 지표·가짜 AI 통과를 쌓는 동안 「대화 결과가 추천·매칭 재료가 되는가」를 재지 않음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVAL — 평가 결함(가짜 통과) |
+| 발생 날짜 | 2026-09-21~25 |
+| 증거 수준 | CANDIDATE |
+| 출처 | FOUNDER_STATEMENT — 대표 교훈(2026-09-25) + 부분 근거: 가짜 AI 검사 수백 개 통과 · 실AI LEVEL 3 실패 · MODEL GATE 기계 판정과 대표 블라인드 불일치 · 연결 0건(운영 읽기) |
+| 사용자 상황 | 대화 개선 평가 기준 |
+| 사용자 원문 | — |
+| AI 행동 | 평가가 질문 저장·반복·금지 문장 수에 집중 · 매칭 재료 품질 지표 없음 |
+| 기대 행동 | 성공 기준 10개(대표 휴대폰 사용) · 특히 8번 「대화 결과가 추천·매칭 정보로 연결」 |
+| Failure Type | 제품 목적 가림 · Mock PASS / 실AI FAIL |
+| 원인 Layer | Evaluation · Product Contract (원인 확신: HYPOTHESIS) — 원인 확정 아님(CANDIDATE): 매칭 재료 품질을 재는 기준이 아직 없다 |
+| 사용자 피해 · 감정 | 대표 「질려서 못하겠다」·「몇번째 같은말이야!!」(운영 원문, CLAUDE.md 2026-09-22 기록) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 6일(2026-09-19~25) 동안 대화 P0 미통과 — 대표 실기기 반복 검사 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | — |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | core-0.1 이 대화 끝에 매칭 재료(영역별 들은 정보 · 상태)를 만들어 보여 주고 저장 — 대표가 휴대폰에서 판단 |
+| 실험 결과 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(CANDIDATE) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | MASKS→GF-74(HYPOTHESIS) |
+| 근거 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |

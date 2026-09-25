@@ -347,11 +347,29 @@
   {
    "id": "P-13",
    "what": "구조 Gate 개시 여부: 구조 LOCK(A-16)을 항의·반영 요구 대응(REPAIR) 한 실험에 한해 풀지",
-   "state": "PENDING",
+   "state": "DECIDED",
    "date": "2026-09-25",
    "by": "대표",
    "evidence": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md",
-   "note": "풀리면 B-1.1 = 항의 대응 하나만 변경 · 모델 gpt-4o-mini 고정 · Golden·판정 그대로 · 사전 등록 뒤 실AI. 풀리기 전 A·B·Prompt 변경 0"
+   "note": "대표 결정 2026-09-25: B-1.1(항의 규칙 하나 추가) 승인 안 함 → Conversation Product Contract RESET(A-19). 다시 묻지 않는다"
+  },
+  {
+   "id": "A-19",
+   "what": "Conversation Product Contract LOCK: 「사용자가 한 말을 정확히 이해하고, 그 이해로 같은 결의 사람을 추천·매칭」 · 첫 목적 RELATIONSHIP_INTENT · LISTEN→UNDERSTAND→ACKNOWLEDGE→REMEMBER→CURIOUS FOLLOW-UP · 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · 성공 기준 10개",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md",
+   "note": "B-1.1 금지 · 모델 승자 확정 금지"
+  },
+  {
+   "id": "P-14",
+   "what": "core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk",
+   "note": "대화는 페이지 db sessions 에 저장 → Claude 가 읽고 분석. 17칸 검수 요구 금지"
   }
  ]
 }

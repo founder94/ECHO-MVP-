@@ -49,6 +49,11 @@ graph LR
   GF-70["GF-70 [B-1.0] 정정·거절 뒤 질문을 버리"]
   GF-71["GF-71 UNNATURAL_TOPIC_JUMP /"]
   GF-72["GF-72 [네 모델 공통] 항의·반영 요구와 짧은"]
+  GF-75["GF-75 PATCH_ACCUMULATION — 실"]
+  GF-73["GF-73 OVER_ENGINEERED_CONVER"]
+  GF-74["GF-74 QUESTION_ENGINE_OVER_P"]
+  FS-23["FS-23 질문 품질을 서버 규칙으로 고치기 — G"]
+  GF-76["GF-76 USER_OUTCOME_NEGLECT —"]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -85,6 +90,10 @@ graph LR
   GF-08 -->|CONTRIBUTES_TO| GF-71
   GF-72 -.->|CONTRIBUTES_TO| GF-67
   GF-72 -.->|CONTRIBUTES_TO| GF-71
+  GF-75 -->|CAUSES| GF-73
+  GF-74 -->|CONTRIBUTES_TO| GF-71
+  GF-73 -->|BROKEN_BY| FS-23
+  GF-76 -.->|MASKS| GF-74
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -125,6 +134,10 @@ graph LR
 | GF-08 | CONTRIBUTES_TO | GF-71 | ACTUAL | 운영 v26 실제 점프 사례(대표 「활동?갑자기?」) | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` |
 | GF-72 | CONTRIBUTES_TO | GF-67 | HYPOTHESIS | 항의에 대한 대응 계약이 없어 네 모델 모두 실패 — 저장 문제와 같은 뿌리 가설 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
 | GF-72 | CONTRIBUTES_TO | GF-71 | HYPOTHESIS | 「활동」 뒤 항의(M11)를 네 모델 모두 반응만으로 끝냄 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
+| GF-75 | CAUSES | GF-73 | ACTUAL | 규칙이 쌓여 질문 하나에 LLM 최대 9회 · 정상 후보 소실 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| GF-74 | CONTRIBUTES_TO | GF-71 | ACTUAL | 주제 칸이 사용자가 꺼내지 않은 방향을 줌 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| GF-73 | BROKEN_BY | FS-23 | ACTUAL | 질문 심사 규칙 누적 | `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+| GF-76 | MASKS | GF-74 | HYPOTHESIS | 기계 지표가 목적 불일치를 가림 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
 
-- 관계 36개 중 HYPOTHESIS 12개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 40개 중 HYPOTHESIS 13개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).
