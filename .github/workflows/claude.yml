@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          ref: claude/readdy-a-structure-server-ui-znauoh
 
       - name: Run Claude Code
         id: claude
@@ -36,7 +37,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --max-turns 30
+            --max-turns 24
             --allowedTools "Edit,Write,Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(zip:*),Bash(sha256sum:*),Bash(mkdir:*),Bash(cp:*),Bash(ls:*),Bash(find:*)"
             --append-system-prompt "ECHO rules: Before editing, inspect the actual repository state. Never modify or deploy DB, RLS, migrations, secrets, models, payment, pricing, production data, production Edge Functions, delete files, or delete test accounts without explicit representative approval. Do not claim PASS for tests not actually run. Report PASS, FAIL, below target, or unable to verify. LLMs generate candidates only; final product decisions belong to the server state machine. Do not introduce hardcoded question arrays."
 
