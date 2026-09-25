@@ -110,7 +110,7 @@ export function sessionView(id: string, stored: Stored) {
   return {
     id, agent: stored.agent, tone: st.tone, mode: st.mode, phase: done ? "done" : "talk",
     progress: { asked: A.coreAsked(st).length, of: A.MAX_CORE_QUESTIONS },
-    current_question: st.current?.text ?? null, messages,
+    current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
     profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
   };
@@ -173,9 +173,9 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
   const text4 = [response.reply, response.closing, response.question].filter((x) => typeof x === "string" && x).join("\n");
   const record = {
     turn_index: lastTurn?.n ?? null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind,
-    saved: response.saved === true, extracted: lastTurn?.extracted ?? [], recovered: lastTurn?.recovered ?? [], recovered_from: lastTurn?.recovered_from ?? [], dropped: lastTurn?.dropped ?? null, decision: lastTurn?.decision ?? kind, question_index: A.coreAsked(st).length,
+    saved: response.saved === true, extracted: lastTurn?.extracted ?? [], recovered: lastTurn?.recovered ?? [], recovered_from: lastTurn?.recovered_from ?? [], dropped: lastTurn?.dropped ?? null, hint_shown: !!lastTurn?.hint, question_check: lastTurn?.check ?? null, decision: lastTurn?.decision ?? kind, question_index: A.coreAsked(st).length,
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
-    flags: { correction: kind === "correction", rejection: kind === "repair", complaint: kind === "repair", skip: kind === "skip", fatigue: kind === "stop", unsure: kind === "unsure", ask: kind === "ask", blocked: kind === "blocked" },
+    flags: { correction: kind === "correction", rejection: kind === "repair", complaint: kind === "repair", skip: kind === "skip", fatigue: kind === "stop", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
     record_id: recordId, record_error: recordError, total_ms: Date.now() - t0,

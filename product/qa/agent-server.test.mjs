@@ -294,3 +294,50 @@ test('같은 질문 재노출은 질문마다 한 번뿐 · 이미 한 질문과
   const shown = r.body.session.messages.filter((m) => m.text === '어떤 사람이 편해요?').length;
   assert.ok(shown <= 2, `같은 질문 화면 노출 ${shown}번(처음 + 먼저 답하기 1번)`);
 });
+
+// 실제 외부 사용자 피드백(2026-09-25 「질문이 좀 모호한거 같네 … 예시같은게 있어도 좋을것 같구」) — 가짜 AI 기준.
+test('「예를 들면?」(help): 저장 0 · 질문 수 0 · 같은 목적을 더 쉽게 다시 · 질문마다 2번까지 · 예시 한 줄(형식만 확인)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'attraction_comfort', question: '어떤 사람이랑 있으면 편해요?', hint: '예: 말투, 연락 방식, 취미처럼요.' } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  assert.equal(start.body.session.current_hint, '예: 말투, 연락 방식, 취미처럼요.');
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  // 1번째 help: 쉬운 같은 목적 질문 · 새 예시
+  s.ai.push(T({ kind: 'help', reply: '편하다고 느끼는 사람의 모습을 말하면 돼요. 예를 들면 말투나 연락하는 방식 같은 거예요.', extracted: [X('attraction_comfort', '지어낸', '예를 들면')], next: { type: 'core', purpose: 'attraction_comfort', question: '같이 있으면 마음이 놓이는 사람은 어떤 사람이에요?', hint: '예: 말이 잘 통함, 조용함처럼요.' } }));
+  const r1 = await say('예를 들면?');
+  assert.equal(r1.body.turn.saved, false, 'help 는 저장 0'); assert.equal(r1.body.session.progress.asked, 2, '질문 수 그대로');
+  assert.equal(r1.body.turn.question, '같이 있으면 마음이 놓이는 사람은 어떤 사람이에요?');
+  assert.equal(r1.body.session.current_hint, '예: 말이 잘 통함, 조용함처럼요.');
+  // 형식에 안 맞는 예시(물음표·너무 김)는 버리고 앞 예시를 둔다
+  s.ai.push(T({ kind: 'help', reply: '편한 사람의 특징이면 뭐든 괜찮아요.', next: { type: 'core', purpose: 'attraction_comfort', question: '편한 사람 하면 누가 떠올라요?', hint: '예를 들어 이렇게 답해 보면 어떨까요? 배려심 있고 연락 잘하는 사람이요' } }));
+  const r2 = await say('무슨 뜻이야?');
+  assert.equal(r2.body.session.progress.asked, 2); assert.equal(r2.body.session.current_hint, '예: 말이 잘 통함, 조용함처럼요.');
+  // 3번째 help: 한도(2) → 같은 질문을 또 보이지 않고 다음 목적으로
+  s.ai.push(T({ kind: 'help', reply: '괜찮아요, 다른 걸 물어볼게요.', next: { type: 'core', purpose: 'values_character', question: '약속 시간 잘 지키는 게 중요해요?', hint: '예: 시간 약속, 말투처럼요.' } }));
+  const r3 = await say('잘 모르겠는데 무슨 말이야');
+  assert.equal(r3.body.session.progress.asked, 3, '한도 뒤에는 다음 목적(질문 수 +1)'); assert.equal(r3.body.turn.question, '약속 시간 잘 지키는 게 중요해요?');
+  const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  assert.equal(st.slots.attraction_comfort.status, 'UNKNOWN', 'help 에서 뽑은 척한 정보는 받지 않음');
+  assert.ok(!s.tables.doit_records?.some((r) => /예를 들면|무슨 뜻|무슨 말/.test(r.text)), '되묻는 말은 기록 0');
+  const recs = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').map((r) => r.response_payload.record);
+  assert.ok(recs.slice(1, 3).every((r) => r.flags.help && r.decision === 'help_rephrase'));
+  // AI 입력: 지금 질문의 help 횟수를 보인다
+  assert.equal(s.aiCalls.at(-1).input.current_question.helps, 2, '세 번째 help 때 AI 는 한도에 닿았음을 본다');
+  assert.equal(s.aiCalls.at(-2).input.current_question.helps, 1);
+  assert.ok(!st.current.helps, '새 질문은 help 0부터');
+});
+
+test('help 에 쉬운 질문이 없으면 한 번 다시 청한다(help_question) · 질문 5개 상한 그대로', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구' })).body.session.id;
+  s.ai.push(T({ kind: 'help', reply: '편한 사람 이야기를 하면 돼요.', next: { type: 'none', purpose: '', question: '' } }), T({ kind: 'help', reply: '편한 사람 이야기를 하면 돼요.', next: { type: 'core', purpose: 'attraction_comfort', question: '같이 있으면 편한 사람은 어떤 사람이에요?', hint: '' } }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '예를 들면?' });
+  assert.equal(r.body.turn.question, '같이 있으면 편한 사람은 어떤 사람이에요?');
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.ok(rec.retry.includes('help_question'));
+  assert.equal(r.body.session.current_hint, null, '예시가 없으면 버튼도 없다');
+  assert.ok(s.aiCalls[0].system.includes('concrete') && s.aiCalls[0].system.includes('answerable') && s.aiCalls[0].system.includes('help'), '말투 기준·help 는 같은 호출의 지시에 들어 있다(심사 호출 추가 0)');
+  assert.ok(s.aiCalls.every((c) => !/심사|judge/i.test(c.system.slice(0, 40))));
+});

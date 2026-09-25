@@ -64,7 +64,7 @@ export default function AgentConversations() {
         <StatCard label="글 / 말" value={`${d.text} / ${d.voice}`} status="success" />
         <StatCard label="말투(정중·편한 존댓말·반말)" value={`${d.tones.formal} · ${d.tones.polite} · ${d.tones.casual}`} status="success" />
         <StatCard label="핵심 질문 수별 대화" value={[0, 1, 2, 3, 4, 5].map((n) => `${n}:${d.progress[n]}`).join(" ")} status="success" />
-        <StatCard label="정정 · 거절 · 넘기기 · 지침" value={`${d.flags.correction} · ${d.flags.rejection} · ${d.flags.skip} · ${d.flags.fatigue}`} sub={`AI에게 질문 ${d.flags.ask}`} status="success" />
+        <StatCard label="정정 · 거절 · 넘기기 · 지침" value={`${d.flags.correction} · ${d.flags.rejection} · ${d.flags.skip} · ${d.flags.fatigue}`} sub={`AI에게 질문 ${d.flags.ask} · 질문 뜻 되물음 ${d.flags.help ?? 0}`} status="success" />
         <StatCard label="매칭 프로필 만든 대화" value={d.matching_ready} sub={d.matching_status.join(", ") || "상태 없음"} status="success" />
         <StatCard label="실패 후보 · 성공 후보" value={`${d.failure_candidates} · ${d.success_candidates}`} status="success" />
         <StatCard label="AI 호출(오류)" value={`${d.ai_calls} (${d.ai_errors})`} sub={`지연 p50 ${d.latency_p50 ?? "-"}ms · p95 ${d.latency_p95 ?? "-"}ms`} status="success" />

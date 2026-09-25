@@ -115,3 +115,11 @@ test('관리자 후보: 같은 질문을 다시 보인 뒤 항의 = ALREADY_ANSW
   const plain = M.normalize(raw('eeeeeeee-5', 'done', [t(1, 'answer', 'core'), t(2, 'repair', 'finish')]), []);
   assert.equal(M.candidates(plain).failure.filter((x) => x.type === 'ALREADY_ANSWERED_REASK').length, 0, '다시 보인 질문이 없으면 후보 아님');
 });
+
+test('예시 보기: 서버가 준 한 줄이 있을 때만 버튼 · 누를 때만 펼침 · 기존 글자 모양(echo-text-button·echo-fine)만', () => {
+  const ui = src('src/doit/components/feature/AgentConversation.tsx');
+  assert.match(ui, /session\.current_hint && \(hintFor === question/);
+  assert.match(ui, /className="echo-text-button"[^>]*onClick=\{\(\) => \{ setHintFor\(question\);[^}]*\}\}>예시 보기<\/button>/);
+  assert.match(ui, /<p className="echo-fine" role="note">\{session\.current_hint\}<\/p>/);
+  assert.match(src('src/doit/lib/agentApi.ts'), /current_hint\?: string \| null;/);
+});

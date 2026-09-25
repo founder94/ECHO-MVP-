@@ -23,6 +23,7 @@ export interface AgentSession {
   id: string; tone: AgentTone; mode: AgentMode; phase: 'talk' | 'done';
   progress: { asked: number; of: number };
   current_question: string | null;
+  current_hint?: string | null; // 질문의 답 범위를 알려 주는 한 줄 예시(서버 v1.4 · 없으면 버튼을 그리지 않는다)
   messages: { role: 'ai' | 'user'; text: string }[];
   summary: { purpose: string; text: string }[]; closing: string | null;
   profile: AgentProfile | null; handoff: { status: string } | null;

@@ -11,8 +11,11 @@
 //   고친 것은 상태 사용뿐이다(문장 가드 추가 0): ① 기억 인용은 이번 말뿐 아니라 이 대화의 앞선 사용자 말에서도 받는다(서버가 원문으로 확인, 찾은 턴을 기록)
 //   ② 「아까 말했다」 같은 항의는 매칭 답으로 저장하지 않고 앞선 말에서만 되살린다 ③ 먼저 답하기(ask)로 같은 질문을 다시 보이는 것은 질문마다 한 번뿐
 //   ④ AI 에게 이 대화의 사용자 말을 최근 10턴까지 보인다.
+// v1.4(2026-09-25, 실제 외부 사용자 피드백 「질문이 좀 모호한거 같네 … 예시같은게 있어도 좋을것 같구」): 질문 수·목적은 그대로.
+//   ① 질문 말투 기준(구체적·생활 말·바로 답할 수 있음)을 같은 호출 안에서 스스로 확인한다(심사 호출 추가 0 · 고정 질문 0)
+//   ② 질문마다 선택으로 보는 한 줄 예시(hint: 답의 범위만 · 답을 대신 써 주지 않음) ③ 「예를 들면?·무슨 뜻이야?」= help: 저장 0 · 질문 수 0 · 짧게 설명하고 같은 목적을 더 쉽게 다시 묻는다(질문마다 2번까지, 그 뒤는 다음 목적).
 
-export const AGENT_VERSION = "echo-agent-v1.3";
+export const AGENT_VERSION = "echo-agent-v1.4";
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_TOTAL = 1;
@@ -40,8 +43,10 @@ export const TONES: Record<Tone, { label: string; rule: string }> = {
 export const DEFAULT_TONE: Tone = "polite";
 export const isTone = (v: unknown): v is Tone => typeof v === "string" && v in TONES;
 
-export type Kind = "answer" | "ask" | "correction" | "repair" | "skip" | "unsure" | "stop";
-const KINDS: Kind[] = ["answer", "ask", "correction", "repair", "skip", "unsure", "stop"];
+export type Kind = "answer" | "ask" | "help" | "correction" | "repair" | "skip" | "unsure" | "stop";
+const KINDS: Kind[] = ["answer", "ask", "help", "correction", "repair", "skip", "unsure", "stop"];
+export const MAX_HELP_PER_QUESTION = 2; // 「예를 들면?」으로 같은 질문을 쉽게 다시 묻는 횟수. 그 뒤는 다음 목적으로 간다(빠져나갈 문 = 「이 질문 넘어가기」도 늘 있음).
+export const HINT_MAX = 40; // 예시 한 줄 글자 수 상한(형식 확인 — 문장 품질 심사가 아니다)
 const SAVABLE = new Set<Kind>(["answer", "correction"]);
 // 이번 말(latest)에서 매칭 정보를 뽑아도 되는 종류. ask 는 물으면서 자기 이야기를 함께 한 경우다(운영 실측: 바람을 말했는데 ask 로 읽힘).
 // 항의(repair)·넘기기·모르겠다·그만은 이번 말에서 뽑지 않는다 — 앞선 말에서 되살리는 것만 받는다.
@@ -83,8 +88,9 @@ kind 하나:
 - ask: 사용자가 너나 서비스에 물음을 던졌다(자기 바람을 말한 것은 ask 가 아니다) → reply 에서 먼저 제대로 답한다(서비스는 service_facts 안에서만, 모르면 모른다고). 그다음 next 는 current_question 과 같은 목적으로, 답을 못 받은 그 질문을 한 번 더 자연스럽게 묻는다(새 목적으로 넘어가지 않는다). 단 current_question.shown_again 이 true 면 이미 한 번 다시 물은 것이니 다시 묻지 않고 open_purposes 로 넘어간다.
 - correction: 네가 잘못 이해한 것을 고치며 올바른 뜻을 말한다 → 인정하고 고친 뜻을 따른다.
 - repair: 틀렸다·이미 말했다·왜 또 묻냐 같은 항의(새 내용 없음) → 짧게 인정한다. 이미 말했다는 뜻이면 recent 의 앞선 사용자 말에서 그 내용을 찾아 extracted 에 넣고(quote 는 그 앞선 말에서 그대로) reply 에서 그 말을 짚는다. 같은 질문을 다시 하지 않는다.
+- help: 질문 뜻을 몰라 되묻는 말(예를 들면?·무슨 뜻이야?·뭐라고 답해?·어떤 거?·잘 모르겠는데 무슨 말이야) → reply 에 짧은 설명과 예시 개념 2~3개(한두 문장, 예: 연락 방식·약속·생활습관 같은 것). next 는 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문. 단 current_question.helps 가 ${MAX_HELP_PER_QUESTION} 이상이면 다시 설명하지 말고 open_purposes 로 넘어간다.
 - skip: 넘어가자·다음 질문·다른 거·그 질문 말고·어렵다 → 이 주제를 끝내고 다음 목적으로 간다. 같은 뜻을 다시 묻지 않는다.
-- unsure: 모르겠다·딱히 없다.
+- unsure: 질문은 알아들었는데 딱히 없다·모르겠다(바람이 없다는 뜻). 질문 자체를 모르겠다는 뜻이면 help 다. 애매하고 current_question.helps 가 0 이면 help.
 - stop: 지쳤다·그만하자·질문이 너무 많다.
 
 extracted: 사용자가 직접 한 것만, 목적 id(relationship_intent·attraction_comfort·values_character·relationship_style·boundaries) 별로. note = 짧은 요약, quote = 사용자가 친 글자를 오타·띄어쓰기까지 그대로 복사한 일부(고쳐 쓰면 저장되지 않는다). 짧거나 막연해도 그 목적에 대한 자기 말이면 넣는다. 한 말이 여러 목적을 채우면 여러 개.
@@ -102,10 +108,12 @@ next: 다음 질문.
 - kind 가 answer 인데 그 뜻을 전혀 알 수 없을 때만, clarify_allowed 가 true 이면 type "clarify"(같은 목적으로 한 번 되묻기). 모르겠다·넘기자·어렵다·항의 뒤에는 되묻지 않고 다음 목적으로 간다.
 - open_purposes 가 비었거나 kind 가 stop 이면 {"type":"none"}.
 - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
+- 질문 말투 기준(묻기 전에 스스로 확인해 check 에 적는다): context = 방금 말·앞선 말과 이어진다 · concrete = 가치·방식·스타일·느낌 같은 추상 낱말만으로 묻지 않고 연락·약속·처음 만났을 때·주말처럼 실제 장면을 떠올릴 수 있다 · answerable = 35~52세 보통 사람이 설명 없이 바로 한 줄로 답할 수 있다. 하나라도 아니면 더 쉬운 문장으로 바꿔서 낸다. 짧은 한 문장, 상담·심리검사·면접 말투 금지.
+- next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 한 줄(${HINT_MAX}자 이내, 물음표 없이, 예: 「예: 연락 방식, 약속, 생활습관처럼요.」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
 
 쓰지 않는 단어: 데이팅, 소개팅, 궁합, 점술, 심리치료, 성격검사. 사용자가 말하지 않은 감정·사정을 사실처럼 말하지 않는다. 상담사·면접관·설문 말투와 과장된 공감을 쓰지 않는다.
 
-JSON 하나로만 답한다: {"kind":"","understood":"","reply":"","extracted":[{"purpose":"","note":"","quote":""}],"inferred":[{"trait":"","basis":""}],"declared":null,"wrong":[],"next":{"type":"core","purpose":"","question":""}}`;
+JSON 하나로만 답한다: {"kind":"","understood":"","reply":"","extracted":[{"purpose":"","note":"","quote":""}],"inferred":[{"trait":"","basis":""}],"declared":null,"wrong":[],"next":{"type":"core","purpose":"","question":"","hint":"","check":{"context":true,"concrete":true,"answerable":true}}}`;
 }
 
 export function closingPrompt(tone: Tone): string {
@@ -119,8 +127,8 @@ JSON 하나로만 답한다: {"summary":[{"purpose":"","text":""}],"closing":""}
 
 type Json = Record<string, unknown>;
 export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "RETRACTED" }
-export interface Asked { type: "core" | "clarify"; purpose: string; text: string; keeps?: number }
-export interface TurnRec { n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; dropped?: string; reply?: string; question?: string | null; decision?: string }
+export interface Asked { type: "core" | "clarify"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null }
+export interface TurnRec { n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
   slots: Record<string, { status: "UNKNOWN" | "CONFIRMED" | "SKIPPED"; items: Item[] }>;
@@ -128,7 +136,7 @@ export interface AgentState {
   declared: { mbti: string | null; blood_type: string | null }; asked: Asked[]; current: Asked | null; clarify: { total: number; per: Record<string, number> };
   closing: string | null; summary: { purpose: string; text: string }[]; after_turns: number; opening_reply: string | null;
 }
-export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string } }
+export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
 export type Llm = (kind: "opening" | "turn" | "closing", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
@@ -168,7 +176,7 @@ function ask(st: AgentState, type: Asked["type"], purpose: string, text: string)
 export function turnInput(st: AgentState, latest: string): Json {
   return {
     recent: st.turns.slice(-RECENT_TURNS).map((t) => ({ n: t.n, ai: t.ai, user: t.user })),
-    current_question: st.current ? { purpose: st.current.purpose, label: labelOf(st.current.purpose), text: st.current.text, type: st.current.type, shown_again: (st.current.keeps ?? 0) > 0 } : null,
+    current_question: st.current ? { purpose: st.current.purpose, label: labelOf(st.current.purpose), text: st.current.text, type: st.current.type, shown_again: (st.current.keeps ?? 0) > 0, helps: st.current.helps ?? 0 } : null,
     latest,
     heard: heard(st),
     corrections: st.corrections.slice(-3),
@@ -193,8 +201,15 @@ export function parseTurn(raw: unknown): Parsed | null {
     inferred: list(o.inferred).map((m) => ({ trait: str(m.trait), basis: str(m.basis) })).filter((m) => m.trait),
     declared: d ? { mbti: str(d.mbti), blood_type: str(d.blood_type), quote: str(d.quote) } : null,
     wrong: (Array.isArray(o.wrong) ? o.wrong : []).map(str).filter(Boolean),
-    next: { type: type === "core" || type === "clarify" ? type : "none", purpose: str(n.purpose), question: leaksId(n.question) ? "" : str(n.question) },
+    next: { type: type === "core" || type === "clarify" ? type : "none", purpose: str(n.purpose), question: leaksId(n.question) ? "" : str(n.question), hint: cleanHint(n.hint),
+      check: n.check && typeof n.check === "object" ? Object.fromEntries(["context", "concrete", "answerable"].map((k) => [k, (n.check as Json)[k] === true])) : null },
   };
+}
+
+// 예시 한 줄: 형식만 본다(길이·물음표·금지어·내부 이름). 뜻의 좋고 나쁨은 심사하지 않는다.
+export function cleanHint(v: unknown): string {
+  const h = str(v);
+  return h && h.length <= HINT_MAX && !/[?？]/.test(h) && !BANNED_WORDS.test(h) && !leaksId(h) ? h : "";
 }
 
 export interface TurnResponse { kind: string; reply: string; question: string | null; saved: boolean; extracted: { purpose: string; note: string }[]; recovered: string[]; finish: boolean; question_type: string | null; question_purpose: string | null }
@@ -249,23 +264,34 @@ export function applyTurn(st: AgentState, latest: string, out: Parsed, opts: { l
   const open = openPurposes(st);
   // 같은 질문을 다시 보이는 것은 질문마다 한 번뿐이다(운영 실측: 다시 보인 질문에 사용자가 「아까 말했는데」). 두 번째부터는 다음 목적으로 간다.
   const pending = out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) ? st.current : null;
+  // 「예를 들면?」: 같은 목적을 더 쉽게 다시 묻는다(질문 수 0 · 저장 0). 질문마다 MAX_HELP_PER_QUESTION 번까지.
+  const helping = out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION ? st.current : null;
   if (st.phase === "talk" && out.kind !== "stop" && !opts.limitReached) {
     const n = out.next;
     // 먼저 답하기(ask): 답을 못 받은 지금 질문을 그대로 둔다(질문 수를 늘리지 않는다). AI 가 말을 바꿔 다시 물었으면 그 문장으로 바꿔 보인다.
-    if (pending) { if (n.question && (n.purpose === pending.purpose || !open.includes(n.purpose))) { pending.text = n.question; st.asked[st.asked.length - 1].text = n.question; } pending.keeps = (pending.keeps ?? 0) + 1; st.asked[st.asked.length - 1].keeps = pending.keeps; question = pending.text; decision = "keep_after_answer"; }
+    if (helping) {
+      if (n.question && (n.purpose === helping.purpose || !open.includes(n.purpose))) { helping.text = n.question; st.asked[st.asked.length - 1].text = n.question; }
+      helping.helps = (helping.helps ?? 0) + 1; st.asked[st.asked.length - 1].helps = helping.helps;
+      if (n.hint) { helping.hint = n.hint; st.asked[st.asked.length - 1].hint = n.hint; }
+      question = helping.text; decision = "help_rephrase";
+    }
+    else if (pending) { if (n.question && (n.purpose === pending.purpose || !open.includes(n.purpose))) { pending.text = n.question; st.asked[st.asked.length - 1].text = n.question; } pending.keeps = (pending.keeps ?? 0) + 1; st.asked[st.asked.length - 1].keeps = pending.keeps; question = pending.text; decision = "keep_after_answer"; }
     else if (n.type === "clarify" && out.kind === "answer" && clarifyAllowed(st) && n.question) { ask(st, "clarify", st.current!.purpose, n.question); question = n.question; decision = "clarify"; }
     else if (open.length && coreAsked(st).length < MAX_CORE_QUESTIONS && n.question) {
       // 고른 목적이 아직 안 물은 목적이 아니면 앞쪽 목적의 질문으로 센다 — 되돌려 보내지 않는다.
       const purpose = open.includes(n.purpose) ? n.purpose : open[0];
       ask(st, "core", purpose, n.question); question = n.question; decision = purpose === n.purpose ? "core" : "core_relabeled";
     }
+    if (question && st.current && decision !== "help_rephrase" && decision !== "keep_after_answer") { st.current.hint = n.hint || null; st.asked[st.asked.length - 1].hint = st.current.hint; }
+    turn.check = n.check ?? null;
   }
   // 이미 한 질문과 글자까지 같은 새 질문은 보이지 않는다(먼저 답하기로 한 번 다시 보인 것은 위에서 따로 센다).
-  if (question && decision !== "keep_after_answer" && st.asked.slice(0, -1).some((a) => squash(a.text) === squash(question))) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_before"; }
+  if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => squash(a.text) === squash(question))) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_before"; }
   if (question && BANNED_WORDS.test(question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; }
   const reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) ? "" : out.reply;
   const finish = !question && st.phase === "talk";
   if (finish) st.current = null;
+  turn.hint = question ? st.current?.hint ?? null : null;
   turn.reply = reply; turn.question = question; turn.decision = finish ? (opts.limitReached ? "finish_limit" : "finish") : decision;
   return { kind: out.kind, reply, question, saved: turn.saved, extracted: kept.map(({ purpose, note }) => ({ purpose, note })), recovered, finish, question_type: question ? st.current!.type : null, question_purpose: question ? st.current!.purpose : null };
 }
@@ -344,6 +370,7 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   no_question: "아직 물을 목적(open_purposes)이 남아 있고 사용자가 그만하자고 하지 않았다. 받아준 뒤 다음 질문 하나가 필요하다.",
   purpose_used: "next.purpose 가 open_purposes 에 없다(이미 물었거나 이미 들은 목적). open_purposes 중 하나로 묻는다.",
   reply_question: "reply 에 물음표가 있었다. 질문은 next.question 하나에만 쓰고 reply 는 받아주기·대답만 쓴다.",
+  help_question: "kind 가 help 다. reply 에 짧은 설명·예시를 쓰고, next.question 에 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문 하나를 쓴다.",
   asked_before: "next.question 이 이 대화에서 이미 한 질문과 같다. 사용자가 이미 말한 것은 extracted 에 넣고, open_purposes 의 다른 목적을 묻는다.",
 };
 export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean): string {
@@ -351,6 +378,7 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (after || out.kind === "stop") return "";
   // ask 는 지금 질문을 서버가 그대로 둔다(질문마다 한 번). 이미 한 번 다시 보였으면 다른 종류와 같이 다음 질문을 본다.
   if (out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) && !out.extracted.some((e) => e.purpose === st.current!.purpose)) return "";
+  if (out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION) return out.next.question ? "" : "help_question"; // 더 쉬운 같은 목적 질문이 있어야 한다
   if (out.next.question && st.asked.some((a) => squash(a.text) === squash(out.next.question))) return "asked_before";
   const wantsCore = out.next.question && !(out.next.type === "clarify" && out.kind === "answer" && clarifyAllowed(st));
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";

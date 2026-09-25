@@ -30,14 +30,14 @@ export async function loadAgent() {
   return import(pathToFileURL(file).href);
 }
 
-const KIND_OF = { answer: 'answer', repair: 'repair', correction: 'correction', ask: 'ask', unsure: 'unsure', fatigue: 'stop', mixed: 'answer' };
+const KIND_OF = { answer: 'answer', repair: 'repair', correction: 'correction', ask: 'ask', help: 'help', unsure: 'unsure', fatigue: 'stop', mixed: 'answer' };
 let seq = 0;
 const mock = (expect) => (_sys, input) => {
   if (input.latest === undefined) return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.' });
   const kind = KIND_OF[expect] ?? 'answer'; const open = input.open_purposes ?? [];
   return JSON.stringify({ kind, understood: '', reply: `[MOCK] 받아주기 ${++seq}.`, inferred: [], declared: null, wrong: [],
     extracted: ['answer', 'correction'].includes(kind) && input.current_question ? [{ purpose: input.current_question.purpose, note: `m${seq}`, quote: String(input.latest).replace(/\s/g, '').slice(0, 2) }] : [],
-    next: kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
+    next: kind === 'help' && input.current_question && (input.current_question.helps ?? 0) < 2 ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 쉬운 질문 ${seq}?`, hint: '[MOCK] 예: 가, 나' } : kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
 };
 
 export async function runFlow(A, flowId, tone, model) {
@@ -54,7 +54,7 @@ export async function runFlow(A, flowId, tone, model) {
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase };
 }
@@ -72,6 +72,16 @@ export function stats(A, runs) {
     max_core_questions: Math.max(...runs.map((r) => r.core)), over_5: runs.filter((r) => r.core > A.MAX_CORE_QUESTIONS).length, max_clarify: Math.max(...runs.map((r) => r.clarify)),
     finished_runs: runs.filter((r) => r.phase !== 'talk').length, questions_after_finish: rows.filter((x) => x.after && x.question).length,
     complaint_saved: rows.filter((x) => x.saved && ['repair', 'ask', 'fatigue'].includes(x.expect)).length,
+    // v1.4(2026-09-25 실제 외부 사용자 피드백): 「예를 들면?」류 = help. 저장·질문 수 증가는 0 이어야 한다. 예시(hint)는 형식만 서버가 보고, 뜻(답 유도 여부)은 아래 목록을 사람이 본다.
+    help_turns: rows.filter((x) => x.expect === 'help').length,
+    help_classified: rows.filter((x) => x.expect === 'help' && x.kind === 'help').length,
+    help_saved: rows.filter((x) => x.expect === 'help' && x.saved).length,
+    help_counted: rows.filter((x) => x.kind === 'help' && !x.after && x.core_after > x.core_before).length,
+    questions_with_hint: `${rows.filter((x) => x.question && x.hint).length}/${rows.filter((x) => x.question).length}`,
+    hint_max_len: Math.max(0, ...rows.map((x) => (x.hint ?? '').length)),
+    // [관측 전용 · HEURISTIC] 추상 낱말만으로 묻는 질문(가치·방식·스타일·느낌·성향) 개수 — 막거나 고치지 않는다(run 10 과 비교용)
+    abstract_questions: rows.filter((x) => x.question && /가치|방식|스타일|느낌|성향/.test(x.question)).length,
+    question_len_p50: pct(rows.filter((x) => x.question).map((x) => x.question.length), 50),
     ask_added_question: rows.filter((x) => x.kind === 'ask' && !x.after && x.core_after > x.core_before).length,
     tone_mismatch_turns: runs.reduce((n, r) => n + r.rows.filter((x) => lines(x) && A.toneMismatch(r.tone, lines(x))).length, 0),
     sample_copy: rows.filter((x) => /편한\s*게\s*제일\s*중요/.test(lines(x))).length,
@@ -105,7 +115,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     '## 합계', '', `| 항목 | ${MODELS.join(' | ')} |`, `|---|${MODELS.map(() => '---').join('|')}|`, ...Object.keys(S[MODELS[0]]).map((k) => `| ${k} | ${MODELS.map((m) => S[m][k]).join(' | ')} |`), ''];
   for (const m of MODELS) for (const r of out[m]) {
     L.push(`## ${m} · ${r.flow} · 말투 ${r.tone} · 핵심 질문 ${r.core} · 되묻기 ${r.clarify} · ${r.phase !== 'talk' ? '마침' : '안 끝남'}`, '', '| # | 사용자 | 종류·저장 | 출력 |', '|---|---|---|---|');
-    for (const x of r.rows) L.push(`| ${x.i} | ${flat(x.text)} | ${x.kind ?? '-'}${x.saved ? '·저장' : ''}${x.qtype ? `·${x.qtype}:${x.qpurpose}` : ''}${x.after ? '·끝난 뒤' : ''} | ${flat([x.reply && `💬 ${x.reply}`, x.question && `❓ ${x.question}`, x.finish && '(마무리)', x.error && `⚠️ ${x.error}`].filter(Boolean).join(' / '))} |`);
+    for (const x of r.rows) L.push(`| ${x.i} | ${flat(x.text)} | ${x.kind ?? '-'}${x.saved ? '·저장' : ''}${x.qtype ? `·${x.qtype}:${x.qpurpose}` : ''}${x.after ? '·끝난 뒤' : ''} | ${flat([x.reply && `💬 ${x.reply}`, x.question && `❓ ${x.question}`, x.hint && `💡 ${x.hint}`, x.finish && '(마무리)', x.error && `⚠️ ${x.error}`].filter(Boolean).join(' / '))} |`);
     L.push('');
   }
   const text = L.join('\n');

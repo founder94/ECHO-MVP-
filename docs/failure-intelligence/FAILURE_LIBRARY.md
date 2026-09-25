@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 91건 — 증거 수준: ACTUAL 81 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 48 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 8
-- 상태: UNRESOLVED 43 · MITIGATED 43 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 48 · NONE 27
+- 합계 92건 — 증거 수준: ACTUAL 82 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 49 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 8
+- 상태: UNRESOLVED 43 · MITIGATED 44 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 49 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -105,6 +105,7 @@
 | GF-89 | 2026-09-25(대표 Galaxy 운 | CANDIDATE | FOUNDER_STATEMENT | F-FLOW | 검은 머리띠 회귀 · 화면 색 끊김 | Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-90 | 2026-09-25(코드 검색) | ACTUAL | CODE | F-PROMISE | 미구현 기능 노출 · 없는 기능 약속 | Product Contract | CONFIRMED | CANDIDATE | UNRESOLVED |
 | GF-91 | 2026-09-25(외부 사용자 iPho | CANDIDATE | FOUNDER_STATEMENT | F-DEPLOY | 배포 불일치 | Infrastructure | HYPOTHESIS | CANDIDATE | MITIGATED |
+| GF-92 | 2026-09-25(실제 외부 사용자 · | ACTUAL | ACTUAL | F-DRIFT | 질문 추상도 과다 · 답 범위 불명확 · 예시 도움 필요 | Model · Product Contract | MIXED | CANDIDATE | MITIGATED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -3076,3 +3077,36 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/P0_PUBLIC_ACCESS_INCIDENT_20260925.md` |
+
+## GF-92 QUESTION_ABSTRACTION_TOO_HIGH · ANSWER_SCOPE_UNCLEAR · EXAMPLE_HELP_NEEDED — 실제 사용자 「질문이 좀 모호한거 같네」
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25(실제 외부 사용자 · 세션 5b96d5a5·ac75f917) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 실제 사용자 원문 피드백 + 운영 기록(읽기 전용) |
+| 사용자 상황 | doit-agent 버전 2 · gpt-4o-mini |
+| 사용자 원문 | 질문이 좀 모호한거 같네 뭐라 답해야할지 잘 모르겠어서 예시같은게 있어도 좋을것 같구 아님 구체적인 질문이 더 편하게 와닿을것 같기도 하고 |
+| AI 행동 | 「만남에서 꼭 있었으면 하는 것과 피하고 싶은 것은 무엇인가요?」 등 추상 낱말(방식·느낌·중요하게 생각하는 점) 질문 · 예시·되묻기 길 없음 → 사용자가 두 세션에서 넘기기 3번 |
+| 기대 행동 | 생활 장면으로 바로 답할 수 있는 질문 · 막히면 짧은 예시 |
+| Failure Type | 질문 추상도 과다 · 답 범위 불명확 · 예시 도움 필요 |
+| 원인 Layer | Model · Product Contract (원인 확신: MIXED) — 프롬프트에 질문 구체성 기준이 없었고(label 을 옮겨 쓰지 말라는 것뿐), 화면·상태에 되묻기 길이 없었다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | 「뭐라 답해야할지 잘 모르겠어서」(원문) |
+| 사용자 피해 · 시간 | 넘기기 3번 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL 운영] 사용자 1명 · run 10 운영 모델 추상 낱말 질문 12/42(관측 HEURISTIC) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.4: 같은 호출 안 말투 기준(context·concrete·answerable) · 예시 한 줄(선택) · help 종류(저장 0·질문 수 0·질문마다 2번) |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | PASS(가짜 AI) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 운영] 관측 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 실AI run 11 · 사용자 재확인 전 — VERIFIED 아님 · 한 명의 의견(일반화 금지) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/evidence/USER_FEEDBACK_20260925/README.md` |

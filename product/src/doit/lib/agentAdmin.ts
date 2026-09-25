@@ -49,7 +49,7 @@ export function dashboard(sessions: Session[], now: number = Date.now()) {
     with_photos: count(s => (s.photos?.count ?? 0) > 0), with_primary: count(s => !!s.photos?.primary),
     tones: { formal: count(s => s.tone === 'formal'), polite: count(s => s.tone === 'polite'), casual: count(s => s.tone === 'casual') },
     progress: Object.fromEntries([0, 1, 2, 3, 4, 5].map(n => [n, count(s => s.core === n)])) as Record<number, number>,
-    flags: { correction: recs.filter(r => r.flags?.correction).length, rejection: recs.filter(r => r.flags?.rejection).length, skip: recs.filter(r => r.flags?.skip).length, fatigue: recs.filter(r => r.flags?.fatigue).length, ask: recs.filter(r => r.flags?.ask).length },
+    flags: { correction: recs.filter(r => r.flags?.correction).length, rejection: recs.filter(r => r.flags?.rejection).length, skip: recs.filter(r => r.flags?.skip).length, fatigue: recs.filter(r => r.flags?.fatigue).length, ask: recs.filter(r => r.flags?.ask).length, help: recs.filter(r => r.flags?.help).length },
     matching_ready: count(s => !!s.handoff), matching_status: [...new Set(sessions.map(s => s.handoff?.status).filter((x): x is string => !!x))],
     failure_candidates: cand.reduce((n, c) => n + c.failure.length, 0), success_candidates: cand.reduce((n, c) => n + c.success.length, 0),
     ai_calls: cs.length, ai_errors: cs.length - ok.length, latency_p50: pct(ok.map(c => c.ms), 50), latency_p95: pct(ok.map(c => c.ms), 95),
@@ -72,6 +72,8 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     if (r?.tone_mismatch_observed) f('TONE_MISMATCH', t, 'HYPOTHESIS', '문장 끝으로 본 말투가 고른 말투와 다름(관측 추정)');
     if ((r?.retry ?? []).some(x => x.endsWith(':kept'))) f('CONTRACT_KEPT_AFTER_RETRY', t, 'ACTUAL', (r?.retry ?? []).join(','));
     if (r?.record_error) f('RECORD_SAVE_FAILED', t, 'ACTUAL', r.record_error);
+    // 실제 외부 사용자 피드백(2026-09-25): 질문 뜻을 되물음(「예를 들면?」) = 질문이 모호했다는 실제 신호. 어느 질문이었는지 그 턴에 붙인다.
+    if (t.flags.help) f('ANSWER_SCOPE_UNCLEAR', t, 'ACTUAL', '사용자가 질문 뜻·예시를 물음(질문 구체성 확인 필요)');
     if (t.flags.complaint || t.flags.fatigue) f(t.flags.fatigue ? 'QUESTION_FATIGUE' : 'USER_COMPLAINT', t, 'ACTUAL', '사용자가 항의·피로를 말함(원인 확인 전)');
     const q = t.assistant.split('\n').at(-1) ?? '';
     if (/[?？]$/.test(q)) { const k = q.replace(/\s+/g, ''); if (seen.has(k) && t.action !== 'ask') f('SAME_QUESTION_REPEATED', t, 'ACTUAL', `턴 ${seen.get(k)} 와 글자까지 같은 질문`); else seen.set(k, t.i); }

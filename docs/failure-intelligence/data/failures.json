@@ -4299,6 +4299,52 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/P0_PUBLIC_ACCESS_INCIDENT_20260925.md"
    ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-92",
+   "title": "QUESTION_ABSTRACTION_TOO_HIGH · ANSWER_SCOPE_UNCLEAR · EXAMPLE_HELP_NEEDED — 실제 사용자 「질문이 좀 모호한거 같네」",
+   "family": "F-DRIFT",
+   "date": "2026-09-25(실제 외부 사용자 · 세션 5b96d5a5·ac75f917)",
+   "origin": "ACTUAL",
+   "origin_note": "실제 사용자 원문 피드백 + 운영 기록(읽기 전용)",
+   "user_text": "질문이 좀 모호한거 같네 뭐라 답해야할지 잘 모르겠어서 예시같은게 있어도 좋을것 같구 아님 구체적인 질문이 더 편하게 와닿을것 같기도 하고",
+   "situation": "doit-agent 버전 2 · gpt-4o-mini",
+   "ai_behavior": "「만남에서 꼭 있었으면 하는 것과 피하고 싶은 것은 무엇인가요?」 등 추상 낱말(방식·느낌·중요하게 생각하는 점) 질문 · 예시·되묻기 길 없음 → 사용자가 두 세션에서 넘기기 3번",
+   "expected": "생활 장면으로 바로 답할 수 있는 질문 · 막히면 짧은 예시",
+   "types": [
+    "질문 추상도 과다",
+    "답 범위 불명확",
+    "예시 도움 필요"
+   ],
+   "layers": [
+    "Model",
+    "Product Contract"
+   ],
+   "layer_note": "프롬프트에 질문 구체성 기준이 없었고(label 을 옮겨 쓰지 말라는 것뿐), 화면·상태에 되묻기 길이 없었다",
+   "cause_confidence": "MIXED",
+   "reproduction": "[REAL 운영] 사용자 1명 · run 10 운영 모델 추상 낱말 질문 12/42(관측 HEURISTIC)",
+   "solution_candidates": "v1.4: 같은 호출 안 말투 기준(context·concrete·answerable) · 예시 한 줄(선택) · help 종류(저장 0·질문 수 0·질문마다 2번)",
+   "mock_result": "PASS(가짜 AI)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "실AI run 11 · 사용자 재확인 전 — VERIFIED 아님 · 한 명의 의견(일반화 금지)",
+   "experiment": "product/supabase/functions/doit-agent/agent.ts",
+   "evidence_level": "ACTUAL",
+   "user_result": "UNKNOWN",
+   "real_ai": "[REAL 운영] 관측",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "「뭐라 답해야할지 잘 모르겠어서」(원문)",
+    "time": "넘기기 3번",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "docs/failure-intelligence/evidence/USER_FEEDBACK_20260925/README.md"
+   ]
   }
  ]
 }

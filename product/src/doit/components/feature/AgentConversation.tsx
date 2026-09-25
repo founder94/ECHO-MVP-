@@ -55,6 +55,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
+  const [hintFor, setHintFor] = useState<string | null>(null); // 「예시 보기」를 연 질문(질문이 바뀌면 저절로 닫힌다)
   const [choosing, setChoosing] = useState(true);
   const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
   const alive = useRef(true);
@@ -170,6 +171,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {question && <div className="echo-question-card">
       {ack && <p className="echo-ack">{ack}</p>}
       <p className="echo-question">{question}</p>
+      {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
+      {session.current_hint && (hintFor === question
+        ? <p className="echo-fine" role="note">{session.current_hint}</p>
+        : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (session.mode === 'VOICE' && canSpeak()) speak(session.current_hint ?? '', setSpeaking); }}>예시 보기</button>)}
     </div>}
     {session.mode === 'VOICE' && canSpeak() && lastAi && (speaking
       ? <p className="echo-notice" role="status">ECHO 가 말하는 중이에요 <button type="button" className="echo-text-button" onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }}>소리 멈추기</button></p>
