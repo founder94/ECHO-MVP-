@@ -336,7 +336,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
   let out: Parsed | null = null; let previous: Json | null = null;
   for (let i = 0; i < MAX_CALLS_PER_TURN; i++) {
     const input = turnInput(st, text);
-    if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다. reply 는 짧게 쓰고 last_reply 와 같은 문장을 되풀이하지 않는다."; input.last_reply = st.turns.at(-1)?.reply ?? null; }
+    // 끝난 뒤: run 7 과 같은 입력(run 8 에서 직전 반응을 넣었더니 AI 가 그 문장을 그대로 되풀이해 되돌렸다).
+    if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다."; }
     if (previous) input.previous_attempt = previous;
     let raw: string;
     try { raw = await call(llm, obs, "turn", turnPrompt(st.tone), input); } catch (e) { obs.retry.push("provider"); return { obs, response: { error: "PROVIDER", detail: String((e as { code?: string })?.code ?? (e as Error)?.message ?? e).slice(0, 60) } }; }
