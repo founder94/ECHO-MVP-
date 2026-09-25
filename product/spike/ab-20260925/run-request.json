@@ -1,7 +1,9 @@
 {
- "purpose": "실AI A/B 1회 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
+ "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
- "approved_by": "대표 「대표 승인 · 실AI A/B 실행 시작」 (GitHub Secret OPENAI_API_KEY_AB_TEST 등록 완료)",
- "run": 1,
- "frozen_inputs": "product/spike/ab-20260925/FROZEN_INPUTS.json 과 같아야 실행된다(다르면 종료 코드 3)"
+ "approved_by": "대표 「대표 승인 · P0 RUN1 결과 확정 저장 + 다음 Gate 진행」 — 다음 실험 준비(MODEL GATE)까지 포괄 승인",
+ "run": 2,
+ "mode": "models",
+ "what": "MODEL GATE 1단계: 계정 모델 목록(GET /v1/models, 비용 0) + 후보마다 B-1.0 과 같은 파라미터로 짧은 요청 1번(Golden 입력·사용자 원문 전송 0). 비교 실험 아님",
+ "history": [{ "run": 1, "mode": "ab", "actions_run": 36103690087, "commit": "23a4484" }]
 }
