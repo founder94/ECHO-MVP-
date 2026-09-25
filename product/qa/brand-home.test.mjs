@@ -66,7 +66,7 @@ test('스타일은 .doit-editorial 안에서만 — 전역·히어로를 건드�
 
 test('모바일로 시작하기 — 점 DOIT 지구 그림, 버튼 이름 통일, 컴퓨터는 QR 로 내려간다', () => {
   const s = read(SECTIONS);
-  assert.match(s, /export const MOBILE_START_LABEL = '모바일로 시작하기';/);
+  assert.match(s, /export const MOBILE_START_LABEL = 'ECHO 시작하기';/);
   assert.match(s, /className="doit-brand-handoff-action" href=\{startUrl\}>\{MOBILE_START_LABEL\}</);
   assert.match(s, /const DOTS_EARTH_SRC = '\/brand\/doit-dots-earth\.webp';/);
   assert.ok(existsSync(path.join(root, 'public/brand/doit-dots-earth.webp')));

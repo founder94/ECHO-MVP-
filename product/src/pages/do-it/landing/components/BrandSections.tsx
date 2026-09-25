@@ -30,14 +30,15 @@ const TRUST_CLOSING = ['천천히 알아가는 것.', '사람에게도, AI에게
 const JUST_TRY: string[] = ['한 번의 대답.', '한 번의 선택.', '한 번의 만남.'];
 
 const STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
-  { title: '다섯 가지 질문에 답해요', body: '어떤 만남을 원하는지, 어떤 사람에게 끌리는지. 한 줄씩이면 충분해요.' },
-  { title: '사진과 소개를 채워요', body: '최근 사진 세 장과, 나를 소개할 몇 줄.' },
-  { title: '당신이 잠든 사이', body: 'AI가 먼저 만나봅니다.', soon: true },
+  // 대표 FINAL TWO-SITE LOCK(2026-09-25): 대화 → 연결 준비 → ECHO 가 대신 찾음. 「당신이 잠든 사이」= 내가 찾아다니지 않아도 ECHO 가 대신 찾는다는 뜻(수면 감지 아님) · 연결은 아직 열리지 않아 「준비 중」.
+  { title: 'ECHO와 짧게 이야기해요', body: '어떤 만남을 원하는지, 어떤 사람이 편한지. 다섯 번이면 충분해요.' },
+  { title: '연결을 준비해요', body: '최근 사진 세 장과, 나를 소개할 몇 줄.' },
+  { title: '당신이 잠든 사이, ECHO가 찾아요', body: '내가 계속 찾아다니지 않아도, AI가 먼저 만나봅니다.', soon: true },
 ];
 
 const SOON_LABEL = '준비 중';
 // 홈페이지 아래쪽 시작 버튼은 이 말로 통일한다(히어로 버튼은 대표 최종 승인 2026-09-24 「ECHO 시작하기」).
-export const MOBILE_START_LABEL = '모바일로 시작하기';
+export const MOBILE_START_LABEL = 'ECHO 시작하기'; // 대표 FINAL TWO-SITE LOCK(2026-09-25): 홈페이지 CTA 이름 = 「ECHO 시작하기」(히어로 버튼과 같은 이름)
 const DOTS_EARTH_SRC = '/brand/doit-dots-earth.webp';
 
 // 배경 사진(2026-09-23 대표 "홈페이지 배경에 이 사진들을 다 넣고 브랜딩해"). 이야기 01~09 에 쓰지 않은 파란 우주인 사진 4장.
@@ -112,7 +113,7 @@ export function BrandMobileStart() {
           <img src={DOTS_EARTH_SRC} width="1000" height="1000" loading="lazy" decoding="async" alt="지구 위에 점으로 찍은 DOIT 글자" />
         </figure>
         <p className="doit-brand-section-kicker">시작하는 법</p>
-        <h2 id="doit-start-mobile-title" className="doit-brand-section-title">DO IT은<br />휴대폰에서 시작해요.</h2>
+        <h2 id="doit-start-mobile-title" className="doit-brand-section-title">나는 말하고,<br />찾는 건 ECHO가 해요.</h2>
       </div>
 
       <div className="doit-brand-section doit-brand-scened doit-brand-steps-zone">
