@@ -36,7 +36,7 @@
   "scripts": {
     "build": "vite build",
     "build:brand": "VITE_SITE_ROLE=brand vite build --outDir out-brand",
-    "build:app": "VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true vite build --outDir out-app",
+    "build:app": "VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true vite build --outDir out-app",
     "dev": "vite",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

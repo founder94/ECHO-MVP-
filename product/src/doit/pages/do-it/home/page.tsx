@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
@@ -5,6 +6,7 @@ import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { roundStartOf } from '@/doit/lib/conversationRound';
 import { ASK_TOTAL } from '@/doit/components/feature/CoreConversation';
+import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from '@/doit/lib/agentApi';
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import '@/doit/components/feature/understanding-pages.css';
@@ -29,9 +31,20 @@ export default function Home() {
   const pendingCount = ready ? insights.filter((item) => item.status === 'candidate').length : 0;
   // v14.2(대표 2026-09-22 "메인 페이지에서 시작을 해야 하는데"): 여기가 앱의 메인이다.
   // 지금 어디까지 왔는지와 다음에 무엇을 할지를 이 화면에서 정한다.
-  const answered = Math.min(savedRecords.length, ASK_TOTAL);
-  const done = savedRecords.length >= ASK_TOTAL;
-  const started = savedRecords.length > 0;
+  // ECHO Conversation Agent(2026-09-25): 진행은 서버 대화 상태(핵심 질문 몇 번째인지·끝났는지)로 센다 — 대화 화면과 같은 기준.
+  //   한 답이 여러 목적을 채우거나 넘기면 기록 수와 질문 수가 다르므로 기록 수로 세지 않는다. 못 읽으면 기록 수로 돌아간다.
+  const userId = user?.id ?? null;
+  const [agent, setAgent] = useState<{ status: 'idle' | 'ready' | 'error'; session: AgentSession | null }>({ status: 'idle', session: null });
+  useEffect(() => {
+    if (!ECHO_AGENT_ENABLED || !userId || !A_STRUCTURE_SERVER_ENABLED) return;
+    let current = true;
+    agentGet(userId).then(session => { if (current) setAgent({ status: 'ready', session }); }).catch(() => { if (current) setAgent({ status: 'error', session: null }); });
+    return () => { current = false; };
+  }, [userId]);
+  const useAgent = ECHO_AGENT_ENABLED && agent.status === 'ready';
+  const answered = useAgent ? Math.max((agent.session?.progress.asked ?? 1) - 1, 0) : Math.min(savedRecords.length, ASK_TOTAL);
+  const done = useAgent ? agent.session?.phase === 'done' : savedRecords.length >= ASK_TOTAL;
+  const started = useAgent ? !!agent.session : savedRecords.length > 0;
 
   return (
     <MobileLayout showNav activeTab="home">

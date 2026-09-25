@@ -1,0 +1,17 @@
+/* ECHO Conversation Agent 화면(2026-09-25). 대화 화면 루트 .echo-dialogue.echo-agent 아래에만 적용한다(전역·히어로·홈 0).
+   바탕·글자색은 파스텔 대화 화면(core-conversation.css 의 --conversation-* 토큰)을 그대로 쓴다. */
+.echo-dialogue.echo-agent .echo-agent-subhead{margin-top:28px}
+.echo-dialogue.echo-agent .echo-agent-choices{grid-template-columns:1fr}
+.echo-dialogue.echo-agent .echo-agent-choices--two{grid-template-columns:1fr 1fr}
+.echo-dialogue.echo-agent .echo-agent-log{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.echo-dialogue.echo-agent .echo-agent-msg p{margin:0;font-size:15px;line-height:1.85;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--conversation-text);-webkit-text-fill-color:var(--conversation-text)}
+.echo-dialogue.echo-agent .echo-agent-msg.is-user{align-self:flex-end;max-width:86%;padding:10px 16px;border:1px solid var(--conversation-surface-border);border-radius:16px 16px 4px 16px;background:var(--conversation-surface-bg)}
+.echo-dialogue.echo-agent .echo-agent-msg.is-ai{align-self:flex-start;max-width:100%}
+.echo-dialogue.echo-agent .echo-agent-msg.is-current .echo-question{margin:6px 0 0}
+.echo-dialogue.echo-agent .echo-agent-listen{display:inline-flex;align-items:center;gap:6px;margin-top:10px}
+.echo-dialogue.echo-agent .echo-agent-exits{display:flex;flex-wrap:wrap;gap:18px;margin-top:-14px}
+.echo-dialogue.echo-agent .echo-agent-exits .echo-text-button{font-size:12px;min-height:40px}
+.echo-dialogue.echo-agent .echo-agent-profile{list-style:none;margin:18px 0 6px;padding:0;display:flex;flex-direction:column;gap:12px}
+.echo-dialogue.echo-agent .echo-agent-profile span{display:block;font-size:11px;letter-spacing:.04em;opacity:.8}
+.echo-dialogue.echo-agent .echo-agent-profile p{margin:4px 0 0;font-size:14px;line-height:1.7;word-break:keep-all}
+.echo-dialogue.echo-agent.echo-dialogue--pastel :is(.echo-agent-exits .echo-text-button,.echo-agent-listen){color:var(--conversation-text-secondary-on-pastel);-webkit-text-fill-color:var(--conversation-text-secondary-on-pastel)}
