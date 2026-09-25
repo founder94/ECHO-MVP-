@@ -365,11 +365,11 @@
   {
    "id": "P-14",
    "what": "core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기",
-   "state": "PENDING",
+   "state": "COMPLETED",
    "date": "2026-09-25",
    "by": "대표",
    "evidence": "https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk",
-   "note": "대화는 페이지 db sessions 에 저장 → Claude 가 읽고 분석. 17칸 검수 요구 금지"
+   "note": "대표가 2026-09-25 두 번 대화(13턴·8턴) → 실패 GF-78~84. 다시 요구 금지"
   },
   {
    "id": "P-15",
@@ -379,6 +379,42 @@
    "by": "Claude(GitHub Actions run 36111514762)",
    "evidence": "docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md",
    "note": "한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지"
+  },
+  {
+   "id": "A-20",
+   "what": "ECHO CONVERSATION AGENT v1/v1.1 FINAL LOCK(대표 텍스트 + PDF 2개): 목적 5개·핵심 질문 최대 5·꼬리질문 0(되묻기 최대 1)·말투 3종(기본 편한 존댓말)·TEXT/VOICE 같은 에이전트·매칭 프로필 CONFIRMED/INFERRED/UNKNOWN·TEST_NOT_CONNECTED·관리자 관측·자동 실패/성공 후보",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/AGENT_V1_1_20260925.md",
+   "note": "A-19 의 「질문 수 강제 금지」를 대체(질문 수 최대 5)"
+  },
+  {
+   "id": "P-16",
+   "what": "echo-agent-v1.1 휴대폰 시험 — 대표가 말투 고르고 글/말로 대화해 매칭 단계까지 가 보기 + 같은 페이지 「관리자」에서 방금 대화 확인",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk",
+   "note": "대화는 페이지 db 에 자동 기록 → Claude 가 읽음"
+  },
+  {
+   "id": "B-09",
+   "what": "실시간 음성(말하면 듣고 목소리로 답함) — 마이크 + 음성 API 키 서버 필요",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "플랫폼(claude.ai 페이지는 마이크 거부) + HARD STOP(운영 Edge 배포·키 사용)",
+   "evidence": "docs/failure-intelligence/VOICE_RESEARCH_20260925.md",
+   "note": "대표 승인 시: 임시 키 발급 Edge 함수 1개 + 마이크 되는 앱 화면(Netlify) — 같은 방식으로 다시 요구하지 않는다"
+  },
+  {
+   "id": "B-10",
+   "what": "운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "HARD STOP(Edge 배포·RLS)",
+   "evidence": "supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql",
+   "note": "시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체"
   }
  ]
 }

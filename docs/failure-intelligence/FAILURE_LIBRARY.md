@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 77건 — 증거 수준: ACTUAL 71 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 39 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 4
-- 상태: UNRESOLVED 42 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 27
+- 합계 84건 — 증거 수준: ACTUAL 78 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 46 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 4
+- 상태: UNRESOLVED 42 · MITIGATED 37 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 41 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -91,6 +91,13 @@
 | GF-75 | 2026-09-19~25(v13 → v2 | ACTUAL | ACTUAL | F-CONTRACT | 규칙 누적 · 과잉 Guard | Product Contract · Evaluation | CONFIRMED | NONE | UNRESOLVED |
 | GF-76 | 2026-09-21~25 | CANDIDATE | FOUNDER_STATEMENT | F-EVAL | 제품 목적 가림 · Mock PASS / 실AI FAIL | Evaluation · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
 | GF-77 | 2026-09-25 08:11~08:14 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · 방향이탈 | Model · Orchestration | MIXED | NONE | UNRESOLVED |
+| GF-78 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-FLOW | 질문 피로 · 출구 없음 | Product Contract · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-79 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-DRIFT | 과잉 탐문 · 무거운 질문 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-80 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-DRIFT | 과잉 탐문 · 방향이탈 | Product Contract · Model | MIXED | CANDIDATE | MITIGATED |
+| GF-81 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-CLASSIFY | 넘기기 무시 · Repair 실패 | Product Contract · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-82 | 2026-09-25(대표 휴대폰 · 두  | ACTUAL | ACTUAL | F-FLOW | 출구 없음 | Orchestration · Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-83 | 2026-09-25(대표 휴대폰 · 두  | ACTUAL | ACTUAL | F-CONTRACT | 말투 | Product Contract · Model | MIXED | CANDIDATE | MITIGATED |
+| GF-84 | 2026-09-25(대표 휴대폰 · 세션 | ACTUAL | ACTUAL | F-SENTENCE | 내부 이름 노출 · 문장 파손 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -2600,3 +2607,234 @@
 | Golden Test | FLOW1, FLOW2, FLOW3, FLOW4, FLOW5, FLOW6, FLOW7 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` · `docs/failure-intelligence/evidence/CORE_REPLAY_20260925/core-result-excerpt.md` |
+
+## GF-78 QUESTION_FATIGUE — 질문이 계속 이어져 대표가 「질문이 왜케 많아?」
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2 12턴째) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | 「느낌 근데 질문이 왜케 많아?」 |
+| AI 행동 | 「질문이 많았네요, 죄송해요. 한두 개만 묻겠습니다」 뒤에도 질문 계속 |
+| 기대 행동 | 핵심 질문 최대 5개 · 피로 신호면 들은 만큼으로 마침 |
+| Failure Type | 질문 피로 · 출구 없음 |
+| 원인 Layer | Product Contract · Orchestration (원인 확신: CONFIRMED) — 질문 수 상한 없음(당시 계약) + 피로를 대화 끝으로 잇지 않음 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 핵심 질문 최대 5 · stop(그만·질문 많다) = 들은 만큼 정리하고 마침 |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | GF-79→CAUSES(ACTUAL) · GF-81→CONTRIBUTES_TO(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-79 OVER_PROBING — 한 답마다 「그 편함이 어떤 걸 의미하나요」식으로 한 단계씩 더 파고듦
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | 「친구같이 편한사람」 → 「깉이 있을때 어색하지않는」 → … |
+| AI 행동 | 「그런 편함이 어떤 걸 의미하는 건가요?」·「그 익숙함은 얼마나 오래…」 등 꼬리질문 연속 |
+| 기대 행동 | 기본 꼬리질문 0 · 다음 목적으로 |
+| Failure Type | 과잉 탐문 · 무거운 질문 |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — core-0.1 프롬프트가 「방금 말에서 한 단계 더」를 가장 강하게 지시 — 계약 설계 결함(내 설계) |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 목적마다 핵심 질문 1번 · 되묻기는 뜻을 모를 때 대화 전체 1번 |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | BROKEN_BY→FS-24(ACTUAL) · CAUSES→GF-78(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-80 TOPIC_OVER_DRILLING — 13턴이 모두 「편함」 한 주제 · 속도·방식 영역은 한 번도 묻지 않음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | (13턴) |
+| AI 행동 | 들은 정보 9개 중 intent 4 · person 3 · values 2 · pace 0 |
+| 기대 행동 | 목적 다섯 개를 한 번씩 |
+| Failure Type | 과잉 탐문 · 방향이탈 |
+| 원인 Layer | Product Contract · Model (원인 확신: MIXED) — 영역을 「자연스러울 때만」 방향으로 준 설계 + 모델이 기억을 두 영역에만 배정 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 서버가 아직 안 물은 목적만 open_purposes 로 주고 한 목적은 한 번만 |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | CAUSES→GF-82(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-81 USER_SKIP_IGNORED — 「다음질문으로 넘어가」 뒤에도 같은 주제
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2 3~4턴) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | 「다음질문으로 넘어가 잘문이 너무 무겁다」, 「아 어렵네」 |
+| AI 행동 | repair 로 읽고 「다른 걸 물어볼게요」 → 「편한 사람들과 지낼 때…」(같은 주제) |
+| 기대 행동 | 현재 주제 끝 · 같은 뜻 다시 묻지 않음 |
+| Failure Type | 넘기기 무시 · Repair 실패 |
+| 원인 Layer | Product Contract · Orchestration (원인 확신: CONFIRMED) — core-0.1 에 넘기기(skip) 종류가 없었고 주제를 끝내는 상태가 없었다 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: skip 종류 → 현재 목적 SKIPPED · 다음 목적으로 |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | CONTRIBUTES_TO→GF-78(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-82 CONVERSATION_EXIT_FAILURE — 대화가 끝나지 않음(13턴·8턴 모두 phase talk)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 두 세션) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | — |
+| AI 행동 | 끝 조건 = 네 영역 모두 들음 · 질문 수 상한 없음 → 영역 하나가 비면 끝나지 않음 |
+| 기대 행동 | 5번째 핵심 질문 뒤 정리 → 매칭 프로필 → 매칭 단계 |
+| Failure Type | 출구 없음 |
+| 원인 Layer | Orchestration · Product Contract (원인 확신: CONFIRMED) — core-0.1 `finish = stop // enough(st)` — 내 설계 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 2회 · [CODE] core.mjs |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 목적 다섯 개를 한 번씩 물으면 끝(최대 5) |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | BROKEN_BY→FS-24(ACTUAL) · GF-80→CAUSES(ACTUAL) |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-83 TONE_UNAUTHORIZED_SWITCH — 고르지 않은 반말(「어떤 만남을 원해?」·「그냥 너 기준이구나」)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 제품 계약 불일치 |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 두 세션) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | (첫 질문은 대표가 말하기 전) |
+| AI 행동 | 첫 질문부터 반말 · 존댓말 대화 중 반말 섞임 |
+| 기대 행동 | 대표가 고른 말투 유지(기본 편한 존댓말) |
+| Failure Type | 말투 |
+| 원인 Layer | Product Contract · Model (원인 확신: MIXED) — 말투 선택 없음 + 프롬프트 「해요체」 한 줄뿐 + 사용자 말투를 따라가지 말라는 지시 없음 + 모델(Claude 빠른 등급)이 지시 위반 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 2회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 말투 3종 선택(기본 편한 존댓말)을 매 턴 입력 · 「사용자가 다른 말투를 써도 지킨다」 · 관측용 말투 판별(막지 않음) |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |
+
+## GF-84 PROMPT_LABEL_LEAK — 첫 질문으로 「RELATIONSHIP_INTENT」가 화면에 나옴
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-SENTENCE — 문장 파손 |
+| 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 tj54q0) |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 대표 휴대폰 시험 페이지 db 원본(비공개) · 사적이지 않은 줄만 증거 문서에 |
+| 사용자 상황 | 대표 휴대폰 시험 · core-0.1 + Claude 빠른 등급 · 2026-09-25 |
+| 사용자 원문 | — |
+| AI 행동 | OPENING_PROMPT 의 「(RELATIONSHIP_INTENT)」를 모델이 question 칸에 그대로 씀 |
+| 기대 행동 | 자연스러운 첫 질문 |
+| Failure Type | 내부 이름 노출 · 문장 파손 |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — 내 실수 — 프롬프트에 내부 이름을 넣고 서버가 막지 않음 |
+| 사용자 피해 · 감정 | 대표 「다음질문으로 넘어가 잘문이 너무 무겁다」·「느낌 근데 질문이 왜케 많아?」(원문) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | 13턴 동안 끝나지 않음 |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 대표 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.1: 프롬프트에서 이름 제거 · 내부 id 가 보이면 형식 오류로 한 번 다시 |
+| 실험 결과 | product/spike/agent-v1-20260925/agent.mjs |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL 대표 휴대폰] 관측 · echo-agent-v1.1 재생 결과는 AGENT_V1_1_20260925.md |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | MITIGATED(echo-agent-v1.1 에서 구조로 막음 · 대표 휴대폰 재확인 전 — VERIFIED 아님) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` · `product/spike/core-20260925/core.mjs` |

@@ -329,6 +329,46 @@
    "evidence": "HYPOTHESIS",
    "note": "기계 지표가 목적 불일치를 가림",
    "ref": "docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md"
+  },
+  {
+   "from": "GF-82",
+   "rel": "BROKEN_BY",
+   "to": "FS-24",
+   "evidence": "ACTUAL",
+   "note": "끝 조건을 영역 배정에 맡김",
+   "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
+  },
+  {
+   "from": "GF-79",
+   "rel": "BROKEN_BY",
+   "to": "FS-24",
+   "evidence": "ACTUAL",
+   "note": "방금 말 붙잡기가 과잉 탐문으로",
+   "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
+  },
+  {
+   "from": "GF-79",
+   "rel": "CAUSES",
+   "to": "GF-78",
+   "evidence": "ACTUAL",
+   "note": "꼬리질문 연속 → 피로",
+   "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
+  },
+  {
+   "from": "GF-80",
+   "rel": "CAUSES",
+   "to": "GF-82",
+   "evidence": "ACTUAL",
+   "note": "비는 영역 → 끝 조건 미충족",
+   "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
+  },
+  {
+   "from": "GF-81",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-78",
+   "evidence": "ACTUAL",
+   "note": "넘기기 무시 → 피로",
+   "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
   }
  ]
 }

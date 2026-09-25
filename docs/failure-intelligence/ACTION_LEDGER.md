@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (11)
+## COMPLETED (12)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -21,9 +21,10 @@
 | P-10 | MODEL GATE 1단계: 계정 모델 목록 확인(GET /v1/models · 비용 0 · 기존 Actions 경로) | 2026-09-25 | Claude(GitHub Actions run 36107887216) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/account_models_probe.md | 132개 보임 · 같은 파라미터 200 = gpt-4o-mini·4.1·4.1-mini·4.1-nano·4o · gpt-5 계열 5개 400(max_tokens). 비용 0 에 가까움(요청 10번 · 입력 24 토큰씩) |
 | P-11 | MODEL GATE 실행: B-1.0 고정 · 모델만 4개(gpt-4o-mini 기준 · gpt-4.1-mini · gpt-4.1 · gpt-4o) | 2026-09-25 | Claude(GitHub Actions run 36108344306) | docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md | 사전 등록 일치 · 4 모델 × 34 입력 · 호출 143 · 운영 변경 0 |
 | P-12 | MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 17칸: gpt-4.1-mini 5 · gpt-4.1 4 · gpt-4o 3 · gpt-4o-mini 2 · 모두 별로 3(실제 입력 14: 5·2·2·2·3) → 모델 승자 없음 · P0 FAIL. 다시 요구 금지 |
+| P-14 | core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대표가 2026-09-25 두 번 대화(13턴·8턴) → 실패 GF-78~84. 다시 요구 금지 |
 | P-15 | core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교) | 2026-09-25 | Claude(GitHub Actions run 36111514762) | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md | 한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지 |
 
-## DECIDED (16)
+## DECIDED (17)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -43,8 +44,9 @@
 | A-18 | MODEL GATE 결과: 모델 승자 없음 · 어느 모델도 P0 통과 아님 · 「활동」 점프는 모델 몫 가설 강화 · 항의·반영 요구(M11·M17)와 「돈때문에」(M16)는 네 모델 공통 실패 · 운영 모델 변경 0 | 2026-09-25 | 대표 블라인드(선택 원본 그대로 집계) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 선택 수정·재해석 금지 |
 | P-13 | 구조 Gate 개시 여부: 구조 LOCK(A-16)을 항의·반영 요구 대응(REPAIR) 한 실험에 한해 풀지 | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 대표 결정 2026-09-25: B-1.1(항의 규칙 하나 추가) 승인 안 함 → Conversation Product Contract RESET(A-19). 다시 묻지 않는다 |
 | A-19 | Conversation Product Contract LOCK: 「사용자가 한 말을 정확히 이해하고, 그 이해로 같은 결의 사람을 추천·매칭」 · 첫 목적 RELATIONSHIP_INTENT · LISTEN→UNDERSTAND→ACKNOWLEDGE→REMEMBER→CURIOUS FOLLOW-UP · 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · 성공 기준 10개 | 2026-09-25 | 대표 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md | B-1.1 금지 · 모델 승자 확정 금지 |
+| A-20 | ECHO CONVERSATION AGENT v1/v1.1 FINAL LOCK(대표 텍스트 + PDF 2개): 목적 5개·핵심 질문 최대 5·꼬리질문 0(되묻기 최대 1)·말투 3종(기본 편한 존댓말)·TEXT/VOICE 같은 에이전트·매칭 프로필 CONFIRMED/INFERRED/UNKNOWN·TEST_NOT_CONNECTED·관리자 관측·자동 실패/성공 후보 | 2026-09-25 | 대표 | docs/failure-intelligence/AGENT_V1_1_20260925.md | A-19 의 「질문 수 강제 금지」를 대체(질문 수 최대 5) |
 
-## BLOCKED (8)
+## BLOCKED (10)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -56,6 +58,8 @@
 | B-06 | Actions 첨부물(result.json·열쇠) 내려받기 | 2026-09-25 | 바깥 인터넷 정책(blob.core.windows.net 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 로그의 result.md 로 대신함 · 열쇠는 새 검수표로 다시 만듦 |
 | B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
 | B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
+| B-09 | 실시간 음성(말하면 듣고 목소리로 답함) — 마이크 + 음성 API 키 서버 필요 | 2026-09-25 | 플랫폼(claude.ai 페이지는 마이크 거부) + HARD STOP(운영 Edge 배포·키 사용) | docs/failure-intelligence/VOICE_RESEARCH_20260925.md | 대표 승인 시: 임시 키 발급 Edge 함수 1개 + 마이크 되는 앱 화면(Netlify) — 같은 방식으로 다시 요구하지 않는다 |
+| B-10 | 운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL | 2026-09-25 | HARD STOP(Edge 배포·RLS) | supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql | 시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 |
 
 ## PENDING (7)
 
@@ -67,4 +71,4 @@
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
 | P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 · 2026-09-25: 운영 v27 호출 16번 제공자 오류 0 → gpt-5 계열 5개는 아님. 확정은 여전히 DIGEST 대조 필요(MODEL GATE 에는 필요 없음) |
-| P-14 | core-0.1 휴대폰 시험 — 대표가 직접 대화해 보기 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db sessions 에 저장 → Claude 가 읽고 분석. 17칸 검수 요구 금지 |
+| P-16 | echo-agent-v1.1 휴대폰 시험 — 대표가 말투 고르고 글/말로 대화해 매칭 단계까지 가 보기 + 같은 페이지 「관리자」에서 방금 대화 확인 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db 에 자동 기록 → Claude 가 읽음 |

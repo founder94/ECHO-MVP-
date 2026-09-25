@@ -54,6 +54,12 @@ graph LR
   GF-74["GF-74 QUESTION_ENGINE_OVER_P"]
   FS-23["FS-23 질문 품질을 서버 규칙으로 고치기 — G"]
   GF-76["GF-76 USER_OUTCOME_NEGLECT —"]
+  GF-82["GF-82 CONVERSATION_EXIT_FAIL"]
+  FS-24["FS-24 core-0.1: 질문 수·주제 순서 강"]
+  GF-79["GF-79 OVER_PROBING — 한 답마다 「"]
+  GF-78["GF-78 QUESTION_FATIGUE — 질문이"]
+  GF-80["GF-80 TOPIC_OVER_DRILLING — "]
+  GF-81["GF-81 USER_SKIP_IGNORED — 「다"]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -94,6 +100,11 @@ graph LR
   GF-74 -->|CONTRIBUTES_TO| GF-71
   GF-73 -->|BROKEN_BY| FS-23
   GF-76 -.->|MASKS| GF-74
+  GF-82 -->|BROKEN_BY| FS-24
+  GF-79 -->|BROKEN_BY| FS-24
+  GF-79 -->|CAUSES| GF-78
+  GF-80 -->|CAUSES| GF-82
+  GF-81 -->|CONTRIBUTES_TO| GF-78
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -138,6 +149,11 @@ graph LR
 | GF-74 | CONTRIBUTES_TO | GF-71 | ACTUAL | 주제 칸이 사용자가 꺼내지 않은 방향을 줌 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
 | GF-73 | BROKEN_BY | FS-23 | ACTUAL | 질문 심사 규칙 누적 | `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
 | GF-76 | MASKS | GF-74 | HYPOTHESIS | 기계 지표가 목적 불일치를 가림 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
+| GF-82 | BROKEN_BY | FS-24 | ACTUAL | 끝 조건을 영역 배정에 맡김 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
+| GF-79 | BROKEN_BY | FS-24 | ACTUAL | 방금 말 붙잡기가 과잉 탐문으로 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
+| GF-79 | CAUSES | GF-78 | ACTUAL | 꼬리질문 연속 → 피로 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
+| GF-80 | CAUSES | GF-82 | ACTUAL | 비는 영역 → 끝 조건 미충족 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
+| GF-81 | CONTRIBUTES_TO | GF-78 | ACTUAL | 넘기기 무시 → 피로 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
 
-- 관계 40개 중 HYPOTHESIS 13개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 45개 중 HYPOTHESIS 13개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).
