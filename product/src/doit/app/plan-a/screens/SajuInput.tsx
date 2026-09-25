@@ -325,8 +325,8 @@ export function SajuInput({
                 color: colors.textFaint,
               }}
             >
-              시간을 모르면 시주를 제외한 범위만 보여주고,
-              결과에 제한을 명확히 표시합니다.
+              시간을 몰라도 괜찮아요. 사주 계산은 아직 준비 중이라
+              지금은 결과를 만들지 않아요.
             </p>
           </div>
 
@@ -508,7 +508,7 @@ export function SajuInput({
       >
         {review ? (
           <PrimaryButton onClick={onNext}>
-            내 기본 사주 보기
+            사주 준비 상태 보기
           </PrimaryButton>
         ) : (
           <PrimaryButton

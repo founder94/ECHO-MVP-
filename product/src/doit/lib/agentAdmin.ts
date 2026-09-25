@@ -5,7 +5,7 @@ import { serverFunctionRequest } from '@/doit/lib/understandingApi';
 
 export const PURPOSE_IDS = ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'] as const;
 
-interface StateTurn { n: number; ai: string | null; question_purpose: string | null; user: string; kind: string; reply?: string; question?: string | null; decision?: string; saved?: boolean }
+interface StateTurn { n: number; ai: string | null; question_purpose: string | null; user: string; kind: string; reply?: string; question?: string | null; decision?: string; saved?: boolean; recovered?: string[]; dropped?: string }
 interface StoredState { tone: string; mode: string; phase: string; turns: StateTurn[]; asked: { type: string; purpose: string; text: string }[]; closing: string | null; corrections: string[]; disputed: string[] }
 export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
 export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
@@ -13,7 +13,7 @@ export interface CallRec { kind: string; ms: number; model: string | null; input
 export interface TurnRecord { turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
-export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null }
+export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
 export interface Session { id: string; user: string; nickname: string | null; agent: string; mode: string; tone: string; phase: string; created_at: string; updated_at: string; core: number; clarify: number; turns: Turn[]; profile: Record<string, unknown> | null; handoff: { status?: string } | null; records: TurnRecord[]; photos: PhotoInfo | null }
 
 export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
@@ -23,7 +23,8 @@ export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
   const turns: Turn[] = (st?.turns ?? []).map(t => {
     const rec = byIndex.get(t.n) ?? null;
     return { i: t.n, user: t.user, assistant: [t.reply, t.decision?.startsWith('finish') ? st?.closing : null, t.question].filter(Boolean).join('\n'), question_purpose: t.question_purpose, action: t.kind,
-      flags: rec?.flags ?? { correction: t.kind === 'correction', rejection: t.kind === 'repair', complaint: t.kind === 'repair', skip: t.kind === 'skip', fatigue: t.kind === 'stop' }, rec };
+      flags: rec?.flags ?? { correction: t.kind === 'correction', rejection: t.kind === 'repair', complaint: t.kind === 'repair', skip: t.kind === 'skip', fatigue: t.kind === 'stop' }, rec,
+      decision: t.decision ?? null, recovered: t.recovered ?? [] };
   });
   return { id: raw.id, user: raw.user, nickname: raw.nickname, agent: raw.stored?.agent ?? '알 수 없음', mode: st?.mode ?? '기록 없음', tone: st?.tone ?? '기록 없음', phase: st?.phase === 'talk' ? 'talk' : 'done',
     created_at: raw.created_at, updated_at: raw.updated_at, core: (st?.asked ?? []).filter(q => q.type === 'core').length, clarify: (st?.asked ?? []).filter(q => q.type === 'clarify').length,
@@ -86,6 +87,10 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     const next = s.turns[k + 1];
     if (t.flags.skip && next && next.question_purpose !== t.question_purpose) ok('SKIP_HONORED', t, 'ACTUAL', '넘긴 뒤 다른 목적으로 이동');
     if (t.action === 'ask' && t.assistant) ok('ANSWERED_USER_QUESTION', t, 'HYPOTHESIS', '질문에 먼저 답했는지는 사람이 확인');
+    // 같은 질문을 다시 보인 바로 다음에 사용자가 항의 → 이미 답한 것을 다시 물은 후보(운영 2026-09-25 Galaxy 실측과 같은 모양). 원인은 사람이 확인.
+    const prev = s.turns[k - 1];
+    if (t.action === 'repair' && prev?.decision === 'keep_after_answer') f('ALREADY_ANSWERED_REASK', t, 'ACTUAL', `턴 ${prev.i} 뒤 같은 질문을 다시 보였고 사용자가 항의함`);
+    if (t.recovered.length) ok('MEMORY_RECOVERED', t, 'ACTUAL', `앞선 말에서 되살림: ${t.recovered.join(', ')}`);
   });
   return { failure, success };
 }

@@ -234,3 +234,63 @@ test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel · �
   assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'OPENAI_API_KEY', 'OPENAI_MODEL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
   for (const m of src.matchAll(/logDiag\(\{([^}]*)\}/g)) assert.ok(!/\btext\b(?!4)|user_raw|original/.test(m[1].replace(/text4/g, '')), `로그에 원문 칸 없음: ${m[1]}`);
 });
+
+// 운영 실측(2026-09-25 대표 Galaxy)과 같은 모양 — 문장은 합성(대표 원문 아님). 다섯 번째 답이 ask 로 읽혀 같은 질문이 다시 보였고,
+// 「아까 말했는데」 뒤 그 답이 되살아나지 않은 채 끝났다. v1.3: 앞선 말에서 되살리고 · 같은 질문을 두 번 다시 보이지 않고 · 항의 문장은 답으로 남기지 않는다.
+test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의 문장 저장 0 · 앞선 말은 기록으로 · 같은 질문 재노출 1회까지', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '연애', '연애로')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '연애로 이어질 만남' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  s.ai.push(T({ extracted: [], ...Q('values_character', '사람 볼 때 뭘 봐요?') })); // 막연한 답을 AI 가 놓침
+  await say('그냥 편한 사람');
+  s.ai.push(T({ extracted: [X('values_character', '성격', '성격')], ...Q('relationship_style', '어떻게 알아가는 게 좋아요?') }));
+  await say('성격');
+  s.ai.push(T({ extracted: [X('relationship_style', '자연스럽게', '자연스럽게')], ...Q('boundaries', '꼭 있었으면 하는 건 뭐예요?') }));
+  await say('자연스럽게');
+  // 다섯 번째: 바람을 말했는데 AI 가 ask 로 읽음 → 같은 질문 한 번 다시(먼저 답하기)
+  s.ai.push(T({ kind: 'ask', reply: '네.', extracted: [], next: { type: 'core', purpose: 'boundaries', question: '꼭 있었으면 하는 건 뭐예요?' } }));
+  const k5 = await say('외모도 좀 받쳐줬으면 해');
+  assert.equal(k5.body.turn.question, '꼭 있었으면 하는 건 뭐예요?');
+  // 「아까 말했는데」: AI 가 앞선 말에서 두 목적을 되살림 · 이번 말 자체에서 뽑은 척한 인용은 이번 말에 없으니 받지 않음
+  s.ai.push(T({ kind: 'repair', reply: '맞아요, 외모도 받쳐줬으면 한다고 하셨죠.', extracted: [X('boundaries', '외모도 어느 정도', '외모도 좀 받쳐줬으면'), X('attraction_comfort', '편한 사람', '편한 사람'), X('boundaries', '지어낸 말', '돈 많은 사람')] }),
+    { summary: [], closing: '이제 조금 알 것 같아요.' });
+  const r6 = await say('아까 말했는데');
+  const p = r6.body.session.profile;
+  assert.equal(p.boundaries.status, 'CONFIRMED'); assert.equal(p.boundaries.items.length, 1); assert.equal(p.boundaries.items[0].quote, '외모도 좀 받쳐줬으면');
+  assert.equal(p.attraction_comfort.status, 'CONFIRMED', '앞서 놓친 막연한 답도 되살림');
+  assert.equal(r6.body.turn.saved, false, '항의 문장은 답으로 저장 0');
+  assert.equal(r6.body.turn.question, null); assert.equal(r6.body.session.phase, 'done');
+  const texts = s.tables.doit_records.map((r) => r.text);
+  assert.ok(texts.includes('외모도 좀 받쳐줬으면 해') && texts.includes('그냥 편한 사람'), '되살린 앞선 말은 기록으로');
+  assert.ok(!texts.includes('아까 말했는데'), '항의 문장은 기록 0');
+  const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  const t6 = st.turns.at(-1);
+  assert.deepEqual([...t6.recovered].sort(), ['attraction_comfort', 'boundaries']); assert.deepEqual([...t6.recovered_from].sort(), [2, 5]);
+  const rec = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').at(-1).response_payload.record;
+  assert.deepEqual([...rec.recovered].sort(), ['attraction_comfort', 'boundaries']);
+  // 같은 요청을 다시 보내도 기록이 늘지 않는다
+  assert.equal(s.tables.doit_records.length, new Set(s.tables.doit_records.map((r) => r.request_id)).size);
+  // 관리자 후보: 다시 보인 질문 뒤 항의 = ALREADY_ANSWERED_REASK, 되살림 = MEMORY_RECOVERED
+  s.authUser = { id: ID.admin, user_metadata: {} };
+  const adm = await h.call({ action: 'admin_sessions' });
+  assert.equal(adm.status, 200);
+});
+
+test('같은 질문 재노출은 질문마다 한 번뿐 · 이미 한 질문과 같은 새 질문은 다시 청함', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  s.ai.push(T({ kind: 'ask', reply: '다섯 개까지만 물어요.', next: { type: 'core', purpose: 'attraction_comfort', question: '어떤 사람이 편해요?' } }));
+  assert.equal((await say('몇 개 물어봐요?')).body.turn.question, '어떤 사람이 편해요?');
+  // 두 번째 ask: 같은 질문을 또 내면 서버가 다시 청하고(asked_before), 두 번째 답의 새 질문을 쓴다
+  s.ai.push(T({ kind: 'ask', reply: '저장은 대화 안에서만 써요.', next: { type: 'core', purpose: 'attraction_comfort', question: '어떤 사람이 편해요?' } }));
+  s.ai.push(T({ kind: 'ask', reply: '저장은 대화 안에서만 써요.', ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const r = await say('저장돼요?');
+  assert.equal(r.body.turn.question, '사람 볼 때 뭘 먼저 봐요?');
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.ok(rec.retry.includes('asked_before'));
+  const shown = r.body.session.messages.filter((m) => m.text === '어떤 사람이 편해요?').length;
+  assert.ok(shown <= 2, `같은 질문 화면 노출 ${shown}번(처음 + 먼저 답하기 1번)`);
+});

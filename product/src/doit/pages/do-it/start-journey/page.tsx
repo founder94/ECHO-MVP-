@@ -4,6 +4,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import SymbolLoader from "@/components/SymbolLoader";
 import { withTimeout } from "@/doit/lib/withTimeout";
 import { A_STRUCTURE_SERVER_ENABLED } from "@/doit/lib/understandingApi";
+import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from "@/doit/lib/agentApi";
 import "@/doit/components/feature/core-conversation.css";
 import { PurposeSelect } from "@/doit/app/plan-a/screens/PurposeSelect";
 import type { PurposeListState } from "@/doit/app/plan-a/screens/PurposeSelect";
@@ -93,6 +94,14 @@ export default function StartJourney() {
   const [savedPurposeId, setSavedPurposeId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("purpose");
+  // 「무엇부터 할까요」의 큰 버튼 하나를 대화 진행으로 정한다(대표 2026-09-25). 못 읽으면 null — 「대화 시작하기」로 두고 대화 화면이 이어서 판단한다.
+  const [agentSession, setAgentSession] = useState<AgentSession | null | undefined>(undefined);
+  useEffect(() => {
+    if (step !== "conversation-choice" || !user?.id || !ECHO_AGENT_ENABLED) return;
+    let current = true;
+    agentGet(user.id).then((s) => { if (current) setAgentSession(s); }).catch(() => { if (current) setAgentSession(null); });
+    return () => { current = false; };
+  }, [step, user?.id]);
   // v13.7(대표 실기기 2026-09-22 "프로필로 넘어가다가 갑자기 화면이 바뀐다"): 대화로 갈 것이 확정되면
   // 목적·프로필 화면을 스치듯 보여 주지 않고 전환 화면 하나만 보여 준 뒤 이동한다.
   const [leaving, setLeaving] = useState(false);
@@ -494,7 +503,8 @@ export default function StartJourney() {
   // v13.7 대화로 이동이 확정된 동안에는 중간 화면을 그리지 않는다(화면이 튀어 보이던 원인).
   if (leaving) {
     return (
-      <section className="echo-dialogue" aria-busy="true">
+      // 2026-09-25: 첫 질문(파스텔) 바로 앞의 이 화면만 검정이라 대화 들어가는 순간 색이 튀었다 → 같은 파스텔 바탕.
+      <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true">
         <p className="echo-eyebrow">DO IT / ECHO</p>
         <h1>첫 질문을 꺼내고 있어요.</h1>
         <div className="echo-leaving">
@@ -551,7 +561,16 @@ export default function StartJourney() {
 
   if (step === "conversation-choice") {
     // v14.2: 이미 시작한 사람도 여기로 온다. 무엇을 할지 스스로 고르게 하고, 홈으로 돌아갈 길을 함께 둔다.
-    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1><p className="echo-lead">연결을 받으려면 다섯 가지 답, 사진·소개, 전화 인증이 필요해요. 어느 것부터 해도 괜찮아요.</p><button className="echo-primary" onClick={() => navigate("/doit/conversation?from=journey")}>다섯 가지 질문 보기</button><button className="echo-secondary" onClick={() => setStep("profile-build")}>사진과 소개 채우기</button><button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
+    // 2026-09-25 대표 Galaxy: 버튼이 나란히 있어 무엇을 먼저 할지 몰랐다 → 큰 버튼은 하나(대화), 사진·소개는 작은 버튼. 대화를 마쳤으면 사진·소개가 큰 버튼.
+    const talkDone = agentSession?.phase === "done";
+    const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
+    const goTalk = () => navigate("/doit/conversation?from=journey");
+    const goProfile = () => setStep("profile-build");
+    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+      <p className="echo-lead">{talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
+      {talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
+        : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
+      <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
 
   if (step === "profile-build") {

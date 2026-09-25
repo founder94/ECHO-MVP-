@@ -67,16 +67,23 @@ function Ready({ preview }: { preview: Preview }) {
     { label: '전화 인증', done: r.phone_verified, detail: r.phone_verified ? '했음' : '아직', to: '/doit/verify?next=/doit/connections' },
   ];
   const answersDone = rows[0].done;
-  const ACTIONS: Record<string, string> = {
-    '다섯 가지 질문': '질문에 이어서 답하기', '필수 사진(전신·패션·취미)': '사진 채우기', '내 소개': '소개 쓰기', '전화 인증': '전화 인증하기',
+  // 대표 2026-09-25 「연결 준비 화면 = 다음 할 일을 크게, 사진·소개·전화는 작은 진행으로(요건은 그대로)」.
+  const ACTIONS: Record<string, { title: string; action: string }> = {
+    '다섯 가지 질문': turns > 0 ? { title: '다섯 가지 대화를 마저 해요', action: '대화 이어가기' } : { title: '다섯 가지 대화부터 시작해요', action: '대화 시작하기' },
+    '필수 사진(전신·패션·취미)': { title: '필수 사진 세 장을 채워요', action: '사진 채우기' }, '내 소개': { title: '내 소개를 적어요', action: '소개 쓰기' }, '전화 인증': { title: '전화 인증을 해요', action: '전화 인증하기' },
   };
   const firstLeft = rows.find(row => !row.done);
-  const next = firstLeft ? { to: firstLeft.to, action: firstLeft === rows[0] && turnsUsedUp ? '처음부터 다시 답하기' : ACTIONS[firstLeft.label] ?? firstLeft.label } : null;
+  const next = firstLeft ? { to: firstLeft.to, ...(firstLeft === rows[0] && turnsUsedUp ? { title: '다섯 가지를 처음부터 다시 답해요', action: '처음부터 다시 답하기' } : ACTIONS[firstLeft.label] ?? { title: firstLeft.label, action: firstLeft.label }) } : null;
   return <>
-    <div className="doit-asleep-card">
-      <p className="doit-asleep-label">{preview.purpose ? `원하는 만남 · ${preview.purpose}` : '원하는 만남을 아직 고르지 않았어요'}</p>
+    <div className="doit-asleep-card doit-asleep-next">
+      <p className="doit-asleep-label">다음 할 일</p>
+      <p className="doit-asleep-next-title">{next ? next.title : '연결 준비를 모두 마쳤어요'}</p>
+      {next && <Link className="doit-product-action" to={next.to}>{next.action}<span aria-hidden="true">↗</span></Link>}
       {skipped > 0 && <p className="doit-asleep-status">「모르겠어요」처럼 넘긴 답 {skipped}개는 연결 자격에 세지 않아요. 적은 말은 그대로 남아 있어요.{turnsUsedUp ? ' 처음부터 다시 답하면 채울 수 있어요.' : ''}</p>}
-      <ul className="doit-asleep-check">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span><Link to={row.to}>{row.label}</Link><strong>{row.detail}</strong></li>)}</ul>
+    </div>
+    <div className="doit-asleep-card">
+      <p className="doit-asleep-label">{preview.purpose ? `연결까지 남은 것 · ${preview.purpose}` : '연결까지 남은 것 · 원하는 만남을 아직 고르지 않았어요'}</p>
+      <ul className="doit-asleep-check doit-asleep-check--small">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span><Link to={row.to}>{row.label}</Link><strong>{row.detail}</strong></li>)}</ul>
       <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. 겹치는 사람이 있으면 대표가 직접 확인한 뒤 위 「내 연결」에 보여 드려요.' : '위 네 가지를 다 채우면 연결을 받을 수 있어요. 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
     </div>
     <div className="doit-asleep-card">
@@ -88,8 +95,7 @@ function Ready({ preview }: { preview: Preview }) {
       <p className="doit-product-footnote">{preview.note}</p>
     </div>
     {/* 2026-09-24 대표 실기기: 다섯 가지를 다 답했는데도 「질문에 이어서 답하기」가 떠서, 누르면 "다 들었어요"만 나왔다.
-        이제 남은 것 중 첫 번째를 큰 버튼으로, 다 답했으면 「처음부터 다시 답하기」를 작은 버튼으로 둔다. */}
-    {next && <Link className="doit-product-action" to={next.to}>{next.action}<span aria-hidden="true">↗</span></Link>}
+        남은 것 중 첫 번째는 맨 위 「다음 할 일」 큰 버튼으로(2026-09-25), 다 답했으면 「처음부터 다시 답하기」를 작은 버튼으로 둔다. */}
     {answersDone && <Link className="doit-product-action doit-product-action--secondary" to="/doit/conversation?restart=1">처음부터 다시 답하기<span aria-hidden="true">↗</span></Link>}
   </>;
 }

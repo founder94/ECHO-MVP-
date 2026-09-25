@@ -24,7 +24,11 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   }
   assert.ok(n >= 8);
   for (const f of ['src/doit/components/feature/CoreConversation.tsx', 'src/doit/components/feature/ConversationOpening.tsx', 'src/doit/pages/do-it/conversation/page.tsx']) assert.match(read(f), /echo-dialogue echo-dialogue--pastel/, f);
-  for (const f of ['src/doit/pages/do-it/start-journey/page.tsx', 'src/doit/app/plan-a/screens/SignupConsent.tsx', 'src/pages/do-it/landing/page.tsx', 'src/components/DoItBrandHero.tsx', 'src/index.css']) assert.doesNotMatch(read(f), /echo-dialogue--pastel/, f);
+  // 2026-09-25 대표 「첫 질문부터 대화 끝까지 파스텔 · 중간 검정 전환 금지」: 시작 흐름 중 첫 질문 바로 앞 전환 화면(leaving) 하나만 파스텔. 다른 단계는 0.
+  const journey = read('src/doit/pages/do-it/start-journey/page.tsx');
+  assert.equal((journey.match(/echo-dialogue--pastel/g) ?? []).length, 1, '시작 흐름에서 파스텔은 한 곳뿐');
+  assert.match(journey, /if \(leaving\) \{[\s\S]{0,260}echo-dialogue echo-dialogue--pastel[\s\S]{0,120}첫 질문을 꺼내고 있어요/, '그 한 곳 = 첫 질문 직전 전환 화면');
+  for (const f of ['src/doit/app/plan-a/screens/SignupConsent.tsx', 'src/pages/do-it/landing/page.tsx', 'src/components/DoItBrandHero.tsx', 'src/index.css']) assert.doesNotMatch(read(f), /echo-dialogue--pastel/, f);
 });
 
 test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·굵기·배치 규칙 0', () => {

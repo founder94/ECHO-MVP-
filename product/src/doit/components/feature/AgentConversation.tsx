@@ -182,8 +182,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
       <p className="echo-done-lead">{session.closing ?? '말해 준 내용을 정리해 뒀어요.'}</p>
       {profile && <ol className="echo-done-next" aria-label="내가 말한 것">
-        {PURPOSE_ORDER.map(id => { const slot = profile[id as keyof typeof profile] as { status: string; items: { note: string }[] } | undefined; if (!slot) return null;
-          return <li key={id}><b>{AGENT_PURPOSE_LABELS[id]}</b> — {slot.status === 'CONFIRMED' ? slot.items.map(i => i.note).join(' · ') : slot.status === 'SKIPPED' ? '넘겼어요' : '아직 몰라요'}</li>; })}
+        {PURPOSE_ORDER.map(id => { const slot = profile[id as keyof typeof profile] as { status: string; items: { note: string; quote?: string }[] } | undefined; if (!slot) return null;
+          // 내가 실제로 한 말(원문 인용)만 보인다 — AI 가 풀어 쓴 요약은 보이지 않는다(대표 2026-09-25 「완료 화면 = 사용자가 실제 말한 것만」).
+          return <li key={id}><b>{AGENT_PURPOSE_LABELS[id]}</b> — {slot.status === 'CONFIRMED' ? slot.items.map(i => i.quote ? `「${i.quote}」` : i.note).join(' · ') : slot.status === 'SKIPPED' ? '넘겼어요' : '아직 몰라요'}</li>; })}
       </ol>}
       <p className="echo-context">내가 직접 말한 것만 적었어요. AI 추측은 넣지 않았어요. 지금은 이 정리로 바로 누군가와 연결되지는 않아요.</p>
       <div className="echo-done-actions">

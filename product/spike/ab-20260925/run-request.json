@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
- "approved_by": "대표 「ECHO 대표 최종 지시 · 구현 → 운영배포 → 운영검증」(2026-09-25 FINAL) — 실제 AI 검사 포함",
- "run": 9,
+ "approved_by": "대표 「운영 실기기 캡처 검수 → 즉시 수정 PATCH」(2026-09-25) — 실제 AI 검사 포함",
+ "run": 10,
  "mode": "prod_agent",
- "what": "운영 배포할 최종 agent.ts(run 8 − last_reply) 재생",
+ "what": "운영 Galaxy 실측 수정판 agent.ts(v1.3) 재생 — F2(합성) 포함",
  "history": [
   {
    "run": 1,
@@ -53,6 +53,12 @@
    "mode": "prod_agent",
    "actions_run": 36119280537,
    "commit": "eff7ad2"
+  },
+  {
+   "run": 9,
+   "mode": "prod_agent",
+   "actions_run": 36119792722,
+   "commit": "407260e"
   }
  ],
  "models": [

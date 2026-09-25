@@ -54,7 +54,7 @@ export async function runFlow(A, flowId, tone, model) {
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase };
 }
@@ -76,6 +76,10 @@ export function stats(A, runs) {
     tone_mismatch_turns: runs.reduce((n, r) => n + r.rows.filter((x) => lines(x) && A.toneMismatch(r.tone, lines(x))).length, 0),
     sample_copy: rows.filter((x) => /편한\s*게\s*제일\s*중요/.test(lines(x))).length,
     repeated_reply: repeatedReply,
+    // v1.3(2026-09-25): 같은 질문 글자가 한 대화에서 다시 나온 횟수(먼저 답하기로 한 번 다시 보인 것 포함) · 앞선 말에서 되살린 턴 수 · F2(합성)의 「꼭 있었으면 하는 것」이 끝에 채워졌는지
+    same_question_again: runs.reduce((n, r) => { const seen = new Set(); let k = 0; for (const x of r.rows) { const q = (x.question ?? '').replace(/\s+/g, ''); if (q && seen.has(q)) k++; if (q) seen.add(q); } return n + k; }, 0),
+    recovered_turns: rows.filter((x) => (x.recovered ?? []).length).length,
+    f2_boundaries_confirmed: `${runs.filter((r) => r.flow === 'F2' && r.profile.boundaries.status === 'CONFIRMED').length}/${runs.filter((r) => r.flow === 'F2').length}`,
     id_leak: rows.filter((x) => A.leaksId(lines(x))).length,
     banned: rows.filter((x) => BANNED.test(lines(x))).length,
     confirmed_items: sum(runs.map((r) => r.profile.confirmed_preferences.length)), inferred_items: sum(runs.map((r) => r.profile.inferred_candidates.length)),

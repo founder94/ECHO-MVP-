@@ -159,13 +159,21 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     const out = data as { ok?: boolean; record?: { id?: string } } | null;
     if (error || !out?.ok) recordError = "record_save_failed"; else recordId = out.record?.id ?? null;
   }
+  // 2-1) 「아까 말했는데」처럼 앞선 말에서 되살린 정보: 그 앞선 말(사용자 원문)을 그 턴의 기록으로 남긴다(같은 턴은 같은 기록 · 항의 문장은 남기지 않음).
+  for (const n of lastTurn?.recovered_from ?? []) {
+    const earlier = st.turns.find((t) => t.n === n); if (!earlier?.user) continue;
+    const { data, error } = await ctx.admin.rpc("doit_apply_record_create", { p_user_id: ctx.userId, p_request_id: await derivedUuid(`${sessionId}:turn:${n}:record`), p_action: "record_create",
+      p_payload_hash: await sha256(earlier.user), p_text: earlier.user, p_original_text: earlier.user, p_emotion: "", p_status: "confirmed" });
+    const out = data as { ok?: boolean } | null;
+    if (error || !out?.ok) recordError = recordError ?? "recovered_record_save_failed";
+  }
   // 3) 턴 기록(관리자 관측 · 실패/성공 후보의 재료). 원문은 상태에 있고 여기엔 코드·수치만.
   const view = sessionView(sessionId, stored);
   const kind = String(response.kind ?? "");
   const text4 = [response.reply, response.closing, response.question].filter((x) => typeof x === "string" && x).join("\n");
   const record = {
     turn_index: lastTurn?.n ?? null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind,
-    saved: response.saved === true, extracted: lastTurn?.extracted ?? [], decision: lastTurn?.decision ?? kind, question_index: A.coreAsked(st).length,
+    saved: response.saved === true, extracted: lastTurn?.extracted ?? [], recovered: lastTurn?.recovered ?? [], recovered_from: lastTurn?.recovered_from ?? [], dropped: lastTurn?.dropped ?? null, decision: lastTurn?.decision ?? kind, question_index: A.coreAsked(st).length,
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
     flags: { correction: kind === "correction", rejection: kind === "repair", complaint: kind === "repair", skip: kind === "skip", fatigue: kind === "stop", unsure: kind === "unsure", ask: kind === "ask", blocked: kind === "blocked" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
