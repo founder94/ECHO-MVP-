@@ -19,7 +19,13 @@ const out = (kind, { extracted = [], wrong = [], next = { type: 'core', purpose:
 const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
-test('버전: v2.0', () => { assert.equal(A.AGENT_VERSION, 'echo-agent-v2.0'); });
+test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.1');
+  const v = A.versionTrace();
+  assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
+  assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
+  assert.equal(A.matchingProfile(started()).versions.prompt_version, v.prompt_version);
+});
 
 test('말 종류 가드: 실제 AI run 16 실패 문장(이미 말했다는 항의)은 answer 여도 답으로 저장하지 않는다', () => {
   const st = started();
@@ -56,19 +62,22 @@ test('짧은 대답(웅·응·넵)은 답으로 통째 저장하지 않는다', 
   }
 });
 
-test('정정 엔진: 정정으로 같은 목적의 새 뜻을 받으면 옛 뜻은 거두고(RETRACTED) 원문은 남긴다', () => {
+test('정정 엔진 · 정정 계보: 정정으로 같은 목적의 새 뜻을 받으면 옛 뜻은 SUPERSEDED(이력) · 새 뜻이 ACTIVE · 원문은 남긴다', () => {
   const st = started();
   A.applyTurn(st, '활동적인 사람', out('answer', { extracted: [X('relationship_intent', '활동적인 사람', '활동적인 사람')] }));
   const r = A.applyTurn(st, '아니 활동 말고 편하게 대화하는 사람', out('correction', { extracted: [X('relationship_intent', '편하게 대화하는 사람', '편하게 대화하는 사람')] }));
   assert.equal(r.saved, true);
   const items = st.slots.relationship_intent.items;
-  assert.equal(items.find((i) => i.note === '활동적인 사람').status, 'RETRACTED');
-  assert.equal(items.find((i) => i.note === '편하게 대화하는 사람').status, 'CONFIRMED');
+  const old = items.find((i) => i.note === '활동적인 사람'); const now = items.find((i) => i.note === '편하게 대화하는 사람');
+  assert.equal(old.status, 'SUPERSEDED'); assert.ok(old.superseded_at);
+  assert.equal(now.status, 'CONFIRMED'); assert.equal(now.source_type, 'USER_CORRECTED'); assert.deepEqual(now.corrected_from, ['활동적인 사람']);
   assert.equal(st.turns[0].user, '활동적인 사람', '옛 원문은 지우지 않는다');
   assert.equal(st.turns.at(-1).superseded, 1);
   const p = A.matchingProfile(st);
-  assert.deepEqual(p.relationship_intent.items.map((i) => i.note), ['편하게 대화하는 사람'], '매칭 프로필은 최신 정정만');
-  assert.ok(p.rejected_meanings.includes('활동적인 사람'));
+  assert.deepEqual(p.relationship_intent.items.map((i) => i.note), ['편하게 대화하는 사람'], '매칭 프로필은 최신 정정만(ACTIVE)');
+  assert.deepEqual(p.relationship_intent.history.map((i) => [i.note, i.status]), [['활동적인 사람', 'SUPERSEDED']], '옛 값은 이력으로');
+  const { lines } = A.cleanIntro(st, [{ text: '저는 활동적인 사람이 좋아요.', basis: '활동적인 사람' }]);
+  assert.equal(lines.length, 0, '교체된 옛 값은 소개에도 못 쓴다');
 });
 
 test('거절 뜻 차단: 거둔 뜻은 소개 초안 문장에 들어가지 못한다(같은 말의 원문 전체를 근거로도 못 씀)', () => {
@@ -98,4 +107,22 @@ test('방향 잠금: 다섯 목적 · 핵심 질문 5 뒤 여섯 번째 정보 �
   assert.equal(A.coreAsked(st).length, 5);
   const r = A.applyTurn(st, '더 있어요', out('answer', { next: { type: 'core', purpose: 'relationship_intent', question: '하나 더?' } }));
   assert.equal(r.question, null); assert.equal(r.finish, true);
+});
+
+test('정보 계보: 값마다 출처 종류·출처 턴·사용자 원문·확인 시각 (AI 정리 ≠ 사용자 직접)', () => {
+  const st = started();
+  A.applyTurn(st, '천천히 알아가는 사람이 좋아', out('answer', { extracted: [X('relationship_intent', '천천히 알아가기', '천천히 알아가는')] }));
+  A.applyTurn(st, '어른스러운 사람', out('answer', { next: { type: 'core', purpose: 'relationship_style', question: 'Q?' } }));
+  const p = A.matchingProfile(st);
+  const ai = p.relationship_intent.items[0];
+  assert.equal(ai.source_type, 'AI_EXTRACTED'); assert.equal(ai.source_turn, 1); assert.equal(ai.source_user_text, '천천히 알아가는 사람이 좋아'); assert.ok(ai.confirmed_at);
+  const raw = p.values_character.items[0]; // 첫 턴 뒤 지금 질문의 목적(values_character)에 원문 그대로
+  assert.equal(raw.source_type, 'USER_DIRECT'); assert.equal(raw.quote, '어른스러운 사람');
+});
+
+test('매칭 넘기기: 결정은 서버 · HARD 는 사용자 확인 전 0 · 꼭/피하고 싶은 것은 확인 필요 후보', () => {
+  const st = started();
+  A.applyTurn(st, '담배 피우는 사람은 싫어', out('answer', { extracted: [X('boundaries', '흡연자 피하고 싶음', '담배 피우는 사람은 싫어')] }));
+  const h = A.matchingHandoff(A.matchingProfile(st));
+  assert.equal(h.decision, 'SERVER'); assert.deepEqual(h.hard_filters, []); assert.equal(h.hard_candidates.length, 1); assert.deepEqual(h.candidates, []);
 });

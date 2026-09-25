@@ -81,3 +81,21 @@ test('관리자 대화 화면: 파이프라인 탭이 첫 화면 · 글자로 �
   assert.match(v, /서버가 바로잡음/);
   assert.match(read('src/doit/pages/do-it/admin/components/AdminShell.tsx'), /search\.get\("menu"\)/);
 });
+
+test('출시 준비(RELEASE GATE): 여섯 관문 A~F · 신뢰(전화)·매칭은 PASS 아님 · 하나라도 PASS 가 아니면 「열 수 없어요」', () => {
+  const list = read('src/doit/pages/do-it/admin/views/FeatureChecklist.tsx');
+  const gates = [...list.matchAll(/\{ id: "([A-F])", name: "([^"]+)", state: "(\w+)"/g)].map((m) => [m[1], m[3]]);
+  assert.deepEqual(gates.map((g) => g[0]), ['A', 'B', 'C', 'D', 'E', 'F']);
+  const by = Object.fromEntries(gates);
+  assert.notEqual(by.C, 'PASS'); assert.notEqual(by.E, 'PASS');
+  assert.match(list, /RELEASE_GATES\.every\(\(g\) => g\.state === "PASS"\) \? "일반 사용자에게 사람 연결을 열 수 있어요\." : `일반 사용자에게 사람 연결을 아직 열 수 없어요/);
+  assert.ok(list.indexOf('출시 준비(RELEASE READINESS)') < list.lastIndexOf('>지금 막힌 곳 TOP 3<'), '화면에서 TOP 3 보다 위');
+});
+
+test('실패 후보마다 판(에이전트·프롬프트·모델)', () => {
+  const rec2 = rec({ agent_version: 'echo-agent-v2.1', prompt_version: 'p-1234abcd', calls: [{ kind: 'turn', ms: 1, model: 'gpt-4o-mini', input_tokens: 1, output_tokens: 1, error: 'timeout' }] });
+  const c = A.candidates(A.normalize(baseRaw(), [rec2]));
+  assert.equal(c.failure[0].type, 'TURN_ERROR');
+  assert.equal(c.failure[0].version, 'echo-agent-v2.1 · p-1234abcd · gpt-4o-mini');
+  assert.match(A.candidates(A.normalize(baseRaw(), [rec({ calls: [{ kind: 'turn', ms: 1, model: null, input_tokens: null, output_tokens: null, error: 'x' }] })])).failure[0].version, /판 기록 없음/);
+});

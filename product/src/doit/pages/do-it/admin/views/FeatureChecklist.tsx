@@ -64,11 +64,25 @@ const FEATURE_ROWS: Row[] = [
     axes: { ui: "PARTIAL", server: "NOT_CONNECTED", db: "UNKNOWN", ext: "NA", device: "NA", ready: "FAIL" } },
 ];
 
+// 출시 관문(2026-09-26 RELEASE GATE). 기능 PASS 와 서비스 출시 PASS 는 다르다 — 화면·파일만 있으면 PASS 가 아니고, 실제 동작 증거가 있어야 PASS.
+// 일반 사용자에게 사람 연결을 열려면 여섯 관문이 모두 PASS 여야 한다. 하나라도 아니면 「출시 준비 됨」을 표시하지 않는다.
+type Gate = "PASS" | "PARTIAL" | "FAIL" | "BLOCKED" | "UNKNOWN";
+const GATE_TEXT: Record<Gate, string> = { PASS: "PASS 됨", PARTIAL: "PARTIAL 부분", FAIL: "FAIL 안 됨", BLOCKED: "BLOCKED 막힘", UNKNOWN: "UNKNOWN 확인 불가" };
+const GATE_CLASS: Record<Gate, string> = { PASS: "text-[#1f6b41]", PARTIAL: "text-[#7a5200]", FAIL: "text-[#8c1d18]", BLOCKED: "text-[#8c1d18]", UNKNOWN: "text-foreground-600" };
+const RELEASE_GATES: { id: string; name: string; state: Gate; why: string }[] = [
+  { id: "A", name: "대화", state: "PARTIAL", why: "운영 v1.8 은 질문 5개 상한·먼저 답하기가 됨. 서버가 항의·피로를 가려내고 정정·거절·정보 출처를 지키는 v2.x 는 실제 AI 검사 뒤 대표 승인 대기(미배포)." },
+  { id: "B", name: "프로필", state: "PARTIAL", why: "AI 소개 생성·사용자 확인·고치기는 대표 실기기에서 됨. 정보 출처 추적(계보)은 v2.1 에 있고 아직 운영 전." },
+  { id: "C", name: "신뢰", state: "BLOCKED", why: "전화 인증이 실제로 안 됨(문자 발송 업체 미연결 · STOP). 사진은 올릴 수 있음." },
+  { id: "D", name: "안전", state: "PARTIAL", why: "「차단하고 신고」 서버 접수·관리자 신고 화면은 있음. 실제 접수 0건, 운영자 처리 흐름은 확인 전." },
+  { id: "E", name: "매칭", state: "BLOCKED", why: "서버 후보 결정 계약(자격·차단·목적·근거 검증)은 코드와 검사만 있음. 연결 서버가 아직 쓰지 않아 실제 후보 0(가짜 후보 0)." },
+  { id: "F", name: "운영", state: "PARTIAL", why: "관리자 파이프라인·실패/성공 후보·판 추적·되돌리기 순서는 있음. 실제 관리자 계정 데이터로는 확인 전, 실패 턴 기록은 v2.x 배포 뒤부터." },
+];
+
 // 지금 막힌 곳 TOP 3(2026-09-26 확인 · 대표 우선순위 P0/P1). 사용자별로 어디서 멈췄는지는 「대화 에이전트 → 어디서 막혔나」에 있다.
 const BOTTLENECKS = [
   "전화 인증: 문자 발송 업체가 없어 연결 자격을 갖춘 사람이 0명이에요(업체·비밀키·저장 변경은 대표 승인 필요).",
   "사람 연결: 연결 서버가 대화로 만든 매칭 프로필을 아직 읽지 않아 후보가 0명이에요(가짜 후보는 만들지 않아요).",
-  "AI 대화 개선판(v2.0): 실제 AI 검사 통과 · 운영 반영은 대표 승인 대기(지금 운영은 v1.8).",
+  "AI 대화 개선판(v2.x): 실제 AI 검사 뒤 운영 반영은 대표 승인 대기(지금 운영은 v1.8 · 되돌리기 순서 준비됨).",
 ];
 
 export default function FeatureChecklist({ consents }: { consents: number | null }) {
@@ -82,6 +96,21 @@ export default function FeatureChecklist({ consents }: { consents: number | null
         2026-09-26 코드·서버·실제 AI 검사로 확인한 결과예요. 작동 중 {count("ok")} · 준비 중 {count("wait")} · 꺼 둠 {count("off")} · 대표 결정 필요 {count("decide")}
         {consents != null ? ` · 약관 동의 ${consents}명` : ""}
       </p>
+      <div className="mt-3 rounded-lg border border-background-300 bg-background-50 px-4 py-3 text-xs" aria-labelledby="release-readiness-title">
+        <p id="release-readiness-title" className="text-sm font-semibold text-foreground-950">출시 준비(RELEASE READINESS)</p>
+        <p className="mt-0.5 font-semibold text-[#8c1d18]">
+          {RELEASE_GATES.every((g) => g.state === "PASS") ? "일반 사용자에게 사람 연결을 열 수 있어요." : `일반 사용자에게 사람 연결을 아직 열 수 없어요 — 막힌 관문: ${RELEASE_GATES.filter((g) => g.state !== "PASS").map((g) => `${g.id} ${g.name}`).join(", ")}`}
+        </p>
+        <ul className="mt-2 flex flex-col gap-1">
+          {RELEASE_GATES.map((g) => (
+            <li key={g.id} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2">
+              <span className="shrink-0 font-semibold text-foreground-950 sm:w-20">{g.id} {g.name}</span>
+              <span className={`shrink-0 font-semibold sm:w-36 ${GATE_CLASS[g.state]}`}>{GATE_TEXT[g.state]}</span>
+              <span className="text-foreground-600">{g.why}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="mt-3 rounded-lg border border-[#c98a12] bg-[#fdf3dc] px-4 py-3 text-xs text-[#7a5200]">
         <p className="font-semibold">지금 막힌 곳 TOP 3</p>
         <ol className="mt-1 flex list-decimal flex-col gap-0.5 pl-4">{BOTTLENECKS.map((b) => <li key={b}>{b}</li>)}</ol>

@@ -13,7 +13,7 @@ export interface ReadinessInfo { phone_verified: boolean; intro_saved: boolean }
 export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
 export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; readiness?: ReadinessInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
 export interface CallRec { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
-export interface TurnRecord { guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
+export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
 export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
@@ -65,10 +65,12 @@ export function dashboard(sessions: Session[], now: number = Date.now()) {
   };
 }
 
-export interface Candidate { type: string; session: string; turn: number | null; user: string | null; agent: string | null; evidence: 'ACTUAL' | 'HYPOTHESIS'; status: 'CANDIDATE'; note: string }
+// version: 실패가 어느 판(에이전트·프롬프트·모델)에서 났는지(2026-09-26 FAILURE → VERSION). 예전 기록은 판 칸이 없어 「판 기록 없음」.
+export interface Candidate { type: string; session: string; turn: number | null; user: string | null; agent: string | null; evidence: 'ACTUAL' | 'HYPOTHESIS'; status: 'CANDIDATE'; note: string; version: string }
 export function candidates(s: Session): { failure: Candidate[]; success: Candidate[] } {
   const failure: Candidate[] = []; const success: Candidate[] = [];
-  const add = (list: Candidate[]) => (type: string, t: Turn | null, evidence: Candidate['evidence'], note: string) => list.push({ type, session: s.id, turn: t?.i ?? null, user: t?.user ?? null, agent: t?.assistant ?? null, evidence, status: 'CANDIDATE', note });
+  const ver = (r: TurnRecord | null | undefined) => r?.agent_version ? `${r.agent_version} · ${r.prompt_version ?? '?'} · ${r.calls?.find((c) => c.model)?.model ?? r.model_requested ?? '모델 기록 없음'}` : `${s.agent} · 판 기록 없음`;
+  const add = (list: Candidate[]) => (type: string, t: Turn | null, evidence: Candidate['evidence'], note: string) => list.push({ type, session: s.id, turn: t?.i ?? null, user: t?.user ?? null, agent: t?.assistant ?? null, evidence, status: 'CANDIDATE', note, version: ver(t?.rec ?? s.records.at(-1)) });
   const f = add(failure); const ok = add(success);
   if (s.core > 5) f('QUESTIONS_OVER_5', null, 'ACTUAL', `핵심 질문 ${s.core}개`);
   const seen = new Map<string, number>();
@@ -156,7 +158,7 @@ export function pipeline(s: Session): { stages: Stage[]; stuck: Stage | null; ai
   ];
   const needed = ['conversation', 'ai_profile', 'photo', 'phone'].filter((k) => stages.find((x) => x.key === k)!.state !== 'PASS');
   stages.push(st('matching_ready', needed.length ? (needed.includes('phone') ? 'BLOCKED' : 'WAIT') : 'PASS', needed.length ? `남은 것: ${needed.map((k) => PIPELINE_STAGES.find((x) => x.key === k)!.label).join(', ')}` : '조건 충족'));
-  stages.push(st('candidate', 'BLOCKED', s.handoff?.status === 'NOT_CONNECTED' || s.handoff ? '연결 서버가 아직 이 매칭 프로필을 읽지 않음(후보 0 · 가짜 후보 0)' : '매칭 프로필 없음'));
+  stages.push(st('candidate', 'BLOCKED', s.handoff?.status === 'NOT_CONNECTED' || s.handoff ? '서버 후보 결정 계약은 준비됨 · 연결 서버가 아직 쓰지 않아 후보 0(가짜 후보 0)' : '매칭 프로필 없음'));
   return { stages, stuck: stages.find((x) => x.state !== 'PASS') ?? null, aiOs };
 }
 // 단계별로 PASS 에 닿은 사람 수와, 가장 많은 사람이 멈춘 단계 TOP 3(병목).

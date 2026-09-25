@@ -141,6 +141,7 @@ export default function AgentConversations() {
         {cands.flatMap(({ s, c }) => [...c.failure.map((x) => ({ x, s, ok: false })), ...c.success.map((x) => ({ x, s, ok: true }))]).map(({ x, s, ok }, k) => <article key={k} className="rounded-lg border border-background-200 px-4 py-3 text-xs">
           <p className="font-semibold"><Pill tone={ok ? "accent" : "danger"}>{ok ? "성공 후보" : "실패 후보"}</Pill> {x.type} · {x.evidence} · {x.status}</p>
           <p className="mt-1">{s.nickname ?? s.user}{x.turn ? ` · 턴 ${x.turn}` : ""} — {x.note}</p>
+          <p className="mt-1 text-foreground-500">판: {x.version}</p>
           {x.user && <p className="mt-1">사용자: {hide(x.user, showRaw)}</p>}
           {x.agent && <p className="mt-1 whitespace-pre-wrap">ECHO: {x.agent}</p>}
         </article>)}
