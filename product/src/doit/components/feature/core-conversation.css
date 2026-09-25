@@ -122,6 +122,7 @@
   --conversation-text-eyebrow:#fff;
   --conversation-text-placeholder:rgb(255 255 255/.7);
   --conversation-text-halo:none;
+  -webkit-text-stroke:.35px currentColor; /* 대표 2026-09-25 「글씨 색은 유지, 조금 더 진하고 두껍게 — 배경에 묻히지 않게」: 같은 색 얇은 외곽선(그림자·700 굵기 없이 모든 글꼴 공통) */
 }
 /* ⑦ 2026-09-25 글자색 = 1번 이미지(옛 홈 첫 화면 「오늘 내 마음의 날씨는 어때?」, src/pages/home/components/HeroSection.tsx)의 코드 값 그대로
    (대표 「글씨색을 1번 이미지색으로」): 제목 text-white(#fff) · 「진짜 나를 찾아줘」 text-white/90 · 부문구 text-white/70 · 「ECHO」 text-white/55.
