@@ -12,6 +12,7 @@ import { SignupConsent } from "@/doit/app/plan-a/screens/SignupConsent";
 import { ProfileBuild } from "@/doit/app/plan-a/screens/ProfileBuild";
 import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
+import "@/doit/components/feature/app-pastel.css";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
 import { photoSetComplete } from "@/doit/lib/photoPolicy";
 import { requestAgentIntroDraft, requestIntroDraft } from "@/doit/lib/introDraft";
@@ -424,8 +425,7 @@ export default function StartJourney() {
   if (loadState.kind === "error") {
     return (
       <div
-        className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: "#090a0c" }}
+        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
       >
         <p
           style={{ fontSize: 22, fontWeight: 600, color: "#f2f1ef" }}
@@ -471,8 +471,7 @@ export default function StartJourney() {
   if (loadState.kind === "loading") {
     return (
       <div
-        className="flex flex-col items-center justify-center min-h-screen px-6 text-center"
-        style={{ backgroundColor: "#090a0c" }}
+        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
       >
         <SymbolLoader size={150} label="내 프로필을 가져오고 있어요." />
         {slow && (
@@ -529,7 +528,7 @@ export default function StartJourney() {
       needsReselection(initialPurposeId, purposeState.purposes);
 
     return (
-      <PurposeSelect
+      <div className="doit-app-pastel"><PurposeSelect
         purposeState={purposeState}
         onRetry={() => void loadPurposes()}
         onNext={handlePurposeNext}
@@ -537,7 +536,7 @@ export default function StartJourney() {
         needsReselection={reselect}
         saving={saving}
         saveError={saveError}
-      />
+      /></div>
     );
   }
 
@@ -573,7 +572,7 @@ export default function StartJourney() {
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
-    return <section className="echo-dialogue"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+    return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
       <p className="echo-lead">{talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
         : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
@@ -582,9 +581,9 @@ export default function StartJourney() {
 
   if (step === "profile-build") {
     return (
-      <>
+      <div className="doit-app-pastel">
         {A_STRUCTURE_SERVER_ENABLED && (
-          <div style={{ padding: "16px 24px 0", backgroundColor: "#090a0c" }}>
+          <div style={{ padding: "16px 24px 0" }}>
             <button type="button" className="echo-text-button" onClick={() => navigate("/doit/conversation")}>
               ← 질문으로 돌아가기
             </button>
@@ -602,28 +601,28 @@ export default function StartJourney() {
             : () => requestIntroDraft(user.id)) : undefined}
           onGoAnswer={() => navigate("/doit/conversation?from=journey")}
         />
-      </>
+      </div>
     );
   }
 
   if (step === "photo") {
     return (
-      <PhotoCapture
+      <div className="doit-app-pastel"><PhotoCapture
         userId={user?.id ?? null}
         onNext={() => setStep("profile-review")}
         onBack={() => setStep("profile-build")}
-      />
+      /></div>
     );
   }
 
   return (
-    <ProfileReview
+    <div className="doit-app-pastel"><ProfileReview
       userId={user?.id ?? null}
       onEditPhotos={() => setStep("photo")}
       purposeLabel={selectedPurpose?.label}
       profile={profile ?? initialDraft ?? undefined}
       onNext={() => navigate("/doit/connections")}
       onEditProfile={() => setStep("profile-build")}
-    />
+    /></div>
   );
 }

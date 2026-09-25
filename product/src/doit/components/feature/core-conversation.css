@@ -1,5 +1,6 @@
 @import "./metal-silver.css";
 @import "./doit-type.css";
+@import "./pastel-bg.css";
 .echo-dialogue{max-width:620px;margin:auto;padding:28px 24px 56px;color:#f2f1ef;background:#090a0c;min-height:100dvh;font-family:var(--font-body,"Gothic A1",sans-serif)}
 .echo-dialogue *{box-sizing:border-box}.echo-dialogue-header{display:flex;align-items:center;gap:10px;margin-bottom:52px}.echo-dialogue .doit-official-symbol{width:36px;height:36px}.echo-dialogue-header>span{font-size:10px;letter-spacing:.15em;color:#a9adb5}.echo-dialogue-header>a{margin-left:auto;font-size:11px;color:#c2c7cf;text-decoration:none}
 .echo-eyebrow{color:#a0a6b2;font-size:10px;font-weight:600;letter-spacing:.15em;margin:0 0 15px}.echo-dialogue h1{font-family:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;font-size:clamp(28px,7.5vw,38px);line-height:1.55;font-weight:500;letter-spacing:-.045em;margin:0;word-break:keep-all}.echo-lead{font-size:14px;line-height:1.95;color:#b5bac3;font-weight:500;max-width:420px;margin:22px 0 36px;word-break:keep-all}
@@ -98,39 +99,7 @@
         실측: 지금 글자색이 모두 기준 대비(작은 글씨 4.5:1)를 넘으려면 .86 이 필요하다 — 그러면 색이 어두운 올리브로 바뀐다.
      ④ 글자·어두운 판은 아래 ⑥(2026-09-25 대표 「STRONG WHITE TYPOGRAPHY · UNIFIED DARK GLASS」). 2026-09-24 의 남색 글자(D안)는 대표 결정으로 없앴다.
    - 움직임: 옛 코드의 float-bg(20초, 1% 이동) 하나만. 날씨 입자·마우스 추적 0. 움직임 줄이기면 멈춘다. */
-.echo-dialogue.echo-dialogue--pastel{--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
-/* 2026-09-25 대표 Galaxy 「중간 검정 전환·뒤로 버튼 뒤 검정 금지」: 고정 바탕(::before)이 휴대폰 주소창이 접히고 펴지는 동안·끝까지 당길 때 잠깐 비면
-   아래 검은 바탕이 보였다. 같은 색 줄기(위 초록 → 아래 산호)를 스크롤되는 바탕으로 한 겹 깔아, 비는 순간에도 검정이 아니라 파스텔이 보이게 한다.
-   평소에는 고정 바탕이 위를 덮어 화면 차이가 없다(검사: 멈춘 화면 픽셀 비교). */
-.echo-dialogue.echo-dialogue--pastel{background:linear-gradient(180deg,#3fdcb3 0%,#43e9a5 25%,#9fdc98 45%,#e2d58c 62%,#e0a276 80%,#c9714f 100%)}
-.echo-dialogue.echo-dialogue--pastel::before,
-.echo-dialogue.echo-dialogue--pastel::after{content:"";position:fixed;inset:0;pointer-events:none}
-.echo-dialogue.echo-dialogue--pastel::before{inset:-80px} /* 바탕 흐림 40px 가 화면 가장자리에서 비지 않게 넉넉히 — 색 칸 위치는 화면 기준(80px + vw/vh)으로 잡는다 */
-.echo-dialogue.echo-dialogue--pastel::before{
-  z-index:-2;
-  background:
-    radial-gradient(circle calc(28rem*.7071) at calc(-6% + 14rem) calc(-8% + 14rem),rgba(160,255,200,.15) 0%,rgba(160,255,200,.15) 18%,transparent 70%),
-    radial-gradient(circle calc(24rem*.7071) at calc(105% - 12rem) calc(15% + 12rem),rgba(160,220,255,.12) 0%,rgba(160,220,255,.12) 18%,transparent 70%),
-    radial-gradient(circle calc(30rem*.7071) at calc(10% + 15rem) calc(95% - 15rem),rgba(255,235,160,.10) 0%,rgba(255,235,160,.10) 18%,transparent 70%),
-    radial-gradient(circle calc(20rem*.7071) at calc(85% - 10rem) calc(45% + 10rem),rgba(255,180,180,.12) 0%,rgba(255,180,180,.12) 18%,transparent 70%),
-    radial-gradient(circle calc(26rem*.7071) at calc(104% - 13rem) calc(108% - 13rem),rgba(160,255,220,.10) 0%,rgba(160,255,220,.10) 18%,transparent 70%),
-    radial-gradient(circle calc(32rem*.7071) at calc(-8% + 16rem) calc(75% - 16rem),rgba(200,230,255,.08) 0%,rgba(200,230,255,.08) 18%,transparent 70%),
-    linear-gradient(90deg,#43e0a9 calc(80px + 0vw),#42dcba calc(80px + 25vw),#43dbc0 calc(80px + 50vw),#3edbc2 calc(80px + 75vw),#3bd1c5 calc(80px + 100vw)) 0 0/100% calc(80px + 5vh + 1px) no-repeat,
-    linear-gradient(90deg,#31ee99 calc(80px + 0vw),#57edb5 calc(80px + 25vw),#39e9ac calc(80px + 50vw),#28e2b9 calc(80px + 75vw),#12d1c9 calc(80px + 100vw)) 0 calc(80px + 5vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#38f294 calc(80px + 0vw),#47f19e calc(80px + 25vw),#4eeea7 calc(80px + 50vw),#37d9c0 calc(80px + 75vw),#0ed2d2 calc(80px + 100vw)) 0 calc(80px + 15vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#3bed91 calc(80px + 0vw),#4df19d calc(80px + 25vw),#5de7a8 calc(80px + 50vw),#3dd2c3 calc(80px + 75vw),#0ed5d5 calc(80px + 100vw)) 0 calc(80px + 25vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#57d485 calc(80px + 0vw),#67e69b calc(80px + 25vw),#83dea4 calc(80px + 50vw),#4ecdbf calc(80px + 75vw),#18d5d5 calc(80px + 100vw)) 0 calc(80px + 35vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#9faf7d calc(80px + 0vw),#a2db92 calc(80px + 25vw),#bae0a2 calc(80px + 50vw),#79d0b7 calc(80px + 75vw),#1dd1ce calc(80px + 100vw)) 0 calc(80px + 45vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#d99279 calc(80px + 0vw),#ded38f calc(80px + 25vw),#e3e99e calc(80px + 50vw),#9ed1a4 calc(80px + 75vw),#3abeac calc(80px + 100vw)) 0 calc(80px + 55vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#e38376 calc(80px + 0vw),#eecb8a calc(80px + 25vw),#edea96 calc(80px + 50vw),#c7d18e calc(80px + 75vw),#799872 calc(80px + 100vw)) 0 calc(80px + 65vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#e17972 calc(80px + 0vw),#eab67c calc(80px + 25vw),#e9de88 calc(80px + 50vw),#cfc176 calc(80px + 75vw),#967647 calc(80px + 100vw)) 0 calc(80px + 75vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#d96d66 calc(80px + 0vw),#e09967 calc(80px + 25vw),#d9bf72 calc(80px + 50vw),#bca05f calc(80px + 75vw),#925d38 calc(80px + 100vw)) 0 calc(80px + 85vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#cb6550 calc(80px + 0vw),#cb7e4f calc(80px + 25vw),#bd9058 calc(80px + 50vw),#a77c4e calc(80px + 75vw),#844c35 calc(80px + 100vw)) 0 100%/100% calc(80px + 5vh + 1px) no-repeat;
-  filter:blur(40px);
-  animation:float-bg 20s ease-in-out infinite;
-}
-.echo-dialogue.echo-dialogue--pastel::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
-@media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel::before{animation:none}}
+/* ①~③ 바탕 규칙은 pastel-bg.css 로 옮겼다(2026-09-25 · 사용자 앱 화면과 한 벌). 모습 변화 0. */
 /* ⑥ 2026-09-25 흰 글자 + 하나의 어두운 유리 (대표 「PASTEL GLASS UI FINAL VISUAL CORRECTION」 · 「WHITE TYPOGRAPHY PATCH」).
    - 파스텔 배경(①~③)·배치·글꼴·크기·굵기·줄 간격·문구는 그대로. 바꾸는 것은 어두운 판의 바탕·흐림·테두리와 글자색뿐.
    - 전(실측, 제각각이던 어두운 판): 입력창 #101216 · 하단 카드/다음 질문 받기 #171a20 · 처음부터 알약 #1b1f26 · 안내·확인 카드 #14171c ·
@@ -183,3 +152,4 @@
 .echo-dialogue.echo-dialogue--pastel .echo-steps-bar i{background:var(--conversation-text);background-image:none;box-shadow:none}
 /* 보내기 버튼: 회색 그라데이션 채움만 없앤다(아이콘 색·크기·자리 그대로) */
 .echo-dialogue.echo-dialogue--pastel .echo-composer-footer button{background:transparent;border-color:var(--conversation-surface-border)}
+.echo-dialogue.echo-dialogue--pastel .echo-done .echo-text-button{color:var(--conversation-text-secondary)} /* 2026-09-25 MASTER §4 소개 카드 「직접 쓸게요」: 판 안 보조 글자와 같은 흰색 */

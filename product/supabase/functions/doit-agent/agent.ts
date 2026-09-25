@@ -15,7 +15,7 @@
 //   ① 질문 말투 기준(구체적·생활 말·바로 답할 수 있음)을 같은 호출 안에서 스스로 확인한다(심사 호출 추가 0 · 고정 질문 0)
 //   ② 질문마다 선택으로 보는 한 줄 예시(hint: 답의 범위만 · 답을 대신 써 주지 않음) ③ 「예를 들면?·무슨 뜻이야?」= help: 저장 0 · 질문 수 0 · 짧게 설명하고 같은 목적을 더 쉽게 다시 묻는다(질문마다 2번까지, 그 뒤는 다음 목적).
 
-export const AGENT_VERSION = "echo-agent-v1.6"; // v1.5 는 후보로만 남아 있다(대표 결정 P-20 전 — 이 판에 들어 있지 않다)
+export const AGENT_VERSION = "echo-agent-v1.7"; // v1.5 후보(대표 결정 P-20 대기)에서는 AI 용 주제 이름 하나만 가져왔다 — 나머지(help_same 재요청·예시 낱말 목록)는 들어 있지 않다
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_TOTAL = 1;
@@ -25,10 +25,12 @@ const MAX_CALLS_PER_TURN = 2;
 export const FIRST_QUESTION = "어떤 만남을 원하세요?";
 
 export const PURPOSES = Object.freeze([
-  { id: "relationship_intent", label: "원하는 만남", goal: "어떤 만남을 원하는지" },
-  { id: "attraction_comfort", label: "편하거나 끌리는 사람", goal: "어떤 사람에게 편함·관심·끌림을 느끼는지" },
-  { id: "values_character", label: "사람을 볼 때 중요한 것", goal: "사람을 볼 때 중요하게 보는 것" },
-  { id: "relationship_style", label: "알아가는 방식과 속도", goal: "어떤 방식과 속도로 알아가는 게 편한지" },
+  // label = AI 에게만 보이는 주제 이름(화면 이름은 앱의 AGENT_PURPOSE_LABELS). v1.7(2026-09-25): 실제 AI run 13 에서 추상 질문 22개 중
+  // 13개가 이 이름의 「방식」, 7개가 「스타일」을 옮겨 썼다 → 생활 말로 바꾼다(대표 결정 대기 중인 v1.5 후보와 같은 이름 — 이 한 가지만 가져왔다).
+  { id: "relationship_intent", label: "원하는 만남(친구·연애 등)", goal: "어떤 만남을 원하는지" },
+  { id: "attraction_comfort", label: "같이 있으면 편하거나 끌리는 사람", goal: "어떤 사람에게 편함·관심·끌림을 느끼는지" },
+  { id: "values_character", label: "사람을 만날 때 먼저 보게 되는 점", goal: "사람을 볼 때 중요하게 보는 것" },
+  { id: "relationship_style", label: "연락과 만남의 속도(자주 연락 · 천천히)", goal: "어떤 방식과 속도로 알아가는 게 편한지" },
   { id: "boundaries", label: "이건 좋고 이건 싫다 싶은 것", goal: "꼭 있었으면 하는 것이나 피하고 싶은 것" }, // 2026-09-25 대표 MASTER §2: 낮은 부담으로
 ]);
 export const PIDS = PURPOSES.map((p) => p.id);

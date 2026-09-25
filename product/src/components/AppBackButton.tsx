@@ -15,7 +15,7 @@ const RECHECK_DELAYS_MS = [0, 150, 500, 1200, 2500];
 const FALLBACK_PATH = IS_BRAND_SITE ? '/' : '/doit/start-journey';
 
 // 파스텔 대화 화면 위에서는 어두운 알약이 검은 띠처럼 보였다(대표 2026-09-25 Galaxy 「뒤로 버튼 뒤 검정 배경」) → 그 화면에서만 투명 알약.
-const PASTEL_SELECTOR = '.echo-dialogue--pastel';
+const PASTEL_SELECTOR = '.echo-dialogue--pastel, .doit-app-pastel'; // 2026-09-25 MASTER §12: 사용자 앱 화면 전면 파스텔
 function pageIsPastel(): boolean {
   try { return !!document.querySelector(PASTEL_SELECTOR); } catch { return false; }
 }

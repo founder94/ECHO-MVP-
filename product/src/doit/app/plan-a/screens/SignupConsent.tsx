@@ -5,7 +5,7 @@ interface Props { onNext: () => void }
 
 // 이용 안내 화면이다. 법률 동의나 본인 인증이 저장됐다고 표시하지 않는다.
 export function SignupConsent({ onNext }: Props) {
-  return <section className="echo-dialogue">
+  return <section className="echo-dialogue echo-dialogue--pastel">
     <DoItSymbol decorative />
     <p className="echo-eyebrow">내 계정으로 이어가기</p>
     <h1>다음에 와도,<br />처음부터 쓰지 않도록.</h1>

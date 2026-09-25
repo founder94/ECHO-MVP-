@@ -8,7 +8,7 @@ import {
   Shield,
 } from "lucide-react";
 import DoItSymbol from "@/components/DoItSymbol";
-import { colors, serif } from "../theme";
+import { colors, serif , surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { ActivePurpose } from "@/doit/lib/purposes";
 
@@ -77,12 +77,12 @@ export function PurposeSelect({
     <div
       className="flex flex-col min-h-screen"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <div className="flex-1 overflow-y-auto">
         <div className="px-6 pt-8 pb-4">
-          <div className="flex items-center gap-3 mb-6" style={{color: colors.textMuted, fontSize: 10, letterSpacing: "0.18em"}}><DoItSymbol decorative />DO IT COMPANY</div>
+          <div className="flex items-center gap-3 mb-6" style={{color: surfaces.onPage, fontSize: 10, letterSpacing: "0.18em"}}><DoItSymbol decorative />DO IT COMPANY</div>
           <motion.div
             initial={{
               opacity: 0,
@@ -98,7 +98,7 @@ export function PurposeSelect({
           >
             <p
               style={{
-                color: colors.textFaint,
+                color: surfaces.onPageFaint,
                 fontSize: 11,
                 letterSpacing: "0.2em",
                 marginBottom: 10,
@@ -123,7 +123,7 @@ export function PurposeSelect({
 
             <p
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
                 fontSize: 14,
                 lineHeight: 1.65,
               }}
@@ -139,7 +139,7 @@ export function PurposeSelect({
           <div
             className="mx-6 mb-4 rounded-2xl p-4"
             style={{
-              backgroundColor: colors.surface,
+              backgroundColor: surfaces.card,
               border: `1px solid ${colors.border}`,
             }}
           >
@@ -174,7 +174,7 @@ export function PurposeSelect({
           <div
             className="mx-6 mb-4 rounded-2xl p-4"
             style={{
-              backgroundColor: colors.surface,
+              backgroundColor: surfaces.card,
               border: `1px solid ${colors.border}`,
             }}
           >
@@ -209,7 +209,7 @@ export function PurposeSelect({
             <div
               className="mx-6 mb-4 rounded-2xl p-4"
               style={{
-                backgroundColor: colors.surface,
+                backgroundColor: surfaces.card,
                 border: `1px solid ${colors.border}`,
               }}
             >
@@ -266,7 +266,7 @@ export function PurposeSelect({
                     backgroundColor:
                       selectedPurpose
                         ? colors.accentSoft
-                        : colors.surface,
+                        : surfaces.card,
                     border: `1px solid ${
                       selectedPurpose
                         ? colors.accent
@@ -393,7 +393,7 @@ export function PurposeSelect({
           className="mx-6 mb-6 rounded-2xl p-4 flex items-start gap-2.5"
           style={{
             backgroundColor:
-              colors.surface,
+              surfaces.card,
             border: `1px solid ${colors.border}`,
           }}
         >

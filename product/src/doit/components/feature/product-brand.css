@@ -1,5 +1,6 @@
 @import "./metal-silver.css";
 @import "./doit-type.css";
+@import "./app-pastel.css";
 /* A 앱에만 적용. 랜딩 사진·글꼴, 운영센터, 인증·서버 동작에는 영향을 주지 않는다. */
 .doit-root .doit-product{
   --background-50:.155 .004 260;--background-100:.12 .003 260;--background-200:.24 .005 260;--background-300:.32 .005 260;--background-400:.42 .005 260;--background-500:.50 .005 260;

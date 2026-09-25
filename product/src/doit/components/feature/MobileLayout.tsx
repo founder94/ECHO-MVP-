@@ -20,8 +20,9 @@ export default function MobileLayout({
   showNav = false,
   activeTab,
 }: MobileLayoutProps) {
+  // 2026-09-25 대표 MASTER §12: 사용자 앱 화면 전면 파스텔(관리자 화면은 이 틀을 쓰지 않는다)
   return (
-    <div className="do-it-app doit-product relative mx-auto flex min-h-dvh w-full max-w-md flex-col">
+    <div className="do-it-app doit-product doit-app-pastel relative mx-auto flex min-h-dvh w-full max-w-md flex-col">
       {showHeader && <TopBar title={title} back={back} showActions={showNav} />}
 
       <main className={`doit-product-main flex-1 px-4 pb-8 ${showNav ? "pb-[calc(6rem+env(safe-area-inset-bottom))]" : ""}`}>

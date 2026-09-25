@@ -8,7 +8,7 @@ import {
   Sparkles,
   UserCheck,
 } from "lucide-react";
-import { colors, serif } from "../theme";
+import { colors, serif , surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
 import { INTRO_MAX } from "@/doit/lib/introDraft";
@@ -99,7 +99,7 @@ function statusColor(tone: string) {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  backgroundColor: colors.bg,
+  backgroundColor: surfaces.field,
   border: `1px solid ${colors.borderStrong}`,
   borderRadius: 12,
   color: colors.text,
@@ -178,7 +178,7 @@ export function ProfileBuild({
     <div
       className="flex flex-col min-h-screen"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <div className="flex-1 overflow-y-auto px-6 pt-12 pb-4">
@@ -190,7 +190,7 @@ export function ProfileBuild({
         >
           <p
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11,
               letterSpacing: "0.2em",
               marginBottom: 10,
@@ -215,7 +215,7 @@ export function ProfileBuild({
 
           <p
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               fontSize: 14,
               lineHeight: 1.65,
             }}
@@ -229,7 +229,7 @@ export function ProfileBuild({
         <div
           className="rounded-3xl p-5 mb-5"
           style={{
-            backgroundColor: colors.surface,
+            backgroundColor: surfaces.card,
             border: `1px solid ${colors.borderStrong}`,
           }}
         >
@@ -323,7 +323,7 @@ export function ProfileBuild({
                     </p>
                   )}
                   {draftState.kind === "preview" && (
-                    <div className="rounded-2xl p-4" style={{ backgroundColor: colors.bg, border: `1px solid ${colors.borderStrong}` }}>
+                    <div className="rounded-2xl p-4" style={{ backgroundColor: surfaces.field, border: `1px solid ${colors.borderStrong}` }}>
                       <p style={{ color: colors.textFaint, fontSize: 11, marginBottom: 6 }}>AI가 내 답으로 쓴 초안</p>
                       <p style={{ color: colors.text, fontSize: 14, lineHeight: 1.65, wordBreak: "keep-all" }}>{draftState.text}</p>
                       <div className="mt-3 flex gap-2">
@@ -415,7 +415,7 @@ export function ProfileBuild({
                           : colors.textMuted,
                         backgroundColor: active
                           ? colors.accent
-                          : colors.bg,
+                          : surfaces.field,
                         border: `1px solid ${
                           active
                             ? colors.accent
@@ -438,7 +438,7 @@ export function ProfileBuild({
         <div
           className="rounded-3xl p-5 mb-5"
           style={{
-            backgroundColor: colors.surface,
+            backgroundColor: surfaces.card,
             border: `1px solid ${colors.borderStrong}`,
           }}
         >
@@ -505,7 +505,7 @@ export function ProfileBuild({
                 border: `1px solid ${statusColor(
                   status.tone,
                 )}33`,
-                backgroundColor: colors.surface,
+                backgroundColor: surfaces.card,
               }}
             >
               {status.label}
@@ -516,7 +516,7 @@ export function ProfileBuild({
         <div
           className="rounded-2xl p-4 flex items-start gap-2.5"
           style={{
-            backgroundColor: colors.surface,
+            backgroundColor: surfaces.card,
             border: `1px solid ${colors.border}`,
           }}
         >

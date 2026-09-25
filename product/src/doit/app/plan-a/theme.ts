@@ -26,6 +26,17 @@ export const colors = {
   danger: "#FF7188",
 } as const;
 
+// 2026-09-25 대표 MASTER §12~13 「사용자 APP 전면 파스텔」: 시작 흐름 화면의 바탕·카드·입력창만 바깥 틀(.doit-app-pastel)이 정한 색을 따른다.
+// 틀 밖(예전 plan-a 화면)에서는 괄호 안 원래 색 그대로다. 글자·아이콘 색은 바꾸지 않는다(아이콘 색 속성은 CSS 변수를 못 받을 수 있다).
+export const surfaces = {
+  page: `var(--app-page, ${colors.bg})`,
+  card: `var(--app-surface, ${colors.surface})`,
+  field: `var(--app-surface, ${colors.bg})`,
+  // 파스텔 위에 바로 놓인 머리글·설명 글자(카드 밖). 틀 안에서는 흰색, 틀 밖에서는 원래 회색.
+  onPage: `var(--app-on-page, ${colors.textMuted})`,
+  onPageFaint: `var(--app-on-page, ${colors.textFaint})`,
+} as const;
+
 export const serif =
   '"Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", Georgia, serif';
 
