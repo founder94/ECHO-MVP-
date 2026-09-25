@@ -37,10 +37,37 @@
   {
    "at": "2026-09-25",
    "reason": "실AI run1(Actions 36103690087) 뒤 — 사전 고정 4개(A·B·입력·판정 기준) 변경 0. 고정 대상이 아닌 하네스만 고침: ① runA 의 error 칸이 줄 주석 안에 있던 결함(GF-63, A 질문 실패 미기록) ② 호출마다 모델 원문(content)을 result.json 에 남김. run1 수치는 원자료를 그대로 두고 보정값을 따로 표시했다(REAL_AB_RUN1_분석_20260925.md §2)."
+  },
+  {
+   "at": "2026-09-25",
+   "reason": "MODEL GATE 사전 등록(실AI 실행 전): B-1.0·입력·판정 기준 지문 그대로, 모델 목록만 등록. 결과를 본 뒤 목록·B 를 바꾸면 실행기가 종료 코드 3 으로 멈춘다."
   }
  ],
  "specs": {
   "file": "product/spike/ab-20260925/golden-specs.json",
   "sha256": "380d6fb38fa0960ea83ae722e03061e2e503016ad0a51cc935a8cdb3c889e319"
+ },
+ "model_gate": {
+  "registered_at": "2026-09-25",
+  "models": [
+   "gpt-4o-mini",
+   "gpt-4.1-mini",
+   "gpt-4.1",
+   "gpt-4o"
+  ],
+  "baseline": "gpt-4o-mini",
+  "why": "계정 모델 확인(Actions run 36107887216)에서 B-1.0 과 같은 파라미터(temperature·top_p·max_tokens·json_object)로 200 을 돌려준 모델 가운데 기준보다 작지 않은 것. gpt-4.1-nano 는 기준보다 작은 모델이라 뺐다. gpt-5 계열 5개는 max_tokens 를 받지 않아(400 unsupported_parameter) 「모델만 변경」 조건이 깨져 뺐다.",
+  "fixed": {
+   "b_sha256": "a0031fcc8ddb546c07506a9facc55eb8aeeac6b383e0bc680a44e726ab9aae35",
+   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
+   "specs_sha256": "380d6fb38fa0960ea83ae722e03061e2e503016ad0a51cc935a8cdb3c889e319",
+   "params": {
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_tokens": 768,
+    "response_format": "json_object",
+    "max_calls_per_turn": 2
+   }
+  }
  }
 }

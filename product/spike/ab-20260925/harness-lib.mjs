@@ -145,7 +145,7 @@ export async function runB(flow, { model = MODEL } = {}) {
     const keep = response.signal === 'ask' && response.question && response.question === prevQ;
     rows.push({ i: i + 1, text, expect: type, origin, kind: response.signal ?? null, saved: !!response.saved, reply: response.reaction ?? null,
       question: keep ? null : (response.question ?? null), kept_question: keep ? response.question : null,
-      intent: response.intent ?? null, dropped: response.dropped ?? null, error: response.error ?? null, calls: rec.calls.slice(before), retry: obs.retry, result: s.audit.at(-1)?.result ?? null, total_ms: Date.now() - t0 });
+      intent: response.intent ?? null, dropped: response.dropped ?? null, finished: !!response.finished, error: response.error ?? null, calls: rec.calls.slice(before), retry: obs.retry, result: s.audit.at(-1)?.result ?? null, total_ms: Date.now() - t0 });
   }
   return { rows, state: s };
 }

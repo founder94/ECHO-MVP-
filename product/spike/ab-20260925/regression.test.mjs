@@ -145,3 +145,18 @@ test('P0 블라인드(run1): 17칸 · 두 답이 같은 칸 제외 · 페이지�
   assert.equal(key.length, 17);
   assert.ok(key.every((k) => ['A', 'B'].includes(k.X) && k.X !== k.Y));
 });
+
+test('MODEL GATE 실행기: [MOCK] 모델 4개 · 사전 등록 목록과 다르면 실AI 로 돌지 않음(종료 3) · 키 없으면 종료 2', async () => {
+  const { execFileSync, spawnSync } = await import('node:child_process');
+  const script = path.join(HERE, 'run-models.mjs');
+  const env = { ...process.env, OPENAI_API_KEY: '' };
+  const frozen = JSON.parse(readFileSync(path.join(HERE, 'FROZEN_INPUTS.json'), 'utf8'));
+  assert.deepEqual(frozen.model_gate.models, ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o']);
+  assert.equal(frozen.model_gate.fixed.b_sha256, frozen.b.sha256);
+  const out = execFileSync(process.execPath, [script, '--models', frozen.model_gate.models.join(',')], { env, encoding: 'utf8' });
+  assert.match(out, /사전 등록 일치: 예/);
+  assert.equal(spawnSync(process.execPath, [script, '--models', frozen.model_gate.models.join(','), '--require-real'], { env }).status, 2);
+  // 가짜 키: 사전 등록과 다른 목록이면 네트워크 전에 종료 3
+  const r = spawnSync(process.execPath, [script, '--models', 'gpt-4o-mini,gpt-4.1'], { env: { ...process.env, OPENAI_API_KEY: 'not-a-real-key' } });
+  assert.equal(r.status, 3);
+});
