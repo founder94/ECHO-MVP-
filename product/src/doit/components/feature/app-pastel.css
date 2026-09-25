@@ -5,12 +5,12 @@
    - 머리줄·하단 탭: 검은 띠가 남지 않게 반투명(탭 글자는 흰색 계열로 올려 대비를 지킨다).
    - 파스텔 위에 바로 놓인 글자는 대화 화면과 같은 흰색(대표 2026-09-25 「글씨 흰색 하나로」). 표준 대비는 낮다 — 보고서에 숫자로 적는다. */
 @import "./pastel-bg.css";
-.doit-app-pastel{--app-page:transparent;--app-surface:rgb(14 18 24/.81);--app-surface-border:#d9dfe8a6;color:#fff}
+.doit-app-pastel{--app-page:transparent;--app-surface:transparent;--app-surface-border:#d9dfe8a6;color:#fff} /* 대표 2026-09-25 「흰 글씨 뒤 검은 배경 없애고 파스텔로 투명」: 판 .81 어두운 막 → 투명 */
 /* 탭이 있는 앱 화면(MobileLayout)·프로필 확인 화면: 원래 검정 바탕(#090a0c) 대신 파스텔 줄기(고정 바탕이 비는 순간에도 검정이 아니다) */
 .doit-root .doit-product.doit-app-pastel{background:var(--pastel-underlay)}
 .doit-app-pastel .doit-profile-review{background:transparent}
-.doit-app-pastel .doit-product-topbar{background:rgb(14 18 24/.28);border-color:#ffffff2e}
-.doit-app-pastel .doit-product-nav{background:rgb(14 18 24/.62);border-color:#ffffff2e;box-shadow:none}
+.doit-app-pastel .doit-product-topbar{background:transparent;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-color:#ffffff2e} /* 어두운 막 0 · 스크롤 때 아래 글자가 겹쳐 보이지 않게 흐림만 */
+.doit-app-pastel .doit-product-nav{background:rgb(255 255 255/.14);-webkit-backdrop-filter:blur(28px) saturate(1.2);backdrop-filter:blur(28px) saturate(1.2);border-color:#ffffff2e;box-shadow:none} /* 검정 0 · 옅은 흰 막+강한 흐림으로 아래 본문 글자가 탭 글자와 겹쳐 읽히지 않게 */
 .doit-app-pastel .doit-product-nav a{color:#e3e7ee}
 .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
 /* 파스텔 위 글자: 흰색 하나로(대화 화면과 같게) */
@@ -23,3 +23,6 @@
 .doit-app-pastel{--app-on-page:#fff}
 .doit-app-pastel .echo-text-button{color:#fff}
 .doit-app-pastel .doit-product-main :is(p,span,li,dt,dd,small,label,blockquote,h1,h2,h3,h4,em,strong,b,time):not(:is(button,[role="alert"],[class*="error"],[class*="card"],[class*="action"],[class*="primary"],[class*="install"]) *):not([class*="error"]){color:#fff}
+/* 대표 2026-09-25: 판(카드) 배경을 투명으로 바꿨으므로 판 안 글자도 흰색 하나로. 입력창·오류 안내는 제외. */
+.doit-app-pastel .doit-understanding-notice{background:transparent;border-color:var(--app-surface-border)}
+.doit-app-pastel :is(.doit-understanding-notice,.doit-profile-card) :is(h2,h3,p,span,li,small,strong,b,em,a,label):not(:is(input,textarea,select,[role="alert"],[class*="error"]) *):not([class*="error"]){color:#fff}
