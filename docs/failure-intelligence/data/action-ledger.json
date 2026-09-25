@@ -1,0 +1,195 @@
+{
+ "schema": "echo-action-ledger-v1",
+ "rule": "다음 행동을 만들기 전에 반드시 대조한다. COMPLETED 를 다시 요구하지 않고, DECIDED 를 다시 묻지 않고, BLOCKED 를 같은 방식으로 반복하지 않는다. 다시 요구하면 새 실패(F-ADVISOR)로 기록한다.",
+ "items": [
+  {
+   "id": "A-01",
+   "what": "OpenAI 실험 키 ECHO-B-AB-TEST-20260925 발급",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "대표 「대표 승인 · ECHO B안 실AI A/B 검증」",
+   "note": "다시 요구 금지"
+  },
+  {
+   "id": "A-02",
+   "what": "실험 키를 Claude 채팅으로 전달",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "같은 지시",
+   "note": "키는 저장·출력하지 않음"
+  },
+  {
+   "id": "A-03",
+   "what": "현재 실험 키 유지 · 폐기(Revoke)·새 발급 반복 요구 금지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "헌장 L · 저장 MASTER §2",
+   "note": ""
+  },
+  {
+   "id": "A-04",
+   "what": "Claude 환경 Edit 경로 반복 안내 금지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "저장 MASTER §2",
+   "note": "2026-09-24 대표 화면에서 눌리지 않음(BLOCKED B-02)"
+  },
+  {
+   "id": "A-05",
+   "what": "A(운영 v27) 동결 · B-1.0 동결 · 결과 보고 수정 금지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "CTO 기준본 · PHASE 1",
+   "note": "FROZEN_INPUTS.json 으로 강제"
+  },
+  {
+   "id": "A-06",
+   "what": "Conversation P0 = FAIL 유지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "저장 MASTER §1",
+   "note": ""
+  },
+  {
+   "id": "A-07",
+   "what": "실패마다 정규식 하나 추가 금지 · 문자열 품질 휴리스틱 금지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "B안 자율 실행 FINAL",
+   "note": ""
+  },
+  {
+   "id": "A-08",
+   "what": "Twilio(문자 인증) 연동 중단",
+   "state": "DECIDED",
+   "date": "2026-09-24",
+   "by": "대표",
+   "evidence": "CLAUDE.md",
+   "note": ""
+  },
+  {
+   "id": "A-09",
+   "what": "포괄 자율 실행(C항) · HARD STOP 만 승인 요청 · 중간보고 금지",
+   "state": "DECIDED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "R&D 헌장",
+   "note": ""
+  },
+  {
+   "id": "A-10",
+   "what": "GitHub 재연결",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "CLAUDE.md(GitHub push STOP 기록) · 이후 push 정상",
+   "note": ""
+  },
+  {
+   "id": "B-01",
+   "what": "채팅으로 받은 Secret 을 Claude 실행 명령에 사용",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "환경 보안 장치",
+   "evidence": "세션 기록(자동 판정기 거부)",
+   "note": "우회 금지"
+  },
+  {
+   "id": "B-02",
+   "what": "Claude 환경 편집(Edit)으로 환경 변수 넣기",
+   "state": "BLOCKED",
+   "date": "2026-09-24",
+   "by": "대표 화면",
+   "evidence": "CLAUDE.md 「환경 설정 안내 정정」",
+   "note": "같은 경로 재안내 금지"
+  },
+  {
+   "id": "B-03",
+   "what": "Netlify 도구 업로드",
+   "state": "BLOCKED",
+   "date": "2026-09-22",
+   "by": "바깥 인터넷 정책(프록시 403)",
+   "evidence": "CLAUDE.md",
+   "note": "대표 수동 업로드"
+  },
+  {
+   "id": "B-04",
+   "what": "app.do-it.company 내용 대조",
+   "state": "BLOCKED",
+   "date": "2026-09-22",
+   "by": "바깥 인터넷 정책(403)",
+   "evidence": "CLAUDE.md",
+   "note": ""
+  },
+  {
+   "id": "B-05",
+   "what": "Supabase 관리 API 로 배포",
+   "state": "BLOCKED",
+   "date": "2026-09-24",
+   "by": "토큰 401",
+   "evidence": "CLAUDE.md",
+   "note": "대표 대시보드 붙여넣기로 대체됨"
+  },
+  {
+   "id": "P-01",
+   "what": "실제 AI A/B(고정 하네스)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "—",
+   "evidence": "REAL_AI = BLOCKED_BY_ENVIRONMENT",
+   "note": "대안 경로: GitHub Actions + 저장소 Secret(대표 승인 필요 — Secret 생성은 HARD STOP)"
+  },
+  {
+   "id": "P-02",
+   "what": "LEVEL 3 실기기(iPhone·Galaxy)",
+   "state": "PENDING",
+   "date": "—",
+   "by": "대표",
+   "evidence": "—",
+   "note": ""
+  },
+  {
+   "id": "P-03",
+   "what": "「모르겠어요」 대화 끝 판정",
+   "state": "PENDING",
+   "date": "—",
+   "by": "대표 결정",
+   "evidence": "GF-09",
+   "note": ""
+  },
+  {
+   "id": "P-04",
+   "what": "전화 인증 없는 연결 자격 조건",
+   "state": "PENDING",
+   "date": "—",
+   "by": "대표 결정",
+   "evidence": "CLAUDE.md",
+   "note": ""
+  },
+  {
+   "id": "P-05",
+   "what": "사주·타로·공간·월드 메뉴 숨김 충돌",
+   "state": "PENDING",
+   "date": "—",
+   "by": "대표 결정",
+   "evidence": "CLAUDE.md",
+   "note": ""
+  },
+  {
+   "id": "P-06",
+   "what": "타로 403(openai-chat 허용 주소·토큰 검증판 배포)",
+   "state": "PENDING",
+   "date": "—",
+   "by": "대표 승인(운영 배포)",
+   "evidence": "GF-48",
+   "note": ""
+  }
+ ]
+}

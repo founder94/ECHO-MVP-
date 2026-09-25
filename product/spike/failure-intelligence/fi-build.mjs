@@ -2,12 +2,12 @@
 //   --check : 데이터 검증 + 생성 결과가 저장된 .md 와 같은지만 본다(쓰지 않음). 다르면 종료 코드 1.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { load, validate, renderLibrary, renderSolutions, renderGraph, DOCS } from './fi-lib.mjs';
+import { load, validate, renderLibrary, renderSolutions, renderGraph, renderLedger, DOCS } from './fi-lib.mjs';
 
 const d = load();
 const errs = validate(d);
 if (errs.length) { console.error(`검증 실패 ${errs.length}건\n- ${errs.join('\n- ')}`); process.exit(1); }
-const outputs = { 'FAILURE_LIBRARY.md': renderLibrary(d), 'FAILED_SOLUTIONS_ARCHIVE.md': renderSolutions(d), 'FAILURE_GRAPH.md': renderGraph(d) };
+const outputs = { 'FAILURE_LIBRARY.md': renderLibrary(d), 'FAILED_SOLUTIONS_ARCHIVE.md': renderSolutions(d), 'FAILURE_GRAPH.md': renderGraph(d), 'ACTION_LEDGER.md': renderLedger(d) };
 const check = process.argv.includes('--check');
 let drift = 0;
 for (const [name, text] of Object.entries(outputs)) {

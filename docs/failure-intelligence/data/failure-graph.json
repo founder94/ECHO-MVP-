@@ -193,6 +193,30 @@
    "evidence": "CODE",
    "note": "고정 안전문장 구제",
    "ref": "docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts"
+  },
+  {
+   "from": "GF-58",
+   "rel": "CAUSES",
+   "to": "GF-13",
+   "evidence": "ACTUAL",
+   "note": "「승인 주세요」로 턴 종료 → 고친 v14 미배포 → 대표가 옛 문장을 다시 봄(CLAUDE.md 자기 기록)",
+   "ref": "CLAUDE.md"
+  },
+  {
+   "from": "GF-55",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-54",
+   "evidence": "HYPOTHESIS",
+   "note": "막힌 경로를 다시 안내하면서 새 키 요구가 함께 나감",
+   "ref": "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md"
+  },
+  {
+   "from": "GF-62",
+   "rel": "REGRESSION_OF",
+   "to": "GF-22",
+   "evidence": "HYPOTHESIS",
+   "note": "B 의도 장부가 옛 흐름 의도 태그 소진(FS-17)과 같은 모양 — 실AI 전 미확인",
+   "ref": "docs/failure-intelligence/FAILED_SOLUTIONS_ARCHIVE.md"
   }
  ]
 }

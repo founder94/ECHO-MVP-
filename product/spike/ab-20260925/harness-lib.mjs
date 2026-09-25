@@ -174,3 +174,44 @@ export const GOLDEN_FILE = path.resolve(HERE, 'golden-failures.json');
 export const GOLDEN_RAW = readFileSync(GOLDEN_FILE, 'utf8');
 export const GOLDEN_SHA = createHash('sha256').update(GOLDEN_RAW).digest('hex');
 export const GOLDEN = JSON.parse(GOLDEN_RAW).flows.map((f) => ({ ...f, steps: f.steps.map((st) => [st.text, st.expect, st.origin, st.source]) }));
+
+// ── Golden Failure 판정 기준(golden-specs.json · 사전 고정). 결과를 본 뒤 기준을 바꾸지 않는다.
+export const SPECS_FILE = path.resolve(HERE, 'golden-specs.json');
+export const SPECS_RAW = readFileSync(SPECS_FILE, 'utf8');
+export const SPECS_SHA = createHash('sha256').update(SPECS_RAW).digest('hex');
+export const SPECS = JSON.parse(SPECS_RAW);
+
+// 한 칸(행)에 대해 기계 판정. server 층 = 저장·오류 · model 층 = 반응 유무·고정 문장.
+// MOCK 에서는 model 층이 가짜 AI 문장이라 판정하지 않는다(N/A). server 층도 MOCK 에서는 구조 확인일 뿐이다.
+export function checkRow(row, check, { real, fixedLines }) {
+  const layer = SPECS.check_types[check]?.layer;
+  if (!layer) return 'UNKNOWN_CHECK';
+  if (!real && layer === 'model') return 'N/A(MOCK)';
+  const text = [row.reply ?? '', row.question ?? '', row.kept_question ?? ''].join('\n');
+  switch (check) {
+    case 'saved': return row.saved ? 'PASS' : 'FAIL';
+    case 'not_saved': return row.saved ? 'FAIL' : 'PASS';
+    case 'no_error': return row.error ? 'FAIL' : 'PASS';
+    case 'reply_present': return row.reply && String(row.reply).trim() ? 'PASS' : 'FAIL';
+    case 'no_fixed_line': return fixedLines.some((l) => text.includes(l)) ? 'FAIL' : 'PASS';
+    default: return 'UNKNOWN_CHECK';
+  }
+}
+
+// 결과 전체 → spec 별 A·B 판정. review_question 은 사람(블라인드) 몫이라 여기서 판정하지 않는다.
+export function evaluateSpecs(results, real) {
+  const out = [];
+  for (const s of SPECS.specs) {
+    const r = results.find((x) => x.flow.id === s.flow);
+    if (!r) continue;
+    for (const turn of s.turns) {
+      const a = r.A.find((x) => x.i === turn); const b = r.B.rows.find((x) => x.i === turn);
+      if (!a || !b) continue;
+      const judge = (row) => Object.fromEntries(s.checks.map((c) => [c, checkRow(row, c, { real, fixedLines: SPECS.fixed_lines })]));
+      const ja = judge(a), jb = judge(b);
+      const verdict = (j) => (Object.values(j).includes('FAIL') ? 'FAIL' : Object.values(j).every((v) => v === 'PASS') ? 'PASS' : 'PARTIAL');
+      out.push({ fail_id: s.fail_id, flow: s.flow, turn, text: a.text, A: ja, B: jb, A_verdict: real ? verdict(ja) : 'MOCK', B_verdict: real ? verdict(jb) : 'MOCK', review: s.review_question });
+    }
+  }
+  return out;
+}

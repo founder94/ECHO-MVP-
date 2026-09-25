@@ -28,6 +28,15 @@
    "golden_from": "e070dff87771bd1173d852344ba4b0e6d752fef0c19a6cfd63892714f3abfbaf",
    "golden_to": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
    "reason": "실제 AI 결과가 나오기 전(실AI 0회) 입력 추가: FLOW6(ANSWER FIRST · 대표 실제 3 + 스크립트 2) · FLOW7(대표 실제 3) · FLOW4 「할말이없다 휴」 출처 정정(SYNTHETIC → ACTUAL). A·B 코드 변경 0. FLOW6 에 GF-53 연결."
+  },
+  {
+   "at": "2026-09-25",
+   "reason": "실제 AI 결과가 나오기 전(실AI 0회) Golden 판정 기준(golden-specs.json · 20 spec) 추가·고정. A·B·입력 변경 0.",
+   "specs_to": "380d6fb38fa0960ea83ae722e03061e2e503016ad0a51cc935a8cdb3c889e319"
   }
- ]
+ ],
+ "specs": {
+  "file": "product/spike/ab-20260925/golden-specs.json",
+  "sha256": "380d6fb38fa0960ea83ae722e03061e2e503016ad0a51cc935a8cdb3c889e319"
+ }
 }

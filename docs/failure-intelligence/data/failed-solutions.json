@@ -11,7 +11,12 @@
    "now": "v14 에서 삭제",
    "related": [
     "GF-12"
-   ]
+   ],
+   "why_chosen": "사용자 말을 인용해 이어짐을 보이려고",
+   "implementation": "서버 고정 대체 문장이 14자 이하 인용을 질문 문장에 삽입",
+   "improved": "긴 답 통째 붙이기는 사라짐",
+   "broke_normal": "구절 인용이 조사 자리에서 깨짐",
+   "reuse_condition": "다시 쓰지 않음(인용은 「\"…\"라고 하셨죠.」 한 줄 안에서만)"
   },
   {
    "id": "FS-02",
@@ -22,7 +27,12 @@
    "now": "v14.4 에서 삭제",
    "related": [
     "GF-13"
-   ]
+   ],
+   "why_chosen": "무거운 질문 대신 가벼운 질문을 확실히 내려고",
+   "implementation": "AI 실패·말투 검사 탈락 시 주제별 고정 질문",
+   "improved": "깨진 문장은 줄어듦",
+   "broke_normal": "앞 말과 무관한 질문(방향이탈)",
+   "reuse_condition": "다시 쓰지 않음(고정 질문 0 원칙)"
   },
   {
    "id": "FS-03",
@@ -34,7 +44,12 @@
    "related": [
     "GF-14",
     "GF-05"
-   ]
+   ],
+   "why_chosen": "되묻기를 답으로 저장하지 않으려고",
+   "implementation": "META_PATTERNS 정규식 확장 · 짧은 물음표 규칙",
+   "improved": "「딥하네」 등은 잡힘",
+   "broke_normal": "「취미생활?」·「ai가 오타기 날수도 있어?」를 되묻기로 강제(GF-05·GF-53)",
+   "reuse_condition": "문자열 강제 없이 모델 판단 + 실AI 검증 뒤에만"
   },
   {
    "id": "FS-04",
@@ -46,7 +61,12 @@
    "related": [
     "GF-01",
     "GF-07"
-   ]
+   ],
+   "why_chosen": "같은 질문 반복을 막으려고",
+   "implementation": "글자쌍 유사도 sim>0.6·overlap>0.7",
+   "improved": "글자까지 비슷한 반복은 막음",
+   "broke_normal": "같은 뜻 다른 표현은 통과 · 정상 후보 탈락 가능",
+   "reuse_condition": "단독 사용 금지 — 뜻 비교(의도)와 실AI 검증 필요"
   },
   {
    "id": "FS-05",
@@ -57,7 +77,12 @@
    "now": "v27 운영 잔존",
    "related": [
     "GF-02"
-   ]
+   ],
+   "why_chosen": "원문과 무관한 질문을 막으려고",
+   "implementation": "단서가 원문 안에 글자 그대로 있는지 검사",
+   "improved": "근거 없는 질문 일부 차단",
+   "broke_normal": "정상 후보 전부 탈락(질문 생성 실패)",
+   "reuse_condition": "글자 일치 검사 금지"
   },
   {
    "id": "FS-06",
@@ -68,7 +93,12 @@
    "now": "v27 운영 잔존 · B 는 1번 더 → 반응만",
    "related": [
     "GF-03"
-   ]
+   ],
+   "why_chosen": "모델이 스스로 반복이라 인정한 질문을 버리려고",
+   "implementation": "self_flag 표시 즉시 탈락",
+   "improved": "자기 인정 반복은 막음",
+   "broke_normal": "불만 턴에서 후보 전멸",
+   "reuse_condition": "즉시 탈락 대신 1번 더 → 질문 없이 반응"
   },
   {
    "id": "FS-07",
@@ -79,7 +109,12 @@
    "now": "v16 에서 경로 교체",
    "related": [
     "GF-10"
-   ]
+   ],
+   "why_chosen": "새 주제로 넘어갈 때 다리를 두려고",
+   "implementation": "ack 필수 + basis 글자 인용 확인",
+   "improved": "—",
+   "broke_normal": "첫 줄이 조용히 지워져 후보 9개 전멸",
+   "reuse_condition": "다시 쓰지 않음"
   },
   {
    "id": "FS-08",
@@ -91,7 +126,12 @@
    "related": [
     "GF-10",
     "GF-08"
-   ]
+   ],
+   "why_chosen": "FS-07 의 과잉 탈락을 풀려고",
+   "implementation": "ack 가 방금 답 낱말을 담으면 인정",
+   "improved": "질문 생성 실패 감소",
+   "broke_normal": "받아 주는 첫 줄만 있으면 점프도 통과",
+   "reuse_condition": "다시 쓰지 않음"
   },
   {
    "id": "FS-09",
@@ -103,7 +143,12 @@
    "related": [
     "GF-08",
     "GF-10"
-   ]
+   ],
+   "why_chosen": "짧은 답에서 막히지 않으려고",
+   "implementation": "12자 이하 → 새 갈래 + 주제 칸 순서",
+   "improved": "—",
+   "broke_normal": "방금 말을 버리고 주제 점프",
+   "reuse_condition": "다시 쓰지 않음(숨은 목차 금지)"
   },
   {
    "id": "FS-10",
@@ -114,7 +159,12 @@
    "now": "v15.1 에서 축소",
    "related": [
     "GF-18"
-   ]
+   ],
+   "why_chosen": "불만·지친 말을 답으로 저장하지 않으려고",
+   "implementation": "넓은 낱말 규칙",
+   "improved": "불만 일부 차단",
+   "broke_normal": "실사용 말투 답 14/16 오판",
+   "reuse_condition": "규칙은 대화 자체를 가리키는 분명한 말만"
   },
   {
    "id": "FS-11",
@@ -125,7 +175,12 @@
    "now": "v16 에서 한 턴 1~2회",
    "related": [
     "GF-11"
-   ]
+   ],
+   "why_chosen": "엉뚱한 질문을 여러 판정으로 막으려고",
+   "implementation": "연결·목적·톤·정보·거절 판정 LLM 다단",
+   "improved": "—",
+   "broke_normal": "턴 16.2초·11.9초 · 판정끼리 충돌",
+   "reuse_condition": "한 턴 호출 수 상한(1~2) 안에서만"
   },
   {
    "id": "FS-12",
@@ -136,7 +191,12 @@
    "now": "Agent v1 에서 제거",
    "related": [
     "GF-11"
-   ]
+   ],
+   "why_chosen": "사용자가 다시 누르지 않게",
+   "implementation": "질문 실패 뒤 자동 재요청",
+   "improved": "—",
+   "broke_normal": "같은 실패 반복 · 비용 두 배",
+   "reuse_condition": "다시 쓰지 않음"
   },
   {
    "id": "FS-13",
@@ -147,7 +207,12 @@
    "now": "Replay(실제 문장)·실AI 하네스로 보강 중",
    "related": [
     "GF-15"
-   ]
+   ],
+   "why_chosen": "빠르게 배포하려고",
+   "implementation": "가짜 AI 검사 통과를 배포 근거로",
+   "improved": "—",
+   "broke_normal": "첫 실제 입력 실패",
+   "reuse_condition": "가짜 검사는 구조 확인용으로만 · 실AI/실제 문장 재생 필수"
   },
   {
    "id": "FS-14",
@@ -159,7 +224,12 @@
    "related": [
     "GF-18",
     "GF-11"
-   ]
+   ],
+   "why_chosen": "규칙 오판을 줄이려고",
+   "implementation": "애매하면 AI 분류, 기본값 answer",
+   "improved": "정상 답 저장 회복",
+   "broke_normal": "되물음을 답으로 저장",
+   "reuse_condition": "기본값을 한쪽으로 두지 않음 — 모델 판단 + 실AI 검증"
   },
   {
    "id": "FS-15",
@@ -171,7 +241,12 @@
    "related": [
     "GF-25",
     "GF-44"
-   ]
+   ],
+   "why_chosen": "정정무시를 고치려고",
+   "implementation": "v34 정정 반영 수정(한 곳만)",
+   "improved": "—",
+   "broke_normal": "막다른 길 2→5",
+   "reuse_condition": "같은 모양 코드 전수 수정 후에만"
   },
   {
    "id": "FS-16",
@@ -182,7 +257,12 @@
    "now": "해석 단위 차단으로 교체(31a9091)",
    "related": [
     "GF-47"
-   ]
+   ],
+   "why_chosen": "거절한 뜻이 다시 나오지 않게",
+   "implementation": "거절 문장을 낱말로 쪼개 금지",
+   "improved": "—",
+   "broke_normal": "사용자 자신의 낱말 금지",
+   "reuse_condition": "해석 단위로만 차단"
   },
   {
    "id": "FS-17",
@@ -194,7 +274,12 @@
    "related": [
     "GF-22",
     "GF-24"
-   ]
+   ],
+   "why_chosen": "같은 뜻 반복을 막으려고",
+   "implementation": "의도 태그 12종 + 대화 전체 비교",
+   "improved": "초반 반복 감소",
+   "broke_normal": "태그 소진 → 막다른 길",
+   "reuse_condition": "비교 범위·빠져나갈 문 필요 — B-1.0 도 같은 모양(주의)"
   },
   {
    "id": "FS-18",
@@ -205,7 +290,12 @@
    "now": "anchor 길이 제한(옛 흐름)",
    "related": [
     "GF-22"
-   ]
+   ],
+   "why_chosen": "공감이 원문과 이어지게",
+   "implementation": "ack 에 anchor 글자 그대로 강제",
+   "improved": "—",
+   "broke_normal": "사용자 말 따라 하기",
+   "reuse_condition": "다시 쓰지 않음"
   },
   {
    "id": "FS-19",
@@ -216,7 +306,12 @@
    "now": "Action Router(옛 흐름)",
    "related": [
     "GF-22"
-   ]
+   ],
+   "why_chosen": "부담 표현을 잡으려고",
+   "implementation": "BURDEN 정규식",
+   "improved": "—",
+   "broke_normal": "AI 에게 한 질문을 부담 피드백으로",
+   "reuse_condition": "다시 쓰지 않음"
   },
   {
    "id": "FS-20",
@@ -228,7 +323,12 @@
    "related": [
     "GF-36",
     "GF-02"
-   ]
+   ],
+   "why_chosen": "근거 없는 질문을 막으려고",
+   "implementation": "근거 인용 글자 일치(띄어쓰기 포함)",
+   "improved": "—",
+   "broke_normal": "띄어쓰기 차이로 전멸 → 생뚱맞은 구제",
+   "reuse_condition": "글자 일치 검사 금지(v16 clue 로 재등장한 전례)"
   },
   {
    "id": "FS-21",
@@ -240,7 +340,12 @@
    "related": [
     "GF-22",
     "GF-44"
-   ]
+   ],
+   "why_chosen": "시도를 제한하려고",
+   "implementation": "시도 2회·완화 없음·탈출구가 예산 밖",
+   "improved": "—",
+   "broke_normal": "12초+ 뒤 실패 · NO_CANDIDATE",
+   "reuse_condition": "탈출구는 항상 시간 예산 안"
   }
  ]
 }

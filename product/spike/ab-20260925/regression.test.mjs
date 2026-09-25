@@ -25,6 +25,7 @@ test('사전 고정: A(v27)·B(B-1.0)·Golden 입력 지문이 FROZEN_INPUTS 와
   assert.equal(frozen.a.sha256.slice(0, 8), '1aab6423', 'A 는 운영 v27 승인 지문이어야 한다');
   assert.equal(sha(frozen.b.file), frozen.b.sha256, 'B 가 사전 고정 뒤 바뀌었다 — 바꿨다면 이유를 기록하고 FROZEN_INPUTS 를 함께 갱신');
   assert.equal(sha(frozen.golden.file), frozen.golden.sha256, 'Golden 입력이 바뀌었다');
+  assert.equal(sha(frozen.specs.file), frozen.specs.sha256, 'Golden 판정 기준이 바뀌었다');
 });
 
 test('Golden Failure Set: ACTUAL 은 근거가 있고 실패 ID 는 Library 에 있다', () => {
@@ -64,6 +65,25 @@ test('Replay — B-1.0 한계: 의도 이름이 같으면 막고, 다르면 못 
   const r = replay();
   assert.deepEqual(r.bSame.map((x) => x.decision), ['pass', 'answered_intent', 'answered_intent', 'answered_intent']);
   assert.deepEqual(r.bDiff.map((x) => x.decision), ['pass', 'pass', 'pass', 'pass']);
+});
+
+test('Golden 판정 기준: 모든 spec 의 Flow·턴이 고정 입력에 있고, 실패 ID 는 Library 에 있다 · 판정 종류는 정해진 것만', async () => {
+  const specs = JSON.parse(readFileSync(path.join(HERE, 'golden-specs.json'), 'utf8'));
+  for (const s of specs.specs) {
+    const f = golden.flows.find((x) => x.id === s.flow); assert.ok(f, s.flow);
+    for (const t of s.turns) assert.ok(t >= 1 && t <= f.steps.length, `${s.fail_id} ${s.flow}#${t}`);
+    assert.match(library, new RegExp(`^## ${s.fail_id} `, 'm'), s.fail_id);
+    for (const c of s.checks) assert.ok(specs.check_types[c], c);
+    assert.ok(s.expected && s.forbidden && s.source, s.fail_id);
+  }
+  const { checkRow } = await import('./harness-lib.mjs');
+  const fixedLines = specs.fixed_lines;
+  assert.equal(checkRow({ saved: true }, 'saved', { real: true, fixedLines }), 'PASS');
+  assert.equal(checkRow({ saved: true }, 'not_saved', { real: true, fixedLines }), 'FAIL');
+  assert.equal(checkRow({ error: 'QUESTION_FAILED' }, 'no_error', { real: true, fixedLines }), 'FAIL');
+  assert.equal(checkRow({ reply: '' }, 'reply_present', { real: true, fixedLines }), 'FAIL');
+  assert.equal(checkRow({ reply: '저는 DO IT의 AI예요. 답을 듣고 다음 질문을 골라요.' }, 'no_fixed_line', { real: true, fixedLines }), 'FAIL');
+  assert.equal(checkRow({ reply: '' }, 'reply_present', { real: false, fixedLines }), 'N/A(MOCK)', 'MOCK 에서는 모델 층을 판정하지 않는다');
 });
 
 test('블라인드 집계: 대표가 고른 것만 세고, 열쇠로 A/B 를 되돌린다', () => {

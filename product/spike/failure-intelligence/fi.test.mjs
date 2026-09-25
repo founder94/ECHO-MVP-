@@ -1,7 +1,7 @@
 // Failure Intelligence 자산 검사(AI 호출 0). 실행: node --test product/spike/failure-intelligence/fi.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { load, validate, renderLibrary, renderSolutions, renderGraph, DOCS } from './fi-lib.mjs';
+import { load, validate, renderLibrary, renderSolutions, renderGraph, renderLedger, DOCS } from './fi-lib.mjs';
 import { skeleton, compileWithModel, specToGoldenFlow, SPEC_STATUS } from './failure-compiler.mjs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,6 +16,7 @@ test('생성 문서가 데이터와 같다(손으로 고친 .md 없음)', () => 
   assert.equal(readFileSync(path.join(DOCS, 'FAILURE_LIBRARY.md'), 'utf8'), renderLibrary(d));
   assert.equal(readFileSync(path.join(DOCS, 'FAILED_SOLUTIONS_ARCHIVE.md'), 'utf8'), renderSolutions(d));
   assert.equal(readFileSync(path.join(DOCS, 'FAILURE_GRAPH.md'), 'utf8'), renderGraph(d));
+  assert.equal(readFileSync(path.join(DOCS, 'ACTION_LEDGER.md'), 'utf8'), renderLedger(d));
 });
 
 test('증거 없는 승격 금지 — 실AI·실사용자 근거 없이 REAL_AI_VERIFIED·USER_VERIFIED·VERIFIED 불가', () => {
@@ -30,6 +31,15 @@ test('증거 없는 승격 금지 — 실AI·실사용자 근거 없이 REAL_AI_
   assert.ok(validate(c4).some((e) => /증거 PROBABLY/.test(e)));
   const c5 = structuredClone(d); c5.failures[0].refs = ['docs/없는파일.md'];
   assert.ok(validate(c5).some((e) => /근거 파일 없음/.test(e)));
+});
+
+test('행동 장부 — 대표가 완료한 키 발급·전달은 COMPLETED, 폐기·새 발급 요구 금지는 DECIDED, 채팅 Secret 실행은 BLOCKED', () => {
+  const st = (id) => d.ledger.find((a) => a.id === id)?.state;
+  assert.equal(st('A-01'), 'COMPLETED'); assert.equal(st('A-02'), 'COMPLETED'); assert.equal(st('A-03'), 'DECIDED'); assert.equal(st('B-01'), 'BLOCKED'); assert.equal(st('B-02'), 'BLOCKED');
+  const c = structuredClone(d); c.ledger[0].state = 'DONE';
+  assert.ok(validate(c).some((e) => /상태 DONE/.test(e)));
+  const c2 = structuredClone(d); const g = c2.failures.find((f) => f.origin === 'FOUNDER_STATEMENT'); g.evidence_level = 'ACTUAL';
+  assert.ok(validate(c2).some((e) => /대표 진술만으로는 ACTUAL/.test(e)));
 });
 
 test('현재 VERIFIED·실AI 검증 = 0 (실AI 가 막혀 있다)', () => {

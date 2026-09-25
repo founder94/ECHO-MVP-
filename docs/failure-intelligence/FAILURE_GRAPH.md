@@ -37,6 +37,10 @@ graph LR
   GF-41["GF-41 대화에 끝이 없음"]
   GF-34["GF-34 주제별 고정 질문이 앞 답과 무관하게 나"]
   GF-33["GF-33 다음 질문 4번 중 3번이 고정 안전문장"]
+  GF-58["GF-58 대표를 AI 사이 복붙·승인 중계자로 씀"]
+  GF-55["GF-55 안 된다고 기록된 경로(환경 Edit)를"]
+  GF-54["GF-54 대표가 이미 한 행동(키 발급·전달)을 "]
+  GF-62["GF-62 [B 위험] 답한 의도가 쌓이면 질문 후"]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -60,6 +64,9 @@ graph LR
   GF-09 -->|REGRESSION_OF| GF-41
   GF-34 -->|REGRESSION_OF| GF-13
   GF-33 -->|BROKEN_BY| FS-02
+  GF-58 -->|CAUSES| GF-13
+  GF-55 -.->|CONTRIBUTES_TO| GF-54
+  GF-62 -.->|REGRESSION_OF| GF-22
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -87,6 +94,9 @@ graph LR
 | GF-09 | REGRESSION_OF | GF-41 | CODE | 「다섯 답 = 끝」(GF-41 대책)이 「모르겠어요」도 세는 계약 불일치를 남김 | `CLAUDE.md` |
 | GF-34 | REGRESSION_OF | GF-13 | ACTUAL | 무거운 질문 대책(쉬운 고정 질문 FS-02)이 앞뒤 안 맞는 고정 질문을 낳음 | `CLAUDE.md` |
 | GF-33 | BROKEN_BY | FS-02 | CODE | 고정 안전문장 구제 | `docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts` |
+| GF-58 | CAUSES | GF-13 | ACTUAL | 「승인 주세요」로 턴 종료 → 고친 v14 미배포 → 대표가 옛 문장을 다시 봄(CLAUDE.md 자기 기록) | `CLAUDE.md` |
+| GF-55 | CONTRIBUTES_TO | GF-54 | HYPOTHESIS | 막힌 경로를 다시 안내하면서 새 키 요구가 함께 나감 | `docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md` |
+| GF-62 | REGRESSION_OF | GF-22 | HYPOTHESIS | B 의도 장부가 옛 흐름 의도 태그 소진(FS-17)과 같은 모양 — 실AI 전 미확인 | `docs/failure-intelligence/FAILED_SOLUTIONS_ARCHIVE.md` |
 
-- 관계 23개 중 HYPOTHESIS 6개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 26개 중 HYPOTHESIS 8개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).

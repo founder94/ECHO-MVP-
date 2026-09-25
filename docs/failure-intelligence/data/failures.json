@@ -47,7 +47,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md",
     "docs/failure-intelligence/REPLAY_결과_20260925.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-02",
@@ -92,7 +95,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md",
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-03",
@@ -137,7 +143,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-04",
@@ -180,7 +189,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-05",
@@ -225,7 +237,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md",
     "docs/failure-intelligence/REPLAY_결과_20260925.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-06",
@@ -268,7 +283,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-07",
@@ -312,7 +330,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-08",
@@ -358,7 +379,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-09",
@@ -400,7 +424,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/ECHO_MASTER_CODE_최종대조_v15_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-10",
@@ -444,7 +471,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-11",
@@ -491,7 +521,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-12",
@@ -535,7 +568,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-13",
@@ -580,7 +616,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md",
     "CLAUDE.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-14",
@@ -626,7 +665,10 @@
    "refs": [
     "CLAUDE.md",
     "docs/claude-final-review-20260916/PATCH-20260924-release-1.0/README_대표용_출시1.0_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-15",
@@ -670,7 +712,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-16",
@@ -710,7 +755,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/ECHO_MASTER_CODE_최종대조_v15_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-17",
@@ -750,7 +798,10 @@
    "golden_flows": [],
    "refs": [
     "CLAUDE.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-18",
@@ -792,7 +843,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/ECHO_Conversation_Orchestrator_대조_v15.1_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-19",
@@ -832,7 +886,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-20",
@@ -872,7 +929,10 @@
    "golden_flows": [],
    "refs": [
     "CLAUDE.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-21",
@@ -914,7 +974,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/ECHO_MASTER_CODE_최종대조_v15_20260924.md",
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/LEVEL2_연습실행_가짜AI_결과아님.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-22",
@@ -965,7 +1028,10 @@
    "refs": [
     "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md",
     "docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-23",
@@ -1008,7 +1074,10 @@
    "refs": [
     "docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md",
     "docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-24",
@@ -1053,7 +1122,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-25",
@@ -1103,7 +1175,10 @@
     "docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md",
     "git:6ed213d",
     "git:345159f"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-26",
@@ -1149,7 +1224,10 @@
     "docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md",
     "docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md",
     "git:dd1ec6a"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-27",
@@ -1191,7 +1269,10 @@
    "refs": [
     "docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md",
     "git:9bb9307"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-28",
@@ -1234,7 +1315,10 @@
    "refs": [
     "docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md",
     "docs/claude-final-review-20260916/FINAL100V4_REPORT_20260920.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-29",
@@ -1278,7 +1362,10 @@
    "refs": [
     "docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md",
     "docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-30",
@@ -1320,7 +1407,10 @@
     "docs/claude-final-review-20260916/CLAUDE_ARCHITECTURE_OPINION.md",
     "docs/claude-final-review-20260916/TEST_REPORT.md",
     "docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-31",
@@ -1362,7 +1452,10 @@
    "refs": [
     "docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md",
     "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-32",
@@ -1404,7 +1497,10 @@
    "refs": [
     "docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md",
     "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-33",
@@ -1450,15 +1546,18 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-34",
    "title": "주제별 고정 질문이 앞 답과 무관하게 나감 · 「왜 이런 걸 물어봐?」가 답으로 저장",
    "family": "F-DRIFT",
    "date": "2026-09-24(운영 v23)",
-   "origin": "FOUNDER_STATEMENT",
-   "origin_note": "대표 지적 + 코드 확인 · 예시 대화는 가짜 AI 재현(SYNTHETIC)",
+   "origin": "CODE",
+   "origin_note": "대표 지적 + 코드 확인 · 예시 대화는 가짜 AI 재현(SYNTHETIC) — 코드로 존재 확인(대표 진술 + 코드), 2026-09-25 출처 표시 정정",
    "situation": "DO IT 대화",
    "user_text": "「근데 왜 이런 걸 물어봐?」(예시)",
    "ai_behavior": "「알겠어요. 어떤 사람한테 끌려요?」 같은 주제별 고정 문장 · GENERIC_RESCUE 「어떤 사람이면 편하게 느껴지세요?」 · 가짜 AI 재현: 「잘 웃는 사람」 → 「쉬는 날에는 무엇을 하세요?」",
@@ -1494,7 +1593,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-conversation-continuity/README_대화연결_P0_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-35",
@@ -1534,7 +1636,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-ai-conversation-v15/LEGACY_ISSUES.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-36",
@@ -1579,7 +1684,10 @@
    ],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-37",
@@ -1622,7 +1730,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_V13_FIRST_CONVERSATION_REPORT_20260921.md",
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-38",
@@ -1664,7 +1775,10 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_V13_FIRST_CONVERSATION_REPORT_20260921.md",
     "CLAUDE.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-39",
@@ -1707,15 +1821,18 @@
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_V13_FIRST_CONVERSATION_REPORT_20260921.md",
     "CLAUDE.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "대표 실기기 확인 대기"
   },
   {
    "id": "GF-40",
    "title": "기계 같은 말투 · 과한 공감 · 「맞아요」 버튼 피로와 입력 잠김",
    "family": "F-FLOW",
    "date": "2026-09-22",
-   "origin": "FOUNDER_STATEMENT",
-   "origin_note": "대표 지적 + 코드 확인(입력 잠김)",
+   "origin": "CODE",
+   "origin_note": "대표 지적 + 코드 확인(입력 잠김) — 코드로 존재 확인(대표 진술 + 코드), 2026-09-25 출처 표시 정정",
    "situation": "DO IT 대화",
    "user_text": "—",
    "ai_behavior": "「그렇군요」만 반복하거나 공감이 과함 · 확인 카드가 뜨면 입력창이 완전히 잠겨 매번 버튼을 눌러야 함",
@@ -1751,7 +1868,10 @@
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md",
     "CLAUDE.md",
     "git:3181c16"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "대표 실기기 확인 대기"
   },
   {
    "id": "GF-41",
@@ -1792,7 +1912,10 @@
    "refs": [
     "CLAUDE.md",
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_PM_SPEC_5Q_20260922.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "대표 실기기 확인 대기"
   },
   {
    "id": "GF-42",
@@ -1833,7 +1956,10 @@
    "golden_flows": [],
    "refs": [
     "docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-43",
@@ -1873,7 +1999,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/evidence/foreign_deploy_gsq_v47_20260920/README.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-44",
@@ -1918,7 +2047,10 @@
     "docs/claude-final-review-20260916/CLAUDE_ARCHITECTURE_OPINION.md",
     "docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md",
     "git:5aabb41"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-45",
@@ -1960,7 +2092,10 @@
    "refs": [
     "git:0159908",
     "git:af95398"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-46",
@@ -2004,7 +2139,10 @@
    "refs": [
     "docs/claude-final-review-20260916/FINAL100V4_REPORT_20260920.md",
     "git:481b7ce"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-47",
@@ -2047,7 +2185,10 @@
    "golden_flows": [],
    "refs": [
     "git:31a9091"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-48",
@@ -2087,7 +2228,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-release-1.0/ECHO_출시전_정밀검수_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-49",
@@ -2127,7 +2271,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260924-release-1.0/ECHO_출시전_정밀검수_20260924.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-50",
@@ -2168,7 +2315,10 @@
    "refs": [
     "docs/claude-final-review-20260916/CLAUDE_ARCHITECTURE_OPINION.md",
     "docs/claude-final-review-20260916/TEST_REPORT.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-51",
@@ -2208,7 +2358,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md"
-   ]
+   ],
+   "evidence_level": "CANDIDATE",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-52",
@@ -2249,7 +2402,10 @@
    "golden_flows": [],
    "refs": [
     "docs/claude-final-review-20260916/FINAL100V4_REPORT_20260920.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   },
   {
    "id": "GF-53",
@@ -2295,7 +2451,411 @@
    "refs": [
     "docs/failure-intelligence/REPLAY_결과_20260925.md",
     "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md"
-   ]
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-54",
+   "title": "대표가 이미 한 행동(키 발급·전달)을 다시 요구 — 키 폐기·새 발급 반복",
+   "family": "F-ADVISOR",
+   "date": "2026-09-25",
+   "origin": "ACTUAL",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "ACTUAL",
+   "situation": "실AI 실행이 환경 보안 장치에 막힌 뒤",
+   "user_text": "—",
+   "ai_behavior": "「지금 붙여 넣으신 키는 지워 주세요」·「새 키를 만들고」를 두 번 요구",
+   "expected": "COMPLETED·DECIDED 상태를 먼저 대조하고, 막힌 것은 다른 합법적 경로로",
+   "types": [
+    "완료 행동 재요구"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "행동 상태(완료·결정·막힘·대기) 대조 절차가 없었음",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "대표가 헌장 L항에 「Revoke 반복 요구 금지」를 따로 적어야 했음",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "세션 기록 2회",
+   "solution_attempts": [],
+   "solution_candidates": "행동 상태 장부(ACTION_LEDGER) — 다음 행동 전에 대조",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "MITIGATED(장부 도입 · 효과 미검증)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md",
+    "docs/failure-intelligence/data/action-ledger.json"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-55",
+   "title": "안 된다고 기록된 경로(환경 Edit)를 다시 1순위로 안내",
+   "family": "F-ADVISOR",
+   "date": "2026-09-25",
+   "origin": "ACTUAL",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "ACTUAL",
+   "situation": "실AI 키 넣는 방법 안내",
+   "user_text": "—",
+   "ai_behavior": "CLAUDE.md 에 「눌리지 않았다」고 기록된 경로를 세 번 안내(단서만 붙임)",
+   "expected": "막힌 경로는 BLOCKED 로 두고 다른 경로 검토",
+   "types": [
+    "막힌 경로 반복 안내"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "기록을 읽고도 대안 탐색을 하지 않음",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "이미 해 본 방법을 다시 받음",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "세션 기록 3회",
+   "solution_attempts": [],
+   "solution_candidates": "BLOCKED 장부 + 대안 경로(GitHub Actions 저장소 Secret — 이번 묶음에서 준비)",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "MITIGATED(대안 준비 · 대표 승인 대기)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md",
+    "CLAUDE.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-56",
+   "title": "비밀 키 취급 안내가 오락가락",
+   "family": "F-ADVISOR",
+   "date": "2026-09-25",
+   "origin": "ACTUAL",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "ACTUAL",
+   "situation": "실AI 키",
+   "user_text": "—",
+   "ai_behavior": "「채팅에 붙이지 마세요」 → 붙이자 실행 시도 → 「지워 주세요」",
+   "expected": "처음부터 한 가지 원칙: 키는 채팅이 아닌 비밀 저장소(환경·GitHub Secret)로",
+   "types": [
+    "보안 안내 불일치"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "원칙과 행동 불일치",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "어느 안내를 따라야 할지 혼란",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "세션 기록",
+   "solution_attempts": [],
+   "solution_candidates": "비밀 저장소 경로 하나로 통일(GitHub Secret)",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-57",
+   "title": "API 비용 상태를 먼저 알리지 못함",
+   "family": "F-ADVISOR",
+   "date": "2026-09-25(대표 확인)",
+   "origin": "FOUNDER_STATEMENT",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "CANDIDATE",
+   "situation": "실험·운영 중 OpenAI 사용",
+   "user_text": "—",
+   "ai_behavior": "대표가 사용량 화면에서 비용 발생을 먼저 발견 · 내 보고는 「비용 계산 안 함」만",
+   "expected": "실험마다 호출·토큰·(공식 단가가 있으면) 비용을 기본 보고",
+   "types": [
+    "비용 가시성 부족"
+   ],
+   "layers": [
+    "Evaluation",
+    "Infrastructure"
+   ],
+   "layer_note": "비용 보고 칸이 없었음",
+   "cause_confidence": "MIXED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "API 사용 비용 발생(금액 UNKNOWN · 청구 여부 미확인)"
+   },
+   "reproduction": "대표 진술",
+   "solution_attempts": [],
+   "solution_candidates": "하네스에 api_cost_usd 칸(공식 단가 입력 시) — 이번 묶음 추가",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "MITIGATED(칸 추가 · 단가 미입력)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-58",
+   "title": "대표를 AI 사이 복붙·승인 중계자로 씀",
+   "family": "F-ADVISOR",
+   "date": "2026-09-22 ~ 2026-09-25",
+   "origin": "ACTUAL",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "ACTUAL",
+   "situation": "배포·검사·보고",
+   "user_text": "—",
+   "ai_behavior": "「승인 주세요」로 턴 종료 → 수정본 미배포 → 대표가 옛 문장으로 재검사 · AI 사이 보고 전달 반복",
+   "expected": "포괄 승인 범위는 스스로 끝까지 · 대표 호출은 STOP·외부 행동·최종 결과만",
+   "types": [
+    "대표 중계 과부하"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "자기 기록(CLAUDE.md)으로 확인",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "대표 「관리 피로」(헌장)",
+    "mental": "대표 「AI 사이의 복붙 전달로 발생하는 관리 피로」",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "자기 기록",
+   "solution_attempts": [],
+   "solution_candidates": "헌장 C·M·Q·R 항 적용",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "MITIGATED(헌장 적용 중)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md",
+    "CLAUDE.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-59",
+   "title": "틀린 보고: 「정정무시·미확정 사실화 실제 사례 없음」",
+   "family": "F-ADVISOR",
+   "date": "2026-09-25",
+   "origin": "ACTUAL",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "ACTUAL",
+   "situation": "PHASE 1 최종 보고",
+   "user_text": "—",
+   "ai_behavior": "전수조사 없이 「없다」고 단정 · 「할말이없다 휴」를 예문으로 표시",
+   "expected": "「찾지 못함(조사 범위: …)」으로 범위를 밝힘",
+   "types": [
+    "잘못된 보고"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "조사 범위를 밝히지 않은 단정",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "같은 날 전수조사로 반증",
+   "solution_attempts": [],
+   "solution_candidates": "보고에 조사 범위 명시 · 전수조사(배치 01)",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "NONE",
+   "status": "RESOLVED",
+   "status_note": "RESOLVED(기록 정정)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/evidence/ADVISOR_SESSION_20260925.md",
+    "docs/failure-intelligence/RD_BATCH01_보고_20260925.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-60",
+   "title": "하위 수정에 매몰돼 구조 대안(최소 구조·모델 비교)을 늦게 검토",
+   "family": "F-ADVISOR",
+   "date": "2026-09-22 ~ 2026-09-24",
+   "origin": "FOUNDER_STATEMENT",
+   "origin_note": "AI 조언자(Claude) 실패 — 증거 파일 참조",
+   "evidence_level": "CANDIDATE",
+   "situation": "대화 품질 수정 v13.x ~ v15.2",
+   "user_text": "—",
+   "ai_behavior": "검사·규칙 패치를 이어 붙이다 FAIL #2 뒤에야 한 턴 구조(v16)·최소 B 제안",
+   "expected": "실패 두 번째에 상위 대안 검토",
+   "types": [
+    "상위 대안 검토 지연"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "인과 미확정",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "v13.1(09-22) ~ v16(09-24) 사이 반복 배포 — 정확한 시간 UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "패치 이력(FS-01~09)",
+   "solution_attempts": [],
+   "solution_candidates": "실패 Family 반복 시 구조 대안 검토를 절차에 넣음",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "해당 없음(조언자 행동)",
+   "defense_level": "CANDIDATE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/FAILED_SOLUTIONS_ARCHIVE.md",
+    "docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-61",
+   "title": "[B 위험] 같은 뜻에 다른 의도 이름이 붙으면 반복을 못 막음",
+   "family": "F-REPEAT",
+   "date": "2026-09-25(재생)",
+   "origin": "CODE",
+   "origin_note": "B-1.0 서버 결정을 실제 문장으로 재생(AI 호출 0) — 실제 AI 관측 아님",
+   "evidence_level": "HYPOTHESIS",
+   "situation": "B-1.0 의도 장부",
+   "user_text": "—",
+   "ai_behavior": "운영 실제 질문 4개에 다른 이름을 붙이면 0/3 차단",
+   "expected": "같은 뜻 재질문 차단",
+   "types": [
+    "질문의도 반복"
+   ],
+   "layers": [
+    "Orchestration",
+    "Model"
+   ],
+   "layer_note": "의도 비교가 이름 정규화 일치뿐",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REPLAY] 메커니즘만 재현",
+   "solution_attempts": [],
+   "solution_candidates": "실AI A/B 로 먼저 측정",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "regression.test.mjs(B 한계 특성 검사)",
+   "real_ai": "BLOCKED_BY_ENVIRONMENT",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(B 후보 위험 · 실AI 전 판정 불가)",
+   "golden_flows": [
+    "FLOW1"
+   ],
+   "refs": [
+    "docs/failure-intelligence/REPLAY_결과_20260925.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-62",
+   "title": "[B 위험] 답한 의도가 쌓이면 질문 후보가 소진될 수 있음",
+   "family": "F-REPEAT",
+   "date": "2026-09-25(재생)",
+   "origin": "CODE",
+   "origin_note": "B-1.0 서버 결정을 실제 문장으로 재생(AI 호출 0) — 실제 AI 관측 아님",
+   "evidence_level": "HYPOTHESIS",
+   "situation": "B-1.0 의도 장부",
+   "user_text": "—",
+   "ai_behavior": "대화 전체 answered_intents 와 비교(옛 흐름 FS-17 과 같은 모양) · 막히면 반응만",
+   "expected": "뒤로 가도 이어지는 질문",
+   "types": [
+    "질문의도 반복"
+   ],
+   "layers": [
+    "Orchestration",
+    "Model"
+   ],
+   "layer_note": "막다른 길은 없으나 질문 감소 가능",
+   "cause_confidence": "HYPOTHESIS",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REPLAY] 메커니즘만 재현",
+   "solution_attempts": [
+    "FS-17"
+   ],
+   "solution_candidates": "실AI A/B 로 먼저 측정",
+   "experiment": "—",
+   "side_effects": "—",
+   "counter_test": "regression.test.mjs(B 한계 특성 검사)",
+   "real_ai": "BLOCKED_BY_ENVIRONMENT",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(B 후보 위험 · 실AI 전 판정 불가)",
+   "golden_flows": [
+    "FLOW1"
+   ],
+   "refs": [
+    "docs/failure-intelligence/REPLAY_결과_20260925.md"
+   ],
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   }
  ]
 }
