@@ -40,6 +40,9 @@
 - 목록이나 B 가 사전 등록과 다르면 실행기가 멈춘다(종료 코드 3).
 - 실행: `product/spike/ab-20260925/run-models.mjs`(Actions mode `model_gate`).
 
+## 3단계 — 실행 결과
+- `MODEL_GATE_RESULT_20260925.md` (Actions run 36108344306 · 사전 등록 일치 · 운영 변경 0).
+
 ## Gate 조건 — 언제 여나
 - P0 블라인드 검수(`evidence/REAL_AB_RUN1_20260925/P0_BLIND_REVIEW_RUN1.md`)에서도 A·B 둘 다 부족하면 연다.
 - 그때 **B-1.0 구조를 그대로 고정하고 모델만 바꾼다.** 구조와 모델을 한 번에 바꾸지 않는다.

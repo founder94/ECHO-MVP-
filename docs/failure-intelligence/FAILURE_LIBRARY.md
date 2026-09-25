@@ -2159,13 +2159,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] 관측 1회 |
+| 실AI 결과 | [REAL run1] 관측 1회 · [REAL MODEL GATE] 글자 같은 질문 반복: 4o-mini 2 · 4.1-mini 2 · 4.1 0 · 4o 0 (구조 결함은 그대로 · 모델에 따라 드러나는 정도가 다름) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(B 후보 결함) |
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | CONTRIBUTES_TO→GF-01(ACTUAL) |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
 
 ## GF-65 [B-1.0] 답·항의·「모르겠어요」를 「지친 말」·문제제기로 과다 분류 → 답 미저장 · 엉뚱한 위로
 
@@ -2192,13 +2192,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] 관측 |
+| 실AI 결과 | [REAL run1] 관측 · [REAL MODEL GATE] 기준 gpt-4o-mini 에서 더 심함(FLOW1 #3~#7 · FLOW5 전부 fatigue) — run1 과 같은 모델·입력인데 달라 실행마다 흔들림 큼. 답 저장 안 함: 4o-mini 7 · 4.1-mini 3 · 4.1 2 · 4o 3 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(B 후보 결함) |
 | Golden Test | FLOW3, FLOW4, FLOW5, FLOW6 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
 
 ## GF-66 [A v27] 정정·거절을 되묻기(ask)로 분류 → 저장 0 · 고정 안내문 · 같은 질문 3번 연속 유지
 
@@ -2258,13 +2258,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 |
+| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | CAUSES→GF-03(ACTUAL) |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
 
 ## GF-68 EXPERIMENT_VARIABLE_NOT_LOCKED — 실AI A/B 전에 운영 A 의 실제 모델·파라미터를 확정하지 않음
 
@@ -2323,13 +2323,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) |
+| 실AI 결과 | [REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기) |
 | Golden Test | FLOW2, FLOW3, FLOW7 |
 | 관련 실패(Graph) | CONTRIBUTES_TO→GF-08(HYPOTHESIS) · CONTRIBUTES_TO→GF-71(HYPOTHESIS) |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
 
 ## GF-70 [B-1.0] 정정·거절 뒤 질문을 버리고 반응만 → 대화가 멈춤(대표 블라인드에서 고정 안내문 A 보다 낮게 평가)
 
@@ -2356,13 +2356,13 @@
 | Mock 결과 | PASS([MOCK] 「질문 없음은 정상」 검사 — 판정 기준 자체가 이 실패를 정상으로 봄) |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드 A 선택 2/2 |
+| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드 A 선택 2/2 · [REAL MODEL GATE] 서버가 질문 버림: 4o-mini 4 · 4.1-mini 1 · 4.1 0 · 4o 0 · 정정·항의 16턴 뒤 질문 있음 7·12·10·6 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(B 후보 결함) |
 | Golden Test | FLOW4 |
 | 관련 실패(Graph) | BROKEN_BY→FS-22(ACTUAL) |
-| 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
+| 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |
 
 ## GF-71 UNNATURAL_TOPIC_JUMP / CONTEXT_DISCONNECTED_QUESTION — 대화 맥락과 관계없이 활동·취미 정보 수집 쪽으로 갑자기 넘어감
 
@@ -2389,10 +2389,10 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 |
+| 실AI 결과 | [REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 · [REAL MODEL GATE] gpt-4.1 은 「편한 친구」 뒤 「어떤 순간에 친구가 있으면 가장 편하다고 느끼세요?」 — 점프 0. 다른 세 모델은 3~5회 |
 | 사용자 결과 | 대표 피드백: 「활동이란는 단어는 삭제하고 서비스 취지에 맞게 적으면 될꺼 같아」(원문) |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(원인 HYPOTHESIS) |
 | Golden Test | FLOW2, FLOW3, FLOW7 |
 | 관련 실패(Graph) | GF-69→CONTRIBUTES_TO(HYPOTHESIS) · GF-08→CONTRIBUTES_TO(ACTUAL) |
-| 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` |
+| 근거 | `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` |

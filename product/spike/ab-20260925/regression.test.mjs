@@ -160,3 +160,17 @@ test('MODEL GATE 실행기: [MOCK] 모델 4개 · 사전 등록 목록과 다르
   const r = spawnSync(process.execPath, [script, '--models', 'gpt-4o-mini,gpt-4.1'], { env: { ...process.env, OPENAI_API_KEY: 'not-a-real-key' } });
   assert.equal(r.status, 3);
 });
+
+test('MODEL GATE 검수표: 옮긴 결과표를 그대로 읽음(4 모델·34턴) · 페이지에 모델 이름 없음 · 봉한 열쇠 17칸 모두 4개 순서', async () => {
+  const { parseModelsMd } = await import('./model-blind.mjs');
+  const E = path.join(HERE, '../../../docs/failure-intelligence/evidence/MODEL_GATE_20260925');
+  const slim = parseModelsMd(readFileSync(path.join(E, 'models-result.md'), 'utf8'));
+  assert.deepEqual(Object.keys(slim), ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o']);
+  for (const m of Object.keys(slim)) assert.equal(slim[m].flat().length, 34);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(E, 'models-slim.json'), 'utf8')), slim);
+  const page = readFileSync(path.join(E, 'model-blind-review.html'), 'utf8');
+  assert.ok(!/gpt-|"order"|"flow"/.test(page), '페이지에 모델 이름·열쇠가 없어야 한다');
+  const key = JSON.parse(Buffer.from(JSON.parse(readFileSync(path.join(E, 'model-blind-key.sealed.json'), 'utf8')).sealed, 'base64').toString('utf8'));
+  assert.equal(key.length, 17);
+  assert.ok(key.every((k) => [...k.order].sort().join() === Object.keys(slim).sort().join()));
+});

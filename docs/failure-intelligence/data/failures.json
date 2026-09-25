@@ -2982,13 +2982,15 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측 1회",
+   "real_ai": "[REAL run1] 관측 1회 · [REAL MODEL GATE] 글자 같은 질문 반복: 4o-mini 2 · 4.1-mini 2 · 4.1 0 · 4o 0 (구조 결함은 그대로 · 모델에 따라 드러나는 정도가 다름)",
    "golden_flows": [
     "FLOW1"
    ],
    "refs": [
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "ACTUAL",
    "solution_attempts": [],
@@ -3031,7 +3033,7 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측",
+   "real_ai": "[REAL run1] 관측 · [REAL MODEL GATE] 기준 gpt-4o-mini 에서 더 심함(FLOW1 #3~#7 · FLOW5 전부 fatigue) — run1 과 같은 모델·입력인데 달라 실행마다 흔들림 큼. 답 저장 안 함: 4o-mini 7 · 4.1-mini 3 · 4.1 2 · 4o 3",
    "golden_flows": [
     "FLOW3",
     "FLOW4",
@@ -3040,7 +3042,9 @@
    ],
    "refs": [
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "ACTUAL",
    "solution_attempts": [],
@@ -3136,14 +3140,16 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음",
    "golden_flows": [
     "FLOW1"
    ],
    "refs": [
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "ACTUAL",
    "solution_attempts": [],
@@ -3232,7 +3238,7 @@
    "experiment": "docs/failure-intelligence/MODEL_GATE_20260925.md",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1)",
+   "real_ai": "[REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님)",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기)",
@@ -3245,7 +3251,9 @@
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
     "docs/failure-intelligence/MODEL_GATE_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "HYPOTHESIS",
    "mock_result": "UNKNOWN",
@@ -3286,7 +3294,7 @@
    "experiment": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측 · 대표 블라인드 A 선택 2/2",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드 A 선택 2/2 · [REAL MODEL GATE] 서버가 질문 버림: 4o-mini 4 · 4.1-mini 1 · 4.1 0 · 4o 0 · 정정·항의 16턴 뒤 질문 있음 7·12·10·6",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(B 후보 결함)",
@@ -3295,7 +3303,9 @@
    ],
    "refs": [
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
-    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "PASS([MOCK] 「질문 없음은 정상」 검사 — 판정 기준 자체가 이 실패를 정상으로 봄)",
@@ -3334,7 +3344,7 @@
    "experiment": "MODEL GATE(B-1.0 고정·모델만 변경)",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1",
+   "real_ai": "[REAL run1] A·B 모두 관측 · 대표 블라인드 「활동」 칸 4개: A 1 · B 2 · 둘 다 별로 1 · [REAL MODEL GATE] gpt-4.1 은 「편한 친구」 뒤 「어떤 순간에 친구가 있으면 가장 편하다고 느끼세요?」 — 점프 0. 다른 세 모델은 3~5회",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(원인 HYPOTHESIS)",
@@ -3346,7 +3356,9 @@
    "refs": [
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/FOUNDER_FEEDBACK_20260925.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
-    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
+    "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+    "docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "UNKNOWN",

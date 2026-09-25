@@ -15,8 +15,7 @@ const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.a
 const MODELS = String(arg('--models') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 if (MODELS.length < 2) { console.error('--models 기준모델,후보… (둘 이상)'); process.exit(1); }
 const B_SHA = createHash('sha256').update(readFileSync(path.join(HERE, 'agentB.mjs'))).digest('hex');
-if (process.argv.includes('--require-real') && !REAL) { const m = { REAL_AI: 'BLOCKED_BY_ENVIRONMENT' }; if (arg('--slim')) writeFileSync(arg('--slim'), JSON.stringify(Object.fromEntries(MODELS.map((m) => [m, runs[m].map((r) => r.rows.map((x) => [x.kind, x.saved ? 1 : 0, x.reply ?? '', x.question ?? '', x.kept_question ?? '', x.finished ? 1 : 0, x.dropped ?? '', x.error ?? '']))]))));
-if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify(m)); console.log(JSON.stringify(m)); process.exit(2); }
+if (process.argv.includes('--require-real') && !REAL) { const m = { REAL_AI: 'BLOCKED_BY_ENVIRONMENT' }; if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify(m)); console.log(JSON.stringify(m)); process.exit(2); }
 const FROZEN = JSON.parse(readFileSync(path.join(HERE, 'FROZEN_INPUTS.json'), 'utf8'));
 const gate = FROZEN.model_gate ?? {};
 export const frozenOk = FROZEN.b.sha256 === B_SHA && FROZEN.golden.sha256 === GOLDEN_SHA && FROZEN.specs?.sha256 === SPECS_SHA && JSON.stringify(gate.models ?? []) === JSON.stringify(MODELS);
@@ -65,3 +64,5 @@ const text = L.join('\n');
 if (arg('--out')) writeFileSync(arg('--out'), text); else console.log(text);
 const slim = (x) => ({ i: x.i, text: x.text, expect: x.expect, origin: x.origin, kind: x.kind, saved: x.saved, reply: x.reply, question: x.question, kept_question: x.kept_question, dropped: x.dropped, finished: x.finished, error: x.error, intent: x.intent, retry: x.retry, total_ms: x.total_ms, calls: x.calls.map((c) => ({ model: c.model, served_model: c.served_model ?? null, in: c.in_real ?? null, out: c.out_real ?? null, ms: c.ms, error: c.error ?? null })) });
 if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify({ mode, models: MODELS, frozen_ok: frozenOk, b_sha: B_SHA, golden_sha: GOLDEN_SHA, specs_sha: SPECS_SHA, stats: S, verdicts, runs: Object.fromEntries(MODELS.map((m) => [m, runs[m].map((r) => ({ flow: r.flow.id, rows: r.rows.map(slim) }))])) }));
+// 2026-09-25 수정: 이 줄이 처음에 키 없음(BLOCKED) 분기 안에 잘못 들어가 실제 실행에서 slim 파일이 만들어지지 않았다(결과 md 는 정상).
+if (arg('--slim')) writeFileSync(arg('--slim'), JSON.stringify(Object.fromEntries(MODELS.map((m) => [m, runs[m].map((r) => r.rows.map((x) => [x.kind, x.saved ? 1 : 0, x.reply ?? '', x.question ?? '', x.kept_question ?? '', x.finished ? 1 : 0, x.dropped ?? '', x.error ?? '']))]))));

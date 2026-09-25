@@ -320,11 +320,20 @@
   {
    "id": "P-11",
    "what": "MODEL GATE 실행: B-1.0 고정 · 모델만 4개(gpt-4o-mini 기준 · gpt-4.1-mini · gpt-4.1 · gpt-4o)",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "Claude(GitHub Actions run 36108344306)",
+   "evidence": "docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md",
+   "note": "사전 등록 일치 · 4 모델 × 34 입력 · 호출 143 · 운영 변경 0"
+  },
+  {
+   "id": "P-12",
+   "what": "MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것)",
    "state": "PENDING",
    "date": "2026-09-25",
-   "by": "Claude(대표 「모델 비교 실제 AI 실행까지 끝내」)",
-   "evidence": "product/spike/ab-20260925/FROZEN_INPUTS.json",
-   "note": "사전 등록 = model_gate"
+   "by": "대표",
+   "evidence": "https://claude.ai/artifact/WFfAfmFL8pr6Azcapgd3xj",
+   "note": "페이지 db mpicks/Mnn · 열쇠 evidence/MODEL_GATE_20260925/model-blind-key.sealed.json · Claude 는 승자를 고르지 않음"
   }
  ]
 }

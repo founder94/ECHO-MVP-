@@ -42,3 +42,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (arg('--md')) writeFileSync(arg('--md'), L.join('\n'));
   console.log(`items=${items.length} models=${models.join(',')}`);
 }
+
+// Actions 로그에서 옮긴 models-result.md(표) → slim 구조. 출력 칸 모양: 「💬 반응 / ❓ 질문 / (같은 질문 유지) … / (질문 버림:…) / (대화 끝) / ⚠️ …」
+export function parseModelsMd(md) {
+  const models = (md.match(/모델\(요청 이름\): ([^—]+)—/)?.[1] ?? '').split('·').map((x) => x.trim()).filter(Boolean);
+  const slim = Object.fromEntries(models.map((m) => [m, []]));
+  let cur = -1;
+  for (const line of md.split('\n')) {
+    if (/^## FLOW\d+/.test(line)) { cur += 1; for (const m of models) slim[m].push([]); continue; }
+    if (cur < 0 || !/^\| \d+ \|/.test(line)) continue;
+    const c = line.split(' | '); c[0] = c[0].replace(/^\| /, ''); c[c.length - 1] = c[c.length - 1].replace(/ \|$/, '');
+    models.forEach((m, j) => {
+      const ks = c[2 + j * 2], out = c[3 + j * 2] ?? '';
+      const parts = out ? out.split(' / ') : [];
+      const get = (p) => (parts.find((x) => x.startsWith(p)) ?? '').slice(p.length).trim().replace(/ ⏎ /g, '\n');
+      slim[m][cur].push([ks.split('·')[0], ks.endsWith('·저장') ? 1 : 0, get('💬 '), get('❓ '), get('(같은 질문 유지) '), parts.includes('(대화 끝)') ? 1 : 0, (parts.find((x) => x.startsWith('(질문 버림:')) ?? '').replace(/^\(질문 버림:|\)$/g, ''), get('⚠️ ')]);
+    });
+  }
+  return slim;
+}
