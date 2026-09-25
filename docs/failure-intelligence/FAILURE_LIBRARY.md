@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 62건 — 증거 수준: ACTUAL 57 · CANDIDATE 3 · HYPOTHESIS 2 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 12 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 8 · FOUNDER_STATEMENT 3
-- 상태: UNRESOLVED 28 · MITIGATED 30 · RESOLVED 4
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 12
+- 합계 67건 — 증거 수준: ACTUAL 63 · CANDIDATE 3 · HYPOTHESIS 1 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 13 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 12 · FOUNDER_STATEMENT 3
+- 상태: UNRESOLVED 32 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 17
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -21,7 +21,7 @@
 | GF-05 | 2026-09-24 22:59 KST | ACTUAL | ACTUAL | F-CLASSIFY | 오분류 | Orchestration | CONFIRMED | CANDIDATE | UNRESOLVED |
 | GF-06 | 2026-09-24 23:00:05 KS | ACTUAL | ACTUAL_RECONSTRUCTED | F-CLASSIFY | Repair 실패 · 오분류 | Orchestration | MIXED | MOCK_VERIFIED | UNRESOLVED |
 | GF-07 | 2026-09-24 23:00:30 KS | ACTUAL | ACTUAL | F-REPEAT | 과잉 Guard | Orchestration | HYPOTHESIS | MOCK_VERIFIED | UNRESOLVED |
-| GF-08 | 2026-09-24 11:43Z(20:4 | ACTUAL | ACTUAL | F-DRIFT | 방향이탈 | Orchestration · Context | MIXED | CANDIDATE | UNRESOLVED |
+| GF-08 | 2026-09-24 11:43Z(20:4 | ACTUAL | ACTUAL | F-DRIFT | 방향이탈 | Context · Orchestration · Model | MIXED | CANDIDATE | UNRESOLVED |
 | GF-09 | 2026-09-24(코드 대조에서 발견) | ACTUAL | CODE | F-CONTRACT | 제품 계약 불일치 | Product Contract | CONFIRMED | MOCK_VERIFIED | UNRESOLVED |
 | GF-10 | 2026-09-24 09:57~09:58 | ACTUAL | ACTUAL | F-GUARD | 과잉 Guard | Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
 | GF-11 | 2026-09-24 11:44Z | ACTUAL | ACTUAL | F-CLASSIFY | 오분류 · 지연 | Orchestration · Infrastructure | CONFIRMED | CANDIDATE | MITIGATED |
@@ -74,8 +74,13 @@
 | GF-58 | 2026-09-22 ~ 2026-09-2 | ACTUAL | ACTUAL | F-ADVISOR | 대표 중계 과부하 | Evaluation | CONFIRMED | CANDIDATE | MITIGATED |
 | GF-59 | 2026-09-25 | ACTUAL | ACTUAL | F-ADVISOR | 잘못된 보고 | Evaluation | CONFIRMED | NONE | RESOLVED |
 | GF-60 | 2026-09-22 ~ 2026-09-2 | CANDIDATE | FOUNDER_STATEMENT | F-ADVISOR | 상위 대안 검토 지연 | Evaluation | HYPOTHESIS | CANDIDATE | UNRESOLVED |
-| GF-61 | 2026-09-25(재생) | HYPOTHESIS | CODE | F-REPEAT | 질문의도 반복 | Orchestration · Model | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-61 | 2026-09-25(재생) | ACTUAL | CODE | F-REPEAT | 질문의도 반복 | Orchestration · Model | CONFIRMED | NONE | UNRESOLVED |
 | GF-62 | 2026-09-25(재생) | HYPOTHESIS | CODE | F-REPEAT | 질문의도 반복 | Orchestration · Model | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-63 | 2026-09-25(실AI run1 결과 | ACTUAL | CODE | F-EVAL | 검사 결함 | Evaluation | CONFIRMED | NONE | RESOLVED |
+| GF-64 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-REPEAT | 질문의도 반복 | Orchestration | CONFIRMED | NONE | UNRESOLVED |
+| GF-65 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · Context 유실 · Repair 실패 | Model · Context | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-66 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 정정무시 · Repair 실패 · 오분류 · 고정 대체 질문 | Orchestration · Model | MIXED | NONE | UNRESOLVED |
+| GF-67 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · Repair 실패 · 가짜 진행 | Model · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -102,13 +107,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 의도 이름이 너무 넓으면 정상 질문도 막을 수 있다 — 실AI 필요 |
 | 역검사 결과 | B 의도 차단 제거 시 검사 실패 확인(PHASE 1 망가뜨리기 7/7) |
-| 실AI 결과 | A = 운영에서 실패(실제 AI). B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] FLOW1: A·B 모두 항의 2개를 답으로 저장해 #5 에서 대화 끝 → #6 은 AI 에 가지 않음(둘 다 FAIL). 같은 뜻 반복 자체는 이 흐름에서 판정 불가(대화 조기 종료). B 는 #2 에서 글자까지 같은 질문(GF-64) (이전 기록: A = 운영에서 실패(실제 AI). B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW1 |
-| 관련 실패(Graph) | GF-04→CONTRIBUTES_TO(HYPOTHESIS) · TRIGGERS→GF-03(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` · `docs/failure-intelligence/REPLAY_결과_20260925.md` |
+| 관련 실패(Graph) | GF-04→CONTRIBUTES_TO(HYPOTHESIS) · TRIGGERS→GF-03(HYPOTHESIS) · GF-64→CONTRIBUTES_TO(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` · `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-02 정상 답 뒤 질문 생성 실패(단서 글자 검사)
 
@@ -134,13 +139,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 단서 없는 엉뚱한 질문을 막는 장치가 사라짐 → 블라인드 검수로만 판정 |
 | 역검사 결과 | 해당 없음(검사 삭제형) |
-| 실AI 결과 | A 실패(운영). B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「마음이지머」 단서 검사 2회 탈락 → 질문 실패(보정, GF-63) = 재현. 「가볍게…」·「행동으로 보여줄때」는 A·B 모두 저장·질문 (이전 기록: A 실패(운영). B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW1 |
-| 관련 실패(Graph) | REGRESSION_OF→GF-36(CODE) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` |
+| 관련 실패(Graph) | REGRESSION_OF→GF-36(CODE) · GF-63→MASKS(CODE) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-03 문제제기 뒤 질문 생성 실패(자기 표시 즉시 탈락)
 
@@ -166,13 +171,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 반응만 나가면 대화가 멈춘 느낌일 수 있음 — 블라인드 검수 필요 |
 | 역검사 결과 | 「repair 즉시 거절」 제거 시 검사 실패 확인 |
-| 실AI 결과 | A 실패(운영). B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] FLOW1#6 은 두 방식 모두 대화 끝 상태라 AI 에 가지 않음 — 판정 불가(둘 다 반응 없음 FAIL) (이전 기록: A 실패(운영). B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW1 |
-| 관련 실패(Graph) | GF-01→TRIGGERS(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` |
+| 관련 실패(Graph) | GF-01→TRIGGERS(HYPOTHESIS) · GF-67→CAUSES(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-04 저장 안 한 문제제기를 다음 턴 AI 가 모름
 
@@ -229,13 +234,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | 「활동?」 같은 진짜 되묻기를 모델이 답으로 읽을 위험(GF-11 과 반대 방향) — 실AI 필요 |
 | 역검사 결과 | 없음 |
-| 실AI 결과 | A 실패(운영). B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「취미생활?」 규칙 meta 강제 재현(비저장, 질문 다시 씀). B: 답으로 저장 + 취미 질문 (이전 기록: A 실패(운영). B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW3 |
 | 관련 실패(Graph) | BROKEN_BY→FS-03(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/REPLAY_결과_20260925.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-06 질문 방향 제안이 되묻기(ask)로 분류됨
 
@@ -261,13 +266,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 질문을 해 달라는 말을 repair 로 읽으면 질문 없이 반응만 할 수 있음 |
 | 역검사 결과 | repair 즉시 거절 제거 시 실패 확인 |
-| 실AI 결과 | A 실패(운영). B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 질문 방향 제안을 ask 로 분류 → 고정 안내문 + 같은 질문 유지(FAIL, 재현). B: 사과 + 「어떤 취미를 좋아하세요?」(기계 PASS, 뜻은 블라인드) (이전 기록: A 실패(운영). B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW3 |
 | 관련 실패(Graph) | GF-04→CONTRIBUTES_TO(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-07 짧은 정상 답 뒤 질문 생성 실패(반복 판정)
 
@@ -293,13 +298,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | GF-01 과 한 검사가 양쪽(미탐·오탐)으로 실패한 사례 → 글자 검사 자체의 한계 |
 | 역검사 결과 | 없음 |
-| 실AI 결과 | B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「싸이클 테니스 골프」 저장 + 이어 묻기(기계 PASS). B: 문제제기로 오분류해 저장 0 + 질문 버림(FAIL, GF-65) (이전 기록: B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW3 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-08 짧은 답 뒤 「활동」으로 점프 · 주제 이름 불일치
 
@@ -313,7 +318,7 @@
 | AI 행동 | 16.2초 뒤 「편한 친구를 원하시군요. 어떤 활동을 함께 하고 싶어요?」. 화면 주제 이름은 「상대가 알면 좋을 나」로 질문과 어긋남 |
 | 기대 행동 | 「부담없이」를 이어 묻기(예: 부담 없는 게 어떤 건지) |
 | Failure Type | 방향이탈 |
-| 원인 Layer | Orchestration · Context (원인 확신: MIXED) — Orchestration(12자 이하 → 새 갈래 + 주제 칸 순서, 프롬프트 예시가 「같이 뭐 하고 싶어요」를 가르침, v15.2 의 첫 줄 근거 완화가 점프를 통과시킴 = FS-08) + Context(remaining) |
+| 원인 Layer | Context · Orchestration · Model (원인 확신: MIXED) — Orchestration(12자 이하 → 새 갈래 + 주제 칸 순서, 프롬프트 예시가 「같이 뭐 하고 싶어요」를 가르침, v15.2 의 첫 줄 근거 완화가 점프를 통과시킴 = FS-08) + Context(remaining) · [REAL run1] 주제·남은 수가 없는 B 에서도 같은 점프 → Model(또는 목적 문구) 몫 HYPOTHESIS |
 | 사용자 피해 · 감정 | 대표 되물음 「활동?갑자기?」(운영 원문) |
 | 사용자 피해 · 정신 | UNKNOWN |
 | 사용자 피해 · 시간 | 다음 질문까지 16,241ms(운영 edge 로그) |
@@ -325,13 +330,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | 주제가 비면 연결에 필요한 정보가 덜 모일 수 있음(Product Contract) |
 | 역검사 결과 | B 입력 금지 항목 검사 있음 |
-| 실AI 결과 | B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A·B 모두 「그냥 편한친구 부담없이」·「진실된마음」 뒤 「활동」 질문. B 입력엔 주제 칸·남은 수가 없고 프롬프트에 「활동」 낱말 0 → Model(또는 목적 문구) 몫 첫 증거(HYPOTHESIS, 모델 비교 전) (이전 기록: B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW2 |
 | 관련 실패(Graph) | BROKEN_BY→FS-08(ACTUAL) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-09 「모르겠어요」도 다섯 칸에 들어감
 
@@ -388,13 +393,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | FS-08 참고 |
 | 역검사 결과 | v15.2 TEST A~F 통과(가짜 AI) — 실AI 에서 다른 실패 |
-| 실AI 결과 | v26 에서 점프(GF-08) |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A·B 모두 FLOW2#1 에서 질문 생성(기계 PASS) (이전 기록: v26 에서 점프(GF-08)) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | MITIGATED(검사가 있던 경로 자체를 교체) |
 | Golden Test | FLOW2 |
 | 관련 실패(Graph) | FIXED_BY→FS-08(ACTUAL) · GF-15→MASKS(ACTUAL) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-11 되물음 「활동?갑자기?」가 답으로 저장 · 긴 지연 · 자동 재요청
 
@@ -420,13 +425,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | 자동 재요청이 없어져 사용자가 「다음 질문 받기」를 눌러야 함 |
 | 역검사 결과 | Agent v1 검사(가짜 AI) |
-| 실AI 결과 | v27 에서 이 입력은 미관측. B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「활동?갑자기?」 ask 분류 → 고정 안내문 + 같은 질문. B: repair 인정 문장 뒤 글자까지 같은 질문(의도 이름 달라 미탐, GF-61). 둘 다 비저장 (이전 기록: v27 에서 이 입력은 미관측. B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | MITIGATED |
 | Golden Test | FLOW2 |
 | 관련 실패(Graph) | BROKEN_BY→FS-14(ACTUAL) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-12 사용자 구절을 질문에 끼워 넣어 문장 파손
 
@@ -452,13 +457,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 인용 줄이 반복되면 「~라고 하셨죠」 되풀이(v14.4 검사표에서 목표 미달 기준으로 등록) |
 | 역검사 결과 | 인용 틀 밖에 사용자 말이 들어가면 실패하도록 고정 |
-| 실AI 결과 | 이후 운영에서 같은 파손 보고 없음(관측 부재 ≠ 검증) |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「에너지가 뺏기가 싫어서」 저장 + 질문(문장 파손 없음). B: 지친 말로 오분류해 저장 0(FAIL, GF-65) (이전 기록: 이후 운영에서 같은 파손 보고 없음(관측 부재 ≠ 검증)) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | MITIGATED |
 | Golden Test | FLOW5 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-13 무겁고 추상적인 질문 · 고친 서버를 배포하지 않음
 
@@ -515,13 +520,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | GF-05 |
 | 역검사 결과 | 없음 |
-| 실AI 결과 | — |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「딥하네」·「활동?질문이 머이래」 규칙 meta → 다른 질문(「그럴 때는 어떤 기분이 드나요?」·「어떤 활동에 대해…」). B: 지친 말로 분류해 위로만. 둘 다 비저장(기계 PASS) · 쉽게 다시 물었나는 블라인드 (이전 기록: —) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | MITIGATED(규칙 추가 방식 — 대표 지시상 앞으로 쓰지 않음) |
 | Golden Test | FLOW5 |
 | 관련 실패(Graph) | FIXED_BY→FS-03(CODE) |
-| 근거 | `CLAUDE.md` · `docs/claude-final-review-20260916/PATCH-20260924-release-1.0/README_대표용_출시1.0_20260924.md` |
+| 근거 | `CLAUDE.md` · `docs/claude-final-review-20260916/PATCH-20260924-release-1.0/README_대표용_출시1.0_20260924.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-15 가짜 AI 검사 전부 통과, 실제 첫 입력에서 실패
 
@@ -765,13 +770,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | 옛 흐름 실AI 재검증 기록 없음 |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] FLOW6#1: A 되묻기 비저장(PASS) · B 「모르겠어요」로 저장(FAIL). FLOW6#2: A 답을 질문 칸에 넣음(반응 칸 비어 FAIL, 뜻은 일부 답함) · B 먼저 답(PASS) (이전 기록: 옛 흐름 실AI 재검증 기록 없음) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | MITIGATED(옛 STEP 흐름 수정 · 현재 DO IT 대화와 별개 경로) |
 | Golden Test | FLOW6 |
 | 관련 실패(Graph) | BROKEN_BY→FS-17(CODE) · GF-62→REGRESSION_OF(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md` · `docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md` |
+| 근거 | `docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md` · `docs/claude-final-review-20260916/TRUST_FIRST_REVIEW_20260917.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-23 반말 · 깨진 날씨 문장
 
@@ -831,13 +836,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | — |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] 「돈때문에」: A·B 저장·질문(기계 PASS). B 질문은 앞 턴과 같은 활동 질문(의도 이름 「돈 문제」로 잘못 붙어 통과) (이전 기록: —) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | MITIGATED(옛 흐름) |
 | Golden Test | FLOW7 |
 | 관련 실패(Graph) | BROKEN_BY→FS-17(CODE) |
-| 근거 | `docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md` |
+| 근거 | `docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-25 정정 두 개가 똑같은 다음 질문으로 이어짐(정정무시)
 
@@ -864,13 +869,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | 막다른 길 2→5(FS-16) |
 | 역검사 결과 | — |
-| 실AI 결과 | 옛 흐름: 실제 AI 100회 1회 재발 |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] 「사실은 일보다 사람이 더 힘들어요」: A·B 저장·질문(기계 PASS) · 반영 여부는 블라인드 (이전 기록: 옛 흐름: 실제 AI 100회 1회 재발) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED(현재 v27 경로의 정정 반영은 실AI 미검증) |
 | Golden Test | FLOW6 |
 | 관련 실패(Graph) | FIXED_BY→FS-15(ACTUAL) |
-| 근거 | `docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md` · `docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md` · `docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md` · `git:6ed213d` · `git:345159f` |
+| 근거 | `docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md` · `docs/claude-final-review-20260916/FINAL_100RUN_REVALIDATION_20260919.md` · `docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md` · `git:6ed213d` · `git:345159f` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-26 사용자 질문을 질문으로 되받음 · 물어본 턴 전부 차단
 
@@ -897,13 +902,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | 옛 흐름 실제 AI 재검사 |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] FLOW6#3·#4: A 반응 칸 비음·#4 질문 실패(FAIL). B 반응 있음(기계 PASS) — 단 #3 「답을 못한 건 아니에요」 반박, #4 지친 말로 오분류(뜻은 블라인드) (이전 기록: 옛 흐름 실제 AI 재검사) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | MITIGATED(옛 흐름) |
 | Golden Test | FLOW6 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md` · `docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md` · `docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md` · `git:dd1ec6a` |
+| 근거 | `docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md` · `docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md` · `docs/claude-final-review-20260916/FINAL_LOCK_REPORT_20260918.md` · `git:dd1ec6a` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-27 같은 되물음 17턴 → 새 질문 고갈로 막힘
 
@@ -1128,13 +1133,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | — |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] FLOW7#3: A 질문 실패(FAIL). B 인정 문장·질문 버림(기계 PASS). FLOW4#8 「할말이없다 휴」: 둘 다 비저장(PASS) (이전 기록: —) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | MITIGATED |
 | Golden Test | FLOW7 |
 | 관련 실패(Graph) | BROKEN_BY→FS-02(CODE) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-34 주제별 고정 질문이 앞 답과 무관하게 나감 · 「왜 이런 걸 물어봐?」가 답으로 저장
 
@@ -1227,13 +1232,13 @@
 | Mock 결과 | PASS(가짜 AI 검사 · 방어책 기준) |
 | 부작용 | 같은 모양의 글자 인용 검사가 v16 clue 로 다시 등장(GF-02) |
 | 역검사 결과 | — |
-| 실AI 결과 | — |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] 「진실된마음」: A·B 저장·질문, 고정 문장 0(기계 PASS) — 둘 다 「활동」 질문(GF-08) (이전 기록: —) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | MOCK_VERIFIED |
 | 현재 상태 | MITIGATED — 같은 모양 재발(GF-02) |
 | Golden Test | FLOW7 |
 | 관련 실패(Graph) | FIXED_BY→FS-20(ACTUAL) · GF-02→REGRESSION_OF(CODE) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-37 캐묻기 · 빈 구제 질문
 
@@ -1557,13 +1562,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | 실제 AI 7/10 |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] 「아니 그게 아니라」: A 규칙 정정 안내(AI 0회) · B repair 로 받고 새 질문 「어떤 활동을…」(기계 PASS 둘 다) (이전 기록: 실제 AI 7/10) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED(옛 흐름) |
 | Golden Test | FLOW4 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/claude-final-review-20260916/FINAL100V4_REPORT_20260920.md` · `git:481b7ce` |
+| 근거 | `docs/claude-final-review-20260916/FINAL100V4_REPORT_20260920.md` · `git:481b7ce` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-47 AI 해석을 거절하면 사용자 자신의 낱말까지 금지됨
 
@@ -1788,13 +1793,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | regression.test.mjs 특성 검사 |
-| 실AI 결과 | A 운영 관측 없음 · B = BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 규칙 meta 강제 재현 — 답을 질문 칸에 넣음(반응 칸 비어 FAIL). B: ask 로 받고 먼저 답(PASS) (이전 기록: A 운영 관측 없음 · B = BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | UNRESOLVED(운영 v27 규칙 잔존) |
 | Golden Test | FLOW6 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md` |
+| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-54 대표가 이미 한 행동(키 발급·전달)을 다시 요구 — 키 폐기·새 발급 반복
 
@@ -2033,32 +2038,32 @@
 |---|---|
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-25(재생) |
-| 증거 수준 | HYPOTHESIS |
-| 출처 | CODE — B-1.0 서버 결정을 실제 문장으로 재생(AI 호출 0) — 실제 AI 관측 아님 |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — B-1.0 서버 결정을 실제 문장으로 재생(AI 호출 0) — 실제 AI 관측 아님 → 2026-09-25 실AI A/B run1 에서 실제 관측(REAL_AI_SCRIPTED 성격: 실제 AI + 고정 입력, 운영 서버 아님) |
 | 사용자 상황 | B-1.0 의도 장부 |
 | 사용자 원문 | — |
 | AI 행동 | 운영 실제 질문 4개에 다른 이름을 붙이면 0/3 차단 |
 | 기대 행동 | 같은 뜻 재질문 차단 |
 | Failure Type | 질문의도 반복 |
-| 원인 Layer | Orchestration · Model (원인 확신: HYPOTHESIS) — 의도 비교가 이름 정규화 일치뿐 |
+| 원인 Layer | Orchestration · Model (원인 확신: CONFIRMED) — 의도 비교가 이름 정규화 일치뿐 |
 | 사용자 피해 · 감정 | UNKNOWN |
 | 사용자 피해 · 정신 | UNKNOWN |
 | 사용자 피해 · 시간 | UNKNOWN |
 | 사용자 피해 · 물질 | UNKNOWN |
-| 재현 여부 | [REPLAY] 메커니즘만 재현 |
+| 재현 여부 | [REPLAY] 메커니즘만 재현 · [REAL run1] 실제 AI 에서 2번 관측(FLOW2#2·FLOW7#2) |
 | 해결 시도(실패한 해결책 포함) | 없음 |
 | 해결 후보 | 실AI A/B 로 먼저 측정 |
 | 실험 결과 | — |
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | regression.test.mjs(B 한계 특성 검사) |
-| 실AI 결과 | BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] **실제 관측** — FLOW2#2 글자까지 같은 질문이 의도 이름 「활동 선호」→「활동」으로 달라 통과. FLOW7#2 활동 질문에 「돈 문제」 이름이 붙어 통과 (이전 기록: BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
-| 현재 상태 | UNRESOLVED(B 후보 위험 · 실AI 전 판정 불가) |
+| 현재 상태 | UNRESOLVED(실AI run1 에서 실제 관측) |
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | 없음 |
-| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` |
+| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
 
 ## GF-62 [B 위험] 답한 의도가 쌓이면 질문 후보가 소진될 수 있음
 
@@ -2085,10 +2090,174 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | regression.test.mjs(B 한계 특성 검사) |
-| 실AI 결과 | BLOCKED_BY_ENVIRONMENT |
+| 실AI 결과 | [REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] 이번 흐름(최대 유효 답 5)에서는 관측 안 됨 — 확인 불가 (이전 기록: BLOCKED_BY_ENVIRONMENT) |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(B 후보 위험 · 실AI 전 판정 불가) |
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | REGRESSION_OF→GF-22(HYPOTHESIS) |
-| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` |
+| 근거 | `docs/failure-intelligence/REPLAY_결과_20260925.md` · `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+
+## GF-63 하네스가 A 의 질문 실패·오류를 한 번도 기록하지 못함(error 칸이 줄 주석 안)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVAL — 평가 결함(가짜 통과) |
+| 발생 날짜 | 2026-09-25(실AI run1 결과 분석 중 발견, 내 실수) |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — 코드 확인 — d6526ff 부터 harness-lib.mjs runA |
+| 사용자 상황 | 실AI A/B run1 결과표 |
+| AI 행동 | A 가 「다음 질문을 아직 만들지 못했어요」를 낸 6턴이 결과표에 오류 0 으로 기록 · Golden 의 A no_error 는 늘 PASS · Actions 요약 검수표에 실패 표시 누락 |
+| 기대 행동 | 질문 실패·오류가 행마다 기록 |
+| Failure Type | 검사 결함 |
+| 원인 Layer | Evaluation (원인 확신: CONFIRMED) — Evaluation |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 확인 ○ · 역검사: 고치기 전 코드로 되돌리면 새 검사 실패 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 칸을 주석 밖으로 · 역검사 추가 |
+| 실험 결과 | 고침(2026-09-25) · run1 수치는 v27 코드 경로로 보정해 따로 표시 |
+| Mock 결과 | UNKNOWN |
+| 부작용 | 없음(사전 고정 4개 지문 불변) |
+| 역검사 결과 | regression.test.mjs 「하네스: A 의 질문 실패·오류가 행에 기록된다(GF-63 역검사)」 |
+| 실AI 결과 | run1 에서 발견 — A 질문 실패 6턴 [REAL·보정] |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | RESOLVED(검사 도구 · 다음 실행부터 적용) |
+| Golden Test | FLOW1, FLOW4, FLOW5, FLOW6, FLOW7 |
+| 관련 실패(Graph) | MASKS→GF-02(CODE) |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `product/spike/ab-20260925/regression.test.mjs` |
+
+## GF-64 [B-1.0] 방금 답한 질문의 의도가 같은 턴 검사에 안 들어가 같은 질문을 글자 그대로 다시 냄
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
+| 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 FLOW1#2 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 실제 AI + 고정 입력(대표 실제 입력 「나 진심이라고 적은거 같은데」) · 운영 서버 아님 |
+| 사용자 상황 | B 가 #1 에서 「어떤 성격의 사람과 이야기해보고 싶으세요?」(의도 「성격」)를 물음 |
+| 사용자 원문 | 「나 진심이라고 적은거 같은데」 |
+| AI 행동 | 답으로 저장한 뒤 같은 턴에 같은 의도 「성격」·같은 문장을 다시 냄 — 서버가 막지 않음 |
+| 기대 행동 | 방금 답한 질문의 의도는 그 턴 검사부터 「이미 답함」 |
+| Failure Type | 질문의도 반복 |
+| 원인 Layer | Orchestration (원인 확신: CONFIRMED) — commitB 가 pendingIntent 를 answered_intents 로 옮기는 시점이 decideQuestion 뒤 |
+| 사용자 피해 · 감정 | UNKNOWN(스크립트 입력 — 실사용자 반응 없음) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회 · 코드 확인 ○ |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | B 다음 판(B-1.1)에서 검사 전에 직전 질문 의도를 임시로 answered 에 포함 — 사전 고정된 B-1.0 은 고치지 않는다 |
+| 실험 결과 | — |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] 관측 1회 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(B 후보 결함) |
+| Golden Test | FLOW1 |
+| 관련 실패(Graph) | CONTRIBUTES_TO→GF-01(ACTUAL) |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+
+## GF-65 [B-1.0] 답·항의·「모르겠어요」를 「지친 말」·문제제기로 과다 분류 → 답 미저장 · 엉뚱한 위로
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 실제 AI + 고정 입력(대부분 대표 실제 입력) · 운영 서버 아님 |
+| 사용자 상황 | FLOW3#4 · FLOW5#1~#5 · FLOW4#7 · FLOW6#4 |
+| 사용자 원문 | 「싸이클 테니스 골프」·「에너지가 뺏기가 싫어서」·「배려」·「그냥 아무생각없어」·「모르겠어요」·「딥하네」·「내가 언제 그렇게 말했어?」 |
+| AI 행동 | 「싸이클 테니스 골프」→ repair(「제가 잘못 이해했네요」) · 「에너지가 뺏기가 싫어서」·「배려」→ fatigue(저장 0) · 「내가 언제 그렇게 말했어?」→ 「지치셨군요. 괜찮아요.」 |
+| 기대 행동 | 정상 답은 저장, 「모르겠어요」는 저장하되 유효 답 아님, 항의에는 인정 |
+| Failure Type | 오분류 · Context 유실 · Repair 실패 |
+| 원인 Layer | Model · Context (원인 확신: HYPOTHESIS) — B 는 분류를 전부 LLM 에 맡기고 규칙이 없다. 직전 턴이 repair 면 다음 답도 repair 로 읽는 경향(FLOW3#4) — 원인 HYPOTHESIS |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회 · 7턴 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | signal 정의에 예시 추가는 규칙 늘리기라 보류 — 먼저 같은 입력 반복 실행으로 흔들림 측정 |
+| 실험 결과 | — |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] 관측 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(B 후보 결함) |
+| Golden Test | FLOW3, FLOW4, FLOW5, FLOW6 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+
+## GF-66 [A v27] 정정·거절을 되묻기(ask)로 분류 → 저장 0 · 고정 안내문 · 같은 질문 3번 연속 유지
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 실제 AI + 운영 v27 코드(가짜 DB) + 고정 입력 · 운영 서버 아님 |
+| 사용자 상황 | FLOW4#4~#6(지시서 예문) · 같은 모양 FLOW2#2·FLOW3#3·FLOW5#2(대표 실제 입력) |
+| 사용자 원문 | 「활동 말고 편하게 대화하는 사람을 원한다는 거예요」·「그 질문 말고」·「왜 그걸 물어봐?」 · 「배려」 |
+| AI 행동 | 「여기에 답한 말로 어떤 사람을 소개할지 정해요.」 + 「그렇다면, 어떤 방식으로 사람을 알아가는 게 좋다고 생각해요?」를 3턴 연속 유지 · 정정 내용 저장 0 · 「배려」도 저장 0 |
+| 기대 행동 | 정정은 최우선 저장·반영, 거절한 질문은 다시 띄우지 않음 |
+| Failure Type | 정정무시 · Repair 실패 · 오분류 · 고정 대체 질문 |
+| 원인 Layer | Orchestration · Model (원인 확신: MIXED) — Orchestration(ask 면 같은 질문 유지 · cleanV16AskReply 고정 문장) + Model(ask 로 분류) |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | ask 분류 뒤 같은 질문 유지 규칙을 정정·거절에서는 쓰지 않기 — 운영 A 수정은 승인 사항 |
+| 실험 결과 | — |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] 관측 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(운영 A) |
+| Golden Test | FLOW2, FLOW3, FLOW4, FLOW5 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+
+## GF-67 [A·B 둘 다] 항의(「나 진심이라고 적은거 같은데」·「적었자네」)를 답으로 저장 → 다섯 칸이 차 대화가 끝남
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 FLOW1 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 실제 AI + 고정 입력(대표 실제 입력, 운영 2026-09-25 04:20~04:26 KST) · 운영 서버 아님 |
+| 사용자 상황 | 목적 「아직 정하지 않았어요」 |
+| 사용자 원문 | 「나 진심이라고 적은거 같은데」, 「적었자네」 |
+| AI 행동 | A·B 모두 answer 로 저장 → #5 에서 대화 끝 → 「몇번째 같은말이야!!」·「행동이라고!!」는 AI 에 가지 않음 |
+| 기대 행동 | 항의는 저장하지 않고 인정·방향 전환 |
+| Failure Type | 오분류 · Repair 실패 · 가짜 진행 |
+| 원인 Layer | Model · Product Contract (원인 확신: HYPOTHESIS) — 두 구조 모두에서 같은 오분류 → Model 몫 HYPOTHESIS · 항의 한 줄이 칸을 채우면 대화가 끝나는 계약(다섯 답 = 끝) |
+| 사용자 피해 · 감정 | 운영 원래 사례에서 대표 「몇번째 같은말이야!!」(GF-01) |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회(A·B 각 1) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | —(모델 비교·반복 측정 먼저) |
+| 실험 결과 | — |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL run1] 관측 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED |
+| Golden Test | FLOW1 |
+| 관련 실패(Graph) | CAUSES→GF-03(ACTUAL) |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |

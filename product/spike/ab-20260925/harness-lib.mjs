@@ -43,6 +43,7 @@ export function recorder() {
       content = mockFor.current(system, JSON.parse(userJson), calls.filter((c) => c.turnKey === mockFor.key).length);
     }
     rec.ms = Date.now() - started; rec.out_tokens = tok(content); rec.turnKey = mockFor.key;
+    rec.content = content; // 2026-09-25(run1 뒤): 막힌 후보 질문의 원문을 남겨 과차단을 뜻으로 볼 수 있게 한다(result.json 에만 · 키·사용자 원문 외 정보 없음)
     calls.push(rec);
     return content;
   }
@@ -110,13 +111,13 @@ export function loadA(purpose, rec, logs) {
 export const splitAck = (t) => { const s = String(t ?? ''); const i = s.indexOf('\n'); return i < 0 ? { ack: '', body: s } : { ack: s.slice(0, i).trim(), body: s.slice(i + 1).trim() }; };
 
 // 42/44차 앱(CoreConversation)과 같은 순서로 A 를 부른다: text · answeredQuestion(떠 있던 질문 본문) · recordId(이어 받는 기록) · pendingCorrection.
-export async function runA(flow) {
+export async function runA(flow, { mock = mockA } = {}) { // mock: [MOCK] 검사에서만 바꾼다(실AI 에서는 쓰이지 않음)
   const rec = recorder(); const logs = [];
   const a = loadA(flow.purpose, rec, logs);
   let shown = '어떤 만남을 원하세요?'; let activeId = null; let pendingCorrection = null;
   const rows = [];
   for (const [i, [text, type, origin]] of flow.steps.entries()) {
-    rec.mockFor.current = mockA(type); rec.mockFor.key = `A${i}`;
+    rec.mockFor.current = mock(type); rec.mockFor.key = `A${i}`;
     const before = rec.calls.length; const logBefore = logs.length;
     const t0 = Date.now();
     const { body: shownBody } = splitAck(shown);
@@ -128,7 +129,8 @@ export async function runA(flow) {
     pendingCorrection = b.kind === 'correction' && !b.saved ? shownBody : null;
     const q = b.question?.text ?? null;
     if (q) shown = q;
-    rows.push({ i: i + 1, text, expect: type, origin, kind: b.kind ?? null, saved: !!b.saved, reply: b.reply ?? null, question: q, kept_question: !q && b.kind === 'ask' ? shownBody : null, // 앱은 되묻기 뒤 떠 있던 질문을 그대로 둔다(B 와 같은 표시) error: b.questionError ? 'QUESTION_FAILED' : (b.ok === false ? b.code : null),
+    rows.push({ i: i + 1, text, expect: type, origin, kind: b.kind ?? null, saved: !!b.saved, reply: b.reply ?? null, question: q, kept_question: !q && b.kind === 'ask' ? shownBody : null, // 앱은 되묻기 뒤 떠 있던 질문을 그대로 둔다(B 와 같은 표시)
+      error: b.questionError ? 'QUESTION_FAILED' : (b.ok === false ? b.code : null), // 2026-09-25 수정(GF-63): 이 칸이 위 주석 안에 들어가 A 오류가 한 번도 기록되지 않았다
       calls: rec.calls.slice(before), retry: diag.retry_reason ?? [], result: diag.result ?? null, by: diag.by ?? null, total_ms: ms });
   }
   return rows;

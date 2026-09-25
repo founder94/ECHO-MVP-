@@ -99,3 +99,35 @@ test('블라인드 집계: 대표가 고른 것만 세고, 열쇠로 A/B 를 되
   assert.deepEqual(s.all, { A: 0, B: 2, BOTH_BAD: 0, NONE: 1, INVALID: 0, total: 3 }); // 두 칸 모두 X = B(열쇠) → A/B 를 뒤집으면 잡힌다
   assert.equal(s.actual.total, 2); assert.equal(s.synthetic.NONE, 1);
 });
+
+// GF-63(2026-09-25, 내 실수): runA 의 error 칸이 줄 주석 안에 들어가 A 의 질문 실패·오류가 한 번도 기록되지 않았다(실AI run1 에서 발견).
+test('하네스: A 의 질문 실패·오류가 행에 기록된다(GF-63 역검사)', async () => {
+  const { runA, GOLDEN } = await import('./harness-lib.mjs');
+  const flow = { ...GOLDEN.find((f) => f.id === 'FLOW1'), steps: GOLDEN.find((f) => f.id === 'FLOW1').steps.slice(0, 2) };
+  // [MOCK] 질문 후보를 늘 비워 내는 가짜 AI → A 는 질문을 만들지 못한다.
+  const noQuestion = (type) => () => JSON.stringify({ turn_type: type === 'repair' ? 'complaint' : type, correction_rest: '', interesting_clue: '', acknowledgement: '', answer_to_user: '', next_question: '', memory_candidates: [], confidence: 0.5, reason: 'mock' });
+  const rows = await runA(flow, { mock: noQuestion });
+  for (const r of rows) assert.ok(Object.hasOwn(r, 'error'), 'error 칸이 있어야 한다');
+  assert.ok(rows.some((r) => r.error), `질문을 못 만든 턴이 오류로 기록돼야 한다: ${JSON.stringify(rows.map((r) => [r.kind, r.question, r.error]))}`);
+  const ok = await runA(flow);
+  assert.ok(ok.every((r) => r.error === null), '정상 [MOCK] 경로는 오류 0');
+});
+
+test('run1 검수표 재생성: 결과표를 그대로 읽고, 봉한 열쇠로 집계가 A/B 를 되돌린다', async () => {
+  const { parseResult, outputs } = await import('./blind-from-result.mjs');
+  const md = readFileSync(path.join(HERE, '../../../docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md'), 'utf8');
+  const flows = parseResult(md);
+  assert.equal(flows.reduce((n, f) => n + f.rows.length, 0), 34);
+  const f1 = outputs(flows.find((f) => f.id === 'FLOW1'));
+  assert.match(f1[2].A, /다음 질문을 만들지 못함/); // FLOW1#3 A 질문 실패(GF-63 보정)
+  assert.match(f1[4].A, /대화 끝/); assert.match(f1[4].B, /대화 끝/); // 다섯 답
+  const sealed = JSON.parse(readFileSync(path.join(HERE, '../../../docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/blind-key.sealed.json'), 'utf8'));
+  const key = JSON.parse(Buffer.from(sealed.sealed, 'base64').toString('utf8'));
+  assert.equal(key.length, 34);
+  const sheet = readFileSync(path.join(HERE, '../../../docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md'), 'utf8');
+  const items = parseSheet(sheet);
+  assert.equal(items.length, 34);
+  assert.ok(items.every((i) => i.choice === null), '대표 검수 전: 선택 0');
+  const k0 = key[0]; const picked = items.map((i, n) => ({ ...i, choice: n === 0 ? 'X' : null }));
+  const s = score(picked, key); assert.equal(s.all[k0.X], 1); assert.equal(s.all.NONE, 33);
+});

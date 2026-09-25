@@ -217,6 +217,30 @@
    "evidence": "HYPOTHESIS",
    "note": "B 의도 장부가 옛 흐름 의도 태그 소진(FS-17)과 같은 모양 — 실AI 전 미확인",
    "ref": "docs/failure-intelligence/FAILED_SOLUTIONS_ARCHIVE.md"
+  },
+  {
+   "from": "GF-63",
+   "rel": "MASKS",
+   "to": "GF-02",
+   "evidence": "CODE",
+   "note": "하네스가 A 질문 실패를 기록하지 못해 run1 표에서 GF-02 재현이 0 으로 보였다",
+   "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+  },
+  {
+   "from": "GF-64",
+   "rel": "CONTRIBUTES_TO",
+   "to": "GF-01",
+   "evidence": "ACTUAL",
+   "note": "[REAL run1] B 가 방금 답한 질문을 같은 턴에 다시 냄",
+   "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+  },
+  {
+   "from": "GF-67",
+   "rel": "CAUSES",
+   "to": "GF-03",
+   "evidence": "ACTUAL",
+   "note": "[REAL run1] 항의 저장으로 대화가 끝나 뒤의 항의가 AI 에 가지 않음",
+   "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
   }
  ]
 }

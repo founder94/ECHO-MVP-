@@ -46,7 +46,8 @@ export function score(items, key) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
   const items = parseSheet(readFileSync(arg('--sheet'), 'utf8'));
-  const s = score(items, JSON.parse(readFileSync(arg('--key'), 'utf8')));
+  const rawKey = JSON.parse(readFileSync(arg('--key'), 'utf8'));
+  const s = score(items, rawKey.sealed ? JSON.parse(Buffer.from(rawKey.sealed, 'base64').toString('utf8')) : rawKey); // 봉한 열쇠(blind-from-result.mjs)도 읽는다
   const row = (name, t) => `| ${name} | ${t.total} | ${t.A} | ${t.B} | ${t.BOTH_BAD} | ${t.NONE} | ${t.INVALID} |`;
   const text = ['# 블라인드 검수 집계', '', '- 대표가 고른 것만 센다. 미선택·잘못 표시한 칸은 따로 센다.', '',
     '| 범위 | 칸 | A 가 낫다 | B 가 낫다 | 둘 다 별로 | 미선택 | 표시 오류 |', '|---|---|---|---|---|---|---|', row('전체', s.all), row('ACTUAL 만', s.actual), row('SYNTHETIC 만', s.synthetic)].join('\n');

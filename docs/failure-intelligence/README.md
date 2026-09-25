@@ -13,21 +13,21 @@
 
 | 구성 | 파일 | 상태 | 증거 수준 |
 |---|---|---|---|
-| Failure Library | `FAILURE_LIBRARY.md` ← `data/failures.json` | 운영 중 · 62건 | 항목마다 출처(ACTUAL·REAL_AI_SCRIPTED·CODE·SYNTHETIC·FOUNDER_STATEMENT)·원인 확신·방어 수준·사용자 피해 표시 |
+| Failure Library | `FAILURE_LIBRARY.md` ← `data/failures.json` | 운영 중 · 67건 | 항목마다 출처(ACTUAL·REAL_AI_SCRIPTED·CODE·SYNTHETIC·FOUNDER_STATEMENT)·원인 확신·방어 수준·사용자 피해 표시 |
 | Failure Taxonomy | `FAILURE_TAXONOMY.md` · `data/families.json` | 운영 중 | Layer 6 · Type 32(`data/types.json`) · Family 16(AI 조언자 실패 F-ADVISOR 포함) |
 | Golden Failure Set | `product/spike/ab-20260925/golden-failures.json` | 고정(`FROZEN_INPUTS.json`, 변경 이력 포함) · 34 입력 · ACTUAL 24 | 입력마다 ACTUAL/SYNTHETIC + 근거 문서 |
 | Failure Compiler | `product/spike/failure-intelligence/failure-compiler.mjs` | 프로토타입 | CANDIDATE — 뼈대 모드는 지금 사용 가능 · 모델 모드는 가짜 AI 로만 검사(실AI BLOCKED) · 결과는 항상 HUMAN_APPROVAL_REQUIRED |
-| Replay Lab | `run-ab.mjs`(A/B 실AI·MOCK) · `replay-decisions.mjs`(실제 문장 → 서버 판정, AI 호출 0) | 운영 중 | [REPLAY] 결정적 결과 · [REAL] BLOCKED_BY_ENVIRONMENT |
-| Solution Arena | A(v27) vs B(B-1.0), 같은 입력·같은 조건 | 준비 완료, 실AI 대기 | 승자 없음 · 블라인드 검수표·집계(`score-blind.mjs`)는 대표가 고른 것만 센다 |
+| Replay Lab | `run-ab.mjs`(A/B 실AI·MOCK) · `replay-decisions.mjs`(실제 문장 → 서버 판정, AI 호출 0) | 운영 중 | [REPLAY] 결정적 결과 · [REAL] run1 1회(2026-09-25) |
+| Solution Arena | A(v27) vs B(B-1.0), 같은 입력·같은 조건 | 실AI run1 완료 · 블라인드 검수 대기(`evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md`) | 승자 없음 · 블라인드 검수표·집계(`score-blind.mjs`)는 대표가 고른 것만 센다 |
 | Counter-Test Engine | 역검사(방어책을 일부러 망가뜨려 검사가 잡는지) + 정상 사례 역검사(Replay R4) | 운영 중 | [MOCK]·[REPLAY] |
 | Failed Solutions Archive | `FAILED_SOLUTIONS_ARCHIVE.md` ← `data/failed-solutions.json` | 운영 중 · 21건 | 지우지 않음 |
 | Verified Defense Registry | `VERIFIED_DEFENSE_REGISTRY.md` | 운영 중 | REAL_AI_VERIFIED 0 |
 | Model Capability Registry | `MODEL_CAPABILITY_REGISTRY.md` | 운영 중 | 모델 탓으로 분리된 실패 0 |
-| Failure Graph | `FAILURE_GRAPH.md` ← `data/failure-graph.json` | 운영 중 · 관계 26 | 관계마다 ACTUAL·CODE·HYPOTHESIS 표시 |
+| Failure Graph | `FAILURE_GRAPH.md` ← `data/failure-graph.json` | 운영 중 · 관계 29 | 관계마다 ACTUAL·CODE·HYPOTHESIS 표시 |
 | 저장 MASTER | `STORAGE_MASTER_20260925.md` | 대표 승인 2026-09-25 | 최상위 저장 기준 |
 | 행동 상태 장부 | `ACTION_LEDGER.md` ← `data/action-ledger.json` | 운영 중 | COMPLETED·DECIDED·BLOCKED·PENDING — 다음 행동 전 대조 |
 | Golden 판정 기준 | `product/spike/ab-20260925/golden-specs.json` | 사전 고정 · 20 spec | 기계 판정(저장·오류·반응·고정 문장) + 사람 판정 질문 |
-| 실AI 실행 경로(대안) | `.github/workflows/echo-ab-real.yml` | 준비 완료 · 대표 승인 대기 | GitHub 저장소 Secret 이 있을 때만 실행 · 없으면 BLOCKED 기록 |
+| 실AI 실행 경로(대안) | `.github/workflows/echo-ab-real.yml` | 대표 승인·Secret 등록 완료 · run1 실행(36103690087) | GitHub 저장소 Secret 이 있을 때만 실행 · 없으면 BLOCKED 기록 |
 | Outcome Feedback | — | **미구현** | 실사용자 결과가 아직 없다. 실사용자 대상 새 실험은 대표 승인 사항 |
 
 ## 규칙
@@ -54,10 +54,11 @@ node spike/ab-20260925/run-ab.mjs --require-real --out 결과.md --json 결과.j
 ```
 
 ## 실제 AI 상태
-- **REAL_AI = BLOCKED_BY_ENVIRONMENT.**
-  - 이 작업 환경 변수에 OpenAI 키가 없다.
-  - 채팅으로 받은 키는 환경 보안 장치가 실행을 막았다. 우회하지 않는다.
-- 실행 가능한 환경이 생기면 고정된 하네스를 그대로 돌린다.
+- **실AI A/B run1 완료(2026-09-25).**
+  - GitHub Actions + 저장소 Secret 으로 실행했다. 키는 이 작업 환경을 거치지 않았다.
+  - 사전 고정 일치 · gpt-4o-mini · 34 입력.
+- 결과: `REAL_AB_RUN1_분석_20260925.md`(A/B 이름이 보인다 — 대표는 블라인드 검수 뒤에 연다).
+- Claude 환경 안에서 키로 직접 실행하는 경로는 여전히 BLOCKED 다(우회하지 않는다).
 
 ## 트랙
 - TRACK 1 Relationship Agent 제품: Conversation P0 = FAIL 유지. 운영 = doit-understanding v27.

@@ -7,13 +7,15 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (3)
+## COMPLETED (5)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
 | A-01 | OpenAI 실험 키 ECHO-B-AB-TEST-20260925 발급 | 2026-09-25 | 대표 | 대표 「대표 승인 · ECHO B안 실AI A/B 검증」 | 다시 요구 금지 |
 | A-02 | 실험 키를 Claude 채팅으로 전달 | 2026-09-25 | 대표 | 같은 지시 | 키는 저장·출력하지 않음 |
 | A-10 | GitHub 재연결 | 2026-09-25 | 대표 | CLAUDE.md(GitHub push STOP 기록) · 이후 push 정상 |  |
+| P-01 | 실제 AI A/B(고정 하네스) | 2026-09-25 | 대표 승인 + GitHub Actions | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md · run 36103690087 | 실AI A/B run1 완료(종료 코드 0 · 사전 고정 일치). 다시 요구 금지. 추가 실행은 새 행동으로 기록 |
+| A-11 | GitHub 저장소 Secret OPENAI_API_KEY_AB_TEST 등록 | 2026-09-25 | 대표 | 대표 「대표 승인 · 실AI A/B 실행 시작」 · run 36103690087 로그의 OPENAI_API_KEY: *** | 다시 요구 금지 · 키 값은 저장·출력하지 않음 |
 
 ## DECIDED (7)
 
@@ -27,7 +29,7 @@
 | A-08 | Twilio(문자 인증) 연동 중단 | 2026-09-24 | 대표 | CLAUDE.md |  |
 | A-09 | 포괄 자율 실행(C항) · HARD STOP 만 승인 요청 · 중간보고 금지 | 2026-09-25 | 대표 | R&D 헌장 |  |
 
-## BLOCKED (5)
+## BLOCKED (7)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -36,14 +38,16 @@
 | B-03 | Netlify 도구 업로드 | 2026-09-22 | 바깥 인터넷 정책(프록시 403) | CLAUDE.md | 대표 수동 업로드 |
 | B-04 | app.do-it.company 내용 대조 | 2026-09-22 | 바깥 인터넷 정책(403) | CLAUDE.md |  |
 | B-05 | Supabase 관리 API 로 배포 | 2026-09-24 | 토큰 401 | CLAUDE.md | 대표 대시보드 붙여넣기로 대체됨 |
+| B-06 | Actions 첨부물(result.json·열쇠) 내려받기 | 2026-09-25 | 바깥 인터넷 정책(blob.core.windows.net 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 로그의 result.md 로 대신함 · 열쇠는 새 검수표로 다시 만듦 |
+| B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
 
 ## PENDING (6)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
-| P-01 | 실제 AI A/B(고정 하네스) | 2026-09-25 | — | REAL_AI = BLOCKED_BY_ENVIRONMENT | 대안 경로: GitHub Actions + 저장소 Secret(대표 승인 필요 — Secret 생성은 HARD STOP) |
 | P-02 | LEVEL 3 실기기(iPhone·Galaxy) | — | 대표 | — |  |
 | P-03 | 「모르겠어요」 대화 끝 판정 | — | 대표 결정 | GF-09 |  |
 | P-04 | 전화 인증 없는 연결 자격 조건 | — | 대표 결정 | CLAUDE.md |  |
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
+| P-07 | 실AI run1 블라인드 검수(34칸) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md | B WIN 판정의 전제 · Claude 는 승자를 고르지 않음 |

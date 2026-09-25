@@ -140,11 +140,11 @@
   {
    "id": "P-01",
    "what": "실제 AI A/B(고정 하네스)",
-   "state": "PENDING",
+   "state": "COMPLETED",
    "date": "2026-09-25",
-   "by": "—",
-   "evidence": "REAL_AI = BLOCKED_BY_ENVIRONMENT",
-   "note": "대안 경로: GitHub Actions + 저장소 Secret(대표 승인 필요 — Secret 생성은 HARD STOP)"
+   "by": "대표 승인 + GitHub Actions",
+   "evidence": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md · run 36103690087",
+   "note": "실AI A/B run1 완료(종료 코드 0 · 사전 고정 일치). 다시 요구 금지. 추가 실행은 새 행동으로 기록"
   },
   {
    "id": "P-02",
@@ -190,6 +190,42 @@
    "by": "대표 승인(운영 배포)",
    "evidence": "GF-48",
    "note": ""
+  },
+  {
+   "id": "A-11",
+   "what": "GitHub 저장소 Secret OPENAI_API_KEY_AB_TEST 등록",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "대표 「대표 승인 · 실AI A/B 실행 시작」 · run 36103690087 로그의 OPENAI_API_KEY: ***",
+   "note": "다시 요구 금지 · 키 값은 저장·출력하지 않음"
+  },
+  {
+   "id": "B-06",
+   "what": "Actions 첨부물(result.json·열쇠) 내려받기",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "바깥 인터넷 정책(blob.core.windows.net 프록시 403)",
+   "evidence": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
+   "note": "로그의 result.md 로 대신함 · 열쇠는 새 검수표로 다시 만듦"
+  },
+  {
+   "id": "B-07",
+   "what": "OpenAI 공식 가격 페이지 확인",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "바깥 인터넷 정책(openai.com 프록시 403)",
+   "evidence": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
+   "note": "비용 = 확인 불가. 단가 추정 금지"
+  },
+  {
+   "id": "P-07",
+   "what": "실AI run1 블라인드 검수(34칸)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표",
+   "evidence": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md",
+   "note": "B WIN 판정의 전제 · Claude 는 승자를 고르지 않음"
   }
  ]
 }

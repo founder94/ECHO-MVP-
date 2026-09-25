@@ -15,11 +15,11 @@ FAILURE → EXPERIENCE → EVIDENCE → REPRODUCE → ROOT CAUSE → SOLUTION �
 |---|---|---|
 | Current Agent A | 운영 doit-understanding v27 `1aab6423…` (동결) | `product/spike/ab-20260925/FROZEN_INPUTS.json` |
 | Minimal Agent B | B-1.0 `a0031fcc…` (동결) | 같은 파일 |
-| 실제 A/B 실AI | 0회 · REAL_AI = BLOCKED_BY_ENVIRONMENT | `ACTION_LEDGER.md` P-01 |
+| 실제 A/B 실AI | **1회(run1, 2026-09-25 · GitHub Actions)** · 블라인드 검수 대기 | `ACTION_LEDGER.md` P-01·P-07 · `REAL_AB_RUN1_분석_20260925.md` |
 | B WIN | 확인 불가 | — |
 | Conversation P0 | FAIL | — |
 | 운영 변경 | 0 | — |
-| Failure Library | **62건** (대표 문서의 53 → 이번 묶음 AI 조언자 실패 7건 + B 위험 후보 2건 추가) | `FAILURE_LIBRARY.md` 머리 |
+| Failure Library | **67건** (62 → 실AI run1 새 실패 5건: GF-63~67) | `FAILURE_LIBRARY.md` 머리 |
 | Failed Solutions | 21건 | `FAILED_SOLUTIONS_ARCHIVE.md` |
 | 고정 검사 입력 | 34개 · 대표 실제 입력 24개 | `golden-failures.json` |
 | Golden 판정 기준 | 20 spec (사전 고정) | `golden-specs.json` |
@@ -29,7 +29,7 @@ FAILURE → EXPERIENCE → EVIDENCE → REPRODUCE → ROOT CAUSE → SOLUTION �
 - KEY_PROVIDED_BY_FOUNDER = **YES**
   - 대표가 `ECHO-B-AB-TEST-20260925` 를 발급해 채팅으로 전달했다.
 - KEY_AVAILABLE_AS_CLOUD_ENVIRONMENT_VARIABLE = **NO**
-- REAL_AI_EXECUTION = **BLOCKED_BY_ENVIRONMENT**
+- REAL_AI_EXECUTION(Claude 환경 안) = **BLOCKED_BY_ENVIRONMENT** · 대안 경로(GitHub Actions + 저장소 Secret `OPENAI_API_KEY_AB_TEST`, 대표 등록 2026-09-25)로 run1 실행 완료
   - Claude 클라우드 보안 장치가 채팅으로 받은 비밀 값을 실행 명령에 쓰는 것을 막았다.
 - 원인은 「대표가 키를 준비하지 않음」이 아니다.
 - 결정: 현재 키 유지.
