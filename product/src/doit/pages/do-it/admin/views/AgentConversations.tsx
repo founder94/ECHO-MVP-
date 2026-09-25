@@ -2,18 +2,21 @@
 // 가짜 사용자·가짜 매칭·가짜 비용 0. 사용자 원문은 기본 가림(「원문 보기」를 눌러야 보임). 이 화면은 읽기만 한다(쓰기 호출 0).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
-import { PURPOSE_IDS, candidates, dashboard, fetchAgentAdmin, observability, type Session } from "@/doit/lib/agentAdmin";
+import { PIPELINE_STAGES, PURPOSE_IDS, candidates, dashboard, fetchAgentAdmin, observability, pipeline, pipelineSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
 import { AGENT_PURPOSE_LABELS } from "@/doit/lib/agentApi";
 import { PanelTitle, StatCard, Pill, EmptyRow, fmtDate } from "../components/ui";
 
 type Load = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; sessions: Session[] };
-type Tab = "dashboard" | "sessions" | "profile" | "candidates" | "ai";
+type Tab = "pipeline" | "dashboard" | "sessions" | "profile" | "candidates" | "ai";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "dashboard", label: "대시보드" }, { key: "sessions", label: "대화 보기" }, { key: "profile", label: "매칭 프로필" },
+  { key: "pipeline", label: "어디서 막혔나(파이프라인)" }, { key: "dashboard", label: "대시보드" }, { key: "sessions", label: "대화 보기" }, { key: "profile", label: "매칭 프로필" },
   { key: "candidates", label: "실패·성공 후보" }, { key: "ai", label: "AI 관측" },
 ];
 const TONE: Record<string, string> = { formal: "정중한 존댓말", polite: "편한 존댓말", casual: "편한 반말" };
-const FLAG: Record<string, string> = { correction: "정정", rejection: "거절", complaint: "항의", skip: "넘기기", fatigue: "지침", unsure: "모르겠음", ask: "AI에게 질문", blocked: "저장 금지 입력" };
+const FLAG: Record<string, string> = { correction: "정정", rejection: "거절", complaint: "항의", skip: "넘기기", fatigue: "지침", unsure: "모르겠음", ask: "AI에게 질문", help: "질문 뜻 되물음", blocked: "저장 금지 입력" };
+// 파이프라인 단계 판정: 색만으로 뜻을 전하지 않는다 — 글자를 늘 함께 쓴다(초록 = 됨 · 노랑 = 부분·대기 · 회색 = 모름·막힘(외부 연결) · 빨강 = 실패).
+const STAGE_TEXT: Record<StageState, string> = { PASS: "됨", PARTIAL: "부분", WAIT: "기다림", FAIL: "실패", BLOCKED: "막힘", UNKNOWN: "모름" };
+const STAGE_CLASS: Record<StageState, string> = { PASS: "border-[#2f8a57] bg-[#eaf6ef] text-[#1f6b41]", PARTIAL: "border-[#c98a12] bg-[#fdf3dc] text-[#7a5200]", WAIT: "border-[#c98a12] bg-[#fdf3dc] text-[#7a5200]", FAIL: "border-[#b3261e] bg-[#fdecea] text-[#8c1d18]", BLOCKED: "border-background-300 text-foreground-600", UNKNOWN: "border-background-300 text-foreground-600" };
 const INTRO_STATUS: Record<string, string> = { ready: "만듦", failed: "못 만듦", none: "재료 없음" };
 const INTRO_USED: Record<string, string> = { as_is: "그대로 사용", edited: "고쳐서 사용", own: "직접 씀" };
 
@@ -25,7 +28,7 @@ const hide = (t: string | null, show: boolean) => (t == null ? "기록 없음" :
 
 export default function AgentConversations() {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>("pipeline");
   const [openId, setOpenId] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
 
@@ -40,6 +43,7 @@ export default function AgentConversations() {
   const obs = useMemo(() => observability(sessions), [sessions]);
   const cands = useMemo(() => sessions.map((s) => ({ s, c: candidates(s) })), [sessions]);
   const open = sessions.find((s) => s.id === openId) ?? null;
+  const pipe = useMemo(() => pipelineSummary(sessions), [sessions]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,6 +64,26 @@ export default function AgentConversations() {
       {load.kind === "loading" && <p className="text-sm text-foreground-600">불러오고 있어요.</p>}
       {load.kind === "error" && <p role="alert" className="text-sm text-secondary-900">{load.message}</p>}
       {load.kind === "ready" && sessions.length === 0 && <EmptyRow>아직 에이전트 대화가 없어요. 사용자가 새 대화를 시작하면 여기에 보여요.</EmptyRow>}
+
+      {load.kind === "ready" && sessions.length > 0 && tab === "pipeline" && <section className="flex flex-col gap-4" aria-label="파이프라인">
+        <p className="text-xs leading-relaxed text-foreground-600">사용자 말 → 대화 → AI OS(서버가 AI 후보를 확인) → 확정 정보 → AI 소개·사용자 확인 → 사진 → 전화 인증 → 연결 준비 → 후보·연결. 서버 기록만으로 판정하고, 기록이 없으면 「모름」이에요. 이름을 누르면 그 대화로 갑니다.</p>
+        <div className="rounded-lg border border-background-200 px-4 py-3 text-sm">
+          <p className="font-semibold">지금 가장 많이 멈춘 곳 TOP 3</p>
+          {pipe.top.length ? <ol className="mt-2 flex flex-col gap-1 text-xs">{pipe.top.map((x, k) => <li key={x.key}>{k + 1}. {x.label} — {x.n}명</li>)}</ol> : <p className="mt-2 text-xs text-foreground-500">멈춘 사람이 없어요.</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          {PIPELINE_STAGES.map((x) => <StatCard key={x.key} label={x.label} value={`${pipe.reached[x.key]} / ${pipe.total}`} sub="이 단계까지 된 사람" status="success" />)}
+        </div>
+        <div className="overflow-x-auto rounded-lg border border-background-200">
+          <table className="min-w-[860px] text-left text-xs">
+            <thead><tr className="bg-background-100">{["사용자", ...PIPELINE_STAGES.map((x) => x.label)].map((h) => <th key={h} className="px-2 py-2 font-semibold">{h}</th>)}</tr></thead>
+            <tbody>{sessions.map((s) => { const p = pipeline(s); return <tr key={s.id} className="border-t border-background-200 align-top">
+              <td className="px-2 py-2"><button type="button" className="font-semibold underline" onClick={() => { setOpenId(s.id); setTab("sessions"); }}>{s.nickname ?? s.user}</button><div className="text-foreground-500">{p.stuck ? `멈춘 곳: ${p.stuck.label}` : "모두 됨"}</div></td>
+              {p.stages.map((x) => <td key={x.key} className="px-2 py-2"><span className={`inline-flex rounded-full border px-2 py-0.5 font-semibold ${STAGE_CLASS[x.state]}`}>{STAGE_TEXT[x.state]}</span><div className="mt-1 text-foreground-500">{x.note}</div></td>)}
+            </tr>; })}</tbody>
+          </table>
+        </div>
+      </section>}
 
       {load.kind === "ready" && sessions.length > 0 && tab === "dashboard" && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="대화" value={d.sessions} sub={`진행 ${d.in_progress} · 끝남 ${d.done}`} status="success" accent />
@@ -87,7 +111,7 @@ export default function AgentConversations() {
           </button>
           {open?.id === s.id && <ol className="mt-3 flex flex-col gap-3 text-xs">
             {s.turns.map((t) => <li key={t.i} className="rounded-md bg-background-100 px-3 py-2">
-              <p className="font-semibold">턴 {t.i} · {t.action}{t.rec ? ` · 질문 ${t.rec.question_index}/5 · ${t.rec.decision}` : ""} {Object.entries(t.flags).filter(([, v]) => v).map(([k]) => <Pill key={k} tone="secondary">{FLAG[k] ?? k}</Pill>)}</p>
+              <p className="font-semibold">턴 {t.i} · {t.action}{t.rec ? ` · 질문 ${t.rec.question_index}/5 · ${t.rec.decision}` : ""} {Object.entries(t.flags).filter(([, v]) => v).map(([k]) => <Pill key={k} tone="secondary">{FLAG[k] ?? k}</Pill>)}{t.rec?.guard ? <Pill tone="neutral">서버가 바로잡음: {t.rec.guard.from}→{t.rec.guard.to} ({t.rec.guard.rule})</Pill> : null}{t.rec?.superseded ? <Pill tone="neutral">정정으로 옛 뜻 {t.rec.superseded}개 거둠</Pill> : null}</p>
               <p className="mt-1">사용자: {hide(t.user, showRaw)}</p>
               <p className="mt-1 whitespace-pre-wrap">ECHO: {t.assistant || "(말 없음)"}</p>
               {t.rec && <p className="mt-1 text-foreground-500">{t.rec.provider} · {t.rec.calls.map((c) => `${c.kind} ${c.model ?? "?"} ${c.ms}ms 입력 ${c.input_tokens ?? "?"} 출력 ${c.output_tokens ?? "?"}${c.error ? ` 오류 ${c.error}` : ""}`).join(" / ")} · 다시 청함 {t.rec.retry.join(",") || "0"}{t.rec.tone_mismatch_observed ? " · 말투 어긋남(추정)" : ""}{t.rec.record_error ? ` · 기록 저장 실패` : ""}</p>}

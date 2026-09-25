@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { ADMIN_MENUS } from "../meta";
 import { useAdminData, type Period } from "../hooks/useAdminData";
@@ -25,7 +25,11 @@ const PERIODS: { key: Period; label: string }[] = [
 
 export default function AdminShell() {
   const { user, signOut } = useAuth();
-  const [active, setActive] = useState<string>("dashboard");
+  // ?menu=agent 처럼 주소로 메뉴를 열 수 있다(점검표의 「사용자별로 어디서 멈췄는지 보기」 → 대화 에이전트).
+  const [search] = useSearchParams();
+  const menuFromUrl = search.get("menu");
+  const [active, setActive] = useState<string>(() => (ADMIN_MENUS.some((m) => m.key === menuFromUrl) ? menuFromUrl! : "dashboard"));
+  useEffect(() => { if (menuFromUrl && ADMIN_MENUS.some((m) => m.key === menuFromUrl)) setActive(menuFromUrl); }, [menuFromUrl]);
   const [period, setPeriod] = useState<Period>("7d");
   const [menuOpen, setMenuOpen] = useState(false);
   const { data, refresh } = useAdminData(period);
