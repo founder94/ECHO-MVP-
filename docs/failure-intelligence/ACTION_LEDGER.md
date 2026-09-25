@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (10)
+## COMPLETED (11)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -21,6 +21,7 @@
 | P-10 | MODEL GATE 1단계: 계정 모델 목록 확인(GET /v1/models · 비용 0 · 기존 Actions 경로) | 2026-09-25 | Claude(GitHub Actions run 36107887216) | docs/failure-intelligence/evidence/MODEL_GATE_20260925/account_models_probe.md | 132개 보임 · 같은 파라미터 200 = gpt-4o-mini·4.1·4.1-mini·4.1-nano·4o · gpt-5 계열 5개 400(max_tokens). 비용 0 에 가까움(요청 10번 · 입력 24 토큰씩) |
 | P-11 | MODEL GATE 실행: B-1.0 고정 · 모델만 4개(gpt-4o-mini 기준 · gpt-4.1-mini · gpt-4.1 · gpt-4o) | 2026-09-25 | Claude(GitHub Actions run 36108344306) | docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md | 사전 등록 일치 · 4 모델 × 34 입력 · 호출 143 · 운영 변경 0 |
 | P-12 | MODEL GATE 블라인드 검수 17칸(4개 답 중 가장 나은 것) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md | 17칸: gpt-4.1-mini 5 · gpt-4.1 4 · gpt-4o 3 · gpt-4o-mini 2 · 모두 별로 3(실제 입력 14: 5·2·2·2·3) → 모델 승자 없음 · P0 FAIL. 다시 요구 금지 |
+| P-15 | core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교) | 2026-09-25 | Claude(GitHub Actions run 36111514762) | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md | 한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지 |
 
 ## DECIDED (16)
 

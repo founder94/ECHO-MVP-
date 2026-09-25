@@ -370,6 +370,15 @@
    "by": "대표",
    "evidence": "https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk",
    "note": "대화는 페이지 db sessions 에 저장 → Claude 가 읽고 분석. 17칸 검수 요구 금지"
+  },
+  {
+   "id": "P-15",
+   "what": "core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교)",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "Claude(GitHub Actions run 36111514762)",
+   "evidence": "docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md",
+   "note": "한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지"
   }
  ]
 }

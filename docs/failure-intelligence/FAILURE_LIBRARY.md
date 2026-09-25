@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 76건 — 증거 수준: ACTUAL 70 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 39 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 15 · FOUNDER_STATEMENT 4
-- 상태: UNRESOLVED 41 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 26
+- 합계 77건 — 증거 수준: ACTUAL 71 · CANDIDATE 4 · HYPOTHESIS 2 · 출처: ACTUAL 39 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 4
+- 상태: UNRESOLVED 42 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -90,6 +90,7 @@
 | GF-74 | 2026-09-22~24(운영) · 대표 | ACTUAL | ACTUAL | F-CONTRACT | 방향이탈 · 제품 목적 가림 · 제품 계약 불일치 | Product Contract · Context | MIXED | NONE | UNRESOLVED |
 | GF-75 | 2026-09-19~25(v13 → v2 | ACTUAL | ACTUAL | F-CONTRACT | 규칙 누적 · 과잉 Guard | Product Contract · Evaluation | CONFIRMED | NONE | UNRESOLVED |
 | GF-76 | 2026-09-21~25 | CANDIDATE | FOUNDER_STATEMENT | F-EVAL | 제품 목적 가림 · Mock PASS / 실AI FAIL | Evaluation · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-77 | 2026-09-25 08:11~08:14 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · 방향이탈 | Model · Orchestration | MIXED | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -2263,13 +2264,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음 · [REAL MODEL GATE 대표 블라인드] 항의 칸 선택이 모델마다 갈림(M01 4o · M02 4.1-mini · M14 4.1-mini) · 「활동」 뒤 항의 M11 은 네 모델 모두 「모두 별로」 |
+| 실AI 결과 | [REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음 · [REAL MODEL GATE] 항의·되묻기 저장: 4o-mini 3 · 4.1-mini 3 · 4.1 2 · 4o 1 — 「나 진심이라고 적은거 같은데」는 gpt-4o 만 저장 안 함 → 모델만으로 사라지지 않음 · [REAL MODEL GATE 대표 블라인드] 항의 칸 선택이 모델마다 갈림(M01 4o · M02 4.1-mini · M14 4.1-mini) · 「활동」 뒤 항의 M11 은 네 모델 모두 「모두 별로」 · [REAL core 재생] 항의 저장 4o-mini 0 · 4.1-mini 3 · 4.1 5 · 4o 0 → core 에서도 모델 분류에 달림 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED |
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | CAUSES→GF-03(ACTUAL) · GF-72→CONTRIBUTES_TO(HYPOTHESIS) |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` · `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` |
 
 ## GF-68 EXPERIMENT_VARIABLE_NOT_LOCKED — 실AI A/B 전에 운영 A 의 실제 모델·파라미터를 확정하지 않음
 
@@ -2328,13 +2329,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님) · [REAL MODEL GATE 대표 블라인드] 고른 답 14개 중 질문에 「활동」 0 · M03·M15 에서 「활동」을 묻지 않은 유일한 답(gpt-4.1)을 두 번 모두 선택 → 모델 몫 가설 강화(1회·검수자 1명, 확정 아님) |
+| 실AI 결과 | [REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1) · [REAL MODEL GATE 2026-09-25 · B-1.0 고정] 질문에 「활동」: gpt-4o-mini 5 · gpt-4.1-mini 3 · gpt-4.1 0 · gpt-4o 4 → 모델에 따라 다름(모델 몫 가설 강화, 1회라 확정 아님) · [REAL MODEL GATE 대표 블라인드] 고른 답 14개 중 질문에 「활동」 0 · M03·M15 에서 「활동」을 묻지 않은 유일한 답(gpt-4.1)을 두 번 모두 선택 → 모델 몫 가설 강화(1회·검수자 1명, 확정 아님) · [REAL core 재생] 「활동」 질문 gpt-4.1 0(두 구조 모두 0) · 4o 2 · 4.1-mini 3 · 4o-mini 질문 칸 0이지만 반응 안에 최소 3 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(원인 HYPOTHESIS · 모델 몫 가설 강화, MODEL GATE 블라인드 2026-09-25) |
 | Golden Test | FLOW2, FLOW3, FLOW7 |
 | 관련 실패(Graph) | CONTRIBUTES_TO→GF-08(HYPOTHESIS) · CONTRIBUTES_TO→GF-71(HYPOTHESIS) |
-| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` |
+| 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` · `docs/failure-intelligence/MODEL_GATE_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md` · `docs/failure-intelligence/MODEL_GATE_RESULT_20260925.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/models-result.md` · `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` · `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` |
 
 ## GF-70 [B-1.0] 정정·거절 뒤 질문을 버리고 반응만 → 대화가 멈춤(대표 블라인드에서 고정 안내문 A 보다 낮게 평가)
 
@@ -2460,13 +2461,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL] 운영 로그(FAIL #2) · core-0.1 재생 결과는 CORE_REPLAY_RESULT_20260925.md |
+| 실AI 결과 | [REAL core 재생 run 36111514762] core-0.1: 한 턴 호출 1번·재시도 0·읽기 실패 0(4 모델) · Golden 기계 PASS 는 모델마다 엇갈림(4o-mini +2 · 4.1-mini −1 · 4.1 −3 · 4o −1) — 구조만으로 좋아졌다고 말할 수 없음 |
 | 사용자 결과 | UNKNOWN |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(core-0.1 후보 · 대표 휴대폰 확인 전) |
 | Golden Test | FLOW2, FLOW3 |
 | 관련 실패(Graph) | GF-75→CAUSES(ACTUAL) · BROKEN_BY→FS-23(ACTUAL) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-agent-v1.1/rollback/doit-understanding.v27.ts` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-agent-v1.1/rollback/doit-understanding.v27.ts` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` · `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` · `docs/failure-intelligence/evidence/CORE_REPLAY_20260925/core-result-excerpt.md` |
 
 ## GF-74 QUESTION_ENGINE_OVER_PRODUCT_PURPOSE — 주제 칸 순서·남은 칸 수·「다섯 답 = 끝」이 질문 방향을 정해 사용자 말보다 칸 채우기가 앞섬
 
@@ -2493,13 +2494,13 @@
 | Mock 결과 | UNKNOWN |
 | 부작용 | — |
 | 역검사 결과 | — |
-| 실AI 결과 | [REAL] GF-08·GF-69·GF-71 관측 · core-0.1 재생 결과는 CORE_REPLAY_RESULT_20260925.md |
+| 실AI 결과 | [REAL core 재생 run 36111514762] core-0.1: 한 턴 호출 1번·재시도 0·읽기 실패 0(4 모델) · Golden 기계 PASS 는 모델마다 엇갈림(4o-mini +2 · 4.1-mini −1 · 4.1 −3 · 4o −1) — 구조만으로 좋아졌다고 말할 수 없음 |
 | 사용자 결과 | 대표 피드백 「활동이란는 단어는 삭제하고 서비스 취지에 맞게」(GF-71) |
 | 방어 수준 | NONE |
 | 현재 상태 | UNRESOLVED(core-0.1 후보) |
 | Golden Test | FLOW2, FLOW7 |
 | 관련 실패(Graph) | CONTRIBUTES_TO→GF-71(ACTUAL) · GF-76→MASKS(HYPOTHESIS) |
-| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md` · `docs/claude-final-review-20260916/PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` · `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` · `docs/failure-intelligence/evidence/CORE_REPLAY_20260925/core-result-excerpt.md` |
 
 ## GF-75 PATCH_ACCUMULATION — 실패마다 규칙 하나를 더하고, 그 규칙이 반대쪽 실패를 낳는 고리가 반복됨
 
@@ -2566,3 +2567,36 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | MASKS→GF-74(HYPOTHESIS) |
 | 근거 | `docs/failure-intelligence/evidence/MODEL_GATE_20260925/MODEL_BLIND_RESULT.md` · `docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md` |
+
+## GF-77 [core-0.1 · gpt-4o-mini] 출력 약속 불이행 — 질문 칸을 비우고(24/34) 질문을 반응 문장 안에 쓰거나 기억 인용을 남기지 않음(답 비저장 9)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-25 08:11~08:14Z(core 재생) |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 실제 OpenAI + Golden 고정 입력 · 운영 서버 아님 |
+| 사용자 상황 | core-0.1 · gpt-4o-mini · Golden 34 |
+| 사용자 원문 | 「그냥 편한친구 부담없이」 등 |
+| AI 행동 | 「💬 편한 친구를 원하신다니 좋네요. 어떤 활동을 함께 하고 싶으세요?」(question 칸 null) |
+| 기대 행동 | 반응과 질문을 각각의 칸에 · 기억은 원문 인용과 함께 |
+| Failure Type | 오분류 · 방향이탈 |
+| 원인 Layer | Model · Orchestration (원인 확신: MIXED) — 같은 core 에서 다른 세 모델은 질문 칸을 채움(질문 없는 턴 0) → Model 몫. core 가 출력 칸 준수에 기대는 설계(Orchestration)도 있음 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] 1회 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | core 에서 gpt-4o-mini 제외(관측 1회) — 고치려고 규칙을 더하지 않는다(대표 LOCK) |
+| 실험 결과 | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md |
+| Mock 결과 | UNKNOWN |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL core 재생] 질문 칸 빔 24/34 · 답 비저장 9 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED |
+| Golden Test | FLOW1, FLOW2, FLOW3, FLOW4, FLOW5, FLOW6, FLOW7 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md` · `docs/failure-intelligence/evidence/CORE_REPLAY_20260925/core-result-excerpt.md` |
