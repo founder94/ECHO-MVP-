@@ -128,7 +128,7 @@
  "prod_agent_gate": {
   "registered_at": "2026-09-25",
   "why": "대표 「구현 → 운영배포 → 운영검증」 FINAL: 운영 서버 doit-agent 가 쓰는 agent.ts(echo-agent-v1.2 — v1.1 에서 말투 예시 문장 삭제·첫 질문 = 목적 타일·먼저 답한 뒤 지금 질문 유지·대화 상한)를 결과를 보기 전에 고정한다. 입력·모델은 v1.1 재생과 같다.",
-  "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
+  "agent_ts_sha256": "f21158e15917a0acfccf1f11596fbf8da086767c8e5f5d8dcf6def69164fdc6f",
   "flows_sha256": "8003b022f10fae697c0e9001ee754b9e8258fd67aade2a4ee670116f0ab55933",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
@@ -144,6 +144,15 @@
    "max_calls_per_turn": 2,
    "closing_call": "마칠 때 1번"
   },
-  "version": "echo-agent-v1.2"
+  "version": "echo-agent-v1.2 (프롬프트 수정 1회)",
+  "history": [
+   {
+    "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
+    "version": "echo-agent-v1.2",
+    "actions_run": 36118572833,
+    "commit": "4308f28"
+   }
+  ],
+  "why_v2": "run 7(실제 AI)에서 질문이 목적 설명 문장을 옮겨 쓴 설문 말투였고, 오타가 있는 답은 인용을 고쳐 써서 저장되지 않았다. 프롬프트만 고쳤다(구조·상태·검사 변경 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영 기본)에서 치명 지표(핵심 질문 5 초과·끝난 뒤 질문·내부 이름·금지어·오류·말투 어긋남·항의 저장)가 run 7 보다 나빠지지 않고 설문 옮겨 쓰기(label_copy)가 줄면 이 판을 배포, 아니면 run 7 판을 배포한다."
  }
 }

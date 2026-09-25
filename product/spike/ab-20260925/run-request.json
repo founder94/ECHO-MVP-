@@ -2,9 +2,9 @@
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-25",
  "approved_by": "대표 「ECHO 대표 최종 지시 · 구현 → 운영배포 → 운영검증」(2026-09-25 FINAL) — 실제 AI 검사 포함",
- "run": 7,
+ "run": 8,
  "mode": "prod_agent",
- "what": "운영판 에이전트 agent.ts(echo-agent-v1.2) 재생 — 사전 등록 = FROZEN_INPUTS.json prod_agent_gate",
+ "what": "운영판 에이전트 agent.ts 프롬프트 수정 1회 뒤 같은 입력·모델로 재생 — 사전 등록 = prod_agent_gate(history 에 run 7 판)",
  "history": [
   {
    "run": 1,
@@ -41,6 +41,12 @@
    "mode": "agent",
    "actions_run": 36115418519,
    "commit": "c285210"
+  },
+  {
+   "run": 7,
+   "mode": "prod_agent",
+   "actions_run": 36118572833,
+   "commit": "4308f28"
   }
  ],
  "models": [

@@ -61,6 +61,13 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   assert.ok(!/getUserMedia|MediaRecorder|AudioContext/.test(ui), '마이크 녹음·음성 원본 수집 코드 0(기기 받아쓰기만)');
   assert.ok(!/데이팅|소개팅|궁합|점술|심리치료|성격검사/.test(ui + api), '금지어 0');
   assert.ok(!/setTimeout/.test(ui), '가짜 진행 타이머 0');
+  // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」): 기존 대화 화면 CSS 만 쓰고 새 CSS 파일·새 클래스를 만들지 않는다.
+  const imports = [...ui.matchAll(/import '\.\/([^']+\.css)'/g)].map((m) => m[1]);
+  assert.deepEqual(imports, ['core-conversation.css']);
+  const css = src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css');
+  const classes = [...new Set([...ui.matchAll(/className=["{]['"]?([^"'}]+)/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith('echo-')))];
+  const unknown = classes.filter((c) => !css.includes(`.${c}`));
+  assert.deepEqual(unknown, [], `기존 CSS 에 없는 클래스: ${unknown.join(',')}`);
   // 이 화면은 질문을 만들지 않는다: 고정 질문 배열·질문 문장 목록 0
   assert.ok(!/\?['"`],\s*['"`]/.test(ui), '질문 문장 배열 없음');
   const page = src('src/doit/pages/do-it/conversation/page.tsx');

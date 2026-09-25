@@ -3,6 +3,7 @@
 //   ① 말투 예시 문장 삭제 — 실제 AI 재생에서 모델이 예시 「그렇군요, 편한 게 제일 중요하네요」를 그대로 베껴 썼다.
 //   ② 첫 질문 = 앱의 목적 타일 화면(「어떤 만남을 원하세요?」 · 대표 결정 2026-09-21). 타일과 한 줄이 첫 답이다.
 //   ③ 호출마다 모델 이름·토큰(usage)·지연을 남긴다(관리자 관측). ④ 대화 길이 상한(비용 보호).
+//   ⑤ (운영판 실AI 재생 run 7 뒤) 목적 설명 문장을 AI 입력에서 빼고 「label 을 질문으로 옮겨 쓰지 않는다」·「인용은 오타까지 그대로」·「이미 답한 목적은 묻지 않는다」를 더했다.
 // 서버(이 파일의 상태 함수)가 결정: 목적 상태 · 질문 수(최대 5) · 되묻기 수 · 저장/비저장 · 정정·거절 · 대화 끝.
 // 질문 문장은 심사하지 않는다. AI 출력에서 보는 것 = JSON 형식 · 제품 금지어 · 기억 원문 인용 · 내부 이름 노출 · 목적 id 가 아직 안 물은 것인지.
 
@@ -77,13 +78,15 @@ kind 하나:
 - unsure: 모르겠다·딱히 없다.
 - stop: 지쳤다·그만하자·질문이 너무 많다.
 
-extracted: 이번 말에서 사용자가 직접 한 것만, 목적 id(relationship_intent·attraction_comfort·values_character·relationship_style·boundaries) 별로. note = 짧은 요약, quote = 이번 말 원문 그대로의 일부. 한 말이 여러 목적을 채우면 여러 개. answer·correction 이 아니면 빈 배열.
+extracted: 이번 말에서 사용자가 직접 한 것만, 목적 id(relationship_intent·attraction_comfort·values_character·relationship_style·boundaries) 별로. note = 짧은 요약, quote = 이번 말에서 사용자가 친 글자를 오타·띄어쓰기까지 그대로 복사한 일부(고쳐 쓰면 저장되지 않는다). 한 말이 여러 목적을 채우면 여러 개. answer·correction 이 아니면 빈 배열.
 inferred: 네가 추측한 성향이 있으면 {trait, basis}. 사실로 말하지 않는다. MBTI·혈액형을 추측하지 않는다.
 declared: 사용자가 자기 MBTI·혈액형을 직접 말했을 때만 {"mbti":"","blood_type":"","quote":""}.
 wrong: correction·repair 로 이제 틀린 것이 된 heard 의 note(그대로).
 
 next: 다음 질문.
 - 서버가 준 open_purposes(아직 안 물은 목적) 중 하나를 골라, 방금 사용자 말에서 자연스럽게 이어지는 질문 한 문장(물음표 하나)으로 묻는다. 순서는 open_purposes 앞쪽이 기본이지만 방금 말과 더 자연스럽게 이어지는 목적이 있으면 그것을 고른다.
+- open_purposes 의 label 은 무엇을 알아야 하는지 알려 주는 이름일 뿐이다. label 을 질문 문장으로 옮겨 쓰지 않는다(설문처럼 들린다). 방금 사용자 말의 낱말 하나를 잡아, 그 말을 들은 사람이 자연스럽게 물을 법한 짧은 말로 그 목적 쪽을 묻는다.
+- 방금 말이 open_purposes 가운데 어떤 목적에 이미 답했으면 extracted 에 넣고, 그 목적은 묻지 않는다.
 - 이미 들은 것(heard)을 다시 묻지 않는다. disputed 와 같은 방향으로 묻지 않는다. 꼬리질문으로 같은 주제를 파고들지 않는다.
 - kind 가 answer 인데 그 뜻을 전혀 알 수 없을 때만, clarify_allowed 가 true 이면 type "clarify"(같은 목적으로 한 번 되묻기). 모르겠다·넘기자·어렵다·항의 뒤에는 되묻지 않고 다음 목적으로 간다.
 - open_purposes 가 비었거나 kind 가 stop 이면 {"type":"none"}.
@@ -159,7 +162,7 @@ export function turnInput(st: AgentState, latest: string): Json {
     heard: heard(st),
     corrections: st.corrections.slice(-3),
     disputed: st.disputed.slice(-5),
-    open_purposes: openPurposes(st).map((id) => ({ purpose: id, label: labelOf(id), goal: PURPOSES.find((p) => p.id === id)!.goal })),
+    open_purposes: openPurposes(st).map((id) => ({ purpose: id, label: labelOf(id) })), // 목적 설명 문장(goal)은 넣지 않는다 — 실제 AI 가 그 문장을 질문으로 옮겨 써서 설문처럼 들렸다(운영판 실AI 재생 run 7)
     core_questions_left: MAX_CORE_QUESTIONS - coreAsked(st).length,
     clarify_allowed: clarifyAllowed(st),
     service_facts: SERVICE_FACTS,
@@ -333,7 +336,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
   let out: Parsed | null = null; let previous: Json | null = null;
   for (let i = 0; i < MAX_CALLS_PER_TURN; i++) {
     const input = turnInput(st, text);
-    if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다."; }
+    if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다. reply 는 짧게 쓰고 last_reply 와 같은 문장을 되풀이하지 않는다."; input.last_reply = st.turns.at(-1)?.reply ?? null; }
     if (previous) input.previous_attempt = previous;
     let raw: string;
     try { raw = await call(llm, obs, "turn", turnPrompt(st.tone), input); } catch (e) { obs.retry.push("provider"); return { obs, response: { error: "PROVIDER", detail: String((e as { code?: string })?.code ?? (e as Error)?.message ?? e).slice(0, 60) } }; }
