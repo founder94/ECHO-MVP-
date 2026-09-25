@@ -126,7 +126,7 @@ test('앱 설치 설정 파일: 이름·아이콘·전체 화면·시작 주소'
   assert.equal(manifest.start_url, '/');
   const sizes = manifest.icons.map((i) => i.sizes);
   assert.ok(sizes.includes('192x192') && sizes.includes('512x512'));
-  for (const icon of manifest.icons) assert.ok(statSync(path.join(root, 'public', icon.src)).size > 0, icon.src);
+  for (const icon of manifest.icons) assert.ok(statSync(path.join(root, 'public', icon.src.split('?')[0])).size > 0, icon.src);
   assert.ok(statSync(path.join(root, 'public/pwa/apple-touch-icon.png')).size > 0);
   const vite = read('vite.config.ts');
   assert.match(vite, /rel="manifest"/);

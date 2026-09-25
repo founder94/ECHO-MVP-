@@ -29,3 +29,12 @@
 /* 대표 2026-09-25 「글씨 색 유지 + 진하게」: 파스텔 위 큰 제목의 은색 글자 그라데이션은 얇은 외곽선과 겹치면 속이 빈 글자처럼 보인다.
    대화 화면 제목(.echo-dialogue--pastel h1)과 같게 흰색 한 가지로 채운다. */
 .doit-app-pastel :is(.doit-understanding-page,.doit-product-main) .doit-product-title{background-image:none;-webkit-text-fill-color:#fff;color:#fff;animation:none}
+/* 대표 2026-09-25 실기기 피드백: 연결 화면 카드 · 프로필 「사진 추가·관리하기」의 검은 판도 투명으로. 프로필 목적·지역·리듬 글자는 흰색·굵게. */
+.doit-app-pastel .doit-asleep-card{background:transparent;border-color:var(--app-surface-border)}
+.doit-app-pastel .doit-asleep-card :is(.doit-asleep-label,.doit-asleep-status,.doit-asleep-check li,.doit-asleep-check a,.doit-asleep-check strong,.doit-asleep-number,.doit-asleep-common,.doit-asleep-next-title){color:#fff}
+.doit-app-pastel .doit-asleep-check li{border-color:#ffffff40}
+.doit-app-pastel .doit-profile-photo-manage{background:transparent;border-color:var(--app-surface-border);color:#fff}
+.doit-app-pastel .doit-profile-photo-thumbnails button{background:transparent}
+.doit-app-pastel .doit-profile-facts>div{border-color:#ffffff40}
+.doit-app-pastel .doit-profile-facts :is(dt,dd){color:#fff;font-weight:600}
+

@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeReturnPath } from '@/lib/auth/returnPath';
 import DoItSymbol from '@/components/DoItSymbol';
-import { PASSKEY_ERROR_TEXT, currentPasskeySupport, signInWithFace } from '@/lib/auth/passkey';
+import { PASSKEY_ERROR_TEXT, PASSKEY_LOGIN_ENABLED, currentPasskeySupport, signInWithFace } from '@/lib/auth/passkey';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -177,7 +177,7 @@ export default function Login() {
             </button>
 
             {/* 얼굴·지문 로그인: 이 기기에 등록해 둔 사람만. 처음이면 위 방법으로 로그인한 뒤 설정에서 등록한다. */}
-            {faceSupport === 'ok' && (
+            {PASSKEY_LOGIN_ENABLED && faceSupport === 'ok' && (
               <div className="pt-1">
                 <button
                   type="button"
@@ -202,7 +202,7 @@ export default function Login() {
                 </p>
               </div>
             )}
-            {faceSupport === 'in-app' && (
+            {PASSKEY_LOGIN_ENABLED && faceSupport === 'in-app' && (
               <p className="text-center text-[11px] leading-relaxed text-foreground-500">
                 얼굴·지문 로그인은 카카오톡 같은 앱 안에서는 안 돼요. 사파리나 크롬에서 열어 주세요.
               </p>

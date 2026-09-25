@@ -32,14 +32,14 @@ export default defineConfig(({ mode }) => {
       const favicon = '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />';
       if (!html.includes(favicon)) throw new Error("app favicon link not found in index.html");
       return html.replace(favicon, [
-        '<link rel="icon" type="image/png" sizes="32x32" href="/pwa/echo-icon-32.png" />',
-        '    <link rel="icon" type="image/png" sizes="16x16" href="/pwa/echo-icon-16.png" />',
-        '    <link rel="icon" type="image/png" sizes="48x48" href="/pwa/echo-icon-48.png" />',
+        '<link rel="icon" type="image/png" sizes="32x32" href="/pwa/echo-icon-32.png?v=20260925b" />',
+        '    <link rel="icon" type="image/png" sizes="16x16" href="/pwa/echo-icon-16.png?v=20260925b" />',
+        '    <link rel="icon" type="image/png" sizes="48x48" href="/pwa/echo-icon-48.png?v=20260925b" />',
       ].join("\n")).replace(
         "</head>",
         [
           '    <link rel="manifest" href="/manifest.webmanifest" />',
-          '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png" />',
+          '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png?v=20260925b" />',
           '    <meta name="apple-mobile-web-app-capable" content="yes" />',
           '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
           '    <meta name="apple-mobile-web-app-title" content="DO IT" />',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUp, Check, ChevronRight, RotateCcw } from 'lucide-react';
+import { ArrowUp, Check, ChevronRight, Mic, RotateCcw, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
@@ -9,6 +9,7 @@ import './core-conversation.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
 import { takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
+import { VOICE_INPUT_ERROR_TEXT, useVoiceInput } from '@/doit/lib/voiceInput';
 
 interface Props {
   userId: string;
@@ -56,6 +57,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
+  // 대표 2026-09-25 음성 버튼: 말하는 대로 칸에 글자가 흐른다. 이번 말을 음성으로 보냈으면 ECHO 대답도 소리로 읽는다.
+  const voiceTurn = useRef(false);
+  const onVoiceText = useCallback((text: string) => { voiceTurn.current = true; setDraft(text); }, []);
+  const voice = useVoiceInput(onVoiceText, TEXT_MAX);
   const [introSaved, setIntroSaved] = useState(false); // 이 화면에서 소개를 저장했다
   const [hintFor, setHintFor] = useState<string | null>(null); // 「예시 보기」를 연 질문(질문이 바뀌면 저절로 닫힌다)
   const [choosing, setChoosing] = useState(true);
@@ -92,8 +97,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   };
 
   // 새 AI 말만 읽어 준다(말로 대화하기). 보낸 뒤 받은 말만 — 불러온 지난 대화는 읽지 않는다.
-  const speakNew = (before: AgentSession | null, after: AgentSession) => {
-    if (after.mode !== 'VOICE') return;
+  const speakNew = (before: AgentSession | null, after: AgentSession, force = false) => {
+    if (after.mode !== 'VOICE' && !force) return;
     speak(after.messages.slice(before?.messages.length ?? 0).filter(m => m.role === 'ai').map(m => m.text).join(' '), setSpeaking);
   };
 
@@ -107,10 +112,13 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const send = (text: string) => {
     const t = text.trim();
     if (!session || !t) return;
+    if (voice.listening) voice.stop();
+    const spoke = voiceTurn.current; voiceTurn.current = false;
+    if (spoke) speak(' '); // 아이폰은 첫 소리를 누름 안에서 시작해야 한다
     void run(session.mode === 'VOICE' ? '생각하는 중이에요' : '듣고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX));
       if (!alive.current) return;
-      speakNew(session, r.session); setSession(r.session);
+      speakNew(session, r.session, spoke); setSession(r.session);
       setDraft(prev => (prev.trim() === t ? '' : prev));
       if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
     });
@@ -206,8 +214,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {done && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
     <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (!busy && draft.trim()) send(draft); }}>
       <label htmlFor="echo-message">{done ? '고칠 게 있으면 적어 주세요' : session.mode === 'VOICE' ? '키보드의 마이크를 눌러 말해 주세요' : '이어서 적기'}</label>
-      <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder="생각나는 대로 한 줄" maxLength={TEXT_MAX} rows={4} disabled={!!busy} />
-      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div>
+      <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder={voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
+      {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
+      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{voice.supported && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { if (canSpeak()) window.speechSynthesis.cancel(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
     </form>
     {!done && <div className="echo-reactions"><button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button><button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button></div>}
     <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartArmed === 'bottom' ? restartConfirm : restartPill('bottom')}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : `질문은 ${session.progress.of}개뿐이에요.`}</p></footer>

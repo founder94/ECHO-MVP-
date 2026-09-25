@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import { useAuth } from "@/doit/hooks/useAuth";
 import FaceLoginSettings from "./FaceLoginSettings";
+import { PASSKEY_LOGIN_ENABLED } from "@/lib/auth/passkey";
 import AccountDeletion from "./AccountDeletion";
 import "./settings.css";
 
@@ -95,7 +96,7 @@ export default function Settings() {
         </section>
 
         {/* 2026-09-24 얼굴·지문 로그인(패스키) 등록·관리. 로그인한 사람만. */}
-        {!loading && user && <FaceLoginSettings />}
+        {!loading && user && PASSKEY_LOGIN_ENABLED && <FaceLoginSettings />}
 
         <section className="doit-settings-section" aria-labelledby="settings-availability-heading">
           <h3 id="settings-availability-heading" className="doit-settings-heading">알림과 안전 설정</h3>

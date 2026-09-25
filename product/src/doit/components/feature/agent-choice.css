@@ -1,7 +1,7 @@
 /* 「시작하기」 직후 선택창(대표 「UI FINAL LOCK」·「DESIGN / HERO / SYMBOL FINAL LOCK」 2026-09-25). 이 창 하나만 무채색이다.
    뒤 화면(히어로 우주 배경·대화 화면 컬러)은 덮개·흐림 없이 그대로 보인다. 규칙은 모두 .echo-choice-layer 아래로만(전역·히어로·다른 화면 0). */
 .echo-choice-layer{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:transparent;font-family:inherit}
-.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:#0c0c0c;border:1px solid rgb(255 255 255/.14);box-shadow:0 18px 48px rgb(0 0 0/.35);color:#f2f2f2;filter:grayscale(1);text-align:left}
+.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:rgb(255 255 255/.08);-webkit-backdrop-filter:blur(24px) saturate(1.2);backdrop-filter:blur(24px) saturate(1.2);border:1px solid #d9dfe8a6;box-shadow:none;color:#f2f2f2;filter:grayscale(1);text-align:left}
 .echo-choice-layer .echo-choice-title{margin:0 0 20px;font-size:18px;font-weight:700;line-height:1.5;color:#fff;-webkit-text-fill-color:#fff}
 .echo-choice-layer .echo-choice-label{margin:18px 0 8px;font-size:12px;letter-spacing:.04em;color:#9a9a9a;-webkit-text-fill-color:#9a9a9a}
 .echo-choice-layer .echo-choice-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -16,3 +16,6 @@
 .echo-choice-layer .echo-choice-close{display:block;margin:10px auto 0;min-height:40px;padding:8px 16px;border:0;background:transparent;color:#9a9a9a;font-size:13px;cursor:pointer}
 .echo-choice-layer :focus-visible{outline:2px solid #fff;outline-offset:3px}
 @media(min-width:700px){.echo-choice-layer{align-items:center}}
+/* 대표 2026-09-25 「당신의 결을 알려주세요 창도 검정 배경 없이 투명으로 통일」: 판은 투명 + 흐림, 안내 글자는 흰색 한 가지로. */
+.echo-choice-layer .echo-choice-label,.echo-choice-layer .echo-choice-note,.echo-choice-layer .echo-choice-tone,.echo-choice-layer .echo-choice-close{color:#fff;-webkit-text-fill-color:#fff}
+.echo-choice-layer .echo-choice-confirm.is-secondary,.echo-choice-layer .echo-choice-option:not(.is-selected){color:#fff;border-color:#d9dfe8a6}

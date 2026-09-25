@@ -86,6 +86,13 @@
 .echo-dialogue .echo-synthesis-items button span{font-size:11px;color:#b9c3d2;text-decoration:underline;text-underline-offset:3px}
 .echo-dialogue .echo-pause{margin:20px 0;padding:20px;border:1px solid #c2cad12d;border-radius:16px;background:#14171c}
 .echo-dialogue .echo-pause .echo-reactions{margin-top:14px}
+/* 대표 2026-09-25 음성 버튼: 보내기 버튼 옆, 같은 모양(원·테두리). 듣는 중에는 흰 판 + 천천히 숨쉬는 테두리. */
+.echo-composer-actions{display:flex;align-items:center;gap:10px;flex:none}
+.echo-dialogue .echo-voice-button{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;border:1px solid #c2cad16b;background:transparent;color:#fff;cursor:pointer;transition:background-color .18s ease,color .18s ease}
+.echo-dialogue .echo-voice-button:disabled{opacity:.45;cursor:default}
+.echo-dialogue .echo-composer-footer .echo-voice-button.is-listening{background:#fff;color:#111317;border-color:#fff;animation:echo-voice-breathe 1.6s ease-in-out infinite}
+@keyframes echo-voice-breathe{0%,100%{box-shadow:0 0 0 0 rgb(255 255 255/.55)}50%{box-shadow:0 0 0 8px rgb(255 255 255/0)}}
+@media(prefers-reduced-motion:reduce){.echo-dialogue .echo-voice-button.is-listening{animation:none}}
 /* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
@@ -167,3 +174,12 @@
 .echo-dialogue.echo-dialogue--pastel :is(.echo-progress,.echo-insight-label,.echo-editor-footer>span,.echo-editor-footer>button,.echo-composer-footer>span,.echo-composer label,.echo-fine,.echo-notice,.echo-busy,.echo-error,.echo-error p,.echo-text-button,.echo-history summary,.echo-history button,.echo-draft li p,.echo-draft li span,.echo-dialogue-header>span,.echo-dialogue-header>a,.echo-memory p,.echo-memory>div>span,.echo-memory summary,.echo-synthesis-items p,.echo-synthesis-items button,.echo-synthesis-items li>span,.echo-synthesis-items button span,.echo-topic,.echo-opening-tile-desc,.echo-defer){font-weight:500}
 .echo-dialogue.echo-dialogue--pastel :is(.echo-steps-count em,textarea){font-weight:600}
 .echo-dialogue.echo-dialogue--pastel .echo-done .echo-text-button{color:var(--conversation-text-secondary)} /* 2026-09-25 MASTER §4 소개 카드 「직접 쓸게요」: 판 안 보조 글자와 같은 흰색 */
+/* ── 대표 2026-09-25 실기기 피드백(대화 화면, 파스텔 아래로만) ──
+   ① 「계속할게요」「이 질문 넘어가기」 같은 반응 줄 첫 버튼도 다른 판처럼 투명 + 흰 글씨(금속판 0).
+   ② 목적 카드(친구를 만나고 싶어요 등)를 누르면 흰 판으로 채워져 "눌렸다"가 바로 보이게. 누르는 순간 살짝 눌림. */
+.echo-dialogue.echo-dialogue--pastel .echo-reactions button:first-child{background:transparent;background-image:none;border-color:var(--conversation-surface-border);color:#fff;-webkit-text-fill-color:#fff;text-shadow:none;box-shadow:none;animation:none}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{transition:background-color .18s ease,border-color .18s ease,transform .12s ease}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile:active{transform:scale(.98)}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{background:#fff;border-color:#fff;box-shadow:none}
+.echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected :is(.echo-opening-tile-label,.echo-opening-tile-desc){color:#111317;-webkit-text-fill-color:#111317;-webkit-text-stroke:0}
+@media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{transition:none}.echo-dialogue.echo-dialogue--pastel .echo-opening-tile:active{transform:none}}
