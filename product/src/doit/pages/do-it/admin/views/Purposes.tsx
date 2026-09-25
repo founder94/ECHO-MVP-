@@ -16,7 +16,7 @@ export default function Purposes({ data }: { data: AdminData }) {
       {purposes.status === "loading" ? (
         <StateNotice status="loading" />
       ) : purposes.status === "error" ? (
-        <StateNotice status="error" note="purposes 조회 실패" />
+        <StateNotice status="error" note="연결 목적을 불러오지 못했어요. 새로고침해 주세요." />
       ) : purposes.list.length === 0 ? (
         <StateNotice status="empty" />
       ) : (

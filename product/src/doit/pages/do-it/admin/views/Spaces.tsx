@@ -16,7 +16,7 @@ export default function Spaces({ data }: { data: AdminData }) {
       {spaces.status === "loading" ? (
         <StateNotice status="loading" />
       ) : spaces.status === "error" ? (
-        <StateNotice status="error" note="spaces 조회 실패" />
+        <StateNotice status="error" note="공간 목록을 불러오지 못했어요. 새로고침해 주세요." />
       ) : spaces.recent.length === 0 ? (
         <StateNotice status="empty" />
       ) : (
@@ -56,10 +56,10 @@ export default function Spaces({ data }: { data: AdminData }) {
           ) : spaceMembers.status === "blocked" ? (
             <StateNotice
               status="blocked"
-              note="space_members는 관리자 SELECT 정책이 없어 관리자 전체 조회가 차단됩니다."
+              note="방 참여자 기능은 아직 만들지 않았어요."
             />
           ) : spaceMembers.status === "error" ? (
-            <StateNotice status="error" note="space_members 조회 실패" />
+            <StateNotice status="error" note="방 참여자를 불러오지 못했어요. 새로고침해 주세요." />
           ) : (
             <StateNotice status="empty" />
           )}

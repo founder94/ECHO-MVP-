@@ -20,15 +20,15 @@ export default function BlockedTable({
       ) : state.status === "blocked" ? (
         <StateNotice
           status="blocked"
-          note={`${menu.table} 테이블은 관리자 SELECT 정책이 없어 관리자 전체 조회가 차단됩니다.`}
+          note="기록은 있지만 관리자가 볼 권한이 아직 없어요. 권한 추가는 대표 승인 뒤에 해요."
         />
       ) : state.status === "missing" ? (
         <StateNotice
           status="missing"
-          note={`${menu.table} 테이블이 아직 생성되지 않았습니다 (미구현).`}
+          note="이 기능은 아직 만들지 않았어요. 만들지는 대표가 정해요."
         />
       ) : state.status === "error" ? (
-        <StateNotice status="error" note={`${menu.table} 조회 실패`} />
+        <StateNotice status="error" note="불러오지 못했어요. 새로고침해 주세요." />
       ) : state.status === "empty" ? (
         <StateNotice status="empty" />
       ) : (
@@ -41,8 +41,8 @@ export default function BlockedTable({
 
       <p className="text-xs text-foreground-500">
         {state.status === "missing"
-          ? "아직 만들어지지 않은 테이블입니다. 실제 구현 전에는 데이터가 존재하지 않으며, 가짜 0건으로 표시하지 않습니다."
-          : "관리자 조회 전용 RLS 정책이 필요한 테이블입니다. RLS를 임의로 변경하거나 프론트에서 서비스 역할 키로 우회하지 않고, 권한 오류로 표시합니다."}
+          ? "아직 만들지 않은 기능이라 기록이 없어요. 0건으로 꾸며 보여 주지 않아요."
+          : "관리자가 보려면 권한을 따로 추가해야 해요. 대표 승인 없이 권한을 풀지 않아요."}
       </p>
     </div>
   );

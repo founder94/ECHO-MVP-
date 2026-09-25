@@ -15,7 +15,7 @@ export default function Users({ data }: { data: AdminData }) {
       {profiles.status === "loading" ? (
         <StateNotice status="loading" />
       ) : profiles.status === "error" ? (
-        <StateNotice status="error" note="profiles 조회 실패" />
+        <StateNotice status="error" note="사용자 정보를 불러오지 못했어요. 새로고침해 주세요." />
       ) : profiles.recent.length === 0 ? (
         <StateNotice status="empty" />
       ) : (

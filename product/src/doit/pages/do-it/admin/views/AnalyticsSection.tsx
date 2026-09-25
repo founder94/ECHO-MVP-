@@ -7,11 +7,10 @@ function NotAppliedNotice() {
     <div className="rounded-lg border border-secondary-300 bg-secondary-50 px-4 py-4">
       <div className="flex items-center gap-2 text-secondary-900">
         <i className="ri-cloud-off-line text-lg" />
-        <span className="text-sm font-semibold">수집 기능 미적용</span>
+        <span className="text-sm font-semibold">방문 통계는 아직 꺼져 있어요</span>
       </div>
       <p className="mt-1 text-xs text-foreground-600">
-        분석 마이그레이션이 아직 적용되지 않았습니다. 수집기(A단계)도
-        비활성화 상태입니다.
+        방문자 수·기기·이동 경로를 모으는 기능을 아직 켜지 않았어요. 켜려면 DB 준비가 필요해서 대표 승인 뒤에 해요.
       </p>
     </div>
   );
@@ -73,7 +72,7 @@ export default function AnalyticsSection({ data }: { data: AnalyticsData }) {
         <PanelTitle>분석 (브라우저 단위 · 한국시간)</PanelTitle>
         {data.status === "not_applied" && (
           <span className="whitespace-nowrap rounded-full bg-secondary-100 px-2 py-0.5 text-xs font-medium text-secondary-900">
-            수집 미적용
+            아직 꺼져 있음
           </span>
         )}
       </div>

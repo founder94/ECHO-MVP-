@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { ADMIN_MENUS } from "../meta";
 import { useAdminData, type Period } from "../hooks/useAdminData";
@@ -111,7 +112,7 @@ export default function AdminShell() {
               <i className={`${menu.icon} w-4 text-center`} />
               <span className="flex-1">{menu.label}</span>
               {menu.kind === "blocked" && (
-                <i className="ri-lock-line text-xs opacity-70" title="권한 오류" />
+                <i className="ri-lock-line text-xs opacity-70" title="아직 없거나 볼 권한이 없는 기능" />
               )}
             </button>
           ))}
@@ -127,9 +128,10 @@ export default function AdminShell() {
               <h1 className="text-base font-semibold text-foreground-950">
                 {activeMenu.label}
               </h1>
-              <span className="hidden text-xs text-foreground-400 sm:inline">
-                · {activeMenu.table}
-              </span>
+              {/* 대표 2026-09-25: 영어 표 이름 대신 다른 관리자 화면으로 가는 길을 둔다(관리자 화면이 두 곳). */}
+              <Link to="/admin/mobile" className="inline-flex min-h-[32px] items-center rounded-full border border-background-200 px-3 text-xs text-foreground-600 hover:bg-background-100">
+                옛 ECHO 운영센터(예전 대화·결제 기록) →
+              </Link>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

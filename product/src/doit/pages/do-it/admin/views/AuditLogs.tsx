@@ -13,7 +13,7 @@ export default function AuditLogs({ data }: { data: AdminData }) {
       {auditLogs.status === "loading" ? (
         <StateNotice status="loading" />
       ) : auditLogs.status === "error" ? (
-        <StateNotice status="error" note="audit_logs 조회 실패" />
+        <StateNotice status="error" note="운영 감사 기록을 불러오지 못했어요. 새로고침해 주세요." />
       ) : auditLogs.recent.length === 0 ? (
         <StateNotice status="empty" />
       ) : (

@@ -23,7 +23,7 @@ export function StateNotice({
       <div className="rounded-lg border border-secondary-300 bg-secondary-50 px-4 py-4">
         <div className="flex items-center gap-2 text-secondary-900">
           <i className="ri-close-circle-line text-lg" />
-          <span className="text-sm font-semibold">조회 실패</span>
+          <span className="text-sm font-semibold">불러오지 못했어요</span>
         </div>
         <p className="mt-1 text-xs text-foreground-600">
           {note ?? "데이터를 불러오지 못했습니다."}
@@ -37,10 +37,10 @@ export function StateNotice({
       <div className="rounded-lg border border-secondary-300 bg-secondary-50 px-4 py-4">
         <div className="flex items-center gap-2 text-secondary-900">
           <i className="ri-lock-line text-lg" />
-          <span className="text-sm font-semibold">권한 오류</span>
+          <span className="text-sm font-semibold">볼 권한이 아직 없어요</span>
         </div>
         <p className="mt-1 text-xs text-foreground-600">
-          {note ?? "RLS 정책으로 관리자 조회가 차단되어 있습니다."}
+          {note ?? "관리자가 이 기록을 볼 권한이 아직 없어요. 권한 추가는 대표 승인 뒤에 해요."}
         </p>
       </div>
     );
@@ -51,10 +51,10 @@ export function StateNotice({
       <div className="rounded-lg border border-secondary-300 bg-secondary-50 px-4 py-4">
         <div className="flex items-center gap-2 text-secondary-900">
           <i className="ri-link-unlink text-lg" />
-          <span className="text-sm font-semibold">데이터 연결 검증 필요</span>
+          <span className="text-sm font-semibold">아직 없는 기능이에요</span>
         </div>
         <p className="mt-1 text-xs text-foreground-600">
-          {note ?? "연결할 실제 테이블 또는 컬럼이 없습니다."}
+          {note ?? "이 기능은 아직 만들지 않았어요. 만들지는 대표가 정해요."}
         </p>
       </div>
     );
@@ -95,24 +95,24 @@ export function StatCard({
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-foreground-500">{label}</span>
         {status === "blocked" && (
-          <i className="ri-lock-line text-xs text-secondary-600" title="권한 오류" />
+          <i className="ri-lock-line text-xs text-secondary-600" title="관리자가 볼 권한이 아직 없어요" />
         )}
         {status === "missing" && (
-          <i className="ri-link-unlink text-xs text-secondary-600" title="미구현 (테이블 없음)" />
+          <i className="ri-link-unlink text-xs text-secondary-600" title="아직 만들지 않은 기능이에요" />
         )}
         {status === "error" && (
-          <i className="ri-close-circle-line text-xs text-secondary-600" title="조회 실패" />
+          <i className="ri-close-circle-line text-xs text-secondary-600" title="불러오지 못했어요" />
         )}
       </div>
       <div className={`mt-2 text-2xl font-semibold tabular ${valueColor}`}>
         {status === "loading" ? (
           <span className="text-foreground-400 text-base">불러오는 중...</span>
         ) : status === "blocked" ? (
-          <span className="text-foreground-400 text-base">권한 오류</span>
+          <span className="text-foreground-400 text-base">볼 권한 없음</span>
         ) : status === "missing" ? (
-          <span className="text-foreground-400 text-base">미구현</span>
+          <span className="text-foreground-400 text-base">아직 없는 기능</span>
         ) : status === "error" ? (
-          <span className="text-foreground-400 text-base">조회 실패</span>
+          <span className="text-foreground-400 text-base">불러오지 못함</span>
         ) : (
           value
         )}

@@ -15,7 +15,7 @@ export default function ReportsBlocks({ data }: { data: AdminData }) {
           {reports.status === "loading" ? (
             <StateNotice status="loading" />
           ) : reports.status === "error" ? (
-            <StateNotice status="error" note="reports 조회 실패" />
+            <StateNotice status="error" note="신고 기록을 불러오지 못했어요. 새로고침해 주세요." />
           ) : reports.recent.length === 0 ? (
             <StateNotice status="empty" />
           ) : (
@@ -57,7 +57,7 @@ export default function ReportsBlocks({ data }: { data: AdminData }) {
           {blocks.status === "loading" ? (
             <StateNotice status="loading" />
           ) : blocks.status === "error" ? (
-            <StateNotice status="error" note="blocks 조회 실패" />
+            <StateNotice status="error" note="차단 기록을 불러오지 못했어요. 새로고침해 주세요." />
           ) : blocks.recent.length === 0 ? (
             <StateNotice status="empty" />
           ) : (

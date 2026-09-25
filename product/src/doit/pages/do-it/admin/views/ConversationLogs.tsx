@@ -49,13 +49,13 @@ export default function ConversationLogs({ period }: { period: Period }) {
       <div className="rounded-lg border border-background-200 bg-background-100 px-4 py-3 text-xs leading-relaxed text-foreground-600">
         <p className="font-semibold text-foreground-800">지금 보이는 범위</p>
         <p className="mt-1">
-          조회 규칙(RLS)이 아직 “본인 줄만”이라, 지금은 <b>로그인한 계정의 기록만</b> 보입니다.
-          {ownRowsOnly ? "" : " (여러 계정의 줄이 보이고 있습니다 — 관리자 정책이 이미 적용된 상태입니다.)"}
+          지금은 <b>로그인한 계정(대표님)의 기록만</b> 보여요. 다른 사용자 기록은 관리자가 볼 권한이 아직 없어요.
+          {ownRowsOnly ? "" : " (여러 계정의 기록이 보여요 — 관리자 보기 권한이 이미 켜진 상태예요.)"}
         </p>
         <p className="mt-1">
-          전체 사용자를 보려면 관리자 조회 정책을 추가해야 합니다. 초안은{" "}
-          <code className="rounded bg-background-50 px-1">supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql</code>{" "}
-          에 있고, <b>대표 승인 전에는 실행하지 않습니다.</b>
+          {/* 권한 추가 초안: supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql (대표 승인 전 실행 금지) */}
+          전체 사용자 기록을 보려면 관리자 보기 권한을 추가해야 해요. 준비는 끝나 있고, <b>대표 승인 전에는 켜지 않아요.</b>
+          전체 AI 대화는 왼쪽 「대화 에이전트」 메뉴에서 볼 수 있어요.
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export default function ConversationLogs({ period }: { period: Period }) {
         ) : (
           <StateNotice
             status={requestEvents.status}
-            note="doit_request_events 는 서버 함수 전용이라 화면에서 읽을 권한이 없습니다. 막히는 것이 정상입니다. 질문이 왜 실패했는지 보려면 관리자 조회 정책을 따로 추가해야 하며, 그 초안도 위 PENDING 파일에 함께 있습니다."
+            note="질문이 왜 실패했는지는 서버만 볼 수 있게 막아 두었어요(정상). 관리자도 보려면 권한 추가가 필요하고, 대표 승인 뒤에 해요."
           />
         )}
       </div>

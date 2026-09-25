@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "@/doit/lib/supabase";
+import { CONSENT_VERSION } from "@/lib/legal/consent";
 
 export type DataStatus =
   | "loading"
@@ -400,7 +401,14 @@ export function useAdminData(period: Period) {
     next.keyOrders = await attemptCount(supabase, "key_orders");
     next.sajuTaro = await attemptCount(supabase, "saju_taro_records");
     next.aiRateLimits = await attemptCount(supabase, "openai_rate_limits");
-    next.consents = await attemptCount(supabase, "consents");
+    // 대표 2026-09-25 관리자 점검: 동의 기록은 별도 표가 아니라 각 사용자 프로필의 consent_version 에 저장된다(가입 화면 → profiles).
+    // 관리자는 profiles 를 읽을 수 있으므로 여기서 센다. total = 지금 약관 판(CONSENT_VERSION)에 동의한 사람 수.
+    try {
+      const agreed = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("consent_version", CONSENT_VERSION);
+      next.consents = agreed.error ? { status: "blocked", total: null } : { status: (agreed.count ?? 0) === 0 ? "empty" : "success", total: agreed.count ?? 0 };
+    } catch {
+      next.consents = { status: "error", total: null };
+    }
 
     next.loading = false;
     next.lastFetchedAt = new Date();
