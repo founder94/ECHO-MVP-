@@ -3149,6 +3149,52 @@
    "mock_result": "UNKNOWN",
    "user_result": "UNKNOWN",
    "status_note": "UNRESOLVED"
+  },
+  {
+   "id": "GF-68",
+   "title": "EXPERIMENT_VARIABLE_NOT_LOCKED — 실AI A/B 전에 운영 A 의 실제 모델·파라미터를 확정하지 않음",
+   "family": "F-EVAL",
+   "date": "2026-09-25(run1 실행 06:37Z · 대표 PRE-FLIGHT LOCK 지시로 발견)",
+   "origin": "CODE",
+   "origin_note": "코드·실행 기록 확인 — FROZEN_INPUTS.json model_conditions 가 「OPENAI_MODEL 환경 변수, 없으면 gpt-4o-mini」로만 적혀 있었고, run1 로그의 OPENAI_MODEL 은 빈 값(기본값 사용). 운영 Secret 값은 확인하지 않은 채 실행",
+   "situation": "Current A(v27) vs Minimal B(B-1.0) 실AI 비교",
+   "user_text": "",
+   "ai_behavior": "AI 조언자(Claude)가 사전 고정에 A·B·입력·판정 기준만 넣고, 모델은 하네스 기본값(gpt-4o-mini)으로 돌림. timeout 도 운영(호출 ≤20s)과 달리 하네스에서 적용 안 됨",
+   "expected": "실행 전에 운영 모델·파라미터를 근거로 확정하고, 확정 못 하면 실행하지 않음",
+   "types": [
+    "실험 변수 미고정",
+    "검사 결함"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "Evaluation(실험 설계) — 모델 변수가 잠기지 않아 A 결과가 운영 A 를 대표하는지 불명확. 조언자 쪽 실패이기도 함(F-ADVISOR 성격)",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "run1 OpenAI 호출 73회분 비용이 조건부 결과에 쓰임 — 금액 확인 불가"
+   },
+   "reproduction": "코드 ○ · run1 로그 ○",
+   "solution_attempts": [],
+   "solution_candidates": "PRE-FLIGHT LOCK 표(모델·파라미터·timeout·재시도) · 운영 모델 확정 전 run2 보류",
+   "experiment": "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md — 운영 모델 = CONFIRMATION_REQUIRED(Secret 값 읽기 불가 · 로그에 모델 이름 0 · 마지막 근거는 2026-09-20 오타 값)",
+   "side_effects": "run1 결론은 운영 모델 확정 전까지 조건부",
+   "counter_test": "—",
+   "real_ai": "run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(운영 모델 확정 대기 · 장부 P-08)",
+   "golden_flows": [],
+   "refs": [
+    "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md",
+    "product/spike/ab-20260925/FROZEN_INPUTS.json",
+    "docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md"
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
   }
  ]
 }

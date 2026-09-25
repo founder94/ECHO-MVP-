@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 67건 — 증거 수준: ACTUAL 63 · CANDIDATE 3 · HYPOTHESIS 1 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 13 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 12 · FOUNDER_STATEMENT 3
-- 상태: UNRESOLVED 32 · MITIGATED 30 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 17
+- 합계 68건 — 증거 수준: ACTUAL 64 · CANDIDATE 3 · HYPOTHESIS 1 · 출처: ACTUAL 35 · ACTUAL_RECONSTRUCTED 1 · CODE 14 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 12 · FOUNDER_STATEMENT 3
+- 상태: UNRESOLVED 33 · MITIGATED 30 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 34 · NONE 18
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -81,6 +81,7 @@
 | GF-65 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · Context 유실 · Repair 실패 | Model · Context | HYPOTHESIS | NONE | UNRESOLVED |
 | GF-66 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 정정무시 · Repair 실패 · 오분류 · 고정 대체 질문 | Orchestration · Model | MIXED | NONE | UNRESOLVED |
 | GF-67 | 2026-09-25 06:37~06:39 | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · Repair 실패 · 가짜 진행 | Model · Product Contract | HYPOTHESIS | NONE | UNRESOLVED |
+| GF-68 | 2026-09-25(run1 실행 06: | ACTUAL | CODE | F-EVAL | 실험 변수 미고정 · 검사 결함 | Evaluation | CONFIRMED | NONE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -2261,3 +2262,35 @@
 | Golden Test | FLOW1 |
 | 관련 실패(Graph) | CAUSES→GF-03(ACTUAL) |
 | 근거 | `docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md` · `docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md` |
+
+## GF-68 EXPERIMENT_VARIABLE_NOT_LOCKED — 실AI A/B 전에 운영 A 의 실제 모델·파라미터를 확정하지 않음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVAL — 평가 결함(가짜 통과) |
+| 발생 날짜 | 2026-09-25(run1 실행 06:37Z · 대표 PRE-FLIGHT LOCK 지시로 발견) |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — 코드·실행 기록 확인 — FROZEN_INPUTS.json model_conditions 가 「OPENAI_MODEL 환경 변수, 없으면 gpt-4o-mini」로만 적혀 있었고, run1 로그의 OPENAI_MODEL 은 빈 값(기본값 사용). 운영 Secret 값은 확인하지 않은 채 실행 |
+| 사용자 상황 | Current A(v27) vs Minimal B(B-1.0) 실AI 비교 |
+| AI 행동 | AI 조언자(Claude)가 사전 고정에 A·B·입력·판정 기준만 넣고, 모델은 하네스 기본값(gpt-4o-mini)으로 돌림. timeout 도 운영(호출 ≤20s)과 달리 하네스에서 적용 안 됨 |
+| 기대 행동 | 실행 전에 운영 모델·파라미터를 근거로 확정하고, 확정 못 하면 실행하지 않음 |
+| Failure Type | 실험 변수 미고정 · 검사 결함 |
+| 원인 Layer | Evaluation (원인 확신: CONFIRMED) — Evaluation(실험 설계) — 모델 변수가 잠기지 않아 A 결과가 운영 A 를 대표하는지 불명확. 조언자 쪽 실패이기도 함(F-ADVISOR 성격) |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | run1 OpenAI 호출 73회분 비용이 조건부 결과에 쓰임 — 금액 확인 불가 |
+| 재현 여부 | 코드 ○ · run1 로그 ○ |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | PRE-FLIGHT LOCK 표(모델·파라미터·timeout·재시도) · 운영 모델 확정 전 run2 보류 |
+| 실험 결과 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md — 운영 모델 = CONFIRMATION_REQUIRED(Secret 값 읽기 불가 · 로그에 모델 이름 0 · 마지막 근거는 2026-09-20 오타 값) |
+| Mock 결과 | UNKNOWN |
+| 부작용 | run1 결론은 운영 모델 확정 전까지 조건부 |
+| 역검사 결과 | — |
+| 실AI 결과 | run1 은 gpt-4o-mini 로 실행 — 운영과 같은지 미확정 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | NONE |
+| 현재 상태 | UNRESOLVED(운영 모델 확정 대기 · 장부 P-08) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md` · `product/spike/ab-20260925/FROZEN_INPUTS.json` · `docs/ops/INCIDENT_2026-09-14_get-step-question_empty_entrypoint.md` |

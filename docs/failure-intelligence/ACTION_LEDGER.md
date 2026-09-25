@@ -29,7 +29,7 @@
 | A-08 | Twilio(문자 인증) 연동 중단 | 2026-09-24 | 대표 | CLAUDE.md |  |
 | A-09 | 포괄 자율 실행(C항) · HARD STOP 만 승인 요청 · 중간보고 금지 | 2026-09-25 | 대표 | R&D 헌장 |  |
 
-## BLOCKED (7)
+## BLOCKED (8)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -40,8 +40,9 @@
 | B-05 | Supabase 관리 API 로 배포 | 2026-09-24 | 토큰 401 | CLAUDE.md | 대표 대시보드 붙여넣기로 대체됨 |
 | B-06 | Actions 첨부물(result.json·열쇠) 내려받기 | 2026-09-25 | 바깥 인터넷 정책(blob.core.windows.net 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 로그의 result.md 로 대신함 · 열쇠는 새 검수표로 다시 만듦 |
 | B-07 | OpenAI 공식 가격 페이지 확인 | 2026-09-25 | 바깥 인터넷 정책(openai.com 프록시 403) | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md | 비용 = 확인 불가. 단가 추정 금지 |
+| B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
 
-## PENDING (6)
+## PENDING (7)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -51,3 +52,4 @@
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
 | P-07 | 실AI run1 블라인드 검수(34칸) | 2026-09-25 | 대표 | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md | B WIN 판정의 전제 · Claude 는 승자를 고르지 않음 |
+| P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 |

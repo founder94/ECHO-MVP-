@@ -226,6 +226,24 @@
    "by": "대표",
    "evidence": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/BLIND_검수표_run1.md",
    "note": "B WIN 판정의 전제 · Claude 는 승자를 고르지 않음"
+  },
+  {
+   "id": "B-08",
+   "what": "운영 Secret OPENAI_MODEL 값 읽기",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401",
+   "evidence": "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md",
+   "note": "값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신"
+  },
+  {
+   "id": "P-08",
+   "what": "운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조)",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표(Supabase 화면 확인 1회)",
+   "evidence": "docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md",
+   "note": "확정 전 run2 실행 금지 · 모델 임의 선택 금지"
   }
  ]
 }
