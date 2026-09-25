@@ -1,0 +1,89 @@
+name: Final App Web Package
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-package:
+    runs-on: ubuntu-latest
+    env:
+      VITE_PUBLIC_SUPABASE_URL: https://zyyhhxyupizcqhxqnxuu.supabase.co
+      VITE_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn
+    steps:
+      - name: Checkout final deploy branch
+        uses: actions/checkout@v6
+        with:
+          ref: deploy/final-app-web-20260925
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+
+      - name: Install dependencies
+        working-directory: product
+        run: npm ci
+
+      - name: Type check
+        working-directory: product
+        run: npm run type-check
+
+      - name: Lint
+        working-directory: product
+        run: npm run lint
+
+      - name: Build app
+        working-directory: product
+        run: npm run build:app
+
+      - name: Build brand
+        working-directory: product
+        run: npm run build:brand
+
+      - name: Run focused conversation QA
+        working-directory: product
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f qa/conversation-pastel.test.mjs ]; then
+            node --test qa/conversation-pastel.test.mjs
+          else
+            echo "Focused QA file not present; not claiming it as PASS."
+          fi
+
+      - name: Package and verify deploy ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/echo-deploy
+          test -f product/out-app/index.html
+          test -f product/out-brand/index.html
+          (cd product/out-app && zip -qr /tmp/echo-deploy/1_APP_여기에올릴것_doitmobile.zip .)
+          (cd product/out-brand && zip -qr /tmp/echo-deploy/2_BRAND_여기에올릴것_echo-mvp-doit.zip .)
+          unzip -l /tmp/echo-deploy/1_APP_여기에올릴것_doitmobile.zip | grep -Eq ' index\.html$'
+          unzip -l /tmp/echo-deploy/2_BRAND_여기에올릴것_echo-mvp-doit.zip | grep -Eq ' index\.html$'
+          test -z "$(find product/out-app product/out-brand -type f \( -name '.env' -o -name '.env.*' -o -name '*.map' \) -print)"
+          if grep -R -E -n --binary-files=without-match 'sk-[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' product/out-app product/out-brand; then
+            echo "Potential secret material detected in build output"
+            exit 1
+          fi
+          echo "=== SHA256 ==="
+          sha256sum /tmp/echo-deploy/*.zip
+          echo "=== BYTES ==="
+          stat -c '%n %s' /tmp/echo-deploy/*.zip
+
+      - name: Upload final deploy ZIPs
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-final-app-web-deploy
+          path: /tmp/echo-deploy/*.zip
+          if-no-files-found: error
+          retention-days: 7
