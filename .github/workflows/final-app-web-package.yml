@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - deploy/final-app-web-20260925
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,6 +11,9 @@ permissions:
 jobs:
   build-package:
     runs-on: ubuntu-latest
+    env:
+      VITE_PUBLIC_SUPABASE_URL: https://zyyhhxyupizcqhxqnxuu.supabase.co
+      VITE_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn
     steps:
       - name: Checkout final deploy branch
         uses: actions/checkout@v6
@@ -29,26 +31,6 @@ jobs:
         working-directory: product
         run: npm ci
 
-      - name: Recover public Supabase build config from current production app
-        shell: bash
-        run: |
-          set -euo pipefail
-          html="$(curl -fsSL https://app.do-it.company/)"
-          mapfile -t assets < <(printf '%s' "$html" | grep -oE 'src="[^"]+\\.js"' | sed -E 's/^src="//;s/"$//')
-          : > /tmp/app-js.txt
-          for asset in "${assets[@]}"; do
-            if [[ "$asset" == http* ]]; then url="$asset"; else url="https://app.do-it.company${asset}"; fi
-            curl -fsSL "$url" >> /tmp/app-js.txt
-            printf '\n' >> /tmp/app-js.txt
-          done
-          supabase_url="$(grep -oE 'https://[a-z0-9-]+\\.supabase\\.co' /tmp/app-js.txt | head -1)"
-          supabase_key="$(grep -oE 'sb_publishable_[A-Za-z0-9_-]+' /tmp/app-js.txt | head -1)"
-          test -n "$supabase_url"
-          test -n "$supabase_key"
-          echo "VITE_PUBLIC_SUPABASE_URL=$supabase_url" >> "$GITHUB_ENV"
-          echo "VITE_PUBLIC_SUPABASE_ANON_KEY=$supabase_key" >> "$GITHUB_ENV"
-          echo "Recovered public client build configuration from current production bundle."
-
       - name: Type check
         working-directory: product
         run: npm run type-check
@@ -65,41 +47,32 @@ jobs:
         working-directory: product
         run: npm run build:brand
 
-      - name: Run focused conversation QA
+      - name: Focused conversation QA
         working-directory: product
-        shell: bash
         run: |
-          set -euo pipefail
           if [ -f qa/conversation-pastel.test.mjs ]; then
             node --test qa/conversation-pastel.test.mjs
           else
             echo "Focused QA file not present; not claiming it as PASS."
           fi
 
-      - name: Package and verify deploy ZIPs
+      - name: Package and verify
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/echo-deploy
           test -f product/out-app/index.html
           test -f product/out-brand/index.html
-
           (cd product/out-app && zip -qr /tmp/echo-deploy/1_APP_여기에올릴것_doitmobile.zip .)
           (cd product/out-brand && zip -qr /tmp/echo-deploy/2_BRAND_여기에올릴것_echo-mvp-doit.zip .)
-
           unzip -l /tmp/echo-deploy/1_APP_여기에올릴것_doitmobile.zip | grep -Eq ' index\.html$'
           unzip -l /tmp/echo-deploy/2_BRAND_여기에올릴것_echo-mvp-doit.zip | grep -Eq ' index\.html$'
-
           test -z "$(find product/out-app product/out-brand -type f \( -name '.env' -o -name '.env.*' -o -name '*.map' \) -print)"
-
           if grep -R -E -n --binary-files=without-match 'sk-[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----' product/out-app product/out-brand; then
-            echo "Potential secret material detected in build output"
+            echo "Potential secret material detected"
             exit 1
           fi
-
-          echo "=== SHA256 ==="
           sha256sum /tmp/echo-deploy/*.zip
-          echo "=== BYTES ==="
           stat -c '%n %s' /tmp/echo-deploy/*.zip
 
       - name: Upload final deploy ZIPs
