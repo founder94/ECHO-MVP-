@@ -36,8 +36,10 @@ test('필수 3개(약관·개인정보·만14세)가 전부 켜져야 계속할 
   assert.equal(c.requiredAllChecked(c.EMPTY_CONSENT), false);
   assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age14: false, marketing: true }), false);
   assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age14: true, marketing: false }), true);
-  assert.equal(c.allChecked({ terms: true, privacy: true, age14: true, marketing: false }), false);
-  assert.deepEqual(plain(c.setAll(true)), { terms: true, privacy: true, age14: true, marketing: true });
+  // 2026-09-25 대표 MASTER §14: 마케팅 발송 기능이 없는 동안 마케팅 항목은 묻지 않는다(MARKETING_ENABLED = false) → 「모두 동의」는 필수 3개, 마케팅 값은 늘 false.
+  assert.equal(c.MARKETING_ENABLED, false);
+  assert.equal(c.allChecked({ terms: true, privacy: true, age14: true, marketing: false }), true);
+  assert.deepEqual(plain(c.setAll(true)), { terms: true, privacy: true, age14: true, marketing: false });
   assert.deepEqual(plain(c.setAll(false)), plain(c.EMPTY_CONSENT));
 });
 

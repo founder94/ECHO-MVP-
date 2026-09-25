@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   allChecked,
+  MARKETING_ENABLED,
   requiredAllChecked,
   setAll,
   type ConsentChoice,
@@ -21,12 +22,14 @@ interface Item {
   docPath?: string;
 }
 
-const ITEMS: Item[] = [
+const ALL_ITEMS: Item[] = [
   { key: 'terms', required: true, label: '이용약관에 동의합니다', docPath: '/legal/terms' },
   { key: 'privacy', required: true, label: '개인정보 수집·이용 및 국외 이전에 동의합니다', docPath: '/legal/privacy' },
   { key: 'age14', required: true, label: '만 14세 이상입니다' },
   { key: 'marketing', required: false, label: '새 기능·소식 안내를 이메일로 받겠습니다' },
 ];
+// 보내는 기능이 없을 때는 마케팅 수신을 묻지 않는다(MASTER §14).
+const ITEMS: Item[] = ALL_ITEMS.filter((item) => item.key !== 'marketing' || MARKETING_ENABLED);
 
 // 가입·동의 화면 공용 체크 목록. "모두 동의"는 필수+선택을 한 번에 켜고 끈다.
 // 필수 3개가 모두 켜져야 상위 화면의 계속 버튼이 열린다(requiredAllChecked).

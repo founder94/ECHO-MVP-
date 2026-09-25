@@ -14,6 +14,8 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 const TONE: Record<string, string> = { formal: "정중한 존댓말", polite: "편한 존댓말", casual: "편한 반말" };
 const FLAG: Record<string, string> = { correction: "정정", rejection: "거절", complaint: "항의", skip: "넘기기", fatigue: "지침", unsure: "모르겠음", ask: "AI에게 질문", blocked: "저장 금지 입력" };
+const INTRO_STATUS: Record<string, string> = { ready: "만듦", failed: "못 만듦", none: "재료 없음" };
+const INTRO_USED: Record<string, string> = { as_is: "그대로 사용", edited: "고쳐서 사용", own: "직접 씀" };
 
 function message(e: unknown): string {
   if (e instanceof UnderstandingError) return e.code === "FORBIDDEN" ? "관리자 계정으로 로그인해야 볼 수 있어요." : e.message;
@@ -72,6 +74,9 @@ export default function AgentConversations() {
         <StatCard label="비용" value="확인 불가" sub={d.cost} status="success" />
         <StatCard label="진행 중 하루 넘게 멈춤" value={d.stalled} sub="중도 이탈 후보" status="success" />
         <StatCard label="사진 올린 사람 · 대표 사진" value={`${d.with_photos} · ${d.with_primary}`} sub="최근 2개월 확인 상태는 저장 칸이 없어 기록 없음" status="success" />
+        <StatCard label="AI 소개 초안(만듦 · 못 만듦 · 재료 없음)" value={`${d.intro.ready} · ${d.intro.failed} · ${d.intro.none}`} sub={`예전 대화(기록 없음) ${d.intro.no_record}`} status="success" />
+        <StatCard label="최종 소개 출처(그대로 · 고침 · 직접)" value={`${d.intro.as_is} · ${d.intro.edited} · ${d.intro.own}`} sub="사용자가 고른 것만 셈" status="success" />
+        <StatCard label="연결 준비 · 전화 인증 · 소개 저장" value={`${d.phone_verified} · ${d.intro_saved}`} sub={`서버가 참·거짓만 보냄(번호·글 0) · 기록 없음 ${d.readiness_unknown}`} status="success" />
       </div>}
 
       {load.kind === "ready" && tab === "sessions" && <section className="flex flex-col gap-3">
@@ -100,6 +105,9 @@ export default function AgentConversations() {
             <p className="mt-2">MBTI {p.mbti?.value ?? "UNKNOWN"} · 혈액형 {p.blood_type?.value ?? "UNKNOWN"} (직접 말했을 때만 CONFIRMED)</p>
             <p className="mt-1">추측(INFERRED · 매칭에 안 씀): {(p.inferred_candidates ?? []).map((i) => i.trait).join(", ") || "없음"}</p>
             <p className="mt-1">사진 {s.photos ? `${s.photos.count}장 · 대표 사진 ${s.photos.primary ? "있음" : "없음"} · 마지막으로 올린 날 ${fmtDate(s.photos.last_updated_at)}` : "기록 없음"} · 최근 2개월 확인 상태 = 기록 없음(저장 칸 없음)</p>
+            <p className="mt-1">AI 소개 초안: {s.intro ? `${INTRO_STATUS[s.intro.status]} · ${s.intro.lines.length}문장 · 사용자 선택 ${s.intro.used ? INTRO_USED[s.intro.used] : "아직"}${Object.keys(s.intro.dropped).length ? ` · 버린 문장 ${Object.entries(s.intro.dropped).map(([k, v]) => `${k} ${v}`).join(", ")}` : ""}${s.intro.error ? ` · 실패 이유 ${s.intro.error}` : ""}` : "기록 없음(예전 대화)"}</p>
+            {s.intro?.lines.length ? <p className="mt-1">초안: {hide(s.intro.lines.map((l) => l.text).join(" "), showRaw)}</p> : null}
+            <p className="mt-1">연결 준비: 전화 인증 {s.readiness ? (s.readiness.phone_verified ? "했음" : "아직") : "기록 없음"} · 소개 저장 {s.readiness ? (s.readiness.intro_saved ? "있음" : "없음") : "기록 없음"} · 필수 사진 = 사진 장수로 판단</p>
             <p className="mt-1">정정 {(p.user_corrections ?? []).length}건 · 문제 삼은 질문·거둔 뜻 {(p.rejected_meanings ?? []).length}건 · 후보 0(연결 서버가 아직 이 프로필을 읽지 않음)</p>
           </article>; })}
       </section>}

@@ -168,7 +168,7 @@ function photoScreen({ checkKind = 'needs-confirmation', existing = null, failUp
       if (name === 'motion/react') return { motion: { div: 'div' } };
       if (name === 'lucide-react') return { Camera: 'icon', ImagePlus: 'icon', Loader2: 'icon', Star: 'icon', X: 'icon' };
       if (name.endsWith('/photoDrafts')) return { PhotoDrafts: Drafts };
-      if (name.endsWith('/theme')) return { colors: {}, serif: 'serif' };
+      if (name.endsWith('/theme')) return { colors: {}, serif: 'serif', surfaces: {} };
       if (name.endsWith('/PrimaryButton')) return { PrimaryButton: 'primary-button' };
       if (name.endsWith('/CameraSheet')) return { CameraSheet: 'camera-sheet' };
       if (name.endsWith('/recentPhoto')) return { MAX_UPLOAD_PHOTO_BYTES: api.MAX_UPLOAD_PHOTO_BYTES, RecentPhotoError: api.RecentPhotoError, prepareAlbumPhoto: async () => ({ blob: photoBlob, dateCheck: { kind: checkKind } }) };

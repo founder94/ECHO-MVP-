@@ -456,7 +456,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           </h1>
 
           <p style={{ color: surfaces.onPage, fontSize: 14, lineHeight: 1.65 }}>
-            연결을 받으려면 전신·패션·취미 세 장이 필요해요. 지금 다 못 채워도 괜찮아요.
+            연결을 받으려면 전신·패션·취미 세 장이 필요해요. 처음 만나는 사람이 내 모습·옷차림·좋아하는 것을 함께 볼 수 있게요. 한 사진을 억지로 여러 칸에 맞추지 않아도 되고, 지금 다 못 채워도 괜찮아요.
             최근 2개월 안에 찍은, 지금의 나를 담아주세요.
           </p>
           <p style={{ color: surfaces.onPageFaint, fontSize: 12, lineHeight: 1.7, marginTop: 12 }}>

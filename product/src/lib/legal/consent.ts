@@ -24,12 +24,15 @@ export function requiredAllChecked(choice: ConsentChoice): boolean {
   return REQUIRED_CONSENT_KEYS.every((key) => choice[key]);
 }
 
+// 2026-09-25 대표 MASTER §14: 마케팅 수신 동의는 실제로 마케팅을 보낼 때만 선택 항목으로 보인다. 지금은 보내는 기능이 없다 → 끔(항목 숨김, 값은 늘 false).
+export const MARKETING_ENABLED = false;
+
 export function allChecked(choice: ConsentChoice): boolean {
-  return requiredAllChecked(choice) && choice.marketing;
+  return requiredAllChecked(choice) && (!MARKETING_ENABLED || choice.marketing);
 }
 
 export function setAll(checked: boolean): ConsentChoice {
-  return { terms: checked, privacy: checked, age14: checked, marketing: checked };
+  return { terms: checked, privacy: checked, age14: checked, marketing: checked && MARKETING_ENABLED };
 }
 
 // 가입 시 인증 메타데이터에 실어 보내는 값. 서버(profiles)에 옮겨 적기 전까지의 기록이다.

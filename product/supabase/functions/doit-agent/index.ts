@@ -232,8 +232,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const ids = rows.map((r) => r.request_id);
         const { data: turns } = ids.length ? await admin.from("doit_request_events").select("target_id, created_at, response_payload").eq("action", TURN_ACTION).in("target_id", ids).limit(2000) : { data: [] };
         const userIds = [...new Set(rows.map((r) => r.user_id))];
-        const { data: profs } = userIds.length ? await admin.from("profiles").select("id, nickname").in("id", userIds) : { data: [] };
-        const nick = new Map(((profs ?? []) as { id: string; nickname: string | null }[]).map((p) => [p.id, p.nickname]));
+        const { data: profs } = userIds.length ? await admin.from("profiles").select("id, nickname, verification_status, bio").in("id", userIds) : { data: [] };
+        const profRows = (profs ?? []) as { id: string; nickname: string | null; verification_status: string | null; bio: string | null }[];
+        const nick = new Map(profRows.map((p) => [p.id, p.nickname]));
+        // 연결 준비의 부족 조건(MASTER §20): 참·거짓만 보낸다. 전화번호·인증번호·소개 글은 보내지 않는다.
+        const ready = new Map(profRows.map((p) => [p.id, { phone_verified: p.verification_status === "verified", intro_saved: !!(p.bio ?? "").trim() }]));
         // 사진은 이미 있는 칸만 읽는다(장수·대표 사진·마지막으로 올린 시각). 사진 파일·주소는 주지 않는다. 최근 2개월 확인 상태는 저장하는 칸이 없다(새 칸 = 승인 필요).
         const { data: photoRows } = userIds.length ? await admin.from("profile_photos").select("user_id, is_primary, updated_at").in("user_id", userIds) : { data: [] };
         const photos = new Map<string, { count: number; primary: boolean; last_updated_at: string | null }>();
@@ -242,7 +245,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           cur.count++; if (ph.is_primary) cur.primary = true; if (ph.updated_at && (!cur.last_updated_at || ph.updated_at > cur.last_updated_at)) cur.last_updated_at = ph.updated_at;
           photos.set(ph.user_id, cur);
         }
-        return json({ ok: true, sessions: rows.map((r) => ({ id: r.request_id, user: r.user_id.slice(0, 8), nickname: nick.get(r.user_id) ?? null, created_at: r.created_at, updated_at: r.updated_at, stored: r.response_payload, photos: photos.get(r.user_id) ?? { count: 0, primary: false, last_updated_at: null } })),
+        return json({ ok: true, sessions: rows.map((r) => ({ id: r.request_id, user: r.user_id.slice(0, 8), nickname: nick.get(r.user_id) ?? null, created_at: r.created_at, updated_at: r.updated_at, stored: r.response_payload, photos: photos.get(r.user_id) ?? { count: 0, primary: false, last_updated_at: null }, readiness: ready.get(r.user_id) ?? { phone_verified: false, intro_saved: false } })),
           turns: ((turns ?? []) as { target_id: string; created_at: string; response_payload: Json | null }[]).map((t) => ({ session_id: t.target_id, created_at: t.created_at, record: (t.response_payload as Json | null)?.record ?? null })) }, 200, origin);
       }
       const id = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";

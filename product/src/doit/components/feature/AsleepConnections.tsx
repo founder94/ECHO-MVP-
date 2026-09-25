@@ -4,6 +4,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import MobileLayout from './MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } from '@/doit/lib/understandingApi';
+import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
 import './asleep-connections.css';
 
@@ -62,15 +63,16 @@ function Ready({ preview }: { preview: Preview }) {
   const turnsUsedUp = turns >= r.answers_needed && r.answers < r.answers_needed;
   const rows: { label: string; done: boolean; detail: string; to: string }[] = [
     { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: turnsUsedUp ? '/doit/conversation?restart=1' : '/doit/conversation' },
+    // 2026-09-25 대표 MASTER §10 순서: 대화 → AI 소개 확인 → 사진 → 전화 인증 → 연결 준비. 대화 에이전트가 켜진 앱은 대화 끝 화면에서 AI 초안을 확인한다.
+    { label: '내 소개', done: r.intro, detail: r.intro ? '있음' : '아직', to: ECHO_AGENT_ENABLED ? '/doit/conversation' : '/doit/start-journey?edit=profile' },
     { label: '필수 사진(전신·패션·취미)', done: r.photos >= r.photos_needed, detail: `${Math.min(r.photos, r.photos_needed)} / ${r.photos_needed}`, to: '/doit/start-journey?edit=photos' },
-    { label: '내 소개', done: r.intro, detail: r.intro ? '있음' : '아직', to: '/doit/start-journey?edit=profile' },
     { label: '전화 인증', done: r.phone_verified, detail: r.phone_verified ? '했음' : '아직', to: '/doit/verify?next=/doit/connections' },
   ];
   const answersDone = rows[0].done;
   // 대표 2026-09-25 「연결 준비 화면 = 다음 할 일을 크게, 사진·소개·전화는 작은 진행으로(요건은 그대로)」.
   const ACTIONS: Record<string, { title: string; action: string }> = {
     '다섯 가지 질문': turns > 0 ? { title: '다섯 가지 대화를 마저 해요', action: '대화 이어가기' } : { title: '다섯 가지 대화부터 시작해요', action: '대화 시작하기' },
-    '필수 사진(전신·패션·취미)': { title: '필수 사진 세 장을 채워요', action: '사진 채우기' }, '내 소개': { title: '내 소개를 적어요', action: '소개 쓰기' }, '전화 인증': { title: '전화 인증을 해요', action: '전화 인증하기' },
+    '필수 사진(전신·패션·취미)': { title: '필수 사진 세 장을 채워요', action: '사진 채우기' }, '내 소개': ECHO_AGENT_ENABLED ? { title: 'AI가 쓴 내 소개를 확인해요', action: '소개 확인하기' } : { title: '내 소개를 적어요', action: '소개 쓰기' }, '전화 인증': { title: '전화 인증을 해요', action: '전화 인증하기' },
   };
   const firstLeft = rows.find(row => !row.done);
   const next = firstLeft ? { to: firstLeft.to, ...(firstLeft === rows[0] && turnsUsedUp ? { title: '다섯 가지를 처음부터 다시 답해요', action: '처음부터 다시 답하기' } : ACTIONS[firstLeft.label] ?? { title: firstLeft.label, action: firstLeft.label }) } : null;

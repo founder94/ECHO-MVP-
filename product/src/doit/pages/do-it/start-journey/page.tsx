@@ -569,12 +569,15 @@ export default function StartJourney() {
     // v14.2: 이미 시작한 사람도 여기로 온다. 무엇을 할지 스스로 고르게 하고, 홈으로 돌아갈 길을 함께 둔다.
     // 2026-09-25 대표 Galaxy: 버튼이 나란히 있어 무엇을 먼저 할지 몰랐다 → 큰 버튼은 하나(대화), 사진·소개는 작은 버튼. 대화를 마쳤으면 사진·소개가 큰 버튼.
     const talkDone = agentSession?.phase === "done";
+    const introPending = talkDone && agentSession?.intro?.status === "ready" && !agentSession.intro.used;
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
     return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
-      <p className="echo-lead">{talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
-      {talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
+      <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
+      {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
+      {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 직접 채우기</button></>
+        : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
         : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
       <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
