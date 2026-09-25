@@ -128,7 +128,7 @@
  "prod_agent_gate": {
   "registered_at": "2026-09-25",
   "why": "대표 「구현 → 운영배포 → 운영검증」 FINAL: 운영 서버 doit-agent 가 쓰는 agent.ts(echo-agent-v1.2 — v1.1 에서 말투 예시 문장 삭제·첫 질문 = 목적 타일·먼저 답한 뒤 지금 질문 유지·대화 상한)를 결과를 보기 전에 고정한다. 입력·모델은 v1.1 재생과 같다.",
-  "agent_ts_sha256": "f528d2b657eb040f715cf079f885d3bc0c3ef2cd54d6a17a1494ab059219291d",
+  "agent_ts_sha256": "9a1f135f14b4fddd8858946eccd9c53490413d6269dc212bcc124ade659fa916",
   "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
@@ -144,7 +144,7 @@
    "max_calls_per_turn": 2,
    "closing_call": "마칠 때 1번(요약·마무리·소개 초안을 같은 호출에서)"
   },
-  "version": "echo-agent-v1.8 (v1.7 + 소개 규칙 두 줄: 상대에게 바라는 말을 자기 설명으로 바꾸지 않음 · 불분명한 오타 조각은 쓰지 않음)",
+  "version": "echo-agent-v1.9 (v1.8 + 답 놓침 수정: 고치기(repair)로 읽힌 답의 새 내용 반영 · 뽑은 것이 없으면 사용자 원문 요약 저장 · 무응답 정확 목록 · 중복 제거)",
   "history": [
    {
     "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
@@ -215,6 +215,7 @@
   "why_v6": "run 11(v1.4)은 사전 규칙을 충족했지만 결과를 보니 help 뒤 같은 문장 재출력(same_question_again 6)·반말에서 예시가 「~요」로 끝남·label 을 옮겨 쓴 추상 질문이 보였다. 입력(흐름)은 run 11 과 같다. 결과를 보기 전 결정 규칙: gpt-4o-mini 에서 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 · help_classified ≥ 4/6 · same_question_again < 6 · abstract_questions 비율 ≤ run 11(16/64) 이면 v1.5 배포. 아니면 v1.4(run 11 규칙 충족)를 배포한다.",
   "why_v7": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §2 질문을 밝고 가볍게 · §4 5문답 종료 후 AI 프로필 초안 자동 생성. 입력(흐름)·모델은 run 11·12 와 같다. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 ② intro_ready(마친 대화 중 확인된 말이 있는 대화에서 소개 초안 status=ready) 80% 이상 ③ 추상 낱말 질문 비율(abstract_questions/questions_total · HEURISTIC)이 run 11 의 25% 이하. 셋 다 맞으면 v1.6 을 운영에 배포하고, 하나라도 아니면 배포하지 않고 v1.4(운영 버전 4)를 둔다. heavy_questions·example_copy(말투 예시를 그대로 옮긴 질문)·intro_dropped 는 관측만 하고 판정에 쓰지 않는다(결과 본 뒤 규칙 변경 금지).",
   "why_v8": "run 13(v1.6) 결과: 치명 지표 0 · 소개 초안 9/9 였지만 추상 질문 22/68(32%)로 사전 규칙 ③ 미달 → 규칙대로 운영 미배포. 원인(결과 표에서 셈): 추상 질문 22개 중 13개가 AI 용 주제 이름 「알아가는 방식과 속도」의 「방식」, 7개가 「스타일」. v1.7 은 v1.6 에서 AI 용 주제 이름 4개만 생활 말로 바꿨다(입력·모델 같음). 결과를 보기 전 결정 규칙은 why_v7 과 같다: gpt-4o-mini 에서 ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 — 셋 다 맞으면 v1.7 을 운영 배포, 아니면 v1.4 유지. 관측 지표는 판정에 쓰지 않는다.",
-  "why_v9": "run 14(v1.7)는 사전 규칙을 충족해 운영 배포(버전 5)했다. 결과 문장을 읽으니 gpt-4o-mini 소개 초안 2개가 상대에게 바라는 말 「다정한 사람」을 「저는 다정한 사람이라고 생각해요 / 저는 다정한 사람입니다」로 바꿨고(뜻 왜곡), 1개는 오타 조각 「마음이지머」를 문장으로 넣었다. v1.8 은 소개 규칙 두 줄만 더했다(입력·모델·서버 검사 같음). 결과를 보기 전 결정 규칙(gpt-4o-mini): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim(「저는 … 사람이에요/입니다/이라고」인데 바람 낱말 없음 · HEURISTIC · v1.7 run 14 에서 2) = 0. 넷 다 맞으면 v1.8 을 운영 배포, 아니면 v1.7(운영 버전 5) 유지. 오타 조각은 관측만."
+  "why_v9": "run 14(v1.7)는 사전 규칙을 충족해 운영 배포(버전 5)했다. 결과 문장을 읽으니 gpt-4o-mini 소개 초안 2개가 상대에게 바라는 말 「다정한 사람」을 「저는 다정한 사람이라고 생각해요 / 저는 다정한 사람입니다」로 바꿨고(뜻 왜곡), 1개는 오타 조각 「마음이지머」를 문장으로 넣었다. v1.8 은 소개 규칙 두 줄만 더했다(입력·모델·서버 검사 같음). 결과를 보기 전 결정 규칙(gpt-4o-mini): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim(「저는 … 사람이에요/입니다/이라고」인데 바람 낱말 없음 · HEURISTIC · v1.7 run 14 에서 2) = 0. 넷 다 맞으면 v1.8 을 운영 배포, 아니면 v1.7(운영 버전 5) 유지. 오타 조각은 관측만.",
+  "why_v10": "대표 운영 기록(읽기 전용 확인, 2026-09-25): 2·5번째 답에서 뽑은 내용 0개, 4번째 답이 고치기(repair)로 읽혀 새 내용이 버려졌다. v1.9 는 그 처리만 고쳤다(입력 흐름·Golden·모델·파라미터 run 15 와 같음). 대표 「v1.9 실제 AI 검사」(2026-09-26). 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표 8개(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0 — 넷 다 맞으면 「배포 가능」, 아니면 「배포 불가(v1.8 운영 버전 6 유지)」. confirmed_items·recovered_turns 는 관측만(판정에 쓰지 않음). 배포: 대표 2026-09-26 PRE-DEPLOY 지시 「현재 doit-agent 운영 서버도 이번 2건 때문에 다시 배포하지 마라 / 운영배포 0건」에 따라 이번 실행 결과와 상관없이 운영 배포하지 않는다 — 결과를 보고한 뒤 대표 별도 승인으로만 배포한다."
  }
 }
