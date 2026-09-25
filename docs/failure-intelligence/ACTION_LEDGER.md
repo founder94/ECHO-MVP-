@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (5)
+## COMPLETED (6)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -16,6 +16,7 @@
 | A-10 | GitHub 재연결 | 2026-09-25 | 대표 | CLAUDE.md(GitHub push STOP 기록) · 이후 push 정상 |  |
 | P-01 | 실제 AI A/B(고정 하네스) | 2026-09-25 | 대표 승인 + GitHub Actions | docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md · run 36103690087 | 실AI A/B run1 완료(종료 코드 0 · 사전 고정 일치). 다시 요구 금지. 추가 실행은 새 행동으로 기록 |
 | A-11 | GitHub 저장소 Secret OPENAI_API_KEY_AB_TEST 등록 | 2026-09-25 | 대표 | 대표 「대표 승인 · 실AI A/B 실행 시작」 · run 36103690087 로그의 OPENAI_API_KEY: *** | 다시 요구 금지 · 키 값은 저장·출력하지 않음 |
+| P-07 | 실AI run1 P0 블라인드 검수(17칸 · 누르기만) | 2026-09-25 | 대표(휴대폰 페이지에서 17칸 선택) | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md | A 7 · B-1.0 8 · 둘 다 별로 2 → B WIN = NO · P0 FAIL. 다시 요구 금지 |
 
 ## DECIDED (10)
 
@@ -54,6 +55,6 @@
 | P-04 | 전화 인증 없는 연결 자격 조건 | — | 대표 결정 | CLAUDE.md |  |
 | P-05 | 사주·타로·공간·월드 메뉴 숨김 충돌 | — | 대표 결정 | CLAUDE.md |  |
 | P-06 | 타로 403(openai-chat 허용 주소·토큰 검증판 배포) | — | 대표 승인(운영 배포) | GF-48 |  |
-| P-07 | 실AI run1 P0 블라인드 검수(17칸 · 누르기만) | 2026-09-25 | 대표 | https://claude.ai/artifact/AbG59HLy8DusMzNKHwUqTq · docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_REVIEW_RUN1.md | 34칸 전체는 P0 결과가 필요할 때만 2차. 대표에게 번호 다시 타이핑 요구 금지(GF-58). Claude 는 승자를 고르지 않음 |
 | P-08 | 운영 A 실제 모델 확정(OPENAI_MODEL DIGEST 앞 12글자 대조) | 2026-09-25 | 대표(Supabase 화면 확인 1회) | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 확정 전 run2 실행 금지 · 모델 임의 선택 금지 |
 | P-09 | MODEL GATE(P0 블라인드에서 A·B 둘 다 부족하면 개시) | 2026-09-25 | 대표 블라인드 결과 | docs/failure-intelligence/MODEL_GATE_20260925.md | 계정 모델 목록 확인(GET /v1/models, 비용 0)은 Gate 개시 때 |
+| P-10 | MODEL GATE 1단계: 계정 모델 목록 확인(GET /v1/models · 비용 0 · 기존 Actions 경로) | 2026-09-25 | Claude(워크플로에 조회 추가 → 실행) | docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md | 후보는 목록 + 공식 단가 확인 뒤에만. 페이지 댓글의 프롬프트 방향은 모델 비교 다음 단계(한 번에 한 변수) |

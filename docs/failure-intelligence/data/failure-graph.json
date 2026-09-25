@@ -249,6 +249,22 @@
    "evidence": "HYPOTHESIS",
    "note": "[REAL run1] 주제 입력이 없는 B 에서도 같은 「활동」 점프 → 모델 몫 가설",
    "ref": "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+  },
+  {
+   "from": "GF-02",
+   "rel": "FIXED_BY",
+   "to": "FS-22",
+   "evidence": "CODE",
+   "note": "B-1.0 은 막힌 질문을 버리고 반응만 보내 실패 안내를 없앰",
+   "ref": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
+  },
+  {
+   "from": "GF-70",
+   "rel": "BROKEN_BY",
+   "to": "FS-22",
+   "evidence": "ACTUAL",
+   "note": "대표 블라인드: 질문 없이 멈춘 B 보다 A 선택(P09·P10)",
+   "ref": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
   }
  ]
 }

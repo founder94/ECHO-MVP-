@@ -346,6 +346,24 @@
    "improved": "—",
    "broke_normal": "12초+ 뒤 실패 · NO_CANDIDATE",
    "reuse_condition": "탈출구는 항상 시간 예산 안"
+  },
+  {
+   "id": "FS-22",
+   "solution": "질문은 선택사항 — 서버가 질문을 막으면 버리고 반응만 · repair 에서는 null 이 낫다(B-1.0)",
+   "target": "GF-02·GF-03·GF-07·GF-10(서버가 정상 후보를 죽여 대화가 멈추던 것)",
+   "result": "질문 실패 안내는 0 이 됐지만 정정·거절 뒤 다음 걸음이 없어 대표 블라인드 2칸에서 A 보다 낮게 평가(GF-70)",
+   "why_failed": "실패 안내를 없애는 것과 대화를 이어 가는 것은 다르다 — 반응만으로는 사용자가 다음에 무엇을 말할지 모른다",
+   "now": "B-1.0 은 사전 고정이라 그대로 · 모델 비교 뒤 별도 실험 후보",
+   "related": [
+    "GF-70",
+    "GF-02",
+    "GF-03"
+   ],
+   "why_chosen": "A 의 과잉 Guard(질문 실패 안내) 반대편",
+   "implementation": "runBTurn: 막힌 질문 폐기 · 최대 2회 · 프롬프트 6번 「repair·ask·fatigue 에서는 대개 null 이 낫다」",
+   "improved": "질문 실패 안내 0(run1 B)",
+   "broke_normal": "정정·거절 뒤 대화 이어 가기(P09·P10)",
+   "reuse_condition": "정정·거절 턴에서는 고친 뜻에서 출발하는 질문을 남기는 조건과 함께만"
   }
  ]
 }

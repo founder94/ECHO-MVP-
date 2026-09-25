@@ -676,7 +676,7 @@
    "experiment": "두 말은 이제 규칙으로 잡힘. 같은 방식이 GF-05(「취미생활?」 오분류)를 낳음",
    "side_effects": "GF-05",
    "counter_test": "없음",
-   "real_ai": "[REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「딥하네」·「활동?질문이 머이래」 규칙 meta → 다른 질문(「그럴 때는 어떤 기분이 드나요?」·「어떤 활동에 대해…」). B: 지친 말로 분류해 위로만. 둘 다 비저장(기계 PASS) · 쉽게 다시 물었나는 블라인드 (이전 기록: —)",
+   "real_ai": "[REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] A: 「딥하네」·「활동?질문이 머이래」 규칙 meta → 다른 질문(「그럴 때는 어떤 기분이 드나요?」·「어떤 활동에 대해…」). B: 지친 말로 분류해 위로만. 둘 다 비저장(기계 PASS) · 쉽게 다시 물었나는 블라인드 (이전 기록: —) · 대표 블라인드: 「활동?질문이 머이래」 = 둘 다 별로",
    "defense_level": "MOCK_VERIFIED",
    "status": "MITIGATED",
    "status_note": "MITIGATED(규칙 추가 방식 — 대표 지시상 앞으로 쓰지 않음)",
@@ -687,7 +687,8 @@
     "CLAUDE.md",
     "docs/claude-final-review-20260916/PATCH-20260924-release-1.0/README_대표용_출시1.0_20260924.md",
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
    ],
    "evidence_level": "ACTUAL",
    "mock_result": "PASS(가짜 AI 검사 · 방어책 기준)",
@@ -2835,7 +2836,7 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "regression.test.mjs(B 한계 특성 검사)",
-   "real_ai": "[REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] **실제 관측** — FLOW2#2 글자까지 같은 질문이 의도 이름 「활동 선호」→「활동」으로 달라 통과. FLOW7#2 활동 질문에 「돈 문제」 이름이 붙어 통과 (이전 기록: BLOCKED_BY_ENVIRONMENT)",
+   "real_ai": "[REAL run1 2026-09-25 · gpt-4o-mini · Actions 36103690087 · 기계 판정만, 뜻은 블라인드 대기] **실제 관측** — FLOW2#2 글자까지 같은 질문이 의도 이름 「활동 선호」→「활동」으로 달라 통과. FLOW7#2 활동 질문에 「돈 문제」 이름이 붙어 통과 (이전 기록: BLOCKED_BY_ENVIRONMENT) · 대표 블라인드: B 의 글자 반복 칸(P01·P04)도 먼저 반응해 B 가 선택됨 — 반복 자체가 좋게 평가된 것은 아님",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(실AI run1 에서 실제 관측)",
@@ -2845,7 +2846,8 @@
    "refs": [
     "docs/failure-intelligence/REPLAY_결과_20260925.md",
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
    ],
    "mock_result": "UNKNOWN",
    "user_result": "UNKNOWN"
@@ -3134,13 +3136,14 @@
    "experiment": "—",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] 관측",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드: 「적었자네」 칸 A 선택(B 는 항의를 칭찬처럼 받음) — 두 쪽 모두 대화 조기 종료는 같음",
    "golden_flows": [
     "FLOW1"
    ],
    "refs": [
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
-    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md"
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
    ],
    "evidence_level": "ACTUAL",
    "solution_attempts": [],
@@ -3228,7 +3231,7 @@
    "experiment": "docs/failure-intelligence/MODEL_GATE_20260925.md",
    "side_effects": "—",
    "counter_test": "—",
-   "real_ai": "[REAL run1] A·B 둘 다 관측",
+   "real_ai": "[REAL run1] A·B 둘 다 관측 · 대표 블라인드(P0): 「활동」 칸 4개 모두 두 쪽이 「활동」을 물음 → 반응 유무로만 갈림(B 2 · A 1 · 둘 다 별로 1)",
    "defense_level": "NONE",
    "status": "UNRESOLVED",
    "status_note": "UNRESOLVED(원인 HYPOTHESIS · MODEL GATE 대기)",
@@ -3240,10 +3243,61 @@
    "refs": [
     "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md",
     "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/result.md",
-    "docs/failure-intelligence/MODEL_GATE_20260925.md"
+    "docs/failure-intelligence/MODEL_GATE_20260925.md",
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md"
    ],
    "evidence_level": "HYPOTHESIS",
    "mock_result": "UNKNOWN",
+   "user_result": "UNKNOWN"
+  },
+  {
+   "id": "GF-70",
+   "title": "[B-1.0] 정정·거절 뒤 질문을 버리고 반응만 → 대화가 멈춤(대표 블라인드에서 고정 안내문 A 보다 낮게 평가)",
+   "family": "F-FLOW",
+   "date": "2026-09-25(run1 출력 · 대표 블라인드 07:15~07:18Z 무렵)",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "실제 AI 출력 + 대표 블라인드 판정(P09·P10). 입력은 지시서 예문(SYNTHETIC)",
+   "situation": "FLOW4#4 「활동 말고 편하게 대화하는 사람을 원한다는 거예요」 · FLOW4#5 「그 질문 말고」",
+   "user_text": "「활동 말고 편하게 대화하는 사람을 원한다는 거예요」, 「그 질문 말고」",
+   "ai_behavior": "B: 「편하게 대화하는 사람을 원하시는군요.」 / 「그 질문이 아니라는 말씀이시군요.」 — 다음 질문 없음(self_same_intent 로 버림 1 · 모델이 질문 null 1). 대표는 두 칸 모두 A(고정 안내문 + 같은 질문)를 골랐다",
+   "expected": "정정·거절을 받아들이고, 고친 뜻에서 출발하는 다음 질문 하나",
+   "types": [
+    "Repair 실패",
+    "출구 없음"
+   ],
+   "layers": [
+    "Orchestration",
+    "Model"
+   ],
+   "layer_note": "Orchestration(막힌 질문은 버리고 반응만 · repair 에서는 null 이 낫다는 프롬프트 지침) + Model(null 선택). 대표 판정 2칸뿐 — 확정 아님",
+   "cause_confidence": "MIXED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "[REAL] 1회 · 대표 블라인드 2칸",
+   "solution_attempts": [
+    "FS-22"
+   ],
+   "solution_candidates": "정정·거절 뒤에는 고친 뜻에서 질문 하나를 두는 방향 — 구조 변경이라 모델 비교 뒤 별도 실험",
+   "experiment": "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
+   "side_effects": "—",
+   "counter_test": "—",
+   "real_ai": "[REAL run1] 관측 · 대표 블라인드 A 선택 2/2",
+   "defense_level": "NONE",
+   "status": "UNRESOLVED",
+   "status_note": "UNRESOLVED(B 후보 결함)",
+   "golden_flows": [
+    "FLOW4"
+   ],
+   "refs": [
+    "docs/failure-intelligence/evidence/REAL_AB_RUN1_20260925/P0_BLIND_RESULT_RUN1.md",
+    "docs/failure-intelligence/REAL_AB_RUN1_분석_20260925.md"
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS([MOCK] 「질문 없음은 정상」 검사 — 판정 기준 자체가 이 실패를 정상으로 봄)",
    "user_result": "UNKNOWN"
   }
  ]

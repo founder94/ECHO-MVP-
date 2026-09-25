@@ -19,8 +19,8 @@ FAILURE → EXPERIENCE → EVIDENCE → REPRODUCE → ROOT CAUSE → SOLUTION �
 | B WIN | 확인 불가 | — |
 | Conversation P0 | FAIL | — |
 | 운영 변경 | 0 | — |
-| Failure Library | **69건** (62 → 실AI run1 새 실패 5건 GF-63~67 → 실험 변수 미고정 GF-68 → MODEL_ACTIVITY_JUMP GF-69) | `FAILURE_LIBRARY.md` 머리 |
-| Failed Solutions | 21건 | `FAILED_SOLUTIONS_ARCHIVE.md` |
+| Failure Library | **70건** (62 → 실AI run1 새 실패 5건 GF-63~67 → 실험 변수 미고정 GF-68 → MODEL_ACTIVITY_JUMP GF-69 → 대표 블라인드 GF-70) | `FAILURE_LIBRARY.md` 머리 |
+| Failed Solutions | 22건 | `FAILED_SOLUTIONS_ARCHIVE.md` |
 | 고정 검사 입력 | 34개 · 대표 실제 입력 24개 | `golden-failures.json` |
 | Golden 판정 기준 | 20 spec (사전 고정) | `golden-specs.json` |
 | VERIFIED Defense | 0개 | `VERIFIED_DEFENSE_REGISTRY.md` |
