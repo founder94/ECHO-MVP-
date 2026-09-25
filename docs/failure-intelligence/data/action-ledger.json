@@ -451,6 +451,33 @@
    "by": "대표 POST-CLAUDE FINAL MASTER §14",
    "evidence": "실제 발생 기록 0 → ACTUAL 승격 금지",
    "note": "관리자 자동 후보에는 현재 대화 기준 후보만(멈춤·반복·오류 등). 사용자 노력 지표 중 측정되는 것: 5개 완료·넘기기·반복·멈춤(24시간)·지연. 사진 업로드 실패·매칭까지 시간·비용은 확인 불가"
+  },
+  {
+   "id": "C-21",
+   "what": "doit-agent v1.3 운영 배포(버전 3) — 앞선 말에서 되살리기 · 같은 질문 재노출 1회 · 항의 문장 저장 0",
+   "state": "COMPLETED",
+   "date": "2026-09-25",
+   "by": "대표 「운영 실기기 캡처 검수 → 즉시 수정 PATCH」(코드·UI·에이전트 수정은 검사 뒤 운영 배포 승인)",
+   "evidence": "운영 파일 SHA-256 = 로컬(index 331316e4… · agent 898c2936…) · 401 3종 · 실AI run 10",
+   "note": "대표 실기기 재확인 전 — 완료 아님"
+  },
+  {
+   "id": "P-19",
+   "what": "앱 ZIP(대화 디자인 연속성 · 첫 진입/연결 준비 큰 버튼 · 사주 문구 · 대표 지정 앱 아이콘) Netlify doitmobile 업로드",
+   "state": "PENDING",
+   "date": "2026-09-25",
+   "by": "대표 수동 업로드(이 환경 Netlify 차단)",
+   "evidence": "docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md",
+   "note": "홈페이지 ZIP 없음(보이는 변경 0)"
+  },
+  {
+   "id": "B-12",
+   "what": "사주 계산 엔진(만세력·절기·음력 변환)",
+   "state": "BLOCKED",
+   "date": "2026-09-25",
+   "by": "STOP — 엔진 선정·비용·생년월일 저장 정책 = 대표 결정",
+   "evidence": "저장소 검색: 계산 코드·라이브러리·서버 0 · PENDING saju-calc 초안만",
+   "note": "가짜 명식 금지 · 문구 3곳만 사실대로 고침"
   }
  ]
 }

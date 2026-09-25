@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (14)
+## COMPLETED (15)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -25,6 +25,7 @@
 | P-15 | core-0.1 Golden 재생(OpenAI 4 모델 · 사전 등록 · 같은 모델 B-1.0 과 짝 비교) | 2026-09-25 | Claude(GitHub Actions run 36111514762) | docs/failure-intelligence/CORE_REPLAY_RESULT_20260925.md | 한 턴 1번 호출 · 기계 PASS 엇갈림 · gpt-4.1 「활동」 0 · 4o-mini 출력 약속 불이행 · P0 FAIL 유지 |
 | B-10 | 운영 관리자(/doit/admin/mobile)에 에이전트 대화 연결 — 에이전트가 운영에 없고, 관리자 전체 읽기 정책은 PENDING SQL | 2026-09-25 | HARD STOP(Edge 배포·RLS) | supabase/drafts/PENDING_20260922_admin_read_doit_conversation.sql | 시험 단계는 시험 페이지 안 관리자 화면(소유자만)으로 대체 → 2026-09-25 운영 doit-agent 배포와 함께 관리자 「대화 에이전트」로 연결(서버 역할 확인·서비스 권한 읽기 · RLS 변경 0). |
 | C-20 | ECHO Conversation Agent 운영 서버 doit-agent 배포(버전 2 · 파일 글자 단위 동일) | 2026-09-25 | 대표 「구현 → 운영배포 → 운영검증」 FINAL | docs/claude-final-review-20260916/PATCH-20260925-agent-prod/AGENT_PROD_보고_20260925.md | 앱 화면은 대표 Netlify 업로드 뒤 운영 반영 · 실기기 확인 전 |
+| C-21 | doit-agent v1.3 운영 배포(버전 3) — 앞선 말에서 되살리기 · 같은 질문 재노출 1회 · 항의 문장 저장 0 | 2026-09-25 | 대표 「운영 실기기 캡처 검수 → 즉시 수정 PATCH」(코드·UI·에이전트 수정은 검사 뒤 운영 배포 승인) | 운영 파일 SHA-256 = 로컬(index 331316e4… · agent 898c2936…) · 401 3종 · 실AI run 10 | 대표 실기기 재확인 전 — 완료 아님 |
 
 ## DECIDED (17)
 
@@ -48,7 +49,7 @@
 | A-19 | Conversation Product Contract LOCK: 「사용자가 한 말을 정확히 이해하고, 그 이해로 같은 결의 사람을 추천·매칭」 · 첫 목적 RELATIONSHIP_INTENT · LISTEN→UNDERSTAND→ACKNOWLEDGE→REMEMBER→CURIOUS FOLLOW-UP · 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · 성공 기준 10개 | 2026-09-25 | 대표 | docs/failure-intelligence/CONVERSATION_CONTRACT_20260925.md | B-1.1 금지 · 모델 승자 확정 금지 |
 | A-20 | ECHO CONVERSATION AGENT v1/v1.1 FINAL LOCK(대표 텍스트 + PDF 2개): 목적 5개·핵심 질문 최대 5·꼬리질문 0(되묻기 최대 1)·말투 3종(기본 편한 존댓말)·TEXT/VOICE 같은 에이전트·매칭 프로필 CONFIRMED/INFERRED/UNKNOWN·TEST_NOT_CONNECTED·관리자 관측·자동 실패/성공 후보 | 2026-09-25 | 대표 | docs/failure-intelligence/AGENT_V1_1_20260925.md | A-19 의 「질문 수 강제 금지」를 대체(질문 수 최대 5) |
 
-## BLOCKED (10)
+## BLOCKED (11)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -62,8 +63,9 @@
 | B-08 | 운영 Secret OPENAI_MODEL 값 읽기 | 2026-09-25 | 도구 없음(Supabase MCP 에 Secret 읽기 없음) · 관리 API 토큰 401 | docs/failure-intelligence/AB_PREFLIGHT_LOCK_20260925.md | 값을 요구하지 않는다 — 지문(DIGEST) 대조로 대신 |
 | B-09 | 실시간 음성(말하면 듣고 목소리로 답함) — 마이크 + 음성 API 키 서버 필요 | 2026-09-25 | 플랫폼(claude.ai 페이지는 마이크 거부) + HARD STOP(운영 Edge 배포·키 사용) | docs/failure-intelligence/VOICE_RESEARCH_20260925.md | 대표 승인 시: 임시 키 발급 Edge 함수 1개 + 마이크 되는 앱 화면(Netlify) — 같은 방식으로 다시 요구하지 않는다 |
 | B-11 | Photo Trust 상태 저장(USER_CONFIRMED_RECENT / TECHNICALLY_SUPPORTED / UNKNOWN) — profile_photos 에 저장 칸이 없음 | 2026-09-25 | HARD STOP(DB Migration · 새 민감정보 처리) | profile_photos 칸 = id·user_id·slot·storage_path·is_primary·created_at·updated_at(운영 읽기) | 업로드 때 EXIF 확인·본인 확인은 이미 화면에서 함(저장 0). 관리자에는 사진 장수·대표 사진·마지막 업로드 시각만 |
+| B-12 | 사주 계산 엔진(만세력·절기·음력 변환) | 2026-09-25 | STOP — 엔진 선정·비용·생년월일 저장 정책 = 대표 결정 | 저장소 검색: 계산 코드·라이브러리·서버 0 · PENDING saju-calc 초안만 | 가짜 명식 금지 · 문구 3곳만 사실대로 고침 |
 
-## PENDING (9)
+## PENDING (10)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -76,3 +78,4 @@
 | P-16 | echo-agent-v1.1 휴대폰 시험 — 대표가 말투 고르고 글/말로 대화해 매칭 단계까지 가 보기 + 같은 페이지 「관리자」에서 방금 대화 확인 | 2026-09-25 | 대표 | https://claude.ai/artifact/R2pVUKwjZZFiGBpZPthRuk | 대화는 페이지 db 에 자동 기록 → Claude 가 읽음 |
 | P-17 | 홈페이지(do-it.company) BRAND ZIP 업로드 여부 — 올리면 히어로 문구가 운영(「사람은 프로필보다…/지금 시작하기」)에서 09-24 승인본(「좋아하는 사람보다…/ECHO 시작하기」)으로 바뀜 | 2026-09-25 | 대표 결정 | 운영 main JS 와 BRAND 빌드 문구 대조 | 디자인 LOCK(승인 없는 히어로 변경 0) 때문에 올리지 않는 것이 기본 |
 | P-18 | Failure Intelligence 후보 7종 — PROFILE_SETUP_FRICTION · PHOTO_UPLOAD_FRICTION · PHOTO_RECENCY_UNVERIFIABLE · MATCH_REASON_UNGROUNDED · BRAND_PROMISE_MISMATCH · EXCESSIVE_ONBOARDING · USER_EFFORT_TOO_HIGH | 2026-09-25 | 대표 POST-CLAUDE FINAL MASTER §14 | 실제 발생 기록 0 → ACTUAL 승격 금지 | 관리자 자동 후보에는 현재 대화 기준 후보만(멈춤·반복·오류 등). 사용자 노력 지표 중 측정되는 것: 5개 완료·넘기기·반복·멈춤(24시간)·지연. 사진 업로드 실패·매칭까지 시간·비용은 확인 불가 |
+| P-19 | 앱 ZIP(대화 디자인 연속성 · 첫 진입/연결 준비 큰 버튼 · 사주 문구 · 대표 지정 앱 아이콘) Netlify doitmobile 업로드 | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md | 홈페이지 ZIP 없음(보이는 변경 0) |

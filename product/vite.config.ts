@@ -28,11 +28,18 @@ export default defineConfig(({ mode }) => {
     // 앱 빌드에만 PWA(홈 화면 설치) 태그를 넣는다. 브랜드 사이트는 설치 대상이 아니다.
     transformIndexHtml(html: string) {
       if (siteRole !== "app") return html;
-      return html.replace(
+      // 2026-09-25 대표 지정 ECHO 앱 아이콘: 앱 빌드만 파비콘을 바꾼다(브랜드 do-it.company 파비콘은 그대로).
+      const favicon = '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />';
+      if (!html.includes(favicon)) throw new Error("app favicon link not found in index.html");
+      return html.replace(favicon, [
+        '<link rel="icon" type="image/png" sizes="32x32" href="/pwa/echo-icon-32.png" />',
+        '    <link rel="icon" type="image/png" sizes="16x16" href="/pwa/echo-icon-16.png" />',
+        '    <link rel="icon" type="image/png" sizes="48x48" href="/pwa/echo-icon-48.png" />',
+      ].join("\n")).replace(
         "</head>",
         [
           '    <link rel="manifest" href="/manifest.webmanifest" />',
-          '    <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />',
+          '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png" />',
           '    <meta name="apple-mobile-web-app-capable" content="yes" />',
           '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
           '    <meta name="apple-mobile-web-app-title" content="DO IT" />',
