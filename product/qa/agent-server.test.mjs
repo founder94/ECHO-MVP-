@@ -247,7 +247,11 @@ test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '연애로 이어질 만남' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   s.ai.push(T({ extracted: [], ...Q('values_character', '사람 볼 때 뭘 봐요?') })); // 막연한 답을 AI 가 놓침
-  await say('그냥 편한 사람');
+  const r2 = await say('그냥 편한 사람');
+  // v1.9(대표 2026-09-25 실기기): AI 가 놓쳐도 질문에 한 답은 원문 그대로 그 자리에서 남는다
+  assert.equal(r2.body.turn.saved, true);
+  const st2 = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  assert.deepEqual(st2.slots.attraction_comfort.items.map((i) => [i.quote, i.source]), [['그냥 편한 사람', 'answer_raw']]);
   s.ai.push(T({ extracted: [X('values_character', '성격', '성격')], ...Q('relationship_style', '어떻게 알아가는 게 좋아요?') }));
   await say('성격');
   s.ai.push(T({ extracted: [X('relationship_style', '자연스럽게', '자연스럽게')], ...Q('boundaries', '꼭 있었으면 하는 건 뭐예요?') }));
@@ -262,7 +266,8 @@ test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의
   const r6 = await say('아까 말했는데');
   const p = r6.body.session.profile;
   assert.equal(p.boundaries.status, 'CONFIRMED'); assert.equal(p.boundaries.items.length, 1); assert.equal(p.boundaries.items[0].quote, '외모도 좀 받쳐줬으면');
-  assert.equal(p.attraction_comfort.status, 'CONFIRMED', '앞서 놓친 막연한 답도 되살림');
+  assert.equal(p.attraction_comfort.status, 'CONFIRMED', '앞서 놓친 막연한 답은 그때 원문으로 남아 있다');
+  assert.equal(p.attraction_comfort.items.length, 1, '되살린 「편한 사람」은 이미 남은 원문과 같은 말이라 겹쳐 넣지 않는다');
   assert.equal(r6.body.turn.saved, false, '항의 문장은 답으로 저장 0');
   assert.equal(r6.body.turn.question, null); assert.equal(r6.body.session.phase, 'done');
   const texts = s.tables.doit_records.map((r) => r.text);
@@ -270,9 +275,9 @@ test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의
   assert.ok(!texts.includes('아까 말했는데'), '항의 문장은 기록 0');
   const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   const t6 = st.turns.at(-1);
-  assert.deepEqual([...t6.recovered].sort(), ['attraction_comfort', 'boundaries']); assert.deepEqual([...t6.recovered_from].sort(), [2, 5]);
+  assert.deepEqual([...t6.recovered].sort(), ['boundaries']); assert.deepEqual([...t6.recovered_from].sort(), [5]);
   const rec = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').at(-1).response_payload.record;
-  assert.deepEqual([...rec.recovered].sort(), ['attraction_comfort', 'boundaries']);
+  assert.deepEqual([...rec.recovered].sort(), ['boundaries']);
   // 같은 요청을 다시 보내도 기록이 늘지 않는다
   assert.equal(s.tables.doit_records.length, new Set(s.tables.doit_records.map((r) => r.request_id)).size);
   // 관리자 후보: 다시 보인 질문 뒤 항의 = ALREADY_ANSWERED_REASK, 되살림 = MEMORY_RECOVERED
@@ -423,4 +428,37 @@ test('v1.6 소개 다시 쓰기: 대화 중 409 · 실패 → 다시 쓰기 AI 1
   const k = s2.aiCalls.length;
   const again = await h2.call({ action: 'agent_intro', requestId: rid(), sessionId: st2.body.session.id });
   assert.equal(again.body.session.intro.status, 'none'); assert.equal(s2.aiCalls.length, k, '재료가 없으면 AI 를 부르지 않는다');
+});
+
+test('v1.9 대표 실기기 재현(2026-09-25): AI 가 놓친 답은 원문으로 · 항의+새 이야기는 새 이야기 저장 · 「모르겠어요」는 저장 0', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화', '깊은 대화부터')], ...Q('attraction_comfort', '같이 있으면 편하고 끌리는 사람은 어떤 사람일까요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '깊은 대화부터 시작하고 싶어요' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  const state = () => s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  // ① 운영 실측: 답인데 AI 가 아무것도 못 뽑음 → 원문 그대로 그 질문의 답
+  s.ai.push(T({ extracted: [], ...Q('values_character', '사람을 만날 때 가장 먼저 어떤 점을 보나요?') }));
+  assert.equal((await say('능력이좀 있는사람')).body.turn.saved, true);
+  assert.deepEqual(state().slots.attraction_comfort.items.map((i) => i.quote), ['능력이좀 있는사람']);
+  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람')], ...Q('relationship_style', '연락은 자주 하는 편인가요?') }));
+  await say('능력이 있는 사람 내가 지금 능력이 없었기 때문에');
+  // ② 항의 + 새 이야기: 새 이야기(이번 말에 실제로 있는 글자)는 저장 · 항의 문장 원문 저장 0
+  s.ai.push(T({ kind: 'repair', reply: '네, 아까 말씀하셨죠.', extracted: [X('relationship_style', '연락 자주', '연락은 자주하는 편')], ...Q('boundaries', '이건 좋고 이건 싫다 싶은 게 있나요?') }));
+  const r4 = await say('아까 내가 능력이없기때문이라고 말했고 연락은 자주하는 편이야');
+  assert.equal(r4.body.turn.saved, true);
+  assert.deepEqual(state().slots.relationship_style.items.map((i) => i.quote), ['연락은 자주하는 편']);
+  // ③ 「모르겠어요」류 짧은 말은 원문 저장 0(아직 몰라요로 남는다)
+  s.ai.push(T({ extracted: [], next: { type: 'none', purpose: '', question: '' } }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  const r5 = await say('딱히 없는 것 같아요.'); // AI 가 answer 로 잘못 읽어도 원문 저장 0
+  assert.equal(r5.body.turn.saved, false);
+  const p = r5.body.session.profile;
+  assert.equal(p.attraction_comfort.status, 'CONFIRMED'); assert.equal(p.relationship_style.status, 'CONFIRMED');
+  assert.notEqual(p.boundaries.status, 'CONFIRMED', '모르겠다는 답은 채운 척하지 않는다');
+});
+
+test('v1.9 AI 지시: 받아주기에서 이유를 되묻지 않는다 · 항의에 섞인 새 이야기도 뽑는다', () => {
+  const src = readFileSync(new URL('agent.ts', DIR), 'utf8');
+  assert.match(src, /reply 에서 이유·설명을 되묻지 않는다/);
+  assert.match(src, /항의와 함께 지금 질문에 대한 새 이야기가 있으면/);
+  assert.match(src, /const FROM_LATEST = new Set<Kind>\(\["answer", "correction", "ask", "repair"\]\);/);
 });

@@ -16,7 +16,8 @@
 //   ② 질문마다 선택으로 보는 한 줄 예시(hint: 답의 범위만 · 답을 대신 써 주지 않음) ③ 「예를 들면?·무슨 뜻이야?」= help: 저장 0 · 질문 수 0 · 짧게 설명하고 같은 목적을 더 쉽게 다시 묻는다(질문마다 2번까지, 그 뒤는 다음 목적).
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
-export const AGENT_VERSION = "echo-agent-v1.8"; // v1.5 후보(대표 결정 P-20 대기)에서는 AI 용 주제 이름 하나만 가져왔다 — 나머지(help_same 재요청·예시 낱말 목록)는 들어 있지 않다
+// v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
+export const AGENT_VERSION = "echo-agent-v1.9"; // v1.5 후보(대표 결정 P-20 대기)에서는 AI 용 주제 이름 하나만 가져왔다 — 나머지(help_same 재요청·예시 낱말 목록)는 들어 있지 않다
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
 export const MAX_CORE_QUESTIONS = 5;
 export const MAX_CLARIFY_TOTAL = 1;
@@ -56,8 +57,16 @@ export const INTRO_MAX_LINES = 4;
 export const INTRO_TRIES_MAX = 3;    // 대화 한 번에 소개를 쓰는 AI 호출 상한(마칠 때 1 + 다시 쓰기 2 · 비용 보호)
 const SAVABLE = new Set<Kind>(["answer", "correction"]);
 // 이번 말(latest)에서 매칭 정보를 뽑아도 되는 종류. ask 는 물으면서 자기 이야기를 함께 한 경우다(운영 실측: 바람을 말했는데 ask 로 읽힘).
-// 항의(repair)·넘기기·모르겠다·그만은 이번 말에서 뽑지 않는다 — 앞선 말에서 되살리는 것만 받는다.
-const FROM_LATEST = new Set<Kind>(["answer", "correction", "ask"]);
+// 넘기기·모르겠다·그만은 이번 말에서 뽑지 않는다 — 앞선 말에서 되살리는 것만 받는다.
+// v1.9(대표 2026-09-25 실기기): 「아까 말했고, 연락은 자주 하는 편이야」처럼 항의에 새 이야기가 섞이면 새 이야기가 버려졌다.
+// 항의(repair)도 이번 말에 실제로 있는 글자만 받는다(서버가 글자를 확인하므로 항의 문장 자체는 저장되지 않는다).
+const FROM_LATEST = new Set<Kind>(["answer", "correction", "ask", "repair"]);
+// v1.9: 질문에 답(answer)했는데 AI 가 아무것도 뽑지 못하면, 사용자 원문을 그 질문의 답으로 그대로 남긴다(추측 0 · 내가 친 글자 그대로).
+// 운영 실측 2026-09-25: 「능력이좀 있는사람」「정해놓은건 없구 사람봐가면서 정해지는거 같아」가 답인데 저장 0 → 정리에 「아직 몰라요」.
+const RAW_NOTE_MAX = 60;
+// 「모르겠어요·딱히 없어요·글쎄요」 같은 말 전체가 이것뿐이면 답으로 남기지 않는다(목록에 딱 맞을 때만 — 「어른스러운 사람」 같은 답은 남는다).
+const NON_ANSWERS = new Set(["몰라", "몰라요", "모르겠어", "모르겠어요", "모르겠다", "모르겠네요", "모름", "잘모르겠어", "잘모르겠어요", "글쎄", "글쎄요", "딱히", "딱히요", "딱히없어", "딱히없어요", "딱히없음", "딱히없는것같아", "딱히없는것같아요", "없어", "없어요", "없음", "없는것같아", "없는것같아요", "아직몰라", "아직몰라요", "아직모르겠어요", "생각안해봤어", "생각안해봤어요", "음", "네", "응", "ㅇㅇ", "아니", "아니요"]);
+const NOT_AN_ANSWER = (t: string) => { const k = squash(t).replace(/[.!~?…,]+/g, ""); return NON_ANSWERS.has(k) || /^[ㅋㅎㅠㅜ\s.!~?…,]+$/.test(t); }; // 자모(ㅋ)는 NFKC 에서 바뀌므로 원문으로 본다
 const RECENT_TURNS = 10;
 export const BANNED_WORDS = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
 // 저장 금지 입력(연락처·식별번호·링크) — 기존 결정(2026-09-21). 이 경우와 대화 상한만 고정 안내를 쓴다.
@@ -88,13 +97,14 @@ export function turnPrompt(tone: Tone): string {
 ${toneBlock(tone)}
 
 순서: 방금 말(latest)을 current_question 과 recent 에 비추어 정확히 이해한다 → 먼저 짧게 받아준다 → 매칭 정보를 뽑는다 → 다음 질문 하나.
+reply 에서 이유·설명을 되묻지 않는다(「이유가 있나요」 같은 말 금지). 방금 말에 이유가 들어 있으면 들은 그대로 짚어 받아준다. 받아주기는 들은 말만, 해석·평가 0.
 질문은 next.question 에만 쓴다. reply 에는 물음표가 들어가지 않는다(받아주기·대답만). 한 턴에 질문은 하나다.
 
 kind 하나:
 - answer: 자기 이야기·원하는 사람·바라는 것·만남에 대한 말(짧아도, 막연해도, 오타여도, 물음표가 없어도 자기 이야기면 answer).
 - ask: 사용자가 너나 서비스에 물음을 던졌다(자기 바람을 말한 것은 ask 가 아니다) → reply 에서 먼저 제대로 답한다(서비스는 service_facts 안에서만, 모르면 모른다고). 그다음 next 는 current_question 과 같은 목적으로, 답을 못 받은 그 질문을 한 번 더 자연스럽게 묻는다(새 목적으로 넘어가지 않는다). 단 current_question.shown_again 이 true 면 이미 한 번 다시 물은 것이니 다시 묻지 않고 open_purposes 로 넘어간다.
 - correction: 네가 잘못 이해한 것을 고치며 올바른 뜻을 말한다 → 인정하고 고친 뜻을 따른다.
-- repair: 틀렸다·이미 말했다·왜 또 묻냐 같은 항의(새 내용 없음) → 짧게 인정한다. 이미 말했다는 뜻이면 recent 의 앞선 사용자 말에서 그 내용을 찾아 extracted 에 넣고(quote 는 그 앞선 말에서 그대로) reply 에서 그 말을 짚는다. 같은 질문을 다시 하지 않는다.
+- repair: 틀렸다·이미 말했다·왜 또 묻냐 같은 항의 → 짧게 인정한다. 항의와 함께 지금 질문에 대한 새 이야기가 있으면 그 새 이야기도 이번 말(latest)에서 quote 를 복사해 extracted 에 넣는다(예: 「아까 말했고, 연락은 자주 하는 편이야」 → 연락 이야기). 이미 말했다는 뜻이면 recent 의 앞선 사용자 말에서 그 내용을 찾아 extracted 에 넣고(quote 는 그 앞선 말에서 그대로) reply 에서 그 말을 짚는다. 같은 질문을 다시 하지 않는다.
 - help: 질문 뜻을 몰라 되묻는 말(예를 들면?·무슨 뜻이야?·뭐라고 답해?·어떤 거?·잘 모르겠는데 무슨 말이야) → reply 에 짧은 설명과 예시 개념 2~3개(한두 문장, 예: 연락 방식·약속·생활습관 같은 것). next 는 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문. 단 current_question.helps 가 ${MAX_HELP_PER_QUESTION} 이상이면 다시 설명하지 말고 open_purposes 로 넘어간다.
 - skip: 넘어가자·다음 질문·다른 거·그 질문 말고·어렵다 → 이 주제를 끝내고 다음 목적으로 간다. 같은 뜻을 다시 묻지 않는다.
 - unsure: 질문은 알아들었는데 딱히 없다·모르겠다(바람이 없다는 뜻). 질문 자체를 모르겠다는 뜻이면 help 다. 애매하고 current_question.helps 가 0 이면 help.
@@ -261,7 +271,8 @@ export function applyTurn(st: AgentState, latest: string, out: Parsed, opts: { l
       if (!PIDS.includes(m.purpose) || !m.note) continue;
       const at = quoteTurn(m.quote); if (at == null) continue;
       // 같은 목적에 같은 인용이 이미 있으면(되살리기 중복) 넣지 않는다. 틀렸다고 거둔 뜻은 되살리지 않는다.
-      if (st.slots[m.purpose].items.some((i) => squash(i.quote) === squash(m.quote))) continue;
+      // v1.9: 이미 원문 그대로 남긴 답에 들어 있는 인용(「편한 사람」 ⊂ 「그냥 편한 사람」)도 같은 말로 본다.
+      if (st.slots[m.purpose].items.some((i) => squash(i.quote) === squash(m.quote) || (i.source === "answer_raw" && squash(i.quote).includes(squash(m.quote))))) continue;
       const item: Item = { note: m.note, quote: m.quote, turn: at, source: at === turn.n ? out.kind : "recovered", status: "CONFIRMED" };
       st.slots[m.purpose].items.push(item); st.slots[m.purpose].status = "CONFIRMED"; kept.push({ purpose: m.purpose, note: m.note, turn: at });
     }
@@ -280,6 +291,12 @@ export function applyTurn(st: AgentState, latest: string, out: Parsed, opts: { l
     for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
   }
   if (out.kind === "skip" && st.current && st.slots[st.current.purpose].status === "UNKNOWN") st.slots[st.current.purpose].status = "SKIPPED";
+  if (out.kind === "answer" && st.current && st.slots[st.current.purpose]?.status === "UNKNOWN" && !kept.some((k) => k.purpose === st.current!.purpose && k.turn === turn.n)
+    && squash(text).length >= 4 && !NOT_AN_ANSWER(text)) {
+    const pid = st.current.purpose;
+    const item: Item = { note: text.slice(0, RAW_NOTE_MAX), quote: text, turn: turn.n, source: "answer_raw", status: "CONFIRMED" };
+    st.slots[pid].items.push(item); st.slots[pid].status = "CONFIRMED"; kept.push({ purpose: pid, note: item.note, turn: turn.n });
+  }
   // 저장(기록 표에 이번 말을 남김)은 이번 말에서 나온 정보가 있을 때만 — 「아까 말했는데」 같은 항의는 되살리기만 하고 답으로 남지 않는다.
   turn.saved = kept.some((k) => k.turn === turn.n); turn.extracted = kept.map((k) => k.purpose);
   const recovered = kept.filter((k) => k.turn !== turn.n).map((k) => k.purpose); if (recovered.length) turn.recovered = recovered;
