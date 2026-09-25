@@ -60,6 +60,10 @@ graph LR
   GF-78["GF-78 QUESTION_FATIGUE — 질문이"]
   GF-80["GF-80 TOPIC_OVER_DRILLING — "]
   GF-81["GF-81 USER_SKIP_IGNORED — 「다"]
+  GF-96["GF-96 AI_LABEL_COPY_ABSTRACT"]
+  GF-92["GF-92 QUESTION_ABSTRACTION_T"]
+  GF-93["GF-93 INTRO_DRAFT_SILENT_DRO"]
+  GF-94["GF-94 AI_INTRO_PREFERENCE_TO"]
   GF-10 -->|FIXED_BY| FS-08
   GF-08 -->|BROKEN_BY| FS-08
   GF-18 -->|FIXED_BY| FS-14
@@ -105,6 +109,8 @@ graph LR
   GF-79 -->|CAUSES| GF-78
   GF-80 -->|CAUSES| GF-82
   GF-81 -->|CONTRIBUTES_TO| GF-78
+  GF-96 -->|REGRESSION_OF| GF-92
+  GF-93 -->|FIXED_BY| GF-94
 ```
 
 | From | 관계 | To | 증거 | 설명 | 근거 |
@@ -154,6 +160,8 @@ graph LR
 | GF-79 | CAUSES | GF-78 | ACTUAL | 꼬리질문 연속 → 피로 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
 | GF-80 | CAUSES | GF-82 | ACTUAL | 비는 영역 → 끝 조건 미충족 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
 | GF-81 | CONTRIBUTES_TO | GF-78 | ACTUAL | 넘기기 무시 → 피로 | `docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md` |
+| GF-96 | REGRESSION_OF | GF-92 | ACTUAL | 구체 질문 지침 뒤에도 AI 용 이름의 추상명사가 질문으로 새어 나옴 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md` |
+| GF-93 | FIXED_BY | GF-94 | ACTUAL | 근거 검사를 넓혀 초안을 살리자 뜻 왜곡(글자 검사로 못 가림)이 드러남 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` |
 
-- 관계 45개 중 HYPOTHESIS 13개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
+- 관계 47개 중 HYPOTHESIS 13개. HYPOTHESIS 는 원인 판정에 쓰지 않는다.
 - 되풀이된 모양: 실패 → 대책(규칙·검사·기본값) → 반대 방향 실패(BROKEN_BY). GF-10→FS-08→GF-08, GF-18→FS-14→GF-11, GF-14→FS-03→GF-05(도입 시점 미확인).

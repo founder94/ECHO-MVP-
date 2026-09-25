@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 92건 — 증거 수준: ACTUAL 82 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 49 · ACTUAL_RECONSTRUCTED 1 · CODE 15 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 16 · FOUNDER_STATEMENT 8
-- 상태: UNRESOLVED 43 · MITIGATED 44 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 49 · NONE 27
+- 합계 96건 — 증거 수준: ACTUAL 86 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 50 · ACTUAL_RECONSTRUCTED 1 · CODE 16 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 18 · FOUNDER_STATEMENT 8
+- 상태: UNRESOLVED 43 · MITIGATED 48 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 53 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -106,6 +106,10 @@
 | GF-90 | 2026-09-25(코드 검색) | ACTUAL | CODE | F-PROMISE | 미구현 기능 노출 · 없는 기능 약속 | Product Contract | CONFIRMED | CANDIDATE | UNRESOLVED |
 | GF-91 | 2026-09-25(외부 사용자 iPho | CANDIDATE | FOUNDER_STATEMENT | F-DEPLOY | 배포 불일치 | Infrastructure | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-92 | 2026-09-25(실제 외부 사용자 · | ACTUAL | ACTUAL | F-DRIFT | 질문 추상도 과다 · 답 범위 불명확 · 예시 도움 필요 | Model · Product Contract | MIXED | CANDIDATE | MITIGATED |
+| GF-93 | 2026-09-25 12:10(UTC)  | ACTUAL | ACTUAL | F-STATE | 조용한 버림(이유 기록 없음) · 제품 계약 불일치 | Orchestration · Evaluation | MIXED | CANDIDATE | MITIGATED |
+| GF-94 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-STATUS | 소개 초안 뜻 왜곡 · 미확정 사실화 | Model · Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
+| GF-95 | 2026-09-22 배포 · 2026-0 | ACTUAL | CODE | F-ADVISOR | 문서와 실제 처리 불일치 · 잘못된 보고 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-96 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-DRIFT | 질문 추상도 과다 · 무거운 질문 | Model · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -3108,5 +3112,137 @@
 | 방어 수준 | CANDIDATE |
 | 현재 상태 | 실AI run 11 · 사용자 재확인 전 — VERIFIED 아님 · 한 명의 의견(일반화 금지) |
 | Golden Test | 아직 없음 |
-| 관련 실패(Graph) | 없음 |
+| 관련 실패(Graph) | GF-96→REGRESSION_OF(ACTUAL) |
 | 근거 | `docs/failure-intelligence/evidence/USER_FEEDBACK_20260925/README.md` |
+
+## GF-93 INTRO_DRAFT_SILENT_DROP — 「AI가 대신 작성하기」 502, 버린 이유 기록 없음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-STATE — 서버 상태 결함(질문 소실·단계 오류·전달 실패) |
+| 발생 날짜 | 2026-09-25 12:10(UTC) 운영 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — 운영 함수 기록(읽기 전용): doit-understanding POST 502 · 1.4초 · 진단 로그 0줄 |
+| 사용자 상황 | doit-understanding 버전 27 profile_draft · 대화 끝 직후 |
+| 사용자 원문 | — |
+| AI 행동 | AI 가 1.4초 만에 답했지만 서버 근거 검사(basis 가 재료 안에 있어야 함)·거르기에서 문장이 모두 버려져 502. 버린 이유를 로그에 남기지 않아 어느 거르기인지 확정 불가 |
+| 기대 행동 | 대화에서 확인된 말로 쓴 초안이 나오고, 못 쓰면 이유가 기록되고 바로 직접 쓰기 길이 보임 |
+| Failure Type | 조용한 버림(이유 기록 없음) · 제품 계약 불일치 |
+| 원인 Layer | Orchestration · Evaluation (원인 확신: MIXED) — 근거 인용이 저장된 짧은 인용과 글자까지 같아야 통과 · 거르기 결과 무기록 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [가짜 AI] AI 가 저장된 인용보다 긴 원문을 basis 로 쓰면 버려짐(검사로 재현) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | doit-agent v1.6~: 대화를 마칠 때 같은 호출에서 초안 · 근거 = 확인된 정보 + 그 정보가 나온 사용자 원문 전체 · 버린 이유를 코드로 기록(intro_dropped) |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | PASS(가짜 AI) |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL] run 14 9/9 · run 15 8/8 (gpt-4o-mini) |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 실AI run 13·14 에서 초안 9/9 · 운영 사용자 확인 전 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | FIXED_BY→GF-94(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md` |
+
+## GF-94 AI_INTRO_PREFERENCE_TO_SELF — 상대에게 바라는 말을 「저는 …」 사실로 씀
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-STATUS — 정보 상태 오류(미확정 사실화) |
+| 발생 날짜 | 2026-09-25 실제 AI run 14 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 운영판 agent.ts v1.7 + 실제 OpenAI + 검사 입력 |
+| 사용자 상황 | gpt-4o-mini · F3 흐름(되묻기 섞인 대화) |
+| 사용자 원문 | 다정한 사람 |
+| AI 행동 | 소개 초안에 「저는 다정한 사람이라고 생각해요」·「저는 다정한 사람입니다」(2건). 같은 run 에서 오타 조각 「마음이지머입니다」 1건 |
+| 기대 행동 | 「다정한 사람이 좋아요」처럼 바람으로 쓰거나 쓰지 않음 · 불분명한 오타는 쓰지 않음 |
+| Failure Type | 소개 초안 뜻 왜곡 · 미확정 사실화 |
+| 원인 Layer | Model · Product Contract (원인 확신: HYPOTHESIS) — 근거 인용 검사는 글자만 본다 — 뜻(누구에 대한 말인지)은 서버가 못 가린다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] run 14 gpt-4o-mini 2/9 초안 · gpt-4.1·4.1-mini 0 · [REAL] run 15 gpt-4o-mini 0/8 · gpt-4.1-mini 1/10(판정 누락) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.8: 소개 규칙 두 줄(바람을 자기 설명으로 바꾸지 않음 · 불분명한 오타 조각 제외) · 화면은 늘 「AI가 대화에서 정리 · 확인 필요」 표시 + 사용자가 고를 때만 저장 |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL] run 14 → run 15 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | run 15(v1.8) gpt-4o-mini 초안 8개 중 뜻 왜곡 0(자동 판정 self_claim 0 + 사람 읽기) · 그러나 gpt-4.1-mini 1건이 「행동으로 보여줄때」(상대에게 바라는 말)를 「행동으로 진심을 보여줍니다」로 씀 — 자동 판정(HEURISTIC)이 못 잡음 · 화면은 늘 「확인 필요」 + 사용자가 고를 때만 저장 · 사용자 확인 전 VERIFIED 아님 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | GF-93→FIXED_BY(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md` |
+
+## GF-95 POLICY_DRAFT_VS_ACTUAL_FLOW — 처리방침 초안 「사진은 보내지 않음」 vs 사진 확인 기능이 사진을 OpenAI 로 보냄
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
+| 발생 날짜 | 2026-09-22 배포 · 2026-09-25 발견 |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — doit-photo-check index.ts(image_url · 임시 주소) 와 src/lib/legal/documents.ts 5항 대조 |
+| 사용자 상황 | doit-photo-check 버전 1(2026-09-22 배포) · 개인정보 처리방침 초안 v1.0 |
+| 사용자 원문 | — |
+| AI 행동 | 개발 AI(Claude)가 사진 확인 기능을 배포하면서 같은 흐름을 적은 처리방침 초안 문장을 고치지 않았다(같은 모양 전부 고치기 규칙 위반) |
+| 기대 행동 | 새 외부 처리(사진 → OpenAI)를 켤 때 처리방침·동의 문구를 함께 고치고 대표·법무 결정을 먼저 받음 |
+| Failure Type | 문서와 실제 처리 불일치 · 잘못된 보고 |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — 법률 문서 초안과 실제 데이터 흐름을 한 곳에서 대조하는 절차가 없었다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 대조(읽기) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 초안 문장 정정([대표·법무 확인 필요] 표시) · 재동의(LEGAL_VERSION 올림)·사진 확인 일시 중지 여부는 대표 결정 |
+| 실험 결과 | src/lib/legal/documents.ts |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | — |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 문서 초안만 정정 · 이미 동의한 회원 처리는 대표·법무 결정 대기 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/supabase/functions/doit-photo-check/index.ts` |
+
+## GF-96 AI_LABEL_COPY_ABSTRACT — AI 용 주제 이름의 「방식」「스타일」을 질문에 옮겨 씀
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DRIFT — 방향이탈 · 무거운 질문 |
+| 발생 날짜 | 2026-09-25 실제 AI run 13 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — 운영판 agent.ts v1.6 + 실제 OpenAI |
+| 사용자 상황 | gpt-4o-mini · 주제 이름 「알아가는 방식과 속도」 |
+| 사용자 원문 | — |
+| AI 행동 | 추상 질문 22/68(32%) — 「방식」 13 · 「스타일」 7 (예: 「사람을 알아가는 데 어떤 방식이 좋다고 생각해요?」) |
+| 기대 행동 | 생활 장면 질문(「연락은 자주 하는 편이에요?」) |
+| Failure Type | 질문 추상도 과다 · 무거운 질문 |
+| 원인 Layer | Model · Orchestration (원인 확신: CONFIRMED) — AI 에게 준 주제 이름이 추상명사였다 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | [REAL] run 13 22/68 → run 14(v1.7, 이름만 생활 말) 0/61 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | v1.7: AI 용 주제 이름을 생활 말로(v1.5 후보와 같은 이름) |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | — |
+| 실AI 결과 | [REAL] run 13 → run 14 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 실AI 1회 개선 · 사용자 확인 전 VERIFIED 아님 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | REGRESSION_OF→GF-92(ACTUAL) |
+| 근거 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md` |

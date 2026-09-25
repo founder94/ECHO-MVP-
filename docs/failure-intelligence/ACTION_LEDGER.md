@@ -7,7 +7,7 @@
 - BLOCKED 를 같은 방식으로 반복하지 않는다. 다른 합법적 경로를 찾되 보안 장치는 우회하지 않는다.
 - PENDING 중 가장 중요한 다음 행동 하나를 고른다.
 
-## COMPLETED (16)
+## COMPLETED (18)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -27,6 +27,8 @@
 | C-20 | ECHO Conversation Agent 운영 서버 doit-agent 배포(버전 2 · 파일 글자 단위 동일) | 2026-09-25 | 대표 「구현 → 운영배포 → 운영검증」 FINAL | docs/claude-final-review-20260916/PATCH-20260925-agent-prod/AGENT_PROD_보고_20260925.md | 앱 화면은 대표 Netlify 업로드 뒤 운영 반영 · 실기기 확인 전 |
 | C-21 | doit-agent v1.3 운영 배포(버전 3) — 앞선 말에서 되살리기 · 같은 질문 재노출 1회 · 항의 문장 저장 0 | 2026-09-25 | 대표 「운영 실기기 캡처 검수 → 즉시 수정 PATCH」(코드·UI·에이전트 수정은 검사 뒤 운영 배포 승인) | 운영 파일 SHA-256 = 로컬(index 331316e4… · agent 898c2936…) · 401 3종 · 실AI run 10 | 대표 실기기 재확인 전 — 완료 아님 |
 | C-22 | doit-agent 버전 4 운영 배포 = echo-agent-v1.4(help·예시 한 줄·질문 구체성 기준) | 2026-09-25 | 대표 「ACTUAL USER FEEDBACK PATCH」 · 사전 등록 run 11 규칙 충족 | 운영 파일 SHA-256 = 로컬(agent db292310… · index 5699f042…) · 401 3종 | 대표·사용자 실기기 확인 전 — 완료 아님 |
+| C-23 | doit-agent v1.7 운영 배포(버전 5) — 사전 규칙 run 14 충족 | 2026-09-25 | Claude(대화 서버 자동 배포 규칙 · 대표 MASTER §23) | docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md | agent.ts c73f590c · index.ts 430260ca · 글자 단위 동일 · 401×3 |
+| C-24 | doit-agent v1.8 운영 배포(버전 6) — 사전 규칙 run 15 ①②③④ 충족 | 2026-09-25 | Claude(대화 서버 자동 배포 규칙 · 대표 MASTER §23) | docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md | agent.ts f528d2b6 · index.ts 430260ca · 운영에서 내려받아 글자 단위 동일 · 401×3 · 다른 함수 10개 버전 불변 |
 
 ## DECIDED (18)
 
@@ -67,7 +69,7 @@
 | B-11 | Photo Trust 상태 저장(USER_CONFIRMED_RECENT / TECHNICALLY_SUPPORTED / UNKNOWN) — profile_photos 에 저장 칸이 없음 | 2026-09-25 | HARD STOP(DB Migration · 새 민감정보 처리) | profile_photos 칸 = id·user_id·slot·storage_path·is_primary·created_at·updated_at(운영 읽기) | 업로드 때 EXIF 확인·본인 확인은 이미 화면에서 함(저장 0). 관리자에는 사진 장수·대표 사진·마지막 업로드 시각만 |
 | B-12 | 사주 계산 엔진(만세력·절기·음력 변환) | 2026-09-25 | STOP — 엔진 선정·비용·생년월일 저장 정책 = 대표 결정 | 저장소 검색: 계산 코드·라이브러리·서버 0 · PENDING saju-calc 초안만 | 가짜 명식 금지 · 문구 3곳만 사실대로 고침 |
 
-## PENDING (11)
+## PENDING (13)
 
 | ID | 무엇 | 날짜 | 누가·무엇이 | 근거 | 메모 |
 |---|---|---|---|---|---|
@@ -82,3 +84,5 @@
 | P-19 | 앱 ZIP(대화 디자인 연속성 · 첫 진입/연결 준비 큰 버튼 · 사주 문구 · 대표 지정 앱 아이콘) Netlify doitmobile 업로드 | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-galaxy-audit/GALAXY_AUDIT_PATCH_보고_20260925.md · ZIP SHA-256 b0af26a0…(157개 파일) | 홈페이지 ZIP 없음(보이는 변경 0) |
 | P-20 | echo-agent-v1.5 후보 채택 여부(추상 질문 16/64 → 4/63 · 사전 규칙의 same_question_again 7 ≥ 6 로 미배포) | 2026-09-25 | 대표 결정 | docs/claude-final-review-20260916/PATCH-20260925-user-feedback/REAL_AI_RUN12_result.md | 채택 방법: product/spike/agent-v1-20260925/candidate-v1.5/README.md |
 | P-21 | 두 ZIP 업로드 — 1_APP → doitmobile · 2_BRAND → echo-mvp-doit(히어로 문구가 09-24 승인본으로 바뀜) | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-user-feedback/FINAL_TWO_SITE_보고_20260925.md | APP 214efe1c… · BRAND 4d8c3551… |
+| P-22 | 개인정보 처리방침: 사진 AI 확인이 사진을 OpenAI 로 보내는 것(9/22 배포)에 대해 재동의(LEGAL_VERSION 올림)·사진 확인 일시 중지·법무 검토 중 무엇을 할지 | 2026-09-25 | 대표 결정 | src/lib/legal/documents.ts 5항 · product/supabase/functions/doit-photo-check/index.ts | 초안 문장은 실제대로 고침([대표·법무 확인 필요]) |
+| P-23 | 두 ZIP 업로드(MASTER) — 1_APP → doitmobile · 2_BRAND → echo-mvp-doit | 2026-09-25 | 대표 수동 업로드(이 환경 Netlify 차단) | docs/claude-final-review-20260916/PATCH-20260925-master-ux | P-21 을 대체(P-21 ZIP 포함) |

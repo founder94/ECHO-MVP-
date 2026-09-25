@@ -369,6 +369,22 @@
    "evidence": "ACTUAL",
    "note": "넘기기 무시 → 피로",
    "ref": "docs/failure-intelligence/evidence/FOUNDER_PHONE_TEST_20260925/README.md"
+  },
+  {
+   "from": "GF-96",
+   "rel": "REGRESSION_OF",
+   "to": "GF-92",
+   "evidence": "ACTUAL",
+   "note": "구체 질문 지침 뒤에도 AI 용 이름의 추상명사가 질문으로 새어 나옴",
+   "ref": "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md"
+  },
+  {
+   "from": "GF-93",
+   "rel": "FIXED_BY",
+   "to": "GF-94",
+   "evidence": "ACTUAL",
+   "note": "근거 검사를 넓혀 초안을 살리자 뜻 왜곡(글자 검사로 못 가림)이 드러남",
+   "ref": "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md"
   }
  ]
 }
