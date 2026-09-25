@@ -143,9 +143,9 @@ export default function MusicPlayer() {
         {/* 사운드 웨이브 인디케이터 (재생 중일 때만) */}
         {isPlaying && (
           <div className="flex items-center gap-[2px] h-4">
-            <span className="w-[2px] h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDuration: '0.6s' }} />
-            <span className="w-[2px] h-3 bg-pink-400 rounded-full animate-bounce" style={{ animationDuration: '0.5s', animationDelay: '0.1s' }} />
-            <span className="w-[2px] h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDuration: '0.7s', animationDelay: '0.2s' }} />
+            <span className="w-[2px] h-2 bg-pink-400 rounded-full animate-pulse" style={{ animationDuration: '0.6s' }} />
+            <span className="w-[2px] h-3 bg-pink-400 rounded-full animate-pulse" style={{ animationDuration: '0.5s', animationDelay: '0.1s' }} />
+            <span className="w-[2px] h-2 bg-pink-400 rounded-full animate-pulse" style={{ animationDuration: '0.7s', animationDelay: '0.2s' }} />
           </div>
         )}
       </div>

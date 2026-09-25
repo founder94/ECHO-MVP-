@@ -227,7 +227,7 @@ export default function OriginalMusicCard() {
   const hasSelection = track !== null;
 
   const versionBtnClass = (active: boolean) =>
-    `flex-1 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+    `inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
       active
         ? 'border-white/50 bg-white/20 text-white'
         : 'border-white/15 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white/85'
@@ -251,7 +251,7 @@ export default function OriginalMusicCard() {
           type="button"
           onClick={stopAll}
           disabled={!hasSelection}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
             hasSelection
               ? 'border-white/20 bg-white/5 text-white/75 hover:bg-white/15 hover:text-white cursor-pointer'
               : 'border-white/10 text-white/25 cursor-not-allowed'
@@ -293,7 +293,7 @@ export default function OriginalMusicCard() {
           type="button"
           onClick={togglePlay}
           disabled={!hasSelection}
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
             hasSelection
               ? 'border-white/30 bg-white/10 text-white hover:bg-white/20 cursor-pointer'
               : 'border-white/10 text-white/25 cursor-not-allowed'
