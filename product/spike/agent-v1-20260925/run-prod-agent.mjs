@@ -109,7 +109,7 @@ export function stats(A, runs) {
     // v2.3 사전 등록 판정(2026-09-26 대표 「사람 말투」): 받아주기의 평가·칭찬·상담사 말 · 질문의 금지어
     evaluative_ack: rows.filter((x) => x.reply && /좋은\s*(방법|선택|생각)|멋지|훌륭|자연스러워요|좋네요|좋아요[.!~]?\s*$|그랬군요|힘드셨|대단|인상적/.test(x.reply)).length,
     // v2.4(run 21 사전 등록): 「아니 … / 그게 아니라 … / 그런 뜻 아니야 …」+ 새 뜻인데 정정(correction)으로 처리되지 않은 턴 수
-    correction_lead_missed: A.correctionRemainder ? rows.filter((x) => { const r = A.correctionRemainder(x.text); return r !== null && r.replace(/\s/g, '').length >= 4 && x.kind !== 'correction'; }).length : '해당 없음(이 판에 정정 가드 없음)',
+    correction_lead_missed: A.correctionRemainder ? rows.filter((x) => { const r = A.correctionRemainder(x.text); return r !== null && r.replace(/\s/g, '').length >= 4 && !/[?？]\s*$/.test(r) && x.kind !== 'correction'; }).length : '해당 없음(이 판에 정정 가드 없음)',
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',

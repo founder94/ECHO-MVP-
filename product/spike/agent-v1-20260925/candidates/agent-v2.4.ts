@@ -92,7 +92,8 @@ export function correctionRemainder(text: string): string | null {
   while (CORRECTION_LEAD_PART.test(t)) t = t.replace(CORRECTION_LEAD_PART, "");
   return t.trim();
 }
-const isCorrectionLead = (text: string) => { const r = correctionRemainder(text); return r !== null && r.replace(/\s/g, "").length >= 4; };
+// 물음으로 끝나면(「… 물어봐야 하는 거 아니야?」) 정정이 아니라 항의·질문이다 — 가드가 바꾸지 않는다.
+const isCorrectionLead = (text: string) => { const r = correctionRemainder(text); return r !== null && r.replace(/\s/g, "").length >= 4 && !/[?？]\s*$/.test(r); };
 export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };

@@ -18,7 +18,7 @@
  
  export const PURPOSES = Object.freeze([
    // label = AI 에게만 보이는 주제 이름(화면 이름은 앱의 AGENT_PURPOSE_LABELS). v1.7(2026-09-25): 실제 AI run 13 에서 추상 질문 22개 중
-@@ -83,12 +83,23 @@
+@@ -83,12 +83,24 @@
  // 질문이 어렵다·뜻을 묻는 말(말 전체가 이것일 때만 · 「어려운 사람은 싫어」 같은 답은 건드리지 않는다).
  const HELP_ASK = /^\s*(아+|음+|흠+)?\s*(좀|너무|넘|진짜)?\s*(어렵(네|다|어|네요|어요|습니다|군)|무슨\s*(뜻|말)(이야|이에요|인가요|이지|야)?|예를\s*들(면|어\s*줘|어\s*주세요)?|예시\s*(좀|를)?\s*(보여\s*(줘|주세요)?|줘|주세요)?)\s*[.!~?…ㅠㅜ]*\s*$/;
  const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
@@ -31,7 +31,8 @@
 +  while (CORRECTION_LEAD_PART.test(t)) t = t.replace(CORRECTION_LEAD_PART, "");
 +  return t.trim();
 +}
-+const isCorrectionLead = (text: string) => { const r = correctionRemainder(text); return r !== null && r.replace(/\s/g, "").length >= 4; };
++// 물음으로 끝나면(「… 물어봐야 하는 거 아니야?」) 정정이 아니라 항의·질문이다 — 가드가 바꾸지 않는다.
++const isCorrectionLead = (text: string) => { const r = correctionRemainder(text); return r !== null && r.replace(/\s/g, "").length >= 4 && !/[?？]\s*$/.test(r); };
  export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
    if (kind !== "answer") return { kind, rule: null };
    if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
@@ -42,7 +43,7 @@
    return { kind, rule: null };
  }
  export const BANNED_WORDS = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
-@@ -121,6 +132,7 @@
+@@ -121,6 +133,7 @@
  
  순서: 방금 말(latest)을 current_question 과 recent 에 비추어 정확히 이해한다 → 먼저 짧게 받아준다 → 매칭 정보를 뽑는다 → 다음 질문 하나.
  reply 에서 이유·설명을 되묻지 않는다(「이유가 있나요」 같은 말 금지). 방금 말에 이유가 들어 있으면 들은 그대로 짚어 받아준다. 받아주기는 들은 말만, 해석·평가 0.
@@ -50,7 +51,7 @@
  질문은 next.question 에만 쓴다. reply 에는 물음표가 들어가지 않는다(받아주기·대답만). 한 턴에 질문은 하나다.
  
  kind 하나:
-@@ -148,7 +160,7 @@
+@@ -148,7 +161,7 @@
  - kind 가 answer 인데 그 뜻을 전혀 알 수 없을 때만, clarify_allowed 가 true 이면 type "clarify"(같은 목적으로 한 번 되묻기). 모르겠다·넘기자·어렵다·항의 뒤에는 되묻지 않고 다음 목적으로 간다.
  - open_purposes 가 비었거나 kind 가 stop 이면 {"type":"none"}.
  - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
@@ -59,7 +60,7 @@
  - 질문 말투 기준(묻기 전에 스스로 확인해 check 에 적는다): context = 방금 말·앞선 말과 이어진다 · concrete = 가치·방식·스타일·느낌 같은 추상 낱말만으로 묻지 않고 연락·약속·처음 만났을 때·주말처럼 실제 장면을 떠올릴 수 있다 · answerable = 35~52세 보통 사람이 설명 없이 바로 한 줄로 답할 수 있다. 하나라도 아니면 더 쉬운 문장으로 바꿔서 낸다. 짧은 한 문장, 상담·심리검사·면접 말투 금지.
  - next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 한 줄(${HINT_MAX}자 이내, 물음표 없이, 예: 「예: 연락 방식, 약속, 생활습관처럼요.」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
  
-@@ -293,7 +305,7 @@
+@@ -293,7 +306,7 @@
    const quoteTurn = (q: string): number | null => {
      if (!squash(q)) return null;
      // v2.0: 서버 가드가 항의·피로·넘기기로 바로잡은 말은 이번 말에서 아무것도 받지 않는다(앞선 말에서 되살리기만).
