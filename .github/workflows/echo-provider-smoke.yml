@@ -1,0 +1,50 @@
+# 3-Provider smoke test — 대표 「3-PROVIDER SMOKE TEST READY」(2026-09-27).
+# - 언제: 수동 실행(workflow_dispatch)만 · push·일정으로 돌지 않는다.
+# - 하는 일: 부품 가짜 검사(AI 0) → 업체마다 모델 목록 1회 + 생성 호출 정확히 1회(합성 입력). 43판 0.
+# - 키: 시험 전용 Secret(OPENAI/ANTHROPIC/GEMINI_API_KEY_AB_TEST)만. 키는 로그·결과에 쓰지 않는다. 운영 DB·함수·Secret·배포 0.
+name: echo-provider-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      providers:
+        description: '업체(쉼표 구분) — openai,anthropic,gemini'
+        required: true
+        default: 'openai,anthropic,gemini'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-provider-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3 js-tiktoken@1.0.21
+      - name: 부품·Router 가짜 검사(AI 호출 0)
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          ECHO_AGENT_FILE: ./candidates/agent-v3.4.ts
+        run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
+      - name: 3-Provider smoke(업체마다 목록 1회 + 생성 1회)
+        working-directory: product
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
+          SMOKE_PROVIDERS: ${{ inputs.providers }}
+        run: node --experimental-strip-types spike/provider-smoke/provider-smoke.mjs

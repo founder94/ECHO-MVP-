@@ -121,9 +121,13 @@ export function geminiProvider(apiKey: string, opt: GeminiOptions = {}, f: Fetch
 }
 
 /** 키 등록 뒤 첫 확인용: 계정에서 실제로 쓸 수 있는 모델 이름 목록(생성 호출 0 · 대화 원문 0). 추정 이름 대신 여기서 나온 이름만 registry 에 적는다. */
-export async function listModels(provider: "anthropic" | "gemini", apiKey: string, f: Fetch = fetch, timeoutMs = 15000): Promise<string[]> {
+export async function listModels(provider: ProviderId, apiKey: string, f: Fetch = fetch, timeoutMs = 15000): Promise<string[]> {
   const t0 = Date.now();
   if (!apiKey) throw new ProviderError(provider, "no_key", 0);
+  if (provider === "openai") {
+    const d = await timedFetch(provider, f, "https://api.openai.com/v1/models", { method: "GET", headers: { Authorization: `Bearer ${apiKey}` } }, timeoutMs, t0);
+    return (Array.isArray(d.data) ? d.data as { id?: string }[] : []).map((m) => String(m.id ?? "")).filter(Boolean);
+  }
   if (provider === "anthropic") {
     const d = await timedFetch(provider, f, `${ANTHROPIC_API}/v1/models?limit=100`, { method: "GET", headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" } }, timeoutMs, t0);
     return (Array.isArray(d.data) ? d.data as { id?: string }[] : []).map((m) => String(m.id ?? "")).filter(Boolean);

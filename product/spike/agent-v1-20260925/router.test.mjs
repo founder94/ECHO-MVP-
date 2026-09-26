@@ -266,6 +266,9 @@ test('모델 목록(listModels): Claude = data[].id · Gemini = generateContent 
   const g = fakeFetch(200, { models: [{ name: 'models/gm-1', supportedGenerationMethods: ['generateContent'] }, { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }] });
   assert.deepEqual(await P.listModels('gemini', 'K', g.f), ['gm-1']);
   await assert.rejects(P.listModels('gemini', ''), (e) => e.code === 'no_key');
+  const o = fakeFetch(200, { data: [{ id: 'gpt-4.1-mini' }] });
+  assert.deepEqual(await P.listModels('openai', 'K', o.f), ['gpt-4.1-mini']);
+  assert.equal(o.seen[0].url, 'https://api.openai.com/v1/models'); assert.ok(!o.seen[0].url.includes('K'));
 });
 test('Router + 실제 모양 부품(가짜 fetch): OpenAI 429 → FALLBACK Gemini 가 받고 서버가 같은 규칙으로 판정 · 관측에 업체·모델·오류 기록', async () => {
   const agent = agentLike();
