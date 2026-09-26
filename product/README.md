@@ -10,7 +10,7 @@
   - `db.ts` — DB 접근·중복 요청 선점·상태 응답
   - `logic.ts` — 순수 로직(상태머신 전이표·후보 스키마 검증·의미 차단) → 단위 테스트 대상
   - `logic_test.ts` — `deno test`
-- 서버: Supabase Edge Function `echo-payment` (`supabase/functions/echo-payment/index.ts`, 단일 파일) — Toss 4,900원 단건결제 주문 생성·승인 확인(서버 금액검증·멱등·테스트 키만 허용)
+- 서버: Supabase Edge Function `echo-payment` (`supabase/functions/echo-payment/index.ts`, 단일 파일) — Toss 단건결제(**현재 가격 미확정 → 결제 잠금**: `PRICE_KRW = null` 이면 주문 생성·승인을 `PRICE_NOT_SET` 으로 거절. 옛 4,900원은 폐기, 대표 결정 2026-09-26) 주문 생성·승인 확인(서버 금액검증·멱등·테스트 키만 허용)
 - 서버: Supabase Edge Function `echo-journey` (`supabase/functions/echo-journey/index.ts`, 단일 파일) — STEP 3~7 질문(후보→서버 선택·차단)·답변·리포트 생성·보관함 목록
 - 단일 파일 배포판: `supabase/single/get-step-question.index.ts` — 위 4개 모듈을 기계적으로 이어 붙인 것(로직 동일). 레디처럼 단일 파일만 받는 배포 도구나 Supabase 대시보드 편집기에 붙여넣을 때 사용. 수정은 원본 모듈에서 하고 다시 생성한다.
 - DB 초안: `supabase/drafts/PENDING_*.sql` — **대표 승인 전 실행 금지**
@@ -43,7 +43,7 @@ npm run check:all
 - `supabase/drafts/PENDING_20260904_echo_hardening.sql` — 프로필 트리거·RLS 보강(별도)
 
 ## 흐름
-`/` → `/weather` → `/weather-check` → `/story-start`(STEP 1) → `/step/2` → `/understanding-check`(SCENE 3 · 4버튼) → `/white-door` → `/payment`(Toss 4,900원) → `/payment/success`(서버 승인) → `/step/3` … `/step/7` → `/report` → `/locker` · `/next-journey`
+`/` → `/weather` → `/weather-check` → `/story-start`(STEP 1) → `/step/2` → `/understanding-check`(SCENE 3 · 4버튼) → `/white-door` → `/payment`(가격 미확정 → 「결제 준비 중」만 표시, 결제 시작 불가) → `/payment/success`(서버 승인) → `/step/3` … `/step/7` → `/report` → `/locker` · `/next-journey`
 
 상태값: `step1 step2 understanding followup white_door_ready` (get-step-question) → `step3 … step7 report_ready report_done` (echo-journey). 결제 승인(echo-payment)만 `white_door_ready → step3` 를 바꾼다.
 모든 이동은 서버가 돌려준 `status` 로만 결정한다. 알 수 없는 상태는 STEP 1로 보내지 않고 명시 오류로 멈춘다.

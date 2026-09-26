@@ -132,7 +132,8 @@ test('문서: 버전·시행일이 있고, 금지어(데이팅·소개팅·궁�
     assert.ok(doc.sections.length >= 8, doc.key);
   }
   const terms = JSON.stringify(docs.TERMS_DOCUMENT);
-  assert.ok(terms.includes('4,900원'), '가격은 4,900원 단건');
+  assert.ok(!terms.includes('4,900'), '4,900원은 폐기된 옛 가격 — 약관에 현재 가격으로 쓰지 않는다');
+  assert.ok(terms.includes('가격 미확정'), '현재 가격 미확정을 밝힌다');
   assert.ok(!terms.includes('Stripe'));
   assert.ok(terms.includes('[대표 입력: 사업자등록번호]'), '모르는 값은 지어내지 않는다');
   assert.equal(docs.COMPANY.email, '0423doit@gmail.com');

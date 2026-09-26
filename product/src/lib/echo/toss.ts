@@ -2,6 +2,8 @@
 // 금액·주문 검증·결제 성공 판정은 서버(echo-payment)가 한다. 이 파일은 결제 성공을 만들지 않는다.
 // 공개 클라이언트 키만 사용한다(비밀키 금지). 테스트·라이브 클라이언트 키 형식만 허용한다.
 
+import { REPORT_PRICE_KRW } from '@/lib/echo/api';
+
 const TOSS_SDK_URL = 'https://js.tosspayments.com/v2/standard';
 const VALID_CLIENT_KEY_PREFIXES = ['test_ck_', 'live_ck_', 'test_gck_', 'live_gck_'];
 const SDK_LOAD_TIMEOUT_MS = 15_000;
@@ -36,6 +38,7 @@ export const PAYMENT_GATE: PaymentGate = 'review_pending';
 export const PAYMENT_PENDING_BUTTON_LABEL = '결제 준비 중';
 export const PAYMENT_PENDING_NOTICE = '현재 결제 서비스를 준비하고 있어요.\n결제는 아직 진행되지 않습니다.';
 export function isPaymentEnabled(): boolean {
+  if (REPORT_PRICE_KRW === null) return false; // 가격 미확정이면 결제를 열지 않는다
   if (PAYMENT_GATE !== 'enabled') return false;
   const key = getTossClientKey();
   return key !== '' && isValidClientKey(key);

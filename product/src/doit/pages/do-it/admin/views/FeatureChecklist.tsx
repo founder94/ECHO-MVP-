@@ -59,7 +59,7 @@ const FEATURE_ROWS: Row[] = [
     axes: { ui: "PARTIAL", server: "PARTIAL", db: "PASS", ext: "NOT_CONNECTED", device: "FAIL", ready: "STOP" } },
   { name: "사람 연결(연결 승인)", state: "wait", what: "화면과 서버는 있지만 전화 인증이 없고, 연결 서버가 대화로 만든 매칭 프로필을 아직 읽지 않아 연결 0건이에요.",
     axes: { ui: "PASS", server: "PARTIAL", db: "PASS", ext: "NA", device: "UNKNOWN", ready: "FAIL" } },
-  { name: "결제(토스 4,900원)", state: "off", what: "테스트 키만 연결돼 있어 실제 결제는 꺼져 있어요. 결제 0건.",
+  { name: "결제(토스 · 가격 미확정)", state: "off", what: "테스트 키만 연결돼 있어 실제 결제는 꺼져 있어요. 결제 0건.",
     axes: { ui: "PASS", server: "PARTIAL", db: "PASS", ext: "NOT_CONNECTED", device: "UNKNOWN", ready: "STOP" } },
   { name: "신고 · 차단", state: "wait", what: "연결된 상대를 「차단하고 신고」하면 서버가 접수해요. 아직 연결이 없어 0건이고, 운영자 처리 흐름은 확인 전이에요.",
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "NA", device: "UNKNOWN", ready: "PARTIAL" } },

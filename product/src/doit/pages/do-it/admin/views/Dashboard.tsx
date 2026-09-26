@@ -92,7 +92,7 @@ export default function Dashboard({
             label="KEY 주문·결제"
             status={data.keyOrders.status}
             value={data.keyOrders.total ?? "—"}
-            note="아직 만들지 않은 기능이에요. 지금 결제는 토스 4,900원 단건만 있어요."
+            note="아직 만들지 않은 기능이에요. 지금 결제는 토스 단건만 있어요(가격 미확정 · 결제 잠금)."
           />
           <StatCard
             label="사주·타로 기록"

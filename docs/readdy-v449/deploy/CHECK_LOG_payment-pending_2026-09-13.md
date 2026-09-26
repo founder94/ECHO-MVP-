@@ -1,5 +1,7 @@
 # 결제 비활성 배포 후보 검사 로그 · 2026-09-13T09:44:32Z
 
+> ⚠️ **폐기된 옛 가격 표시 (2026-09-26 대표 결정)**: 이 문서의 4,900원은 **폐기된 옛 구조(legacy)** 이며 현재 가격이 아닙니다. 현재 가격은 미확정입니다. 과거 기록 보존을 위해 본문은 그대로 둡니다.
+
 소스: 래디 project-13865617 (SHA-256 9156ed5f…) + PATCH C(결제 게이트 3파일)
 빌드: VITE_A_STRUCTURE_SERVER_ENABLED=true npm run build (vite build, mode production)
 

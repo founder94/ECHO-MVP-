@@ -8,9 +8,10 @@ import { REPORT_PRICE_KRW, UNKNOWN_STATE_MESSAGE, createOrder, resumeConversatio
 import { PAYMENT_PENDING_BUTTON_LABEL, PAYMENT_PENDING_NOTICE, getTossClientKey, isPaymentEnabled, isUserCancel, requestCardPayment } from '@/lib/echo/toss';
 
 const PAYABLE_STATUSES: readonly FlowStatus[] = ['report_ready'];
-const priceLabel = `${REPORT_PRICE_KRW.toLocaleString('ko-KR')}원`;
+// 가격 미확정(null)이면 금액을 보여 주지 않는다.
+const priceLabel = REPORT_PRICE_KRW === null ? '' : `${REPORT_PRICE_KRW.toLocaleString('ko-KR')}원`;
 
-// STEP 7 완료 뒤: 최종 자기이해 리포트 4,900원 단건 선택 구매.
+// STEP 7 완료 뒤: 최종 자기이해 리포트 단건 선택 구매. 가격 미확정인 동안에는 결제 준비 중만 보여 주고 결제를 시작하지 않는다.
 export default function PaymentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -63,7 +64,7 @@ export default function PaymentPage() {
   useConversationGate(returnPath, () => void load());
 
   const handlePay = async () => {
-    if (!paymentEnabled || paying) return;
+    if (!paymentEnabled || paying || REPORT_PRICE_KRW === null) return;
     setPaying(true);
     setPayError('');
     try {
@@ -122,7 +123,7 @@ export default function PaymentPage() {
       <div style={reveal(400)} className="w-full max-w-xs rounded-2xl bg-white/[0.06] border border-white/15 backdrop-blur-md px-5 py-4 mb-3 text-left">
         <div className="flex items-center justify-between">
           <span className="text-[13px] text-white/75">자기이해 리포트 · 1회</span>
-          <span className="text-[17px] font-bold text-white">{priceLabel}</span>
+          <span className="text-[17px] font-bold text-white">{priceLabel || '준비 중'}</span>
         </div>
         <p className="text-[11.5px] text-white/45 mt-2">원할 때 한 번만 선택해요.</p>
       </div>
