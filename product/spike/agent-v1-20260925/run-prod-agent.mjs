@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import { REAL, GOLDEN_SHA, recorder, BANNED } from '../ab-20260925/harness-lib.mjs';
+import { REAL, GOLDEN_SHA, recorder, BANNED, tok } from '../ab-20260925/harness-lib.mjs';
 import { flowOf } from './run-agent.mjs';
 
 const require = createRequire(import.meta.url);
@@ -19,7 +19,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // 2026-09-26 대표 「ECHO FINAL CLOSEOUT」: 배포 전 후보판(예: candidates/agent-v2.3.ts)을 운영 agent.ts 를 바꾸지 않고 실제 AI 로 검증할 수 있게,
 // run-request.json 의 agent_file(product 기준 경로)이 있으면 그 파일을 쓴다. 없으면 운영 agent.ts. 사전 등록(agent_ts_sha256)은 실제로 읽은 파일로 비교한다.
 const REQUEST = JSON.parse(readFileSync(path.resolve(HERE, '../ab-20260925/run-request.json'), 'utf8'));
-const AGENT_FILE = REQUEST.agent_file ? path.resolve(HERE, '../..', REQUEST.agent_file) : path.resolve(HERE, '../../supabase/functions/doit-agent/agent.ts');
+// 2026-09-27 「3-PROVIDER 43-CONVERSATION COMPARISON」: ECHO_AGENT_FILE(product 기준 경로)이 있으면 run-request.json 보다 먼저 쓴다(수동 실행 워크플로 · run-request 트리거 미사용). 사전 등록 비교는 실제로 읽은 파일로 한다.
+const AGENT_FILE = process.env.ECHO_AGENT_FILE ? path.resolve(HERE, '../..', process.env.ECHO_AGENT_FILE) : REQUEST.agent_file ? path.resolve(HERE, '../..', REQUEST.agent_file) : path.resolve(HERE, '../../supabase/functions/doit-agent/agent.ts');
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 const shaOf = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 export const AGENT_TS_SHA = shaOf(AGENT_FILE);
@@ -28,7 +29,7 @@ const FLOWS = JSON.parse(readFileSync(path.join(HERE, 'test-flows.json'), 'utf8'
 
 // 2026-09-27 대표 「3-MODEL ROUTER LOCAL BUILD + OPENAI BASELINE RUN」: run-request.json 의 router=true 면 모든 모델 호출이 Model Router(router/router.ts)를 거친다.
 // run 34 역할 = PRIMARY(OpenAI · 시험 모델) 하나 · Gemini·Anthropic 자리는 미연결(notConnected — 실제 호출 0). 실제 HTTP 는 run 33 과 같은 기록기(harness-lib recorder)가 한다(같은 요청·같은 집계).
-const ROUTER_ON = REQUEST.router === true;
+const ROUTER_ON = REQUEST.router === true || process.env.ECHO_ROUTER === '1';
 export async function loadRouter() {
   const dir = mkdtempSync(path.join(tmpdir(), 'echo-router-'));
   const tr = (f) => ts.transpileModule(readFileSync(path.join(HERE, 'router', f), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from\s+["']\.\/providers\.ts["']/g, 'from "./providers.mjs"');
@@ -45,6 +46,35 @@ function recorderProvider(rec, P) {
     catch { const c = rec.calls[rec.calls.length - 1]; const st = Number(String(c?.error ?? '').replace('http_', '')); throw new P.ProviderError('openai', st === 429 ? 'http_429' : st >= 500 ? 'http_5xx' : st >= 400 ? 'http_4xx' : 'network', c?.ms ?? 0); }
     const c = rec.calls.length > n ? rec.calls[rec.calls.length - 1] : {};
     return { text: String(text ?? ''), provider: 'openai', model_requested: req.model, model_served: c.served_model ?? null, input_tokens: c.in_real ?? null, cached_tokens: c.cached_real ?? null, output_tokens: c.out_real ?? null, latency_ms: c.ms ?? 0 };
+  } };
+}
+
+// 2026-09-27 3-Provider 비교: 모델 이름 앞에 업체를 붙인다(「anthropic:claude-…」 · 「gemini:…」 · 앞이 없으면 openai = run 34 와 같은 기록기 경로).
+// 비교 조건: 업체 하나씩 단독(Router 역할 PRIMARY 하나 · 다른 업체로 넘어가기 0 · Panel 0) · 같은 프롬프트·입력·출력 모양. 업체가 허용하지 않는 값만 뺀다(registry model_options).
+export const splitModel = (m) => { const k = String(m).indexOf(':'); return k > 0 && ['openai', 'anthropic', 'gemini'].includes(m.slice(0, k)) ? { provider: m.slice(0, k), model: m.slice(k + 1) } : { provider: 'openai', model: String(m) }; };
+const KEYS = { anthropic: process.env.ANTHROPIC_API_KEY ?? '', gemini: process.env.GEMINI_API_KEY ?? '' };
+export const realFor = (provider) => (provider === 'openai' ? REAL : !!KEYS[provider]);
+const REGISTRY = JSON.parse(readFileSync(path.join(HERE, 'router', 'model-registry.json'), 'utf8'));
+/** Claude·Gemini 부품을 기록기(rec.calls) 모양으로 감싼다 — 집계(stats)가 OpenAI 와 같은 칸을 읽는다. 키가 없으면 같은 가짜 대본(mock)으로 돈다. */
+function recordingProvider(rec, P, provider, model) {
+  const mo = REGISTRY.candidates?.[provider]?.model_options?.[model]; const opt = mo ? { sampling: mo.sampling, thinking: mo.thinking } : {}; // 업체가 허용하지 않는 값만 뺀다
+  // v3.5 PR-01: 재시도·속도 조절(업체 단독 · 넘어가기 0 · 같은 요청). Gemini 는 낮은 속도부터(1초 간격 · 동시성 1).
+  const POLICY = { gemini: { minIntervalMs: 1000, max429: 6, max5xx: 2, baseMs: 2000, capMs: 60000 }, anthropic: { minIntervalMs: 0, max429: 5, max5xx: 2, baseMs: 1000, capMs: 60000 } };
+  const base = !realFor(provider) ? null : provider === 'anthropic' ? P.anthropicProvider(KEYS.anthropic, opt) : P.geminiProvider(KEYS.gemini, opt);
+  const inner = base ? P.withRetry(base, POLICY[provider], { onAttempt: (a) => rec.retries.push({ provider, ...a }) }) : null;
+  rec.retries ??= [];
+  return { id: provider, kind: inner ? 'real' : 'fake', call: async (req) => {
+    const c = { model, provider, fields: Object.fromEntries(Object.entries(req.input ?? {}).map(([k, v]) => [k, tok(JSON.stringify(v))])), params: { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }, ms: 0, mock: !inner, turnKey: rec.mockFor.key };
+    if (!inner) {
+      const content = rec.mockFor.current(req.system, req.input, rec.calls.filter((x) => x.turnKey === rec.mockFor.key).length);
+      c.content = content; rec.calls.push(c);
+      return { text: content, provider, model_requested: model, model_served: null, input_tokens: null, cached_tokens: null, output_tokens: null, latency_ms: 0 };
+    }
+    try {
+      const r = await inner.call(req);
+      Object.assign(c, { ms: r.latency_ms, served_model: r.model_served, in_real: r.input_tokens, out_real: r.output_tokens, cached_real: r.cached_tokens, content: r.text });
+      rec.calls.push(c); return r;
+    } catch (e) { c.ms = e?.latency_ms ?? 0; c.error = e?.code ?? 'network'; c.error_detail = e?.detail ?? null; rec.calls.push(c); throw e; }
   } };
 }
 
@@ -94,10 +124,13 @@ const FREQ = /매일|날마다|맨날|자주|가끔|주말|한\s*번|하루에|�
 const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /부담/], [/속상/, /속상/], [/서운|섭섭/, /서운|섭섭/], [/아쉽|아쉬/, /아쉽|아쉬/], [/외로/, /외로|외롭/], [/슬프|슬퍼|슬픈/, /슬/], [/화나|화가|화났/, /화/], [/답답/, /답답/], [/무겁|무거/, /무겁|무거/], [/걱정/, /걱정/], [/불안/, /불안/], [/지치|지쳤|지친/, /지치|지쳤|지친|지쳐/], [/피곤/, /피곤/], [/괴로/, /괴로|괴롭/], [/스트레스/, /스트레스/], [/짜증/, /짜증/], [/곤란/, /곤란/], [/당황/, /당황/], [/지루/, /지루/], [/귀찮/, /귀찮/]];
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
-  const rec = recorder(model);
+  const sm = splitModel(model); // 업체 하나씩 단독 비교(다른 업체 자리 = 미연결 · 넘어가기 0)
+  if (sm.provider !== 'openai' && !RT) throw new Error('ROUTER_REQUIRED — Claude·Gemini 는 Router 로만 돈다(ECHO_ROUTER=1)');
+  const rec = recorder(sm.model);
   const direct = (kind, prompt, input) => rec.llm(prompt, JSON.stringify(input), A.AGENT_PARAMS);
-  const router = RT ? RT.R.createRouter({ registry: { version: `run${REQUEST.run}-openai-primary-only`, provisional: true, roles: { PRIMARY: { provider: 'openai', model } }, timeout_ms: 60_000, max_tokens: A.AGENT_PARAMS.max_tokens, temperature: A.AGENT_PARAMS.temperature, top_p: A.AGENT_PARAMS.top_p },
-    providers: { openai: recorderProvider(rec, RT.P), gemini: RT.P.notConnected('gemini'), anthropic: RT.P.notConnected('anthropic') }, budget: { max_calls_per_conversation: 200, max_tokens_per_conversation: 5e6 } }) : null;
+  const solo = (p) => (p === sm.provider ? (p === 'openai' ? recorderProvider(rec, RT.P) : recordingProvider(rec, RT.P, p, sm.model)) : RT.P.notConnected(p));
+  const router = RT ? RT.R.createRouter({ registry: { version: `run${REQUEST.run}-${sm.provider}-primary-only`, provisional: true, roles: { PRIMARY: { provider: sm.provider, model: sm.model } }, timeout_ms: 60_000, max_tokens: A.AGENT_PARAMS.max_tokens, temperature: A.AGENT_PARAMS.temperature, top_p: A.AGENT_PARAMS.top_p },
+    providers: { openai: sm.provider === 'openai' ? recorderProvider(rec, RT.P) : { id: 'openai', kind: 'fake', call: () => Promise.reject(new RT.P.ProviderError('openai', 'not_connected', 0)) }, gemini: solo('gemini'), anthropic: solo('anthropic') }, budget: { max_calls_per_conversation: 200, max_tokens_per_conversation: 5e6 } }) : null;
   const llm = router ? router.llm : direct;
   const st = A.newState({ tone, seed: flow.seed ?? null }); // v2.10: 사주·타로 이야기 거리(없으면 null · 예전 판은 무시)
   A.seedFirstQuestion(st);
@@ -111,7 +144,7 @@ export async function runFlow(A, flowId, tone, model) {
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
       finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, input_type: response.input_type ?? null, action: response.action ?? null, speak_recovery: response.recovery ?? null, raw_kept: !!response.raw_kept, notes: obs.notes ?? [], ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null, pending: (st.pending ?? []).map((p) => ({ turn: p.turn, status: p.status, reason: p.reason })), router_log: router ? router.log : null, performance: router ? RT.R.performanceRows(router.log).map((x) => ({ flow: flowId, tone, ...x })) : null };
+  return { flow: flowId, tone, provider_retries: rec.retries ?? [], rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null, pending: (st.pending ?? []).map((p) => ({ turn: p.turn, status: p.status, reason: p.reason })), router_log: router ? router.log : null, performance: router ? RT.R.performanceRows(router.log).map((x) => ({ flow: flowId, tone, ...x })) : null };
 }
 
 // v2.13 판정식 도우미(에이전트와 따로 씀). 메타 = 대화·질문 방식에 대한 물음 · 불만 = 내 말과 상관없다는 말.
@@ -125,6 +158,27 @@ function unconfirmedSentence(reply, userText) {
   return String(reply).split(/(?<=[.!~…])\s+/).some((t) => { const B = g(t); let m = 0; for (const v of B) if (U.has(v)) m++; if (/것\s*같(아요|네요|군요|아|다|습니다)|(신가|는가|나|인가)\s*보(네요|네|군요|다|아요|구나)|나\s*봐요|듯(해요|하네요|하군요|합니다)/.test(t)) return m / Math.max(1, B.size) < 0.3; if (/(군요|구나|네요|시네|셨네|군)[.!~…]*$/.test(t.trim())) return m === 0; return false; });
 }
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+// ── v3.2 판정식(2026-09-27 대표 「v3.2 SERVER FINAL FIX」 §4 · 결과를 보기 전 수정 · 에이전트 코드와 따로 씀).
+// 질문 발화(물음표 없어도): 확실한 질문 끝 · 또는 물음말 + 부드러운 끝 · 또는 「…는지 궁금해요」. 들은 것을 짚는 말(알겠·하셨·거예요·것 같)은 빼고 마지막 절로 본다.
+const QH_SURE = /((?<!니)까|(?<!니)까요|(?<!(기억|생각|화|짜증))나요|[신인은는던한]가요|습니까|냐|어때|어때요|뭐야|뭐예요|있나|없나|있니|했니)$/;
+const QH_WH = /어떤|어떻|무엇|뭐|뭘|언제|어디|왜|얼마나|무슨|누구|어느/;
+export function questionActH(sentence) {
+  const t = String(sentence ?? '').trim(); if (!t) return false;
+  if (/[?？]\s*$/.test(t)) return true;
+  const e = t.replace(/[.!~…\s]+$/g, ''); const last = e.split(/[,，]\s*/).pop() ?? e;
+  if (QH_SURE.test(e)) return true;
+  if (/(있으세요|좋으세요|편하세요|어떠세요)$/.test(e)) return true;
+  if (/(알겠|알 것 같|알았|하셨|했지|했구나|이해|들었|거예요|거야|것\s*같|[가나]\s*봐요)/.test(last)) return false;
+  if (/궁금(해|해요|합니다)$/.test(e)) return QH_WH.test(e) || /(는지|은지|인지|을지)/.test(e);
+  return /(세요|어|아|야|해|돼|요|있어|편해|좋아)$/.test(e) && QH_WH.test(e);
+}
+const qActsH = (t) => String(t ?? '').split(/(?<=[.!~…?？])\s+/).filter(questionActH).length;
+const PAUSE_H = /질문.{0,8}(너무|넘|진짜|좀)\s*많(아|네|다|아요|네요)?\s*[.!~]*$|그만\s*(물어|묻|할래|하자)|여기까지|할\s*말\s*(이|은)?\s*없|나중에\s*(할래|하자)|다른\s*(거|것)\s*(볼래|할래)/;
+const MANY_H = /질문.{0,8}(많|길)/;
+// 소개 뒤집힘: 나를 「… 사람/편입니다」로 설명(바람 낱말 없음)하는데, 근거 말이 바라는 상대(…사람 · …사람이 좋아)인 문장.
+const SELF_H = /(사람|편|성격)(입니다|이에요|예요|이며|이고)/; const WISH_H = /좋아|좋겠|원하|원해|바라|찾|끌|만나|싫|중요하게|좋다고/;
+const PARTNER_H = (q) => /(사람|분)\s*[.!~요]*$|(사람|분)(이|을)?\s*(좋|원)/.test(String(q ?? '').replace(/\s+$/, '')) && !/^(나는|난|저는|제가|내가)/.test(String(q ?? '').replace(/^(아니|맞아)[,\s]*/, ''));
+const EMO_V32 = EMO.map(([r, u]) => [r.source.includes('화나') ? /(?<!대)화(나|가\s|났)/ : r, u]); // 「대화가」의 「화가」 오탐 제거
 const LISTEN_H = new Set(['네, 이어서 편하게 말해 주세요.', '응, 이어서 편하게 말해 줘.', '네, 이어서 편하게 말씀해 주세요.']); // v3.1 판정용(에이전트 상수를 가져오지 않음)
 const pct = (xs, p) => { if (!xs.length) return null; const v = [...xs].sort((x, y) => x - y); return v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)]; };
 const lines = (r) => [r.reply, r.question].filter(Boolean).join(' ');
@@ -260,6 +314,20 @@ export function stats(A, runs) {
     server_emptied_reply: JSON.stringify(rows.flatMap((x) => x.notes ?? []).filter((r) => String(r).startsWith('emptied_by:')).reduce((a, r) => { a[r] = (a[r] ?? 0) + 1; return a; }, {})),
     recovery_calls_v31: rows.filter((x) => (x.retry ?? []).some((r) => String(r).startsWith('recovery_call:'))).length, // 복구로 더 부른 말하기 호출(비용 관측)
     intro_rebuild_calls: sum(rows.map((x) => x.calls.filter((c) => c.fields && 'statements' in c.fields).length)), // 소개 다시 만들기 호출(비용 관측)
+    // v3.2 사전 등록 지표(판정식 수정 · 결과 보기 전): ① 감정 짐작(「대화가」 오탐 제거 · 사용자가 이 대화에서 앞서 쓴 말도 근거로 인정)
+    emotion_assumption_v32: runs.reduce((n, r) => n + r.rows.filter((x, i) => x.reply && x.reply.split(/(?<=[.!~…])\s+/).some((snt) => EMO_V32.some(([rr, u]) => rr.test(snt) && !u.test(r.rows.slice(0, i + 1).map((y) => y.text).join('').replace(/\s+/g, ''))))).length, 0),
+    //  ② 조기 종료(최신 종료 계약: 질문 수·목적 칸이 기준 아님) = 대화 중 마침인데 (a) 사용자가 방금 물었거나 불만을 말했는데 끝냄(그만 요청 제외) 또는 (b) 확인된 목적이 2개 미만인데 그만·넘기기·모르겠다가 아니고, 「더 듣기」 턴 뒤 새 사실 0 도 아님 · 턴 상한 제외
+    early_finish_v32: rows.filter((x, i, all) => x.finish && !x.after && x.i < A.MAX_TALK_TURNS && x.kind !== 'stop' && ((/[?？]\s*$/.test(x.text) || isRedirectH(x.text)) || ((x.confirmed_after ?? []).length < 2 && !['skip', 'unsure'].includes(x.kind) && !(all[i - 1] && all[i - 1].i === x.i - 1 && all[i - 1].action === 'FOLLOW' && !x.saved)))).length,
+    //  ③ 한 턴 질문 2개 이상(받아주기 속 질문 발화 + question)
+    double_question_turns: rows.filter((x) => qActsH(x.ack) + (x.question ? 1 : 0) > 1).length,
+    //  ④ 끝난 뒤 사용자에게 간 질문 발화(받아주기 속 포함)
+    after_close_question_acts: rows.filter((x) => x.after && (x.question || qActsH(x.ack) > 0)).length,
+    //  ⑤ 멈춤·끝내기 말(질문 너무 많아·그만·여기까지·할 말 없어·나중에·다른 거) 뒤 대화 중 계속(마치지 않음) · 질문 양 지적 턴에 질문
+    fatigue_continued: rows.filter((x) => !x.after && PAUSE_H.test(x.text) && !x.finish).length + rows.filter((x) => !x.after && !PAUSE_H.test(x.text) && MANY_H.test(x.text) && (x.question || qActsH(x.ack) > 0)).length,
+    //  ⑥ 끝난 뒤 불만·메타(질문 양 지적 포함)에 일반 듣기 문장
+    close_complaint_generic: rows.filter((x) => x.after && (isRedirectH(x.text) || MANY_H.test(x.text) || /왜\s*(또|자꾸|이렇게)/.test(x.text)) && LISTEN_H.has((x.ack ?? '').trim())).length,
+    //  ⑦ 소개 뒤집힘(바라는 상대 → 「저는 그런 사람」)
+    role_reversal_in_intro: runs.reduce((n, r) => n + (r.intro?.lines ?? []).filter((l) => SELF_H.test(l.text) && !WISH_H.test(l.text) && PARTNER_H(l.basis)).length, 0),
     // Router 관측(2026-09-27 · 관측만): 업체별 호출 · 역할 · 대체 · 업체 오류 · 서버 채택
     router: ROUTER_ON ? 'on' : 'off',
     router_calls_by_provider: JSON.stringify(runs.flatMap((r) => r.router_log ?? []).reduce((a, x) => { const k = `${x.provider}:${x.error ? 'error' : 'ok'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
@@ -267,22 +335,37 @@ export function stats(A, runs) {
     router_fallbacks: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.chain_index > 0 && !x.error).length,
     router_real_calls_non_openai: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.provider !== 'openai' && !x.error).length,
     router_server_rejected: runs.flatMap((r) => r.performance ?? []).filter((x) => x.validation === 'rejected_by_server').length,
-    turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
+    // v3.5 PR-01(판정 G): 업체 오류는 추정하지 않고 상태·업체 코드로 센다 · 재시도(대기 포함)는 따로.
+    provider_errors: JSON.stringify(calls.filter((c) => c.error).reduce((a, c) => { const d = c.error_detail ?? {}; const k = `${c.error}:${d.status ?? '-'}:${d.provider_code ?? '-'}:${d.provider_type ?? '-'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    provider_retry_attempts: JSON.stringify(runs.flatMap((r) => r.provider_retries ?? []).reduce((a, x) => { const k = `${x.error}:${x.detail?.status ?? '-'}:${x.detail?.provider_code ?? '-'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    format_failures: rows.flatMap((x) => x.retry ?? []).filter((r) => /format/.test(String(r))).length,
+    // v3.5 사람다움 관측(판정 H · why_v31 에 문턱을 결과 전에 적음). 문장 판단 전 모양만 센다 — 최종은 사람 검토.
+    ending_dominated_runs: runs.filter((r) => { const rp = r.rows.map((x) => x.reply).filter(Boolean); return rp.length >= 3 && rp.filter((t) => /(군요|구나|군)[.!~…]*$/.test(t.trim())).length / rp.length >= 0.5; }).length,
+    ending_family_ratio: (() => { const rp = rows.map((x) => x.reply).filter(Boolean); return rp.length ? Math.round(100 * rp.filter((t) => /(군요|구나|군)[.!~…]*$/.test(t.trim())).length / rp.length) + '%' : '0%'; })(),
+    question_only_streak_turns: runs.reduce((n, r) => n + r.rows.filter((x, i) => i > 0 && x.question && !x.reply && r.rows[i - 1].question && !r.rows[i - 1].reply && plainK(x.text).length >= 6).length, 0),
+    label_copy_questions: rows.filter((x) => x.question && A.PURPOSES.some((p) => plainK(x.question).includes(plainK(p.label).slice(0, 10)))).length,
+    unsupported_thanks: rows.filter((x) => x.reply && /(얘기해|말해|알려|말씀해)\s*(줘서|주셔서)\s*(고마|감사)/.test(x.reply) && (/[?？]/.test(x.text) || plainK(x.text).length < 4)).length,
+    speaker_in_reply: rows.filter((x) => x.reply && /(내가|제가)\s*(적은|쓴|써\s*준|말한|얘기한|했던\s*말)/.test(x.reply)).length,
+    rejected_restated: runs.reduce((n, r) => n + r.rows.filter((x, i) => i > 0 && x.kind === 'repair' && /^\s*(아니(요|야)?|아냐|그게\s*아니|그런\s*(뜻|말)\s*(이\s*)?아니)/.test(x.text) && x.reply && (r.items ?? []).some((it) => it.turn === r.rows[i - 1].i && plainK(it.quote).length >= 3 && plainK(x.reply).includes(plainK(it.quote)))).length, 0),
+    echo_replies: rows.filter((x) => x.reply && plainK(x.text).length >= 6 && plainK(x.reply).includes(plainK(x.text))).length,
+    turn_ms_p50: real.length ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: real.length ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const MODELS = String(arg('--models') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
   if (!MODELS.length) { console.error('--models 필요'); process.exit(1); }
-  if (process.argv.includes('--require-real') && !REAL) { console.log(JSON.stringify({ REAL_AI: 'BLOCKED_BY_ENVIRONMENT' })); process.exit(2); }
+  const RUN_REAL = MODELS.every((m) => realFor(splitModel(m).provider)); const ANY_REAL = MODELS.some((m) => realFor(splitModel(m).provider));
+  if (ANY_REAL && !RUN_REAL) { console.error('PARTIAL_KEYS — 일부 업체만 키가 있으면 돌리지 않는다(실제·가짜 섞인 비교 0)'); process.exit(3); }
+  if (process.argv.includes('--require-real') && !RUN_REAL) { console.log(JSON.stringify({ REAL_AI: 'BLOCKED_BY_ENVIRONMENT' })); process.exit(2); }
   const FROZEN = JSON.parse(readFileSync(path.resolve(HERE, '../ab-20260925/FROZEN_INPUTS.json'), 'utf8')).prod_agent_gate ?? {};
   const frozenOk = FROZEN.agent_ts_sha256 === AGENT_TS_SHA && FROZEN.flows_sha256 === FLOWS_SHA && FROZEN.golden_sha256 === GOLDEN_SHA && JSON.stringify(FROZEN.models ?? []) === JSON.stringify(MODELS);
-  if (REAL && !frozenOk) { console.error('FROZEN_MISMATCH — 운영 에이전트·입력·모델 목록이 사전 등록과 다르면 실제 AI 를 돌리지 않는다'); process.exit(3); }
+  if (RUN_REAL && !frozenOk) { console.error('FROZEN_MISMATCH — 운영 에이전트·입력·모델 목록이 사전 등록과 다르면 실제 AI 를 돌리지 않는다'); process.exit(3); }
   const A = await loadAgent();
   const out = {};
   for (const m of MODELS) { out[m] = []; for (const r of FLOWS.runs) out[m].push(await runFlow(A, r.flow, r.tone, m)); }
   const S = Object.fromEntries(MODELS.map((m) => [m, stats(A, out[m])]));
-  const mode = REAL ? '실제 OpenAI' : '[MOCK] 가짜 AI — 구조 확인용';
+  const mode = RUN_REAL ? `실제 AI(${[...new Set(MODELS.map((m) => splitModel(m).provider))].join(' · ')})` : '[MOCK] 가짜 AI — 구조 확인용';
   const flat = (x) => String(x ?? '').replace(/\n/g, ' ⏎ ').replace(/\|/g, '/');
   const L = [`# 운영판 에이전트(${A.AGENT_VERSION}) 재생 — ${mode}`, '', `- agent.ts SHA-256 ${AGENT_TS_SHA.slice(0, 16)}… · test-flows ${FLOWS_SHA.slice(0, 16)}… · Golden ${GOLDEN_SHA.slice(0, 16)}… · 사전 등록 일치: ${frozenOk ? '예' : '아니오'}`,
     `- 모델: ${MODELS.join(' · ')} · temperature 0.2 · top_p 0.9 · max_tokens 768 · json_object · 한 턴 상한 2(+마칠 때 1) · 첫 질문 = 목적 타일(고정)`, '',

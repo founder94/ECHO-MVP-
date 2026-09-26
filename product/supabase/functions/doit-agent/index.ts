@@ -235,6 +235,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (action === "admin_sessions" || action === "admin_session") {
       if (!(await isAdmin(admin, userId))) return fail("FORBIDDEN", "관리자 권한이 없어요.", 403, origin);
+      // 관리자 대화 열람 기록(2026-09-27 FINAL IMPLEMENTATION MASTER · 인벤토리 MISSING): 기존 admin-conversations 와 같은 표·같은 규칙 —
+      // 기록을 못 남기면 보여 주지 않는다. 남기는 것 = 누가 · 무엇을(목록/세션 id) · 언제. 대화 원문·사용자 정보는 남기지 않는다.
+      const audited = async (detail: Json) => !(await admin.from("audit_logs").insert({ user_id: userId, action: `doit_agent_${action}`, detail: JSON.stringify({ ...detail, viewed_at: new Date().toISOString() }) })).error;
       if (action === "admin_sessions") {
         const { data, error } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
           .eq("action", SESSION_ACTION).eq("status", "applied").order("updated_at", { ascending: false }).limit(ADMIN_LIST_MAX);
@@ -256,6 +259,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           cur.count++; if (ph.is_primary) cur.primary = true; if (ph.updated_at && (!cur.last_updated_at || ph.updated_at > cur.last_updated_at)) cur.last_updated_at = ph.updated_at;
           photos.set(ph.user_id, cur);
         }
+        if (!(await audited({ count: rows.length }))) return fail("ERROR", "조회 기록을 저장하지 못했어요.", 500, origin);
         return json({ ok: true, sessions: rows.map((r) => ({ id: r.request_id, user: r.user_id.slice(0, 8), nickname: nick.get(r.user_id) ?? null, created_at: r.created_at, updated_at: r.updated_at, stored: r.response_payload, photos: photos.get(r.user_id) ?? { count: 0, primary: false, last_updated_at: null }, readiness: ready.get(r.user_id) ?? { phone_verified: false, intro_saved: false } })),
           turns: ((turns ?? []) as { target_id: string; created_at: string; response_payload: Json | null }[]).map((t) => ({ session_id: t.target_id, created_at: t.created_at, record: (t.response_payload as Json | null)?.record ?? null })) }, 200, origin);
       }
@@ -264,6 +268,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const { data: row } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, response_payload").eq("action", SESSION_ACTION).eq("request_id", id).maybeSingle();
       if (!row) return fail("NOT_FOUND", "대화를 찾지 못했어요.", 404, origin);
       const { data: turns } = await admin.from("doit_request_events").select("created_at, response_payload").eq("action", TURN_ACTION).eq("target_id", id).order("created_at", { ascending: true }).limit(200);
+      if (!(await audited({ session_id: id }))) return fail("ERROR", "조회 기록을 저장하지 못했어요.", 500, origin);
       return json({ ok: true, session: { id, user: String(row.user_id).slice(0, 8), created_at: row.created_at, updated_at: row.updated_at, stored: row.response_payload },
         turns: ((turns ?? []) as { created_at: string; response_payload: Json | null }[]).map((t) => ({ created_at: t.created_at, record: t.response_payload?.record ?? null })) }, 200, origin);
     }

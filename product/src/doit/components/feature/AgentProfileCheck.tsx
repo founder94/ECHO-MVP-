@@ -72,7 +72,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       const after = purpose ? notesOf(r.session, purpose) : profileSignature(r.session);
       setView({ kind: 'recheck', purpose, changed: after !== before });
     } catch (e) {
-      if (alive.current) setError(e instanceof UnderstandingError && e.code === 'RATE_LIMITED' ? e.message : SEND_ERROR);
+      if (alive.current) setError(e instanceof UnderstandingError && (e.code === 'RATE_LIMITED' || e.code === 'OFFLINE' || e.code === 'TIMEOUT') ? e.message : SEND_ERROR);
     } finally { if (alive.current) setBusy(false); }
   };
 

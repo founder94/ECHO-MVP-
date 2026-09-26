@@ -1,4 +1,5 @@
-import { prepareUnderstandingRequest, serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { UnderstandingError, prepareUnderstandingRequest, serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { READ_TIMEOUT_MS, TimeoutError, withTimeout } from '@/doit/lib/withTimeout';
 import type { ContentSeed } from './contentSeed';
 
 // ECHO Conversation Agent(서버 doit-agent). 이 파일은 질문·진행·저장을 만들지 않는다 — 서버가 준 모습을 그대로 쓴다.
@@ -45,8 +46,23 @@ function validSession(s: unknown): s is AgentSession {
     && Array.isArray(x.messages) && x.messages.every(m => (m.role === 'ai' || m.role === 'user') && typeof m.text === 'string');
 }
 
+// 끝없는 기다림 막기(2026-09-27 FINAL IMPLEMENTATION MASTER · Failure State): 응답이 없으면 정해진 시간 뒤 오류로 끝내 화면이 「다시 시도」를 보여 준다.
+// 쓰기(대화 한 번)는 AI 호출 여러 번이라 더 기다린다. 시간이 지나도 요청 식별값을 지우지 않으므로(complete 안 부름) 같은 말을 다시 보내면
+// 서버가 같은 요청으로 알아보고 이미 처리한 결과를 돌려준다(두 번 반영 0 · doit-agent 같은 requestId 재전송 처리).
+export const AGENT_WRITE_WAIT_MS = 60_000;
+const OFFLINE = '인터넷 연결이 끊겼어요. 적은 말은 그대로 있으니 연결되면 다시 보내 주세요.';
+const SLOW = '답이 늦어지고 있어요. 적은 말은 그대로 있으니 다시 보내 주세요. 이미 처리됐다면 두 번 저장되지 않아요.';
+function offline() { return typeof navigator !== 'undefined' && navigator.onLine === false; }
+async function limited<T>(work: () => Promise<T>, ms: number, label: string): Promise<T> {
+  if (offline()) throw new UnderstandingError('OFFLINE', OFFLINE);
+  try { return await withTimeout(work(), ms, label); } catch (e) {
+    if (e instanceof TimeoutError) throw new UnderstandingError(offline() ? 'OFFLINE' : 'TIMEOUT', offline() ? OFFLINE : SLOW);
+    throw e;
+  }
+}
+
 export async function agentGet(userId: string): Promise<AgentSession | null> {
-  const r = await serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get' }, userId);
+  const r = await limited(() => serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get' }, userId), READ_TIMEOUT_MS, 'agent_get');
   if (r.session === null) return null;
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r.session;
@@ -54,7 +70,7 @@ export async function agentGet(userId: string): Promise<AgentSession | null> {
 
 async function write<T>(userId: string, body: Record<string, unknown>): Promise<T> {
   const request = await prepareUnderstandingRequest(userId, body);
-  const result = await serverFunctionRequest<T>('doit-agent', request.body, userId);
+  const result = await limited(() => serverFunctionRequest<T>('doit-agent', request.body, userId), AGENT_WRITE_WAIT_MS, String(body.action));
   request.complete();
   return result;
 }

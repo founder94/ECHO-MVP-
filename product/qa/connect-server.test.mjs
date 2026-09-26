@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import vm from 'node:vm';
+import path from 'node:path';
 
 const ID = {
   admin: '00000000-0000-4000-8000-000000000001',
@@ -65,8 +66,8 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   const sandbox = {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
-    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
+    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...state.env })[k] ?? '' }, serve: (h) => { handler = h; } },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name.startsWith('.')) return local(path.join('supabase/functions/doit-connect', name)); throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       state.aiCalls.push(JSON.parse(init.body));
       const answer = ai();
@@ -74,6 +75,13 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
       return new Response(JSON.stringify({ choices: [{ message: { content: typeof answer === 'string' ? answer : JSON.stringify(answer) } }] }), { status: 200 });
     },
   };
+  // 같은 함수 폴더·다른 함수 폴더의 순수 모듈(agentSource.ts → doit-agent/matching.ts)만 허용 — 네트워크·DB 모듈은 여전히 막는다.
+  function local(file) {
+    const mod = { exports: {} };
+    const code = ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    vm.runInNewContext(code, { exports: mod.exports, module: mod, require: (n) => { if (n.startsWith('.')) return local(path.join(path.dirname(file), n)); throw new Error(`Unexpected dependency ${n}`); } }, { filename: file });
+    return mod.exports;
+  }
   vm.runInNewContext(compiled, sandbox, { filename: 'doit-connect.ts' });
   assert.ok(handler);
   return async (who, payload, { auth = true } = {}) => {
@@ -507,4 +515,43 @@ test('v15.1 후보: 「모르겠어요」·지친 말로 채운 다섯 칸은 �
   s2.tables.doit_records = s2.tables.doit_records.map((x) => x.user_id === ID.a && x.text === '답 5' ? { ...x, text: '그게 아니라 조용한 사람이 좋다는 거예요' } : x);
   r = await loadServer(s2)(ID.admin, { action: 'admin_candidates' });
   assert.equal(r.body.candidates.length, 1, '설명이 붙은 정정은 내용 있는 답으로 센다');
+});
+
+// Matching Integration(2026-09-27 FINAL IMPLEMENTATION MASTER · PHASE 10): MATCH_SOURCE=agent 일 때만 Agent 확정 상태(CONFIRMED)를 재료로 쓴다.
+// (가짜 DB 는 select 의 JSON 경로를 풀지 않으므로 줄에 profile·phase 를 바로 넣는다 — 실제 경로 문법은 deno check 로만 확인.)
+const agentProfile = (notes) => ({
+  relationship_intent: { status: 'CONFIRMED', items: [{ note: notes[0], quote: notes[0], status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1 }] },
+  attraction_comfort: { status: 'CONFIRMED', items: [{ note: notes[1], quote: notes[1], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 2 }] },
+  values_character: { status: 'CONFIRMED', items: [{ note: notes[2], quote: notes[2], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 3 }, { note: '추정만 있는 말', quote: '', status: 'CONFIRMED', source_type: 'AI_INFERRED', source_turn: 3 }] },
+  relationship_style: { status: 'OPEN', items: [] }, boundaries: { status: 'OPEN', items: [] },
+});
+const agentRow = (uid, notes, phase = 'done', at = '2026-09-24T00:00:00Z') => ({ user_id: uid, request_id: `${uid}-s`, action: 'agent_session', status: 'applied', created_at: at, updated_at: at, profile: agentProfile(notes), phase });
+
+test('Matching Integration: 기본값(legacy)은 agent_session 을 읽지 않는다 — 지금과 같다', async () => {
+  const s = world(); s.tables.doit_request_events = [agentRow(ID.a, ['전혀 다른 말 1', '전혀 다른 말 2', '전혀 다른 말 3'], 'talk')];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]], 'Agent 가 대화 중이어도 legacy 재료로 판정(기존 결과 그대로)');
+});
+
+test('Matching Integration: MATCH_SOURCE=agent 면 Agent 확정 값으로 겹친 말을 찾고 · 추정은 재료가 아니다', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } });
+  s.tables.doit_request_events = [
+    agentRow(ID.a, ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요']),
+    agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']),
+  ];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.candidates.length, 1);
+  const text = JSON.stringify(r.body);
+  assert.ok(!text.includes('추정만 있는 말'), 'AI 추정은 응답 어디에도 없다');
+  assert.ok(!text.includes('주말엔 요리를 해요'), 'Agent 사용자는 legacy 재료(doit_insights)를 쓰지 않는다');
+});
+
+test('Matching Integration: MATCH_SOURCE=agent · 대화 중(talk)인 Agent 사용자는 legacy 답이 다섯 개여도 자격 없음', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } });
+  s.tables.doit_request_events = [agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요'], 'talk')];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0);
+  assert.equal(r.body.missing.answers, 1, 'b 는 answers 가 모자란 것으로 센다');
 });
