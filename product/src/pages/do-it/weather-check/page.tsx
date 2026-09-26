@@ -247,7 +247,7 @@ export default function WeatherCheckPage() {
           </div>
 
           <p style={reveal(430)} className="text-[12.5px] leading-relaxed text-white/65 mb-5">
-            1~7단계 대화는 무료예요. 최종 자기이해 리포트는 원할 때 4,900원에 열 수 있어요.
+            1~7단계 대화는 무료예요. 최종 자기이해 리포트 가격은 아직 정해지지 않았어요.
           </p>
 
           {(saveError || handoffError) && (

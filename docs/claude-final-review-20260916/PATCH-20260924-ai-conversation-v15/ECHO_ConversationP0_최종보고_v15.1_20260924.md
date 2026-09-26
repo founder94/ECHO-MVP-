@@ -1,5 +1,7 @@
 # ECHO Conversation P0 최종 보고 · v15.1 (2026-09-24)
 
+> ⚠️ **폐기된 옛 가격 표시 (2026-09-26 대표 결정)**: 이 문서의 4,900원은 **폐기된 옛 구조(legacy)** 이며 현재 가격이 아닙니다. 현재 가격은 미확정입니다. 과거 기록 보존을 위해 본문은 그대로 둡니다.
+
 기준: 「Conversation P0 + Relationship Data Foundation · FINAL LOCK」 + 「PRODUCT DEFINITION · PM FINAL 1~3」(한 문서로 통합해 읽음).
 로컬 지문: doit-understanding `b3384b79…`(181,961바이트) · doit-connect `9c2bac14…`(51,803바이트) · conversationRules `55b001b4…`.
 운영: doit-understanding 버전 24(v14.4), doit-connect 버전 3 — **v15·v15.1 은 운영에 없다.**

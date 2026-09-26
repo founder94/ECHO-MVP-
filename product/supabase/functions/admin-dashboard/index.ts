@@ -608,7 +608,7 @@ function features(
       status: payments.status === "error" ? "error" : "ok",
       detail: payments.status === "error"
         ? "유효 결제 집계를 확인하지 못했습니다."
-        : "4,900원 paid 기록 조회는 완료됐지만 상품 결제 모드는 review_pending이며 구매는 비활성입니다.",
+        : "paid 기록 조회는 완료됐지만 상품 결제 모드는 review_pending이며 구매는 비활성입니다.",
       evidenceAt: asOf,
     },
     {

@@ -118,7 +118,9 @@ const CONVERSATION_FUNCTION = 'get-step-question';
 const JOURNEY_FUNCTION = 'echo-journey';
 const PAYMENT_FUNCTION = 'echo-payment';
 export const IN_PROGRESS_RETRY_MS = 1500;
-export const REPORT_PRICE_KRW = 4900;
+// 리포트 가격. 현재 미확정 → null(대표 결정 2026-09-26 · 옛 4,900원은 폐기). null 이면 결제를 시작하지 않는다.
+// 새 가격은 대표 승인 뒤에만 넣는다. 서버 echo-payment 의 PRICE_KRW 와 같은 값이어야 한다.
+export const REPORT_PRICE_KRW: number | null = null as number | null;
 
 export function isFlowStatus(v: unknown): v is FlowStatus {
   return typeof v === 'string' && (FLOW_STATUSES as readonly string[]).includes(v);
@@ -361,7 +363,7 @@ export function listReports(): Promise<FlowState> {
 
 // ── 결제(echo-payment) ──
 
-// 주문 생성(서버 금액 4,900원 고정). 현재 review_pending에서는 호출하지 않는다.
+// 주문 생성(금액은 서버 상수로만 정한다). 가격 미확정·review_pending 에서는 호출하지 않으며, 호출돼도 서버가 거절한다.
 export function createOrder(conversationId: string): Promise<PaymentState> {
   return call<PaymentState>(PAYMENT_FUNCTION, 'create', { conversationId });
 }

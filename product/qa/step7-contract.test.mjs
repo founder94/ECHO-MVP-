@@ -37,7 +37,14 @@ test('server transition, payment gate, and report entitlement contracts are pres
   assert.match(journey, /userEvidenceText/);
   assert.doesNotMatch(journey, /STEP_THEMES/);
 
-  assert.match(payment, /const PRICE_KRW = 4900/);
+  // 가격 미확정(대표 결정 2026-09-26 · 옛 4,900원은 폐기): 서버 가격 상수는 null, 주문 생성·승인 모두 가격 잠금이 먼저 막는다.
+  assert.match(payment, /const PRICE_KRW: number \| null = null as number \| null;/);
+  assert.ok(!/4,?900/.test(payment.replace(/\/\/.*$/gm, '')), '결제 서버 실행 코드에 폐기된 4,900원이 남으면 안 된다(폐기 기록 주석은 허용)');
+  const priceGates = payment.split('if (PRICE_KRW === null) return fail("PRICE_NOT_SET"').length - 1;
+  assert.equal(priceGates, 2, 'create·confirm 둘 다 가격 잠금이 있어야 한다');
+  const priceGate = payment.indexOf('PRICE_NOT_SET"');
+  assert.ok(priceGate >= 0 && payment.indexOf('.from("payments").insert') > priceGate, '가격 잠금이 주문 생성보다 먼저여야 한다');
+  assert.ok(payment.indexOf('confirmWithToss(tossSecret') > payment.lastIndexOf('PRICE_NOT_SET"'), '가격 잠금이 Toss 승인 호출보다 먼저여야 한다');
   assert.match(payment, /const PAYABLE_STATUS = "report_ready"/);
   assert.match(payment, /const PAYMENT_MODE = "review_pending"/);
   assert.match(payment, /loadPaidByConversation/);
@@ -80,7 +87,16 @@ test('frontend routes, copy, and review-pending gate match the server contract',
   assert.match(report, /navigate\(`\/payment\?c=/);
   assert.match(whiteDoor, /state\.status !== 'report_ready'/);
   assert.match(whiteDoor, /일곱 단계 이야기를/);
-  assert.match(weather, /1~7단계 대화는 무료예요\. 최종 자기이해 리포트는 원할 때 4,900원에 열 수 있어요\./);
+  assert.match(weather, /1~7단계 대화는 무료예요\. 최종 자기이해 리포트 가격은 아직 정해지지 않았어요\./);
+  assert.ok(!weather.includes('4,900'), '4,900원은 폐기된 옛 가격 — 화면에 현재 가격으로 쓰지 않는다');
+  // 가격 미확정: 화면 가격 상수 null, 결제 열림 판정이 가격을 먼저 보고, 결제 화면은 금액·결제 버튼 문구를 만들지 않는다.
+  assert.match(api, /export const REPORT_PRICE_KRW: number \| null = null as number \| null;/);
+  assert.match(toss, /if \(REPORT_PRICE_KRW === null\) return false;/);
+  assert.match(paymentPage, /REPORT_PRICE_KRW === null \? ''/);
+  assert.match(paymentPage, /if \(!paymentEnabled \|\| paying \|\| REPORT_PRICE_KRW === null\) return;/);
+  for (const [name, src] of [['api', api], ['toss', toss], ['payment', paymentPage], ['success', success], ['weather', weather]]) {
+    assert.ok(!/4,?900/.test(src.replace(/\/\/.*$/gm, '')), `${name}: 폐기된 4,900원이 실행 코드에 남으면 안 된다`);
+  }
 });
 
 test('production build is blocked when required public Supabase settings are missing', async () => {

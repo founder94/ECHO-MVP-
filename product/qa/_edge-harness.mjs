@@ -208,7 +208,8 @@ export class FakeDatabase {
   }
 }
 
-export async function loadEdgeHandler(relativePath, db, aiFetch, { paymentEnabled = false } = {}) {
+// fixturePriceKrw: 검사 전용 가격 주입. 실제 가격이 아니다(현재 가격 미확정). 결제 서버의 금액 검증·멱등 계약만 확인할 때 쓴다.
+export async function loadEdgeHandler(relativePath, db, aiFetch, { paymentEnabled = false, fixturePriceKrw = null } = {}) {
   const absolutePath = resolve(root, relativePath);
   let source = await readFile(absolutePath, 'utf8');
   source = source.replace(
@@ -217,6 +218,11 @@ export async function loadEdgeHandler(relativePath, db, aiFetch, { paymentEnable
   );
   if (relativePath.includes('echo-payment') && paymentEnabled) {
     source = source.replace('const PAYMENT_MODE = "review_pending" as "review_pending" | "enabled";', 'const PAYMENT_MODE = "enabled" as "review_pending" | "enabled";');
+  }
+  if (relativePath.includes('echo-payment') && fixturePriceKrw !== null) {
+    const unset = 'const PRICE_KRW: number | null = null as number | null;';
+    if (!source.includes(unset)) throw new Error('echo-payment 가격 상수 형태가 바뀌어 검사용 가격을 넣지 못했어요.');
+    source = source.replace(unset, `const PRICE_KRW: number | null = ${Number(fixturePriceKrw)} as number | null;`);
   }
   // 같은 폴더의 형제 모듈(./question-quality.ts, ./rules.ts, ./ai.ts)은 파일 URL 로 바꿔 실제로 불러온다.
   source = source.replace(/from "\.\/([\w.-]+\.ts)";/g, (_m, name) =>

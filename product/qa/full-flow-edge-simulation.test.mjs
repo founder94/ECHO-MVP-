@@ -4,6 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { FakeDatabase, loadEdgeHandler, invoke, token, completeFreeStage, root } from './_edge-harness.mjs';
 
+// 검사 전용 가격 — 실제 가격이 아니다. 현재 가격은 미확정(대표 결정 2026-09-26 · 옛 4,900원은 폐기)이라
+// 결제 서버의 금액 검증·멱등 계약을 확인할 때만 harness 로 넣는다.
+const FIXTURE_PRICE_KRW = 1234;
+
 function createAiFetch({ tossApproved = false } = {}) {
   const questions = [
     '편안한 마음에서 지금 가장 또렷한 감정은 무엇인가요?',
@@ -227,7 +231,7 @@ test('review_pending allows STEP 1~7 for free and makes zero orders or Toss call
   const ai = createAiFetch();
   const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
   const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
-  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai);
+  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { fixturePriceKrw: FIXTURE_PRICE_KRW });
 
   const conversationId = await completeFreeStage(early);
   const resumed = await invoke(journey, 'user-1', { action: 'resume', conversationId });
@@ -262,7 +266,7 @@ test('enabled payment fixture charges only after STEP 7 and preserves the comple
   const ai = createAiFetch({ tossApproved: true });
   const early = await loadEdgeHandler('supabase/functions/get-step-question/index.ts', db, ai);
   const journey = await loadEdgeHandler('supabase/functions/echo-journey/index.ts', db, ai);
-  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { paymentEnabled: true });
+  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { paymentEnabled: true, fixturePriceKrw: FIXTURE_PRICE_KRW });
   const conversationId = await completeFreeStage(early);
 
   const earlyOrder = await invoke(payment, 'user-1', { action: 'create', conversationId });
@@ -324,7 +328,7 @@ test('enabled payment fixture charges only after STEP 7 and preserves the comple
 
   const order = await invoke(payment, 'user-1', { action: 'create', conversationId });
   assert.equal(order.body.ok, true);
-  assert.equal(order.body.amount, 4900);
+  assert.equal(order.body.amount, FIXTURE_PRICE_KRW);
   assert.equal(db.rows.payments.length, 1);
   assert.equal(ai.calls.toss, 0);
 
@@ -333,14 +337,14 @@ test('enabled payment fixture charges only after STEP 7 and preserves the comple
   assert.equal(db.rows.payments[0].status, 'ready');
   assert.equal(ai.calls.toss, 0);
 
-  const confirmed = await invoke(payment, 'user-1', { action: 'confirm', paymentKey: 'fixture_key_123', orderId: order.body.orderId, amount: 4900 });
+  const confirmed = await invoke(payment, 'user-1', { action: 'confirm', paymentKey: 'fixture_key_123', orderId: order.body.orderId, amount: FIXTURE_PRICE_KRW });
   assert.equal(confirmed.body.ok, true);
   assert.equal(confirmed.body.paid, true);
   assert.equal(confirmed.body.status, 'report_ready');
   assert.equal(db.rows.conversations[0].status, 'report_ready');
   assert.equal(ai.calls.toss, 1);
 
-  const duplicateConfirm = await invoke(payment, 'user-1', { action: 'confirm', paymentKey: 'fixture_key_123', orderId: order.body.orderId, amount: 4900 });
+  const duplicateConfirm = await invoke(payment, 'user-1', { action: 'confirm', paymentKey: 'fixture_key_123', orderId: order.body.orderId, amount: FIXTURE_PRICE_KRW });
   assert.equal(duplicateConfirm.body.status, 'report_ready');
   assert.equal(ai.calls.toss, 1);
 
@@ -381,11 +385,11 @@ test('enabled payment fixture charges only after STEP 7 and preserves the comple
 test('paid report entitlement survives refresh without moving the conversation or charging again', async () => {
   const db = new FakeDatabase();
   const ai = createAiFetch({ tossApproved: true });
-  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { paymentEnabled: true });
+  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { paymentEnabled: true, fixturePriceKrw: FIXTURE_PRICE_KRW });
   const conversation = db.seed('conversations', { user_id: 'user-retry', status: 'report_ready', current_step: 8, request_token: null, request_action: null });
   const conversationId = conversation.id;
   const order = await invoke(payment, 'user-retry', { action: 'create', conversationId });
-  const confirmed = await invoke(payment, 'user-retry', { action: 'confirm', paymentKey: 'fixture_retry_123', orderId: order.body.orderId, amount: 4900 });
+  const confirmed = await invoke(payment, 'user-retry', { action: 'confirm', paymentKey: 'fixture_retry_123', orderId: order.body.orderId, amount: FIXTURE_PRICE_KRW });
   assert.equal(confirmed.body.paid, true);
   assert.equal(confirmed.body.status, 'report_ready');
   assert.equal(db.rows.payments[0].status, 'paid');
@@ -603,7 +607,7 @@ test('legacy progress and completed buyers are preserved', async () => {
   assert.match(resumed.body.question, /무엇인가요\?$/);
 
   const completed = db.seed('conversations', { user_id: 'buyer', status: 'report_done', current_step: 8, request_token: null, request_action: null });
-  db.seed('payments', { user_id: 'buyer', conversation_id: completed.id, order_id: 'echo-222222222222222222222222', amount: 4900, status: 'paid', payment_key: 'saved-key', approved_at: '2026-09-01T00:00:00.000Z' });
+  db.seed('payments', { user_id: 'buyer', conversation_id: completed.id, order_id: 'echo-222222222222222222222222', amount: FIXTURE_PRICE_KRW, status: 'paid', payment_key: 'saved-key', approved_at: '2026-09-01T00:00:00.000Z' });
   db.seed('reports', { user_id: 'buyer', conversation_id: completed.id, title: '보존된 리포트', summary: '보존됨', content: { title: '보존된 리포트', summary: '보존됨', sections: [], next_step: '다음' } });
   const status = await invoke(payment, 'buyer', { action: 'status', conversationId: completed.id });
   assert.equal(status.body.paid, true);
@@ -861,7 +865,7 @@ test('리포트 이후에도 완료 상태를 되돌리지 않고 대화를 이�
   const unpaid = await invoke(journey, 'user-after', { action: 'ask', conversationId: conversation.id, token: token('after-unpaid') });
   assert.equal(unpaid.body.code, 'PAYMENT_REQUIRED', '결제하지 않으면 리포트 이후 대화도 열리지 않는다');
 
-  db.seed('payments', { conversation_id: conversation.id, user_id: 'user-after', status: 'paid', amount: 4900 });
+  db.seed('payments', { conversation_id: conversation.id, user_id: 'user-after', status: 'paid', amount: FIXTURE_PRICE_KRW });
   const asked = await invoke(journey, 'user-after', { action: 'ask', conversationId: conversation.id, token: token('after-ask') });
   assert.equal(asked.body.status, 'report_done', '완료 상태를 되돌리지 않는다');
   assert.equal(asked.body.step, 8);
@@ -973,4 +977,24 @@ test('실기기 재현: 반말 질문은 해요체로 저장되고, 짧은 답�
   for (const content of stored) {
     assert.equal(/궁금해\?|줄래\?|어때\?/.test(content), false, `저장된 기록에 반말이 남았다: ${content}`);
   }
+});
+
+test('price not set (null) blocks order creation and approval even when payment mode is enabled', async () => {
+  const db = new FakeDatabase();
+  let tossCalls = 0;
+  const ai = async () => { tossCalls += 1; throw new Error('Toss must not be called while the price is not set'); };
+  const payment = await loadEdgeHandler('supabase/functions/echo-payment/index.ts', db, ai, { paymentEnabled: true });
+  db.seed('conversations', { id: 'conv-price', user_id: 'user-price', status: 'report_ready' });
+  db.seed('payments', { user_id: 'user-price', conversation_id: 'conv-price', order_id: 'echo-333333333333333333333333', amount: FIXTURE_PRICE_KRW, status: 'ready' });
+
+  const create = await invoke(payment, 'user-price', { action: 'create', conversationId: 'conv-price' });
+  assert.equal(create.body.code, 'PRICE_NOT_SET');
+  assert.equal(create.body.ok, false);
+  assert.doesNotMatch(JSON.stringify(create.body), /4,?900|PRICE_KRW|null/);
+
+  const confirm = await invoke(payment, 'user-price', { action: 'confirm', paymentKey: 'fixture_key_price', orderId: 'echo-333333333333333333333333', amount: FIXTURE_PRICE_KRW });
+  assert.equal(confirm.body.code, 'PRICE_NOT_SET');
+  assert.equal(db.rows.payments.length, 1, '새 주문이 생기면 안 된다');
+  assert.equal(db.rows.payments[0].status, 'ready', '기존 주문 상태가 바뀌면 안 된다');
+  assert.equal(tossCalls, 0);
 });

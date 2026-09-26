@@ -1,5 +1,7 @@
 # ECHO(DO IT) 「당신이 잠든 사이」 AI 대화 — 현재 상태 총정리 (2026-09-22, GPT 전략 검토용)
 
+> ⚠️ **폐기된 옛 가격 표시 (2026-09-26 대표 결정)**: 이 문서의 4,900원은 **폐기된 옛 구조(legacy)** 이며 현재 가격이 아닙니다. 현재 가격은 미확정입니다. 과거 기록 보존을 위해 본문은 그대로 둡니다.
+
 ## 1. 제품·구조(대표 확정)
 - 제품 = 만남 목적 중심 개인화 AI. 브랜드 홈 do-it.company(브랜딩만) / 제품 앱 app.do-it.company(PWA, 로그인·대화·사진·연결). 코드 한 벌, 빌드 스위치 VITE_SITE_ROLE=brand|app.
 - 기술: Vite+React 19, Supabase(Auth·DB·RLS·Edge Functions), OpenAI(gpt-4o-mini, Edge Function 안에서만 호출), Netlify 수동 ZIP 배포. Stripe 없음, 가격 4,900원 단건 유지.

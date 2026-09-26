@@ -1,7 +1,8 @@
-// echo-payment — 최종 자기이해 리포트 Toss 4,900원 단건결제 서버 검증
+// echo-payment — 최종 자기이해 리포트 Toss 단건결제 서버 검증
 //
 // 원칙
-// - 금액은 서버 상수(4,900원)로만 판정한다. 브라우저가 보낸 금액·Toss 응답 금액·주문 금액이 모두 같아야 승인한다.
+// - 가격은 현재 미확정이다(대표 결정 2026-09-26 · 옛 4,900원은 폐기). PRICE_KRW 가 null 이면 주문 생성·승인을 모두 거절한다.
+// - 금액은 서버 상수(PRICE_KRW)로만 판정한다. 브라우저가 보낸 금액·Toss 응답 금액·주문 금액이 모두 같아야 승인한다.
 // - 결제 성공은 Toss 승인 API 응답(status DONE)으로만 인정한다. 프론트는 결제 성공을 만들 수 없다.
 // - 멱등: 주문 1건당 승인 1회. 같은 주문의 재요청은 저장된 결과를 돌려준다. 승인 처리 중 중복 요청은 IN_PROGRESS.
 // - 이번 릴리스는 Toss 테스트 키(test_)만 허용한다. 운영 키가 들어오면 거절한다(운영 결제 금지).
@@ -14,7 +15,9 @@
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-const PRICE_KRW = 4900;
+// 리포트 가격. 현재 미확정 → null. 새 가격은 대표 승인 뒤에만 넣는다(화면 REPORT_PRICE_KRW 와 같은 값).
+const PRICE_KRW: number | null = null as number | null;
+const PRICE_NOT_SET_MESSAGE = "지금은 결제를 준비하고 있어요. 결제는 아직 진행되지 않아요.";
 const ORDER_NAME = "자기이해 리포트 · 1회";
 const TOSS_CONFIRM_URL = "https://api.tosspayments.com/v1/payments/confirm";
 const TOSS_TIMEOUT_MS = 20_000;
@@ -181,6 +184,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (paid) {
         return json({ ok: true, status: conv.status, conversationId, alreadyPaid: true, paid: true, reportEntitled: true });
       }
+      if (PRICE_KRW === null) return fail("PRICE_NOT_SET", PRICE_NOT_SET_MESSAGE);
       if (conv.status !== PAYABLE_STATUS) return fail("INVALID_STATE", "STEP 7 대화를 마친 뒤 리포트를 선택할 수 있어요.");
       if (PAYMENT_MODE !== "enabled") return fail("PAYMENT_NOT_CONFIGURED", "현재 결제 서비스를 준비하고 있어요. 결제는 아직 진행되지 않습니다.");
       if (!tossSecret || !tossSecret.startsWith(TEST_KEY_PREFIX)) return fail("PAYMENT_NOT_CONFIGURED", "결제 서버 설정이 필요해요.");
@@ -220,6 +224,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (payment.status === "paid") {
         return json({ ok: true, status: conv.status, conversationId: conv.id, paid: true, reportEntitled: true });
       }
+      if (PRICE_KRW === null) return fail("PRICE_NOT_SET", PRICE_NOT_SET_MESSAGE);
       if (conv.status !== PAYABLE_STATUS) return fail("INVALID_STATE", "STEP 7 대화를 마친 뒤 결제를 확인할 수 있어요.");
       if (PAYMENT_MODE !== "enabled") return fail("PAYMENT_NOT_CONFIGURED", "현재 결제 서비스를 준비하고 있어요. 결제는 아직 진행되지 않습니다.");
       if (!tossSecret || !tossSecret.startsWith(TEST_KEY_PREFIX)) return fail("PAYMENT_NOT_CONFIGURED", "결제 서버 설정이 필요해요.");
