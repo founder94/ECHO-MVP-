@@ -438,6 +438,111 @@
      "answer"
     ]
    ]
+  },
+  {
+   "id": "S3",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL EXECUTION MASTER」 §46 F7 사주 → 대화(「이건 좀 아닌데」 반박)",
+   "seed": {
+    "source": "SAJU",
+    "key": "peer_none"
+   },
+   "steps": [
+    [
+     "편하게 알아갈 사람이요",
+     "answer"
+    ],
+    [
+     "이건 좀 아닌데. 난 사람을 빨리 믿는 편이야",
+     "answer"
+    ],
+    [
+     "웃음이 많은 사람",
+     "answer"
+    ],
+    [
+     "약속 잘 지키는 사람",
+     "answer"
+    ],
+    [
+     "천천히 연락하는 게 좋아요",
+     "answer"
+    ],
+    [
+     "거짓말은 싫어요",
+     "answer"
+    ]
+   ]
+  },
+  {
+   "id": "T3",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL EXECUTION MASTER」 §46 F8 타로 → 대화(「나는 오히려」)",
+   "seed": {
+    "source": "TAROT",
+    "card": "별"
+   },
+   "steps": [
+    [
+     "진지하게 만날 사람이요",
+     "answer"
+    ],
+    [
+     "나는 오히려 먼저 다가가는 편이야",
+     "answer"
+    ],
+    [
+     "대화가 잘 통하는 사람",
+     "answer"
+    ],
+    [
+     "솔직한 사람",
+     "answer"
+    ],
+    [
+     "연락은 자주 하는 게 좋아",
+     "answer"
+    ],
+    [
+     "담배는 싫어요",
+     "answer"
+    ]
+   ]
+  },
+  {
+   "id": "T4",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL EXECUTION MASTER」 §46 F9 이미 말한 목적 다시 묻지 않기(타로 대화에서 연락·만남 방식을 직접 말함)",
+   "seed": {
+    "source": "TAROT",
+    "card": "달"
+   },
+   "steps": [
+    [
+     "친구처럼 편한 만남이요",
+     "answer"
+    ],
+    [
+     "나는 매일 연락은 부담스럽고 주말에 만나는 게 좋아",
+     "answer"
+    ],
+    [
+     "다정한 사람",
+     "answer"
+    ],
+    [
+     "약속 잘 지키는 사람",
+     "answer"
+    ],
+    [
+     "거짓말하는 건 싫어",
+     "answer"
+    ],
+    [
+     "응",
+     "answer"
+    ]
+   ]
   }
  ],
  "runs": [
@@ -552,6 +657,22 @@
   {
    "flow": "T2",
    "tone": "formal"
+  },
+  {
+   "flow": "S3",
+   "tone": "polite"
+  },
+  {
+   "flow": "T3",
+   "tone": "polite"
+  },
+  {
+   "flow": "T4",
+   "tone": "polite"
+  },
+  {
+   "flow": "T4",
+   "tone": "casual"
   }
  ]
 }

@@ -43,6 +43,8 @@ const mock = (expect) => (_sys, input) => {
     next: kind === 'help' && input.current_question && (input.current_question.helps ?? 0) < 2 ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 쉬운 질문 ${seq}?`, hint: '[MOCK] 예: 가, 나' } : kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
 };
 
+const NEW_V211 = new Set(['S3', 'T3', 'T4']); // run 29 에서 새로 넣은 판 — 비용 비교는 이것을 뺀 같은 입력으로
+const REBUT = /아니|아닌데|오히려/;
 const plainK = (t) => String(t ?? '').replace(/\s+/g, '').replace(/[「」『』"'“”‘’]/g, '');
 const SAJU_PHRASE = { peer_many: '부대끼', peer_none: '혼자정리', peer_some: '거리를스스로조절' };
 const seedPhrase = (seed) => !seed ? null : seed.source === 'SAJU' ? SAJU_PHRASE[seed.key] ?? null : `${plainK(seed.card)}카드`;
@@ -144,6 +146,13 @@ export function stats(A, runs) {
     rebuttal_reappearance: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; const k = r.rows.findIndex((x) => x.text.trim().startsWith('아니')); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => [x.reply, x.question].some((t) => t && (plainK(t).includes(ph) || /사주|타로|카드에서/.test(t)))).length + (r.intro?.lines ?? []).filter((l) => plainK(l.text).includes(ph)).length; }, 0),
     rebuttal_user_words_kept: `${runs.filter((r) => r.seed && r.rows.some((x) => x.text.trim().startsWith('아니') && x.saved)).length}/${runs.filter((r) => r.seed && r.rows.some((x) => x.text.trim().startsWith('아니'))).length}`,
     latest_correction_missing_in_intro: runs.filter((r) => { const cs = (r.items ?? []).filter((i) => i.status === 'CONFIRMED' && i.source_type === 'USER_CORRECTED'); if (!cs.length || r.phase === 'talk') return false; const last = Math.max(...cs.map((i) => i.turn)); const qs = cs.filter((i) => i.turn === last).map((i) => plainK(i.quote)); return !(r.intro?.lines ?? []).some((l) => { const b = plainK(l.basis); return qs.some((q) => (b.length >= 2 && (q.includes(b) || b.includes(q))) || plainK(l.text).includes(q.slice(0, 6))); }); }).length,
+    // v2.11 사전 등록(run 29 · 대표 「FINAL EXECUTION MASTER」 §28·§35·§46) — 비용 실측과 새 시나리오.
+    cached_input_tokens: real.length ? sum(real.map((c) => c.cached_real ?? 0)) : '확인 불가(MOCK)',
+    retry_reasons: JSON.stringify(rows.flatMap((x) => x.retry ?? []).reduce((a, r) => { const k = String(r).replace(/:kept$/, ''); a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    cost_same_set: JSON.stringify((() => { const base = runs.filter((r) => !NEW_V211.has(r.flow)); const rw = base.flatMap((r) => r.rows); const cl = rw.flatMap((x) => x.calls); const rl = cl.filter((c) => c.in_real != null); return { runs: base.length, turns: rw.length, calls: cl.length, retries: sum(rw.map((x) => (x.retry ?? []).length)), input_tokens: rl.length ? sum(rl.map((c) => c.in_real)) : null, cached_tokens: rl.length ? sum(rl.map((c) => c.cached_real ?? 0)) : null, output_tokens: rl.length ? sum(rl.map((c) => c.out_real ?? 0)) : null }; })()),
+    rebuttal2_reappearance: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; const k = r.rows.findIndex((x) => REBUT.test(x.text)); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => [x.reply, x.question].some((t) => t && (plainK(t).includes(ph) || /사주|타로|카드에서/.test(t)))).length + (r.intro?.lines ?? []).filter((l) => plainK(l.text).includes(ph)).length; }, 0),
+    rebuttal2_user_words_kept: `${runs.filter((r) => r.seed && r.rows.some((x) => REBUT.test(x.text) && x.saved)).length}/${runs.filter((r) => r.seed && r.rows.some((x) => REBUT.test(x.text))).length}`,
+    covered_reask: runs.reduce((n, r) => { if (!r.seed) return n; const k = r.rows.findIndex((x) => x.saved && FREQ.test(x.text)); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => x.question && FREQ.test(x.question)).length; }, 0),
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
