@@ -57,7 +57,7 @@ test('끝 화면·프로필·가입 안내가 연결에 대해 지금 사실만 
 test('연결 화면: 다섯 가지를 다 답했으면 「이어서 답하기」 대신 남은 것 · 「처음부터 다시 답하기」', () => {
   const a = read('src/doit/components/feature/AsleepConnections.tsx');
   assert.doesNotMatch(a, /to="\/doit\/conversation">질문에 이어서 답하기/, '다 답해도 뜨던 고정 버튼 제거');
-  assert.match(a, /const firstLeft = rows\.find\(row => !row\.done\)/);
+  assert.match(a, /const firstLeft = rows\.find\(row => !row\.done && \(PHONE_VERIFY_READY \|\| row\.label !== '전화 인증'\)\)/, '전화 인증 준비 중이면 다음 할 일로 내밀지 않는다(대표 2026-09-25)');
   assert.match(a, /\{answersDone && <Link className="doit-product-action doit-product-action--secondary" to="\/doit\/conversation\?restart=1">처음부터 다시 답하기/);
   assert.match(read('src/doit/pages/do-it/start-journey/page.tsx'), /onNext=\{\(\) => navigate\("\/doit\/connections"\)\}/, '프로필 확인 다음은 준비 중인 공간이 아니라 연결 준비');
 });

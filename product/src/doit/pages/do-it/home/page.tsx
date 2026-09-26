@@ -10,6 +10,14 @@ import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from '@/doit/lib/agen
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import '@/doit/components/feature/understanding-pages.css';
+import { splitCurrent } from '@/doit/lib/understandingView';
+
+// 이미 홈 화면 앱으로 열려 있으면 설치 링크를 보이지 않는다.
+function standaloneApp(): boolean {
+  try {
+    return window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  } catch { return false; }
+}
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -29,6 +37,7 @@ export default function Home() {
   const latest = [...savedRecords].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
   const confirmed = ready ? insights.filter((item) => item.status === 'confirmed' || item.status === 'corrected') : [];
   const pendingCount = ready ? insights.filter((item) => item.status === 'candidate').length : 0;
+  const currentCount = splitCurrent(confirmed.map((it, k) => ({ key: it.id, text: it.text, area: 'unsorted', origin: 'confirmed' as const, order: Date.parse(it.createdAt) || k }))).current.length;
   // v14.2(대표 2026-09-22 "메인 페이지에서 시작을 해야 하는데"): 여기가 앱의 메인이다.
   // 지금 어디까지 왔는지와 다음에 무엇을 할지를 이 화면에서 정한다.
   // ECHO Conversation Agent(2026-09-25): 진행은 서버 대화 상태(핵심 질문 몇 번째인지·끝났는지)로 센다 — 대화 화면과 같은 기준.
@@ -53,42 +62,46 @@ export default function Home() {
           <p className="doit-product-kicker">DO IT · 만나기 전에</p>
           {done
             ? <>
-                <h1 id="echo-home-title" className="doit-product-title">다섯 가지,<br />다 들었어요.</h1>
+                <h1 id="echo-home-title" className="doit-product-title">이야기,<br />잘 들었어요.</h1>
                 <p className="doit-product-description">이제 사진 세 장과<br />나를 소개할 몇 줄이 남았어요.</p>
                 <Link className="doit-product-action" to="/doit/start-journey?edit=photos">사진과 소개 채우기 <span aria-hidden="true">↗</span></Link>
               </>
             : started
               ? <>
-                  <h1 id="echo-home-title" className="doit-product-title">{answered} / {ASK_TOTAL}<br />여기까지 왔어요.</h1>
-                  <p className="doit-product-description">남은 질문은 {ASK_TOTAL - answered}개예요.<br />한 줄씩이면 금방 끝나요.</p>
+                  {/* 2026-09-26 통합 검수(P0-B): ECHO 대화는 질문 개수를 약속하지 않는다(서버가 충분히 들었으면 3개로도 끝남). 예전 흐름만 n / 5. */}
+                  {useAgent
+                    ? <><h1 id="echo-home-title" className="doit-product-title">{answered}가지 들었어요.<br />이어서 이야기해요.</h1>
+                        <p className="doit-product-description">충분히 들으면 ECHO가 먼저 멈춰요.<br />한 줄씩이면 돼요.</p></>
+                    : <><h1 id="echo-home-title" className="doit-product-title">{answered} / {ASK_TOTAL}<br />여기까지 왔어요.</h1>
+                        <p className="doit-product-description">남은 질문은 {ASK_TOTAL - answered}개예요.<br />한 줄씩이면 금방 끝나요.</p></>}
                   <Link className="doit-product-action" to="/doit/conversation">이어서 답하기 <span aria-hidden="true">↗</span></Link>
                 </>
               : <>
-                  <h1 id="echo-home-title" className="doit-product-title">다섯 가지만<br />물어볼게요.</h1>
-                  <p className="doit-product-description">여기에 답한 말로<br />어떤 사람을 소개할지 정해요.</p>
+                  <h1 id="echo-home-title" className="doit-product-title">편하게 몇 가지만<br />물어볼게요.</h1>
+                  <p className="doit-product-description">편하게 말하면 돼요.<br />찾는 건 ECHO가 할게요.</p>
                   <Link className="doit-product-action" to="/doit/start-journey">시작하기 <span aria-hidden="true">↗</span></Link>
                 </>}
-          <p className="doit-product-footnote">AI가 잘못 알아들으면 바로 고쳐 주세요.<br />나를 설명하는 말은 내가 정해요.</p>
+          <p className="doit-product-footnote">잘못 알아들었으면 바로 고쳐 주세요.</p>
         </section>
 
         {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}
         {A_STRUCTURE_SERVER_ENABLED && user && <ConnectionTurnsCard userId={user.id} />}
 
-        {/* 휴대폰에 앱으로 받기(2026-09-23). 이미 앱으로 열려 있으면 보이지 않는다. */}
-        <InstallAppCard />
+        {/* 홈 화면에 두기 제안(2026-09-26): 대화를 마친 뒤에만, 세션당 한 번. 이미 앱으로 열려 있으면 보이지 않는다. */}
+        {done && <InstallAppCard />}
 
         {!A_STRUCTURE_SERVER_ENABLED ? (
           <section className="doit-understanding-notice" aria-label="기록 이용 안내">
-            <h2>대화와 기록을 준비하고 있어요</h2>
-            <p>지금은 계정에 저장된 대화 기록을 이용할 수 없어요. 프로필은 계속 준비할 수 있어요.</p>
-            <Link className="doit-understanding-text-link" to="/doit/start-journey">내 프로필 준비하기 <span aria-hidden="true">→</span></Link>
+            <h2>지금은 기록을 열 수 없어요</h2>
+            <p>프로필은 계속 채울 수 있어요.</p>
+            <Link className="doit-understanding-text-link" to="/doit/start-journey">프로필 채우기 <span aria-hidden="true">→</span></Link>
           </section>
         ) : authLoading || loading ? (
           <p className="doit-understanding-loading" role="status">내 이야기를 불러오고 있어요.</p>
         ) : !user ? (
           <section className="doit-understanding-notice">
-            <h2>로그인하면 이어서 할 수 있어요</h2>
-            <p>남겨 둔 이야기부터 다시 보여 드릴게요.</p>
+            <h2>로그인하면 이어서 해요</h2>
+            <p>남겨 둔 이야기부터 다시 보여 줄게요.</p>
             <Link className="doit-understanding-text-link" to="/login" state={{ from: '/doit/home' }}>로그인하고 이어가기 <span aria-hidden="true">→</span></Link>
           </section>
         ) : error ? (
@@ -108,15 +121,18 @@ export default function Home() {
               {latest && <Link className="doit-understanding-text-link" to="/doit/conversation">이어서 적기 <span aria-hidden="true">→</span></Link>}
             </section>
             <Link className="doit-understanding-summary" to="/doit/understanding">
-              <div><span>내가 맞다고 한 말</span><p>AI가 알아들은 것 중, 내가 맞다고 한 것만 모았어요.</p></div>
-              <strong>{confirmed.length}<small>개</small></strong><span aria-hidden="true">↗</span>
+              <div><span>나의 이해</span><p>내가 맞다고 한 것만 모아 뒀어요.</p></div>
+              {/* 2026-09-26 §33: 같은 뜻을 겹쳐 세지 않는다(나의 이해 화면과 같은 기준) */}
+              <strong>{currentCount}<small>가지</small></strong><span aria-hidden="true">↗</span>
             </Link>
-            {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">맞는지 봐 줄 문장 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
+            {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">아직 확인 안 한 말 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
           </>
         )}
         <div className="doit-understanding-footer">
           <Link className="doit-understanding-text-link" to="/doit/connections">연결까지 남은 것 보기 <span aria-hidden="true">↗</span></Link>
           <Link className="doit-understanding-text-link" to="/doit/profile">내 프로필 보기 <span aria-hidden="true">↗</span></Link>
+          {/* 2026-09-26 대표 실기기 「앱은 어디서 받아?」: 대화를 마치기 전에도 설치 방법을 찾을 수 있게(설정 → 앱으로 쓰기). */}
+          {!standaloneApp() && <Link className="doit-understanding-text-link" to="/doit/settings#install">홈 화면에 ECHO 추가 <span aria-hidden="true">↗</span></Link>}
           {/* v14.3: 전에는 대화 화면만 열고 다시 시작하지 않았다. 이제 대화 화면에서 "처음부터 다시" 확인 창이 바로 열린다. */}
           {started && <Link className="doit-restart-pill" to="/doit/conversation?restart=1"><span aria-hidden="true">↺</span>처음부터 다시 시작하기</Link>}
           <p>여기 적은 이야기는 나만 봐요.<br />다른 사람에게 그대로 보여 주지 않아요.</p>

@@ -30,23 +30,23 @@ function fakeSessionStorage() {
 const docs = loadTs('src/lib/legal/documents.ts');
 const gate = loadTs('src/lib/legal/gatePaths.ts');
 
-test('필수 3개(약관·개인정보·만14세)가 전부 켜져야 계속할 수 있다; 마케팅은 선택', () => {
+test('필수 3개(약관·개인정보·만19세)가 전부 켜져야 계속할 수 있다; 마케팅은 선택', () => {
   globalThis.sessionStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   assert.equal(c.requiredAllChecked(c.EMPTY_CONSENT), false);
-  assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age14: false, marketing: true }), false);
-  assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age14: true, marketing: false }), true);
+  assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age19: false, marketing: true }), false);
+  assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age19: true, marketing: false }), true);
   // 2026-09-25 대표 MASTER §14: 마케팅 발송 기능이 없는 동안 마케팅 항목은 묻지 않는다(MARKETING_ENABLED = false) → 「모두 동의」는 필수 3개, 마케팅 값은 늘 false.
   assert.equal(c.MARKETING_ENABLED, false);
-  assert.equal(c.allChecked({ terms: true, privacy: true, age14: true, marketing: false }), true);
-  assert.deepEqual(plain(c.setAll(true)), { terms: true, privacy: true, age14: true, marketing: false });
+  assert.equal(c.allChecked({ terms: true, privacy: true, age19: true, marketing: false }), true);
+  assert.deepEqual(plain(c.setAll(true)), { terms: true, privacy: true, age19: true, marketing: false });
   assert.deepEqual(plain(c.setAll(false)), plain(c.EMPTY_CONSENT));
 });
 
 test('동의 메타데이터는 문서 버전과 같은 버전을 쓰고 비밀값을 담지 않는다', () => {
   globalThis.sessionStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
-  const meta = c.consentMetadata({ terms: true, privacy: true, age14: true, marketing: true }, new Date('2026-09-21T10:00:00Z'));
+  const meta = c.consentMetadata({ terms: true, privacy: true, age19: true, marketing: true }, new Date('2026-09-21T10:00:00Z'));
   assert.deepEqual(plain(meta), { consent_version: docs.LEGAL_VERSION, consented_at: '2026-09-21T10:00:00.000Z', marketing_opt_in: true });
   assert.deepEqual(Object.keys(meta).sort(), ['consent_version', 'consented_at', 'marketing_opt_in']);
   assert.equal(c.readConsentMetadata({ consent_version: 'v1.0', consented_at: 'x' }).marketing_opt_in, false);
@@ -57,7 +57,7 @@ test('동의 메타데이터는 문서 버전과 같은 버전을 쓰고 비밀�
 test('Google 이동 전 임시 보관 → 돌아온 뒤 한 번만 꺼내지고, 다른 버전은 버린다', () => {
   globalThis.sessionStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
-  c.rememberPendingConsent({ terms: true, privacy: true, age14: true, marketing: false });
+  c.rememberPendingConsent({ terms: true, privacy: true, age19: true, marketing: false });
   const first = c.consumePendingConsent();
   assert.equal(first?.consent_version, c.CONSENT_VERSION);
   assert.equal(c.consumePendingConsent(), null, '두 번째 꺼내기는 비어 있어야 한다');
@@ -93,7 +93,7 @@ test('서버 동의 상태: 현재 버전=ok, 다른 버전/없음=required, 조
 test('동의 저장: 행이 있으면 update, 없으면 insert, 중복(23505)이면 update 재시도, 실패는 문구로 돌려준다', async () => {
   globalThis.sessionStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
-  const meta = c.consentMetadata({ terms: true, privacy: true, age14: true, marketing: true });
+  const meta = c.consentMetadata({ terms: true, privacy: true, age19: true, marketing: true });
 
   const a = fakeSupabase({ row: { consent_version: null } });
   assert.equal(await c.persistConsent(a.client, 'u1', meta), null);

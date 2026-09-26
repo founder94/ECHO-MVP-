@@ -1,0 +1,44 @@
+{
+ "schema": "echo-model-registry-v1",
+ "note": "대표 「FINAL MASTER EXECUTION LOCK」 · 「3-MODEL ROUTER LOCAL BUILD」(2026-09-27): 역할(PRIMARY·SPECIALIST·FALLBACK)은 같은 ECHO 시험(v3.1 · 43판 · 골든 · 사람 검토) 실측으로만 확정한다. 지금은 임시(provisional) — run 34 는 PRIMARY = OpenAI(시험 모델) 하나만 채운다. 역할을 바꾸는 것 = 모델 변경 = 대표 승인. 모델 이름은 공식 API 에서 쓸 수 있음을 확인한 뒤에만 적는다(추정 이름 금지).",
+ "version": "unassigned-2026-09-27",
+ "roles": {},
+ "specialist_stages": [
+  "recovery",
+  "rebuild"
+ ],
+ "timeout_ms": 20000,
+ "max_tokens": 768,
+ "temperature": 0.2,
+ "top_p": 0.9,
+ "budget": {
+  "max_calls_per_conversation": 60,
+  "max_tokens_per_conversation": 120000
+ },
+ "candidates": {
+  "openai": {
+   "status": "계정 실측으로 호출 가능 확인(2026-09-25)",
+   "models": [
+    "gpt-4o-mini",
+    "gpt-4.1-mini",
+    "gpt-4.1",
+    "gpt-4o"
+   ],
+   "secret": "시험 OPENAI_API_KEY_AB_TEST · 운영 OPENAI_API_KEY(이미 있음 · 변경 0)",
+   "adapter": "real(providers.ts openAIProvider = 운영 doit-agent 요청 모양)"
+  },
+  "anthropic": {
+   "status": "미연결 · 키 없음 · 가짜 부품만(notConnected)",
+   "models_to_confirm": "공식 문서·계정 확인 뒤 확정",
+   "adapter": "fake",
+   "secret_candidate": "ANTHROPIC_API_KEY(시험용 이름은 연결 승인 때 확정 · 대표 등록)"
+  },
+  "gemini": {
+   "status": "미연결 · 키 없음 · 가짜 부품만(notConnected) · 모델 이름 확인 불가",
+   "models_to_confirm": "공식 목록 확인 뒤 확정",
+   "adapter": "fake",
+   "secret_candidate": "이름은 공식 문서·현재 프로젝트 기준 확인 뒤 확정(대표 등록)"
+  }
+ },
+ "provisional": true
+}

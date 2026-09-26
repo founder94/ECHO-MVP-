@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LandingSection from '@/pages/do-it/landing/components/LandingSection';
-import OriginalMusicCard from '@/pages/do-it/hero/components/OriginalMusicCard';
 import DoItBrandHero from '@/components/DoItBrandHero';
 import useEditorialMotion from './components/useEditorialMotion';
 import { IS_APP_SITE, IS_BRAND_SITE, appUrl } from '@/lib/siteRole';
@@ -287,7 +286,8 @@ export default function DoItLandingPage() {
             허락된 문장 「이야기가 쌓이면, 다음은 ECHO가 준비합니다」도 운영 실제(전화 인증 0명·연결 0건 — 문자 발송 업체 미연결)보다 앞서가므로
             더 보수적으로: 지금 되는 것(대화)과 아직인 것(다음 단계 준비)만 말한다. */}
         <p>지금은 당신의 이야기를 듣는 데서 시작합니다.<br />다음 단계는 ECHO가 준비하고 있습니다.</p>
-        <OriginalMusicCard />
+        {/* 2026-09-26 대표 「DO IT MUSIC · MVP FINAL LOCK」: 첫 화면의 음악 플레이어(원음 1·원음 2·이어 듣기)를 내렸다.
+            음악은 「ECHO가 이해한 나」를 확인한 뒤 한 번 만난다(MusicMoment). 음원 주소는 src/lib/doitMusic.ts 에 그대로 있다. */}
       </LandingSection>
       </div>
       {/* 대표 최종 승인 2026-09-24: 회사 홈페이지에서만 — 지키는 것(Trust) · 작은 시도(Just Try). 한 화면에 메시지 하나. */}

@@ -18,7 +18,7 @@ export const FLOWS_SHA = sha('test-flows.json');
 const FLOWS = JSON.parse(readFileSync(path.join(HERE, 'test-flows.json'), 'utf8'));
 export function flowOf(id) {
   const own = FLOWS.flows.find((f) => f.id === id);
-  if (own) return { id, steps: own.steps.map(([text, expect]) => ({ text, expect, origin: own.origin })) };
+  if (own) return { id, seed: own.seed ?? null, steps: own.steps.map(([text, expect]) => ({ text, expect, origin: own.origin })) };
   const g = GOLDEN.find((f) => f.id === id);
   return { id, steps: g.steps.map(([text, expect, origin]) => ({ text, expect, origin })) };
 }

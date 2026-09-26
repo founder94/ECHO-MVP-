@@ -7,7 +7,7 @@
 create table if not exists public.user_consents (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users (id) on delete cascade,
-  doc         text not null check (doc in ('terms', 'privacy', 'age14', 'marketing')),
+  doc         text not null check (doc in ('terms', 'privacy', 'age19', 'marketing')),
   version     text not null,
   agreed      boolean not null,
   agreed_at   timestamptz not null default now(),

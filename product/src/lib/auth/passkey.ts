@@ -24,6 +24,10 @@ export function passkeySupport(env: PasskeyEnv): PasskeySupport {
   return env.hasWebAuthn ? 'ok' : 'unsupported';
 }
 
+// 대표 2026-09-25 「얼굴·지문 로그인은 구현할 거면 하고, 안 되면 삭제」: 서버 쪽 등록·확인이 켜지지 않아(누르면 「아직 켜지지 않았어요」)
+// 로그인·설정 화면에서 버튼을 뺀다. 서버가 준비되면 이 값을 true 로 바꾸면 다시 보인다(코드는 그대로 둔다).
+export const PASSKEY_LOGIN_ENABLED = false;
+
 export function currentPasskeySupport(): PasskeySupport {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') return 'unsupported';
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches

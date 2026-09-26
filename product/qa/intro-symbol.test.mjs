@@ -166,12 +166,15 @@ test('v14.4 시간 상한 도구가 실제로 동작한다 — 제때 오면 그
   assert.equal(live(), 0);
 });
 
-test('v14.5 메탈 실버 — 평평한 은색이 아니라 여러 겹 금속 반사 띠를 쓰고, 히어로·랜딩과 전역은 건드리지 않는다', () => {
+test('v14.5 메탈 실버(제목·진행 표시) + 대표 2026-09-25 주요 버튼은 투명 바탕·흰 글씨 — 히어로·랜딩과 전역은 건드리지 않는다', () => {
   const css = read('src/doit/components/feature/metal-silver.css');
   const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  // 금속판: 반사 띠가 여러 겹(7단)인 그라데이션 + 빛 흐름
-  const stops = (body.match(/linear-gradient\(115deg,[^)]*\)/) || [''])[0].match(/#[0-9a-f]{6}/gi) || [];
-  assert.ok(stops.length >= 6, `금속 반사 띠가 부족하다: ${stops.length}`);
+  // 주요 버튼: 투명 바탕 · 흰 글씨 · 금속판 그라데이션 0 (대표 2026-09-25 「버튼 배경은 투명, 글씨는 흰색으로 통일」)
+  const button = (body.match(/\.echo-dialogue \.echo-primary,[^{]*\{([^}]*)\}/) || [])[1] ?? '';
+  assert.match(button, /background: transparent;/);
+  assert.match(button, /color: #fff;/);
+  assert.doesNotMatch(button, /gradient/);
+  assert.doesNotMatch(body, /linear-gradient\(115deg/);
   assert.match(body, /@keyframes doit-metal-sheen/);
   assert.match(body, /-webkit-background-clip: text/);
   // 동작 줄이기면 멈춘다

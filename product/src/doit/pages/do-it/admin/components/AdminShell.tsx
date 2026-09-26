@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { ADMIN_MENUS } from "../meta";
 import { useAdminData, type Period } from "../hooks/useAdminData";
@@ -24,7 +25,11 @@ const PERIODS: { key: Period; label: string }[] = [
 
 export default function AdminShell() {
   const { user, signOut } = useAuth();
-  const [active, setActive] = useState<string>("dashboard");
+  // ?menu=agent 처럼 주소로 메뉴를 열 수 있다(점검표의 「사용자별로 어디서 멈췄는지 보기」 → 대화 에이전트).
+  const [search] = useSearchParams();
+  const menuFromUrl = search.get("menu");
+  const [active, setActive] = useState<string>(() => (ADMIN_MENUS.some((m) => m.key === menuFromUrl) ? menuFromUrl! : "dashboard"));
+  useEffect(() => { if (menuFromUrl && ADMIN_MENUS.some((m) => m.key === menuFromUrl)) setActive(menuFromUrl); }, [menuFromUrl]);
   const [period, setPeriod] = useState<Period>("7d");
   const [menuOpen, setMenuOpen] = useState(false);
   const { data, refresh } = useAdminData(period);
@@ -111,7 +116,7 @@ export default function AdminShell() {
               <i className={`${menu.icon} w-4 text-center`} />
               <span className="flex-1">{menu.label}</span>
               {menu.kind === "blocked" && (
-                <i className="ri-lock-line text-xs opacity-70" title="권한 오류" />
+                <i className="ri-lock-line text-xs opacity-70" title="아직 없거나 볼 권한이 없는 기능" />
               )}
             </button>
           ))}
@@ -127,9 +132,10 @@ export default function AdminShell() {
               <h1 className="text-base font-semibold text-foreground-950">
                 {activeMenu.label}
               </h1>
-              <span className="hidden text-xs text-foreground-400 sm:inline">
-                · {activeMenu.table}
-              </span>
+              {/* 대표 2026-09-25: 영어 표 이름 대신 다른 관리자 화면으로 가는 길을 둔다(관리자 화면이 두 곳). */}
+              <Link to="/admin/mobile" className="inline-flex min-h-[32px] items-center rounded-full border border-background-200 px-3 text-xs text-foreground-600 hover:bg-background-100">
+                옛 ECHO 운영센터(예전 대화·결제 기록) →
+              </Link>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

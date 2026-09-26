@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from "react-router-dom";
-import { lazy } from "react";
+import { lazy, type ReactElement } from "react";
+import { visibleInRelease } from "@/doit/lib/releaseScope";
 
 const DoitApp = lazy(() => import("@/doit/DoitApp"));
 const Fortune = lazy(() => import("@/doit/pages/do-it/fortune/page"));
@@ -32,38 +33,41 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // DO IT(A 구조) 화면 전부는 /doit 아래에 산다. 원래 A 프로젝트의 경로에 /doit 만 앞에 붙었다.
 // 예: A의 /home → /doit/home, A의 /key/order/:packageId → /doit/key/order/:packageId
+// 2026-09-26 MVP: 숨긴 화면(releaseScope)으로 바로 들어오면 앱 홈으로(가짜 결과·준비 중 화면 0).
+const gate = (to: string, element: ReactElement) => (visibleInRelease(to) ? element : <Navigate to="/doit/home" replace />);
+
 const doitRoutes: RouteObject = {
   path: "/doit",
   element: <DoitApp />,
   children: [
-    { index: true, element: <Navigate to="/doit/choose" replace /> },
-    { path: "landing", element: <Navigate to="/doit/choose" replace /> },
-    { path: "fortune", element: <Fortune /> },
+    { index: true, element: <Navigate to={visibleInRelease("/doit/choose") ? "/doit/choose" : "/doit/home"} replace /> },
+    { path: "landing", element: <Navigate to={visibleInRelease("/doit/choose") ? "/doit/choose" : "/doit/home"} replace /> },
+    { path: "fortune", element: gate("/doit/fortune", <Fortune />) },
     { path: "sign-up", element: <Navigate to="/doit/start-journey" replace /> },
     { path: "purpose", element: <Navigate to="/doit/start-journey" replace /> },
     { path: "verify", element: <Verify /> },
     { path: "photo", element: <Navigate to="/doit/start-journey" replace /> },
     { path: "home", element: <DoItHome /> },
-    { path: "first-record", element: <FirstRecord /> },
-    { path: "review", element: <Review /> },
+    { path: "first-record", element: gate("/doit/first-record", <FirstRecord />) },
+    { path: "review", element: gate("/doit/review", <Review />) },
     { path: "understanding", element: <Understanding /> },
-    { path: "timeline", element: <Timeline /> },
-    { path: "value", element: <Value /> },
-    { path: "pattern", element: <Pattern /> },
-    { path: "memory", element: <Memory /> },
-    { path: "spaces", element: <Spaces /> },
-    { path: "choose", element: <Choose /> },
+    { path: "timeline", element: gate("/doit/timeline", <Timeline />) },
+    { path: "value", element: gate("/doit/value", <Value />) },
+    { path: "pattern", element: gate("/doit/pattern", <Pattern />) },
+    { path: "memory", element: gate("/doit/memory", <Memory />) },
+    { path: "spaces", element: gate("/doit/spaces", <Spaces />) },
+    { path: "choose", element: gate("/doit/choose", <Choose />) },
     { path: "start-journey", element: <StartJourney /> },
     { path: "conversation", element: <Conversation /> },
-    { path: "world", element: <World /> },
-    { path: "room", element: <Room /> },
-    { path: "grade", element: <Grade /> },
-    { path: "just-try", element: <JustTry /> },
+    { path: "world", element: gate("/doit/world", <World />) },
+    { path: "room", element: gate("/doit/room", <Room />) },
+    { path: "grade", element: gate("/doit/grade", <Grade />) },
+    { path: "just-try", element: gate("/doit/just-try", <JustTry />) },
     { path: "connections", element: <Connections /> },
-    { path: "key", element: <Key /> },
-    { path: "key/order/:packageId", element: <KeyOrder /> },
-    { path: "key/result", element: <KeyResult /> },
-    { path: "notifications", element: <Notifications /> },
+    { path: "key", element: gate("/doit/key", <Key />) },
+    { path: "key/order/:packageId", element: gate("/doit/key/order/:packageId", <KeyOrder />) },
+    { path: "key/result", element: gate("/doit/key/result", <KeyResult />) },
+    { path: "notifications", element: gate("/doit/notifications", <Notifications />) },
     { path: "settings", element: <Settings /> },
     { path: "profile", element: <Profile /> },
     { path: "admin/mobile", element: <AdminMobile /> },

@@ -1,0 +1,70 @@
+/* ECHO UI 한 벌 — 2026-09-26 대표 「FINAL HUMAN UX / DESIGN」 §1~§5 · §18~§24.
+   적용 범위: 파스텔 사용자 화면 루트(.doit-app-pastel · .echo-dialogue--pastel)의 안쪽만. 히어로(우주)·관리자·전역(body/:root) 0.
+   - 글꼴: Pretendard 하나(index.css 가 이미 불러오는 글꼴 · 새 외부 글꼴 0). 아이콘 글꼴(ri-·fa)은 그대로.
+   - 글자 단계 4개(굵기만 · 크기·배치는 각 화면 그대로): ① 화면 제목 800 ② 질문·핵심 문장 700 ③ 중요한 내용·버튼 700 ④ 보조 글 600.
+     300/400 의 가는 글자 0. 예전 가짜 굵기(-webkit-text-stroke)는 진짜 굵기로 바꿨으니 뺀다.
+   - 글자색: 파스텔 위 사용자 글은 흰색(보조 글도 흰색 · 흐린 은색·회색 0).
+   - 판·버튼: 검정·짙은 회색 채움 0. 투명 유리(흰 6%) + 얇은 흰 테두리. 누른 상태도 흰 막을 조금 더 진하게(검정으로 바뀌지 않음).
+   - 버튼 3단계: 주요(흰 막 24% + 흰 테두리) · 보조(투명 + 테두리) · 글 버튼(배경 없음 + 밑줄). */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
+  --echo-font:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;
+  --echo-glass:rgb(255 255 255/.06);
+  --echo-glass-strong:rgb(255 255 255/.24);
+  --echo-glass-press:rgb(255 255 255/.34);
+  --echo-line:rgb(255 255 255/.7);
+  --echo-text:#fff;
+  font-family:var(--echo-font);
+  -webkit-text-stroke:0;
+}
+/* 글꼴 하나 · 가짜 굵기 0 (아이콘 글꼴 제외) */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :not(i):not([class^="ri-"]):not([class*=" ri-"]):not([class*="fa-"]){font-family:var(--echo-font)!important;-webkit-text-stroke:0!important}
+/* ④ 보조 글 이상 = 600 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(p,span,li,small,label,time,summary,dt,dd,blockquote,em,a,input,textarea,select,div){font-weight:600!important}
+/* ③ 중요한 내용 · 버튼 = 700 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,strong,b,.doit-product-action,.echo-ack,.echo-done-lead,.echo-done-mark,.doit-understanding-entry-text,.echo-profile-item,.doit-menu-label,.doit-settings-label){font-weight:700!important}
+/* ② 질문 · 핵심 문장 = 700 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h2,h3,.echo-question){font-weight:700!important}
+/* ① 화면 제목 = 800 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,.doit-product-title){font-weight:800!important}
+
+/* 흐린 은색·회색 글자 → 흰색(토큰 글자색 · 펼치기 줄 · 보조 글) */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class*="text-foreground-"],summary,details,time,small,.echo-fine,.echo-context,.doit-product-footnote,.doit-understanding-source,.doit-understanding-entry-meta,.doit-understanding-entry-date,.doit-menu-desc,.doit-menu-caption){color:var(--echo-text)!important}
+
+/* 검정·짙은 회색 채움 → 투명 유리(토큰 배경 bg-background-* · bg-primary-* · bg-black) */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class^="bg-background-"],[class*=" bg-background-"],[class^="bg-black"],[class*=" bg-black"]){background-color:var(--echo-glass)!important;border-color:var(--echo-line)!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class^="bg-primary-"],[class*=" bg-primary-"]){background-color:var(--echo-glass-strong)!important;border:1px solid #fff!important;color:#fff!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class*="text-background-"]){color:#fff!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class*="hover:bg-background-"],.doit-icon-button):hover{background-color:var(--echo-glass-strong)!important}
+
+/* 버튼 3단계 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary){background:var(--echo-glass-strong)!important;border:1px solid #fff!important;color:#fff!important;-webkit-text-fill-color:#fff}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-secondary,.doit-product-action--secondary,.echo-choice-confirm.is-secondary,.echo-reactions button,.echo-choice-option,.doit-understanding-filters button,.doit-restart-pill,.echo-restart-pill){background:transparent!important;border:1px solid var(--echo-line)!important;color:#fff!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-text-button,.doit-understanding-text-link,.legal-page-text-button,.doit-understanding-source>summary){background:transparent!important;border:0!important;color:#fff!important;text-decoration:underline;text-underline-offset:4px}
+/* 누른 상태: 흰 막을 조금 더 진하게(검정 0) · 고른 상태: 진한 흰 막 + 흰 테두리 + ✓ */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"],summary):not(:disabled):active{background-color:var(--echo-glass-press)!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([aria-pressed="true"],[aria-checked="true"],.is-selected){background:var(--echo-glass-strong)!important;border:1.5px solid #fff!important;color:#fff!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-understanding-filters,.echo-choice-options) :is([aria-pressed="true"],[aria-checked="true"])::before{content:"✓ "}
+
+/* 햄버거 메뉴: 파스텔이 비치는 유리 판(검정 판·검정 덮개 0) */
+/* 2026-09-26 대표 「FINAL CLOSEOUT」 §1: 햄버거 창만 예외 — 뒤 화면 글자·버튼이 비치지 않게 불투명 파스텔 그라데이션(민트 → 아쿠아 → 연노랑 → 연산호).
+   흰 글자가 연노랑·연산호 위에서도 읽히도록 색은 앱 바탕보다 한 단계 짙게 + 아주 옅은 글자 둘레. 다른 유리 판은 그대로 투명. */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel{background:linear-gradient(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;border:1px solid rgb(255 255 255/.75);box-shadow:0 14px 34px rgb(30 70 70/.22)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel *{color:#fff!important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-caption{font-size:12px}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-item{color:#fff;border-top:1px solid rgb(255 255 255/.35)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-icon{border:1px solid var(--echo-line);color:#fff}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-label{font-size:15px;color:#fff}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-desc{font-size:12px}
+
+/* 윗줄(고정 머리): 스크롤할 때 아래 글이 비쳐 겹쳐 보이지 않게 유리 막을 조금 더 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(255 255 255/.14)!important;-webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2)}
+/* 시작 흐름 공통 버튼(PrimaryButton · 글자·색이 인라인이라 !important): 주요 = 흰 막 + 흰 테두리, 보조 = 투명 + 테두리 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-primary-button{background:var(--echo-glass-strong)!important;border:1px solid #fff!important;color:#fff!important;box-shadow:none!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-secondary-button{background:transparent!important;border:1px solid var(--echo-line)!important;color:#fff!important}
+/* 예전 글자색이 인라인·토큰으로 박혀 흐린 곳(연결 준비 줄 · 시작 흐름 안내 · 로그인 제목) — 파스텔 위 흰색 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-asleep-check li,.doit-asleep-check span,.doit-asleep-check strong,h1,h2,h3,label){color:#fff!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(p,span)[style*="color"]:not([role="alert"]){color:#fff!important}
+/* 나의 이해: 「지금의 나」는 ② 단계(질문·핵심 문장 크기) · 새로고침 아이콘도 흰색 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-understanding-section-heading h2{font-size:21px;line-height:1.4;color:#fff}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-understanding-refresh{color:#fff;border-color:var(--echo-line)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-understanding-area-title{font-size:16px;opacity:1}

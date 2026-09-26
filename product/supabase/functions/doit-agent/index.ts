@@ -141,6 +141,14 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
   const { obs, response } = await A.runTurn(st, text, ctx.llm);
   if (response.error) {
     logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry });
+    // v2.0 실패 관측: AI 가 답을 못 만든 턴도 기존 표(doit_request_events · status failed)에 코드·수치만 남긴다(원문 0 · 새 표 0). 관리자 TURN_ERROR 후보의 재료.
+    // request_id 는 새로 만든다 — 사용자가 같은 요청을 다시 보냈을 때 성공 기록과 부딪히지 않게.
+    const failed = { turn_index: null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind: "error", error: String(response.error), saved: false, decision: "error",
+      question_index: A.coreAsked(st).length, question_purpose: st.current?.purpose ?? null, flags: {}, provider: "openai", model_requested: ctx.model, ...A.versionTrace(), calls: obs.calls, retry: obs.retry, fallback: 0,
+      tone_mismatch_observed: false, id_leak: false, record_error: null, total_ms: Date.now() - t0 };
+    const { error: failLogError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: sessionId, status: "failed",
+      payload_hash: await sha256(`${sessionId}:error:${requestId}`), applied_revision: rev, response_payload: { record: failed } });
+    if (failLogError) logDiag({ step: "turn_fail_log", error: true });
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
   const lastTurn = st.turns.length > before ? st.turns.at(-1) : undefined; // 저장 금지 입력·대화 상한은 턴을 만들지 않는다
@@ -178,8 +186,11 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     turn_index: lastTurn?.n ?? null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind,
     saved: response.saved === true, extracted: lastTurn?.extracted ?? [], recovered: lastTurn?.recovered ?? [], recovered_from: lastTurn?.recovered_from ?? [], dropped: lastTurn?.dropped ?? null, hint_shown: !!lastTurn?.hint, question_check: lastTurn?.check ?? null, decision: lastTurn?.decision ?? kind, question_index: A.coreAsked(st).length,
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
-    flags: { correction: kind === "correction", rejection: kind === "repair", complaint: kind === "repair", skip: kind === "skip", fatigue: kind === "stop", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
+    // v2.0: 서버 말 종류 가드(guard)가 바로잡은 턴은 규칙 이름을 남긴다(LLM 이 무엇이라 했는지 → 서버가 무엇으로 봤는지).
+    guard: lastTurn?.guard ?? null, superseded: lastTurn?.superseded ?? 0,
+    flags: { correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
+    ...A.versionTrace(), // 2026-09-26 VERSION TRACE: 에이전트·프롬프트·서버 규칙·파이프라인 판(실패를 판과 묶는다)
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
     record_id: recordId, record_error: recordError, total_ms: Date.now() - t0,
   };

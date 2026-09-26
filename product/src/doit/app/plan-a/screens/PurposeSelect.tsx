@@ -191,7 +191,7 @@ export function PurposeSelect({
             <button
               type="button"
               onClick={onRetry}
-              className="mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
+              className="echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
               style={{
                 fontSize: 13,
                 color: colors.onAccent,
@@ -226,7 +226,7 @@ export function PurposeSelect({
               <button
                 type="button"
                 onClick={onRetry}
-                className="mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
+                className="echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
                 style={{
                   fontSize: 13,
                   color: colors.onAccent,

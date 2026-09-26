@@ -5,6 +5,7 @@ import {
   type PathChoice,
 } from "@/doit/app/plan-a/screens/PathSelect";
 import { getAppMode, setAppMode } from "@/lib/echo/appMode";
+import { visibleInRelease } from "@/doit/lib/releaseScope";
 
 // 확정 흐름 ②: DO IT만 / ECHO만 / 둘 다 선택.
 // - echo      → 기존 B 흐름(ECHO, /weather)으로 바로 진입
@@ -44,7 +45,8 @@ export default function Choose() {
     <PathSelect
       onDoit={handleDoit}
       onEcho={handleEcho}
-      onSkipToFortune={() => navigate("/doit/fortune")}
+      // 2026-09-26 MVP: 사주·타로 숨김(releaseScope) — 숨긴 동안 「먼저 무료 사주·타로」 버튼을 넘기지 않는다.
+      onSkipToFortune={visibleInRelease("/doit/fortune") ? () => navigate("/doit/fortune") : undefined}
     />
   );
 }

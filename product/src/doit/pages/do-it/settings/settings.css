@@ -56,3 +56,5 @@
 .doit-leave .doit-leave-cancel:disabled{opacity:.5;cursor:default}
 .doit-leave .doit-leave-mail-note{margin:22px 0 0;font-size:12px;line-height:1.8;color:#9ba2ae}
 .doit-leave .doit-product-error{margin:14px 0 0}
+/* 2026-09-26: 앱 홈 「홈 화면에 ECHO 추가」(#install)로 내려올 때 위 제목줄에 가리지 않게. */
+.doit-settings-section#install{scroll-margin-top:96px}

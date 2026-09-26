@@ -128,13 +128,11 @@
  "prod_agent_gate": {
   "registered_at": "2026-09-25",
   "why": "대표 「구현 → 운영배포 → 운영검증」 FINAL: 운영 서버 doit-agent 가 쓰는 agent.ts(echo-agent-v1.2 — v1.1 에서 말투 예시 문장 삭제·첫 질문 = 목적 타일·먼저 답한 뒤 지금 질문 유지·대화 상한)를 결과를 보기 전에 고정한다. 입력·모델은 v1.1 재생과 같다.",
-  "agent_ts_sha256": "f528d2b657eb040f715cf079f885d3bc0c3ef2cd54d6a17a1494ab059219291d",
-  "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+  "agent_ts_sha256": "95b06edda894f88ac2bd118be4eb60a3772dac6d65ba85abc1b5fc3540b3d2a8",
+  "flows_sha256": "95c59a923c84adc94bd2f828a220648799fa8f48ce1e87afb998904f995c94cf",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
-   "gpt-4o-mini",
-   "gpt-4.1-mini",
-   "gpt-4.1"
+   "gpt-4.1-mini"
   ],
   "params": {
    "temperature": 0.2,
@@ -144,7 +142,7 @@
    "max_calls_per_turn": 2,
    "closing_call": "마칠 때 1번(요약·마무리·소개 초안을 같은 호출에서)"
   },
-  "version": "echo-agent-v1.8 (v1.7 + 소개 규칙 두 줄: 상대에게 바라는 말을 자기 설명으로 바꾸지 않음 · 불분명한 오타 조각은 쓰지 않음)",
+  "version": "echo-agent-v3.1 후보(candidates/agent-v3.1.ts · 운영 agent.ts 는 v2.2 그대로)",
   "history": [
    {
     "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
@@ -206,6 +204,175 @@
     "version": "echo-agent-v1.8 (run 15 — 사전 규칙 ①②③④ 충족(gpt-4o-mini: 치명 0 · 초안 8/8 · 추상 0/69 · self_claim 0) → 운영 배포 doit-agent 버전 6)",
     "actions_run": 36141532032,
     "commit": "1079cfe"
+   },
+   {
+    "agent_ts_sha256": "9a1f135f14b4fddd8858946eccd9c53490413d6269dc212bcc124ade659fa916",
+    "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+    "version": "echo-agent-v1.9 (run 16 — 사전 규칙 ① 미달: gpt-4o-mini complaint_saved 1(「나 진심이라고 적은거 같은데」가 답으로 저장) · 운영 미배포)",
+    "actions_run": 36166275489,
+    "commit": "54192bd"
+   },
+   {
+    "agent_ts_sha256": "3444032b975d26fc518df3dce8b3f0cd9e427014560ba6a554ada0b5584d459e",
+    "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+    "version": "echo-agent-v2.0 (run 17 — 사전 규칙 ①②③④ 충족(gpt-4o-mini: 치명 0 · 초안 9/9 · 추상 0/61 · self_claim 0) · 관측: retries 33 · same_question_again 7 · 운영 미배포)",
+    "actions_run": 36167645400,
+    "commit": "68fcf20"
+   },
+   {
+    "agent_ts_sha256": "27eb756c0bf9034be0eed7a376d996c3af0226d7c8fb3ddd5b704e17ff597143",
+    "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+    "version": "echo-agent-v2.1 (run 18 — 결과는 FINAL 보고에 기록)",
+    "actions_run": 36173141827,
+    "commit": "254d4ce"
+   },
+   {
+    "agent_ts_sha256": "bf26a04ad1506d59a47380e6744e18314874a17ffd19a8bb1d26427a76571148",
+    "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+    "models": [
+     "gpt-4o-mini",
+     "gpt-4.1-mini",
+     "gpt-4.1"
+    ],
+    "version": "echo-agent-v2.2 (run 19 PASS · 운영 버전 7)",
+    "actions_run": null,
+    "commit": "3bf38b8"
+   },
+   {
+    "agent_ts_sha256": "a2840e7be0700a76c0df0dc2ec5c532407452beb99e453660fdeb5fee3382ad5",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.3 후보 (run 20 — 사전 규칙 5개 충족 · 사람 검토에서 CORRECTION_IGNORED 2건(F5 「아니 매일은 부담스럽고…」 answer 처리) · 평가 받아주기 「인상적이에요」 1건 발견 → 배포 권장 안 함)",
+    "actions_run": 36232498018,
+    "commit": "da5d929"
+   },
+   {
+    "agent_ts_sha256": "b459c6f680c8f42c4178a3d44b76a4eb44ede37f6033ea462014112da1cce3c2",
+    "version": "echo-agent-v2.4 후보 첫판 — run 21 무효: 결과를 보기 전에 판정식 결함 발견(⑥이 물음으로 끝나는 항의 「아니 … 물어봐야 하는 거 아니야?」까지 정정 누락으로 셈 · Golden FLOW3 실제 입력). run 21 결과는 판정에 쓰지 않는다.",
+    "actions_run": null,
+    "commit": "ba7963d"
+   },
+   {
+    "agent_ts_sha256": "eabbe3c76ba847fb74ae04833dc67fb760ce1c6ea0b0241da55c9bd7f884e5e4",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.4 후보 (run 22 FAIL — ② evaluative_ack 1: 끝난 뒤 「질문이 많아서 힘드셨군요」 · ③ question_banned_words 1: 「…천천히 알아가는 걸 선호하나요?」 · ⑥ correction_lead_missed 2: F5 끝난 뒤 「그런 뜻 아니야, 연락 얘기였어. 연락은 가끔이면 돼」를 AI 가 repair 로 읽어 가드가 안 봄(가드는 answer 만 봤음). ①④⑤ 충족: 치명 0 · 추상 2/75 · 무거움 0 · 초안 14/14 · self_claim 0. F4·F5 「아니 …」 정정 4/4 는 correction 저장)",
+    "actions_run": 36233457371,
+    "commit": "ce6495b"
+   },
+   {
+    "agent_ts_sha256": "159ba62f1bd68dba153ca9a61dc00468fca5db3a5a2649843526e49ff4706352",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.5 후보 (run 23 — 사전 규칙 ①~⑥ 모두 충족: 치명 0 · evaluative_ack 0 · question_banned_words 0 · 추상 2/81 · 무거움 0 · 초안 13/13 · self_claim 0 · correction_lead_missed 0. 사람 검토에서 CORRECTION_NOT_REFLECTED 2/2 발견: F5 정정 「아니 매일은 부담스럽고 주말에 한 번 보면 좋겠어」의 새 뜻이 다른 목적에 저장돼 옛 값 「매일 연락하는 게 좋아」가 밀리지 않고 소개 초안에 함께 남음(「매일 연락하는 게 좋은데 매일은 부담스럽고…」 · 「매일 연락하는 것을 좋아합니다. 주말에 한 번 만나는 것이 좋습니다」) → 배포 권장 안 함)",
+    "actions_run": 36233993673,
+    "commit": "debc54c"
+   },
+   {
+    "agent_ts_sha256": "bfbc0e60cf0bcc940e055ce44abee1c9a659e025a830901332808919cce04946",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.6 후보 (run 24 — 사전 규칙 ①~⑧ 모두 충족: 치명 0 · 평가 0 · 질문 딱딱한 말 0 · 추상 5/80 · 무거움 0 · 초안 13/13 · self_claim 0 · 정정 누락 0 · 소개에 밀린 값 0 · F5 옛 값 0/2. 사람 검토: F5 정정이 소개에 바르게 반영됨(「주말에 한 번 보는 게 좋다」). 남은 결함: 감정 짐작 받아주기 2(「질문이 많아서 힘들었구나」 F1 반말 끝난 뒤 · 「…불편하셨군요」 FLOW4) · 「선호」가 소개·도움말에 남음 → v2.7)",
+    "actions_run": 36234330019,
+    "commit": "04faf99"
+   },
+   {
+    "agent_ts_sha256": "5126e351c36224933a8c7b3f8ed64047b6005da4bebf8ed1fa93e626b3abcca5",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.7 후보 (run 25 FAIL — ⑥ correction_lead_missed 1: F5 반말 끝난 뒤 「그런 뜻 아니야, 연락 얘기였어. 연락은 가끔이면 돼」를 AI 가 stop 으로 읽음(가드는 answer·repair 만 봄). ①~⑤·⑦·⑧·⑨ 충족(평가 0 · 선호 0 · 소개에 밀린 값 0 · F5 옛 값 0/2). 관측: F5 존댓말 소개 초안 failed(밀린 값 문장을 빼고 남은 문장 없음 — 모순 대신 빈 초안, 사용자는 직접 쓰기 가능) · 감정 짐작 「질문이 무겁게 느껴지셨군요」 · 「답을 못하셨군요」 남음. 사전 등록대로 마감 전 마지막 실행 → 더 고치지 않고 대표 보고. 사전 규칙을 모두 통과한 최신 후보는 v2.6(run 24).)",
+    "actions_run": 36234650822,
+    "commit": "adb7ba1"
+   },
+   {
+    "agent_ts_sha256": "52acad72e7e66ad0225ba2b33610b677ed3e0a3baefde3126387964c9b21018f",
+    "flows_sha256": "eab14f6d850d27a766c3a18a751c9db27c21c63e8d28afa93f525547505b32d4",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.8 후보 (run 26 FAIL — 사전 규칙 (3) correction_lead_missed 2: F6 끝난 뒤 9번째 말 「아니 내가 말한 건 매일 연락이 아니라 …」가 끝난 뒤 받는 말 상한(MAX_AFTER_TURNS 5)에 걸려 closed(AI 를 부르지 않음 · 2/2) · (8) already_answered_reask 1: F5 존댓말 정정 뒤 「자주 만나는 것보다 가끔 만나는 게 더 좋다 싶은 이유가 있을까요?」(이미 말한 목적을 이유로 다시 캐물음). 나머지 통과: 치명 0 · 감정 짐작 0 · 정정→그만 0 · 소개에 밀린 값 0 · F5·F6 옛 값 0 · 빈 소개 0(15/15) · 딱딱한 말 0 · 5문항 초과 0. 사람 검토 추가 결함: F4 존댓말 정정 「연락은 하루에 한두 번이면 충분해요」 새 값 저장 0(AI 가 못 뽑았고 밀린 값이 없어 원문 대체도 안 됨) · F4 반말 소개에 최신 정정 빠짐. 사전 등록대로 더 고치지 않고 보고.)",
+    "actions_run": 36235909681,
+    "commit": "f7aa771"
+   },
+   {
+    "agent_ts_sha256": "34f3ab5a2c316f378dcf0c41afe677a85fa1e40a647d4e67b4d38eba8eb1ed4d",
+    "flows_sha256": "d76c3256a92378ee2129ee567432973808341ef8838373239c76b649a2c354d6",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.9 후보 (run 27 PARTIAL — 사전 규칙 (1)~(12) 모두 충족: 22판 167턴 · 치명 0 · 감정 짐작 0 · 정정 누락 0(v29 판정식) · 정정→그만 0 · 원문 유실 0 · 밀린 값 재등장 0 · F5·F6 옛 값 0 · F7 보정 2/2 · 빈 소개 0(17/17) · 정정 뒤 다시 캐묻기 0 · 이미 답한 목적 재질문 0 · 딱딱한 말 0 · 5문항 초과 0 · 보정 4번(판당 최대 1 · 호출 8 = 보정당 2) · 불필요한 끝난 뒤 호출 0. 사람 검토 결함: ① F4 정정 「연락은 하루에 한두 번이면 충분해요」가 저장됐지만 소개 초안에 빠짐 2/2 ② 정정 원문 보존 값이 소개에 말투째 그대로 옮겨짐(「…좋다는 뜻이야」 · 존댓말 소개에 반말 섞임) F6·F7 ③ F1 존댓말 6번째 말 뒤 이미 답한 「편한 사람」을 다른 목적 이름으로 다시 물음(목적 판정식에는 안 잡힘) ④ FLOW6 받아주기 안에 질문 문장을 넣고 바로 마무리(기존 동작). 사전 등록대로 v2.10 을 만들지 않고 보고.)",
+    "actions_run": 36236615087,
+    "commit": "6fc9eeb"
+   },
+   {
+    "agent_ts_sha256": "6e0701d2fedcb23f0d883ecabc8b50b0a9bc740e2644f7740b2a2e41c1fa79dd",
+    "flows_sha256": "8141a12b58793a8dd5e7bb6a765b6e00ebb137c363d4bf78d683a8a8f366f3c8",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.10 후보 (run 28 FAIL — 28판 203턴. 사전 규칙 (6) 실패: empty_profile 1(F7 반말 · 끝난 뒤 정정 보정 뒤 소개 다시 쓰기에서 AI 가 빈 문장 5개를 내 기존 ready 초안을 failed 로 덮음) · latest_correction_missing_in_intro 2(F7 반말 같은 건 · T2 격식 「아니 딱히 조심스럽진 않아. 그냥 바빠서 못 만났어」가 소개에 없음). 나머지 통과: 사주·타로 다리 6/6 · 결과→사용자 사실 0 · 소개에 결과 0 · 매칭 오염 0 · 반박 뒤 재등장 0 · 반박 원문 보존 4/4 · 감정 짐작 0 · 정정 누락 0 · 정정→그만 0 · 밀린 값 재등장 0 · 재질문 0 · 딱딱한 말 0 · 5문항 초과 0 · 보정 판당 최대 1 · 불필요 호출 0. 사람 검토 추가 결함: S1 다리 답 받아주기가 사주 문구(「사람과의 거리를 스스로 조절하는 편이시군요」)로 사용자 말을 바꿔 말함(다리 답 턴에는 문구 거르기가 아직 안 켜짐) · F7 존댓말 소개에 「주말에 보는 게 좋다는 뜻이야」 반말 섞임(AI 가 뽑은 인용 그대로) · T2 존댓말 소개에 「딱히 조심스럽진 않아요」(사용자 원문이지만 소개로 어색). 사전 등록대로 v2.11 을 만들지 않고 보고.)",
+    "actions_run": 36237525011,
+    "commit": "dbb2936"
+   },
+   {
+    "agent_ts_sha256": "77737c4627815add332aa7d0a4e8ef94d5206c5b56c9e0dd92fec7c2f36b2434",
+    "flows_sha256": "68b7a8f9a59c63bd90fee783a34a61e67f5cf26aeb8989653f0c7d750712b013",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.11 후보 (run 29 FAIL — 32판 227턴. 사전 규칙 실패: latest_correction_missing_in_intro 3 · rebuttal2_user_words_kept 5/6(S3 「이건 좀 아닌데. 난 사람을 빨리 믿는 편이야」가 repair 로 읽혀 사용자 말 저장 0). 통과: 감정 짐작 0 · 정정 누락 0 · 정정→그만 0 · 밀린 값 재등장 0 · 빈 소개 0(27/27) · 재질문 0 · 정정 뒤 캐묻기 0 · 이미 말한 목적 재질문 0(F9) · 사주·타로 다리 10/10 · 결과→사실 0 · 매칭 오염 0 · 5문항 초과 0 · 불필요 호출 0. 비용(같은 28판 BEFORE run 28 → AFTER): 호출 247→239(-3.2%) · 입력 645,131→588,808(-8.7%) · 캐시 입력 443,008(75.2% · BEFORE 는 미기록) · 출력 31,494→24,689(-21.6%) · 다시 청하기 33→11(-66.7%). 사람 검토 품질 퇴행: 말투 어긋남 tone_mismatch_turns 5→38(반말 판에 「~군요」 존댓말 섞임 · 반말 소개 초안) — 말투 줄을 지시문 끝으로 옮긴 비용 조치와 같은 때 생김(한 번 실행이라 원인 분리는 안 됨). 규칙대로 비용 최적화는 적용 불가 판정 · 추가 후보 없이 보고.)",
+    "actions_run": 36238911394,
+    "commit": "3166f4c"
+   },
+   {
+    "agent_ts_sha256": "b86df4585cfcc5191a491f853cb3947e4945918ddbc2c00f90db015064fed692",
+    "flows_sha256": "68b7a8f9a59c63bd90fee783a34a61e67f5cf26aeb8989653f0c7d750712b013",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.11-p0 후보 (run 30 FAIL — 32판 227턴. P0 목표 충족: latest_correction_missing_in_intro 0(이전 3) · intro_overwrite 0 · empty_profile 0(28/28) · intro_casual_line 0 · semantic_reask 0 · ack_question_completion 0 · 밀린 값·거절 뜻 재등장 0 · 감정 짐작 0 · 사주·타로 기준 유지 · 말투 어긋남 5(run 29 의 38 → 원래 수준). 사전 규칙 실패: raw_verbatim_leak 4(F6 「매일 연락이 아니라 주말에 보는 게 좋다고 생각해요」 2 · F7 「주말에 보는 게 좋다는 뜻이에요」 2 — 뒤의 것은 사람이 읽어도 어색) · already_answered_reask 1(판정식이 셈 · 로그에 줄 자료가 없어 위치 확인 불가). 사람 검토 추가 결함: 이미 답한 뜻 질문을 서버가 빼면 대화가 끝나 버림 — FLOW3·FLOW4·FLOW6 이 핵심 질문 3개에서 조기 종료되고 그 뒤 사용자 말(「활동 말고 편하게 대화하는 사람을 원한다는 거예요」 등)이 끝난 뒤 말로 처리 · 받아주기 속 캐묻기(「…궁금해요」)는 물음표가 없어 서버 거르기에 안 걸림(FLOW6·F2) · 반말 판 소개가 「-습니다」로 나옴(F2·F3 반말). 비용: 호출 290 · 다시 청하기 53(받아주기 물음 40 — v2.10 줄기에는 아직 다시 청하기가 남아 있음). 사전 등록대로 v2.12 를 만들지 않고 보고.)",
+    "actions_run": 36239502389,
+    "commit": "5e1c3df"
+   },
+   {
+    "agent_ts_sha256": "61afc77903696417aed43daa64cce3d681da8e5404c62c4db710ea8ddfffd2a3",
+    "flows_sha256": "da0aea2eb16b49b1d791ca4b17ea7898e22ae4f0f81ef55d9ed08c82c6132c1c",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.12 후보 (run 31 FAIL — 34판 239턴. 사전 규칙 실패 4: empty_profile 1(FLOW6 · 항의 「질문했는데 답을 못햐?」에서 핵심 질문 2개로 대화가 끝나고, 끝난 뒤 답 「사실은 일보다 사람이 더 힘들어요」가 저장됐지만 소개는 끝난 뒤 답으로는 다시 쓰지 않아 none) · already_answered_reask 1(위치 미확인) · unconfirmed_fact_ack 28(판정식 결함: 마무리 고정 문장 「이제 조금 알 것 같아요」까지 셈 — 마무리 문장을 빼고 다시 세면 0, 규칙대로 판정은 바꾸지 않음) · early_finish_runs 14(판정식 결함: 정보가 채워져 핵심 질문 4개로 끝나는 정상 종료까지 셈 — 실제 조기 종료는 FLOW6 1건). 통과: 최근 정정 소개 누락 0 · 빈 소개 덮어쓰기 0 · 정정 누락·정정→그만 0 · 밀린 값 재등장 0 · 사주·타로 거절 뜻 재등장 0 · 반박 원문 보존 8/8 · 결과→사용자 사실 0 · 매칭 오염 0 · 감정 짐작 0 · 말투 어긋남 5. 추가 후보 없이 보고.)",
+    "actions_run": 36240304626,
+    "commit": "013429c"
+   },
+   {
+    "agent_ts_sha256": "c7cfeb164db271c42d781aad601951176e17282b0478b17cfca386aec9a8e887",
+    "flows_sha256": "7756024ceed9c760db83f1facbb481e0b89396844168313d1b84bc9e8b4aa387",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.13 후보 (run 32 FAIL — 38판 263턴 · 사전 규칙 why_v26 실패 4: errors 3(메타 문장 「고정질문으로 바뀐거니?」 CEO_META 2판 · 「활동?질문이 머이래」 1판에서 AI 응답을 두 번 다 읽지 못함 READ_FAILED — 프롬프트의 redirect 설명을 kind 목록 안에 넣어 AI 가 kind 에 없는 값을 낸 것으로 추정, 응답 원문은 로그에 없어 확인 불가) · redirect_empty_reply 5(메타·불만 턴에 받아주기가 비어 메타 물음에 답하지 않음) · early_finish_v213 2(위치: 판정식 기준 2판 · 결과 JSON 미열람으로 판 이름 확인 불가 — F3 반말 「딱히 없어요」(AI 가 unsure 대신 answer) · F4 정정 뒤 마침이 후보) · correction_lead_missed_v29 1(F5 존댓말 7턴 「그런 뜻 아니야, 연락 얘기였어…」를 AI 가 ask 로 읽음 — 서버 정정 가드가 ask 를 보지 않는 v2.12 부터 있던 틈 · 원문은 저장됨). 사람 검토 결함: 메타·불만 턴의 다음 질문이 type open 이지만 사용자 말(회사·개발)에 이어지지 않고 다른 목적 질문과 같음(대표 실기기 B 미해결) · 불만 받아주기가 틀에 박힘. 통과: complaint_forced_question 0 · redirect_finish 0 · meta_saved_as_fact 0 · post_redirect_answer_lost 0 · empty_profile 0 · intro_overwrite 0 · 최근 정정 소개 누락 0 · 사주·타로 거절 재등장 0 · 반박 원문 8/8 · 결과→사실 0 · 매칭 오염 0 · unconfirmed_fact_ack_v213 0 · f7 2/2 · 다리 12/12. 추가 후보 없이 보고 · 운영 v2.2 유지 · ZIP 없음.)",
+    "actions_run": 36243529770,
+    "commit": "a0636b8"
+   },
+   {
+    "agent_ts_sha256": "d5a72f1e6b80770cb8ddf11ce40c08935d910175adeec31b650584a086593ec9",
+    "flows_sha256": "95c59a923c84adc94bd2f828a220648799fa8f48ce1e87afb998904f995c94cf",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v3.0 후보 (run 33 FAIL — 43판 287턴 · 사전 규칙 why_v27 실패: empty_profile 3 · intro_overwrite 3 · latest_correction_missing_in_intro 4 · complaint_saved 1(FLOW1 「적었자네」 듣는 중 원문 저장) · raw_verbatim_leak 4(사람 확인 2건 이상 실제). 사람 검토: 빈 턴 2 · 일반 듣기 문장 32(화난 사용자 포함) · 넘기기→마침 · F7 반말 소개에 정정 전 옛 값(판정식 superseded_in_intro 는 「싫」 예외로 0) · H_JOKE 답 유실. Humanity FAIL(라벨 베끼기 · ~군요 126/259 · 감정 부풀리기 · 설문 말투). 분류: 서버 7개 [A] · 모델 품질 [B] gpt-4o-mini.)",
+    "actions_run": 36251945162,
+    "commit": "8d30428"
    }
   ],
   "why_v2": "run 7(실제 AI)에서 질문이 목적 설명 문장을 옮겨 쓴 설문 말투였고, 오타가 있는 답은 인용을 고쳐 써서 저장되지 않았다. 프롬프트만 고쳤다(구조·상태·검사 변경 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영 기본)에서 치명 지표(핵심 질문 5 초과·끝난 뒤 질문·내부 이름·금지어·오류·말투 어긋남·항의 저장)가 run 7 보다 나빠지지 않고 설문 옮겨 쓰기(label_copy)가 줄면 이 판을 배포, 아니면 run 7 판을 배포한다.",
@@ -215,6 +382,24 @@
   "why_v6": "run 11(v1.4)은 사전 규칙을 충족했지만 결과를 보니 help 뒤 같은 문장 재출력(same_question_again 6)·반말에서 예시가 「~요」로 끝남·label 을 옮겨 쓴 추상 질문이 보였다. 입력(흐름)은 run 11 과 같다. 결과를 보기 전 결정 규칙: gpt-4o-mini 에서 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 · help_classified ≥ 4/6 · same_question_again < 6 · abstract_questions 비율 ≤ run 11(16/64) 이면 v1.5 배포. 아니면 v1.4(run 11 규칙 충족)를 배포한다.",
   "why_v7": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §2 질문을 밝고 가볍게 · §4 5문답 종료 후 AI 프로필 초안 자동 생성. 입력(흐름)·모델은 run 11·12 와 같다. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 ② intro_ready(마친 대화 중 확인된 말이 있는 대화에서 소개 초안 status=ready) 80% 이상 ③ 추상 낱말 질문 비율(abstract_questions/questions_total · HEURISTIC)이 run 11 의 25% 이하. 셋 다 맞으면 v1.6 을 운영에 배포하고, 하나라도 아니면 배포하지 않고 v1.4(운영 버전 4)를 둔다. heavy_questions·example_copy(말투 예시를 그대로 옮긴 질문)·intro_dropped 는 관측만 하고 판정에 쓰지 않는다(결과 본 뒤 규칙 변경 금지).",
   "why_v8": "run 13(v1.6) 결과: 치명 지표 0 · 소개 초안 9/9 였지만 추상 질문 22/68(32%)로 사전 규칙 ③ 미달 → 규칙대로 운영 미배포. 원인(결과 표에서 셈): 추상 질문 22개 중 13개가 AI 용 주제 이름 「알아가는 방식과 속도」의 「방식」, 7개가 「스타일」. v1.7 은 v1.6 에서 AI 용 주제 이름 4개만 생활 말로 바꿨다(입력·모델 같음). 결과를 보기 전 결정 규칙은 why_v7 과 같다: gpt-4o-mini 에서 ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 — 셋 다 맞으면 v1.7 을 운영 배포, 아니면 v1.4 유지. 관측 지표는 판정에 쓰지 않는다.",
-  "why_v9": "run 14(v1.7)는 사전 규칙을 충족해 운영 배포(버전 5)했다. 결과 문장을 읽으니 gpt-4o-mini 소개 초안 2개가 상대에게 바라는 말 「다정한 사람」을 「저는 다정한 사람이라고 생각해요 / 저는 다정한 사람입니다」로 바꿨고(뜻 왜곡), 1개는 오타 조각 「마음이지머」를 문장으로 넣었다. v1.8 은 소개 규칙 두 줄만 더했다(입력·모델·서버 검사 같음). 결과를 보기 전 결정 규칙(gpt-4o-mini): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim(「저는 … 사람이에요/입니다/이라고」인데 바람 낱말 없음 · HEURISTIC · v1.7 run 14 에서 2) = 0. 넷 다 맞으면 v1.8 을 운영 배포, 아니면 v1.7(운영 버전 5) 유지. 오타 조각은 관측만."
+  "why_v9": "run 14(v1.7)는 사전 규칙을 충족해 운영 배포(버전 5)했다. 결과 문장을 읽으니 gpt-4o-mini 소개 초안 2개가 상대에게 바라는 말 「다정한 사람」을 「저는 다정한 사람이라고 생각해요 / 저는 다정한 사람입니다」로 바꿨고(뜻 왜곡), 1개는 오타 조각 「마음이지머」를 문장으로 넣었다. v1.8 은 소개 규칙 두 줄만 더했다(입력·모델·서버 검사 같음). 결과를 보기 전 결정 규칙(gpt-4o-mini): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim(「저는 … 사람이에요/입니다/이라고」인데 바람 낱말 없음 · HEURISTIC · v1.7 run 14 에서 2) = 0. 넷 다 맞으면 v1.8 을 운영 배포, 아니면 v1.7(운영 버전 5) 유지. 오타 조각은 관측만.",
+  "why_v10": "대표 운영 기록(읽기 전용 확인, 2026-09-25): 2·5번째 답에서 뽑은 내용 0개, 4번째 답이 고치기(repair)로 읽혀 새 내용이 버려졌다. v1.9 는 그 처리만 고쳤다(입력 흐름·Golden·모델·파라미터 run 15 와 같음). 대표 「v1.9 실제 AI 검사」(2026-09-26). 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표 8개(errors·over_5·questions_after_finish·id_leak·banned·complaint_saved·help_saved·help_counted) 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0 — 넷 다 맞으면 「배포 가능」, 아니면 「배포 불가(v1.8 운영 버전 6 유지)」. confirmed_items·recovered_turns 는 관측만(판정에 쓰지 않음). 배포: 대표 2026-09-26 PRE-DEPLOY 지시 「현재 doit-agent 운영 서버도 이번 2건 때문에 다시 배포하지 마라 / 운영배포 0건」에 따라 이번 실행 결과와 상관없이 운영 배포하지 않는다 — 결과를 보고한 뒤 대표 별도 승인으로만 배포한다.",
+  "why_v11": "run 16(v1.9) 결과: gpt-4o-mini 치명 지표 complaint_saved 1 로 사전 규칙 ① 미달 → 배포 불가. 원인(결과 표): FLOW1 2번째 「나 진심이라고 적은거 같은데」(앞선 말을 가리키는 항의)를 AI 가 answer 로 읽어 저장. v2.0 은 서버가 말 모양(앞선 말 가리키기·질문 피로·넘기기 요청)으로 answer 를 repair/skip 으로 바로잡고 그 말에서는 아무것도 저장하지 않는다(대표 AI OS CORE FINAL · PIPELINE LOCK 2026-09-26 「LLM 출력이 바로 사용자 사실이 되면 안 된다」). 입력 흐름·Golden·모델·파라미터 run 15·16 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0 — 넷 다 맞으면 「배포 가능」, 아니면 「배포 불가(v1.8 운영 버전 6 유지)」. 관측만: confirmed_items(가드가 답을 막아 줄 수 있음 — run 16 과 비교해 보고)·same_question_again·retries. 배포: 대표 2026-09-26 지시(운영배포 0)에 따라 결과와 상관없이 배포하지 않는다 — 결과 보고 뒤 대표 별도 승인.",
+  "why_v12": "대표 「FINAL MISSING CONTRACTS」(2026-09-26): 정보 계보·정정 계보·판 추적·매칭 결정 계약. v2.1 은 v2.0 의 서버 상태 기록만 늘렸다(프롬프트 글자·질문 규칙 변경 0 — 정정으로 밀린 옛 값을 RETRACTED 대신 SUPERSEDED 로 적고 소개 근거에서 함께 막음). 입력 흐름·Golden·모델·파라미터 run 15~17 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): run 17 과 같다 — ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0. 넷 다 맞으면 「배포 가능」. 배포: 대표 최종 배포 단계까지 금지(운영배포 0) — 결과 보고 뒤 대표 승인. 되돌리기 판 = v1.8(운영 버전 6 · docs/ROLLBACK_doit-agent.md).",
+  "why_v13": "대표 「FINAL INTEGRATION RELEASE CANDIDATE」(2026-09-26) §12 HELP: 「어렵네/무슨 뜻이야/예를 들면」은 매칭 답 저장 금지. 입력 흐름·Golden·모델·파라미터 run 15~18 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): run 17 과 같다 — ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0. 넷 다 맞으면 「배포 가능」. 관측(판정에 안 씀): help_classified(F3 help 6개 중) · retries · same_question_again. 모델 변경으로 실패를 숨기지 않는다(운영 모델 gpt-4o-mini 로만 판정). 배포 금지(대표 최종 배포 단계까지).",
+  "why_v14": "대표 「ECHO FINAL CLOSEOUT」(2026-09-26) §2: v2.3 을 운영 배포 직전 검증본까지 실제 AI 로 확인. 입력 = 기존 F1·FLOW1~7·F2·F3 + 새 F4(목적+자유입력·짧은 답·HELP·긴 답·정정·「아까 말했잖아요」)·F5(모르겠어·「어렵네」·정정 두 번). 모델 = 운영 모델 gpt-4o-mini 하나(비용 절감 · 판정도 운영 모델로만 했던 규칙과 같음). 결과를 보기 전 결정 규칙: ① 치명 지표 모두 0 — over_5 · questions_after_finish · complaint_saved · help_saved · help_counted · id_leak · banned · errors ② evaluative_ack = 0(받아주기 평가·칭찬·상담사 말) ③ question_banned_words = 0(당신·귀하·관계에서·가치관·성향·선호·이상형·조건·분석·진단) ④ abstract_questions/questions_total 25% 이하 · heavy_questions/questions_total 10% 이하 ⑤ intro_ready 80% 이상 · intro_self_claim = 0. 다섯 다 맞으면 「v2.3 배포 가능(대표 승인 대기)」, 하나라도 틀리면 v2.3 FAIL · 운영 v2.2 유지. 관측(판정에 안 씀): ack_example_copy · repeated_reply · same_question_again · 실제 문장(사람이 읽음). 운영 배포 금지.",
+  "why_v15": "run 20(v2.3) 실제 AI 결과를 사람이 읽고 찾은 실패: F5 「아니 매일은 부담스럽고 주말에 한 번 보면 좋겠어」를 gpt-4o-mini 가 2번 모두 answer 로 읽어 옛 값 「매일 연락」이 지금 값에 남음(CORRECTION_IGNORED · 재현 2/2) · 받아주기 「…인상적이에요」(평가 말). 원인: 서버가 정정 여부를 AI 가 붙인 종류(kind)에만 맡김. 해결: 말이 「아니·아냐·그게 아니라·그런 뜻 아니야·조금 달라」로 시작하고 앞머리 부정·정정 말을 모두 걷어 낸 나머지(새 뜻)가 4글자 이상이면 서버가 correction 으로 바로잡음(모양만 · 뜻 판정 아님) + 금지 말 추가. 반대 검사: 「아니요·아니·아니 몰라·아니면 …·아니다 싶은 …·아니 그게 아니라(새 뜻 없음)」은 가드가 바꾸지 않음. 입력·모델·파라미터 run 20 과 같음. 결과를 보기 전 결정 규칙: why_v14 의 ①~⑤ 전부(평가 받아주기 검사에 「인상적」 추가) + ⑥ correction_lead_missed = 0. 모두 맞으면 「v2.4 배포 가능(대표 승인 대기)」. 하나라도 틀리면 FAIL · 운영 v2.2 유지. 관측: 실제 문장(사람이 읽음) · 소개 초안의 앞뒤 어긋남 · same_question_again. 운영 배포 금지. [수정 · run 22] 결과를 보기 전 판정식 결함을 고침: 물음(?)으로 끝나는 말은 정정 가드·⑥ 집계에서 뺀다(항의·질문). 나머지 규칙 그대로.",
+  "why_v16": "run 22(v2.4) 실패 3건의 원인을 서버 규칙으로 고친 v2.5. ① 가드가 AI 가 answer 라고 한 말만 봤다 → repair 라고 한 말도, 앞선 말 가리키기·질문 피로가 아니고 정정 머리 + 새 뜻(4글자 이상 · 물음으로 안 끝남)이면 correction 으로 바로잡는다. ② 받아주기에서 평가·상담 문장(①의 evaluative 판정식과 같은 글자 모양)만 서버가 뺀다(나머지 문장은 그대로). ③ 질문의 「선호…」는 서버가 「좋아하…」로 바꾸고(뜻 같음), 다른 딱딱한 말(당신·귀하·관계에서·가치관·성향·이상형·조건·분석·진단)이 있으면 AI 에 한 번 다시 청한다. 입력·모델·파라미터·판정식은 run 22 와 같다. 결과를 보기 전 결정 규칙: why_v15 의 ①~⑥ 전부. 모두 맞으면 「v2.5 배포 가능(대표 승인 대기)」, 하나라도 틀리면 FAIL · 운영 v2.2 유지. 관측: 실제 문장(사람이 읽음). 운영 배포 금지. 판정식이 서버가 고친 뒤 글자를 세므로 ②③은 서버 규칙이 실제로 도는지를 확인하는 검사임을 보고에 밝힌다.",
+  "why_v17": "run 23(v2.5) 사람 검토 실패의 원인: 정정 엔진이 새 뜻과 같은 목적의 옛 값만 밀었는데, 새 뜻이 다른 목적에 저장됐다. 해결(v2.6 · 모양만): 정정 머리(아니·그게 아니라·그런 뜻 아니야…) 뒤 첫 낱말(조사 뗌 · 대명사·군말 제외 · 2글자 이상)이 바로 앞 사용자 말 인용에 있으면, 그 말에서 나온 지금 값을 목적과 상관없이 SUPERSEDED 로 민다(원문은 지우지 않음). 소개 초안에서 밀린 값 인용(앞 6글자)을 담은 문장은 서버가 뺀다. 반대 검사: F4 「아니 그게 아니라, 연락은 하루에 한두 번이면 충분해요」는 바로 앞 말(말이 잘 통하고…)에 「연락」이 없어 아무것도 밀지 않는다. 입력·모델·파라미터는 run 23 과 같다. 결과를 보기 전 결정 규칙: why_v15 의 ①~⑥ 전부 + ⑦ intro_has_superseded = 0 + ⑧ f5_old_value_active = 0(F5 2판 모두 옛 값 「매일 연락…」이 지금 값에 없음). 모두 맞고 사람이 실제 문장을 읽어 새 결함이 없으면 「v2.6 배포 가능(대표 승인 대기)」. 하나라도 틀리면 FAIL · 운영 v2.2 유지. 운영 배포 금지.",
+  "why_v18": "run 24(v2.6) 사람 검토의 남은 결함 2종을 서버 규칙으로 고친 v2.7. ① 받아주기에서 빼는 문장에 감정 짐작(힘들었구나·불편하셨·부담스러우셨·속상하셨·서운하셨·아쉬운 마음 등)을 더함(사용자 말 되풀이 「부담스럽고」「힘들다는」은 안 뺌). ② 「선호…」를 질문뿐 아니라 받아주기·도움말·소개 초안에서도 「좋아…」로 바꿈. 입력·모델·파라미터 run 24 와 같음. 판정식: ②의 evaluative_ack 정규식에 ①의 감정 짐작 글자 모양을 더하고, ⑨ stiff_word_reply_intro(받아주기+소개의 「선호」) = 0 을 더함. 결과를 보기 전 결정 규칙: ①~⑧ 전부 + ⑨. 모두 맞고 사람이 실제 문장을 읽어 새 결함이 없으면 「v2.7 배포 가능(대표 승인 대기)」, 아니면 결과 그대로 보고 · 운영 v2.2 유지. 이번이 마감 전 마지막 실행(더 고치면 대표에게 보고 후). 운영 배포 금지.",
+  "why_v19": "대표 「CLAUDE CODE 구현 명세표 FINAL」(2026-09-26). 기준 v2.6(run 24 · 8/8) — v2.7 은 쓰지 않음. v2.8 = v2.6 + 좁은 서버 가드 3개: ① 감정 짐작 금지(받아주기·마무리 문장에 감정 말이 있는데 사용자 말에 그 감정이 없으면 그 문장만 뺌) ② 정정 > 그만(끝난 뒤 포함 · AI 가 stop 이라 해도 정정 머리+새 뜻이면 correction · 머리에 「내 말은·내가 말한 건·정확히는」 추가 · 「아니 이제 됐어」 같은 그만 말은 제외) + 옛 값 찾기 넓힘(도움·항의를 건너뛴 가장 최근 답 · 「X 이 아니라」의 X 는 모든 앞선 답 · 연락·만남 빈도는 한 값) + AI 가 새 뜻을 못 뽑으면 정정 원문을 새 값으로 ③ 소개 초안 빈 값 방지(밀린 값 문장은 대비 말이 없을 때만 뺌 · 비면 기존 상한 INTRO_TRIES_MAX 안에서 다시 쓰기 · 끝난 뒤 정정이 값을 바꾸면 다시 쓰기 · 그래도 비면 PROFILE_EMPTY_AFTER_CORRECTION / PROFILE_GENERATION_FAILURE 기록 · 하드코딩 소개 0) + 「선호」는 받아주기·소개에서도 쉬운 말. 입력: 기존 18판 + 명세 §13 시나리오 F6(질문 피로 · 무슨 뜻이야 · 아니 그게 아니라 · 아까 말했는데 · 끝난 뒤 「내가 말한 건 매일 연락이 아니라 …」 · 이제 됐어) 존댓말·반말 2판 = 20판. 모델·파라미터 run 24 와 같음. 결과를 보기 전 결정 규칙(판정식은 run-prod-agent.mjs 에서 에이전트 코드와 따로 셈): (1) v2.6 기준 ①~⑧ 전부 — 단 ⑦ 은 run 25 증거(옛 값을 부정하는 바른 문장까지 빼서 소개가 빔)로 superseded_in_intro(밀린 값 글자 + 대비 말 없음)로 바꿔 셈, 옛 intro_has_superseded 는 관측만 (2) emotion_assumption_ack = 0 (3) correction_lead_missed = 0 (4) correction_to_stop = 0 (5) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 (6) empty_profile = 0(끝났고 확인 정보가 있는데 소개가 ready 가 아님) (7) question_banned_words = 0 · stiff_word_reply_intro = 0 (8) already_answered_reask = 0(이미 CONFIRMED 인 목적을 새 핵심 질문으로 다시 물음) (9) over_5 = 0 · help_counted = 0 (10) 실제 출력 전수 사람 검토. (1)~(9) 모두 맞고 (10) 에서 결함이 없으면 PASS 「v2.8 배포 가능(대표 승인 대기)」. (1)~(9) 중 하나라도 틀리면 FAIL. (1)~(9) 통과 + (10) 결함이면 PARTIAL. 어느 경우에도 운영 v2.2 유지 · 운영 배포 금지 · 이번 실행 결과로 더 고치지 않고 보고.",
+  "why_v20": "대표 「v2.9 FINAL CORRECTION RECOVERY」 승인(2026-09-26). 파일 기준 v2.8(= v2.6 + run 26 에서 검증된 수정: 감정 짐작 0 · 밀린 값 재등장 0 · 빈 소개 0) 위에 승인된 3개만: ① 끝난 뒤 받는 말 상한(MAX_AFTER_TURNS 5)은 그대로 두고, 상한을 넘은 말 중 서버가 모양으로 정정이라 판정한 말만 대화마다 1번 받음(대화 AI 1번 · 다시 청하기 없음 · 값이 바뀌면 소개 다시 쓰기는 기존 INTRO_TRIES_MAX 안 · 두 번째 정정·일반 말은 AI 없이 닫음 · 대화 모드 재개 없음) ② 정정인데 AI 가 새 뜻을 못 뽑으면 정정 원문(머리 뗀 것)을 새 값으로(밀린 값 목적 → 지금 질문 목적 → 가장 최근 확인 값 목적) ③ 정정 직후 같은 뜻 다시 캐묻기(「이유·왜」 · 정정과 질문이 둘 다 빈도 · 정정 첫 낱말) 금지 — 한 번 다시 청하고 그래도면 서버가 질문을 뺌. 소개 다시 쓰기 상한에 걸리면 AI 없이 지금 초안을 새 상태로 다시 거름. 입력: run 26 의 20판 + F7(다섯 답 → 끝난 뒤 말 6개로 상한 채움 → 상한 넘은 정정 → 두 번째 정정 → 일반 말) 존댓말·반말 2판 = 22판. 모델·파라미터 같음. 결과를 보기 전 결정 규칙(판정식은 run-prod-agent.mjs 에서 따로 셈): (1) v2.6 ①~⑧(⑦은 why_v19 대로 superseded_in_intro · ⑥은 아래 (3)으로 셈) (2) emotion_assumption_ack = 0 (3) correction_lead_missed_v29 = 0(정정 모양인데 correction 아님 — 단 이미 보정 1회를 쓴 대화에서 상한 때문에 닫힌 말은 설계대로라 뺌) (4) correction_to_stop = 0 (5) correction_raw_lost = 0 (6) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 · f7_recovered = 2/2 (7) empty_profile = 0 (8) reask_after_correction = 0 (9) already_answered_reask = 0 (10) question_banned_words = 0 · stiff_word_reply_intro = 0 · evaluative_ack = 0 (11) over_5 = 0 · help_counted = 0 · questions_after_finish = 0 (12) unnecessary_after_calls = 0 · max_recovery_per_run ≤ 1 · 보정 1번의 호출 ≤ 2(대화 1 + 소개 다시 쓰기 1) (13) 실제 출력 전수 사람 검토. (1)~(12) 모두 맞고 (13) 결함 없으면 PASS, (1)~(12) 중 하나라도 틀리면 FAIL, (1)~(12) 통과 + (13) 결함이면 PARTIAL. 어느 경우든 v2.10 을 만들지 않고 보고 후 멈춤 · 운영 v2.2 유지 · 운영 배포 제안 금지(PASS 전).",
+  "why_v21": "대표 「CLAUDE CODE FINAL IMPLEMENTATION MASTER · HUMAN CONVERSATION + SAJU/TAROT DATA FUNNEL」(2026-09-26 PDF). 후보 1개 = v2.10(저장소 판 번호 v2.9 다음). 파일 기준 v2.9(= v2.6 + v2.8·v2.9 에서 실제 AI 로 검증된 수정 A 감정 짐작 금지 · B 끝난 뒤 정정 우선(보정 1회) · C 빈 소개 방지) 위에: ① 사주·타로 → 대화 다리 — 화면은 결과 종류만(사주 세 갈래 · 타로 카드 이름) 넘기고 서버가 다리 문장 하나를 만든다(첫 답 뒤 새 핵심 질문 자리 · 결과는 slots 에 안 들어감 · 뜻 정리에 결과 말이 섞이면 사용자 원문 인용으로 바꿈 · 결과를 부정하면 그 해석은 거절 뜻 · 소개·매칭 프로필에 결과 0) ② 소개 초안에 가장 최근 정정 반영(없으면 기존 상한 안 다시 쓰기 · run 27 사람 검토 결함) ③ 정정 원문 끝말(「…다는 뜻이야」) 떼기. 입력: run 27 의 22판 + S1(사주→대화) · S2(사주 반박 · 존댓말·반말) · T1(타로→대화) · T2(타로 반박 · 존댓말·격식) = 28판. 모델·파라미터 같음. 결과를 보기 전 결정 규칙(PDF §33 · 판정식은 run-prod-agent.mjs 에서 따로 셈): (1) v2.6 ①~⑧(⑥=correction_lead_missed_v29 · ⑦=superseded_in_intro) (2) emotion_assumption_ack = 0 (3) correction_lead_missed_v29 = 0 (4) correction_to_stop = 0 (5) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 · f7_recovered = 2/2 · correction_raw_lost = 0 (6) empty_profile = 0 · latest_correction_missing_in_intro = 0 (7) evaluative_ack = 0 · question_banned_words = 0 · stiff_word_reply_intro = 0 (8) already_answered_reask = 0 · reask_after_correction = 0 (9) over_5 = 0 · help_counted = 0 · questions_after_finish = 0 (10) content_result_as_fact = 0 · content_in_intro = 0 (11) content_matching = 0 (12) rebuttal_reappearance = 0 · rebuttal_user_words_kept = 4/4 · content_bridge_shown = 6/6 (비용) unnecessary_after_calls = 0 · max_recovery_per_run ≤ 1 (13) 실제 출력 전수 사람 검토. (1)~(12)+비용 모두 맞고 (13) 결함 없으면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 결함이면 PARTIAL. 어느 경우든 v2.11 을 만들지 않고 보고 후 멈춤 · 운영 v2.2 유지 · 운영 배포 금지.",
+  "why_v22": "대표 「CLAUDE CODE FINAL EXECUTION MASTER」(2026-09-26). 후보 1개 = v2.11(판 번호 v2.10 다음). v2.6 줄기(= v2.6 + A 감정 짐작 금지 · B 끝난 뒤 정정 우선 · C 빈 소개 방지 · 사주·타로 다리) 위에 [품질 최소 수정] run 28 결함: 소개 다시 쓰기가 비면 이전 초안을 새 상태로 다시 걸러 유지 · 다리 답 턴 결과 문구 거르기 · 결과 반박은 정정으로 세지 않음 · 반박 모양 넓힘 · 받아주기 속 물음 문장은 서버가 뺌 [비용] 실측(v2.10): 고정 지시문 2,476 토큰 = 턴 입력의 약 85~90% · 세 말투 공통 앞부분 64 토큰뿐 → 말투 줄을 끝으로 옮겨 공통 앞부분 2,406 토큰(캐시) · 출력 칸 understood·check 삭제 · 최근 원문 10→4턴 + 저장 안 된 앞선 말 · 서비스 안내는 물음일 때만 · 받아주기 물음 다시 청하기 없앰. 입력: run 28 의 28판 + S3(F7 사주 「이건 좀 아닌데」) · T3(F8 타로 「나는 오히려」) · T4(F9 이미 말한 연락 방식 재질문 0 · 존댓말·반말) = 32판. 모델·파라미터 같음. BEFORE(같은 28판 · run 28 · v2.10 실측): 호출 247 · 턴 203 · 입력 645,131 · 출력 31,494 · 다시 청하기 33 · 캐시 토큰은 그때 기록하지 않음. 결과를 보기 전 결정 규칙(판정식은 run-prod-agent.mjs): (1) why_v21 의 (1)~(12)와 비용 줄 전부 — 단 사주·타로 반박은 rebuttal2_*(「아니·아닌데·오히려」)로 · rebuttal2_user_words_kept = 6/6 · content_bridge_shown = 10/10 (2) covered_reask = 0 (3) 비용 게이트: cost_same_set 의 턴당 입력 토큰 < 3,178 · 턴당 호출 ≤ 1.217 · 다시 청하기 ≤ 33 (4) 실제 출력 전수 사람 검토. (1)~(3) 모두 맞고 (4) 결함 없으면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 결함이면 PARTIAL. 비용 줄었어도 품질 기준이 하나라도 나빠지면 비용 최적화 FAIL. 추정 비용은 gpt-4o-mini 공개 단가(입력 $0.15 · 캐시 입력 $0.075 · 출력 $0.60 / 100만 토큰 · 이 환경에서 가격표 접속 차단이라 대표 확인 필요)로만 계산. 어느 경우든 추가 후보를 만들지 않고 보고 후 멈춤 · 운영 v2.2 유지 · 운영 배포 금지.",
+  "why_v23": "대표 「ECHO v2.11 · PROFILE/CORRECTION P0 ONLY」(2026-09-26). 후보 1개 = v2.11-p0(파일 agent-v2.11-p0.ts · 저장소에 비용판 agent-v2.11.ts 가 이미 있어 덮어쓰지 않으려고 -p0). 기준 v2.10(사주·타로 연결·UI·비용 조치 그대로 · run 29 의 비용 조치 미포함). 수정 4개만: ① 최근 정정이 소개에 없으면 그 정정 한 줄만 소개 문장으로 다시 쓰는 호출 1번(서버 확인: 존댓말 끝 · 원문 반말 그대로 아님 · 원문과 두 글자 묶음 겹침 0.4 이상 · 소개 규칙 통과) ② 소개 다시 쓰기가 비면 이전 초안을 지금 상태로 다시 걸러 유지 ③ 소개는 존댓말만(반말 끝 문장은 서버가 뺌 · 지시문에 말투만 맞추라고 추가) ④ 이미 답을 받은 목적의 질문과 글자 겹침 0.3 이상이거나 이미 들은 연락·만남 빈도를 다시 묻는 새 질문은 한 번 다시 청하고 그래도면 뺌 · 받아주기·마무리의 물음 문장은 서버가 뺌. 입력: run 29 와 같은 32판(S3·T3·T4 포함 · 사주·타로 줄은 v2.10 그대로라 S3 반박 저장은 관측만). 모델·파라미터 같음. 결과를 보기 전 결정 규칙(판정식은 run-prod-agent.mjs): (1) latest_correction_missing_in_intro = 0 (2) intro_overwrite = 0 · empty_profile = 0 (3) raw_verbatim_leak = 0 · intro_casual_line = 0 (4) semantic_reask = 0 · already_answered_reask = 0 · covered_reask = 0 (5) ack_question_completion = 0 (6) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 (7) rebuttal_reappearance = 0 · content_result_as_fact = 0 · content_in_intro = 0 · content_matching = 0 (8) emotion_assumption_ack = 0 (9) evaluative_ack = 0 · question_banned_words = 0 · stiff_word_reply_intro = 0 (10) over_5 = 0 · help_counted = 0 · questions_after_finish = 0 (11) v2.10 기준 회귀 0: 치명 0(errors · complaint_saved · help_saved · id_leak · banned) · correction_lead_missed_v29 = 0 · correction_to_stop = 0 · correction_raw_lost = 0 · f7_recovered = 2/2 · rebuttal_user_words_kept = 4/4 · content_bridge_shown = 10/10 · intro_self_claim = 0 · unnecessary_after_calls = 0 · max_recovery_per_run ≤ 1 · 추상 ≤ 25% · 무거움 ≤ 10% (12) 실제 출력 전수 사람 검토. (1)~(11) 모두 맞고 (12) 결함 없으면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 결함이면 PARTIAL. 실패해도 v2.12 를 만들지 않고 보고 후 멈춤 · 운영 v2.2 유지 · 운영 배포 금지.",
+  "why_v25": "대표 「ECHO · FINAL IMPLEMENTATION + DEPLOYMENT READINESS」(2026-09-26). 후보 1개 = v2.12(저장소에 v2.11 · v2.11-p0 가 이미 있어 다음 번호). v2.11-p0(P0-1 빈 소개 덮어쓰기 0 · P0-2 최근 정정 소개 반영) 위에: 조기 종료 제거(뜻 재질문은 다시 청하기만) · P0-3 사주·타로(다리 답 턴 결과 문구 거르기 · 반박 모양 넓힘 · 반박은 정정 아님 · 항의로 읽혀도 새 이야기는 답으로) · 미확정 사실화 막기(짐작 문장은 사용자 말 겹침 30% 미만이면 빼고, 단정 문장은 겹침 0 이면 뺌). 로컬: 새 회귀 검사 A~G 6/6 · Deno check(index+agent) 통과. 입력: run 30 의 32판 + S4(대표 예시 「아니, 난 사람 만나는 거 좋아해」 존댓말·반말) = 34판. 모델·파라미터 같음. 결과를 보기 전 결정 규칙(판정식 run-prod-agent.mjs): (1) empty_profile = 0 · intro_overwrite = 0 (2) latest_correction_missing_in_intro = 0 (3) correction_lead_missed_v29 = 0 · correction_to_stop = 0 · correction_raw_lost = 0 (4) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 · f7_recovered = 2/2 (5) rebuttal2_reappearance = 0 · rebuttal_reappearance = 0 · rebuttal2_user_words_kept = 8/8 (6) unconfirmed_fact_ack = 0 (7) content_result_as_fact = 0 · content_in_intro = 0 (8) content_matching = 0 (9) emotion_assumption_ack = 0 · evaluative_ack = 0 · question_banned_words = 0 · stiff_word_reply_intro = 0 · intro_casual_line = 0 (10) already_answered_reask = 0 · reask_after_correction = 0 · covered_reask = 0 · ack_question_completion = 0 · early_finish_runs = 0 (11) 치명 0(errors · complaint_saved · help_saved · id_leak · banned · over_5 · help_counted · questions_after_finish) · content_bridge_shown = 12/12 · intro_self_claim = 0 · unnecessary_after_calls = 0 · max_recovery_per_run ≤ 1 · 추상 ≤ 25% · 무거움 ≤ 10% (12) 실제 출력 전수 사람 검토. 관측만: raw_verbatim_leak(run 30 에서 판정식이 자연스러운 존댓말 문장까지 셈 — 사람 검토로 판단) · semantic_reask · tone_mismatch_turns. (1)~(11) 모두 맞고 (12) 결함 없으면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 결함이면 PARTIAL. FAIL 이면 추가 후보 없이 보고 · 운영 v2.2 유지 · 운영 배포 금지.",
+  "why_v26": "대표 「ECHO · FINAL INTEGRATED AUDIT + FIX + DEPLOYMENT READINESS」(2026-09-26). 후보 1개 = v2.13(v2.12 위). 고친 것: [P0-A] 메타질문(「질문이 뭐야」「고정질문이야?」)·관련성 불만(「내가 적는 거랑 상관없이」「말이 안 된다」 · run 31 「질문했는데 답을 못햐?」「내 내용을 반영해서」)을 서버가 모양으로 알아보고 답으로 저장하지 않음 · 그 턴은 같은 질문을 다시 밀지 않고 사용자 말에 이어지는 열린 질문(open · 핵심 질문 수에 안 셈) 또는 질문 없이 듣기 · 듣기 뒤 답은 원문으로 보존 [P0-B] 질문이 빠져도 물을 목적이 남았으면 끝내지 않음 · 서비스 설명에서 「다섯 개까지만」 약속 제거(상한 5 그대로) [P0-1] 끝난 뒤 받은 답이 저장되면 소개 다시 쓰기. 판정식 먼저 고침(결과 보기 전 · metrics-v213.test.mjs 합성 행 3/3): unconfirmed_fact_ack_v213 = 받아주기(reply)만 셈(마무리 고정 문장 제외) · early_finish_v213 = 대화 중 마친 턴에서 방금 질문의 목적을 못 들었고 그만·넘기기·모르겠다가 아니며 핵심 질문 5 미만인 판 · 새 식: redirect_turns · complaint_forced_question · redirect_finish · meta_saved_as_fact · post_redirect_answer_lost · redirect_empty_reply(메타·불만 모양은 판정식이 따로 씀). 입력: run 31 의 34판 + CEO_META(존댓말·반말) + CEO_COMPLAINT(존댓말·반말) = 38판(F7 · T2 · FLOW6 · S1 · S4 사주 반박 · T3·T4 타로 반박 포함). 모델·파라미터 같음. 로컬: 후보 검사 A~I 13/13 · v2.12 검사 6/6 을 v2.13 에 다시 돌려 6/6 · Deno check(index+agent) 통과 · 가짜 AI 재생 38판 오류 0. 결과를 보기 전 결정 규칙: (1) empty_profile = 0 · intro_overwrite = 0 (2) latest_correction_missing_in_intro = 0 (3) correction_lead_missed_v29 = 0 · correction_to_stop = 0 · correction_raw_lost = 0 (4) superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 · f7_recovered = 2/2 (5) rebuttal2_reappearance = 0 · rebuttal_reappearance = 0 · rebuttal2_user_words_kept = 8/8 (6) unconfirmed_fact_ack_v213 = 0 (7) content_result_as_fact = 0 · content_in_intro = 0 (8) content_matching = 0 (9) emotion_assumption_ack = 0 · evaluative_ack = 0 · question_banned_words = 0 · stiff_word_reply_intro = 0 · intro_casual_line = 0 (10) already_answered_reask = 0 · reask_after_correction = 0 · covered_reask = 0 · ack_question_completion = 0 · early_finish_v213 = 0 (11) 치명 0(errors · complaint_saved · help_saved · id_leak · banned · over_5 · help_counted · questions_after_finish) · content_bridge_shown = 12/12 · intro_self_claim = 0 · unnecessary_after_calls = 0 · max_recovery_per_run ≤ 1 · 추상 ≤ 25% · 무거움 ≤ 10% (12) 메타·불만: complaint_forced_question = 0 · redirect_finish = 0 · meta_saved_as_fact = 0 · post_redirect_answer_lost = 0 · redirect_empty_reply = 0 (13) 실제 출력 전수 사람 검토(메타 턴 받아주기가 물음에 솔직히 답하는지 · 다음 질문이 사용자 말에 이어지는지 포함). 관측만(판정 제외): unconfirmed_fact_ack · early_finish_runs(run 31 식 · 결함 확인됨) · raw_verbatim_leak · semantic_reask · tone_mismatch_turns. (1)~(12) 모두 맞고 (13) 결함 없으면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 결함이면 PARTIAL. FAIL 이면 추가 후보 없이 보고 · 운영 v2.2 유지 · 운영 배포 금지.",
+  "why_v27": "대표 「FINAL PRODUCT/AGENT IMPLEMENTATION DIRECTIVE」 + 「v3 IMPLEMENTATION FINAL GUARD + TECH STACK LOCK」(2026-09-26). 후보 = v3.0 TURN CONTRACT: 이해(모델 후보: 16개 입력 종류 · 사용자 말 사실) → 서버 상태 반영(v2.12 엔진: 정정 교체·거절 차단·정보 상태·계보·원문 보존·사주·타로 거절) → 서버 행동 결정(ANSWER_USER·REPAIR·ACK_CORRECTION·FOLLOW·EXPLAIN·ASK_GAP·BRIDGE·CLOSE) → 말하기(모델 후보: 행동에 맞는 받아주기·질문 하나) → 서버 검사(빈 받아주기·질문 둘·되풀이·이미 들은 것·거절 뜻·정정 캐묻기·딱딱한 말·말투 · 한 번 다시 청하고 그래도면 질문을 빼고 듣기 · 끝내기 0). 끝내기 = 원하는 만남 확인 + 목적 넷 확인·넘김 · 물을 목적 없음 · 목적 질문 상한 5 · 그만하기 · 턴 상한. v2.13 보존: 메타·불만 문장 사실 저장 0(저장 직전 검사) · 듣기 뒤 답 원문 보존 · 끝난 뒤 답 소개 반영. 모델·파라미터 같음(gpt-4o-mini · 턴당 호출 2~4). 입력: run 32 의 38판 + H_TOPIC(반말·존댓말) · H_RICH · H_JOKE · H_REJECT = 43판. 로컬: v3 검사 27/27(골든 실패 세트 15 포함) · spike 66/66 · Deno check · 가짜 AI 43판 오류 0. 결과를 보기 전 결정 규칙: (1) errors = 0 (2) 메타·불만: complaint_forced_question = 0 · redirect_finish = 0 · meta_saved_as_fact = 0 · post_redirect_answer_lost = 0 · redirect_empty_reply = 0 (3) 정정: correction_lead_missed_v29 = 0 · correction_raw_lost = 0 · correction_to_stop = 0 · latest_correction_missing_in_intro = 0 · reask_after_correction = 0 (4) 옛 값: superseded_in_intro = 0 · f5_old_value_active = 0 · f6_old_value_active = 0 · f7_recovered = 2/2 (5) 사주·타로: rebuttal2_reappearance = 0 · rebuttal_reappearance = 0 · rebuttal2_user_words_kept = 8/8 · content_result_as_fact = 0 · content_in_intro = 0 · content_matching = 0 · content_bridge_shown = 12/12 (6) 소개: empty_profile = 0 · intro_overwrite = 0 · intro_casual_line = 0 · raw_verbatim_leak 은 자동 수가 0 이 아니면 사람이 한 줄씩 확인해 실제 원문 복붙 = 0 (7) 재질문: already_answered_reask = 0 · covered_reask = 0 · same_question_again = 0 (8) early_finish_v213 = 0 · rich_answer_padding = 0 (9) 말: unconfirmed_fact_ack_v213 = 0 · emotion_assumption_ack = 0 · evaluative_ack = 0 · question_banned_words = 0 · stiff_word_reply_intro = 0 (10) 치명 0(complaint_saved · help_saved · id_leak · banned · over_5 · questions_after_finish) · unnecessary_after_calls = 0 (11) 실제 출력 전수 사람 검토(Humanity: 방금 말에서 잇는가 · 설문·상담사·면접 냄새 · 템플릿 반복 · 감정 짐작 · 질문 자연스러움 · 더 말하고 싶은가 → PASS/PARTIAL/FAIL). 관측만: tone_mismatch_turns · semantic_reask · input_types · actions · speak_fallback_turns · 비용(calls·tokens). (1)~(10) 모두 맞고 (11) PASS 면 PASS, 하나라도 틀리면 FAIL, 자동 통과 + 사람 PARTIAL 이면 PARTIAL. 운영 모델 변경 0 · 운영 배포 0.",
+  "why_v28": "대표 「ECHO v3.1 · SERVER FIX + OPENAI MODEL COMPARISON · FINAL EXECUTION ORDER」(2026-09-26). 후보 = v3.1: run 33 서버 결함 7개만 고침(P0-1 빈 턴 차단 · P0-2 원인별 복구(불만·메타·질문 생성·빈 답·읽기 실패·따라가기·검사 실패 — 모델 복구 후보 1회 → 서버 문장) · P0-3 reply 칸 질문 살려 쓰기(한 개 · 같은 검사) · P0-4 끝내기 = 원하는 만남 + 서로 다른 인용으로 확인된 목적 4(넘김 제외) 또는 물을 목적 없음 + 인용 3 이상 또는 더 들은 턴에 새 사실 0 · SKIP 은 끝내지 않음 · P0-5 소개 무결성(두 글자 묶음 옛 값 표시 · 거절=RETRACTED 만 · 정본 상태 다시 만들기 · 반말 원문 그대로 옮김 차단 · 빈 초안으로 덮어쓰기 0) · P0-6 듣는 중 직접 말 원문 UNCONFIRMED 보존(사실·소개·매칭 0) · P0-7 불만·메타 말 전체 인용 사실 0 · 사실 원문 저장은 핵심 질문 답만). 사람다움(~군요·라벨 베끼기·감정 부풀리기·설문 말투)은 서버 정규식으로 고치지 않음 — 모델 비교로 판단. 모델 비교 1/2: 같은 v3.1 · 같은 43판(test-flows 같음) · 같은 파라미터(temperature 0.2 · top_p 0.9 · max_tokens 768 · json_object) · 모델만 gpt-4.1-mini. 다음(run 35)은 이 판정 규칙 그대로 모델만 gpt-4.1(에이전트·입력 해시 같음 · models 만 바꿔 다시 등록). gpt-4o-mini 기준선은 run 33(v3.0) 재사용 — 서버가 달라 같은 조건 비교가 아님을 보고에 밝힘. 로컬: v3.1 검사 52/52(v3 검사 27 + run 33 재현 A~H 등 25) · v3 검사 27/27 그대로 · spike 165/165 · Deno check · 앱 type-check·lint·build(app·brand) · 가짜 AI 43판 오류 0 · 판정 지표 0. 결과를 보기 전 결정 규칙: why_v27 의 (1)~(11) 그대로 + (12) v3.1: blank_turns = 0 · generic_listen_after_redirect = 0 · skip_closed = 0 · superseded_stale_in_intro = 0 · listen_answer_lost = 0 · redirect_saved = 0. 관측만: generic_listen_lines · speak_recovery_types · recovery_calls_v31 · intro_rebuild_calls · salvaged_questions · salvage_dropped · raw_kept_unconfirmed · raw_kept_promoted · server_emptied_reply · 비용(calls·tokens·cached) · 지연(p50·p95). (1)~(12) 모두 맞고 (11) Humanity PASS 면 PASS · 하나라도 틀리면 FAIL · 자동 통과 + 사람 PARTIAL 이면 PARTIAL. 서버 결함과 모델 품질은 따로 판정(SERVER / MODEL QUALITY). 운영 모델 변경 0 · 운영 배포 0 · Claude API 0. Model Router(2026-09-27 대표 「3-MODEL ROUTER LOCAL BUILD + OPENAI BASELINE RUN」): 모든 호출이 router/router.ts 를 거친다 · 역할 PRIMARY = OpenAI(gpt-4.1-mini) 하나 · Gemini·Anthropic = 미연결 자리(실제 호출 0) · 실제 HTTP 는 run 33 과 같은 기록기(같은 요청 본문). 로컬 가짜 AI 43판에서 Router 켬/끔 결과 동일(서버 지표·대화 전부) 확인. 관측 추가(판정 아님): router_calls_by_provider · router_roles · router_fallbacks · router_real_calls_non_openai(0 이어야 함 — 0 이 아니면 실행 무효) · router_server_rejected · Model Performance 파일(호출 한 줄 · 원문 0)."
  }
 }

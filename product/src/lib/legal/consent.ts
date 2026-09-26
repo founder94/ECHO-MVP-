@@ -1,7 +1,7 @@
 // 약관 동의 — 화면 공용 로직.
 // 정본은 서버(profiles.consent_version). 브라우저 임시값은 "가입 → 이메일 확인/Google 이동 → 첫 로그인" 사이의
 // 잠깐 동안만 동의 내용을 들고 있다가 서버에 옮기는 용도다.
-// 비밀번호·토큰은 다루지 않는다. 동의 항목 4개(약관·개인정보·만 14세·마케팅)와 시각만 있다.
+// 비밀번호·토큰은 다루지 않는다. 동의 항목 4개(약관·개인정보·만 19세·마케팅)와 시각만 있다.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { LEGAL_VERSION } from './documents';
@@ -11,13 +11,13 @@ export const CONSENT_VERSION = LEGAL_VERSION;
 export interface ConsentChoice {
   terms: boolean;
   privacy: boolean;
-  age14: boolean;
+  age19: boolean;
   marketing: boolean;
 }
 
-export const EMPTY_CONSENT: ConsentChoice = { terms: false, privacy: false, age14: false, marketing: false };
+export const EMPTY_CONSENT: ConsentChoice = { terms: false, privacy: false, age19: false, marketing: false };
 
-export const REQUIRED_CONSENT_KEYS = ['terms', 'privacy', 'age14'] as const;
+export const REQUIRED_CONSENT_KEYS = ['terms', 'privacy', 'age19'] as const;
 export type RequiredConsentKey = (typeof REQUIRED_CONSENT_KEYS)[number];
 
 export function requiredAllChecked(choice: ConsentChoice): boolean {
@@ -32,7 +32,7 @@ export function allChecked(choice: ConsentChoice): boolean {
 }
 
 export function setAll(checked: boolean): ConsentChoice {
-  return { terms: checked, privacy: checked, age14: checked, marketing: checked && MARKETING_ENABLED };
+  return { terms: checked, privacy: checked, age19: checked, marketing: checked && MARKETING_ENABLED };
 }
 
 // 가입 시 인증 메타데이터에 실어 보내는 값. 서버(profiles)에 옮겨 적기 전까지의 기록이다.

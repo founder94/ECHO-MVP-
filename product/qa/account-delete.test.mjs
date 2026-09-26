@@ -250,7 +250,9 @@ test('약관: 앱 안 탈퇴와 메일 요청 둘 다 적혀 있고, 쓰지 않�
   for (const p of ['src/doit/pages/do-it/settings/AccountDeletion.tsx', 'src/doit/lib/accountApi.ts', SERVER]) assert.doesNotMatch(read(p), banned, p);
 });
 
-test('41차 메뉴: 숨김 목록은 비어 있어 운영(37차)과 같은 탭·메뉴다(대표 정정 "임의 숨김 금지"). 숨김 장치와 주소는 그대로 남는다', () => {
+// 2026-09-26 대표 「FINAL HUMAN UX / PRODUCT STRUCTURE」 §17·§20·§26·§34 가 41차 「숨김 목록 비움」 결정을 대체했다:
+// MVP 는 말한다 → 이해한다 → 기억한다. 준비 중·엔진 없는 기능은 숨기고(주소로 오면 앱 홈), 화면 파일·주소 정의는 보존한다.
+test('MVP 메뉴(2026-09-26): Just Try·KEY·등급·공간·월드·알림 숨김 · 사주·타로는 보임(대표 정정) · 탭은 홈·연결·프로필 · 주소 정의는 보존 · 바로 들어오면 앱 홈', () => {
   const nav = read('src/doit/components/feature/BottomNav.tsx');
   assert.match(nav, /const tabs = allTabs\.filter\(\(tab\) => visibleInRelease\(tab\.to\)\);/);
   const top = read('src/doit/components/feature/TopBar.tsx');
@@ -260,6 +262,9 @@ test('41차 메뉴: 숨김 목록은 비어 있어 운영(37차)과 같은 탭·
   const compile = (p) => ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
   vm.runInNewContext(compile('src/doit/lib/releaseScope.ts'), { exports });
-  assert.equal(Object.keys(exports.HIDDEN_IN_RELEASE).length, 0);
-  for (const p of ['/doit/home', '/doit/spaces', '/doit/world', '/doit/connections', '/doit/profile', '/doit/fortune', '/doit/just-try', '/doit/grade', '/doit/notifications']) assert.equal(exports.visibleInRelease(p), true, p);
+  for (const p of ['/doit/home', '/doit/connections', '/doit/profile', '/doit/understanding', '/doit/conversation', '/doit/settings', '/doit/settings#install']) assert.equal(exports.visibleInRelease(p), true, p);
+  // 2026-09-26 대표 정정 「SAJU / TAROT FINAL LOCK」: 사주·타로(/doit/fortune)는 다시 보인다.
+  assert.equal(exports.visibleInRelease('/doit/fortune'), true);
+  for (const p of ['/doit/spaces', '/doit/world', '/doit/room', '/doit/just-try', '/doit/key', '/doit/grade', '/doit/notifications', '/do-it/fortune', '/do-it/grade']) assert.equal(exports.visibleInRelease(p), false, p);
+  for (const p of ['spaces', 'world', 'just-try', 'grade', 'notifications', 'fortune', 'key']) assert.match(routes, new RegExp(`path: "${p}", element: gate\\("/doit/${p}"`), `${p} 는 gate 로 막는다`);
 });

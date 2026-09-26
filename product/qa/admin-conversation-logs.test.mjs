@@ -48,10 +48,10 @@ test('화면은 보이는 범위를 먼저 밝히고 원문을 기본으로 가�
   const view = await read('src/doit/pages/do-it/admin/views/ConversationLogs.tsx');
 
   // 본인 줄만 보인다는 사실을 화면에 적는다.
-  assert.match(view, /로그인한 계정의 기록만/);
+  assert.match(view, /로그인한 계정\(대표님\)의 기록만/); // 대표 2026-09-25 쉬운 말로 바꿈
   // 승인 전 실행 금지인 초안 파일 이름을 화면에서 알려 준다.
   assert.match(view, /PENDING_20260922_admin_read_doit_conversation\.sql/);
-  assert.match(view, /대표 승인 전에는 실행하지 않습니다/);
+  assert.match(view, /대표 승인 전에는 켜지 않아요/);
 
   // 원문은 기본으로 가린다(눌러야 보인다).
   assert.match(view, /useState\(false\)/);

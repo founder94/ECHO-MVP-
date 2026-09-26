@@ -46,10 +46,12 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   for (const m of appRules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of splitTop(m[1])) { const t = sel.trim(); if (!t) continue; assert.match(t, /^(\.doit-app-pastel\b|\.doit-root \.doit-product\.doit-app-pastel\b)/, t); }
 });
 
-test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·굵기·배치 규칙 0', () => {
+test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·배치 규칙 0 · 굵기는 500·600만', () => {
   assert.doesNotMatch(rules + bgRules, /url\(|readdy|helloreaddy|weather|particle|parallax/i); // 설명 주석은 빼고 실제 규칙만
   assert.doesNotMatch(bgRules, /font-family|font-size|font-weight|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
-  assert.doesNotMatch(rules, /font-family|font-size|font-weight|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
+  assert.doesNotMatch(rules, /font-family|font-size|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
+  // 굵기는 대표 지시 「안내 글씨 굵기 한 단계」(2026-09-25)로 500·600만 허용 · 700/800 금지
+  for (const [, w] of rules.matchAll(/font-weight:\s*([^;}]+)/g)) assert.match(w.trim(), /^(500|600)$/, `font-weight:${w}`);
   assert.match(bg, /--echo-pastel-veil:0;/, '대표 결정: 캡처 색 그대로(덮개 0)');
 });
 

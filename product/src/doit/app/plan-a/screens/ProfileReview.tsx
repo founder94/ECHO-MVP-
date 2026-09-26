@@ -22,8 +22,8 @@ export function ProfileReview({ onNext, onEditProfile, onEditPhotos, userId = nu
   return <div className="doit-profile-review"><div className="doit-profile-review-inner">
     <div className="doit-profile-review-brand"><DoItSymbol decorative />DO IT COMPANY</div>
     <p className="doit-product-kicker">PROFILE REVIEW · 프로필 확인</p>
-    <h1 className="doit-product-title">내가 고른 말로,<br />나를 소개합니다.</h1>
-    <p className="doit-product-description">직접 적은 이야기를 한 번 더 읽어보세요.<br />지금의 나와 달라졌다면 고쳐도 괜찮아요.</p>
+    <h1 className="doit-product-title">이렇게<br />소개돼요.</h1>
+    <p className="doit-product-description">한 번 읽어 보고, 다르면 고쳐요.</p>
     <ProfilePhotoGallery userId={userId} onManage={onEditPhotos} />
     <div className="doit-profile-card">
       <div className="doit-profile-card-head"><span className="doit-product-kicker">직접 작성한 프로필</span><DoItSymbol decorative /></div>

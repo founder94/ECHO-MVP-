@@ -13,7 +13,7 @@ export interface ReadinessInfo { phone_verified: boolean; intro_saved: boolean }
 export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
 export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; readiness?: ReadinessInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
 export interface CallRec { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
-export interface TurnRecord { turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
+export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
 export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
@@ -65,10 +65,12 @@ export function dashboard(sessions: Session[], now: number = Date.now()) {
   };
 }
 
-export interface Candidate { type: string; session: string; turn: number | null; user: string | null; agent: string | null; evidence: 'ACTUAL' | 'HYPOTHESIS'; status: 'CANDIDATE'; note: string }
+// version: 실패가 어느 판(에이전트·프롬프트·모델)에서 났는지(2026-09-26 FAILURE → VERSION). 예전 기록은 판 칸이 없어 「판 기록 없음」.
+export interface Candidate { type: string; session: string; turn: number | null; user: string | null; agent: string | null; evidence: 'ACTUAL' | 'HYPOTHESIS'; status: 'CANDIDATE'; note: string; version: string }
 export function candidates(s: Session): { failure: Candidate[]; success: Candidate[] } {
   const failure: Candidate[] = []; const success: Candidate[] = [];
-  const add = (list: Candidate[]) => (type: string, t: Turn | null, evidence: Candidate['evidence'], note: string) => list.push({ type, session: s.id, turn: t?.i ?? null, user: t?.user ?? null, agent: t?.assistant ?? null, evidence, status: 'CANDIDATE', note });
+  const ver = (r: TurnRecord | null | undefined) => r?.agent_version ? `${r.agent_version} · ${r.prompt_version ?? '?'} · ${r.calls?.find((c) => c.model)?.model ?? r.model_requested ?? '모델 기록 없음'}` : `${s.agent} · 판 기록 없음`;
+  const add = (list: Candidate[]) => (type: string, t: Turn | null, evidence: Candidate['evidence'], note: string) => list.push({ type, session: s.id, turn: t?.i ?? null, user: t?.user ?? null, agent: t?.assistant ?? null, evidence, status: 'CANDIDATE', note, version: ver(t?.rec ?? s.records.at(-1)) });
   const f = add(failure); const ok = add(success);
   if (s.core > 5) f('QUESTIONS_OVER_5', null, 'ACTUAL', `핵심 질문 ${s.core}개`);
   const seen = new Map<string, number>();
@@ -85,12 +87,17 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     const q = t.assistant.split('\n').at(-1) ?? '';
     if (/[?？]$/.test(q)) { const k = q.replace(/\s+/g, ''); if (seen.has(k) && t.action !== 'ask') f('SAME_QUESTION_REPEATED', t, 'ACTUAL', `턴 ${seen.get(k)} 와 글자까지 같은 질문`); else seen.set(k, t.i); }
   }
-  if (s.phase === 'done' && s.core <= 5) ok('FINISHED_WITHIN_5', s.turns.at(-1) ?? null, 'ACTUAL', `핵심 질문 ${s.core}개로 마침`);
+  // 성공 후보 이름(2026-09-26 RELEASE CANDIDATE §22): PRIOR_ANSWER_REUSED · CORRECTION_RECOVERED · REJECTION_RESPECTED · HELP_RECOVERED · FIVE_TURN_COMPLETED · AI_PROFILE_CONFIRMED · MATCHING_READY.
+  // 한 번 성공했다고 규칙이 되지 않는다 — 늘 CANDIDATE(검토 → 반복 재현 → 검증 뒤에만 유지·승격).
+  if (s.phase === 'done' && s.core <= 5) ok('FIVE_TURN_COMPLETED', s.turns.at(-1) ?? null, 'ACTUAL', `핵심 질문 ${s.core}개로 마침`);
+  if (s.intro?.used) ok('AI_PROFILE_CONFIRMED', null, 'ACTUAL', `사용자가 소개를 ${s.intro.used === 'as_is' ? '그대로 사용' : s.intro.used === 'edited' ? '고쳐서 사용' : '직접 씀'}`);
+  if (s.phase === 'done' && s.intro?.used && s.photos?.primary && s.readiness?.phone_verified) ok('MATCHING_READY', null, 'ACTUAL', '대화·소개 확인·대표 사진·전화 인증 모두 됨');
   if (s.profile) {
     const confirmed = PURPOSE_IDS.filter(id => (s.profile?.[id] as { status?: string } | undefined)?.status === 'CONFIRMED').length;
     if (confirmed >= 3) ok('PROFILE_READY', null, 'ACTUAL', `직접 말한 목적 ${confirmed}/5`);
     const corr = (s.profile.user_corrections as string[] | undefined) ?? [];
-    if (corr.length) ok('CORRECTION_RECORDED', null, 'ACTUAL', `정정 ${corr.length}건이 프로필에 남음`);
+    const superseded = s.records.reduce((n, r) => n + (r.superseded ?? 0), 0);
+    if (corr.length || superseded) ok('CORRECTION_RECOVERED', null, 'ACTUAL', `정정 ${corr.length}건 · 정정으로 밀린 옛 값 ${superseded}개(지금 값만 매칭에 씀)`);
   }
   s.turns.forEach((t, k) => {
     const next = s.turns[k + 1];
@@ -99,7 +106,12 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     // 같은 질문을 다시 보인 바로 다음에 사용자가 항의 → 이미 답한 것을 다시 물은 후보(운영 2026-09-25 Galaxy 실측과 같은 모양). 원인은 사람이 확인.
     const prev = s.turns[k - 1];
     if (t.action === 'repair' && prev?.decision === 'keep_after_answer') f('ALREADY_ANSWERED_REASK', t, 'ACTUAL', `턴 ${prev.i} 뒤 같은 질문을 다시 보였고 사용자가 항의함`);
-    if (t.recovered.length) ok('MEMORY_RECOVERED', t, 'ACTUAL', `앞선 말에서 되살림: ${t.recovered.join(', ')}`);
+    if (t.recovered.length) ok('PRIOR_ANSWER_REUSED', t, 'ACTUAL', `앞선 말에서 되살림: ${t.recovered.join(', ')}`);
+    // 도움 뒤 같은 목적의 답이 저장됨 = 도움이 통했다(질문 수는 늘지 않음).
+    if (t.flags.help && next?.rec?.saved && next.question_purpose === t.question_purpose) ok('HELP_RECOVERED', next, 'ACTUAL', '「예를 들면?」 뒤 같은 질문에 답이 들어옴');
+    // 거절·정정 뒤 다음 질문이 문제 삼은 질문과 글자까지 같지 않음 = 거절을 존중한 후보(뜻까지 같은지는 사람이 확인).
+    const lastQ = (x: Turn | undefined) => (x?.assistant.split('\n').at(-1) ?? '').replace(/\s+/g, '');
+    if ((t.flags.rejection || t.flags.correction) && next && lastQ(next) && lastQ(next) !== lastQ(prev)) ok('REJECTION_RESPECTED', next, 'HYPOTHESIS', '거절·정정 뒤 같은 질문을 되풀이하지 않음(뜻은 사람이 확인)');
   });
   return { failure, success };
 }
@@ -121,4 +133,72 @@ export async function fetchAgentAdmin(): Promise<Session[]> {
   const r = await serverFunctionRequest<{ sessions: RawSession[]; turns: RawTurn[] }>('doit-agent', { action: 'admin_sessions' });
   if (!Array.isArray(r.sessions) || !Array.isArray(r.turns)) throw new Error('INVALID_RESPONSE');
   return r.sessions.map(s => normalize(s, r.turns));
+}
+
+// ── ECHO 전체 파이프라인(2026-09-26 대표 END-TO-END PIPELINE LOCK) — 사용자(대화 세션) 한 명이 어디까지 왔고 어디서 막혔는지.
+// 서버가 준 실제 기록만 쓴다. 기록이 없으면 UNKNOWN(모름)이지 PASS 가 아니다. 외부 연결이 없어 막힌 단계는 BLOCKED 로 적고 이유를 붙인다.
+export type StageState = 'PASS' | 'PARTIAL' | 'WAIT' | 'FAIL' | 'BLOCKED' | 'UNKNOWN';
+export interface Stage { key: string; label: string; state: StageState; note: string }
+export const PIPELINE_STAGES: { key: string; label: string }[] = [
+  { key: 'input', label: '입력(글·말)' }, { key: 'conversation', label: '대화(최대 5)' }, { key: 'ai_os', label: 'AI OS(기억·정정·거절)' },
+  { key: 'state', label: '확정 정보(CONFIRMED)' }, { key: 'ai_profile', label: 'AI 소개 · 사용자 확인' }, { key: 'photo', label: '사진' },
+  { key: 'phone', label: '전화 인증' }, { key: 'matching_ready', label: '연결 준비' }, { key: 'candidate', label: '후보·연결' },
+];
+const AI_OS_FAILS = new Set(['QUESTIONS_OVER_5', 'PROMPT_ID_LEAK', 'ALREADY_ANSWERED_REASK', 'SAME_QUESTION_REPEATED', 'TURN_ERROR']);
+export function pipeline(s: Session): { stages: Stage[]; stuck: Stage | null; aiOs: { guard: number; superseded: number; recovered: number; corrections: number; errors: number } } {
+  const st = (key: string, state: StageState, note: string): Stage => ({ key, label: PIPELINE_STAGES.find((x) => x.key === key)!.label, state, note });
+  const recs = s.records;
+  const aiOs = {
+    guard: recs.filter((r) => r.guard).length, superseded: recs.reduce((n, r) => n + (r.superseded ?? 0), 0),
+    recovered: s.turns.filter((t) => t.recovered.length).length, corrections: recs.filter((r) => r.flags?.correction).length,
+    errors: recs.filter((r) => r.kind === 'error' || (r.calls ?? []).some((c) => c.error)).length,
+  };
+  const fails = candidates(s).failure.filter((c) => AI_OS_FAILS.has(c.type));
+  const confirmed = s.profile ? PURPOSE_IDS.filter((id) => (s.profile?.[id] as { status?: string } | undefined)?.status === 'CONFIRMED').length : null;
+  const stages: Stage[] = [
+    st('input', s.mode === 'TEXT' || s.mode === 'VOICE' ? 'PASS' : 'UNKNOWN', s.mode === 'VOICE' ? '말(키보드 받아쓰기) — 실시간 음성 아님' : s.mode === 'TEXT' ? '글' : '기록 없음'),
+    st('conversation', s.phase === 'done' ? 'PASS' : 'WAIT', `핵심 질문 ${s.core}/5 · ${s.phase === 'done' ? '끝남' : '진행 중'}`),
+    st('ai_os', fails.length ? 'PARTIAL' : recs.length ? 'PASS' : 'UNKNOWN',
+      fails.length ? `문제 후보: ${[...new Set(fails.map((f) => f.type))].join(', ')}` : recs.length ? `가드 ${aiOs.guard} · 정정 교체 ${aiOs.superseded} · 되살림 ${aiOs.recovered} · 오류 ${aiOs.errors}` : '턴 기록 없음(예전 대화)'),
+    st('state', confirmed == null ? (s.phase === 'done' ? 'UNKNOWN' : 'WAIT') : confirmed >= 1 ? (confirmed >= 3 ? 'PASS' : 'PARTIAL') : 'FAIL', confirmed == null ? '매칭 프로필 없음' : `직접 말한 목적 ${confirmed}/5`),
+    st('ai_profile', !s.intro ? (s.phase === 'done' ? 'UNKNOWN' : 'WAIT') : s.intro.used ? 'PASS' : s.intro.status === 'ready' ? 'WAIT' : s.intro.status === 'failed' ? 'FAIL' : 'PARTIAL',
+      !s.intro ? '초안 기록 없음' : s.intro.used ? `사용자 확인: ${s.intro.used === 'as_is' ? '그대로' : s.intro.used === 'edited' ? '고쳐서' : '직접 씀'}` : s.intro.status === 'ready' ? '초안 있음 · 사용자 확인 전' : s.intro.status === 'failed' ? '초안 못 만듦' : '재료 없음'),
+    st('photo', !s.photos ? 'UNKNOWN' : s.photos.count > 0 && s.photos.primary ? 'PASS' : s.photos.count > 0 ? 'PARTIAL' : 'WAIT', !s.photos ? '기록 없음' : `${s.photos.count}장 · 대표 ${s.photos.primary ? '있음' : '없음'}`),
+    st('phone', !s.readiness ? 'UNKNOWN' : s.readiness.phone_verified ? 'PASS' : 'BLOCKED', !s.readiness ? '기록 없음' : s.readiness.phone_verified ? '인증됨' : '문자 발송 업체 미연결(STOP · 대표 승인 필요)'),
+  ];
+  const needed = ['conversation', 'ai_profile', 'photo', 'phone'].filter((k) => stages.find((x) => x.key === k)!.state !== 'PASS');
+  stages.push(st('matching_ready', needed.length ? (needed.includes('phone') ? 'BLOCKED' : 'WAIT') : 'PASS', needed.length ? `남은 것: ${needed.map((k) => PIPELINE_STAGES.find((x) => x.key === k)!.label).join(', ')}` : '조건 충족'));
+  stages.push(st('candidate', 'BLOCKED', s.handoff?.status === 'NOT_CONNECTED' || s.handoff ? '서버 후보 결정 계약은 준비됨 · 연결 서버가 아직 쓰지 않아 후보 0(가짜 후보 0)' : '매칭 프로필 없음'));
+  return { stages, stuck: stages.find((x) => x.state !== 'PASS') ?? null, aiOs };
+}
+// 단계별로 PASS 에 닿은 사람 수와, 가장 많은 사람이 멈춘 단계 TOP 3(병목).
+export function pipelineSummary(sessions: Session[]) {
+  const all = sessions.map(pipeline);
+  const reached = Object.fromEntries(PIPELINE_STAGES.map((x) => [x.key, all.filter((p) => p.stages.find((y) => y.key === x.key)?.state === 'PASS').length]));
+  const stuckCount = new Map<string, number>();
+  for (const p of all) if (p.stuck) stuckCount.set(p.stuck.key, (stuckCount.get(p.stuck.key) ?? 0) + 1);
+  const top = [...stuckCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => ({ key, label: PIPELINE_STAGES.find((x) => x.key === key)!.label, n }));
+  return { total: sessions.length, reached, top };
+}
+
+// ── AI OS 6개 엔진 관측(2026-09-26 RELEASE CANDIDATE §5 · §33). 실제 턴 기록에서 동작 증거·문제 증거를 센다.
+// 판정: 기록 0 = UNKNOWN · 문제 증거가 있으면 PARTIAL · 동작 증거만 있으면 PASS(관측). 엔진 이름·파일이 있다는 것만으로는 PASS 가 아니다.
+export interface EngineRow { key: string; name: string; state: StageState; works: number; problems: number; evidence: string }
+export function aiOsEngines(sessions: Session[]): EngineRow[] {
+  const all = sessions.map((s) => ({ s, c: candidates(s) }));
+  const n = (f: (x: { s: Session; c: ReturnType<typeof candidates> }) => number) => all.reduce((k, x) => k + f(x), 0);
+  const typ = (list: Candidate[], t: string) => list.filter((c) => c.type === t).length;
+  const recs = sessions.flatMap((s) => s.records);
+  const items = sessions.flatMap((s) => PURPOSE_IDS.flatMap((id) => { const slot = s.profile?.[id] as { items?: { source_type?: string }[]; history?: { status?: string }[] } | undefined; return [...(slot?.items ?? []).map(() => 'CONFIRMED'), ...(slot?.history ?? []).map((h) => h.status ?? '?')]; }));
+  const inferred = sessions.reduce((k, s) => k + (((s.profile?.inferred_candidates as unknown[] | undefined) ?? []).length), 0);
+  const row = (key: string, name: string, works: number, problems: number, evidence: string): EngineRow =>
+    ({ key, name, works, problems, evidence, state: !recs.length ? 'UNKNOWN' : problems ? 'PARTIAL' : works ? 'PASS' : 'UNKNOWN' });
+  return [
+    row('memory', '맥락 기억', n((x) => typ(x.c.success, 'PRIOR_ANSWER_REUSED')), n((x) => typ(x.c.failure, 'ALREADY_ANSWERED_REASK')), '앞선 말 되살림 / 이미 답한 것 다시 물음'),
+    row('correction', '정정', n((x) => typ(x.c.success, 'CORRECTION_RECOVERED')) + recs.reduce((k, r) => k + (r.superseded ?? 0), 0), 0, '정정 기록 · 정정으로 밀린 옛 값(지금 값만 사용)'),
+    row('rejection', '거절 뜻 차단', n((x) => typ(x.c.success, 'REJECTION_RESPECTED')) + recs.filter((r) => r.guard).length, n((x) => typ(x.c.failure, 'SAME_QUESTION_REPEATED')), '거절 뒤 되풀이 안 함 · 서버 가드 / 글자까지 같은 질문 반복'),
+    row('status', '정보 상태', items.filter((x) => x === 'CONFIRMED').length, 0, `지금 값 ${items.filter((x) => x === 'CONFIRMED').length} · 밀린 값 ${items.filter((x) => x === 'SUPERSEDED').length} · 거절 ${items.filter((x) => x === 'RETRACTED').length} · 추측(매칭에 안 씀) ${inferred}`),
+    row('direction', '방향 잠금(5개 목적)', n((x) => typ(x.c.success, 'FIVE_TURN_COMPLETED')), n((x) => typ(x.c.failure, 'QUESTIONS_OVER_5')), '다섯 안에 마침 / 핵심 질문 5 초과'),
+    row('failure', '실패·성공 기록', recs.length, recs.filter((r) => r.kind === 'error').length, `턴 기록 ${recs.length} · 실패 턴 ${recs.filter((r) => r.kind === 'error').length} · 판 기록 있는 턴 ${recs.filter((r) => r.agent_version).length}`),
+  ];
 }

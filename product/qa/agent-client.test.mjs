@@ -104,14 +104,14 @@ test('히어로: 앱에서만 선택창을 띄우고 히어로 부품(DoItBrandH
   assert.ok(!/overflow:\s*hidden|backdrop-filter/.test(layer.split('.echo-choice-layer .echo-choice-card')[0]), '스크롤 잠금·흐림 0');
 });
 
-test('관리자 후보: 같은 질문을 다시 보인 뒤 항의 = ALREADY_ANSWERED_REASK(ACTUAL) · 앞선 말에서 되살림 = MEMORY_RECOVERED', () => {
+test('관리자 후보: 같은 질문을 다시 보인 뒤 항의 = ALREADY_ANSWERED_REASK(ACTUAL) · 앞선 말에서 되살림 = PRIOR_ANSWER_REUSED', () => {
   const M = loadAdmin();
   const t = (n, kind, decision, o = {}) => ({ n, ai: 'q?', question_purpose: 'boundaries', user: `u${n}`, kind, reply: '', question: decision === 'finish' ? null : '꼭 있었으면 하는 건?', decision, ...o });
   const s = M.normalize(raw('dddddddd-4', 'done', [t(1, 'answer', 'core'), t(2, 'ask', 'keep_after_answer'), t(3, 'repair', 'finish', { recovered: ['boundaries'] })]), []);
   const c = M.candidates(s);
   const f = c.failure.filter((x) => x.type === 'ALREADY_ANSWERED_REASK');
   assert.equal(f.length, 1); assert.equal(f[0].turn, 3); assert.equal(f[0].evidence, 'ACTUAL'); assert.equal(f[0].status, 'CANDIDATE');
-  assert.ok(c.success.some((x) => x.type === 'MEMORY_RECOVERED' && x.turn === 3));
+  assert.ok(c.success.some((x) => x.type === 'PRIOR_ANSWER_REUSED' && x.turn === 3));
   const plain = M.normalize(raw('eeeeeeee-5', 'done', [t(1, 'answer', 'core'), t(2, 'repair', 'finish')]), []);
   assert.equal(M.candidates(plain).failure.filter((x) => x.type === 'ALREADY_ANSWERED_REASK').length, 0, '다시 보인 질문이 없으면 후보 아님');
 });

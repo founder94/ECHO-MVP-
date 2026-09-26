@@ -2,6 +2,7 @@
    전역(body/:root)을 건드리지 않는다. .echo-route-fallback 아래로만 적용한다.
    가짜 진행률(%)을 쓰지 않는다 — 실제로 얼마나 남았는지 알 수 없기 때문이다. */
 .echo-route-fallback{position:fixed;inset:0;z-index:40;display:grid;place-items:center;gap:18px;padding:24px;background:#08070c;color:#c4cfdf;text-align:center}
+.echo-route-fallback--pastel{background:linear-gradient(180deg,#3fdcb3 0%,#43e9a5 25%,#9fdc98 45%,#e2d58c 62%,#e0a276 80%,#c9714f 100%);color:#fff} /* 2026-09-26: 앱 파스텔 줄기(pastel-bg.css --pastel-underlay)와 같은 색 */
 .echo-route-fallback-inner{display:grid;place-items:center;gap:18px}
 .echo-route-fallback-orbit{position:relative;display:grid;place-items:center;width:76px;height:76px;border-radius:50%}
 .echo-route-fallback-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:echo-route-orbit 1.6s linear infinite}

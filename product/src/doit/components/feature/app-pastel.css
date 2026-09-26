@@ -5,12 +5,13 @@
    - 머리줄·하단 탭: 검은 띠가 남지 않게 반투명(탭 글자는 흰색 계열로 올려 대비를 지킨다).
    - 파스텔 위에 바로 놓인 글자는 대화 화면과 같은 흰색(대표 2026-09-25 「글씨 흰색 하나로」). 표준 대비는 낮다 — 보고서에 숫자로 적는다. */
 @import "./pastel-bg.css";
-.doit-app-pastel{--app-page:transparent;--app-surface:rgb(14 18 24/.81);--app-surface-border:#d9dfe8a6;color:#fff}
+@import "./echo-ui.css";
+.doit-app-pastel{--app-page:transparent;--app-surface:transparent;--app-surface-border:#d9dfe8a6;color:#fff;-webkit-text-stroke:.35px currentColor} /* 대표 2026-09-25 「흰 글씨 뒤 검은 배경 없애고 파스텔로 투명」: 판 .81 어두운 막 → 투명 */
 /* 탭이 있는 앱 화면(MobileLayout)·프로필 확인 화면: 원래 검정 바탕(#090a0c) 대신 파스텔 줄기(고정 바탕이 비는 순간에도 검정이 아니다) */
 .doit-root .doit-product.doit-app-pastel{background:var(--pastel-underlay)}
 .doit-app-pastel .doit-profile-review{background:transparent}
-.doit-app-pastel .doit-product-topbar{background:rgb(14 18 24/.28);border-color:#ffffff2e}
-.doit-app-pastel .doit-product-nav{background:rgb(14 18 24/.62);border-color:#ffffff2e;box-shadow:none}
+.doit-app-pastel .doit-product-topbar{background:transparent;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-color:#ffffff2e} /* 어두운 막 0 · 스크롤 때 아래 글자가 겹쳐 보이지 않게 흐림만 */
+.doit-app-pastel .doit-product-nav{background:rgb(255 255 255/.14);-webkit-backdrop-filter:blur(28px) saturate(1.2);backdrop-filter:blur(28px) saturate(1.2);border-color:#ffffff2e;box-shadow:none} /* 검정 0 · 옅은 흰 막+강한 흐림으로 아래 본문 글자가 탭 글자와 겹쳐 읽히지 않게 */
 .doit-app-pastel .doit-product-nav a{color:#e3e7ee}
 .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
 /* 파스텔 위 글자: 흰색 하나로(대화 화면과 같게) */
@@ -23,3 +24,24 @@
 .doit-app-pastel{--app-on-page:#fff}
 .doit-app-pastel .echo-text-button{color:#fff}
 .doit-app-pastel .doit-product-main :is(p,span,li,dt,dd,small,label,blockquote,h1,h2,h3,h4,em,strong,b,time):not(:is(button,[role="alert"],[class*="error"],[class*="card"],[class*="action"],[class*="primary"],[class*="install"]) *):not([class*="error"]){color:#fff}
+/* 대표 2026-09-25: 판(카드) 배경을 투명으로 바꿨으므로 판 안 글자도 흰색 하나로. 입력창·오류 안내는 제외. */
+.doit-app-pastel .doit-understanding-notice{background:transparent;border-color:var(--app-surface-border)}
+.doit-app-pastel :is(.doit-understanding-notice,.doit-profile-card) :is(h2,h3,p,span,li,small,strong,b,em,a,label):not(:is(input,textarea,select,[role="alert"],[class*="error"]) *):not([class*="error"]){color:#fff}
+/* 대표 2026-09-25 「글씨 색 유지 + 진하게」: 파스텔 위 큰 제목의 은색 글자 그라데이션은 얇은 외곽선과 겹치면 속이 빈 글자처럼 보인다.
+   대화 화면 제목(.echo-dialogue--pastel h1)과 같게 흰색 한 가지로 채운다. */
+.doit-app-pastel :is(.doit-understanding-page,.doit-product-main) .doit-product-title{background-image:none;-webkit-text-fill-color:#fff;color:#fff;animation:none}
+/* 대표 2026-09-25 실기기 피드백: 연결 화면 카드 · 프로필 「사진 추가·관리하기」의 검은 판도 투명으로. 프로필 목적·지역·리듬 글자는 흰색·굵게. */
+.doit-app-pastel .doit-asleep-card{background:transparent;border-color:var(--app-surface-border)}
+.doit-app-pastel .doit-asleep-card :is(.doit-asleep-label,.doit-asleep-status,.doit-asleep-check li,.doit-asleep-check a,.doit-asleep-check strong,.doit-asleep-number,.doit-asleep-common,.doit-asleep-next-title){color:#fff}
+.doit-app-pastel .doit-asleep-check li{border-color:#ffffff40}
+.doit-app-pastel .doit-profile-photo-manage{background:transparent;border-color:var(--app-surface-border);color:#fff}
+.doit-app-pastel .doit-profile-photo-thumbnails button{background:transparent}
+.doit-app-pastel .doit-profile-facts>div{border-color:#ffffff40}
+.doit-app-pastel .doit-profile-facts :is(dt,dd){color:#fff;font-weight:600}
+
+/* 2026-09-26 대표 「FINAL EXECUTION ORDER」 §23: 설정 판·설치 안내·프로필 빈 사진 칸의 검은 판도 파스텔이 비치는 투명 판 + 얇은 흰 테두리로. 탈퇴 확인(빨간 위험 버튼)은 그대로. */
+.doit-app-pastel :is(.doit-settings-panel,.doit-settings-note,.doit-settings-icon,.doit-settings-mail,.doit-settings-session,.doit-install,.doit-profile-photos-empty){background:transparent;border-color:var(--app-surface-border);box-shadow:none}
+.doit-app-pastel .doit-settings-panel :is(a,button,span,i){color:#fff}
+.doit-app-pastel .doit-install :is(h2,p,b,strong,li,li::marker,.doit-install-note,.doit-install-address,.doit-install-address span,.doit-install-later){color:#fff}
+.doit-app-pastel .doit-install :is(.doit-install-action,.doit-install-secondary){background:transparent;border:1px solid #fff;color:#fff}
+.doit-app-pastel .doit-profile-photos-empty :is(p,span,svg){color:#fff}

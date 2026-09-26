@@ -1,19 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { VOICE_ACTIVE_EVENT } from '@/doit/lib/voiceOutput';
+import { DOIT_TRACKS } from '@/lib/doitMusic';
 
-// A구조(DO IT) 오리지널 음악 원음 2곡.
-// 성별 확인 전이므로 "원음 1 / 원음 2"로 표기한다. 파일 순서로 성별을 추정하지 않는다.
-const TRACKS = [
-  {
-    id: 'origin-1',
-    label: '원음 1',
-    src: 'https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/80bd6071-35bc-4ca9-898c-cc7f3d8adc51_65f5bc59-e582-437a-97af-88cc38b6d259.mp3',
-  },
-  {
-    id: 'origin-2',
-    label: '원음 2',
-    src: 'https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/7bd42734-8e58-4474-8eed-08f21c108a30_02c258b7-43c4-40c2-b6f1-ac72d7d5be8d.mp3',
-  },
-];
+// 2026-09-26 대표 「DO IT MUSIC · MVP FINAL LOCK」: 첫 화면에서 내렸다(지금 쓰는 곳 0 · 파일은 보존). 음원 주소는 src/lib/doitMusic.ts 한 곳.
+const TRACKS = DOIT_TRACKS;
 
 function formatTime(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return '0:00';
@@ -111,6 +101,9 @@ export default function OriginalMusicCard() {
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
+    // 2026-09-26 대표 「음악 + Voice 충돌 금지」: ECHO 가 듣거나 말하기 시작하면 음악을 멈춘다(위치·곡은 그대로). 다시 틀기는 사용자가 재생을 누를 때만.
+    const onVoice = () => { if (!audio.paused) { requestIdRef.current += 1; audio.pause(); } };
+    window.addEventListener(VOICE_ACTIVE_EVENT, onVoice);
 
     return () => {
       aliveRef.current = false;
@@ -121,6 +114,7 @@ export default function OriginalMusicCard() {
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
+      window.removeEventListener(VOICE_ACTIVE_EVENT, onVoice);
       audio.src = '';
       audioRef.current = null;
     };
@@ -225,9 +219,13 @@ export default function OriginalMusicCard() {
 
   const progressPct = duration > 0 ? (current / duration) * 100 : 0;
   const hasSelection = track !== null;
+  // 2026-09-26 대표 실기기 「0:00 / 0:00 — 어떻게 듣는지 모르겠다」: 곡을 고르기 전·불러오는 중을 시간 대신 글로 알린다(재생되는 척 0).
+  const loading = hasSelection && !isPlaying && !errorState && duration === 0;
+  const nowLabel = !hasSelection ? '듣고 싶은 곡을 눌러 주세요'
+    : `${sequence ? `이어 듣기 · ${TRACKS[track].label}${track === 0 ? ' → 원음 2' : ' (마지막 곡)'}` : TRACKS[track].label}${loading ? ' · 불러오는 중' : isPlaying ? ' · 재생 중' : ' · 일시정지'}`;
 
   const versionBtnClass = (active: boolean) =>
-    `flex-1 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
+    `inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
       active
         ? 'border-white/50 bg-white/20 text-white'
         : 'border-white/15 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white/85'
@@ -251,7 +249,7 @@ export default function OriginalMusicCard() {
           type="button"
           onClick={stopAll}
           disabled={!hasSelection}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
             hasSelection
               ? 'border-white/20 bg-white/5 text-white/75 hover:bg-white/15 hover:text-white cursor-pointer'
               : 'border-white/10 text-white/25 cursor-not-allowed'
@@ -293,7 +291,7 @@ export default function OriginalMusicCard() {
           type="button"
           onClick={togglePlay}
           disabled={!hasSelection}
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors ${
             hasSelection
               ? 'border-white/30 bg-white/10 text-white hover:bg-white/20 cursor-pointer'
               : 'border-white/10 text-white/25 cursor-not-allowed'
@@ -311,9 +309,10 @@ export default function OriginalMusicCard() {
         </div>
 
         <span className="text-[11px] tabular-nums text-white/60 whitespace-nowrap">
-          {formatTime(current)} / {formatTime(duration)}
+          {hasSelection && duration > 0 ? `${formatTime(current)} / ${formatTime(duration)}` : '-:-- / -:--'}
         </span>
       </div>
+      <p className="mt-2 text-[11px] text-white/70" aria-live="polite">{nowLabel}</p>
 
       {/* 재생 오류 안내 (원인별 구분) */}
       {errorState && (

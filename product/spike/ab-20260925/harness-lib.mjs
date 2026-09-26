@@ -38,7 +38,7 @@ export function recorder(model = MODEL) { // model: MODEL GATE 에서 모델만 
       const data = await res.json();
       if (!res.ok) { rec.ms = Date.now() - started; rec.error = `http_${res.status}`; calls.push(rec); throw new Error('OPENAI_HTTP'); }
       content = String(data?.choices?.[0]?.message?.content ?? '');
-      rec.served_model = data?.model ?? null; rec.usage = data?.usage ?? null; rec.in_real = rec.usage?.prompt_tokens ?? null; rec.out_real = rec.usage?.completion_tokens ?? null;
+      rec.served_model = data?.model ?? null; rec.usage = data?.usage ?? null; rec.in_real = rec.usage?.prompt_tokens ?? null; rec.out_real = rec.usage?.completion_tokens ?? null; rec.cached_real = rec.usage?.prompt_tokens_details?.cached_tokens ?? null; // 2026-09-26 비용 실측: 캐시된 입력 토큰
     } else {
       content = mockFor.current(system, JSON.parse(userJson), calls.filter((c) => c.turnKey === mockFor.key).length);
     }

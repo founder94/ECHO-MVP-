@@ -49,3 +49,13 @@
 @media(max-width:360px){.doit-understanding-page{padding-top:27px}.doit-understanding-summary{gap:11px}.doit-understanding-summary strong{font-size:26px}.doit-understanding-filters{gap:6px}.doit-understanding-filters button{padding-inline:10px;font-size:11px}}
 .doit-understanding-page .doit-restart-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:14px;padding:10px 18px;border:1px solid #d9dfe8a6;border-radius:999px;background:#1b1f26;color:#eef1f5;font-size:13px;font-weight:600;text-decoration:none}
 .doit-understanding-page .doit-restart-pill>span{font-size:15px;line-height:1;color:#e6ebf3}
+/* 2026-09-26 「나의 이해」 다섯 칸 · 지금/지난 기록 */
+.doit-understanding-area{margin:0 0 8px}
+.doit-understanding-area-title{margin:22px 0 4px;font-size:17px;line-height:1.5;color:#fff}
+.doit-understanding-area .doit-understanding-list>li{padding:16px 0}
+.doit-understanding-area .doit-understanding-entry-text{margin:0 0 6px}
+.doit-understanding-entry-meta{font-size:12px;letter-spacing:0}
+.doit-understanding-past{margin:26px 0 8px;padding-top:14px;border-top:1px solid rgb(255 255 255/.45)}
+.doit-understanding-past>summary{min-height:44px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#fff;font-size:15px;text-decoration:underline;text-underline-offset:4px}
+.doit-understanding-past-note{margin:6px 0 4px;font-size:13px;line-height:1.7;color:#fff}
+.doit-understanding-source>summary{display:inline-flex;align-items:center;gap:4px;font-size:13px}

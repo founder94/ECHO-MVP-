@@ -17,7 +17,7 @@ import {
 } from "@/doit/lib/photoStorage";
 
 import { MAX_UPLOAD_PHOTO_BYTES, prepareAlbumPhoto, RecentPhotoError, type PreparedAlbumPhoto } from "@/doit/lib/recentPhoto";
-import { PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
+import { PHOTO_AI_CHECK_ENABLED, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
 
 const MAX_PHOTO_BYTES = MAX_UPLOAD_PHOTO_BYTES;
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
@@ -31,8 +31,8 @@ function PhotoDialog({ title, busy, onClose, children }: { title: string; busy?:
     panel.current?.focus();
     return () => { document.body.style.overflow = oldOverflow; previous?.focus(); };
   }, []);
-  return <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,.78)", backdropFilter: "blur(8px)" }}>
-    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm rounded-3xl p-5 overflow-y-auto" style={{ background: "linear-gradient(145deg,#242832,#11141a)", border: "1px solid #c9d2df42", color: colors.text, maxHeight: "90dvh" }} onKeyDown={(event) => {
+  return <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(255,255,255,.08)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}>
+    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm rounded-3xl p-5 overflow-y-auto" style={{ background: "rgba(255,255,255,.16)", backdropFilter: "blur(20px) saturate(1.2)", WebkitBackdropFilter: "blur(20px) saturate(1.2)", border: "1px solid rgba(255,255,255,.7)", color: "#fff", maxHeight: "90dvh" }} onKeyDown={(event) => {
       if (event.key === "Escape" && !busy) { event.preventDefault(); onClose(); }
       if (event.key === "Tab") {
         const controls = [...(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [href], [tabindex="0"]') ?? [])];
@@ -98,7 +98,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   // AI 판별 결과(칸별). 저장 뒤 비동기로 요청하고, 서버 함수가 없으면 '확인 대기'로만 표시한다(막지 않음).
   const [checks, setChecks] = useState<Record<number, PhotoCheck | "pending">>({});
   const requestCheck = useCallback((slot: number, photoId: string) => {
-    if (!userId) return;
+    if (!userId || !PHOTO_AI_CHECK_ENABLED) return; // MVP: AI 사진 판별 호출 0(DEFERRED_MVP)
     setChecks((prev) => ({ ...prev, [slot]: "pending" }));
     void requestPhotoCheck(userId, photoId, slot).then((result) => {
       if (mountedRef.current) setChecks((prev) => ({ ...prev, [slot]: result }));
@@ -479,12 +479,12 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
             const busy = busySlot === index || draft?.status === "uploading";
             const mode = savedPhoto ? "replace" : "capture";
             return <div key={slot.label} className="flex flex-col gap-2">
-              <div className="relative flex flex-col overflow-hidden rounded-2xl" style={{ background: "linear-gradient(140deg,#242832,#14171e)", border: `1px solid ${colors.borderStrong}` }}>
+              <div className="relative flex flex-col overflow-hidden rounded-2xl" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.7)" }}>
                 <button type="button" disabled={saveBusy || primaryBusy} onClick={() => openSourceChoice(index, mode)} aria-label={`${slot.label} ${preview ? "바꾸기" : "추가하기"}`} className="relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-3 overflow-hidden text-center disabled:cursor-wait">
                   {preview ? <img src={preview} alt={slot.label} className="absolute inset-0 h-full w-full object-cover" /> : <><ImagePlus size={25} color="#b7bfca" /><span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>{slot.label}</span><span style={{ fontSize: 10, color: colors.textMuted }}>{slot.hint}</span></>}
                   {isPrimary && <span className="absolute left-2 top-2 rounded-full px-2 py-1" style={{ background: "#e5e8ed", color: "#171a20", fontSize: 10, fontWeight: 600 }}>대표</span>}
                   {savedPhoto && checks[index] && <span className="absolute right-2 top-2 rounded-full px-2 py-1" style={{ background: checks[index] === "pending" ? "#2a2f3a" : checks[index].verdict === "ok" ? "#1f3b2a" : checks[index].verdict === "rejected" ? "#4a1f1f" : "#3b331f", color: "#e5e8ed", fontSize: 10, fontWeight: 600 }}>{checks[index] === "pending" ? "AI 확인 중" : VERDICT_LABEL[checks[index].verdict]}</span>}
-                  {busy && <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/65" role="status"><Loader2 size={20} color="#fff" className="animate-spin" /><span style={{ color: "#fff", fontSize: 11 }}>사진 준비·저장 중</span></span>}
+                  {busy && <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 " style={{ background: "rgba(255,255,255,.28)", backdropFilter: "blur(6px)" }} role="status"><Loader2 size={20} color="#fff" className="animate-spin" /><span style={{ color: "#fff", fontSize: 11 }}>사진 준비·저장 중</span></span>}
                 </button>
                 <div className="flex items-center justify-between gap-1 px-2 py-1" style={{ borderTop: `1px solid ${colors.border}` }}>
                   {savedPhoto && <button type="button" disabled={saveBusy || primaryBusy} onClick={() => void choosePrimary(index)} aria-label={isPrimary ? `${slot.label}, 대표 사진` : `${slot.label}, 대표 사진으로 지정`} aria-pressed={isPrimary} className="flex h-11 w-10 items-center justify-center disabled:opacity-40"><Star size={16} fill={isPrimary ? "#dce2ea" : "none"} color={isPrimary ? "#dce2ea" : colors.textMuted} /></button>}
@@ -510,7 +510,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           <Star size={14} color={colors.accent} className="mt-0.5 shrink-0" />
           <p style={{ color: colors.textFaint, fontSize: 12, lineHeight: 1.6 }}>
             별표는 대표 사진이에요. 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
-            AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요.
+            {PHOTO_AI_CHECK_ENABLED ? " AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요." : " 사진은 AI가 따로 판별하지 않아요. 본인 여부와 실제 촬영일도 확인하지 않아요."}
           </p>
         </div>
       </div>
@@ -553,22 +553,22 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
       </div>
 
       {sourceChoice && <PhotoDialog title={SLOTS[sourceChoice.slot].label} onClose={() => setSourceChoice(null)}>
-        <p style={{ color: "#bac2cf", fontSize: 13, lineHeight: 1.8, marginBottom: 20 }}>편한 방법으로 사진을 골라주세요.</p>
+        <p style={{ color: "#fff", fontSize: 13, lineHeight: 1.8, marginBottom: 20 }}>편한 방법으로 사진을 골라주세요.</p>
         <button type="button" className="w-full flex items-center justify-center gap-2 rounded-2xl min-h-14 px-4 py-4 mb-3" style={{ background: "linear-gradient(115deg,#f0f2f4,#bbc4d0)", color: "#141820", fontWeight: 600 }} onClick={() => { setCamera(sourceChoice); setSourceChoice(null); }}><Camera size={18} />지금 촬영</button>
         <button type="button" className="w-full flex items-center justify-center gap-2 rounded-2xl min-h-14 px-4 py-4" style={{ border: "1px solid #cbd5e34d", color: "#e5e9ef", fontWeight: 600 }} onClick={() => {
           albumTargetRef.current = sourceChoice;
           setSourceChoice(null);
           fileInputRef.current?.click();
         }}><ImagePlus size={18} />앨범에서 선택</button>
-        <p style={{ color: "#aab3c1", fontSize: 11, lineHeight: 1.8, marginTop: 16 }}>최근 2개월 안에 찍은 본인 사진을 선택해 주세요.</p>
+        <p style={{ color: "#fff", fontSize: 12, lineHeight: 1.8, marginTop: 16 }}>최근 2개월 안에 찍은 본인 사진을 선택해 주세요.</p>
       </PhotoDialog>}
       {album && <PhotoDialog title="이 사진을 올릴까요?" busy={saveBusy} onClose={closeAlbum}>
-        <img src={album.preview} alt={`${SLOTS[album.target.slot].label} 업로드 전 확인`} className="w-full rounded-xl object-contain" style={{ maxHeight: "35dvh", background: "#090b10" }} />
+        <img src={album.preview} alt={`${SLOTS[album.target.slot].label} 업로드 전 확인`} className="w-full rounded-xl object-contain" style={{ maxHeight: "35dvh", background: "rgba(255,255,255,.08)" }} />
         {album.dateCheck.kind === "needs-confirmation" ? <>
           <p style={{ fontSize: 12, lineHeight: 1.8, color: "#c5ccd7", marginTop: 16 }}>촬영 시점을 확인할 수 없어요. 최근 2개월 안에 찍은 본인 사진만 올려주세요.</p>
           <label className="flex items-start gap-3 py-4" style={{ color: "#e4e8ef", fontSize: 13, lineHeight: 1.7 }}><input type="checkbox" checked={confirmedRecent} disabled={saveBusy} onChange={(event) => setConfirmedRecent(event.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-slate-300" />최근 2개월 내 찍은 본인 사진입니다</label>
         </> : <p style={{ fontSize: 12, lineHeight: 1.8, color: "#c5ccd7", marginTop: 16 }}>최근 2개월 안의 날짜가 사진 정보에 기록되어 있어요.</p>}
-        <p style={{ fontSize: 11, lineHeight: 1.8, color: "#aab3c1", marginTop: 8 }}>사진 정보는 바뀌거나 빠질 수 있어요. 실제 촬영일·본인 여부·AI 생성 여부를 확인한 것은 아니에요.</p>
+        <p style={{ fontSize: 12, lineHeight: 1.8, color: "#fff", marginTop: 8 }}>사진 정보는 바뀌거나 빠질 수 있어요. 실제 촬영일·본인 여부·AI 생성 여부를 확인한 것은 아니에요.</p>
         {slotErrors[album.target.slot] && <p role="alert" style={{ color: colors.danger, fontSize: 12, lineHeight: 1.7, marginTop: 12 }}>{slotErrors[album.target.slot]}</p>}
         <button type="button" disabled={saveBusy || (album.dateCheck.kind === "needs-confirmation" && !confirmedRecent)} onClick={() => void confirmAlbum()} className="w-full rounded-2xl min-h-14 px-4 py-4 mt-5 disabled:opacity-40" style={{ background: "linear-gradient(115deg,#f0f2f4,#bbc4d0)", color: "#141820", fontWeight: 600 }}>{saveBusy ? "사진 저장 중" : "이 사진 올리기"}</button>
       </PhotoDialog>}

@@ -4,21 +4,23 @@ import { canPromptInstall, promptInstall, subscribeInstallPrompt, wasInstalledNo
 import { IS_BRAND_SITE } from '@/lib/siteRole';
 import './install-app.css';
 
-// 휴대폰에 DO IT 을 앱으로 받는 안내 (대표 2026-09-23 "아이폰이랑 갤럭시 기계에 어플 받을 수 있게").
-// - 이미 앱으로 열려 있으면 아무것도 보이지 않는다.
-// - "나중에"를 누르면 한 줄 버튼으로 접어 둔다(다시 펼칠 수 있다). 이 브라우저에만 기억한다.
-// - 설치 창을 못 띄우는 경우에도 메뉴에서 직접 받는 방법이 항상 남는다.
+// 휴대폰 홈 화면에 ECHO 를 두자고 한 번 권하는 카드 (대표 2026-09-23 앱으로 받기 → 2026-09-26 PWA INSTALL UX 로 바꿈).
+// - 자동 설치하지 않는다. 다섯 가지 대화를 마친 뒤(대화 끝 화면·앱 홈) 자연스러운 때에만 보여 준다(부르는 쪽이 정한다).
+// - 한 번 켜진 브라우저(세션)에서 딱 한 번만 권한다. 두 번째 화면부터는 보이지 않는다.
+// - 이미 홈 화면 앱으로 열려 있으면 아무것도 보이지 않는다. 설치하지 않아도 모든 기능을 그대로 쓴다.
+// - 갤럭시: [홈 화면에 추가]를 눌렀을 때만 브라우저 설치 창을 띄운다. 못 띄우면 메뉴에서 직접 받는 방법을 보여 준다.
+// - 아이폰: 설치 창이 없어 공유 → 「홈 화면에 추가」 방법만 짧게 보여 준다.
+// - 2026-09-26 대표 실기기 「앱 아이콘을 어디서 받는지 모르겠다」: variant="menu" 는 설정에 늘 있는 항목이다.
+//   한 번 권하기(세션 기록)와 상관없이 언제든 보이고, 이미 홈 화면 앱이면 「홈 화면에 추가됨」만 보인다. 누르기 전에는 아무것도 띄우지 않는다.
 
-const COLLAPSE_KEY = 'doit:install-card';
+const SESSION_KEY = 'echo:install-suggest';
 
-function readCollapsed(): boolean {
-  try { return localStorage.getItem(COLLAPSE_KEY) === 'collapsed'; } catch { return false; }
+// 이번 세션에 이미 권했는지. 저장이 막힌 환경이면 이 화면에서만 한 번 보여 준다.
+function alreadySuggested(): boolean {
+  try { return sessionStorage.getItem(SESSION_KEY) === 'shown'; } catch { return false; }
 }
-function writeCollapsed(value: boolean): void {
-  try {
-    if (value) localStorage.setItem(COLLAPSE_KEY, 'collapsed');
-    else localStorage.removeItem(COLLAPSE_KEY);
-  } catch { /* 저장이 막힌 환경: 이번 화면에서만 접힌다 */ }
+function markSuggested(): void {
+  try { sessionStorage.setItem(SESSION_KEY, 'shown'); } catch { /* 저장이 막힌 환경: 이 화면에서만 한 번 */ }
 }
 
 function readContext(): InstallContext {
@@ -81,73 +83,94 @@ function CopyAddress() {
   );
 }
 
-export default function InstallAppCard() {
+export default function InstallAppCard({ variant = 'suggest' }: { variant?: 'suggest' | 'menu' }) {
+  const menu = variant === 'menu';
   const [context] = useState<InstallContext>(readContext);
-  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed);
-  const [result, setResult] = useState<'none' | 'accepted' | 'manual'>('none');
+  // 처음 그릴 때 한 번만 정한다: 이번 세션에 이미 권했으면 이 화면에서는 보이지 않는다(설정 메뉴 항목은 늘 보인다).
+  const [eligible] = useState<boolean>(() => menu || !alreadySuggested());
+  const [open, setOpen] = useState(true);
+  const [result, setResult] = useState<'none' | 'accepted' | 'steps'>('none');
   const canPrompt = useSyncExternalStore(subscribeInstallPrompt, canPromptInstall, () => false);
   const justInstalled = useSyncExternalStore(subscribeInstallPrompt, wasInstalledNow, () => false);
 
-  useEffect(() => { writeCollapsed(collapsed); }, [collapsed]);
+  // 컴퓨터는 브라우저가 설치를 허락할 때만 권한다(휴대폰 안내를 컴퓨터에 띄우지 않는다).
+  const visible = !IS_BRAND_SITE && context !== 'installed' && eligible && open
+    && !(context === 'desktop' && !canPrompt && result === 'none' && !justInstalled);
 
-  if (IS_BRAND_SITE || context === 'installed') return null;
-  // 컴퓨터는 브라우저가 설치를 허락할 때만 보여 준다(휴대폰 안내를 컴퓨터에 띄우지 않는다).
-  if (context === 'desktop' && !canPrompt && result === 'none' && !justInstalled) return null;
+  useEffect(() => { if (visible && !menu) markSuggested(); }, [visible, menu]);
+
+  if (menu && !IS_BRAND_SITE && context === 'installed') {
+    return (
+      <section className="doit-install doit-install--menu" aria-live="polite">
+        <h2>홈 화면에 추가됨</h2>
+        <p>지금 홈 화면의 <b>DO IT</b> 아이콘으로 열려 있어요.</p>
+      </section>
+    );
+  }
+  if (menu && !IS_BRAND_SITE && context === 'desktop' && !canPrompt && !justInstalled) {
+    return (
+      <section className="doit-install doit-install--menu">
+        <h2>홈 화면에 ECHO 추가</h2>
+        <p>휴대폰에서 이 주소를 열면 홈 화면에 ECHO를 둘 수 있어요. 설치하지 않아도 그대로 쓸 수 있어요.</p>
+        <CopyAddress />
+      </section>
+    );
+  }
+  if (!visible) return null;
 
   if (justInstalled || result === 'accepted') {
     return (
       <section className="doit-install" aria-live="polite">
-        <h2>앱으로 받았어요</h2>
-        <p>이제 휴대폰 홈 화면의 <b>DO IT</b> 아이콘으로 열어 주세요.</p>
+        <h2>홈 화면에 두었어요</h2>
+        <p>다음에는 홈 화면의 <b>DO IT</b> 아이콘으로 바로 들어오세요.</p>
       </section>
     );
   }
 
-  if (collapsed) {
-    return (
-      <button type="button" className="doit-install-reopen" onClick={() => setCollapsed(false)}>
-        휴대폰에 앱으로 받기 <span aria-hidden="true">↗</span>
-      </button>
-    );
-  }
-
-  const install = async () => {
-    const outcome = await promptInstall();
-    setResult(outcome === 'accepted' ? 'accepted' : 'manual');
+  const add = async () => {
+    // 갤럭시 등 브라우저가 설치 창을 허락했을 때만 사용자가 누른 순간 띄운다.
+    if (canPrompt) {
+      const outcome = await promptInstall();
+      setResult(outcome === 'accepted' ? 'accepted' : 'steps');
+    } else {
+      setResult('steps');
+    }
   };
 
   const kakaoUrl = context === 'in-app' && isKakaoInApp(navigator.userAgent) ? kakaoOpenExternalUrl(`${window.location.origin}/`) : null;
 
   return (
-    <section className="doit-install" aria-labelledby="doit-install-title">
-      <h2 id="doit-install-title">홈 화면에 DO IT을 놓아 두세요</h2>
-      <p>아이콘 하나로 바로 열려요. 스토어를 거치지 않아서 업데이트도 따로 할 필요가 없어요.</p>
+    <section className={menu ? 'doit-install doit-install--menu' : 'doit-install'} aria-labelledby="doit-install-title">
+      <h2 id="doit-install-title">{menu ? '홈 화면에 ECHO 추가' : 'ECHO를 홈 화면에 둘까요?'}</h2>
+      <p>{menu ? '앱처럼 홈 화면 아이콘으로 바로 들어와요. 설치하지 않아도 그대로 쓸 수 있어요.' : '다음에는 바로 들어올 수 있어요.'}</p>
 
-      {context === 'android' || context === 'desktop' ? (
-        canPrompt && result === 'none'
-          ? <button type="button" className="doit-install-action" onClick={() => void install()}>앱으로 설치하기</button>
-          : <>
-              {result === 'manual' && <p className="doit-install-note">설치 창이 닫혔어요. 브라우저 메뉴에서 직접 받을 수 있어요.</p>}
-              <AndroidSteps />
-            </>
+      {result === 'none' ? (
+        <button type="button" className="doit-install-action" onClick={() => void add()}>홈 화면에 추가</button>
+      ) : context === 'android' || context === 'desktop' ? (
+        <>
+          <p className="doit-install-note">브라우저 메뉴에서 바로 넣을 수 있어요.</p>
+          <AndroidSteps />
+        </>
       ) : context === 'ios-safari' ? (
         <SafariSteps />
       ) : context === 'ios-other' ? (
         <>
-          <p className="doit-install-note">아이폰은 <b>사파리</b>에서 받는 게 가장 확실해요. 주소를 복사해 사파리 주소창에 붙여 넣은 뒤 아래처럼 해 주세요.</p>
+          <p className="doit-install-note">아이폰은 <b>사파리</b>에서 넣는 게 가장 확실해요. 주소를 복사해 사파리 주소창에 붙여 넣은 뒤 아래처럼 해 주세요.</p>
           <CopyAddress />
           <SafariSteps />
         </>
       ) : (
         <>
-          <p className="doit-install-note">지금은 다른 앱 안에서 열려 있어서 설치할 수 없어요. 휴대폰 기본 브라우저(아이폰은 사파리, 갤럭시는 크롬·삼성 인터넷)로 열어 주세요.</p>
+          <p className="doit-install-note">지금은 다른 앱 안에서 열려 있어서 홈 화면에 넣을 수 없어요. 휴대폰 기본 브라우저(아이폰은 사파리, 갤럭시는 크롬·삼성 인터넷)로 열어 주세요.</p>
           {kakaoUrl && <a className="doit-install-action" href={kakaoUrl}>기본 브라우저로 열기</a>}
           {!kakaoUrl && <p className="doit-install-note">오른쪽 위 <b>⋯</b> 메뉴에 <b>「다른 브라우저로 열기」</b>가 있으면 그걸 눌러요. 없으면 주소를 복사해 옮겨 주세요.</p>}
           <CopyAddress />
         </>
       )}
 
-      <button type="button" className="doit-install-later" onClick={() => setCollapsed(true)}>나중에 할게요</button>
+      {menu
+        ? result !== 'none' && <button type="button" className="doit-install-later" onClick={() => setResult('none')}>닫기</button>
+        : <button type="button" className="doit-install-later" onClick={() => setOpen(false)}>나중에</button>}
     </section>
   );
 }

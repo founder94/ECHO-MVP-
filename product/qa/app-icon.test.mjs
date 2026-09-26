@@ -20,13 +20,15 @@ test('크기별 아이콘: 정사각 PNG · 크기 맞음', () => {
 
 test('manifest: any 192·512 + maskable 512 = 새 아이콘만', () => {
   const m = JSON.parse(readFileSync(at('public/manifest.webmanifest'), 'utf8'));
-  assert.deepEqual(m.icons.map((i) => `${i.src}|${i.sizes}|${i.purpose}`), ['/pwa/echo-icon-192.png|192x192|any', '/pwa/echo-icon-512.png|512x512|any', '/pwa/echo-icon-512-maskable.png|512x512|maskable']);
-  for (const i of m.icons) assert.ok(statSync(at(`public${i.src}`)).size > 0);
+  // 대표 2026-09-25 「설치된 아이콘이 옛날 것」: 주소에 판 표시(?v=)를 붙여 브라우저가 새 아이콘으로 다시 받게 한다.
+  assert.ok(m.icons.every((i) => /\?v=\d{8}[a-z]?$/.test(i.src)), '아이콘 주소에 판 표시');
+  assert.deepEqual(m.icons.map((i) => `${i.src.split('?')[0]}|${i.sizes}|${i.purpose}`), ['/pwa/echo-icon-192.png|192x192|any', '/pwa/echo-icon-512.png|512x512|any', '/pwa/echo-icon-512-maskable.png|512x512|maskable']);
+  for (const i of m.icons) assert.ok(statSync(at(`public${i.src.split('?')[0]}`)).size > 0);
 });
 
 test('앱 빌드만: apple-touch-icon 180 · 파비콘 PNG · 브랜드는 기존 favicon.svg 그대로', () => {
   const v = readFileSync(at('vite.config.ts'), 'utf8');
-  assert.match(v, /rel="apple-touch-icon" sizes="180x180" href="\/pwa\/echo-icon-180.png"/);
+  assert.match(v, /rel="apple-touch-icon" sizes="180x180" href="\/pwa\/echo-icon-180.png\?v=\d{8}[a-z]?"/);
   assert.match(v, /if \(siteRole !== "app"\) return html;[\s\S]{0,200}const favicon = '<link rel="icon" type="image\/svg\+xml" href="\/favicon.svg" \/>'/);
   assert.match(readFileSync(at('index.html'), 'utf8'), /<link rel="icon" type="image\/svg\+xml" href="\/favicon.svg" \/>/, '브랜드 기본 파비콘 줄 유지');
 });

@@ -2,6 +2,7 @@ import type { AdminData } from "../hooks/useAdminData";
 import type { AnalyticsData } from "../hooks/useAnalytics";
 import { StatCard, PanelTitle, StateNotice, fmtDate } from "../components/ui";
 import AnalyticsSection from "./AnalyticsSection";
+import FeatureChecklist from "./FeatureChecklist";
 
 export default function Dashboard({
   data,
@@ -12,6 +13,9 @@ export default function Dashboard({
 }) {
   return (
     <div className="flex flex-col gap-6">
+      {/* 대표 2026-09-25: 맨 위에 기능별 상태 점검표 */}
+      <FeatureChecklist consents={data.consents.total} />
+
       {/* 분석 (운영 대시보드 본문 상단 통합) */}
       <AnalyticsSection data={analytics} />
 
@@ -67,57 +71,46 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* RLS로 차단된 지표 */}
+      {/* 대표 2026-09-25 「초보 대표가 이해하기 쉽게」: 영어 표 이름·RLS 같은 말 대신 지금 상태를 한 줄로. */}
       <section>
-        <PanelTitle>조회 권한 연결 필요</PanelTitle>
+        <PanelTitle>아직 없거나 볼 수 없는 것</PanelTitle>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <StatCard
-            label="협동 활동"
-            status={data.missions.status}
-            value={data.missions.total ?? "—"}
-            note="missions 테이블 없음 (미구현)"
-          />
-          <StatCard
-            label="사용자 선택"
-            status={data.selections.status}
-            value={data.selections.total ?? "—"}
-            note="member_selections 테이블 없음 (미구현)"
-          />
-          <StatCard
-            label="KEY 주문·결제"
-            status={data.keyOrders.status}
-            value={data.keyOrders.total ?? "—"}
-            note="key_orders 테이블 없음 (미구현)"
+            label="동의 기록"
+            status={data.consents.status}
+            value={data.consents.total ?? "—"}
+            sub="지금 약관에 동의한 사람 수(가입할 때 저장)"
+            note="프로필을 읽지 못했어요. 새로고침해 주세요."
           />
           <StatCard
             label="KEY 보유 현황"
             status={data.keyBalances.status}
             value={data.keyBalances.total ?? "—"}
-            note="key_balances 테이블 없음 (미구현)"
+            note="기록은 있지만 관리자가 볼 권한이 아직 없어요. 권한 추가는 대표 승인 뒤에 해요."
+          />
+          <StatCard
+            label="KEY 주문·결제"
+            status={data.keyOrders.status}
+            value={data.keyOrders.total ?? "—"}
+            note="아직 만들지 않은 기능이에요. 지금 결제는 토스 4,900원 단건만 있어요."
           />
           <StatCard
             label="사주·타로 기록"
             status={data.sajuTaro.status}
             value={data.sajuTaro.total ?? "—"}
-            note="saju_taro_records 테이블 없음 (미구현)"
+            note="무료 재미 콘텐츠라 기록을 남기지 않아요. 정상이에요."
           />
           <StatCard
             label="AI 요청 제한"
             status={data.aiRateLimits.status}
             value={data.aiRateLimits.total ?? "—"}
-            note="openai_rate_limits는 SELECT 정책 없음"
+            note="AI를 너무 자주 부르지 못하게 막는 내부 장치예요. 관리자 화면에서 볼 필요는 없어요."
           />
           <StatCard
-            label="동의 기록"
-            status={data.consents.status}
-            value={data.consents.total ?? "—"}
-            note="consents 테이블 없음 (미구현)"
-          />
-          <StatCard
-            label="방·참여자"
-            status={data.spaceMembers.status}
+            label="협동 활동 · 사용자 선택 · 방 참여자"
+            status={[data.missions.status, data.selections.status, data.spaceMembers.status].every((x) => x === "missing") ? "missing" : data.spaceMembers.status}
             value={data.spaceMembers.total ?? "—"}
-            note="space_members 테이블 없음 (미구현)"
+            note="공간(방) 안에서 함께 하는 기능은 아직 만들지 않았어요."
           />
         </div>
       </section>
@@ -130,7 +123,7 @@ export default function Dashboard({
             {data.profiles.status === "loading" ? (
               <StateNotice status="loading" />
             ) : data.profiles.status === "error" ? (
-              <StateNotice status="error" note="profiles 조회 실패" />
+              <StateNotice status="error" note="사용자 정보를 불러오지 못했어요. 새로고침해 주세요." />
             ) : data.profiles.recent.length === 0 ? (
               <StateNotice status="empty" />
             ) : (
@@ -162,7 +155,7 @@ export default function Dashboard({
             {data.auditLogs.status === "loading" ? (
               <StateNotice status="loading" />
             ) : data.auditLogs.status === "error" ? (
-              <StateNotice status="error" note="audit_logs 조회 실패" />
+              <StateNotice status="error" note="운영 감사 기록을 불러오지 못했어요. 새로고침해 주세요." />
             ) : data.auditLogs.recent.length === 0 ? (
               <StateNotice status="empty" />
             ) : (
@@ -197,7 +190,7 @@ export default function Dashboard({
             {data.spaces.status === "loading" ? (
               <StateNotice status="loading" />
             ) : data.spaces.status === "error" ? (
-              <StateNotice status="error" note="spaces 조회 실패" />
+              <StateNotice status="error" note="공간 목록을 불러오지 못했어요. 새로고침해 주세요." />
             ) : data.spaces.recent.length === 0 ? (
               <StateNotice status="empty" />
             ) : (
@@ -229,7 +222,7 @@ export default function Dashboard({
             {data.reports.status === "loading" ? (
               <StateNotice status="loading" />
             ) : data.reports.status === "error" ? (
-              <StateNotice status="error" note="reports 조회 실패" />
+              <StateNotice status="error" note="신고 기록을 불러오지 못했어요. 새로고침해 주세요." />
             ) : data.reports.recent.length === 0 ? (
               <StateNotice status="empty" />
             ) : (

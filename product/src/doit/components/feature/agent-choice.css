@@ -1,18 +1,22 @@
-/* 「시작하기」 직후 선택창(대표 「UI FINAL LOCK」·「DESIGN / HERO / SYMBOL FINAL LOCK」 2026-09-25). 이 창 하나만 무채색이다.
-   뒤 화면(히어로 우주 배경·대화 화면 컬러)은 덮개·흐림 없이 그대로 보인다. 규칙은 모두 .echo-choice-layer 아래로만(전역·히어로·다른 화면 0). */
+/* 「시작하기」 직후 선택창(대표 「UI FINAL LOCK」·「DESIGN / HERO / SYMBOL FINAL LOCK」 2026-09-25). 규칙은 모두 .echo-choice-layer 아래로만(전역·히어로·다른 화면 0).
+   2026-09-26 대표 실기기 FAIL OPAQUE_CHOICE_PANEL(큰 회색 판) 원인 = 판에 준 filter:grayscale(1) 이 뒤를 흐린 판(backdrop-filter blur 24px)까지 흑백으로 바꿔
+   파스텔이 회색 면으로 보였다. → 흑백 필터를 없애고, 흐림은 아주 약하게(6px), 판 바탕은 거의 투명(흰 4%) + 얇은 흰 테두리만.
+   버튼도 흰색 꽉 찬 판 대신 투명 유리 + 얇은 흰 테두리. 고른 말투만 밝은 유리 + 굵은 테두리 + ✓ 로 분명하게. */
 .echo-choice-layer{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:transparent;font-family:inherit}
-.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:#0c0c0c;border:1px solid rgb(255 255 255/.14);box-shadow:0 18px 48px rgb(0 0 0/.35);color:#f2f2f2;filter:grayscale(1);text-align:left}
+.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:rgb(255 255 255/.04);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgb(255 255 255/.7);box-shadow:none;color:#fff;text-align:left;text-shadow:0 0 10px rgb(70 50 30/.28)} /* 2026-09-26: 아래로 비낀 그림자는 글자가 두 겹으로 보였다 → 둘레만 은은하게(밝은 노랑 위 대비 유지) */
 .echo-choice-layer .echo-choice-title{margin:0 0 20px;font-size:18px;font-weight:700;line-height:1.5;color:#fff;-webkit-text-fill-color:#fff}
-.echo-choice-layer .echo-choice-label{margin:18px 0 8px;font-size:12px;letter-spacing:.04em;color:#9a9a9a;-webkit-text-fill-color:#9a9a9a}
 .echo-choice-layer .echo-choice-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .echo-choice-layer .echo-choice-options:has(> :nth-child(3)){grid-template-columns:1fr 1fr 1fr}
-.echo-choice-layer .echo-choice-option{min-height:48px;padding:10px 8px;border-radius:12px;border:1px solid rgb(255 255 255/.22);background:transparent;color:#e6e6e6;font-size:13px;font-weight:600;line-height:1.35;word-break:keep-all;cursor:pointer}
-.echo-choice-layer .echo-choice-option.is-selected{background:#fff;border-color:#fff;color:#0c0c0c}
-.echo-choice-layer .echo-choice-note{margin:10px 0 0;font-size:11px;line-height:1.7;color:#a6a6a6;-webkit-text-fill-color:#a6a6a6}
+.echo-choice-layer .echo-choice-option{min-height:48px;padding:10px 8px;border-radius:12px;border:1px solid rgb(255 255 255/.55);background:transparent;color:#fff;font-size:13px;font-weight:600;line-height:1.35;word-break:keep-all;cursor:pointer;text-shadow:inherit}
+.echo-choice-layer .echo-choice-option.is-selected{background:rgb(255 255 255/.24);border:2px solid #fff;font-weight:800}
+.echo-choice-layer .echo-choice-option.is-selected::before{content:"✓ "}
+.echo-choice-layer .echo-choice-note{margin:10px 0 0;font-size:12px;line-height:1.7;color:#fff;-webkit-text-fill-color:#fff}
 .echo-choice-layer .echo-choice-starts{display:grid;gap:10px;margin-top:4px}
-.echo-choice-layer .echo-choice-confirm{width:100%;min-height:52px;border:0;border-radius:14px;background:#fff;color:#0c0c0c;font-size:15px;font-weight:700;cursor:pointer}
-.echo-choice-layer .echo-choice-confirm.is-secondary{background:transparent;color:#f2f2f2;border:1px solid rgb(255 255 255/.4)}
-.echo-choice-layer .echo-choice-tone{display:inline-flex;align-items:center;gap:6px;min-height:40px;margin:14px 0 6px;padding:6px 0;border:0;background:transparent;color:#c8c8c8;font-size:13px;font-weight:600;cursor:pointer}
-.echo-choice-layer .echo-choice-close{display:block;margin:10px auto 0;min-height:40px;padding:8px 16px;border:0;background:transparent;color:#9a9a9a;font-size:13px;cursor:pointer}
+.echo-choice-layer .echo-choice-confirm{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border:1.5px solid #fff;border-radius:14px;background:rgb(255 255 255/.14);color:#fff;font-size:15px;font-weight:700;cursor:pointer;text-shadow:inherit;transition:background-color .15s ease}
+.echo-choice-layer .echo-choice-confirm.is-secondary{background:transparent;border:1px solid rgb(255 255 255/.7)}
+.echo-choice-layer .echo-choice-confirm:active,.echo-choice-layer .echo-choice-confirm[aria-pressed="true"]{background:rgb(255 255 255/.3)}
+.echo-choice-layer .echo-choice-tone{display:inline-flex;align-items:center;gap:6px;min-height:40px;margin:14px 0 6px;padding:6px 0;border:0;background:transparent;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-shadow:inherit}
+.echo-choice-layer .echo-choice-close{display:block;margin:10px auto 0;min-height:40px;padding:8px 16px;border:0;background:transparent;color:#fff;font-size:13px;cursor:pointer;text-shadow:inherit}
 .echo-choice-layer :focus-visible{outline:2px solid #fff;outline-offset:3px}
 @media(min-width:700px){.echo-choice-layer{align-items:center}}
+.echo-choice-layer .echo-choice-confirm:disabled{opacity:.5;cursor:default}

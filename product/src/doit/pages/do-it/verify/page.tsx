@@ -4,7 +4,7 @@ import MobileLayout from "@/doit/components/feature/MobileLayout";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { withTimeout } from "@/doit/lib/withTimeout";
 import {
-  PHONE_CODE_LENGTH, PHONE_ERROR_TEXT, PHONE_RESEND_SECONDS,
+  PHONE_CODE_LENGTH, PHONE_ERROR_TEXT, PHONE_RESEND_SECONDS, PHONE_VERIFY_READY,
   confirmPhoneCode, maskPhone, normalizeKrPhone, onlyCodeDigits, phoneErrorKind, sendPhoneCode, syncPhoneVerification,
 } from "@/doit/lib/phoneVerify";
 import "@/doit/components/feature/connect.css";
@@ -109,6 +109,11 @@ export default function Verify() {
         <h2 className="doit-product-title">한 사람이 한 계정만<br />쓰도록 확인해요.</h2>
         <p className="doit-product-description">연결은 인증한 사람끼리만 이어져요. 번호는 이 확인에만 쓰고, 상대에게 보이지 않아요.</p>
 
+        {/* 2026-09-26 MVP FINAL PATCH: 문자 발송 업체가 연결되기 전(PHONE_VERIFY_READY=false)에는 번호 입력·문자 보내기 버튼을 보이지 않는다(작동하는 척 0). */}
+        {!PHONE_VERIFY_READY ? <>
+          <p className="doit-connect-note" role="status">전화 인증은 아직 준비 중이에요. 지금은 번호를 받거나 인증 문자를 보내지 않아요.</p>
+          <Link className="doit-product-action" to={next}>돌아가기<span aria-hidden="true">↗</span></Link>
+        </> : <>
         {(loading || step.kind === "loading") && <p className="doit-connect-note" role="status">로그인 상태를 확인하고 있어요.</p>}
 
         {!loading && !user && step.kind !== "loading" && (
@@ -171,6 +176,7 @@ export default function Verify() {
             나중에 할게요<span aria-hidden="true">↗</span>
           </button>
         )}
+        </>}
       </section>
     </MobileLayout>
   );

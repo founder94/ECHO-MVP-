@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ADMIN_MENUS, PERIODS, type AdminMenuKey, type Period } from '../meta';
 import { useAdminData } from '../hooks/useAdminData';
@@ -84,6 +85,10 @@ export default function AdminShell() {
                 <p className="mt-0.5 text-sm text-foreground-500">
                   서비스 상태와 사용자 흐름을 한눈에 확인합니다.
                 </p>
+                {/* 대표 2026-09-25: 지금 서비스(DO IT·AI 대화·연결 승인)는 다른 관리자 화면에 있다. */}
+                <Link to="/doit/admin/mobile" className="mt-2 inline-flex min-h-[36px] items-center rounded-full border border-primary-300 px-3 text-sm font-medium text-primary-700 hover:bg-primary-50">
+                  지금 서비스 관리(DO IT 운영 관리자)로 가기 →
+                </Link>
               </div>
 
               <div className="relative flex items-center gap-2">
