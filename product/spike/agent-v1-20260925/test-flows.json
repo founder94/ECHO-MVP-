@@ -543,6 +543,41 @@
      "answer"
     ]
    ]
+  },
+  {
+   "id": "S4",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL IMPLEMENTATION + DEPLOYMENT READINESS」 §6 예시 그대로 — 사주 해석 반박",
+   "seed": {
+    "source": "SAJU",
+    "key": "peer_none"
+   },
+   "steps": [
+    [
+     "편하게 만날 사람이요",
+     "answer"
+    ],
+    [
+     "아니, 난 사람 만나는 거 좋아해",
+     "correction"
+    ],
+    [
+     "솔직한 사람",
+     "answer"
+    ],
+    [
+     "주말에 한 번 보는 게 좋아",
+     "answer"
+    ],
+    [
+     "약속 안 지키는 건 싫어",
+     "answer"
+    ],
+    [
+     "응",
+     "answer"
+    ]
+   ]
   }
  ],
  "runs": [
@@ -672,6 +707,14 @@
   },
   {
    "flow": "T4",
+   "tone": "casual"
+  },
+  {
+   "flow": "S4",
+   "tone": "polite"
+  },
+  {
+   "flow": "S4",
    "tone": "casual"
   }
  ]
