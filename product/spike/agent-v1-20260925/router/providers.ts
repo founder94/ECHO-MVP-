@@ -24,9 +24,23 @@ export interface ProviderResult {
   text: string; provider: ProviderId; model_requested: string; model_served: string | null;
   input_tokens: number | null; cached_tokens: number | null; output_tokens: number | null; latency_ms: number;
 }
+/** v3.5 PR-01: 오류를 추정하지 않고 기록한다 — HTTP 상태 · 업체 오류 코드/종류 · Retry-After · 시도 번호. 키·사용자 원문·업체 오류 메시지 글은 담지 않는다. */
+export interface ProviderErrorDetail { status: number | null; provider_code: string | null; provider_type: string | null; retry_after_ms: number | null; attempt?: number }
 export class ProviderError extends Error {
-  code: ProviderErrorCode; provider: ProviderId; latency_ms: number;
-  constructor(provider: ProviderId, code: ProviderErrorCode, latency_ms: number) { super(`${provider}:${code}`); this.provider = provider; this.code = code; this.latency_ms = latency_ms; }
+  code: ProviderErrorCode; provider: ProviderId; latency_ms: number; detail: ProviderErrorDetail;
+  constructor(provider: ProviderId, code: ProviderErrorCode, latency_ms: number, detail: Partial<ProviderErrorDetail> = {}) {
+    super(`${provider}:${code}`); this.provider = provider; this.code = code; this.latency_ms = latency_ms;
+    this.detail = { status: detail.status ?? null, provider_code: detail.provider_code ?? null, provider_type: detail.provider_type ?? null, retry_after_ms: detail.retry_after_ms ?? null, ...(detail.attempt != null ? { attempt: detail.attempt } : {}) };
+  }
+}
+const token = (v: unknown) => (typeof v === "string" && /^[A-Za-z0-9_.\-]{1,64}$/.test(v) ? v : typeof v === "number" ? String(v) : null); // 코드 모양만(메시지 글 0)
+/** 오류 응답 본문에서 코드·종류만 읽는다. OpenAI {error:{type,code}} · Anthropic {error:{type}} · Gemini {error:{code,status}}. */
+export function errorDetailOf(status: number, body: unknown, retryAfter: string | null): ProviderErrorDetail {
+  const e = (body && typeof body === "object" ? (body as Record<string, unknown>).error : null) as Record<string, unknown> | null;
+  let ra = retryAfter == null ? null : /^\d+(\.\d+)?$/.test(retryAfter.trim()) ? Math.round(Number(retryAfter) * 1000) : null;
+  // Gemini: 대기 시간을 본문 details[].retryDelay(「12s」)로 준다
+  if (ra == null && Array.isArray(e?.details)) for (const d of e!.details as Record<string, unknown>[]) { const m = typeof d?.retryDelay === "string" ? d.retryDelay.match(/^(\d+(?:\.\d+)?)s$/) : null; if (m) { ra = Math.round(Number(m[1]) * 1000); break; } }
+  return { status, provider_code: token(e?.code) ?? token(e?.status), provider_type: token(e?.type) ?? token(e?.status), retry_after_ms: ra };
 }
 export interface ModelProvider { readonly id: ProviderId; readonly kind: "real" | "fake"; call(req: ProviderRequest): Promise<ProviderResult> }
 type Fetch = typeof fetch;
@@ -63,7 +77,11 @@ async function timedFetch(provider: ProviderId, f: Fetch, url: string, init: Req
   const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await f(url, { ...init, signal: ctrl.signal });
-    if (!res.ok) throw new ProviderError(provider, httpCode(res.status), Date.now() - t0); // Anthropic 529(과부하) · 500 → http_5xx · 429 → http_429
+    if (!res.ok) { // Anthropic 529(과부하) · 500 → http_5xx · 429 → http_429 · 오류 본문은 코드·종류만 읽는다
+      let body: unknown = null; try { body = await res.json(); } catch { /* 본문 없음 */ }
+      const ra = typeof (res as Response).headers?.get === "function" ? (res as Response).headers.get("retry-after") : null;
+      throw new ProviderError(provider, httpCode(res.status), Date.now() - t0, errorDetailOf(res.status, body, ra));
+    }
     return await res.json() as Record<string, unknown>;
   } catch (e) {
     if (e instanceof ProviderError) throw e;
@@ -135,6 +153,38 @@ export async function listModels(provider: ProviderId, apiKey: string, f: Fetch 
   const d = await timedFetch(provider, f, `${GEMINI_API}/models?pageSize=1000`, { method: "GET", headers: { "x-goog-api-key": apiKey } }, timeoutMs, t0);
   return (Array.isArray(d.models) ? d.models as { name?: string; supportedGenerationMethods?: string[] }[] : [])
     .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent")).map((m) => String(m.name ?? "").replace(/^models\//, "")).filter(Boolean);
+}
+
+// v3.5 PR-01: 재시도·속도 조절(업체 단독 — 다른 업체로 넘어가지 않음 · 같은 요청 그대로 · 품질 조건 변경 0).
+// 429 = Retry-After 우선, 없으면 지수 대기 + 흔들림 · 5xx·과부하 = 제한된 횟수 · 4xx·거절·키 없음 = 재시도 0(바로 기록) · 시간 초과·네트워크 = 5xx 와 같게.
+export interface RetryPolicy { minIntervalMs: number; max429: number; max5xx: number; baseMs: number; capMs: number }
+export const DEFAULT_RETRY: RetryPolicy = { minIntervalMs: 0, max429: 5, max5xx: 2, baseMs: 1000, capMs: 60000 };
+export function withRetry(inner: ModelProvider, policy: Partial<RetryPolicy> = {}, hooks: { sleep?: (ms: number) => Promise<void>; now?: () => number; random?: () => number; onAttempt?: (a: { attempt: number; wait_ms: number; error: ProviderErrorCode; detail: ProviderErrorDetail }) => void } = {}): ModelProvider & { attempts: number } {
+  const p = { ...DEFAULT_RETRY, ...policy };
+  const sleep = hooks.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))); const now = hooks.now ?? Date.now; const rnd = hooks.random ?? Math.random;
+  let last = -Infinity; let chain: Promise<void> = Promise.resolve();
+  const pace = async () => { const wait = last + p.minIntervalMs - now(); if (wait > 0) await sleep(wait); last = now(); };
+  const self = { id: inner.id, kind: inner.kind, attempts: 0, call: (req: ProviderRequest) => {
+    const run = async (): Promise<ProviderResult> => {
+      let n429 = 0, n5xx = 0;
+      for (let attempt = 1; ; attempt++) {
+        await pace(); self.attempts++;
+        try { return await inner.call(req); } catch (e) {
+          if (!(e instanceof ProviderError)) throw e;
+          const transient5 = e.code === "http_5xx" || e.code === "timeout" || e.code === "network";
+          const retry = (e.code === "http_429" && n429 < p.max429) || (transient5 && n5xx < p.max5xx);
+          e.detail.attempt = attempt;
+          if (!retry) throw e;
+          if (e.code === "http_429") n429++; else n5xx++;
+          const backoff = Math.min(p.capMs, p.baseMs * 2 ** (attempt - 1)); const wait = Math.min(p.capMs, e.detail.retry_after_ms ?? Math.round(backoff * (0.5 + rnd())));
+          hooks.onAttempt?.({ attempt, wait_ms: wait, error: e.code, detail: e.detail });
+          await sleep(wait);
+        }
+      }
+    };
+    const job = chain.then(run, run); chain = job.then(() => undefined, () => undefined); return job; // 업체당 한 번에 하나(동시성 1)
+  } };
+  return self;
 }
 
 /** 가짜 부품(시험 전용 · 네트워크 0). script 가 글자를 돌려주거나 { error } 로 실패를 흉내 낸다. */

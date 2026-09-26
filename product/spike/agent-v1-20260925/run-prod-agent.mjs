@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
-import { REAL, GOLDEN_SHA, recorder, BANNED } from '../ab-20260925/harness-lib.mjs';
+import { REAL, GOLDEN_SHA, recorder, BANNED, tok } from '../ab-20260925/harness-lib.mjs';
 import { flowOf } from './run-agent.mjs';
 
 const require = createRequire(import.meta.url);
@@ -58,9 +58,13 @@ const REGISTRY = JSON.parse(readFileSync(path.join(HERE, 'router', 'model-regist
 /** Claude·Gemini 부품을 기록기(rec.calls) 모양으로 감싼다 — 집계(stats)가 OpenAI 와 같은 칸을 읽는다. 키가 없으면 같은 가짜 대본(mock)으로 돈다. */
 function recordingProvider(rec, P, provider, model) {
   const mo = REGISTRY.candidates?.[provider]?.model_options?.[model]; const opt = mo ? { sampling: mo.sampling, thinking: mo.thinking } : {}; // 업체가 허용하지 않는 값만 뺀다
-  const inner = !realFor(provider) ? null : provider === 'anthropic' ? P.anthropicProvider(KEYS.anthropic, opt) : P.geminiProvider(KEYS.gemini, opt);
+  // v3.5 PR-01: 재시도·속도 조절(업체 단독 · 넘어가기 0 · 같은 요청). Gemini 는 낮은 속도부터(1초 간격 · 동시성 1).
+  const POLICY = { gemini: { minIntervalMs: 1000, max429: 6, max5xx: 2, baseMs: 2000, capMs: 60000 }, anthropic: { minIntervalMs: 0, max429: 5, max5xx: 2, baseMs: 1000, capMs: 60000 } };
+  const base = !realFor(provider) ? null : provider === 'anthropic' ? P.anthropicProvider(KEYS.anthropic, opt) : P.geminiProvider(KEYS.gemini, opt);
+  const inner = base ? P.withRetry(base, POLICY[provider], { onAttempt: (a) => rec.retries.push({ provider, ...a }) }) : null;
+  rec.retries ??= [];
   return { id: provider, kind: inner ? 'real' : 'fake', call: async (req) => {
-    const c = { model, provider, fields: {}, params: { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }, ms: 0, mock: !inner, turnKey: rec.mockFor.key };
+    const c = { model, provider, fields: Object.fromEntries(Object.entries(req.input ?? {}).map(([k, v]) => [k, tok(JSON.stringify(v))])), params: { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }, ms: 0, mock: !inner, turnKey: rec.mockFor.key };
     if (!inner) {
       const content = rec.mockFor.current(req.system, req.input, rec.calls.filter((x) => x.turnKey === rec.mockFor.key).length);
       c.content = content; rec.calls.push(c);
@@ -70,7 +74,7 @@ function recordingProvider(rec, P, provider, model) {
       const r = await inner.call(req);
       Object.assign(c, { ms: r.latency_ms, served_model: r.model_served, in_real: r.input_tokens, out_real: r.output_tokens, cached_real: r.cached_tokens, content: r.text });
       rec.calls.push(c); return r;
-    } catch (e) { c.ms = e?.latency_ms ?? 0; c.error = e?.code ?? 'network'; rec.calls.push(c); throw e; }
+    } catch (e) { c.ms = e?.latency_ms ?? 0; c.error = e?.code ?? 'network'; c.error_detail = e?.detail ?? null; rec.calls.push(c); throw e; }
   } };
 }
 
@@ -140,7 +144,7 @@ export async function runFlow(A, flowId, tone, model) {
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
       finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, input_type: response.input_type ?? null, action: response.action ?? null, speak_recovery: response.recovery ?? null, raw_kept: !!response.raw_kept, notes: obs.notes ?? [], ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null, pending: (st.pending ?? []).map((p) => ({ turn: p.turn, status: p.status, reason: p.reason })), router_log: router ? router.log : null, performance: router ? RT.R.performanceRows(router.log).map((x) => ({ flow: flowId, tone, ...x })) : null };
+  return { flow: flowId, tone, provider_retries: rec.retries ?? [], rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null, pending: (st.pending ?? []).map((p) => ({ turn: p.turn, status: p.status, reason: p.reason })), router_log: router ? router.log : null, performance: router ? RT.R.performanceRows(router.log).map((x) => ({ flow: flowId, tone, ...x })) : null };
 }
 
 // v2.13 판정식 도우미(에이전트와 따로 씀). 메타 = 대화·질문 방식에 대한 물음 · 불만 = 내 말과 상관없다는 말.
@@ -331,6 +335,19 @@ export function stats(A, runs) {
     router_fallbacks: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.chain_index > 0 && !x.error).length,
     router_real_calls_non_openai: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.provider !== 'openai' && !x.error).length,
     router_server_rejected: runs.flatMap((r) => r.performance ?? []).filter((x) => x.validation === 'rejected_by_server').length,
+    // v3.5 PR-01(판정 G): 업체 오류는 추정하지 않고 상태·업체 코드로 센다 · 재시도(대기 포함)는 따로.
+    provider_errors: JSON.stringify(calls.filter((c) => c.error).reduce((a, c) => { const d = c.error_detail ?? {}; const k = `${c.error}:${d.status ?? '-'}:${d.provider_code ?? '-'}:${d.provider_type ?? '-'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    provider_retry_attempts: JSON.stringify(runs.flatMap((r) => r.provider_retries ?? []).reduce((a, x) => { const k = `${x.error}:${x.detail?.status ?? '-'}:${x.detail?.provider_code ?? '-'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    format_failures: rows.flatMap((x) => x.retry ?? []).filter((r) => /format/.test(String(r))).length,
+    // v3.5 사람다움 관측(판정 H · why_v31 에 문턱을 결과 전에 적음). 문장 판단 전 모양만 센다 — 최종은 사람 검토.
+    ending_dominated_runs: runs.filter((r) => { const rp = r.rows.map((x) => x.reply).filter(Boolean); return rp.length >= 3 && rp.filter((t) => /(군요|구나|군)[.!~…]*$/.test(t.trim())).length / rp.length >= 0.5; }).length,
+    ending_family_ratio: (() => { const rp = rows.map((x) => x.reply).filter(Boolean); return rp.length ? Math.round(100 * rp.filter((t) => /(군요|구나|군)[.!~…]*$/.test(t.trim())).length / rp.length) + '%' : '0%'; })(),
+    question_only_streak_turns: runs.reduce((n, r) => n + r.rows.filter((x, i) => i > 0 && x.question && !x.reply && r.rows[i - 1].question && !r.rows[i - 1].reply && plainK(x.text).length >= 6).length, 0),
+    label_copy_questions: rows.filter((x) => x.question && A.PURPOSES.some((p) => plainK(x.question).includes(plainK(p.label).slice(0, 10)))).length,
+    unsupported_thanks: rows.filter((x) => x.reply && /(얘기해|말해|알려|말씀해)\s*(줘서|주셔서)\s*(고마|감사)/.test(x.reply) && (/[?？]/.test(x.text) || plainK(x.text).length < 4)).length,
+    speaker_in_reply: rows.filter((x) => x.reply && /(내가|제가)\s*(적은|쓴|써\s*준|말한|얘기한|했던\s*말)/.test(x.reply)).length,
+    rejected_restated: runs.reduce((n, r) => n + r.rows.filter((x, i) => i > 0 && x.kind === 'repair' && /^\s*(아니(요|야)?|아냐|그게\s*아니|그런\s*(뜻|말)\s*(이\s*)?아니)/.test(x.text) && x.reply && (r.items ?? []).some((it) => it.turn === r.rows[i - 1].i && plainK(it.quote).length >= 3 && plainK(x.reply).includes(plainK(it.quote)))).length, 0),
+    echo_replies: rows.filter((x) => x.reply && plainK(x.text).length >= 6 && plainK(x.reply).includes(plainK(x.text))).length,
     turn_ms_p50: real.length ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: real.length ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }

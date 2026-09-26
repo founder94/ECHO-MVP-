@@ -4,7 +4,7 @@
 //   이해 단계 결과 글자의 input_type(모델 분류 후보)을 같은 턴의 말하기 호출에 붙인다(최종 행동은 늘 서버 Action Router 값 = input.action).
 // 매 턴 세 모델을 함께 부르지 않는다: 한 호출 = 한 모델. 다른 모델은 ① 어려운 행동(SPECIALIST) ② 업체 오류(대체 사슬) ③ 서버 검사 실패 뒤 다시 청할 때만.
 // 역할(PRIMARY·SPECIALIST·FALLBACK)에 어떤 모델을 둘지는 registry 로만 정한다 — 실측 전에는 임시(provisional) · 바꾸는 것 = 모델 변경 = 대표 승인.
-import { ProviderError, type ModelProvider, type ProviderId, type ProviderResult, type Stage } from "./providers.ts";
+import { ProviderError, type ModelProvider, type ProviderErrorDetail, type ProviderId, type ProviderResult, type Stage } from "./providers.ts";
 export type { Stage } from "./providers.ts";
 
 export type Role = "PRIMARY" | "SPECIALIST" | "FALLBACK" | "PANEL" | "JUDGE";
@@ -32,6 +32,7 @@ export interface CallRecord {
   provider: ProviderId; provider_kind: "real" | "fake"; model_requested: string; model_served: string | null;
   input_tokens: number | null; cached_tokens: number | null; output_tokens: number | null; latency_ms: number;
   error: string | null; budget_downgrade: boolean; skipped_unhealthy: ProviderId[];
+  error_detail?: ProviderErrorDetail | null; // v3.5 PR-01: 상태·업체 코드·Retry-After·시도(메시지 글 0)
 }
 
 /** 호출 모양으로 단계를 안다(Agent 수정 0). */
@@ -120,7 +121,7 @@ export function createRouter(o: RouterOptions): Router {
         return { text: r.text, model: r.model_served ?? r.model_requested, input_tokens: r.input_tokens, output_tokens: r.output_tokens };
       } catch (e) {
         const code = e instanceof ProviderError ? e.code : "network";
-        log.push({ ...base, ...blank, latency_ms: e instanceof ProviderError ? e.latency_ms : 0, error: code });
+        log.push({ ...base, ...blank, latency_ms: e instanceof ProviderError ? e.latency_ms : 0, error: code, error_detail: e instanceof ProviderError ? e.detail : null });
         if (code !== "not_connected" && ++h.consecutive_errors >= after) h.open_until = now() + cool;
         lastErr = e; prev = t.provider; prevCode = code;
       }
@@ -173,7 +174,7 @@ export function performanceRows(log: CallRecord[], prices: Partial<Record<string
     const p = prices[`${r.provider}:${r.model_requested}`];
     const cost = p && r.input_tokens != null && r.output_tokens != null ? ((r.input_tokens - (r.cached_tokens ?? 0)) * p.input + (r.cached_tokens ?? 0) * p.cached + r.output_tokens * p.output) / 1e6 : null;
     return { provider: r.provider, provider_kind: r.provider_kind, model: r.model_requested, served: r.model_served, task: r.stage, action: r.action, input_type: r.input_type, role: r.role, reason: r.reason,
-      retry: r.retry, fallback: r.chain_index > 0, fallback_reason: r.fallback_reason, error: r.error, validation: r.validation, success: r.accepted === true, humanity: null as null | "PASS" | "PARTIAL" | "FAIL",
+      retry: r.retry, fallback: r.chain_index > 0, fallback_reason: r.fallback_reason, error: r.error, error_status: r.error_detail?.status ?? null, error_provider_code: r.error_detail?.provider_code ?? null, error_attempt: r.error_detail?.attempt ?? null, validation: r.validation, success: r.accepted === true, humanity: null as null | "PASS" | "PARTIAL" | "FAIL",
       input_tokens: r.input_tokens, cached_tokens: r.cached_tokens, output_tokens: r.output_tokens, latency_ms: r.latency_ms, cost_usd: cost, cost_basis: cost == null ? "확인 불가(공식 단가 미확인)" : "등록 단가" };
   });
 }

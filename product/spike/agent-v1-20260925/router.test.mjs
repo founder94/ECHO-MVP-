@@ -317,3 +317,25 @@ test('PANEL 은 기본 꺼짐(registry.panel 없음) · 비용 상한이면 PANE
   await r2.llm('intro', 'x', REB);
   assert.equal(r2.log.filter((x) => x.role === 'PANEL').length, 0, '비용 상한 → 한 업체');
 });
+
+// ── v3.5 PR-01: 오류는 추정하지 않고 기록 · 429 는 Retry-After/대기 후 재시도 · 4xx 는 재시도 0 · 업체 단독(넘어가기 0).
+test('PR-01 오류 기록: 상태·업체 코드·Retry-After(헤더 · Gemini retryDelay)만 · 메시지 글 0', async () => {
+  const d1 = P.errorDetailOf(429, { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: '사용자 원문 포함 가능', details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '12s' }] } }, null);
+  assert.deepEqual(d1, { status: 429, provider_code: '429', provider_type: 'RESOURCE_EXHAUSTED', retry_after_ms: 12000 });
+  const d2 = P.errorDetailOf(529, { type: 'error', error: { type: 'overloaded_error', message: 'x' } }, '3');
+  assert.deepEqual(d2, { status: 529, provider_code: null, provider_type: 'overloaded_error', retry_after_ms: 3000 });
+  const f = async () => ({ ok: false, status: 429, headers: { get: (h) => (h === 'retry-after' ? '2' : null) }, json: async () => ({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: '비밀 원문' } }) });
+  await assert.rejects(P.geminiProvider('SECRET', {}, f).call(REQ), (e) => e.code === 'http_429' && e.detail.status === 429 && e.detail.retry_after_ms === 2000 && !JSON.stringify(e.detail).includes('비밀') && !JSON.stringify(e.detail).includes('SECRET'));
+});
+test('PR-01 withRetry: 429 두 번 → Retry-After 대로 기다렸다 성공 · 4xx 는 바로 실패 · 5xx 는 정해진 횟수까지 · 속도 조절 간격 지킴', async () => {
+  let t = 0; const waits = []; const hooks = { sleep: async (ms) => { waits.push(ms); t += ms; }, now: () => t, random: () => 0.5 };
+  let n = 0; const flaky = { id: 'gemini', kind: 'real', call: async () => { n++; if (n <= 2) throw new P.ProviderError('gemini', 'http_429', 5, { status: 429, retry_after_ms: 1500 }); return { text: '{"ok":1}', provider: 'gemini', model_requested: 'm', model_served: 'm', input_tokens: 1, cached_tokens: 0, output_tokens: 1, latency_ms: 5 }; } };
+  const w = P.withRetry(flaky, { minIntervalMs: 1000, max429: 3 }, hooks);
+  const r = await w.call(REQ); assert.equal(r.text, '{"ok":1}'); assert.equal(n, 3); assert.ok(waits.filter((x) => x === 1500).length === 2, JSON.stringify(waits));
+  let m = 0; const bad = { id: 'gemini', kind: 'real', call: async () => { m++; throw new P.ProviderError('gemini', 'http_4xx', 1, { status: 400 }); } };
+  await assert.rejects(P.withRetry(bad, {}, hooks).call(REQ), (e) => e.code === 'http_4xx' && e.detail.attempt === 1); assert.equal(m, 1, '4xx 재시도 0');
+  let k = 0; const down = { id: 'anthropic', kind: 'real', call: async () => { k++; throw new P.ProviderError('anthropic', 'http_5xx', 1, { status: 529 }); } };
+  await assert.rejects(P.withRetry(down, { max5xx: 2 }, hooks).call(REQ), (e) => e.code === 'http_5xx' && e.detail.attempt === 3); assert.equal(k, 3, '5xx 는 2번까지 다시');
+  let q = 0; const always429 = { id: 'gemini', kind: 'real', call: async () => { q++; throw new P.ProviderError('gemini', 'http_429', 1, { status: 429 }); } };
+  await assert.rejects(P.withRetry(always429, { max429: 2 }, hooks).call(REQ), (e) => e.code === 'http_429'); assert.equal(q, 3, '반복 429 는 정해진 횟수 뒤 실패(→ Router 차단)');
+});

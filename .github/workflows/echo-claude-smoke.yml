@@ -54,7 +54,7 @@ jobs:
         working-directory: product
         env:
           NODE_PATH: /tmp/tools/node_modules
-          ECHO_AGENT_FILE: ./candidates/agent-v3.4.ts
+          ECHO_AGENT_FILE: ./candidates/agent-v3.5.ts
         run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
       - name: Claude smoke(목록 1회 + 생성 1회)
         if: ${{ inputs.mode != 'compare43' && inputs.providers == '' }}
@@ -84,9 +84,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
           ECHO_ROUTER: '1'
-          ECHO_AGENT_FILE: spike/agent-v1-20260925/candidates/agent-v3.4.ts
         run: |
           mkdir -p ../ab-out
+          export ECHO_AGENT_FILE=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.agent_file)")
+          echo "agent_file=$ECHO_AGENT_FILE"
           set +e
           MODELS=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.models.join(','))")
           node --experimental-strip-types spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODELS" --out ../ab-out/compare43-result.md --json ../ab-out/compare43-result.json --perf ../ab-out/model-performance.jsonl
@@ -94,6 +95,7 @@ jobs:
           echo "run-prod-agent exit=$code"
           if [ -f ../ab-out/compare43-result.json ]; then echo "::group::compare43-result.json"; cat ../ab-out/compare43-result.json; echo; echo "::endgroup::"; fi
           if [ -f ../ab-out/compare43-result.md ]; then echo "::group::compare43-result.md"; cat ../ab-out/compare43-result.md; echo "::endgroup::"; fi
+          if [ -f ../ab-out/model-performance.jsonl ]; then echo "::group::model-performance.jsonl"; cat ../ab-out/model-performance.jsonl; echo "::endgroup::"; fi
           exit $code
       - name: 비교 결과 첨부(7일)
         if: ${{ always() && inputs.mode == 'compare43' }}
