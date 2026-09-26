@@ -45,6 +45,8 @@ const mock = (expect) => (_sys, input) => {
 
 const NEW_V211 = new Set(['S3', 'T3', 'T4']); // run 29 에서 새로 넣은 판 — 비용 비교는 이것을 뺀 같은 입력으로
 const REBUT = /아니|아닌데|오히려/;
+const CASUAL_END = /(야|어|아|지|해|돼|거든|네|좋아|싫어|없어|있어|다)[.!~]*$/;
+const overlapK = (a, b) => { const g = (t) => { const x = plainK(t).replace(/[?？.!~,]/g, ''); const o = new Set(); for (let i = 0; i < x.length - 1; i++) o.add(x.slice(i, i + 2)); return o; }; const A = g(a), B = g(b); let n = 0; for (const v of A) if (B.has(v)) n++; return n / Math.max(1, Math.min(A.size, B.size)); };
 const plainK = (t) => String(t ?? '').replace(/\s+/g, '').replace(/[「」『』"'“”‘’]/g, '');
 const SAJU_PHRASE = { peer_many: '부대끼', peer_none: '혼자정리', peer_some: '거리를스스로조절' };
 const seedPhrase = (seed) => !seed ? null : seed.source === 'SAJU' ? SAJU_PHRASE[seed.key] ?? null : `${plainK(seed.card)}카드`;
@@ -64,9 +66,9 @@ export async function runFlow(A, flowId, tone, model) {
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
+  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
 }
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -153,6 +155,12 @@ export function stats(A, runs) {
     rebuttal2_reappearance: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; const k = r.rows.findIndex((x) => REBUT.test(x.text)); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => [x.reply, x.question].some((t) => t && (plainK(t).includes(ph) || /사주|타로|카드에서/.test(t)))).length + (r.intro?.lines ?? []).filter((l) => plainK(l.text).includes(ph)).length; }, 0),
     rebuttal2_user_words_kept: `${runs.filter((r) => r.seed && r.rows.some((x) => REBUT.test(x.text) && x.saved)).length}/${runs.filter((r) => r.seed && r.rows.some((x) => REBUT.test(x.text))).length}`,
     covered_reask: runs.reduce((n, r) => { if (!r.seed) return n; const k = r.rows.findIndex((x) => x.saved && FREQ.test(x.text)); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => x.question && FREQ.test(x.question)).length; }, 0),
+    // v2.11-p0 사전 등록(run 30 · 대표 「PROFILE/CORRECTION P0 ONLY」) — 에이전트 코드와 따로 센다.
+    intro_overwrite: runs.filter((r) => { const s = r.rows.map((x) => x.intro_status); const k = s.indexOf('ready'); return k >= 0 && s.slice(k).some((v) => v === 'failed' || v === 'none'); }).length,
+    raw_verbatim_leak: runs.reduce((n, r) => { const raws = (r.items ?? []).filter((i) => /_raw$/.test(i.source ?? '') && CASUAL_END.test(i.quote.trim())).map((i) => plainK(i.quote)); return n + (r.intro?.lines ?? []).filter((l) => raws.some((q) => q.length >= 4 && plainK(l.text).includes(q))).length; }, 0),
+    intro_casual_line: runs.reduce((n, r) => n + (r.intro?.lines ?? []).filter((l) => !/(요|니다|죠)[.!~…]*$/.test(l.text.trim())).length, 0),
+    semantic_reask: runs.reduce((n, r) => n + r.rows.filter((x, i) => x.question && (x.qtype === 'core' || x.qtype === 'clarify') && (r.rows.slice(0, i).some((y) => y.question && y.question !== x.question && (x.confirmed_before ?? []).includes(y.qpurpose) && overlapK(y.question, x.question) >= 0.3) || (FREQ.test(x.question) && r.rows.slice(0, i).some((y) => y.saved && FREQ.test(y.text))))).length, 0),
+    ack_question_completion: rows.filter((x) => x.finish && x.reply && x.reply.split(/(?<=[.!~…?？])\s+/).some((t) => /[?？]\s*$|(나요|까요|을까|는지|니|냐|어때)[.]?\s*$/.test(t.trim()))).length,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
