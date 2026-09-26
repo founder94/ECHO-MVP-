@@ -1,0 +1,29 @@
+{
+ "schema": "echo-real-ai-run-v1",
+ "run": 19,
+ "mode": "prod_agent",
+ "actions_run": null,
+ "commit": "3bf38b8",
+ "workflow_name": null,
+ "job_id": null,
+ "job_conclusion": null,
+ "head_sha": null,
+ "completed_at": null,
+ "exit_code": null,
+ "real_ai": "NO_ACTIONS_RUN_RECORDED",
+ "frozen_ok": null,
+ "agent_ts_sha256": "bf26a04ad1506d59a47380e6744e18314874a17ffd19a8bb1d26427a76571148",
+ "flows_sha256": "58f23b4fc316b3909abcea317bbf15bd70786e08bf8e102aa2fdcc706503dd50",
+ "models": [
+  "gpt-4o-mini",
+  "gpt-4.1-mini",
+  "gpt-4.1"
+ ],
+ "verdict": "PASS",
+ "verdict_ref": "product/spike/ab-20260925/FROZEN_INPUTS.json#prod_agent_gate.history[12]",
+ "stats": null,
+ "stats_source": null,
+ "stats_dropped": [],
+ "stats_missing_reason": "NO_ACTIONS_RUN_RECORDED",
+ "user_fact": false
+}
