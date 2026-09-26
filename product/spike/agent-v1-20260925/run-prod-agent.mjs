@@ -59,7 +59,7 @@ export async function runFlow(A, flowId, tone, model) {
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
       finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null };
+  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote }))) };
 }
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -110,6 +110,9 @@ export function stats(A, runs) {
     evaluative_ack: rows.filter((x) => x.reply && /좋은\s*(방법|선택|생각)|멋지|훌륭|자연스러워요|좋네요|좋아요[.!~]?\s*$|그랬군요|힘드셨|대단|인상적/.test(x.reply)).length,
     // v2.4(run 21 사전 등록): 「아니 … / 그게 아니라 … / 그런 뜻 아니야 …」+ 새 뜻인데 정정(correction)으로 처리되지 않은 턴 수
     correction_lead_missed: A.correctionRemainder ? rows.filter((x) => { const r = A.correctionRemainder(x.text); return r !== null && r.replace(/\s/g, '').length >= 4 && !/[?？]\s*$/.test(r) && x.kind !== 'correction'; }).length : '해당 없음(이 판에 정정 가드 없음)',
+    // v2.6 사전 등록(run 24): ⑦ 정정으로 밀린 옛 값이 소개 초안에 남은 문장 수 · ⑧ F5 의 옛 값 「매일 연락하는 게 좋아」가 지금 값(CONFIRMED)으로 남은 판 수
+    intro_has_superseded: runs.reduce((n, r) => { const old = (r.items ?? []).filter((i) => i.status === 'SUPERSEDED').map((i) => i.quote.replace(/\s+/g, '').slice(0, 6)).filter((q) => q.length >= 4); return n + (r.intro?.lines ?? []).filter((l) => old.some((q) => l.text.replace(/\s+/g, '').includes(q))).length; }, 0),
+    f5_old_value_active: runs.filter((r) => r.flow === 'F5' && (r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락/.test(i.quote.replace(/\s+/g, '')))).length,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
