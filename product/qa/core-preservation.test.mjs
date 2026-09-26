@@ -107,8 +107,13 @@ test('사주·타로 → 매칭·사용자 사실 오염 0: 대화 서버·매�
   }
   // 대화 서버 규칙: 사주·타로를 섞지 않는다(doit-understanding 질문 규칙)
   assert.match(read('supabase/functions/doit-understanding/index.ts'), /사주·타로·진단·미래예측·새 사실·고정 질문 목록을 섞지 않/);
-  // 사주 결과 뒤 대화는 기존 대화 화면으로만(사주 값 전달 0)
-  assert.match(read('src/doit/pages/do-it/fortune/page.tsx'), /onTalk=\{\(\) => navigate\("\/doit\/conversation"\)\}/);
+  // 대표 MASTER §13~§17(2026-09-26): 사주·타로 → 대화는 기존 대화 화면으로, 이야기 거리는 결과 종류(사주 세 갈래 · 타로 카드 이름)만.
+  // 생년월일·시간·성별·명식·해설 글 전달 0 · 사용자 사실 아님(서버가 다리 문장 하나만 만든다 — 후보 v2.10, 운영 v2.2 는 이 값을 모른다).
+  const fortune = read('src/doit/pages/do-it/fortune/page.tsx');
+  assert.match(fortune, /onTalk=\{\(key\) => \{ setContentSeed\(\{ source: "SAJU", key \}\); navigate\("\/doit\/conversation"\); \}\}/);
+  assert.match(fortune, /setContentSeed\(\{ source: "TAROT", card: c\.card\.nameKo \}\)/);
+  const seed = read('src/doit/lib/contentSeed.ts').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(seed, /date|time|gender|birth|pillar|hanja|supabase|fetch|localStorage/i, '이야기 거리에 생년월일·시간·명식·저장 경로 0');
 });
 
 test('UI 단순화 ≠ 엔진 삭제: 숨긴 화면과 상관없이 서버 보호 장치 파일·함수 그대로(v2.2)', () => {

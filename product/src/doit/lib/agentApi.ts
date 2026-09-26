@@ -1,4 +1,5 @@
 import { prepareUnderstandingRequest, serverFunctionRequest } from '@/doit/lib/understandingApi';
+import type { ContentSeed } from './contentSeed';
 
 // ECHO Conversation Agent(서버 doit-agent). 이 파일은 질문·진행·저장을 만들지 않는다 — 서버가 준 모습을 그대로 쓴다.
 // 운영 DB와 함수 배포 뒤 빌드 환경에서만 켠다(VITE_ECHO_AGENT_ENABLED). 런타임 자동 활성화 없음.
@@ -59,8 +60,9 @@ async function write<T>(userId: string, body: Record<string, unknown>): Promise<
 }
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
-export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string }): Promise<AgentSession> {
-  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}) });
+// seed = 사주·타로 결과에서 들어왔을 때의 이야기 거리(결과 종류만 · 사용자 사실 아님). 서버가 모르면 무시하고 보통 대화로 시작한다.
+export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string; seed?: ContentSeed | null }): Promise<AgentSession> {
+  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}), ...(input.seed ? { seed: input.seed } : {}) });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r.session;
 }

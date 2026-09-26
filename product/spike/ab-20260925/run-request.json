@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-26",
- "approved_by": "대표 「v2.9 FINAL CORRECTION RECOVERY」(2026-09-26) — v2.9 1개 · 운영배포 금지",
- "run": 27,
+ "approved_by": "대표 「FINAL IMPLEMENTATION MASTER」 PDF(2026-09-26) — 후보 1개 · 운영배포 금지",
+ "run": 28,
  "mode": "prod_agent",
- "what": "v2.9 후보 — 끝난 뒤 정정 1회 보정 · 정정 원문 보존 · 정정 직후 다시 캐묻기 금지(판정 규칙 prod_agent_gate.why_v20)",
+ "what": "v2.10 후보 — 사주·타로 → 대화 다리 · 소개에 최근 정정 반영(판정 규칙 prod_agent_gate.why_v21)",
  "history": [
   {
    "run": 1,
@@ -167,10 +167,17 @@
    "actions_run": 36235909681,
    "commit": "f7aa771",
    "note": "v2.8 FAIL(끝난 뒤 상한에 막힌 정정 2 · 다시 캐묻기 1)"
+  },
+  {
+   "run": 27,
+   "mode": "prod_agent",
+   "actions_run": 36236615087,
+   "commit": "6fc9eeb",
+   "note": "v2.9 PARTIAL(자동 1~12 충족 · 사람 검토 결함 4)"
   }
  ],
  "models": [
   "gpt-4o-mini"
  ],
- "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.9.ts"
+ "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.10.ts"
 }

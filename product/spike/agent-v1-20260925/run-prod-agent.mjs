@@ -43,13 +43,16 @@ const mock = (expect) => (_sys, input) => {
     next: kind === 'help' && input.current_question && (input.current_question.helps ?? 0) < 2 ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 쉬운 질문 ${seq}?`, hint: '[MOCK] 예: 가, 나' } : kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
 };
 
+const plainK = (t) => String(t ?? '').replace(/\s+/g, '').replace(/[「」『』"'“”‘’]/g, '');
+const SAJU_PHRASE = { peer_many: '부대끼', peer_none: '혼자정리', peer_some: '거리를스스로조절' };
+const seedPhrase = (seed) => !seed ? null : seed.source === 'SAJU' ? SAJU_PHRASE[seed.key] ?? null : `${plainK(seed.card)}카드`;
 const FREQ = /매일|날마다|맨날|자주|가끔|주말|한\s*번|하루에|매주|일주일|한\s*달/;
 const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /부담/], [/속상/, /속상/], [/서운|섭섭/, /서운|섭섭/], [/아쉽|아쉬/, /아쉽|아쉬/], [/외로/, /외로|외롭/], [/슬프|슬퍼|슬픈/, /슬/], [/화나|화가|화났/, /화/], [/답답/, /답답/], [/무겁|무거/, /무겁|무거/], [/걱정/, /걱정/], [/불안/, /불안/], [/지치|지쳤|지친/, /지치|지쳤|지친|지쳐/], [/피곤/, /피곤/], [/괴로/, /괴로|괴롭/], [/스트레스/, /스트레스/], [/짜증/, /짜증/], [/곤란/, /곤란/], [/당황/, /당황/], [/지루/, /지루/], [/귀찮/, /귀찮/]];
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
   const rec = recorder(model);
   const llm = (kind, prompt, input) => rec.llm(prompt, JSON.stringify(input), A.AGENT_PARAMS);
-  const st = A.newState({ tone });
+  const st = A.newState({ tone, seed: flow.seed ?? null }); // v2.10: 사주·타로 이야기 거리(없으면 null · 예전 판은 무시)
   A.seedFirstQuestion(st);
   const rows = [];
   for (const [i, s] of flow.steps.entries()) {
@@ -61,7 +64,7 @@ export async function runFlow(A, flowId, tone, model) {
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
       finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote }))) };
+  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
 }
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
@@ -133,6 +136,14 @@ export function stats(A, runs) {
     unnecessary_after_calls: sum(rows.filter((x) => x.over_cap && !x.recovery).map((x) => x.calls.length)),
     after_calls_total: sum(rows.filter((x) => x.after).map((x) => x.calls.length)),
     f7_recovered: `${runs.filter((r) => r.flow === 'F7' && r.rows.some((x) => x.recovery && x.saved) && !(r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락하는게좋/.test(i.quote.replace(/\s+/g, '')))).length}/${runs.filter((r) => r.flow === 'F7').length}`,
+    // v2.10 사전 등록(run 28 · 대표 「FINAL IMPLEMENTATION MASTER」 §32·§33) — 에이전트 코드와 따로 센다.
+    content_bridge_shown: `${runs.filter((r) => r.seed && r.rows.some((x) => /결과에서는|카드에서는/.test(x.question ?? ''))).length}/${runs.filter((r) => r.seed).length}`,
+    content_result_as_fact: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; const said = r.rows.some((x) => plainK(x.text).includes(ph)); return n + (said ? 0 : (r.items ?? []).filter((i) => i.status === 'CONFIRMED' && (plainK(i.quote).includes(ph) || plainK(i.note ?? '').includes(ph))).length); }, 0),
+    content_in_intro: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; return n + (r.intro?.lines ?? []).filter((l) => plainK(l.text).includes(ph) || /사주|타로|카드/.test(l.text)).length; }, 0),
+    content_matching: runs.filter((r) => { const ph = seedPhrase(r.seed); if (!ph) return false; const j = plainK(JSON.stringify([r.profile, r.handoff])); return j.includes(ph) || /사주|타로/.test(j); }).length,
+    rebuttal_reappearance: runs.reduce((n, r) => { const ph = seedPhrase(r.seed); if (!ph) return n; const k = r.rows.findIndex((x) => x.text.trim().startsWith('아니')); if (k < 0) return n; return n + r.rows.slice(k).filter((x) => [x.reply, x.question].some((t) => t && (plainK(t).includes(ph) || /사주|타로|카드에서/.test(t)))).length + (r.intro?.lines ?? []).filter((l) => plainK(l.text).includes(ph)).length; }, 0),
+    rebuttal_user_words_kept: `${runs.filter((r) => r.seed && r.rows.some((x) => x.text.trim().startsWith('아니') && x.saved)).length}/${runs.filter((r) => r.seed && r.rows.some((x) => x.text.trim().startsWith('아니'))).length}`,
+    latest_correction_missing_in_intro: runs.filter((r) => { const cs = (r.items ?? []).filter((i) => i.status === 'CONFIRMED' && i.source_type === 'USER_CORRECTED'); if (!cs.length || r.phase === 'talk') return false; const last = Math.max(...cs.map((i) => i.turn)); const qs = cs.filter((i) => i.turn === last).map((i) => plainK(i.quote)); return !(r.intro?.lines ?? []).some((l) => { const b = plainK(l.basis); return qs.some((q) => (b.length >= 2 && (q.includes(b) || b.includes(q))) || plainK(l.text).includes(q.slice(0, 6))); }); }).length,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',

@@ -6,6 +6,8 @@ import { TaroCardSelect } from "@/doit/app/plan-a/screens/TaroCardSelect";
 import { FreeResult } from "@/doit/app/plan-a/screens/FreeResult";
 import { SajuResult } from "@/doit/app/plan-a/screens/SajuResult";
 import type { SajuInput as SajuCalcInput } from "@/doit/lib/saju/engine";
+import { readSelectedCard } from "@/doit/app/plan-a/screens/FreeResult.parts";
+import { setContentSeed } from "@/doit/lib/contentSeed";
 
 // 사주·타로 — 햄버거 메뉴에서 진입하는 별도 무료 재미 기능.
 // A구조의 필수 과정(목적 → 프로필 → 공간)과 분리되어 있으며,
@@ -57,13 +59,15 @@ export default function Fortune() {
   }
 
   if (mode === "saju" && sajuInput) {
-    return <SajuResult input={sajuInput} onEdit={() => setStep("input")} onExit={exitToHome} onTalk={() => navigate("/doit/conversation")} />;
+    // 2026-09-26 대표 MASTER §13~§15: 결과 종류(세 갈래 중 하나)만 이야기 거리로 넘긴다 — 생년월일·시간·명식은 넘기지 않는다.
+    return <SajuResult input={sajuInput} onEdit={() => setStep("input")} onExit={exitToHome} onTalk={(key) => { setContentSeed({ source: "SAJU", key }); navigate("/doit/conversation"); }} />;
   }
 
   return (
     <FreeResult
       mode={mode}
-      onJoin={() => navigate("/doit/start-journey")}
+      // MASTER §14·§16: 타로 결과 → ECHO 대화(카드 이름만 이야기 거리로 · 해석 글은 넘기지 않는다). 타로 화면 파일은 바꾸지 않았다.
+      onJoin={() => { const c = readSelectedCard(); if (c) setContentSeed({ source: "TAROT", card: c.card.nameKo }); navigate("/doit/conversation"); }}
       onExit={exitToHome}
     />
   );

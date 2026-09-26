@@ -14,6 +14,7 @@ import MusicMoment from './MusicMoment';
 import { VOICE_CONVERSATION_ENABLED, takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
 import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
+import { takeContentSeed } from '@/doit/lib/contentSeed';
 
 interface Props {
   userId: string;
@@ -119,7 +120,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
 
   const start = (choice: AgentChoice = { tone, mode }) => void run(choice.mode === 'VOICE' ? '이해하는 중이에요' : '첫 이야기를 듣고 있어요', async () => {
     // 소리 길은 누름 안에서만 연다: 선택창 「말로 시작하기」 누름(아래 onConfirm) 또는 히어로 선택창 누름. 여기는 누름 밖일 수 있어 부르지 않는다(한 번 열기 표시가 헛되이 켜지지 않게).
-    const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}) });
+    const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed() });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
   });

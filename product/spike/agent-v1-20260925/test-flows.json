@@ -298,6 +298,146 @@
      "answer"
     ]
    ]
+  },
+  {
+   "id": "S1",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL IMPLEMENTATION MASTER」 §32 F7~F10 — 사주·타로 결과에서 들어온 대화(seed = 결과 종류만). 첫 말은 목적 타일 답(운영과 같은 순서). 사주 결과 → 개인대화(결과와 비슷하다고 말함)",
+   "seed": {
+    "source": "SAJU",
+    "key": "peer_some"
+   },
+   "steps": [
+    [
+     "친구처럼 편하게 만날 사람이요",
+     "answer"
+    ],
+    [
+     "맞아, 나도 사람 사이에 거리를 좀 두는 편이야",
+     "answer"
+    ],
+    [
+     "대화가 잘 통하는 사람",
+     "answer"
+    ],
+    [
+     "주말에 한 번 정도 보는 게 좋아",
+     "answer"
+    ],
+    [
+     "거짓말하는 사람은 싫어",
+     "answer"
+    ],
+    [
+     "응",
+     "answer"
+    ]
+   ]
+  },
+  {
+   "id": "S2",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL IMPLEMENTATION MASTER」 §32 F7~F10 — 사주·타로 결과에서 들어온 대화(seed = 결과 종류만). 첫 말은 목적 타일 답(운영과 같은 순서). 사주 해석 반박",
+   "seed": {
+    "source": "SAJU",
+    "key": "peer_none"
+   },
+   "steps": [
+    [
+     "연애로 이어질 만남이요",
+     "answer"
+    ],
+    [
+     "아니, 나는 오히려 사람들이랑 금방 친해지는 편이야",
+     "correction"
+    ],
+    [
+     "같이 웃을 수 있는 사람",
+     "answer"
+    ],
+    [
+     "약속 잘 지키는 사람",
+     "answer"
+    ],
+    [
+     "연락은 자주 하는 게 좋아",
+     "answer"
+    ],
+    [
+     "담배는 싫어요",
+     "answer"
+    ]
+   ]
+  },
+  {
+   "id": "T1",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL IMPLEMENTATION MASTER」 §32 F7~F10 — 사주·타로 결과에서 들어온 대화(seed = 결과 종류만). 첫 말은 목적 타일 답(운영과 같은 순서). 타로 결과 → 개인대화",
+   "seed": {
+    "source": "TAROT",
+    "card": "달"
+   },
+   "steps": [
+    [
+     "편하게 알아갈 사람이요",
+     "answer"
+    ],
+    [
+     "요즘은 바빠서 사람 만날 시간이 별로 없었어",
+     "answer"
+    ],
+    [
+     "말이 잘 통하는 사람",
+     "answer"
+    ],
+    [
+     "다정한 사람",
+     "answer"
+    ],
+    [
+     "천천히 연락하는 게 좋아요",
+     "answer"
+    ],
+    [
+     "딱히 없어요",
+     "unsure"
+    ]
+   ]
+  },
+  {
+   "id": "T2",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL IMPLEMENTATION MASTER」 §32 F7~F10 — 사주·타로 결과에서 들어온 대화(seed = 결과 종류만). 첫 말은 목적 타일 답(운영과 같은 순서). 타로 해석 반박",
+   "seed": {
+    "source": "TAROT",
+    "card": "탑"
+   },
+   "steps": [
+    [
+     "진지하게 만날 사람이요",
+     "answer"
+    ],
+    [
+     "아니 딱히 조심스럽진 않아. 그냥 바빠서 못 만났어",
+     "correction"
+    ],
+    [
+     "성격 밝은 사람",
+     "answer"
+    ],
+    [
+     "솔직한 사람",
+     "answer"
+    ],
+    [
+     "매일 조금씩 연락하는 게 좋아",
+     "answer"
+    ],
+    [
+     "약속 안 지키는 건 싫어",
+     "answer"
+    ]
+   ]
   }
  ],
  "runs": [
@@ -388,6 +528,30 @@
   {
    "flow": "F7",
    "tone": "casual"
+  },
+  {
+   "flow": "S1",
+   "tone": "polite"
+  },
+  {
+   "flow": "S2",
+   "tone": "polite"
+  },
+  {
+   "flow": "S2",
+   "tone": "casual"
+  },
+  {
+   "flow": "T1",
+   "tone": "polite"
+  },
+  {
+   "flow": "T2",
+   "tone": "polite"
+  },
+  {
+   "flow": "T2",
+   "tone": "formal"
   }
  ]
 }

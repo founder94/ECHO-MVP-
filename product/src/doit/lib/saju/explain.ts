@@ -86,6 +86,11 @@ export function topics(r: SajuResult, now: Date = new Date()): Topic[] {
   ];
 }
 
+/** 사주 → ECHO 대화 이야기 거리(관계 주제의 세 갈래 중 하나 · topics 「관계」와 같은 기준). 사용자 사실이 아니다. */
+export function sajuSeedKey(r: SajuResult): 'peer_many' | 'peer_none' | 'peer_some' {
+  const n = godCounts(r).peer; return n >= 3 ? 'peer_many' : n === 0 ? 'peer_none' : 'peer_some';
+}
+
 export function summaryLines(r: SajuResult, now: Date = new Date()): string[] {
   const cf = currentFlow(r, now);
   const lines = [`일간 ${STEMS_KO[r.day_master.stem]}(${ELEMENT_KO[r.day_master.element]}) · ${elementSummary(r)[0]}`];

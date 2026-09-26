@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ELEMENT_KO, ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, type Pillar, type SajuInput, type TenGod } from "@/doit/lib/saju/engine";
-import { currentFlow, groupFlow, summaryLines, topics } from "@/doit/lib/saju/explain";
+import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doit/lib/saju/explain";
 import "./saju.css";
 
 // 무료 사주 결과(2026-09-26 대표 「SAJU / TAROT FINAL LOCK」): 입력 → 계산 엔진 → 명식 · 오행 · 현재 흐름 · 10년 흐름 · 연도별 흐름 · 주제별 해설 · 정리.
@@ -24,7 +24,7 @@ function PillarBox({ label, pillar, gods }: { label: string; pillar: Pillar | nu
   </div>;
 }
 
-interface Props { input: SajuInput; onEdit: () => void; onExit: () => void; onTalk: () => void }
+interface Props { input: SajuInput; onEdit: () => void; onExit: () => void; onTalk: (seedKey: ReturnType<typeof sajuSeedKey>) => void }
 
 export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
   const calc = useMemo(() => {
@@ -98,11 +98,13 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
     <section className="saju-card" aria-label="정리">
       <h2 className="saju-h2">정리</h2>
       {summaryLines(r).map((l, i) => <p key={i} className="saju-body">{l}</p>)}
-      <p className="saju-body saju-ask">이 풀이, 실제 나랑 좀 비슷해요?</p>
+      <p className="saju-body saju-ask">이 결과, 실제 나랑 좀 비슷했어요?</p>
       <div className="saju-actions saju-actions--row">
-        <button type="button" className="saju-secondary" aria-pressed={fit === "similar"} onClick={() => setFit("similar")}>비슷해요</button>
+        <button type="button" className="saju-secondary" aria-pressed={fit === "similar"} onClick={() => setFit("similar")}>좀 비슷해요</button>
         <button type="button" className="saju-secondary" aria-pressed={fit === "different"} onClick={() => setFit("different")}>조금 달라요</button>
       </div>
+      <div className="saju-actions"><button type="button" className="saju-primary" onClick={() => onTalk(sajuSeedKey(r))}>ECHO랑 이야기해볼래요</button></div>
+      <p className="saju-cap">결과는 이야기 거리일 뿐이에요. 실제로 어떤지는 대화에서 내가 직접 말한 것만 기억해요.</p>
       {fit && <p className="saju-cap">고른 답은 이 화면에만 있어요. 나의 이해나 사람 연결에는 쓰지 않아요.</p>}
     </section>
 
@@ -110,7 +112,6 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
     <p className="saju-cap">계산 기준: 양력 · 한국 시간 · 절기 기준 월 · 밤 11시 반부터 다음 날. 입력한 생일·시간은 이 휴대폰에서 계산에만 쓰고 저장하지 않아요.</p>
 
     <div className="saju-actions">
-      <button type="button" className="saju-primary" onClick={onTalk}>ECHO와 이야기하기</button>
       <button type="button" className="saju-secondary" onClick={onEdit}>다시 입력할게요</button>
       <button type="button" className="saju-text" onClick={onExit}>여기까지 볼게요</button>
     </div>
