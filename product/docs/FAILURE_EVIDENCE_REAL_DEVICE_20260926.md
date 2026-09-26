@@ -46,3 +46,12 @@
 | INSTALL_DISCOVERABILITY_FAILURE | 수정함. 설정 → 「홈 화면에 ECHO 추가」. |
 | MUSIC_PLAYER_NOT_READY | 첫 화면 플레이어를 내렸다. 「ECHO가 이해한 나」에서 [맞아요]를 누른 뒤 뜨는 작은 카드로 옮겼다. 외부 음원 재생은 확인 불가. 가사 원문은 MISSING. |
 | PROFILE_CORRECTION_UI_MISSING | 근거: 서버에는 정정 엔진이 있었지만, 대화 끝 화면에는 고치는 버튼이 없었다(입력칸 하나뿐). 수정함: [맞아요] / [조금 달라요](한 칸만) / [다시 말할게요] / 재확인. [맞아요] 기록은 기기에만 남는다. 서버에 남기려면 v2.2 변경 승인이 필요하다(PARTIAL). |
+
+## 2026-09-26 대표 「FINAL EXECUTION ORDER」 기준 이름
+
+- 음악 후보 이름을 **MUSIC_PLAYER_WRONG_PLACEMENT**로 바꾼다(예전 이름 MUSIC_PLAYER_NOT_READY).
+  - 근거: 대표 결정 「DO IT MUSIC은 광고가 아니다 · 첫 화면 플레이어는 회사 음악 홍보처럼 보인다」.
+  - 조치: 첫 화면 플레이어를 뺐다. [맞아요] 뒤 Music Moment로 옮겼다.
+- 이번 MVP 기록 후보: OPAQUE_CHOICE_PANEL · USER_CONTEXT_NOT_ACKNOWLEDGED · INSTALL_DISCOVERABILITY_FAILURE · PROFILE_CORRECTION_UI_MISSING · MUSIC_PLAYER_WRONG_PLACEMENT.
+- 음성 3건(VOICE_MODE_FALSE_PROMISE · VOICE_RESPONSE_NOT_SPOKEN · VOICE_CONTROL_FAILURE)은 DEFERRED_MVP다. 숨겼다고 PASS로 처리하지 않는다.
+- 같은 날 추가 조치: 설정 판, 로그아웃 줄, 설치 안내, 프로필 빈 사진 칸의 검은 판을 투명 판 + 얇은 흰 테두리로 바꿨다(§23 사용자 화면 파스텔 통일).

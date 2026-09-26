@@ -38,3 +38,9 @@
 .doit-app-pastel .doit-profile-facts>div{border-color:#ffffff40}
 .doit-app-pastel .doit-profile-facts :is(dt,dd){color:#fff;font-weight:600}
 
+/* 2026-09-26 대표 「FINAL EXECUTION ORDER」 §23: 설정 판·설치 안내·프로필 빈 사진 칸의 검은 판도 파스텔이 비치는 투명 판 + 얇은 흰 테두리로. 탈퇴 확인(빨간 위험 버튼)은 그대로. */
+.doit-app-pastel :is(.doit-settings-panel,.doit-settings-note,.doit-settings-icon,.doit-settings-mail,.doit-settings-session,.doit-install,.doit-profile-photos-empty){background:transparent;border-color:var(--app-surface-border);box-shadow:none}
+.doit-app-pastel .doit-settings-panel :is(a,button,span,i){color:#fff}
+.doit-app-pastel .doit-install :is(h2,p,b,strong,li,li::marker,.doit-install-note,.doit-install-address,.doit-install-address span,.doit-install-later){color:#fff}
+.doit-app-pastel .doit-install :is(.doit-install-action,.doit-install-secondary){background:transparent;border:1px solid #fff;color:#fff}
+.doit-app-pastel .doit-profile-photos-empty :is(p,span,svg){color:#fff}

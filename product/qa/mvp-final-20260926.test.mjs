@@ -115,3 +115,9 @@ test('로그인 실패 문구: 영어 원문 대신 한국어', async () => {
   assert.equal(authErrorText('Some unknown English error'), '로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.');
   assert.equal(authErrorText('네트워크 연결을 확인해 주세요.'), '네트워크 연결을 확인해 주세요.');
 });
+
+test('§23 사용자 화면 파스텔: 설정 판·로그아웃 줄·설치 안내·프로필 빈 사진 칸도 투명 판(검은 판 0)', () => {
+  const css = read('src/doit/components/feature/app-pastel.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.doit-app-pastel :is\(\.doit-settings-panel,\.doit-settings-note,\.doit-settings-icon,\.doit-settings-mail,\.doit-settings-session,\.doit-install,\.doit-profile-photos-empty\)\{background:transparent;/);
+  assert.match(read('docs/FAILURE_EVIDENCE_REAL_DEVICE_20260926.md'), /MUSIC_PLAYER_WRONG_PLACEMENT/);
+});
