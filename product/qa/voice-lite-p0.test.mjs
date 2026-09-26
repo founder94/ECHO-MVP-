@@ -24,11 +24,10 @@ test('Voice Lite: 네 가지 상태 · 마이크가 주 행동 · 들은 말은 
   assert.match(ui, /const onHeard = useCallback\(\(text: string\) => sendRef\.current\(text\.slice\(0, TEXT_MAX\), true\), \[\]\);/);
   assert.match(ui, /agentTurn\(userId, session\.id, t\.slice\(0, TEXT_MAX\)\)/, 'TEXT·VOICE 가 같은 agentTurn 하나');
   assert.equal((ui.match(/agentTurn\(/g) ?? []).length, 1, '말로 대화 전용 서버 호출 0');
-  assert.match(ui, /session\.mode === 'VOICE' && !done && \(talk\.supported/, 'VOICE 모드 질문 화면에 늘 마이크');
+  assert.match(ui, /voiceUi && !done && \(talk\.supported/, 'VOICE 모드 질문 화면에 늘 마이크(켜졌을 때)');
   assert.match(ui, /if \(speaking\) \{ stopSpeaking\(\); setSpeaking\(false\); return; \}/, '말하는 중 누르면 즉시 멈춤');
   assert.match(ui, /if \(talk\.listening\) \{ talk\.stop\(\); return; \}/);
-  assert.match(ui, /\{voice\.supported && !\(session\.mode === 'VOICE' && !done\) && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
-  assert.match(ui, /'말로 대화 중' : '글로 대화 중'/);
+  assert.match(ui, /\{VOICE_CONVERSATION_ENABLED && voice\.supported && !\(voiceUi && !done\) && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
   assert.match(input, /r\.continuous = false;/, '말을 멈추면 스스로 끝(키보드·보내기 없이)');
   assert.doesNotMatch(input + out, /fetch\(|supabase|getUserMedia|MediaRecorder|localStorage/, '목소리 저장·전송·새 API 0');
 });

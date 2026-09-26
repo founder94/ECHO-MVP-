@@ -67,3 +67,7 @@ export async function syncPhoneVerification(userId: string): Promise<boolean> {
   const out = await serverFunctionRequest<{ ok: true; verified: boolean }>('doit-connect', { action: 'phone_sync' }, userId);
   return out.verified === true;
 }
+
+// 대표 2026-09-25 「전화 인증은 아직 구현 안 됐어」 · 2026-09-26 MVP FINAL PATCH(SMS DEFERRED_MVP): 운영에서 문자 발송 업체가 연결되지 않았다.
+// 준비되면(대표 승인 뒤) true 로 바꾼다. 연결 준비 화면·전화 인증 화면이 같은 값을 본다.
+export const PHONE_VERIFY_READY = false;

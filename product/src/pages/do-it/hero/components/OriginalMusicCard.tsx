@@ -1,20 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { VOICE_ACTIVE_EVENT } from '@/doit/lib/voiceOutput';
+import { DOIT_TRACKS } from '@/lib/doitMusic';
 
-// A구조(DO IT) 오리지널 음악 원음 2곡.
-// 성별 확인 전이므로 "원음 1 / 원음 2"로 표기한다. 파일 순서로 성별을 추정하지 않는다.
-const TRACKS = [
-  {
-    id: 'origin-1',
-    label: '원음 1',
-    src: 'https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/80bd6071-35bc-4ca9-898c-cc7f3d8adc51_65f5bc59-e582-437a-97af-88cc38b6d259.mp3',
-  },
-  {
-    id: 'origin-2',
-    label: '원음 2',
-    src: 'https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/7bd42734-8e58-4474-8eed-08f21c108a30_02c258b7-43c4-40c2-b6f1-ac72d7d5be8d.mp3',
-  },
-];
+// 2026-09-26 대표 「DO IT MUSIC · MVP FINAL LOCK」: 첫 화면에서 내렸다(지금 쓰는 곳 0 · 파일은 보존). 음원 주소는 src/lib/doitMusic.ts 한 곳.
+const TRACKS = DOIT_TRACKS;
 
 function formatTime(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) return '0:00';

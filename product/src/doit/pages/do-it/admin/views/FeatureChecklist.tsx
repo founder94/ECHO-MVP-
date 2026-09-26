@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { PanelTitle } from "../components/ui";
+import { LEGAL_EFFECTIVE_DATE, LEGAL_UPDATED_DATE, LEGAL_VERSION } from "@/lib/legal/documents";
 
 // 대표 2026-09-25 「초보 대표가 이해하기 쉽게 확인 체크」 → 2026-09-26 ADMIN OPERATIONS FINAL: 「작동 중」 한 칸으로 끝내지 않고
 // 화면 · 서버 · 저장(DB) · 외부 서비스 · 실기기 · 출시 준비 여섯 칸으로 나눠 거짓 PASS 를 막는다.
@@ -44,10 +45,16 @@ const FEATURE_ROWS: Row[] = [
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "PASS", device: "PASS", ready: "PASS" } },
   { name: "사진 올리기", state: "ok", what: "프로필 사진을 올리고 바꿀 수 있어요. 「최근 2개월 사진」 확인을 저장할 칸은 없어요.",
     axes: { ui: "PASS", server: "PASS", db: "PASS", ext: "NA", device: "UNKNOWN", ready: "PARTIAL" } },
-  { name: "AI 사진 확인", state: "decide", what: "사진을 OpenAI로 보내 확인해요(외모 점수 아님). 기존 회원에게 다시 동의를 받을지 법무 확인이 필요해요.",
-    axes: { ui: "PASS", server: "PASS", db: "UNKNOWN", ext: "PASS", device: "UNKNOWN", ready: "STOP" } },
-  { name: "음성으로 말하기", state: "ok", what: "글 적는 칸의 마이크 버튼(휴대폰 받아쓰기). 실시간 음성 대화는 아니에요. 목소리는 저장하지 않아요.",
-    axes: { ui: "PASS", server: "PASS", db: "NA", ext: "NA", device: "UNKNOWN", ready: "PARTIAL" } },
+  { name: "AI 사진 확인", state: "off", what: "2026-09-26 MVP FINAL PATCH: MVP에서 꺼 두었어요(DEFERRED_MVP). 사진 화면이 서버 함수를 부르지 않고 사진을 OpenAI로 보내지 않아요(PHOTO_AI_CHECK_ENABLED=false). 서버 함수는 그대로 남아 있어요.",
+    axes: { ui: "NA", server: "NA", db: "NA", ext: "NOT_CONNECTED", device: "NA", ready: "STOP" } },
+  { name: "말로 대화하기", state: "off", what: "2026-09-26 MVP FINAL PATCH: 독립 음성 대화가 완성되기 전이라 화면에서 숨겼어요(DEFERRED_MVP · VOICE_CONVERSATION_ENABLED=false). 시작 버튼은 「대화 시작하기」 하나예요. 키보드 받아쓰기를 음성 기능이라고 안내하는 문구 0.",
+    axes: { ui: "NA", server: "NA", db: "NA", ext: "NOT_CONNECTED", device: "NA", ready: "STOP" } },
+  { name: "ECHO가 이해한 나(확인·정정)", state: "decide", what: "다섯 문답 뒤 AI 초안을 보여 주고 [맞아요]·[조금 달라요](한 칸만 고침)·[다시 말할게요]. 고친 말은 대화 서버(v2.2) 정정 턴으로 들어가 옛 뜻을 거둬요. [맞아요] 기록은 이 기기에만 있어요(서버 기록은 서버 변경 승인 뒤).",
+    axes: { ui: "PASS", server: "PARTIAL", db: "PARTIAL", ext: "PASS", device: "UNKNOWN", ready: "PARTIAL" } },
+  { name: "DO IT MUSIC 순간", state: "decide", what: "첫 화면 음악 플레이어를 내리고, [맞아요] 뒤 작은 카드에서 누를 때만 원음 1을 들려줘요. 대표 가사 원문이 저장소에 없어 가사 줄은 비어 있어요(MISSING). 대표 음악·구간 지정 필요.",
+    axes: { ui: "PASS", server: "NA", db: "NA", ext: "UNKNOWN", device: "UNKNOWN", ready: "PARTIAL" } },
+  { name: "약관 · AI 고지", state: "decide", what: `약관·개인정보 ${LEGAL_VERSION} · 시행일 ${LEGAL_EFFECTIVE_DATE} · 최종 변경 ${LEGAL_UPDATED_DATE} · 초안(법무 확인 전). 대화 시작 전 「이 대화는 AI가 함께합니다」, 프로필 초안 「ECHO가 대화를 바탕으로 작성한 초안이에요」 표시.`,
+    axes: { ui: "PASS", server: "NA", db: "PASS", ext: "NA", device: "UNKNOWN", ready: "STOP" } },
   { name: "전화 인증", state: "wait", what: "문자 발송 업체가 연결되지 않았어요. 연결 전까지는 누구도 연결 자격을 갖추지 못해요.",
     axes: { ui: "PARTIAL", server: "PARTIAL", db: "PASS", ext: "NOT_CONNECTED", device: "FAIL", ready: "STOP" } },
   { name: "사람 연결(연결 승인)", state: "wait", what: "화면과 서버는 있지만 전화 인증이 없고, 연결 서버가 대화로 만든 매칭 프로필을 아직 읽지 않아 연결 0건이에요.",

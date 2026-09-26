@@ -7,6 +7,10 @@
 import { supabase } from '@/lib/supabase/client';
 import { PHOTO_SLOT_COUNT } from '@/doit/lib/photoStorage';
 
+// 2026-09-26 대표 「MVP FINAL PATCH」: AI 사진 판별은 MVP 에서 부르지 않는다(DEFERRED_MVP · 유료 외부 AI 호출).
+// 서버 함수(doit-photo-check)와 requestPhotoCheck 는 남겨 두되, 이 값이 false 인 동안 사진 화면은 호출하지도 결과를 보이지도 않는다.
+export const PHOTO_AI_CHECK_ENABLED = false;
+
 export type PhotoCategory = 'full_body' | 'fashion' | 'hobby' | 'free';
 
 export interface PhotoSlotSpec {

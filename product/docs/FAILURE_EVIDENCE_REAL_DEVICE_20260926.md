@@ -30,3 +30,19 @@
   - 설치 창이 뜨는지.
   - 설치 뒤 Metal E 아이콘이 보이는지.
 - 외부 음원 2곡이 실제로 재생되는지, 시간이 제대로 표시되는지.
+
+## 2026-09-26 MVP FINAL PATCH 뒤 상태
+
+대표 결정: 독립 음성 대화, 문자 인증, AI 사진 판별은 MVP에서 뺀다(DEFERRED_MVP).
+음성 실패를 "해결됨(PASS)"으로 처리하지 않는다. 음성 기능은 화면에서 숨겼다.
+
+| 후보 | 상태 |
+|---|---|
+| VOICE_MODE_FALSE_PROMISE | DEFERRED_MVP. 「말로 시작하기」와 키보드 마이크 문구를 사용자 화면에서 없앴다(`VOICE_CONVERSATION_ENABLED=false`). 음성 대화 자체는 구현 전이다. |
+| VOICE_RESPONSE_NOT_SPOKEN | DEFERRED_MVP. 기기 읽기(TTS) 코드는 남아 있지만 불리지 않는다. |
+| VOICE_CONTROL_FAILURE | DEFERRED_MVP. 음성 화면을 숨겼다. |
+| OPAQUE_CHOICE_PANEL | 수정함. 투명 유리 판과 버튼 하나(「대화 시작하기」). 실기기 확인 전. |
+| USER_CONTEXT_NOT_ACKNOWLEDGED | 수정함(화면). 서버가 만든 받아주기 말을 제목 자리에 보인다. 실기기 확인 전. |
+| INSTALL_DISCOVERABILITY_FAILURE | 수정함. 설정 → 「홈 화면에 ECHO 추가」. |
+| MUSIC_PLAYER_NOT_READY | 첫 화면 플레이어를 내렸다. 「ECHO가 이해한 나」에서 [맞아요]를 누른 뒤 뜨는 작은 카드로 옮겼다. 외부 음원 재생은 확인 불가. 가사 원문은 MISSING. |
+| PROFILE_CORRECTION_UI_MISSING | 근거: 서버에는 정정 엔진이 있었지만, 대화 끝 화면에는 고치는 버튼이 없었다(입력칸 하나뿐). 수정함: [맞아요] / [조금 달라요](한 칸만) / [다시 말할게요] / 재확인. [맞아요] 기록은 기기에만 남는다. 서버에 남기려면 v2.2 변경 승인이 필요하다(PARTIAL). |

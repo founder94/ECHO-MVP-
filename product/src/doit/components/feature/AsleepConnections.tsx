@@ -7,6 +7,7 @@ import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } 
 import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
 import './asleep-connections.css';
+import { PHONE_VERIFY_READY } from '@/doit/lib/phoneVerify'; // 문자 발송 업체 연결 전 false(전화 인증 화면과 같은 값)
 
 // "당신이 잠든 사이" (대표 확정 2026-09-21 연결 원칙 · 2026-09-22 지시 "저장한 걸로 사람을 매칭").
 // 서버(doit-understanding v13.4 connection_preview)가 돌려주는 건 숫자와 내 말뿐이다. 다른 사람의 이름·사진·글은 첫 질문 뒤에야 열린다(blind-first).
@@ -24,8 +25,6 @@ type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 
 
 const HEADLINE = <>당신이 잠든 사이,<br />AI가 먼저 만나봅니다.</>;
 const SUBLINE = '프로필보다, 함께한 행동을 봅니다.';
-// 대표 2026-09-25 「전화 인증은 아직 구현 안 됐어」: 운영에서 문자 발송 업체가 연결되지 않았다. 준비되면 true 로 바꾼다.
-const PHONE_VERIFY_READY = false;
 
 export default function AsleepConnections() {
   const { user, loading } = useAuth();

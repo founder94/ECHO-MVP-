@@ -6,6 +6,10 @@ export interface AgentChoice { tone: AgentTone; mode: AgentMode }
 // 기기 목소리(TTS) 도구는 voiceOutput.ts 한 곳에 둔다(선택창·히어로·대화 화면이 같은 것을 쓴다).
 export { canSpeak, unlockSpeech } from './voiceOutput';
 
+// 2026-09-26 대표 「MVP FINAL PATCH」: 독립 음성 대화가 완성되기 전에는 「말로 대화」를 사용자에게 약속하지 않는다(DEFERRED_MVP).
+// 코드(voiceInput·voiceOutput·마이크 화면)는 남겨 두되, 이 값이 false 인 동안 화면에 보이지도 불리지도 않는다. 다시 켜려면 대표 승인.
+export const VOICE_CONVERSATION_ENABLED = false;
+
 // 히어로에서 고른 것을 대화 화면까지 가져간다(로그인·목적 고르기를 거쳐도). 이 탭에서만(sessionStorage) · 한 번 쓰면 지운다.
 const CHOICE_KEY = 'doit:agent-choice';
 export function saveAgentChoice(choice: AgentChoice) { try { sessionStorage.setItem(CHOICE_KEY, JSON.stringify(choice)); } catch { /* 저장이 안 되면 대화 화면에서 한 번 더 고른다 */ } }

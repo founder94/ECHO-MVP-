@@ -104,6 +104,11 @@
 .echo-dialogue .echo-voice-state b{font-size:15px;font-weight:700}
 .echo-dialogue .echo-voice-heard{margin:0;max-width:100%;color:#fff;font-size:15px;line-height:1.7;word-break:keep-all}
 @media(prefers-reduced-motion:reduce){.echo-dialogue .echo-voice-button.echo-voice-main.is-listening{animation:none}}
+/* 2026-09-26 MVP FINAL PATCH 「ECHO가 이해한 나」: 칸 이름 한 줄 · AI 정리 한 줄 · 내 말(원문) 작게. 판·색은 기존 .echo-done 그대로. */
+.echo-dialogue .echo-profile-list li{display:grid;gap:4px}
+.echo-dialogue .echo-profile-item{display:grid;gap:2px;font-size:15px;line-height:1.7}
+.echo-dialogue .echo-profile-item small{font-size:12px;line-height:1.6;opacity:.85}
+.echo-dialogue .echo-profile-item.is-empty{opacity:.8}
 /* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.

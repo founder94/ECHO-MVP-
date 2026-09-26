@@ -17,7 +17,7 @@ import {
 } from "@/doit/lib/photoStorage";
 
 import { MAX_UPLOAD_PHOTO_BYTES, prepareAlbumPhoto, RecentPhotoError, type PreparedAlbumPhoto } from "@/doit/lib/recentPhoto";
-import { PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
+import { PHOTO_AI_CHECK_ENABLED, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
 
 const MAX_PHOTO_BYTES = MAX_UPLOAD_PHOTO_BYTES;
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
@@ -98,7 +98,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   // AI 판별 결과(칸별). 저장 뒤 비동기로 요청하고, 서버 함수가 없으면 '확인 대기'로만 표시한다(막지 않음).
   const [checks, setChecks] = useState<Record<number, PhotoCheck | "pending">>({});
   const requestCheck = useCallback((slot: number, photoId: string) => {
-    if (!userId) return;
+    if (!userId || !PHOTO_AI_CHECK_ENABLED) return; // MVP: AI 사진 판별 호출 0(DEFERRED_MVP)
     setChecks((prev) => ({ ...prev, [slot]: "pending" }));
     void requestPhotoCheck(userId, photoId, slot).then((result) => {
       if (mountedRef.current) setChecks((prev) => ({ ...prev, [slot]: result }));
@@ -510,7 +510,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           <Star size={14} color={colors.accent} className="mt-0.5 shrink-0" />
           <p style={{ color: colors.textFaint, fontSize: 12, lineHeight: 1.6 }}>
             별표는 대표 사진이에요. 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
-            AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요.
+            {PHOTO_AI_CHECK_ENABLED ? " AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요." : " 사진은 AI가 따로 판별하지 않아요. 본인 여부와 실제 촬영일도 확인하지 않아요."}
           </p>
         </div>
       </div>

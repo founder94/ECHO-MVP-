@@ -67,7 +67,7 @@ test('점검표: 기능마다 여섯 칸(화면·서버·저장·외부·실기�
   const list = read('src/doit/pages/do-it/admin/views/FeatureChecklist.tsx');
   for (const w of ['화면', '서버', '저장', '외부 서비스', '실기기', '출시 준비', '지금 막힌 곳 TOP 3']) assert.match(list, new RegExp(w));
   const rows = [...list.matchAll(/\{ name: "([^"]+)"[\s\S]*?axes: \{ ui: "(\w+)", server: "(\w+)", db: "(\w+)", ext: "(\w+)", device: "(\w+)", ready: "(\w+)" \} \}/g)];
-  assert.equal(rows.length, 14, '모든 기능에 여섯 칸');
+  assert.equal(rows.length, 17, '모든 기능에 여섯 칸(2026-09-26 MVP: ECHO가 이해한 나 · DO IT MUSIC 순간 · 약관·AI 고지 추가)');
   const phone = rows.find((r) => r[1] === '전화 인증'); assert.equal(phone[7], 'STOP'); assert.equal(phone[5], 'NOT_CONNECTED');
   const conn = rows.find((r) => r[1].startsWith('사람 연결')); assert.notEqual(conn[7], 'PASS');
   // 「작동 중」 배지인데 화면만 있고 서버가 안 되는 줄은 없어야 한다(거짓 PASS 0).

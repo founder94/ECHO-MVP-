@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { sanitizeReturnPath } from '@/lib/auth/returnPath';
 import DoItSymbol from '@/components/DoItSymbol';
 import { PASSKEY_ERROR_TEXT, PASSKEY_LOGIN_ENABLED, currentPasskeySupport, signInWithFace } from '@/lib/auth/passkey';
+import { authErrorText } from '@/lib/auth/authErrorText';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function Login() {
     try {
       const result = await signInWithGoogle(from);
       if (result.error) {
-        setError(result.error);
+        setError(authErrorText(result.error));
       }
       // 성공 시 브라우저가 Google로 이동한다. 돌아오면 /auth/callback 이 처리한다.
     } catch {
@@ -58,7 +59,7 @@ export default function Login() {
     try {
       const result = await signIn(email.trim(), password);
       if (result.error) {
-        setError(result.error);
+        setError(authErrorText(result.error));
         return;
       }
 
@@ -214,6 +215,12 @@ export default function Login() {
               <Link to="/signup" state={{ from }} className="inline-flex min-h-[44px] items-center px-1 text-white underline underline-offset-4 hover:text-white/80 transition-colors">
                 가입하기
               </Link>
+            </p>
+            {/* 2026-09-26 대표 「LEGAL / PRIVACY / AUTH」 §14·§15: 로그인 전에도 정책 전문을 바로 열어 볼 수 있게. */}
+            <p className="text-center text-xs text-foreground-500">
+              <Link to="/legal/terms" className="inline-flex min-h-[44px] items-center px-2 underline underline-offset-4 hover:text-white/80">이용약관</Link>
+              <span aria-hidden="true">·</span>
+              <Link to="/legal/privacy" className="inline-flex min-h-[44px] items-center px-2 underline underline-offset-4 hover:text-white/80">개인정보 처리방침</Link>
             </p>
           </form>
 

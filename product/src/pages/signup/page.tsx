@@ -5,6 +5,7 @@ import { sanitizeReturnPath } from '@/lib/auth/returnPath';
 import DoItSymbol from '@/components/DoItSymbol';
 import ConsentChecklist from '@/components/legal/ConsentChecklist';
 import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
+import { authErrorText } from '@/lib/auth/authErrorText';
 
 export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth();
@@ -34,7 +35,7 @@ export default function Signup() {
       const result = await signInWithGoogle(from);
       if (result.error) {
         setFormStatus('error');
-        setErrorMessage(result.error);
+        setErrorMessage(authErrorText(result.error, '가입하지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
       }
     } catch {
       setFormStatus('error');
@@ -76,7 +77,7 @@ export default function Signup() {
 
       if (result.error) {
         setFormStatus('error');
-        setErrorMessage(result.error);
+        setErrorMessage(authErrorText(result.error, '가입하지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
         return;
       }
 

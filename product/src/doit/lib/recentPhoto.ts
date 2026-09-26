@@ -115,7 +115,7 @@ export function assessCaptureDate(metadata: ExifCaptureDate, now = new Date()): 
   }
   if (capturedTime > now.getTime()) throw new RecentPhotoError("촬영 날짜가 미래로 표시된 사진이에요. 날짜가 올바른 원본 사진을 선택해 주세요.");
   if (capturedDay < calendarMonthsBefore(currentYear, currentMonth, currentDay)) {
-    throw new RecentPhotoError("최근 2개월 안에 찍은 사진만 올릴 수 있어요. 더 최근 사진을 선택해 주세요.");
+    throw new RecentPhotoError("사진 정보에 적힌 촬영 날짜가 최근 2개월보다 오래됐어요. 더 최근 사진을 선택해 주세요.");
   }
   return { kind: "recent" };
 }
