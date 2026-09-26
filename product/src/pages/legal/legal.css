@@ -24,3 +24,9 @@
 .legal-page-error{margin:16px 0 0;font-size:13px;line-height:1.8;color:#f0b8b8}
 .legal-page-fine{margin:16px 0 0;font-size:11px;line-height:1.8;color:#939ba8}
 @media(max-width:700px){.legal-page-nav{padding:12px 20px}.legal-page-body{padding:24px 20px 48px}.legal-page-body h1{font-size:22px}}
+/* 2026-09-26 대표 「검정은 히어로만」: 약관·동의 화면도 파스텔(.doit-app-pastel 바탕) — 글자는 흰색, 판은 투명 유리. */
+.legal-page.doit-app-pastel{background:transparent}
+.legal-page.doit-app-pastel :is(p,h1,h2,a,span,li,label,.legal-page-home,.legal-page-nav nav>a){color:#fff}
+.legal-page.doit-app-pastel .legal-page-nav,.legal-page.doit-app-pastel .legal-page-footer{border-color:rgb(255 255 255/.45)}
+.legal-page.doit-app-pastel .legal-page-draft{border-color:rgb(255 255 255/.7);background:rgb(255 255 255/.06)}
+.legal-page.doit-app-pastel .legal-page-error{color:#fff;text-decoration:underline}

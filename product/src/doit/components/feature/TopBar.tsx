@@ -1,5 +1,6 @@
 import DoItSymbol from "@/components/DoItSymbol";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
@@ -10,10 +11,12 @@ interface TopBarProps {
   showActions?: boolean;
 }
 
-// 사주·타로는 A구조의 필수 과정이 아니라, 햄버거 메뉴에서 진입하는 별도 무료 재미 기능이다.
+// 2026-09-26 MVP: 메뉴는 「말한다 → 이해한다 → 기억한다」와 설정·설치만. 숨긴 기능(Just Try·사주·타로·등급)은 releaseScope 로 빠진다.
 const ALL_MENU_ITEMS = [
-  { label: "ECHO와 이야기하기", desc: "내 말로 이야기하고, 다르면 고쳐요", to: "/doit/conversation", icon: "ri-chat-1-line" },
-  { label: "나의 이해", desc: "내가 확인하고 고친 개인 기록", to: "/doit/understanding", icon: "ri-book-open-line" },
+  { label: "ECHO와 이야기하기", desc: "생각나는 대로 말하면 돼요", to: "/doit/conversation", icon: "ri-chat-1-line" },
+  { label: "나의 이해", desc: "내가 맞다고 한 것만 모아 뒀어요", to: "/doit/understanding", icon: "ri-book-open-line" },
+  { label: "홈 화면에 ECHO 추가", desc: "앱처럼 바로 열 수 있어요", to: "/doit/settings#install", icon: "ri-smartphone-line" },
+  { label: "설정", desc: "소개·사진·계정", to: "/doit/settings", icon: "ri-settings-3-line" },
   { label: "Just Try", desc: "시도하고, 모으고, 다시 즐겨요", to: "/doit/just-try", icon: "ri-sparkling-2-line" },
   { label: "사주·타로 (무료)", desc: "재미로 보는 무료 콘텐츠", to: "/doit/fortune", icon: "ri-magic-line" },
   { label: "등급 가이드", desc: "등급의 의미 알아보기", to: "/doit/grade", icon: "ri-medal-line" },
@@ -38,7 +41,7 @@ export default function TopBar({
           {back && (
             <button
               onClick={() => navigate(-1)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
               aria-label="뒤로"
             >
               <i className="ri-arrow-left-line text-xl" />
@@ -63,44 +66,46 @@ export default function TopBar({
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="메뉴"
               aria-expanded={menuOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
             >
               <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-xl`} />
             </button>
 
-            {menuOpen && (
+            {/* 2026-09-26: 머리줄(흐림 막) 안에 두면 메뉴 판의 흐림이 뒤 화면을 못 본다(겹친 흐림) → 화면 틀(.doit-app-pastel)로 옮겨 그린다. */}
+            {menuOpen && createPortal(
               <>
                 <div
                   className="fixed inset-0 z-40"
                   onClick={() => setMenuOpen(false)}
                   aria-hidden="true"
                 />
-                <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-background-200 bg-background-50">
-                  <p className="px-4 pb-2 pt-3 text-[11px] font-medium text-foreground-400">
-                    더 보기
+                <div className="doit-menu-panel fixed right-4 z-50 w-64 overflow-hidden rounded-2xl" style={{ top: "calc(env(safe-area-inset-top) + 80px)" }}>
+                  <p className="doit-menu-caption px-4 pb-2 pt-3">
+                    메뉴
                   </p>
                   {MENU_ITEMS.map((item) => (
                     <Link
                       key={item.to}
                       to={item.to}
                       onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-background-100"
+                      className="doit-menu-item flex items-center gap-3 px-4 py-3"
                     >
-                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-background-100 text-foreground-600">
+                      <span className="doit-menu-icon flex h-9 w-9 items-center justify-center rounded-full">
                         <i className={`${item.icon} text-lg`} />
                       </span>
                       <span className="flex-1">
-                        <span className="block text-sm font-medium text-foreground-900">
+                        <span className="doit-menu-label block">
                           {item.label}
                         </span>
-                        <span className="block text-[11px] text-foreground-400">
+                        <span className="doit-menu-desc block">
                           {item.desc}
                         </span>
                       </span>
                     </Link>
                   ))}
                 </div>
-              </>
+              </>,
+              document.querySelector(".doit-app-pastel") ?? document.body,
             )}
           </div>
 
@@ -109,7 +114,7 @@ export default function TopBar({
               {SHOW_NOTIFICATIONS && (
                 <Link
                   to="/doit/notifications"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
                   aria-label="알림"
                 >
                   <i className="ri-notification-3-line text-xl" />
@@ -117,7 +122,7 @@ export default function TopBar({
               )}
               <Link
                 to="/doit/settings"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 hover:bg-background-200"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
                 aria-label="설정"
               >
                 <i className="ri-settings-3-line text-xl" />

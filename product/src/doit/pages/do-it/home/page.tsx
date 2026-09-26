@@ -10,6 +10,7 @@ import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from '@/doit/lib/agen
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import '@/doit/components/feature/understanding-pages.css';
+import { splitCurrent } from '@/doit/lib/understandingView';
 
 // 이미 홈 화면 앱으로 열려 있으면 설치 링크를 보이지 않는다.
 function standaloneApp(): boolean {
@@ -36,6 +37,7 @@ export default function Home() {
   const latest = [...savedRecords].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
   const confirmed = ready ? insights.filter((item) => item.status === 'confirmed' || item.status === 'corrected') : [];
   const pendingCount = ready ? insights.filter((item) => item.status === 'candidate').length : 0;
+  const currentCount = splitCurrent(confirmed.map((it, k) => ({ key: it.id, text: it.text, area: 'unsorted', origin: 'confirmed' as const, order: Date.parse(it.createdAt) || k }))).current.length;
   // v14.2(대표 2026-09-22 "메인 페이지에서 시작을 해야 하는데"): 여기가 앱의 메인이다.
   // 지금 어디까지 왔는지와 다음에 무엇을 할지를 이 화면에서 정한다.
   // ECHO Conversation Agent(2026-09-25): 진행은 서버 대화 상태(핵심 질문 몇 번째인지·끝났는지)로 센다 — 대화 화면과 같은 기준.
@@ -72,10 +74,10 @@ export default function Home() {
                 </>
               : <>
                   <h1 id="echo-home-title" className="doit-product-title">다섯 가지만<br />물어볼게요.</h1>
-                  <p className="doit-product-description">여기에 답한 말로<br />어떤 사람을 소개할지 정해요.</p>
+                  <p className="doit-product-description">편하게 말하면 돼요.<br />찾는 건 ECHO가 할게요.</p>
                   <Link className="doit-product-action" to="/doit/start-journey">시작하기 <span aria-hidden="true">↗</span></Link>
                 </>}
-          <p className="doit-product-footnote">AI가 잘못 알아들으면 바로 고쳐 주세요.<br />나를 설명하는 말은 내가 정해요.</p>
+          <p className="doit-product-footnote">잘못 알아들었으면 바로 고쳐 주세요.</p>
         </section>
 
         {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}
@@ -86,16 +88,16 @@ export default function Home() {
 
         {!A_STRUCTURE_SERVER_ENABLED ? (
           <section className="doit-understanding-notice" aria-label="기록 이용 안내">
-            <h2>대화와 기록을 준비하고 있어요</h2>
-            <p>지금은 계정에 저장된 대화 기록을 이용할 수 없어요. 프로필은 계속 준비할 수 있어요.</p>
-            <Link className="doit-understanding-text-link" to="/doit/start-journey">내 프로필 준비하기 <span aria-hidden="true">→</span></Link>
+            <h2>지금은 기록을 열 수 없어요</h2>
+            <p>프로필은 계속 채울 수 있어요.</p>
+            <Link className="doit-understanding-text-link" to="/doit/start-journey">프로필 채우기 <span aria-hidden="true">→</span></Link>
           </section>
         ) : authLoading || loading ? (
           <p className="doit-understanding-loading" role="status">내 이야기를 불러오고 있어요.</p>
         ) : !user ? (
           <section className="doit-understanding-notice">
-            <h2>로그인하면 이어서 할 수 있어요</h2>
-            <p>남겨 둔 이야기부터 다시 보여 드릴게요.</p>
+            <h2>로그인하면 이어서 해요</h2>
+            <p>남겨 둔 이야기부터 다시 보여 줄게요.</p>
             <Link className="doit-understanding-text-link" to="/login" state={{ from: '/doit/home' }}>로그인하고 이어가기 <span aria-hidden="true">→</span></Link>
           </section>
         ) : error ? (
@@ -115,10 +117,11 @@ export default function Home() {
               {latest && <Link className="doit-understanding-text-link" to="/doit/conversation">이어서 적기 <span aria-hidden="true">→</span></Link>}
             </section>
             <Link className="doit-understanding-summary" to="/doit/understanding">
-              <div><span>내가 맞다고 한 말</span><p>AI가 알아들은 것 중, 내가 맞다고 한 것만 모았어요.</p></div>
-              <strong>{confirmed.length}<small>개</small></strong><span aria-hidden="true">↗</span>
+              <div><span>나의 이해</span><p>내가 맞다고 한 것만 모아 뒀어요.</p></div>
+              {/* 2026-09-26 §33: 같은 뜻을 겹쳐 세지 않는다(나의 이해 화면과 같은 기준) */}
+              <strong>{currentCount}<small>가지</small></strong><span aria-hidden="true">↗</span>
             </Link>
-            {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">맞는지 봐 줄 문장 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
+            {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">아직 확인 안 한 말 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
           </>
         )}
         <div className="doit-understanding-footer">

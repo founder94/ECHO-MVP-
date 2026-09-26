@@ -60,8 +60,8 @@ export default function Settings() {
       <div className="doit-settings">
         <header className="doit-settings-intro">
           <p className="doit-product-kicker">MY ACCOUNT</p>
-          <h2 className="doit-product-title">내 정보,<br />내 방식으로.</h2>
-          <p className="doit-product-description">소개와 사진을 다듬고,<br />내 계정을 관리해요.</p>
+          <h2 className="doit-product-title">설정</h2>
+          <p className="doit-product-description">소개·사진·계정을 여기서 바꿔요.</p>
         </header>
 
         <section className="doit-settings-section" aria-labelledby="settings-account-heading">
@@ -108,19 +108,7 @@ export default function Settings() {
         {/* 2026-09-24 얼굴·지문 로그인(패스키) 등록·관리. 로그인한 사람만. */}
         {!loading && user && PASSKEY_LOGIN_ENABLED && <FaceLoginSettings />}
 
-        <section className="doit-settings-section" aria-labelledby="settings-availability-heading">
-          <h3 id="settings-availability-heading" className="doit-settings-heading">알림과 안전 설정</h3>
-          <dl className="doit-settings-status-list">
-            <div>
-              <dt>활동 · KEY · 미션 알림</dt>
-              <dd>알림을 받는 설정은 아직 제공하지 않아요.</dd>
-            </div>
-            <div>
-              <dt>안전 모드</dt>
-              <dd>안전 모드를 켜고 끄는 설정은 아직 제공하지 않아요.</dd>
-            </div>
-          </dl>
-        </section>
+        {/* 2026-09-26 MVP: 「알림·KEY·미션 · 안전 모드 — 아직 제공하지 않아요」 준비 중 칸은 뺐다(없는 기능을 보여 주지 않음). */}
 
         <section className="doit-settings-section" aria-labelledby="settings-data-heading">
           <h3 id="settings-data-heading" className="doit-settings-heading">내 정보 관리</h3>
@@ -136,13 +124,13 @@ export default function Settings() {
               to="/legal/terms"
               icon="ri-file-text-line"
               title="이용약관"
-              description="서비스 이용 조건과 결제·환불 기준을 확인해요."
+              description="서비스를 쓰는 규칙이에요."
             />
             <SettingsLink
               to="/legal/privacy"
               icon="ri-shield-check-line"
               title="개인정보 처리방침"
-              description="어떤 정보를 왜 모으고 어떻게 지키는지 확인해요."
+              description="내 정보를 어떻게 다루는지 적혀 있어요."
             />
           </div>
         </section>

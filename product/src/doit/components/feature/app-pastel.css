@@ -5,6 +5,7 @@
    - 머리줄·하단 탭: 검은 띠가 남지 않게 반투명(탭 글자는 흰색 계열로 올려 대비를 지킨다).
    - 파스텔 위에 바로 놓인 글자는 대화 화면과 같은 흰색(대표 2026-09-25 「글씨 흰색 하나로」). 표준 대비는 낮다 — 보고서에 숫자로 적는다. */
 @import "./pastel-bg.css";
+@import "./echo-ui.css";
 .doit-app-pastel{--app-page:transparent;--app-surface:transparent;--app-surface-border:#d9dfe8a6;color:#fff;-webkit-text-stroke:.35px currentColor} /* 대표 2026-09-25 「흰 글씨 뒤 검은 배경 없애고 파스텔로 투명」: 판 .81 어두운 막 → 투명 */
 /* 탭이 있는 앱 화면(MobileLayout)·프로필 확인 화면: 원래 검정 바탕(#090a0c) 대신 파스텔 줄기(고정 바탕이 비는 순간에도 검정이 아니다) */
 .doit-root .doit-product.doit-app-pastel{background:var(--pastel-underlay)}

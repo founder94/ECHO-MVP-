@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { LEGAL_DRAFT, LEGAL_DRAFT_NOTICE, LEGAL_UPDATED_DATE, type LegalDocument as LegalDocumentData } from '@/lib/legal/documents';
 import './legal.css';
+import '@/doit/components/feature/app-pastel.css';
 
 interface Props { document: LegalDocumentData }
 
 // 이용약관·개인정보 처리방침 열람 화면. 본문은 src/lib/legal/documents.ts 하나에서 온다.
 export default function LegalDocument({ document }: Props) {
   return (
-    <div className="legal-page">
+    <div className="legal-page doit-app-pastel">
       <header className="legal-page-nav">
         <Link to="/" className="legal-page-home">DO IT <span>COMPANY</span></Link>
         <nav aria-label="문서 이동">

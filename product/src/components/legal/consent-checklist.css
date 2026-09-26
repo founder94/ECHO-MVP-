@@ -13,3 +13,6 @@
 .legal-consent-doc{flex-shrink:0;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:8px 4px;font-size:12px;color:#aebbd0;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .legal-consent-hint{margin:10px 0 0;font-size:11px;line-height:1.8;color:#939ba8}
 .legal-consent:disabled .legal-consent-row{cursor:default;opacity:.6}
+/* 2026-09-26: 파스텔 화면(가입·동의) 위에서는 흰 글자 하나로(흐린 회색·주황 글자 0). */
+.doit-app-pastel .legal-consent :is(legend,label,span,em,a,p){color:#fff}
+.doit-app-pastel .legal-consent :is(.legal-consent-row,.legal-consent-all){border-color:rgb(255 255 255/.5)}

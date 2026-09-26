@@ -23,7 +23,7 @@ export function PrimaryButton({
       }
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className="w-full rounded-full px-6 flex items-center justify-center transition-opacity whitespace-nowrap"
+      className={`${solid ? "echo-primary-button" : "echo-secondary-button"} w-full rounded-full px-6 flex items-center justify-center transition-opacity whitespace-nowrap`}
       style={{
         height: 54,
         fontFamily: "'Do Hyeon', sans-serif",

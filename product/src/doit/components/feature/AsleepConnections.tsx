@@ -23,8 +23,9 @@ interface Preview {
 }
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; preview: Preview };
 
-const HEADLINE = <>당신이 잠든 사이,<br />AI가 먼저 만나봅니다.</>;
-const SUBLINE = '프로필보다, 함께한 행동을 봅니다.';
+// 2026-09-26 대표 「FINAL HUMAN UX」 §23·§41: 연결 0건인 지금 「AI가 먼저 만나봅니다」는 앞서가는 말 → 제품 훅(나는 말한다 · 찾는 건 ECHO가)으로. 히어로 문구는 그대로.
+const HEADLINE = <>나는 말하고,<br />찾는 건 ECHO가.</>;
+const SUBLINE = '지금은 연결을 준비하는 중이에요.';
 
 export default function AsleepConnections() {
   const { user, loading } = useAuth();
@@ -73,7 +74,7 @@ function Ready({ preview }: { preview: Preview }) {
   // 대표 2026-09-25 「연결 준비 화면 = 다음 할 일을 크게, 사진·소개·전화는 작은 진행으로(요건은 그대로)」.
   const ACTIONS: Record<string, { title: string; action: string }> = {
     '다섯 가지 질문': turns > 0 ? { title: '다섯 가지 대화를 마저 해요', action: '대화 이어가기' } : { title: '다섯 가지 대화부터 시작해요', action: '대화 시작하기' },
-    '필수 사진(전신·패션·취미)': { title: '필수 사진 세 장을 채워요', action: '사진 채우기' }, '내 소개': ECHO_AGENT_ENABLED ? { title: 'AI가 쓴 내 소개를 확인해요', action: '소개 확인하기' } : { title: '내 소개를 적어요', action: '소개 쓰기' }, '전화 인증': { title: '전화 인증을 해요', action: '전화 인증하기' },
+    '필수 사진(전신·패션·취미)': { title: '필수 사진 세 장을 채워요', action: '사진 채우기' }, '내 소개': ECHO_AGENT_ENABLED ? { title: '내 소개를 확인해요', action: '소개 확인하기' } : { title: '내 소개를 적어요', action: '소개 쓰기' }, '전화 인증': { title: '전화 인증을 해요', action: '전화 인증하기' },
   };
   // 전화 인증이 아직 준비 중이면 「다음 할 일」로 내밀지 않는다(누를 수 있는 버튼처럼 보이지 않게).
   const firstLeft = rows.find(row => !row.done && (PHONE_VERIFY_READY || row.label !== '전화 인증'));

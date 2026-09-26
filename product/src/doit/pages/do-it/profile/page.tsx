@@ -62,8 +62,8 @@ export default function Profile() {
     <MobileLayout title="프로필" showNav activeTab="profile">
       <section className="doit-product-story">
         <p className="doit-product-kicker">MY OWN WORDS</p>
-        <h2 className="doit-product-title">나를 소개하는 말은,<br />내가 고른 말로.</h2>
-        <p className="doit-product-description">어떤 사람인지, 어떤 시간을 좋아하는지.<br />지금의 나를 천천히 담아보세요.</p>
+        <h2 className="doit-product-title">내 프로필</h2>
+        <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
         <ProfilePhotoGallery userId={!authLoading ? user?.id ?? null : null} onManage={() => navigate("/doit/start-journey?edit=photos")} />
         <div className="doit-profile-card" aria-live="polite">
           <div className="doit-profile-card-head"><span className="doit-product-kicker">DO IT · PROFILE</span><DoItSymbol decorative /></div>
@@ -74,14 +74,14 @@ export default function Profile() {
             {(visible.status === "ok" || visible.status === "none") && displayName}
           </h3>
           <p className="doit-profile-intro">
-            {visible.status === "error" ? "저장된 정보는 바꾸지 않았어요. 잠시 후 화면을 다시 열어주세요." : visible.status === "signed_out" ? "로그인하면 내가 저장한 소개와 연결 목적을 볼 수 있어요." : intro}
+            {visible.status === "error" ? "저장된 건 그대로예요. 조금 뒤 다시 열어 주세요." : visible.status === "signed_out" ? "로그인하면 내 소개와 연결 목적이 보여요." : intro}
           </p>
           {visible.status === "ok" && <dl className="doit-profile-facts">{facts.map(({label,value}) => <div key={label}><dt>{label}</dt><dd>{value?.trim() || "아직 작성하지 않았어요"}</dd></div>)}</dl>}
           {joined && <p className="doit-product-footnote">가입일 {joined}</p>}
         </div>
         {visible.status === "signed_out" ? <Link className="doit-product-action" to="/login" state={{from:"/doit/profile"}}>로그인하고 프로필 보기 <span aria-hidden="true">↗</span></Link> :
           (visible.status === "ok" || visible.status === "none") && <Link className="doit-product-action" to="/doit/start-journey?edit=profile">{visible.status === "none" ? "프로필 준비하기" : "내 소개 수정하기"}<span aria-hidden="true">↗</span></Link>}
-        <div className="doit-product-note"><span className="doit-product-status">연결은 연결 탭에서</span><p>프로필에는 직접 작성한 내용을 담아요. 연결까지 무엇이 남았는지는 아래 「연결」 탭에서 볼 수 있어요.</p></div>
+        <div className="doit-product-note"><span className="doit-product-status">연결 준비</span><p>남은 게 뭔지는 아래 「연결」 탭에서 봐요.</p></div>
       </section>
     </MobileLayout>
   );

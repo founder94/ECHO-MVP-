@@ -6,6 +6,7 @@ import ExternalRedirect from '@/components/ExternalRedirect';
 
 // A구조 서브앱(/doit/*) — 7화면 흐름(첫 기록 → 확인·수정 → 홈 → 타임라인 → 가치 → 패턴 → 선택 기억)
 import doitRoutes from '@/doit/routes';
+import { visibleInRelease } from '@/doit/lib/releaseScope';
 
 // ── 사이트 역할 (대표 확정 2026-09-21) ────────────────────────────────────────
 // brand = do-it.company(브랜딩만) / app = app.do-it.company(제품 전부) / 없음 = 통합(7차까지의 검사 환경).
@@ -31,6 +32,9 @@ const PRODUCT_PATHS_ON_BRAND = [
 ];
 
 // 브랜드 화면 표. 함수 안의 lazy() 는 이 함수가 쓰이지 않는 빌드(app)에서 통째로 빠진다.
+// 2026-09-26 MVP(대표 「FINAL HUMAN UX」 §34): 예전 B구조 흐름(날씨·단계 질문·화이트 도어·리포트·보관함 등)은 지금 MVP 흐름 밖이다.
+// 주소로 바로 들어오면 앱 홈으로(화면 파일은 보존). 결제(/payment*)는 결제 결정 범위라 그대로 둔다(이 흐름을 숨겨 들어갈 길은 없다).
+
 function brandRouteTable(): RouteObject[] {
   const DoItHeroPage = lazy(() => import('@/pages/do-it/hero/page'));
   return [
@@ -70,25 +74,25 @@ function productRouteTable(): RouteObject[] {
   // 이건 "노출 제어"이지 보안 경계가 아니다. 실제 경계는 서버(doit-understanding)의 verify_jwt → getUser() → 인증 uid → RPC/RLS 다.
   const QaDoitUnderstanding = import.meta.env.VITE_QA_HARNESS === 'true' ? lazy(() => import('@/qa/QaDoitUnderstanding')) : null;
   return [
-    { path: '/home', element: <Home /> },
-    { path: '/start', element: <StartPage /> },
+    { path: '/home', element: visibleInRelease('/home') ? <Home /> : <Navigate to="/doit/home" replace /> },
+    { path: '/start', element: visibleInRelease('/start') ? <StartPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/signup', element: <Signup /> },
     { path: '/login', element: <Login /> },
     { path: '/auth/callback', element: <AuthCallbackPage /> },
     { path: '/legal/consent', element: <ConsentPage /> },
-    { path: '/weather', element: <WeatherPage /> },
-    { path: '/weather-check', element: <WeatherCheckPage /> },
-    { path: '/story-start', element: <StoryStartPage /> },
-    { path: '/step/2', element: <StepTwoPage /> },
-    { path: '/understanding-check', element: <UnderstandingCheckPage /> },
-    { path: '/white-door', element: <WhiteDoorPage /> },
+    { path: '/weather', element: visibleInRelease('/weather') ? <WeatherPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/weather-check', element: visibleInRelease('/weather-check') ? <WeatherCheckPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/story-start', element: visibleInRelease('/story-start') ? <StoryStartPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/step/2', element: visibleInRelease('/step/2') ? <StepTwoPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/understanding-check', element: visibleInRelease('/understanding-check') ? <UnderstandingCheckPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/white-door', element: visibleInRelease('/white-door') ? <WhiteDoorPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/payment', element: <PaymentPage /> },
     { path: '/payment/success', element: <PaymentSuccessPage /> },
     { path: '/payment/fail', element: <PaymentFailPage /> },
-    { path: '/step/:n', element: <StepNPage /> },
-    { path: '/report', element: <ReportPage /> },
-    { path: '/locker', element: <LockerPage /> },
-    { path: '/next-journey', element: <NextJourneyPage /> },
+    { path: '/step/:n', element: visibleInRelease('/step/:n') ? <StepNPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/report', element: visibleInRelease('/report') ? <ReportPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/locker', element: visibleInRelease('/locker') ? <LockerPage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/next-journey', element: visibleInRelease('/next-journey') ? <NextJourneyPage /> : <Navigate to="/doit/home" replace /> },
     // DO IT 구조 (A구조) - 우주 배경 히어로 및 페이지
     doitRoutes,
     // 예전 소개 링크도 중복 설명 없이 시작 흐름으로 연결한다. 원본 화면 파일은 보존한다.
@@ -97,9 +101,9 @@ function productRouteTable(): RouteObject[] {
     { path: '/do-it/3', element: <Navigate to="/doit/start-journey" replace /> },
     { path: '/do-it/4', element: <Navigate to="/doit/start-journey" replace /> },
     // A구조 기능 화면 (사주·타로 / 사진 / 등급)
-    { path: '/do-it/fortune', element: <FortunePage /> },
-    { path: '/do-it/photo', element: <PhotoPage /> },
-    { path: '/do-it/grade', element: <GradePage /> },
+    { path: '/do-it/fortune', element: visibleInRelease('/do-it/fortune') ? <FortunePage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/do-it/photo', element: visibleInRelease('/do-it/photo') ? <PhotoPage /> : <Navigate to="/doit/start-journey?edit=photos" replace /> },
+    { path: '/do-it/grade', element: visibleInRelease('/do-it/grade') ? <GradePage /> : <Navigate to="/doit/home" replace /> },
     // 관리자 운영센터(와일드카드보다 앞에 위치)
     { path: '/admin', element: <Navigate to="/admin/mobile" replace /> },
     { path: '/admin/login', element: <AdminLoginPage /> },
@@ -133,7 +137,8 @@ const routes: RouteObject[] = [
   { path: '/legal/privacy', element: <PrivacyPage /> },
   ...brandRoutes,
   ...productRoutes,
-  { path: '/coming-soon/:feature', element: <ComingSoonPage /> },
+  // 2026-09-26 MVP: 「준비 중」 화면(예전 메뉴에서만 연결)은 숨기고 첫 화면으로.
+  { path: '/coming-soon/:feature', element: visibleInRelease('/coming-soon/:feature') ? <ComingSoonPage /> : <Navigate to="/" replace /> },
   { path: '*', element: <NotFound /> },
 ];
 

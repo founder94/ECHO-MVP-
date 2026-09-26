@@ -6,5 +6,7 @@ const DARK = '#08070c'; // 히어로·관리자: 이전과 같은 값(Hero FINAL
 
 export function themeColorFor(pathname: string): string {
   if (pathname.startsWith('/doit/admin')) return DARK;
+  // 2026-09-26: 로그인·가입·약관·동의 화면도 파스텔(검정은 히어로만).
+  if (/^\/(login|signup|legal)(\/|$)/.test(pathname)) return APP_PASTEL;
   return pathname.startsWith('/doit/') || pathname === '/doit' ? APP_PASTEL : DARK;
 }

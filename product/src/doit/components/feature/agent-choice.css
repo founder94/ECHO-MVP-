@@ -3,7 +3,7 @@
    파스텔이 회색 면으로 보였다. → 흑백 필터를 없애고, 흐림은 아주 약하게(6px), 판 바탕은 거의 투명(흰 4%) + 얇은 흰 테두리만.
    버튼도 흰색 꽉 찬 판 대신 투명 유리 + 얇은 흰 테두리. 고른 말투만 밝은 유리 + 굵은 테두리 + ✓ 로 분명하게. */
 .echo-choice-layer{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));background:transparent;font-family:inherit}
-.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:rgb(255 255 255/.04);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgb(255 255 255/.7);box-shadow:none;color:#fff;text-align:left;text-shadow:0 1px 2px rgb(0 0 0/.28)}
+.echo-choice-layer .echo-choice-card{width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow:auto;padding:24px 20px 20px;border-radius:22px;background:rgb(255 255 255/.04);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgb(255 255 255/.7);box-shadow:none;color:#fff;text-align:left;text-shadow:0 0 10px rgb(70 50 30/.28)} /* 2026-09-26: 아래로 비낀 그림자는 글자가 두 겹으로 보였다 → 둘레만 은은하게(밝은 노랑 위 대비 유지) */
 .echo-choice-layer .echo-choice-title{margin:0 0 20px;font-size:18px;font-weight:700;line-height:1.5;color:#fff;-webkit-text-fill-color:#fff}
 .echo-choice-layer .echo-choice-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .echo-choice-layer .echo-choice-options:has(> :nth-child(3)){grid-template-columns:1fr 1fr 1fr}

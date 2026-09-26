@@ -6,6 +6,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import ConsentChecklist from '@/components/legal/ConsentChecklist';
 import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
 import { authErrorText } from '@/lib/auth/authErrorText';
+import '@/doit/components/feature/app-pastel.css';
 
 export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth();
@@ -90,7 +91,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-background-50 flex flex-col">
+    <div className="doit-app-pastel min-h-screen flex flex-col">{/* 2026-09-26 대표: 히어로 밖 화면은 파스텔(검정 바탕 0) */}
       {/* Top logo bar */}
       <header className="w-full px-6 md:px-10 lg:px-16 py-5">
         <Link to="/" aria-label="DO IT 홈으로" className="inline-flex min-h-[44px] items-center gap-2.5 hover:opacity-80 transition-opacity">
@@ -223,7 +224,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={formStatus === 'submitting' || !consentReady}
-                className="w-full py-3 rounded-xl bg-white text-[#080808] text-sm font-semibold hover:bg-white/85 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 rounded-xl echo-primary bg-white text-[#080808] text-sm font-semibold hover:bg-white/85 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
               >
                 {formStatus === 'submitting' ? (
                   <>

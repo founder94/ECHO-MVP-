@@ -7,6 +7,7 @@ import ConsentChecklist from '@/components/legal/ConsentChecklist';
 import { consentMetadata, EMPTY_CONSENT, persistConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 import '@/pages/legal/legal.css';
+import '@/doit/components/feature/app-pastel.css';
 
 // 로그인은 됐는데 현재 버전 약관 동의가 서버에 없는 회원이 오는 화면(ConsentGate 가 보낸다).
 // - 필수 3개 동의 → 서버 저장 → 원래 가려던 화면으로 돌아간다.
@@ -64,7 +65,7 @@ export default function ConsentPage() {
   };
 
   return (
-    <div className="legal-page">
+    <div className="legal-page doit-app-pastel">
       <header className="legal-page-nav">
         <Link to="/" className="legal-page-home">DO IT <span>COMPANY</span></Link>
       </header>

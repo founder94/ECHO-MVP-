@@ -1,6 +1,7 @@
 @import "./metal-silver.css";
 @import "./doit-type.css";
 @import "./pastel-bg.css";
+@import "./echo-ui.css"; /* 2026-09-26 ECHO UI 한 벌(글꼴·굵기·유리 버튼) — 문서 끝에 온 규칙처럼 이 뒤 규칙이 우선한다 */
 .echo-dialogue{max-width:620px;margin:auto;padding:28px 24px 56px;color:#f2f1ef;background:#090a0c;min-height:100dvh;font-family:var(--font-body,"Gothic A1",sans-serif)}
 .echo-dialogue *{box-sizing:border-box}.echo-dialogue-header{display:flex;align-items:center;gap:10px;margin-bottom:52px}.echo-dialogue .doit-official-symbol{width:36px;height:36px}.echo-dialogue-header>span{font-size:10px;letter-spacing:.15em;color:#a9adb5}.echo-dialogue-header>a{margin-left:auto;font-size:11px;color:#c2c7cf;text-decoration:none}
 .echo-eyebrow{color:#a0a6b2;font-size:10px;font-weight:600;letter-spacing:.15em;margin:0 0 15px}.echo-dialogue h1{font-family:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;font-size:clamp(28px,7.5vw,38px);line-height:1.55;font-weight:500;letter-spacing:-.045em;margin:0;word-break:keep-all}.echo-lead{font-size:14px;line-height:1.95;color:#b5bac3;font-weight:500;max-width:420px;margin:22px 0 36px;word-break:keep-all}

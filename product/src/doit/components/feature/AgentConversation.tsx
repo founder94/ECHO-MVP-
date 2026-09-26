@@ -168,7 +168,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     if (failure && alive.current) setError(failure);
   });
 
-  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">내가 맞다고 한 말</Link></header>;
+  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>;
   const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={restart}>처음부터 시작할게요</button></div></div>;
   const restartPill = (where: 'top' | 'bottom') => <button className="echo-restart-pill" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed(where)}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>;
 
