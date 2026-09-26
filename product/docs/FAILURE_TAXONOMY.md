@@ -38,6 +38,9 @@ Failure Intelligence는 품질을 지키는 기반 장치다. 독자기술 그 �
 | TAROT_RESULT_AS_USER_FACT | 타로 결과가 사용자 사실로 저장됨 | 같은 검사 · openai-chat 저장 0 |
 | SAJU_MATCHING_CONTAMINATION | 사주가 매칭 조건·점수·제외에 들어감 | 같은 검사 · 대화·매칭·연결 서버 사주 언급 0 |
 | TAROT_MATCHING_CONTAMINATION | 타로가 매칭에 들어감 | 같은 검사 |
+| POST_COMPLETION_CORRECTION_MISREAD | 대화가 끝난 뒤 들어온 실제 정정을 「그만(stop)」으로 잘못 읽음 · 실제 AI run 25(v2.7) F5 | 서버 정정 가드(v2.8 후보 · 정정 > 그만) · 실제 AI 판정식 correction_to_stop |
+| PROFILE_EMPTY_AFTER_CORRECTION | 확인된 최신 정보가 있는데 정정 처리 뒤 소개 초안(AI Profile)이 빔 · run 25 F5 존댓말 | 소개 기록 intro.failure(v2.8 후보) · 판정식 empty_profile · 하드코딩 소개로 대체 0 |
+| EMOTION_ASSUMPTION_ACK | 사용자가 말하지 않은 감정을 받아주기에서 확정(「힘드셨군요」「불편하셨군요」) · run 22·24 | 서버 받아주기 문장 빼기(v2.8 후보) · 판정식 emotion_assumption_ack |
 
 사주·타로 반응([비슷해요]/[조금 달라요])의 출처 이름은 SAJU_REACTION / TAROT_REACTION으로 정했다.
 

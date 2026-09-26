@@ -43,6 +43,7 @@ const mock = (expect) => (_sys, input) => {
     next: kind === 'help' && input.current_question && (input.current_question.helps ?? 0) < 2 ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 쉬운 질문 ${seq}?`, hint: '[MOCK] 예: 가, 나' } : kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
 };
 
+const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /부담/], [/속상/, /속상/], [/서운|섭섭/, /서운|섭섭/], [/아쉽|아쉬/, /아쉽|아쉬/], [/외로/, /외로|외롭/], [/슬프|슬퍼|슬픈/, /슬/], [/화나|화가|화났/, /화/], [/답답/, /답답/], [/무겁|무거/, /무겁|무거/], [/걱정/, /걱정/], [/불안/, /불안/], [/지치|지쳤|지친/, /지치|지쳤|지친|지쳐/], [/피곤/, /피곤/], [/괴로/, /괴로|괴롭/], [/스트레스/, /스트레스/], [/짜증/, /짜증/], [/곤란/, /곤란/], [/당황/, /당황/], [/지루/, /지루/], [/귀찮/, /귀찮/]];
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
   const rec = recorder(model);
@@ -53,11 +54,11 @@ export async function runFlow(A, flowId, tone, model) {
   for (const [i, s] of flow.steps.entries()) {
     rec.mockFor.current = mock(s.expect); rec.mockFor.key = `T${i}`;
     const before = rec.calls.length; const t1 = Date.now();
-    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length;
+    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length; const confirmedBefore = A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id);
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote }))) };
 }
@@ -114,6 +115,13 @@ export function stats(A, runs) {
     // v2.6 사전 등록(run 24): ⑦ 정정으로 밀린 옛 값이 소개 초안에 남은 문장 수 · ⑧ F5 의 옛 값 「매일 연락하는 게 좋아」가 지금 값(CONFIRMED)으로 남은 판 수
     intro_has_superseded: runs.reduce((n, r) => { const old = (r.items ?? []).filter((i) => i.status === 'SUPERSEDED').map((i) => i.quote.replace(/\s+/g, '').slice(0, 6)).filter((q) => q.length >= 4); return n + (r.intro?.lines ?? []).filter((l) => old.some((q) => l.text.replace(/\s+/g, '').includes(q))).length; }, 0),
     f5_old_value_active: runs.filter((r) => r.flow === 'F5' && (r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락/.test(i.quote.replace(/\s+/g, '')))).length,
+    // v2.8 사전 등록(run 26 · 대표 「구현 명세표 FINAL」 §12) — 판정식은 에이전트 코드를 쓰지 않고 여기서 따로 센다.
+    emotion_assumption_ack: rows.filter((x) => x.reply && x.reply.split(/(?<=[.!~…])\s+/).some((snt) => EMO.some(([r, u]) => r.test(snt) && !u.test((x.text ?? '').replace(/\s+/g, '')) && !(x.finish || x.after ? u.test(runs.find((rr) => rr.rows.includes(x)).rows.map((y) => y.text).join('').replace(/\s+/g, '')) : false)))).length,
+    correction_to_stop: rows.filter((x) => { const r = A.correctionRemainder ? A.correctionRemainder(x.text) : null; return r !== null && r.replace(/\s/g, '').length >= 4 && !/[?？]\s*$/.test(r) && !/^(이제\s*)?(됐어|그만)/.test(r) && x.kind === 'stop'; }).length,
+    superseded_in_intro: runs.reduce((n, r) => { const old = (r.items ?? []).filter((i) => i.status === 'SUPERSEDED').map((i) => i.quote.replace(/\s+/g, '').slice(0, 6)).filter((q) => q.length >= 4); return n + (r.intro?.lines ?? []).filter((l) => old.some((q) => l.text.replace(/\s+/g, '').includes(q)) && !/부담|아니|말고|대신|보다|싫|않/.test(l.text)).length; }, 0),
+    f6_old_value_active: runs.filter((r) => r.flow === 'F6' && (r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락하는게좋/.test(i.quote.replace(/\s+/g, '')))).length,
+    empty_profile: runs.filter((r) => r.phase !== 'talk' && (r.items ?? []).some((i) => i.status === 'CONFIRMED') && r.intro?.status !== 'ready').length,
+    already_answered_reask: rows.filter((x) => x.question && x.qtype === 'core' && (x.confirmed_before ?? []).includes(x.qpurpose)).length,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
