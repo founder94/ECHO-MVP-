@@ -71,7 +71,8 @@ export default defineConfig({
   ],
   base,
   build: {
-    sourcemap: true,
+    // 운영 배포물에 원본 코드 지도(source map)를 넣지 않는다.
+    sourcemap: false,
     outDir: 'dist',
   },
   resolve: {

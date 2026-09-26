@@ -13,7 +13,7 @@ ECHO는 AI를 통해 사람의 관계 데이터를 자산으로 만드는 기업
 | Animation | GSAP 3.12 + Three.js 0.179 |
 | Backend | Supabase (Auth / Database / Edge Functions) |
 | AI | OpenAI GPT-4o-mini (Edge Function 기반) |
-| Payment | Stripe / Toss Payments |
+| Payment | 토스페이먼츠 4,900원 단건 (확정 기준, **구현 대기**) — 현재 코드는 Stripe 9,900원 경로만 있음 |
 | Router | React Router v7 |
 | i18n | i18next 25 |
 
@@ -44,8 +44,8 @@ npm run preview
 | `VITE_PUBLIC_SUPABASE_ANON_KEY` | Supabase Anon/Public Key | ✅ |
 | `VITE_PUBLIC_SITE_URL` | Production 사이트 URL | 권장 |
 | `OPENAI_API_KEY` | OpenAI API Key (Supabase Secret) | ✅ (AI 기능) |
-| `STRIPE_SECRET_KEY` | Stripe Secret Key (Supabase Secret) | ✅ (결제) |
-| `TOSS_PAYMENTS_SECRET_KEY` | Toss Payments Secret Key | 선택 |
+| `TOSS_PAYMENTS_SECRET_KEY` | Toss Payments Secret Key (Supabase Secret) | 결제 (Toss 구현 후) |
+| `STRIPE_SECRET_KEY` | 과거 Stripe 경로용. 현재 기준 아님 — 등록하지 말 것 | ✖ |
 
 > ⚠️ Secret Key는 절대 `.env`에 직접 작성하지 말고 Supabase Secrets에 저장하세요. Edge Function 내에서 `Deno.env.get()`으로 접근합니다.
 
@@ -65,8 +65,8 @@ ECHO_MVP_PRODUCTION/
 ├── public/                       # 정적 파일
 ├── supabase/
 │   ├── functions/                # Supabase Edge Functions
-│   │   ├── create-echo-checkout/ # Stripe 결제 세션 생성
-│   │   ├── confirm-echo-toss-payment/ # Toss 결제 승인
+│   │   ├── create-echo-checkout/ # (과거 기준) Stripe 결제 세션 생성
+│   │   ├── stripe-echo-webhook/  # (과거 기준) Stripe 결제 완료 처리
 │   │   └── echo-ai-analysis/     # OpenAI AI 분석
 │   └── schema.sql                # 데이터베이스 스키마 레퍼런스
 └── src/
@@ -128,18 +128,13 @@ ECHO_MVP_PRODUCTION/
    ```
 4. Supabase CLI로 Edge Functions 배포:
    ```bash
-   npx supabase functions deploy create-echo-checkout
    npx supabase functions deploy echo-ai-analysis
-   npx supabase functions deploy stripe-echo-webhook --no-verify-jwt
    ```
+   > ⚠️ `create-echo-checkout`, `stripe-echo-webhook`은 과거 Stripe(9,900원) 기준입니다. 결제는 Toss 4,900원이 확정 기준이므로 대표 승인 없이 배포하지 마세요. (ECHO_KNOWN_ISSUES.md #3)
 5. Supabase Secrets 설정:
    ```bash
-   npx supabase secrets set OPENAI_API_KEY=sk-...
-   npx supabase secrets set STRIPE_SECRET_KEY=sk_live_...
-   npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_...
+   npx supabase secrets set OPENAI_API_KEY=<서버 전용 키>
    ```
-6. Stripe Dashboard → Webhooks → `checkout.session.completed` 이벤트를
-   `https://<project-ref>.supabase.co/functions/v1/stripe-echo-webhook` 에 연결
 
 ## 인증 (Authentication)
 
@@ -164,9 +159,8 @@ Landing → 회원가입 → 온보딩 → AI Analysis → Report → White Door
 
 ## 결제 (Payment)
 
-- **Stripe Checkout**: `create-echo-checkout` Edge Function
-- **Toss Payments**: `create-echo-toss-checkout` / `confirm-echo-toss-payment`
-- 9,900원 MVP 가격
+- **확정 기준**: 토스페이먼츠 4,900원 단건 (Stripe 사용 안 함)
+- **현재 코드 상태**: Toss 결제 함수는 아직 없음. `create-echo-checkout`(Stripe, 9,900원)이 남아 있으며 과거 기준임 → ECHO_KNOWN_ISSUES.md #3
 - `PaymentGateModal` → 결제 완료 전 AI Report 차단
 - 주문 정보: `order_headers` + `order_items` 테이블
 - 결제 상태: `pending_payment` → `paid` (Webhook 연동)

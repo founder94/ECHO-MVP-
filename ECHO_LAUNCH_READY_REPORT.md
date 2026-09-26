@@ -1,5 +1,7 @@
 # ECHO — Launch Ready Report
 
+> ⚠️ **2026-09-26 기준 안내**: 결제 확정 기준은 토스페이먼츠 4,900원 단건입니다. 이 문서의 Stripe·9,900원 관련 내용은 과거 기준이며 현재 작업 지시가 아닙니다. 현재 상태는 `ECHO_KNOWN_ISSUES.md` #3을 보세요.
+
 > **STATUS**: FINAL LOCK  
 > **DATE**: 2026-06-26  
 > **PHASE**: Phase 2~5 통합 최종 보고서  

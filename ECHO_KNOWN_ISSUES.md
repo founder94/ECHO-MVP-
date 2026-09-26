@@ -21,12 +21,13 @@
 - **해결 방안**: Supabase Dashboard → Authentication → URL Configuration → Site URL 변경
 - **예상 해결 시기**: 즉시 (5분 소요)
 
-### 3. Stripe 결제 미연동
-- **심각도**: 중간 (Medium)
-- **영향**: 결제 플로우 없음 (MVP Phase 6 예정)
-- **원인**: Phase 6 작업 대기
-- **해결 방안**: Stripe 연동 → Checkout + Webhook 구현
-- **예상 해결 시기**: Phase 6
+### 3. 결제 기준과 현재 코드 불일치 (2026-09-26 실측)
+- **심각도**: 높음 (High)
+- **확정 기준**: 토스페이먼츠 4,900원 단건. Stripe는 사용하지 않는다.
+- **현재 코드**: `PaymentGateModal` → `create-echo-checkout` → Stripe Checkout, 금액 9,900원(폐기된 가격). `stripe-echo-webhook`이 결제 완료 처리.
+- **Toss 구현**: 저장소에 Toss 결제 함수 없음 (README에 적혀 있던 `confirm-echo-toss-payment` 등은 실제로 존재하지 않음).
+- **해결 방안**: Toss 4,900원 결제 경로 구현 + Stripe 경로 비활성화. 결제 구조·가격 변경이므로 **대표 승인 필요**.
+- **주의**: 이 문제가 해결되기 전 Stripe 함수 배포·Stripe 키 등록 금지.
 
 ### 4. CSP Header 미설정
 - **심각도**: 낮음 (Low)
@@ -82,7 +83,7 @@
 |---|---|---|
 | 🔴 P0 | Supabase Site URL 미변경 | Dashboard 즉시 변경 |
 | 🟡 P1 | 서브 페이지 SEO 미최적화 | Phase 9 |
-| 🟡 P1 | Stripe 결제 미연동 | Phase 6 |
+| 🔴 P0 | 결제 기준 불일치 (코드 Stripe 9,900원 ↔ 기준 Toss 4,900원) | 대표 승인 후 Toss 전환 |
 | 🟢 P2 | Apple/Kakao OAuth 미구현 | 요청 시 활성화 |
 | 🟢 P2 | Google Analytics 미연결 | Phase 7 |
 | 🟢 P3 | CSP Header 미설정 | Phase 9 |
