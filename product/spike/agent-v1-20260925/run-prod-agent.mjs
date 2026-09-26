@@ -43,6 +43,7 @@ const mock = (expect) => (_sys, input) => {
     next: kind === 'help' && input.current_question && (input.current_question.helps ?? 0) < 2 ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 쉬운 질문 ${seq}?`, hint: '[MOCK] 예: 가, 나' } : kind === 'stop' || !open.length ? { type: 'none' } : kind === 'ask' && input.current_question ? { type: 'core', purpose: input.current_question.purpose, question: `[MOCK] 다시 ${seq}?` } : { type: 'core', purpose: open[0].purpose, question: `[MOCK] 질문 ${++seq}?` } });
 };
 
+const FREQ = /매일|날마다|맨날|자주|가끔|주말|한\s*번|하루에|매주|일주일|한\s*달/;
 const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /부담/], [/속상/, /속상/], [/서운|섭섭/, /서운|섭섭/], [/아쉽|아쉬/, /아쉽|아쉬/], [/외로/, /외로|외롭/], [/슬프|슬퍼|슬픈/, /슬/], [/화나|화가|화났/, /화/], [/답답/, /답답/], [/무겁|무거/, /무겁|무거/], [/걱정/, /걱정/], [/불안/, /불안/], [/지치|지쳤|지친/, /지치|지쳤|지친|지쳐/], [/피곤/, /피곤/], [/괴로/, /괴로|괴롭/], [/스트레스/, /스트레스/], [/짜증/, /짜증/], [/곤란/, /곤란/], [/당황/, /당황/], [/지루/, /지루/], [/귀찮/, /귀찮/]];
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
@@ -54,11 +55,11 @@ export async function runFlow(A, flowId, tone, model) {
   for (const [i, s] of flow.steps.entries()) {
     rec.mockFor.current = mock(s.expect); rec.mockFor.key = `T${i}`;
     const before = rec.calls.length; const t1 = Date.now();
-    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length; const confirmedBefore = A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id);
+    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length; const confirmedBefore = A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id); const overCap = wasDone && st.after_turns >= A.MAX_AFTER_TURNS; const recoveryUsedBefore = !!st.correction_recovery_used;
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote }))) };
 }
@@ -122,6 +123,16 @@ export function stats(A, runs) {
     f6_old_value_active: runs.filter((r) => r.flow === 'F6' && (r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락하는게좋/.test(i.quote.replace(/\s+/g, '')))).length,
     empty_profile: runs.filter((r) => r.phase !== 'talk' && (r.items ?? []).some((i) => i.status === 'CONFIRMED') && r.intro?.status !== 'ready').length,
     already_answered_reask: rows.filter((x) => x.question && x.qtype === 'core' && (x.confirmed_before ?? []).includes(x.qpurpose)).length,
+    // v2.9 사전 등록(run 27 · 대표 「v2.9 FINAL CORRECTION RECOVERY」 §6·§7) — 에이전트 코드와 따로 센다.
+    correction_lead_missed_v29: rows.filter((x) => { const r = A.correctionRemainder ? A.correctionRemainder(x.text) : null; return r !== null && r.replace(/\s/g, '').length >= 4 && !/[?？]\s*$/.test(r) && x.kind !== 'correction' && !(x.kind === 'closed' && x.recovery_used_before); }).length,
+    correction_raw_lost: rows.filter((x) => x.kind === 'correction' && !x.saved && (A.correctionRemainder?.(x.text) ?? '').replace(/\s/g, '').length >= 4).length,
+    reask_after_correction: rows.filter((x) => x.kind === 'correction' && x.question && (/이유|왜/.test(x.question) || (FREQ.test(A.correctionRemainder?.(x.text) ?? x.text) && FREQ.test(x.question)))).length,
+    recovery_turns: rows.filter((x) => x.recovery).length,
+    recovery_calls: sum(rows.filter((x) => x.recovery).map((x) => x.calls.length)),
+    max_recovery_per_run: Math.max(0, ...runs.map((r) => r.rows.filter((x) => x.recovery).length)),
+    unnecessary_after_calls: sum(rows.filter((x) => x.over_cap && !x.recovery).map((x) => x.calls.length)),
+    after_calls_total: sum(rows.filter((x) => x.after).map((x) => x.calls.length)),
+    f7_recovered: `${runs.filter((r) => r.flow === 'F7' && r.rows.some((x) => x.recovery && x.saved) && !(r.items ?? []).some((i) => i.status === 'CONFIRMED' && /매일연락하는게좋/.test(i.quote.replace(/\s+/g, '')))).length}/${runs.filter((r) => r.flow === 'F7').length}`,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
