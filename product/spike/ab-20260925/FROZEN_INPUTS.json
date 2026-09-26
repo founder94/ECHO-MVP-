@@ -353,6 +353,16 @@
     "version": "echo-agent-v2.12 후보 (run 31 FAIL — 34판 239턴. 사전 규칙 실패 4: empty_profile 1(FLOW6 · 항의 「질문했는데 답을 못햐?」에서 핵심 질문 2개로 대화가 끝나고, 끝난 뒤 답 「사실은 일보다 사람이 더 힘들어요」가 저장됐지만 소개는 끝난 뒤 답으로는 다시 쓰지 않아 none) · already_answered_reask 1(위치 미확인) · unconfirmed_fact_ack 28(판정식 결함: 마무리 고정 문장 「이제 조금 알 것 같아요」까지 셈 — 마무리 문장을 빼고 다시 세면 0, 규칙대로 판정은 바꾸지 않음) · early_finish_runs 14(판정식 결함: 정보가 채워져 핵심 질문 4개로 끝나는 정상 종료까지 셈 — 실제 조기 종료는 FLOW6 1건). 통과: 최근 정정 소개 누락 0 · 빈 소개 덮어쓰기 0 · 정정 누락·정정→그만 0 · 밀린 값 재등장 0 · 사주·타로 거절 뜻 재등장 0 · 반박 원문 보존 8/8 · 결과→사용자 사실 0 · 매칭 오염 0 · 감정 짐작 0 · 말투 어긋남 5. 추가 후보 없이 보고.)",
     "actions_run": 36240304626,
     "commit": "013429c"
+   },
+   {
+    "agent_ts_sha256": "c7cfeb164db271c42d781aad601951176e17282b0478b17cfca386aec9a8e887",
+    "flows_sha256": "7756024ceed9c760db83f1facbb481e0b89396844168313d1b84bc9e8b4aa387",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.13 후보 (run 32 FAIL — 38판 263턴 · 사전 규칙 why_v26 실패 4: errors 3(메타 문장 「고정질문으로 바뀐거니?」 CEO_META 2판 · 「활동?질문이 머이래」 1판에서 AI 응답을 두 번 다 읽지 못함 READ_FAILED — 프롬프트의 redirect 설명을 kind 목록 안에 넣어 AI 가 kind 에 없는 값을 낸 것으로 추정, 응답 원문은 로그에 없어 확인 불가) · redirect_empty_reply 5(메타·불만 턴에 받아주기가 비어 메타 물음에 답하지 않음) · early_finish_v213 2(위치: 판정식 기준 2판 · 결과 JSON 미열람으로 판 이름 확인 불가 — F3 반말 「딱히 없어요」(AI 가 unsure 대신 answer) · F4 정정 뒤 마침이 후보) · correction_lead_missed_v29 1(F5 존댓말 7턴 「그런 뜻 아니야, 연락 얘기였어…」를 AI 가 ask 로 읽음 — 서버 정정 가드가 ask 를 보지 않는 v2.12 부터 있던 틈 · 원문은 저장됨). 사람 검토 결함: 메타·불만 턴의 다음 질문이 type open 이지만 사용자 말(회사·개발)에 이어지지 않고 다른 목적 질문과 같음(대표 실기기 B 미해결) · 불만 받아주기가 틀에 박힘. 통과: complaint_forced_question 0 · redirect_finish 0 · meta_saved_as_fact 0 · post_redirect_answer_lost 0 · empty_profile 0 · intro_overwrite 0 · 최근 정정 소개 누락 0 · 사주·타로 거절 재등장 0 · 반박 원문 8/8 · 결과→사실 0 · 매칭 오염 0 · unconfirmed_fact_ack_v213 0 · f7 2/2 · 다리 12/12. 추가 후보 없이 보고 · 운영 v2.2 유지 · ZIP 없음.)",
+    "actions_run": 36243529770,
+    "commit": "a0636b8"
    }
   ],
   "why_v2": "run 7(실제 AI)에서 질문이 목적 설명 문장을 옮겨 쓴 설문 말투였고, 오타가 있는 답은 인용을 고쳐 써서 저장되지 않았다. 프롬프트만 고쳤다(구조·상태·검사 변경 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영 기본)에서 치명 지표(핵심 질문 5 초과·끝난 뒤 질문·내부 이름·금지어·오류·말투 어긋남·항의 저장)가 run 7 보다 나빠지지 않고 설문 옮겨 쓰기(label_copy)가 줄면 이 판을 배포, 아니면 run 7 판을 배포한다.",
