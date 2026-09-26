@@ -2,9 +2,9 @@
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-26",
  "approved_by": "대표 「ECHO FINAL CLOSEOUT」(2026-09-26 §2 v2.3 실제 AI 테스트) — 운영배포 금지",
- "run": 24,
+ "run": 25,
  "mode": "prod_agent",
- "what": "v2.6 후보 — v2.5 + 정정 시 바로 앞 말의 옛 값 밀기(판정 규칙 prod_agent_gate.why_v17)",
+ "what": "v2.7 후보 — v2.6 + 감정 짐작 문장 빼기 · 선호 쉬운 말(판정 규칙 prod_agent_gate.why_v18)",
  "history": [
   {
    "run": 1,
@@ -146,10 +146,17 @@
    "actions_run": 36233993673,
    "commit": "debc54c",
    "note": "v2.5 ①~⑥ 충족 · 사람 검토 CORRECTION_NOT_REFLECTED 2/2"
+  },
+  {
+   "run": 24,
+   "mode": "prod_agent",
+   "actions_run": 36234330019,
+   "commit": "04faf99",
+   "note": "v2.6 ①~⑧ 충족 · 사람 검토 감정 짐작 2 · 선호 잔존"
   }
  ],
  "models": [
   "gpt-4o-mini"
  ],
- "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.6.ts"
+ "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.7.ts"
 }

@@ -107,7 +107,8 @@ export function stats(A, runs) {
     example_copy: rows.filter((x) => x.question && /같이있어도부담없고편하다싶은사람은어떤사람|이런건좋고,?이런건싫다싶은게있나요/.test(x.question.replace(/\s+/g, ''))).length,
     questions_total: rows.filter((x) => x.question).length,
     // v2.3 사전 등록 판정(2026-09-26 대표 「사람 말투」): 받아주기의 평가·칭찬·상담사 말 · 질문의 금지어
-    evaluative_ack: rows.filter((x) => x.reply && /좋은\s*(방법|선택|생각)|멋지|훌륭|자연스러워요|좋네요|좋아요[.!~]?\s*$|그랬군요|힘드셨|대단|인상적/.test(x.reply)).length,
+    evaluative_ack: rows.filter((x) => x.reply && /좋은\s*(방법|선택|생각)|멋지|훌륭|자연스러워요|좋네요|좋아요[.!~]?\s*$|그랬군요|힘드셨|대단|인상적|힘들었(구나|군요|겠)|불편하셨|불편했(구나|군요|겠)|부담스러우셨|부담스러웠(구나|군요|겠)|속상하셨|속상했(구나|군요)|서운하셨|아쉬운\s*마음/.test(x.reply)).length, // run 25 사전 등록: 감정 짐작 문장 추가
+    stiff_word_reply_intro: rows.filter((x) => x.reply && /선호/.test(x.reply)).length + runs.reduce((n, r) => n + (r.intro?.lines ?? []).filter((l) => /선호/.test(l.text)).length, 0),
     // v2.4(run 21 사전 등록): 「아니 … / 그게 아니라 … / 그런 뜻 아니야 …」+ 새 뜻인데 정정(correction)으로 처리되지 않은 턴 수
     correction_lead_missed: A.correctionRemainder ? rows.filter((x) => { const r = A.correctionRemainder(x.text); return r !== null && r.replace(/\s/g, '').length >= 4 && !/[?？]\s*$/.test(r) && x.kind !== 'correction'; }).length : '해당 없음(이 판에 정정 가드 없음)',
     // v2.6 사전 등록(run 24): ⑦ 정정으로 밀린 옛 값이 소개 초안에 남은 문장 수 · ⑧ F5 의 옛 값 「매일 연락하는 게 좋아」가 지금 값(CONFIRMED)으로 남은 판 수
