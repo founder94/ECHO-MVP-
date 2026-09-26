@@ -46,7 +46,10 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-understanding-filters,.echo-choice-options) :is([aria-pressed="true"],[aria-checked="true"])::before{content:"✓ "}
 
 /* 햄버거 메뉴: 파스텔이 비치는 유리 판(검정 판·검정 덮개 0) */
-:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel{background:rgb(255 255 255/.22);-webkit-backdrop-filter:blur(20px) saturate(1.2);backdrop-filter:blur(20px) saturate(1.2);border:1px solid var(--echo-line);box-shadow:0 12px 32px rgb(40 60 60/.14)}
+/* 2026-09-26 대표 「FINAL CLOSEOUT」 §1: 햄버거 창만 예외 — 뒤 화면 글자·버튼이 비치지 않게 불투명 파스텔 그라데이션(민트 → 아쿠아 → 연노랑 → 연산호).
+   흰 글자가 연노랑·연산호 위에서도 읽히도록 색은 앱 바탕보다 한 단계 짙게 + 아주 옅은 글자 둘레. 다른 유리 판은 그대로 투명. */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel{background:linear-gradient(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;border:1px solid rgb(255 255 255/.75);box-shadow:0 14px 34px rgb(30 70 70/.22)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel *{color:#fff!important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-caption{font-size:12px}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-item{color:#fff;border-top:1px solid rgb(255 255 255/.35)}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-icon{border:1px solid var(--echo-line);color:#fff}

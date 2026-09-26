@@ -14,7 +14,7 @@ interface TopBarProps {
 // 2026-09-26 MVP: 메뉴는 「말한다 → 이해한다 → 기억한다」와 설정·설치만. 숨긴 기능(Just Try·사주·타로·등급)은 releaseScope 로 빠진다.
 const ALL_MENU_ITEMS = [
   { label: "ECHO와 이야기하기", desc: "생각나는 대로 말하면 돼요", to: "/doit/conversation", icon: "ri-chat-1-line" },
-  { label: "나의 이해", desc: "내가 맞다고 한 것만 모아 뒀어요", to: "/doit/understanding", icon: "ri-book-open-line" },
+  { label: "나의 이해", desc: "맞다고 한 것만 모아 뒀어요", to: "/doit/understanding", icon: "ri-book-open-line" },
   { label: "홈 화면에 ECHO 추가", desc: "앱처럼 바로 열 수 있어요", to: "/doit/settings#install", icon: "ri-smartphone-line" },
   { label: "설정", desc: "소개·사진·계정", to: "/doit/settings", icon: "ri-settings-3-line" },
   { label: "Just Try", desc: "시도하고, 모으고, 다시 즐겨요", to: "/doit/just-try", icon: "ri-sparkling-2-line" },

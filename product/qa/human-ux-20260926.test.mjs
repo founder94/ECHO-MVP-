@@ -67,7 +67,9 @@ test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·홈 �
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
   for (const t of ['ECHO와 이야기하기', '나의 이해', '홈 화면에 ECHO 추가', '설정']) assert.ok(top.includes(`label: "${t}"`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');
-  assert.match(ui, /\.doit-menu-panel\{background:rgb\(255 255 255\/\.22\);/);
+  // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 파스텔 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만
+  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
+  assert.match(ui, /\.doit-menu-panel \*\{color:#fff!important;/);
 });
 
 test('ECHO UI 한 벌: 글꼴 Pretendard 하나 · 굵기 4단계(800/700/700/600) · 가는 글자 0 · 흐린 글자 흰색 · 검정 채움 → 유리 · 누른 상태도 흰 막', () => {

@@ -128,7 +128,7 @@
  "prod_agent_gate": {
   "registered_at": "2026-09-25",
   "why": "대표 「구현 → 운영배포 → 운영검증」 FINAL: 운영 서버 doit-agent 가 쓰는 agent.ts(echo-agent-v1.2 — v1.1 에서 말투 예시 문장 삭제·첫 질문 = 목적 타일·먼저 답한 뒤 지금 질문 유지·대화 상한)를 결과를 보기 전에 고정한다. 입력·모델은 v1.1 재생과 같다.",
-  "agent_ts_sha256": "a2840e7be0700a76c0df0dc2ec5c532407452beb99e453660fdeb5fee3382ad5",
+  "agent_ts_sha256": "b459c6f680c8f42c4178a3d44b76a4eb44ede37f6033ea462014112da1cce3c2",
   "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
   "golden_sha256": "3100d5d461a49795f93a680d492192e825c52ac86f3d1355b60425753faddf9a",
   "models": [
@@ -142,7 +142,7 @@
    "max_calls_per_turn": 2,
    "closing_call": "마칠 때 1번(요약·마무리·소개 초안을 같은 호출에서)"
   },
-  "version": "echo-agent-v2.3 후보(spike/agent-v1-20260925/candidates/agent-v2.3.ts · 운영 agent.ts 는 v2.2 그대로) — 받아주기 평가 말 금지 · 질문 더 밝고 가볍게 · 첫 질문 「요즘은 어떤 만남이면 좋겠다 싶어요?」",
+  "version": "echo-agent-v2.4 후보(candidates/agent-v2.4.ts · 운영 agent.ts 는 v2.2) — v2.3 + 서버 정정 가드(CORRECTION_LEAD) + 받아주기 금지 말 「인상적이에요」",
   "history": [
    {
     "agent_ts_sha256": "97dacedbe26480a32581fb67ca32574e2cf2c0be7d896ac81121ac951e50e177",
@@ -237,6 +237,16 @@
     "version": "echo-agent-v2.2 (run 19 PASS · 운영 버전 7)",
     "actions_run": null,
     "commit": "3bf38b8"
+   },
+   {
+    "agent_ts_sha256": "a2840e7be0700a76c0df0dc2ec5c532407452beb99e453660fdeb5fee3382ad5",
+    "flows_sha256": "012afc305bfd0f796e41ee9dca2e5bcedd00c3fdcd9a3b24ee5e6c12d33cee0f",
+    "models": [
+     "gpt-4o-mini"
+    ],
+    "version": "echo-agent-v2.3 후보 (run 20 — 사전 규칙 5개 충족 · 사람 검토에서 CORRECTION_IGNORED 2건(F5 「아니 매일은 부담스럽고…」 answer 처리) · 평가 받아주기 「인상적이에요」 1건 발견 → 배포 권장 안 함)",
+    "actions_run": 36232498018,
+    "commit": "da5d929"
    }
   ],
   "why_v2": "run 7(실제 AI)에서 질문이 목적 설명 문장을 옮겨 쓴 설문 말투였고, 오타가 있는 답은 인용을 고쳐 써서 저장되지 않았다. 프롬프트만 고쳤다(구조·상태·검사 변경 0). 결과를 보기 전 결정 규칙: gpt-4o-mini(운영 기본)에서 치명 지표(핵심 질문 5 초과·끝난 뒤 질문·내부 이름·금지어·오류·말투 어긋남·항의 저장)가 run 7 보다 나빠지지 않고 설문 옮겨 쓰기(label_copy)가 줄면 이 판을 배포, 아니면 run 7 판을 배포한다.",
@@ -251,6 +261,7 @@
   "why_v11": "run 16(v1.9) 결과: gpt-4o-mini 치명 지표 complaint_saved 1 로 사전 규칙 ① 미달 → 배포 불가. 원인(결과 표): FLOW1 2번째 「나 진심이라고 적은거 같은데」(앞선 말을 가리키는 항의)를 AI 가 answer 로 읽어 저장. v2.0 은 서버가 말 모양(앞선 말 가리키기·질문 피로·넘기기 요청)으로 answer 를 repair/skip 으로 바로잡고 그 말에서는 아무것도 저장하지 않는다(대표 AI OS CORE FINAL · PIPELINE LOCK 2026-09-26 「LLM 출력이 바로 사용자 사실이 되면 안 된다」). 입력 흐름·Golden·모델·파라미터 run 15·16 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0 — 넷 다 맞으면 「배포 가능」, 아니면 「배포 불가(v1.8 운영 버전 6 유지)」. 관측만: confirmed_items(가드가 답을 막아 줄 수 있음 — run 16 과 비교해 보고)·same_question_again·retries. 배포: 대표 2026-09-26 지시(운영배포 0)에 따라 결과와 상관없이 배포하지 않는다 — 결과 보고 뒤 대표 별도 승인.",
   "why_v12": "대표 「FINAL MISSING CONTRACTS」(2026-09-26): 정보 계보·정정 계보·판 추적·매칭 결정 계약. v2.1 은 v2.0 의 서버 상태 기록만 늘렸다(프롬프트 글자·질문 규칙 변경 0 — 정정으로 밀린 옛 값을 RETRACTED 대신 SUPERSEDED 로 적고 소개 근거에서 함께 막음). 입력 흐름·Golden·모델·파라미터 run 15~17 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): run 17 과 같다 — ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0. 넷 다 맞으면 「배포 가능」. 배포: 대표 최종 배포 단계까지 금지(운영배포 0) — 결과 보고 뒤 대표 승인. 되돌리기 판 = v1.8(운영 버전 6 · docs/ROLLBACK_doit-agent.md).",
   "why_v13": "대표 「FINAL INTEGRATION RELEASE CANDIDATE」(2026-09-26) §12 HELP: 「어렵네/무슨 뜻이야/예를 들면」은 매칭 답 저장 금지. 입력 흐름·Golden·모델·파라미터 run 15~18 과 같음. 결과를 보기 전 결정 규칙(gpt-4o-mini = 운영): run 17 과 같다 — ① 치명 지표 8개 모두 0 ② intro_ready 80% 이상 ③ abstract_questions/questions_total 25% 이하 ④ intro_self_claim = 0. 넷 다 맞으면 「배포 가능」. 관측(판정에 안 씀): help_classified(F3 help 6개 중) · retries · same_question_again. 모델 변경으로 실패를 숨기지 않는다(운영 모델 gpt-4o-mini 로만 판정). 배포 금지(대표 최종 배포 단계까지).",
-  "why_v14": "대표 「ECHO FINAL CLOSEOUT」(2026-09-26) §2: v2.3 을 운영 배포 직전 검증본까지 실제 AI 로 확인. 입력 = 기존 F1·FLOW1~7·F2·F3 + 새 F4(목적+자유입력·짧은 답·HELP·긴 답·정정·「아까 말했잖아요」)·F5(모르겠어·「어렵네」·정정 두 번). 모델 = 운영 모델 gpt-4o-mini 하나(비용 절감 · 판정도 운영 모델로만 했던 규칙과 같음). 결과를 보기 전 결정 규칙: ① 치명 지표 모두 0 — over_5 · questions_after_finish · complaint_saved · help_saved · help_counted · id_leak · banned · errors ② evaluative_ack = 0(받아주기 평가·칭찬·상담사 말) ③ question_banned_words = 0(당신·귀하·관계에서·가치관·성향·선호·이상형·조건·분석·진단) ④ abstract_questions/questions_total 25% 이하 · heavy_questions/questions_total 10% 이하 ⑤ intro_ready 80% 이상 · intro_self_claim = 0. 다섯 다 맞으면 「v2.3 배포 가능(대표 승인 대기)」, 하나라도 틀리면 v2.3 FAIL · 운영 v2.2 유지. 관측(판정에 안 씀): ack_example_copy · repeated_reply · same_question_again · 실제 문장(사람이 읽음). 운영 배포 금지."
+  "why_v14": "대표 「ECHO FINAL CLOSEOUT」(2026-09-26) §2: v2.3 을 운영 배포 직전 검증본까지 실제 AI 로 확인. 입력 = 기존 F1·FLOW1~7·F2·F3 + 새 F4(목적+자유입력·짧은 답·HELP·긴 답·정정·「아까 말했잖아요」)·F5(모르겠어·「어렵네」·정정 두 번). 모델 = 운영 모델 gpt-4o-mini 하나(비용 절감 · 판정도 운영 모델로만 했던 규칙과 같음). 결과를 보기 전 결정 규칙: ① 치명 지표 모두 0 — over_5 · questions_after_finish · complaint_saved · help_saved · help_counted · id_leak · banned · errors ② evaluative_ack = 0(받아주기 평가·칭찬·상담사 말) ③ question_banned_words = 0(당신·귀하·관계에서·가치관·성향·선호·이상형·조건·분석·진단) ④ abstract_questions/questions_total 25% 이하 · heavy_questions/questions_total 10% 이하 ⑤ intro_ready 80% 이상 · intro_self_claim = 0. 다섯 다 맞으면 「v2.3 배포 가능(대표 승인 대기)」, 하나라도 틀리면 v2.3 FAIL · 운영 v2.2 유지. 관측(판정에 안 씀): ack_example_copy · repeated_reply · same_question_again · 실제 문장(사람이 읽음). 운영 배포 금지.",
+  "why_v15": "run 20(v2.3) 실제 AI 결과를 사람이 읽고 찾은 실패: F5 「아니 매일은 부담스럽고 주말에 한 번 보면 좋겠어」를 gpt-4o-mini 가 2번 모두 answer 로 읽어 옛 값 「매일 연락」이 지금 값에 남음(CORRECTION_IGNORED · 재현 2/2) · 받아주기 「…인상적이에요」(평가 말). 원인: 서버가 정정 여부를 AI 가 붙인 종류(kind)에만 맡김. 해결: 말이 「아니·아냐·그게 아니라·그런 뜻 아니야·조금 달라」로 시작하고 앞머리 부정·정정 말을 모두 걷어 낸 나머지(새 뜻)가 4글자 이상이면 서버가 correction 으로 바로잡음(모양만 · 뜻 판정 아님) + 금지 말 추가. 반대 검사: 「아니요·아니·아니 몰라·아니면 …·아니다 싶은 …·아니 그게 아니라(새 뜻 없음)」은 가드가 바꾸지 않음. 입력·모델·파라미터 run 20 과 같음. 결과를 보기 전 결정 규칙: why_v14 의 ①~⑤ 전부(평가 받아주기 검사에 「인상적」 추가) + ⑥ correction_lead_missed = 0. 모두 맞으면 「v2.4 배포 가능(대표 승인 대기)」. 하나라도 틀리면 FAIL · 운영 v2.2 유지. 관측: 실제 문장(사람이 읽음) · 소개 초안의 앞뒤 어긋남 · same_question_again. 운영 배포 금지."
  }
 }
