@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
- "requested_at": "2026-09-26",
- "approved_by": "대표 「FINAL PRODUCT/AGENT IMPLEMENTATION DIRECTIVE」 + 「v3 IMPLEMENTATION FINAL GUARD」(2026-09-26) — 실제 AI 검사 · push 는 대표 승인 후",
- "run": 33,
+ "requested_at": "2026-09-27",
+ "approved_by": "대표 「ECHO · 3-MODEL ROUTER LOCAL BUILD + OPENAI BASELINE RUN · 대표 승인」(2026-09-27) — OpenAI 기존 시험 키로 gpt-4.1-mini run 34 · 운영 배포 아님",
+ "run": 34,
  "mode": "prod_agent",
- "what": "v3.0 TURN CONTRACT 후보(이해 → 서버 행동 결정 → 말하기 → 서버 검사) · 판정 규칙 prod_agent_gate.why_v27",
+ "what": "v3.1 서버(run 33 실패 7개 수정) · 같은 43판 · Model Router 경유(PRIMARY = OpenAI 시험 모델 하나 · Gemini·Anthropic 미연결 = 실제 호출 0) · 모델 gpt-4.1-mini(OpenAI 기준선) · 판정 규칙 prod_agent_gate.why_v28",
  "history": [
   {
    "run": 1,
@@ -209,10 +209,18 @@
    "actions_run": 36243529770,
    "commit": "a0636b8",
    "note": "v2.13 FAIL(읽기 실패 3 · 빈 받아주기 5 · 조기 종료 2 · 정정 누락 1)"
+  },
+  {
+   "run": 33,
+   "mode": "prod_agent",
+   "actions_run": 36251945162,
+   "commit": "8d30428",
+   "note": "v3.0 FAIL(SERVER: empty_profile 3 · intro_overwrite 3 · 최신 정정 소개 누락 4 · complaint_saved 1 · 빈 턴 2 · 일반 듣기 문장 32 · MODEL gpt-4o-mini 사람다움 FAIL)"
   }
  ],
  "models": [
-  "gpt-4o-mini"
+  "gpt-4.1-mini"
  ],
- "agent_file": "spike/agent-v1-20260925/candidates/agent-v3.ts"
+ "agent_file": "spike/agent-v1-20260925/candidates/agent-v3.1.ts",
+ "router": true
 }

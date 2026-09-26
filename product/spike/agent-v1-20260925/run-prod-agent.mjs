@@ -26,6 +26,28 @@ export const AGENT_TS_SHA = shaOf(AGENT_FILE);
 export const FLOWS_SHA = shaOf(path.join(HERE, 'test-flows.json'));
 const FLOWS = JSON.parse(readFileSync(path.join(HERE, 'test-flows.json'), 'utf8'));
 
+// 2026-09-27 대표 「3-MODEL ROUTER LOCAL BUILD + OPENAI BASELINE RUN」: run-request.json 의 router=true 면 모든 모델 호출이 Model Router(router/router.ts)를 거친다.
+// run 34 역할 = PRIMARY(OpenAI · 시험 모델) 하나 · Gemini·Anthropic 자리는 미연결(notConnected — 실제 호출 0). 실제 HTTP 는 run 33 과 같은 기록기(harness-lib recorder)가 한다(같은 요청·같은 집계).
+const ROUTER_ON = REQUEST.router === true;
+export async function loadRouter() {
+  const dir = mkdtempSync(path.join(tmpdir(), 'echo-router-'));
+  const tr = (f) => ts.transpileModule(readFileSync(path.join(HERE, 'router', f), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from\s+["']\.\/providers\.ts["']/g, 'from "./providers.mjs"');
+  writeFileSync(path.join(dir, 'providers.mjs'), tr('providers.ts'));
+  writeFileSync(path.join(dir, 'router.mjs'), tr('router.ts'));
+  return { R: await import(pathToFileURL(path.join(dir, 'router.mjs')).href), P: await import(pathToFileURL(path.join(dir, 'providers.mjs')).href) };
+}
+const RT = ROUTER_ON ? await loadRouter() : null;
+/** 기록기(recorder)를 OpenAI 업체 부품으로 감싼다 — 요청 본문·집계가 run 33 과 같다(모델 이름은 기록기가 정한 시험 모델). */
+function recorderProvider(rec, P) {
+  return { id: 'openai', kind: 'real', call: async (req) => {
+    const n = rec.calls.length; let text;
+    try { text = await rec.llm(req.system, JSON.stringify(req.input), { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }); }
+    catch { const c = rec.calls[rec.calls.length - 1]; const st = Number(String(c?.error ?? '').replace('http_', '')); throw new P.ProviderError('openai', st === 429 ? 'http_429' : st >= 500 ? 'http_5xx' : st >= 400 ? 'http_4xx' : 'network', c?.ms ?? 0); }
+    const c = rec.calls.length > n ? rec.calls[rec.calls.length - 1] : {};
+    return { text: String(text ?? ''), provider: 'openai', model_requested: req.model, model_served: c.served_model ?? null, input_tokens: c.in_real ?? null, cached_tokens: c.cached_real ?? null, output_tokens: c.out_real ?? null, latency_ms: c.ms ?? 0 };
+  } };
+}
+
 export async function loadAgent() {
   const js = ts.transpileModule(readFileSync(AGENT_FILE, 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
   const file = path.join(mkdtempSync(path.join(tmpdir(), 'echo-agent-')), 'agent.mjs');
@@ -53,6 +75,7 @@ const mockV3 = (expect, sys, input) => {
 };
 const mock = (expect) => (_sys, input) => {
   if (String(_sys).includes('ECHO Agent 의 이해 단계') || input.action) return mockV3(expect, _sys, input);
+  if (Array.isArray(input.statements)) return JSON.stringify({ lines: input.statements.map((x) => ({ id: x.id, text: `저는 ${x.quote} 쪽이 좋아요.` })) }); // v3.1 소개 다시 만들기
   if (input.latest === undefined || String(_sys).includes('대화를 자연스럽게 마친다')) { const h = (input.heard ?? []).find((x) => x.quote); return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.', intro: h ? [{ text: '[MOCK] 저는 소개 문장이에요.', basis: h.quote }] : [] }); }
   const kind = KIND_OF[expect] ?? 'answer'; const open = input.open_purposes ?? [];
   return JSON.stringify({ kind, understood: '', reply: `[MOCK] 받아주기 ${++seq}.`, inferred: [], declared: null, wrong: [],
@@ -72,7 +95,10 @@ const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
   const rec = recorder(model);
-  const llm = (kind, prompt, input) => rec.llm(prompt, JSON.stringify(input), A.AGENT_PARAMS);
+  const direct = (kind, prompt, input) => rec.llm(prompt, JSON.stringify(input), A.AGENT_PARAMS);
+  const router = RT ? RT.R.createRouter({ registry: { version: `run${REQUEST.run}-openai-primary-only`, provisional: true, roles: { PRIMARY: { provider: 'openai', model } }, timeout_ms: 60_000, max_tokens: A.AGENT_PARAMS.max_tokens, temperature: A.AGENT_PARAMS.temperature, top_p: A.AGENT_PARAMS.top_p },
+    providers: { openai: recorderProvider(rec, RT.P), gemini: RT.P.notConnected('gemini'), anthropic: RT.P.notConnected('anthropic') }, budget: { max_calls_per_conversation: 200, max_tokens_per_conversation: 5e6 } }) : null;
+  const llm = router ? router.llm : direct;
   const st = A.newState({ tone, seed: flow.seed ?? null }); // v2.10: 사주·타로 이야기 거리(없으면 null · 예전 판은 무시)
   A.seedFirstQuestion(st);
   const rows = [];
@@ -83,9 +109,9 @@ export async function runFlow(A, flowId, tone, model) {
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, input_type: response.input_type ?? null, action: response.action ?? null, ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, input_type: response.input_type ?? null, action: response.action ?? null, speak_recovery: response.recovery ?? null, raw_kept: !!response.raw_kept, notes: obs.notes ?? [], ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
   }
-  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
+  return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null, pending: (st.pending ?? []).map((p) => ({ turn: p.turn, status: p.status, reason: p.reason })), router_log: router ? router.log : null, performance: router ? RT.R.performanceRows(router.log).map((x) => ({ flow: flowId, tone, ...x })) : null };
 }
 
 // v2.13 판정식 도우미(에이전트와 따로 씀). 메타 = 대화·질문 방식에 대한 물음 · 불만 = 내 말과 상관없다는 말.
@@ -99,6 +125,7 @@ function unconfirmedSentence(reply, userText) {
   return String(reply).split(/(?<=[.!~…])\s+/).some((t) => { const B = g(t); let m = 0; for (const v of B) if (U.has(v)) m++; if (/것\s*같(아요|네요|군요|아|다|습니다)|(신가|는가|나|인가)\s*보(네요|네|군요|다|아요|구나)|나\s*봐요|듯(해요|하네요|하군요|합니다)/.test(t)) return m / Math.max(1, B.size) < 0.3; if (/(군요|구나|네요|시네|셨네|군)[.!~…]*$/.test(t.trim())) return m === 0; return false; });
 }
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+const LISTEN_H = new Set(['네, 이어서 편하게 말해 주세요.', '응, 이어서 편하게 말해 줘.', '네, 이어서 편하게 말씀해 주세요.']); // v3.1 판정용(에이전트 상수를 가져오지 않음)
 const pct = (xs, p) => { if (!xs.length) return null; const v = [...xs].sort((x, y) => x - y); return v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)]; };
 const lines = (r) => [r.reply, r.question].filter(Boolean).join(' ');
 export function stats(A, runs) {
@@ -210,6 +237,36 @@ export function stats(A, runs) {
     input_types: JSON.stringify(rows.reduce((a, x) => { const k = x.input_type ?? '-'; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
     actions: JSON.stringify(rows.reduce((a, x) => { const k = x.action ?? (x.after ? 'AFTER' : '-'); a[k] = (a[k] ?? 0) + 1; return a; }, {})),
     speak_fallback_turns: rows.filter((x) => (x.retry ?? []).some((r) => /:dropped$|understand_fallback/.test(r))).length,
+    // v3.1 사전 등록(대표 「v3.1 SERVER FIX + OPENAI MODEL COMPARISON」 · run 33 실패 7개) — 에이전트 코드와 따로 센다. 위 판정식은 그대로 둔다(같은 기준 비교).
+    //  P0-1 빈 턴: 끝내기·닫힘·막힘·오류가 아닌데 받아주기도 질문도 없는 턴
+    blank_turns: rows.filter((x) => !x.error && !x.finish && !['closed', 'blocked'].includes(x.kind) && !(x.ack ?? '').trim() && !x.question).length,
+    //  P0-2 일반 듣기 문장: 전체 수(관측) · 불만·메타·지적 턴에 나간 수(0 이어야 함)
+    generic_listen_lines: rows.filter((x) => LISTEN_H.has((x.ack ?? '').trim())).length,
+    generic_listen_after_redirect: rows.filter((x) => LISTEN_H.has((x.ack ?? '').trim()) && (['REPAIR', 'ANSWER_USER'].includes(x.action) || ['repair', 'ask', 'fatigue'].includes(x.expect) || isRedirectH(x.text))).length,
+    speak_recovery_types: JSON.stringify(rows.reduce((a, x) => { if (x.speak_recovery) a[x.speak_recovery] = (a[x.speak_recovery] ?? 0) + 1; return a; }, {})),
+    //  P0-3 질문 살려 쓰기(관측): 살려 씀 · 살렸지만 되풀이 등으로 버림
+    salvaged_questions: rows.filter((x) => (x.notes ?? []).includes('speak_salvaged')).length,
+    salvage_dropped: rows.filter((x) => (x.notes ?? []).some((r) => String(r).startsWith('speak_salvage_dropped'))).length,
+    //  P0-4 「다음 질문으로 넘어가」로 대화가 끝난 턴(0 이어야 함)
+    skip_closed: rows.filter((x) => !x.after && x.finish && (x.input_type === 'SKIP' || /다음\s*질문\s*(으로)?\s*(넘어|가)/.test(x.text))).length,
+    //  P0-5 밀린 값만의 내용이 소개에 남은 문장 수(두 글자 묶음 식 · 위 superseded_in_intro 의 「싫·않」 예외 없음)
+    superseded_stale_in_intro: runs.reduce((n, r) => { const bg = (t) => { const q = plainK(t).replace(/[?？.!~,]/g, ''); const o = new Set(); for (let k = 0; k < q.length - 1; k++) o.add(q.slice(k, k + 2)); return o; }; const live = new Set((r.items ?? []).filter((i) => i.status === 'CONFIRMED').flatMap((i) => [...bg(i.quote)])); const gen = new Set(['저는', '나는', '제가', '내가', '좋아', '아요', '어요', '해요', '에요', '예요', '니다', '습니']); const marks = (r.items ?? []).filter((i) => i.status === 'SUPERSEDED').map((i) => [...bg(i.quote)].filter((g) => !live.has(g) && !gen.has(g))).filter((d) => d.length >= 2); return n + (r.intro?.lines ?? []).filter((l) => { const tb = bg(l.text); return marks.some((d) => d.filter((g) => tb.has(g)).length >= Math.max(2, Math.ceil(d.length / 2))); }).length; }, 0),
+    //  P0-6 질문 없이 듣는 중의 직접 답이 사실로도 보존으로도 남지 않은 턴(0 이어야 함) · 보존 원문 수 · 뒤에 확인으로 올라간 수
+    listen_answer_lost: rows.filter((x) => !x.after && x.i > 1 && !x.prev_qtext && x.expect === 'answer' && plainK(x.text).length >= 4 && !x.saved && !x.raw_kept).length,
+    raw_kept_unconfirmed: sum(runs.map((r) => (r.pending ?? []).filter((p) => p.status === 'UNCONFIRMED').length)),
+    raw_kept_promoted: sum(runs.map((r) => (r.pending ?? []).filter((p) => p.status === 'PROMOTED').length)),
+    //  P0-7 불만·메타·지적 말(모양 또는 사전 기대)이 저장된 턴 — 위 complaint_saved 에 모양 판정을 더한 것
+    redirect_saved: rows.filter((x) => x.saved && (['repair', 'ask', 'fatigue'].includes(x.expect) || (isRedirectH(x.text) && !sentK(x.text).some((t) => !isRedirectH(t))))).length,
+    server_emptied_reply: JSON.stringify(rows.flatMap((x) => x.notes ?? []).filter((r) => String(r).startsWith('emptied_by:')).reduce((a, r) => { a[r] = (a[r] ?? 0) + 1; return a; }, {})),
+    recovery_calls_v31: rows.filter((x) => (x.retry ?? []).some((r) => String(r).startsWith('recovery_call:'))).length, // 복구로 더 부른 말하기 호출(비용 관측)
+    intro_rebuild_calls: sum(rows.map((x) => x.calls.filter((c) => c.fields && 'statements' in c.fields).length)), // 소개 다시 만들기 호출(비용 관측)
+    // Router 관측(2026-09-27 · 관측만): 업체별 호출 · 역할 · 대체 · 업체 오류 · 서버 채택
+    router: ROUTER_ON ? 'on' : 'off',
+    router_calls_by_provider: JSON.stringify(runs.flatMap((r) => r.router_log ?? []).reduce((a, x) => { const k = `${x.provider}:${x.error ? 'error' : 'ok'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    router_roles: JSON.stringify(runs.flatMap((r) => r.router_log ?? []).filter((x) => !x.error).reduce((a, x) => { a[x.role] = (a[x.role] ?? 0) + 1; return a; }, {})),
+    router_fallbacks: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.chain_index > 0 && !x.error).length,
+    router_real_calls_non_openai: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.provider !== 'openai' && !x.error).length,
+    router_server_rejected: runs.flatMap((r) => r.performance ?? []).filter((x) => x.validation === 'rejected_by_server').length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }
@@ -232,11 +289,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     '## 합계', '', `| 항목 | ${MODELS.join(' | ')} |`, `|---|${MODELS.map(() => '---').join('|')}|`, ...Object.keys(S[MODELS[0]]).map((k) => `| ${k} | ${MODELS.map((m) => S[m][k]).join(' | ')} |`), ''];
   for (const m of MODELS) for (const r of out[m]) {
     L.push(`## ${m} · ${r.flow} · 말투 ${r.tone} · 핵심 질문 ${r.core} · 되묻기 ${r.clarify} · ${r.phase !== 'talk' ? '마침' : '안 끝남'}`, '', '| # | 사용자 | 종류·저장 | 출력 |', '|---|---|---|---|');
-    for (const x of r.rows) L.push(`| ${x.i} | ${flat(x.text)} | ${x.kind ?? '-'}${x.saved ? '·저장' : ''}${x.qtype ? `·${x.qtype}:${x.qpurpose}` : ''}${x.after ? '·끝난 뒤' : ''} | ${flat([x.reply && `💬 ${x.reply}`, x.question && `❓ ${x.question}`, x.hint && `💡 ${x.hint}`, x.finish && '(마무리)', x.error && `⚠️ ${x.error}`].filter(Boolean).join(' / '))} |`);
+    for (const x of r.rows) L.push(`| ${x.i} | ${flat(x.text)} | ${x.kind ?? '-'}${x.saved ? '·저장' : ''}${x.qtype ? `·${x.qtype}:${x.qpurpose}` : ''}${x.after ? '·끝난 뒤' : ''}${x.speak_recovery ? `·복구:${x.speak_recovery}` : ''}${x.raw_kept ? '·원문보존' : ''} | ${flat([x.reply && `💬 ${x.reply}`, x.question && `❓ ${x.question}`, x.hint && `💡 ${x.hint}`, x.finish && '(마무리)', x.error && `⚠️ ${x.error}`].filter(Boolean).join(' / '))} |`);
     if (r.intro) L.push(`- 소개 초안: ${r.intro.status}${r.intro.lines.length ? ` — ${flat(r.intro.lines.map((l) => l.text).join(' '))}` : ''}${Object.keys(r.intro.dropped ?? {}).length ? ` · 버림 ${JSON.stringify(r.intro.dropped)}` : ''}`, '');
     L.push('');
   }
   const text = L.join('\n');
   if (arg('--out')) writeFileSync(arg('--out'), text); else console.log(text);
-  if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify({ mode, models: MODELS, frozen_ok: frozenOk, agent_ts_sha: AGENT_TS_SHA, stats: S }));
+  if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify({ mode, models: MODELS, frozen_ok: frozenOk, agent_ts_sha: AGENT_TS_SHA, router: ROUTER_ON, stats: S }));
+  // Model Performance Dataset(시험 결과 파일 · 대화 원문 0 · 운영 DB 적재 0): 호출 한 줄씩. 로그에도 찍는다(첨부물은 7일).
+  if (arg('--perf') && ROUTER_ON) writeFileSync(arg('--perf'), MODELS.flatMap((m) => out[m].flatMap((r) => r.performance ?? [])).map((x) => JSON.stringify(x)).join('\n') + '\n');
 }

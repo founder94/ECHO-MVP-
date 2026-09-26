@@ -46,10 +46,11 @@ jobs:
           test "$(node -e "console.log(require('./spike/ab-20260925/run-request.json').mode)")" = prod_agent
           set +e
           MODELS=$(node -e "console.log(require('./spike/ab-20260925/run-request.json').models.join(','))")
-          node spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODELS" --out ../ab-out/prod-agent-result.md --json ../ab-out/prod-agent-result.json
+          node spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODELS" --out ../ab-out/prod-agent-result.md --json ../ab-out/prod-agent-result.json --perf ../ab-out/model-performance.jsonl
           code=$?
           echo "run-prod-agent exit=$code"
           if [ -f ../ab-out/prod-agent-result.json ]; then echo "::group::prod-agent-result.json"; cat ../ab-out/prod-agent-result.json; echo; echo "::endgroup::"; fi
+          if [ -f ../ab-out/model-performance.jsonl ]; then echo "::group::model-performance.jsonl"; cat ../ab-out/model-performance.jsonl; echo "::endgroup::"; fi
           if [ -f ../ab-out/prod-agent-result.md ]; then echo "::group::prod-agent-result.md"; cat ../ab-out/prod-agent-result.md; echo "::endgroup::"; fi
           exit $code
       - name: 결과 첨부(7일)
