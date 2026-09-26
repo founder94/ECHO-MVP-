@@ -125,6 +125,27 @@ function unconfirmedSentence(reply, userText) {
   return String(reply).split(/(?<=[.!~…])\s+/).some((t) => { const B = g(t); let m = 0; for (const v of B) if (U.has(v)) m++; if (/것\s*같(아요|네요|군요|아|다|습니다)|(신가|는가|나|인가)\s*보(네요|네|군요|다|아요|구나)|나\s*봐요|듯(해요|하네요|하군요|합니다)/.test(t)) return m / Math.max(1, B.size) < 0.3; if (/(군요|구나|네요|시네|셨네|군)[.!~…]*$/.test(t.trim())) return m === 0; return false; });
 }
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+// ── v3.2 판정식(2026-09-27 대표 「v3.2 SERVER FINAL FIX」 §4 · 결과를 보기 전 수정 · 에이전트 코드와 따로 씀).
+// 질문 발화(물음표 없어도): 확실한 질문 끝 · 또는 물음말 + 부드러운 끝 · 또는 「…는지 궁금해요」. 들은 것을 짚는 말(알겠·하셨·거예요·것 같)은 빼고 마지막 절로 본다.
+const QH_SURE = /((?<!니)까|(?<!니)까요|(?<!(기억|생각|화|짜증))나요|[신인은는던한]가요|습니까|냐|어때|어때요|뭐야|뭐예요|있나|없나|있니|했니)$/;
+const QH_WH = /어떤|어떻|무엇|뭐|뭘|언제|어디|왜|얼마나|무슨|누구|어느/;
+export function questionActH(sentence) {
+  const t = String(sentence ?? '').trim(); if (!t) return false;
+  if (/[?？]\s*$/.test(t)) return true;
+  const e = t.replace(/[.!~…\s]+$/g, ''); const last = e.split(/[,，]\s*/).pop() ?? e;
+  if (QH_SURE.test(e)) return true;
+  if (/(있으세요|좋으세요|편하세요|어떠세요)$/.test(e)) return true;
+  if (/(알겠|알 것 같|알았|하셨|했지|했구나|이해|들었|거예요|거야|것\s*같|[가나]\s*봐요)/.test(last)) return false;
+  if (/궁금(해|해요|합니다)$/.test(e)) return QH_WH.test(e) || /(는지|은지|인지|을지)/.test(e);
+  return /(세요|어|아|야|해|돼|요|있어|편해|좋아)$/.test(e) && QH_WH.test(e);
+}
+const qActsH = (t) => String(t ?? '').split(/(?<=[.!~…?？])\s+/).filter(questionActH).length;
+const PAUSE_H = /질문.{0,8}(너무|넘|진짜|좀)\s*많(아|네|다|아요|네요)?\s*[.!~]*$|그만\s*(물어|묻|할래|하자)|여기까지|할\s*말\s*(이|은)?\s*없|나중에\s*(할래|하자)|다른\s*(거|것)\s*(볼래|할래)/;
+const MANY_H = /질문.{0,8}(많|길)/;
+// 소개 뒤집힘: 나를 「… 사람/편입니다」로 설명(바람 낱말 없음)하는데, 근거 말이 바라는 상대(…사람 · …사람이 좋아)인 문장.
+const SELF_H = /(사람|편|성격)(입니다|이에요|예요|이며|이고)/; const WISH_H = /좋아|좋겠|원하|원해|바라|찾|끌|만나|싫|중요하게|좋다고/;
+const PARTNER_H = (q) => /(사람|분)\s*[.!~요]*$|(사람|분)(이|을)?\s*(좋|원)/.test(String(q ?? '').replace(/\s+$/, '')) && !/^(나는|난|저는|제가|내가)/.test(String(q ?? '').replace(/^(아니|맞아)[,\s]*/, ''));
+const EMO_V32 = EMO.map(([r, u]) => [r.source.includes('화나') ? /(?<!대)화(나|가\s|났)/ : r, u]); // 「대화가」의 「화가」 오탐 제거
 const LISTEN_H = new Set(['네, 이어서 편하게 말해 주세요.', '응, 이어서 편하게 말해 줘.', '네, 이어서 편하게 말씀해 주세요.']); // v3.1 판정용(에이전트 상수를 가져오지 않음)
 const pct = (xs, p) => { if (!xs.length) return null; const v = [...xs].sort((x, y) => x - y); return v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)]; };
 const lines = (r) => [r.reply, r.question].filter(Boolean).join(' ');
@@ -260,6 +281,20 @@ export function stats(A, runs) {
     server_emptied_reply: JSON.stringify(rows.flatMap((x) => x.notes ?? []).filter((r) => String(r).startsWith('emptied_by:')).reduce((a, r) => { a[r] = (a[r] ?? 0) + 1; return a; }, {})),
     recovery_calls_v31: rows.filter((x) => (x.retry ?? []).some((r) => String(r).startsWith('recovery_call:'))).length, // 복구로 더 부른 말하기 호출(비용 관측)
     intro_rebuild_calls: sum(rows.map((x) => x.calls.filter((c) => c.fields && 'statements' in c.fields).length)), // 소개 다시 만들기 호출(비용 관측)
+    // v3.2 사전 등록 지표(판정식 수정 · 결과 보기 전): ① 감정 짐작(「대화가」 오탐 제거 · 사용자가 이 대화에서 앞서 쓴 말도 근거로 인정)
+    emotion_assumption_v32: runs.reduce((n, r) => n + r.rows.filter((x, i) => x.reply && x.reply.split(/(?<=[.!~…])\s+/).some((snt) => EMO_V32.some(([rr, u]) => rr.test(snt) && !u.test(r.rows.slice(0, i + 1).map((y) => y.text).join('').replace(/\s+/g, ''))))).length, 0),
+    //  ② 조기 종료(최신 종료 계약: 질문 수·목적 칸이 기준 아님) = 대화 중 마침인데 (a) 사용자가 방금 물었거나 불만을 말했는데 끝냄(그만 요청 제외) 또는 (b) 확인된 목적이 2개 미만인데 그만·넘기기·모르겠다가 아니고, 「더 듣기」 턴 뒤 새 사실 0 도 아님 · 턴 상한 제외
+    early_finish_v32: rows.filter((x, i, all) => x.finish && !x.after && x.i < A.MAX_TALK_TURNS && x.kind !== 'stop' && ((/[?？]\s*$/.test(x.text) || isRedirectH(x.text)) || ((x.confirmed_after ?? []).length < 2 && !['skip', 'unsure'].includes(x.kind) && !(all[i - 1] && all[i - 1].i === x.i - 1 && all[i - 1].action === 'FOLLOW' && !x.saved)))).length,
+    //  ③ 한 턴 질문 2개 이상(받아주기 속 질문 발화 + question)
+    double_question_turns: rows.filter((x) => qActsH(x.ack) + (x.question ? 1 : 0) > 1).length,
+    //  ④ 끝난 뒤 사용자에게 간 질문 발화(받아주기 속 포함)
+    after_close_question_acts: rows.filter((x) => x.after && (x.question || qActsH(x.ack) > 0)).length,
+    //  ⑤ 멈춤·끝내기 말(질문 너무 많아·그만·여기까지·할 말 없어·나중에·다른 거) 뒤 대화 중 계속(마치지 않음) · 질문 양 지적 턴에 질문
+    fatigue_continued: rows.filter((x) => !x.after && PAUSE_H.test(x.text) && !x.finish).length + rows.filter((x) => !x.after && !PAUSE_H.test(x.text) && MANY_H.test(x.text) && (x.question || qActsH(x.ack) > 0)).length,
+    //  ⑥ 끝난 뒤 불만·메타(질문 양 지적 포함)에 일반 듣기 문장
+    close_complaint_generic: rows.filter((x) => x.after && (isRedirectH(x.text) || MANY_H.test(x.text) || /왜\s*(또|자꾸|이렇게)/.test(x.text)) && LISTEN_H.has((x.ack ?? '').trim())).length,
+    //  ⑦ 소개 뒤집힘(바라는 상대 → 「저는 그런 사람」)
+    role_reversal_in_intro: runs.reduce((n, r) => n + (r.intro?.lines ?? []).filter((l) => SELF_H.test(l.text) && !WISH_H.test(l.text) && PARTNER_H(l.basis)).length, 0),
     // Router 관측(2026-09-27 · 관측만): 업체별 호출 · 역할 · 대체 · 업체 오류 · 서버 채택
     router: ROUTER_ON ? 'on' : 'off',
     router_calls_by_provider: JSON.stringify(runs.flatMap((r) => r.router_log ?? []).reduce((a, x) => { const k = `${x.provider}:${x.error ? 'error' : 'ok'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {})),

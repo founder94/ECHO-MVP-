@@ -1,12 +1,12 @@
 # ECHO 3-Provider Model Router — 비교 계획 고정(2026-09-27)
 
 근거: 대표 「FINAL MASTER EXECUTION LOCK」(2026-09-27) §25 PHASE H · §27 · §28.
-상태: **계획만 고정.** 실제 Gemini·Claude 호출 0 · 키 0 · 운영 변경 0. run 34(OpenAI gpt-4.1-mini)는 같은 Router 경유(PRIMARY 하나)로 기준선.
+상태: **계획만 고정.** 실제 Gemini·Claude 호출 0 · 키 0 · 운영 변경 0. 비교 모델 이름은 공식 확인 뒤 FROZEN models 에 등록(지금은 비어 있음 = 실제 실행 거부).
 
 ## 1. 고정하는 것(모든 업체 같음)
-- Agent: `candidates/agent-v3.1.ts`(SHA-256 `95b06edda894f88a…`) — 고치지 않는다. Router 는 바깥에서 `llm()` 자리에 끼운다.
+- Agent: `candidates/agent-v3.2.ts`(SHA-256 `d2ab3fc89b214bd2…` · run 34 서버 결함 4개 수정판 · 2026-09-27 대표 「v3.2 SERVER FINAL FIX」) — 비교 중 고치지 않는다. Router 는 바깥에서 `llm()` 자리에 끼운다. (run 34 기준선 = v3.1 `95b06edd…` + gpt-4.1-mini — 서버가 달라 같은 조건 비교에는 OpenAI 도 v3.2 로 다시 돈다.)
 - 입력: `test-flows.json` 43판(SHA-256 `95c59a923c84adc9…`) · 골든 실패 세트 G01~G15.
-- 판정: why_v28 규칙 (1)~(12) 그대로 + 사람 검토(Humanity A~J) 전수.
+- 판정: why_v29 규칙(why_v28 (1)~(12) + 판정식 v32 두 개 + v3.2 지표 5개 + Router) + 사람 검토(Humanity) 전수.
 - 생성 설정: temperature 0.2 · max_tokens 768 · JSON 출력. top_p 0.9 는 받는 업체만(Anthropic 부품은 temperature 만 보냄).
 - 프롬프트: v3.1 그대로(OpenAI 에 맞춰 다듬어진 글이라 다른 업체에 불리할 수 있음 — 결과에 함께 적는다).
 

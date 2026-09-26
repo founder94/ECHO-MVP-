@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 const R = await import('./router/router.ts');
 const P = await import('./router/providers.ts');
-const A = await import('./candidates/agent-v3.1.ts');
+const A = await import(process.env.ECHO_AGENT_FILE ?? './candidates/agent-v3.2.ts'); // v3.2 기본 · ECHO_AGENT_FILE=./candidates/agent-v3.1.ts 로 run 34 판도 검사
 
 const REG = { version: 't', provisional: true, roles: { PRIMARY: { provider: 'openai', model: 'p-model' }, SPECIALIST: { provider: 'anthropic', model: 's-model' }, FALLBACK: { provider: 'gemini', model: 'f-model' } }, timeout_ms: 1000, max_tokens: 768, temperature: 0.2, top_p: 0.9 };
 const BUDGET = { max_calls_per_conversation: 999, max_tokens_per_conversation: 1e9 };
@@ -141,7 +141,7 @@ test('G · 불만·메타·정정 턴에서 모델이 바뀌어도 서버 사실
   const r = R.createRouter({ registry: REG, providers: pv, budget: BUDGET });
   const stR = begin();
   for (const t of flow) await A.runTurn(stR, t, r.llm);
-  const norm = (st) => JSON.stringify(st, (k, v) => (/_at$/.test(k) ? undefined : v));
+  const norm = (st) => JSON.stringify(st, (k, v) => (/(^|_)at$/.test(k) ? undefined : v)); // 시각 칸은 비교에서 뺀다
   assert.ok(pv.anthropic.calls.length > 0, 'SPECIALIST 업체가 실제로 쓰였다');
   assert.equal(norm(stR), norm(stPlain), '상태 같음');
   assert.ok(!factQuotes(stR).some((q) => /상관없이|고정질문|몇번째/.test(q)), '불만·메타 사실 0');
@@ -218,4 +218,37 @@ test('OpenAI 부품 오류 코드: 429 · 5xx · 빈 응답 · 키 없음 · 시
   await assert.rejects(P.openAIProvider('', fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
   const slow = async (_u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new Error('aborted'))));
   await assert.rejects(P.openAIProvider('K', slow).call({ ...REQ, timeoutMs: 20 }), (e) => e.code === 'timeout');
+});
+
+// ── PANEL + JUDGE(실험 · 기본 꺼짐 · 대표 「FINAL IMPLEMENTATION MASTER」 §21).
+const PANEL_REG = (judge = null) => ({ ...REG, panel: { stages: ['rebuild'], members: [{ provider: 'openai', model: 'p' }, { provider: 'gemini', model: 'g' }, { provider: 'anthropic', model: 'c' }], judge } });
+const REB = { statements: [{ id: 0, quote: '약속 잘 지키는 사람' }] };
+test('PANEL: 지정 단계에서만 세 업체 후보 · 서버 검사 탈락 후보 제외 · 판정 없으면 서버 점수 1등', async () => {
+  const o = P.fakeProvider('openai', () => 'not json'), g = P.fakeProvider('gemini', () => JSON.stringify({ lines: [{ id: 0, text: '약속을 잘 지키는 사람이 좋아요.' }] })), a = P.fakeProvider('anthropic', () => JSON.stringify({ lines: [] }));
+  const score = (_s, t) => { try { return (JSON.parse(t).lines ?? []).length; } catch { return 0; } };
+  const r = R.createRouter({ registry: PANEL_REG(), providers: { openai: o, gemini: g, anthropic: a }, budget: BUDGET, panelScore: score });
+  const out = await r.llm('intro', 'x', REB);
+  assert.match(out.text, /좋아요/);
+  assert.equal(r.log.filter((x) => x.role === 'PANEL').length, 3);
+  await r.llm('turn', 'x', { latest: '안녕' }); // 다른 단계는 한 업체만
+  assert.equal(o.calls.length, 2); assert.equal(g.calls.length + a.calls.length, 2);
+});
+test('JUDGE: 판정 선택은 서버 통과 후보 안에서만 · 엉뚱한 선택·오류면 서버 점수 1등', async () => {
+  const good1 = JSON.stringify({ lines: [{ id: 0, text: '약속을 잘 지키는 사람이 좋아요.' }] }), good2 = JSON.stringify({ lines: [{ id: 0, text: '약속 잘 지키는 분이 좋아요.' }] });
+  const mk = (choice) => ({ openai: P.fakeProvider('openai', () => good1), gemini: P.fakeProvider('gemini', () => good2), anthropic: P.fakeProvider('anthropic', (req) => (req.action === 'JUDGE' ? JSON.stringify({ choice }) : 'broken')) });
+  const pick = async (choice) => { const r = R.createRouter({ registry: PANEL_REG({ provider: 'anthropic', model: 'j' }), providers: mk(choice), budget: BUDGET }); return { out: await r.llm('intro', 'x', REB), log: r.log }; };
+  const b = await pick('B');
+  assert.equal(b.out.text, good2, '판정 B = 두 번째 통과 후보');
+  assert.ok(b.log.some((x) => x.role === 'JUDGE' && !x.error));
+  assert.equal((await pick('C')).out.text, good1, '탈락 후보(C=broken)는 고를 수 없음 → 서버 1등');
+  assert.equal((await pick('Z')).out.text, good1);
+});
+test('PANEL 은 기본 꺼짐(registry.panel 없음) · 비용 상한이면 PANEL 대신 한 업체', async () => {
+  const o = P.fakeProvider('openai', () => '{"lines":[]}'), g = P.fakeProvider('gemini', () => '{}');
+  const r1 = R.createRouter({ registry: REG, providers: { openai: o, gemini: g }, budget: BUDGET });
+  await r1.llm('intro', 'x', REB);
+  assert.equal(r1.log.filter((x) => x.role === 'PANEL').length, 0);
+  const r2 = R.createRouter({ registry: PANEL_REG(), providers: { openai: o, gemini: g }, budget: { max_calls_per_conversation: 0, max_tokens_per_conversation: 1e9 } });
+  await r2.llm('intro', 'x', REB);
+  assert.equal(r2.log.filter((x) => x.role === 'PANEL').length, 0, '비용 상한 → 한 업체');
 });
