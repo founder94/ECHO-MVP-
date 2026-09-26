@@ -10,7 +10,8 @@ import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
 import InstallAppCard from './InstallAppCard';
 import { takeAgentChoice, type AgentChoice } from '@/doit/lib/agentChoice';
-import { VOICE_INPUT_ERROR_TEXT, useVoiceInput } from '@/doit/lib/voiceInput';
+import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
+import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
 
 interface Props {
   userId: string;
@@ -32,17 +33,15 @@ const PURPOSE_ORDER = Object.keys(AGENT_PURPOSE_LABELS);
 const SKIP_TEXT = '이 질문은 넘어갈게요';
 const STOP_TEXT = '오늘은 여기까지 할게요';
 
-const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
-function speak(text: string, onState?: (speaking: boolean) => void) {
-  if (!canSpeak() || !text.trim()) return;
-  try {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ko-KR';
-    if (onState) { u.onstart = () => onState(true); u.onend = () => onState(false); u.onerror = () => onState(false); }
-    window.speechSynthesis.speak(u);
-  } catch { onState?.(false); /* 읽기 실패는 글로 이어 간다 */ }
-}
+const SPEAK_FAILED = '소리로 읽지 못했어요. 대답은 화면에 적어 두었어요.';
+// 말로 대화하기 네 가지 상태(대표 2026-09-26 「대기 / 듣는 중 / 이해하는 중 / ECHO가 말하는 중」).
+type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking';
+const VOICE_STATE: Record<VoicePhase, [string, string]> = {
+  idle: ['대기', '마이크를 누르고 말해 주세요'],
+  listening: ['듣는 중', '말을 멈추면 ECHO가 알아서 들어요 · 다 말했으면 눌러도 돼요'],
+  thinking: ['이해하는 중', '방금 한 말을 이해하고 있어요'],
+  speaking: ['ECHO가 말하는 중', '누르면 바로 멈춰요'],
+};
 
 // ECHO Conversation Agent 화면. 질문·진행·저장은 서버(doit-agent)가 정한다. 이 화면은 보이고 보내기만 한다.
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
@@ -58,6 +57,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
   // 대표 2026-09-25 음성 버튼: 말하는 대로 칸에 글자가 흐른다. 이번 말을 음성으로 보냈으면 ECHO 대답도 소리로 읽는다.
   const voiceTurn = useRef(false);
   const onVoiceText = useCallback((text: string) => { voiceTurn.current = true; setDraft(text); }, []);
@@ -70,7 +70,16 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const inFlight = useRef(false);
   const heroStarted = useRef(false);
   const [heroChoice, setHeroChoice] = useState<AgentChoice | null>(null);
-  useEffect(() => { alive.current = true; return () => { alive.current = false; if (canSpeak()) window.speechSynthesis.cancel(); }; }, []);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; stopSpeaking(); }; }, []);
+  // ECHO 대답을 기기 목소리로 읽는다. 못 읽으면 숨기지 않고 그렇다고 알린다(글은 화면에 그대로 있다).
+  const say = useCallback((text: string) => {
+    setVoiceNote(null);
+    speakText(text, () => { if (alive.current) setSpeaking(true); }, how => {
+      if (!alive.current) return;
+      setSpeaking(false);
+      if (how === 'failed') setVoiceNote(SPEAK_FAILED);
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -97,32 +106,52 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     } finally { inFlight.current = false; if (alive.current) setBusy(null); }
   };
 
-  // 새 AI 말만 읽어 준다(말로 대화하기). 보낸 뒤 받은 말만 — 불러온 지난 대화는 읽지 않는다.
+  // 새 AI 말만 읽어 준다(말로 대화하기). 보낸 뒤 받은 말 중 마지막 사용자 말 뒤의 것(받아주기 + 다음 질문)만 — 지난 대화·앱의 첫 질문은 읽지 않는다.
   const speakNew = (before: AgentSession | null, after: AgentSession, force = false) => {
     if (after.mode !== 'VOICE' && !force) return;
-    speak(after.messages.slice(before?.messages.length ?? 0).filter(m => m.role === 'ai').map(m => m.text).join(' '), setSpeaking);
+    const fresh = after.messages.slice(before?.messages.length ?? 0);
+    const lastUser = fresh.map(m => m.role).lastIndexOf('user');
+    const text = fresh.slice(lastUser + 1).filter(m => m.role === 'ai').map(m => m.text).join(' ');
+    if (text.trim()) say(text);
   };
 
-  const start = (choice: AgentChoice = { tone, mode }) => void run('첫 이야기를 듣고 있어요', async () => {
-    if (choice.mode === 'VOICE') speak(' '); // 아이폰은 첫 소리를 누름 안에서 시작해야 한다
+  const start = (choice: AgentChoice = { tone, mode }) => void run(choice.mode === 'VOICE' ? '이해하는 중이에요' : '첫 이야기를 듣고 있어요', async () => {
+    // 소리 길은 누름 안에서만 연다: 선택창 「말로 시작하기」 누름(아래 onConfirm) 또는 히어로 선택창 누름. 여기는 누름 밖일 수 있어 부르지 않는다(한 번 열기 표시가 헛되이 켜지지 않게).
     const s = await agentStart(userId, { tone: choice.tone, mode: choice.mode, ...(firstAnswer ? { firstAnswer } : {}) });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
   });
 
-  const send = (text: string) => {
+  // spokenTurn = 말로 대화하기 마이크로 들은 말(글로 적은 말과 같은 서버·같은 기억·같은 정정/거절 규칙으로 간다).
+  const send = (text: string, spokenTurn = false) => {
     const t = text.trim();
     if (!session || !t) return;
     if (voice.listening) voice.stop();
-    const spoke = voiceTurn.current; voiceTurn.current = false;
-    if (spoke) speak(' '); // 아이폰은 첫 소리를 누름 안에서 시작해야 한다
-    void run(session.mode === 'VOICE' ? '생각하는 중이에요' : '듣고 있어요', async () => {
+    const spoke = spokenTurn || voiceTurn.current; voiceTurn.current = false;
+    if (spoke && !spokenTurn) unlockSpeech(); // 보내기 누름 안에서 소리 길을 연다(마이크로 들은 말은 마이크 누름에서 이미 열었다)
+    void run(session.mode === 'VOICE' ? '이해하는 중이에요' : '듣고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX));
       if (!alive.current) return;
       speakNew(session, r.session, spoke); setSession(r.session);
       setDraft(prev => (prev.trim() === t ? '' : prev));
       if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
     });
+  };
+
+  // 말로 대화하기: 마이크 한 번 = 말 한 번. 말을 멈추면 들은 글자가 곧바로 같은 대화 서버로 간다(키보드 0).
+  const sendRef = useRef(send);
+  useEffect(() => { sendRef.current = send; });
+  const onHeard = useCallback((text: string) => sendRef.current(text.slice(0, TEXT_MAX), true), []);
+  const talk = useVoiceTurn(onHeard);
+  const voicePhase: VoicePhase = speaking ? 'speaking' : talk.listening ? 'listening' : busy ? 'thinking' : 'idle';
+  const tapMic = () => {
+    if (speaking) { stopSpeaking(); setSpeaking(false); return; }   // ECHO 목소리 즉시 멈춤
+    if (talk.listening) { talk.stop(); return; }                   // 거기까지 들은 말을 보낸다
+    if (busy) return;
+    unlockSpeech();                                                 // 아이폰: 대답을 읽을 소리 길을 이 누름 안에서 연다
+    announceVoiceActive();                                          // 첫 화면 음악이 켜져 있으면 멈춘다(다시 틀지 않음)
+    setVoiceNote(null);
+    talk.start();
   };
 
   useEffect(() => {
@@ -155,7 +184,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
-    {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
+    {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { if (choice.mode === 'VOICE') unlockSpeech(); setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
   </section>;
 
   const done = session.phase === 'done';
@@ -177,20 +206,29 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <span className="echo-steps-bar" aria-hidden="true"><i style={{ width: `${(answered / session.progress.of) * 100}%` }} /></span>
     </div>}
     {!done && (restartArmed === 'top' ? restartConfirm : <div className="echo-restart-top">{restartPill('top')}</div>)}
-    <p className="echo-eyebrow">{done ? '다 들었어요' : '대화 중'}</p>
-    {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : <h1>잘 들었어요.<br />다음 질문이에요.</h1>}
-    {!done && <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>}
+    <p className="echo-eyebrow">{done ? '다 들었어요' : '대화 중'}{!done && <span className="echo-mode-pill">{session.mode === 'VOICE' ? '말로 대화 중' : '글로 대화 중'}</span>}</p>
+    {/* 2026-09-26 대표 실기기 FAIL USER_CONTEXT_NOT_ACKNOWLEDGED: 서버(AI)가 만든 받아주기 말이 질문 카드 위 작은 회색 줄이라 보이지 않았고,
+        그 위 고정 제목 「잘 들었어요. 다음 질문이에요.」가 대신 서 있었다. → 받아주기 말이 있으면 그 말이 제목 자리에 선다(문장은 서버가 준 그대로 · 화면이 만들지 않는다). */}
+    {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : ack ? <h1 className="echo-ack-heading">{ack}</h1> : <h1>{myAnswers.length ? <>잘 들었어요.<br />다음 질문이에요.</> : '첫 질문이에요.'}</h1>}
+    {!done && <p className="echo-lead">{session.mode === 'VOICE' ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
     {question && <div className="echo-question-card">
-      {ack && <p className="echo-ack">{ack}</p>}
       <p className="echo-question">{question}</p>
       {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
       {session.current_hint && (hintFor === question
         ? <p className="echo-fine" role="note">{session.current_hint}</p>
-        : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (session.mode === 'VOICE' && canSpeak()) speak(session.current_hint ?? '', setSpeaking); }}>예시 보기</button>)}
+        : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (session.mode === 'VOICE' && canSpeak()) say(session.current_hint ?? ''); }}>예시 보기</button>)}
     </div>}
-    {session.mode === 'VOICE' && canSpeak() && lastAi && (speaking
-      ? <p className="echo-notice" role="status">ECHO 가 말하는 중이에요 <button type="button" className="echo-text-button" onClick={() => { window.speechSynthesis.cancel(); setSpeaking(false); }}>소리 멈추기</button></p>
-      : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => speak(lastAi, setSpeaking)}>다시 듣기</button>)}
+    {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
+    {session.mode === 'VOICE' && !done && (talk.supported
+      ? <div className="echo-voice-stage" role="group" aria-label="말로 대화하기">
+          <button type="button" className={`echo-voice-button echo-voice-main is-${voicePhase}`} aria-label={voicePhase === 'speaking' ? 'ECHO 목소리 멈추기' : voicePhase === 'listening' ? '말하기 끝내기' : '말하기 시작'} aria-pressed={voicePhase === 'listening'} disabled={voicePhase === 'thinking'} onClick={tapMic}>{voicePhase === 'listening' || voicePhase === 'speaking' ? <Square size={26} /> : <Mic size={34} />}</button>
+          <p className="echo-voice-state" role="status" aria-live="polite"><b>{VOICE_STATE[voicePhase][0]}</b><span>{VOICE_STATE[voicePhase][1]}</span></p>
+          {talk.heard && <p className="echo-voice-heard">{talk.heard}</p>}
+          {talk.error && <p className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[talk.error]}</p>}
+          {voiceNote && <p className="echo-notice" role="status">{voiceNote}</p>}
+        </div>
+      : <p className="echo-notice" role="status">이 브라우저는 말 듣기를 지원하지 않아요. 아래 칸에 글로 적어 주세요.</p>)}
+    {session.mode === 'VOICE' && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
     {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => setDraft(text)}>{text}</button></li>)}</ol></details>}
     {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
     {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
@@ -216,10 +254,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {/* 홈 화면에 두기 제안(2026-09-26): 소개를 고른 뒤 한 번만. 소개 카드와 겹쳐 권하지 않는다. 설치 안 해도 그대로 쓴다. */}
     {done && introChosen && <InstallAppCard />}
     <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (!busy && draft.trim()) send(draft); }}>
-      <label htmlFor="echo-message">{done ? '고칠 게 있으면 적어 주세요' : session.mode === 'VOICE' ? '키보드의 마이크를 눌러 말해 주세요' : '이어서 적기'}</label>
+      <label htmlFor="echo-message">{done ? '고칠 게 있으면 적어 주세요' : session.mode === 'VOICE' ? '글로 적어도 돼요' : '이어서 적기'}</label>
       <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder={voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
       {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
-      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{voice.supported && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { if (canSpeak()) window.speechSynthesis.cancel(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
+      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{voice.supported && !(session.mode === 'VOICE' && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
     </form>
     {!done && <div className="echo-reactions"><button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button><button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button></div>}
     <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartArmed === 'bottom' ? restartConfirm : restartPill('bottom')}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : `질문은 ${session.progress.of}개뿐이에요.`}</p></footer>

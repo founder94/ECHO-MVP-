@@ -93,6 +93,17 @@
 .echo-dialogue .echo-composer-footer .echo-voice-button.is-listening{background:#fff;color:#111317;border-color:#fff;animation:echo-voice-breathe 1.6s ease-in-out infinite}
 @keyframes echo-voice-breathe{0%,100%{box-shadow:0 0 0 0 rgb(255 255 255/.55)}50%{box-shadow:0 0 0 8px rgb(255 255 255/0)}}
 @media(prefers-reduced-motion:reduce){.echo-dialogue .echo-voice-button.is-listening{animation:none}}
+/* 2026-09-26 대표 실기기 P0: 말로 대화하기(Voice Lite) 마이크 · 대화 방식 표시 · 받아주기 제목. 대화 화면 안에서만(파스텔 규칙 구역 밖 · 배치 규칙이라 여기에 둔다). 판·덮개 없이 투명 + 얇은 흰 테두리. */
+.echo-dialogue .echo-mode-pill{display:inline-block;margin-left:10px;padding:2px 10px;border:1px solid rgb(255 255 255/.7);border-radius:999px;font-size:11px;letter-spacing:0;vertical-align:1px}
+.echo-dialogue h1.echo-ack-heading{font-size:clamp(20px,5.6vw,25px);line-height:1.55;word-break:keep-all}
+.echo-dialogue .echo-voice-stage{display:flex;flex-direction:column;align-items:center;gap:10px;margin:8px 0 24px;text-align:center}
+.echo-dialogue .echo-voice-button.echo-voice-main{width:88px;height:88px;border:1.5px solid #fff;background:rgb(255 255 255/.12);color:#fff}
+.echo-dialogue .echo-voice-button.echo-voice-main.is-listening{background:#fff;color:#111317;animation:echo-voice-breathe 1.6s ease-in-out infinite}
+.echo-dialogue .echo-voice-button.echo-voice-main.is-speaking{background:rgb(255 255 255/.3)}
+.echo-dialogue .echo-voice-state{display:flex;flex-direction:column;gap:2px;margin:0;color:#fff;font-size:12px;line-height:1.6}
+.echo-dialogue .echo-voice-state b{font-size:15px;font-weight:700}
+.echo-dialogue .echo-voice-heard{margin:0;max-width:100%;color:#fff;font-size:15px;line-height:1.7;word-break:keep-all}
+@media(prefers-reduced-motion:reduce){.echo-dialogue .echo-voice-button.echo-voice-main.is-listening{animation:none}}
 /* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.

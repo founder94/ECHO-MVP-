@@ -10,6 +10,8 @@ import './install-app.css';
 // - 이미 홈 화면 앱으로 열려 있으면 아무것도 보이지 않는다. 설치하지 않아도 모든 기능을 그대로 쓴다.
 // - 갤럭시: [홈 화면에 추가]를 눌렀을 때만 브라우저 설치 창을 띄운다. 못 띄우면 메뉴에서 직접 받는 방법을 보여 준다.
 // - 아이폰: 설치 창이 없어 공유 → 「홈 화면에 추가」 방법만 짧게 보여 준다.
+// - 2026-09-26 대표 실기기 「앱 아이콘을 어디서 받는지 모르겠다」: variant="menu" 는 설정에 늘 있는 항목이다.
+//   한 번 권하기(세션 기록)와 상관없이 언제든 보이고, 이미 홈 화면 앱이면 「홈 화면에 추가됨」만 보인다. 누르기 전에는 아무것도 띄우지 않는다.
 
 const SESSION_KEY = 'echo:install-suggest';
 
@@ -81,10 +83,11 @@ function CopyAddress() {
   );
 }
 
-export default function InstallAppCard() {
+export default function InstallAppCard({ variant = 'suggest' }: { variant?: 'suggest' | 'menu' }) {
+  const menu = variant === 'menu';
   const [context] = useState<InstallContext>(readContext);
-  // 처음 그릴 때 한 번만 정한다: 이번 세션에 이미 권했으면 이 화면에서는 보이지 않는다.
-  const [eligible] = useState<boolean>(() => !alreadySuggested());
+  // 처음 그릴 때 한 번만 정한다: 이번 세션에 이미 권했으면 이 화면에서는 보이지 않는다(설정 메뉴 항목은 늘 보인다).
+  const [eligible] = useState<boolean>(() => menu || !alreadySuggested());
   const [open, setOpen] = useState(true);
   const [result, setResult] = useState<'none' | 'accepted' | 'steps'>('none');
   const canPrompt = useSyncExternalStore(subscribeInstallPrompt, canPromptInstall, () => false);
@@ -94,8 +97,25 @@ export default function InstallAppCard() {
   const visible = !IS_BRAND_SITE && context !== 'installed' && eligible && open
     && !(context === 'desktop' && !canPrompt && result === 'none' && !justInstalled);
 
-  useEffect(() => { if (visible) markSuggested(); }, [visible]);
+  useEffect(() => { if (visible && !menu) markSuggested(); }, [visible, menu]);
 
+  if (menu && !IS_BRAND_SITE && context === 'installed') {
+    return (
+      <section className="doit-install doit-install--menu" aria-live="polite">
+        <h2>홈 화면에 추가됨</h2>
+        <p>지금 홈 화면의 <b>DO IT</b> 아이콘으로 열려 있어요.</p>
+      </section>
+    );
+  }
+  if (menu && !IS_BRAND_SITE && context === 'desktop' && !canPrompt && !justInstalled) {
+    return (
+      <section className="doit-install doit-install--menu">
+        <h2>홈 화면에 ECHO 추가</h2>
+        <p>휴대폰에서 이 주소를 열면 홈 화면에 ECHO를 둘 수 있어요. 설치하지 않아도 그대로 쓸 수 있어요.</p>
+        <CopyAddress />
+      </section>
+    );
+  }
   if (!visible) return null;
 
   if (justInstalled || result === 'accepted') {
@@ -120,9 +140,9 @@ export default function InstallAppCard() {
   const kakaoUrl = context === 'in-app' && isKakaoInApp(navigator.userAgent) ? kakaoOpenExternalUrl(`${window.location.origin}/`) : null;
 
   return (
-    <section className="doit-install" aria-labelledby="doit-install-title">
-      <h2 id="doit-install-title">ECHO를 홈 화면에 둘까요?</h2>
-      <p>다음에는 바로 들어올 수 있어요.</p>
+    <section className={menu ? 'doit-install doit-install--menu' : 'doit-install'} aria-labelledby="doit-install-title">
+      <h2 id="doit-install-title">{menu ? '홈 화면에 ECHO 추가' : 'ECHO를 홈 화면에 둘까요?'}</h2>
+      <p>{menu ? '앱처럼 홈 화면 아이콘으로 바로 들어와요. 설치하지 않아도 그대로 쓸 수 있어요.' : '다음에는 바로 들어올 수 있어요.'}</p>
 
       {result === 'none' ? (
         <button type="button" className="doit-install-action" onClick={() => void add()}>홈 화면에 추가</button>
@@ -148,7 +168,9 @@ export default function InstallAppCard() {
         </>
       )}
 
-      <button type="button" className="doit-install-later" onClick={() => setOpen(false)}>나중에</button>
+      {menu
+        ? result !== 'none' && <button type="button" className="doit-install-later" onClick={() => setResult('none')}>닫기</button>
+        : <button type="button" className="doit-install-later" onClick={() => setOpen(false)}>나중에</button>}
     </section>
   );
 }

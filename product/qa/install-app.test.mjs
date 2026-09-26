@@ -113,15 +113,15 @@ test('홈 화면 제안은 다섯 가지를 마친 뒤에만 보이고, 브랜�
 test('세션당 한 번만 권하고, 저장이 막혀도 화면이 깨지지 않는다', () => {
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
   assert.match(card, /try \{ return sessionStorage\.getItem\(SESSION_KEY\) === 'shown'; \} catch \{ return false; \}/);
-  assert.match(card, /useEffect\(\(\) => \{ if \(visible\) markSuggested\(\); \}, \[visible\]\);/);
+  assert.match(card, /useEffect\(\(\) => \{ if \(visible && !menu\) markSuggested\(\); \}, \[visible, menu\]\);/, '1회 제안만 기록(2026-09-26 설정 메뉴 항목은 기록하지 않는다)');
   assert.ok(!/localStorage/.test(card), '다음 방문까지 막아 두지 않는다(세션 기준)');
 });
 
 test('제안 문구와 버튼은 대표 확정 문구 그대로, 기술 용어 없이', () => {
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
   const ui = card.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('{/*')).join('\n');
-  assert.match(ui, />ECHO를 홈 화면에 둘까요\?</);
-  assert.match(ui, />다음에는 바로 들어올 수 있어요\.</);
+  assert.match(ui, /'ECHO를 홈 화면에 둘까요\?'/);
+  assert.match(ui, /'다음에는 바로 들어올 수 있어요\.'/);
   assert.match(ui, />홈 화면에 추가</);
   assert.match(ui, />나중에</);
   for (const word of ['PWA', 'manifest', '설치 프로그램', 'beforeinstallprompt']) {

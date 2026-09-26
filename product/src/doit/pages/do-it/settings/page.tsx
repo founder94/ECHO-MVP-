@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import InstallAppCard from "@/doit/components/feature/InstallAppCard";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import { useAuth } from "@/doit/hooks/useAuth";
 import FaceLoginSettings from "./FaceLoginSettings";
@@ -33,6 +34,9 @@ export default function Settings() {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
+  const { hash } = useLocation();
+  // 앱 홈의 「홈 화면에 ECHO 추가」 링크(#install)로 들어오면 그 항목으로 바로 내려 준다.
+  useEffect(() => { if (hash === "#install") document.getElementById("install")?.scrollIntoView({ block: "start" }); }, [hash]);
 
   async function handleSignOut() {
     if (signOutInFlight.current || loading || !user) return;
@@ -93,6 +97,12 @@ export default function Settings() {
             )}
           </div>
           {signOutError && <p className="doit-product-error" role="alert">{signOutError}</p>}
+        </section>
+
+        {/* 2026-09-26 대표 실기기 「앱은 어디서 받아?」: 설치를 강요하지 않고, 필요할 때 언제든 찾을 수 있는 자리. */}
+        <section id="install" className="doit-settings-section" aria-labelledby="settings-install-heading">
+          <h3 id="settings-install-heading" className="doit-settings-heading">앱으로 쓰기</h3>
+          <InstallAppCard variant="menu" />
         </section>
 
         {/* 2026-09-24 얼굴·지문 로그인(패스키) 등록·관리. 로그인한 사람만. */}

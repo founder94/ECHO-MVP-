@@ -21,6 +21,6 @@ test('못 쓰는 기기에서는 버튼을 숨길 수 있게 알려 준다 · �
   assert.equal(lib.canListen(), false);
   assert.doesNotMatch(src, /fetch\(|supabase|localStorage|sessionStorage|console\./);
   const ui = readFileSync(new URL('../src/doit/components/feature/AgentConversation.tsx', import.meta.url), 'utf8');
-  assert.match(ui, /\{voice\.supported && <button type="button" className=\{voice\.listening/);
+  assert.match(ui, /\{voice\.supported && !\(session\.mode === 'VOICE' && !done\) && <button type="button" className=\{voice\.listening/, '글로 대화: 받아쓰기 버튼 · 말로 대화: 큰 마이크(voice-lite-p0)');
   assert.match(ui, /speakNew\(session, r\.session, spoke\)/, '음성으로 보낸 말에는 ECHO 대답도 소리로');
 });

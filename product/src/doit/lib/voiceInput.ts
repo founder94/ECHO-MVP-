@@ -65,6 +65,55 @@ export function useVoiceInput(onText: (text: string) => void, maxLength: number)
   return { supported, listening, error, start, stop };
 }
 
+/**
+ * 말로 대화하기(Voice Lite · 2026-09-26 대표 「ChatGPT Voice 처럼」): 마이크 한 번 = 말 한 번.
+ * 사용자가 말을 멈추면 브라우저가 스스로 듣기를 끝내고(continuous=false), 들은 글자를 onHeard 로 한 번 넘긴다 — 키보드 0.
+ * 듣는 중에 다시 누르면(stop) 거기까지 들은 말을 넘긴다. cancel 은 아무것도 넘기지 않는다.
+ * 목소리 자체는 저장·전송하지 않는다(글자만 기존 대화 서버로 간다 — 글로 적은 말과 같은 길).
+ */
+export function useVoiceTurn(onHeard: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+  const [heard, setHeard] = useState('');
+  const [error, setError] = useState<VoiceInputError | null>(null);
+  const rec = useRef<Recognition | null>(null);
+  const said = useRef('');
+  const dropped = useRef(false);
+  const deliver = useRef(onHeard);
+  useEffect(() => { deliver.current = onHeard; }, [onHeard]);
+  const supported = canListen();
+
+  const stop = useCallback(() => { rec.current?.stop(); }, []);
+  const cancel = useCallback(() => { dropped.current = true; rec.current?.abort(); }, []);
+
+  const start = useCallback(() => {
+    const Ctor = recognitionCtor();
+    if (!Ctor || rec.current) return false;
+    const r = new Ctor();
+    r.lang = 'ko-KR';
+    r.continuous = false;
+    r.interimResults = true;
+    said.current = ''; dropped.current = false;
+    r.onresult = (e) => { said.current = joinTranscript('', e.results); setHeard(said.current); };
+    r.onerror = (e) => setError(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'denied' : e.error === 'no-speech' ? 'no-speech' : e.error === 'aborted' ? null : 'failed');
+    r.onend = () => {
+      rec.current = null; setListening(false); setHeard('');
+      const text = said.current.trim(); said.current = '';
+      if (text && !dropped.current) deliver.current(text);
+    };
+    try {
+      setError(null); setHeard('');
+      r.start();
+      rec.current = r;
+      setListening(true);
+      return true;
+    } catch { rec.current = null; setListening(false); setError('failed'); return false; }
+  }, []);
+
+  useEffect(() => () => { dropped.current = true; rec.current?.abort(); rec.current = null; }, []);
+
+  return { supported, listening, heard, error, start, stop, cancel };
+}
+
 export const VOICE_INPUT_ERROR_TEXT: Record<VoiceInputError, string> = {
   denied: '마이크를 쓸 수 없어요. 휴대폰 설정에서 이 앱(브라우저)의 마이크를 허용해 주세요.',
   'no-speech': '소리가 들리지 않았어요. 다시 눌러 말해 주세요.',

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { VOICE_ACTIVE_EVENT } from '@/doit/lib/voiceOutput';
 
 // A구조(DO IT) 오리지널 음악 원음 2곡.
 // 성별 확인 전이므로 "원음 1 / 원음 2"로 표기한다. 파일 순서로 성별을 추정하지 않는다.
@@ -111,6 +112,9 @@ export default function OriginalMusicCard() {
     audio.addEventListener('playing', onPlaying);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
+    // 2026-09-26 대표 「음악 + Voice 충돌 금지」: ECHO 가 듣거나 말하기 시작하면 음악을 멈춘다(위치·곡은 그대로). 다시 틀기는 사용자가 재생을 누를 때만.
+    const onVoice = () => { if (!audio.paused) { requestIdRef.current += 1; audio.pause(); } };
+    window.addEventListener(VOICE_ACTIVE_EVENT, onVoice);
 
     return () => {
       aliveRef.current = false;
@@ -121,6 +125,7 @@ export default function OriginalMusicCard() {
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
+      window.removeEventListener(VOICE_ACTIVE_EVENT, onVoice);
       audio.src = '';
       audioRef.current = null;
     };
@@ -225,6 +230,10 @@ export default function OriginalMusicCard() {
 
   const progressPct = duration > 0 ? (current / duration) * 100 : 0;
   const hasSelection = track !== null;
+  // 2026-09-26 대표 실기기 「0:00 / 0:00 — 어떻게 듣는지 모르겠다」: 곡을 고르기 전·불러오는 중을 시간 대신 글로 알린다(재생되는 척 0).
+  const loading = hasSelection && !isPlaying && !errorState && duration === 0;
+  const nowLabel = !hasSelection ? '듣고 싶은 곡을 눌러 주세요'
+    : `${sequence ? `이어 듣기 · ${TRACKS[track].label}${track === 0 ? ' → 원음 2' : ' (마지막 곡)'}` : TRACKS[track].label}${loading ? ' · 불러오는 중' : isPlaying ? ' · 재생 중' : ' · 일시정지'}`;
 
   const versionBtnClass = (active: boolean) =>
     `inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
@@ -311,9 +320,10 @@ export default function OriginalMusicCard() {
         </div>
 
         <span className="text-[11px] tabular-nums text-white/60 whitespace-nowrap">
-          {formatTime(current)} / {formatTime(duration)}
+          {hasSelection && duration > 0 ? `${formatTime(current)} / ${formatTime(duration)}` : '-:-- / -:--'}
         </span>
       </div>
+      <p className="mt-2 text-[11px] text-white/70" aria-live="polite">{nowLabel}</p>
 
       {/* 재생 오류 안내 (원인별 구분) */}
       {errorState && (

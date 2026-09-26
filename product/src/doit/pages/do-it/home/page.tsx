@@ -11,6 +11,13 @@ import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import '@/doit/components/feature/understanding-pages.css';
 
+// 이미 홈 화면 앱으로 열려 있으면 설치 링크를 보이지 않는다.
+function standaloneApp(): boolean {
+  try {
+    return window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  } catch { return false; }
+}
+
 function formatDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('ko-KR', {
@@ -117,6 +124,8 @@ export default function Home() {
         <div className="doit-understanding-footer">
           <Link className="doit-understanding-text-link" to="/doit/connections">연결까지 남은 것 보기 <span aria-hidden="true">↗</span></Link>
           <Link className="doit-understanding-text-link" to="/doit/profile">내 프로필 보기 <span aria-hidden="true">↗</span></Link>
+          {/* 2026-09-26 대표 실기기 「앱은 어디서 받아?」: 대화를 마치기 전에도 설치 방법을 찾을 수 있게(설정 → 앱으로 쓰기). */}
+          {!standaloneApp() && <Link className="doit-understanding-text-link" to="/doit/settings#install">홈 화면에 ECHO 추가 <span aria-hidden="true">↗</span></Link>}
           {/* v14.3: 전에는 대화 화면만 열고 다시 시작하지 않았다. 이제 대화 화면에서 "처음부터 다시" 확인 창이 바로 열린다. */}
           {started && <Link className="doit-restart-pill" to="/doit/conversation?restart=1"><span aria-hidden="true">↺</span>처음부터 다시 시작하기</Link>}
           <p>여기 적은 이야기는 나만 봐요.<br />다른 사람에게 그대로 보여 주지 않아요.</p>
