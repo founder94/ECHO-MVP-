@@ -21,12 +21,10 @@
 - **해결 방안**: Supabase Dashboard → Authentication → URL Configuration → Site URL 변경
 - **예상 해결 시기**: 즉시 (5분 소요)
 
-### 3. Stripe 결제 미연동
-- **심각도**: 중간 (Medium)
-- **영향**: 결제 플로우 없음 (MVP Phase 6 예정)
-- **원인**: Phase 6 작업 대기
-- **해결 방안**: Stripe 연동 → Checkout + Webhook 구현
-- **예상 해결 시기**: Phase 6
+### 3. 결제 — Toss 4,900원 단건 (2026-09-26 갱신: 옛 "Stripe 미연동" 항목 대체)
+- **현재 기준**: 토스페이먼츠 4,900원 단건. Stripe는 사용하지 않는다.
+- **현재 앱**: `product/` — 서버 `product/supabase/functions/echo-payment` 가 금액(4,900원)을 서버 상수로만 판정. 테스트 키(`test_`)만 허용하므로 운영 결제는 아직 불가.
+- **남은 일**: 운영 결제 전환(운영 키·배포)은 대표 승인 대상. 자세한 상태는 `product/README.md` 결제 절.
 
 ### 4. CSP Header 미설정
 - **심각도**: 낮음 (Low)
@@ -82,7 +80,7 @@
 |---|---|---|
 | 🔴 P0 | Supabase Site URL 미변경 | Dashboard 즉시 변경 |
 | 🟡 P1 | 서브 페이지 SEO 미최적화 | Phase 9 |
-| 🟡 P1 | Stripe 결제 미연동 | Phase 6 |
+| 🟡 P1 | Toss 운영 결제 전환 (현재 테스트 키만) | 대표 승인 후 |
 | 🟢 P2 | Apple/Kakao OAuth 미구현 | 요청 시 활성화 |
 | 🟢 P2 | Google Analytics 미연결 | Phase 7 |
 | 🟢 P3 | CSP Header 미설정 | Phase 9 |
