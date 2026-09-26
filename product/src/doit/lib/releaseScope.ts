@@ -1,6 +1,7 @@
 // 메뉴·주소에서 숨길 화면 목록(출시 1.0 · 2026-09-24 에 만든 자리).
 // 2026-09-26 대표 「FINAL HUMAN UX / DESIGN / PRODUCT STRUCTURE」 §17·§20·§26: 지금 MVP 는 「말한다 → 이해한다 → 기억한다」까지.
-// 준비 중인 행동·보상(Just Try·KEY·나비효과·등급)과 실제 엔진이 없는 사주·타로, 빈 준비 화면(공간·월드·방·알림)은 숨긴다.
+// 준비 중인 행동·보상(Just Try·KEY·나비효과·등급)과 빈 준비 화면(공간·월드·방·알림)은 숨긴다.
+// 2026-09-26 대표 정정 「SAJU / TAROT FINAL LOCK」: 사주·타로(/doit/fortune)는 숨기지 않는다(타로 유지 · 사주는 계산 엔진으로 완성).
 // 화면 파일·주소 정의는 지우지 않는다(향후 기능). 숨긴 주소로 바로 들어오면 앱 홈으로 보낸다(routes.tsx).
 export const HIDDEN_IN_RELEASE: Readonly<Record<string, string>> = {
   '/doit/just-try': 'Just Try · 나비효과 — 실제 행동·보상 구조 전(행동한다)',
@@ -8,12 +9,11 @@ export const HIDDEN_IN_RELEASE: Readonly<Record<string, string>> = {
   '/doit/key/order/:packageId': 'KEY 주문 — 결제·환불 정책 미확정',
   '/doit/key/result': 'KEY 결과',
   '/doit/grade': '등급 — 산식 미확정(서버 grade_current = policy_not_set)',
-  '/doit/fortune': '사주·타로 — 실제 엔진 없음(예시 명식)',
   '/doit/spaces': '공간 — 준비 화면뿐',
   '/doit/world': '월드 — 준비 화면뿐',
   '/doit/room': '방 — 준비 화면뿐',
   '/doit/notifications': '알림 — 준비 화면뿐',
-  '/do-it/fortune': '예전 사주·타로 주소',
+  '/do-it/fortune': '예전 사주·타로 주소 → /doit/fortune',
   '/do-it/grade': '예전 등급 주소',
   '/do-it/photo': '예전 사진 주소 → 사진 채우기(start-journey?edit=photos)',
   '/doit/choose': '예전 DO IT/ECHO 두 갈래 선택 — MVP 는 한 흐름',

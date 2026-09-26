@@ -18,7 +18,7 @@ const ALL_MENU_ITEMS = [
   { label: "홈 화면에 ECHO 추가", desc: "앱처럼 바로 열 수 있어요", to: "/doit/settings#install", icon: "ri-smartphone-line" },
   { label: "설정", desc: "소개·사진·계정", to: "/doit/settings", icon: "ri-settings-3-line" },
   { label: "Just Try", desc: "시도하고, 모으고, 다시 즐겨요", to: "/doit/just-try", icon: "ri-sparkling-2-line" },
-  { label: "사주·타로 (무료)", desc: "재미로 보는 무료 콘텐츠", to: "/doit/fortune", icon: "ri-magic-line" },
+  { label: "오늘의 나 · 사주·타로", desc: "재미로 가볍게 보는 무료 콘텐츠", to: "/doit/fortune", icon: "ri-magic-line" },
   { label: "등급 가이드", desc: "등급의 의미 알아보기", to: "/doit/grade", icon: "ri-medal-line" },
 ];
 

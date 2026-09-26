@@ -252,7 +252,7 @@ test('약관: 앱 안 탈퇴와 메일 요청 둘 다 적혀 있고, 쓰지 않�
 
 // 2026-09-26 대표 「FINAL HUMAN UX / PRODUCT STRUCTURE」 §17·§20·§26·§34 가 41차 「숨김 목록 비움」 결정을 대체했다:
 // MVP 는 말한다 → 이해한다 → 기억한다. 준비 중·엔진 없는 기능은 숨기고(주소로 오면 앱 홈), 화면 파일·주소 정의는 보존한다.
-test('MVP 메뉴(2026-09-26): 사주·타로·Just Try·KEY·등급·공간·월드·알림 숨김 · 탭은 홈·연결·프로필 · 주소 정의는 보존 · 바로 들어오면 앱 홈', () => {
+test('MVP 메뉴(2026-09-26): Just Try·KEY·등급·공간·월드·알림 숨김 · 사주·타로는 보임(대표 정정) · 탭은 홈·연결·프로필 · 주소 정의는 보존 · 바로 들어오면 앱 홈', () => {
   const nav = read('src/doit/components/feature/BottomNav.tsx');
   assert.match(nav, /const tabs = allTabs\.filter\(\(tab\) => visibleInRelease\(tab\.to\)\);/);
   const top = read('src/doit/components/feature/TopBar.tsx');
@@ -263,6 +263,8 @@ test('MVP 메뉴(2026-09-26): 사주·타로·Just Try·KEY·등급·공간·월
   const exports = {};
   vm.runInNewContext(compile('src/doit/lib/releaseScope.ts'), { exports });
   for (const p of ['/doit/home', '/doit/connections', '/doit/profile', '/doit/understanding', '/doit/conversation', '/doit/settings', '/doit/settings#install']) assert.equal(exports.visibleInRelease(p), true, p);
-  for (const p of ['/doit/spaces', '/doit/world', '/doit/room', '/doit/fortune', '/doit/just-try', '/doit/key', '/doit/grade', '/doit/notifications', '/do-it/fortune', '/do-it/grade']) assert.equal(exports.visibleInRelease(p), false, p);
+  // 2026-09-26 대표 정정 「SAJU / TAROT FINAL LOCK」: 사주·타로(/doit/fortune)는 다시 보인다.
+  assert.equal(exports.visibleInRelease('/doit/fortune'), true);
+  for (const p of ['/doit/spaces', '/doit/world', '/doit/room', '/doit/just-try', '/doit/key', '/doit/grade', '/doit/notifications', '/do-it/fortune', '/do-it/grade']) assert.equal(exports.visibleInRelease(p), false, p);
   for (const p of ['spaces', 'world', 'just-try', 'grade', 'notifications', 'fortune', 'key']) assert.match(routes, new RegExp(`path: "${p}", element: gate\\("/doit/${p}"`), `${p} 는 gate 로 막는다`);
 });

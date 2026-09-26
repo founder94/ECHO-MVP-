@@ -101,7 +101,7 @@ function productRouteTable(): RouteObject[] {
     { path: '/do-it/3', element: <Navigate to="/doit/start-journey" replace /> },
     { path: '/do-it/4', element: <Navigate to="/doit/start-journey" replace /> },
     // A구조 기능 화면 (사주·타로 / 사진 / 등급)
-    { path: '/do-it/fortune', element: visibleInRelease('/do-it/fortune') ? <FortunePage /> : <Navigate to="/doit/home" replace /> },
+    { path: '/do-it/fortune', element: visibleInRelease('/do-it/fortune') ? <FortunePage /> : <Navigate to="/doit/fortune" replace /> },
     { path: '/do-it/photo', element: visibleInRelease('/do-it/photo') ? <PhotoPage /> : <Navigate to="/doit/start-journey?edit=photos" replace /> },
     { path: '/do-it/grade', element: visibleInRelease('/do-it/grade') ? <GradePage /> : <Navigate to="/doit/home" replace /> },
     // 관리자 운영센터(와일드카드보다 앞에 위치)

@@ -47,9 +47,10 @@ test('나의 이해: 다섯 칸 분류(대표 예시 그대로) · 애매하면 
   assert.match(read('src/doit/pages/do-it/home/page.tsx'), /splitCurrent\(/, '홈 숫자도 겹침 없이');
 });
 
-test('숨김: 사주·타로·Just Try·KEY·등급·공간·월드·방·알림·예전 A/B 흐름 · 파일과 주소 정의는 보존', () => {
+test('숨김: Just Try·KEY·등급·공간·월드·방·알림·예전 A/B 흐름 · 파일과 주소 정의는 보존', () => {
   const scope = read('src/doit/lib/releaseScope.ts');
-  for (const p of ['/doit/just-try', '/doit/key', '/doit/grade', '/doit/fortune', '/doit/spaces', '/doit/world', '/doit/room', '/doit/notifications', '/doit/choose', '/doit/first-record', '/weather', '/report', '/locker', '/coming-soon/:feature']) assert.ok(scope.includes(`'${p}'`), p);
+  assert.ok(!scope.includes("'/doit/fortune':"), '사주·타로는 숨기지 않는다(2026-09-26 대표 정정)');
+  for (const p of ['/doit/just-try', '/doit/key', '/doit/grade', '/doit/spaces', '/doit/world', '/doit/room', '/doit/notifications', '/doit/choose', '/doit/first-record', '/weather', '/report', '/locker', '/coming-soon/:feature']) assert.ok(scope.includes(`'${p}'`), p);
   assert.doesNotMatch(scope, /'\/payment/, '결제 경로는 이번 범위 밖(그대로)');
   const routes = read('src/doit/routes.tsx');
   assert.match(routes, /const gate = \(to: string, element: ReactElement\) => \(visibleInRelease\(to\) \? element : <Navigate to="\/doit\/home" replace \/>\);/);

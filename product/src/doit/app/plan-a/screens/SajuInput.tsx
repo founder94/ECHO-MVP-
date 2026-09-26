@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import { colors, serif } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+import type { SajuInput as SajuCalcInput } from "@/doit/lib/saju/engine";
 
 interface Props {
-  onNext: () => void;
+  // 2026-09-26: 확인한 입력을 계산 화면으로 넘긴다(저장 0 · 이 화면 → 계산 엔진).
+  onNext: (input: SajuCalcInput) => void;
   onSwitchToTaro?: () => void;
 }
 
@@ -102,8 +104,8 @@ export function SajuInput({
               color: colors.textMuted,
             }}
           >
-            입력값을 먼저 보여드리고, 확인한 뒤에만 기본
-            리딩으로 넘어갑니다.
+            입력한 걸 한 번 보여 드리고,
+            맞다고 하면 바로 계산해요.
           </p>
         </motion.header>
 
@@ -187,8 +189,8 @@ export function SajuInput({
                 color: colors.textFaint,
               }}
             >
-              전통 명식 계산에 쓰이는 입력 구분이며,
-              서비스의 성별 정체성·관계 목적과 분리합니다.
+              10년 흐름(대운)의 방향을 정하는 데만 써요.
+              「선택 안 함」이면 10년 흐름은 빼고 보여 드려요.
             </p>
           </div>
 
@@ -211,6 +213,9 @@ export function SajuInput({
                 <button
                   key={value}
                   type="button"
+                  // 2026-09-26: 음력 → 양력 변환표가 아직 없어 음력은 고를 수 없다(가짜 변환 0). 양력만 계산한다.
+                  disabled={value !== "solar"}
+                  aria-disabled={value !== "solar"}
                   onClick={() =>
                     setCalendar(
                       value as Calendar,
@@ -239,6 +244,9 @@ export function SajuInput({
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-[12px] leading-5" style={{ color: colors.textSoft }}>
+              음력 생일은 아직 계산하지 못해요. 양력 생일로 입력해 주세요.
+            </p>
           </div>
 
           <label className="block">
@@ -325,8 +333,8 @@ export function SajuInput({
                 color: colors.textFaint,
               }}
             >
-              시간을 몰라도 괜찮아요. 사주 계산은 아직 준비 중이라
-              지금은 결과를 만들지 않아요.
+              시간을 몰라도 괜찮아요. 그럴 땐 시주는 비워 두고
+              나머지 세 기둥으로 볼게요.
             </p>
           </div>
 
@@ -356,7 +364,7 @@ export function SajuInput({
                   event.target.value,
                 )
               }
-              placeholder="예: 서울 · 지역 시차 보정용"
+              placeholder="예: 서울 (지금은 계산에 쓰지 않아요)"
               className="h-[52px] w-full rounded-2xl px-4 outline-none"
               style={fieldStyle}
             />
@@ -399,7 +407,7 @@ export function SajuInput({
                   color: colors.text,
                 }}
               >
-                입력한 정보가 맞나요?
+                이 정보로 볼까요?
               </p>
 
               <dl className="mt-3 grid grid-cols-[88px_1fr] gap-y-2 text-xs">
@@ -480,7 +488,7 @@ export function SajuInput({
                   color: colors.textMuted,
                 }}
               >
-                다시 수정하기
+                수정할게요
               </button>
             </motion.div>
           )}
@@ -494,9 +502,8 @@ export function SajuInput({
             color: colors.textFaint,
           }}
         >
-          현재 화면은 입력·확인 시연입니다. 가입 전 서버에
-          저장하지 않으며, 실제 명식 계산·지역 보정·동의
-          이력은 서버 연동 필요입니다.
+          입력한 생일·시간은 이 휴대폰에서 계산에만 쓰고
+          저장하지 않아요. 서버로도 보내지 않아요.
         </div>
       </div>
 
@@ -507,8 +514,8 @@ export function SajuInput({
         }}
       >
         {review ? (
-          <PrimaryButton onClick={onNext}>
-            사주 준비 상태 보기
+          <PrimaryButton onClick={() => onNext({ date, time: unknown ? null : time, gender: gender as SajuCalcInput["gender"], calendar })}>
+            맞아요
           </PrimaryButton>
         ) : (
           <PrimaryButton
