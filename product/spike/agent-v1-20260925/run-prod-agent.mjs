@@ -19,7 +19,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // 2026-09-26 대표 「ECHO FINAL CLOSEOUT」: 배포 전 후보판(예: candidates/agent-v2.3.ts)을 운영 agent.ts 를 바꾸지 않고 실제 AI 로 검증할 수 있게,
 // run-request.json 의 agent_file(product 기준 경로)이 있으면 그 파일을 쓴다. 없으면 운영 agent.ts. 사전 등록(agent_ts_sha256)은 실제로 읽은 파일로 비교한다.
 const REQUEST = JSON.parse(readFileSync(path.resolve(HERE, '../ab-20260925/run-request.json'), 'utf8'));
-const AGENT_FILE = REQUEST.agent_file ? path.resolve(HERE, '../..', REQUEST.agent_file) : path.resolve(HERE, '../../supabase/functions/doit-agent/agent.ts');
+// 2026-09-27 「3-PROVIDER 43-CONVERSATION COMPARISON」: ECHO_AGENT_FILE(product 기준 경로)이 있으면 run-request.json 보다 먼저 쓴다(수동 실행 워크플로 · run-request 트리거 미사용). 사전 등록 비교는 실제로 읽은 파일로 한다.
+const AGENT_FILE = process.env.ECHO_AGENT_FILE ? path.resolve(HERE, '../..', process.env.ECHO_AGENT_FILE) : REQUEST.agent_file ? path.resolve(HERE, '../..', REQUEST.agent_file) : path.resolve(HERE, '../../supabase/functions/doit-agent/agent.ts');
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 const shaOf = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
 export const AGENT_TS_SHA = shaOf(AGENT_FILE);
@@ -28,7 +29,7 @@ const FLOWS = JSON.parse(readFileSync(path.join(HERE, 'test-flows.json'), 'utf8'
 
 // 2026-09-27 대표 「3-MODEL ROUTER LOCAL BUILD + OPENAI BASELINE RUN」: run-request.json 의 router=true 면 모든 모델 호출이 Model Router(router/router.ts)를 거친다.
 // run 34 역할 = PRIMARY(OpenAI · 시험 모델) 하나 · Gemini·Anthropic 자리는 미연결(notConnected — 실제 호출 0). 실제 HTTP 는 run 33 과 같은 기록기(harness-lib recorder)가 한다(같은 요청·같은 집계).
-const ROUTER_ON = REQUEST.router === true;
+const ROUTER_ON = REQUEST.router === true || process.env.ECHO_ROUTER === '1';
 export async function loadRouter() {
   const dir = mkdtempSync(path.join(tmpdir(), 'echo-router-'));
   const tr = (f) => ts.transpileModule(readFileSync(path.join(HERE, 'router', f), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from\s+["']\.\/providers\.ts["']/g, 'from "./providers.mjs"');
@@ -45,6 +46,31 @@ function recorderProvider(rec, P) {
     catch { const c = rec.calls[rec.calls.length - 1]; const st = Number(String(c?.error ?? '').replace('http_', '')); throw new P.ProviderError('openai', st === 429 ? 'http_429' : st >= 500 ? 'http_5xx' : st >= 400 ? 'http_4xx' : 'network', c?.ms ?? 0); }
     const c = rec.calls.length > n ? rec.calls[rec.calls.length - 1] : {};
     return { text: String(text ?? ''), provider: 'openai', model_requested: req.model, model_served: c.served_model ?? null, input_tokens: c.in_real ?? null, cached_tokens: c.cached_real ?? null, output_tokens: c.out_real ?? null, latency_ms: c.ms ?? 0 };
+  } };
+}
+
+// 2026-09-27 3-Provider 비교: 모델 이름 앞에 업체를 붙인다(「anthropic:claude-…」 · 「gemini:…」 · 앞이 없으면 openai = run 34 와 같은 기록기 경로).
+// 비교 조건: 업체 하나씩 단독(Router 역할 PRIMARY 하나 · 다른 업체로 넘어가기 0 · Panel 0) · 같은 프롬프트·입력·출력 모양. 업체가 허용하지 않는 값만 뺀다(registry model_options).
+export const splitModel = (m) => { const k = String(m).indexOf(':'); return k > 0 && ['openai', 'anthropic', 'gemini'].includes(m.slice(0, k)) ? { provider: m.slice(0, k), model: m.slice(k + 1) } : { provider: 'openai', model: String(m) }; };
+const KEYS = { anthropic: process.env.ANTHROPIC_API_KEY ?? '', gemini: process.env.GEMINI_API_KEY ?? '' };
+export const realFor = (provider) => (provider === 'openai' ? REAL : !!KEYS[provider]);
+const REGISTRY = JSON.parse(readFileSync(path.join(HERE, 'router', 'model-registry.json'), 'utf8'));
+/** Claude·Gemini 부품을 기록기(rec.calls) 모양으로 감싼다 — 집계(stats)가 OpenAI 와 같은 칸을 읽는다. 키가 없으면 같은 가짜 대본(mock)으로 돈다. */
+function recordingProvider(rec, P, provider, model) {
+  const mo = REGISTRY.candidates?.[provider]?.model_options?.[model]; const opt = mo ? { sampling: mo.sampling, thinking: mo.thinking } : {}; // 업체가 허용하지 않는 값만 뺀다
+  const inner = !realFor(provider) ? null : provider === 'anthropic' ? P.anthropicProvider(KEYS.anthropic, opt) : P.geminiProvider(KEYS.gemini, opt);
+  return { id: provider, kind: inner ? 'real' : 'fake', call: async (req) => {
+    const c = { model, provider, fields: {}, params: { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }, ms: 0, mock: !inner, turnKey: rec.mockFor.key };
+    if (!inner) {
+      const content = rec.mockFor.current(req.system, req.input, rec.calls.filter((x) => x.turnKey === rec.mockFor.key).length);
+      c.content = content; rec.calls.push(c);
+      return { text: content, provider, model_requested: model, model_served: null, input_tokens: null, cached_tokens: null, output_tokens: null, latency_ms: 0 };
+    }
+    try {
+      const r = await inner.call(req);
+      Object.assign(c, { ms: r.latency_ms, served_model: r.model_served, in_real: r.input_tokens, out_real: r.output_tokens, cached_real: r.cached_tokens, content: r.text });
+      rec.calls.push(c); return r;
+    } catch (e) { c.ms = e?.latency_ms ?? 0; c.error = e?.code ?? 'network'; rec.calls.push(c); throw e; }
   } };
 }
 
@@ -94,10 +120,13 @@ const FREQ = /매일|날마다|맨날|자주|가끔|주말|한\s*번|하루에|�
 const EMO = [[/힘들|힘드|힘겨/, /힘/], [/불편/, /불편/], [/부담/, /부담/], [/속상/, /속상/], [/서운|섭섭/, /서운|섭섭/], [/아쉽|아쉬/, /아쉽|아쉬/], [/외로/, /외로|외롭/], [/슬프|슬퍼|슬픈/, /슬/], [/화나|화가|화났/, /화/], [/답답/, /답답/], [/무겁|무거/, /무겁|무거/], [/걱정/, /걱정/], [/불안/, /불안/], [/지치|지쳤|지친/, /지치|지쳤|지친|지쳐/], [/피곤/, /피곤/], [/괴로/, /괴로|괴롭/], [/스트레스/, /스트레스/], [/짜증/, /짜증/], [/곤란/, /곤란/], [/당황/, /당황/], [/지루/, /지루/], [/귀찮/, /귀찮/]];
 export async function runFlow(A, flowId, tone, model) {
   const flow = flowOf(flowId);
-  const rec = recorder(model);
+  const sm = splitModel(model); // 업체 하나씩 단독 비교(다른 업체 자리 = 미연결 · 넘어가기 0)
+  if (sm.provider !== 'openai' && !RT) throw new Error('ROUTER_REQUIRED — Claude·Gemini 는 Router 로만 돈다(ECHO_ROUTER=1)');
+  const rec = recorder(sm.model);
   const direct = (kind, prompt, input) => rec.llm(prompt, JSON.stringify(input), A.AGENT_PARAMS);
-  const router = RT ? RT.R.createRouter({ registry: { version: `run${REQUEST.run}-openai-primary-only`, provisional: true, roles: { PRIMARY: { provider: 'openai', model } }, timeout_ms: 60_000, max_tokens: A.AGENT_PARAMS.max_tokens, temperature: A.AGENT_PARAMS.temperature, top_p: A.AGENT_PARAMS.top_p },
-    providers: { openai: recorderProvider(rec, RT.P), gemini: RT.P.notConnected('gemini'), anthropic: RT.P.notConnected('anthropic') }, budget: { max_calls_per_conversation: 200, max_tokens_per_conversation: 5e6 } }) : null;
+  const solo = (p) => (p === sm.provider ? (p === 'openai' ? recorderProvider(rec, RT.P) : recordingProvider(rec, RT.P, p, sm.model)) : RT.P.notConnected(p));
+  const router = RT ? RT.R.createRouter({ registry: { version: `run${REQUEST.run}-${sm.provider}-primary-only`, provisional: true, roles: { PRIMARY: { provider: sm.provider, model: sm.model } }, timeout_ms: 60_000, max_tokens: A.AGENT_PARAMS.max_tokens, temperature: A.AGENT_PARAMS.temperature, top_p: A.AGENT_PARAMS.top_p },
+    providers: { openai: sm.provider === 'openai' ? recorderProvider(rec, RT.P) : { id: 'openai', kind: 'fake', call: () => Promise.reject(new RT.P.ProviderError('openai', 'not_connected', 0)) }, gemini: solo('gemini'), anthropic: solo('anthropic') }, budget: { max_calls_per_conversation: 200, max_tokens_per_conversation: 5e6 } }) : null;
   const llm = router ? router.llm : direct;
   const st = A.newState({ tone, seed: flow.seed ?? null }); // v2.10: 사주·타로 이야기 거리(없으면 null · 예전 판은 무시)
   A.seedFirstQuestion(st);
@@ -302,22 +331,24 @@ export function stats(A, runs) {
     router_fallbacks: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.chain_index > 0 && !x.error).length,
     router_real_calls_non_openai: runs.flatMap((r) => r.router_log ?? []).filter((x) => x.provider !== 'openai' && !x.error).length,
     router_server_rejected: runs.flatMap((r) => r.performance ?? []).filter((x) => x.validation === 'rejected_by_server').length,
-    turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
+    turn_ms_p50: real.length ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: real.length ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const MODELS = String(arg('--models') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
   if (!MODELS.length) { console.error('--models 필요'); process.exit(1); }
-  if (process.argv.includes('--require-real') && !REAL) { console.log(JSON.stringify({ REAL_AI: 'BLOCKED_BY_ENVIRONMENT' })); process.exit(2); }
+  const RUN_REAL = MODELS.every((m) => realFor(splitModel(m).provider)); const ANY_REAL = MODELS.some((m) => realFor(splitModel(m).provider));
+  if (ANY_REAL && !RUN_REAL) { console.error('PARTIAL_KEYS — 일부 업체만 키가 있으면 돌리지 않는다(실제·가짜 섞인 비교 0)'); process.exit(3); }
+  if (process.argv.includes('--require-real') && !RUN_REAL) { console.log(JSON.stringify({ REAL_AI: 'BLOCKED_BY_ENVIRONMENT' })); process.exit(2); }
   const FROZEN = JSON.parse(readFileSync(path.resolve(HERE, '../ab-20260925/FROZEN_INPUTS.json'), 'utf8')).prod_agent_gate ?? {};
   const frozenOk = FROZEN.agent_ts_sha256 === AGENT_TS_SHA && FROZEN.flows_sha256 === FLOWS_SHA && FROZEN.golden_sha256 === GOLDEN_SHA && JSON.stringify(FROZEN.models ?? []) === JSON.stringify(MODELS);
-  if (REAL && !frozenOk) { console.error('FROZEN_MISMATCH — 운영 에이전트·입력·모델 목록이 사전 등록과 다르면 실제 AI 를 돌리지 않는다'); process.exit(3); }
+  if (RUN_REAL && !frozenOk) { console.error('FROZEN_MISMATCH — 운영 에이전트·입력·모델 목록이 사전 등록과 다르면 실제 AI 를 돌리지 않는다'); process.exit(3); }
   const A = await loadAgent();
   const out = {};
   for (const m of MODELS) { out[m] = []; for (const r of FLOWS.runs) out[m].push(await runFlow(A, r.flow, r.tone, m)); }
   const S = Object.fromEntries(MODELS.map((m) => [m, stats(A, out[m])]));
-  const mode = REAL ? '실제 OpenAI' : '[MOCK] 가짜 AI — 구조 확인용';
+  const mode = RUN_REAL ? `실제 AI(${[...new Set(MODELS.map((m) => splitModel(m).provider))].join(' · ')})` : '[MOCK] 가짜 AI — 구조 확인용';
   const flat = (x) => String(x ?? '').replace(/\n/g, ' ⏎ ').replace(/\|/g, '/');
   const L = [`# 운영판 에이전트(${A.AGENT_VERSION}) 재생 — ${mode}`, '', `- agent.ts SHA-256 ${AGENT_TS_SHA.slice(0, 16)}… · test-flows ${FLOWS_SHA.slice(0, 16)}… · Golden ${GOLDEN_SHA.slice(0, 16)}… · 사전 등록 일치: ${frozenOk ? '예' : '아니오'}`,
     `- 모델: ${MODELS.join(' · ')} · temperature 0.2 · top_p 0.9 · max_tokens 768 · json_object · 한 턴 상한 2(+마칠 때 1) · 첫 질문 = 목적 타일(고정)`, '',

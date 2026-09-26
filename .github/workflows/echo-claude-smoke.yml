@@ -17,6 +17,12 @@ on:
         default: 'claude-haiku-4-5-20251001'
         type: choice
         options: ['claude-haiku-4-5-20251001', 'claude-sonnet-5']
+      mode:
+        description: 'smoke(기본 · 업체마다 1회) · compare43(대표 승인 뒤에만 · 사전 등록 FROZEN 의 v3.4 + 모델 3개로 43판씩)'
+        required: false
+        default: 'smoke'
+        type: choice
+        options: ['smoke', 'compare43']
       providers:
         description: '비우면 Claude 1회(위 model) · 적으면 3-Provider smoke(spike/provider-smoke/provider-smoke.mjs · 업체마다 1회) — 예: openai,gemini'
         required: false
@@ -33,7 +39,7 @@ concurrency:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,14 +57,14 @@ jobs:
           ECHO_AGENT_FILE: ./candidates/agent-v3.4.ts
         run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
       - name: Claude smoke(목록 1회 + 생성 1회)
-        if: ${{ inputs.providers == '' }}
+        if: ${{ inputs.mode != 'compare43' && inputs.providers == '' }}
         working-directory: product
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
           SMOKE_MODEL: ${{ inputs.model }}
         run: node --experimental-strip-types spike/provider-smoke/claude-smoke.mjs
       - name: 3-Provider smoke(업체마다 목록 1회 + 생성 1회 · 대표 「3-PROVIDER SMOKE TEST READY」)
-        if: ${{ inputs.providers != '' }}
+        if: ${{ inputs.mode != 'compare43' && inputs.providers != '' }}
         working-directory: product
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
@@ -66,3 +72,34 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
           SMOKE_PROVIDERS: ${{ inputs.providers }}
         run: node --experimental-strip-types spike/provider-smoke/provider-smoke.mjs
+      # 3-Provider 43판 비교(대표 「3-PROVIDER 43-CONVERSATION COMPARISON PREP」 · 승인 뒤 수동 실행에서만).
+      # 모델 목록·서버 파일은 입력으로 받지 않는다 — 사전 등록(FROZEN_INPUTS.json prod_agent_gate)에서만 읽고, 서버·입력·모델이 등록과 다르면 실제 AI 를 돌리지 않는다(exit 3).
+      # 업체 하나씩 단독(Router PRIMARY 하나 · 넘어가기 0 · Panel 0). run-request.json 은 쓰지 않는다.
+      - name: 3-Provider 43판 비교(v3.4 · 업체 단독)
+        if: ${{ inputs.mode == 'compare43' }}
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
+          ECHO_ROUTER: '1'
+          ECHO_AGENT_FILE: spike/agent-v1-20260925/candidates/agent-v3.4.ts
+        run: |
+          mkdir -p ../ab-out
+          set +e
+          MODELS=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.models.join(','))")
+          node --experimental-strip-types spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODELS" --out ../ab-out/compare43-result.md --json ../ab-out/compare43-result.json --perf ../ab-out/model-performance.jsonl
+          code=$?
+          echo "run-prod-agent exit=$code"
+          if [ -f ../ab-out/compare43-result.json ]; then echo "::group::compare43-result.json"; cat ../ab-out/compare43-result.json; echo; echo "::endgroup::"; fi
+          if [ -f ../ab-out/compare43-result.md ]; then echo "::group::compare43-result.md"; cat ../ab-out/compare43-result.md; echo "::endgroup::"; fi
+          exit $code
+      - name: 비교 결과 첨부(7일)
+        if: ${{ always() && inputs.mode == 'compare43' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-compare43-${{ github.run_id }}
+          path: ab-out/
+          retention-days: 7
+          if-no-files-found: ignore
