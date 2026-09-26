@@ -35,6 +35,15 @@ provider · model · role · stage · action · retry · fallback(chain_index>0)
 4. FALLBACK = PRIMARY 와 **다른 업체** 중 서버 판정 PASS · 형식 실패가 가장 적은 모델(업체 장애 대비).
 5. 세 업체 동시 호출 0 · 보통 턴 = 1개 모델.
 
+## 6-1. 비용 최적화 원칙(2026-09-27 대표 추가 · LOCK)
+1. smoke test 는 저비용 모델로 한다 — 공식 모델 목록으로 확인한 ID 중 Haiku 계열 우선(Claude smoke 1회 = `claude-haiku-4-5-20251001`, 입력 64 · 출력 21 토큰 · 약 $0.00017).
+2. Sonnet 급 모델은 품질 비교와 중요한 SPECIALIST 후보로만 쓴다(일반 턴 PRIMARY 로 먼저 쓰지 않는다).
+3. 일반 턴은 저비용 모델 우선(SINGLE · 모델 1개).
+4. PANEL + JUDGE 는 중요한 턴(registry `panel.stages` 에 적은 단계)에만 · 기본 꺼짐 · 예산 초과 시 자동으로 끈다(router budget_downgrade).
+5. 세 모델을 매 턴 동시에 부르지 않는다.
+6. 모든 비용은 실제 응답의 token usage(입력 · 캐시 · 출력)로 기록한다 — 추정 토큰으로 비용을 적지 않는다. 단가가 공식 확인되지 않았으면 「확인 불가」.
+7. 모델마다 허용 파라미터가 다르면(예: Sonnet 5 = temperature 미허용 · thinking 기본 켜짐) 억지로 맞추지 않고 허용 계약대로 보낸 뒤 그 차이를 비교 결과에 적는다. 공정성 = 같은 입력 · 같은 프롬프트.
+
 ## 7. 실제 호출 전에 필요한 것(대표 승인)
 - Anthropic·Google 키 등록(대표 직접). Anthropic 후보 이름 `ANTHROPIC_API_KEY`(시험용은 기존 `OPENAI_API_KEY_AB_TEST` 틀을 따를지 연결 승인 때 확정) · Gemini 키 이름은 공식 문서·현재 프로젝트 기준 확인 뒤 확정. 운영 Supabase Edge Secret 은 운영 연결 승인 때 따로.
 - 시험 도구 변경: `harness-lib.mjs` 의 OpenAI 전용 호출을 Router(`router/router.ts`)로 바꾸고 업체별 집계 추가 · 워크플로가 새 키를 시험 환경에 넘김.

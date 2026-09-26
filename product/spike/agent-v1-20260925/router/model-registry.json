@@ -29,10 +29,22 @@
   },
   "anthropic": {
    "status": "부품 코드 있음(fetch · providers.ts anthropicProvider) · 키 없음 · 실제 호출 0 · API 호스트 api.anthropic.com 접근 확인(키 없이 401)",
-   "models_to_confirm": "키 등록 뒤 listModels('anthropic') 결과로만 확정(대표 전달 후보: claude-sonnet-5 · claude-haiku-4-5-20251001)",
+   "models_to_confirm": "계정 모델 목록 확인됨(2026-09-27 run 36264471895): claude-haiku-4-5-20251001 · claude-sonnet-5 등 12개. smoke 는 claude-haiku-4-5-20251001 로 1회 성공. 역할은 비교 실측 뒤 확정",
    "adapter": "real-code(미연결 · 키 등록 전까지 run 에서는 notConnected 사용)",
    "secret_candidate": "ANTHROPIC_API_KEY_AB_TEST(시험 전용 · 대표 등록 · 운영 Secret 0)",
-   "options": "sampling(temperature|none) · thinking(disabled|omit) — 모델별 허용은 smoke test 로 확인 뒤 적음"
+   "options": "sampling(temperature|none) · thinking(disabled|omit) — 모델별 허용은 smoke test 로 확인 뒤 적음",
+   "model_options": {
+    "claude-haiku-4-5-20251001": {
+     "sampling": "temperature",
+     "thinking": "omit",
+     "basis": "smoke 1회 성공(temperature 0.2)"
+    },
+    "claude-sonnet-5": {
+     "sampling": "none",
+     "thinking": "disabled",
+     "basis": "Claude API 참고 자료(temperature 미허용 · thinking 기본 켜짐) — 실제 호출 미확인"
+    }
+   }
   },
   "gemini": {
    "status": "부품 코드 있음(fetch · providers.ts geminiProvider) · 키 없음 · 실제 호출 0 · API 호스트 generativelanguage.googleapis.com 접근 확인(키 없이 403)",
@@ -41,5 +53,6 @@
    "secret_candidate": "GEMINI_API_KEY_AB_TEST(시험 전용 · 대표 등록 · 운영 Secret 0)"
   }
  },
- "provisional": true
+ "provisional": true,
+ "cost_policy": "smoke=저비용(Haiku 계열 우선) · Sonnet급=품질 비교·중요 SPECIALIST 후보만 · 일반 턴=저비용 SINGLE · PANEL+JUDGE=panel.stages 중요 턴만 · 매 턴 3모델 동시 호출 0 · 비용=실제 token usage 기준(대표 2026-09-27)"
 }
