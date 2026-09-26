@@ -61,7 +61,7 @@ function recordingProvider(rec, P, provider, model) {
   // v3.5 PR-01: 재시도·속도 조절(업체 단독 · 넘어가기 0 · 같은 요청). Gemini 는 낮은 속도부터(1초 간격 · 동시성 1).
   const POLICY = { gemini: { minIntervalMs: 1000, max429: 6, max5xx: 2, baseMs: 2000, capMs: 60000 }, anthropic: { minIntervalMs: 0, max429: 5, max5xx: 2, baseMs: 1000, capMs: 60000 } };
   const base = !realFor(provider) ? null : provider === 'anthropic' ? P.anthropicProvider(KEYS.anthropic, opt) : P.geminiProvider(KEYS.gemini, opt);
-  const inner = base ? P.withRetry(base, POLICY[provider], { onAttempt: (a) => rec.retries.push({ provider, ...a }) }) : null;
+  const inner = base ? P.withRetry(base, POLICY[provider], { onAttempt: (a) => { rec.retries.push({ provider, ...a }); console.log(JSON.stringify({ progress: 'retry', provider, attempt: a.attempt, wait_ms: a.wait_ms, error: a.error, status: a.detail?.status ?? null, provider_code: a.detail?.provider_code ?? null, provider_type: a.detail?.provider_type ?? null })); } }) : null;
   rec.retries ??= [];
   return { id: provider, kind: inner ? 'real' : 'fake', call: async (req) => {
     const c = { model, provider, fields: Object.fromEntries(Object.entries(req.input ?? {}).map(([k, v]) => [k, tok(JSON.stringify(v))])), params: { temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens }, ms: 0, mock: !inner, turnKey: rec.mockFor.key };
@@ -359,11 +359,26 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (ANY_REAL && !RUN_REAL) { console.error('PARTIAL_KEYS — 일부 업체만 키가 있으면 돌리지 않는다(실제·가짜 섞인 비교 0)'); process.exit(3); }
   if (process.argv.includes('--require-real') && !RUN_REAL) { console.log(JSON.stringify({ REAL_AI: 'BLOCKED_BY_ENVIRONMENT' })); process.exit(2); }
   const FROZEN = JSON.parse(readFileSync(path.resolve(HERE, '../ab-20260925/FROZEN_INPUTS.json'), 'utf8')).prod_agent_gate ?? {};
-  const frozenOk = FROZEN.agent_ts_sha256 === AGENT_TS_SHA && FROZEN.flows_sha256 === FLOWS_SHA && FROZEN.golden_sha256 === GOLDEN_SHA && JSON.stringify(FROZEN.models ?? []) === JSON.stringify(MODELS);
+  const frozenOk = FROZEN.agent_ts_sha256 === AGENT_TS_SHA && FROZEN.flows_sha256 === FLOWS_SHA && FROZEN.golden_sha256 === GOLDEN_SHA && MODELS.length > 0 && MODELS.every((m) => (FROZEN.models ?? []).includes(m));
   if (RUN_REAL && !frozenOk) { console.error('FROZEN_MISMATCH — 운영 에이전트·입력·모델 목록이 사전 등록과 다르면 실제 AI 를 돌리지 않는다'); process.exit(3); }
   const A = await loadAgent();
   const out = {};
-  for (const m of MODELS) { out[m] = []; for (const r of FLOWS.runs) out[m].push(await runFlow(A, r.flow, r.tone, m)); }
+  // v3.5 CL-11(run 36268683262 결과 전부 유실): 대화 1판마다 진행·오류 코드를 바로 로그에 남기고, 업체별 마감(분)을 넘기면 거기까지로 결과를 쓴다.
+  // 연속으로 모든 턴이 실패한 판이 정해진 수를 넘으면 그 업체는 멈춘다(전송 불안정 = 판정 G · 나머지 판은 「미실행」).
+  const DEADLINE_MS = Number(process.env.ECHO_PROVIDER_DEADLINE_MIN ?? 0) * 60000; const GIVE_UP = Number(process.env.ECHO_GIVE_UP_FAILED_RUNS ?? 0);
+  const stopped = {};
+  for (const m of MODELS) {
+    out[m] = []; const t0 = Date.now(); let failedStreak = 0;
+    for (const r of FLOWS.runs) {
+      if (DEADLINE_MS && Date.now() - t0 > DEADLINE_MS) { stopped[m] = `deadline_after_${out[m].length}_runs`; break; }
+      if (GIVE_UP && failedStreak >= GIVE_UP) { stopped[m] = `transport_give_up_after_${out[m].length}_runs`; break; }
+      const res = await runFlow(A, r.flow, r.tone, m); out[m].push(res);
+      const errs = res.rows.filter((x) => x.error).length; failedStreak = errs && errs === res.rows.length ? failedStreak + 1 : 0;
+      const pe = res.rows.flatMap((x) => x.calls ?? []).filter((c) => c.error).reduce((a, c) => { const k = `${c.error}:${c.error_detail?.status ?? '-'}:${c.error_detail?.provider_code ?? '-'}:${c.error_detail?.provider_type ?? '-'}`; a[k] = (a[k] ?? 0) + 1; return a; }, {});
+      console.log(JSON.stringify({ progress: 'run', model: m, n: out[m].length, flow: r.flow, tone: r.tone, turns: res.rows.length, turn_errors: errs, provider_errors: pe, retry_waits: (res.provider_retries ?? []).length, elapsed_s: Math.round((Date.now() - t0) / 1000) }));
+    }
+    if (stopped[m]) console.log(JSON.stringify({ progress: 'stopped', model: m, reason: stopped[m] }));
+  }
   const S = Object.fromEntries(MODELS.map((m) => [m, stats(A, out[m])]));
   const mode = RUN_REAL ? `실제 AI(${[...new Set(MODELS.map((m) => splitModel(m).provider))].join(' · ')})` : '[MOCK] 가짜 AI — 구조 확인용';
   const flat = (x) => String(x ?? '').replace(/\n/g, ' ⏎ ').replace(/\|/g, '/');
@@ -378,7 +393,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const text = L.join('\n');
   if (arg('--out')) writeFileSync(arg('--out'), text); else console.log(text);
-  if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify({ mode, models: MODELS, frozen_ok: frozenOk, agent_ts_sha: AGENT_TS_SHA, router: ROUTER_ON, stats: S }));
+  if (arg('--json')) writeFileSync(arg('--json'), JSON.stringify({ mode, models: MODELS, frozen_ok: frozenOk, agent_ts_sha: AGENT_TS_SHA, router: ROUTER_ON, stopped, stats: S }));
   // Model Performance Dataset(시험 결과 파일 · 대화 원문 0 · 운영 DB 적재 0): 호출 한 줄씩. 로그에도 찍는다(첨부물은 7일).
   if (arg('--perf') && ROUTER_ON) writeFileSync(arg('--perf'), MODELS.flatMap((m) => out[m].flatMap((r) => r.performance ?? [])).map((x) => JSON.stringify(x)).join('\n') + '\n');
 }

@@ -1012,6 +1012,25 @@
       ],
       "fix_v35": "v3.5 providers.ts: ProviderError.detail(상태·업체 코드·Retry-After·시도) · withRetry(429 대기·5xx 2회·4xx 0·동시성 1·간격) · Router 로그 error_detail · 결과 표 provider_errors",
       "retest_v35": "로컬: candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사는 v3.4 에서 실패 확인) · 실제 AI 재비교 대기"
+    },
+    {
+      "id": "CL-11",
+      "source_type": "CLAUDE",
+      "occurred_at": "2026-09-27",
+      "raw_context": "v3.5 재비교 첫 실행(Actions 36268683262): 세 업체를 한 작업에서 차례로 돌렸고 결과 파일은 끝에서만 썼다. Gemini 에 재시도·대기를 넣자 작업이 120분 제한에 걸려 취소 → 결과·첨부물 0(이미 끝났을 OpenAI·Claude 결과도 유실). 실제 API 호출 비용은 발생(금액은 기록이 없어 확인 불가).",
+      "failure_type": "lost_run_results_on_timeout",
+      "root_cause": "시험 도구가 진행 중 기록 없이 마지막에 한 번만 결과를 씀 · 업체 셋을 한 작업에 묶음 · 대기 시간 상한(재시도 × 최대 60초) 합계가 작업 제한을 넘을 수 있는데 업체 마감이 없었음",
+      "expected_behavior": "업체마다 별도 작업 · 대화 1판마다 진행·오류 코드 즉시 로그 · 업체 마감 전에 결과를 씀 · 연속 전송 실패 시 그 업체만 멈춤",
+      "linked_engine": "시험 도구(run-prod-agent · 워크플로)",
+      "reproduction_test": "run 36268683262 로그(결과 0 · upload-artifact: No files were found)",
+      "severity": "P1",
+      "cause_class": "CLAUDE(시험 설계)",
+      "resolution": "v3.5 시험 도구: 진행 로그(progress run/retry/stopped) · ECHO_PROVIDER_DEADLINE_MIN 120 · ECHO_GIVE_UP_FAILED_RUNS 3 · 워크플로 compare 작업을 업체별 matrix(작업 제한 150분) · FROZEN 모델 일치 = 등록 목록의 부분집합",
+      "retest_result": "가짜 AI: 진행 로그 · 사전 등록 일치 예 · 미등록 모델 거부 확인 · 실제 재실행 대기",
+      "status": "OPEN",
+      "refs": [
+        "run 36268683262"
+      ]
     }
   ],
   "ux_research": {

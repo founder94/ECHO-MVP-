@@ -39,7 +39,7 @@ concurrency:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,11 +72,30 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
           SMOKE_PROVIDERS: ${{ inputs.providers }}
         run: node --experimental-strip-types spike/provider-smoke/provider-smoke.mjs
-      # 3-Provider 43판 비교(대표 「3-PROVIDER 43-CONVERSATION COMPARISON PREP」 · 승인 뒤 수동 실행에서만).
-      # 모델 목록·서버 파일은 입력으로 받지 않는다 — 사전 등록(FROZEN_INPUTS.json prod_agent_gate)에서만 읽고, 서버·입력·모델이 등록과 다르면 실제 AI 를 돌리지 않는다(exit 3).
-      # 업체 하나씩 단독(Router PRIMARY 하나 · 넘어가기 0 · Panel 0). run-request.json 은 쓰지 않는다.
-      - name: 3-Provider 43판 비교(v3.4 · 업체 단독)
-        if: ${{ inputs.mode == 'compare43' }}
+      # (v3.5 CL-11) 43판 비교는 아래 별도 작업 compare 에서 업체마다 따로 돈다(한 업체가 늦어도 다른 업체 결과는 남는다).
+
+  compare:
+    if: ${{ inputs.mode == 'compare43' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        idx: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3 js-tiktoken@1.0.21
+      # 모델·서버 파일은 입력으로 받지 않는다 — 사전 등록(FROZEN prod_agent_gate)에서만 읽는다. 업체 하나씩 단독(넘어가기 0 · Panel 0).
+      # 대화 1판마다 진행·오류 코드를 로그에 바로 남기고, 업체 마감(120분)을 넘기면 거기까지 결과를 쓴다(작업 제한 150분 전).
+      - name: 43판 비교(업체 단독 · FROZEN models[idx])
         working-directory: product
         env:
           NODE_PATH: /tmp/tools/node_modules
@@ -84,24 +103,25 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
           ECHO_ROUTER: '1'
+          ECHO_PROVIDER_DEADLINE_MIN: '120'
+          ECHO_GIVE_UP_FAILED_RUNS: '3'
         run: |
           mkdir -p ../ab-out
           export ECHO_AGENT_FILE=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.agent_file)")
-          echo "agent_file=$ECHO_AGENT_FILE"
+          MODEL=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.models[${{ matrix.idx }}])")
+          echo "agent_file=$ECHO_AGENT_FILE model=$MODEL"
           set +e
-          MODELS=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.models.join(','))")
-          node --experimental-strip-types spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODELS" --out ../ab-out/compare43-result.md --json ../ab-out/compare43-result.json --perf ../ab-out/model-performance.jsonl
+          node --experimental-strip-types spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODEL" --out ../ab-out/compare43-result.md --json ../ab-out/compare43-result.json --perf ../ab-out/model-performance.jsonl
           code=$?
           echo "run-prod-agent exit=$code"
           if [ -f ../ab-out/compare43-result.json ]; then echo "::group::compare43-result.json"; cat ../ab-out/compare43-result.json; echo; echo "::endgroup::"; fi
           if [ -f ../ab-out/compare43-result.md ]; then echo "::group::compare43-result.md"; cat ../ab-out/compare43-result.md; echo "::endgroup::"; fi
-          if [ -f ../ab-out/model-performance.jsonl ]; then echo "::group::model-performance.jsonl"; cat ../ab-out/model-performance.jsonl; echo "::endgroup::"; fi
           exit $code
       - name: 비교 결과 첨부(7일)
-        if: ${{ always() && inputs.mode == 'compare43' }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: echo-compare43-${{ github.run_id }}
+          name: echo-compare43-${{ github.run_id }}-${{ matrix.idx }}
           path: ab-out/
           retention-days: 7
           if-no-files-found: ignore
