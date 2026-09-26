@@ -1031,6 +1031,82 @@
       "refs": [
         "run 36268683262"
       ]
+    },
+    {
+      "id": "EA-24",
+      "source_type": "ECHO_AGENT",
+      "occurred_at": "2026-09-27",
+      "raw_context": "v3.5 재비교(run 36275765789) OpenAI F1 formal: 마친 대화의 소개 초안이 비어 failed(empty_profile 1) — 유일한 줄이 서버 검사 unsupported_wish 로 버려지고 대체 줄 0.",
+      "failure_type": "empty_profile_after_filter",
+      "root_cause": "소개 거르기가 모든 줄을 버렸을 때 확인된 말로 다시 만들기(rebuild·서버 줄)가 「최신 정정 빠짐」 경우에만 돌고, 일반 확인 값으로는 채우지 않음",
+      "expected_behavior": "확인된 말이 있으면 소개는 비지 않는다(다시 만들기 → 서버 줄)",
+      "linked_engine": "Profile/Intro",
+      "reproduction_test": "F1 formal 재현",
+      "severity": "P1",
+      "cause_class": "SERVER(모델 문장이 드러냄)",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36275765789"
+      ]
+    },
+    {
+      "id": "MS-07",
+      "source_type": "MODEL_SPECIFIC",
+      "occurred_at": "2026-09-27",
+      "raw_context": "v3.5 재비교(run 36275765789) Claude Haiku CEO_META casual 2: 「우리회사 개발얘기했는데 질문이 뭐야?」에 받아주기 「이거야.」 한마디 — 메타 질문에 답이 안 됨.",
+      "failure_type": "meta_answer_empty_like",
+      "root_cause": "모델이 뜻 없는 짧은 받아주기를 냄 · 서버 검사는 빈 답만 막음(너무 짧은 답은 통과)",
+      "expected_behavior": "메타 질문에는 지금 질문이 무엇인지·왜 묻는지 한두 문장으로 답",
+      "linked_engine": "ANSWER_USER",
+      "reproduction_test": "CEO_META casual 2",
+      "severity": "P2",
+      "cause_class": "MODEL(Claude) · SERVER 보강 후보(너무 짧은 ANSWER_USER 받아주기)",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36275765789"
+      ]
+    },
+    {
+      "id": "MS-08",
+      "source_type": "MODEL_SPECIFIC",
+      "occurred_at": "2026-09-27",
+      "raw_context": "v3.5 재비교(run 36275765789) 사람다움 문턱(why_v31 H): OpenAI ending_dominated_runs 14 · label_copy_questions 16(「같이 있으면 편하거나 끌리는…」「사람을 만날 때 먼저 보게 되는 점」) · Claude ending_dominated_runs 9. 끝맺음 비율 OpenAI 23→28% · Claude 45→30%.",
+      "failure_type": "humanity_threshold_fail",
+      "root_cause": "업체별 말투 습관 — v3.5 공통 계약·검출(1회 재요청 뒤 그대로 두기)로는 문턱 아래로 못 내림 · 목적 라벨 복사는 OpenAI 가 계약을 따르지 않음",
+      "expected_behavior": "why_v31 H 문턱 이하",
+      "linked_engine": "Humanity",
+      "reproduction_test": "run 36 전 문장",
+      "severity": "P1",
+      "cause_class": "MODEL(OpenAI·Claude) · SERVER 검출 강화 후보(라벨 복사)",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36275765789"
+      ]
+    },
+    {
+      "id": "PR-02",
+      "source_type": "PROVIDER",
+      "occurred_at": "2026-09-27",
+      "raw_context": "v3.5 재비교(run 36275765789) Gemini gemini-3.5-flash-lite: 실제 오류 = HTTP 429 · RESOURCE_EXHAUSTED(79회 재시도 · Retry-After 최대 약 59초 준수) · 4판 뒤 연속 전송 실패로 중단(판정 A·G FAIL). PR-01 의 원인 확인.",
+      "failure_type": "provider_quota_exhausted",
+      "root_cause": "업체 계정 할당량 소진(속도 조절·대기로 풀리지 않음 — 분당/일일 구분은 메시지를 기록하지 않아 확인 불가)",
+      "expected_behavior": "계정 할당량 확인(대표 · Google AI Studio 요금제/한도) 뒤 재측정",
+      "linked_engine": "Provider 계정",
+      "reproduction_test": "Gemini 단독 43판",
+      "severity": "P0(측정 불가)",
+      "cause_class": "PROVIDER",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36275765789"
+      ]
     }
   ],
   "ux_research": {
