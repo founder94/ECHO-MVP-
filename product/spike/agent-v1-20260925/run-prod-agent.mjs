@@ -35,8 +35,25 @@ export async function loadAgent() {
 
 const KIND_OF = { answer: 'answer', repair: 'repair', correction: 'correction', ask: 'ask', help: 'help', unsure: 'unsure', fatigue: 'stop', mixed: 'answer' };
 let seq = 0;
+const INPUT_OF = { answer: 'NORMAL_ANSWER', repair: 'COMPLAINT', correction: 'CORRECTION', ask: 'META_QUESTION', help: 'HELP', unsure: 'UNSURE', fatigue: 'END_INTENT', mixed: 'NORMAL_ANSWER', topic: 'TOPIC_CHANGE', smalltalk: 'SMALL_TALK', reject: 'REJECTION' };
+// v3 TURN CONTRACT 가짜 모델: 이해(분류·사실) · 말하기(행동에 맞는 받아주기·질문). 구조 확인용(실제 AI 아님).
+const SYL = '가나다라마바사아자차카타파하고노도로모보소오조초코토포호구누두루무부수우주추쿠투푸후';
+const uniq = (n) => { let x = n * 7919 + 13, o = ''; for (let i = 0; i < 6; i++) { o += SYL[x % SYL.length]; x = Math.floor(x / SYL.length) + i * 31 + n; } return o; };
+const mockV3 = (expect, sys, input) => {
+  if (input.action) {
+    const a = input.action; const n = ++seq;
+    const reply = `[MOCK] 받아주기 ${n}.`;
+    if (a === 'AFTER_ACK' || a === 'BRIDGE') return JSON.stringify({ reply, question: '', purpose: '' });
+    if (a === 'ASK_GAP') return JSON.stringify({ reply, question: `${uniq(n)}?`, purpose: input.gaps?.[0]?.purpose ?? '' });
+    return JSON.stringify({ reply, question: `${uniq(n + 500)}?`, purpose: '' });
+  }
+  const it = INPUT_OF[expect] ?? 'NORMAL_ANSWER'; const q = input.current_question;
+  const extracted = ['NORMAL_ANSWER', 'CORRECTION'].includes(it) ? [{ purpose: ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'][seq % 5], note: `m${seq}`, quote: String(input.latest).replace(/\s/g, '').slice(0, 2) }] : [];
+  return JSON.stringify({ input_type: it, extracted, wrong: [], content_rejected: false, declared: null, inferred: [], about: '' });
+};
 const mock = (expect) => (_sys, input) => {
-  if (input.latest === undefined) { const h = (input.heard ?? []).find((x) => x.quote); return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.', intro: h ? [{ text: '[MOCK] 저는 소개 문장이에요.', basis: h.quote }] : [] }); }
+  if (String(_sys).includes('ECHO Agent 의 이해 단계') || input.action) return mockV3(expect, _sys, input);
+  if (input.latest === undefined || String(_sys).includes('대화를 자연스럽게 마친다')) { const h = (input.heard ?? []).find((x) => x.quote); return JSON.stringify({ summary: [], closing: '[MOCK] 정리해 둘게요.', intro: h ? [{ text: '[MOCK] 저는 소개 문장이에요.', basis: h.quote }] : [] }); }
   const kind = KIND_OF[expect] ?? 'answer'; const open = input.open_purposes ?? [];
   return JSON.stringify({ kind, understood: '', reply: `[MOCK] 받아주기 ${++seq}.`, inferred: [], declared: null, wrong: [],
     extracted: ['answer', 'correction'].includes(kind) && input.current_question ? [{ purpose: input.current_question.purpose, note: `m${seq}`, quote: String(input.latest).replace(/\s/g, '').slice(0, 2) }] : [],
@@ -66,7 +83,7 @@ export async function runFlow(A, flowId, tone, model) {
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, input_type: response.input_type ?? null, action: response.action ?? null, ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
 }
@@ -188,6 +205,11 @@ export function stats(A, runs) {
     meta_saved_as_fact: runs.reduce((n, r) => { const bad = r.rows.flatMap((x) => sentK(x.text).filter(isRedirectH)).map(plainK); const good = r.rows.flatMap((x) => sentK(x.text).filter((t) => !isRedirectH(t))).map(plainK); return n + (r.items ?? []).filter((i) => { const q = plainK(i.quote); return i.status === 'CONFIRMED' && q.length >= 2 && bad.some((b) => b.includes(q)) && !good.some((g) => g.includes(q)); }).length; }, 0),
     post_redirect_answer_lost: runs.reduce((n, r) => { const lost = new Set(); r.rows.forEach((x, i) => { if (!isRedirectH(x.text)) return; const nx = r.rows.slice(i + 1).find((y) => !isRedirectH(y.text)); if (nx && nx.expect === 'answer' && !nx.saved) lost.add(nx); }); return n + lost.size; }, 0), // 불만이 이어져도 같은 답 턴은 한 번만
     redirect_empty_reply: rows.filter((x) => !x.after && isRedirectH(x.text) && !(x.ack ?? '').trim()).length,
+    // v3 사전 등록(run 33 · 대표 「v3 FINAL GUARD」): 질문 수를 채우려 묻지 않았나(H_RICH: 첫 답에 여러 정보 → 목적 질문 2개 이하) · 같은 질문 글자가 다시 나왔나 · 행동·입력 종류 분포(관측)
+    rich_answer_padding: runs.filter((r) => r.flow === 'H_RICH' && r.core > 2).length,
+    input_types: JSON.stringify(rows.reduce((a, x) => { const k = x.input_type ?? '-'; a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    actions: JSON.stringify(rows.reduce((a, x) => { const k = x.action ?? (x.after ? 'AFTER' : '-'); a[k] = (a[k] ?? 0) + 1; return a; }, {})),
+    speak_fallback_turns: rows.filter((x) => (x.retry ?? []).some((r) => /:dropped$|understand_fallback/.test(r))).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }

@@ -46,6 +46,27 @@ const purposes = [
 const dayKey = () =>
   new Date().toLocaleDateString("sv-SE");
 
+// 2026-09-26 대표 「FINAL PRODUCT/AGENT IMPLEMENTATION DIRECTIVE」 §15: 타로에 들어오면 늘 새로 뽑는다(지난 카드 자동 노출 0).
+// 지난 카드는 「지난 카드 보기」에서만(이 기기에만 · 보기 전용 · 다시 해석하지 않음). 오늘 키는 결과 화면이 방금 고른 카드를 읽는 데 쓴다.
+const HISTORY_KEY = "echo-tarot-history";
+const HISTORY_MAX = 20;
+const SPREAD = 7; // 한 번에 펼치는 카드 뒷면 수(섞은 78장 중)
+type Drawn = { cardId: string; purpose: string; at: string };
+function readHistory(): Drawn[] {
+  try {
+    const list: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    const items: Drawn[] = Array.isArray(list)
+      ? list.filter((x): x is Drawn => !!x && typeof x.cardId === "string" && typeof x.purpose === "string" && typeof x.at === "string")
+      : [];
+    // 예전 방식(하루 한 장 키)으로 오늘 뽑은 카드가 있으면 지난 카드에 함께 보인다.
+    const today = JSON.parse(localStorage.getItem(`echo-tarot-daily:${dayKey()}`) || "null") as { cardId?: string; purpose?: string } | null;
+    if (today?.cardId && !items.some((x) => x.cardId === today.cardId && x.at.startsWith(dayKey()))) items.unshift({ cardId: today.cardId, purpose: today.purpose ?? "", at: dayKey() });
+    return items.slice(0, HISTORY_MAX);
+  } catch {
+    return [];
+  }
+}
+
 const storageKey = () =>
   `echo-tarot-daily:${dayKey()}`;
 
@@ -74,23 +95,10 @@ export function TaroCardSelect({
   onNext,
   onSwitchToSaju,
 }: Props) {
-  const saved = useMemo(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem(
-          storageKey(),
-        ) || "null",
-      ) as {
-        cardId: string;
-        purpose: string;
-      } | null;
-    } catch {
-      return null;
-    }
-  }, []);
+  const history = useMemo(() => readHistory(), []);
 
   const [purpose, setPurpose] = useState(
-    saved?.purpose || "",
+    history[0]?.purpose || "",
   );
 
   const [deck, setDeck] =
@@ -99,30 +107,37 @@ export function TaroCardSelect({
     );
 
   const [phase, setPhase] = useState<
-    "purpose" | "deck" | "reveal"
-  >(saved ? "reveal" : "purpose");
+    "purpose" | "deck" | "reveal" | "history"
+  >("purpose");
 
   const [selected, setSelected] =
-    useState<TarotCard | null>(() =>
-      saved
-        ? TAROT_DECK.find(
-            (card) =>
-              card.id === saved.cardId,
-          ) || null
-        : null,
-    );
+    useState<TarotCard | null>(null);
+  // 고르는 순간 그 카드만 떠오르는 선택 효과(0.45초) 뒤에 공개한다.
+  const [picking, setPicking] = useState<string | null>(null);
 
   const choose = (card: TarotCard) => {
-    setSelected(card);
-    setPhase("reveal");
-
-    localStorage.setItem(
-      storageKey(),
-      JSON.stringify({
-        cardId: card.id,
-        purpose,
-      }),
-    );
+    if (picking) return;
+    setPicking(card.id);
+    window.setTimeout(() => {
+      setSelected(card);
+      setPhase("reveal");
+      setPicking(null);
+    }, 450);
+    try {
+      localStorage.setItem(
+        storageKey(),
+        JSON.stringify({
+          cardId: card.id,
+          purpose,
+        }),
+      );
+      localStorage.setItem(
+        HISTORY_KEY,
+        JSON.stringify([{ cardId: card.id, purpose, at: new Date().toISOString() }, ...history].slice(0, HISTORY_MAX)),
+      );
+    } catch {
+      /* 저장이 막힌 브라우저에서도 카드 공개는 그대로 */
+    }
   };
 
   const reshuffle = () => {
@@ -161,7 +176,7 @@ export function TaroCardSelect({
             marginBottom: 9,
           }}
         >
-          FREE · 오늘의 타로 · 하루 한 장
+          FREE · 오늘의 타로
         </p>
 
         <AnimatePresence mode="wait">
@@ -237,9 +252,19 @@ export function TaroCardSelect({
                     setPhase("deck")
                   }
                 >
-                  78장 카드 만나기
+                  새 카드 뽑기
                 </PrimaryButton>
               </div>
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPhase("history")}
+                  className="mx-auto mt-3 flex h-11 items-center justify-center rounded-full px-5 text-sm"
+                  style={{ color: colors.textMuted, border: `1px solid ${colors.border}` }}
+                >
+                  지난 카드 보기
+                </button>
+              )}
             </motion.section>
           )}
 
@@ -263,7 +288,7 @@ export function TaroCardSelect({
                   color: colors.text,
                 }}
               >
-                78장 중 오늘 마음이
+                섞은 카드 중 마음이
                 <br />
                 멈추는 한 장을 고르세요
               </h1>
@@ -283,49 +308,44 @@ export function TaroCardSelect({
                   color: colors.textMuted,
                 }}
               >
-                모든 카드는 서로 다른 원화예요. 좌우로
-                천천히 넘겨 한 장을 선택해 주세요.
+                78장을 섞어 {SPREAD}장을 펼쳤어요. 직접
+                한 장을 골라 주세요.
               </p>
 
-              <div className="relative -mx-5 mt-7 overflow-hidden py-7">
-                <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#0A0D14] to-transparent" />
-                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#0A0D14] to-transparent" />
-
-                <div className="flex snap-x gap-2.5 overflow-x-auto px-[42%] pb-5 [scrollbar-width:none]">
-                  {deck.map(
-                    (card, index) => (
-                      <motion.button
-                        key={card.id}
-                        type="button"
-                        aria-label={`78장 중 ${
-                          index + 1
-                        }번째 카드 선택`}
-                        onClick={() =>
-                          choose(card)
-                        }
-                        whileHover={{
-                          y: -10,
-                        }}
-                        whileTap={{
-                          scale: 0.96,
-                        }}
-                        className="h-[218px] w-[142px] shrink-0 snap-center rounded-[14px] p-[2px]"
-                        style={{
-                          background:
-                            "linear-gradient(145deg,#eed99f,#725b30,#eed99f)",
-                          boxShadow:
-                            "0 18px 38px rgba(0,0,0,.5)",
-                        }}
-                      >
-                        <TarotCardBack
-                          index={index}
-                        />
-                      </motion.button>
-                    ),
-                  )}
-                </div>
+              <div className="mt-7 flex flex-wrap justify-center gap-2.5 py-2">
+                {deck.slice(0, SPREAD).map(
+                  (card, index) => (
+                    <motion.button
+                      key={card.id}
+                      type="button"
+                      aria-label={`펼친 ${SPREAD}장 중 ${index + 1}번째 카드 고르기`}
+                      onClick={() => choose(card)}
+                      initial={{ opacity: 0, y: 18, rotate: (index - 3) * 2 }}
+                      animate={
+                        picking === card.id
+                          ? { opacity: 1, y: -18, scale: 1.08, rotate: 0 }
+                          : picking
+                            ? { opacity: 0.35, y: 0, scale: 0.96, rotate: (index - 3) * 2 }
+                            : { opacity: 1, y: 0, scale: 1, rotate: (index - 3) * 2 }
+                      }
+                      transition={{ delay: picking ? 0 : index * 0.05, duration: 0.35 }}
+                      whileHover={picking ? undefined : { y: -8 }}
+                      whileTap={picking ? undefined : { scale: 0.96 }}
+                      className="h-[150px] w-[98px] shrink-0 rounded-[12px] p-[2px]"
+                      style={{
+                        background:
+                          "linear-gradient(145deg,#eed99f,#725b30,#eed99f)",
+                        boxShadow:
+                          picking === card.id
+                            ? "0 22px 44px rgba(0,0,0,.55),0 0 34px rgba(238,217,159,.45)"
+                            : "0 14px 30px rgba(0,0,0,.5)",
+                      }}
+                    >
+                      <TarotCardBack index={index} />
+                    </motion.button>
+                  ),
+                )}
               </div>
-
               <button
                 type="button"
                 onClick={reshuffle}
@@ -336,7 +356,7 @@ export function TaroCardSelect({
                 }}
               >
                 <RotateCcw size={14} />
-                카드 다시 섞기
+                다시 섞어 펼치기
               </button>
             </motion.section>
           )}
@@ -359,9 +379,7 @@ export function TaroCardSelect({
                     color: colors.textFaint,
                   }}
                 >
-                  {saved
-                    ? "오늘 이미 선택한 카드"
-                    : "오늘 당신이 고른 카드"}
+                  방금 당신이 고른 카드
                 </p>
 
                 <motion.div
@@ -426,7 +444,7 @@ export function TaroCardSelect({
                     }}
                   >
                     <MoonStar size={15} />
-                    오늘 밤 탐색에 반영할 맥락
+                    이 카드는 참고예요
                   </div>
 
                   <p
@@ -442,14 +460,42 @@ export function TaroCardSelect({
                     >
                       {purpose}
                     </b>{" "}
-                    목적과 오늘의 카드에서 시작된 대화를
-                    함께 참고해, 당신이 잠든 사이 AI가
-                    공개 동의된 정보 안에서 어울릴 사람과
-                    추천 이유를 준비합니다.
+                    목적으로 고른 카드예요. 카드는 당신을
+                    정하지 않아요. ECHO와 이어서 이야기하면
+                    당신이 직접 한 말만 기억하고, 카드 결과는
+                    연결에 쓰지 않아요.
                   </p>
                 </div>
               </motion.section>
             )}
+          {phase === "history" && (
+            <motion.section key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              <h1 style={{ fontFamily: serif, fontSize: 27, lineHeight: 1.28, color: colors.text }}>지난 카드</h1>
+              <p className="mt-2 text-sm leading-6" style={{ color: colors.textMuted }}>
+                이 기기에서 뽑은 카드예요. 보기만 할 수 있어요.
+              </p>
+              <ul className="mt-5 flex flex-col gap-2">
+                {history.map((h) => {
+                  const card = TAROT_DECK.find((c) => c.id === h.cardId);
+                  if (!card) return null;
+                  return (
+                    <li key={`${h.cardId}-${h.at}`} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+                      <div className="h-[72px] w-[47px] shrink-0 overflow-hidden rounded-[8px]">
+                        <TarotCardArt card={card} />
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <p className="text-sm" style={{ color: colors.text }}>{card.nameKo}</p>
+                        <p className="mt-0.5 text-xs" style={{ color: colors.textFaint }}>{h.at.slice(0, 10)}{h.purpose ? ` · ${h.purpose}` : ""}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-6">
+                <PrimaryButton onClick={() => setPhase("purpose")}>새 카드 뽑기</PrimaryButton>
+              </div>
+            </motion.section>
+          )}
         </AnimatePresence>
 
         <div

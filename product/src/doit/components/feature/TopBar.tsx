@@ -88,7 +88,8 @@ export default function TopBar({
 }
 
 /** 햄버거 메뉴(버튼 + 판). 앱 머리줄(TopBar)과 대화 화면 머리줄이 같이 쓴다 — 2026-09-26 대표 실기기: 대화 중에는 메뉴가 없어 사주·타로로 갈 수 없었다. */
-export function MenuButton() {
+/** onDark: 어두운 화면(사주·타로) 위에서 보이도록 밝은 아이콘 · 옅은 바탕. */
+export function MenuButton({ onDark = false }: { onDark?: boolean } = {}) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="relative">
@@ -96,7 +97,8 @@ export function MenuButton() {
         onClick={() => setMenuOpen((v) => !v)}
         aria-label="메뉴"
         aria-expanded={menuOpen}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
+        className={onDark ? "flex h-9 w-9 items-center justify-center rounded-full" : "flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"}
+        style={onDark ? { color: "#f3eee4", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.16)" } : undefined}
       >
         <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-xl`} />
       </button>

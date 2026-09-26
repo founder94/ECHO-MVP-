@@ -18,6 +18,8 @@ interface Props {
   // 2026-09-26: 확인한 입력을 계산 화면으로 넘긴다(저장 0 · 이 화면 → 계산 엔진).
   onNext: (input: SajuCalcInput) => void;
   onSwitchToTaro?: () => void;
+  // 2026-09-26 대표 §14: 결과에서 「다시 입력」으로 돌아오면 방금 넣은 값을 그대로 보여 준다(이 화면 상태에서만 · 저장 0).
+  initial?: SajuCalcInput | null;
 }
 
 type Calendar = "solar" | "lunar" | "leap";
@@ -31,15 +33,16 @@ const fieldStyle = {
 export function SajuInput({
   onNext,
   onSwitchToTaro,
+  initial = null,
 }: Props) {
   const [calendar, setCalendar] =
-    useState<Calendar>("solar");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [unknown, setUnknown] = useState(false);
+    useState<Calendar>(initial?.calendar ?? "solar");
+  const [date, setDate] = useState(initial?.date ?? "");
+  const [time, setTime] = useState(initial?.time ?? "");
+  const [unknown, setUnknown] = useState(!!initial && initial.time === null);
   const [alias, setAlias] = useState("");
   const [birthplace, setBirthplace] = useState("");
-  const [gender, setGender] = useState("");
+  const [gender, setGender] = useState<string>(initial?.gender ?? "");
   const [review, setReview] = useState(false);
 
   const valid = useMemo(
