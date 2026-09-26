@@ -32,7 +32,6 @@ export default function TopBar({
   showActions = true,
 }: TopBarProps) {
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="doit-product-topbar sticky top-0 z-40 border-b border-background-200/70 bg-background-100/90 backdrop-blur pt-[env(safe-area-inset-top)]">
@@ -60,54 +59,7 @@ export default function TopBar({
         </div>
 
         <div className="flex items-center gap-1">
-          {/* 햄버거 메뉴 */}
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="메뉴"
-              aria-expanded={menuOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
-            >
-              <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-xl`} />
-            </button>
-
-            {/* 2026-09-26: 머리줄(흐림 막) 안에 두면 메뉴 판의 흐림이 뒤 화면을 못 본다(겹친 흐림) → 화면 틀(.doit-app-pastel)로 옮겨 그린다. */}
-            {menuOpen && createPortal(
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setMenuOpen(false)}
-                  aria-hidden="true"
-                />
-                <div className="doit-menu-panel fixed right-4 z-50 w-64 overflow-hidden rounded-2xl" style={{ top: "calc(env(safe-area-inset-top) + 80px)" }}>
-                  <p className="doit-menu-caption px-4 pb-2 pt-3">
-                    메뉴
-                  </p>
-                  {MENU_ITEMS.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setMenuOpen(false)}
-                      className="doit-menu-item flex items-center gap-3 px-4 py-3"
-                    >
-                      <span className="doit-menu-icon flex h-9 w-9 items-center justify-center rounded-full">
-                        <i className={`${item.icon} text-lg`} />
-                      </span>
-                      <span className="flex-1">
-                        <span className="doit-menu-label block">
-                          {item.label}
-                        </span>
-                        <span className="doit-menu-desc block">
-                          {item.desc}
-                        </span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </>,
-              document.querySelector(".doit-app-pastel") ?? document.body,
-            )}
-          </div>
+          <MenuButton />
 
           {showActions && (
             <>
@@ -132,5 +84,59 @@ export default function TopBar({
         </div>
       </div>
     </header>
+  );
+}
+
+/** 햄버거 메뉴(버튼 + 판). 앱 머리줄(TopBar)과 대화 화면 머리줄이 같이 쓴다 — 2026-09-26 대표 실기기: 대화 중에는 메뉴가 없어 사주·타로로 갈 수 없었다. */
+export function MenuButton() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label="메뉴"
+        aria-expanded={menuOpen}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
+      >
+        <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-xl`} />
+      </button>
+
+      {/* 2026-09-26: 머리줄(흐림 막) 안에 두면 메뉴 판의 흐림이 뒤 화면을 못 본다(겹친 흐림) → 화면 틀(.doit-app-pastel)로 옮겨 그린다. */}
+      {menuOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="doit-menu-panel fixed right-4 z-50 w-64 overflow-hidden rounded-2xl" style={{ top: "calc(env(safe-area-inset-top) + 80px)" }}>
+            <p className="doit-menu-caption px-4 pb-2 pt-3">
+              메뉴
+            </p>
+            {MENU_ITEMS.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMenuOpen(false)}
+                className="doit-menu-item flex items-center gap-3 px-4 py-3"
+              >
+                <span className="doit-menu-icon flex h-9 w-9 items-center justify-center rounded-full">
+                  <i className={`${item.icon} text-lg`} />
+                </span>
+                <span className="flex-1">
+                  <span className="doit-menu-label block">
+                    {item.label}
+                  </span>
+                  <span className="doit-menu-desc block">
+                    {item.desc}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </>,
+        document.querySelector(".doit-app-pastel") ?? document.querySelector(".echo-dialogue--pastel") ?? document.body,
+      )}
+    </div>
   );
 }

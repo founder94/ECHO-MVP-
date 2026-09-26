@@ -62,18 +62,22 @@ export default function Home() {
           <p className="doit-product-kicker">DO IT · 만나기 전에</p>
           {done
             ? <>
-                <h1 id="echo-home-title" className="doit-product-title">다섯 가지,<br />다 들었어요.</h1>
+                <h1 id="echo-home-title" className="doit-product-title">이야기,<br />잘 들었어요.</h1>
                 <p className="doit-product-description">이제 사진 세 장과<br />나를 소개할 몇 줄이 남았어요.</p>
                 <Link className="doit-product-action" to="/doit/start-journey?edit=photos">사진과 소개 채우기 <span aria-hidden="true">↗</span></Link>
               </>
             : started
               ? <>
-                  <h1 id="echo-home-title" className="doit-product-title">{answered} / {ASK_TOTAL}<br />여기까지 왔어요.</h1>
-                  <p className="doit-product-description">남은 질문은 {ASK_TOTAL - answered}개예요.<br />한 줄씩이면 금방 끝나요.</p>
+                  {/* 2026-09-26 통합 검수(P0-B): ECHO 대화는 질문 개수를 약속하지 않는다(서버가 충분히 들었으면 3개로도 끝남). 예전 흐름만 n / 5. */}
+                  {useAgent
+                    ? <><h1 id="echo-home-title" className="doit-product-title">{answered}가지 들었어요.<br />이어서 이야기해요.</h1>
+                        <p className="doit-product-description">충분히 들으면 ECHO가 먼저 멈춰요.<br />한 줄씩이면 돼요.</p></>
+                    : <><h1 id="echo-home-title" className="doit-product-title">{answered} / {ASK_TOTAL}<br />여기까지 왔어요.</h1>
+                        <p className="doit-product-description">남은 질문은 {ASK_TOTAL - answered}개예요.<br />한 줄씩이면 금방 끝나요.</p></>}
                   <Link className="doit-product-action" to="/doit/conversation">이어서 답하기 <span aria-hidden="true">↗</span></Link>
                 </>
               : <>
-                  <h1 id="echo-home-title" className="doit-product-title">다섯 가지만<br />물어볼게요.</h1>
+                  <h1 id="echo-home-title" className="doit-product-title">편하게 몇 가지만<br />물어볼게요.</h1>
                   <p className="doit-product-description">편하게 말하면 돼요.<br />찾는 건 ECHO가 할게요.</p>
                   <Link className="doit-product-action" to="/doit/start-journey">시작하기 <span aria-hidden="true">↗</span></Link>
                 </>}
@@ -83,7 +87,7 @@ export default function Home() {
         {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}
         {A_STRUCTURE_SERVER_ENABLED && user && <ConnectionTurnsCard userId={user.id} />}
 
-        {/* 홈 화면에 두기 제안(2026-09-26): 다섯 가지를 마친 뒤에만, 세션당 한 번. 이미 앱으로 열려 있으면 보이지 않는다. */}
+        {/* 홈 화면에 두기 제안(2026-09-26): 대화를 마친 뒤에만, 세션당 한 번. 이미 앱으로 열려 있으면 보이지 않는다. */}
         {done && <InstallAppCard />}
 
         {!A_STRUCTURE_SERVER_ENABLED ? (

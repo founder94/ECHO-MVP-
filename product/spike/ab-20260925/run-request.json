@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-26",
- "approved_by": "대표 「FINAL IMPLEMENTATION + DEPLOYMENT READINESS」(2026-09-26) — 코드 수정·검사·실제 AI·ZIP 까지 · 운영배포 금지",
- "run": 31,
+ "approved_by": "대표 「FINAL INTEGRATED AUDIT + FIX + DEPLOYMENT READINESS」(2026-09-26) — 읽기·코드 수정·로컬/QA·실제 AI·읽기 전용 운영 로그·PASS 시 ZIP · 운영 배포 금지",
+ "run": 32,
  "mode": "prod_agent",
- "what": "v2.12 후보 — P0 3건 + 조기 종료 제거 + 미확정 사실화 막기(판정 규칙 prod_agent_gate.why_v25)",
+ "what": "v2.13 후보 — 메타질문·불만 처리(P0-A) · 질문 빠져도 조기 종료 0(P0-B) · 끝난 뒤 답 소개 반영(P0-1) · 판정식 결함 고침(판정 규칙 prod_agent_gate.why_v26)",
  "history": [
   {
    "run": 1,
@@ -195,10 +195,17 @@
    "actions_run": 36239502389,
    "commit": "5e1c3df",
    "note": "v2.11-p0 FAIL(원문 복붙 판정 4 · 재질문 1 · 조기 종료)"
+  },
+  {
+   "run": 31,
+   "mode": "prod_agent",
+   "actions_run": null,
+   "commit": null,
+   "note": "v2.12 FAIL(empty_profile 1 · 이미 답한 것 재질문 1) · 판정식 결함 2(마무리 문장 · 정상 마침) — FROZEN history 참조"
   }
  ],
  "models": [
   "gpt-4o-mini"
  ],
- "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.12.ts"
+ "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.13.ts"
 }

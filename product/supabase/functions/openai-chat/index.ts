@@ -23,12 +23,15 @@ function normalizeOrigin(origin: string): string {
   return origin.replace(/\/+$/, "").toLowerCase();
 }
 
+// 2026-09-26 대표 실기기: 앱(https://app.do-it.company)에서 타로 해석이 「해석을 불러오지 못했어요」 — 운영 로그에 사전 확인(OPTIONS)만 있고 본 요청(POST)이 없음
+// (브라우저가 허용 도메인 불일치로 막은 모양). 다른 함수 6개는 CORS_ALLOWED_ORIGINS 를 읽는데 이 함수만 ALLOWED_ORIGINS 를 읽었다.
+// → 두 이름을 모두 읽어 합친다(Secret 값·이름 변경 0 · 둘 다 없으면 예전 기본값).
 function getAllowedOrigins(): string[] {
-  const raw = Deno.env.get("ALLOWED_ORIGINS");
-  if (raw) {
-    return raw.split(",").map((s) => s.trim()).filter(Boolean);
-  }
-  return ["https://echo.do-it.company"];
+  const list = [Deno.env.get("ALLOWED_ORIGINS"), Deno.env.get("CORS_ALLOWED_ORIGINS")]
+    .flatMap((raw) => (raw ?? "").split(","))
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length ? [...new Set(list)] : ["https://echo.do-it.company"];
 }
 
 // 허용 목록 항목은 정확한 origin 또는 "https://*.readdy.co" 같은 하위 도메인 와일드카드.

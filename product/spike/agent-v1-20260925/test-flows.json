@@ -578,6 +578,68 @@
      "answer"
     ]
    ]
+  },
+  {
+   "id": "CEO_META",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL INTEGRATED AUDIT」 실기기 발견 A·B — 대표가 보고한 메타·불만 문장은 그대로, 앞뒤 답은 합성(사적 내용 0) · 메타질문(질문이 뭐야·고정질문이야) 뒤 답이 이어지는지",
+   "steps": [
+    [
+     "요즘 회사 일 때문에 정신이 없어요",
+     "answer"
+    ],
+    [
+     "우리회사 개발얘기했는데 질문이 뭐야?",
+     "ask"
+    ],
+    [
+     "고정질문으로 바뀐거니?",
+     "ask"
+    ],
+    [
+     "말 잘 통하고 차분한 사람이 좋아요",
+     "answer"
+    ],
+    [
+     "연락은 가끔이면 돼요",
+     "answer"
+    ],
+    [
+     "거짓말하는 사람은 싫어요",
+     "answer"
+    ]
+   ]
+  },
+  {
+   "id": "CEO_COMPLAINT",
+   "origin": "SYNTHETIC",
+   "source": "대표 2026-09-26 「FINAL INTEGRATED AUDIT」 실기기 발견 A·B — 대표가 보고한 메타·불만 문장은 그대로, 앞뒤 답은 합성(사적 내용 0) · 관련성 불만(상관없이 질문·말이 안 된다) 뒤 답이 프로필에 들어가는지",
+   "steps": [
+    [
+     "그냥 편하게 만날 사람",
+     "answer"
+    ],
+    [
+     "내가 적는거랑 상관없이 질문하네",
+     "repair"
+    ],
+    [
+     "내용은 말이 안된다",
+     "repair"
+    ],
+    [
+     "나는 조용하고 배려심 있는 사람이 좋아",
+     "answer"
+    ],
+    [
+     "주말에 한 번 보는 게 좋아",
+     "answer"
+    ],
+    [
+     "약속 안 지키는 건 싫어",
+     "answer"
+    ]
+   ]
   }
  ],
  "runs": [
@@ -715,6 +777,22 @@
   },
   {
    "flow": "S4",
+   "tone": "casual"
+  },
+  {
+   "flow": "CEO_META",
+   "tone": "polite"
+  },
+  {
+   "flow": "CEO_META",
+   "tone": "casual"
+  },
+  {
+   "flow": "CEO_COMPLAINT",
+   "tone": "polite"
+  },
+  {
+   "flow": "CEO_COMPLAINT",
    "tone": "casual"
   }
  ]

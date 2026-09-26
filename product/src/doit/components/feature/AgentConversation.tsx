@@ -15,6 +15,7 @@ import { VOICE_CONVERSATION_ENABLED, takeAgentChoice, type AgentChoice } from '@
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
 import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
 import { takeContentSeed } from '@/doit/lib/contentSeed';
+import { MenuButton } from '@/doit/components/feature/TopBar';
 
 interface Props {
   userId: string;
@@ -169,7 +170,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     if (failure && alive.current) setError(failure);
   });
 
-  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>;
+  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link><MenuButton /></header>; // 2026-09-26 대표 실기기: 대화 중에도 메뉴(사주·타로 등)로 갈 수 있게 — 대화는 서버에 남아 돌아오면 이어진다
   const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={restart}>처음부터 시작할게요</button></div></div>;
   const restartPill = (where: 'top' | 'bottom') => <button className="echo-restart-pill" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed(where)}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>;
 
@@ -183,7 +184,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   if (!session) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
     <p className="echo-eyebrow">만나기 전에</p>
-    {purposeLabel ? <h1>{purposeLabel}<br />다섯 가지만 물어볼게요.</h1> : <h1>다섯 가지만<br />물어볼게요.</h1>}
+    {purposeLabel ? <h1>{purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
@@ -206,9 +207,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
 
   return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
-    {!done && <div className="echo-steps" role="status" aria-label={`다섯 가지 중 ${answered}가지 답함`}>
-      <span className="echo-steps-count">{session.progress.asked} <em>/ {session.progress.of}</em></span>
-      <span className="echo-steps-bar" aria-hidden="true"><i style={{ width: `${(answered / session.progress.of) * 100}%` }} /></span>
+    {/* 2026-09-26 통합 검수(P0-B): 「2 / 5」 같은 고정 개수 표시는 설문처럼 느껴진다(대표 실기기). 들은 개수만 보이고, 끝은 서버가 정한다. */}
+    {!done && <div className="echo-steps" role="status" aria-label={`지금까지 ${answered}가지 들었어요`}>
+      <span className="echo-steps-count">{answered}가지 들었어요</span>
     </div>}
     {!done && (restartArmed === 'top' ? restartConfirm : <div className="echo-restart-top">{restartPill('top')}</div>)}
     <p className="echo-eyebrow">{done ? '다 들었어요' : '대화 중'}{!done && voiceUi && <span className="echo-mode-pill">말로 대화 중</span>}</p>
@@ -264,6 +265,6 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
     </form>}
     {!done && <div className="echo-reactions"><button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button><button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button></div>}
-    <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartArmed === 'bottom' ? restartConfirm : restartPill('bottom')}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : `질문은 ${session.progress.of}개뿐이에요.`}</p></footer>
+    <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartArmed === 'bottom' ? restartConfirm : restartPill('bottom')}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p></footer>
   </section>;
 }

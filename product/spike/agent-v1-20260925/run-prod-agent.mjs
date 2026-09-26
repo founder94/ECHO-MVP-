@@ -62,15 +62,25 @@ export async function runFlow(A, flowId, tone, model) {
   for (const [i, s] of flow.steps.entries()) {
     rec.mockFor.current = mock(s.expect); rec.mockFor.key = `T${i}`;
     const before = rec.calls.length; const t1 = Date.now();
-    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length; const confirmedBefore = A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id); const overCap = wasDone && st.after_turns >= A.MAX_AFTER_TURNS; const recoveryUsedBefore = !!st.correction_recovery_used;
+    const wasDone = st.phase !== 'talk'; const coreBefore = A.coreAsked(st).length; const confirmedBefore = A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id); const overCap = wasDone && st.after_turns >= A.MAX_AFTER_TURNS; const recoveryUsedBefore = !!st.correction_recovery_used; const prevQ = st.phase === 'talk' ? st.current : null;
     const { obs, response } = await A.runTurn(st, s.text, llm);
     rows.push({ i: i + 1, text: s.text, expect: s.expect, origin: s.origin, kind: response.kind ?? null, saved: !!response.saved, extracted: (response.extracted ?? []).map((e) => e.purpose),
       reply: [response.reply, response.closing].filter(Boolean).join(' ') || null, question: response.question ?? null, qtype: response.question_type ?? null, qpurpose: response.question_purpose ?? null,
-      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery });
+      finish: !!response.finish, after: wasDone, recovered: response.recovered ?? [], hint: response.question ? st.current?.hint ?? null : null, error: response.error ?? null, retry: obs.retry, calls: rec.calls.slice(before), total_ms: Date.now() - t1, core_before: coreBefore, core_after: A.coreAsked(st).length, confirmed_before: confirmedBefore, intro_status: st.intro?.status ?? null, over_cap: overCap, recovery_used_before: recoveryUsedBefore, recovery: !!response.correction_recovery, ack: response.reply ?? null, prev_qtext: prevQ?.text ?? null, prev_qpurpose: prevQ?.purpose ?? null, confirmed_after: A.PURPOSES.filter((p) => st.slots[p.id].status === 'CONFIRMED').map((p) => p.id), open_after: A.openPurposes(st).length });
   }
   return { flow: flowId, tone, rows, profile: A.matchingProfile(st), core: A.coreAsked(st).length, clarify: st.clarify.total, phase: st.phase, intro: st.intro ?? null, items: A.PURPOSES.flatMap((p) => st.slots[p.id].items.map((i) => ({ status: i.status, quote: i.quote, note: i.note, source_type: i.source_type ?? null, source: i.source ?? null, turn: i.turn }))), seed: flow.seed ?? null, handoff: A.matchingHandoff ? A.matchingHandoff(A.matchingProfile(st)) : null };
 }
 
+// v2.13 판정식 도우미(에이전트와 따로 씀). 메타 = 대화·질문 방식에 대한 물음 · 불만 = 내 말과 상관없다는 말.
+const META_H = /질문\s*(이|은)?\s*(뭐|머|뭔)|고정\s*질문|무슨\s*질문|정해진\s*질문/;
+const COMPLAINT_H = /상관\s*없이|말이\s*안\s*(돼|된|되)|엉뚱|딴\s*소리|(내|제)\s*말\s*(을|은)?\s*(안|못)\s*(듣|들)|반영\s*(이|을)?\s*(안|못)|(내|제)\s*(말|내용)\s*(을|를)?\s*반영|(질문|물어\S*)\s*(했|봤)는데\s*답|언제\s*그(렇게|런)\s*(말|얘기)/;
+const isRedirectH = (t) => META_H.test(t ?? '') || COMPLAINT_H.test(t ?? '');
+const sentK = (t) => String(t ?? '').split(/(?<=[.!?？~…])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+function unconfirmedSentence(reply, userText) {
+  const g = (s) => { const q = plainK(s).replace(/[?？.!~,]/g, ''); const o = new Set(); for (let k = 0; k < q.length - 1; k++) o.add(q.slice(k, k + 2)); return o; };
+  const U = g(userText);
+  return String(reply).split(/(?<=[.!~…])\s+/).some((t) => { const B = g(t); let m = 0; for (const v of B) if (U.has(v)) m++; if (/것\s*같(아요|네요|군요|아|다|습니다)|(신가|는가|나|인가)\s*보(네요|네|군요|다|아요|구나)|나\s*봐요|듯(해요|하네요|하군요|합니다)/.test(t)) return m / Math.max(1, B.size) < 0.3; if (/(군요|구나|네요|시네|셨네|군)[.!~…]*$/.test(t.trim())) return m === 0; return false; });
+}
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const pct = (xs, p) => { if (!xs.length) return null; const v = [...xs].sort((x, y) => x - y); return v[Math.min(v.length - 1, Math.ceil((p / 100) * v.length) - 1)]; };
 const lines = (r) => [r.reply, r.question].filter(Boolean).join(' ');
@@ -166,6 +176,18 @@ export function stats(A, runs) {
     early_finish_runs: runs.filter((r) => r.phase !== 'talk' && r.core < 5 && !r.rows.some((x) => ['stop', 'skip', 'unsure'].includes(x.kind) && !x.after)).length,
     question_banned_words: rows.filter((x) => x.question && /당신|귀하|관계에서|가치관|성향|선호|이상형|조건|분석|진단/.test(x.question)).length,
     ack_example_copy: rows.filter((x) => x.reply && /편하게이어지는쪽이좋군요|자주보기보다주말에편하게만나는쪽이군요/.test(x.reply.replace(/\s+/g, ''))).length,
+    // v2.13 사전 등록(run 32 · 대표 「FINAL INTEGRATED AUDIT」 · 판정식 결함 먼저 고침) — 에이전트 코드와 따로 센다. 메타·불만 모양은 여기서 따로 쓴 식(에이전트 식을 가져오지 않음).
+    //  ① unconfirmed_fact_ack_v213: run 31 식은 마무리 고정 문장(closing 「이제 조금 알 것 같아요」)까지 셌다 → 받아주기(reply)만 센다(식은 같음).
+    unconfirmed_fact_ack_v213: runs.reduce((n, r) => n + r.rows.filter((x, i) => (x.ack ?? x.reply) && !['help', 'ask'].includes(x.kind) && unconfirmedSentence(x.ack ?? x.reply, [x.text, ...r.rows.slice(Math.max(0, i - 2), i).map((y) => y.text)].join(' '))).length, 0),
+    //  ② early_finish_v213: run 31 식은 핵심 질문 4개로 정상 마친 판까지 셌다 → 대화 중(끝난 뒤 아님) 마친 턴에서, 방금 질문의 목적을 아직 못 들었고(그 턴 뒤에도 CONFIRMED 아님) 사용자가 그만·넘기기·모르겠다·위기가 아니며 턴 상한이 아닌 경우만.
+    early_finish_v213: runs.filter((r) => r.rows.some((x) => x.finish && !x.after && x.prev_qpurpose && !(x.confirmed_after ?? []).includes(x.prev_qpurpose) && !['stop', 'skip', 'unsure'].includes(x.kind) && x.core_after < A.MAX_CORE_QUESTIONS)).length,
+    //  ③ 메타·불만(대표 실기기 P0-A): 그 턴에 같은(거의 같은) 질문을 다시 밀었나 · 대화를 끝냈나 · 메타·불만 문장이 사용자 사실로 저장됐나 · 불만 뒤 첫 답이 저장되지 않았나 · 받아주기(메타 물음에 대한 답)가 비었나
+    redirect_turns: rows.filter((x) => !x.after && isRedirectH(x.text)).length,
+    complaint_forced_question: rows.filter((x) => !x.after && isRedirectH(x.text) && x.question && x.prev_qtext && (plainK(x.question) === plainK(x.prev_qtext) || overlapK(x.question, x.prev_qtext) >= 0.6)).length,
+    redirect_finish: rows.filter((x) => !x.after && isRedirectH(x.text) && x.finish && x.kind !== 'stop').length,
+    meta_saved_as_fact: runs.reduce((n, r) => { const bad = r.rows.flatMap((x) => sentK(x.text).filter(isRedirectH)).map(plainK); const good = r.rows.flatMap((x) => sentK(x.text).filter((t) => !isRedirectH(t))).map(plainK); return n + (r.items ?? []).filter((i) => { const q = plainK(i.quote); return i.status === 'CONFIRMED' && q.length >= 2 && bad.some((b) => b.includes(q)) && !good.some((g) => g.includes(q)); }).length; }, 0),
+    post_redirect_answer_lost: runs.reduce((n, r) => { const lost = new Set(); r.rows.forEach((x, i) => { if (!isRedirectH(x.text)) return; const nx = r.rows.slice(i + 1).find((y) => !isRedirectH(y.text)); if (nx && nx.expect === 'answer' && !nx.saved) lost.add(nx); }); return n + lost.size; }, 0), // 불만이 이어져도 같은 답 턴은 한 번만
+    redirect_empty_reply: rows.filter((x) => !x.after && isRedirectH(x.text) && !(x.ack ?? '').trim()).length,
     turn_ms_p50: REAL ? pct(rows.map((x) => x.total_ms), 50) : '판정 불가(MOCK)', turn_ms_p95: REAL ? pct(rows.map((x) => x.total_ms), 95) : '판정 불가(MOCK)',
   };
 }
