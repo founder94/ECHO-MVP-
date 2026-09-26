@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-09-26",
- "approved_by": "대표 「FINAL INTEGRATION RELEASE CANDIDATE」(2026-09-26 · PHASE 8 실제 AI 검사) — 운영배포 금지",
- "run": 19,
+ "approved_by": "대표 「ECHO FINAL CLOSEOUT」(2026-09-26 §2 v2.3 실제 AI 테스트) — 운영배포 금지",
+ "run": 20,
  "mode": "prod_agent",
- "what": "v2.2 — 서버 도움 가드(판정 규칙 prod_agent_gate.why_v13) · deploy/final-app-web-20260925 브랜치",
+ "what": "v2.3 후보 — 사람 말투(판정 규칙 prod_agent_gate.why_v14)",
  "history": [
   {
    "run": 1,
@@ -113,11 +113,16 @@
    "mode": "prod_agent",
    "actions_run": 36173141827,
    "commit": "254d4ce"
+  },
+  {
+   "run": 19,
+   "mode": "prod_agent",
+   "actions_run": null,
+   "commit": "3bf38b8"
   }
  ],
  "models": [
-  "gpt-4o-mini",
-  "gpt-4.1-mini",
-  "gpt-4.1"
- ]
+  "gpt-4o-mini"
+ ],
+ "agent_file": "spike/agent-v1-20260925/candidates/agent-v2.3.ts"
 }
