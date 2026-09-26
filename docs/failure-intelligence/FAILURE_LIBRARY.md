@@ -6,6 +6,7 @@
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
 - 합계 96건 — 증거 수준: ACTUAL 86 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 50 · ACTUAL_RECONSTRUCTED 1 · CODE 16 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 18 · FOUNDER_STATEMENT 8
+- 데이터 종류: AGENT_FAILURE 88 · FOUNDER_AI_FAILURE 8 · **실제 사용자 사실(user_fact=true) 0건** — 대표 AI 실패·Agent 실패는 Profile·Matching 에 쓰지 않는다(규칙·재현 검사·서버 개선에만).
 - 상태: UNRESOLVED 43 · MITIGATED 48 · RESOLVED 5
 - 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 53 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
@@ -115,6 +116,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-25 04:22~04:23 KST, 대표 Galaxy, 운영 v27 |
 | 증거 수준 | ACTUAL |
@@ -148,6 +150,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-25 04:22:13 KST · 앞서 2026-09-24 22:57:32 KST(옛 회차 기록 재개 시) |
 | 증거 수준 | ACTUAL |
@@ -180,6 +183,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-25 04:25:48 KST, 운영 v27 |
 | 증거 수준 | ACTUAL |
@@ -212,6 +216,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
 | 발생 날짜 | 2026-09-24(FAIL #3) · 2026-09-25(Galaxy) |
 | 증거 수준 | ACTUAL |
@@ -243,6 +248,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-24 22:59 KST, 대표 Galaxy(LEVEL 3 FAIL #3) |
 | 증거 수준 | ACTUAL |
@@ -275,6 +281,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-24 23:00:05 KST, 대표 Galaxy |
 | 증거 수준 | ACTUAL |
@@ -307,6 +314,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-24 23:00:30 KST |
 | 증거 수준 | ACTUAL |
@@ -339,6 +347,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-24 11:43Z(20:43 KST), 운영 v26(v15.2) |
 | 증거 수준 | ACTUAL |
@@ -371,6 +380,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTRACT — 제품 계약 불일치 |
 | 발생 날짜 | 2026-09-24(코드 대조에서 발견) |
 | 증거 수준 | ACTUAL |
@@ -402,6 +412,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-24 09:57~09:58Z(18:57 KST), 운영 v25(v15.1) |
 | 증거 수준 | ACTUAL |
@@ -434,6 +445,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-24 11:44Z, 운영 v26 |
 | 증거 수준 | ACTUAL |
@@ -466,6 +478,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-SENTENCE — 문장 파손 |
 | 발생 날짜 | 2026-09-22 16:30 KST 무렵, 운영 v13.7(버전 18) |
 | 증거 수준 | ACTUAL |
@@ -498,6 +511,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-22 16:25~17:00 KST |
 | 증거 수준 | ACTUAL |
@@ -529,6 +543,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-24, 운영 v14.x |
 | 증거 수준 | ACTUAL |
@@ -561,6 +576,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-24 18:57 KST |
 | 증거 수준 | ACTUAL |
@@ -593,6 +609,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-24(v15 MASTER↔CODE 대조에서 발견) |
 | 증거 수준 | ACTUAL |
@@ -624,6 +641,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-24(v15.1 작업 중 발견, 내 실수) |
 | 증거 수준 | ACTUAL |
@@ -654,6 +672,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-24(LEVEL 2 연습 실행) |
 | 증거 수준 | ACTUAL |
@@ -685,6 +704,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
 | 발생 날짜 | 2026-09-24 22:58 KST(FAIL #3) |
 | 증거 수준 | ACTUAL |
@@ -716,6 +736,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DEPLOY — 배포·운영 과정 결함 |
 | 발생 날짜 | 2026-09-24 05:41 KST 무렵(doit-understanding 버전 21) |
 | 증거 수준 | ACTUAL |
@@ -747,6 +768,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
 | 발생 날짜 | 2026-09-24(v15 MASTER↔CODE 대조 · LEVEL 2 연습 실행) |
 | 증거 수준 | ACTUAL |
@@ -778,6 +800,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ANSWER — 사용자 질문에 먼저 답하지 않음 |
 | 발생 날짜 | 2026-09-16 20:03 UTC(STEP 4 로그) · ECHO STEP 흐름 |
 | 증거 수준 | ACTUAL |
@@ -811,6 +834,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-SENTENCE — 문장 파손 |
 | 발생 날짜 | 2026-09-17 13:01·13:03 KST |
 | 증거 수준 | ACTUAL |
@@ -844,6 +868,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-17 KST |
 | 증거 수준 | ACTUAL |
@@ -877,6 +902,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
 | 발생 날짜 | 2026-09-18 · 재발 2026-09-19 |
 | 증거 수준 | ACTUAL |
@@ -910,6 +936,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ANSWER — 사용자 질문에 먼저 답하지 않음 |
 | 발생 날짜 | 2026-09-18 |
 | 증거 수준 | ACTUAL |
@@ -943,6 +970,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-18 |
 | 증거 수준 | ACTUAL |
@@ -976,6 +1004,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-19 · 2026-09-20 |
 | 증거 수준 | ACTUAL |
@@ -1009,6 +1038,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-LATENCY — 지연·시간 초과 |
 | 발생 날짜 | 2026-09-18 · 2026-09-19 |
 | 증거 수준 | ACTUAL |
@@ -1042,6 +1072,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATUS — 정보 상태 오류(미확정 사실화) |
 | 발생 날짜 | 2026-09-16 ~ 2026-09-17 |
 | 증거 수준 | ACTUAL |
@@ -1075,6 +1106,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
 | 발생 날짜 | 2026-09-17 |
 | 증거 수준 | ACTUAL |
@@ -1108,6 +1140,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATE — 서버 상태 결함(질문 소실·단계 오류·전달 실패) |
 | 발생 날짜 | 2026-09-17 |
 | 증거 수준 | ACTUAL |
@@ -1141,6 +1174,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-24 09:17~09:21 KST |
 | 증거 수준 | ACTUAL |
@@ -1174,6 +1208,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-24(운영 v23) |
 | 증거 수준 | ACTUAL |
@@ -1207,6 +1242,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-24(발견) |
 | 증거 수준 | ACTUAL |
@@ -1240,6 +1276,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-22 09:50 KST |
 | 증거 수준 | ACTUAL |
@@ -1273,6 +1310,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-21 ~ 22 |
 | 증거 수준 | ACTUAL |
@@ -1306,6 +1344,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-22 오전 |
 | 증거 수준 | ACTUAL |
@@ -1339,6 +1378,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-22 밤 |
 | 증거 수준 | ACTUAL |
@@ -1372,6 +1412,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-22 |
 | 증거 수준 | ACTUAL |
@@ -1405,6 +1446,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-22 17:40 KST 무렵 |
 | 증거 수준 | ACTUAL |
@@ -1438,6 +1480,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DEPLOY — 배포·운영 과정 결함 |
 | 발생 날짜 | 2026-09-14 |
 | 증거 수준 | ACTUAL |
@@ -1471,6 +1514,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DEPLOY — 배포·운영 과정 결함 |
 | 발생 날짜 | 2026-09-20 03:05 UTC |
 | 증거 수준 | ACTUAL |
@@ -1504,6 +1548,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-16 · 09-17 · 09-19 |
 | 증거 수준 | ACTUAL |
@@ -1537,6 +1582,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATE — 서버 상태 결함(질문 소실·단계 오류·전달 실패) |
 | 발생 날짜 | 2026-09-17 |
 | 증거 수준 | ACTUAL |
@@ -1570,6 +1616,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-18 · 2026-09-20 |
 | 증거 수준 | ACTUAL |
@@ -1603,6 +1650,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-17 |
 | 증거 수준 | ACTUAL |
@@ -1636,6 +1684,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DEPLOY — 배포·운영 과정 결함 |
 | 발생 날짜 | 2026-09-24 |
 | 증거 수준 | ACTUAL |
@@ -1669,6 +1718,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
 | 발생 날짜 | 2026-09-24(발견) |
 | 증거 수준 | ACTUAL |
@@ -1702,6 +1752,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
 | 발생 날짜 | 2026-09-16 |
 | 증거 수준 | ACTUAL |
@@ -1735,6 +1786,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
 | 발생 날짜 | 2026-09-22 |
 | 증거 수준 | CANDIDATE |
@@ -1768,6 +1820,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATE — 서버 상태 결함(질문 소실·단계 오류·전달 실패) |
 | 발생 날짜 | 2026-09-20 |
 | 증거 수준 | ACTUAL |
@@ -1801,6 +1854,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ANSWER — 사용자 질문에 먼저 답하지 않음 |
 | 발생 날짜 | 2026-09-25(발견 · 재생) — 입력 원문은 2026-09-16 대표 실기기 |
 | 증거 수준 | ACTUAL |
@@ -1834,6 +1888,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -1867,6 +1922,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -1900,6 +1956,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -1933,6 +1990,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-25(대표 확인) |
 | 증거 수준 | CANDIDATE |
@@ -1966,6 +2024,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-22 ~ 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -1999,6 +2058,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -2032,6 +2092,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-22 ~ 2026-09-24 |
 | 증거 수준 | CANDIDATE |
@@ -2065,6 +2126,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-25(재생) |
 | 증거 수준 | ACTUAL |
@@ -2098,6 +2160,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-25(재생) |
 | 증거 수준 | HYPOTHESIS |
@@ -2131,6 +2194,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-25(실AI run1 결과 분석 중 발견, 내 실수) |
 | 증거 수준 | ACTUAL |
@@ -2163,6 +2227,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-REPEAT — 같은 뜻 반복 · 반복설명 강요 |
 | 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 FLOW1#2 |
 | 증거 수준 | ACTUAL |
@@ -2196,6 +2261,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 |
 | 증거 수준 | ACTUAL |
@@ -2229,6 +2295,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 |
 | 증거 수준 | ACTUAL |
@@ -2262,6 +2329,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1 FLOW1 |
 | 증거 수준 | ACTUAL |
@@ -2295,6 +2363,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-25(run1 실행 06:37Z · 대표 PRE-FLIGHT LOCK 지시로 발견) |
 | 증거 수준 | ACTUAL |
@@ -2327,6 +2396,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25 06:37~06:39Z, 실AI A/B run1(gpt-4o-mini) |
 | 증거 수준 | HYPOTHESIS |
@@ -2360,6 +2430,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(run1 출력 · 대표 블라인드 07:15~07:18Z 무렵) |
 | 증거 수준 | ACTUAL |
@@ -2393,6 +2464,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25(대표 피드백 07:20Z 무렵 · run1 출력 06:37~06:39Z · 운영 사례 2026-09-24) |
 | 증거 수준 | ACTUAL |
@@ -2426,6 +2498,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTRACT — 제품 계약 불일치 |
 | 발생 날짜 | 2026-09-25(MODEL GATE 출력 07:34~07:38Z · 대표 블라인드 07:48~07:50Z) |
 | 증거 수준 | ACTUAL |
@@ -2459,6 +2532,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-GUARD — 과잉 Guard(서버가 정상 후보를 죽임) |
 | 발생 날짜 | 2026-09-24(운영 v26·v27 로그) · 대표 결정 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -2492,6 +2566,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTRACT — 제품 계약 불일치 |
 | 발생 날짜 | 2026-09-22~24(운영) · 대표 결정 2026-09-25 |
 | 증거 수준 | ACTUAL |
@@ -2525,6 +2600,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTRACT — 제품 계약 불일치 |
 | 발생 날짜 | 2026-09-19~25(v13 → v27 → B-1.0) |
 | 증거 수준 | ACTUAL |
@@ -2558,6 +2634,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-EVAL — 평가 결함(가짜 통과) |
 | 발생 날짜 | 2026-09-21~25 |
 | 증거 수준 | CANDIDATE |
@@ -2591,6 +2668,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25 08:11~08:14Z(core 재생) |
 | 증거 수준 | ACTUAL |
@@ -2624,6 +2702,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2 12턴째) |
 | 증거 수준 | ACTUAL |
@@ -2657,6 +2736,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2) |
 | 증거 수준 | ACTUAL |
@@ -2690,6 +2770,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2) |
 | 증거 수준 | ACTUAL |
@@ -2723,6 +2804,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 b7jlu2 3~4턴) |
 | 증거 수준 | ACTUAL |
@@ -2756,6 +2838,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 두 세션) |
 | 증거 수준 | ACTUAL |
@@ -2789,6 +2872,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTRACT — 제품 계약 불일치 |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 두 세션) |
 | 증거 수준 | ACTUAL |
@@ -2822,6 +2906,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-SENTENCE — 문장 파손 |
 | 발생 날짜 | 2026-09-25(대표 휴대폰 · 세션 tj54q0) |
 | 증거 수준 | ACTUAL |
@@ -2855,6 +2940,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
 | 발생 날짜 | 2026-09-25(대표 Galaxy 운영 · doit-agent v2 · 세션 8eb0da33) |
 | 증거 수준 | ACTUAL |
@@ -2888,6 +2974,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-CONTEXT — 맥락 유실·오염·거절 재등장 |
 | 발생 날짜 | 2026-09-25(대표 Galaxy 운영 · 세션 8eb0da33) |
 | 증거 수준 | ACTUAL |
@@ -2921,6 +3008,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
 | 증거 수준 | CANDIDATE |
@@ -2954,6 +3042,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
 | 증거 수준 | CANDIDATE |
@@ -2987,6 +3076,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-FLOW — 대화 구조(끝 없음·출구 없음·버튼 피로) |
 | 발생 날짜 | 2026-09-25(대표 Galaxy 운영) |
 | 증거 수준 | CANDIDATE |
@@ -3020,6 +3110,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-PROMISE — 없는 기능·가짜 결과 약속 |
 | 발생 날짜 | 2026-09-25(코드 검색) |
 | 증거 수준 | ACTUAL |
@@ -3053,6 +3144,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DEPLOY — 배포·운영 과정 결함 |
 | 발생 날짜 | 2026-09-25(외부 사용자 iPhone · 대표 보고) |
 | 증거 수준 | CANDIDATE |
@@ -3086,6 +3178,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25(실제 외부 사용자 · 세션 5b96d5a5·ac75f917) |
 | 증거 수준 | ACTUAL |
@@ -3119,6 +3212,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATE — 서버 상태 결함(질문 소실·단계 오류·전달 실패) |
 | 발생 날짜 | 2026-09-25 12:10(UTC) 운영 |
 | 증거 수준 | ACTUAL |
@@ -3152,6 +3246,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-STATUS — 정보 상태 오류(미확정 사실화) |
 | 발생 날짜 | 2026-09-25 실제 AI run 14 |
 | 증거 수준 | ACTUAL |
@@ -3185,6 +3280,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | FOUNDER_AI_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-ADVISOR — AI 조언자(개발 AI) 실패 |
 | 발생 날짜 | 2026-09-22 배포 · 2026-09-25 발견 |
 | 증거 수준 | ACTUAL |
@@ -3218,6 +3314,7 @@
 
 | 칸 | 내용 |
 |---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
 | Family | F-DRIFT — 방향이탈 · 무거운 질문 |
 | 발생 날짜 | 2026-09-25 실제 AI run 13 |
 | 증거 수준 | ACTUAL |
