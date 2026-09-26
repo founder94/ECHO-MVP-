@@ -1,0 +1,44 @@
+# Claude Provider smoke test — 대표 「CLAUDE API SMOKE TEST PREP」(2026-09-27).
+# - 언제: PR #11 브랜치에서 product/spike/provider-smoke/claude-smoke-request.json 이 바뀌어 push 될 때만(자동 반복 0).
+# - 하는 일: 회귀 검사(AI 0) → 모델 목록 1회 → 생성 호출 정확히 1회(합성 입력). 43판 0.
+# - 키: 저장소 Secret `ANTHROPIC_API_KEY_AB_TEST` 만(시험 전용). 없으면 SECRET=MISSING 으로 끝난다. 키는 로그·결과에 쓰지 않는다.
+# - 운영 DB·운영 함수·운영 Secret·배포는 쓰지 않는다.
+name: echo-claude-smoke
+
+on:
+  push:
+    branches: ['claude/echo-core-v3.4-server-20260927']
+    paths: ['product/spike/provider-smoke/claude-smoke-request.json']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-claude-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3 js-tiktoken@1.0.21
+      - name: 부품·Router 가짜 검사(AI 호출 0)
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          ECHO_AGENT_FILE: ./candidates/agent-v3.4.ts
+        run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
+      - name: Claude smoke(목록 1회 + 생성 1회)
+        working-directory: product
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+        run: node --experimental-strip-types spike/provider-smoke/claude-smoke.mjs

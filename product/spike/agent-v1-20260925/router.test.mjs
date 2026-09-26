@@ -220,6 +220,68 @@ test('OpenAI 부품 오류 코드: 429 · 5xx · 빈 응답 · 키 없음 · 시
   await assert.rejects(P.openAIProvider('K', slow).call({ ...REQ, timeoutMs: 20 }), (e) => e.code === 'timeout');
 });
 
+// ── Gemini · Claude 부품(2026-09-27 대표 「DIRECT API INTEGRATION PATH」): 가짜 fetch 로 요청 모양·응답 정규화만(실제 호출 0 · 키 0).
+test('Claude 부품: /v1/messages · x-api-key · anthropic-version · system/messages · temperature 만(top_p 0) · 텍스트만 · 캐시 포함 입력 토큰', async () => {
+  const x = fakeFetch(200, { model: 'claude-x-served', stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: '```json\n{"a":1}\n```' }], usage: { input_tokens: 6, cache_read_input_tokens: 4, cache_creation_input_tokens: 0, output_tokens: 3 } });
+  const res = await P.anthropicProvider('KEY', {}, x.f).call(REQ);
+  assert.deepEqual([res.text, res.provider, res.model_requested, res.model_served, res.input_tokens, res.cached_tokens, res.output_tokens], ['{"a":1}', 'anthropic', 'm', 'claude-x-served', 10, 4, 3]);
+  const { url, init } = x.seen[0]; const b = JSON.parse(init.body);
+  assert.equal(url, 'https://api.anthropic.com/v1/messages');
+  assert.deepEqual([init.headers['x-api-key'], init.headers['anthropic-version']], ['KEY', '2023-06-01']);
+  assert.deepEqual([b.model, b.max_tokens, b.system, b.messages[0].role, b.temperature, 'top_p' in b, 'thinking' in b], ['m', 768, 'sys', 'user', 0.2, false, false]);
+  assert.equal(b.messages[0].content, JSON.stringify(REQ.input), '업체와 상관없이 같은 입력');
+  const y = fakeFetch(200, { content: [{ type: 'text', text: '{}' }], usage: {} });
+  await P.anthropicProvider('K', { sampling: 'none', thinking: 'disabled' }, y.f).call(REQ);
+  const b2 = JSON.parse(y.seen[0].init.body);
+  assert.deepEqual(['temperature' in b2, b2.thinking], [false, { type: 'disabled' }], '모델별 허용은 registry 옵션');
+});
+test('Claude 부품 오류: 429 · 529(과부하) · 500 · 401 · 거절(refusal) · 빈 응답 · 키 없음 · 시간 초과(오류에 키·원문 0)', async () => {
+  for (const [st, code] of [[429, 'http_429'], [529, 'http_5xx'], [500, 'http_5xx'], [401, 'http_4xx']]) await assert.rejects(P.anthropicProvider('SECRETKEY', {}, fakeFetch(st, {}).f).call(REQ), (e) => e.code === code && e.provider === 'anthropic' && !String(e.message).includes('SECRETKEY'));
+  await assert.rejects(P.anthropicProvider('K', {}, fakeFetch(200, { stop_reason: 'refusal', content: [] }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.anthropicProvider('K', {}, fakeFetch(200, { content: [{ type: 'thinking', thinking: 'x' }] }).f).call(REQ), (e) => e.code === 'empty');
+  await assert.rejects(P.anthropicProvider('', {}, fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
+  const slow = async (_u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new Error('aborted'))));
+  await assert.rejects(P.anthropicProvider('K', {}, slow).call({ ...REQ, timeoutMs: 20 }), (e) => e.code === 'timeout');
+});
+test('Gemini 부품: v1beta/models/{MODEL_ID}:generateContent · x-goog-api-key(주소에 키 0) · JSON 요청 · usageMetadata · modelVersion · 생각 조각 버림', async () => {
+  const x = fakeFetch(200, { modelVersion: 'gem-served', candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '생각', thought: true }, { text: '{"a":1}' }] } }], usageMetadata: { promptTokenCount: 10, cachedContentTokenCount: 4, candidatesTokenCount: 3 } });
+  const res = await P.geminiProvider('KEY', {}, x.f).call({ ...REQ, model: 'gm-1' });
+  assert.deepEqual([res.text, res.provider, res.model_requested, res.model_served, res.input_tokens, res.cached_tokens, res.output_tokens], ['{"a":1}', 'gemini', 'gm-1', 'gem-served', 10, 4, 3]);
+  const { url, init } = x.seen[0]; const b = JSON.parse(init.body);
+  assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gm-1:generateContent'); assert.ok(!url.includes('KEY'));
+  assert.equal(init.headers['x-goog-api-key'], 'KEY');
+  assert.deepEqual([b.systemInstruction.parts[0].text, b.contents[0].parts[0].text, b.generationConfig.temperature, b.generationConfig.topP, b.generationConfig.maxOutputTokens, b.generationConfig.responseMimeType], ['sys', JSON.stringify(REQ.input), 0.2, 0.9, 768, 'application/json']);
+});
+test('Gemini 부품 오류: 429 · 503 · 403 · 안전 차단(SAFETY·blockReason) · 빈 후보 · 키 없음', async () => {
+  for (const [st, code] of [[429, 'http_429'], [503, 'http_5xx'], [403, 'http_4xx']]) await assert.rejects(P.geminiProvider('SECRETKEY', {}, fakeFetch(st, {}).f).call(REQ), (e) => e.code === code && !String(e.message).includes('SECRETKEY'));
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }] }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { promptFeedback: { blockReason: 'OTHER' } }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { candidates: [] }).f).call(REQ), (e) => e.code === 'empty');
+  await assert.rejects(P.geminiProvider('', {}, fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
+});
+test('모델 목록(listModels): Claude = data[].id · Gemini = generateContent 되는 models[].name(앞 models/ 뗌) · 키 없으면 no_key', async () => {
+  const a = fakeFetch(200, { data: [{ id: 'claude-a' }, { id: 'claude-b' }], has_more: false });
+  assert.deepEqual(await P.listModels('anthropic', 'K', a.f), ['claude-a', 'claude-b']);
+  assert.equal(a.seen[0].url, 'https://api.anthropic.com/v1/models?limit=100'); assert.equal(a.seen[0].init.method, 'GET');
+  const g = fakeFetch(200, { models: [{ name: 'models/gm-1', supportedGenerationMethods: ['generateContent'] }, { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }] });
+  assert.deepEqual(await P.listModels('gemini', 'K', g.f), ['gm-1']);
+  await assert.rejects(P.listModels('gemini', ''), (e) => e.code === 'no_key');
+});
+test('Router + 실제 모양 부품(가짜 fetch): OpenAI 429 → FALLBACK Gemini 가 받고 서버가 같은 규칙으로 판정 · 관측에 업체·모델·오류 기록', async () => {
+  const agent = agentLike();
+  const bodyFor = async (init) => { const b = JSON.parse(init.body); const req = { stage: 'understand', input: JSON.parse(b.contents?.[0]?.parts?.[0]?.text ?? b.messages?.[0]?.content ?? '{}') }; return agent({ ...req, stage: b.systemInstruction?.parts?.[0]?.text?.includes('이해 단계') ? 'understand' : 'speak' }); };
+  const gem = async (_u, init) => ({ ok: true, status: 200, json: async () => ({ modelVersion: 'gm-served', candidates: [{ content: { parts: [{ text: await bodyFor(init) }] } }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 } }) });
+  const reg = { ...REG, roles: { PRIMARY: { provider: 'openai', model: 'p-model' }, FALLBACK: { provider: 'gemini', model: 'f-model' } } };
+  const r = R.createRouter({ registry: reg, providers: { openai: P.openAIProvider('K', fakeFetch(429, {}).f), gemini: P.geminiProvider('K', {}, gem), anthropic: P.anthropicProvider('', {}) }, budget: BUDGET });
+  const st = begin();
+  const res = await A.runTurn(st, '친구처럼 편한 만남이요', r.llm);
+  assert.ok(!res.error, '대화 계속');
+  const rows = R.performanceRows(r.log);
+  assert.ok(rows.some((x) => x.provider === 'openai' && x.error === 'http_429'));
+  assert.ok(rows.some((x) => x.provider === 'gemini' && x.fallback && x.served === 'gm-served'));
+  assert.ok(!JSON.stringify(rows).includes('친구처럼'), '성능 기록에 사용자 원문 0');
+});
+
 // ── PANEL + JUDGE(실험 · 기본 꺼짐 · 대표 「FINAL IMPLEMENTATION MASTER」 §21).
 const PANEL_REG = (judge = null) => ({ ...REG, panel: { stages: ['rebuild'], members: [{ provider: 'openai', model: 'p' }, { provider: 'gemini', model: 'g' }, { provider: 'anthropic', model: 'c' }], judge } });
 const REB = { statements: [{ id: 0, quote: '약속 잘 지키는 사람' }] };

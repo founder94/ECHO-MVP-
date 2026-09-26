@@ -5,11 +5,14 @@
 // 키는 부르는 쪽(Edge 함수 · 시험 도구)이 넘긴다. 이 파일은 환경변수·Secret 을 읽지 않는다.
 //
 // OpenAI = 운영 doit-agent/index.ts 의 openAI() 요청 모양을 옮김(실측으로 동작 확인).
-// Gemini · Anthropic = 이번 단계는 가짜 부품만(대표 결정: 공식 문서 확인 전 실제 요청 형식을 추정해 만들지 않는다 · 실제 연결 직전 별도 STOP).
+// Gemini · Anthropic(2026-09-27 대표 「DIRECT API INTEGRATION PATH」) = fetch 부품 코드만(SDK 설치 0 · 키 0 · 실제 호출 0).
+//   요청 형식 근거: Gemini = 전략본부 공식 문서 확인(POST v1beta/models/{MODEL_ID}:generateContent · x-goog-api-key · usageMetadata · modelVersion) +
+//   본문 필드 이름(systemInstruction · contents · generationConfig)은 첫 smoke test 로 대조 · Anthropic = 공식 Messages API(POST /v1/messages · x-api-key · anthropic-version 2023-06-01).
+//   모델 이름은 넣지 않는다 — 키 등록 뒤 모델 목록(listModels)으로 확인한 이름만 registry 에 적는다.
 
 export type ProviderId = "openai" | "anthropic" | "gemini";
 export type Stage = "understand" | "speak" | "recovery" | "closing" | "intro" | "rebuild" | "opening";
-export type ProviderErrorCode = "timeout" | "http_4xx" | "http_5xx" | "http_429" | "empty" | "network" | "no_key" | "pii_blocked" | "not_connected";
+export type ProviderErrorCode = "timeout" | "http_4xx" | "http_5xx" | "http_429" | "empty" | "network" | "no_key" | "pii_blocked" | "not_connected" | "refused";
 export interface ProviderRequest {
   // 무엇을 하는 호출인지(관측·부품 선택용 · 부품은 이것으로 결정을 내리지 않는다)
   stage: Stage; action: string | null; input_type: string | null;
@@ -53,6 +56,81 @@ export function openAIProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
       throw new ProviderError("openai", ctrl.signal.aborted ? "timeout" : "network", Date.now() - t0);
     } finally { clearTimeout(timer); }
   } };
+}
+
+// 공통: 시간 제한 · HTTP 오류 분류 · 키/원문은 오류에 남기지 않는다(오류 = 업체:코드 만).
+async function timedFetch(provider: ProviderId, f: Fetch, url: string, init: RequestInit, timeoutMs: number, t0: number): Promise<Record<string, unknown>> {
+  const ctrl = new AbortController(); const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await f(url, { ...init, signal: ctrl.signal });
+    if (!res.ok) throw new ProviderError(provider, httpCode(res.status), Date.now() - t0); // Anthropic 529(과부하) · 500 → http_5xx · 429 → http_429
+    return await res.json() as Record<string, unknown>;
+  } catch (e) {
+    if (e instanceof ProviderError) throw e;
+    throw new ProviderError(provider, ctrl.signal.aborted ? "timeout" : "network", Date.now() - t0);
+  } finally { clearTimeout(timer); }
+}
+// 모델이 JSON 을 ```json … ``` 로 감싸 오면 벗긴다(글자 해석·검사는 서버 · 여기선 모양만 맞춤). OpenAI 는 json_object 로 받으므로 해당 없음.
+const unfence = (t: string) => { const m = t.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i); return (m ? m[1] : t).trim(); };
+
+/** Anthropic(Claude) 부품 — Messages API · SDK 없이 fetch. 샘플링(temperature)은 모델마다 허용이 다르므로 registry 가 정한다(sampling: "temperature" | "none").
+ *  thinking: "disabled" 면 { type: "disabled" } 를 보낸다(짧은 JSON 한 개 · max_tokens 안에서 끝나게) · "omit" 이면 보내지 않는다. 모델별 허용은 smoke test 로 확인. */
+export interface AnthropicOptions { sampling?: "temperature" | "none"; thinking?: "disabled" | "omit"; version?: string; baseUrl?: string }
+export const ANTHROPIC_API = "https://api.anthropic.com";
+export function anthropicProvider(apiKey: string, opt: AnthropicOptions = {}, f: Fetch = fetch): ModelProvider {
+  return { id: "anthropic", kind: "real", call: async (req) => {
+    const t0 = Date.now();
+    if (!apiKey) throw new ProviderError("anthropic", "no_key", 0);
+    const body: Record<string, unknown> = { model: req.model, max_tokens: req.maxTokens, system: req.system, // 모든 업체 같은 프롬프트(계획 §1) — JSON 요구는 v3 프롬프트 안에 이미 있다
+      messages: [{ role: "user", content: JSON.stringify(req.input) }] };
+    if ((opt.sampling ?? "temperature") === "temperature") body.temperature = req.temperature; // top_p 는 보내지 않는다(계획 §1)
+    if (opt.thinking === "disabled") body.thinking = { type: "disabled" };
+    const d = await timedFetch("anthropic", f, `${opt.baseUrl ?? ANTHROPIC_API}/v1/messages`, { method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": opt.version ?? "2023-06-01" }, body: JSON.stringify(body) }, req.timeoutMs, t0);
+    if (d.stop_reason === "refusal") throw new ProviderError("anthropic", "refused", Date.now() - t0);
+    const blocks = Array.isArray(d.content) ? d.content as { type?: string; text?: string }[] : [];
+    const text = unfence(blocks.filter((b) => b.type === "text").map((b) => String(b.text ?? "")).join("")); // thinking 블록은 버림
+    if (!text) throw new ProviderError("anthropic", "empty", Date.now() - t0);
+    const u = (d.usage ?? {}) as Record<string, unknown>;
+    return { text, provider: "anthropic", model_requested: req.model, model_served: typeof d.model === "string" ? d.model : null,
+      // Anthropic input_tokens 는 캐시에서 읽은 몫을 뺀 값 — 다른 업체와 같게(입력 전체 · 그중 캐시) 맞춘다.
+      input_tokens: num(u.input_tokens) == null ? null : num(u.input_tokens)! + (num(u.cache_read_input_tokens) ?? 0) + (num(u.cache_creation_input_tokens) ?? 0),
+      cached_tokens: num(u.cache_read_input_tokens), output_tokens: num(u.output_tokens), latency_ms: Date.now() - t0 };
+  } };
+}
+
+/** Gemini 부품 — REST generateContent · SDK 없이 fetch. 모델 이름은 listModels 로 확인한 것만. JSON 은 responseMimeType 로 요청. */
+export interface GeminiOptions { baseUrl?: string }
+export const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
+export function geminiProvider(apiKey: string, opt: GeminiOptions = {}, f: Fetch = fetch): ModelProvider {
+  return { id: "gemini", kind: "real", call: async (req) => {
+    const t0 = Date.now();
+    if (!apiKey) throw new ProviderError("gemini", "no_key", 0);
+    const body = { systemInstruction: { parts: [{ text: req.system }] }, contents: [{ role: "user", parts: [{ text: JSON.stringify(req.input) }] }],
+      generationConfig: { temperature: req.temperature, ...(req.topP != null ? { topP: req.topP } : {}), maxOutputTokens: req.maxTokens, responseMimeType: "application/json" } };
+    const d = await timedFetch("gemini", f, `${opt.baseUrl ?? GEMINI_API}/models/${encodeURIComponent(req.model)}:generateContent`, { method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(body) }, req.timeoutMs, t0);
+    const cand = (Array.isArray(d.candidates) ? d.candidates[0] : null) as { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string } | null;
+    if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || cand?.finishReason === "SAFETY") throw new ProviderError("gemini", "refused", Date.now() - t0);
+    const text = unfence((cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => String(p.text ?? "")).join(""));
+    if (!text) throw new ProviderError("gemini", "empty", Date.now() - t0);
+    const u = (d.usageMetadata ?? {}) as Record<string, unknown>;
+    return { text, provider: "gemini", model_requested: req.model, model_served: typeof d.modelVersion === "string" ? d.modelVersion : null,
+      input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: num(u.candidatesTokenCount), latency_ms: Date.now() - t0 };
+  } };
+}
+
+/** 키 등록 뒤 첫 확인용: 계정에서 실제로 쓸 수 있는 모델 이름 목록(생성 호출 0 · 대화 원문 0). 추정 이름 대신 여기서 나온 이름만 registry 에 적는다. */
+export async function listModels(provider: "anthropic" | "gemini", apiKey: string, f: Fetch = fetch, timeoutMs = 15000): Promise<string[]> {
+  const t0 = Date.now();
+  if (!apiKey) throw new ProviderError(provider, "no_key", 0);
+  if (provider === "anthropic") {
+    const d = await timedFetch(provider, f, `${ANTHROPIC_API}/v1/models?limit=100`, { method: "GET", headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" } }, timeoutMs, t0);
+    return (Array.isArray(d.data) ? d.data as { id?: string }[] : []).map((m) => String(m.id ?? "")).filter(Boolean);
+  }
+  const d = await timedFetch(provider, f, `${GEMINI_API}/models?pageSize=1000`, { method: "GET", headers: { "x-goog-api-key": apiKey } }, timeoutMs, t0);
+  return (Array.isArray(d.models) ? d.models as { name?: string; supportedGenerationMethods?: string[] }[] : [])
+    .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent")).map((m) => String(m.name ?? "").replace(/^models\//, "")).filter(Boolean);
 }
 
 /** 가짜 부품(시험 전용 · 네트워크 0). script 가 글자를 돌려주거나 { error } 로 실패를 흉내 낸다. */

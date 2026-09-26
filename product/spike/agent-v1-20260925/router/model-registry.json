@@ -28,16 +28,17 @@
    "adapter": "real(providers.ts openAIProvider = 운영 doit-agent 요청 모양)"
   },
   "anthropic": {
-   "status": "미연결 · 키 없음 · 가짜 부품만(notConnected)",
-   "models_to_confirm": "공식 문서·계정 확인 뒤 확정",
-   "adapter": "fake",
-   "secret_candidate": "ANTHROPIC_API_KEY(시험용 이름은 연결 승인 때 확정 · 대표 등록)"
+   "status": "부품 코드 있음(fetch · providers.ts anthropicProvider) · 키 없음 · 실제 호출 0 · API 호스트 api.anthropic.com 접근 확인(키 없이 401)",
+   "models_to_confirm": "키 등록 뒤 listModels('anthropic') 결과로만 확정(대표 전달 후보: claude-sonnet-5 · claude-haiku-4-5-20251001)",
+   "adapter": "real-code(미연결 · 키 등록 전까지 run 에서는 notConnected 사용)",
+   "secret_candidate": "ANTHROPIC_API_KEY_AB_TEST(시험 전용 · 대표 등록 · 운영 Secret 0)",
+   "options": "sampling(temperature|none) · thinking(disabled|omit) — 모델별 허용은 smoke test 로 확인 뒤 적음"
   },
   "gemini": {
-   "status": "미연결 · 키 없음 · 가짜 부품만(notConnected) · 모델 이름 확인 불가",
-   "models_to_confirm": "공식 목록 확인 뒤 확정",
-   "adapter": "fake",
-   "secret_candidate": "이름은 공식 문서·현재 프로젝트 기준 확인 뒤 확정(대표 등록)"
+   "status": "부품 코드 있음(fetch · providers.ts geminiProvider) · 키 없음 · 실제 호출 0 · API 호스트 generativelanguage.googleapis.com 접근 확인(키 없이 403)",
+   "models_to_confirm": "키 등록 뒤 listModels('gemini') 결과로만 확정(추정 이름 금지)",
+   "adapter": "real-code(미연결 · 키 등록 전까지 run 에서는 notConnected 사용)",
+   "secret_candidate": "GEMINI_API_KEY_AB_TEST(시험 전용 · 대표 등록 · 운영 Secret 0)"
   }
  },
  "provisional": true
