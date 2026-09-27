@@ -1,0 +1,12 @@
+# QA 전용 ZIP: QA전용_thriving-melba_3f5f0d4.zip · PR #12 3f5f0d4 · VITE_SITE_ROLE=app · QA Supabase mutniujeiyujhkobadkd · origin=https://thriving-melba-b1449a.netlify.app
+# zip sha256 d715cf8718f38e4dfe7dc056836b534ef623949ca3c5ee89a23f28a1a80a7a62
+de0edb4e9ceb8c091a41e7876c2eaa145cc543e9b6501fee97515097b2512b92  index.html
+7173d159671b53dd659fd69088627f498851b922887ad86d1cc6c8fb7ce138d9  manifest.webmanifest
+2ffec74952f850c39285fcfa982563074ba98123d4e17ee9ed4fff4bc791f5c0  assets/index-C5c_VLY8.js
+e61537d4a9ad936616f7593f853776c47f8e90d6b993735ae382e0b760081eda  assets/index-lmortyxl.css
+4b175d5da8f2c22ac2303bedc2419f09643430d4ba125a06938f037b48bfe09c  pwa/echo-icon-180.png
+c19b9f6b50744a914883052fec012b9847dcbc8d13a6ccc3cd5b8ed875ef3f83  pwa/echo-icon-192.png
+12e9af5ea8a541a49aea08cb65ba10f85e8c4d3f7c5bd69a1ea56d918839065f  pwa/echo-icon-512.png
+d5e0f3c3c756e25ced968ee56137f9d454702af4cd01654671086d647be930be  pwa/echo-icon-512-maskable.png
+40cf71e647f0e1298f911393f5345b08c28c00b6243c84690a2198188168a7dd  pwa/echo-icon-32.png
+81b47f2948e6fc270e21b405f106d8aa397334fca0031ed5d178814ab1905778  favicon.svg

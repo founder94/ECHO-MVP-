@@ -69,19 +69,41 @@ jobs:
     # 읽기 전용 PWA 실측: 실제 주소의 manifest·아이콘·index + 실제 Chrome 설치 가능 판정(비밀값·Environment·쓰기 0).
     if: inputs.mode == 'qa_site_probe'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            product/qa-real/pwa-probe.mjs
-            product/qa-real/white-probe.mjs
-            product/qa-real/results/qa-zip-fb3c0fc-google.sha256
-      - name: 429 범위 확인(주소당 1회 · 최소 요청)
+            product/qa-real/melba-render.mjs
+            product/qa-real/results/qa-zip-3f5f0d4-melba.sha256
+      - name: 새 QA 주소 응답·해시 대조(주소당 1회 · 최소 요청)
+        env:
+          BASE: https://thriving-melba-b1449a.netlify.app
+        working-directory: product/qa-real
         run: |
-          for U in https://echo-qa-app-20260927.netlify.app/ https://6ab912436a0dca4dce96b1b8--echo-qa-app-20260927.netlify.app/ https://genuine-conkies-d19b46.netlify.app/ https://tiny-dasik-30df4c.netlify.app/ https://lighthearted-cannoli-682d03.netlify.app/ https://transcendent-alfajores-8e962b.netlify.app/ https://marvelous-chaja-071247.netlify.app/; do
-            printf "%s " "$U"; curl -sS -o /dev/null -D h.txt --max-time 15 -w "HTTP %{http_code}" "$U"; printf " | %s\n" "$(grep -iE '^(retry-after|x-nf-|server|x-ratelimit|ratelimit)' h.txt | tr -d '\r' | tr '\n' ' ')"
+          set +e
+          EXP=results/qa-zip-3f5f0d4-melba.sha256
+          code() { curl -sS -o "$2" --max-time 20 -w '%{http_code}' "$BASE$1"; }
+          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (3f5f0d4 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
+          JS=$(grep -o '/assets/index-[^"]*\.js' idx.html | head -1); CSS=$(grep -o '/assets/index-[^"]*\.css' idx.html | head -1)
+          echo "main JS $JS : HTTP $(code "$JS" js.bin)"; echo "CSS $CSS : HTTP $(code "$CSS" css.bin)"
+          echo "manifest : HTTP $(code /manifest.webmanifest mf.json) · $(jq -c '{name,short_name,start_url,display,icons:[.icons[]|.src+" "+.purpose]}' mf.json 2>/dev/null)"
+          for f in pwa/echo-icon-180.png pwa/echo-icon-192.png pwa/echo-icon-512.png pwa/echo-icon-512-maskable.png pwa/echo-icon-32.png favicon.svg; do
+            st=$(code "/$f" ic.bin); got=$(sha256sum ic.bin | cut -d' ' -f1); want=$(grep " $f\$" $EXP | cut -d' ' -f1)
+            [ "$got" = "$want" ] && m=일치 || m=불일치; echo "$f : HTTP $st · sha16=${got:0:16} · 승인 E 대조 $m"
           done
+          echo "apple-touch-icon 링크: $(grep -o '<link rel="apple-touch-icon"[^>]*>' idx.html)"
+          echo "apple 제목: $(grep -o '<meta name="apple-mobile-web-app-title"[^>]*>' idx.html)"
+          echo "Supabase 대상: qa=$(grep -c mutniujeiyujhkobadkd js.bin) prod=$(grep -c zyyhhxyupizcqhxqnxuu js.bin)"
+          echo "움직임 줄이기 글자(메인 JS): $(grep -c '움직임 줄이기' js.bin)"
+          L=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "https://mutniujeiyujhkobadkd.supabase.co/auth/v1/authorize?provider=google&redirect_to=$BASE/auth/callback")
+          echo "Google authorize: HTTP ${L%% *} · host=$(echo "${L#* }" | cut -d/ -f3) · $(echo "${L#* }" | grep -o 'redirect_uri=[^&]*')"
+
+      - name: Chrome·WebKit 실제 렌더(/ · 로그인·쓰기 0)
+        working-directory: product/qa-real
+        run: |
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
+          node melba-render.mjs https://thriving-melba-b1449a.netlify.app
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
