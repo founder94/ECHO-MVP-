@@ -127,11 +127,17 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup'
         run: |
           set -euo pipefail
+          # B·C: doit-agent · doit-connect = PR #12 최신 승인본(4db82ff)과 글자까지 같아야 함
+          git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "4db82ff" ] || { echo "FAIL: PR #12 head 가 승인본(4db82ff)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 승인본과 다름"; exit 1; }
+          echo "OK: doit-agent · doit-connect = PR #12 4db82ff 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true
           [ "$(grep -c '^[<>]' /tmp/d.txt)" = "3" ] && grep -q 'readiness.phone_verified;$' /tmp/d.txt && grep -q '대표 「P0-1」' /tmp/d.txt || { echo "FAIL: 운영 v29 대비 승인 범위 밖 변경"; cat /tmp/d.txt | head -20; exit 1; }
           if grep -q 'v1\.1' "$C"; then echo "FAIL: 미승인 Agent v1.1 흔적"; exit 1; fi
+          [ "$(wc -l < "$C")" = "$(( $(wc -l < product/qa-deploy/prod-v29/doit-understanding.index.ts) + 1 ))" ] || { echo "FAIL: 줄 수가 운영 v29 + 1 이 아님(미배포 코드 혼입 의심)"; exit 1; }
           echo "OK: 운영 v29 대비 변경 = 승인 1줄(전화 인증 조건 제거 + 주석) · v1.1 흔적 0"
           mkdir -p stage/supabase/functions
           cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
