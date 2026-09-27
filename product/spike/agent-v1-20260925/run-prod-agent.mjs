@@ -172,7 +172,10 @@ export function questionActH(sentence) {
   if (/궁금(해|해요|합니다)$/.test(e)) return QH_WH.test(e) || /(는지|은지|인지|을지)/.test(e);
   return /(세요|어|아|야|해|돼|요|있어|편해|좋아)$/.test(e) && QH_WH.test(e);
 }
-const qActsH = (t) => String(t ?? '').split(/(?<=[.!~…?？])\s+/).filter(questionActH).length;
+// v3.7 MS-10(run 37 OpenAI): 받아주기가 사용자 말을 따옴표로 인용하면(「말씀하신 "내가 언제 그렇게 말했어."를 …」) 인용 안의 물음 낱말이 ECHO 의 질문으로 세어졌다(측정기 오탐).
+// 질문 행위는 ECHO 자신의 문장만 센다 — 따옴표 안(" " ' ' 「 」 『 』 “ ” ‘ ’)은 빼고 센다. 제품 서버는 바꾸지 않는다.
+export const stripQuotedH = (t) => String(t ?? '').replace(/"[^"]*"|'[^']*'|「[^」]*」|『[^』]*』|“[^”]*”|‘[^’]*’/g, ' ');
+export const qActsH = (t) => stripQuotedH(t).split(/(?<=[.!~…?？])\s+/).filter(questionActH).length;
 const PAUSE_H = /질문.{0,8}(너무|넘|진짜|좀)\s*많(아|네|다|아요|네요)?\s*[.!~]*$|그만\s*(물어|묻|할래|하자)|여기까지|할\s*말\s*(이|은)?\s*없|나중에\s*(할래|하자)|다른\s*(거|것)\s*(볼래|할래)/;
 const MANY_H = /질문.{0,8}(많|길)/;
 // 소개 뒤집힘: 나를 「… 사람/편입니다」로 설명(바람 낱말 없음)하는데, 근거 말이 바라는 상대(…사람 · …사람이 좋아)인 문장.

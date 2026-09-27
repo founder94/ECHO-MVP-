@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 process.env.OPENAI_API_KEY = '';
-const { stats, questionActH } = await import('./run-prod-agent.mjs');
+const { stats, questionActH, qActsH } = await import('./run-prod-agent.mjs');
 const A = await import('./candidates/agent-v3.2.ts');
 const row = (o) => ({ i: 1, text: '', expect: 'answer', kind: 'answer', saved: false, extracted: [], reply: null, ack: null, question: null, qtype: null, qpurpose: null, finish: false, after: false, recovered: [], hint: null, error: null, retry: [], calls: [], total_ms: 0, core_before: 0, core_after: 0, confirmed_before: [], confirmed_after: [], prev_qtext: null, prev_qpurpose: null, intro_status: null, ...o });
 const run = (flow, rows, extra = {}) => ({ flow, tone: 'polite', rows, profile: A.matchingProfile(A.newState({ tone: 'polite' })), core: 4, clarify: 0, phase: 'done', intro: { status: 'ready', lines: [] }, items: [], seed: null, handoff: null, ...extra });
@@ -72,4 +72,12 @@ test('⑦ 소개 뒤집힘: 바라는 상대 → 「저는 그런 사람」만 �
     { text: '저는 먼저 다가가는 편이에요.', basis: '나는 오히려 먼저 다가가는 편이야' },
   ] } });
   assert.equal(stats(A, [r]).role_reversal_in_intro, 2);
+});
+
+test('v3.7 MS-10 측정기: 따옴표로 인용한 사용자 말 안의 물음 낱말은 ECHO 질문으로 세지 않는다 · 진짜 두 질문은 그대로 셈', () => {
+  assert.equal(qActsH('말씀하신 "내가 언제 그렇게 말했어."를 기억하고 바로잡을게요.'), 0, 'run 37 OpenAI 258행(오탐)');
+  assert.equal(qActsH('「언제 만나?」라고 하셨죠. 알겠어요.'), 0);
+  assert.equal(qActsH('언제가 편하세요?'), 1, '따옴표 밖 질문은 그대로');
+  const rows = [row({ ack: '말씀하신 "내가 언제 그렇게 말했어."를 기억하고 바로잡을게요.', reply: '말씀하신 "내가 언제 그렇게 말했어."를 기억하고 바로잡을게요.', question: '가장 효과적이었던 건 뭐였나요?' }), row({ ack: '주말이 편하세요?', reply: '주말이 편하세요?', question: '어떤 사람이 좋아요?' })];
+  assert.equal(stats(A, [run('F1', rows)]).double_question_turns, 1, '진짜 두 질문 1 · 인용 오탐 0');
 });

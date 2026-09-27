@@ -1093,7 +1093,9 @@
         "run 36275765789"
       ],
       "fix_v36": "v3.6 speakProblem label_copy(완화 검사): 질문이 내부 목적 이름 앞 10글자를 담았고 사용자가 그 표현을 직접 쓰지 않았으면 1회 재요청 → 그래도면 그대로(끝맺음 쏠림은 v3.5 계약 그대로 · 문턱 변경 0)",
-      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: label_copy_questions OpenAI 15 → 2 · Claude 3 → 0(H 문턱 ≤5 통과) · ending_dominated_runs 는 여전히 OpenAI 11 · Claude 8(문턱 ≤4 실패)"
+      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: label_copy_questions OpenAI 15 → 2 · Claude 3 → 0(H 문턱 ≤5 통과) · ending_dominated_runs 는 여전히 OpenAI 11 · Claude 8(문턱 ≤4 실패)",
+      "fix_v37": "v3.7 H: endingCrowded — 이번 받아주기를 더하면 이 대화 받아주기의 절반 이상이 「~군요·~구나」가 될 때(앞에 1개 이상 · 사용자가 먼저 그 말투면 제외) 최대 1회 재요청 · styleNote 로 말하기 입력에 쏠림 알림 · 말투 계약에 「받아주기 없이 바로 물어도 됨」 · 서버 문장 0",
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
     },
     {
       "id": "PR-02",
@@ -1131,7 +1133,9 @@
       "expected_behavior": "정정한 값은 받고, 그 값을 다시 캐묻지 않는다",
       "linked_engine": "ACK_CORRECTION",
       "reproduction_test": "F5 polite 6",
-      "cause_class": "SERVER(검사 빈틈) · 드러낸 것 MODEL"
+      "cause_class": "SERVER(검사 빈틈) · 드러낸 것 MODEL",
+      "fix_v37": "v3.7 speakProblem = 치명 검사(hardProblem) 먼저 → 문제 없을 때만 완화 검사(softProblem). run 37 원인: 「~군요」 쏠림(완화)이 먼저 걸려 두 번째 시도가 「그대로 두기」로 통과하며 정정 되묻기 검사를 건너뜀(reaskAfterCorrection 자체는 그 질문을 잡음)",
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
     },
     {
       "occurred_at": "2026-09-27",
@@ -1150,7 +1154,9 @@
       "expected_behavior": "지금 묻던 ECHO 질문을 그대로 알려 준다",
       "linked_engine": "ANSWER_USER",
       "reproduction_test": "CEO_META casual 2",
-      "cause_class": "MODEL(Claude) · SERVER 검출 후보"
+      "cause_class": "MODEL(Claude) · SERVER 검출 후보",
+      "fix_v37": "v3.7 speakerSwap: 「내가/제가 물었던 건·했던 말은」 뒤 내용이 사용자가 한 말이고 ECHO 가 실제로 한 질문(asked)이 아니면 speaker(치명) → 다시 청함 · 사용자 말을 사용자 말로 짚는 공감 · ECHO 질문 인용은 그대로",
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
     },
     {
       "occurred_at": "2026-09-27",
@@ -1169,7 +1175,9 @@
       "expected_behavior": "불만을 짧게 인정하고 사용자가 앞서 실제로 한 말을 짚는다",
       "linked_engine": "REPAIR",
       "reproduction_test": "run 37 openai 258행",
-      "cause_class": "MODEL(OpenAI) · 지표 경계(인용 속 물음 낱말)"
+      "cause_class": "METRIC(측정기 오탐 · 인용 속 물음 낱말) · 제품 결함 아님",
+      "fix_v37": "판정: 측정기 오탐(실제 출력의 받아주기는 약속 문장 하나 · 따옴표 안 사용자 말의 「언제」가 질문으로 세어짐). 제품 서버 변경 0 · run-prod-agent.mjs qActsH 가 따옴표 안을 빼고 셈(metrics-v32.test.mjs 검사 추가) · run 37 OpenAI 재계산 double_question_turns 1 → 0(참고 · run 37 판정은 동결 그대로)",
+      "retest_v37": "로컬: metrics-v32.test.mjs 7/7 · spike 652/652"
     }
   ],
   "ux_research": {

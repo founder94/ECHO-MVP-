@@ -54,7 +54,7 @@ jobs:
         working-directory: product
         env:
           NODE_PATH: /tmp/tools/node_modules
-          ECHO_AGENT_FILE: ./candidates/agent-v3.6.ts
+          ECHO_AGENT_FILE: ./candidates/agent-v3.7.ts
         run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
       - name: Claude smoke(목록 1회 + 생성 1회)
         if: ${{ inputs.mode != 'compare43' && inputs.providers == '' }}
