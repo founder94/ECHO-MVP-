@@ -43,6 +43,16 @@ function retractedNotes(profile: unknown): string[] {
   return PURPOSE_IDS.flatMap((id) => { const slot = obj(p[id]); return (Array.isArray(slot?.history) ? slot!.history as unknown[] : []).map(obj).filter((o): o is Obj => !!o && o.status === "RETRACTED").map((o) => clean(o.note)).filter(Boolean); });
 }
 
+// ③ 같은 출처 밀림(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 값(history 의 SUPERSEDED)과 같은 사용자 말(source_turn)의 같은 원문(quote)에서 나온
+//    다른 칸의 값은 아직 CONFIRMED 로 남아 있어도 쓰지 않는다(v2.2.2 이전에 저장된 상태의 안전망). 근거는 출처(턴·원문)뿐 — 뜻 유사도는 쓰지 않는다.
+const bareQuote = (t: string) => squashT(t).replace(/[.,!?~…·"'「」]/g, "");
+function supersededSources(profile: unknown): { turn: number; quote: string }[] {
+  const p = obj(profile); if (!p) return [];
+  return PURPOSE_IDS.flatMap((id) => { const slot = obj(p[id]); return (Array.isArray(slot?.history) ? slot!.history as unknown[] : []).map(obj)
+    .filter((o): o is Obj => !!o && o.status === "SUPERSEDED" && typeof o.source_turn === "number" && typeof o.quote === "string" && !!bareQuote(o.quote as string))
+    .map((o) => ({ turn: o.source_turn as number, quote: bareQuote(o.quote as string) })); });
+}
+
 /** 틀린 모양의 줄은 버린다(slot 은 객체 · items 는 배열 · 각 항목은 객체). 모양만 거르고 판정은 signals() 가 한다. */
 function shapeProfile(profile: unknown): MatchingProfileLike | null {
   const p = obj(profile); if (!p) return null;
@@ -65,7 +75,9 @@ export function sourceFromProfile(profile: unknown, phase: unknown, sessionAt: s
   const lastCorrected = new Map<string, number>(); // ① 칸마다 가장 최근 사용자 정정 턴
   for (const i of all) if (i.source_type === "USER_CORRECTED" && typeof i.source_turn === "number") lastCorrected.set(i.purpose, Math.max(lastCorrected.get(i.purpose) ?? -1, i.source_turn));
   const rejected = retractedNotes(profile); // ②
+  const gone = supersededSources(profile); // ③
   const usable = all.filter((i) => {
+    if (typeof i.source_turn === "number" && gone.some((g) => g.turn === i.source_turn && g.quote === bareQuote(i.quote ?? ""))) return false;
     const lc = lastCorrected.get(i.purpose);
     if (lc !== undefined && typeof i.source_turn === "number" && i.source_turn < lc) return false;
     if (i.source_type === "AI_EXTRACTED" && rejected.some((r) => sameMeaning(r, i.note))) return false;

@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.2.1"; // v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.2.2"; // v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -256,6 +256,9 @@ function asUiCorrection(out: Parsed, text: string, ui: { purpose: string | null 
   return { ...out, kind: "correction", extracted };
 }
 const squash = (t: unknown) => String(t ?? "").normalize("NFKC").replace(/\s+/g, "");
+// 같은 출처 = 같은 사용자 말(turn)에서 같은 원문(quote · 띄어쓰기·문장부호 차이만 무시)을 근거로 저장된 값.
+const bareQuote = (t: unknown) => squash(t).replace(/[.,!?~…·"'「」]/g, "");
+export const sameSource = (a: Pick<Item, "turn" | "quote">, b: Pick<Item, "turn" | "quote">) => a.turn === b.turn && !!bareQuote(a.quote) && bareQuote(a.quote) === bareQuote(b.quote);
 export function parseJson(raw: unknown): Json | null {
   if (raw && typeof raw === "object") return raw as Json;
   const t = String(raw ?? "").trim();
@@ -364,7 +367,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     }
   }
   if (out.kind === "correction" || out.kind === "repair") {
-    if (out.kind === "correction") st.corrections.push(text);
+    if (out.kind === "correction" && st.corrections[st.corrections.length - 1] !== text) st.corrections.push(text); // 같은 정정 재전송은 한 번만
     if (st.current?.text) st.disputed.push(st.current.text);
     for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (wrongHits(i, w, text, turn.n) && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); }
     // v2.0 정정 엔진: 정정(correction)으로 이번 말에서 새 뜻을 받은 목적은, 그 목적의 옛 뜻을 거둔다(최신 사용자 말 우선 · 원문 turns 는 지우지 않는다).
@@ -373,6 +376,13 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
       for (const k of kept.filter((x) => x.turn === turn.n)) {
         const fresh = st.slots[k.purpose].items.find((i) => i.turn === turn.n && i.note === k.note && i.status === "CONFIRMED");
         for (const i of st.slots[k.purpose].items) if (i.status === "CONFIRMED" && i.turn < turn.n) { i.status = "SUPERSEDED"; i.superseded_at = now(); if (fresh) fresh.corrected_from = [...(fresh.corrected_from ?? []), i.note]; n++; }
+        // v2.2.2 같은 출처 연결(cross-slot): 방금 밀린 옛 값과 같은 사용자 말(같은 turn)의 같은 원문(quote)에서 나온 다른 칸의 값도 함께 밀린다.
+        // 근거는 서버가 가진 출처(turn · quote)뿐 — 뜻이 비슷하다는 판단(유사도·모델)은 쓰지 않는다. 원문이 다르거나 턴이 다르면 사용자 사실로 보존.
+        const gone = st.slots[k.purpose].items.filter((i) => i.status === "SUPERSEDED" && i.turn < turn.n);
+        for (const id of PIDS) if (id !== k.purpose) for (const j of st.slots[id].items) {
+          if (j.status !== "CONFIRMED" || j.turn >= turn.n || !gone.some((g) => sameSource(g, j))) continue;
+          j.status = "SUPERSEDED"; j.superseded_at = now(); if (fresh) fresh.corrected_from = [...(fresh.corrected_from ?? []), j.note]; n++;
+        }
       }
       if (n) turn.superseded = n;
     }
