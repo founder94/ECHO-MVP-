@@ -124,6 +124,7 @@ jobs:
           sparse-checkout: |
             product/qa-real/rc-render.mjs
             product/qa-real/wk-diag.mjs
+            product/qa-real/brand-render.mjs
             product/qa-real/spa-serve.mjs
             product/qa-deploy/qa-pwa-label.mjs
       - uses: actions/checkout@v4
@@ -148,14 +149,14 @@ jobs:
           (node spa-serve.mjs "$GITHUB_WORKSPACE/dist" 8770 &) ; sleep 1
           npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
           node rc-render.mjs http://localhost:8770 || true
-      - name: WebKit 진단(기준 3f5f0d4 빌드와 같은 방식 비교 · 읽기 전용)
+      - name: BRAND QA 빌드 + Chrome·WebKit 확인(같은 commit · 읽기 전용)
         working-directory: rc/product
         run: |
           set -e
-          true
-          BASE_SHA=
-          if [ -n "$BASE_SHA" ]; then git checkout -q "$BASE_SHA"; VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_BRAND_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../../dist-base --emptyOutDir > ../../build-base.log 2>&1; echo "base $BASE_SHA index sha16=$(sha256sum ../../dist-base/index.html | cut -c1-16)"; (node ../../qa/product/qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-base" 8771 &); sleep 1; fi
-          cd ../../qa/product/qa-real && node wk-diag.mjs http://localhost:8770
+          VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=brand npx vite build --outDir ../../dist-brand --emptyOutDir > ../../build-brand.log 2>&1
+          echo "BRAND $RC_SHA · index sha16=$(sha256sum ../../dist-brand/index.html | cut -c1-16) · files=$(find ../../dist-brand -type f | wc -l) · maps=$(find ../../dist-brand -name '*.map' | wc -l)"
+          (node ../../qa/product/qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-brand" 8773 &) ; sleep 1
+          cd ../../qa/product/qa-real && node brand-render.mjs http://localhost:8773
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
