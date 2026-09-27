@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GOOGLE_LOGIN_ENABLED } from '@/lib/authProviders';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeReturnPath } from '@/lib/auth/returnPath';
@@ -236,25 +237,27 @@ export default function Signup() {
                 )}
               </button>
 
-              {/* Google */}
-              <button
-                type="button"
-                onClick={handleGoogle}
-                disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
-                className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {googleStatus === 'google' ? (
-                  <>
-                    <i className="ri-loader-4-line animate-spin" />
-                    Google로 이동 중...
-                  </>
-                ) : (
-                  <>
-                    <i className="ri-google-fill" />
-                    Google로 계속하기
-                  </>
-                )}
-              </button>
+              {/* Google · 제공자가 꺼진 환경(QA)에서는 숨김 */}
+              {GOOGLE_LOGIN_ENABLED && (
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
+                  className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {googleStatus === 'google' ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin" />
+                      Google로 이동 중...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-google-fill" />
+                      Google로 계속하기
+                    </>
+                  )}
+                </button>
+              )}
 
               {/* Login link */}
               <p className="text-center text-xs text-foreground-500 pt-2">

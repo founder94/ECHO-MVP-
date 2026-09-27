@@ -17,6 +17,9 @@ export const MODE_SELECT_PATH = '/start';
 // 로그인 복귀 기본값은 이 소개 주소를 유지해 온보딩을 반복하지 않는다.
 // B 홈(마음의 날씨)은 메인 진입에서 내린다. 화면 파일은 지우지 않고 연결만 끊는다.
 export const MAIN_ENTRY_PATH = '/do-it/landing';
+// 2026-09-27 대표 「COMPANY STRUCTURE」: 설치 앱(PWA)은 제품이다. manifest start_url 은 인트로 뒤 제품 입구로 간다(브랜드 홈 경유 0).
+// 제품 입구 = 히어로 「ECHO 시작하기」가 가던 기존 주소(새 주소 0). 인트로는 ?next=app 일 때만 여기로 보낸다.
+export const PRODUCT_ENTRY_PATH = '/doit/start-journey';
 
 export const ECHO_BRAND_SENTENCE = '오늘 내 마음의 날씨는 어때?';
 export const DOIT_BRAND_SENTENCE = '당신이 잠든 사이에';

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import DoItIntroFrame from '@/components/DoItIntroFrame';
 import IntroUniverse, { type SymbolStatus } from '@/components/IntroUniverse';
-import { MAIN_ENTRY_PATH } from '@/lib/echo/appMode';
+import { MAIN_ENTRY_PATH, PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
 
 // 다음 화면(/do-it/landing)의 첫 배경을 미리 읽는다. 이미지 로드가 늦어도 온보딩 진행은 막지 않는다.
@@ -53,6 +53,8 @@ export default function DoItIntroPage() {
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const [checkMode] = useState(() => search.get('check') === '1');
+  // 설치 앱(PWA) 시작(manifest start_url = /do-it/intro?next=app): 인트로 뒤 제품 입구로. 다른 값은 무시(임의 주소 이동 0).
+  const [toProduct] = useState(() => search.get('next') === 'app');
   const [symbolStatus, setSymbolStatus] = useState<SymbolStatus | null>(null);
   const [finalCheck, setFinalCheck] = useState<{ imgShown: boolean; reveal: 'canvas' | 'img' } | null>(null);
   const [progress, setProgress] = useState(1); // 1~100 부동소수 (숫자·픽셀 공용)
@@ -187,7 +189,7 @@ export default function DoItIntroPage() {
       if (dt >= navAt) {
         navigatedRef.current = true;
         markIntroSeen();
-        navigate(MAIN_ENTRY_PATH, { replace: true });
+        navigate(toProduct ? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, { replace: true });
         return;
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -198,7 +200,7 @@ export default function DoItIntroPage() {
       document.removeEventListener('visibilitychange', onVisibility);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [reducedMotion, navigate, checkMode]);
+  }, [reducedMotion, navigate, checkMode, toProduct]);
 
   // 3D 연출(별 워프·점으로 모이는 심볼·기울기·빛 번짐)은 동작 줄이기 설정이 아닐 때만 그린다.
   const frame = <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} symbolReady={symbolReady} scene={reducedMotion === false ? <IntroUniverse progress={progress} leaving={leaving} onSymbolReady={handleSymbolReady} onSymbolStatus={setSymbolStatus} /> : null} />;
