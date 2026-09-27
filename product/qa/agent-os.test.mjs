@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.2.1');
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.2.2');
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
