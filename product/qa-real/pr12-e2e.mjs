@@ -12,7 +12,8 @@ const ts = require('typescript');
 const REAL = !!process.env.OPENAI_API_KEY;
 const OUT = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null;
 const RID = [1, 2, 3, 4, 5].map((k) => `30000000-0000-4000-8000-0000000000c${k}`);
-const REJECT_CASES = ['주말엔 보통 집에 있어요', '사람 많은 데는 좀 그래요', '연락이 너무 잦으면 좀 그래요', '말 잘 통하는 사람이 편하더라고요', '처음엔 좀 낯을 가려요'];
+// 지금 질문(대개 「사람을 볼 때」)과 다른 주제의 답 → AI 가 다른 칸으로 정리(AI_EXTRACTED)할 가능성이 높다(실제 A 흐름에서 확인된 모양).
+const REJECT_CASES = ['연락은 자주 하는 편이 좋아요', '약속 시간에 늦는 사람은 별로예요', '처음엔 카페에서 가볍게 보는 게 좋아요', '주말엔 보통 집에 있어요', '사람 많은 데는 좀 그래요'];
 const ID = { admin: '00000000-0000-4000-8000-000000000001', a: '10000000-0000-4000-8000-00000000000a', b: '20000000-0000-4000-8000-00000000000b' };
 const CONSENT = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: '2026-09-27T00:00:00Z' };
 let seq = 0; const rid = () => `${String(++seq).padStart(8, '0')}-0000-4000-8000-${String(seq).padStart(12, '0')}`;
@@ -100,7 +101,7 @@ const cannedTurn = (input) => {
   if (/사람 많은/.test(t)) ex.push({ purpose: 'boundaries', note: '사람 많은 곳을 싫어함', quote: '사람 많은 데는 좀 그래요' });
   if (/천천히/.test(t)) ex.push({ purpose: 'values_character', note: '천천히 알아가기', quote: '천천히 알아가고 싶어요' });
   const kind = /그런 뜻 아니/.test(t) ? 'repair' : /여기까지/.test(t) ? 'stop' : 'answer';
-  return { kind, understood: '', reply: '그렇군요.', extracted: kind === 'answer' ? ex : [], inferred: [{ trait: '외향적인 편', basis: '카페' }], declared: null, wrong: kind === 'repair' ? ['조용한 카페에서 이야기하는 걸 좋아함', '사람 많은 곳을 싫어함'] : [], next: { type: 'core', purpose: 'values_character', question: `사람을 볼 때 뭘 먼저 봐요 ${seq}?` } };
+  return { kind, understood: '', reply: '그렇군요.', extracted: kind === 'answer' ? ex : [], inferred: [{ trait: '외향적인 편', basis: '카페' }], declared: null, wrong: [], next: { type: 'core', purpose: 'values_character', question: `사람을 볼 때 뭘 먼저 봐요 ${seq}?` } };
 };
 async function canned(url, init) {
   const body = JSON.parse(init.body); const sys = body.messages[0].content; const input = (() => { try { return JSON.parse(body.messages[1].content); } catch { return {}; } })();
@@ -164,7 +165,7 @@ async function run() {
   await say(ID.a, sidA, '아니 그런 뜻 아니야');
   await say(ID.a, sidA, '오늘은 여기까지 할게요');
   const stA1 = sessionOf(ID.a).state;
-  const oldDaily = live(stA1, 'relationship_style').map((i) => ({ note: i.note, quote: i.quote, turn: i.turn }));
+  const oldDaily = stA1.slots.relationship_style.items.filter((i) => /매일/.test(i.quote) && !/부담/.test(i.quote)).map((i) => ({ note: i.note, quote: i.quote, turn: i.turn, status_before_fix: i.status }));
   const fix = await say(ID.a, sidA, '매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요', { correction: { purpose: 'relationship_style' } });
   const A = sessionOf(ID.a);
 
@@ -180,7 +181,7 @@ async function run() {
   const styleNow = live(A.state, 'relationship_style');
   check('정정: 화면 정정이 정정으로 확정', fix.body.turn?.kind === 'correction', `kind=${fix.body.turn?.kind}`);
   check('정정: A 최신 값 = 주말(B)', styleNow.length >= 1 && styleNow.every((i) => /주말/.test(i.note + i.quote)), JSON.stringify(styleNow.map((i) => i.note)));
-  check('정정: 옛 값(매일)이 지금 값에서 빠짐(SUPERSEDED)', oldDaily.every((o) => A.state.slots.relationship_style.items.some((i) => i.turn === o.turn && i.note === o.note && i.status === 'SUPERSEDED')), JSON.stringify({ old: oldDaily, now: A.state.slots.relationship_style.items.map((i) => [i.note, i.status]) }));
+  check('정정: 옛 값(매일)이 지금 값에서 빠짐(SUPERSEDED 또는 앞서 거둠 RETRACTED)', oldDaily.length > 0 && oldDaily.every((o) => A.state.slots.relationship_style.items.some((i) => i.turn === o.turn && i.note === o.note && i.status !== 'CONFIRMED')), JSON.stringify({ old: oldDaily, now: A.state.slots.relationship_style.items.map((i) => [i.note, i.status]) }));
   const rejected = A.profile?.rejected_meanings ?? [];
   const retracted = Object.values(A.state.slots).flatMap((s) => s.items.filter((i) => i.status === 'RETRACTED').map((i) => i.note));
   const allLive = Object.values(A.state.slots).flatMap((s) => s.items.filter((i) => i.status === 'CONFIRMED').map((i) => i.note));
@@ -193,6 +194,11 @@ async function run() {
   const oldSrc = oldDaily.map((o) => ({ turn: o.turn, q: bq(o.quote) }));
   const crossCopies = Object.entries(stA1.slots).flatMap(([id, s]) => s.items.filter((i) => id !== 'relationship_style' && oldSrc.some((o) => o.turn === i.turn && o.q === bq(i.quote))).map((i) => ({ id, note: i.note, turn: i.turn })));
   const crossNow = crossCopies.map((c) => ({ ...c, status: A.state.slots[c.id].items.find((i) => i.turn === c.turn && i.note === c.note)?.status }));
+  // A 흐름의 거절도 전제 검사로 판정: 거절 직전 턴의 AI 정리가 서버에 있었는가 → 거둬졌는가
+  const rejTurnA = beforeReject.turns.length + 1;
+  const preA = Object.entries(beforeReject.slots).flatMap(([id, s]) => s.items.filter((i) => i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED' && i.turn === rejTurnA - 1).map((i) => ({ id, note: i.note, turn: i.turn })));
+  xslot.a_rejection = { precondition: preA.length > 0, interpretation: preA, after_reject: preA.map((a) => ({ ...a, status: stA1.slots[a.id].items.find((i) => i.turn === a.turn && i.note === a.note)?.status })) };
+  check('거절 A: 전제(거절할 AI 해석 저장) 성립 → 거둠(RETRACTED)', preA.length ? xslot.a_rejection.after_reject.every((a) => a.status === 'RETRACTED') : null, JSON.stringify(xslot.a_rejection));
   xslot.precondition = crossCopies.length > 0; xslot.copies = crossNow;
   check('다른 칸 정정: 같은 출처 옛 값이 다른 칸에 지금 값으로 남지 않음' + (crossCopies.length ? '' : ' [전제 없음 · 이번 실행은 다른 칸 복제가 생기지 않음]'), crossNow.every((c) => c.status === 'SUPERSEDED'), JSON.stringify(crossNow));
   const srcA = AS.sourceFromProfile(A.profile, A.phase ?? A.state.phase, null);
