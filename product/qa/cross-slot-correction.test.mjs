@@ -155,3 +155,46 @@ test('R 거절 검사 전제: 거절할 해석이 저장돼 있지 않으면 「
   const pre = A.PURPOSES.flatMap((p) => st.slots[p.id].items.filter((i) => i.source_type === 'AI_EXTRACTED'));
   assert.equal(pre.length, 0, '이 모양이면 거절 검사는 TEST INVALID(PASS 아님)');
 });
+
+// 실제 AI 확인(Actions run 36296551186 · R3): 「아니, 그런 뜻 아니야」에 모델은 repair 로 읽었지만 틀린 뜻(wrong)을 짚지 않아 해석이 남았다 — 같은 모양을 대본으로 재현.
+function shown() {
+  const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st);
+  A.applyTurn(st, '친구처럼 편한 만남이요', T({ extracted: [X('relationship_intent', '친구 같은 만남', '친구처럼 편한 만남')] }));
+  at(st, 'values_character');
+  A.applyTurn(st, '연락이 너무 잦으면 좀 그래요', T({ extracted: [X('relationship_style', '연락이 너무 잦은 것은 선호하지 않음', '연락이 너무 잦으면 좀 그래요')] }));
+  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'CONFIRMED', '전제: 거절할 AI 해석이 서버 상태에 있다');
+  return st;
+}
+
+test('R1 맨 거절: 바로 앞 말의 AI 해석만 거둔다 · 사용자 원문(USER_DIRECT)과 앞선 사실은 그대로', () => {
+  const st = shown();
+  A.applyTurn(st, '아니, 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
+  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'RETRACTED');
+  assert.equal(status(st, 'values_character', '연락이 너무 잦으면 좀 그래요'), 'CONFIRMED', '사용자가 직접 친 말은 모델 판단으로 지우지 않음');
+  assert.equal(status(st, 'relationship_intent', '친구 같은 만남'), 'CONFIRMED', '앞선 다른 턴의 사실 보존');
+  st.phase = 'done';
+  const s = src(st);
+  assert.ok(!s.confirmed.includes('연락이 너무 잦은 것은 선호하지 않음'), JSON.stringify(s.confirmed));
+  assert.ok(A.matchingProfile(st).rejected_meanings.includes('연락이 너무 잦은 것은 선호하지 않음'));
+});
+
+test('R2 「아니요」 한 마디(질문에 대한 답일 수 있음)는 맨 거절 규칙을 쓰지 않는다', () => {
+  const st = shown();
+  A.applyTurn(st, '아니요', T({ kind: 'repair', wrong: [] }));
+  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'CONFIRMED');
+});
+
+test('R3 거절하며 새로 설명하면(새 정보 있음) 맨 거절 규칙 대신 정정 규칙', () => {
+  const st = shown();
+  A.applyTurn(st, '그런 뜻 아니야 하루 한 번은 좋아요', T({ kind: 'correction', extracted: [X('relationship_style', '하루 한 번 연락은 좋음', '하루 한 번은 좋아요')] }));
+  assert.equal(status(st, 'relationship_style', '하루 한 번 연락은 좋음'), 'CONFIRMED');
+  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'SUPERSEDED');
+});
+
+test('R4 모델이 틀린 뜻을 짚으면 기존 규칙(짚은 것만) · 앞 말의 다른 해석은 그대로', () => {
+  const st = shown();
+  A.applyTurn(st, '편한 대화 좋아해요', T({ extracted: [X('attraction_comfort', '대화가 편한 사람', '편한 대화 좋아해요'), X('values_character', '말수가 많은 사람', '편한 대화 좋아해요')] }));
+  A.applyTurn(st, '아니, 그런 뜻 아니야', T({ kind: 'repair', wrong: ['말수가 많은 사람'] }));
+  assert.equal(status(st, 'values_character', '말수가 많은 사람'), 'RETRACTED');
+  assert.equal(status(st, 'attraction_comfort', '대화가 편한 사람'), 'CONFIRMED');
+});
