@@ -467,6 +467,17 @@ class AiTimeout extends Error {
 
 interface Rejected { text: string; keys: string[] }
 
+// 거절 행에서 "버린 뜻"으로 막을 글. 2026-09-26 P0: 옛 흐름(get-step-question 「그게 아니에요」)이
+//   사용자 정정을 self/rejected 로, 틀린 AI 해석을 ai_text 에 저장했다(코드 서명: self · rejected · ai_text 있음 · text ≠ ai_text).
+//   그런 행은 사용자 말(text)을 막지 않고 AI 해석(ai_text)만 막는다. DB 는 고치지 않는다(읽을 때만 바르게 해석).
+function rejectedMeaningTexts(row: { status?: unknown; origin?: unknown; text?: unknown; ai_text?: unknown }): string[] {
+  if (row.status !== "rejected") return [];
+  const text = typeof row.text === "string" ? row.text.trim() : "";
+  const aiText = typeof row.ai_text === "string" ? row.ai_text.trim() : "";
+  if (row.origin === "self" && aiText && text !== aiText) return [aiText];
+  return [text, aiText].filter((t, i, all) => !!t && all.indexOf(t) === i);
+}
+
 function blockedByOverlap(candidateText: string, candidateKeys: string[], rejected: Rejected[]): boolean {
   for (const r of rejected) {
     if (looksSame(candidateText, r.text, LIMITS.REJECT_SIM, LIMITS.REJECT_OVERLAP)) return true;
@@ -942,10 +953,7 @@ function followupEvidence(context: FollowupContext): { recordText: string; confi
       if (prior && prior !== text && !superseded.includes(prior)) superseded.push(prior);
     }
     if (row.status === "rejected") {
-      for (const value of [text, row.ai_text]) {
-        const t = typeof value === "string" ? value.trim() : "";
-        if (t && !rejected.some((r) => r.text === t)) rejected.push({ text: t, keys: cleanKeys([t]) });
-      }
+      for (const t of rejectedMeaningTexts(row)) if (!rejected.some((r) => r.text === t)) rejected.push({ text: t, keys: cleanKeys([t]) });
     } else if ((row.status === "corrected" || row.status === "confirmed") && text &&
       confirmed.length < BUDGET.CONFIRMED_MAX &&
       !confirmed.some((c) => looksSame(c.text, text, LIMITS.REPEAT_SIM, LIMITS.REPEAT_OVERLAP))) {
@@ -1538,7 +1546,7 @@ async function userMeanings(admin: Db, userId: string, since: string | null): Pr
   for (const row of data ?? []) {
     const text = String(row.text ?? "").trim();
     if (row.status === "rejected") {
-      for (const t of [text, String(row.ai_text ?? "").trim()]) if (t && !rejected.some((r) => r.text === t)) rejected.push({ text: t, keys: cleanKeys([t]) });
+      for (const t of rejectedMeaningTexts(row)) if (!rejected.some((r) => r.text === t)) rejected.push({ text: t, keys: cleanKeys([t]) });
     } else if (row.status === "corrected") {
       const prior = String(row.ai_text ?? "").trim();
       if (prior && prior !== text && !superseded.includes(prior)) superseded.push(prior);
@@ -2499,7 +2507,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const since = roundStartOf(user);
       const [recordsRes, insightsRes, profileRes] = await Promise.all([
         sb.from("doit_records").select("text, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(LIMITS.DRAFT_RECORDS_MAX * 2),
-        sb.from("doit_insights").select("text, status, created_at").eq("user_id", userId).in("status", ["confirmed", "corrected", "rejected"]).order("updated_at", { ascending: false }).limit(BUDGET.CONFIRMED_MAX * 2),
+        sb.from("doit_insights").select("text, ai_text, status, origin, created_at").eq("user_id", userId).in("status", ["confirmed", "corrected", "rejected"]).order("updated_at", { ascending: false }).limit(BUDGET.CONFIRMED_MAX * 2),
         sb.from("profiles").select("purpose_label").eq("id", userId).maybeSingle(),
       ]);
       if (recordsRes.error || insightsRes.error) return fail(CODES.ERROR, "내 답을 불러오지 못했어요.", 500, origin);
@@ -2509,7 +2517,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .map((r) => String(r.text ?? "").trim()).filter((t) => t && !blockedContentReason(t) && informativeAnswer(t)).slice(0, LIMITS.DRAFT_RECORDS_MAX).map(clip); // v15.1 "모르겠어요"는 소개 재료가 아니다
       const insightRows = (insightsRes.data ?? []).filter((r) => inRound(typeof r.created_at === "string" ? r.created_at : undefined, since));
       const confirmed = insightRows.filter((r) => r.status !== "rejected").map((r) => String(r.text ?? "").trim()).filter(Boolean).slice(0, BUDGET.CONFIRMED_MAX);
-      const rejected: Rejected[] = insightRows.filter((r) => r.status === "rejected").map((r) => String(r.text ?? "").trim()).filter(Boolean).map((t) => ({ text: t, keys: cleanKeys([t]) }));
+      const rejectedTexts: string[] = insightRows.flatMap((r) => rejectedMeaningTexts(r));
+      const rejected: Rejected[] = rejectedTexts.filter((t, i) => rejectedTexts.indexOf(t) === i).map((t) => ({ text: t, keys: cleanKeys([t]) }));
       mergeRejected(rejected, await rejectedTurns(admin, userId)); // v15.1 대화 중 거절한 문장은 소개에도 쓰지 않는다
       const purposeLabel = typeof profileRes.data?.purpose_label === "string" ? profileRes.data.purpose_label.trim() : "";
       const sources = [...answers, ...confirmed, ...(purposeLabel ? [purposeLabel] : [])];

@@ -126,20 +126,21 @@ async function loadMemory(sb: Db, userId: string, excludeConversationId: string)
 
 // ⑤ 확인된 기억 저장: 이해 확인 4버튼의 결과를 사용자 소유로 남긴다(기존 doit_insights 테이블, 스키마 변경 없음).
 // 거절한 해석은 status='rejected' 로 남겨 다시 기억으로 불러오지 않는다. 저장 실패는 대화를 막지 않되 로그로 드러낸다.
+// 2026-09-26 P0: 「그게 아니에요」는 틀린 AI 해석만 버리고(ai/rejected) 사용자가 쓴 정정은 살린다(self/corrected).
+//   전에는 사용자 정정 자체가 self/rejected 로 저장돼 거절 목록에 들어갔다. 두 행은 insert 한 번이라 한쪽만 남지 않는다.
 async function saveConfirmedMemory(sb: Db, userId: string, choice: Choice, understanding: string, text: string): Promise<void> {
   const memoryText = (choice === "agree" ? understanding : text).trim().slice(0, LIMITS.UNDERSTANDING_MAX);
   if (!memoryText) return;
-  const status = choice === "agree" ? "confirmed" : choice === "no" ? "rejected" : "corrected";
-  const { error } = await sb.from("doit_insights").insert({
-    user_id: userId,
-    category: "memory",
-    text: memoryText,
-    ai_text: understanding.slice(0, LIMITS.UNDERSTANDING_MAX),
-    source_text: understanding.slice(0, LIMITS.UNDERSTANDING_MAX),
-    status,
-    origin: choice === "agree" ? "ai" : "self",
+  const aiText = understanding.slice(0, LIMITS.UNDERSTANDING_MAX);
+  const row = (rowText: string, status: string, origin: string) => ({
+    user_id: userId, category: "memory", text: rowText, ai_text: aiText, source_text: aiText, status, origin,
   });
-  if (error) console.error(`[gsq] memory_save_error choice=${choice} status=${status}`);
+  const status = choice === "agree" ? "confirmed" : "corrected";
+  const rows = choice === "no"
+    ? [row(aiText, "rejected", "ai"), row(memoryText, "corrected", "self")]
+    : [row(memoryText, status, choice === "agree" ? "ai" : "self")];
+  const { error } = await sb.from("doit_insights").insert(rows);
+  if (error) console.error(`[gsq] memory_save_error choice=${choice} rows=${rows.length}`);
 }
 
 function latestOpenUnderstanding(ctx: Context): string {

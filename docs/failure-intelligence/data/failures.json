@@ -4720,6 +4720,55 @@
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md",
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md"
    ]
+  },
+  {
+   "id": "GF-97",
+   "title": "사용자 거절/정정에서 AI 해석과 사용자 정정의 상태가 뒤집혀 사용자 정정이 rejected 로 저장됨",
+   "family": "F-STATUS",
+   "date": "2026-09-26(코드 추적으로 발견) · 해당 저장 경로 운영 기록 2026-09-17~09-20",
+   "origin": "CODE",
+   "origin_note": "코드 확인(get-step-question saveConfirmedMemory · 운영 v50 = 저장소 글자 단위 동일) + 운영 DB 읽기 전용 집계(원문 미조회): 코드 서명 일치 self/rejected 54행 · 사용자 2명",
+   "dataset": "AGENT_FAILURE",
+   "user_fact": false,
+   "situation": "옛 흐름 SCENE 3 이해 확인에서 「그게 아니에요」 + 정정 글 입력",
+   "user_text": "—(사용자 원문은 기록하지 않음)",
+   "ai_behavior": "서버가 사용자 정정 글을 self/rejected 로, 틀린 AI 해석은 ai_text 에만 저장 → doit-understanding 이 거절 행의 text·ai_text 를 모두 거절 목록에 넣어 사용자 자신의 말이 차단·거절 의미로 AI 에 전달됨 · 매칭 재료에서도 사용자 정정이 빠짐",
+   "expected": "틀린 AI 해석만 rejected(ai) · 사용자 정정은 corrected(self) 로 살아 있어야 함 · 사용자 최신 직접 발화가 AI 해석보다 우선",
+   "types": [
+    "정정무시",
+    "Context 오염"
+   ],
+   "layers": [
+    "Orchestration",
+    "Context"
+   ],
+   "layer_note": "저장 매핑이 선택지(no)를 사용자 글의 상태로 옮김(Orchestration) · 읽는 쪽이 거절 행을 통째로 차단(Context). 모델 몫 아님",
+   "cause_confidence": "CONFIRMED",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "reproduction": "코드 재현 ○ — qa/scene3-correction-storage.test.mjs 를 원래 코드로 돌리면 T3·T7·T8(get-step-question), T5·T9·T9 profile_draft(doit-understanding) 실패",
+   "solution_attempts": [],
+   "solution_candidates": "「그게 아니에요」 = insert 한 번에 AI 해석 ai/rejected + 사용자 정정 self/corrected · 읽을 때 과거 서명 행(self·rejected·ai_text 있음·text≠ai_text)은 ai_text 만 거절(DB UPDATE 0)",
+   "experiment": "2026-09-26 로컬 수정(get-step-question saveConfirmedMemory · doit-understanding rejectedMeaningTexts 3곳) · 운영 미배포",
+   "side_effects": "「맞아요」·「조금 달라요」·「직접 설명할게요」 저장 모양 변화 0(검사 T1·T4) · 저장 호출이 행 배열 1회로 바뀜",
+   "counter_test": "원래 코드에서 새 검사가 실패하는 것 확인(각 파일 따로 되돌려 봄)",
+   "real_ai": "해당 없음 — 저장·읽기 규칙 결함(AI 호출과 무관) · 실제 AI 검증 0",
+   "defense_level": "CANDIDATE",
+   "status": "UNRESOLVED",
+   "status_note": "로컬 수정·가짜 기준 검사 통과 · 운영 get-step-question v50 / doit-understanding 운영판은 아직 옛 코드 · 과거 54행은 그대로(읽기 보정은 doit-understanding 배포 뒤에만 운영에 적용)",
+   "golden_flows": [],
+   "refs": [
+    "product/qa/scene3-correction-storage.test.mjs",
+    "product/supabase/functions/get-step-question/index.ts",
+    "product/supabase/functions/doit-understanding/index.ts"
+   ],
+   "evidence_level": "ACTUAL",
+   "mock_result": "PASS 10/10 (가짜 AI·가짜 DB · qa/scene3-correction-storage.test.mjs)",
+   "user_result": "UNKNOWN"
   }
  ]
 }
