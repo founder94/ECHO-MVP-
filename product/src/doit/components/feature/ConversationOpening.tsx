@@ -83,6 +83,8 @@ export default function ConversationOpening({ userId, onDone }: Props) {
       {saveError && <p className="echo-error" role="alert">{saveError}</p>}
       <button type="submit" className="echo-primary" disabled={saving}>{saving ? '저장하고 있어요' : line.trim() ? '이 말로 시작하기' : '이렇게 시작하기'} {saving ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}</button>
     </form>}
+    {/* 2026-09-27 대표 「AI TRUST MICROCOPY」 승인 문구: 대화 시작 화면 한 번 · 작은 보조 글씨(경고 표시 0). */}
+    <p className="echo-fine">AI는 가끔 다르게 이해할 수 있어요. 틀리면 바로 고칠 수 있습니다.</p>
     <p className="echo-fine">고른 건 나만 봐요. 나중에 언제든 바꿀 수 있어요.</p>
   </section>;
 }
