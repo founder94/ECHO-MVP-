@@ -74,7 +74,13 @@ jobs:
       - name: QA 사이트 실제 응답(manifest · 아이콘 · index)
         run: |
           set -u
+          echo "== 운영 사이트가 어느 Supabase 를 가리키는지(읽기만)"
+          for P in https://app.do-it.company https://do-it.company; do
+            curl -sS "$P/" -o p.html; echo "$P index sha=$(sha256sum p.html | cut -c1-16)"; curl -sS "$P/manifest.webmanifest" | tr -d '\n' | cut -c1-120; echo
+            for js in $(grep -oE 'assets/[A-Za-z0-9_.-]+\.js' p.html | sort -u); do curl -sS "$P/$js" | grep -oE 'mutniujeiyujhkobadkd|zyyhhxyupizcqhxqnxuu|echo-qa-app-20260927' | sort | uniq -c | sed "s#^#  $js #"; done
+          done
           B=https://echo-qa-app-20260927.netlify.app
+          set +e
           echo "== index"; curl -sS -o index.html -w "HTTP %{http_code} %{content_type}\n" "$B/"; sha256sum index.html
           grep -oE '<link[^>]*rel="(icon|apple-touch-icon|manifest)"[^>]*>' index.html
           grep -oE '<meta name="apple-mobile-web-app-title"[^>]*>' index.html
