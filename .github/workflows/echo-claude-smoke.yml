@@ -62,6 +62,8 @@ jobs:
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
+    # QA 배포 자격증명은 GitHub Environment 「ECHO-QA」 안에만 둔다(저장소 전체 Secret 아님 · 다른 작업은 이 값을 못 읽음).
+    environment: ECHO-QA
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
@@ -118,7 +120,7 @@ jobs:
           set -euo pipefail
           supabase projects list -o json > /tmp/p.json
           jq -e --arg r "$QA_PROJECT_ID" 'map(select(.id == $r or .ref == $r)) | length == 1' /tmp/p.json > /dev/null || { echo "FAIL: 토큰으로 QA 프로젝트가 안 보임"; exit 1; }
-          echo "토큰이 볼 수 있는 프로젝트 수: $(jq 'length' /tmp/p.json) (1 이면 QA 전용 범위 · 2 이상이면 계정 전체 범위)"
+          echo "참고: 토큰으로 보이는 프로젝트 수 $(jq 'length' /tmp/p.json) (토큰 범위 판정 근거 아님 · 범위는 토큰을 만든 화면의 설정 기준)"
           rm -f /tmp/p.json
 
       - name: QA 함수 3개 배포
