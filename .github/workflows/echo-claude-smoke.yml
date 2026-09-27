@@ -75,19 +75,22 @@ jobs:
         with:
           sparse-checkout: |
             product/qa-real/melba-render.mjs
-            product/qa-real/results/qa-zip-3f5f0d4-melba.sha256
+            product/qa-real/results/qa-zip-4ba37ce-melba.sha256
       - name: 새 QA 주소 응답·해시 대조(주소당 1회 · 최소 요청)
         env:
           BASE: https://thriving-melba-b1449a.netlify.app
         working-directory: product/qa-real
         run: |
           set +e
-          EXP=results/qa-zip-3f5f0d4-melba.sha256
+          EXP=results/qa-zip-4ba37ce-melba.sha256
           code() { curl -sS -o "$2" --max-time 20 -w '%{http_code}' "$BASE$1"; }
-          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (3f5f0d4 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
+          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (4ba37ce 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
           JS=$(grep -o '/assets/index-[^"]*\.js' idx.html | head -1); CSS=$(grep -o '/assets/index-[^"]*\.css' idx.html | head -1)
           echo "main JS $JS : HTTP $(code "$JS" js.bin)"; echo "CSS $CSS : HTTP $(code "$CSS" css.bin)"
-          echo "manifest : HTTP $(code /manifest.webmanifest mf.json) · $(jq -c '{name,short_name,start_url,display,icons:[.icons[]|.src+" "+.purpose]}' mf.json 2>/dev/null)"
+          echo "manifest : HTTP $(code /manifest.webmanifest mf.json) · $(jq -c '{name,short_name,id,start_url,scope,display,icons:[.icons[]|.src+" "+.sizes+" "+.purpose]}' mf.json 2>/dev/null)"
+          echo "manifest 헤더: $(curl -sS -o /dev/null -D - "$BASE/manifest.webmanifest" | tr -d '\r' | grep -iE '^(content-type|cache-control|location):' | tr '\n' ' ')"
+          echo "manifest 링크: $(grep -o '<link rel="manifest"[^>]*>' idx.html) · 메인 JS 공통 메뉴=$(grep -c 'echo-corner-button' js.bin)"
+          echo "/ 헤더: $(curl -sS -o /dev/null -D - "$BASE/" | tr -d '\r' | grep -iE '^(content-type|x-frame-options|x-content-type-options|location):' | tr '\n' ' ')"
           for f in pwa/echo-icon-180.png pwa/echo-icon-192.png pwa/echo-icon-512.png pwa/echo-icon-512-maskable.png pwa/echo-icon-32.png favicon.svg; do
             st=$(code "/$f" ic.bin); got=$(sha256sum ic.bin | cut -d' ' -f1); want=$(grep " $f\$" $EXP | cut -d' ' -f1)
             [ "$got" = "$want" ] && m=일치 || m=불일치; echo "$f : HTTP $st · sha16=${got:0:16} · 승인 E 대조 $m"
