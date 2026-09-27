@@ -110,6 +110,7 @@ export function sessionView(id: string, stored: Stored) {
   const done = st.phase !== "talk";
   return {
     id, agent: stored.agent, tone: st.tone, mode: st.mode, phase: done ? "done" : "talk",
+    goal: A.isGoal(st.goal) ? st.goal : null, goal_label: st.goal_label ?? null, // v2.4 이 세션의 관계 목적(기기마다 다른 목적이면 다른 세션)
     progress: { asked: A.coreAsked(st).length, of: A.MAX_CORE_QUESTIONS },
     current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
@@ -119,13 +120,25 @@ export function sessionView(id: string, stored: Stored) {
   };
 }
 
-async function currentSession(admin: Db, userId: string, since: string | null): Promise<SessionRow | null> {
+// v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 같은 계정이라도 관계 목적(goal)이 다르면 다른 세션이다.
+// goal 을 주면 이번 회차에서 그 목적의 가장 최근 세션만(다른 목적 세션을 이어받지 않음). goal 이 없으면(예전 앱) 예전처럼 가장 최근 세션.
+async function currentSession(admin: Db, userId: string, since: string | null, goal: A.GoalId | null = null): Promise<SessionRow | null> {
   let q = admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
     .eq("user_id", userId).eq("action", SESSION_ACTION).eq("status", "applied");
   if (since) q = q.gte("created_at", since);
-  const { data } = await q.order("created_at", { ascending: false }).limit(1);
-  const row = (data ?? [])[0] as SessionRow | undefined;
-  return row && row.response_payload && typeof row.response_payload === "object" ? row : null;
+  const { data } = await q.order("created_at", { ascending: false }).limit(goal ? 20 : 1);
+  const rows = ((data ?? []) as SessionRow[]).filter((r) => r.response_payload && typeof r.response_payload === "object");
+  if (!goal) return rows[0] ?? null;
+  return rows.find((r) => ((r.response_payload as unknown as Stored).state?.goal ?? "open") === goal) ?? null;
+}
+// 기기가 기억한 세션 id 로 읽기(그 계정 · 이번 회차 세션일 때만). 없거나 다른 회차면 null.
+async function sessionById(admin: Db, userId: string, id: string, since: string | null): Promise<SessionRow | null> {
+  const { data } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
+    .eq("user_id", userId).eq("request_id", id).eq("action", SESSION_ACTION).eq("status", "applied").maybeSingle();
+  const row = data as SessionRow | null;
+  if (!row || !row.response_payload || typeof row.response_payload !== "object") return null;
+  if (since && String(row.created_at) < since) return null;
+  return row;
 }
 
 async function isAdmin(admin: Db, userId: string): Promise<boolean> {
@@ -229,7 +242,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const since = roundStartOf(user);
 
     if (action === "agent_get") {
-      const row = await currentSession(admin, userId, since);
+      // v2.3: 기기가 기억한 세션 id 가 있으면 그 세션(다른 기기의 다른 목적 세션을 섞어 보이지 않는다). 없으면 예전처럼 가장 최근 세션.
+      const want = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      const row = (want ? await sessionById(admin, userId, want, since) : null) ?? await currentSession(admin, userId, since);
       return json({ ok: true, session: row ? sessionView(row.request_id, row.response_payload as unknown as Stored) : null }, 200, origin);
     }
 
@@ -278,14 +293,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).
-      const existing = await currentSession(admin, userId, since);
+      // v2.3: 같은 목적(goal)의 세션만 이어받는다. 다른 기기에서 다른 목적으로 시작한 세션은 이어받지 않고 새 세션을 만든다.
+      const goal = A.isGoal(body.goal) ? body.goal : null;
+      const goalLabel = goal && typeof body.goalLabel === "string" ? body.goalLabel.trim().slice(0, 40) || null : null;
+      if (body.goal != null && !goal) return fail("BAD_REQUEST", "고른 만남을 다시 골라 주세요.", 400, origin);
+      const existing = await currentSession(admin, userId, since, goal);
       if (existing) return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
       const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
-      const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode }), round_since: since, profile: null, handoff: null };
+      const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
       if (first) {
         // 앱의 첫 질문(목적 타일 화면)에 한 답 = 첫 턴. 세션 id 는 요청 id 에서 만들고, 턴 기록은 요청 id 로 남긴다.
         A.seedFirstQuestion(stored.state);
