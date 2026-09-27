@@ -77,16 +77,11 @@ jobs:
             product/qa-real/pwa-probe.mjs
             product/qa-real/white-probe.mjs
             product/qa-real/results/qa-zip-fb3c0fc-google.sha256
-      - name: PWA 실측(QA · 운영 앱 · 운영 브랜드)
+      - name: 429 범위 확인(주소당 1회 · 최소 요청)
         run: |
-          mkdir -p /tmp/probe && cp product/qa-real/pwa-probe.mjs /tmp/probe/ && cd /tmp/probe
-          npm init -y > /dev/null && npm i --silent playwright-core@1.49.1 > /dev/null
-          for U in https://echo-qa-app-20260927.netlify.app/ https://echo-qa-app-20260927.netlify.app/manifest.webmanifest https://6ab912436a0dca4dce96b1b8--echo-qa-app-20260927.netlify.app/ https://app.do-it.company/ https://marvelous-chaja-071247.netlify.app/; do
-            echo "=== $U"; curl -sS -D - -o body.bin --max-time 20 "$U" | grep -iE '^(HTTP|server|x-nf|retry-after|content-type|content-length|cache-status|x-nf-request-id)' | tr -d '\r'; echo "body: $(head -c 300 body.bin | tr -d '\n')"
+          for U in https://echo-qa-app-20260927.netlify.app/ https://6ab912436a0dca4dce96b1b8--echo-qa-app-20260927.netlify.app/ https://genuine-conkies-d19b46.netlify.app/ https://tiny-dasik-30df4c.netlify.app/ https://lighthearted-cannoli-682d03.netlify.app/ https://transcendent-alfajores-8e962b.netlify.app/ https://marvelous-chaja-071247.netlify.app/; do
+            printf "%s " "$U"; curl -sS -o /dev/null -D h.txt --max-time 15 -w "HTTP %{http_code}" "$U"; printf " | %s\n" "$(grep -iE '^(retry-after|x-nf-|server|x-ratelimit|ratelimit)' h.txt | tr -d '\r' | tr '\n' ' ')"
           done
-          cp $GITHUB_WORKSPACE/product/qa-real/white-probe.mjs $GITHUB_WORKSPACE/product/qa-real/results/qa-zip-fb3c0fc-google.sha256 .
-          npx --yes playwright@1.49.1 install --with-deps webkit > /dev/null 2>&1 || echo "webkit install failed"
-          timeout 240 node white-probe.mjs https://echo-qa-app-20260927.netlify.app qa-zip-fb3c0fc-google.sha256 || echo "white-probe exit=$?"
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
