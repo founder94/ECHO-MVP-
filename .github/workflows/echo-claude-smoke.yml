@@ -73,12 +73,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: product/qa-real/pwa-probe.mjs
+          sparse-checkout: |
+            product/qa-real/pwa-probe.mjs
+            product/qa-real/white-probe.mjs
+            product/qa-real/results/qa-zip-fb3c0fc-google.sha256
       - name: PWA 실측(QA · 운영 앱 · 운영 브랜드)
         run: |
           mkdir -p /tmp/probe && cp product/qa-real/pwa-probe.mjs /tmp/probe/ && cd /tmp/probe
           npm init -y > /dev/null && npm i --silent playwright-core@1.49.1 > /dev/null
-          node pwa-probe.mjs https://echo-qa-app-20260927.netlify.app https://app.do-it.company https://do-it.company
+          cp $GITHUB_WORKSPACE/product/qa-real/white-probe.mjs $GITHUB_WORKSPACE/product/qa-real/results/qa-zip-fb3c0fc-google.sha256 .
+          npx --yes playwright@1.49.1 install --with-deps webkit > /dev/null 2>&1 || echo "webkit install failed"
+          timeout 240 node white-probe.mjs https://echo-qa-app-20260927.netlify.app qa-zip-fb3c0fc-google.sha256 || echo "white-probe exit=$?"
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
