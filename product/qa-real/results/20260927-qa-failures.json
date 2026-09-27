@@ -1,0 +1,25 @@
+{
+  "note": "ECHO-QA 2026-09-27 · 테스트 버그와 제품 버그를 분리 기록(대표 「FALSE PASS 발견 후 2차 검사 기준 정정」). 1차 결과 원본은 20260927-run1-base-full.json 그대로 보존.",
+  "failures": [
+    {
+      "id": "QA-20260927-A",
+      "type": "FALSE_PASS_TEST_COVERAGE_FAILURE",
+      "layer": "test",
+      "found_in": "run1 base (QA_RUN=base)",
+      "what": "Profile 검사가 relationship_style 칸만 확인했고, 소개 검사는 소개 전체에 '주말/부담' 단어가 하나라도 있으면 통과시켰다. values_character 에 CONFIRMED 로 남은 옛 값 '연락은 매일 하는 게 좋아요'(turn 3 · USER_DIRECT)와 소개 문장 '연락은 매일 하는 게 좋아요.'를 놓쳐 2건이 거짓 PASS.",
+      "evidence": { "profile_check": "PASS(거짓)", "intro_check": "PASS(거짓)", "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 연락은 매일 하는 게 좋아요. 하지만 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요." },
+      "fix": "qa-live.mjs: 출처(turn) 기준 모든 칸 전수 · Profile 전 칸 · 소개 문장 단위 · Matching source 전체(배포본과 같은 agentSource.ts sourceFromProfile) · overlap 양쪽 검사. 옛 값이 보이는 칸을 사용자가 직접 고치는 경로는 보조 UI 테스트로만 분리(CROSS-SLOT 근거 아님).",
+      "status": "test fixed (QA branch)"
+    },
+    {
+      "id": "QA-20260927-B",
+      "type": "CROSS_SLOT_STALE_STATE_FAILURE",
+      "layer": "product (doit-agent v2.2.2 · PR #12 4db82ff)",
+      "found_in": "run1 base — 원래 사용자 흐름(정정 한 번 · relationship_style · 수동 칸 수정 0)",
+      "state": { "turn3_saved": [["values_character", "연락은 매일 하는 게 좋아요", "USER_DIRECT", "answer_raw", "CONFIRMED"]], "turn3_ai_extracted": "없음(AI 가 이 말에서 뜻을 뽑지 않음)", "after_correction_turn6": [["values_character", "연락은 매일 하는 게 좋아요", "CONFIRMED"], ["relationship_style", "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요", "USER_CORRECTED", "CONFIRMED"]] },
+      "cause": "cross-slot 정리는 정정한 칸(relationship_style)의 옛 값에서 같은 출처(turn·quote)를 따라간다. AI 가 turn 3 을 relationship_style 로 정리하지 않으면 그 칸에 옛 값이 없어 따라갈 고리가 없다. 서버가 지금 질문 칸(values_character)에 저장한 원문만 남고, 정정 턴에 AI 가 wrong 을 비워 보내면 지울 근거가 없다.",
+      "reproduced": { "real_ai": "run1 FAIL · r4 PASS(같은 흐름 · AI 가 relationship_style 로도 정리해 고리 생김) → AI 출력에 따라 갈리는 결함", "mock_reverse_test": "product/qa-real/run1-repro.test.mjs REPRO-1(현재 코드 · wrong 비움 → A CONFIRMED + Matching source 사용) PASS=결함 재현" },
+      "status": "OPEN · 서버 수정 대표 승인 대기(STOP)"
+    }
+  ]
+}

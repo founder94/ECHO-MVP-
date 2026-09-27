@@ -15,7 +15,7 @@ if (!QA_REF || !QA_URL || !QA_ANON || !QA_PW_SEED || !QA_RUN) { console.error('Q
 if (QA_REF !== 'mutniujeiyujhkobadkd' || QA_URL !== `https://${QA_REF}.supabase.co`) { console.error('QA ref 불일치 — 중단'); process.exit(3); }
 if (!/^[a-z0-9]{1,12}$/.test(QA_RUN)) { console.error('QA_RUN 형식'); process.exit(2); }
 
-const checks = []; const log = []; const timings = [];
+const checks = []; const log = []; const timings = []; const evidence = {};
 const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail: typeof detail === 'string' ? detail : JSON.stringify(detail) }); };
 // 대표 지정 QA 주소(2026-09-27) · 이미 있으면 QA_RUN 에 새 suffix(base 가 아니면 붙임). 확인 메일 OFF 인 QA 에서만 쓰며 실제 메일은 가지 않는다.
 const BASE = { a: 'qa-agent-a-20260927', b: 'qa-agent-b-20260927', admin: 'qa-admin-20260927' };
@@ -113,9 +113,11 @@ async function full() {
   const afterReject = structuredClone((await stateOf(sidA)).state);
   await say(A, 'A', sidA, '오늘은 여기까지 할게요');
   const stA1 = (await stateOf(sidA)).state;
-  // 화면 정정(AgentProfileCheck): 사용자는 목록에서 옛 말이 보이는 칸을 골라 고친다. QA_FIX_PICK=fixed 면 예전처럼 relationship_style 고정(1차 실행 재현용).
+  // 2026-09-27 대표 「FALSE PASS 발견 후 2차 검사 기준 정정」: 기본 = 1차와 같은 원래 사용자 흐름(정정 한 번 · 연락 방식 칸 relationship_style · 옛 값이 숨은 칸을 사용자가 따로 고치지 않음).
+  // QA_FIX_PICK=shown 은 보조 UI 테스트(옛 값이 보이는 칸을 사용자가 직접 고침)일 뿐 — CROSS-SLOT PASS 근거로 쓰지 않는다.
   const oldSlot = Object.entries(stA1.slots).find(([, s]) => s.items.some((i) => i.status === 'CONFIRMED' && /매일/.test(i.quote) && !/부담/.test(i.quote)))?.[0] ?? null;
-  const fixSlot = process.env.QA_FIX_PICK === 'fixed' ? 'relationship_style' : (oldSlot ?? 'relationship_style');
+  const AUX_UI = process.env.QA_FIX_PICK === 'shown';
+  const fixSlot = AUX_UI ? (oldSlot ?? 'relationship_style') : 'relationship_style';
   const fix = await say(A, 'A', sidA, '매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요', { correction: { purpose: fixSlot } });
   log.at(-1).fix_slot = { picked: fixSlot, old_value_shown_in: oldSlot };
   const SA = await stateOf(sidA);
@@ -160,6 +162,41 @@ async function full() {
   const introSentences = intro.split(/(?<=[.!?。])\s+/).filter(Boolean);
   check('소개: 옛 값(매일 연락) 문장 0(문장 단위)', !!intro && !introSentences.some((x) => /매일/.test(x) && !/부담|주말/.test(x)), intro);
 
+  // ── P0 CROSS-SLOT(출처 기준 전수) ── 옛 말 A = 사용자가 「연락은 매일…」을 말한 턴(turnA)에서 파생된 모든 값(칸·출처 종류 무관). 판정 근거는 turn 뿐(뜻 유사도 0).
+  const dump = (st) => Object.entries(st.slots).flatMap(([id, s]) => s.items.map((i) => ({ slot: id, note: i.note, quote: i.quote, turn: i.turn, status: i.status, source_type: i.source_type, corrected_from: i.corrected_from ?? null })));
+  const turnA = beforeReject.turns.at(-1)?.n ?? null; const turnB = SA.state.turns.at(-1)?.n ?? null;
+  const aBefore = dump(beforeReject).filter((i) => i.turn === turnA);
+  const allAfter = dump(SA.state);
+  const aAfter = allAfter.filter((i) => i.turn === turnA);
+  const aNow = aAfter.filter((i) => ['CONFIRMED', 'USER_CORRECTED'].includes(i.status));
+  const bNow = allAfter.filter((i) => i.turn === turnB && i.status === 'CONFIRMED' && i.source_type === 'USER_CORRECTED');
+  const otherBefore = dump(stA1).filter((i) => i.turn !== turnA && i.status === 'CONFIRMED');
+  const otherLost = otherBefore.filter((o) => !allAfter.some((i) => i.slot === o.slot && i.turn === o.turn && i.note === o.note && i.status === 'CONFIRMED'));
+  const inferredA = (SA.state.inferred ?? []).filter((i) => i.turn === turnA);
+  evidence.cross_slot = { flow: AUX_UI ? 'AUX_UI(shown slot)' : 'ORIGINAL(one correction · relationship_style · no manual slot fix)', manual_slot_fixes: 0, turnA, turnB, a_text: stA1.turns.find((t) => t.n === turnA)?.user ?? null, b_text: SA.state.turns.find((t) => t.n === turnB)?.user ?? null, a_saved_after_A: aBefore, a_after_B: aAfter, a_current_count: aNow.length, b_current_count: bNow.length, all_slots_after_B: allAfter, other_facts_lost: otherLost, inferred_from_A: inferredA };
+  const tag = AUX_UI ? '[보조 UI · CROSS-SLOT 근거 아님] ' : '[P0 CROSS-SLOT] ';
+  check(`${tag}옛 말 A(같은 턴 출처) 현재 사실 0 — 모든 칸`, aBefore.length ? aNow.length === 0 : null, { a_saved: aBefore.map((i) => [i.slot, i.status, i.source_type, i.note]), a_now: aNow.map((i) => [i.slot, i.status, i.source_type, i.note]) });
+  check(`${tag}정정 B 현재 사실 > 0(USER_CORRECTED · CONFIRMED)`, bNow.length > 0, bNow.map((i) => [i.slot, i.note]));
+  check(`${tag}다른 정상 사실 보존(A·B 턴 밖 CONFIRMED 유지)`, otherLost.length === 0, { before: otherBefore.length, lost: otherLost });
+  const aNotes = new Set([...aBefore, ...aAfter].map((i) => sq(i.note)));
+  const profItems = ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].flatMap((id) => (profA?.[id]?.items ?? []).map((i) => ({ slot: id, note: i.note, status: i.status, turn: i.turn ?? i.source_turn ?? null })));
+  const profA_hits = profItems.filter((i) => aNotes.has(sq(i.note)) || i.turn === turnA);
+  evidence.profile_all = profItems; evidence.intro = { text: intro, sentences: introSentences };
+  check(`${tag}Profile 전수: 옛 말 A 출처 항목 0`, !!profA && profA_hits.length === 0, { hits: profA_hits, items: profItems.map((i) => [i.slot, i.note]) });
+  // 소개: 문장 단위 · A 의 뜻(매일/자주/항상 연락) 표현 — 사람 검토도 보고서에 따로 남긴다.
+  const A_MEANING = /(매일|자주|항상|날마다|하루\s*종일)[^.!?]{0,20}연락|연락[^.!?]{0,20}(매일|자주|항상|날마다)/;
+  const introBad = introSentences.filter((x) => A_MEANING.test(x) && !/부담|주말|한두\s*번/.test(x));
+  check(`${tag}소개 문장: 옛 뜻(매일·자주 연락) 문장 0`, !!intro && introBad.length === 0, { bad: introBad, intro });
+  if (process.env.QA_AGENT_SOURCE) {
+    const { sourceFromProfile } = await import(process.env.QA_AGENT_SOURCE);
+    const src = sourceFromProfile(profA, SA.state.phase, null);
+    const aUsed = src.confirmed.filter((n) => aNotes.has(sq(n)) || (A_MEANING.test(n) && !/부담|주말|한두\s*번/.test(n)));
+    const bNotes = new Set(bNow.map((i) => sq(i.note)));
+    const bUsed = src.confirmed.filter((n) => bNotes.has(sq(n)));
+    evidence.matching_source = { confirmed: src.confirmed, areas: src.confirmedAreas, ready: src.ready, a_used: aUsed, b_used: bUsed };
+    check(`${tag}Matching source 전체: A 사용 0 · B 사용 > 0`, aUsed.length === 0 && bUsed.length > 0, evidence.matching_source);
+  }
+
   // 연결 준비 · Matching(QA MATCH_SOURCE=agent)
   const prevA = await fn('doit-understanding', A.jwt, { action: 'connection_preview' }, 'connection_preview');
   check('연결 준비(doit-understanding · 운영 v29+1줄): 응답 200', prevA.status === 200, { status: prevA.status, code: prevA.data?.code ?? null });
@@ -168,6 +205,8 @@ async function full() {
   const commonA = pair ? (pair.user_a === A.id ? pair.common_a : pair.common_b) : [];
   check('Matching(agent): A-B 실제 후보 생성', !!pair, { status: cand.status, n: (cand.data?.candidates ?? []).length, eligible: cand.data?.eligible, missing: cand.data?.missing, code: cand.data?.code ?? null });
   check('Matching: 겹친 말 > 0 · 점수 > 0', !!pair && commonA.length > 0 && (pair.score ?? 0) > 0, { commonA, score: pair?.score });
+  evidence.overlap = pair ? { common_a: pair.common_a, common_b: pair.common_b, score: pair.score } : null;
+  check(`${AUX_UI ? '[보조 UI] ' : '[P0 CROSS-SLOT] '}overlap/score: 옛 말 A 출처 기여 0(양쪽 공통 목록)`, !!pair && ![...(pair.common_a ?? []), ...(pair.common_b ?? [])].some((n) => aNotes.has(sq(n)) || (A_MEANING.test(n) && !/부담|주말|한두\s*번/.test(n))), evidence.overlap);
   check('Matching: 옛 「매일」·거둔 뜻 사용 0 · 사주/타로 0', !commonA.some((c) => (/매일/.test(c) && !/부담|주말/.test(c)) || /사주|타로|궁합|운세/.test(c)), commonA);
   check('전화: 전화 미인증 A 가 후보', !!pair && pair[pair.user_a === A.id ? 'a' : 'b']?.phone_verified === false, pair ? { a: pair.a, b: pair.b } : null);
 
@@ -221,7 +260,7 @@ async function full() {
 
 async function main() {
   const extra = PHASE === 'signup' ? await signup() : await full();
-  const summary = { env: 'ECHO-QA', ref: QA_REF, phase: PHASE, run: QA_RUN, pass: checks.filter((c) => c.result === 'PASS').length, fail: checks.filter((c) => c.result === 'FAIL').length, invalid: checks.filter((c) => c.result === 'INVALID').length, checks, ...extra };
+  const summary = { env: 'ECHO-QA', ref: QA_REF, phase: PHASE, run: QA_RUN, evidence, pass: checks.filter((c) => c.result === 'PASS').length, fail: checks.filter((c) => c.result === 'FAIL').length, invalid: checks.filter((c) => c.result === 'INVALID').length, checks, ...extra };
   const text = JSON.stringify(summary, null, 1);
   if (OUT) writeFileSync(OUT, text);
   console.log(text);
