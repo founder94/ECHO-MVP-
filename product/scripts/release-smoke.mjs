@@ -1,6 +1,6 @@
 // Public, read-only smoke. Auth and real AI are deliberately not claimed by this probe.
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 const [origin, build] = process.argv.slice(2);
 if (origin !== 'https://echo-qa-app-20260927.netlify.app') throw Error('QA smoke origin is locked');
@@ -29,3 +29,14 @@ for (const [path, type] of expected) {
   }
   console.log(`${path}: PASS`);
 }
+// Compare every compiled JS/CSS asset with the exact build checked before upload.
+const assets = readdirSync(join(build, 'assets')).filter(p => /\.(js|css)$/.test(p));
+if (!assets.length) throw Error('No compiled assets to verify');
+for (const name of assets) {
+  const path = `/assets/${name}`;
+  const res = await fetch(`${origin}${path}`, { signal: AbortSignal.timeout(20000), cache: 'no-store', redirect: 'error' });
+  if (!res.ok) throw Error(`${path}: HTTP ${res.status}`);
+  const digest = b => createHash('sha256').update(b).digest('hex');
+  if (digest(new Uint8Array(await res.arrayBuffer())) !== digest(readFileSync(join(build, 'assets', name)))) throw Error(`${path}: live bytes differ from checked build`);
+}
+console.log(`${assets.length} compiled assets: SHA-256 PASS`);
