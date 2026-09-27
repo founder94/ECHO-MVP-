@@ -484,7 +484,7 @@ test('P0-5·P0-3 서버: 끝난 뒤 화면 정정 → 프로필·소개 최신 �
   s.ai.push(T({ kind: 'stop', reply: '여기까지 할게요.' }), { summary: [], closing: '정리해 둘게요.', intro: [{ text: '저는 매일 연락하는 관계가 좋아요.', basis: '매일 연락하는 게 좋아요' }] });
   const done = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '여기까지 할게요' });
   assert.equal(done.body.session.phase, 'done'); assert.match(JSON.stringify(done.body.session.intro), /매일/);
-  s.ai.push(T({ kind: 'answer', reply: '주말로 고쳐 둘게요.', extracted: [X('relationship_style', '주말 연락', '주말에만 연락하는 게 좋아요')] }), { intro: [{ text: '주말에만 연락하는 게 좋아요.', basis: '주말에만 연락하는 게 좋아요' }] });
+  s.ai.push(T({ kind: 'answer', reply: '주말로 고쳐 둘게요.', extracted: [X('relationship_style', '주말 연락', '주말에만 연락하는 게 좋아요')] }), { stale: [] } /* v2.2.4 정정 턴 옛 항목 고르기 호출 */, { intro: [{ text: '주말에만 연락하는 게 좋아요.', basis: '주말에만 연락하는 게 좋아요' }] });
   const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '주말에만 연락하는 게 좋아요', correction: { purpose: 'relationship_style' } });
   assert.equal(fix.status, 200); assert.equal(fix.body.turn.kind, 'correction', '모델이 answer 라 해도 정정');
   const stored = s.tables.doit_request_events.find((x) => x.action === 'agent_session').response_payload;
@@ -493,7 +493,7 @@ test('P0-5·P0-3 서버: 끝난 뒤 화면 정정 → 프로필·소개 최신 �
   assert.match(JSON.stringify(fix.body.session.intro?.lines ?? []), /주말/);
   const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
   assert.equal(rec.flags.ui_correction, true, '관리자 기록에 화면 정정 표시');
-  s.ai.push(T({ kind: 'repair', reply: '천천히로 고쳐 둘게요.', extracted: [] }), 'HTTP500');
+  s.ai.push(T({ kind: 'repair', reply: '천천히로 고쳐 둘게요.', extracted: [] }), { stale: [] } /* v2.2.4 정정 턴 옛 항목 고르기 호출 */, 'HTTP500');
   const legacy = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '「알아가는 방식과 속도」 부분을 고칠게요. 천천히 알아가고 싶어요' });
   assert.equal(legacy.status, 200); assert.equal(legacy.body.turn.kind, 'correction');
   const p2 = s.tables.doit_request_events.find((x) => x.action === 'agent_session').response_payload.profile;

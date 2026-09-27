@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.2.3"; // v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.2.4"; // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -201,7 +201,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 
@@ -584,7 +584,7 @@ function finishWith(st: AgentState, raw: unknown) {
   return { closing: st.closing, summary: st.summary, profile, handoff: matchingHandoff(profile) };
 }
 
-async function call(llm: Llm, obs: Obs, kind: "opening" | "turn" | "closing" | "intro", system: string, input: unknown): Promise<string> {
+async function call(llm: Llm, obs: Obs, kind: "opening" | "turn" | "closing" | "intro" | "pick", system: string, input: unknown): Promise<string> {
   const t0 = Date.now();
   try {
     const r = await llm(kind, system, input);
@@ -640,6 +640,25 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
 export interface RunResult { obs: Obs; response: Json }
 
 // ── 한 턴. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
+// v2.2.4 옛 항목 고르기(정정 턴에만): 지금 저장된 항목(CONFIRMED · 모든 칸)을 번호 목록으로 주고, 이 정정 때문에 더는 사실이 아닌 번호만 고르게 한다.
+// 고른 번호 → 그 항목의 note 글자 그대로를 wrong 에 더한다. 서버는 글자까지 같은 항목과 그 같은 출처 복제만 처리한다(v2.2.3 · 뜻 유사도 삭제 0).
+// 호출 실패·형식 오류·목록 밖 번호는 무시(아무것도 안 지움) — 대화는 그대로 진행.
+const PICK_PROMPT = `너는 사용자 사실 목록을 정리한다. 사용자가 방금 자기 말을 고쳐 말했다(latest).
+items 는 지금 저장된 사용자 사실이다(n = 번호).
+latest 때문에 더는 지금 사실이 아닌 항목 — 같은 것을 예전에 다르게 말한 항목 — 의 번호만 고른다. 칸(label)이 달라도 고른다.
+latest 와 관계없는 항목은 고르지 않는다. 확실하지 않으면 고르지 않는다.
+JSON 하나만: {"stale":[번호]}`;
+export async function pickStale(st: AgentState, text: string, out: Parsed, llm: Llm, obs: Obs): Promise<Parsed> {
+  const list = PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").map((i) => ({ purpose: id, note: i.note })));
+  if (!list.length) return out;
+  let raw: string;
+  try { raw = await call(llm, obs, "pick", PICK_PROMPT, { latest: text, items: list.map((x, k) => ({ n: k + 1, label: labelOf(x.purpose), note: x.note })) }); } catch { obs.retry.push("pick"); return out; }
+  const o = parseJson(raw);
+  const idx = Array.isArray(o?.stale) ? o!.stale as unknown[] : [];
+  const picked = [...new Set(idx.map(Number).filter((k) => Number.isInteger(k) && k >= 1 && k <= list.length).map((k) => list[k - 1].note))];
+  return picked.length ? { ...out, wrong: [...new Set([...out.wrong, ...picked])] } : out;
+}
+
 export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { ui?: { correction: true; purpose: string | null } | null } = {}): Promise<RunResult> {
   const ui = opts.ui?.correction ? { purpose: opts.ui.purpose && PIDS.includes(opts.ui.purpose) ? opts.ui.purpose : null } : null;
   const text = String(latest ?? "").trim();
@@ -669,6 +688,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   }
   if (!out) return { obs, response: { error: "READ_FAILED" } };
   if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
+  if (out.kind === "correction") out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;

@@ -332,3 +332,32 @@ test('X6 거절(repair)에서는 새 연결 처리 없음 — 기존 규칙 그�
   A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
   assert.equal(status(st, 'values_character', OLD), 'CONFIRMED');
 });
+
+// ── v2.2.4 옛 항목 고르기(정정 턴에만 · 번호 목록에서 고름) — QA 실제 AI 20회 중 1회(x02): 대화 응답의 wrong 이 비어 A 가 남음 ──
+const pickerLlm = (stale, seen = []) => async (kind, _sys, input) => { seen.push({ kind, input }); if (kind === 'pick') { if (stale === 'throw') throw new Error('boom'); return JSON.stringify(stale); } return JSON.stringify(kind === 'turn' ? T({ kind: 'correction', extracted: [X('relationship_style', NEW, NEW)], wrong: [] }) : kind === 'intro' ? { intro: null } : { reply: '네.' }); };
+const idxOf = (seen, note) => (seen.find((x) => x.kind === 'pick').input.items.find((i) => i.note === note) ?? {}).n;
+
+test('X7 대화 응답 wrong 이 비어도(x02 실제 모양) 고르기 단계가 A 번호를 고르면 A 현재값 0 · B 1 · 카페 보존 · Matching A 0', async () => {
+  const st = run1State(); const seen = [];
+  const probe = run1State(); const s0 = []; await A.runTurn(probe, NEW, pickerLlm({ stale: [] }, s0), { ui: UI_STYLE });
+  const n = idxOf(s0, OLD); assert.ok(n, '목록에 A 가 번호로 있음');
+  await A.runTurn(st, NEW, pickerLlm({ stale: [n] }, seen), { ui: UI_STYLE });
+  assert.equal(current(st).filter((i) => i.turn === 3).length, 0);
+  assert.equal(status(st, 'attraction_comfort', CAFE), 'CONFIRMED');
+  const s = src(st).confirmed; assert.ok(!s.includes(OLD) && s.includes(NEW) && s.includes(CAFE), JSON.stringify(s));
+  const pick = seen.find((x) => x.kind === 'pick').input; assert.equal(pick.latest, NEW);
+  assert.ok(pick.items.every((i) => Number.isInteger(i.n) && typeof i.note === 'string'), '번호 · 문장 그대로');
+});
+test('X8 고르기 단계: 목록 밖 번호·형식 오류·호출 실패 → 아무것도 안 지우고 대화는 정상', async () => {
+  for (const bad of [{ stale: [99, 0, -1, 'x'] }, { nope: 1 }, 'throw']) {
+    const st = run1State(); const r = await A.runTurn(st, NEW, pickerLlm(bad), { ui: UI_STYLE });
+    assert.ok(!r.response.error, JSON.stringify(r.response)); assert.equal(status(st, 'values_character', OLD), 'CONFIRMED'); assert.equal(status(st, 'attraction_comfort', CAFE), 'CONFIRMED');
+    assert.equal(status(st, 'relationship_style', NEW), 'CONFIRMED');
+  }
+});
+test('X9 고르기 단계는 정정 턴에만(일반 답·거절에는 호출 0)', async () => {
+  const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); const seen = [];
+  const llm = async (kind, s, input) => { seen.push(kind); return JSON.stringify(kind === 'turn' ? T({ kind: 'answer', extracted: [X('relationship_intent', '친구', '친구처럼')] }) : { reply: '네.' }); };
+  await A.runTurn(st, '친구처럼 편한 사이요', llm);
+  assert.ok(!seen.includes('pick'), JSON.stringify(seen));
+});
