@@ -1,0 +1,142 @@
+# ECHO-QA 전용 배포·실환경 검사(2026-09-27 대표 「QA DEPLOY · TOKEN SAFETY LOCK」) — QA 브랜치에만 있다(PR #12 에 넣지 않음 · merge 금지).
+# - 사람이 직접 누를 때만(workflow_dispatch). push·pull_request·merge 자동 실행 0.
+# - 대상은 QA 프로젝트 하나(QA_PROJECT_ID 고정). 운영 프로젝트는 대상이 될 수 없다(첫 단계에서 막음 · 운영 ref 는 글자로 두지 않고 해시로만 비교).
+# - 비밀값(토큰·키·JWT)은 출력하지 않는다(GitHub 마스킹 + 스크립트가 쓰지 않음).
+name: echo-qa-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'deploy_and_test = 배포 후 검사 · deploy_only · test_only'
+        required: true
+        default: 'deploy_and_test'
+        type: choice
+        options: ['deploy_and_test', 'deploy_only', 'test_only']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-qa-deploy
+  cancel-in-progress: false
+
+env:
+  QA_PROJECT_ID: mutniujeiyujhkobadkd
+  PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
+  ALLOWED_BRANCH: claude/echo-p0-qa-20260927
+  UNDERSTANDING_SHA256: fb960018e6d9311226e061fd4e63f969ce794db510e21b0bc661c74598aa48da
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 안전 잠금(QA ref · 운영 ref 차단 · 브랜치 · 파일 검사)
+        env:
+          HAS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          [ "$QA_PROJECT_ID" = "mutniujeiyujhkobadkd" ] || { echo "FAIL: QA ref 불일치"; exit 1; }
+          [ "$(printf '%s' "$QA_PROJECT_ID" | sha256sum | cut -d' ' -f1)" != "$PROD_REF_SHA256" ] || { echo "FAIL: 운영 ref 가 대상"; exit 1; }
+          [ "$GITHUB_REF_NAME" = "$ALLOWED_BRANCH" ] || { echo "FAIL: 허용되지 않은 브랜치 $GITHUB_REF_NAME"; exit 1; }
+          [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || { echo "FAIL: 수동 실행만"; exit 1; }
+          [ "$HAS_TOKEN" = "true" ] || { echo "FAIL: SUPABASE_QA_ACCESS_TOKEN 없음"; exit 1; }
+          WF=.github/workflows/echo-qa-deploy.yml
+          # 배포 대상 옵션은 모두 QA 변수만 쓴다 · 운영 ref(해시 비교) 글자 0
+          if grep -n -- '--project-ref' "$WF" | grep -v 'grep' | grep -v -- '--project-ref "$QA_PROJECT_ID"'; then echo "FAIL: QA 변수가 아닌 대상"; exit 1; fi
+          for w in $(grep -oE '[a-z]{20}' "$WF" | sort -u); do
+            if [ "$(printf '%s' "$w" | sha256sum | cut -d' ' -f1)" = "$PROD_REF_SHA256" ]; then echo "FAIL: 워크플로에 운영 ref"; exit 1; fi
+          done
+          echo "OK: QA=$QA_PROJECT_ID · branch=$GITHUB_REF_NAME · 운영 ref 차단"
+
+      - name: 배포 묶음 만들기(doit-understanding = 운영 v29 + 승인 1줄 · 저장소 원본 사용 0)
+        if: inputs.mode != 'test_only'
+        run: |
+          set -euo pipefail
+          C=product/qa-deploy/doit-understanding/index.ts
+          [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
+          CHANGED=$(diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" | grep -c '^[<>]' || true)
+          [ "$CHANGED" = "3" ] || { echo "FAIL: 운영 v29 대비 변경 줄 수 $CHANGED(승인 = 3)"; exit 1; }
+          if grep -q 'v1\.1' "$C"; then echo "FAIL: 미승인 Agent v1.1 흔적"; exit 1; fi
+          mkdir -p stage/supabase/functions
+          cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
+          rm -f stage/supabase/functions/doit-agent/*.test.* stage/supabase/functions/doit-connect/*.test.*
+          mkdir -p stage/supabase/functions/doit-understanding && cp "$C" stage/supabase/functions/doit-understanding/index.ts
+          printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
+          grep -q 'echo-agent-v2.2.2' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
+          ( cd stage && find supabase/functions -name '*.ts' -exec sha256sum {} \; | sort -k2 )
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: QA 프로젝트 접근 확인(토큰으로 QA 가 보이는지만 · 목록 출력 0)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase projects list -o json > /tmp/p.json
+          jq -e --arg r "$QA_PROJECT_ID" 'map(select(.id == $r or .ref == $r)) | length == 1' /tmp/p.json > /dev/null || { echo "FAIL: 토큰으로 QA 프로젝트가 안 보임"; exit 1; }
+          echo "토큰이 볼 수 있는 프로젝트 수: $(jq 'length' /tmp/p.json) (1 이면 QA 전용 범위 · 2 이상이면 계정 전체 범위)"
+          rm -f /tmp/p.json
+
+      - name: QA 함수 3개 배포
+        if: inputs.mode != 'test_only'
+        working-directory: stage
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          for f in doit-agent doit-connect doit-understanding; do
+            supabase functions deploy "$f" --project-ref "$QA_PROJECT_ID" --use-api
+          done
+
+      - name: QA 비밀값(MATCH_SOURCE=agent · 시험용 AI 키) — 값 출력 0
+        if: inputs.mode != 'test_only'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          QA_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+        run: |
+          set -euo pipefail
+          [ -n "$QA_OPENAI_KEY" ] || { echo "FAIL: 시험용 AI 키 없음"; exit 1; }
+          umask 077; F=$(mktemp)
+          printf 'MATCH_SOURCE=agent\nOPENAI_API_KEY=%s\n' "$QA_OPENAI_KEY" > "$F"
+          supabase secrets set --project-ref "$QA_PROJECT_ID" --env-file "$F" > /dev/null
+          rm -f "$F"
+          supabase secrets list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[].name' | sort
+
+      - name: 배포 확인(QA ref · 함수 이름 · 판 · 해시)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          supabase functions list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[] | [.slug, .version, .status, .verify_jwt, (.ezbr_sha256 // "-"), .updated_at] | @tsv'
+          echo "대상 ref = $QA_PROJECT_ID"
+
+      - uses: actions/setup-node@v4
+        if: inputs.mode != 'deploy_only'
+        with:
+          node-version: '22'
+
+      - name: 실환경 관통 검사(실제 로그인 · 실제 RLS · 실제 AI)
+        if: inputs.mode != 'deploy_only'
+        working-directory: product
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          K=$(supabase projects api-keys --project-ref "$QA_PROJECT_ID" -o json --reveal 2>/dev/null || supabase projects api-keys --project-ref "$QA_PROJECT_ID" -o json)
+          QA_ANON=$(printf '%s' "$K" | jq -r '.[] | select(.name == "anon") | .api_key')
+          QA_SERVICE=$(printf '%s' "$K" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          echo "::add-mask::$QA_ANON"; echo "::add-mask::$QA_SERVICE"
+          unset K
+          [ -n "$QA_ANON" ] && [ -n "$QA_SERVICE" ] || { echo "FAIL: QA 키를 읽지 못함"; exit 1; }
+          set +e
+          QA_REF="$QA_PROJECT_ID" QA_URL="https://$QA_PROJECT_ID.supabase.co" QA_ANON="$QA_ANON" QA_SERVICE="$QA_SERVICE" node qa-real/qa-live.mjs --out ../qa-live-result.json > /dev/null
+          code=$?
+          echo "qa-live exit=$code"
+          if [ -f ../qa-live-result.json ]; then echo "::group::qa-live-result.json"; cat ../qa-live-result.json; echo; echo "::endgroup::"; fi
+          exit $code
