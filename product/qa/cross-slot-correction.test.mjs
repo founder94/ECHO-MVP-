@@ -198,3 +198,29 @@ test('R4 모델이 틀린 뜻을 짚으면 기존 규칙(짚은 것만) · 앞 �
   assert.equal(status(st, 'values_character', '말수가 많은 사람'), 'RETRACTED');
   assert.equal(status(st, 'attraction_comfort', '대화가 편한 사람'), 'CONFIRMED');
 });
+
+// 실제 AI 확인(Actions run 36296950517): 「매일」 → 「아니 그런 뜻 아니야」(AI 정리 거둠 · 원문 복제는 다른 칸에 남음) → 화면 정정(주말).
+// 정정 시점에 그 칸의 옛 값은 이미 RETRACTED 라 밀린 값(SUPERSEDED)이 없었고, 다른 칸의 원문 복제 「매일」이 Matching 에 남았다.
+test('C7 거절로 거둔 옛 해석의 원문 복제도, 그 칸을 사용자가 정정하면 다른 칸에서 함께 밀린다', async () => {
+  const st = stale();
+  st.phase = 'talk'; st.current = { type: 'core', purpose: 'relationship_style', text: '연락은 어떤 방식이 좋아요?' };
+  A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
+  assert.equal(status(st, 'relationship_style', '매일 연락하는 게 좋음'), 'RETRACTED', '전제: 맨 거절로 AI 정리를 거둠');
+  assert.equal(status(st, 'values_character', OLD), 'CONFIRMED', '전제: 사용자 원문 복제는 거절만으로는 지우지 않음');
+  st.phase = 'done'; st.current = null;
+  await A.runTurn(st, NEW, fixLlm(), { ui: UI_STYLE });
+  assert.equal(status(st, 'values_character', OLD), 'SUPERSEDED');
+  const s = src(st);
+  assert.ok(!s.confirmed.some((n) => /매일/.test(n) && !/부담/.test(n)) && s.confirmed.includes('주말에 한두 번 연락이 좋음'), JSON.stringify(s.confirmed));
+  assert.equal(status(st, 'relationship_intent', '친구 같은 만남'), 'CONFIRMED');
+});
+
+test('C7b v2.2.2 이전 저장 상태(거둔 뜻 + 뒤의 정정 + 다른 칸 원문 복제 CONFIRMED)도 Matching 이 빼낸다 · 정정이 없으면 원문 보존', () => {
+  const st = stale();
+  A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
+  const before = src(st);
+  assert.ok(before.confirmed.includes(OLD), '정정 전: 사용자 원문은 그대로(거절만으로 지우지 않음)');
+  A.applyTurn(st, NEW, T({ kind: 'correction', extracted: [X('relationship_style', '주말에 한두 번 연락이 좋음', NEW)] }));
+  st.slots.values_character.items[0].status = 'CONFIRMED'; // 예전 규칙 모양
+  assert.ok(!src(st).confirmed.includes(OLD), JSON.stringify(src(st).confirmed));
+});

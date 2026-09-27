@@ -46,11 +46,18 @@ function retractedNotes(profile: unknown): string[] {
 // ③ 같은 출처 밀림(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 값(history 의 SUPERSEDED)과 같은 사용자 말(source_turn)의 같은 원문(quote)에서 나온
 //    다른 칸의 값은 아직 CONFIRMED 로 남아 있어도 쓰지 않는다(v2.2.2 이전에 저장된 상태의 안전망). 근거는 출처(턴·원문)뿐 — 뜻 유사도는 쓰지 않는다.
 const bareQuote = (t: string) => squashT(t).replace(/[.,!?~…·"'「」]/g, "");
+//    거둔 값(RETRACTED)도 같은 칸에 그보다 뒤의 사용자 정정(USER_CORRECTED)이 있으면 그 정정으로 바뀐 옛 뜻으로 본다.
 function supersededSources(profile: unknown): { turn: number; quote: string }[] {
   const p = obj(profile); if (!p) return [];
-  return PURPOSE_IDS.flatMap((id) => { const slot = obj(p[id]); return (Array.isArray(slot?.history) ? slot!.history as unknown[] : []).map(obj)
-    .filter((o): o is Obj => !!o && o.status === "SUPERSEDED" && typeof o.source_turn === "number" && typeof o.quote === "string" && !!bareQuote(o.quote as string))
-    .map((o) => ({ turn: o.source_turn as number, quote: bareQuote(o.quote as string) })); });
+  return PURPOSE_IDS.flatMap((id) => {
+    const slot = obj(p[id]);
+    const corrected = (Array.isArray(slot?.items) ? slot!.items as unknown[] : []).map(obj).filter((o): o is Obj => !!o && o.source_type === "USER_CORRECTED" && typeof o.source_turn === "number").map((o) => o.source_turn as number);
+    const lastFix = corrected.length ? Math.max(...corrected) : -1;
+    return (Array.isArray(slot?.history) ? slot!.history as unknown[] : []).map(obj)
+      .filter((o): o is Obj => !!o && typeof o.source_turn === "number" && typeof o.quote === "string" && !!bareQuote(o.quote as string)
+        && (o.status === "SUPERSEDED" || (o.status === "RETRACTED" && (o.source_turn as number) < lastFix)))
+      .map((o) => ({ turn: o.source_turn as number, quote: bareQuote(o.quote as string) }));
+  });
 }
 
 /** 틀린 모양의 줄은 버린다(slot 은 객체 · items 는 배열 · 각 항목은 객체). 모양만 거르고 판정은 signals() 가 한다. */

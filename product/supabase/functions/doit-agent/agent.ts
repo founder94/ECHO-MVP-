@@ -386,7 +386,8 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
         for (const i of st.slots[k.purpose].items) if (i.status === "CONFIRMED" && i.turn < turn.n) { i.status = "SUPERSEDED"; i.superseded_at = now(); if (fresh) fresh.corrected_from = [...(fresh.corrected_from ?? []), i.note]; n++; }
         // v2.2.2 같은 출처 연결(cross-slot): 방금 밀린 옛 값과 같은 사용자 말(같은 turn)의 같은 원문(quote)에서 나온 다른 칸의 값도 함께 밀린다.
         // 근거는 서버가 가진 출처(turn · quote)뿐 — 뜻이 비슷하다는 판단(유사도·모델)은 쓰지 않는다. 원문이 다르거나 턴이 다르면 사용자 사실로 보존.
-        const gone = st.slots[k.purpose].items.filter((i) => i.status === "SUPERSEDED" && i.turn < turn.n);
+        // 옛 값 = 이 칸에서 지금 값이 아닌 앞선 값(방금 밀린 것 + 앞서 「그런 뜻 아니야」로 거둔 AI 정리 — 거둔 해석의 원문 복제가 다른 칸에 남는 경우, 실제 AI 확인 run 36296950517).
+        const gone = st.slots[k.purpose].items.filter((i) => (i.status === "SUPERSEDED" || i.status === "RETRACTED") && i.turn < turn.n);
         for (const id of PIDS) if (id !== k.purpose) for (const j of st.slots[id].items) {
           if (j.status !== "CONFIRMED" || j.turn >= turn.n || !gone.some((g) => sameSource(g, j))) continue;
           j.status = "SUPERSEDED"; j.superseded_at = now(); if (fresh) fresh.corrected_from = [...(fresh.corrected_from ?? []), j.note]; n++;
