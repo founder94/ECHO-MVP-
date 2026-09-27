@@ -37,7 +37,14 @@ if (app) {
   }
   if (!html.includes('apple-touch-icon') || !html.includes('rel="manifest"') || !html.includes('/pwa/echo-icon-32.png')) throw Error('App head missing install assets');
   if (qa && process.env.VITE_AUTH_GOOGLE_ENABLED !== 'false') throw Error('QA Google control not disabled');
-  if (qa && ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx'].some(p => !readFileSync(p, 'utf8').includes('VITE_AUTH_GOOGLE_ENABLED'))) throw Error('Google buttons have no QA display guard');
+  if (qa) {
+    const provider = readFileSync('src/lib/authProviders.ts', 'utf8');
+    if (!provider.includes("import.meta.env.VITE_AUTH_GOOGLE_ENABLED !== 'false'")) throw Error('QA provider flag missing');
+    if (['src/pages/login/page.tsx', 'src/pages/signup/page.tsx'].some(p => {
+      const source = readFileSync(p, 'utf8');
+      return !source.includes("from '@/lib/authProviders'") || !source.includes('{GOOGLE_LOGIN_ENABLED && (');
+    })) throw Error('Google buttons have no QA display guard');
+  }
 } else if (html.includes('rel="manifest"') || html.includes('apple-touch-icon')) throw Error('Brand contains app install metadata');
 for (const path of files) {
   const name = relative(directory, path).replaceAll('\\', '/');
