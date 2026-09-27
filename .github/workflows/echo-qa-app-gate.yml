@@ -1,0 +1,109 @@
+# QA release only. No production credentials or sites in this workflow.
+name: echo-qa-app-gate
+on:
+  pull_request:
+    branches: [deploy/final-app-web-20260925, release/qa-app]
+    paths: ['product/**', '.github/workflows/echo-qa-app-gate.yml']
+  push:
+    branches: [release/qa-app]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: echo-qa-app
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run type-check
+      - run: npm run lint
+      - run: node --test qa/*.test.mjs
+      - run: node --check scripts/release-check.mjs && node --check scripts/release-smoke.mjs
+
+  qa_publish:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release/qa-app'
+    environment: echo-qa-app
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      QA_SITE_ID: 2152f690-2d7c-48f9-8cce-d06caea11adf
+      QA_TEAM_ID: 69f5f33a2f2f197d8b507ecc
+      QA_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_PUBLIC_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+      VITE_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.QA_PUBLIC_SUPABASE_ANON_KEY }}
+      PROD_PUBLIC_SUPABASE_URL: ${{ vars.PROD_PUBLIC_SUPABASE_URL }}
+      VITE_QA_HARNESS: 'true'
+      VITE_AUTH_GOOGLE_ENABLED: 'false'
+      VITE_APP_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_BRAND_ORIGIN: https://echo-qa-app-20260927.netlify.app
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - name: Refuse missing or mixed configuration
+        run: |
+          test "${GITHUB_REF}" = refs/heads/release/qa-app
+          test "${QA_SITE_ID}" = 2152f690-2d7c-48f9-8cce-d06caea11adf
+          test -n "${VITE_PUBLIC_SUPABASE_ANON_KEY}"
+          test -n "${PROD_PUBLIC_SUPABASE_URL}"
+          test "${PROD_PUBLIC_SUPABASE_URL}" != "${VITE_PUBLIC_SUPABASE_URL}"
+          test "${VITE_AUTH_GOOGLE_ENABLED}" = false
+      - run: npm ci --no-audit --no-fund
+      - name: Build APP and BRAND independently
+        run: |
+          npm run build:app
+          npm run build:brand
+          node -e 'const fs=require("fs"); const p="out-app/manifest.webmanifest"; const m=JSON.parse(fs.readFileSync(p,"utf8")); m.name="DO IT QA"; m.short_name="DO IT QA"; fs.writeFileSync(p,JSON.stringify(m)); const h="out-app/index.html"; const s=fs.readFileSync(h,"utf8").replace("content=\"DO IT\"", "content=\"DO IT QA\""); fs.writeFileSync(h,s)'
+      - name: Validate assets and release commit
+        run: |
+          mkdir -p ../release-report
+          node scripts/release-check.mjs qa-app out-app | tee ../release-report/qa-app.json
+          node scripts/release-check.mjs qa-brand out-brand | tee ../release-report/qa-brand.json
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Verify exact Netlify site and team
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+        run: |
+          test -n "${NETLIFY_AUTH_TOKEN}"
+          curl --fail --silent --show-error --max-time 20 --header "Authorization: Bearer ${NETLIFY_AUTH_TOKEN}" "https://api.netlify.com/api/v1/sites/${QA_SITE_ID}" -o ../release-report/site.json
+          node -e 'const s=require("../release-report/site.json"); if(s.id!==process.env.QA_SITE_ID || s.account_id!==process.env.QA_TEAM_ID || ["ff078012-fe79-4108-a210-201554ab0dea","7a4934db-aff3-437d-815a-ffbf49d4b819"].includes(s.id)) process.exit(1)'
+          rm ../release-report/site.json
+      - name: Deploy checked APP only to QA
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+        run: npx --yes netlify-cli deploy --prod --site "${QA_SITE_ID}" --dir out-app --message "QA app commit ${GITHUB_SHA}" --json > ../release-report/deploy.json
+      - name: Check deploy identity and live smoke
+        run: |
+          node -e 'const d=require("../release-report/deploy.json"); if(d.site_id!==process.env.QA_SITE_ID || !d.deploy_id) process.exit(1); console.log(JSON.stringify({commit:process.env.GITHUB_SHA,site_id:d.site_id,deploy_id:d.deploy_id,url:d.url,time:new Date().toISOString()}))' > ../release-report/identity.json
+          node scripts/release-smoke.mjs "${QA_ORIGIN}" out-app | tee ../release-report/smoke.txt
+      - name: Preserve evidence even on HOLD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-qa-release-${{ github.sha }}
+          path: release-report/
+          if-no-files-found: ignore
+          retention-days: 30
