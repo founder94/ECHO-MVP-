@@ -1,5 +1,7 @@
 # ECHO MVP — Production Project
 
+> ⚠️ **2026-09-26 안내**: 현재 운영 앱 코드는 `product/` 폴더입니다(빌드: `product/package.json`, 배포 설정: `product/netlify.toml`). 이 루트 README와 루트 설정은 초기 버전 기준이며, 결제는 Stripe가 아니라 토스페이먼츠 4,900원 단건입니다(`product/README.md`).
+
 ECHO는 AI를 통해 사람의 관계 데이터를 자산으로 만드는 기업입니다.  
 "진짜 나를 찾아줘" — 나를 다시 만나는 모든 순간을 위해.
 
