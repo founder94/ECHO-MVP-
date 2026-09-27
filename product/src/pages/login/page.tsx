@@ -76,7 +76,7 @@ export default function Login() {
   return (
     <div className="doit-app-pastel min-h-screen flex flex-col">{/* 2026-09-26 대표: 히어로 밖 화면은 파스텔(검정 바탕 0) */}
       {/* Top logo bar */}
-      <header className="w-full px-6 md:px-10 lg:px-16 py-5">
+      <header className="w-full px-6 md:px-10 lg:px-16 py-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <Link to="/" aria-label="DO IT 홈으로" className="inline-flex min-h-[44px] items-center gap-2.5 hover:opacity-80 transition-opacity">
           <DoItSymbol decorative className="!h-8 !w-8 md:!h-10 md:!w-10" />
           <span className="text-lg font-bold tracking-tight text-white">DO IT</span>

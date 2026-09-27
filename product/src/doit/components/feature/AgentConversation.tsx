@@ -15,7 +15,6 @@ import { VOICE_CONVERSATION_ENABLED, takeAgentChoice, type AgentChoice } from '@
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
 import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
 import { takeContentSeed } from '@/doit/lib/contentSeed';
-import { MenuButton } from '@/doit/components/feature/TopBar';
 
 interface Props {
   userId: string;
@@ -170,7 +169,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     if (failure && alive.current) setError(failure);
   });
 
-  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link><MenuButton /></header>; // 2026-09-26 대표 실기기: 대화 중에도 메뉴(사주·타로 등)로 갈 수 있게 — 대화는 서버에 남아 돌아오면 이어진다
+  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>; // 메뉴(사주·타로 등)는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) — 대화는 서버에 남아 돌아오면 이어진다
   const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={restart}>처음부터 시작할게요</button></div></div>;
   const restartPill = (where: 'top' | 'bottom') => <button className="echo-restart-pill" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed(where)}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>;
 

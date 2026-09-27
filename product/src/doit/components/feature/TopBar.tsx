@@ -1,6 +1,4 @@
 import DoItSymbol from "@/components/DoItSymbol";
-import { useState } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
@@ -11,19 +9,7 @@ interface TopBarProps {
   showActions?: boolean;
 }
 
-// 2026-09-26 MVP: 메뉴는 「말한다 → 이해한다 → 기억한다」와 설정·설치만. 숨긴 기능(Just Try·사주·타로·등급)은 releaseScope 로 빠진다.
-const ALL_MENU_ITEMS = [
-  { label: "ECHO와 이야기하기", desc: "생각나는 대로 말하면 돼요", to: "/doit/conversation", icon: "ri-chat-1-line" },
-  { label: "나의 이해", desc: "맞다고 한 것만 모아 뒀어요", to: "/doit/understanding", icon: "ri-book-open-line" },
-  { label: "홈 화면에 ECHO 추가", desc: "앱처럼 바로 열 수 있어요", to: "/doit/settings#install", icon: "ri-smartphone-line" },
-  { label: "설정", desc: "소개·사진·계정", to: "/doit/settings", icon: "ri-settings-3-line" },
-  { label: "Just Try", desc: "시도하고, 모으고, 다시 즐겨요", to: "/doit/just-try", icon: "ri-sparkling-2-line" },
-  { label: "오늘의 나 · 사주·타로", desc: "재미로 가볍게 보는 무료 콘텐츠", to: "/doit/fortune", icon: "ri-magic-line" },
-  { label: "등급 가이드", desc: "등급의 의미 알아보기", to: "/doit/grade", icon: "ri-medal-line" },
-];
-
-// 메뉴 숨김 목록(src/doit/lib/releaseScope.ts). 41차는 비어 있어 운영과 같은 메뉴다.
-const MENU_ITEMS = ALL_MENU_ITEMS.filter((item) => visibleInRelease(item.to));
+// 알림은 숨김 목록(src/doit/lib/releaseScope.ts)에 있으면 빠진다. 메뉴·설정은 모든 제품 화면 공통 오른쪽 위 하나(src/components/AppCornerMenu.tsx).
 const SHOW_NOTIFICATIONS = visibleInRelease("/doit/notifications");
 
 export default function TopBar({
@@ -58,9 +44,8 @@ export default function TopBar({
           )}
         </div>
 
-        <div className="flex items-center gap-1">
-          <MenuButton />
-
+        {/* 오른쪽 44px 는 공통 메뉴 버튼 자리(겹침 0). */}
+        <div className="flex items-center gap-1 pr-12">
           {showActions && (
             <>
               {SHOW_NOTIFICATIONS && (
@@ -72,73 +57,10 @@ export default function TopBar({
                   <i className="ri-notification-3-line text-xl" />
                 </Link>
               )}
-              <Link
-                to="/doit/settings"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"
-                aria-label="설정"
-              >
-                <i className="ri-settings-3-line text-xl" />
-              </Link>
             </>
           )}
         </div>
       </div>
     </header>
-  );
-}
-
-/** 햄버거 메뉴(버튼 + 판). 앱 머리줄(TopBar)과 대화 화면 머리줄이 같이 쓴다 — 2026-09-26 대표 실기기: 대화 중에는 메뉴가 없어 사주·타로로 갈 수 없었다. */
-/** onDark: 어두운 화면(사주·타로) 위에서 보이도록 밝은 아이콘 · 옅은 바탕. */
-export function MenuButton({ onDark = false }: { onDark?: boolean } = {}) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setMenuOpen((v) => !v)}
-        aria-label="메뉴"
-        aria-expanded={menuOpen}
-        className={onDark ? "flex h-9 w-9 items-center justify-center rounded-full" : "flex h-9 w-9 items-center justify-center rounded-full text-foreground-700 doit-icon-button"}
-        style={onDark ? { color: "#f3eee4", background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.16)" } : undefined}
-      >
-        <i className={`${menuOpen ? "ri-close-line" : "ri-menu-line"} text-xl`} />
-      </button>
-
-      {/* 2026-09-26: 머리줄(흐림 막) 안에 두면 메뉴 판의 흐림이 뒤 화면을 못 본다(겹친 흐림) → 화면 틀(.doit-app-pastel)로 옮겨 그린다. */}
-      {menuOpen && createPortal(
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setMenuOpen(false)}
-            aria-hidden="true"
-          />
-          <div className="doit-menu-panel fixed right-4 z-50 w-64 overflow-hidden rounded-2xl" style={{ top: "calc(env(safe-area-inset-top) + 80px)" }}>
-            <p className="doit-menu-caption px-4 pb-2 pt-3">
-              메뉴
-            </p>
-            {MENU_ITEMS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setMenuOpen(false)}
-                className="doit-menu-item flex items-center gap-3 px-4 py-3"
-              >
-                <span className="doit-menu-icon flex h-9 w-9 items-center justify-center rounded-full">
-                  <i className={`${item.icon} text-lg`} />
-                </span>
-                <span className="flex-1">
-                  <span className="doit-menu-label block">
-                    {item.label}
-                  </span>
-                  <span className="doit-menu-desc block">
-                    {item.desc}
-                  </span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </>,
-        document.querySelector(".doit-app-pastel") ?? document.querySelector(".echo-dialogue--pastel") ?? document.body,
-      )}
-    </div>
   );
 }

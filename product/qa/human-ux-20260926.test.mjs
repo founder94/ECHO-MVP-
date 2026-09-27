@@ -60,12 +60,15 @@ test('숨김: Just Try·KEY·등급·공간·월드·방·알림·예전 A/B 흐
   assert.match(read('src/doit/pages/do-it/choose/page.tsx'), /onSkipToFortune=\{visibleInRelease\("\/doit\/fortune"\) \?/);
 });
 
-test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·홈 화면 추가·설정', () => {
+// 2026-09-28 「FINAL MASTER」 §13: 햄버거는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) · 같은 불투명 파스텔 판 · 항목에 「앱 설치」.
+test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 설치·설정', () => {
   const top = read('src/doit/components/feature/TopBar.tsx');
-  assert.match(top, /className="doit-menu-panel fixed right-4/);
-  assert.match(top, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
+  const menu = read('src/components/AppCornerMenu.tsx');
+  const css = read('src/components/app-corner-menu.css');
+  assert.match(menu, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
+  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\)/);
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
-  for (const t of ['ECHO와 이야기하기', '나의 이해', '홈 화면에 ECHO 추가', '설정']) assert.ok(top.includes(`label: "${t}"`), t);
+  for (const t of ['ECHO와 이야기하기', '나의 이해', '앱 설치', '설정']) assert.ok(menu.includes(`label: '${t}'`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');
   // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 파스텔 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만
   assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);

@@ -66,7 +66,7 @@ export default function DoItBrandHero({ onStart }: Props) {
           </div>
         </div>
       </div>
-      <div className="doit-brand-bottom"><span>© 2026 DO IT COMPANY</span><div className="doit-brand-bottom-actions">{/* 2026-09-27 대표 최종: 「움직임 줄이기」 버튼은 첫 화면에서 뺀다. 기기 설정의 동작 줄이기(prefers-reduced-motion)는 그대로 따른다. */}<a href="#doit-stories">아래로, 조금 더 알아보기 <span aria-hidden="true">↓</span></a></div></div>
+      <div className="doit-brand-bottom"><span>© 2026 DO IT COMPANY</span><div className="doit-brand-bottom-actions">{/* 2026-09-27 대표 최종: 움직임 멈춤 버튼은 첫 화면에서 뺐다(필요하면 설정 → 접근성). 기기 설정(prefers-reduced-motion)은 그대로 따른다. */}<a href="#doit-stories">아래로, 조금 더 알아보기 <span aria-hidden="true">↓</span></a></div></div>
     </section>
   );
 }
