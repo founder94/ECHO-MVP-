@@ -1,0 +1,59 @@
+# PR #12 운영 배포 전 관통 QA 전용(2026-09-27 대표 「FINAL PRE-DEPLOY VALIDATION」) — QA 브랜치에만 있다(PR #12 에 넣지 않음).
+# - 사람이 직접 누를 때만(workflow_dispatch). 운영 DB·운영 함수·운영 Secret·배포 0.
+# - 실제 서버 코드(doit-agent · doit-connect)를 메모리 DB 로 돌리고 AI 는 시험 키(OPENAI_API_KEY_AB_TEST)로 실제 OpenAI. 입력은 합성 문장.
+name: echo-claude-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: '사용하지 않음(등록된 워크플로 입력 모양 유지)'
+        required: false
+        default: 'claude-haiku-4-5-20251001'
+        type: choice
+        options: ['claude-haiku-4-5-20251001', 'claude-sonnet-5']
+      mode:
+        description: 'qa12 = PR #12 관통 QA'
+        required: false
+        default: 'qa12'
+        type: choice
+        options: ['qa12', 'smoke', 'compare43']
+      providers:
+        description: '사용하지 않음'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-claude-smoke
+  cancel-in-progress: false
+
+jobs:
+  qa12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3
+      - name: PR #12 관통 QA(실제 OpenAI · 메모리 DB)
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+        run: |
+          set +e
+          node qa-real/pr12-e2e.mjs --out ../qa12-result.json > /dev/null
+          code=$?
+          echo "pr12-e2e exit=$code"
+          if [ -f ../qa12-result.json ]; then echo "::group::qa12-result.json"; cat ../qa12-result.json; echo; echo "::endgroup::"; fi
+          exit $code
