@@ -1,9 +1,10 @@
 {
-  "note": "ECHO 릴리스 후보(RC) 기록 · QA 검사 기준. 운영 배포 때 이 commit 과 같아야 함(중간 수정 금지).",
+  "note": "ECHO 릴리스 후보(RC) · 2026-09-27 대표 「FINAL QA DEVICE RELEASE + PACKAGE ORDER」 재동결. 운영 배포 때 이 commit 과 같아야 함(중간 수정 금지). 아래 빌드는 모두 QA BUILD(QA Supabase) — 운영 Netlify 업로드 금지.",
   "pr": 12,
-  "commit": "f04611bd978428fcf37748a8ae47b000931d2310",
-  "agent_version": "echo-agent-v2.2.4",
-  "qa_functions": { "doit-agent": "QA v5 (Actions run 36307363006)", "doit-connect": "ezbr 1084e0fc…(변경 0)", "doit-understanding": "운영 v29 + 승인 1줄 · sha256 fb960018…(변경 0)" },
-  "frontend_qa_build": { "source_commit": "f04611b", "role": "app", "flags": ["VITE_A_STRUCTURE_SERVER_ENABLED=true", "VITE_ECHO_FOLLOWUP_ENABLED=true", "VITE_ECHO_AGENT_ENABLED=true"], "supabase": "QA mutniujeiyujhkobadkd", "dist_tree_sha256_16": "7cbccb57284bf042", "prod_ref_in_build": 0, "sourcemaps": 0, "qa_only_change": "manifest name/short_name + apple title = DO IT QA" },
-  "checks": { "mock_regression": "694 · 689 pass · 0 fail · 5 todo", "type_check": "pass", "lint": "pass", "deno_check": "doit-agent · doit-connect · understanding 후보 PASS", "build_app": "pass", "build_brand": "pass", "real_ai_repeat_v2.2.4": "20/20 · P0 fail 0", "full_r5": "38/38" }
+  "commit": "1033700",
+  "server": { "agent_version": "echo-agent-v2.2.4", "server_code_commit": "f04611b (1033700 과 supabase/ 차이 0)", "qa_deployed": "doit-agent (Actions run 36307363006)" },
+  "frontend_change_since_f04611b": ["product/src/doit/components/feature/ConversationOpening.tsx (AI TRUST MICROCOPY 1줄)", "product/qa/ai-trust-microcopy.test.mjs (고정 테스트)"],
+  "qa_build_app": { "role": "app", "supabase": "QA mutniujeiyujhkobadkd", "dist_tree_sha256": "e1cc2a9e1fc861931b7d57e922578d64ec7caba6d87b4aa46b025f1cf07aa331", "zip": "1_APP_여기에올릴것_doitmobile.zip", "zip_sha256": "40fdc2f29728958df722f4090e3d4b78c05d2864da21c8b6e9387c97ba0db4f9", "zip_size": 4864810, "qa_only_change": "manifest name/short_name + apple title = DO IT QA" },
+  "qa_build_brand": { "role": "brand", "supabase": "QA mutniujeiyujhkobadkd", "dist_tree_sha256": "d268334cb9725adb9af256ebf3ebbbfd8125b39a4f3b9a1a452c231db38a24b9", "zip": "2_BRAND_여기에올릴것_echo-mvp-doit.zip", "zip_sha256": "01104929310e2c88c7feb90e5a8ff75cc418f9acb0f0bcef556fcf9fb8509137", "zip_size": 4754022 },
+  "checks": { "mock_regression": "696 · 691 pass · 0 fail · 5 todo", "type_check": "pass", "lint": "pass", "deno_check": "3 PASS (서버 무변경)", "build_app": "pass", "build_brand": "pass", "real_ai_repeat_v2.2.4": "20/20 · P0 fail 0", "full_r5": "38/38", "concurrent_ui_preflight": "A/B 동시 · 세션/대화/저장 교차 0 · 5xx 0 · 중복 생성 0" }
 }
