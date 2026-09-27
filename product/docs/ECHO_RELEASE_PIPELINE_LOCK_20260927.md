@@ -18,7 +18,7 @@ Priority: latest CEO decision > current company/master lock > observed operation
 | PR #14 initial head | ACTIVE | `22a34548229add30a2b05a977e14005d39a3b7d4` draft, not merged at inspection |
 | Code gate existing run | ACTIVE | Run `36315222879`: check success, qa_publish skipped |
 | QA release branch | MISSING | `release/qa-app` search returned no branch |
-| QA Netlify deploy | MISSING | QA project current deploy object empty |
+| QA Netlify deploy | ACTIVE | Deploy `6ab912436a0dca4dce96b1b8` appeared at 2026-09-27 12:55 UTC. Netlify marks it ready, manual `drop`, `commit_ref: null`. This is not a pipeline deploy or verified commit. |
 | QA Supabase target | READY | Exact project ref and URL identified, build restriction coded |
 | GitHub QA Environment and secrets | UNKNOWN | Connector cannot read environment variables or confirm scoped token |
 | Production protection | MISSING | CEO signal, device evidence, freeze, backup and rollback not operational |
