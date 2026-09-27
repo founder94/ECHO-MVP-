@@ -1,0 +1,9 @@
+{
+  "note": "ECHO 릴리스 후보(RC) 기록 · QA 검사 기준. 운영 배포 때 이 commit 과 같아야 함(중간 수정 금지).",
+  "pr": 12,
+  "commit": "f04611bd978428fcf37748a8ae47b000931d2310",
+  "agent_version": "echo-agent-v2.2.4",
+  "qa_functions": { "doit-agent": "QA v5 (Actions run 36307363006)", "doit-connect": "ezbr 1084e0fc…(변경 0)", "doit-understanding": "운영 v29 + 승인 1줄 · sha256 fb960018…(변경 0)" },
+  "frontend_qa_build": { "source_commit": "f04611b", "role": "app", "flags": ["VITE_A_STRUCTURE_SERVER_ENABLED=true", "VITE_ECHO_FOLLOWUP_ENABLED=true", "VITE_ECHO_AGENT_ENABLED=true"], "supabase": "QA mutniujeiyujhkobadkd", "dist_tree_sha256_16": "7cbccb57284bf042", "prod_ref_in_build": 0, "sourcemaps": 0, "qa_only_change": "manifest name/short_name + apple title = DO IT QA" },
+  "checks": { "mock_regression": "694 · 689 pass · 0 fail · 5 todo", "type_check": "pass", "lint": "pass", "deno_check": "doit-agent · doit-connect · understanding 후보 PASS", "build_app": "pass", "build_brand": "pass", "real_ai_repeat_v2.2.4": "20/20 · P0 fail 0", "full_r5": "38/38" }
+}
