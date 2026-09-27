@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.2.2"; // v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.2.2"; // v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 맨 거절(「그런 뜻 아니야」)은 바로 앞 말의 AI 정리만 거둠. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -215,6 +215,8 @@ const now = () => new Date().toISOString();
 //   방금 보인 해석(최근 두 턴 안)이고, 부정 표현이 한쪽에만 있지 않고(반대 뜻 보호), 틀린 뜻(4글자 이상)이 그 정리 안에 들어 있거나 두 글자 묶음이 거의 같을 때만 거둔다.
 const REJECT_TEXT = /^\s*(아니(요|야|에요)?|아냐|아닌데|그게\s*아니|그건\s*아니|그런\s*(뜻|말|게)\s*(이\s*)?아니|틀렸|잘못\s*(이해|알아)|그런\s*말\s*(한\s*적|안\s*했))/;
 const NEG_MARK = /(안|않|못|말고|싫|없|아니)/;
+// 뜻을 거절하는 말(「아니요」 한 마디 대답은 넣지 않는다 — 질문에 대한 답일 수 있다).
+const BARE_REJECT = /(그런\s*(뜻|말|게|의미)\s*(이\s*)?아니|그게\s*아니|그건\s*아니|잘못\s*(이해|알아)|틀렸|그런\s*말\s*(한\s*적|안\s*했))/;
 const pairs = (t: string) => { const o = new Set<string>(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
 function dice(a: string, b: string): number { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); }
 export function wrongHits(item: Item, wrong: string, text: string, turnN: number): boolean {
@@ -369,7 +371,13 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   if (out.kind === "correction" || out.kind === "repair") {
     if (out.kind === "correction" && st.corrections[st.corrections.length - 1] !== text) st.corrections.push(text); // 같은 정정 재전송은 한 번만
     if (st.current?.text) st.disputed.push(st.current.text);
-    for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (wrongHits(i, w, text, turn.n) && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); }
+    let retracted = 0;
+    for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (wrongHits(i, w, text, turn.n) && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); retracted++; }
+    // v2.2.2 맨 거절(실제 AI 확인 2026-09-27): 「아니, 그런 뜻 아니야」처럼 무엇이 틀렸는지 말하지 않으면 모델이 틀린 뜻(wrong)을 짚지 못한다.
+    // 모델이 틀린 뜻을 하나도 짚지 않았고(짚었는데 안 맞으면 지우지 않음) · 이번 말에 새 정보가 없고 · 뜻을 거절하는 말이면, 바로 앞 사용자 말(turn n-1)에서 AI 가 정리한 해석(AI_EXTRACTED)만 거둔다(출처 = 턴 · 사용자 원문 USER_DIRECT 는 그대로).
+    if (!retracted && !out.wrong.length && BARE_REJECT.test(text) && !kept.some((k) => k.turn === turn.n)) {
+      for (const id of PIDS) for (const i of st.slots[id].items) if (i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED" && i.turn === turn.n - 1) { i.status = "RETRACTED"; i.rejected_at = now(); }
+    }
     // v2.0 정정 엔진: 정정(correction)으로 이번 말에서 새 뜻을 받은 목적은, 그 목적의 옛 뜻을 거둔다(최신 사용자 말 우선 · 원문 turns 는 지우지 않는다).
     if (out.kind === "correction") {
       let n = 0;
