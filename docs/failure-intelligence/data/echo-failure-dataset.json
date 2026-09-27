@@ -1095,7 +1095,7 @@
       "fix_v36": "v3.6 speakProblem label_copy(완화 검사): 질문이 내부 목적 이름 앞 10글자를 담았고 사용자가 그 표현을 직접 쓰지 않았으면 1회 재요청 → 그래도면 그대로(끝맺음 쏠림은 v3.5 계약 그대로 · 문턱 변경 0)",
       "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: label_copy_questions OpenAI 15 → 2 · Claude 3 → 0(H 문턱 ≤5 통과) · ending_dominated_runs 는 여전히 OpenAI 11 · Claude 8(문턱 ≤4 실패)",
       "fix_v37": "v3.7 H: endingCrowded — 이번 받아주기를 더하면 이 대화 받아주기의 절반 이상이 「~군요·~구나」가 될 때(앞에 1개 이상 · 사용자가 먼저 그 말투면 제외) 최대 1회 재요청 · styleNote 로 말하기 입력에 쏠림 알림 · 말투 계약에 「받아주기 없이 바로 물어도 됨」 · 서버 문장 0",
-      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36291338169: ending_dominated_runs OpenAI 11 → 4 · Claude 8 → 1(문턱 ≤4 통과) · label_copy_questions OpenAI 2 → 7(문턱 실패 · MS-11)"
     },
     {
       "id": "PR-02",
@@ -1119,9 +1119,9 @@
     {
       "occurred_at": "2026-09-27",
       "severity": "P1",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "v3.7 수정 · 실제 AI 재시험 통과",
       "retest_result": "미실시",
-      "status": "OPEN",
+      "status": "FIXED_VERIFIED",
       "refs": [
         "run 36289721102"
       ],
@@ -1135,14 +1135,14 @@
       "reproduction_test": "F5 polite 6",
       "cause_class": "SERVER(검사 빈틈) · 드러낸 것 MODEL",
       "fix_v37": "v3.7 speakProblem = 치명 검사(hardProblem) 먼저 → 문제 없을 때만 완화 검사(softProblem). run 37 원인: 「~군요」 쏠림(완화)이 먼저 걸려 두 번째 시도가 「그대로 두기」로 통과하며 정정 되묻기 검사를 건너뜀(reaskAfterCorrection 자체는 그 질문을 잡음)",
-      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36291338169: OpenAI reask_after_correction 1 → 0 · Claude 0 (PASS)"
     },
     {
       "occurred_at": "2026-09-27",
       "severity": "P2",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "v3.7 수정 · 실제 AI 재시험 통과",
       "retest_result": "미실시",
-      "status": "OPEN",
+      "status": "FIXED_VERIFIED",
       "refs": [
         "run 36289721102"
       ],
@@ -1156,14 +1156,14 @@
       "reproduction_test": "CEO_META casual 2",
       "cause_class": "MODEL(Claude) · SERVER 검출 후보",
       "fix_v37": "v3.7 speakerSwap: 「내가/제가 물었던 건·했던 말은」 뒤 내용이 사용자가 한 말이고 ECHO 가 실제로 한 질문(asked)이 아니면 speaker(치명) → 다시 청함 · 사용자 말을 사용자 말로 짚는 공감 · ECHO 질문 인용은 그대로",
-      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v37": "로컬: candidate-v3.7.test.mjs 100/100(재현 4개는 v3.6 에서 실패 · 역검사 3개는 v3.6·v3.7 모두 통과) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36291338169: Claude CEO_META 가 ECHO 실제 질문을 말함 · speaker_in_reply 0 (PASS)"
     },
     {
       "occurred_at": "2026-09-27",
       "severity": "P2",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "측정기 보정(제품 변경 0)",
       "retest_result": "미실시",
-      "status": "OPEN",
+      "status": "CLOSED_METRIC",
       "refs": [
         "run 36289721102"
       ],
@@ -1177,7 +1177,64 @@
       "reproduction_test": "run 37 openai 258행",
       "cause_class": "METRIC(측정기 오탐 · 인용 속 물음 낱말) · 제품 결함 아님",
       "fix_v37": "판정: 측정기 오탐(실제 출력의 받아주기는 약속 문장 하나 · 따옴표 안 사용자 말의 「언제」가 질문으로 세어짐). 제품 서버 변경 0 · run-prod-agent.mjs qActsH 가 따옴표 안을 빼고 셈(metrics-v32.test.mjs 검사 추가) · run 37 OpenAI 재계산 double_question_turns 1 → 0(참고 · run 37 판정은 동결 그대로)",
-      "retest_v37": "로컬: metrics-v32.test.mjs 7/7 · spike 652/652"
+      "retest_v37": "로컬: metrics-v32.test.mjs 7/7 · spike 652/652 | 실제 AI: run 36291338169: double_question_turns OpenAI 0 · Claude 0 (측정기 보정 뒤)"
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P1",
+      "resolution": "미수정(결과 동결 · v3.8 자동 생성 0 · 대표 결정 대기)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36291338169"
+      ],
+      "id": "MS-11",
+      "source_type": "MODEL_SPECIFIC",
+      "raw_context": "v3.7 OpenAI label_copy_questions 2 → 7(why_v33 H 문턱 5 초과)",
+      "failure_type": "soft_retry_competition",
+      "root_cause": "추정: 완화 검사(끝맺음 쏠림 · 라벨 복사)가 한 턴 재요청 1회를 나눠 씀 — 끝맺음 쏠림 검출이 넓어져(v3.7) 첫 재요청이 끝맺음에 쓰이고, 두 번째 후보의 라벨 복사가 「그대로 두기」로 남음",
+      "expected_behavior": "label_copy_questions ≤ 5",
+      "linked_engine": "Humanity",
+      "reproduction_test": "run 38 openai",
+      "cause_class": "MODEL(OpenAI) · SERVER(완화 검사 우선순위) · P1"
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P1",
+      "resolution": "미수정(결과 동결 · v3.8 자동 생성 0 · 대표 결정 대기)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36291338169"
+      ],
+      "id": "MS-12",
+      "source_type": "MODEL_SPECIFIC",
+      "raw_context": "v3.7 Claude 마무리 받아주기 「이제 당신이 어떤 만남을 원하는지 …」 13(run 37 8)",
+      "failure_type": "stiff_word_in_reply",
+      "root_cause": "딱딱한 말(당신) 검사가 질문에만 있고 받아주기·마무리에는 없음",
+      "expected_behavior": "「당신」 대신 생략·이름 없는 자연 표현",
+      "linked_engine": "Humanity",
+      "reproduction_test": "run 38 claude",
+      "cause_class": "MODEL(Claude) · P1"
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P1",
+      "resolution": "미수정(결과 동결 · v3.8 자동 생성 0 · 대표 결정 대기)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36291338169"
+      ],
+      "id": "EA-26",
+      "source_type": "ECHO_AGENT",
+      "raw_context": "v3.7 Claude 빈 받아주기 복구 뒤 일반 듣기 문장 5 · 마친 판 23 → 20",
+      "failure_type": "generic_listen_fallback",
+      "root_cause": "EMPTY_REPLY·VALIDATION 복구가 모델 복구 실패 시 일반 듣기 문장으로 떨어짐",
+      "expected_behavior": "사용자 말의 한 부분을 짚는 받아주기",
+      "linked_engine": "Recovery",
+      "reproduction_test": "run 38 claude 156행 등",
+      "cause_class": "SERVER+MODEL · P1"
     }
   ],
   "ux_research": {
