@@ -156,47 +156,97 @@ test('R 거절 검사 전제: 거절할 해석이 저장돼 있지 않으면 「
   assert.equal(pre.length, 0, '이 모양이면 거절 검사는 TEST INVALID(PASS 아님)');
 });
 
-// 실제 AI 확인(Actions run 36296551186 · R3): 「아니, 그런 뜻 아니야」에 모델은 repair 로 읽었지만 틀린 뜻(wrong)을 짚지 않아 해석이 남았다 — 같은 모양을 대본으로 재현.
-function shown() {
+// 모호한 거절(2026-09-27 대표 「VAGUE REJECTION RULE」): 바로 앞 답(reply)에서 사용자에게 실제로 보인 AI 해석만 대상 · 사용자 원문 보존.
+const LATE = '약속 시간에 늦는 사람은 별로예요';
+function shown(reply, extracted, text = LATE) {
   const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st);
   A.applyTurn(st, '친구처럼 편한 만남이요', T({ extracted: [X('relationship_intent', '친구 같은 만남', '친구처럼 편한 만남')] }));
   at(st, 'values_character');
-  A.applyTurn(st, '연락이 너무 잦으면 좀 그래요', T({ extracted: [X('relationship_style', '연락이 너무 잦은 것은 선호하지 않음', '연락이 너무 잦으면 좀 그래요')] }));
-  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'CONFIRMED', '전제: 거절할 AI 해석이 서버 상태에 있다');
+  A.applyTurn(st, text, T({ reply, extracted, next: { type: 'core', purpose: 'relationship_style', question: '연락은 어떻게 하는 게 좋아요?' } }));
   return st;
 }
+const VAGUE = T({ kind: 'repair', wrong: [], reply: '아, 그렇군요.' });
 
-test('R1 맨 거절: 바로 앞 말의 AI 해석만 거둔다 · 사용자 원문(USER_DIRECT)과 앞선 사실은 그대로', () => {
-  const st = shown();
-  A.applyTurn(st, '아니, 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
-  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'RETRACTED');
-  assert.equal(status(st, 'values_character', '연락이 너무 잦으면 좀 그래요'), 'CONFIRMED', '사용자가 직접 친 말은 모델 판단으로 지우지 않음');
-  assert.equal(status(st, 'relationship_intent', '친구 같은 만남'), 'CONFIRMED', '앞선 다른 턴의 사실 보존');
+test('R1 AI 해석 A 하나를 화면에 보임 → 「그게 아니야」 → A 만 거둠 · 사용자 원문 보존', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  assert.deepEqual(st.turns.at(-1).presented, [{ purpose: 'boundaries', note: '시간 약속을 잘 지키는 사람이 좋음' }], '전제: 해석 A 가 사용자에게 보였다');
+  A.applyTurn(st, '그게 아니야', VAGUE);
+  assert.equal(status(st, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'RETRACTED');
+  assert.equal(status(st, 'values_character', LATE), 'CONFIRMED', '사용자 원문(USER_DIRECT) 보존');
+  assert.equal(status(st, 'relationship_intent', '친구 같은 만남'), 'CONFIRMED');
+  st.phase = 'done';
+  assert.ok(!src(st).confirmed.includes('시간 약속을 잘 지키는 사람이 좋음'));
+  assert.ok(!A.matchingProfile(st).confirmed_preferences.includes('시간 약속을 잘 지키는 사람이 좋음'));
+});
+
+test('R2 AI 가 A/B/C 를 만들었지만 화면에는 A 만 → A 만 거둠 · B/C 그대로', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE), X('attraction_comfort', '성실한 사람에게 끌림', '사람은'), X('values_character', '책임감을 중요하게 봄', '별로예요')]);
+  assert.equal(st.turns.at(-1).presented.length, 1, '전제: 화면에 보인 해석은 A 하나');
+  A.applyTurn(st, '그게 아니야', VAGUE);
+  assert.equal(status(st, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'RETRACTED');
+  assert.equal(status(st, 'attraction_comfort', '성실한 사람에게 끌림'), 'CONFIRMED', 'B 자동 삭제 0');
+  assert.equal(status(st, 'values_character', '책임감을 중요하게 봄'), 'CONFIRMED', 'C 자동 삭제 0');
+});
+
+test('R3 화면에 A/B 두 해석을 함께 보임 → 모호한 거절 → 둘 다 DISPUTED(지금 사실·매칭 0 · 지우지 않음) + 한 줄 확인 · 원문 보존', () => {
+  const text = '조용한 카페를 좋아하고 연락은 매일 하는 게 좋아요';
+  const st = shown('조용한 카페를 좋아하시고 연락은 매일 하는 게 좋으시군요.', [X('attraction_comfort', '조용한 카페를 좋아함', '조용한 카페를 좋아하고'), X('relationship_style', '연락은 매일 하는 게 좋음', '연락은 매일 하는 게 좋아요')], text);
+  assert.equal(st.turns.at(-1).presented.length, 2, '전제: 두 해석이 함께 보였다');
+  const r = A.applyTurn(st, '아니, 그런 뜻 아니야', VAGUE);
+  assert.equal(status(st, 'attraction_comfort', '조용한 카페를 좋아함'), 'DISPUTED');
+  assert.equal(status(st, 'relationship_style', '연락은 매일 하는 게 좋음'), 'DISPUTED');
+  assert.equal(r.question, A.DISPUTE_CHECK, '한 줄만 확인');
+  assert.equal(st.turns.at(-1).decision, 'dispute_check');
+  assert.equal(st.slots.values_character.items.find((i) => i.quote === text)?.status, 'CONFIRMED', '사용자 원문 보존');
   st.phase = 'done';
   const s = src(st);
-  assert.ok(!s.confirmed.includes('연락이 너무 잦은 것은 선호하지 않음'), JSON.stringify(s.confirmed));
-  assert.ok(A.matchingProfile(st).rejected_meanings.includes('연락이 너무 잦은 것은 선호하지 않음'));
+  assert.ok(!s.confirmed.includes('조용한 카페를 좋아함') && !s.confirmed.includes('연락은 매일 하는 게 좋음'), JSON.stringify(s.confirmed));
 });
 
-test('R2 「아니요」 한 마디(질문에 대한 답일 수 있음)는 맨 거절 규칙을 쓰지 않는다', () => {
-  const st = shown();
-  A.applyTurn(st, '아니요', T({ kind: 'repair', wrong: [] }));
-  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'CONFIRMED');
+test('R3b 보인 해석이 없으면 상태는 그대로 두고 한 줄만 확인 · 「아니에요」 한 마디는 모델이 거절로 읽을 때만', () => {
+  const st = shown('그렇군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  const r = A.applyTurn(st, '아니, 그런 뜻 아니야', VAGUE);
+  assert.equal(status(st, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'CONFIRMED');
+  assert.equal(r.question, A.DISPUTE_CHECK);
+  const st2 = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  A.applyTurn(st2, '아니에요', T({ kind: 'answer' }));
+  assert.equal(status(st2, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'CONFIRMED', '대답으로 읽힌 「아니에요」는 거절 아님');
+  A.applyTurn(st2, '아니에요', VAGUE);
+  assert.equal(status(st2, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'CONFIRMED', '바로 앞 답이 아니라 그 전 답의 해석이므로 대상 아님');
 });
 
-test('R3 거절하며 새로 설명하면(새 정보 있음) 맨 거절 규칙 대신 정정 규칙', () => {
-  const st = shown();
-  A.applyTurn(st, '그런 뜻 아니야 하루 한 번은 좋아요', T({ kind: 'correction', extracted: [X('relationship_style', '하루 한 번 연락은 좋음', '하루 한 번은 좋아요')] }));
-  assert.equal(status(st, 'relationship_style', '하루 한 번 연락은 좋음'), 'CONFIRMED');
-  assert.equal(status(st, 'relationship_style', '연락이 너무 잦은 것은 선호하지 않음'), 'SUPERSEDED');
+test('R4 USER_DIRECT 사실이 있고 이후 AI 해석을 거절 → USER_DIRECT 자동 삭제 0', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  A.applyTurn(st, '그게 아니야', VAGUE);
+  assert.equal(st.slots.values_character.items.filter((i) => i.source_type === 'USER_DIRECT' && i.status === 'CONFIRMED').length, 1);
 });
 
-test('R4 모델이 틀린 뜻을 짚으면 기존 규칙(짚은 것만) · 앞 말의 다른 해석은 그대로', () => {
-  const st = shown();
-  A.applyTurn(st, '편한 대화 좋아해요', T({ extracted: [X('attraction_comfort', '대화가 편한 사람', '편한 대화 좋아해요'), X('values_character', '말수가 많은 사람', '편한 대화 좋아해요')] }));
-  A.applyTurn(st, '아니, 그런 뜻 아니야', T({ kind: 'repair', wrong: ['말수가 많은 사람'] }));
-  assert.equal(status(st, 'values_character', '말수가 많은 사람'), 'RETRACTED');
-  assert.equal(status(st, 'attraction_comfort', '대화가 편한 사람'), 'CONFIRMED');
+test('R5 거둔 A 를 다음 응답에서 AI 가 다른 표현으로 다시 정리 → 지금 사실로 올리지 않음 · Matching 0', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  A.applyTurn(st, '그게 아니야', VAGUE);
+  A.applyTurn(st, '그냥 늦는 건 좀 그래요', T({ extracted: [X('boundaries', '시간 약속 잘 지키는 사람이 좋음', '늦는 건 좀 그래요'), X('relationship_style', '늦는 건 싫어함', '늦는 건 좀 그래요')] }));
+  assert.equal(status(st, 'boundaries', '시간 약속 잘 지키는 사람이 좋음'), undefined, '다른 표현의 같은 뜻 재생성 차단');
+  assert.equal(status(st, 'relationship_style', '늦는 건 싫어함'), 'CONFIRMED', '다른 뜻은 저장');
+  st.phase = 'done';
+  assert.ok(!src(st).confirmed.some((n) => /시간 약속/.test(n)));
+});
+
+test('R6 이후 사용자가 직접 「아니, 실제로는 B야」 → B = USER_CORRECTED CONFIRMED · A = RETRACTED · Matching 은 B', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  A.applyTurn(st, '그게 아니야', VAGUE);
+  A.applyTurn(st, '아니, 실제로는 연락 없이 늦는 게 싫다는 거야', T({ kind: 'correction', extracted: [X('boundaries', '연락 없이 늦는 것이 싫음', '연락 없이 늦는 게 싫다는 거야')] }));
+  const b = st.slots.boundaries.items.find((i) => i.note === '연락 없이 늦는 것이 싫음');
+  assert.equal(b.status, 'CONFIRMED'); assert.equal(b.source_type, 'USER_CORRECTED');
+  assert.equal(status(st, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'RETRACTED');
+  st.phase = 'done';
+  const s = src(st);
+  assert.ok(s.confirmed.includes('연락 없이 늦는 것이 싫음') && !s.confirmed.includes('시간 약속을 잘 지키는 사람이 좋음'), JSON.stringify(s.confirmed));
+});
+
+test('R7 모델이 틀린 뜻을 짚으면 기존 규칙(짚은 것만) · 짚었는데 안 맞으면 아무것도 지우지 않음', () => {
+  const st = shown('시간 약속을 잘 지키는 사람이 좋으시군요.', [X('boundaries', '시간 약속을 잘 지키는 사람이 좋음', LATE)]);
+  A.applyTurn(st, '아니, 그런 뜻 아니야', T({ kind: 'repair', wrong: ['시간 약속을 잘 안 지켜도 됨'] }));
+  assert.equal(status(st, 'boundaries', '시간 약속을 잘 지키는 사람이 좋음'), 'CONFIRMED');
 });
 
 // 실제 AI 확인(Actions run 36296950517): 「매일」 → 「아니 그런 뜻 아니야」(AI 정리 거둠 · 원문 복제는 다른 칸에 남음) → 화면 정정(주말).
@@ -204,6 +254,7 @@ test('R4 모델이 틀린 뜻을 짚으면 기존 규칙(짚은 것만) · 앞 �
 test('C7 거절로 거둔 옛 해석의 원문 복제도, 그 칸을 사용자가 정정하면 다른 칸에서 함께 밀린다', async () => {
   const st = stale();
   st.phase = 'talk'; st.current = { type: 'core', purpose: 'relationship_style', text: '연락은 어떤 방식이 좋아요?' };
+  st.turns.at(-1).reply = '매일 연락하는 게 좋으시군요.'; st.turns.at(-1).presented = undefined; // 실제 AI 답(run 36296950517)과 같은 모양 · 예전 상태처럼 기록 없음 → 답 글로 계산
   A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
   assert.equal(status(st, 'relationship_style', '매일 연락하는 게 좋음'), 'RETRACTED', '전제: 맨 거절로 AI 정리를 거둠');
   assert.equal(status(st, 'values_character', OLD), 'CONFIRMED', '전제: 사용자 원문 복제는 거절만으로는 지우지 않음');
@@ -217,6 +268,7 @@ test('C7 거절로 거둔 옛 해석의 원문 복제도, 그 칸을 사용자�
 
 test('C7b v2.2.2 이전 저장 상태(거둔 뜻 + 뒤의 정정 + 다른 칸 원문 복제 CONFIRMED)도 Matching 이 빼낸다 · 정정이 없으면 원문 보존', () => {
   const st = stale();
+  st.turns.at(-1).reply = '매일 연락하는 게 좋으시군요.';
   A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
   const before = src(st);
   assert.ok(before.confirmed.includes(OLD), '정정 전: 사용자 원문은 그대로(거절만으로 지우지 않음)');
