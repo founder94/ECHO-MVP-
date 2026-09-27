@@ -70,9 +70,14 @@ test('T12 거절한 뜻 A 가 다른 표현으로 AI 정리에 다시 나오면 
   A.applyTurn(st, '조용한 사람이 편해요', T({ extracted: [X('attraction_comfort', '진지한 연애를 원함', '조용한 사람이 편해요')] }));
   A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: ['진지한 연애를 원함'] }));
   A.applyTurn(st, '말이 잘 통하는 사람이 좋아요. 진지하게 생각해요', T({ extracted: [X('relationship_intent', '진지한 연애를 원하는 편', '진지하게 생각해요'), X('values_character', '말이 잘 통하는 사람', '말이 잘 통하는 사람이 좋아요')] }));
-  assert.ok(A.matchingProfile(st).relationship_intent.items.some((i) => i.note === '진지한 연애를 원하는 편'), '준비: AI 가 다른 표현으로 다시 정리해 CONFIRMED');
+  // v2.2.2(대표 「VAGUE REJECTION RULE」 R5): 서버 상태가 먼저 막는다 — 거둔 뜻의 다른 표현 AI 정리는 지금 사실로 저장 0.
+  assert.ok(!A.matchingProfile(st).relationship_intent.items.some((i) => i.note === '진지한 연애를 원하는 편'), '상태에서 먼저 차단');
   const s = src(done(st));
   assert.ok(!has(s, '진지한 연애'), JSON.stringify(s.confirmed));
+  // 매칭 읽는 쪽 안전망(v2.2.2 이전에 저장된 상태): 같은 모양이 profile 에 CONFIRMED 로 남아 있어도 쓰지 않는다.
+  const old = A.matchingProfile(st);
+  old.relationship_intent.items.push({ note: '진지한 연애를 원하는 편', quote: '진지하게 생각해요', status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 4 });
+  assert.ok(!M.sourceFromProfile(old, 'done', null).confirmed.includes('진지한 연애를 원하는 편'));
   assert.ok(has(s, '말이 잘 통하는 사람'), '다른 사실은 그대로');
   const p = A.matchingProfile(st);
   p.values_character.items.push({ note: '진지한 연애를 원해요', quote: '진지한 연애를 원해요', status: 'CONFIRMED', source_type: 'USER_CORRECTED', source_turn: 9 });

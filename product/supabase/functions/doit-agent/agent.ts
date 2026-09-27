@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.2.2"; // v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 맨 거절(「그런 뜻 아니야」)은 바로 앞 말의 AI 정리만 거둠. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.2.2"; // v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -182,11 +182,11 @@ JSON 하나로만 답한다: {"intro":[{"text":"","basis":""}]}`;
 
 type Json = Record<string, unknown>;
 // 정보 계보(2026-09-26 DATA LINEAGE): 어디서 왔는지(source_type) · 어느 사용자 말(turn, quote = 사용자가 친 글자)인지 · 언제 확인/교체/거절됐는지.
-// status: CONFIRMED = 지금 쓰는 값(ACTIVE) · SUPERSEDED = 사용자 정정으로 새 값에 밀림 · RETRACTED = 사용자가 아니라고 함(거절 뜻). 옛 값은 지우지 않는다(이력).
+// status: CONFIRMED = 지금 쓰는 값(ACTIVE) · SUPERSEDED = 사용자 정정으로 새 값에 밀림 · RETRACTED = 사용자가 아니라고 함(거절 뜻) · DISPUTED = 모호한 거절로 어느 해석인지 몰라 확인 중(지금 값 아님 · 지우지 않음). 옛 값은 지우지 않는다(이력).
 export type SourceType = "USER_DIRECT" | "AI_EXTRACTED" | "AI_INFERRED" | "USER_CONFIRMED" | "USER_CORRECTED" | "PHOTO_INFERRED" | "PROFILE_DIRECT";
-export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
+export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED" | "DISPUTED"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
 export interface Asked { type: "core" | "clarify"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null }
-export interface TurnRec { guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
+export interface TurnRec { guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; presented?: { purpose: string; note: string }[]; vague_reject?: string; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
   slots: Record<string, { status: "UNKNOWN" | "CONFIRMED" | "SKIPPED"; items: Item[] }>;
@@ -215,10 +215,32 @@ const now = () => new Date().toISOString();
 //   방금 보인 해석(최근 두 턴 안)이고, 부정 표현이 한쪽에만 있지 않고(반대 뜻 보호), 틀린 뜻(4글자 이상)이 그 정리 안에 들어 있거나 두 글자 묶음이 거의 같을 때만 거둔다.
 const REJECT_TEXT = /^\s*(아니(요|야|에요)?|아냐|아닌데|그게\s*아니|그건\s*아니|그런\s*(뜻|말|게)\s*(이\s*)?아니|틀렸|잘못\s*(이해|알아)|그런\s*말\s*(한\s*적|안\s*했))/;
 const NEG_MARK = /(안|않|못|말고|싫|없|아니)/;
-// 뜻을 거절하는 말(「아니요」 한 마디 대답은 넣지 않는다 — 질문에 대한 답일 수 있다).
-const BARE_REJECT = /(그런\s*(뜻|말|게|의미)\s*(이\s*)?아니|그게\s*아니|그건\s*아니|잘못\s*(이해|알아)|틀렸|그런\s*말\s*(한\s*적|안\s*했))/;
+// v2.2.2 모호한 거절(2026-09-27 대표 「VAGUE REJECTION RULE」): 고친 내용 없이 방금 보인 해석 자체를 부정하는 말.
+// 「아니에요」 한 마디는 모델도 거절(repair·correction)로 읽었을 때만(질문에 대한 답일 수 있다).
+const BARE_REJECT = /(그런\s*(뜻|말|게|의미)\s*(이\s*)?아니|그게\s*아니|그건\s*아니|그렇게\s*말한\s*(게|거)\s*아니|잘못\s*(이해|알아)|틀렸|그런\s*말\s*(한\s*적|안\s*했))/;
+const SHORT_NO = /^\s*(아니(요|에요|야)?|아냐|아닌데요?)\s*[.!~…]*\s*$/;
+export const DISPUTE_CHECK = "어떤 부분이 달랐는지만 한 번 알려줄래요?";
 const pairs = (t: string) => { const o = new Set<string>(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
 function dice(a: string, b: string): number { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); }
+// 이 답(reply)이 사용자에게 실제로 보인 해석인가 — 해석(note) 또는 그 근거 원문(quote)의 두 글자 묶음이 답 글에 3개 이상 · 30% 이상 들어 있으면 「보임」.
+// 뜻 판정이 아니라 「화면에 무엇을 보였나」의 기록이다(결과로 사용자 원문을 지우지 않는다 · AI 정리만 대상).
+const bare = (t: unknown) => squash(t).replace(/[.,!?~…·"'「」]/g, "");
+function shownIn(reply: string, item: { note: string; quote: string }): boolean {
+  const R = pairs(bare(reply)); if (!R.size) return false;
+  return [item.note, item.quote].some((t) => { const P = pairs(bare(t)); let n = 0; for (const x of P) if (R.has(x)) n++; return n >= 3 && n / P.size >= 0.3; });
+}
+// 거둔 AI 해석과 같은 뜻을 AI 가 다른 표현으로 다시 정리하면 지금 사실로 올리지 않는다(부정 표현이 한쪽에만 있으면 다른 뜻).
+function sameAsRejected(st: AgentState, note: string): boolean {
+  const b = squash(note);
+  return PIDS.some((id) => st.slots[id].items.some((i) => {
+    if (i.status !== "RETRACTED" || i.source_type !== "AI_EXTRACTED") return false;
+    const a = squash(i.note);
+    if (a === b) return true;
+    if (NEG_MARK.test(a) !== NEG_MARK.test(b)) return false;
+    const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+    return (short.length >= 4 && long.includes(short)) || dice(a, b) >= 0.75;
+  }));
+}
 export function wrongHits(item: Item, wrong: string, text: string, turnN: number): boolean {
   if (item.note === wrong) return true;
   if (item.source_type !== "AI_EXTRACTED" || !REJECT_TEXT.test(text) || item.turn < turnN - 2) return false;
@@ -357,7 +379,9 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
       // v1.9: 이미 원문 그대로 남긴 답에 들어 있는 인용(「편한 사람」 ⊂ 「그냥 편한 사람」)도 같은 말로 본다.
       if (st.slots[m.purpose].items.some((i) => squash(i.quote) === squash(m.quote) || (i.source === "answer_raw" && squash(i.quote).includes(squash(m.quote))))) continue;
       // AI 가 사용자 말에서 뽑은 정리(AI_EXTRACTED) — 사용자가 직접 확인한 것은 아니다. 정정 말에서 뽑았으면 USER_CORRECTED.
-      const item: Item = { note: m.note, quote: m.quote, turn: at, source: at === turn.n ? out.kind : "recovered", status: "CONFIRMED", source_type: at === turn.n && out.kind === "correction" ? "USER_CORRECTED" : "AI_EXTRACTED", confirmed_at: now() };
+      const sourceType: SourceType = at === turn.n && out.kind === "correction" ? "USER_CORRECTED" : "AI_EXTRACTED";
+      if (sourceType === "AI_EXTRACTED" && sameAsRejected(st, m.note)) continue; // v2.2.2 거절 뜻 재생성 차단(사용자 정정 USER_CORRECTED 는 막지 않음)
+      const item: Item = { note: m.note, quote: m.quote, turn: at, source: at === turn.n ? out.kind : "recovered", status: "CONFIRMED", source_type: sourceType, confirmed_at: now() };
       st.slots[m.purpose].items.push(item); st.slots[m.purpose].status = "CONFIRMED"; kept.push({ purpose: m.purpose, note: m.note, turn: at });
     }
   }
@@ -368,15 +392,23 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
       if (BLOOD.test(out.declared.blood_type)) st.declared.blood_type = out.declared.blood_type.toUpperCase().replace(/형$/, "");
     }
   }
+  let disputeAsk = false;
   if (out.kind === "correction" || out.kind === "repair") {
     if (out.kind === "correction" && st.corrections[st.corrections.length - 1] !== text) st.corrections.push(text); // 같은 정정 재전송은 한 번만
     if (st.current?.text) st.disputed.push(st.current.text);
     let retracted = 0;
     for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (wrongHits(i, w, text, turn.n) && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); retracted++; }
-    // v2.2.2 맨 거절(실제 AI 확인 2026-09-27): 「아니, 그런 뜻 아니야」처럼 무엇이 틀렸는지 말하지 않으면 모델이 틀린 뜻(wrong)을 짚지 못한다.
-    // 모델이 틀린 뜻을 하나도 짚지 않았고(짚었는데 안 맞으면 지우지 않음) · 이번 말에 새 정보가 없고 · 뜻을 거절하는 말이면, 바로 앞 사용자 말(turn n-1)에서 AI 가 정리한 해석(AI_EXTRACTED)만 거둔다(출처 = 턴 · 사용자 원문 USER_DIRECT 는 그대로).
-    if (!retracted && !out.wrong.length && BARE_REJECT.test(text) && !kept.some((k) => k.turn === turn.n)) {
-      for (const id of PIDS) for (const i of st.slots[id].items) if (i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED" && i.turn === turn.n - 1) { i.status = "RETRACTED"; i.rejected_at = now(); }
+    // v2.2.2 모호한 거절(실제 AI 확인: 「아니, 그런 뜻 아니야」에 모델은 틀린 뜻 wrong 을 비워 돌려준다). 대상 = 바로 앞 답(reply)에서 사용자에게 실제로 보인 AI 해석만.
+    //   하나로 특정되면 그것만 거둠(RETRACTED) · 둘 이상이면 모두 DISPUTED(지금 값·매칭에서 빼고 지우지 않음) + 한 줄 확인 · 보인 해석이 없으면 상태는 그대로 두고 한 줄 확인.
+    //   사용자 원문(USER_DIRECT)·사용자 정정(USER_CORRECTED)·보이지 않은 AI 정리는 건드리지 않는다.
+    if (!retracted && !out.wrong.length && (BARE_REJECT.test(text) || SHORT_NO.test(text)) && !kept.some((k) => k.turn === turn.n)) {
+      const prev = st.turns.find((t) => t.n === turn.n - 1);
+      const live = (p: { purpose: string; note: string }) => st.slots[p.purpose]?.items.find((i) => i.note === p.note && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED");
+      const shown = prev ? (prev.presented ?? PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.turn === prev.n && i.source_type === "AI_EXTRACTED" && shownIn(prev.reply ?? "", i)).map((i) => ({ purpose: id, note: i.note })))) : [];
+      const targets = shown.map(live).filter((i): i is Item => !!i);
+      if (targets.length === 1) { targets[0].status = "RETRACTED"; targets[0].rejected_at = now(); }
+      else { for (const i of targets) { i.status = "DISPUTED"; i.rejected_at = now(); } disputeAsk = true; }
+      turn.vague_reject = targets.length === 1 ? "retracted" : targets.length ? "disputed" : "nothing_shown";
     }
     // v2.0 정정 엔진: 정정(correction)으로 이번 말에서 새 뜻을 받은 목적은, 그 목적의 옛 뜻을 거둔다(최신 사용자 말 우선 · 원문 turns 는 지우지 않는다).
     if (out.kind === "correction") {
@@ -387,7 +419,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
         // v2.2.2 같은 출처 연결(cross-slot): 방금 밀린 옛 값과 같은 사용자 말(같은 turn)의 같은 원문(quote)에서 나온 다른 칸의 값도 함께 밀린다.
         // 근거는 서버가 가진 출처(turn · quote)뿐 — 뜻이 비슷하다는 판단(유사도·모델)은 쓰지 않는다. 원문이 다르거나 턴이 다르면 사용자 사실로 보존.
         // 옛 값 = 이 칸에서 지금 값이 아닌 앞선 값(방금 밀린 것 + 앞서 「그런 뜻 아니야」로 거둔 AI 정리 — 거둔 해석의 원문 복제가 다른 칸에 남는 경우, 실제 AI 확인 run 36296950517).
-        const gone = st.slots[k.purpose].items.filter((i) => (i.status === "SUPERSEDED" || i.status === "RETRACTED") && i.turn < turn.n);
+        const gone = st.slots[k.purpose].items.filter((i) => i.status !== "CONFIRMED" && i.turn < turn.n);
         for (const id of PIDS) if (id !== k.purpose) for (const j of st.slots[id].items) {
           if (j.status !== "CONFIRMED" || j.turn >= turn.n || !gone.some((g) => sameSource(g, j))) continue;
           j.status = "SUPERSEDED"; j.superseded_at = now(); if (fresh) fresh.corrected_from = [...(fresh.corrected_from ?? []), j.note]; n++;
@@ -418,7 +450,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   const pending = out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) ? st.current : null;
   // 「예를 들면?」: 같은 목적을 더 쉽게 다시 묻는다(질문 수 0 · 저장 0). 질문마다 MAX_HELP_PER_QUESTION 번까지.
   const helping = out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION ? st.current : null;
-  if (st.phase === "talk" && out.kind !== "stop" && !opts.limitReached) {
+  if (st.phase === "talk" && out.kind !== "stop" && !opts.limitReached && !disputeAsk) {
     const n = out.next;
     // 먼저 답하기(ask): 답을 못 받은 지금 질문을 그대로 둔다(질문 수를 늘리지 않는다). AI 가 말을 바꿔 다시 물었으면 그 문장으로 바꿔 보인다.
     if (helping) {
@@ -440,11 +472,17 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   // 이미 한 질문과 글자까지 같은 새 질문은 보이지 않는다(먼저 답하기로 한 번 다시 보인 것은 위에서 따로 센다).
   if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => squash(a.text) === squash(question))) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_before"; }
   if (question && BANNED_WORDS.test(question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; }
-  const reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) ? "" : out.reply;
+  let reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) ? "" : out.reply;
+  // 모호한 거절로 어느 해석인지 특정하지 못했으면 한 줄만 확인한다(지금 질문은 그대로 · 핵심 질문 수 0). 대화가 끝난 뒤면 답 글로.
+  if (disputeAsk) { if (st.phase === "talk" && st.current) { question = DISPUTE_CHECK; decision = "dispute_check"; } else reply = DISPUTE_CHECK; }
   const finish = !question && st.phase === "talk";
   if (finish) st.current = null;
   turn.hint = question ? st.current?.hint ?? null : null;
   turn.reply = reply; turn.question = question; turn.decision = finish ? (opts.limitReached ? "finish_limit" : "finish") : decision;
+  // 이 답이 사용자에게 보인 AI 해석(출처 기록) — 다음 말이 모호한 거절이면 이것만 대상이 된다.
+  const shownNow = kept.map((k) => ({ purpose: k.purpose, item: st.slots[k.purpose].items.find((i) => i.note === k.note && i.turn === k.turn && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED") }))
+    .filter((x) => x.item && shownIn(reply, x.item)).map((x) => ({ purpose: x.purpose, note: x.item!.note }));
+  if (shownNow.length) turn.presented = shownNow;
   return { kind: out.kind, reply, question, saved: turn.saved, extracted: kept.map(({ purpose, note }) => ({ purpose, note })), recovered, finish, question_type: question ? st.current!.type : null, question_purpose: question ? st.current!.purpose : null };
 }
 

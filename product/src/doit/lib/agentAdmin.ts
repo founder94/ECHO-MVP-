@@ -198,7 +198,7 @@ export function aiOsEngines(sessions: Session[]): EngineRow[] {
     row('memory', '맥락 기억', n((x) => typ(x.c.success, 'PRIOR_ANSWER_REUSED')), n((x) => typ(x.c.failure, 'ALREADY_ANSWERED_REASK')), '앞선 말 되살림 / 이미 답한 것 다시 물음'),
     row('correction', '정정', n((x) => typ(x.c.success, 'CORRECTION_RECOVERED')) + recs.reduce((k, r) => k + (r.superseded ?? 0), 0), 0, '정정 기록 · 정정으로 밀린 옛 값(지금 값만 사용)'),
     row('rejection', '거절 뜻 차단', n((x) => typ(x.c.success, 'REJECTION_RESPECTED')) + recs.filter((r) => r.guard).length, n((x) => typ(x.c.failure, 'SAME_QUESTION_REPEATED')), '거절 뒤 되풀이 안 함 · 서버 가드 / 글자까지 같은 질문 반복'),
-    row('status', '정보 상태', items.filter((x) => x === 'CONFIRMED').length, 0, `지금 값 ${items.filter((x) => x === 'CONFIRMED').length} · 밀린 값 ${items.filter((x) => x === 'SUPERSEDED').length} · 거절 ${items.filter((x) => x === 'RETRACTED').length} · 추측(매칭에 안 씀) ${inferred}`),
+    row('status', '정보 상태', items.filter((x) => x === 'CONFIRMED').length, 0, `지금 값 ${items.filter((x) => x === 'CONFIRMED').length} · 밀린 값 ${items.filter((x) => x === 'SUPERSEDED').length} · 거절 ${items.filter((x) => x === 'RETRACTED').length} · 확인 중(모호한 거절 · 매칭에 안 씀) ${items.filter((x) => x === 'DISPUTED').length} · 추측(매칭에 안 씀) ${inferred}`),
     row('direction', '방향 잠금(5개 목적)', n((x) => typ(x.c.success, 'FIVE_TURN_COMPLETED')), n((x) => typ(x.c.failure, 'QUESTIONS_OVER_5')), '다섯 안에 마침 / 핵심 질문 5 초과'),
     row('failure', '실패·성공 기록', recs.length, recs.filter((r) => r.kind === 'error').length, `턴 기록 ${recs.length} · 실패 턴 ${recs.filter((r) => r.kind === 'error').length} · 판 기록 있는 턴 ${recs.filter((r) => r.agent_version).length}`),
   ];
