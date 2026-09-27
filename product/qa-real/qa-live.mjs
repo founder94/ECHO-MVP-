@@ -17,7 +17,9 @@ if (!/^[a-z0-9]{1,12}$/.test(QA_RUN)) { console.error('QA_RUN 형식'); process.
 
 const checks = []; const log = []; const timings = [];
 const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail: typeof detail === 'string' ? detail : JSON.stringify(detail) }); };
-const emailOf = (tag) => `qa-${tag}-${QA_RUN}@example.com`;
+// 대표 지정 QA 주소(2026-09-27) · 이미 있으면 QA_RUN 에 새 suffix(base 가 아니면 붙임). 확인 메일 OFF 인 QA 에서만 쓰며 실제 메일은 가지 않는다.
+const BASE = { a: 'qa-agent-a-20260927', b: 'qa-agent-b-20260927', admin: 'qa-admin-20260927' };
+const emailOf = (tag) => `${BASE[tag]}${QA_RUN === 'base' ? '' : `-${QA_RUN}`}@do-it.company`;
 const passwordOf = (tag) => `Qa!${createHash('sha256').update(`${QA_PW_SEED}:${QA_RUN}:${tag}`).digest('base64url').slice(0, 24)}`;
 
 async function http(path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) {
