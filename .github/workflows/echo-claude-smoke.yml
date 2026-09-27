@@ -127,11 +127,11 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C: doit-agent · doit-connect = PR #12 최신 승인본(cdc6816 · 2026-09-27 대표 「FINAL RELEASE CLOSING」 P0 수정)과 글자까지 같아야 함
+          # B·C: doit-agent · doit-connect = PR #12 최신 승인본(f04611b · 2026-09-27 대표 「FINAL RELEASE CLOSING」 P0 수정)과 글자까지 같아야 함
           git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "cdc6816" ] || { echo "FAIL: PR #12 head 가 승인본(cdc6816)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "f04611b" ] || { echo "FAIL: PR #12 head 가 승인본(f04611b)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
           git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 승인본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect = PR #12 cdc6816 와 동일"
+          echo "OK: doit-agent · doit-connect = PR #12 f04611b 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true
@@ -143,7 +143,7 @@ jobs:
           cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
           mkdir -p stage/supabase/functions/doit-understanding && cp "$C" stage/supabase/functions/doit-understanding/index.ts
           printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
-          grep -q 'export const AGENT_VERSION = "echo-agent-v2.2.3"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
+          grep -q 'export const AGENT_VERSION = "echo-agent-v2.2.4"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
           grep -q 'presented' stage/supabase/functions/doit-agent/agent.ts && grep -q 'DISPUTED' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: 모호한 거절 규칙 없음"; exit 1; }
           ( cd stage && find supabase/functions -name '*.ts' -exec sha256sum {} \; | sort -k2 )
 
