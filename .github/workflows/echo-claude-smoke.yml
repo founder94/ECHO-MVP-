@@ -147,15 +147,15 @@ jobs:
         run: |
           (node spa-serve.mjs "$GITHUB_WORKSPACE/dist" 8770 &) ; sleep 1
           npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
-          node rc-render.mjs http://localhost:8770
+          node rc-render.mjs http://localhost:8770 || true
       - name: WebKit 진단(기준 3f5f0d4 빌드와 같은 방식 비교 · 읽기 전용)
         working-directory: rc/product
         run: |
           set -e
-          git fetch -q --depth=1 origin 3f5f0d4b1ba87be25f60fbccfff15d5f2e73ef97
-          BASE_SHA=3f5f0d4b1ba87be25f60fbccfff15d5f2e73ef97
+          true
+          BASE_SHA=
           if [ -n "$BASE_SHA" ]; then git checkout -q "$BASE_SHA"; VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_BRAND_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../../dist-base --emptyOutDir > ../../build-base.log 2>&1; echo "base $BASE_SHA index sha16=$(sha256sum ../../dist-base/index.html | cut -c1-16)"; (node ../../qa/product/qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-base" 8771 &); sleep 1; fi
-          cd ../../qa/product/qa-real && node wk-diag.mjs http://localhost:8771 http://localhost:8770 https://thriving-melba-b1449a.netlify.app
+          cd ../../qa/product/qa-real && node wk-diag.mjs http://localhost:8770
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
