@@ -66,34 +66,19 @@ jobs:
           exit $code
 
   qa_site_probe:
-    # 읽기 전용: 배포된 QA 사이트가 실제로 내려주는 manifest·아이콘·첫 화면 파일을 받아 해시를 적는다(비밀값·Environment 사용 0 · 쓰기 0).
+    # 읽기 전용 PWA 실측: 실제 주소의 manifest·아이콘·index + 실제 Chrome 설치 가능 판정(비밀값·Environment·쓰기 0).
     if: inputs.mode == 'qa_site_probe'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: QA 사이트 실제 응답(manifest · 아이콘 · index)
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: product/qa-real/pwa-probe.mjs
+      - name: PWA 실측(QA · 운영 앱 · 운영 브랜드)
         run: |
-          set -u
-          echo "== 운영 사이트가 어느 Supabase 를 가리키는지(읽기만)"
-          for P in https://app.do-it.company https://do-it.company; do
-            curl -sS "$P/" -o p.html; echo "$P index sha=$(sha256sum p.html | cut -c1-16)"; curl -sS "$P/manifest.webmanifest" | tr -d '\n' | cut -c1-120; echo
-            for js in $(grep -oE 'assets/[A-Za-z0-9_.-]+\.js' p.html | sort -u); do curl -sS "$P/$js" | grep -oE 'mutniujeiyujhkobadkd|zyyhhxyupizcqhxqnxuu|echo-qa-app-20260927' | sort | uniq -c | sed "s#^#  $js #"; done
-          done
-          B=https://echo-qa-app-20260927.netlify.app
-          set +e
-          echo "== index"; curl -sS -o index.html -w "HTTP %{http_code} %{content_type}\n" "$B/"; sha256sum index.html
-          grep -oE '<link[^>]*rel="(icon|apple-touch-icon|manifest)"[^>]*>' index.html
-          grep -oE '<meta name="apple-mobile-web-app-title"[^>]*>' index.html
-          grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' index.html | head -1
-          echo "== manifest"; curl -sSI "$B/manifest.webmanifest" | grep -iE '^(HTTP|content-type|cache-control|etag|age)'
-          curl -sS "$B/manifest.webmanifest" | tee manifest.json; echo; sha256sum manifest.json
-          echo "== icons (path · HTTP · sha256 · bytes · cache-control)"
-          for f in pwa/echo-icon-16.png pwa/echo-icon-32.png pwa/echo-icon-48.png pwa/echo-icon-180.png pwa/echo-icon-192.png pwa/echo-icon-512.png pwa/echo-icon-512-maskable.png pwa/apple-touch-icon.png pwa/icon-192.png pwa/icon-512.png pwa/icon-512-maskable.png favicon.svg apple-touch-icon.png apple-touch-icon-precomposed.png favicon.ico brand/doit-symbol-original.png brand/doit-symbol-intro.webp; do
-            code=$(curl -sS -o f.bin -w "%{http_code}" "$B/$f?v=20260925b"); cc=$(curl -sSI "$B/$f?v=20260925b" | grep -i '^cache-control' | tr -d '\r' | cut -d' ' -f2-)
-            echo "$f $code $(sha256sum f.bin | cut -c1-16) $(stat -c %s f.bin) [$cc] $(file -b f.bin | cut -c1-40)"
-          done
-          echo "== sw"; curl -sS -o /dev/null -w "sw.js HTTP %{http_code}\n" "$B/sw.js"; curl -sS -o /dev/null -w "service-worker.js HTTP %{http_code}\n" "$B/service-worker.js"
-          echo "== routes"; for r in /doit/start-journey /do-it/intro /doit/conversation; do curl -sS -o /dev/null -w "$r HTTP %{http_code}\n" "$B$r"; done
+          mkdir -p /tmp/probe && cp product/qa-real/pwa-probe.mjs /tmp/probe/ && cd /tmp/probe
+          npm init -y > /dev/null && npm i --silent playwright-core@1.49.1 > /dev/null
+          node pwa-probe.mjs https://echo-qa-app-20260927.netlify.app https://app.do-it.company https://do-it.company
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
