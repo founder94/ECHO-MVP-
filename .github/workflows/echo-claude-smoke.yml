@@ -81,6 +81,9 @@ jobs:
         run: |
           mkdir -p /tmp/probe && cp product/qa-real/pwa-probe.mjs /tmp/probe/ && cd /tmp/probe
           npm init -y > /dev/null && npm i --silent playwright-core@1.49.1 > /dev/null
+          for U in https://echo-qa-app-20260927.netlify.app/ https://echo-qa-app-20260927.netlify.app/manifest.webmanifest https://6ab912436a0dca4dce96b1b8--echo-qa-app-20260927.netlify.app/ https://app.do-it.company/ https://marvelous-chaja-071247.netlify.app/; do
+            echo "=== $U"; curl -sS -D - -o body.bin --max-time 20 "$U" | grep -iE '^(HTTP|server|x-nf|retry-after|content-type|content-length|cache-status|x-nf-request-id)' | tr -d '\r'; echo "body: $(head -c 300 body.bin | tr -d '\n')"
+          done
           cp $GITHUB_WORKSPACE/product/qa-real/white-probe.mjs $GITHUB_WORKSPACE/product/qa-real/results/qa-zip-fb3c0fc-google.sha256 .
           npx --yes playwright@1.49.1 install --with-deps webkit > /dev/null 2>&1 || echo "webkit install failed"
           timeout 240 node white-probe.mjs https://echo-qa-app-20260927.netlify.app qa-zip-fb3c0fc-google.sha256 || echo "white-probe exit=$?"
