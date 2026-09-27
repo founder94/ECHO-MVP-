@@ -94,7 +94,7 @@ jobs:
           done
           echo "apple-touch-icon 링크: $(grep -o '<link rel="apple-touch-icon"[^>]*>' idx.html)"
           echo "apple 제목: $(grep -o '<meta name="apple-mobile-web-app-title"[^>]*>' idx.html)"
-          echo "Supabase 대상: qa=$(grep -c mutniujeiyujhkobadkd js.bin) prod=$(grep -c zyyhhxyupizcqhxqnxuu js.bin)"
+          echo "Supabase 대상: qa=$(grep -oE 'https://[a-z]+\.supabase\.co' js.bin | grep -c mutniujeiyujhkobadkd) 그밖=$(grep -oE 'https://[a-z]+\.supabase\.co' js.bin | grep -vc mutniujeiyujhkobadkd)"
           echo "움직임 줄이기 글자(메인 JS): $(grep -c '움직임 줄이기' js.bin)"
           L=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' "https://mutniujeiyujhkobadkd.supabase.co/auth/v1/authorize?provider=google&redirect_to=$BASE/auth/callback")
           echo "Google authorize: HTTP ${L%% *} · host=$(echo "${L#* }" | cut -d/ -f3) · $(echo "${L#* }" | grep -o 'redirect_uri=[^&]*')"
