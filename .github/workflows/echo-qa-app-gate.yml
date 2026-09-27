@@ -1,0 +1,104 @@
+# ECHO QA app. Only this QA project may receive a deploy.
+# Production Netlify sites, Supabase functions, DB, and secrets are outside this workflow.
+name: echo-qa-app-gate
+
+on:
+  pull_request:
+    branches: [deploy/final-app-web-20260925]
+    paths:
+      - 'product/**'
+      - '.github/workflows/echo-qa-app-gate.yml'
+  push:
+    branches: [deploy/final-app-web-20260925]
+    paths:
+      - 'product/**'
+      - '.github/workflows/echo-qa-app-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-qa-app
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run type-check
+      - run: npm run lint
+      - run: node --test qa/*.test.mjs
+
+  qa_publish:
+    needs: check
+    # PRs only run checks. A push to the designated source branch publishes only to the QA site.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/final-app-web-20260925'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: echo-qa-app
+    env:
+      QA_SITE_ID: 2152f690-2d7c-48f9-8cce-d06caea11adf
+      QA_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_PUBLIC_SUPABASE_URL: ${{ vars.QA_PUBLIC_SUPABASE_URL }}
+      VITE_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.QA_PUBLIC_SUPABASE_ANON_KEY }}
+      PROD_PUBLIC_SUPABASE_URL: ${{ vars.PROD_PUBLIC_SUPABASE_URL }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+      VITE_QA_HARNESS: 'true'
+      VITE_AUTH_GOOGLE_ENABLED: 'false'
+      VITE_APP_ORIGIN: https://echo-qa-app-20260927.netlify.app
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - name: Refuse incomplete or mixed QA configuration
+        shell: bash
+        run: |
+          test "$QA_SITE_ID" = "2152f690-2d7c-48f9-8cce-d06caea11adf"
+          test "$QA_ORIGIN" = "https://echo-qa-app-20260927.netlify.app"
+          test -n "$NETLIFY_AUTH_TOKEN"
+          test -n "$VITE_PUBLIC_SUPABASE_URL"
+          test -n "$VITE_PUBLIC_SUPABASE_ANON_KEY"
+          test -n "$PROD_PUBLIC_SUPABASE_URL"
+          test "$VITE_PUBLIC_SUPABASE_URL" != "$PROD_PUBLIC_SUPABASE_URL"
+          case "$VITE_PUBLIC_SUPABASE_URL" in https://*.supabase.co) ;; *) exit 1 ;; esac
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:app
+      - name: Check the compiled target before upload
+        shell: bash
+        run: |
+          test -s out-app/index.html
+          test -s out-app/manifest.webmanifest
+          if grep -R -F -q -- "$PROD_PUBLIC_SUPABASE_URL" out-app; then
+            echo "Production Supabase URL found in QA output" >&2
+            exit 1
+          fi
+          if ! grep -R -F -q -- "$VITE_PUBLIC_SUPABASE_URL" out-app; then
+            echo "QA Supabase URL missing from QA output" >&2
+            exit 1
+          fi
+      - name: Publish the checked app to the fixed QA site only
+        shell: bash
+        run: npx --yes netlify-cli deploy --prod --site "$QA_SITE_ID" --dir out-app --message "QA app commit ${GITHUB_SHA}"
+      - name: Verify QA URL responds
+        shell: bash
+        run: |
+          curl --fail --show-error --silent --location --max-time 20 "$QA_ORIGIN/" -o /tmp/echo-qa-index.html
+          test -s /tmp/echo-qa-index.html
