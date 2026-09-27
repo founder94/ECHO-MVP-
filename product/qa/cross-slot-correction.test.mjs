@@ -276,3 +276,59 @@ test('C7b v2.2.2 이전 저장 상태(거둔 뜻 + 뒤의 정정 + 다른 칸 �
   st.slots.values_character.items[0].status = 'CONFIRMED'; // 예전 규칙 모양
   assert.ok(!src(st).confirmed.includes(OLD), JSON.stringify(src(st).confirmed));
 });
+
+// ── v2.2.3 CROSS_SLOT_STALE_STATE(2026-09-27 대표 「FINAL RELEASE CLOSING」) — QA 1차(base) 실제 FAIL 상태 그대로 ──
+// 턴 A 에서 AI 가 해석을 0개 만들어 지금 질문 칸(values_character)에 원문(USER_DIRECT)만 남은 상태 → 정정 B 한 번(화면 · relationship_style).
+const CAFE = '조용한 카페에서 오래 이야기하는 걸 좋아해요';
+function run1State() {
+  const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st);
+  A.applyTurn(st, '친구처럼 편하게 대화하는 사이를 원해요', T({ extracted: [X('relationship_intent', '친구처럼 편하게 대화하는 사이를 원함', '친구처럼 편하게 대화하는 사이를 원해요')] }));
+  at(st, 'attraction_comfort'); A.applyTurn(st, CAFE, T({ extracted: [] }));
+  at(st, 'values_character'); A.applyTurn(st, OLD, T({ extracted: [] }));
+  assert.equal(st.slots.values_character.items[0]?.source_type, 'USER_DIRECT', '전제: 다른 칸에 원문만');
+  assert.equal(st.slots.relationship_style.items.length, 0, '전제: 정정 칸에 A 출처 값 0(연결 고리 없음)');
+  st.phase = 'done'; st.current = null; return st;
+}
+const pickLlm = (wrong, seen = []) => async (kind, _sys, input) => { seen.push({ kind, input }); return JSON.stringify(kind === 'turn' ? T({ kind: 'correction', extracted: [X('relationship_style', NEW, NEW)], wrong }) : kind === 'intro' ? { intro: null } : { reply: '네.' }); };
+const current = (st) => A.PURPOSES.flatMap((p) => st.slots[p.id].items.filter((i) => i.status === 'CONFIRMED').map((i) => ({ slot: p.id, ...i })));
+
+test('X1 1차 FAIL 재현 상태 + AI 가 heard 에서 A 를 글자 그대로 고름 → A 현재값 0(모든 칸) · B 1 · Profile·Matching A 0 · 정상 사실 보존', async () => {
+  const st = run1State(); await A.runTurn(st, NEW, pickLlm([OLD]), { ui: UI_STYLE });
+  const now = current(st);
+  assert.equal(now.filter((i) => i.turn === 3).length, 0, JSON.stringify(now));
+  assert.deepEqual(now.filter((i) => i.source_type === 'USER_CORRECTED').map((i) => i.note), [NEW]);
+  assert.equal(status(st, 'attraction_comfort', CAFE), 'CONFIRMED'); assert.equal(status(st, 'relationship_intent', '친구처럼 편하게 대화하는 사이를 원함'), 'CONFIRMED');
+  const prof = A.matchingProfile(st); const profNotes = A.PURPOSES.flatMap((p) => (prof[p.id]?.items ?? []).map((i) => i.note));
+  assert.ok(!profNotes.includes(OLD) && profNotes.includes(NEW), JSON.stringify(profNotes));
+  const s = src(st).confirmed; assert.ok(!s.includes(OLD) && s.includes(NEW) && s.includes(CAFE), JSON.stringify(s));
+  assert.ok(st.slots.relationship_style.items.find((i) => i.note === NEW).corrected_from.includes(OLD), '고친 값 이력에 A');
+});
+test('X2 AI 가 고른 A 와 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 빠진다 · 다른 원문은 보존', async () => {
+  const st = run1State();
+  st.slots.boundaries.items.push({ note: '매일 연락', quote: `${OLD}.`, turn: 3, source: 'answer', status: 'CONFIRMED', source_type: 'AI_EXTRACTED', confirmed_at: 'x' });
+  st.slots.boundaries.items.push({ note: '매일 연락은 싫지 않음', quote: '다른 말', turn: 3, source: 'answer', status: 'CONFIRMED', source_type: 'AI_EXTRACTED', confirmed_at: 'x' });
+  await A.runTurn(st, NEW, pickLlm([OLD]), { ui: UI_STYLE });
+  assert.equal(status(st, 'boundaries', '매일 연락'), 'SUPERSEDED', '같은 출처 복제');
+  assert.equal(status(st, 'boundaries', '매일 연락은 싫지 않음'), 'CONFIRMED', '원문이 다르면 보존(유사도 삭제 0)');
+});
+test('X3 서버는 글자까지 같은 항목만: 없는 문장·비슷한 문장을 골라도 아무것도 안 지움', async () => {
+  for (const w of [['연락은 매일 하는 게 좋음'], ['매일 연락'], ['없는 문장']]) {
+    const st = run1State(); await A.runTurn(st, NEW, pickLlm(w), { ui: UI_STYLE });
+    assert.equal(status(st, 'values_character', OLD), 'CONFIRMED', JSON.stringify(w)); assert.equal(status(st, 'attraction_comfort', CAFE), 'CONFIRMED');
+  }
+});
+test('X4 AI 가 아무것도 고르지 않으면 서버는 추측으로 지우지 않는다(뜻 유사도 삭제 0 — 실제 AI 반복검사로 놓침을 잰다)', async () => {
+  const st = run1State(); await A.runTurn(st, NEW, pickLlm([]), { ui: UI_STYLE });
+  assert.equal(status(st, 'values_character', OLD), 'CONFIRMED');
+});
+test('X5 정정 턴 입력: heard 에 모든 칸 저장 항목(note 그대로) · 화면 정정 안내에 「다른 칸이어도 wrong 에 note 그대로」', async () => {
+  const st = run1State(); const seen = []; await A.runTurn(st, NEW, pickLlm([OLD], seen), { ui: UI_STYLE });
+  const input = seen.find((x) => x.kind === 'turn').input; const inp = typeof input === 'string' ? JSON.parse(input) : input;
+  assert.ok(inp.heard.some((h) => h.purpose === 'values_character' && h.note === OLD), JSON.stringify(inp.heard));
+  assert.match(inp.ui_correction.note, /다른 칸에 있어도 wrong 에 note 글자 그대로/);
+});
+test('X6 거절(repair)에서는 새 연결 처리 없음 — 기존 규칙 그대로(사용자 원문은 거절만으로 안 지움)', async () => {
+  const st = run1State(); st.phase = 'talk'; at(st, 'boundaries');
+  A.applyTurn(st, '아니 그런 뜻 아니야', T({ kind: 'repair', wrong: [] }));
+  assert.equal(status(st, 'values_character', OLD), 'CONFIRMED');
+});
