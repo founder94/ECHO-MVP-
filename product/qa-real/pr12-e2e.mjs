@@ -196,9 +196,10 @@ async function run() {
   const crossNow = crossCopies.map((c) => ({ ...c, status: A.state.slots[c.id].items.find((i) => i.turn === c.turn && i.note === c.note)?.status }));
   // A 흐름의 거절도 전제 검사로 판정: 거절 직전 턴의 AI 정리가 서버에 있었는가 → 거둬졌는가
   const rejTurnA = beforeReject.turns.length + 1;
-  const preA = Object.entries(beforeReject.slots).flatMap(([id, s]) => s.items.filter((i) => i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED' && i.turn === rejTurnA - 1).map((i) => ({ id, note: i.note, turn: i.turn })));
+  const shownA = (beforeReject.turns.at(-1).presented ?? []).map((p) => `${p.purpose}|${p.note}`);
+  const preA = Object.entries(beforeReject.slots).flatMap(([id, s]) => s.items.filter((i) => i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED' && i.turn === rejTurnA - 1 && shownA.includes(`${id}|${i.note}`)).map((i) => ({ id, note: i.note, turn: i.turn })));
   xslot.a_rejection = { precondition: preA.length > 0, interpretation: preA, after_reject: preA.map((a) => ({ ...a, status: stA1.slots[a.id].items.find((i) => i.turn === a.turn && i.note === a.note)?.status })) };
-  check('거절 A: 전제(거절할 AI 해석 저장) 성립 → 거둠(RETRACTED)', preA.length ? xslot.a_rejection.after_reject.every((a) => a.status === 'RETRACTED') : null, JSON.stringify(xslot.a_rejection));
+  check('거절 A: 전제(AI 해석 저장 + 화면에 보임) 성립 → 보인 해석 거둠', preA.length ? xslot.a_rejection.after_reject.every((a) => (preA.length === 1 ? a.status === 'RETRACTED' : a.status === 'DISPUTED')) : null, JSON.stringify(xslot.a_rejection));
   xslot.precondition = crossCopies.length > 0; xslot.copies = crossNow;
   check('다른 칸 정정: 같은 출처 옛 값이 다른 칸에 지금 값으로 남지 않음' + (crossCopies.length ? '' : ' [전제 없음 · 이번 실행은 다른 칸 복제가 생기지 않음]'), crossNow.every((c) => c.status === 'SUPERSEDED'), JSON.stringify(crossNow));
   const srcA = AS.sourceFromProfile(A.profile, A.phase ?? A.state.phase, null);
@@ -256,8 +257,11 @@ async function run() {
     const r1 = await say(uid, sid, utter);
     const s1 = structuredClone(sessionOf(uid).state);
     const n1 = s1.turns.length;
-    const interp = Object.entries(s1.slots).flatMap(([id, s]) => s.items.filter((i) => i.turn === n1 && i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED').map((i) => ({ id, note: i.note, quote: i.quote })));
-    const rec = { case: `R${k + 1}`, utter, ai_reply: r1.body.turn?.reply ?? null, interpretation: interp, precondition: interp.length > 0 };
+    const shownNotes = (s1.turns.at(-1).presented ?? []).map((p) => `${p.purpose}|${p.note}`);
+    const interp = Object.entries(s1.slots).flatMap(([id, s]) => s.items.filter((i) => i.turn === n1 && i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED' && shownNotes.includes(`${id}|${i.note}`)).map((i) => ({ id, note: i.note, quote: i.quote })));
+    const hidden = Object.entries(s1.slots).flatMap(([id, s]) => s.items.filter((i) => i.turn === n1 && i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED' && !shownNotes.includes(`${id}|${i.note}`)).map((i) => ({ id, note: i.note })));
+    const raw = Object.entries(s1.slots).flatMap(([id, s]) => s.items.filter((i) => i.turn === n1 && i.source_type === 'USER_DIRECT').map((i) => ({ id, note: i.note })));
+    const rec = { case: `R${k + 1}`, utter, ai_reply: r1.body.turn?.reply ?? null, interpretation: interp, not_shown: hidden, user_raw: raw, precondition: interp.length > 0 };
     rejections.push(rec);
     if (!rec.precondition) { rec.verdict = 'TEST INVALID(확인 불가)'; check(`거절 R${k + 1}: 전제(AI 해석 저장) 성립`, null, JSON.stringify(rec)); continue; }
     const r2 = await say(uid, sid, '아니, 그런 뜻 아니야');
@@ -265,7 +269,11 @@ async function run() {
     rec.model_raw_reject = rawTurns.filter((t) => t.latest === '아니, 그런 뜻 아니야').at(-1) ?? null;
     rec.reject_kind = r2.body.turn?.kind ?? null; rec.next_reply = r2.body.turn?.reply ?? null; rec.next_question = r2.body.turn?.question ?? null;
     rec.after = interp.map((a) => ({ ...a, status: s2.slots[a.id].items.find((i) => i.turn === n1 && i.note === a.note)?.status }));
-    const retractedAll = rec.after.every((a) => a.status === 'RETRACTED');
+    rec.vague_reject = s2.turns.at(-1).vague_reject ?? null;
+    rec.not_shown_after = hidden.map((h) => ({ ...h, status: s2.slots[h.id].items.find((i) => i.turn === n1 && i.note === h.note)?.status }));
+    rec.user_raw_after = raw.map((h) => ({ ...h, status: s2.slots[h.id].items.find((i) => i.turn === n1 && i.note === h.note)?.status }));
+    // 하나만 보였으면 RETRACTED · 여럿이면 DISPUTED(지금 사실 아님) — 둘 다 「지금 사실에서 빠짐」
+    const retractedAll = rec.after.every((a) => (interp.length === 1 ? a.status === 'RETRACTED' : a.status === 'DISPUTED')) && rec.not_shown_after.every((h) => h.status === 'CONFIRMED') && rec.user_raw_after.every((h) => h.status === 'CONFIRMED');
     const mentions = (t) => interp.some((a) => sq(a.note).length >= 4 && sq(t).includes(sq(a.note)));
     const r3 = await say(uid, sid, '오늘은 여기까지 할게요');
     const fin = sessionOf(uid);
@@ -277,7 +285,7 @@ async function run() {
     const inProfile = interp.some((a) => (prof.confirmed_preferences ?? []).includes(a.note));
     const inMatch = interp.some((a) => src.confirmed.includes(a.note));
     rec.verdict = retractedAll && !reused && !inProfile && !inMatch ? 'PASS' : 'FAIL';
-    check(`거절 R${k + 1}: 해석 A 거둠(RETRACTED)`, retractedAll, JSON.stringify(rec.after));
+    check(`거절 R${k + 1}: 보인 해석만 거둠(1개 RETRACTED · 여럿 DISPUTED) · 안 보인 해석·사용자 원문 그대로`, retractedAll, JSON.stringify({ after: rec.after, not_shown: rec.not_shown_after, user_raw: rec.user_raw_after, rule: rec.vague_reject }));
     check(`거절 R${k + 1}: 다음 응답·소개에 A 재등장 0`, !reused, JSON.stringify({ reply: rec.next_reply, question: rec.next_question, intro: rec.intro }));
     check(`거절 R${k + 1}: Profile·Matching 에 A 0`, !inProfile && !inMatch, JSON.stringify({ profile: rec.profile_confirmed, matching: rec.matching }));
   }
