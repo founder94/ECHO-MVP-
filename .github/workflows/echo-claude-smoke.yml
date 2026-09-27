@@ -141,6 +141,19 @@ jobs:
           echo "운영 읽기 시도(GET 1회): status=$pr"
           case "$pr" in 401|403|404) echo "OK: 이 토큰은 운영 프로젝트를 읽지 못함";; *) echo "FAIL: 토큰이 운영 프로젝트를 읽을 수 있음(status=$pr) → 배포 금지 · HOLD"; exit 1;; esac
 
+      - name: QA 인증 설정 읽기(GET 1회 · Google 켜짐·ID/비밀값 입력 여부만 · 값 출력 0)
+        if: inputs.mode == 'qa_preflight'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          st=$(curl -s -o /tmp/auth.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "https://api.supabase.com/v1/projects/$QA_PROJECT_ID/config/auth")
+          echo "QA auth config 읽기: status=$st"
+          if [ "$st" = "200" ]; then
+            jq -r '"google_enabled=\(.external_google_enabled) · google_client_id_입력=\((.external_google_client_id // "") | length > 0) · google_secret_입력=\((.external_google_secret // "") | length > 0) · site_url=\(.site_url) · redirect_목록=\(.uri_allow_list) · confirm_email_off=\(.mailer_autoconfirm)"' /tmp/auth.json
+          fi
+          rm -f /tmp/auth.json
+
       - name: 배포 묶음 만들기(doit-understanding = 운영 v29 + 승인 1줄 · 저장소 원본 사용 0)
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
