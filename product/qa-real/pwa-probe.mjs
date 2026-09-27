@@ -2,13 +2,15 @@
 // Chrome(실제 브라우저)의 설치 가능 판정(Page.getInstallabilityErrors)과 manifest 해석(Page.getAppManifest)을 적는다. 쓰기 0 · 비밀값 0.
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright-core';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 const APPROVED_E = { '192': 'c19b9f6b50744a91', '512': '12e9af5ea8a541a4', 'maskable': 'd5e0f3c3c756e25c', '180': '4b175d5da8f2c22a' }; // 승인 E 세트(저장소 fc25367/17266da · 운영 9/25) 앞 16자리
 const OLD_BLACK_D = { '192': '9a8d89b15c7e', '512': '449ae1fe52b4', 'maskable': '3b2fa8d7c37a', 'apple': '1a35f2ab9cf2' }; // 9/23 세트(ca7fb0e) 앞 12자리
 const REFS = { QA: 'mutniujeiyujhkobadkd', PROD: 'zyyhhxyupizcqhxqnxuu' };
 const sha = (b) => createHash('sha256').update(b).digest('hex');
 const kind = (h) => Object.values(APPROVED_E).some((p) => h.startsWith(p)) ? 'APPROVED_E' : Object.values(OLD_BLACK_D).some((p) => h.startsWith(p)) ? 'OLD_BLACK_D' : 'OTHER';
 async function get(url) { try { const r = await fetch(url, { redirect: 'follow' }); const b = Buffer.from(await r.arrayBuffer()); return { status: r.status, type: r.headers.get('content-type'), cache: r.headers.get('cache-control'), body: b }; } catch (e) { return { status: 0, error: String(e.message).slice(0, 80), body: Buffer.alloc(0) }; } }
-const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'] });
 for (const base of process.argv.slice(2)) {
   const out = { base };
   const idx = await get(`${base}/`); out.index = { status: idx.status, sha: sha(idx.body).slice(0, 16) };
@@ -25,8 +27,9 @@ for (const base of process.argv.slice(2)) {
   for (const href of out.links.map((l) => (l.match(/href="([^"]+)"/) || [])[1]).filter(Boolean).filter((h) => !/manifest/.test(h))) { const r = await get(new URL(href, `${base}/`).href); const h = sha(r.body); out.icons.push({ link: href, status: r.status, sha: h.slice(0, 16), kind: kind(h) }); }
   for (const p of ['/apple-touch-icon.png', '/apple-touch-icon-precomposed.png', '/favicon.ico', '/sw.js', '/service-worker.js']) { const r = await get(`${base}${p}`); out[p] = { status: r.status, type: r.type, kind: r.status === 200 ? kind(sha(r.body)) : null }; }
   // 실제 Chrome 판정(모바일 화면 · 시크릿 아닌 영구 프로필)
-  const ctx = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' });
-  const page = await ctx.newPage(); const cdp = await ctx.newCDPSession(page);
+  // 시크릿이 아닌 일반(영구) 프로필 — 시크릿 창은 설치 불가(in-incognito)라 판정이 왜곡된다.
+  const ctx = await chromium.launchPersistentContext(mkdtempSync(path.join(tmpdir(), 'pwa-')), { executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox'], viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36' });
+  const page = ctx.pages()[0] ?? await ctx.newPage(); const cdp = await ctx.newCDPSession(page);
   try {
     await page.goto(`${base}/`, { waitUntil: 'load', timeout: 30000 }); await page.waitForTimeout(4000);
     const inst = await cdp.send('Page.getInstallabilityErrors'); const am = await cdp.send('Page.getAppManifest');
@@ -35,4 +38,3 @@ for (const base of process.argv.slice(2)) {
   await ctx.close();
   console.log(JSON.stringify(out, null, 1));
 }
-await browser.close();
