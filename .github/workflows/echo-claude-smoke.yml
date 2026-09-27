@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -64,6 +64,30 @@ jobs:
           echo "pr12-e2e exit=$code"
           if [ -f ../qa12-result.json ]; then echo "::group::qa12-result.json"; cat ../qa12-result.json; echo; echo "::endgroup::"; fi
           exit $code
+
+  qa_site_probe:
+    # 읽기 전용: 배포된 QA 사이트가 실제로 내려주는 manifest·아이콘·첫 화면 파일을 받아 해시를 적는다(비밀값·Environment 사용 0 · 쓰기 0).
+    if: inputs.mode == 'qa_site_probe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: QA 사이트 실제 응답(manifest · 아이콘 · index)
+        run: |
+          set -u
+          B=https://echo-qa-app-20260927.netlify.app
+          echo "== index"; curl -sS -o index.html -w "HTTP %{http_code} %{content_type}\n" "$B/"; sha256sum index.html
+          grep -oE '<link[^>]*rel="(icon|apple-touch-icon|manifest)"[^>]*>' index.html
+          grep -oE '<meta name="apple-mobile-web-app-title"[^>]*>' index.html
+          grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' index.html | head -1
+          echo "== manifest"; curl -sSI "$B/manifest.webmanifest" | grep -iE '^(HTTP|content-type|cache-control|etag|age)'
+          curl -sS "$B/manifest.webmanifest" | tee manifest.json; echo; sha256sum manifest.json
+          echo "== icons (path · HTTP · sha256 · bytes · cache-control)"
+          for f in pwa/echo-icon-16.png pwa/echo-icon-32.png pwa/echo-icon-48.png pwa/echo-icon-180.png pwa/echo-icon-192.png pwa/echo-icon-512.png pwa/echo-icon-512-maskable.png pwa/apple-touch-icon.png pwa/icon-192.png pwa/icon-512.png pwa/icon-512-maskable.png favicon.svg apple-touch-icon.png apple-touch-icon-precomposed.png favicon.ico brand/doit-symbol-original.png brand/doit-symbol-intro.webp; do
+            code=$(curl -sS -o f.bin -w "%{http_code}" "$B/$f?v=20260925b"); cc=$(curl -sSI "$B/$f?v=20260925b" | grep -i '^cache-control' | tr -d '\r' | cut -d' ' -f2-)
+            echo "$f $code $(sha256sum f.bin | cut -c1-16) $(stat -c %s f.bin) [$cc] $(file -b f.bin | cut -c1-40)"
+          done
+          echo "== sw"; curl -sS -o /dev/null -w "sw.js HTTP %{http_code}\n" "$B/sw.js"; curl -sS -o /dev/null -w "service-worker.js HTTP %{http_code}\n" "$B/service-worker.js"
+          echo "== routes"; for r in /doit/start-journey /do-it/intro /doit/conversation; do curl -sS -o /dev/null -w "$r HTTP %{http_code}\n" "$B$r"; done
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
