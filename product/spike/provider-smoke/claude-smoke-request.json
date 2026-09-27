@@ -1,0 +1,7 @@
+{
+  "purpose": "Claude Provider 실제 연결 smoke test 1회(대표 「CLAUDE API SMOKE TEST PREP」 2026-09-27)",
+  "provider": "anthropic",
+  "generate_calls": 1,
+  "run_43": false,
+  "secret": "ANTHROPIC_API_KEY_AB_TEST"
+}

@@ -240,7 +240,12 @@ test('관리자: 일반 사용자 403 · 관리자는 실제 저장된 세션·�
   assert.ok(!JSON.stringify(list.body).includes('비밀 소개 문장') && !JSON.stringify(list.body).includes('01012345678'), '소개 글·번호 0');
   const one = await h.call({ action: 'admin_session', sessionId: sid });
   assert.equal(one.body.session.stored.state.turns[0].user, '친구');
-  assert.equal(JSON.stringify(s.tables), before, '관리자 읽기는 쓰기 0');
+  // 2026-09-27: 관리자 열람은 audit_logs 에 누가·무엇을·언제만 남긴다(대화 원문·사용자 정보 0). 그 밖의 표는 쓰기 0.
+  const audit = s.tables.audit_logs ?? []; delete s.tables.audit_logs;
+  assert.equal(JSON.stringify(s.tables), before, '관리자 읽기는 열람 기록 말고는 쓰기 0');
+  assert.deepEqual(audit.map((a) => [a.user_id, a.action]), [[ID.admin, 'doit_agent_admin_sessions'], [ID.admin, 'doit_agent_admin_session']]);
+  assert.ok(audit.every((a) => !a.detail.includes('친구') && !a.detail.includes(ID.user)), '열람 기록에 원문·대상 사용자 id 0');
+  assert.ok(audit[1].detail.includes(sid));
 });
 
 test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel · 새 Secret 이름 0 · 원문 로그 0', () => {

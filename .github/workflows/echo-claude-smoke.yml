@@ -1,0 +1,128 @@
+# Claude Provider smoke test — 대표 「CLAUDE API SMOKE TEST PREP」(2026-09-27).
+# - 언제: 사람이 Actions 화면에서 직접 누를 때만(workflow_dispatch · 자동 실행 0 · push 로 돌지 않음 — 대표 「CLAUDE-ONLY SMOKE TEST APPROVAL」 §6).
+#   (수동 실행 버튼은 이 파일이 기본 브랜치에 있어야 보인다 — GitHub 규칙.)
+# - 하는 일: 회귀 검사(AI 0) → 모델 목록 1회 → 생성 호출 정확히 1회(합성 입력). 43판 0.
+#   providers 입력을 적으면 같은 방식으로 적은 업체마다 1회(3-Provider smoke). 이 파일이 수동 실행 가능한 등록 워크플로라 여기에 둔다
+#   (echo-provider-smoke.yml 은 기본 브랜치에 없어서 GitHub 가 수동 실행을 받지 않는다 — 404).
+# - 키: 저장소 Secret `ANTHROPIC_API_KEY_AB_TEST` 만(시험 전용). 없으면 SECRET=MISSING 으로 끝난다. 키는 로그·결과에 쓰지 않는다.
+# - 운영 DB·운영 함수·운영 Secret·배포는 쓰지 않는다.
+name: echo-claude-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: '모델(공식 목록 확인된 ID만 · 비용 원칙: 저비용 Haiku 우선)'
+        required: true
+        default: 'claude-haiku-4-5-20251001'
+        type: choice
+        options: ['claude-haiku-4-5-20251001', 'claude-sonnet-5']
+      mode:
+        description: 'smoke(기본 · 업체마다 1회) · compare43(대표 승인 뒤에만 · 사전 등록 FROZEN 의 agent_file + models[0·1]로 43판씩)'
+        required: false
+        default: 'smoke'
+        type: choice
+        options: ['smoke', 'compare43']
+      providers:
+        description: '비우면 Claude 1회(위 model) · 적으면 3-Provider smoke(spike/provider-smoke/provider-smoke.mjs · 업체마다 1회) — 예: openai,gemini'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-claude-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3 js-tiktoken@1.0.21
+      - name: 부품·Router 가짜 검사(AI 호출 0)
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          ECHO_AGENT_FILE: ./candidates/agent-v3.7.ts
+        run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
+      - name: Claude smoke(목록 1회 + 생성 1회)
+        if: ${{ inputs.mode != 'compare43' && inputs.providers == '' }}
+        working-directory: product
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+          SMOKE_MODEL: ${{ inputs.model }}
+        run: node --experimental-strip-types spike/provider-smoke/claude-smoke.mjs
+      - name: 3-Provider smoke(업체마다 목록 1회 + 생성 1회 · 대표 「3-PROVIDER SMOKE TEST READY」)
+        if: ${{ inputs.mode != 'compare43' && inputs.providers != '' }}
+        working-directory: product
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
+          SMOKE_PROVIDERS: ${{ inputs.providers }}
+        run: node --experimental-strip-types spike/provider-smoke/provider-smoke.mjs
+      # (v3.5 CL-11) 43판 비교는 아래 별도 작업 compare 에서 업체마다 따로 돈다(한 업체가 늦어도 다른 업체 결과는 남는다).
+
+  compare:
+    if: ${{ inputs.mode == 'compare43' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      # (v3.6 · 대표 「최소 보강 승인」) Gemini(models[2])는 계정 할당량 확인 전까지 돌리지 않는다(PR-02 · 역할 판정 「확인 불가」). OpenAI · Claude 만 업체마다 따로.
+      matrix:
+        idx: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 검사 도구(제품 의존성 아님)
+        run: |
+          mkdir -p /tmp/tools && cd /tmp/tools
+          npm init -y >/dev/null
+          npm i --no-audit --no-fund typescript@5.8.3 js-tiktoken@1.0.21
+      # 모델·서버 파일은 입력으로 받지 않는다 — 사전 등록(FROZEN prod_agent_gate)에서만 읽는다. 업체 하나씩 단독(넘어가기 0 · Panel 0).
+      # 대화 1판마다 진행·오류 코드를 로그에 바로 남기고, 업체 마감(120분)을 넘기면 거기까지 결과를 쓴다(작업 제한 150분 전).
+      - name: 43판 비교(업체 단독 · FROZEN models[idx])
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
+          ECHO_ROUTER: '1'
+          ECHO_PROVIDER_DEADLINE_MIN: '120'
+          ECHO_GIVE_UP_FAILED_RUNS: '3'
+        run: |
+          mkdir -p ../ab-out
+          export ECHO_AGENT_FILE=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.agent_file)")
+          MODEL=$(node -e "console.log(require('./spike/ab-20260925/FROZEN_INPUTS.json').prod_agent_gate.models[${{ matrix.idx }}])")
+          echo "agent_file=$ECHO_AGENT_FILE model=$MODEL"
+          set +e
+          node --experimental-strip-types spike/agent-v1-20260925/run-prod-agent.mjs --require-real --models "$MODEL" --out ../ab-out/compare43-result.md --json ../ab-out/compare43-result.json --perf ../ab-out/model-performance.jsonl
+          code=$?
+          echo "run-prod-agent exit=$code"
+          if [ -f ../ab-out/compare43-result.json ]; then echo "::group::compare43-result.json"; cat ../ab-out/compare43-result.json; echo; echo "::endgroup::"; fi
+          if [ -f ../ab-out/compare43-result.md ]; then echo "::group::compare43-result.md"; cat ../ab-out/compare43-result.md; echo "::endgroup::"; fi
+          exit $code
+      - name: 비교 결과 첨부(7일)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-compare43-${{ github.run_id }}-${{ matrix.idx }}
+          path: ab-out/
+          retention-days: 7
+          if-no-files-found: ignore

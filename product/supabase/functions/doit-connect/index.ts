@@ -33,6 +33,9 @@
 
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { agentSources, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
+// MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
+const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
 
 type Json = Record<string, unknown>;
 type Db = SupabaseClient;
@@ -383,6 +386,15 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     const s = Number(p.slot);
     if (s >= 1 && s <= LIMITS.CONNECT_PHOTOS_NEEDED) slots.set(String(p.user_id), (slots.get(String(p.user_id)) ?? new Set()).add(s));
   }
+  // Matching Integration: Agent 확정 상태(있는 사용자만 · 이번 회차) — 대화 원문(turns)은 읽지 않고 profile·phase 만 고른다.
+  const agentSrc = MATCH_SOURCE === "agent"
+    ? await (async () => {
+      const { data, error: agentError } = await admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", ids).order("updated_at", { ascending: false }).limit(ids.length * 5); // 최신 줄부터
+      if (agentError) throw new Error("agent_sessions_failed");
+      return agentSources((data ?? []) as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+    })()
+    : new Map();
   const confirmed = new Map<string, string[]>();
   for (const row of insights ?? []) {
     const uid = String(row.user_id);
@@ -395,14 +407,15 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   return rows.map((p) => {
     const id = String(p.id);
     const phoneVerified = str(p.verification_status) === "verified" || !!auth.get(id)?.phoneConfirmed;
-    const mine = confirmed.get(id) ?? [];
+    const agent = agentSrc.get(id);
+    const mine = agent ? agent.confirmed : confirmed.get(id) ?? [];
     const requiredPhotos = slots.get(id)?.size ?? 0;
     const bio = cleanText(p.bio);
     const missing: string[] = [];
     if (!p.purpose_id) missing.push("purpose");
     if (!phoneVerified) missing.push("phone");
-    const answered = answers.get(id) ?? 0;
-    if (answered < LIMITS.CONNECT_ANSWERS_NEEDED) missing.push("answers");
+    const answered = agent ? agent.confirmedAreas : answers.get(id) ?? 0;
+    if (agent ? !agent.ready : answered < LIMITS.CONNECT_ANSWERS_NEEDED) missing.push("answers"); // Agent 사용자: 대화를 마쳤고 확정 정보가 있는 정보 영역이 기준(AGENT_READY_MIN_CONFIRMED_AREAS · 임시 3) 이상(질문 수·목적 개수 아님 · 관계 목적은 위 purpose 로 따로)
     if (requiredPhotos < LIMITS.CONNECT_PHOTOS_NEEDED) missing.push("photos");
     if (!bio) missing.push("intro");
     return {

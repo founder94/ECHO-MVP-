@@ -106,7 +106,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     try { await job(); } catch (e) {
       if (!alive.current) return;
       if (e instanceof UnderstandingError && (e.code === 'REQUEST_CONFLICT' || e.code === 'ROUND_CHANGED' || e.code === 'NOT_FOUND')) { await load(); setError('화면을 새로 불러왔어요. 이어서 적어 주세요.'); }
-      else setError(e instanceof UnderstandingError && e.code === 'RATE_LIMITED' ? e.message : SEND_ERROR);
+      else setError(e instanceof UnderstandingError && (e.code === 'RATE_LIMITED' || e.code === 'OFFLINE' || e.code === 'TIMEOUT') ? e.message : SEND_ERROR);
     } finally { inFlight.current = false; if (alive.current) setBusy(null); }
   };
 

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 const R = await import('./router/router.ts');
 const P = await import('./router/providers.ts');
-const A = await import('./candidates/agent-v3.1.ts');
+const A = await import(process.env.ECHO_AGENT_FILE ?? './candidates/agent-v3.2.ts'); // v3.2 기본 · ECHO_AGENT_FILE=./candidates/agent-v3.1.ts 로 run 34 판도 검사
 
 const REG = { version: 't', provisional: true, roles: { PRIMARY: { provider: 'openai', model: 'p-model' }, SPECIALIST: { provider: 'anthropic', model: 's-model' }, FALLBACK: { provider: 'gemini', model: 'f-model' } }, timeout_ms: 1000, max_tokens: 768, temperature: 0.2, top_p: 0.9 };
 const BUDGET = { max_calls_per_conversation: 999, max_tokens_per_conversation: 1e9 };
@@ -141,7 +141,7 @@ test('G · 불만·메타·정정 턴에서 모델이 바뀌어도 서버 사실
   const r = R.createRouter({ registry: REG, providers: pv, budget: BUDGET });
   const stR = begin();
   for (const t of flow) await A.runTurn(stR, t, r.llm);
-  const norm = (st) => JSON.stringify(st, (k, v) => (/_at$/.test(k) ? undefined : v));
+  const norm = (st) => JSON.stringify(st, (k, v) => (/(^|_)at$/.test(k) ? undefined : v)); // 시각 칸은 비교에서 뺀다
   assert.ok(pv.anthropic.calls.length > 0, 'SPECIALIST 업체가 실제로 쓰였다');
   assert.equal(norm(stR), norm(stPlain), '상태 같음');
   assert.ok(!factQuotes(stR).some((q) => /상관없이|고정질문|몇번째/.test(q)), '불만·메타 사실 0');
@@ -218,4 +218,124 @@ test('OpenAI 부품 오류 코드: 429 · 5xx · 빈 응답 · 키 없음 · 시
   await assert.rejects(P.openAIProvider('', fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
   const slow = async (_u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new Error('aborted'))));
   await assert.rejects(P.openAIProvider('K', slow).call({ ...REQ, timeoutMs: 20 }), (e) => e.code === 'timeout');
+});
+
+// ── Gemini · Claude 부품(2026-09-27 대표 「DIRECT API INTEGRATION PATH」): 가짜 fetch 로 요청 모양·응답 정규화만(실제 호출 0 · 키 0).
+test('Claude 부품: /v1/messages · x-api-key · anthropic-version · system/messages · temperature 만(top_p 0) · 텍스트만 · 캐시 포함 입력 토큰', async () => {
+  const x = fakeFetch(200, { model: 'claude-x-served', stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: '```json\n{"a":1}\n```' }], usage: { input_tokens: 6, cache_read_input_tokens: 4, cache_creation_input_tokens: 0, output_tokens: 3 } });
+  const res = await P.anthropicProvider('KEY', {}, x.f).call(REQ);
+  assert.deepEqual([res.text, res.provider, res.model_requested, res.model_served, res.input_tokens, res.cached_tokens, res.output_tokens], ['{"a":1}', 'anthropic', 'm', 'claude-x-served', 10, 4, 3]);
+  const { url, init } = x.seen[0]; const b = JSON.parse(init.body);
+  assert.equal(url, 'https://api.anthropic.com/v1/messages');
+  assert.deepEqual([init.headers['x-api-key'], init.headers['anthropic-version']], ['KEY', '2023-06-01']);
+  assert.deepEqual([b.model, b.max_tokens, b.system, b.messages[0].role, b.temperature, 'top_p' in b, 'thinking' in b], ['m', 768, 'sys', 'user', 0.2, false, false]);
+  assert.equal(b.messages[0].content, JSON.stringify(REQ.input), '업체와 상관없이 같은 입력');
+  const y = fakeFetch(200, { content: [{ type: 'text', text: '{}' }], usage: {} });
+  await P.anthropicProvider('K', { sampling: 'none', thinking: 'disabled' }, y.f).call(REQ);
+  const b2 = JSON.parse(y.seen[0].init.body);
+  assert.deepEqual(['temperature' in b2, b2.thinking], [false, { type: 'disabled' }], '모델별 허용은 registry 옵션');
+});
+test('Claude 부품 오류: 429 · 529(과부하) · 500 · 401 · 거절(refusal) · 빈 응답 · 키 없음 · 시간 초과(오류에 키·원문 0)', async () => {
+  for (const [st, code] of [[429, 'http_429'], [529, 'http_5xx'], [500, 'http_5xx'], [401, 'http_4xx']]) await assert.rejects(P.anthropicProvider('SECRETKEY', {}, fakeFetch(st, {}).f).call(REQ), (e) => e.code === code && e.provider === 'anthropic' && !String(e.message).includes('SECRETKEY'));
+  await assert.rejects(P.anthropicProvider('K', {}, fakeFetch(200, { stop_reason: 'refusal', content: [] }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.anthropicProvider('K', {}, fakeFetch(200, { content: [{ type: 'thinking', thinking: 'x' }] }).f).call(REQ), (e) => e.code === 'empty');
+  await assert.rejects(P.anthropicProvider('', {}, fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
+  const slow = async (_u, init) => new Promise((_, rej) => init.signal.addEventListener('abort', () => rej(new Error('aborted'))));
+  await assert.rejects(P.anthropicProvider('K', {}, slow).call({ ...REQ, timeoutMs: 20 }), (e) => e.code === 'timeout');
+});
+test('Gemini 부품: v1beta/models/{MODEL_ID}:generateContent · x-goog-api-key(주소에 키 0) · JSON 요청 · usageMetadata · modelVersion · 생각 조각 버림', async () => {
+  const x = fakeFetch(200, { modelVersion: 'gem-served', candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '생각', thought: true }, { text: '{"a":1}' }] } }], usageMetadata: { promptTokenCount: 10, cachedContentTokenCount: 4, candidatesTokenCount: 3 } });
+  const res = await P.geminiProvider('KEY', {}, x.f).call({ ...REQ, model: 'gm-1' });
+  assert.deepEqual([res.text, res.provider, res.model_requested, res.model_served, res.input_tokens, res.cached_tokens, res.output_tokens], ['{"a":1}', 'gemini', 'gm-1', 'gem-served', 10, 4, 3]);
+  const { url, init } = x.seen[0]; const b = JSON.parse(init.body);
+  assert.equal(url, 'https://generativelanguage.googleapis.com/v1beta/models/gm-1:generateContent'); assert.ok(!url.includes('KEY'));
+  assert.equal(init.headers['x-goog-api-key'], 'KEY');
+  assert.deepEqual([b.systemInstruction.parts[0].text, b.contents[0].parts[0].text, b.generationConfig.temperature, b.generationConfig.topP, b.generationConfig.maxOutputTokens, b.generationConfig.responseMimeType], ['sys', JSON.stringify(REQ.input), 0.2, 0.9, 768, 'application/json']);
+});
+test('Gemini 부품 오류: 429 · 503 · 403 · 안전 차단(SAFETY·blockReason) · 빈 후보 · 키 없음', async () => {
+  for (const [st, code] of [[429, 'http_429'], [503, 'http_5xx'], [403, 'http_4xx']]) await assert.rejects(P.geminiProvider('SECRETKEY', {}, fakeFetch(st, {}).f).call(REQ), (e) => e.code === code && !String(e.message).includes('SECRETKEY'));
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }] }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { promptFeedback: { blockReason: 'OTHER' } }).f).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.geminiProvider('K', {}, fakeFetch(200, { candidates: [] }).f).call(REQ), (e) => e.code === 'empty');
+  await assert.rejects(P.geminiProvider('', {}, fakeFetch(200, {}).f).call(REQ), (e) => e.code === 'no_key');
+});
+test('모델 목록(listModels): Claude = data[].id · Gemini = generateContent 되는 models[].name(앞 models/ 뗌) · 키 없으면 no_key', async () => {
+  const a = fakeFetch(200, { data: [{ id: 'claude-a' }, { id: 'claude-b' }], has_more: false });
+  assert.deepEqual(await P.listModels('anthropic', 'K', a.f), ['claude-a', 'claude-b']);
+  assert.equal(a.seen[0].url, 'https://api.anthropic.com/v1/models?limit=100'); assert.equal(a.seen[0].init.method, 'GET');
+  const g = fakeFetch(200, { models: [{ name: 'models/gm-1', supportedGenerationMethods: ['generateContent'] }, { name: 'models/emb', supportedGenerationMethods: ['embedContent'] }] });
+  assert.deepEqual(await P.listModels('gemini', 'K', g.f), ['gm-1']);
+  await assert.rejects(P.listModels('gemini', ''), (e) => e.code === 'no_key');
+  const o = fakeFetch(200, { data: [{ id: 'gpt-4.1-mini' }] });
+  assert.deepEqual(await P.listModels('openai', 'K', o.f), ['gpt-4.1-mini']);
+  assert.equal(o.seen[0].url, 'https://api.openai.com/v1/models'); assert.ok(!o.seen[0].url.includes('K'));
+});
+test('Router + 실제 모양 부품(가짜 fetch): OpenAI 429 → FALLBACK Gemini 가 받고 서버가 같은 규칙으로 판정 · 관측에 업체·모델·오류 기록', async () => {
+  const agent = agentLike();
+  const bodyFor = async (init) => { const b = JSON.parse(init.body); const req = { stage: 'understand', input: JSON.parse(b.contents?.[0]?.parts?.[0]?.text ?? b.messages?.[0]?.content ?? '{}') }; return agent({ ...req, stage: b.systemInstruction?.parts?.[0]?.text?.includes('이해 단계') ? 'understand' : 'speak' }); };
+  const gem = async (_u, init) => ({ ok: true, status: 200, json: async () => ({ modelVersion: 'gm-served', candidates: [{ content: { parts: [{ text: await bodyFor(init) }] } }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 } }) });
+  const reg = { ...REG, roles: { PRIMARY: { provider: 'openai', model: 'p-model' }, FALLBACK: { provider: 'gemini', model: 'f-model' } } };
+  const r = R.createRouter({ registry: reg, providers: { openai: P.openAIProvider('K', fakeFetch(429, {}).f), gemini: P.geminiProvider('K', {}, gem), anthropic: P.anthropicProvider('', {}) }, budget: BUDGET });
+  const st = begin();
+  const res = await A.runTurn(st, '친구처럼 편한 만남이요', r.llm);
+  assert.ok(!res.error, '대화 계속');
+  const rows = R.performanceRows(r.log);
+  assert.ok(rows.some((x) => x.provider === 'openai' && x.error === 'http_429'));
+  assert.ok(rows.some((x) => x.provider === 'gemini' && x.fallback && x.served === 'gm-served'));
+  assert.ok(!JSON.stringify(rows).includes('친구처럼'), '성능 기록에 사용자 원문 0');
+});
+
+// ── PANEL + JUDGE(실험 · 기본 꺼짐 · 대표 「FINAL IMPLEMENTATION MASTER」 §21).
+const PANEL_REG = (judge = null) => ({ ...REG, panel: { stages: ['rebuild'], members: [{ provider: 'openai', model: 'p' }, { provider: 'gemini', model: 'g' }, { provider: 'anthropic', model: 'c' }], judge } });
+const REB = { statements: [{ id: 0, quote: '약속 잘 지키는 사람' }] };
+test('PANEL: 지정 단계에서만 세 업체 후보 · 서버 검사 탈락 후보 제외 · 판정 없으면 서버 점수 1등', async () => {
+  const o = P.fakeProvider('openai', () => 'not json'), g = P.fakeProvider('gemini', () => JSON.stringify({ lines: [{ id: 0, text: '약속을 잘 지키는 사람이 좋아요.' }] })), a = P.fakeProvider('anthropic', () => JSON.stringify({ lines: [] }));
+  const score = (_s, t) => { try { return (JSON.parse(t).lines ?? []).length; } catch { return 0; } };
+  const r = R.createRouter({ registry: PANEL_REG(), providers: { openai: o, gemini: g, anthropic: a }, budget: BUDGET, panelScore: score });
+  const out = await r.llm('intro', 'x', REB);
+  assert.match(out.text, /좋아요/);
+  assert.equal(r.log.filter((x) => x.role === 'PANEL').length, 3);
+  await r.llm('turn', 'x', { latest: '안녕' }); // 다른 단계는 한 업체만
+  assert.equal(o.calls.length, 2); assert.equal(g.calls.length + a.calls.length, 2);
+});
+test('JUDGE: 판정 선택은 서버 통과 후보 안에서만 · 엉뚱한 선택·오류면 서버 점수 1등', async () => {
+  const good1 = JSON.stringify({ lines: [{ id: 0, text: '약속을 잘 지키는 사람이 좋아요.' }] }), good2 = JSON.stringify({ lines: [{ id: 0, text: '약속 잘 지키는 분이 좋아요.' }] });
+  const mk = (choice) => ({ openai: P.fakeProvider('openai', () => good1), gemini: P.fakeProvider('gemini', () => good2), anthropic: P.fakeProvider('anthropic', (req) => (req.action === 'JUDGE' ? JSON.stringify({ choice }) : 'broken')) });
+  const pick = async (choice) => { const r = R.createRouter({ registry: PANEL_REG({ provider: 'anthropic', model: 'j' }), providers: mk(choice), budget: BUDGET }); return { out: await r.llm('intro', 'x', REB), log: r.log }; };
+  const b = await pick('B');
+  assert.equal(b.out.text, good2, '판정 B = 두 번째 통과 후보');
+  assert.ok(b.log.some((x) => x.role === 'JUDGE' && !x.error));
+  assert.equal((await pick('C')).out.text, good1, '탈락 후보(C=broken)는 고를 수 없음 → 서버 1등');
+  assert.equal((await pick('Z')).out.text, good1);
+});
+test('PANEL 은 기본 꺼짐(registry.panel 없음) · 비용 상한이면 PANEL 대신 한 업체', async () => {
+  const o = P.fakeProvider('openai', () => '{"lines":[]}'), g = P.fakeProvider('gemini', () => '{}');
+  const r1 = R.createRouter({ registry: REG, providers: { openai: o, gemini: g }, budget: BUDGET });
+  await r1.llm('intro', 'x', REB);
+  assert.equal(r1.log.filter((x) => x.role === 'PANEL').length, 0);
+  const r2 = R.createRouter({ registry: PANEL_REG(), providers: { openai: o, gemini: g }, budget: { max_calls_per_conversation: 0, max_tokens_per_conversation: 1e9 } });
+  await r2.llm('intro', 'x', REB);
+  assert.equal(r2.log.filter((x) => x.role === 'PANEL').length, 0, '비용 상한 → 한 업체');
+});
+
+// ── v3.5 PR-01: 오류는 추정하지 않고 기록 · 429 는 Retry-After/대기 후 재시도 · 4xx 는 재시도 0 · 업체 단독(넘어가기 0).
+test('PR-01 오류 기록: 상태·업체 코드·Retry-After(헤더 · Gemini retryDelay)만 · 메시지 글 0', async () => {
+  const d1 = P.errorDetailOf(429, { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: '사용자 원문 포함 가능', details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '12s' }] } }, null);
+  assert.deepEqual(d1, { status: 429, provider_code: '429', provider_type: 'RESOURCE_EXHAUSTED', retry_after_ms: 12000 });
+  const d2 = P.errorDetailOf(529, { type: 'error', error: { type: 'overloaded_error', message: 'x' } }, '3');
+  assert.deepEqual(d2, { status: 529, provider_code: null, provider_type: 'overloaded_error', retry_after_ms: 3000 });
+  const f = async () => ({ ok: false, status: 429, headers: { get: (h) => (h === 'retry-after' ? '2' : null) }, json: async () => ({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: '비밀 원문' } }) });
+  await assert.rejects(P.geminiProvider('SECRET', {}, f).call(REQ), (e) => e.code === 'http_429' && e.detail.status === 429 && e.detail.retry_after_ms === 2000 && !JSON.stringify(e.detail).includes('비밀') && !JSON.stringify(e.detail).includes('SECRET'));
+});
+test('PR-01 withRetry: 429 두 번 → Retry-After 대로 기다렸다 성공 · 4xx 는 바로 실패 · 5xx 는 정해진 횟수까지 · 속도 조절 간격 지킴', async () => {
+  let t = 0; const waits = []; const hooks = { sleep: async (ms) => { waits.push(ms); t += ms; }, now: () => t, random: () => 0.5 };
+  let n = 0; const flaky = { id: 'gemini', kind: 'real', call: async () => { n++; if (n <= 2) throw new P.ProviderError('gemini', 'http_429', 5, { status: 429, retry_after_ms: 1500 }); return { text: '{"ok":1}', provider: 'gemini', model_requested: 'm', model_served: 'm', input_tokens: 1, cached_tokens: 0, output_tokens: 1, latency_ms: 5 }; } };
+  const w = P.withRetry(flaky, { minIntervalMs: 1000, max429: 3 }, hooks);
+  const r = await w.call(REQ); assert.equal(r.text, '{"ok":1}'); assert.equal(n, 3); assert.ok(waits.filter((x) => x === 1500).length === 2, JSON.stringify(waits));
+  let m = 0; const bad = { id: 'gemini', kind: 'real', call: async () => { m++; throw new P.ProviderError('gemini', 'http_4xx', 1, { status: 400 }); } };
+  await assert.rejects(P.withRetry(bad, {}, hooks).call(REQ), (e) => e.code === 'http_4xx' && e.detail.attempt === 1); assert.equal(m, 1, '4xx 재시도 0');
+  let k = 0; const down = { id: 'anthropic', kind: 'real', call: async () => { k++; throw new P.ProviderError('anthropic', 'http_5xx', 1, { status: 529 }); } };
+  await assert.rejects(P.withRetry(down, { max5xx: 2 }, hooks).call(REQ), (e) => e.code === 'http_5xx' && e.detail.attempt === 3); assert.equal(k, 3, '5xx 는 2번까지 다시');
+  let q = 0; const always429 = { id: 'gemini', kind: 'real', call: async () => { q++; throw new P.ProviderError('gemini', 'http_429', 1, { status: 429 }); } };
+  await assert.rejects(P.withRetry(always429, { max429: 2 }, hooks).call(REQ), (e) => e.code === 'http_429'); assert.equal(q, 3, '반복 429 는 정해진 횟수 뒤 실패(→ Router 차단)');
 });
