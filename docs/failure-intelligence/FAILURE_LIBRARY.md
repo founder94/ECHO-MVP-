@@ -5,10 +5,10 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 96건 — 증거 수준: ACTUAL 86 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 50 · ACTUAL_RECONSTRUCTED 1 · CODE 16 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 18 · FOUNDER_STATEMENT 8
-- 데이터 종류: AGENT_FAILURE 88 · FOUNDER_AI_FAILURE 8 · **실제 사용자 사실(user_fact=true) 0건** — 대표 AI 실패·Agent 실패는 Profile·Matching 에 쓰지 않는다(규칙·재현 검사·서버 개선에만).
-- 상태: UNRESOLVED 43 · MITIGATED 48 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 53 · NONE 27
+- 합계 97건 — 증거 수준: ACTUAL 87 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 50 · ACTUAL_RECONSTRUCTED 1 · CODE 17 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 18 · FOUNDER_STATEMENT 8
+- 데이터 종류: AGENT_FAILURE 89 · FOUNDER_AI_FAILURE 8 · **실제 사용자 사실(user_fact=true) 0건** — 대표 AI 실패·Agent 실패는 Profile·Matching 에 쓰지 않는다(규칙·재현 검사·서버 개선에만).
+- 상태: UNRESOLVED 44 · MITIGATED 48 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 54 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -111,6 +111,7 @@
 | GF-94 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-STATUS | 소개 초안 뜻 왜곡 · 미확정 사실화 | Model · Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-95 | 2026-09-22 배포 · 2026-0 | ACTUAL | CODE | F-ADVISOR | 문서와 실제 처리 불일치 · 잘못된 보고 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
 | GF-96 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-DRIFT | 질문 추상도 과다 · 무거운 질문 | Model · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-97 | 2026-09-26(코드 추적으로 발견) | ACTUAL | CODE | F-STATUS | 정정무시 · Context 오염 | Orchestration · Context | CONFIRMED | CANDIDATE | UNRESOLVED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -3343,3 +3344,37 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | REGRESSION_OF→GF-92(ACTUAL) |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md` |
+
+## GF-97 사용자 거절/정정에서 AI 해석과 사용자 정정의 상태가 뒤집혀 사용자 정정이 rejected 로 저장됨
+
+| 칸 | 내용 |
+|---|---|
+| 데이터 종류 | AGENT_FAILURE · 사용자 사실 아님(user_fact=false) |
+| Family | F-STATUS — 정보 상태 오류(미확정 사실화) |
+| 발생 날짜 | 2026-09-26(코드 추적으로 발견) · 해당 저장 경로 운영 기록 2026-09-17~09-20 |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — 코드 확인(get-step-question saveConfirmedMemory · 운영 v50 = 저장소 글자 단위 동일) + 운영 DB 읽기 전용 집계(원문 미조회): 코드 서명 일치 self/rejected 54행 · 사용자 2명 |
+| 사용자 상황 | 옛 흐름 SCENE 3 이해 확인에서 「그게 아니에요」 + 정정 글 입력 |
+| 사용자 원문 | —(사용자 원문은 기록하지 않음) |
+| AI 행동 | 서버가 사용자 정정 글을 self/rejected 로, 틀린 AI 해석은 ai_text 에만 저장 → doit-understanding 이 거절 행의 text·ai_text 를 모두 거절 목록에 넣어 사용자 자신의 말이 차단·거절 의미로 AI 에 전달됨 · 매칭 재료에서도 사용자 정정이 빠짐 |
+| 기대 행동 | 틀린 AI 해석만 rejected(ai) · 사용자 정정은 corrected(self) 로 살아 있어야 함 · 사용자 최신 직접 발화가 AI 해석보다 우선 |
+| Failure Type | 정정무시 · Context 오염 |
+| 원인 Layer | Orchestration · Context (원인 확신: CONFIRMED) — 저장 매핑이 선택지(no)를 사용자 글의 상태로 옮김(Orchestration) · 읽는 쪽이 거절 행을 통째로 차단(Context). 모델 몫 아님 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | 코드 재현 ○ — qa/scene3-correction-storage.test.mjs 를 원래 코드로 돌리면 T3·T7·T8(get-step-question), T5·T9·T9 profile_draft(doit-understanding) 실패 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 「그게 아니에요」 = insert 한 번에 AI 해석 ai/rejected + 사용자 정정 self/corrected · 읽을 때 과거 서명 행(self·rejected·ai_text 있음·text≠ai_text)은 ai_text 만 거절(DB UPDATE 0) |
+| 실험 결과 | 2026-09-26 로컬 수정(get-step-question saveConfirmedMemory · doit-understanding rejectedMeaningTexts 3곳) · 운영 미배포 |
+| Mock 결과 | PASS 10/10 (가짜 AI·가짜 DB · qa/scene3-correction-storage.test.mjs) |
+| 부작용 | 「맞아요」·「조금 달라요」·「직접 설명할게요」 저장 모양 변화 0(검사 T1·T4) · 저장 호출이 행 배열 1회로 바뀜 |
+| 역검사 결과 | 원래 코드에서 새 검사가 실패하는 것 확인(각 파일 따로 되돌려 봄) |
+| 실AI 결과 | 해당 없음 — 저장·읽기 규칙 결함(AI 호출과 무관) · 실제 AI 검증 0 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 로컬 수정·가짜 기준 검사 통과 · 운영 get-step-question v50 / doit-understanding 운영판은 아직 옛 코드 · 과거 54행은 그대로(읽기 보정은 doit-understanding 배포 뒤에만 운영에 적용) |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/qa/scene3-correction-storage.test.mjs` · `product/supabase/functions/get-step-question/index.ts` · `product/supabase/functions/doit-understanding/index.ts` |

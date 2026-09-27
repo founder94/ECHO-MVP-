@@ -34,7 +34,10 @@ const count = (re) => walk(FN).reduce((n, f) => n + (readFileSync(f, 'utf8').mat
 test('[P0] doit_insights 직접 쓰기는 get-step-question 의 이해 확인 저장 한 곳뿐 · 「맞아요」만 confirmed', () => {
   assert.equal(count(/from\("doit_insights"\)\s*\.(insert|update|upsert|delete)\(/g), 1);
   const gsq = src('get-step-question/index.ts');
-  assert.match(gsq, /const status = choice === "agree" \? "confirmed" : choice === "no" \? "rejected" : "corrected";/);
+  // 2026-09-26 P0 정정 역전 수정: 「그게 아니에요」 = AI 해석 ai/rejected + 사용자 정정 self/corrected. confirmed 는 「맞아요」뿐.
+  assert.match(gsq, /const status = choice === "agree" \? "confirmed" : "corrected";/);
+  assert.match(gsq, /choice === "no"\s*\? \[row\(aiText, "rejected", "ai"\), row\(memoryText, "corrected", "self"\)\]/);
+  assert.match(gsq, /: \[row\(memoryText, status, choice === "agree" \? "ai" : "self"\)\]/);
   // 저장 함수는 사용자의 choose(SCENE 3 버튼) 요청 안에서만 불린다.
   const calls = [...gsq.matchAll(/await saveConfirmedMemory\(/g)].map((m) => m.index);
   const choose = gsq.indexOf('if (action === "choose")');
