@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -104,6 +104,46 @@ jobs:
         run: |
           npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
           node melba-render.mjs https://thriving-melba-b1449a.netlify.app
+
+  qa_rc_check:
+    # 배포 전 RC 검사(읽기 전용 · 비밀값 0): PR #12 의 지정 commit 을 QA 설정으로 빌드 → 러너 안에서 띄워 Chrome·WebKit 으로 연다. 배포 0.
+    if: inputs.mode == 'qa_rc_check'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RC_SHA: 4ba37ce44024077bc30defa1f0425d8b2bfbd0ac
+      # QA 공개 키(anon · 브라우저에 공개되는 값 · 운영 키 아님)
+      QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: qa
+          sparse-checkout: |
+            product/qa-real/rc-render.mjs
+            product/qa-real/spa-serve.mjs
+            product/qa-deploy/qa-pwa-label.mjs
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RC_SHA }}
+          path: rc
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: RC 빌드(QA 설정 · app 역할)
+        working-directory: rc/product
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$RC_SHA" ]
+          npm ci --silent >/dev/null 2>&1
+          VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_BRAND_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../../dist --emptyOutDir > ../../build.log 2>&1
+          node ../../qa/product/qa-deploy/qa-pwa-label.mjs ../../dist
+          echo "RC $RC_SHA · index sha16=$(sha256sum ../../dist/index.html | cut -c1-16) · files=$(find ../../dist -type f | wc -l) · maps=$(find ../../dist -name '*.map' | wc -l)"
+      - name: Chrome·WebKit 렌더(iPhone·Galaxy 크기 · 로그인 없음)
+        working-directory: qa/product/qa-real
+        run: |
+          (node spa-serve.mjs "$GITHUB_WORKSPACE/dist" 8770 &) ; sleep 1
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
+          node rc-render.mjs http://localhost:8770
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
