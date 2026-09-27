@@ -9,7 +9,7 @@ on:
       - 'product/**'
       - '.github/workflows/echo-qa-app-gate.yml'
   push:
-    branches: [deploy/final-app-web-20260925]
+    branches: [release/qa-app]
     paths:
       - 'product/**'
       - '.github/workflows/echo-qa-app-gate.yml'
@@ -44,7 +44,7 @@ jobs:
   qa_publish:
     needs: check
     # PRs only run checks. A push to the designated source branch publishes only to the QA site.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/deploy/final-app-web-20260925'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release/qa-app'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: echo-qa-app
