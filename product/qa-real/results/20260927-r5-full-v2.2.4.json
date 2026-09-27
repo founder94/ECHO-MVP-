@@ -1,0 +1,554 @@
+{
+ "env": "ECHO-QA",
+ "ref": "mutniujeiyujhkobadkd",
+ "phase": "full",
+ "run": "r5",
+ "evidence": {
+  "cross_slot": {
+   "flow": "ORIGINAL(one correction · relationship_style · no manual slot fix)",
+   "manual_slot_fixes": 0,
+   "turnA": 3,
+   "turnB": 6,
+   "a_text": "연락은 매일 하는 게 좋아요",
+   "b_text": "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+   "a_saved_after_A": [
+    {
+     "slot": "values_character",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "CONFIRMED",
+     "source_type": "USER_DIRECT",
+     "corrected_from": null
+    },
+    {
+     "slot": "relationship_style",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "CONFIRMED",
+     "source_type": "AI_EXTRACTED",
+     "corrected_from": null
+    }
+   ],
+   "a_after_B": [
+    {
+     "slot": "values_character",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "RETRACTED",
+     "source_type": "USER_DIRECT",
+     "corrected_from": null
+    },
+    {
+     "slot": "relationship_style",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "RETRACTED",
+     "source_type": "AI_EXTRACTED",
+     "corrected_from": null
+    }
+   ],
+   "a_current_count": 0,
+   "b_current_count": 1,
+   "all_slots_after_B": [
+    {
+     "slot": "values_character",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "RETRACTED",
+     "source_type": "USER_DIRECT",
+     "corrected_from": null
+    },
+    {
+     "slot": "attraction_comfort",
+     "note": "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+     "quote": "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+     "turn": 2,
+     "status": "CONFIRMED",
+     "source_type": "USER_DIRECT",
+     "corrected_from": null
+    },
+    {
+     "slot": "relationship_style",
+     "note": "연락은 매일 하는 게 좋아요",
+     "quote": "연락은 매일 하는 게 좋아요",
+     "turn": 3,
+     "status": "RETRACTED",
+     "source_type": "AI_EXTRACTED",
+     "corrected_from": null
+    },
+    {
+     "slot": "relationship_style",
+     "note": "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+     "quote": "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+     "turn": 6,
+     "status": "CONFIRMED",
+     "source_type": "USER_CORRECTED",
+     "corrected_from": [
+      "연락은 매일 하는 게 좋아요"
+     ]
+    },
+    {
+     "slot": "relationship_intent",
+     "note": "친구처럼 편하게 대화하는 사이를 원해요",
+     "quote": "친구처럼 편하게 대화하는 사이를 원해요",
+     "turn": 1,
+     "status": "CONFIRMED",
+     "source_type": "AI_EXTRACTED",
+     "corrected_from": null
+    }
+   ],
+   "other_facts_lost": [],
+   "inferred_from_A": []
+  },
+  "profile_all": [
+   {
+    "slot": "relationship_intent",
+    "note": "친구처럼 편하게 대화하는 사이를 원해요",
+    "status": "CONFIRMED",
+    "turn": 1
+   },
+   {
+    "slot": "attraction_comfort",
+    "note": "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+    "status": "CONFIRMED",
+    "turn": 2
+   },
+   {
+    "slot": "relationship_style",
+    "note": "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+    "status": "CONFIRMED",
+    "turn": 6
+   }
+  ],
+  "intro": {
+   "text": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "sentences": [
+    "저는 친구처럼 편하게 대화하는 사이를 원해요.",
+    "조용한 카페에서 오래 이야기하는 걸 좋아해요.",
+    "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요."
+   ]
+  },
+  "matching_source": {
+   "confirmed": [
+    "친구처럼 편하게 대화하는 사이를 원해요",
+    "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+    "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요"
+   ],
+   "areas": 3,
+   "ready": true,
+   "a_used": [],
+   "b_used": [
+    "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요"
+   ]
+  },
+  "overlap": {
+   "common_a": [
+    "친구처럼 편하게 대화하는 사이를 원함",
+    "조용한 카페에서 오래 이야기하는 걸 좋아해요"
+   ],
+   "common_b": [
+    "친구처럼 편하게 대화하는 사이를 원해요",
+    "조용한 카페에서 오래 이야기하는 걸 좋아해요"
+   ],
+   "score": 4
+  }
+ },
+ "pass": 38,
+ "fail": 0,
+ "invalid": 0,
+ "checks": [
+  {
+   "id": "로그인: 실제 이메일·비밀번호 로그인 → 사용자 JWT 발급(3계정)",
+   "result": "PASS",
+   "detail": "{\"a\":{\"login\":200,\"jwt\":true,\"err\":null},\"b\":{\"login\":200,\"jwt\":true,\"err\":null},\"admin\":{\"login\":200,\"jwt\":true,\"err\":null}}"
+  },
+  {
+   "id": "가입 트리거 + RLS: 본인 profile 읽기 가능(role=user · pending)",
+   "result": "PASS",
+   "detail": "{\"id\":\"6ac65fbf-a543-4b8d-8c79-0f8dbca51be7\",\"role\":\"user\",\"verification_status\":\"pending\",\"is_admin\":false,\"grade\":null}"
+  },
+  {
+   "id": "관리자 계정: role=admin(QA DB 에서 지정됨)",
+   "result": "PASS",
+   "detail": "{\"role\":\"admin\"}"
+  },
+  {
+   "id": "준비(사용자 JWT): 본인 목적·소개 저장 · 동의 · 본인 사진 3장 업로드 · 본인 사진 목록 읽기",
+   "result": "PASS",
+   "detail": "{\"a\":{\"profile\":204,\"consent\":200,\"uploads\":3,\"photo_rows\":3,\"own_photos_visible\":3},\"b\":{\"profile\":204,\"consent\":200,\"uploads\":3,\"photo_rows\":3,\"own_photos_visible\":3}}"
+  },
+  {
+   "id": "RLS: role·verification_status·is_admin·grade 변경 거부(HTTP 상태) · 값 그대로",
+   "result": "PASS",
+   "detail": "{\"status\":{\"role\":403,\"verification_status\":403,\"is_admin\":403,\"grade\":403},\"now\":{\"role\":\"user\",\"verification_status\":\"pending\",\"is_admin\":false,\"grade\":null}}"
+  },
+  {
+   "id": "RLS: 남의 프로필 0 · 남의 사진 목록 0 · 남의 사진 파일 읽기 거부 · 남의 폴더 업로드 거부 · 대화 상태 표 직접 읽기 거부 · 비로그인 프로필 0",
+   "result": "PASS",
+   "detail": "{\"other_profile\":0,\"other_photos\":0,\"other_object\":400,\"other_upload\":400,\"events\":403,\"anon_profiles\":0}"
+  },
+  {
+   "id": "실제 AI: A 대화 시작(QA Edge → OpenAI)",
+   "result": "PASS",
+   "detail": "{\"who\":\"A\",\"text\":\"(시작) 친구처럼 편하게 대화하는 사이를 원해요\",\"status\":200,\"code\":null,\"ms\":3071}"
+  },
+  {
+   "id": "RLS/본인 Agent 상태: 사용자 본인 대화 불러오기 가능(agent_get)",
+   "result": "PASS",
+   "detail": "{\"status\":200}"
+  },
+  {
+   "id": "RLS/남의 Agent 상태: 일반 사용자 B 가 A 대화 읽기 거부(403)",
+   "result": "PASS",
+   "detail": "status=403"
+  },
+  {
+   "id": "실제 AI: 대화 실패 0(모든 턴 200)",
+   "result": "PASS",
+   "detail": "[]"
+  },
+  {
+   "id": "거절: 전제(AI 해석 저장 + 화면에 보임) → 보인 해석만 거둠(1개 RETRACTED · 여럿 DISPUTED) · 사용자 원문 보존",
+   "result": "PASS",
+   "detail": "{\"pre\":[{\"id\":\"relationship_style\",\"note\":\"연락은 매일 하는 게 좋아요\",\"turn\":3}],\"after\":[{\"id\":\"relationship_style\",\"note\":\"연락은 매일 하는 게 좋아요\",\"turn\":3,\"status\":\"RETRACTED\"}],\"raw_kept\":true,\"rule\":\"retracted\"}"
+  },
+  {
+   "id": "거절: 다음 응답에 거둔 뜻 재등장 0",
+   "result": "PASS",
+   "detail": "{\"reply\":\"그런 뜻이 아니었군요. 친구와의 관계에서 어떤 건 좋고 어떤 건 싫은지 말씀해 주실 수 있나요.\",\"question\":\"친구와의 관계에서 어떤 점이 좋고 어떤 점이 싫은지 궁금해요\"}"
+  },
+  {
+   "id": "정정: 화면 정정 → 정정(correction)으로 확정",
+   "result": "PASS",
+   "detail": "kind=correction"
+  },
+  {
+   "id": "정정: 최신 값 = 주말(USER_CORRECTED)",
+   "result": "PASS",
+   "detail": "[[\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\",\"USER_CORRECTED\"]]"
+  },
+  {
+   "id": "다른 칸 정정: 옛 「매일」 과 같은 출처 값이 어느 칸에도 지금 값(CONFIRMED)으로 없음",
+   "result": "PASS",
+   "detail": "{\"old\":1,\"copies\":[{\"id\":\"values_character\",\"note\":\"연락은 매일 하는 게 좋아요\",\"status\":\"RETRACTED\"},{\"id\":\"relationship_style\",\"note\":\"연락은 매일 하는 게 좋아요\",\"status\":\"RETRACTED\"}]}"
+  },
+  {
+   "id": "Canonical State: 지금 값에 옛 「매일」 0 · 매일+주말 동시 존재 0 · 지금 값은 CONFIRMED 뿐",
+   "result": "PASS",
+   "detail": "[[\"조용한 카페에서 오래 이야기하는 걸 좋아해요\",\"USER_DIRECT\"],[\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\",\"USER_CORRECTED\"],[\"친구처럼 편하게 대화하는 사이를 원해요\",\"AI_EXTRACTED\"]]"
+  },
+  {
+   "id": "Profile: 매칭 프로필 = CONFIRMED 만 · 고친 칸 = 주말 · 어느 칸에도 옛 「매일」 0",
+   "result": "PASS",
+   "detail": "{\"relationship_intent\":[\"친구처럼 편하게 대화하는 사이를 원해요\"],\"attraction_comfort\":[\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"],\"values_character\":[],\"relationship_style\":[\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\"],\"boundaries\":[]}"
+  },
+  {
+   "id": "소개: 옛 값(매일 연락) 문장 0(문장 단위)",
+   "result": "PASS",
+   "detail": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요."
+  },
+  {
+   "id": "[P0 CROSS-SLOT] 옛 말 A(같은 턴 출처) 현재 사실 0 — 모든 칸",
+   "result": "PASS",
+   "detail": "{\"a_saved\":[[\"values_character\",\"CONFIRMED\",\"USER_DIRECT\",\"연락은 매일 하는 게 좋아요\"],[\"relationship_style\",\"CONFIRMED\",\"AI_EXTRACTED\",\"연락은 매일 하는 게 좋아요\"]],\"a_now\":[]}"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] 정정 B 현재 사실 > 0(USER_CORRECTED · CONFIRMED)",
+   "result": "PASS",
+   "detail": "[[\"relationship_style\",\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\"]]"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] 다른 정상 사실 보존(A·B 턴 밖 CONFIRMED 유지)",
+   "result": "PASS",
+   "detail": "{\"before\":2,\"lost\":[]}"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] Profile 전수: 옛 말 A 출처 항목 0",
+   "result": "PASS",
+   "detail": "{\"hits\":[],\"items\":[[\"relationship_intent\",\"친구처럼 편하게 대화하는 사이를 원해요\"],[\"attraction_comfort\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"],[\"relationship_style\",\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\"]]}"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] 소개 문장: 옛 뜻(매일·자주 연락) 문장 0",
+   "result": "PASS",
+   "detail": "{\"bad\":[],\"intro\":\"저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.\"}"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] Matching source 전체: A 사용 0 · B 사용 > 0",
+   "result": "PASS",
+   "detail": "{\"confirmed\":[\"친구처럼 편하게 대화하는 사이를 원해요\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\",\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\"],\"areas\":3,\"ready\":true,\"a_used\":[],\"b_used\":[\"매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요\"]}"
+  },
+  {
+   "id": "연결 준비(doit-understanding · 운영 v29+1줄): 응답 200",
+   "result": "PASS",
+   "detail": "{\"status\":200,\"code\":null}"
+  },
+  {
+   "id": "Matching(agent): A-B 실제 후보 생성",
+   "result": "PASS",
+   "detail": "{\"status\":200,\"n\":41,\"eligible\":10,\"missing\":{\"purpose\":0,\"answers\":0,\"photos\":0,\"intro\":0},\"code\":null}"
+  },
+  {
+   "id": "Matching: 겹친 말 > 0 · 점수 > 0",
+   "result": "PASS",
+   "detail": "{\"commonA\":[\"친구처럼 편하게 대화하는 사이를 원해요\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"],\"score\":4}"
+  },
+  {
+   "id": "[P0 CROSS-SLOT] overlap/score: 옛 말 A 출처 기여 0(양쪽 공통 목록)",
+   "result": "PASS",
+   "detail": "{\"common_a\":[\"친구처럼 편하게 대화하는 사이를 원함\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"],\"common_b\":[\"친구처럼 편하게 대화하는 사이를 원해요\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"],\"score\":4}"
+  },
+  {
+   "id": "Matching: 옛 「매일」·거둔 뜻 사용 0 · 사주/타로 0",
+   "result": "PASS",
+   "detail": "[\"친구처럼 편하게 대화하는 사이를 원해요\",\"조용한 카페에서 오래 이야기하는 걸 좋아해요\"]"
+  },
+  {
+   "id": "전화: 전화 미인증 A 가 후보",
+   "result": "PASS",
+   "detail": "{\"a\":{\"nickname\":\"QA-B\",\"confirmed\":3,\"phone_verified\":false},\"b\":{\"nickname\":\"QA-A\",\"confirmed\":3,\"phone_verified\":false}}"
+  },
+  {
+   "id": "연결: 관리자 승인 → 연결 생성 · AI 첫 질문",
+   "result": "PASS",
+   "detail": "{\"status\":200,\"code\":null,\"first_question\":\"가장 좋아하는 카페에서 어떤 이야기를 나누고 싶나요?\",\"source\":\"ai\"}"
+  },
+  {
+   "id": "상호 공개: 둘 다 답하기 전 상대 정보 0 → 둘 다 답하면 열림",
+   "result": "PASS",
+   "detail": "{\"before\":false,\"after\":true}"
+  },
+  {
+   "id": "안전: 대화 보내기 200 · 연락처 차단 · 외부 링크 차단",
+   "result": "PASS",
+   "detail": "{\"msg\":200,\"phone\":\"BLOCKED_CONTENT\",\"link\":\"BLOCKED_CONTENT\"}"
+  },
+  {
+   "id": "안전: 성적 목적 문장 차단",
+   "result": "PASS",
+   "detail": "{\"status\":200,\"code\":\"BLOCKED_CONTENT\"}"
+  },
+  {
+   "id": "안전: 그만하기·차단·신고 → 신고·차단 기록 · 다시 후보 0 · 재승인 거부(409) · 신고당한 사람은 신고 기록 못 봄",
+   "result": "PASS",
+   "detail": "{\"leave\":200,\"reports\":1,\"blocks\":1,\"re\":409,\"report_visible_to_target\":0}"
+  },
+  {
+   "id": "전화: verification_status 자동 변경 0",
+   "result": "PASS",
+   "detail": "[{\"verification_status\":\"pending\"},{\"verification_status\":\"pending\"}]"
+  },
+  {
+   "id": "관리자(서버 응답): 이번 실행 대화 세션 2개 포함 · Agent 판 echo-agent-v2.2.4 · 실패 턴 0",
+   "result": "PASS",
+   "detail": "{\"status\":200,\"n\":50,\"mine_versions\":[\"echo-agent-v2.2.4\",\"echo-agent-v2.2.4\"],\"failed\":0}"
+  },
+  {
+   "id": "관리자 권한: 일반 사용자 관리자 요청 거부(403)",
+   "result": "PASS",
+   "detail": "status=403"
+  }
+ ],
+ "perf": {
+  "ai_turns": 10,
+  "p50_ms": 3669,
+  "p95_ms": 4237,
+  "max_ms": 4237,
+  "http_5xx": 0,
+  "provider_errors": 0,
+  "retries": 61,
+  "fallback": 0
+ },
+ "models": [
+  "gpt-4o-mini-2024-07-18"
+ ],
+ "conversation": [
+  {
+   "who": "A",
+   "text": "(시작) 친구처럼 편하게 대화하는 사이를 원해요",
+   "status": 200,
+   "code": null,
+   "ms": 3071
+  },
+  {
+   "who": "A",
+   "text": "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+   "status": 200,
+   "kind": "answer",
+   "reply": "조용한 카페에서의 대화는 정말 편안하죠.",
+   "question": "사람을 만날 때 가장 먼저 어떤 점을 보게 되나요?",
+   "code": null,
+   "ms": 2991
+  },
+  {
+   "who": "A",
+   "text": "연락은 매일 하는 게 좋아요",
+   "status": 200,
+   "kind": "answer",
+   "reply": "매일 연락하는 걸 좋아하시는군요.",
+   "question": "친구와의 관계에서 어떤 건 좋고 어떤 건 싫은지 궁금해요",
+   "code": null,
+   "ms": 2936
+  },
+  {
+   "who": "A",
+   "text": "아니 그런 뜻 아니야",
+   "status": 200,
+   "kind": "repair",
+   "reply": "그런 뜻이 아니었군요. 친구와의 관계에서 어떤 건 좋고 어떤 건 싫은지 말씀해 주실 수 있나요.",
+   "question": "친구와의 관계에서 어떤 점이 좋고 어떤 점이 싫은지 궁금해요",
+   "code": null,
+   "ms": 4237
+  },
+  {
+   "who": "A",
+   "text": "오늘은 여기까지 할게요",
+   "status": 200,
+   "kind": "stop",
+   "reply": "알겠어요, 오늘은 여기까지 하죠. 다음에 또 이야기해요!",
+   "question": null,
+   "code": null,
+   "ms": 3669
+  },
+  {
+   "who": "A",
+   "text": "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+   "status": 200,
+   "kind": "correction",
+   "reply": "오늘은 여기까지 하신다고 하니, 대화해 주셔서 감사합니다.",
+   "question": null,
+   "code": null,
+   "ms": 4024,
+   "fix_slot": {
+    "picked": "relationship_style",
+    "old_value_shown_in": "values_character"
+   }
+  },
+  {
+   "who": "B",
+   "text": "(시작) 친구처럼 편하게 대화하는 사이를 원해요",
+   "status": 200,
+   "code": null,
+   "ms": 2876
+  },
+  {
+   "who": "B",
+   "text": "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+   "status": 200,
+   "kind": "answer",
+   "reply": "조용한 카페에서 오래 이야기하는 걸 좋아하시는군요.",
+   "question": "사람을 만날 때 가장 먼저 어떤 점을 보게 돼요?",
+   "code": null,
+   "ms": 4157
+  },
+  {
+   "who": "B",
+   "text": "천천히 알아가고 싶어요",
+   "status": 200,
+   "kind": "answer",
+   "reply": "천천히 알아가는 게 좋으시군요.",
+   "question": "연락은 자주 하는 편인가요, 아니면 천천히 하는 편인가요?",
+   "code": null,
+   "ms": 2705
+  },
+  {
+   "who": "B",
+   "text": "오늘은 여기까지 할게요",
+   "status": 200,
+   "kind": "stop",
+   "reply": "알겠어요, 오늘은 여기까지 하죠. 다음에 또 이야기해요!",
+   "question": null,
+   "code": null,
+   "ms": 3828
+  }
+ ],
+ "state": {
+  "A": {
+   "boundaries": [],
+   "values_character": [
+    [
+     "연락은 매일 하는 게 좋아요",
+     "RETRACTED",
+     "USER_DIRECT"
+    ]
+   ],
+   "attraction_comfort": [
+    [
+     "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+     "CONFIRMED",
+     "USER_DIRECT"
+    ]
+   ],
+   "relationship_style": [
+    [
+     "연락은 매일 하는 게 좋아요",
+     "RETRACTED",
+     "AI_EXTRACTED"
+    ],
+    [
+     "매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+     "CONFIRMED",
+     "USER_CORRECTED"
+    ]
+   ],
+   "relationship_intent": [
+    [
+     "친구처럼 편하게 대화하는 사이를 원해요",
+     "CONFIRMED",
+     "AI_EXTRACTED"
+    ]
+   ]
+  },
+  "B": {
+   "boundaries": [],
+   "values_character": [
+    [
+     "천천히 알아가고 싶어요",
+     "CONFIRMED",
+     "USER_DIRECT"
+    ]
+   ],
+   "attraction_comfort": [
+    [
+     "조용한 카페에서 오래 이야기하는 걸 좋아해요",
+     "CONFIRMED",
+     "USER_DIRECT"
+    ]
+   ],
+   "relationship_style": [],
+   "relationship_intent": [
+    [
+     "친구처럼 편하게 대화하는 사이를 원함",
+     "CONFIRMED",
+     "AI_EXTRACTED"
+    ]
+   ]
+  },
+  "A_intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+  "A_rejected": [
+   "친구와의 관계에서 어떤 건 좋고 어떤 건 싫은지 궁금해요",
+   "연락은 매일 하는 게 좋아요",
+   "연락은 매일 하는 게 좋아요"
+  ]
+ },
+ "matching": {
+  "common_a": [
+   "친구처럼 편하게 대화하는 사이를 원함",
+   "조용한 카페에서 오래 이야기하는 걸 좋아해요"
+  ],
+  "common_b": [
+   "친구처럼 편하게 대화하는 사이를 원해요",
+   "조용한 카페에서 오래 이야기하는 걸 좋아해요"
+  ],
+  "score": 4
+ },
+ "test_accounts": {
+  "a": "6ac65fbf",
+  "b": "5c9e15e9",
+  "admin": "2d1d4c60"
+ }
+}

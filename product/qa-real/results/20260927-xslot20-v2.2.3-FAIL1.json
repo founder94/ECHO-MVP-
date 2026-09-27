@@ -1,0 +1,663 @@
+{
+ "summary": {
+  "total": 20,
+  "completed": 20,
+  "errors": 0,
+  "agent_versions": [
+   "echo-agent-v2.2.3"
+  ],
+  "a_had_current_before_B": 20,
+  "no_link_cases": 1,
+  "ai_picked_runs": 1,
+  "ai_missed_in_no_link": 1,
+  "a_remaining_runs": 1,
+  "profile_reappear": 1,
+  "intro_reappear": 1,
+  "matching_reuse": 1,
+  "b_missing": 0,
+  "other_fact_wrongly_removed": 0,
+  "p0_fail_runs": 1
+ },
+ "results": [
+  {
+   "run": "x01",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 1,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x02",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": false,
+   "no_link_case": true,
+   "ai_picked": 0,
+   "a_current_after": 1,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [
+    "연락은 매일 하는 게 좋아요"
+   ],
+   "intro_a": [
+    "조용한 카페에서 오래 이야기하는 걸 좋아하고, 연락은 매일 하는 게 좋아요."
+   ],
+   "source_a": [
+    "연락은 매일 하는 게 좋아요"
+   ],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 연락은 매일 하는 게 좋아요. 하지만 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": true
+  },
+  {
+   "run": "x03",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋음"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x04",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x05",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x06",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x07",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋음"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x08",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋음"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x09",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x10",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x11",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x12",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아함"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x13",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋음"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x14",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x15",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x16",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x17",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x18",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋음"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x19",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아해요. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  },
+  {
+   "run": "x20",
+   "agent": "echo-agent-v2.2.3",
+   "kind": "correction",
+   "a_saved": [
+    [
+     "values_character",
+     "USER_DIRECT",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ],
+    [
+     "relationship_style",
+     "AI_EXTRACTED",
+     "CONFIRMED",
+     "연락은 매일 하는 게 좋아요"
+    ]
+   ],
+   "a_current_before_B": 1,
+   "link_in_style": true,
+   "no_link_case": false,
+   "ai_picked": 0,
+   "a_current_after": 0,
+   "b_current": 1,
+   "other_lost": [],
+   "profile_a": [],
+   "intro_a": [],
+   "source_a": [],
+   "source_b": 1,
+   "intro": "저는 친구처럼 편하게 대화하는 사이를 원해요. 조용한 카페에서 오래 이야기하는 걸 좋아하고, 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요.",
+   "p0_fail": false
+  }
+ ]
+}
