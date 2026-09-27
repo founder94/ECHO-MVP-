@@ -28,7 +28,7 @@ export function eligibility(p: Person): { eligible: boolean; missing: string[] }
   if (!p.conversation_done) missing.push("conversation");
   if (!p.intro_confirmed) missing.push("intro_confirmed");
   if (!p.photo_primary) missing.push("photo");
-  if (!p.phone_verified) missing.push("phone_verified");
+  // 2026-09-27 대표 「P0-1」: 전화 인증은 연결 자격 조건이 아니다(phone_verified 는 참고 정보로만 남김).
   if (!p.purpose_id) missing.push("relationship_intent");
   if (!p.profile || !PURPOSE_IDS.some((id) => (p.profile?.[id]?.items ?? []).some((i) => i.status === "CONFIRMED"))) missing.push("confirmed_info");
   return { eligible: missing.length === 0, missing };

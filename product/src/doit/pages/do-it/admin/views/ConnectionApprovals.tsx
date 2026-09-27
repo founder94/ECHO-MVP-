@@ -12,7 +12,6 @@ type Load<T> = { kind: "loading" } | { kind: "error"; message: string } | { kind
 
 const MISSING_LABEL: Record<keyof AdminCandidates["missing"], string> = {
   purpose: "목적 없음",
-  phone: "전화 인증 안 함",
   answers: "내용 있는 답이 다섯 개가 안 됨(「모르겠어요」 등은 세지 않음)",
   photos: "필수 사진 3장 미만",
   intro: "소개 없음",
@@ -98,6 +97,7 @@ export default function ConnectionApprovals() {
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
             {(Object.keys(MISSING_LABEL) as (keyof AdminCandidates["missing"])[]).map((k) => <li key={k}>{MISSING_LABEL[k]} <b>{candidates.data.missing[k] ?? 0}</b>명</li>)}
           </ul>
+          {typeof candidates.data.phone_unverified === "number" && <p className="mt-1">참고: 전화 인증을 안 한 사람 <b>{candidates.data.phone_unverified}</b>명(연결 자격 조건 아님)</p>}
         </div>
         <section className="flex flex-col gap-3">
           {candidates.data.candidates.length === 0 && <EmptyRow>지금은 후보 쌍이 없어요. 자격을 갖춘 사람이 같은 목적으로 두 명 이상 모여야 나와요.</EmptyRow>}

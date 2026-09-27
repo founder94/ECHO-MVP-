@@ -177,12 +177,52 @@ test('후보: 자격 + 같은 목적 + 겹친 말이 있는 쌍만 나온다(목
   assert.equal(r.body.eligible, 3);
 });
 
-test('후보: 전화 인증이 없는 사람은 자격이 없다(프로필도 pending, Auth 확인도 없음)', async () => {
+// 2026-09-27 대표 「P0-1 · 전화 인증 연결 필수 해제」: 초기 베타·출시 단계에서 전화 인증은 연결 자격 조건이 아니다(참고 정보로만).
+// (이전 규칙 「전화 인증이 없으면 자격 없음」은 문자 발송 업체 미연결로 연결 가능 인원을 0으로 만들었다 — 이 검사가 그 규칙을 대신한다.)
+test('P0-1: 전화 인증을 안 한 정상 사용자도 연결 후보 · 전화 인증은 참고 정보 · verification_status 는 건드리지 않는다', async () => {
+  const s = world();
+  s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null }; // 프로필 pending · Auth 확인도 없음
+  const call = loadServer(s);
+  const r = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]], '다른 자격을 갖추면 후보');
+  assert.equal(r.body.missing.phone, undefined, '「자격이 안 되는 이유」에 전화 인증 없음');
+  assert.ok(r.body.phone_unverified >= 1, '참고: 전화 인증 안 한 사람 수');
+  assert.equal(r.body.candidates[0].a.phone_verified, false, '후보 카드에 참고로 표시');
+  const d = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  assert.equal(d.status, 200, '결정 순간 재확인에서도 전화 인증으로 막지 않는다');
+  assert.equal(s.tables.profiles.find((p) => p.id === ID.a).verification_status, 'pending', 'verification_status 값 그대로(인증됨으로 바꾸지 않음)');
+  assert.ok(!s.writes.some((w) => w.name === 'profiles'), 'profiles 쓰기 0');
+});
+
+test('P0-1: 전화 인증을 마친 사용자는 전과 같다 · 차단한 사이는 전화 인증과 상관없이 연결 금지', async () => {
+  let s = world();
+  let r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]]);
+  assert.equal(r.body.candidates[0].b.phone_verified, true);
+  s = world();
+  s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null };
+  s.tables.blocks.push({ blocker_id: ID.b, blocked_user_id: ID.a });
+  const call = loadServer(s);
+  r = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, '차단한 사이는 후보 0');
+  const d = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  assert.equal(d.status, 409); assert.equal(d.body.code, 'NOT_ELIGIBLE');
+});
+
+test('P0-1: 전화 인증 없이 이어진 연결도 그만하기·차단·신고 안전 규칙은 그대로', async () => {
   const s = world();
   s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null };
-  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
-  assert.equal(r.body.candidates.length, 0);
-  assert.equal(r.body.missing.phone, 1);
+  const call = loadServer(s);
+  await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  const matchId = s.tables.doit_matches[0].id;
+  assert.equal((await call(ID.a, { action: 'answer', matchId, text: '010-1234-5678 로 연락 주세요' })).body.code, 'BLOCKED_CONTENT', '연락처 막기 그대로');
+  const r = await call(ID.b, { action: 'leave', matchId, block: true, report: true });
+  assert.equal(r.status, 200);
+  assert.equal(s.tables.doit_matches[0].status, 'closed');
+  assert.equal(s.tables.user_reports[0].target_user_id, ID.a);
+  const again = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(again.body.candidates.length, 0, '결정한 쌍·차단한 사이는 다시 후보가 되지 않는다');
 });
 
 test('후보: 새 회차를 시작하기 전 답·맞다고 한 말은 세지 않는다', async () => {

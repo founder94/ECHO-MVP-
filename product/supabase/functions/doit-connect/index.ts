@@ -10,6 +10,7 @@
 // v1.1(대표 2026-09-24 "그렇게 바꿔"): 연결 자격의 「맞다고 한 말 5개」를 「이번 회차 다섯 가지 질문에 모두 답함」으로 바꾼다
 // (doit-understanding connection_preview 와 같은 기준 = 화면의 n / 5). 맞다고 한 말은 두 사람의 겹친 말을 찾는 데만 쓴다.
 //
+// 2026-09-27 대표 「P0-1」: 초기 베타·출시 단계에서 전화 인증은 연결 자격 조건에서 뺐다(참고 정보로만 · 아래 원칙의 「전화 인증 필수」 부분만 바뀜).
 // 근거: 대표 확정 연결 원칙(2026-09-21) "전화 인증 필수 → 확인한 이해 5개 + 필수 사진 3장 + 소개 = 연결 자격 →
 // 목적 호환 + 확인한 말 공통점으로 서버가 후보 결정 → AI 첫 질문 동시 공개(blind-first) → 첫 100명 대표 수동 승인",
 // 대표 2026-09-23 "어디까지 구현을 해야 되는 단계까지는 승인하니까 허용하고 끝까지 진행시켜".
@@ -413,7 +414,8 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     const bio = cleanText(p.bio);
     const missing: string[] = [];
     if (!p.purpose_id) missing.push("purpose");
-    if (!phoneVerified) missing.push("phone");
+    // 2026-09-27 대표 「P0-1 · 전화 인증 연결 필수 해제」: 초기 베타·출시 단계에서 전화 인증은 연결 자격 조건이 아니다(참고 정보 phoneVerified 로만 남김 ·
+    // 문자 발송 업체 미연결로 연결 가능 인원이 0이던 구조 제거). 인증 기능·phone_sync·verification_status 는 그대로다.
     const answered = agent ? agent.confirmedAreas : answers.get(id) ?? 0;
     if (agent ? !agent.ready : answered < LIMITS.CONNECT_ANSWERS_NEEDED) missing.push("answers"); // Agent 사용자: 대화를 마쳤고 확정 정보가 있는 정보 영역이 기준(AGENT_READY_MIN_CONFIRMED_AREAS · 임시 3) 이상(질문 수·목적 개수 아님 · 관계 목적은 위 purpose 로 따로)
     if (requiredPhotos < LIMITS.CONNECT_PHOTOS_NEEDED) missing.push("photos");
@@ -712,16 +714,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // (a) 겹친 말이 없어도 같은 목적이면 목록 맨 뒤에 남긴다(no_common). 점수 0 이라 겹친 쌍보다 앞에 오지 않는다.
           candidates.push({
             user_a: a.id, user_b: b.id, purpose: a.purposeLabel,
-            a: { nickname: a.nickname, confirmed: a.confirmed.length }, b: { nickname: b.nickname, confirmed: b.confirmed.length },
+            a: { nickname: a.nickname, confirmed: a.confirmed.length, phone_verified: a.phoneVerified }, b: { nickname: b.nickname, confirmed: b.confirmed.length, phone_verified: b.phoneVerified }, // 전화 인증 = 참고 정보(P0-1)
             common_a: common.a, common_b: common.b, score: common.a.length + common.b.length, no_common: common.a.length === 0,
           });
         }
       }
       candidates.sort((p, q) => Number(q.score) - Number(p.score));
-      const missing: Record<string, number> = { purpose: 0, phone: 0, answers: 0, photos: 0, intro: 0 };
+      const missing: Record<string, number> = { purpose: 0, answers: 0, photos: 0, intro: 0 };
       for (const m of members) for (const k of m.missing) missing[k] = (missing[k] ?? 0) + 1;
       logDiag({ action, pool: members.length, eligible: eligible.length, candidates: candidates.length, no_common: candidates.filter((c) => c.no_common === true).length });
-      return json({ ok: true, pool: members.length, eligible: eligible.length, missing, candidates: candidates.slice(0, LIMITS.CANDIDATES_MAX) }, 200, origin);
+      return json({ ok: true, pool: members.length, eligible: eligible.length, missing, phone_unverified: members.filter((m) => !m.phoneVerified).length, candidates: candidates.slice(0, LIMITS.CANDIDATES_MAX) }, 200, origin);
     }
 
     if (action === "admin_matches") {

@@ -28,7 +28,7 @@ test('대화 중인 사람: 대화 단계에서 멈춤 · 뒤 단계는 PASS 가
   for (const k of ['ai_profile', 'photo', 'phone', 'matching_ready', 'candidate']) assert.notEqual(p.stages.find((x) => x.key === k).state, 'PASS', k);
 });
 
-test('전화 인증 안 됨 = 막힘(BLOCKED · 문자 업체 미연결) · 후보는 늘 막힘(가짜 후보 0)', () => {
+test('P0-1(2026-09-27): 전화 인증 안 됨 = 선택(WAIT · 연결 자격 아님) · 연결 준비는 막지 않음 · 후보는 늘 막힘(가짜 후보 0)', () => {
   const raw = baseRaw({ photos: { count: 3, primary: true, last_updated_at: '2026-09-26T00:00:00Z' } });
   raw.stored.state.phase = 'done'; raw.stored.state.intro = { status: 'ready', lines: [{ text: '저는…', basis: '친구' }], dropped: {}, tries: 1, error: null, used: 'as_is', used_at: '2026-09-26T00:00:00Z' };
   raw.stored.profile = Object.fromEntries(A.PURPOSE_IDS.map((id) => [id, { status: 'CONFIRMED', items: [{ note: 'x', quote: 'x' }] }]));
@@ -36,9 +36,9 @@ test('전화 인증 안 됨 = 막힘(BLOCKED · 문자 업체 미연결) · 후�
   const p = A.pipeline(A.normalize(raw, [rec()]));
   const by = (k) => p.stages.find((x) => x.key === k);
   assert.equal(by('conversation').state, 'PASS'); assert.equal(by('ai_profile').state, 'PASS'); assert.equal(by('photo').state, 'PASS'); assert.equal(by('state').state, 'PASS');
-  assert.equal(by('phone').state, 'BLOCKED'); assert.match(by('phone').note, /문자 발송 업체/);
-  assert.equal(by('matching_ready').state, 'BLOCKED'); assert.equal(by('candidate').state, 'BLOCKED');
-  assert.equal(p.stuck.key, 'phone');
+  assert.equal(by('phone').state, 'WAIT'); assert.match(by('phone').note, /선택/);
+  assert.equal(by('matching_ready').state, 'PASS', '전화 인증 없이 연결 준비'); assert.equal(by('candidate').state, 'BLOCKED');
+  assert.equal(p.stuck.key, 'candidate', '전화 인증은 멈춘 곳이 아니다');
 });
 
 test('기록이 없으면 UNKNOWN(모름) — PASS 로 채우지 않는다', () => {
@@ -108,7 +108,7 @@ test('성공 후보 이름(§22) · 늘 CANDIDATE', () => {
   for (const t of ['FIVE_TURN_COMPLETED', 'AI_PROFILE_CONFIRMED', 'MATCHING_READY']) assert.ok(types.includes(t), t);
   assert.ok(c.success.every((x) => x.status === 'CANDIDATE'));
   const noPhone = A.candidates(A.normalize({ ...raw, readiness: { phone_verified: false, intro_saved: true } }, [rec()]));
-  assert.ok(!noPhone.success.some((x) => x.type === 'MATCHING_READY'), '전화 인증 없으면 MATCHING_READY 아님');
+  assert.ok(noPhone.success.some((x) => x.type === 'MATCHING_READY'), 'P0-1: 전화 인증 없이도 MATCHING_READY(전화는 참고)');
 });
 
 test('AI OS 6개 엔진 관측: 기록 0 이면 모두 UNKNOWN · 문제 증거가 있으면 PARTIAL(이름만으로 PASS 0)', () => {

@@ -91,7 +91,8 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
   // 한 번 성공했다고 규칙이 되지 않는다 — 늘 CANDIDATE(검토 → 반복 재현 → 검증 뒤에만 유지·승격).
   if (s.phase === 'done' && s.core <= 5) ok('FIVE_TURN_COMPLETED', s.turns.at(-1) ?? null, 'ACTUAL', `핵심 질문 ${s.core}개로 마침`);
   if (s.intro?.used) ok('AI_PROFILE_CONFIRMED', null, 'ACTUAL', `사용자가 소개를 ${s.intro.used === 'as_is' ? '그대로 사용' : s.intro.used === 'edited' ? '고쳐서 사용' : '직접 씀'}`);
-  if (s.phase === 'done' && s.intro?.used && s.photos?.primary && s.readiness?.phone_verified) ok('MATCHING_READY', null, 'ACTUAL', '대화·소개 확인·대표 사진·전화 인증 모두 됨');
+  // 2026-09-27 대표 「P0-1」: 전화 인증은 연결 자격 조건이 아니다(참고 정보).
+  if (s.phase === 'done' && s.intro?.used && s.photos?.primary) ok('MATCHING_READY', null, 'ACTUAL', `대화·소개 확인·대표 사진 됨 · 전화 인증 ${s.readiness?.phone_verified ? '했음' : '안 함(선택)'}`);
   if (s.profile) {
     const confirmed = PURPOSE_IDS.filter(id => (s.profile?.[id] as { status?: string } | undefined)?.status === 'CONFIRMED').length;
     if (confirmed >= 3) ok('PROFILE_READY', null, 'ACTUAL', `직접 말한 목적 ${confirmed}/5`);
@@ -164,12 +165,12 @@ export function pipeline(s: Session): { stages: Stage[]; stuck: Stage | null; ai
     st('ai_profile', !s.intro ? (s.phase === 'done' ? 'UNKNOWN' : 'WAIT') : s.intro.used ? 'PASS' : s.intro.status === 'ready' ? 'WAIT' : s.intro.status === 'failed' ? 'FAIL' : 'PARTIAL',
       !s.intro ? '초안 기록 없음' : s.intro.used ? `사용자 확인: ${s.intro.used === 'as_is' ? '그대로' : s.intro.used === 'edited' ? '고쳐서' : '직접 씀'}` : s.intro.status === 'ready' ? '초안 있음 · 사용자 확인 전' : s.intro.status === 'failed' ? '초안 못 만듦' : '재료 없음'),
     st('photo', !s.photos ? 'UNKNOWN' : s.photos.count > 0 && s.photos.primary ? 'PASS' : s.photos.count > 0 ? 'PARTIAL' : 'WAIT', !s.photos ? '기록 없음' : `${s.photos.count}장 · 대표 ${s.photos.primary ? '있음' : '없음'}`),
-    st('phone', !s.readiness ? 'UNKNOWN' : s.readiness.phone_verified ? 'PASS' : 'BLOCKED', !s.readiness ? '기록 없음' : s.readiness.phone_verified ? '인증됨' : '문자 발송 업체 미연결(STOP · 대표 승인 필요)'),
+    st('phone', !s.readiness ? 'UNKNOWN' : s.readiness.phone_verified ? 'PASS' : 'WAIT', !s.readiness ? '기록 없음' : s.readiness.phone_verified ? '인증됨' : '선택(연결 자격 아님 · 2026-09-27 P0-1) · 문자 발송 업체 미연결'),
   ];
-  const needed = ['conversation', 'ai_profile', 'photo', 'phone'].filter((k) => stages.find((x) => x.key === k)!.state !== 'PASS');
-  stages.push(st('matching_ready', needed.length ? (needed.includes('phone') ? 'BLOCKED' : 'WAIT') : 'PASS', needed.length ? `남은 것: ${needed.map((k) => PIPELINE_STAGES.find((x) => x.key === k)!.label).join(', ')}` : '조건 충족'));
+  const needed = ['conversation', 'ai_profile', 'photo'].filter((k) => stages.find((x) => x.key === k)!.state !== 'PASS'); // 전화 인증은 참고(P0-1)
+  stages.push(st('matching_ready', needed.length ? 'WAIT' : 'PASS', needed.length ? `남은 것: ${needed.map((k) => PIPELINE_STAGES.find((x) => x.key === k)!.label).join(', ')}` : '조건 충족'));
   stages.push(st('candidate', 'BLOCKED', s.handoff?.status === 'NOT_CONNECTED' || s.handoff ? '서버 후보 결정 계약은 준비됨 · 연결 서버가 아직 쓰지 않아 후보 0(가짜 후보 0)' : '매칭 프로필 없음'));
-  return { stages, stuck: stages.find((x) => x.state !== 'PASS') ?? null, aiOs };
+  return { stages, stuck: stages.find((x) => x.state !== 'PASS' && x.key !== 'phone') ?? null, aiOs }; // 전화 인증(선택)은 멈춘 곳으로 치지 않는다(P0-1)
 }
 // 단계별로 PASS 에 닿은 사람 수와, 가장 많은 사람이 멈춘 단계 TOP 3(병목).
 export function pipelineSummary(sessions: Session[]) {
