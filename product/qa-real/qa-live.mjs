@@ -113,7 +113,11 @@ async function full() {
   const afterReject = structuredClone((await stateOf(sidA)).state);
   await say(A, 'A', sidA, '오늘은 여기까지 할게요');
   const stA1 = (await stateOf(sidA)).state;
-  const fix = await say(A, 'A', sidA, '매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요', { correction: { purpose: 'relationship_style' } });
+  // 화면 정정(AgentProfileCheck): 사용자는 목록에서 옛 말이 보이는 칸을 골라 고친다. QA_FIX_PICK=fixed 면 예전처럼 relationship_style 고정(1차 실행 재현용).
+  const oldSlot = Object.entries(stA1.slots).find(([, s]) => s.items.some((i) => i.status === 'CONFIRMED' && /매일/.test(i.quote) && !/부담/.test(i.quote)))?.[0] ?? null;
+  const fixSlot = process.env.QA_FIX_PICK === 'fixed' ? 'relationship_style' : (oldSlot ?? 'relationship_style');
+  const fix = await say(A, 'A', sidA, '매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요', { correction: { purpose: fixSlot } });
+  log.at(-1).fix_slot = { picked: fixSlot, old_value_shown_in: oldSlot };
   const SA = await stateOf(sidA);
   const ownGet = await fn('doit-agent', A.jwt, { action: 'agent_get' });
   check('RLS/본인 Agent 상태: 사용자 본인 대화 불러오기 가능(agent_get)', ownGet.status === 200 && ownGet.data?.session?.id === sidA, { status: ownGet.status });
@@ -138,19 +142,23 @@ async function full() {
   check('거절: 다음 응답에 거둔 뜻 재등장 0', pre.length ? !pre.some((p) => sq(p.note).length >= 4 && [rejLog?.reply, rejLog?.question].some((t) => t && sq(t).includes(sq(p.note)))) : null, { reply: rejLog?.reply, question: rejLog?.question });
 
   // 정정 · 다른 칸 · Canonical State · Profile · 소개
-  const styleNow = live(SA.state, 'relationship_style');
+  const styleNow = live(SA.state, fixSlot);
   check('정정: 화면 정정 → 정정(correction)으로 확정', fix.data?.turn?.kind === 'correction', `kind=${fix.data?.turn?.kind}`);
   check('정정: 최신 값 = 주말(USER_CORRECTED)', styleNow.length >= 1 && styleNow.every((i) => /주말/.test(i.note + i.quote) && i.source_type === 'USER_CORRECTED'), styleNow.map((i) => [i.note, i.source_type]));
   const bare = (t) => sq(t).replace(/[.,!?~…·"'「」]/g, '');
-  const oldSrc = stA1.slots.relationship_style.items.filter((i) => /매일/.test(i.quote) && !/부담/.test(i.quote)).map((i) => ({ turn: i.turn, q: bare(i.quote) }));
+  const oldSrc = stA1.slots[fixSlot].items.filter((i) => /매일/.test(i.quote) && !/부담/.test(i.quote)).map((i) => ({ turn: i.turn, q: bare(i.quote) }));
   const copies = Object.entries(SA.state.slots).flatMap(([id, s]) => s.items.filter((i) => oldSrc.some((o) => o.turn === i.turn && o.q === bare(i.quote))).map((i) => ({ id, note: i.note, status: i.status })));
   check('다른 칸 정정: 옛 「매일」 과 같은 출처 값이 어느 칸에도 지금 값(CONFIRMED)으로 없음', oldSrc.length ? copies.every((c) => c.status !== 'CONFIRMED') : null, { old: oldSrc.length, copies });
   const allLive = Object.values(SA.state.slots).flatMap((s) => s.items.filter((i) => i.status === 'CONFIRMED'));
   check('Canonical State: 지금 값에 옛 「매일」 0 · 매일+주말 동시 존재 0 · 지금 값은 CONFIRMED 뿐', !allLive.some((i) => /매일/.test(i.note) && !/부담|주말/.test(i.note)), allLive.map((i) => [i.note, i.source_type]));
   const profA = SA.profile;
-  check('Profile: 매칭 프로필 = CONFIRMED 만 · 연락 방식 = 주말', !!profA && ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].every((id) => (profA[id].items ?? []).every((i) => i.status === 'CONFIRMED')) && (profA.relationship_style.items ?? []).every((i) => /주말/.test(i.note)), profA?.relationship_style?.items?.map((i) => i.note));
+  check('Profile: 매칭 프로필 = CONFIRMED 만 · 고친 칸 = 주말 · 어느 칸에도 옛 「매일」 0', !!profA && ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].every((id) => (profA[id].items ?? []).every((i) => i.status === 'CONFIRMED')) && (profA[fixSlot].items ?? []).every((i) => /주말/.test(i.note))
+    && !['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].some((id) => (profA[id].items ?? []).some((i) => /매일/.test(i.note) && !/부담|주말/.test(i.note))),
+    Object.fromEntries(['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].map((id) => [id, (profA?.[id]?.items ?? []).map((i) => i.note)])));
   const intro = (SA.state.intro?.lines ?? []).map((l) => l.text).join(' ');
-  check('소개: 옛 값(매일 연락) 문장 0', !(/매일/.test(intro) && !/부담|주말/.test(intro)), intro);
+  // 문장마다 본다(1차 실행: 전체 문장에 「주말」이 하나라도 있으면 통과하던 거짓 PASS 수정).
+  const introSentences = intro.split(/(?<=[.!?。])\s+/).filter(Boolean);
+  check('소개: 옛 값(매일 연락) 문장 0(문장 단위)', !!intro && !introSentences.some((x) => /매일/.test(x) && !/부담|주말/.test(x)), intro);
 
   // 연결 준비 · Matching(QA MATCH_SOURCE=agent)
   const prevA = await fn('doit-understanding', A.jwt, { action: 'connection_preview' }, 'connection_preview');
@@ -195,7 +203,8 @@ async function full() {
   const adm = await fn('doit-agent', ADM.jwt, { action: 'admin_sessions' });
   const sess = adm.data?.sessions ?? [];
   const failed = (adm.data?.turns ?? []).filter((t) => t.record?.kind === 'error').length;
-  check('관리자(서버 응답): 대화 세션 2 · Agent 판 v2.2.2 · 실패 턴 0', adm.status === 200 && sess.length === 2 && sess.every((s) => s.stored?.agent === 'echo-agent-v2.2.2') && failed === 0, { status: adm.status, n: sess.length, versions: sess.map((s) => s.stored?.agent), failed });
+  // QA DB 에는 앞선 실행(다른 suffix)의 세션도 남는다(1차 실행 base 2개 + 이번 2개 = 4 확인). 이번 실행의 A·B 세션 2개 포함 여부로 본다.
+  check('관리자(서버 응답): 이번 실행 대화 세션 2개 포함 · Agent 판 v2.2.2 · 실패 턴 0', adm.status === 200 && [sidA, sidB].every((id) => sess.some((s) => s.id === id)) && sess.every((s) => s.stored?.agent === 'echo-agent-v2.2.2') && failed === 0, { status: adm.status, n: sess.length, versions: sess.map((s) => s.stored?.agent), failed });
   const notAdmin = await fn('doit-agent', A.jwt, { action: 'admin_sessions' });
   check('관리자 권한: 일반 사용자 관리자 요청 거부(403)', notAdmin.status === 403, `status=${notAdmin.status}`);
 
