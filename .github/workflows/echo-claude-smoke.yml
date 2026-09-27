@@ -18,7 +18,7 @@ on:
         type: choice
         options: ['claude-haiku-4-5-20251001', 'claude-sonnet-5']
       mode:
-        description: 'smoke(기본 · 업체마다 1회) · compare43(대표 승인 뒤에만 · 사전 등록 FROZEN 의 v3.4 + 모델 3개로 43판씩)'
+        description: 'smoke(기본 · 업체마다 1회) · compare43(대표 승인 뒤에만 · 사전 등록 FROZEN 의 agent_file + models[0·1]로 43판씩)'
         required: false
         default: 'smoke'
         type: choice
@@ -54,7 +54,7 @@ jobs:
         working-directory: product
         env:
           NODE_PATH: /tmp/tools/node_modules
-          ECHO_AGENT_FILE: ./candidates/agent-v3.5.ts
+          ECHO_AGENT_FILE: ./candidates/agent-v3.6.ts
         run: node --experimental-strip-types --test spike/agent-v1-20260925/router.test.mjs
       - name: Claude smoke(목록 1회 + 생성 1회)
         if: ${{ inputs.mode != 'compare43' && inputs.providers == '' }}
@@ -81,8 +81,9 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 3
+      # (v3.6 · 대표 「최소 보강 승인」) Gemini(models[2])는 계정 할당량 확인 전까지 돌리지 않는다(PR-02 · 역할 판정 「확인 불가」). OpenAI · Claude 만 업체마다 따로.
       matrix:
-        idx: [0, 1, 2]
+        idx: [0, 1]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
