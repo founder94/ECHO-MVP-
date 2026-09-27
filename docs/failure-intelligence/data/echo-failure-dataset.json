@@ -1292,6 +1292,25 @@
       "linked_engine": "State/Correction",
       "reproduction_test": "audit37/v37b.mjs",
       "cause_class": "SERVER(v3.7) · P0(최신 정정 무시) · why_v33 43판 흐름에 없던 경로"
+    },
+    {
+      "id": "GS-17",
+      "source_type": "STRATEGY_HQ",
+      "occurred_at": "2026-09-27",
+      "raw_context": "대표 결정 「새 QA까지 정확히 하고 진행」에 전략본부 AI 가 새 QA 구축의 비용·시간·운영과의 환경 차이·대체 검증 방식을 먼저 반대검수하지 않고 바로 찬성 방향으로 답함(대표 지정 유형: FOUNDER_AI_FAILURE / ADVISOR_FAILURE)",
+      "failure_type": "자동 동의(재발)",
+      "root_cause": "「대표 의견 존중」을 「대표 의견에 동의」로 처리 · 회사 지침의 /noyes·/devil·/redteam·/premortem·/selfcritique 가 실제 의사결정 응답에서 강제되지 않음 · GS-07(2026-09-26) 이후 강제 규칙 부재로 재발",
+      "expected_behavior": "중요 의사결정(QA·운영 배포·DB/RLS/Auth·AI 모델/Agent·Matching·KEY/가격/수익화·관리자·외주/비용·제품 핵심 UX) 답변 순서 고정: 찬성 근거 → 가장 강한 반대 → 가장 큰 실패 가능성 → 더 빠르거나 싼 대안 → 지금 하지 않아도 되는 것 → 전략본부 최종 추천 1개 → 대표 결정. 「맞습니다·그게 맞습니다·그렇게 가겠습니다」로 시작 금지. 전략본부는 결정을 대신하지 않는다",
+      "linked_engine": "Company Mode / Strategy",
+      "reproduction_test": "중요 결정 답변 검사 4개: ① 반대 의견이 실제로 있는가 ② 더 작은 대안을 검토했는가 ③ 시간·비용 낭비 가능성을 검토했는가 ④ 대표 최종 결정권이 유지되는가(하나라도 없으면 FAIL)",
+      "severity": "P1",
+      "resolution": "대표 강제 규칙 채택(2026-09-27 「전략본부 의사결정 실패 추가」) · 규칙 문서화만 · 제품 코드 변경 0",
+      "retest_result": "확인 불가(다음 중요 결정 답변에서 검사 4개로 재검)",
+      "status": "OPEN",
+      "refs": [
+        "GS-07(같은 유형 · 2026-09-26)",
+        "대표 지시 2026-09-27 「ECHO FAILURE INTELLIGENCE · 전략본부 의사결정 실패 추가」"
+      ]
     }
   ],
   "ux_research": {
