@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 // 페이지 전체가 하나의 스크롤 프레임을 공유한다. 스크롤 강제 이동·AI/API 호출 없음.
 export default function useEditorialMotion() {
   const rootRef = useRef<HTMLElement>(null);
-  const [motionPaused, setMotionPaused] = useState(false);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -15,7 +14,8 @@ export default function useEditorialMotion() {
     let frame = 0;
     let observer: IntersectionObserver | undefined;
     let disposed = false;
-    const enabled = () => !motionPaused && !media?.matches && !document.hidden;
+    // 멈춤 조건: 기기 설정의 동작 줄이기, 화면이 가려졌을 때.
+    const enabled = () => !media?.matches && !document.hidden;
 
     const paint = () => {
       frame = 0;
@@ -76,7 +76,7 @@ export default function useEditorialMotion() {
       document.removeEventListener('visibilitychange', syncMotion);
       media?.removeEventListener?.('change', syncMotion);
     };
-  }, [motionPaused]);
+  }, []);
 
-  return { rootRef, motionPaused, setMotionPaused };
+  return { rootRef };
 }

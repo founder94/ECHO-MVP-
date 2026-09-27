@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFile(resolve(root, p), 'utf8');
 
-test('v14.3 앱도 홈페이지처럼 온보딩 뒤 히어로로 들어온다 (대표 실기기 "히어로 페이지가 안 보여")', async () => {
+// 2026-09-27 대표 「QA FINAL FIX」가 v14.3(앱도 히어로)을 대체: 앱(app 빌드) 첫 화면 = 모바일 제품. 브랜드·통합 빌드는 히어로 그대로.
+test('앱(app 빌드)은 온보딩 뒤 제품 입구로 · 브랜드·통합 빌드는 히어로 그대로', async () => {
   const routes = await read('src/router/config.tsx');
-  assert.match(routes, /const entryLanding = <DoItLandingPage \/>;/);
+  assert.match(routes, /const entryLanding = ROLE === 'app' \? <Navigate to=\{PRODUCT_ENTRY_PATH\} replace \/> : <DoItLandingPage \/>;/);
   // 로그인했다는 이유만으로 시작 흐름·대화로 건너뛰지 않는다.
-  assert.doesNotMatch(routes, /entryLanding = [^;]*start-journey/);
   assert.doesNotMatch(routes, /entryLanding = [^;]*conversation/);
   // 히어로의 「지금 시작하기」는 앱 안에서는 주소를 바꾸지 않고 시작 흐름으로 간다.
   const landing = await read('src/pages/do-it/landing/page.tsx');

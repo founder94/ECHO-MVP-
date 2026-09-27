@@ -4,6 +4,7 @@ import DoItIntroFrame from '@/components/DoItIntroFrame';
 import IntroUniverse, { type SymbolStatus } from '@/components/IntroUniverse';
 import { MAIN_ENTRY_PATH, PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
+import { IS_APP_SITE } from '@/lib/siteRole';
 
 // 다음 화면(/do-it/landing)의 첫 배경을 미리 읽는다. 이미지 로드가 늦어도 온보딩 진행은 막지 않는다.
 const LANDING_IMAGE =
@@ -54,7 +55,7 @@ export default function DoItIntroPage() {
   const [search] = useSearchParams();
   const [checkMode] = useState(() => search.get('check') === '1');
   // 설치 앱(PWA) 시작(manifest start_url = /do-it/intro?next=app): 인트로 뒤 제품 입구로. 다른 값은 무시(임의 주소 이동 0).
-  const [toProduct] = useState(() => search.get('next') === 'app');
+  const [toProduct] = useState(() => IS_APP_SITE || search.get('next') === 'app');
   const [symbolStatus, setSymbolStatus] = useState<SymbolStatus | null>(null);
   const [finalCheck, setFinalCheck] = useState<{ imgShown: boolean; reveal: 'canvas' | 'img' } | null>(null);
   const [progress, setProgress] = useState(1); // 1~100 부동소수 (숫자·픽셀 공용)

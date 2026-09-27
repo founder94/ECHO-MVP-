@@ -4,11 +4,11 @@ import { useAuth } from '@/context/AuthContext';
 import { IS_BRAND_SITE, appUrl } from '@/lib/siteRole';
 import './doit-brand-hero.css';
 
-interface Props { onStart?: () => void; motionPaused?: boolean; onToggleMotion?: () => void }
+interface Props { onStart?: () => void }
 
 // 2026-09-21 대표 지시: 로그인한 상태면 "로그인" 대신 "로그아웃"이 보여야 한다.
 // 글자·동작만 바꾼다(위치·크기·색은 기존 nav 링크 규칙 그대로). 세션 확인 중에는 기존 "로그인" 링크를 유지한다.
-export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }: Props) {
+export default function DoItBrandHero({ onStart }: Props) {
   const { user, loading, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const signOutInFlight = useRef(false);
@@ -66,7 +66,7 @@ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }:
           </div>
         </div>
       </div>
-      <div className="doit-brand-bottom"><span>© 2026 DO IT COMPANY</span><div className="doit-brand-bottom-actions">{onToggleMotion && <button type="button" className="doit-motion-toggle" aria-pressed={motionPaused} onClick={onToggleMotion}><span aria-hidden="true">{motionPaused ? '▷' : 'Ⅱ'}</span> 움직임 줄이기</button>}<a href="#doit-stories">아래로, 조금 더 알아보기 <span aria-hidden="true">↓</span></a></div></div>
+      <div className="doit-brand-bottom"><span>© 2026 DO IT COMPANY</span><div className="doit-brand-bottom-actions">{/* 2026-09-27 대표 최종: 「움직임 줄이기」 버튼은 첫 화면에서 뺀다. 기기 설정의 동작 줄이기(prefers-reduced-motion)는 그대로 따른다. */}<a href="#doit-stories">아래로, 조금 더 알아보기 <span aria-hidden="true">↓</span></a></div></div>
     </section>
   );
 }

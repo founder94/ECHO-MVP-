@@ -10,7 +10,7 @@ test('manifest: start_url = 인트로 → 제품 입구(?next=app) · id·scope 
   assert.deepEqual(m.icons.map((i) => i.src.split('?')[0]), ['/pwa/echo-icon-192.png', '/pwa/echo-icon-512.png', '/pwa/echo-icon-512-maskable.png']);
   assert.ok(!JSON.stringify(m).includes('doit-symbol'), 'D 심볼은 앱 아이콘이 아님');
 });
-test('인트로: next=app 일 때만 제품 입구(/doit/start-journey) · 그 밖은 기존(브랜드) 그대로', () => {
+test('인트로: next=app(또는 app 빌드)이면 제품 입구(/doit/start-journey) · 그 밖은 기존(브랜드) 그대로', () => {
   const s = read('src/pages/do-it/intro/page.tsx'); const mode = read('src/lib/echo/appMode.ts');
   assert.match(mode, /export const PRODUCT_ENTRY_PATH = '\/doit\/start-journey';/);
   assert.match(s, /search\.get\('next'\) === 'app'/);

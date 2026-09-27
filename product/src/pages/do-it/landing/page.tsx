@@ -35,7 +35,7 @@ const STORY_IMAGES = {
 export default function DoItLandingPage() {
   const navigate = useNavigate();
   const navLock = useRef(false);
-  const { rootRef, motionPaused, setMotionPaused } = useEditorialMotion();
+  const { rootRef } = useEditorialMotion();
 
   // 휴대폰에서 앱으로 넘어갔다가 「뒤로」로 돌아오면 브라우저가 이 화면을 그대로 되살린다(bfcache).
   // 그때 잠금이 켜진 채라 시작 버튼이 먹통이 됐다(2026-09-23 검수에서 발견). 화면이 다시 보일 때 잠금을 푼다.
@@ -74,7 +74,7 @@ export default function DoItLandingPage() {
   return (
     <main ref={rootRef} className="doit-editorial bg-black">
       {choosing && <AgentChoiceLayer onClose={() => setChoosing(false)} onConfirm={(choice) => { if (choice.mode === 'VOICE') unlockSpeech(); saveAgentChoice(choice); setChoosing(false); goStart(); }} />}
-      <DoItBrandHero onStart={handleStart} motionPaused={motionPaused} onToggleMotion={() => setMotionPaused((paused) => !paused)} />
+      <DoItBrandHero onStart={handleStart} />
       {/* 2026-09-23: 회사 홈페이지에서만 — 무엇이 다른지(히어로 바로 아래). 앱에는 나오지 않는다. */}
       {!IS_APP_SITE && <BrandDifference />}
       <div id="doit-stories">

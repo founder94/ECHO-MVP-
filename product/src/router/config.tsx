@@ -3,6 +3,7 @@ import { lazy } from 'react';
 import DoItLandingPage from '@/pages/do-it/landing/page';
 import DoItEntry from '@/pages/do-it/intro/DoItEntry';
 import ExternalRedirect from '@/components/ExternalRedirect';
+import { PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 
 // A구조 서브앱(/doit/*) — 7화면 흐름(첫 기록 → 확인·수정 → 홈 → 타임라인 → 가치 → 패턴 → 선택 기억)
 import doitRoutes from '@/doit/routes';
@@ -122,7 +123,9 @@ function productRouteTable(): RouteObject[] {
 // 앱도 홈페이지와 같이 온보딩 → 히어로로 들어온다. 히어로의 「지금 시작하기」는 앱 안에서 시작 흐름으로 이어지고
 // (돌아온 사람은 대화 이어가기 / 사진·소개 / 홈 중에서 고른다), 앱 홈(/doit/home)은 하단 탭 「홈」으로 간다.
 // 히어로 문구·디자인은 그대로 같은 화면을 쓴다(변경 0).
-const entryLanding = <DoItLandingPage />;
+// 2026-09-27 대표 「QA FINAL FIX」: 앱 주소(app 빌드)는 모바일 제품이다. 첫 화면에 브랜드 히어로를 두지 않는다.
+// 앱의 / 는 (온보딩을 본 뒤) 제품 입구로 간다. 브랜드·통합 빌드는 그대로 랜딩(히어로).
+const entryLanding = ROLE === 'app' ? <Navigate to={PRODUCT_ENTRY_PATH} replace /> : <DoItLandingPage />;
 // 앱에는 랜딩·히어로가 없다. 예전 링크는 시작 흐름으로.
 const brandRoutes: RouteObject[] = BRAND ? brandRouteTable() : [
   { path: '/do-it/hero', element: <Navigate to="/" replace /> },

@@ -5,9 +5,6 @@
 .doit-story-opening{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 220px;align-items:center;gap:72px;padding:100px 10vw calc(var(--scene-blend) + 72px);color:#fff}
 .doit-story-opening-copy>p{font-size:11px;letter-spacing:.2em;line-height:1.8;color:rgba(255,255,255,.7);margin:0 0 32px}
 .doit-story-opening-copy>h2{font-size:clamp(24px,3vw,42px);font-weight:500;line-height:1.5;letter-spacing:-.035em;word-break:keep-all;margin:0}
-.doit-motion-toggle{display:inline-flex;align-items:center;gap:10px;min-height:44px;margin-top:24px;padding:8px 0;background:transparent;border:0;color:rgba(255,255,255,.7);font:inherit;font-size:11px;cursor:pointer}
-.doit-motion-toggle:focus-visible{outline:2px solid #fff;outline-offset:5px}
-.doit-motion-toggle>span{width:16px;font-size:15px;text-align:center}
 /* 묶음의 1px 간격과 테두리를 없애고 모든 사진을 하나의 세로 흐름에 놓는다. */
 .doit-story-pair,.doit-story-pair--reverse,.doit-story-pair--even{display:contents}
 .doit-story{position:relative;isolation:isolate;display:flex;min-width:0;min-height:calc(84svh + var(--scene-blend));margin-top:calc(-1 * var(--scene-blend));align-items:stretch;background:transparent;border:0}
