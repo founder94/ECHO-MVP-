@@ -11,6 +11,8 @@ const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const REAL = !!process.env.OPENAI_API_KEY;
 const OUT = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null;
+const RID = ['30000000-0000-4000-8000-0000000000c1', '30000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-0000000000c3'];
+const REJECT_CASES = ['주말엔 보통 집에 있어요', '사람 많은 데는 좀 그래요', '연락이 너무 잦으면 좀 그래요'];
 const ID = { admin: '00000000-0000-4000-8000-000000000001', a: '10000000-0000-4000-8000-00000000000a', b: '20000000-0000-4000-8000-00000000000b' };
 const CONSENT = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: '2026-09-27T00:00:00Z' };
 let seq = 0; const rid = () => `${String(++seq).padStart(8, '0')}-0000-4000-8000-${String(seq).padStart(12, '0')}`;
@@ -21,12 +23,14 @@ const state = {
   users: {
     [ID.admin]: { id: ID.admin, phone: '', phone_confirmed_at: null, user_metadata: {} },
     [ID.a]: { id: ID.a, phone: '', phone_confirmed_at: null, user_metadata: { ...CONSENT } }, // A: 전화 미인증
+    ...Object.fromEntries(RID.map((u) => [u, { id: u, phone: '', phone_confirmed_at: null, user_metadata: { ...CONSENT } }])),
     [ID.b]: { id: ID.b, phone: '821000000000', phone_confirmed_at: '2026-09-27T00:00:00Z', user_metadata: { ...CONSENT } },
   },
   tables: {
     profiles: [
       { id: ID.admin, role: 'admin', nickname: '운영', purpose_id: null, verification_status: 'pending' },
       { id: ID.a, role: 'user', nickname: 'QA-A', purpose_id: 'friend', purpose_label: '친구', bio: '천천히 알아가고 싶어요', verification_status: 'pending' },
+      ...RID.map((u, k) => ({ id: u, role: 'user', nickname: `QA-R${k + 1}`, purpose_id: 'dating', purpose_label: '연애', bio: '', verification_status: 'pending' })),
       { id: ID.b, role: 'user', nickname: 'QA-B', purpose_id: 'friend', purpose_label: '친구', bio: '대화가 잘 통하는 사람이 좋아요', verification_status: 'verified' },
     ],
     profile_photos: [ID.a, ID.b].flatMap((u) => [1, 2, 3].map((slot) => ({ user_id: u, slot, storage_path: `${u}/${slot}/x.jpg`, is_primary: slot === 1, updated_at: '2026-09-27T00:00:00Z' }))),
@@ -93,9 +97,10 @@ const cannedTurn = (input) => {
   if (/매일/.test(t) && !/부담/.test(t)) ex.push({ purpose: 'relationship_style', note: '매일 연락하는 게 좋음', quote: '연락은 매일 하는 게 좋아요' });
   if (/주말/.test(t)) ex.push({ purpose: 'relationship_style', note: '주말에 한두 번 연락', quote: '주말에 한두 번 연락하는 게 좋아요' });
   if (/친구/.test(t)) ex.push({ purpose: 'relationship_intent', note: '친구처럼 편한 사이', quote: '친구처럼 편하게 대화하는 사이를 원해요' });
+  if (/사람 많은/.test(t)) ex.push({ purpose: 'boundaries', note: '사람 많은 곳을 싫어함', quote: '사람 많은 데는 좀 그래요' });
   if (/천천히/.test(t)) ex.push({ purpose: 'values_character', note: '천천히 알아가기', quote: '천천히 알아가고 싶어요' });
   const kind = /그런 뜻 아니/.test(t) ? 'repair' : /여기까지/.test(t) ? 'stop' : 'answer';
-  return { kind, understood: '', reply: '그렇군요.', extracted: kind === 'answer' ? ex : [], inferred: [{ trait: '외향적인 편', basis: '카페' }], declared: null, wrong: kind === 'repair' ? ['조용한 카페에서 이야기하는 걸 좋아함'] : [], next: { type: 'core', purpose: 'values_character', question: `사람을 볼 때 뭘 먼저 봐요 ${seq}?` } };
+  return { kind, understood: '', reply: '그렇군요.', extracted: kind === 'answer' ? ex : [], inferred: [{ trait: '외향적인 편', basis: '카페' }], declared: null, wrong: kind === 'repair' ? ['조용한 카페에서 이야기하는 걸 좋아함', '사람 많은 곳을 싫어함'] : [], next: { type: 'core', purpose: 'values_character', question: `사람을 볼 때 뭘 먼저 봐요 ${seq}?` } };
 };
 async function canned(url, init) {
   const body = JSON.parse(init.body); const sys = body.messages[0].content; const input = (() => { try { return JSON.parse(body.messages[1].content); } catch { return {}; } })();
@@ -124,11 +129,16 @@ function loadFn(dir, env) {
   return async (who, payload) => { state.current = who; const res = await handler(new Request('http://fn/', { method: 'POST', headers: { Authorization: 'Bearer t', 'content-type': 'application/json' }, body: JSON.stringify(payload) })); return { status: res.status, body: await res.json() }; };
 }
 const FN = path.join(path.dirname(new URL(import.meta.url).pathname), '../supabase/functions');
+// 매칭 재료 함수(doit-connect agentSource.ts · MATCH_SOURCE=agent 경로)를 직접 불러 같은 규칙으로 확인한다.
+const AS = (() => { const { mkdtempSync } = require('node:fs'); const os = require('node:os'); const d = mkdtempSync(path.join(os.tmpdir(), 'as-'));
+  const em = (src, out, fix = (x) => x) => { const f = path.join(d, out); writeFileSync(f, fix(ts.transpileModule(readFileSync(path.join(FN, src), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)); return f; };
+  em('doit-agent/matching.ts', 'matching.cjs'); return require(em('doit-connect/agentSource.ts', 'agentSource.cjs', (x) => x.replace('"../doit-agent/matching.ts"', '"./matching.cjs"'))); })();
 const agent = loadFn(path.join(FN, 'doit-agent'), {});
 
 // ── 결과
 const log = []; const checks = [];
-const check = (id, ok, detail = '') => { checks.push({ id, result: ok ? 'PASS' : 'FAIL', detail }); };
+const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail }); };
+const rejections = []; const xslot = {};
 const say = async (who, sid, text, extra = {}) => {
   const r = await agent(who, { action: 'agent_turn', requestId: rid(), sessionId: sid, text, ...extra });
   log.push({ who: who === ID.a ? 'A' : 'B', text, status: r.status, kind: r.body.turn?.kind ?? null, reply: r.body.turn?.reply ?? null, question: r.body.turn?.question ?? null, saved: r.body.turn?.saved ?? null, error: r.body.code ?? null });
@@ -173,6 +183,15 @@ async function run() {
   check('거절: 거절 턴은 사실 저장 0', log.find((l) => l.text === '아니 그런 뜻 아니야')?.saved === false, JSON.stringify(log.find((l) => l.text === '아니 그런 뜻 아니야')));
   check('Profile: 매칭 프로필 = 지금 CONFIRMED 만', A.profile && ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'].every((id) => (A.profile[id].items ?? []).every((i) => i.status === 'CONFIRMED')), '');
   check('Profile: 매칭 프로필 relationship_style = 주말만', (A.profile?.relationship_style?.items ?? []).length >= 1 && (A.profile.relationship_style.items).every((i) => /주말/.test(i.note + i.quote)), JSON.stringify(A.profile?.relationship_style?.items?.map((i) => i.note)));
+  // 다른 칸 정정(v2.2.2): 옛 「매일」 원문과 같은 출처(같은 턴 · 같은 원문)의 값이 어느 칸에도 지금 값으로 남지 않는다.
+  const bq = (t) => sq(t).replace(/[.,!?~…·"'「」]/g, '');
+  const oldSrc = oldDaily.map((o) => ({ turn: o.turn, q: bq(o.quote) }));
+  const crossCopies = Object.entries(stA1.slots).flatMap(([id, s]) => s.items.filter((i) => id !== 'relationship_style' && oldSrc.some((o) => o.turn === i.turn && o.q === bq(i.quote))).map((i) => ({ id, note: i.note, turn: i.turn })));
+  const crossNow = crossCopies.map((c) => ({ ...c, status: A.state.slots[c.id].items.find((i) => i.turn === c.turn && i.note === c.note)?.status }));
+  xslot.precondition = crossCopies.length > 0; xslot.copies = crossNow;
+  check('다른 칸 정정: 같은 출처 옛 값이 다른 칸에 지금 값으로 남지 않음' + (crossCopies.length ? '' : ' [전제 없음 · 이번 실행은 다른 칸 복제가 생기지 않음]'), crossNow.every((c) => c.status === 'SUPERSEDED'), JSON.stringify(crossNow));
+  const srcA = AS.sourceFromProfile(A.profile, A.phase ?? A.state.phase, null);
+  check('다른 칸 정정: A 매칭 재료에 옛 「매일」 0 · 최신 「주말」 있음', !srcA.confirmed.some((n) => /매일/.test(n) && !/부담|주말/.test(n)) && srcA.confirmed.some((n) => /주말/.test(n)), JSON.stringify(srcA.confirmed));
   const introA = (A.state.intro?.lines ?? []).map((l) => `${l.text}〔${l.basis}〕`).join(' / ');
   check('소개: 옛 값(매일 연락) 근거 문장 0', !(A.state.intro?.lines ?? []).some((l) => oldDaily.some((o) => sq(l.basis) === sq(o.quote)) || (/매일/.test(l.text) && !/부담|주말/.test(l.text))), introA);
   check('소개: 상태 ready 또는 비어 있음(옛 값 유지 아님)', ['ready', 'failed', 'none'].includes(A.state.intro?.status), `status=${A.state.intro?.status}`);
@@ -218,16 +237,49 @@ async function run() {
     check('안전: 그만하기·차단·신고 → 닫힘 · 신고 기록 · 다시 후보 0 · 재승인 409', leave.status === 200 && state.tables.doit_matches[0].status === 'closed' && state.tables.user_reports.length === 1 && (after.body.candidates ?? []).length === 0 && again.status === 409, JSON.stringify({ leave: leave.status, reports: state.tables.user_reports.length, cands: (after.body.candidates ?? []).length, again: again.status }));
   }
 
+  // ── 실제 AI 거절(재설계): ① 사용자 말 → ② AI 가 해석 A 저장 → ③ A 가 서버 상태에 실제로 있는지 ASSERT(없으면 TEST INVALID) → ④ 「아니, 그런 뜻 아니야」 → ⑤ A 거둠 → ⑥ 다음 응답·Profile·소개·Matching 에 A 0
+  for (const [k, utter] of REJECT_CASES.entries()) {
+    const uid = RID[k];
+    const st0 = await agent(uid, { action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구처럼 편하게 대화하는 사이를 원해요' });
+    const sid = st0.body.session?.id;
+    const r1 = await say(uid, sid, utter);
+    const s1 = structuredClone(sessionOf(uid).state);
+    const n1 = s1.turns.length;
+    const interp = Object.entries(s1.slots).flatMap(([id, s]) => s.items.filter((i) => i.turn === n1 && i.status === 'CONFIRMED' && i.source_type === 'AI_EXTRACTED').map((i) => ({ id, note: i.note, quote: i.quote })));
+    const rec = { case: `R${k + 1}`, utter, ai_reply: r1.body.turn?.reply ?? null, interpretation: interp, precondition: interp.length > 0 };
+    rejections.push(rec);
+    if (!rec.precondition) { rec.verdict = 'TEST INVALID(확인 불가)'; check(`거절 R${k + 1}: 전제(AI 해석 저장) 성립`, null, JSON.stringify(rec)); continue; }
+    const r2 = await say(uid, sid, '아니, 그런 뜻 아니야');
+    const s2 = sessionOf(uid).state;
+    rec.reject_kind = r2.body.turn?.kind ?? null; rec.next_reply = r2.body.turn?.reply ?? null; rec.next_question = r2.body.turn?.question ?? null;
+    rec.after = interp.map((a) => ({ ...a, status: s2.slots[a.id].items.find((i) => i.turn === n1 && i.note === a.note)?.status }));
+    const retractedAll = rec.after.every((a) => a.status === 'RETRACTED');
+    const mentions = (t) => interp.some((a) => sq(a.note).length >= 4 && sq(t).includes(sq(a.note)));
+    const r3 = await say(uid, sid, '오늘은 여기까지 할게요');
+    const fin = sessionOf(uid);
+    const prof = fin.profile ?? {};
+    const intro = (fin.state.intro?.lines ?? []);
+    const src = AS.sourceFromProfile(prof, fin.state.phase, null);
+    rec.profile_confirmed = prof.confirmed_preferences ?? []; rec.rejected_meanings = prof.rejected_meanings ?? []; rec.intro = intro.map((l) => `${l.text}〔${l.basis}〕`); rec.matching = src.confirmed; rec.closing_reply = r3.body.turn?.reply ?? null;
+    const reused = [rec.next_reply, rec.next_question, r3.body.turn?.reply, ...intro.map((l) => l.text)].some((t) => t && mentions(t));
+    const inProfile = interp.some((a) => (prof.confirmed_preferences ?? []).includes(a.note));
+    const inMatch = interp.some((a) => src.confirmed.includes(a.note));
+    rec.verdict = retractedAll && !reused && !inProfile && !inMatch ? 'PASS' : 'FAIL';
+    check(`거절 R${k + 1}: 해석 A 거둠(RETRACTED)`, retractedAll, JSON.stringify(rec.after));
+    check(`거절 R${k + 1}: 다음 응답·소개에 A 재등장 0`, !reused, JSON.stringify({ reply: rec.next_reply, question: rec.next_question, intro: rec.intro }));
+    check(`거절 R${k + 1}: Profile·Matching 에 A 0`, !inProfile && !inMatch, JSON.stringify({ profile: rec.profile_confirmed, matching: rec.matching }));
+  }
+
   // ── 관리자(대표 화면이 부르는 서버 응답)
   const adm = await agent(ID.admin, { action: 'admin_sessions' });
   const sessions = adm.body.sessions ?? [];
-  check('관리자: 대화 목록에 두 사용자 · Agent 판', adm.status === 200 && sessions.length === 2 && sessions.every((s) => s.stored?.agent === 'echo-agent-v2.2.1'), JSON.stringify({ status: adm.status, n: sessions.length, versions: sessions.map((s) => s.stored?.agent) }));
+  check('관리자: 대화 목록에 모든 시험 사용자 · Agent 판', adm.status === 200 && sessions.length === 2 + RID.length && sessions.every((s) => s.stored?.agent === 'echo-agent-v2.2.2'), JSON.stringify({ status: adm.status, n: sessions.length, versions: sessions.map((s) => s.stored?.agent) }));
   check('관리자: 턴 기록(오류 표시 재료)', (adm.body.turns ?? []).length > 0 || sessions.every((s) => (s.turns ?? []).length > 0), `turns=${(adm.body.turns ?? []).length}`);
   const turnErrors = state.tables.doit_request_events.filter((r) => r.action === 'agent_turn' && r.status === 'failed').length;
   check('대화 오류 0(AI 실패 턴 없음)', turnErrors === 0, `failed_turns=${turnErrors}`);
 
   const summary = { mode: REAL ? 'REAL_OPENAI' : 'CANNED(구조 확인용)', model_env: process.env.OPENAI_MODEL || '(기본값 → gpt-4o-mini)', served_models: [...new Set(state.tables.doit_request_events.flatMap((r) => (r.response_payload?.record?.calls ?? []).map((c) => c.model)).filter(Boolean))], ai_calls: state.aiCalls,
-    pass: checks.filter((c) => c.result === 'PASS').length, fail: checks.filter((c) => c.result === 'FAIL').length, checks, conversation: log,
+    pass: checks.filter((c) => c.result === 'PASS').length, fail: checks.filter((c) => c.result === 'FAIL').length, invalid: checks.filter((c) => c.result === 'INVALID').length, rejections, cross_slot: xslot, checks, conversation: log,
     profiles: { A: { style: A.state.slots.relationship_style.items.map((i) => [i.note, i.status, i.source_type]), all: Object.fromEntries(Object.entries(A.state.slots).map(([k, s]) => [k, s.items.map((i) => [i.note, i.status])])), intro: introA, rejected_meanings: rejected }, B: { all: Object.fromEntries(Object.entries(B.state.slots).map(([k, s]) => [k, s.items.map((i) => [i.note, i.status])])) } },
     matching: { legacy_candidates: (legacy.body.candidates ?? []).length, agent_candidate: pair ?? null } };
   const text = JSON.stringify(summary, null, 1);
