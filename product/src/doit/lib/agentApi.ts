@@ -67,8 +67,9 @@ export async function agentStart(userId: string, input: { tone: AgentTone; mode:
   return r.session;
 }
 
-export async function agentTurn(userId: string, sessionId: string, text: string): Promise<{ session: AgentSession; turn: AgentTurn }> {
-  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text });
+// correction = 「ECHO가 이해한 나」에서 누른 정정(칸 id · 다시 말하기는 null). 서버가 정정으로 확정한다(문장으로 추측하지 않음 · 2026-09-27 P0-5).
+export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }): Promise<{ session: AgentSession; turn: AgentTurn }> {
+  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}) });
   if (!validSession(r.session) || !r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
   return r;
 }

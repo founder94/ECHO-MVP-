@@ -134,11 +134,11 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
 }
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
-  const { obs, response } = await A.runTurn(st, text, ctx.llm);
+  const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정
   if (response.error) {
     logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry });
     // v2.0 실패 관측: AI 가 답을 못 만든 턴도 기존 표(doit_request_events · status failed)에 코드·수치만 남긴다(원문 0 · 새 표 0). 관리자 TURN_ERROR 후보의 재료.
@@ -188,7 +188,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
     // v2.0: 서버 말 종류 가드(guard)가 바로잡은 턴은 규칙 이름을 남긴다(LLM 이 무엇이라 했는지 → 서버가 무엇으로 봤는지).
     guard: lastTurn?.guard ?? null, superseded: lastTurn?.superseded ?? 0,
-    flags: { correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
+    flags: { ui_correction: !!ui, correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
     ...A.versionTrace(), // 2026-09-26 VERSION TRACE: 에이전트·프롬프트·서버 규칙·파이프라인 판(실패를 판과 묶는다)
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
@@ -333,7 +333,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // agent_turn
     const sessionId = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
-    const text = typeof body.text === "string" ? body.text.trim() : "";
+    // v2.2.1 P0-5: 화면 정정(body.correction · 예전 앱의 고정 머리 「「칸」 부분을 고칠게요.」)은 사용자 말만 떼어 정정으로 넘긴다.
+    const ui = A.uiCorrectionFrom(body as { text?: unknown; correction?: unknown });
+    if (body.correction != null && !ui) return fail("BAD_REQUEST", "고칠 칸을 다시 골라 주세요.", 400, origin);
+    const text = ui ? ui.text : typeof body.text === "string" ? body.text.trim() : "";
     if (!sessionId || !text) return fail("BAD_REQUEST", "보낼 말을 적어 주세요.", 400, origin);
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
     if (prior) {
@@ -350,7 +353,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
     if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false);
+    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui);
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
     return fail("ERROR", "서버 오류가 발생했어요.", 500, origin);

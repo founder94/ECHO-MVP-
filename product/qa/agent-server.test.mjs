@@ -475,3 +475,30 @@ test('v1.9 AI 지시: 받아주기에서 이유를 되묻지 않는다 · 항의
   assert.match(src, /항의와 함께 지금 질문에 대한 새 이야기가 있으면/);
   assert.match(src, /const FROM_LATEST = new Set<Kind>\(\["answer", "correction", "ask", "repair"\]\);/);
 });
+
+// 2026-09-27 출시 차단 P0-3·P0-5(서버 끝까지): 화면 정정 표시(body.correction) → 정정으로 확정 · 옛 값 밀림 · 소개도 지금 상태로(옛 값 문장 0) · 예전 앱 고정 머리도 같게 · 모르는 칸은 400.
+test('P0-5·P0-3 서버: 끝난 뒤 화면 정정 → 프로필·소개 최신 값 · 예전 앱 문장 머리 · 모르는 칸 400', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_style', '매일 연락', '매일 연락하는 게 좋아요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', firstAnswer: '매일 연락하는 게 좋아요' })).body.session.id;
+  s.ai.push(T({ kind: 'stop', reply: '여기까지 할게요.' }), { summary: [], closing: '정리해 둘게요.', intro: [{ text: '저는 매일 연락하는 관계가 좋아요.', basis: '매일 연락하는 게 좋아요' }] });
+  const done = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '여기까지 할게요' });
+  assert.equal(done.body.session.phase, 'done'); assert.match(JSON.stringify(done.body.session.intro), /매일/);
+  s.ai.push(T({ kind: 'answer', reply: '주말로 고쳐 둘게요.', extracted: [X('relationship_style', '주말 연락', '주말에만 연락하는 게 좋아요')] }), { intro: [{ text: '주말에만 연락하는 게 좋아요.', basis: '주말에만 연락하는 게 좋아요' }] });
+  const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '주말에만 연락하는 게 좋아요', correction: { purpose: 'relationship_style' } });
+  assert.equal(fix.status, 200); assert.equal(fix.body.turn.kind, 'correction', '모델이 answer 라 해도 정정');
+  const stored = s.tables.doit_request_events.find((x) => x.action === 'agent_session').response_payload;
+  assert.deepEqual(stored.profile.relationship_style.items.map((i) => i.note), ['주말 연락']);
+  assert.ok(!/매일/.test(JSON.stringify(fix.body.session.intro?.lines ?? [])), '소개에 옛 값 0');
+  assert.match(JSON.stringify(fix.body.session.intro?.lines ?? []), /주말/);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.flags.ui_correction, true, '관리자 기록에 화면 정정 표시');
+  s.ai.push(T({ kind: 'repair', reply: '천천히로 고쳐 둘게요.', extracted: [] }), 'HTTP500');
+  const legacy = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '「알아가는 방식과 속도」 부분을 고칠게요. 천천히 알아가고 싶어요' });
+  assert.equal(legacy.status, 200); assert.equal(legacy.body.turn.kind, 'correction');
+  const p2 = s.tables.doit_request_events.find((x) => x.action === 'agent_session').response_payload.profile;
+  assert.deepEqual(p2.relationship_style.items.map((i) => i.note), ['천천히 알아가고 싶어요'], '예전 앱 머리는 떼고 사용자 말만 새 값');
+  assert.ok(!/매일|주말/.test(JSON.stringify(legacy.body.session.intro?.lines ?? [])), '소개 다시 쓰기가 실패해도 옛 값 문장 0');
+  const bad = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '아무거나', correction: { purpose: 'drop_table' } });
+  assert.equal(bad.status, 400);
+});

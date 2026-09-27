@@ -17,7 +17,8 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.2"; // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
+export const AGENT_VERSION = "echo-agent-v2.2.1"; // v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+// v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
 export const AGENT_PARAMS = Object.freeze({ temperature: 0.2, top_p: 0.9, max_tokens: 768 });
@@ -208,6 +209,52 @@ export interface Obs { calls: CallObs[]; retry: string[] }
 export const leaksId = (t: unknown) => { const x = String(t ?? "").toLowerCase(); return PIDS.some((id) => x.includes(id)) || x.includes("relationship_"); };
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const now = () => new Date().toISOString();
+
+// ── v2.2.1 P0-4 거절 대상 찾기(서버 규칙). 모델이 짚은 「틀린 뜻(wrong)」 한 번만으로 사용자 정보를 지우지 않는다:
+//   ① 글자가 같으면(기존 규칙) 거둔다. ② 표현이 조금 다르면 — 사용자 말이 실제로 거절(「아니·그런 뜻 아니야·틀렸어」)이고, 대상이 AI 가 정리한 뜻(AI_EXTRACTED · 사용자 원문 아님)이고,
+//   방금 보인 해석(최근 두 턴 안)이고, 부정 표현이 한쪽에만 있지 않고(반대 뜻 보호), 틀린 뜻(4글자 이상)이 그 정리 안에 들어 있거나 두 글자 묶음이 거의 같을 때만 거둔다.
+const REJECT_TEXT = /^\s*(아니(요|야|에요)?|아냐|아닌데|그게\s*아니|그건\s*아니|그런\s*(뜻|말|게)\s*(이\s*)?아니|틀렸|잘못\s*(이해|알아)|그런\s*말\s*(한\s*적|안\s*했))/;
+const NEG_MARK = /(안|않|못|말고|싫|없|아니)/;
+const pairs = (t: string) => { const o = new Set<string>(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
+function dice(a: string, b: string): number { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); }
+export function wrongHits(item: Item, wrong: string, text: string, turnN: number): boolean {
+  if (item.note === wrong) return true;
+  if (item.source_type !== "AI_EXTRACTED" || !REJECT_TEXT.test(text) || item.turn < turnN - 2) return false;
+  const a = squash(item.note), b = squash(wrong);
+  if (b.length < 4 || NEG_MARK.test(a) !== NEG_MARK.test(b)) return false;
+  return a.includes(b) || dice(a, b) >= 0.75;
+}
+
+// ── v2.2.1 P0-5 화면 정정 계약. 사용자가 「ECHO가 이해한 나」에서 [조금 달라요 → 칸 고르기] · [다시 말할게요]를 눌러 보낸 말은 정정이다(모델에게 다시 추측시키지 않음).
+// 새 앱: body.correction = { purpose: 칸 id | null }. 예전 앱: 「「칸 이름」 부분을 고칠게요. …」(우리 앱이 붙인 고정 머리 — 사용자 말 추측이 아니라 우리 형식 읽기).
+export const UI_PURPOSE_LABELS: Record<string, string> = {
+  relationship_intent: "원하는 만남", attraction_comfort: "편하거나 끌리는 사람", values_character: "사람을 볼 때 중요한 것",
+  relationship_style: "알아가는 방식과 속도", boundaries: "꼭 있었으면 하는 것 · 피하고 싶은 것",
+};
+export interface UiCorrection { correction: true; purpose: string | null; text: string }
+const UI_FIX_LEAD = /^\s*「([^」]{1,40})」\s*부분을\s*고칠게요\.?\s*/;
+export function uiCorrectionFrom(body: { text?: unknown; correction?: unknown } | null | undefined): UiCorrection | null {
+  const raw = typeof body?.text === "string" ? body.text.trim() : "";
+  const lead = raw.match(UI_FIX_LEAD);
+  const c = body?.correction;
+  if (c && typeof c === "object") {
+    const p = (c as { purpose?: unknown }).purpose;
+    const purpose = p == null ? null : String(p);
+    if (purpose !== null && !PIDS.includes(purpose)) return null;
+    const text = lead ? raw.slice(lead[0].length).trim() : raw;
+    return text ? { correction: true, purpose, text } : null;
+  }
+  if (!lead) return null;
+  const purpose = Object.keys(UI_PURPOSE_LABELS).find((id) => UI_PURPOSE_LABELS[id] === lead[1].trim()) ?? null;
+  const text = raw.slice(lead[0].length).trim();
+  return purpose && text ? { correction: true, purpose, text } : null;
+}
+// 화면 정정: 말 종류 = 정정(서버 확정). 칸을 골랐으면 그 칸의 뜻만 받고(사용자 말에 있는 인용만), 모델이 그 칸에서 아무것도 못 뽑았으면 사용자가 고친 말 그대로를 새 값으로.
+function asUiCorrection(out: Parsed, text: string, ui: { purpose: string | null }): Parsed {
+  let extracted = out.extracted.filter((e) => !!squash(e.quote) && squash(text).includes(squash(e.quote)) && (!ui.purpose || e.purpose === ui.purpose));
+  if (ui.purpose && !extracted.length) extracted = [{ purpose: ui.purpose, note: text.slice(0, RAW_NOTE_MAX), quote: text }];
+  return { ...out, kind: "correction", extracted };
+}
 const squash = (t: unknown) => String(t ?? "").normalize("NFKC").replace(/\s+/g, "");
 export function parseJson(raw: unknown): Json | null {
   if (raw && typeof raw === "object") return raw as Json;
@@ -319,7 +366,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   if (out.kind === "correction" || out.kind === "repair") {
     if (out.kind === "correction") st.corrections.push(text);
     if (st.current?.text) st.disputed.push(st.current.text);
-    for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (i.note === w && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); }
+    for (const w of out.wrong) for (const id of PIDS) for (const i of st.slots[id].items) if (wrongHits(i, w, text, turn.n) && i.status === "CONFIRMED" && !kept.some((k) => k.note === i.note && k.turn === i.turn)) { i.status = "RETRACTED"; i.rejected_at = now(); }
     // v2.0 정정 엔진: 정정(correction)으로 이번 말에서 새 뜻을 받은 목적은, 그 목적의 옛 뜻을 거둔다(최신 사용자 말 우선 · 원문 turns 는 지우지 않는다).
     if (out.kind === "correction") {
       let n = 0;
@@ -528,7 +575,8 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
 export interface RunResult { obs: Obs; response: Json }
 
 // ── 한 턴. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
-export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise<RunResult> {
+export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { ui?: { correction: true; purpose: string | null } | null } = {}): Promise<RunResult> {
+  const ui = opts.ui?.correction ? { purpose: opts.ui.purpose && PIDS.includes(opts.ui.purpose) ? opts.ui.purpose : null } : null;
   const text = String(latest ?? "").trim();
   const obs: Obs = { calls: [], retry: [] };
   if (!text) return { obs, response: { error: "EMPTY" } };
@@ -540,6 +588,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
     const input = turnInput(st, text);
     // 끝난 뒤: run 7 과 같은 입력(run 8 에서 직전 반응을 넣었더니 AI 가 그 문장을 그대로 되풀이해 되돌렸다).
     if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다."; }
+    if (ui) input.ui_correction = { purpose: ui.purpose, label: ui.purpose ? UI_PURPOSE_LABELS[ui.purpose] : null, note: ui.purpose ? "사용자가 화면에서 이 칸을 직접 고쳤다(정정). 이 말을 이 칸의 새 뜻으로 정리한다." : "사용자가 화면에서 다시 설명했다(정정). 이 말에서 새 뜻을 정리한다." };
     if (previous) input.previous_attempt = previous;
     let raw: string;
     try { raw = await call(llm, obs, "turn", turnPrompt(st.tone), input); } catch (e) { obs.retry.push("provider"); return { obs, response: { error: "PROVIDER", detail: String((e as { code?: string })?.code ?? (e as Error)?.message ?? e).slice(0, 60) } }; }
@@ -554,11 +603,14 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
     break;
   }
   if (!out) return { obs, response: { error: "READ_FAILED" } };
+  if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;
     st.phase = "post";
+    const before = confirmedSignature(st);
     const r = applyTurn(st, text, { ...out, next: { type: "none", purpose: "", question: "" } }); st.phase = "done";
+    if (confirmedSignature(st) !== before) await syncIntro(st, llm, obs); // v2.2.1 P0-3: 끝난 뒤 확정 상태가 바뀌면 소개도 지금 상태로
     const profile = matchingProfile(st);
     return { obs, response: { ...r, question: null, finish: false, after: true, profile, handoff: matchingHandoff(profile) } };
   }
@@ -570,6 +622,25 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm): Promise
     Object.assign(response, finishWith(st, raw));
   }
   return { obs, response };
+}
+
+// ── v2.2.1 P0-3 소개 맞추기. 끝난 뒤 정정·거절로 확정 상태가 바뀌면: ① 지금 소개를 지금 상태로 다시 거른다(밀린·거둔 값에 기댄 문장은 근거가 사라져 빠짐)
+//   ② 지금 확정 상태로 소개를 한 번 다시 쓴다(AI 1번 · 같은 소개 검사 · 사용자가 누르는 다시 쓰기 횟수는 쓰지 않음) ③ 다시 쓰기가 실패하면 ①의 남은 문장만(옛 값 0).
+//   내용이 바뀌면 「이대로 사용」 표시를 지워 다시 확인받는다(이미 저장한 소개글은 사용자가 다시 저장해야 바뀐다).
+export const confirmedSignature = (st: AgentState) => PIDS.map((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").map((i) => `${i.turn}:${i.note}`).join("|")).join("/");
+async function syncIntro(st: AgentState, llm: Llm, obs: Obs) {
+  const prev = st.intro;
+  if (!prev || prev.status === "none") return;
+  if (!heardQuoted(st).length) { st.intro = { ...prev, status: "none", lines: [], error: null, used: null, used_at: null }; return; }
+  const kept = cleanIntro(st, prev.lines).lines;
+  let lines = kept; let error: string | null = null;
+  try {
+    const o = parseJson(await call(llm, obs, "intro", introPrompt(st.tone), { heard: heardQuoted(st), corrections: st.corrections.slice(-3), rejected: rejectedForAi(st) }));
+    const fresh = o ? cleanIntro(st, o.intro).lines : [];
+    if (fresh.length) lines = fresh; else error = o ? "all_dropped" : "read_failed";
+  } catch { error = "provider"; obs.retry.push("intro_sync"); }
+  const same = JSON.stringify(lines) === JSON.stringify(prev.lines);
+  st.intro = { ...prev, status: lines.length ? "ready" : "failed", lines, error: lines.length ? null : error ?? "no_lines", used: same ? prev.used : null, used_at: same ? prev.used_at : null };
 }
 
 // ── 소개 초안 다시 쓰기(대화가 끝난 뒤 · 사용자가 누를 때만 · 한 번에 AI 1번). 상한을 넘으면 AI 를 부르지 않는다(빠져나갈 문 = 직접 쓰기).
