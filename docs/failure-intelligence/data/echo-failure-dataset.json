@@ -1044,14 +1044,14 @@
       "reproduction_test": "F1 formal 재현",
       "severity": "P1",
       "cause_class": "SERVER(모델 문장이 드러냄)",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "v3.6 수정 · 실제 AI 재시험 통과",
       "retest_result": "미실시",
-      "status": "OPEN",
+      "status": "FIXED_VERIFIED",
       "refs": [
         "run 36275765789"
       ],
       "fix_v36": "v3.6 reconcileIntro: 확인된 말이 있는데 초안·다시 만들기가 모두 버려져 소개가 비면 serverIntroLines — 확정 값(최신 정정 먼저 → 목적마다 최근 확인 값)의 인용 → 정리(note) 순으로 끝맺음만 바꾼 줄(politeLine) 또는 주제 틀 줄(「편하게 느끼는 사람은 「…」이에요」) 중 cleanIntro 통과분만 · 새 사실·바람 추가 0",
-      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: OpenAI empty_profile 1 → 0 · Claude 0 (PASS)"
     },
     {
       "id": "MS-07",
@@ -1065,14 +1065,14 @@
       "reproduction_test": "CEO_META casual 2",
       "severity": "P2",
       "cause_class": "MODEL(Claude) · SERVER 보강 후보(너무 짧은 ANSWER_USER 받아주기)",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "v3.6 수정 · 실제 AI 재시험에서 재발 0",
       "retest_result": "미실시",
-      "status": "OPEN",
+      "status": "FIXED_VERIFIED",
       "refs": [
         "run 36275765789"
       ],
       "fix_v36": "v3.6 speakProblem thin_answer: ANSWER_USER 받아주기 전체가 가리키는 말(+이다) 하나뿐이고 질문도 없으면(「이거야.」) 1회 재요청 → 그래도면 모델 복구 호출 없이 서버 메타 안내 · 글자 수 기준 아님(「네.」「네, AI예요.」 통과)",
-      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: Claude CEO_META casual 「이거야.」 사라짐(PASS) · 같은 자리 새 문제 MS-09(화자 혼동)"
     },
     {
       "id": "MS-08",
@@ -1086,14 +1086,14 @@
       "reproduction_test": "run 36 전 문장",
       "severity": "P1",
       "cause_class": "MODEL(OpenAI·Claude) · SERVER 검출 강화 후보(라벨 복사)",
-      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "resolution": "v3.6 부분 해결(라벨 복사 문턱 통과 · 끝맺음 쏠림 미해결)",
       "retest_result": "미실시",
       "status": "OPEN",
       "refs": [
         "run 36275765789"
       ],
       "fix_v36": "v3.6 speakProblem label_copy(완화 검사): 질문이 내부 목적 이름 앞 10글자를 담았고 사용자가 그 표현을 직접 쓰지 않았으면 1회 재요청 → 그래도면 그대로(끝맺음 쏠림은 v3.5 계약 그대로 · 문턱 변경 0)",
-      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기"
+      "retest_v36": "로컬: candidate-v3.6.test.mjs 93/93 · candidate-v3.5.test.mjs 86/86 · router 29/29(재현 검사 4개는 v3.5 에서 실패 · 역검사 3개는 v3.5·v3.6 모두 통과 확인) · 실제 AI 재비교(OpenAI · Claude) 대기 | 실제 AI: run 36289721102: label_copy_questions OpenAI 15 → 2 · Claude 3 → 0(H 문턱 ≤5 통과) · ending_dominated_runs 는 여전히 OpenAI 11 · Claude 8(문턱 ≤4 실패)"
     },
     {
       "id": "PR-02",
@@ -1113,6 +1113,63 @@
       "refs": [
         "run 36275765789"
       ]
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P1",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36289721102"
+      ],
+      "id": "EA-25",
+      "source_type": "ECHO_AGENT",
+      "raw_context": "v3.6 재비교 OpenAI F5 polite 6: 정정 「아니 매일은 부담스럽고 주말에 한 번 보면 좋겠어」 → 질문 「주말에는 주로 어떤 시간대가 좋으세요?」(reask_after_correction 1 · why C 실패)",
+      "failure_type": "reask_corrected_value",
+      "root_cause": "서버 reaskAfterCorrection 이 정정 값 자체(주말)를 파고드는 질문을 잡지 않음 · v3.5 에서는 모델 질문이 다른 검사로 버려져 드러나지 않음",
+      "expected_behavior": "정정한 값은 받고, 그 값을 다시 캐묻지 않는다",
+      "linked_engine": "ACK_CORRECTION",
+      "reproduction_test": "F5 polite 6",
+      "cause_class": "SERVER(검사 빈틈) · 드러낸 것 MODEL"
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P2",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36289721102"
+      ],
+      "id": "MS-09",
+      "source_type": "MODEL_SPECIFIC",
+      "raw_context": "v3.6 재비교 Claude CEO_META casual 2: 「질문이 뭐야?」 → 「아, 내가 물었던 건 「그래도 누군가 만나고 싶은 마음은 있어.」였어.」 — 사용자 말을 ECHO 가 한 질문처럼 말함",
+      "failure_type": "speaker_confusion_meta",
+      "root_cause": "모델 화자 혼동 · 서버 SPEAKER_SELF_CLAIM 은 「내가 적은·말한」 모양만 봄(「내가 물었던 건 + 사용자 원문」 밖)",
+      "expected_behavior": "지금 묻던 ECHO 질문을 그대로 알려 준다",
+      "linked_engine": "ANSWER_USER",
+      "reproduction_test": "CEO_META casual 2",
+      "cause_class": "MODEL(Claude) · SERVER 검출 후보"
+    },
+    {
+      "occurred_at": "2026-09-27",
+      "severity": "P2",
+      "resolution": "미수정(결과 동결 · 대표 승인 뒤)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "run 36289721102"
+      ],
+      "id": "MS-10",
+      "source_type": "MODEL_SPECIFIC",
+      "raw_context": "v3.6 재비교 OpenAI 「내가 언제 그렇게 말했어?」(REPAIR) → 「말씀하신 「내가 언제 그렇게 말했어.」를 기억하고 바로잡을게요.」 + 엉뚱한 새 질문(double_question_turns 1 · why B 실패)",
+      "failure_type": "repair_echo_plus_question",
+      "root_cause": "모델이 불만 문장을 그대로 반향하고 질문을 덧붙임 · 지표는 인용 속 「언제」를 질문으로 셈",
+      "expected_behavior": "불만을 짧게 인정하고 사용자가 앞서 실제로 한 말을 짚는다",
+      "linked_engine": "REPAIR",
+      "reproduction_test": "run 37 openai 258행",
+      "cause_class": "MODEL(OpenAI) · 지표 경계(인용 속 물음 낱말)"
     }
   ],
   "ux_research": {
