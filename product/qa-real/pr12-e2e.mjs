@@ -11,8 +11,8 @@ const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const REAL = !!process.env.OPENAI_API_KEY;
 const OUT = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : null;
-const RID = ['30000000-0000-4000-8000-0000000000c1', '30000000-0000-4000-8000-0000000000c2', '30000000-0000-4000-8000-0000000000c3'];
-const REJECT_CASES = ['주말엔 보통 집에 있어요', '사람 많은 데는 좀 그래요', '연락이 너무 잦으면 좀 그래요'];
+const RID = [1, 2, 3, 4, 5].map((k) => `30000000-0000-4000-8000-0000000000c${k}`);
+const REJECT_CASES = ['주말엔 보통 집에 있어요', '사람 많은 데는 좀 그래요', '연락이 너무 잦으면 좀 그래요', '말 잘 통하는 사람이 편하더라고요', '처음엔 좀 낯을 가려요'];
 const ID = { admin: '00000000-0000-4000-8000-000000000001', a: '10000000-0000-4000-8000-00000000000a', b: '20000000-0000-4000-8000-00000000000b' };
 const CONSENT = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: '2026-09-27T00:00:00Z' };
 let seq = 0; const rid = () => `${String(++seq).padStart(8, '0')}-0000-4000-8000-${String(seq).padStart(12, '0')}`;
@@ -112,7 +112,12 @@ async function canned(url, init) {
   else out = cannedTurn(input);
   return new Response(JSON.stringify({ model: 'canned', usage: { prompt_tokens: 0, completion_tokens: 0 }, choices: [{ message: { content: JSON.stringify(out) } }] }), { status: 200 });
 }
-const aiFetch = async (url, init) => { state.aiCalls++; return REAL ? fetch(url, init) : canned(url, init); };
+const rawTurns = [];
+const aiFetch = async (url, init) => {
+  state.aiCalls++; const res = REAL ? await fetch(url, init) : await canned(url, init);
+  try { const input = JSON.parse(JSON.parse(init.body).messages[1].content); if (input && 'latest' in input) { const j = await res.clone().json(); const o = JSON.parse(j.choices[0].message.content); rawTurns.push({ latest: input.latest, kind: o.kind, wrong: o.wrong ?? null, extracted: (o.extracted ?? []).map((e) => e.note) }); } } catch { /* 기록만 */ }
+  return res;
+};
 
 // ── 서버 함수 적재(실제 파일 · 의존: supabase 클라이언트 → 메모리 DB, 같은 폴더·옆 함수 순수 모듈만 허용)
 function loadFn(dir, env) {
@@ -141,7 +146,7 @@ const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ?
 const rejections = []; const xslot = {};
 const say = async (who, sid, text, extra = {}) => {
   const r = await agent(who, { action: 'agent_turn', requestId: rid(), sessionId: sid, text, ...extra });
-  log.push({ who: who === ID.a ? 'A' : 'B', text, status: r.status, kind: r.body.turn?.kind ?? null, reply: r.body.turn?.reply ?? null, question: r.body.turn?.question ?? null, saved: r.body.turn?.saved ?? null, error: r.body.code ?? null });
+  log.push({ who: who === ID.a ? 'A' : who === ID.b ? 'B' : `R${RID.indexOf(who) + 1}`, text, status: r.status, kind: r.body.turn?.kind ?? null, reply: r.body.turn?.reply ?? null, question: r.body.turn?.question ?? null, saved: r.body.turn?.saved ?? null, error: r.body.code ?? null });
   return r;
 };
 const sessionOf = (uid) => state.tables.doit_request_events.find((r) => r.user_id === uid && r.action === 'agent_session')?.response_payload;
@@ -251,6 +256,7 @@ async function run() {
     if (!rec.precondition) { rec.verdict = 'TEST INVALID(확인 불가)'; check(`거절 R${k + 1}: 전제(AI 해석 저장) 성립`, null, JSON.stringify(rec)); continue; }
     const r2 = await say(uid, sid, '아니, 그런 뜻 아니야');
     const s2 = sessionOf(uid).state;
+    rec.model_raw_reject = rawTurns.filter((t) => t.latest === '아니, 그런 뜻 아니야').at(-1) ?? null;
     rec.reject_kind = r2.body.turn?.kind ?? null; rec.next_reply = r2.body.turn?.reply ?? null; rec.next_question = r2.body.turn?.question ?? null;
     rec.after = interp.map((a) => ({ ...a, status: s2.slots[a.id].items.find((i) => i.turn === n1 && i.note === a.note)?.status }));
     const retractedAll = rec.after.every((a) => a.status === 'RETRACTED');
