@@ -4,13 +4,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { IS_BRAND_SITE } from '@/lib/siteRole';
 import { visibleInRelease } from '@/doit/lib/releaseScope';
-import { applyReduceMotion } from '@/lib/motionPreference';
 import './app-corner-menu.css';
 
 // 2026-09-28 대표 「FINAL MASTER」 §13·§14: 햄버거(메뉴·설정)는 처음 시작부터 모든 제품 화면의 오른쪽 맨 위, 한 자리에 하나.
 // - 화면마다 따로 두던 메뉴·설정 아이콘(TopBar·대화 머리줄·사주·타로)을 이 하나로 합쳤다(같은 버튼 두 개 0).
 // - 브랜드 홈페이지 빌드와 브랜드·온보딩·로그인 복귀·관리자 화면에는 두지 않는다.
-// - 메뉴에는 꼭 필요한 것만: 대화 · 나의 이해 · (사주·타로) · 앱 설치 · 설정(계정·접근성) · 약관·개인정보 · 로그인/로그아웃.
+// - 메뉴에는 꼭 필요한 것만: 대화 · 나의 이해 · (사주·타로) · 앱 설치 · 설정(계정) · 약관·개인정보 · 로그인/로그아웃.
 const HIDDEN_PATH = /^\/(?:$|do-it\/(?:intro|hero|landing)\/?$|auth\/callback\/?$|admin(?:\/|$)|qa\/)/;
 
 const ITEMS = [
@@ -18,7 +17,7 @@ const ITEMS = [
   { label: '나의 이해', desc: '맞다고 한 것만 모아 뒀어요', to: '/doit/understanding' },
   { label: '오늘의 나 · 사주·타로', desc: '재미로 가볍게 보는 무료 콘텐츠', to: '/doit/fortune' },
   { label: '앱 설치', desc: '홈 화면에서 바로 열어요', to: '/doit/settings#install' },
-  { label: '설정', desc: '소개·사진·계정·접근성', to: '/doit/settings' },
+  { label: '설정', desc: '소개·사진·계정', to: '/doit/settings' },
   { label: '약관 · 개인정보', desc: '서비스 규칙과 내 정보', to: '/doit/settings#policy' },
 ].filter((item) => visibleInRelease(item.to.split('#')[0]));
 
@@ -42,11 +41,10 @@ export default function AppCornerMenu() {
   const inFlight = useRef(false);
   const firstItem = useRef<HTMLAnchorElement>(null);
 
-  // iOS 사파리는 문서에 터치 듣기가 하나라도 있어야 :active(눌림 표시)를 그린다. 설정의 움직임 줄이기도 여기서 한 번 적용한다.
+  // iOS 사파리는 문서에 터치 듣기가 하나라도 있어야 :active(눌림 표시)를 그린다.
   useEffect(() => {
     const noop = () => {};
     document.addEventListener('touchstart', noop, { passive: true });
-    applyReduceMotion();
     return () => document.removeEventListener('touchstart', noop);
   }, []);
   useEffect(() => { setOpen(false); setError(null); }, [location.pathname, location.hash]);

@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.2.4');
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.4.0'); // 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
@@ -96,15 +96,22 @@ test('거절 뜻 차단: 거둔 뜻은 소개 초안 문장에 들어가지 못�
 });
 
 test('소개·마무리 AI 입력에 거절 뜻(rejected)이 함께 간다 — 코드 확인', () => {
-  assert.match(src, /closingPrompt\(st\.tone\), \{ heard: heardQuoted\(st\), corrections: st\.corrections\.slice\(-3\), rejected: rejectedForAi\(st\) \}/);
-  assert.match(src, /introPrompt\(st\.tone\), \{ heard: heardQuoted\(st\), corrections: st\.corrections\.slice\(-3\), rejected: rejectedForAi\(st\) \}/);
+  assert.match(src, /closingPrompt\(st\.tone\), \{ session_goal: [^}]*\}, heard: heardQuoted\(st\), corrections: st\.corrections\.slice\(-3\), rejected: rejectedForAi\(st\) \}/);
+  assert.match(src, /introPrompt\(st\.tone\), \{ session_goal: \{ name: goalOf\(st\)\.name \}, heard: heardQuoted\(st\), corrections: st\.corrections\.slice\(-3\), rejected: rejectedForAi\(st\) \}/);
 });
 
-test('방향 잠금: 다섯 목적 · 핵심 질문 5 뒤 여섯 번째 정보 질문 0', () => {
-  const st = started();
+// v2.4(2026-09-28 대표 「고정 5문항 폐기」): 5 는 최대치일 뿐 — 충분히 알면(질문 3개 이상 + 원하는 만남 + 칸 넷) 더 묻지 않고 마친다.
+test('방향 잠금: 충분하면 5개 전에 마침 · 핵심 질문 5 뒤 여섯 번째 정보 질문 0', () => {
+  const early = started();
   const pids = ['attraction_comfort', 'values_character', 'relationship_style', 'boundaries'];
+  A.applyTurn(early, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: pids[0], question: 'Q1?' } }));
+  let last;
+  for (let k = 0; k < 3; k++) last = A.applyTurn(early, `답${k}이에요`, out('answer', { extracted: [X(pids[k], `답${k}`, `답${k}`)], next: { type: 'core', purpose: pids[k + 1], question: `Q${k + 2}?` } }));
+  assert.equal(last.finish, true); assert.equal(A.coreAsked(early).length, 4); assert.equal(early.turns.at(-1).decision, 'finish_enough');
+  // 답이 모이지 않으면(모르겠다) 최대 5개까지만 묻는다.
+  const st = started();
   A.applyTurn(st, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: pids[0], question: 'Q1?' } }));
-  for (let k = 0; k < 4; k++) A.applyTurn(st, `답${k}이에요`, out('answer', { extracted: [X(pids[k], `답${k}`, `답${k}`)], next: { type: 'core', purpose: pids[k + 1] ?? 'relationship_intent', question: `Q${k + 2}?` } }));
+  for (let k = 0; k < 4; k++) A.applyTurn(st, '모르겠어요', out('unsure', { next: { type: 'core', purpose: pids[k + 1] ?? 'relationship_intent', question: ['주말엔 보통 뭐 해요?', '연락은 어떻게 하는 게 편해요?', '처음 만나면 어디가 좋아요?', '싫은 건 뭐예요?'][k] } }));
   assert.equal(A.coreAsked(st).length, 5);
   const r = A.applyTurn(st, '더 있어요', out('answer', { next: { type: 'core', purpose: 'relationship_intent', question: '하나 더?' } }));
   assert.equal(r.question, null); assert.equal(r.finish, true);

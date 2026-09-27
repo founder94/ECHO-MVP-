@@ -265,8 +265,9 @@ test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의
   assert.equal(r2.body.turn.saved, true);
   const st2 = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   assert.deepEqual(st2.slots.attraction_comfort.items.map((i) => [i.quote, i.source]), [['그냥 편한 사람', 'answer_raw']]);
-  s.ai.push(T({ extracted: [X('values_character', '성격', '성격')], ...Q('relationship_style', '어떻게 알아가는 게 좋아요?') }));
-  await say('성격');
+  // v2.4: 답이 모이면 5개 전에 마치므로, 이 흐름(다섯 번째 질문의 되묻기·항의)을 보려고 세 번째 답은 「글쎄요」(답 0)로 둔다.
+  s.ai.push(T({ kind: 'unsure', extracted: [], ...Q('relationship_style', '어떻게 알아가는 게 좋아요?') }));
+  await say('글쎄요');
   s.ai.push(T({ extracted: [X('relationship_style', '자연스럽게', '자연스럽게')], ...Q('boundaries', '꼭 있었으면 하는 건 뭐예요?') }));
   await say('자연스럽게');
   // 다섯 번째: 바람을 말했는데 AI 가 ask 로 읽음 → 같은 질문 한 번 다시(먼저 답하기)
@@ -381,7 +382,7 @@ test('v1.6 말투: 밝고 가볍게 지침 · 좋은 것/싫은 것 이름이 AI
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구' });
   const sys = s.aiCalls[0].system; const input = s.aiCalls[0].input;
-  assert.ok(sys.includes('밝고 가볍게') && sys.includes('그대로 옮겨 쓸 문장이 아니다'));
+  assert.ok(sys.includes('밝고 가볍게') && sys.includes('이 문장을 옮겨 쓰지 않는다'));
   assert.ok(input.open_purposes.some((p) => p.label === '이건 좋고 이건 싫다 싶은 것'));
 });
 
@@ -501,4 +502,102 @@ test('P0-5·P0-3 서버: 끝난 뒤 화면 정정 → 프로필·소개 최신 �
   assert.ok(!/매일|주말/.test(JSON.stringify(legacy.body.session.intro?.lines ?? [])), '소개 다시 쓰기가 실패해도 옛 값 문장 0');
   const bad = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '아무거나', correction: { purpose: 'drop_table' } });
   assert.equal(bad.status, 400);
+});
+
+// ── v2.4(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」)
+test('v2.4 세션 격리: 같은 계정 · 기기 A(친구)와 기기 B(연애)는 서로 다른 세션 · 같은 목적만 이어받음 · 기기가 기억한 세션 id 로 읽음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '친구랑 뭘 같이 하는 게 제일 자연스러워요?') }));
+  const a = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', goalLabel: '친구를 만나고 싶어요', firstAnswer: '친구를 만나고 싶어요. 편하게' });
+  s.ai.push(T({ extracted: [X('relationship_intent', '진지한 연애', '진지하게')], ...Q('attraction_comfort', '어떤 사람에게 마음이 가요?') }));
+  const b = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애로 이어질 만남을 원해요', firstAnswer: '연애로 이어질 만남을 원해요. 진지하게' });
+  assert.equal(a.status, 200); assert.equal(b.status, 200);
+  assert.notEqual(a.body.session.id, b.body.session.id, '다른 목적 = 다른 세션');
+  assert.equal(b.body.existing, undefined, '연애 기기는 친구 세션을 이어받지 않는다');
+  assert.equal(a.body.session.goal, 'friend'); assert.equal(b.body.session.goal, 'romantic');
+  assert.equal(b.body.session.goal_label, '연애로 이어질 만남을 원해요');
+  // 같은 목적으로 다시 시작하면 그 목적 세션을 이어받는다(새로 만들지 않음 · AI 호출 0)
+  const calls = s.aiCalls.length;
+  const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' });
+  assert.equal(again.body.session.id, a.body.session.id); assert.equal(again.body.existing, true); assert.equal(s.aiCalls.length, calls);
+  // 기기가 기억한 id 로 읽으면 그 세션 — 가장 최근(연애)이 아니라 친구 세션
+  const getA = await h.call({ action: 'agent_get', sessionId: a.body.session.id });
+  assert.equal(getA.body.session.id, a.body.session.id); assert.equal(getA.body.session.goal, 'friend');
+  // 두 세션에 동시에 말해도 서로의 턴·질문이 섞이지 않는다
+  s.ai.push(T({ extracted: [X('attraction_comfort', '카페에서 얘기', '카페에서 얘기하는')], ...Q('relationship_style', '그런 친구랑은 얼마나 자주 보면 좋아요?') }));
+  const ta = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: a.body.session.id, text: '카페에서 얘기하는 게 좋아' });
+  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '연락은 얼마나 자주 하는 게 좋아요?') }));
+  const tb = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: b.body.session.id, text: '다정한 사람이 좋아요' });
+  const aUsers = ta.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
+  const bUsers = tb.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
+  assert.ok(!aUsers.includes('다정한') && !aUsers.includes('진지하게'), aUsers);
+  assert.ok(!bUsers.includes('카페') && !bUsers.includes('편하게'), bUsers);
+  // AI 입력에도 각 세션의 목적만 간다
+  const lastTwo = s.aiCalls.slice(-2).map((c) => c.input.session_goal.id);
+  assert.deepEqual(lastTwo, ['friend', 'romantic']);
+  // 모르는 목적은 거절(서버가 아는 전략만)
+  assert.equal((await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'x-unknown', firstAnswer: '뭐' })).status, 400);
+});
+
+test('v2.4 목적별 칸의 뜻: 친구 ≠ 연애 ≠ 동료(알아볼 것 자체가 다름 · 단어만 바꾼 같은 틀 0) · 목적 이름이 AI 입력으로', () => {
+  const A = load(newState()).agent;
+  const f = A.GOALS.friend.dims, r = A.GOALS.romantic.dims, c = A.GOALS.colleague.dims;
+  for (const id of ['attraction_comfort', 'values_character', 'relationship_style', 'boundaries']) {
+    assert.notEqual(f[id], r[id], id); assert.notEqual(c[id], f[id], id);
+    assert.notEqual(f[id].replace(/친구/g, ''), r[id].replace(/연인|연애/g, ''), `${id}: 목적 이름만 바꾼 같은 문장이 아니다`);
+  }
+  assert.doesNotMatch(Object.values(f).join(' '), /연애|이상형|끌리|설레|호감/);
+  assert.doesNotMatch(Object.values(c).join(' '), /연애|이상형|끌리|설레|호감/);
+  const st = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st);
+  const inp = A.turnInput(st, '편하게 만나고 싶어');
+  assert.equal(inp.session_goal.id, 'friend'); assert.equal(inp.session_goal.name, '친구');
+  assert.ok(inp.open_purposes.every((p) => p.label === f[p.purpose]));
+  assert.deepEqual([...inp.asked_before], ['어떤 만남을 원하세요?']);
+});
+
+test('v2.4 친구 세션: 연애 말이 든 질문은 보이지 않음(재시도 사유) · 정리·소개에서도 뺌', () => {
+  const A = load(newState()).agent;
+  const st = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st);
+  const out = { kind: 'answer', understood: '', reply: '편한 친구가 좋군요.', extracted: [{ purpose: 'relationship_intent', note: '편한 친구', quote: '편한 친구' }], inferred: [], declared: null, wrong: [], next: { type: 'core', purpose: 'attraction_comfort', question: '같이 있으면 편하고 끌리는 사람은 어떤 사람이에요?' } };
+  assert.equal(A.retryReason(st, out, ['attraction_comfort'], false, '편한 친구'), 'goal_residue');
+  const r = A.applyTurn(st, '편한 친구', out);
+  assert.equal(r.question, null, '연애 말 질문은 보이지 않는다'); assert.equal(st.turns.at(-1).dropped, 'goal_residue');
+  const rom = A.newState({ goal: 'romantic' }); A.seedFirstQuestion(rom);
+  assert.equal(A.goalResidue(rom, '같이 있으면 편하고 끌리는 사람은 어떤 사람이에요?'), false, '연애 세션에서는 연애 말이 맞다');
+  assert.equal(A.goalResidue(rom, '편하게 지낼 친구 사이를 원하시는군요'), true, '연애 세션 정리에 친구 목적 말 0');
+});
+
+test('v2.4 「연애 질문 아니야」: 항의로(답 저장 0) · 방금 칸은 넘기고 다른 칸으로 · 같은 칸을 다시 고르면 재시도 사유', () => {
+  const A = load(newState()).agent;
+  const st = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st);
+  A.applyTurn(st, '친구', { kind: 'answer', understood: '', reply: '좋아요.', extracted: [{ purpose: 'relationship_intent', note: '친구', quote: '친구' }], inferred: [], declared: null, wrong: [], next: { type: 'core', purpose: 'attraction_comfort', question: '어떤 친구가 편해요?' } });
+  assert.equal(A.guardKind('연애 질문 아니야', 'answer').rule, 'goal_mismatch');
+  assert.equal(A.guardKind('친구 얘기인데', 'correction').kind, 'repair');
+  const same = { kind: 'repair', understood: '', reply: '친구 이야기로 다시 물어볼게요.', extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'core', purpose: 'attraction_comfort', question: '친구랑은 뭘 같이 해요?' } };
+  assert.equal(A.retryReason(st, same, ['attraction_comfort', 'values_character'], false, '연애 질문 아니야'), 'goal_axis');
+  const r = A.applyTurn(st, '연애 질문 아니야', { ...same, next: { type: 'core', purpose: 'relationship_style', question: '친구는 얼마나 자주 만나는 게 좋아요?' } });
+  assert.equal(r.saved, false, '항의는 답으로 저장 0');
+  assert.equal(st.slots.attraction_comfort.status, 'SKIPPED', '틀린 틀로 물은 칸은 넘긴다');
+  assert.equal(r.question_purpose, 'relationship_style');
+});
+
+test('v2.4 같은 뜻 다른 말 반복 차단(서버 규칙) · 「모르겠어」는 저장 0', () => {
+  const A = load(newState()).agent;
+  const st = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st);
+  const base = { understood: '', reply: '알겠어요.', inferred: [], declared: null, wrong: [] };
+  A.applyTurn(st, '친구', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '친구', quote: '친구' }], next: { type: 'core', purpose: 'attraction_comfort', question: '친구랑 주말에 뭘 같이 하고 싶어요?' } });
+  const r = A.applyTurn(st, '모르겠어', { ...base, kind: 'unsure', extracted: [], next: { type: 'core', purpose: 'values_character', question: '친구랑 주말에 뭘 같이 하고 싶어요!' } });
+  assert.equal(r.question, null); assert.equal(st.turns.at(-1).dropped, 'asked_similar', '문장부호만 다른 같은 질문');
+  assert.equal(st.slots.attraction_comfort.items.length, 0, '「모르겠어」는 성향으로 저장 0');
+  const st2 = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st2);
+  A.applyTurn(st2, '친구', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '친구', quote: '친구' }], next: { type: 'core', purpose: 'attraction_comfort', question: '친구랑 주말에 뭘 같이 하고 싶어요?' } });
+  const out2 = { ...base, kind: 'answer', extracted: [], next: { type: 'core', purpose: 'values_character', question: '친구랑 주말엔 뭘 같이 하고 싶어요?' } };
+  assert.equal(A.retryReason(st2, out2, ['values_character'], false, '음'), 'asked_similar');
+});
+
+test('v2.4 매칭 프로필에 세션 목적(goal)이 붙는다 · 예전 세션(목적 없음)은 open', () => {
+  const A = load(newState()).agent;
+  assert.equal(A.matchingProfile(A.newState({ goal: 'romantic' })).goal, 'romantic');
+  const old = A.newState(); delete old.goal;
+  assert.equal(A.matchingProfile(old).goal, 'open');
 });

@@ -102,7 +102,8 @@ test('사람 말투: AI·기획서 냄새 문구 교체 · 준비 중 칸 삭제
 });
 
 test('대화 서버 말투(v2.3)는 제안 패치만 — 운영 v2.2·저장소 agent.ts 그대로', () => {
-  assert.match(read('supabase/functions/doit-agent/agent.ts'), /export const AGENT_VERSION = "echo-agent-v2\.2\.4";/, '운영 판 = v2.2 + 출시 차단 P0 수정 + 다른 칸 정정 + CROSS_SLOT_STALE_STATE(2026-09-27 대표 승인) · 말투 v2.3 은 여전히 제안만');
+  assert.match(read('supabase/functions/doit-agent/agent.ts'), /export const AGENT_VERSION = "echo-agent-v2\.4\.0";/, '저장소 판 = v2.4.0(세션 목적 격리 · 2026-09-28 대표 승인) · 말투 제안 v2.3 패치는 여전히 제안만(적용 0)');
+  assert.doesNotMatch(read('supabase/functions/doit-agent/agent.ts'), /요즘은 어떤 만남이면 좋겠다 싶어요/);
   const patch = read('docs/proposals/doit-agent-v2.3-human-tone.patch');
   assert.match(patch, /\+export const AGENT_VERSION = "echo-agent-v2\.3";/);
   assert.match(patch, /좋은 방법이죠/);

@@ -29,6 +29,7 @@ export interface AgentSession {
   summary: { purpose: string; text: string }[]; closing: string | null;
   profile: AgentProfile | null; handoff: { status: string } | null;
   intro?: AgentIntro | null; // 서버 v1.6 · 대화가 끝났을 때만
+  goal?: string | null; goal_label?: string | null; // 서버 v2.4 · 이 세션의 관계 목적(예전 세션은 null)
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
@@ -45,10 +46,23 @@ function validSession(s: unknown): s is AgentSession {
     && Array.isArray(x.messages) && x.messages.every(m => (m.role === 'ai' || m.role === 'user') && typeof m.text === 'string');
 }
 
+// v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 이 기기가 이어 가는 대화 세션 id 를 기기(브라우저)에만 기억한다.
+// 같은 계정으로 두 기기에서 다른 목적(친구 · 연애)으로 대화해도, 각 기기는 자기 세션만 읽는다(서버도 목적이 다르면 이어받지 않음).
+const SESSION_KEY = (userId: string) => `echo:agent-session:${userId}`;
+function rememberSession(userId: string, id: string | null): void {
+  try { if (id) localStorage.setItem(SESSION_KEY(userId), id); else localStorage.removeItem(SESSION_KEY(userId)); } catch { /* 저장이 막힌 환경: 서버가 가장 최근 세션을 준다 */ }
+}
+function rememberedSession(userId: string): string | null {
+  try { const v = localStorage.getItem(SESSION_KEY(userId)); return v && /^[0-9a-f-]{36}$/i.test(v) ? v : null; } catch { return null; }
+}
+export function forgetAgentSession(userId: string): void { rememberSession(userId, null); }
+
 export async function agentGet(userId: string): Promise<AgentSession | null> {
-  const r = await serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get' }, userId);
+  const sessionId = rememberedSession(userId);
+  const r = await serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);
   if (r.session === null) return null;
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  rememberSession(userId, r.session.id);
   return r.session;
 }
 
@@ -61,9 +75,11 @@ async function write<T>(userId: string, body: Record<string, unknown>): Promise<
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
 // seed = 사주·타로 결과에서 들어왔을 때의 이야기 거리(결과 종류만 · 사용자 사실 아님). 서버가 모르면 무시하고 보통 대화로 시작한다.
-export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string; seed?: ContentSeed | null }): Promise<AgentSession> {
-  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}), ...(input.seed ? { seed: input.seed } : {}) });
+// goal = 고른 만남(목적 타일 id) — 서버는 같은 목적의 세션만 이어받는다(v2.4).
+export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string; seed?: ContentSeed | null; goal?: { id: string; label: string } | null }): Promise<AgentSession> {
+  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}), ...(input.seed ? { seed: input.seed } : {}), ...(input.goal ? { goal: input.goal.id, goalLabel: input.goal.label } : {}) });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  rememberSession(userId, r.session.id);
   return r.session;
 }
 

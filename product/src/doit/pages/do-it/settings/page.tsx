@@ -6,7 +6,6 @@ import { useAuth } from "@/doit/hooks/useAuth";
 import FaceLoginSettings from "./FaceLoginSettings";
 import { PASSKEY_LOGIN_ENABLED } from "@/lib/auth/passkey";
 import AccountDeletion from "./AccountDeletion";
-import { getReduceMotion, setReduceMotion } from "@/lib/motionPreference";
 import "./settings.css";
 
 interface SettingsLinkProps {
@@ -38,7 +37,6 @@ export default function Settings() {
   const { hash } = useLocation();
   // 메뉴의 「앱 설치」(#install)·「약관 · 개인정보」(#policy)로 들어오면 그 항목으로 바로 내려 준다.
   useEffect(() => { if (hash === "#install" || hash === "#policy") document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" }); }, [hash]);
-  const [reduceMotion, setReduceMotionState] = useState(getReduceMotion);
 
   async function handleSignOut() {
     if (signOutInFlight.current || loading || !user) return;
@@ -105,24 +103,6 @@ export default function Settings() {
         <section id="install" className="doit-settings-section" aria-labelledby="settings-install-heading">
           <h3 id="settings-install-heading" className="doit-settings-heading">앱으로 쓰기</h3>
           <InstallAppCard variant="menu" />
-        </section>
-
-        {/* 2026-09-28 대표 최종: 「움직임 줄이기」는 첫 화면·본문이 아니라 여기(접근성)에만. 이 기기에만 기억한다. */}
-        <section id="accessibility" className="doit-settings-section" aria-labelledby="settings-a11y-heading">
-          <h3 id="settings-a11y-heading" className="doit-settings-heading">접근성</h3>
-          <div className="doit-settings-panel">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={reduceMotion}
-              className="doit-settings-session"
-              onClick={() => { const next = !reduceMotion; setReduceMotion(next); setReduceMotionState(next); }}
-            >
-              <span>움직임 줄이기</span>
-              <span aria-hidden="true">{reduceMotion ? "켜짐" : "꺼짐"}</span>
-            </button>
-          </div>
-          <p className="doit-product-description">화면의 반복 움직임을 멈춰요. 기기 설정의 「동작 줄이기」도 그대로 따라요.</p>
         </section>
 
         {/* 2026-09-24 얼굴·지문 로그인(패스키) 등록·관리. 로그인한 사람만. */}

@@ -48,11 +48,21 @@ test('눌림 표시: 제품 화면 틀 안 버튼·카드 · scale 0.97 · 0.18�
   assert.doesNotMatch(css, /(^|[^-])transform:/, 'transform 을 덮어쓰지 않는다(자리 흔들림 0)');
   assert.match(read('src/components/AppCornerMenu.tsx'), /document\.addEventListener\('touchstart', noop, \{ passive: true \}\)/);
 });
-test('움직임 줄이기: 설정 → 접근성 안에만 · 이 기기에만 기억 · 히어로·제품 본문 0', () => {
-  const s = read('src/doit/pages/do-it/settings/page.tsx');
-  assert.match(s, /<h3 id="settings-a11y-heading" className="doit-settings-heading">접근성<\/h3>/);
-  assert.match(s, /role="switch"/);
-  assert.match(read('src/lib/motionPreference.ts'), /localStorage\.setItem\(KEY, '1'\)/);
-  assert.match(read('src/components/app-corner-menu.css'), /html\[data-echo-reduce-motion\] :is\(\.doit-root,\.doit-app-pastel,\.echo-dialogue\) \*::after\{animation:none!important/);
-  for (const p of ['src/components/DoItBrandHero.tsx', 'src/doit/pages/do-it/start-journey/page.tsx', 'src/doit/components/feature/AgentConversation.tsx']) assert.doesNotMatch(read(p), /움직임 줄이기/, p);
+// 2026-09-28 대표 최신 지시: 「움직임 줄이기」 사용자 토글은 제품 어디에도 두지 않는다(설정 포함). 기기 설정(prefers-reduced-motion)은 그대로 따른다.
+test('움직임 줄이기: 사용자 토글·문구 0(설정·히어로·제품 화면) · 기기 설정 동작 줄이기는 계속 따름', () => {
+  for (const p of ['src/doit/pages/do-it/settings/page.tsx', 'src/components/DoItBrandHero.tsx', 'src/components/AppCornerMenu.tsx', 'src/doit/pages/do-it/start-journey/page.tsx', 'src/doit/components/feature/AgentConversation.tsx']) assert.doesNotMatch(read(p), /움직임 줄이기|reduce-motion|motionPreference/, p);
+  assert.doesNotMatch(read('src/components/app-corner-menu.css'), /data-echo-reduce-motion/);
+  assert.match(read('src/components/app-corner-menu.css'), /@media\(prefers-reduced-motion:reduce\)/);
+  assert.match(read('src/pages/do-it/landing/components/useEditorialMotion.ts'), /prefers-reduced-motion: reduce/);
+});
+
+// 2026-09-28 대표 「SESSION SAFETY」: 기기마다 자기 세션 · 시작할 때 고른 목적(goal)을 서버로.
+test('세션 격리(앱): 기기가 세션 id 를 기억해 agent_get 에 보냄 · agent_start 에 목적 id/이름 · 새 회차면 기억 지움 · 머리글은 이 세션 목적', () => {
+  const api = read('src/doit/lib/agentApi.ts');
+  assert.match(api, /\{ action: 'agent_get', \.\.\.\(sessionId \? \{ sessionId \} : \{\}\) \}/);
+  assert.match(api, /\.\.\.\(input\.goal \? \{ goal: input\.goal\.id, goalLabel: input\.goal\.label \} : \{\}\)/);
+  assert.match(api, /localStorage\.setItem\(SESSION_KEY\(userId\), id\)/);
+  assert.match(read('src/doit/lib/conversationRound.ts'), /forgetAgentSession\(userId\);/);
+  assert.match(read('src/doit/pages/do-it/conversation/page.tsx'), /goal=\{goal\}/);
+  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /session\?\.goal_label \?\? purposeLabel/);
 });

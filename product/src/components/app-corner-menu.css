@@ -26,12 +26,5 @@
 :is(.doit-root,.doit-app-pastel,.echo-dialogue) :where(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]){transition-property:scale,filter,opacity,background-color,border-color,box-shadow,color;transition-duration:.18s;transition-timing-function:ease}
 @media(prefers-reduced-motion:reduce){:is(.doit-root,.doit-app-pastel,.echo-dialogue) :is(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]):active{scale:1!important}}
 
-/* 설정 → 접근성 「움직임 줄이기」(이 기기에만 기억). 제품 화면의 반복 움직임을 멈춘다. 눌림 표시(밝기)는 남긴다. */
-html[data-echo-reduce-motion] :is(.doit-root,.doit-app-pastel,.echo-dialogue),
-html[data-echo-reduce-motion] :is(.doit-root,.doit-app-pastel,.echo-dialogue) *,
-html[data-echo-reduce-motion] :is(.doit-root,.doit-app-pastel,.echo-dialogue) *::before,
-html[data-echo-reduce-motion] :is(.doit-root,.doit-app-pastel,.echo-dialogue) *::after{animation:none!important;scroll-behavior:auto!important}
-html[data-echo-reduce-motion] :is(.doit-root,.doit-app-pastel,.echo-dialogue) :is(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]):active{scale:1!important}
-
 /* 대화 머리줄: 오른쪽 위 공통 메뉴 버튼(44px) 자리를 비운다 — 머리줄 링크와 겹침 0. */
 .echo-dialogue .echo-dialogue-header{padding-right:52px}
