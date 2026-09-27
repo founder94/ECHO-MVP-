@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_full_test', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -124,14 +124,14 @@ jobs:
           case "$pr" in 401|403|404) echo "OK: 이 토큰은 운영 프로젝트를 읽지 못함";; *) echo "FAIL: 토큰이 운영 프로젝트를 읽을 수 있음(status=$pr) → 배포 금지 · HOLD"; exit 1;; esac
 
       - name: 배포 묶음 만들기(doit-understanding = 운영 v29 + 승인 1줄 · 저장소 원본 사용 0)
-        if: inputs.mode == 'qa_deploy_and_signup'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C: doit-agent · doit-connect = PR #12 최신 승인본(4db82ff)과 글자까지 같아야 함
+          # B·C: doit-agent · doit-connect = PR #12 최신 승인본(cdc6816 · 2026-09-27 대표 「FINAL RELEASE CLOSING」 P0 수정)과 글자까지 같아야 함
           git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "4db82ff" ] || { echo "FAIL: PR #12 head 가 승인본(4db82ff)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "cdc6816" ] || { echo "FAIL: PR #12 head 가 승인본(cdc6816)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
           git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 승인본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect = PR #12 4db82ff 와 동일"
+          echo "OK: doit-agent · doit-connect = PR #12 cdc6816 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true
@@ -143,17 +143,17 @@ jobs:
           cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
           mkdir -p stage/supabase/functions/doit-understanding && cp "$C" stage/supabase/functions/doit-understanding/index.ts
           printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
-          grep -q 'export const AGENT_VERSION = "echo-agent-v2.2.2"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
+          grep -q 'export const AGENT_VERSION = "echo-agent-v2.2.3"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
           grep -q 'presented' stage/supabase/functions/doit-agent/agent.ts && grep -q 'DISPUTED' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: 모호한 거절 규칙 없음"; exit 1; }
           ( cd stage && find supabase/functions -name '*.ts' -exec sha256sum {} \; | sort -k2 )
 
       - uses: supabase/setup-cli@v1
-        if: inputs.mode == 'qa_deploy_and_signup'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         with:
           version: latest
 
       - name: QA 함수 3개 배포(QA ref 만)
-        if: inputs.mode == 'qa_deploy_and_signup'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         working-directory: stage
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
           done
 
       - name: QA 함수 비밀값(MATCH_SOURCE=agent · 시험용 AI 키) — 값 출력 0 · 임시 파일 즉시 삭제
-        if: inputs.mode == 'qa_deploy_and_signup'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
           QA_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
@@ -178,7 +178,7 @@ jobs:
           echo "QA 비밀값 이름:"; supabase secrets list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[].name' | sort
 
       - name: 배포 확인(QA ref · 함수 이름 · 판 · 해시 · verify_jwt)
-        if: inputs.mode == 'qa_deploy_and_signup'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
         run: |

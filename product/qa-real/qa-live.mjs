@@ -243,7 +243,8 @@ async function full() {
   const sess = adm.data?.sessions ?? [];
   const failed = (adm.data?.turns ?? []).filter((t) => t.record?.kind === 'error').length;
   // QA DB 에는 앞선 실행(다른 suffix)의 세션도 남는다(1차 실행 base 2개 + 이번 2개 = 4 확인). 이번 실행의 A·B 세션 2개 포함 여부로 본다.
-  check('관리자(서버 응답): 이번 실행 대화 세션 2개 포함 · Agent 판 v2.2.2 · 실패 턴 0', adm.status === 200 && [sidA, sidB].every((id) => sess.some((s) => s.id === id)) && sess.every((s) => s.stored?.agent === 'echo-agent-v2.2.2') && failed === 0, { status: adm.status, n: sess.length, versions: sess.map((s) => s.stored?.agent), failed });
+  const AGENT_V = process.env.QA_AGENT_VERSION ?? 'echo-agent-v2.2.3'; const mine = sess.filter((s) => [sidA, sidB].includes(s.id));
+  check(`관리자(서버 응답): 이번 실행 대화 세션 2개 포함 · Agent 판 ${AGENT_V} · 실패 턴 0`, adm.status === 200 && mine.length === 2 && mine.every((s) => s.stored?.agent === AGENT_V) && failed === 0, { status: adm.status, n: sess.length, mine_versions: mine.map((s) => s.stored?.agent), failed });
   const notAdmin = await fn('doit-agent', A.jwt, { action: 'admin_sessions' });
   check('관리자 권한: 일반 사용자 관리자 요청 거부(403)', notAdmin.status === 403, `status=${notAdmin.status}`);
 
