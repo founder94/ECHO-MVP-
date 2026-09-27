@@ -1235,6 +1235,63 @@
       "linked_engine": "Recovery",
       "reproduction_test": "run 38 claude 156행 등",
       "cause_class": "SERVER+MODEL · P1"
+    },
+    {
+      "source_type": "ECHO_AGENT",
+      "occurred_at": "2026-09-27",
+      "severity": "P0",
+      "resolution": "미수정(대표 결정 대기 · 배포 전 차단)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "읽기 전용 경로 점검 2026-09-27 · 가짜 AI 재현(scratchpad/audit37)"
+      ],
+      "id": "EA-27",
+      "raw_context": "운영 agent.ts(v2.2): 대화를 마친 뒤 「ECHO가 이해한 나」에서 정정하면 프로필은 새 값(USER_CORRECTED)·옛 값 SUPERSEDED 인데 소개 초안(st.intro)은 옛 값 문장 그대로 ready → 저장 시 profiles.bio → 연결 상대에게 공개",
+      "failure_type": "stale_intro_after_post_finish_correction",
+      "root_cause": "운영 runTurn 끝난 뒤 경로(agent.ts:558-564)가 칸 상태만 바꾸고 소개를 다시 만들지 않음 · 운영 테스트는 프로필만 확인",
+      "expected_behavior": "끝난 뒤 정정이 소개에도 반영(v3.7 refreshIntro 는 correction 분류일 때 반영)",
+      "linked_engine": "Profile/Intro",
+      "reproduction_test": "audit37/p5.mjs",
+      "cause_class": "SERVER(운영 v2.2) · P0(최신 정정 무시 · Profile 잘못 반영)"
+    },
+    {
+      "source_type": "ECHO_AGENT",
+      "occurred_at": "2026-09-27",
+      "severity": "P0",
+      "resolution": "미수정(대표 결정 대기 · 배포 전 차단)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "읽기 전용 경로 점검 2026-09-27 · 가짜 AI 재현(scratchpad/audit37)"
+      ],
+      "id": "EA-28",
+      "raw_context": "운영 v2.2 · v3.7 공통: 「아니야」 거절 때 AI 가 낸 wrong 이 저장된 정리(note)와 글자까지 같아야만 RETRACTED — 「진지한 연애」 vs 「진지한 연애를 원함」이면 CONFIRMED 로 남음",
+      "failure_type": "rejection_requires_exact_match",
+      "root_cause": "applyTurn/applyState 거절 매칭이 글자 완전 일치(agent.ts:322 · v3.7 같은 줄)",
+      "expected_behavior": "사용자가 아니라고 한 뜻은 프로필·소개·매칭 재료에서 빠짐",
+      "linked_engine": "State/Rejection",
+      "reproduction_test": "audit37/p5.mjs P4",
+      "cause_class": "SERVER · P0(거절 의미 잔존)"
+    },
+    {
+      "source_type": "ECHO_AGENT",
+      "occurred_at": "2026-09-27",
+      "severity": "P0",
+      "resolution": "미수정(대표 결정 대기 · 배포 전 차단)",
+      "retest_result": "미실시",
+      "status": "OPEN",
+      "refs": [
+        "읽기 전용 경로 점검 2026-09-27 · 가짜 AI 재현(scratchpad/audit37)"
+      ],
+      "id": "EA-29",
+      "raw_context": "v3.7: 끝난 뒤 화면이 보내는 「「…」 부분을 고칠게요. …」를 서버가 정정 머리로 인정하지 않아, wrong 이 지금 값과 정확히 같지 않으면 uncorroborated_correction → repair 로 바뀌어 새 값이 버려지고 옛 값만 남음 · NORMAL_ANSWER 로 분류되면 옛 값·새 값 둘 다 CONFIRMED",
+      "failure_type": "post_finish_ui_correction_dropped",
+      "root_cause": "v3.4 불만 가드(근거 없는 정정 → 불만)가 앱의 정정 문장 모양을 모름 · answer 경로는 옛 값을 밀지 않음",
+      "expected_behavior": "앱 정정 버튼으로 보낸 새 값이 최신 정정으로 반영, 옛 값 SUPERSEDED",
+      "linked_engine": "State/Correction",
+      "reproduction_test": "audit37/v37b.mjs",
+      "cause_class": "SERVER(v3.7) · P0(최신 정정 무시) · why_v33 43판 흐름에 없던 경로"
     }
   ],
   "ux_research": {
