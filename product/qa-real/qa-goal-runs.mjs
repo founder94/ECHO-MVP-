@@ -50,7 +50,7 @@ async function converse(jwt, goal, run, special, extraOpening = '') {
     const before = sess.current_question;
     const r = await fn(jwt, { action: 'agent_turn', sessionId: sid, text });
     if (r.status !== 200) throw new Error(`turn ${r.status} ${r.data?.code ?? ''}`);
-    sess = r.data.session; log.push({ q: before, user: text, kind: r.data.turn.kind, saved: r.data.turn.saved, reply: r.data.turn.reply, next: r.data.turn.question });
+    sess = r.data.session; log.push({ q: before, user: text, kind: r.data.turn.kind, saved: r.data.turn.saved, reply: r.data.turn.reply, next: r.data.turn.question, asked: sess.progress?.asked });
   }
   return { sid, log, sess, firstQ };
 }
@@ -75,14 +75,14 @@ function judge(goal, sess, log, special, firstQ) {
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
   const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
   return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, empty_ack: emptyAck,
-    correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
+    correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, trace: log.map((l) => [l.user.slice(0, 8), l.kind, l.asked, (l.next ?? '').slice(0, 14)]), asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
 
 // QA 계정: 있으면 로그인, 없으면 가입. 그리고 새 회차(앱의 「처음부터 다시」와 같은 방식 · user_metadata)로 시작한다 — 앞선 검사의 대화를 이어받지 않게.
 async function signup(run) {
   // 계정 후보: 이번 접두어 → 앞선 검사 접두어(gc · gb) 순으로 로그인(가입 속도 제한 회피). 같은 번호 = 같은 목적의 한 작업만 쓰므로 세션이 겹치지 않는다.
   let jwt = null; let acct = run; let email = ''; let password = '';
-  for (const pre of [ACCOUNT_PREFIX, 'gc', 'gb']) {
+  for (const pre of [ACCOUNT_PREFIX, 'gc', 'gb', 'gd', 'ge']) {
     acct = run.replace(new RegExp(`^${PREFIX}`), pre); email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
     jwt = await login(email, password); if (jwt) break;
   }
@@ -114,8 +114,8 @@ async function dual(k) {
   return { run, goal: 'dual', same_session: A.sid === B.sid, cross_state: cross, profile_goal_cross: !!profCross, friend: ja, romantic: jb, fail: cross || !!profCross || ja.fail || jb.fail };
 }
 
-const n = +N; const jobs = [];
-for (let k = 1; k <= n; k++) { jobs.push(() => single('friend', k)); jobs.push(() => single('romantic', k)); jobs.push(() => single('colleague', k)); jobs.push(() => dual(k)); }
+const n = +N; const jobs = []; const ONLY = process.env.SPECIAL_ONLY || '';
+for (let k = 1; k <= n; k++) { if (ONLY && specials[k % specials.length] !== ONLY) continue; jobs.push(() => single('friend', k)); jobs.push(() => single('romantic', k)); jobs.push(() => single('colleague', k)); if (!ONLY) jobs.push(() => dual(k)); }
 const results = []; let next = 0; const conc = 4;
 await Promise.all(Array.from({ length: conc }, async () => { while (next < jobs.length) { const j = jobs[next++]; try { results.push(await j()); } catch (e) { results.push({ error: String(e.message ?? e).slice(0, 120) }); } } }));
 const by = (g) => results.filter((r) => r.goal === g && !r.error);
@@ -135,7 +135,7 @@ const summary = { total_jobs: jobs.length, errors: results.filter((r) => r.error
 summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colleague.fail + summary.dual.fail + summary.errors + (labelOnly.length ? 1 : 0);
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
 // 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
-const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
+const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')} :: ${JSON.stringify(r.trace)}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
   r.counsel?.length && `counsel:${r.counsel[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
 const digest = [];
 for (const r of results) {

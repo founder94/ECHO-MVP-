@@ -326,7 +326,7 @@ jobs:
           QA_PW_SEED=$(printf 'echo-qa:%s' "$SUPABASE_ACCESS_TOKEN" | sha256sum | cut -c1-40); echo "::add-mask::$QA_PW_SEED"
           unset SUPABASE_ACCESS_TOKEN
           set +e
-          QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" N=20 PREFIX="$QA_RUN" ACCOUNT_PREFIX=gc OUT=../goal-runs.json node qa-real/qa-goal-runs.mjs
+          QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" N=20 PREFIX="$QA_RUN" ACCOUNT_PREFIX=gc SPECIAL_ONLY="${{ inputs.qa_run == 'gu' && 'unsure' || '' }}" OUT=../goal-runs.json node qa-real/qa-goal-runs.mjs
           code=$?
           echo "goal-runs exit=$code"
           exit $code
