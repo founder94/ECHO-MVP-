@@ -43,7 +43,7 @@ export default defineConfig(({ mode }) => {
           if (!html.includes(from)) throw new Error(`app head: not found: ${from.slice(0, 60)}`);
           html = html.replace(from, to);
         };
-        const appName = "DO IT · ECHO";
+        const appName = "ECHO"; // 2026-09-28 대표 APP NAME FINAL LOCK: 설치 앱 이름 = ECHO(DO IT 은 회사·브랜드 이름)
         const appDesc = "당신이 잠든 사이에. 내 말로 시작하는 만남.";
         const appImage = `${appOrigin}/pwa/echo-icon-512.png?v=20260925b`;
         swap('<meta name="theme-color" content="#08070c" />', `<meta name="theme-color" content="${APP_START_COLOR}" />`);
@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => {
             '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png?v=20260925b" />',
             '    <meta name="apple-mobile-web-app-capable" content="yes" />',
             '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
-            '    <meta name="apple-mobile-web-app-title" content="DO IT" />',
+            '    <meta name="apple-mobile-web-app-title" content="ECHO" />',
             '    <meta name="mobile-web-app-capable" content="yes" />',
             "  </head>",
           ].join("\n"),

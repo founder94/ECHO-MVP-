@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.4.0"; // v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.4.1"; // v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -78,10 +78,18 @@ export const SIMILAR_Q = 0.55;
 export const ENOUGH_SLOTS = 4;
 // 상담사 말투(받아주기 금지 표현 · 대표 §8·§9). 모델이 쓰면 한 번 다시 청하고, 그래도 쓰면 그 문장만 뺀다.
 export const COUNSEL = /그렇군요|힘드셨겠|들려주실\s*수\s*있을까요|중요하군요/;
+// 그 밖의 「~군요」(실제 AI run gf: 「친구에 대한 이야기군요」)는 뜻을 두고 끝맺음만 가볍게 「~네요」로 바꾼다(받아주기를 비우지 않는다).
+const softEnd = (x: string) => x.replace(/군요(?=[.!]?$)/, "네요");
+// 물음표 없이 마침표로 끝난 질문 문장(실제 AI run gf: 「그럼 … 어떤 주제로 이야기하는 걸 좋아하세요.」). 받아주기 칸에는 질문을 두지 않는다.
+export const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어느|누구|몇)[^.!?]*(세요|나요|까요|가요|는지요|하시나요|인가요|해요|예요|이에요)\s*[.!]?$/;
+// 방금 답에서 이어지는 질문인지(재시도 신호만 · 질문을 버리지 않는다): 답의 낱말 앞 두 글자 중 흔한 말을 뺀 것이 질문에 하나라도 있으면 이어진 것으로 본다.
+const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나"]);
+export function anchorWords(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).filter((w) => /^[가-힣A-Za-z]{2,}/.test(w)).map((w) => w.slice(0, 2)).filter((w) => !ANCHOR_STOP.has(w)))]; }
+export const anchored = (latest: string, question: string) => { const ws = anchorWords(latest); return ws.length < 2 || ws.some((w) => question.includes(w)); };
 const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()).filter(Boolean);
 // 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
 export function tidyReply(reply: string, question: string | null): string {
-  return sentences(reply).filter((x) => !COUNSEL.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).join(" ");
+  return sentences(reply).filter((x) => !COUNSEL.test(x) && !ASKS.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).map(softEnd).join(" ");
 }
 export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;
@@ -130,7 +138,7 @@ const FATIGUE = /질문.{0,6}(너무|넘|왜케|왜\s*이렇게|진짜)?\s*(많|
 const HELP_ASK = /^\s*(아+|음+|흠+)?\s*(좀|너무|넘|진짜)?\s*(어렵(네|다|어|네요|어요|습니다|군)|무슨\s*(뜻|말)(이야|이에요|인가요|이지|야)?|예를\s*들(면|어\s*줘|어\s*주세요)?|예시\s*(좀|를)?\s*(보여\s*(줘|주세요)?|줘|주세요)?)\s*[.!~?…ㅠㅜ]*\s*$/;
 const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
 // v2.4 「잘 모르겠어」「글쎄」만 한 말은 묻는 말(ask)이 아니다 — 같은 질문을 다시 보이지 않고 모르겠다(unsure)로(저장 0 · 다음 칸으로).
-const UNSURE_ONLY = /^\s*(음+\s*)?(잘\s*)?(모르겠(어|어요|다|네|네요|는데|는데요)|몰라(요)?|글쎄(요)?)\s*[.!~…ㅠㅜ]*\s*$/;
+const UNSURE_ONLY = /^\s*(음+\s*)?(잘\s*)?(모르겠(어|어요|다|네|네요|는데|는데요)|몰라(요)?|글쎄(요)?|(딱히|별로|잘)?\s*생각\s*(이|은)?\s*(안|잘\s*안)\s*나(요|네|네요|는데|는데요)?)\s*[.!~…ㅠㅜ]*\s*$/;
 export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
   if ((kind === "ask" || kind === "answer" || kind === "help") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
@@ -176,7 +184,7 @@ session_goal.avoid_words 가 있으면 그 말(다른 목적의 말)을 reply·�
 다음 질문은 방금 답에서 이어진다: 방금 답의 뜻 하나를 잡아 그 옆으로 한 걸음 가는 질문(예: 「카페에서 얘기하는 게 좋다」 → 그런 친구와 깊은 얘기까지 하는 사이가 좋은지). 방금 답과 상관없는 다음 칸으로 건너뛰지 않는다.
 asked_before 는 이 대화에서 이미 한 질문이다. 같은 뜻을 말만 바꿔 다시 묻지 않는다.
 사용자가 「연애 질문 아니야」「친구 얘기인데」처럼 질문의 방향이 목적과 다르다고 하면: kind 는 repair, reply 에서 짧게 인정하고, 방금 질문의 틀을 버리고 이 목적(session_goal)에서 다른 것을 묻는다.
-reply 에서 이유·설명을 되묻지 않는다(「이유가 있나요」 같은 말 금지). 방금 말에 이유가 들어 있으면 들은 그대로 짚어 받아준다. 받아주기는 들은 말만, 해석·평가 0.
+reply 에서 이유·설명을 되묻지 않는다(「이유가 있나요」 같은 말 금지). 방금 말에 이유가 들어 있으면 들은 그대로 짚어 받아준다. 받아주기는 들은 말만, 해석·평가 0. 들은 말을 반대로 읽거나 부풀리지 않는다(「한 달에 두세 번」을 「자주 만나고 싶다」로 바꾸지 않는다). 「~군요」로 끝내지 않는다.
 질문은 next.question 에만 쓴다. reply 에는 물음표가 들어가지 않는다(받아주기·대답만). 한 턴에 질문은 하나다.
 
 kind 하나:
@@ -693,17 +701,18 @@ export function seedFirstQuestion(st: AgentState) { if (!st.asked.length) ask(st
 export const RETRY_FEEDBACK: Record<string, string> = {
   no_question: "아직 물을 목적(open_purposes)이 남아 있고 사용자가 그만하자고 하지 않았다. 받아준 뒤 다음 질문 하나가 필요하다.",
   purpose_used: "next.purpose 가 open_purposes 에 없다(이미 물었거나 이미 들은 목적). open_purposes 중 하나로 묻는다.",
-  reply_question: "reply 에 물음표가 있었다. 질문은 next.question 하나에만 쓰고 reply 는 받아주기·대답만 쓴다.",
+  reply_question: "reply 에 물음표나 묻는 문장(「어떤 ~ 좋아하세요.」처럼 마침표로 끝난 질문 포함)이 있었다. 질문은 next.question 하나에만 쓰고 reply 는 받아주기·대답만 쓴다.",
   help_question: "kind 가 help 다. reply 에 짧은 설명·예시를 쓰고, next.question 에 current_question 과 같은 목적을 더 쉽고 구체적으로 다시 묻는 질문 하나를 쓴다.",
   asked_before: "next.question 이 이 대화에서 이미 한 질문과 같다. 사용자가 이미 말한 것은 extracted 에 넣고, open_purposes 의 다른 목적을 묻는다.",
   asked_similar: "next.question 이 asked_before 의 질문과 거의 같은 뜻이다. 방금 답에서 이어지는 다른 것을 묻는다.",
   goal_residue: "reply 나 next.question 에 이 대화의 목적(session_goal)과 다른 목적의 말(avoid_words)이 들어갔다. 이 목적에 맞는 말로 새로 쓴다.",
   counsel_tone: "reply 에 상담사 말투(「그렇군요」「중요하군요」「힘드셨겠어요」「들려주실 수 있을까요」)가 있었다. 들은 뜻을 한 걸음 정리하는 짧은 한 문장으로 새로 쓴다.",
   help_same: "사용자가 잘 모르겠다고 했는데 next.question 이 방금 질문과 거의 같다. 같은 질문을 되풀이하지 말고, 더 쉬운 다른 방식(예: 두 가지 중 고르기처럼 가볍게)으로 묻는다.",
+  not_anchored: "next.question 이 방금 답(latest)과 이어지지 않는다. 방금 답에서 뜻 하나(예: 답에 나온 장소·활동·빈도·일)를 잡아, 그 말을 넣어 그 옆으로 한 걸음 가는 질문으로 새로 쓴다(예: 「술보다 카페에서 얘기하는 게 좋아」 → 「깊은 얘기까지 하는 친구가 좋아요, 가볍게 웃고 떠드는 쪽이 좋아요?」). 칸 순서보다 방금 답과 이어지는 것이 먼저다.",
   goal_axis: "사용자가 질문의 방향이 목적과 다르다고 했다. 방금 질문(current_question)의 틀과 칸을 버리고, 이 목적(session_goal)의 다른 칸(open_purposes)을 방금 말에 이어서 묻는다.",
 };
 export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean, latest = ""): string {
-  if (/[?？]/.test(out.reply)) return "reply_question";
+  if (/[?？]/.test(out.reply) || sentences(out.reply).some((x) => ASKS.test(x))) return "reply_question";
   if (!after && GOAL_MISMATCH.test(latest) && st.current && out.next.purpose === st.current.purpose && out.next.question) return "goal_axis";
   if (after || out.kind === "stop") return "";
   // ask 는 지금 질문을 서버가 그대로 둔다(질문마다 한 번). 이미 한 번 다시 보였으면 다른 종류와 같이 다음 질문을 본다.
@@ -716,6 +725,7 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   const wantsCore = out.next.question && !(out.next.type === "clarify" && out.kind === "answer" && clarifyAllowed(st));
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";
   if (!out.next.question && left.length && coreAsked(st).length < MAX_CORE_QUESTIONS) return "no_question";
+  if (out.kind === "answer" && out.next.question && !anchored(latest, out.next.question)) return "not_anchored";
   return "";
 }
 

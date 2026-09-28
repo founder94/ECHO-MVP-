@@ -55,8 +55,8 @@ test('휴대폰 윗줄 색: 앱 화면(/doit)은 파스텔, 인트로·히어로
 
 test('앱 이름·짧은 이름은 대표 승인 없이 바꾸지 않았다', () => {
   const manifest = JSON.parse(read('public/manifest.webmanifest'));
-  assert.equal(manifest.name, 'DO IT · ECHO');
-  assert.equal(manifest.short_name, 'DO IT');
+  assert.equal(manifest.name, 'ECHO');
+  assert.equal(manifest.short_name, 'ECHO');
 });
 
 test('화면 조각을 기다리는 화면도 파스텔 앱 경로에서는 파스텔이다(검정 번쩍임 0)', () => {

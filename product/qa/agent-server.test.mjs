@@ -69,7 +69,10 @@ function load(state) {
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
       state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
-      const next = state.ai.shift();
+      // v2.4 not_anchored 재시도: 예전 테스트의 가짜 질문은 답과 글자가 안 겹치므로, 따로 줄 세우지 않았으면(strictAnchor 아님) 같은 출력을 다시 준다.
+      const why = JSON.parse(body.messages[1].content).previous_attempt?.why ?? '';
+      const next = why.startsWith('next.question 이 방금 답(latest)과 이어지지 않는다') && !state.strictAnchor && state.lastAi !== undefined ? state.lastAi : state.ai.shift();
+      state.lastAi = next;
       if (next === undefined) throw new Error('no fake AI output left');
       if (next === 'HTTP500') return new Response('{}', { status: 500 });
       return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 100 }, choices: [{ message: { content: JSON.stringify(next) } }] }), { status: 200 });
@@ -634,6 +637,8 @@ test('v2.4 「잘 모르겠어」를 AI 가 help 로 읽거나 새 질문 없이
   const A = load(newState()).agent;
   assert.deepEqual({ ...A.guardKind('잘 모르겠어', 'help') }, { kind: 'unsure', rule: 'unsure_only' });
   assert.equal(A.guardKind('어렵네', 'help').kind, 'help');
+  for (const t of ['딱히 생각 안 나', '생각이 잘 안 나요', '모르겠어']) assert.equal(A.guardKind(t, 'answer').kind, 'unsure', t);
+  assert.equal(A.guardKind('딱히 없어', 'answer').kind, 'answer', '「딱히 없어」는 답(피하고 싶은 게 없음)일 수 있다');
   const base = { understood: '', reply: '괜찮아요.', inferred: [], declared: null, wrong: [] };
   const Q = '일할 때 어떤 점이 가장 중요하다고 생각하세요?';
   const mk = () => { const st = A.newState({ goal: 'colleague' }); A.seedFirstQuestion(st);
@@ -647,4 +652,22 @@ test('v2.4 「잘 모르겠어」를 AI 가 help 로 읽거나 새 질문 없이
     const r = A.applyTurn(st, '어렵네', { ...base, kind: 'help', extracted: [], next });
     assert.notEqual(r.question, Q);
   }
+});
+
+test('v2.4 방금 답과 이어지지 않는 질문은 한 번 다시 청한다(not_anchored) · 받아주기의 마침표 질문·「~군요」는 뺀다(실제 AI run gf)', async () => {
+  const s = newState(); s.strictAnchor = true; const h = load(s);
+  const A = h.agent;
+  assert.equal(A.anchored('술보다는 카페에서 얘기하는 게 좋아', '친구와 연락은 자주 하시나요?'), false);
+  assert.equal(A.anchored('술보다는 카페에서 얘기하는 게 좋아', '깊은 얘기까지 하는 친구가 좋아요, 가볍게 웃고 떠드는 쪽이 좋아요?'), true);
+  assert.equal(A.anchored('응', '아무 질문?'), true, '낱말이 적은 짧은 답은 판단하지 않는다');
+  assert.equal(A.tidyReply('그럼 친구와 대화할 때 어떤 주제로 이야기하는 걸 좋아하세요. 카페가 편하시네요.', '다른 질문?'), '카페가 편하시네요.');
+  assert.equal(A.tidyReply('친구에 대한 이야기군요. 친구 얘기로 할게요.', null), '친구에 대한 이야기네요. 친구 얘기로 할게요.');
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
+  s.ai.push(T({ extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('relationship_style', '친구와 연락은 자주 하시나요?') }),
+    T({ extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 얘기할 때 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
+  assert.equal(r.body.turn.question, '카페에서 얘기할 때 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.ok(rec.retry.includes('not_anchored'));
 });

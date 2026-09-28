@@ -1,6 +1,6 @@
 {
-  "name": "DO IT · ECHO",
-  "short_name": "DO IT",
+  "name": "ECHO",
+  "short_name": "ECHO",
   "description": "당신이 잠든 사이에. 내 말로 시작하는 만남.",
   "id": "/",
   "start_url": "/do-it/intro?next=app",

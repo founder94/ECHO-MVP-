@@ -146,7 +146,7 @@ test('주소 복사가 막혀도 주소를 직접 볼 수 있다', () => {
 
 test('앱 설치 설정 파일: 이름·아이콘·전체 화면·시작 주소', () => {
   const manifest = JSON.parse(read('public/manifest.webmanifest'));
-  assert.equal(manifest.short_name, 'DO IT');
+  assert.equal(manifest.short_name, 'ECHO');
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.start_url, '/do-it/intro?next=app'); // 2026-09-27 대표 「COMPANY STRUCTURE」: 설치 앱 = 제품(인트로 → 제품 입구)
   const sizes = manifest.icons.map((i) => i.sizes);
