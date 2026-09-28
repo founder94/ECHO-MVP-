@@ -270,7 +270,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 
@@ -638,6 +638,7 @@ export function cleanIntro(st: AgentState, raw: unknown): { lines: IntroLine[]; 
     if (rejected.some((r) => squash(text).includes(r) || b.includes(r))) { drop("rejected"); continue; }
     if (BANNED_WORDS.test(text)) { drop("banned_word"); continue; }
     if (goalResidue(st, text)) { drop("goal_residue"); continue; }
+    if (askedEcho(st, text)) { drop("asked_echo"); continue; }
     if (PRIVATE_DATA.test(text)) { drop("private_data"); continue; }
     if (leaksId(text)) { drop("id_leak"); continue; }
     const added = (total ? 1 : 0) + text.length;
@@ -656,20 +657,23 @@ function setIntro(st: AgentState, raw: unknown, error: string | null) {
 }
 export const introText = (d: IntroDraft | null | undefined) => (d?.lines ?? []).map((l) => l.text).join(" ").slice(0, INTRO_MAX);
 
+// v2.4.1 정리·소개에 AI 가 한 질문(「~는지 궁금해요」)이 사용자 사실처럼 들어가지 않게(실제 AI run gi: 「깊은 얘기까지 하는 사이가 좋은지 … 궁금해요」).
+const ASKED_ECHO = /궁금|(?:는지|은지|인지|을지|ㄹ지)\s*[,，]?\s*(?:아니면|또는|가볍게|궁금|$)/;
+export const askedEcho = (st: AgentState, text: string) => ASKED_ECHO.test(text) || st.asked.some((a) => dice(bare(a.text), bare(text)) >= 0.5);
 function finishWith(st: AgentState, raw: unknown) {
   const o = parseJson(raw);
   setIntro(st, o ? o.intro : null, o ? null : "closing_failed");
   const closing = o ? str(o.closing) : "";
   // v2.4 다른 목적의 말이 든 문장은 뺀다(친구 대화의 마무리에 연애 말 0).
-  const cleanClosing = closing.split(/(?<=[.!?。])\s+/).filter((x) => !goalResidue(st, x)).join(" ").trim();
+  const cleanClosing = closing.split(/(?<=[.!?。])\s+/).filter((x) => !goalResidue(st, x) && !askedEcho(st, x)).join(" ").trim();
   st.closing = cleanClosing && !BANNED_WORDS.test(cleanClosing) && !leaksId(cleanClosing) ? cleanClosing : null;
-  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text)) : [];
+  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text) && !askedEcho(st, x.text)) : [];
   st.phase = "done"; st.current = null;
   const profile = matchingProfile(st);
   return { closing: st.closing, summary: st.summary, profile, handoff: matchingHandoff(profile) };
 }
 
-async function call(llm: Llm, obs: Obs, kind: "opening" | "turn" | "closing" | "intro" | "pick", system: string, input: unknown): Promise<string> {
+async function call(llm: Llm, obs: Obs, kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack", system: string, input: unknown): Promise<string> {
   const t0 = Date.now();
   try {
     const r = await llm(kind, system, input);
@@ -732,7 +736,7 @@ export function retryReasons(st: AgentState, out: Parsed, left: string[], after:
   return all;
 }
 // 답을 받았는데 받아주기가 정리 뒤 비는 경우(질문을 받아주기 칸에 쓴 경우 등).
-const emptyAck = (out: Parsed) => out.kind === "answer" && !!out.next.question && !tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question);
+const emptyAck = (out: Parsed) => out.kind === "answer" && !tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null);
 export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean, latest = ""): string {
   if (/[?？]/.test(out.reply) || sentences(out.reply).some((x) => ASKS.test(x))) return "reply_question";
   if (!after && GOAL_MISMATCH.test(latest) && st.current && out.next.purpose === st.current.purpose && out.next.question) return "goal_axis";
@@ -754,6 +758,19 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
 }
 
 export interface RunResult { obs: Obs; response: Json }
+
+const ACK_PROMPT = `너는 대화에서 방금 사용자 말(latest)을 받아 주는 짧은 한 문장만 쓴다. JSON {"reply": "..."} 하나만 낸다.
+- 사용자 말을 그대로 옮기지 않는다. 들은 말에서 뜻 하나를 한 걸음 정리한다(예: 「한 달에 두세 번 편하게 보는 정도가 좋아」 → 「자주보다는 부담 없이 이어지는 쪽이 편하네요.」).
+- 질문하지 않는다(물음표 0). 상담 말투(「그렇군요」「~군요」「힘드셨겠어요」) 금지. 성격 단정·감정 해석 금지. 40자 이내.
+- next_question 이 있으면 그 질문으로 자연스럽게 이어지게 쓴다(질문 문장을 옮기지 않는다).`;
+async function rewriteAck(st: AgentState, latest: string, question: string | null, llm: Llm, obs: Obs): Promise<string> {
+  let raw: string;
+  try { raw = await call(llm, obs, "ack", ACK_PROMPT, { latest, next_question: question, session_goal: goalOf(st).name, tone: TONES[st.tone]?.label ?? "" }); } catch { obs.retry.push("ack_rewrite_failed"); return ""; }
+  const o = parseJson(raw); const t = tidyReply(str(o?.reply).replace(/[?？]/g, "."), question);
+  const ok = !!t && t.length <= 80 && !ackCopies(t, latest) && !COUNSEL.test(t) && !goalResidue(st, t) && !BANNED_WORDS.test(t) && !leaksId(t);
+  obs.retry.push(ok ? "ack_rewrite" : "ack_rewrite_rejected");
+  return ok ? t : "";
+}
 
 // ── 한 턴. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
 // v2.2.4 옛 항목 고르기(정정 턴에만): 지금 저장된 항목(CONFIRMED · 모든 칸)을 번호 목록으로 주고, 이 정정 때문에 더는 사실이 아닌 번호만 고르게 한다.
@@ -806,6 +823,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   if (!out) return { obs, response: { error: "READ_FAILED" } };
   if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
   if (out.kind === "correction") out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE
+  // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
+  if (!after && out.kind === "answer" && !ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, text)) { const a = await rewriteAck(st, text, out.next.question || null, llm, obs); if (a) ackBackup = a; } }
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
   if (!after && out.kind === "answer" && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, text)) out = { ...out, reply: ackBackup }; }
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다

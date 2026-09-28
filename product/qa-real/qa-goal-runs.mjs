@@ -67,6 +67,8 @@ function judge(goal, sess, log, special, firstQ) {
   const dup = []; for (let i = 0; i < asked.length; i++) for (let j = i + 1; j < asked.length; j++) if (dice(bare(asked[i]), bare(asked[j])) >= 0.55) dup.push([asked[i], asked[j]]);
   const summaryTexts = [...(sess.summary ?? []).map((x) => x.text), sess.closing ?? '', sess.intro?.text ?? ''];
   const summaryResidue = summaryTexts.filter((t) => t && RESIDUE[goal].test(t));
+  // 정리·마무리·소개에 AI 질문이 사실처럼 들어감(「~는지 궁금해요」 · 한 질문과 거의 같은 문장)
+  const summaryQuestion = summaryTexts.filter((t) => t && (/궁금/.test(t) || asked.some((a) => dice(bare(a), bare(t)) >= 0.5)));
   const counsel = log.filter((l) => l.reply && COUNSEL.test(l.reply)).map((l) => l.reply);
   // 받아주기가 사용자 말을 거의 그대로 옮김(사용자 말 두 글자 조각의 65% 이상이 한 문장에)
   const copyOf = (r, u) => { const U = pairs(bare(u)); if (bare(u).length < 6) return false; return r.split(/(?<=[.!?])\s+/).some((x) => { const R = pairs(bare(x)); let n = 0; for (const p of U) if (R.has(p)) n++; return n / U.size >= 0.65; }); };
@@ -81,8 +83,8 @@ function judge(goal, sess, log, special, firstQ) {
   let unsureOk = null;
   if (special === 'unsure') { const l = log.find((x) => SPECIAL.unsure.includes(x.user)); unsureOk = !!l && !l.saved && l.kind !== 'ask' && (!l.next || dice(bare(l.q ?? ''), bare(l.next)) < 0.55); }
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
-  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || replyAsks.length > 0 || emptyAck > 0 || ackCopy.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
-  return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, reply_asks: replyAsks, ack_copy: ackCopy, empty_ack: emptyAck,
+  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || summaryQuestion.length > 0 || counsel.length > 0 || replyAsks.length > 0 || emptyAck > 0 || ackCopy.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
+  return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, summary_question: summaryQuestion, counsel, reply_asks: replyAsks, ack_copy: ackCopy, empty_ack: emptyAck,
     correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, trace: log.map((l) => [l.user.slice(0, 8), l.kind, l.asked, (l.next ?? '').slice(0, 14)]), asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
 
@@ -133,7 +135,7 @@ for (let k = 1; k <= n; k++) { if (ONLY && specials[k % specials.length] !== ONL
 const results = []; let next = 0; const conc = 4;
 await Promise.all(Array.from({ length: conc }, async () => { while (next < jobs.length) { const j = jobs[next++]; try { results.push(await j()); } catch (e) { results.push({ error: String(e.message ?? e).slice(0, 120) }); } } }));
 const by = (g) => results.filter((r) => r.goal === g && !r.error);
-const agg = (rs) => ({ runs: rs.length, fail: rs.filter((r) => r.fail).length, residue: rs.filter((r) => r.residue?.length).length, dup_questions: rs.filter((r) => r.dup?.length).length, summary_residue: rs.filter((r) => r.summary_residue?.length).length,
+const agg = (rs) => ({ runs: rs.length, fail: rs.filter((r) => r.fail).length, residue: rs.filter((r) => r.residue?.length).length, dup_questions: rs.filter((r) => r.dup?.length).length, summary_residue: rs.filter((r) => r.summary_residue?.length).length, summary_question: rs.filter((r) => r.summary_question?.length).length,
   counsel_ack: rs.filter((r) => r.counsel?.length).length, reply_asks: rs.filter((r) => r.reply_asks?.length).length, ack_copy: rs.filter((r) => r.ack_copy?.length).length, empty_ack: rs.reduce((a, r) => a + (r.empty_ack ?? 0), 0),
   followup_linked: (() => { const t = rs.map((r) => (r.linked ?? '0/0').split('/').map(Number)); const a = t.reduce((x, y) => x + y[0], 0), b = t.reduce((x, y) => x + y[1], 0); return `${a}/${b}`; })(), correction_fail: rs.filter((r) => r.correction_ok === false).length, repeat_fail: rs.filter((r) => r.repeat_ok === false).length, unsure_fail: rs.filter((r) => r.unsure_ok === false).length,
   goal_mismatch: rs.filter((r) => r.goal_saved && r.goal_saved !== r.goal).length, unfinished: rs.filter((r) => r.finished === false).length, avg_questions: +(rs.reduce((a, r) => a + (r.questions ?? 0), 0) / Math.max(1, rs.length)).toFixed(2) });
@@ -150,7 +152,7 @@ const summary = { total_jobs: jobs.length, errors: results.filter((r) => r.error
 summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colleague.fail + summary.dual.fail + summary.errors + (labelOnly.length ? 1 : 0);
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
 // 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
-const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')} :: ${JSON.stringify(r.trace)}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
+const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')} :: ${JSON.stringify(r.trace)}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`, r.summary_question?.length && `summary_question:${r.summary_question[0]}`,
   r.counsel?.length && `counsel:${r.counsel[0]}`, r.reply_asks?.length && `reply_asks:${r.reply_asks[0]}`, r.ack_copy?.length && `ack_copy:${r.ack_copy[0]}`, r.empty_ack && `empty_ack:${r.empty_ack} :: ${JSON.stringify(r.trace)}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
 const digest = [];
 for (const r of results) {

@@ -68,6 +68,18 @@ function roundStartOf(user: { user_metadata?: Record<string, unknown> | null }):
 class ProviderError extends Error { code: string; constructor(code: string) { super(code); this.code = code; } }
 // OpenAI 한 번 부르기. 응답의 실제 모델 이름·토큰 수(usage)를 함께 돌려준다(관리자 관측).
 function openAI(apiKey: string, model: string): A.Llm {
+  // v2.4.1: 속도 제한(429)·일시 오류(5xx)·연결 끊김은 1.5초 뒤 한 번만 다시(실제 AI run gi: AI_ERROR 5/80). 시간 초과는 다시 하지 않는다(기다림 상한 유지).
+  const once = openAIOnce(apiKey, model);
+  return async (kind, system, input) => {
+    try { return await once(kind, system, input); } catch (e) {
+      const code = (e as ProviderError)?.code ?? "";
+      if (!/^http_(429|5\d\d)$|^network$/.test(code)) throw e;
+      await new Promise((ok) => setTimeout(ok, 1500));
+      return await once(kind, system, input);
+    }
+  };
+}
+function openAIOnce(apiKey: string, model: string): A.Llm {
   return async (_kind, system, input) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS);
