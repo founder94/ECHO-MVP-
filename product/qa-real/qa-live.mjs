@@ -210,31 +210,76 @@ async function full() {
   check('Matching: 옛 「매일」·거둔 뜻 사용 0 · 사주/타로 0', !commonA.some((c) => (/매일/.test(c) && !/부담|주말/.test(c)) || /사주|타로|궁합|운세/.test(c)), commonA);
   check('전화: 전화 미인증 A 가 후보', !!pair && pair[pair.user_a === A.id ? 'a' : 'b']?.phone_verified === false, pair ? { a: pair.a, b: pair.b } : null);
 
-  // 연결(현재 구현: 관리자 승인 → AI 첫 질문 → 둘 다 답 → 공개 → 대화) · 안전
-  const dec = await fn('doit-connect', ADM.jwt, { action: 'admin_decide', userA: A.id, userB: B.id, decision: 'approve' }, 'admin_decide');
+  // 연결 v2.0(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§19): 서버 후보 준비 → A 선택 → B 선택 → 상호선택 → 연결 → 첫 질문·공개 → 대화 → 결과 → 안전
+  const NICK = { A: 'QA-A', B: 'QA-B' };
+  const cA0 = await fn('doit-connect', A.jwt, { action: 'my_candidates' }, 'my_candidates');
+  check('[잠든 사이] 서버 후보 준비: A 가 열면 실제 후보(같은 목적 · 자격 있는 실제 QA 계정) 준비 · 소수(≤3)', cA0.status === 200 && cA0.data?.eligible === true && (cA0.data?.candidates ?? []).length >= 1 && (cA0.data?.candidates ?? []).length <= 3, { status: cA0.status, eligible: cA0.data?.eligible, missing: cA0.data?.missing, prepared: cA0.data?.prepared, shown: (cA0.data?.candidates ?? []).length, code: cA0.data?.code ?? null });
+  const candText = JSON.stringify(cA0.data ?? {});
+  check('[잠든 사이] 후보 단계 상대 정보 0(B id·닉네임·소개) · 점수·퍼센트·사주·타로 0 · 이유 = 직접 고른 목적/내 말', ![B.id, NICK.B, '대화가 잘 통하는 사람이 좋아요'].some((x) => candText.includes(x)) && !/%|점수|궁합|사주|타로/.test(candText) && (cA0.data?.candidates ?? []).every((c) => Array.isArray(c.reasons) && c.reasons.length > 0), (cA0.data?.candidates ?? []).map((c) => c.reasons));
+  // A-B 쌍: 서버가 이미 A-B 를 준비했으면 그 후보, 아니면(이전 실행 계정이 먼저 뽑힘) 관리자 승인으로 같은 제안 표에 후보를 만든다 — 연결은 어느 쪽이든 두 사람이 골라야만 열린다.
+  const bList = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
+  const shared = (cA0.data?.candidates ?? []).map((c) => c.id).filter((id) => (bList.data?.candidates ?? []).some((c) => c.id === id));
+  let pairSource = 'server';
+  if (!shared.length) { pairSource = 'admin'; await fn('doit-connect', ADM.jwt, { action: 'admin_decide', userA: A.id, userB: B.id, decision: 'approve' }, 'admin_decide'); }
+  const cA = await fn('doit-connect', A.jwt, { action: 'my_candidates' });
+  const cB = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
+  const candId = (cA.data?.candidates ?? []).map((c) => c.id).find((id) => (cB.data?.candidates ?? []).some((c) => c.id === id)) ?? null;
+  evidence.mutual = { pair_source: pairSource, cand: !!candId };
+  check(`[상호선택] A-B 후보가 두 사람 모두에게 보임(만든 곳: ${pairSource === 'server' ? '서버 자동' : '관리자 → 후보 제안'})`, !!candId, evidence.mutual);
+  if (candId) {
+    const chA = await fn('doit-connect', A.jwt, { action: 'choose', candidateId: candId, choice: 'yes' }, 'choose');
+    const mA1 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
+    const bSees = (await fn('doit-connect', B.jwt, { action: 'my_candidates' })).data?.candidates?.find((c) => c.id === candId);
+    check('[상호선택] A 만 선택 → waiting · 연결 열림 0 · B 에게는 A 가 먼저 골랐다는 표시 0', chA.data?.status === 'waiting' && !(mA1.data?.matches ?? []).some((m) => m.status === 'open') && bSees?.my_choice === null && bSees?.waiting === false, { a: chA.data?.status ?? chA.status, open_matches: (mA1.data?.matches ?? []).filter((m) => m.status === 'open').length, b_view: bSees ? { my_choice: bSees.my_choice, waiting: bSees.waiting } : null });
+    const chB = await fn('doit-connect', B.jwt, { action: 'choose', candidateId: candId, choice: 'yes' }, 'choose');
+    const again = await fn('doit-connect', B.jwt, { action: 'choose', candidateId: candId, choice: 'yes' });
+    check('[상호선택] B 도 선택 → MUTUAL · 연결 1개 · 같은 선택 다시 눌러도 같은 연결(멱등)', chB.data?.status === 'mutual' && !!chB.data?.match_id && again.data?.status === 'mutual' && again.data?.match_id === chB.data?.match_id, { b: chB.data?.status ?? chB.status, code: chB.data?.code ?? null, again: again.data?.status, same: again.data?.match_id === chB.data?.match_id, question_source: chB.data?.question_source ?? null });
+  }
   const mA0 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
-  const match = (mA0.data?.matches ?? [])[0];
-  check('연결: 관리자 승인 → 연결 생성 · AI 첫 질문', dec.status === 200 && !!match && !!match.first_question, { status: dec.status, code: dec.data?.code ?? null, first_question: match?.first_question ?? null, source: dec.data?.question_source ?? null });
+  const match = (mA0.data?.matches ?? []).find((m) => m.status === 'open') ?? null;
+  check('[연결] Connection Open: A 의 내 연결에 열린 연결 · AI 첫 질문', !!match && !!match.first_question, { first_question: match?.first_question ?? null, n: (mA0.data?.matches ?? []).length });
   if (match) {
     await fn('doit-connect', A.jwt, { action: 'answer', matchId: match.id, text: '한강 산책길이요' });
     const mid = await fn('doit-connect', A.jwt, { action: 'my_matches' });
     await fn('doit-connect', B.jwt, { action: 'answer', matchId: match.id, text: '조용한 북카페요' });
     const both = await fn('doit-connect', A.jwt, { action: 'my_matches' });
-    check('상호 공개: 둘 다 답하기 전 상대 정보 0 → 둘 다 답하면 열림', mid.data?.matches?.[0]?.revealed === false && !('partner' in (mid.data?.matches?.[0] ?? {})) && both.data?.matches?.[0]?.revealed === true, { before: mid.data?.matches?.[0]?.revealed, after: both.data?.matches?.[0]?.revealed });
+    const midM = (mid.data?.matches ?? []).find((m) => m.id === match.id); const bothM = (both.data?.matches ?? []).find((m) => m.id === match.id);
+    check('상호 공개: 둘 다 답하기 전 상대 정보 0 → 둘 다 답하면 열림', midM?.revealed === false && !('partner' in (midM ?? {})) && bothM?.revealed === true, { before: midM?.revealed, after: bothM?.revealed });
     const msg = await fn('doit-connect', A.jwt, { action: 'message', matchId: match.id, text: '반가워요' });
+    const reply = await fn('doit-connect', B.jwt, { action: 'message', matchId: match.id, text: '저도 반가워요' });
     const phone = await fn('doit-connect', A.jwt, { action: 'message', matchId: match.id, text: '010-1234-5678 로 연락 주세요' });
     const link = await fn('doit-connect', A.jwt, { action: 'message', matchId: match.id, text: 'https://open.kakao.com/o/abc 여기로 와요' });
     const sexual = await fn('doit-connect', A.jwt, { action: 'message', matchId: match.id, text: '오늘 밤 원나잇 할래요?' });
-    check('안전: 대화 보내기 200 · 연락처 차단 · 외부 링크 차단', msg.status === 200 && phone.data?.code === 'BLOCKED_CONTENT' && link.data?.code === 'BLOCKED_CONTENT', { msg: msg.status, phone: phone.data?.code ?? phone.status, link: link.data?.code ?? link.status });
+    check('[연결] 실제 대화: A·B 이야기 주고받기 200 · 연락처 차단 · 외부 링크 차단', msg.status === 200 && reply.status === 200 && phone.data?.code === 'BLOCKED_CONTENT' && link.data?.code === 'BLOCKED_CONTENT', { msg: msg.status, reply: reply.status, phone: phone.data?.code ?? phone.status, link: link.data?.code ?? link.status });
     check('안전: 성적 목적 문장 차단', sexual.data?.code === 'BLOCKED_CONTENT' ? true : sexual.status === 200 ? false : null, { status: sexual.status, code: sexual.data?.code ?? null });
+    // Outcome
+    const o1 = await fn('doit-connect', A.jwt, { action: 'outcome', matchId: match.id, talked: 'yes', met: 'planned' }, 'outcome');
+    const o2 = await fn('doit-connect', A.jwt, { action: 'outcome', matchId: match.id, met: 'yes', again: 'yes', helpful: 'yes' });
+    const oBad = await fn('doit-connect', A.jwt, { action: 'outcome', matchId: match.id, met: 'maybe' });
+    const mineO = (await fn('doit-connect', A.jwt, { action: 'my_matches' })).data?.matches?.find((m) => m.id === match.id)?.outcome ?? null;
+    const theirsO = (await fn('doit-connect', B.jwt, { action: 'my_matches' })).data?.matches?.find((m) => m.id === match.id)?.outcome;
+    const admM = await fn('doit-connect', ADM.jwt, { action: 'admin_matches' });
+    const admRow = (admM.data?.matches ?? []).find((m) => m.id === match.id);
+    const SAafter = await stateOf(sidA);
+    const profNotes = JSON.stringify(SAafter?.profile ?? {});
+    check('[결과] Outcome 기록: 본인 저장·고쳐 쓰기 200 · 잘못된 값 400 · 상대에게 안 보임 · 관리자 기록 1줄 · 프로필(매칭 재료)로 안 올라감', o1.status === 200 && o2.status === 200 && oBad.status === 400 && mineO?.met === 'yes' && mineO?.again === 'yes' && theirsO === null && (admRow?.outcomes ?? []).length === 1 && admRow.outcomes[0].met === 'yes' && !/만났|약속|다시 만나/.test(profNotes), { o1: o1.status, o2: o2.status, bad: oBad.status, mine: mineO, partner_sees: theirsO, admin: admRow?.outcomes ?? null });
+    const prop = (admM.data?.proposals ?? []).find((p) => p.match_id === match.id);
+    check('[관리자] 보낸 후보 기록: 상태 mutual · 두 사람 선택 yes/yes', prop?.status === 'mutual' && prop?.a_choice === 'yes' && prop?.b_choice === 'yes', prop ?? null);
+    // 차단·신고
     const leave = await fn('doit-connect', B.jwt, { action: 'leave', matchId: match.id, block: true, report: true });
-    const again = await fn('doit-connect', ADM.jwt, { action: 'admin_candidates' });
-    const re = await fn('doit-connect', ADM.jwt, { action: 'admin_decide', userA: A.id, userB: B.id, decision: 'approve', noCommonOk: true });
+    const candAfter = await fn('doit-connect', A.jwt, { action: 'my_candidates' });
+    const runAll = await fn('doit-connect', ADM.jwt, { action: 'admin_run_matching' });
+    const candAfter2 = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
+    const reDecide = await fn('doit-connect', ADM.jwt, { action: 'admin_decide', userA: A.id, userB: B.id, decision: 'approve', noCommonOk: true });
     const rep = await http(`/rest/v1/user_reports?reporter_id=eq.${B.id}&select=id,status`, { jwt: ADM.jwt });
     const blk = await http(`/rest/v1/blocks?blocker_id=eq.${B.id}&select=id`, { jwt: ADM.jwt });
     const repByA = await http(`/rest/v1/user_reports?reporter_id=eq.${B.id}&select=id`, { jwt: A.jwt });
-    check('안전: 그만하기·차단·신고 → 신고·차단 기록 · 다시 후보 0 · 재승인 거부(409) · 신고당한 사람은 신고 기록 못 봄', leave.status === 200 && (rep.data ?? []).length === 1 && (blk.data ?? []).length === 1 && !(again.data?.candidates ?? []).some((c) => [c.user_a, c.user_b].includes(A.id) && [c.user_a, c.user_b].includes(B.id)) && re.status === 409 && (repByA.data ?? []).length === 0, { leave: leave.status, reports: (rep.data ?? []).length, blocks: (blk.data ?? []).length, re: re.status, report_visible_to_target: (repByA.data ?? []).length });
+    const afterM = (await fn('doit-connect', A.jwt, { action: 'my_matches' })).data?.matches?.find((m) => m.id === match.id);
+    const bInA = JSON.stringify(candAfter.data ?? {}) + JSON.stringify(candAfter2.data ?? {});
+    check('안전: 그만하기·차단·신고 → 연결 닫힘 · 신고·차단 기록 · 재추천 0(서버 준비 후에도) · 재승인 거부(409) · 신고당한 사람은 신고 기록 못 봄', leave.status === 200 && afterM?.status === 'closed' && !('partner' in (afterM ?? {})) && (rep.data ?? []).length === 1 && (blk.data ?? []).length === 1 && runAll.status === 200 && !bInA.includes(candId ?? 'none') && reDecide.status === 409 && (repByA.data ?? []).length === 0, { leave: leave.status, closed: afterM?.status, reports: (rep.data ?? []).length, blocks: (blk.data ?? []).length, run: runAll.data?.made ?? runAll.status, re: reDecide.status, report_visible_to_target: (repByA.data ?? []).length });
   }
+  const notAdminRun = await fn('doit-connect', A.jwt, { action: 'admin_run_matching' });
+  check('관리자 권한: 일반 사용자 전체 후보 준비 요청 거부(403)', notAdminRun.status === 403, `status=${notAdminRun.status}`);
   const verif = await http(`/rest/v1/profiles?id=in.(${A.id},${B.id})&select=verification_status`, { jwt: ADM.jwt });
   check('전화: verification_status 자동 변경 0', (verif.data ?? []).length === 2 && (verif.data ?? []).every((p) => p.verification_status === 'pending'), verif.data);
 
