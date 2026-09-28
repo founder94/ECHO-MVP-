@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 
 const agent = readFileSync(new URL('../supabase/functions/doit-agent/agent.ts', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../supabase/functions/doit-agent/index.ts', import.meta.url), 'utf8');
@@ -21,6 +22,15 @@ const P1 = [
   'public_boundary',
   'human_cost_capture',
 ];
+
+test('Failure Intelligence contract has valid TypeScript syntax', () => {
+  const out = ts.transpileModule(fi, {
+    reportDiagnostics: true,
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  });
+  const errors = (out.diagnostics ?? []).filter((d) => d.category === ts.DiagnosticCategory.Error);
+  assert.equal(errors.length, 0, errors.map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n')).join('\n'));
+});
 
 test('Failure Intelligence 10-rule contract is versioned and present', () => {
   assert.match(fi, /FAILURE_INTELLIGENCE_VERSION\s*=\s*"fi-2026-09-28-v1"/);
