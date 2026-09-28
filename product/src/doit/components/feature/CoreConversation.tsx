@@ -25,8 +25,6 @@ interface Props {
   roundStartedAt?: string | null;
   // v13.4 "처음부터 다시": 페이지가 새 회차를 시작한다(목적 비우기 포함). 없으면 버튼을 숨긴다.
   onRestart?: () => Promise<string | null>;
-  // v14.3: 앱 홈의 「처음부터 다시 시작하기」로 들어오면 확인 창을 바로 열어 둔다(전에는 대화 화면만 열리고 다시 시작되지 않았다).
-  restartPrompt?: boolean;
 }
 const DRAFT_MIN_CONFIRMED = 3;
 // v15: 편집기는 「내가 맞다고 한 말」을 지금의 나에 맞게 고칠 때만 쓴다(답마다 뜨던 확인 카드의 고치기·직접 설명은 통합 카드로 옮겼다).
@@ -94,7 +92,7 @@ function questionCard(question: CoreQuestion) {
   </div>;
 }
 
-export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft, roundStartedAt = null, onRestart, restartPrompt = false }: Props) {
+export default function CoreConversation({ userId, onContinue, initialMessage, autoQuestion = false, purposeLabel = null, onUseDraft, roundStartedAt = null, onRestart }: Props) {
   const { reload: reloadUnderstanding } = useUnderstanding();
   const [records, setRecords] = useState<CoreRecord[]>([]);
   const [insights, setInsights] = useState<CoreInsight[]>([]);
@@ -110,7 +108,6 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const [draftSaved, setDraftSaved] = useState(false);
   const [savedLookupFor, setSavedLookupFor] = useState<string | null>(null);
   // v14.3: 확인 창을 어디서 열었는지('top' = 화면 위, 'bottom' = 맨 아래). 누른 자리 바로 옆에 확인 창이 뜬다.
-  const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
   // v15 지친 말("할말이없다 휴")에 대한 안내 — 기록하지 않고, 다른 질문 받기 · 오늘은 여기까지(빠져나갈 문).
   const [pause, setPause] = useState<string | null>(null);
   // v15 "그 뜻 아니야"만 보냈을 때: 사용자가 아니라고 한 AI 문장. 다음 답과 함께 서버에 알려 정정 전 문장으로 쓰지 않게 한다.
@@ -208,7 +205,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   const restart = () => onRestart && run('처음부터 다시 여는 중이에요', async () => {
     const failure = await onRestart();
     if (failure) throw new UnderstandingError('RESTART_FAILED', failure);
-    if (alive.current) { recentTurns.current = []; setRestartArmed(false); setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setUnsaved(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
+    if (alive.current) { recentTurns.current = []; setSynth(SYNTH_IDLE); synthAsked.current = false; setPause(null); setPendingCorrection(null); setUnsaved(null); setNotice('처음부터 다시 시작할게요. 지난 이야기는 지우지 않았어요.'); }
   });
   const remembered = insights.filter(i => i.status === 'confirmed' || i.status === 'corrected');
   // v15(명세 §2 「매 질문마다 AI 해석 카드와 4버튼을 띄우지 않는다」): 다섯 답 동안은 질문만 보인다. 후보 카드·확인 버튼은 통합 카드에만 있다.
@@ -383,9 +380,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     clearQuestions(); setEditor(null); setNotice('내 말로 바꿔 저장했어요.');
   });
 
-  // 처음부터 시작하기: 확인 창은 한 가지 모양만 쓴다(위·아래·끝 화면 버튼 모두 이것을 연다).
-  // v15.2(대표 2026-09-24): 한 번 더 묻는 짧은 확인 — 실수로 눌러도 대화가 끝나지 않는다. 지난 이야기는 지우지 않는다(새 회차만 시작).
-  const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={() => void restart()}>처음부터 시작할게요</button></div></div>;
+  // 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 확인 창 없이 한 번 탭 → 새 회차 + ECHO 첫 대화 화면(앱 공통 동작 useRestartConversation · 지난 이야기는 지우지 않음).
 
   // v15 통합 이해 카드(명세 §9·§10): 네 버튼은 여기에만 있다.
   const itemBadge = (item: CoreInsight) => item.origin === 'self' ? '내가 직접 설명한 말' : item.status === 'corrected' ? '내가 고친 말' : item.status === 'confirmed' ? '맞다고 한 말' : item.status === 'rejected' ? '뺀 말' : null;
@@ -422,11 +417,9 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       <span className="echo-steps-bar" aria-hidden="true"><i style={{ width: `${(answered / ASK_TOTAL) * 100}%` }} /></span>
     </div>}
     {/* v14.3(대표 실기기 "처음부터 다시 하기도 없어"): 맨 아래에만 있어서 화면 위에서는 보이지 않았다. 위에도 둔다. */}
-    {/* 끝 화면에서는 아래 「처음부터 시작하기」 버튼이 같은 일을 하므로 위 버튼은 숨긴다(홈에서 ?restart=1 로 온 확인 창은 그대로 위에 뜬다). */}
+    {/* 끝 화면에서는 아래 「처음부터 다시 시작하기」 버튼이 같은 일을 하므로 위 버튼은 숨긴다. */}
     {/* v15.2(대표 2026-09-24 실기기 "다음 질문을 아직 만들지 못했어요"에서 막힘): 대화에 들어온 순간부터 — 첫 답 전·오류 상태 포함 — 늘 위에 둔다. */}
-    {onRestart && (!finished || restartArmed === 'top') && (restartArmed === 'top'
-      ? restartConfirm
-      : <div className="echo-restart-top"><button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('top')}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button></div>)}
+    {onRestart && !finished && <div className="echo-restart-top"><button className="echo-restart-pill" disabled={!!busy || !!editor} onClick={() => void restart()}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 시작하기</button></div>}
     <p className="echo-eyebrow">{finished ? '다 들었어요' : roundRecords.length ? '대화 중' : '만나기 전에'}</p>
     {finished
       ? <h1>다섯 가지, 다 들었어요.<br />{synth.phase === 'done' ? '이제 나를 보여 줄 차례예요.' : '이해한 내용을 확인해 주세요.'}</h1>
@@ -480,9 +473,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
           : <Link className="echo-primary" to="/doit/start-journey?edit=profile">사진과 소개 채우기 <ChevronRight size={18} /></Link>}
         <Link className="echo-secondary" to="/doit/connections">연결까지 남은 것 보기 <ChevronRight size={18} /></Link>
         {/* 2026-09-24 대표 실기기 "처음부터 다시 하고 싶은 사람도 있어": 끝 화면에도 바로 보이는 버튼으로 둔다. */}
-        {onRestart && (restartArmed === 'done'
-          ? restartConfirm
-          : <button className="echo-secondary" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed('done')}>처음부터 시작하기</button>)}
+        {onRestart && <button className="echo-secondary" disabled={!!busy} onClick={() => void restart()}>처음부터 다시 시작하기</button>}
       </div>
       <p className="echo-fine">지금까지 답은 지우지 않아요. 「지난번 이야기」에서 다시 볼 수 있어요.</p>
     </section>}
@@ -493,8 +484,6 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       ? <><p className="echo-eyebrow">내 답과 맞다고 한 말로 쓴 소개 초안</p><ul>{draftLines.map(line => <li key={line.text}><p>{line.text}</p><span>근거: {line.basis}</span></li>)}</ul><div className="echo-reactions">{!draftSaved && <button disabled={!!busy} onClick={() => void applyDraft()}>소개란에 넣기</button>}<button disabled={!!busy} onClick={() => void showDraft()}>다시 만들기</button><button disabled={!!busy} onClick={() => setDraftLines(null)}>닫기</button></div><p className="echo-fine">확인하지 않은 AI 추측과 아니라고 한 말은 넣지 않아요. 넣은 뒤에도 프로필에서 고칠 수 있어요.</p></>
       : <button className="echo-secondary" disabled={!!busy || !loaded} onClick={() => void showDraft()}>AI가 내 답으로 소개 써 보기 <ChevronRight size={18} /></button>}</section>}
     {remembered.length > 0 && <details className="echo-memory"><summary>내가 맞다고 한 말 {remembered.length}개</summary>{remembered.map(item => <div key={item.id}><span>{item.origin === 'self' ? '직접 설명' : item.status === 'corrected' ? '내가 고친 설명' : categoryNames[item.category] ?? '맞다고 한 말'}</span><p>{item.text}</p><button className="echo-text-button" disabled={!!busy || !!editor} onClick={() => setEditor({ insight: item, text: item.text })}>지금의 나에 맞게 고치기</button></div>)}</details>}
-    <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">사진과 소개 채우기 <ChevronRight size={18} /></Link>}<Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{onRestart && (restartArmed === 'bottom'
-      ? restartConfirm
-      : <button className="echo-restart-pill" disabled={!!busy || !!editor || !!restartArmed} onClick={() => setRestartArmed('bottom')}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>)}<p className="echo-fine">{finished ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : `질문은 ${ASK_TOTAL}개뿐이에요.`}</p></footer>
+    <footer className="echo-dialogue-footer">{onContinue ? <button className="echo-secondary" disabled={!!busy || !!editor} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button> : <Link className="echo-secondary" to="/doit/start-journey?edit=profile">사진과 소개 채우기 <ChevronRight size={18} /></Link>}<Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{onRestart && <button className="echo-restart-pill" disabled={!!busy || !!editor} onClick={() => void restart()}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 시작하기</button>}<p className="echo-fine">{finished ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : `질문은 ${ASK_TOTAL}개뿐이에요.`}</p></footer>
   </section>;
 }

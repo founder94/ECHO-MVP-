@@ -58,7 +58,10 @@ test('연결 화면: 다섯 가지를 다 답했으면 「이어서 답하기」
   const a = read('src/doit/components/feature/AsleepConnections.tsx');
   assert.doesNotMatch(a, /to="\/doit\/conversation">질문에 이어서 답하기/, '다 답해도 뜨던 고정 버튼 제거');
   assert.match(a, /const firstLeft = rows\.find\(row => !row\.done && row\.label !== '전화 인증'\)/, '전화 인증은 다음 할 일로 내밀지 않는다(대표 2026-09-25 · 2026-09-27 P0-1 선택 항목)');
-  assert.match(a, /\{answersDone && <Link className="doit-product-action doit-product-action--secondary" to="\/doit\/conversation\?restart=1">처음부터 다시 답하기/);
+  // 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 주소(?restart=1) 이동이 아니라 앱 공통 동작(새 회차 → 곧바로 ECHO 첫 대화)을 부른다.
+  assert.match(a, /\{answersDone && <button type="button" className="doit-product-action doit-product-action--secondary" disabled=\{restarting\} onClick=\{\(\) => void restart\(\)\}>처음부터 다시 답하기/);
+  assert.match(a, /useRestartConversation\(userId\)/);
+  assert.doesNotMatch(a, /restart=1/);
   assert.match(read('src/doit/pages/do-it/start-journey/page.tsx'), /onNext=\{\(\) => navigate\("\/doit\/connections"\)\}/, '프로필 확인 다음은 준비 중인 공간이 아니라 연결 준비');
 });
 

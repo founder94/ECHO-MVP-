@@ -20,34 +20,37 @@ test('앱(app 빌드)은 온보딩 뒤 제품 입구로 · 브랜드·통합 빌
   assert.match(landing, /if \(IS_BRAND_SITE\) \{ window\.location\.assign\(appUrl\('\/doit\/start-journey'\)\); return; \}\n\s*navigate\('\/doit\/start-journey'\);/);
 });
 
-test('v14.3 처음부터 다시 — 대화 화면 위쪽에도 있고, 누른 자리 옆에 확인 창이 뜬다', async () => {
-  const c = await read('src/doit/components/feature/CoreConversation.tsx');
-  assert.match(c, /className="echo-restart-top"/);
-  // 2026-09-24 "있는데 못 찾겠어": 작은 글씨 → 테두리 있는 알약 버튼 + 되돌리기 그림.
-  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('top'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 시작하기</);
-  assert.match(c, /className="echo-restart-pill"[^>]*onClick=\{\(\) => setRestartArmed\('bottom'\)\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 시작하기</);
+test('v14.3·2026-09-28 처음부터 다시 — 대화 화면 위·끝 화면·아래 모두 같은 이름, 확인 창 없이 한 번에 새 회차', async () => {
+  for (const f of ['src/doit/components/feature/CoreConversation.tsx', 'src/doit/components/feature/AgentConversation.tsx']) {
+    const c = await read(f);
+    assert.match(c, /className="echo-restart-top"/, f);
+    // 2026-09-24 "있는데 못 찾겠어": 테두리 있는 알약 버튼 + 되돌리기 그림.
+    assert.match(c, /className="echo-restart-pill" disabled=\{[^}]*\} onClick=\{[^}]*\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 다시 시작하기</, f);
+    // 2026-09-28 대표 「한 번의 탭」: 확인 창·「계속할게요」·예전 이름 「처음부터 시작하기」 0.
+    assert.doesNotMatch(c, /restartConfirm|restartArmed|restartPrompt|처음부터 시작할게요|>처음부터 시작하기</, f);
+  }
   assert.match(await read('src/doit/components/feature/core-conversation.css'), /\.echo-dialogue \.echo-restart-pill\{[^}]*border:1px solid/);
-  // 확인 창은 한 모양. 지난 이야기는 지우지 않는다고 알린다.
-  assert.equal((c.match(/const restartConfirm = /g) || []).length, 1);
-  // v15.2(대표 2026-09-24): 짧은 두 번째 확인 — 「계속할게요」 / 「처음부터 시작할게요」. 지난 이야기는 지우지 않는다.
-  assert.match(c, /지금 대화를 여기서 끝내고 처음부터 다시 시작할까요\? 지난 이야기는 지우지 않아요\./);
-  assert.match(c, />계속할게요</);
-  assert.match(c, />처음부터 시작할게요</);
-  // 기록이 없어도 앱 홈에서 들어온 확인 창은 보이고, 아래 버튼이 눌리지 않는 채로 굳지 않는다.
-  // v15.2(대표 2026-09-24): 대화에 들어온 순간부터(첫 답 전·오류 상태 포함) 위 버튼이 있다. 끝 화면에서는 끝 화면 안 버튼이 같은 일을 한다.
-  assert.match(c, /\(!finished \|\| restartArmed === 'top'\)/);
-  assert.match(c, /onClick=\{\(\) => setRestartArmed\('done'\)\}>처음부터 시작하기</);
 });
 
-test('v14.3 앱 홈의 「처음부터 다시 시작하기」는 실제로 다시 시작하는 확인 창을 연다', async () => {
-  const home = await read('src/doit/pages/do-it/home/page.tsx');
-  assert.match(home, /className="doit-restart-pill" to="\/doit\/conversation\?restart=1"><span aria-hidden="true">↺<\/span>처음부터 다시 시작하기/);
+test('2026-09-28 「처음부터 다시 시작하기」 공통 동작 하나 — 새 회차(서버가 읽는 시각) + 기기 세션 잊기, Profile·목적은 지우지 않음, 곧바로 ECHO 첫 대화 화면', async () => {
+  const hook = await read('src/doit/hooks/useRestartConversation.ts');
+  assert.match(hook, /const failure = await startNewRound\(userId\);\n\s*if \(failure\) \{ setError\(failure\); return failure; \}\n\s*navigate\('\/doit\/conversation', \{ state: \{ \[FRESH_ROUND_STATE\]: Date\.now\(\) \}/, '실제 초기화가 성공한 뒤에만 이동(가짜 초기화 금지)');
+  const round = await read('src/doit/lib/conversationRound.ts');
+  assert.match(round, /supabase\.auth\.updateUser\(\{ data: \{ \[ROUND_KEY\]: startedAt \} \}\)/);
+  assert.match(round, /forgetAgentSession\(userId\);/);
+  assert.doesNotMatch(round, /clearPurpose/, 'Profile(목적)은 지우지 않는다');
   const page = await read('src/doit/pages/do-it/conversation/page.tsx');
-  assert.match(page, /useState\(\(\) => search\.get\('restart'\) === '1'\)/);
-  // 한 번 읽고 주소에서 지운다(남으면 다시 시작한 뒤 확인 창이 또 뜬다).
-  assert.match(page, /next\.delete\('restart'\);\s*setSearch\(next, \{ replace: true \}\);/);
-  assert.match(page, /setRestartPrompt\(false\); setOpeningLine\(''\)/);
-  assert.match(page, /restartPrompt=\{restartPrompt\}/);
+  assert.match(page, /const \{ restart \} = useRestartConversation\(userId\);/);
+  assert.match(page, /if \(showOpening\) \{\n\s*return <ConversationOpening /, '새 회차 직후 = ECHO 첫 질문(어떤 만남을 원하세요?)');
+  assert.doesNotMatch(page, /startNewRound|restartPrompt/);
+  // 버튼이 있는 모든 곳이 같은 동작 하나를 쓴다 — 예전 주소(?restart=1)로 가는 링크 0.
+  const button = await read('src/doit/components/feature/RestartConversationButton.tsx');
+  assert.match(button, /useRestartConversation\(userId\)/);
+  assert.match(await read('src/doit/pages/do-it/home/page.tsx'), /\{started && user && <RestartConversationButton userId=\{user\.id\} \/>\}/);
+  assert.match(await read('src/doit/pages/do-it/understanding/page.tsx'), /<RestartConversationButton userId=\{user\.id\} \/>/, '나의 이해 → 한 번 탭');
+  for (const f of ['src/doit/pages/do-it/home/page.tsx', 'src/doit/pages/do-it/understanding/page.tsx', 'src/doit/components/feature/AsleepConnections.tsx', 'src/doit/pages/do-it/conversation/page.tsx', 'src/doit/components/feature/AgentConversation.tsx', 'src/doit/components/feature/CoreConversation.tsx']) {
+    assert.doesNotMatch((await read(f)).replace(/\/\/[^\n]*|\{\/\*[\s\S]*?\*\/\}/g, ''), /to="\/doit\/conversation\?restart=1"/, f);
+  }
 });
 
 test('로그인했다는 이유만으로 대화로 끌려가지 않는다', async () => {

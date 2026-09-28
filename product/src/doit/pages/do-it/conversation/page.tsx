@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/doit/hooks/useAuth';
 import CoreConversation from '@/doit/components/feature/CoreConversation';
 import SymbolLoader from '@/components/SymbolLoader';
@@ -8,7 +8,8 @@ import AgentConversation from '@/doit/components/feature/AgentConversation';
 import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { loadProfile, saveProfileText } from '@/doit/lib/profileSave';
-import { roundStartOf, startNewRound } from '@/doit/lib/conversationRound';
+import { roundStartOf } from '@/doit/lib/conversationRound';
+import { FRESH_ROUND_STATE, useRestartConversation, type FreshRoundState } from '@/doit/hooks/useRestartConversation';
 
 type Purpose = { id: string; label: string };
 type PurposeState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; purpose: Purpose | null };
@@ -18,15 +19,20 @@ type PurposeState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; p
 export default function ConversationPage() {
   const { user, loading } = useAuth();
   const [search, setSearch] = useSearchParams();
-  // v14.3 앱 홈의 「처음부터 다시 시작하기」(?restart=1): 한 번만 읽고 주소에서 지운다.
-  // 남겨 두면 다시 시작한 뒤 화면이 바뀔 때마다 확인 창이 또 뜬다.
-  const [restartPrompt, setRestartPrompt] = useState(() => search.get('restart') === '1');
   const navigate = useNavigate();
+  // 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 모든 「처음부터 다시」 버튼은 useRestartConversation 하나를 쓴다.
+  // 새 회차를 연 뒤 이 화면으로 오면서 표시(freshRound)를 남긴다 → 목적을 지우지 않고도 ECHO 첫 질문(어떤 만남을 원하세요?)부터 보인다.
+  const location = useLocation();
+  const freshRound = (location.state as FreshRoundState | null)?.[FRESH_ROUND_STATE] ?? null;
+  const [openedRound, setOpenedRound] = useState<number | null>(null);
+  const showOpening = freshRound !== null && openedRound !== freshRound;
   const [purposeState, setPurposeState] = useState<PurposeState>({ kind: 'loading' });
   const [openingLine, setOpeningLine] = useState('');
   const userId = user?.id ?? null;
+  const { restart } = useRestartConversation(userId);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  // 예전 주소(?restart=1)는 더 이상 쓰지 않는다 — 남아 있으면 조용히 지운다(주소만으로는 아무것도 초기화하지 않음).
   useEffect(() => {
     if (!search.has('restart')) return;
     const next = new URLSearchParams(search);
@@ -52,9 +58,13 @@ export default function ConversationPage() {
 
   const onContinue = () => navigate('/doit/start-journey?edit=profile');
   if (!A_STRUCTURE_SERVER_ENABLED) return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} />;
+  // 처음부터 다시(새 회차) 직후: 저장된 목적은 그대로 두고 ECHO 첫 질문부터 보인다. 고르면 그 목적이 이번 회차의 첫 답이 된다.
+  if (showOpening) {
+    return <ConversationOpening key={`${user.id}:fresh:${freshRound}`} userId={user.id} onDone={(purpose, line) => { setOpenedRound(freshRound); setOpeningLine(line); setPurposeState({ kind: 'ready', purpose }); navigate('/doit/conversation', { replace: true, state: null }); }} />;
+  }
   if (purposeState.kind === 'loading') return <div className="echo-dialogue echo-dialogue--pastel echo-dialogue--waiting"><SymbolLoader size={132} label="지난번에 고른 만남을 가져오고 있어요." /></div>;
   if (purposeState.kind === 'ready' && purposeState.purpose === null) {
-    return <ConversationOpening key={user.id} userId={user.id} onDone={(purpose, line) => { setRestartPrompt(false); setOpeningLine(line); setPurposeState({ kind: 'ready', purpose }); }} />;
+    return <ConversationOpening key={user.id} userId={user.id} onDone={(purpose, line) => { setOpeningLine(line); setPurposeState({ kind: 'ready', purpose }); }} />;
   }
   const purposeLabel = purposeState.kind === 'ready' ? purposeState.purpose?.label ?? null : null;
 
@@ -66,20 +76,12 @@ export default function ConversationPage() {
     return saveProfileText(user.id, { nickname: profile?.nickname ?? '', intro: text, region: profile?.region ?? '', lifeRhythm: profile?.lifeRhythm ?? '' });
   };
 
-  // v13.4 "처음부터 다시": 새 회차 시각을 남기고 목적을 비운다 → 첫 질문(목적 타일)부터 다시. 지난 기록은 화면 아래 "이전 회차"에서 다시 볼 수 있다.
-  const restart = async (): Promise<string | null> => {
-    const failure = await startNewRound(user.id);
-    if (failure) return failure;
-    if (alive.current) { setRestartPrompt(false); setOpeningLine(''); setPurposeState({ kind: 'ready', purpose: null }); }
-    return null;
-  };
-
   // ECHO Conversation Agent(2026-09-25 대표 FINAL): 고른 만남과 한 줄이 첫 질문의 답이다. 그 뒤는 서버(doit-agent)가 다섯 목적 안에서 묻는다.
   if (ECHO_AGENT_ENABLED) {
     const firstAnswer = purposeLabel ? (openingLine.trim() ? `${purposeLabel}. ${openingLine.trim()}` : purposeLabel) : null;
     const goal = purposeState.kind === 'ready' ? purposeState.purpose : null;
-    return <AgentConversation key={`${user.id}:${roundStartOf(user) ?? ''}`} userId={user.id} firstAnswer={firstAnswer} purposeLabel={purposeLabel} goal={goal} onRestart={restart} onContinue={onContinue} restartPrompt={restartPrompt} />;
+    return <AgentConversation key={`${user.id}:${roundStartOf(user) ?? ''}`} userId={user.id} firstAnswer={firstAnswer} purposeLabel={purposeLabel} goal={goal} onRestart={restart} onContinue={onContinue} />;
   }
 
-  return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} autoQuestion purposeLabel={purposeLabel} initialMessage={openingLine || undefined} onUseDraft={useDraft} roundStartedAt={roundStartOf(user)} onRestart={restart} restartPrompt={restartPrompt} />;
+  return <CoreConversation key={user.id} userId={user.id} onContinue={onContinue} autoQuestion purposeLabel={purposeLabel} initialMessage={openingLine || undefined} onUseDraft={useDraft} roundStartedAt={roundStartOf(user)} onRestart={restart} />;
 }

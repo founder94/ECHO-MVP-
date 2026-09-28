@@ -59,3 +59,5 @@
 .doit-understanding-past>summary{min-height:44px;display:flex;align-items:center;gap:6px;cursor:pointer;color:#fff;font-size:15px;text-decoration:underline;text-underline-offset:4px}
 .doit-understanding-past-note{margin:6px 0 4px;font-size:13px;line-height:1.7;color:#fff}
 .doit-understanding-source>summary{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.doit-understanding-page button.doit-restart-pill{font-family:inherit;cursor:pointer}
+.doit-understanding-page button.doit-restart-pill:disabled{opacity:.6;cursor:default}

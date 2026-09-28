@@ -13,3 +13,6 @@
 .doit-asleep-next .doit-asleep-next-title{margin:0 0 18px;font-size:22px;line-height:1.4;font-weight:600;color:#f2f3f5;word-break:keep-all}
 .doit-asleep-next .doit-product-action{margin:0}
 .doit-asleep-check--small li{padding:7px 0;font-size:12.5px}.doit-asleep-check--small li>strong{font-size:12.5px}
+/* 2026-09-28 「처음부터 다시 답하기」 칸: 주소 이동이 아니라 공통 동작(새 회차)을 부르는 버튼 — 옆 칸 링크와 같은 모양 */
+.doit-asleep-check .doit-asleep-link-button{padding:0;border:0;background:none;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.doit-asleep-check .doit-asleep-link-button:disabled{opacity:.6;cursor:default}
