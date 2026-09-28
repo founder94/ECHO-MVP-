@@ -7,20 +7,23 @@ export interface ReleaseLine { name: string; where: string; version: string; sta
 
 export const RELEASE_RECORD = {
   recordedAt: '2026-09-28',
-  source: 'FINAL COMPLETION REPORT (PR #12 · commit 146e2af)',
+  source: 'FINAL MVP IMPLEMENTATION REPORT (PR #16 · 앱·브랜드·관리자 빌드 commit 9325695) · Netlify QA 자동배포',
   lines: [
-    { name: '모바일 앱(ECHO)', where: 'app.do-it.company', version: '확인 필요', state: '운영 판 번호를 읽는 연결 없음' },
-    { name: '모바일 앱 QA', where: 'thriving-melba (QA)', version: '4ba37ce(올라가 있음) · 146e2af(올릴 판)', state: '새 판 업로드 대기' },
-    { name: 'ECHO 대화 서버', where: 'QA 서버', version: 'echo-agent-v2.4.1', state: 'QA 배포됨' },
-    { name: 'ECHO 대화 서버', where: '운영 서버', version: '확인 필요', state: '운영 배포 안 함(대표 GO 전)' },
-    { name: '브랜딩 홈페이지', where: 'do-it.company', version: '확인 필요', state: 'QA 사이트 없음' },
-    { name: '관리자 페이지', where: 'admin.do-it.company', version: '이 화면의 빌드', state: '운영 연결 안 함(대표 GO 전)' },
+    { name: '모바일 앱(ECHO)', where: 'app.do-it.company', version: '확인 필요', state: '운영 판 번호를 읽는 연결 없음 · 운영 배포 안 함(대표 GO 전)' },
+    { name: '모바일 앱 QA', where: 'echo-app-qa.netlify.app', version: '9325695', state: 'QA 배포' },
+    { name: '브랜딩 홈페이지 QA', where: 'echo-brand-qa.netlify.app', version: '9325695', state: 'QA 배포' },
+    { name: '관리자 페이지 QA', where: 'echo-admin-qa.netlify.app', version: '이 화면의 빌드', state: 'QA 배포' },
+    { name: 'ECHO 대화·연결 서버', where: 'QA 서버', version: 'echo-agent-v2.4.1 · doit-connect v2.0', state: 'QA 배포됨' },
+    { name: 'ECHO 대화·연결 서버', where: '운영 서버', version: '확인 필요', state: '운영 배포 안 함(대표 GO 전)' },
+    { name: '브랜딩 홈페이지', where: 'do-it.company', version: '확인 필요', state: '운영 배포 안 함(대표 GO 전)' },
+    { name: '관리자 페이지', where: 'admin.do-it.company', version: '—', state: '운영 연결 안 함(대표 GO 전)' },
   ] as ReleaseLine[],
   gates: [
     { name: 'QA 자동검사(실제 AI 80회)', gate: 'PASS' as Gate, note: '80/80 · 오류 0' },
+    { name: 'QA 관통(후보·상호선택·연결·결과)', gate: 'PASS' as Gate, note: '45/45 · 실제 QA 서버' },
     { name: 'Chrome · WebKit', gate: 'PASS' as Gate, note: 'iPhone · Galaxy 크기' },
-    { name: '실기기 iPhone', gate: 'HOLD' as Gate, note: '새 앱 판 업로드 전' },
-    { name: '실기기 Galaxy', gate: 'HOLD' as Gate, note: '새 앱 판 업로드 전' },
+    { name: '실기기 iPhone', gate: 'HOLD' as Gate, note: 'QA 사이트에서 대표 확인 전' },
+    { name: '실기기 Galaxy', gate: 'HOLD' as Gate, note: 'QA 사이트에서 대표 확인 전' },
     { name: '운영 확인', gate: 'HOLD' as Gate, note: '운영 배포 전' },
   ],
 };
