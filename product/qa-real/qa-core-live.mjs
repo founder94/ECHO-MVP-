@@ -69,6 +69,27 @@ check('세션 격리: 다른 사용자가 이 세션에 쓰기 0', bTurn.status 
 const aAfter = await agent(A.jwt, { action: 'agent_get', sessionId: sid });
 check('세션 격리: A 세션에 B 의 글 0', !(aAfter.data?.session?.messages ?? []).some((m) => m.text === '다른 사람이 끼어들기'));
 
+// ⑤ 같은 계정 목적 세션 격리 · 말 종류 규칙(모르겠어 · 목적 방향 정정 · 질문 피로) — 새 계정 C
+const C = await account('c');
+const turn = (sessionId, text) => agent(C.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId, text });
+const fr = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'friend', goalLabel: '친구', firstAnswer: '친구를 만나고 싶어요' });
+const fid = fr.data?.session?.id;
+const hb = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'hobby', goalLabel: '취미', firstAnswer: '같이 등산할 사람을 찾아요' });
+const hid = hb.data?.session?.id;
+check('목적 격리: 같은 계정 다른 목적 = 다른 세션', !!fid && !!hid && fid !== hid && hb.data?.session?.goal === 'hobby' && fr.data?.session?.goal === 'friend', `friend=${fid?.slice(0, 8)} hobby=${hid?.slice(0, 8)} goals=${fr.data?.session?.goal}/${hb.data?.session?.goal}`);
+const again = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'friend', goalLabel: '친구', firstAnswer: '친구를 만나고 싶어요' });
+check('목적 격리: 친구 목적으로 다시 시작하면 원래 친구 세션(새로 안 만듦 · 취미 세션 안 섞임)', again.data?.session?.id === fid && again.data?.existing === true, `id=${again.data?.session?.id?.slice(0, 8)} existing=${again.data?.existing}`);
+const u = await turn(fid, '잘 모르겠어요');
+check("「잘 모르겠어요」 = 모르겠다(unsure) · 사실로 저장 0", u.status === 200 && u.data?.turn?.kind === 'unsure' && u.data?.turn?.saved === false, `status=${u.status} kind=${u.data?.turn?.kind} saved=${u.data?.turn?.saved}`);
+const gm = await turn(fid, '연애 질문 아니야 친구 찾는 거야');
+check('목적 방향 정정 = 항의(repair) · 저장 0', gm.status === 200 && gm.data?.turn?.kind === 'repair' && gm.data?.turn?.saved === false, `status=${gm.status} kind=${gm.data?.turn?.kind} saved=${gm.data?.turn?.saved}`);
+const fa = await turn(fid, '질문이 너무 많아요');
+check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repair', 'stop'].includes(fa.data?.turn?.kind) && fa.data?.turn?.saved === false, `status=${fa.status} kind=${fa.data?.turn?.kind} saved=${fa.data?.turn?.saved}`);
+const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
+const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
+check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
+check('서버 판 = echo-agent-v2.4.2', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.2' || s?.profile?.version === 'echo-agent-v2.4.2', `version=${s?.profile?.version ?? '-'}`);
+
 const fail = results.filter((x) => !x).length;
 console.log(`QA CORE LIVE: ${results.length - fail} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
