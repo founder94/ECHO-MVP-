@@ -80,7 +80,8 @@ function load(state) {
   return { call: async (body, { auth = true } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
 }
 
-const T = (o) => ({ kind: 'answer', understood: '', reply: '그렇군요.', extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'none', purpose: '', question: '' }, ...o });
+const T = (o) => ({ kind: 'answer', understood: '', reply: '알겠어요.', // v2.4: 「그렇군요」는 상담 말투라 서버가 다시 청한다(대표 §8)
+   extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'none', purpose: '', question: '' }, ...o });
 const Q = (purpose, question) => ({ next: { type: 'core', purpose, question } });
 const X = (purpose, note, quote) => ({ purpose, note, quote });
 const newState = (role = 'user') => ({ tables: { profiles: [{ id: ID.user, role: 'user', nickname: '나' }, { id: ID.admin, role: 'admin', nickname: '관리' }] }, ai: [], aiCalls: [], authUser: { id: role === 'admin' ? ID.admin : ID.user, user_metadata: {} } });
@@ -600,4 +601,19 @@ test('v2.4 매칭 프로필에 세션 목적(goal)이 붙는다 · 예전 세션
   assert.equal(A.matchingProfile(A.newState({ goal: 'romantic' })).goal, 'romantic');
   const old = A.newState(); delete old.goal;
   assert.equal(A.matchingProfile(old).goal, 'open');
+});
+
+test('v2.4 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장은 뺌 · 「잘 모르겠어」에 같은 질문 되풀이 0', () => {
+  const A = load(newState()).agent;
+  assert.equal(A.tidyReply('그렇군요. 그럼 편하게 이어지는 게 더 중요하겠네요.', '친구는 얼마나 자주 봐요?'), '그럼 편하게 이어지는 게 더 중요하겠네요.');
+  assert.equal(A.tidyReply('친구 얘기로 할게요. 친구와 어떤 활동을 함께 하고 싶으신가요.', '친구와 어떤 활동을 함께 하고 싶으신가요?'), '친구 얘기로 할게요.');
+  const st = A.newState({ goal: 'romantic' }); A.seedFirstQuestion(st);
+  const base = { understood: '', reply: '괜찮아요.', inferred: [], declared: null, wrong: [] };
+  A.applyTurn(st, '연애', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '연애', quote: '연애' }], next: { type: 'core', purpose: 'values_character', question: '연애에서 어떤 가치관을 중요하게 생각하세요?' } });
+  const same = { ...base, kind: 'help', extracted: [], next: { type: 'core', purpose: 'values_character', question: '연애에서 어떤 가치관을 중요하게 생각하세요?' } };
+  assert.equal(A.retryReason(st, same, ['values_character'], false, '잘 모르겠어'), 'help_same');
+  const r = A.applyTurn(st, '잘 모르겠어', same);
+  assert.notEqual(r.question, '연애에서 어떤 가치관을 중요하게 생각하세요?', '같은 질문을 되풀이하지 않는다');
+  assert.equal(st.slots.values_character.status, 'SKIPPED'); assert.equal(r.saved, false);
+  assert.equal(A.retryReason(st, { ...base, kind: 'answer', reply: '그런 소통 방식이 중요하군요.', extracted: [], next: { type: 'none', purpose: '', question: '' } }, [], false, '의견이 다르면 바로 얘기해요'), 'counsel_tone');
 });
