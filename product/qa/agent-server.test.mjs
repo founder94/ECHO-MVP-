@@ -617,3 +617,15 @@ test('v2.4 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀�
   assert.equal(st.slots.values_character.status, 'SKIPPED'); assert.equal(r.saved, false);
   assert.equal(A.retryReason(st, { ...base, kind: 'answer', reply: '그런 소통 방식이 중요하군요.', extracted: [], next: { type: 'none', purpose: '', question: '' } }, [], false, '의견이 다르면 바로 얘기해요'), 'counsel_tone');
 });
+
+test('v2.4 「잘 모르겠어」를 AI 가 묻는 말(ask)로 읽어도 같은 질문을 다시 보이지 않는다(unsure · 저장 0)', () => {
+  const A = load(newState()).agent;
+  assert.deepEqual({ ...A.guardKind('잘 모르겠어', 'ask') }, { kind: 'unsure', rule: 'unsure_only' });
+  assert.deepEqual({ ...A.guardKind('글쎄요', 'answer') }, { kind: 'unsure', rule: 'unsure_only' });
+  assert.equal(A.guardKind('잘 모르겠는데 어떤 걸 말하면 돼?', 'ask').kind, 'ask');
+  const st = A.newState({ goal: 'colleague' }); A.seedFirstQuestion(st);
+  const base = { understood: '', reply: '괜찮아요.', inferred: [], declared: null, wrong: [] };
+  A.applyTurn(st, '앱 같이 만들 사람', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '앱 협업', quote: '앱 같이 만들 사람' }], next: { type: 'core', purpose: 'values_character', question: '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?' } });
+  const r = A.applyTurn(st, '잘 모르겠어', { ...base, kind: 'ask', extracted: [], next: { type: 'core', purpose: 'values_character', question: '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?' } });
+  assert.notEqual(r.question, '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?'); assert.equal(r.saved, false);
+});
