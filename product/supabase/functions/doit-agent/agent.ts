@@ -132,7 +132,7 @@ const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은
 // v2.4 「잘 모르겠어」「글쎄」만 한 말은 묻는 말(ask)이 아니다 — 같은 질문을 다시 보이지 않고 모르겠다(unsure)로(저장 0 · 다음 칸으로).
 const UNSURE_ONLY = /^\s*(음+\s*)?(잘\s*)?(모르겠(어|어요|다|네|네요|는데|는데요)|몰라(요)?|글쎄(요)?)\s*[.!~…ㅠㅜ]*\s*$/;
 export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
-  if ((kind === "ask" || kind === "answer") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" };
+  if ((kind === "ask" || kind === "answer" || kind === "help") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
@@ -520,7 +520,9 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   const pending = out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) ? st.current : null;
   // 「예를 들면?」: 같은 목적을 더 쉽게 다시 묻는다(질문 수 0 · 저장 0). 질문마다 MAX_HELP_PER_QUESTION 번까지.
   // v2.4: 다시 묻는 질문이 방금 질문과 거의 같으면(「잘 모르겠어」에 같은 질문 되풀이) 다시 보이지 않고 이 칸을 넘긴다(억지 성향 저장 0).
-  const helpSame = out.kind === "help" && !!st.current && !!out.next.question && dice(bare(st.current.text), bare(out.next.question)) >= SIMILAR_Q;
+  // 다시 보일 문장(같은 목적의 새 질문이 없으면 지금 질문 그대로)이 방금 질문과 거의 같으면 되풀이로 본다.
+  const helpQ = out.kind === "help" && st.current && out.next.question && (out.next.purpose === st.current.purpose || !open.includes(out.next.purpose)) ? out.next.question : null;
+  const helpSame = out.kind === "help" && !!st.current && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION && (!helpQ || dice(bare(st.current.text), bare(helpQ)) >= SIMILAR_Q);
   if (helpSame && st.current && st.slots[st.current.purpose].status === "UNKNOWN") { st.slots[st.current.purpose].status = "SKIPPED"; turn.dropped = "help_same"; }
   const helping = out.kind === "help" && !helpSame && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION ? st.current : null;
   if (st.phase === "talk" && out.kind !== "stop" && !opts.limitReached && !disputeAsk) {

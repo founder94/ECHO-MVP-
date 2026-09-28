@@ -614,7 +614,7 @@ test('v2.4 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀�
   assert.equal(A.retryReason(st, same, ['values_character'], false, '잘 모르겠어'), 'help_same');
   const r = A.applyTurn(st, '잘 모르겠어', same);
   assert.notEqual(r.question, '연애에서 어떤 가치관을 중요하게 생각하세요?', '같은 질문을 되풀이하지 않는다');
-  assert.equal(st.slots.values_character.status, 'SKIPPED'); assert.equal(r.saved, false);
+  assert.notEqual(st.slots.values_character.status, 'CONFIRMED'); assert.equal(r.saved, false);
   assert.equal(A.retryReason(st, { ...base, kind: 'answer', reply: '그런 소통 방식이 중요하군요.', extracted: [], next: { type: 'none', purpose: '', question: '' } }, [], false, '의견이 다르면 바로 얘기해요'), 'counsel_tone');
 });
 
@@ -628,4 +628,23 @@ test('v2.4 「잘 모르겠어」를 AI 가 묻는 말(ask)로 읽어도 같은 
   A.applyTurn(st, '앱 같이 만들 사람', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '앱 협업', quote: '앱 같이 만들 사람' }], next: { type: 'core', purpose: 'values_character', question: '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?' } });
   const r = A.applyTurn(st, '잘 모르겠어', { ...base, kind: 'ask', extracted: [], next: { type: 'core', purpose: 'values_character', question: '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?' } });
   assert.notEqual(r.question, '앱 개발할 때 가장 중요하게 생각하는 점은 무엇인가요?'); assert.equal(r.saved, false);
+});
+
+test('v2.4 「잘 모르겠어」를 AI 가 help 로 읽거나 새 질문 없이 help 를 내도 같은 질문을 다시 보이지 않는다(실제 AI run gu)', () => {
+  const A = load(newState()).agent;
+  assert.deepEqual({ ...A.guardKind('잘 모르겠어', 'help') }, { kind: 'unsure', rule: 'unsure_only' });
+  assert.equal(A.guardKind('어렵네', 'help').kind, 'help');
+  const base = { understood: '', reply: '괜찮아요.', inferred: [], declared: null, wrong: [] };
+  const Q = '일할 때 어떤 점이 가장 중요하다고 생각하세요?';
+  const mk = () => { const st = A.newState({ goal: 'colleague' }); A.seedFirstQuestion(st);
+    A.applyTurn(st, '사이드 프로젝트', { ...base, kind: 'answer', extracted: [{ purpose: 'relationship_intent', note: '사이드 프로젝트', quote: '사이드 프로젝트' }], next: { type: 'core', purpose: 'values_character', question: Q } }); return st; };
+  const st1 = mk();
+  const r1 = A.applyTurn(st1, '잘 모르겠어', { ...base, kind: 'help', extracted: [], next: { type: 'core', purpose: 'values_character', question: Q } });
+  assert.notEqual(r1.question, Q); assert.equal(r1.saved, false);
+  // 「어렵네」에 AI 가 다시 물을 문장을 안 줬거나 다른 목적 질문을 줬으면 지금 질문을 그대로 되풀이하지 않는다.
+  for (const next of [{ type: 'core', purpose: 'values_character', question: '' }, { type: 'core', purpose: 'boundaries', question: '같이 일할 때 피하고 싶은 건 뭐예요?' }]) {
+    const st = mk();
+    const r = A.applyTurn(st, '어렵네', { ...base, kind: 'help', extracted: [], next });
+    assert.notEqual(r.question, Q);
+  }
 });
