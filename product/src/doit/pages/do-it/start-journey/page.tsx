@@ -568,6 +568,12 @@ export default function StartJourney() {
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
+    // 2026-09-28 Real-State Replay: 대화 상태를 읽기 전(약 1초) 「대화 시작하기」가 잠깐 보였다가 바뀌었다 → 읽는 동안은 틀린 버튼을 그리지 않는다.
+    if (ECHO_AGENT_ENABLED && user && agentSession === undefined) {
+      return <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+        <p className="echo-lead" role="status">지난 대화를 확인하고 있어요…</p>
+        <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button></section>;
+    }
     return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
       <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}

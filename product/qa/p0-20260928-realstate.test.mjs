@@ -67,6 +67,11 @@ test('실제 상태(GF-98): 대화를 시작·완료한 사용자가 오는 star
   const choice = page.slice(page.indexOf('if (step === "conversation-choice")'), page.indexOf('if (step === "profile-build")'));
   assert.match(choice, /대화 다시 보기/, '대표가 본 화면(사진과 소개 채우기 · 대화 다시 보기 · 홈으로)');
   assert.match(choice, /\{\(talkDone \|\| answered > 0\) && user && <RestartConversationButton userId=\{user\.id\} className="echo-restart-pill" \/>\}/);
+  // Real-State Replay 에서 찾은 것: 서버 상태를 읽기 전 「대화 시작하기」가 잠깐 보였다 → 읽는 동안에는 행동 버튼 0(홈으로만).
+  const loading = choice.slice(choice.indexOf('agentSession === undefined'), choice.indexOf('</section>;') + 11);
+  assert.match(loading, /지난 대화를 확인하고 있어요/);
+  assert.doesNotMatch(loading, /대화 시작하기|사진과 소개|RestartConversationButton/);
+  assert.ok(choice.indexOf('agentSession === undefined') < choice.indexOf('"대화 시작하기"'), '읽는 중 분기가 버튼보다 먼저');
   // 사용자가 도달하는 화면 목록(대화를 시작한 뒤): 모두 공통 버튼을 쓴다.
   for (const f of ['src/doit/pages/do-it/home/page.tsx', 'src/doit/pages/do-it/understanding/page.tsx', 'src/doit/pages/do-it/start-journey/page.tsx']) assert.match(read(f), /<RestartConversationButton /, f);
   assert.match(read('src/doit/components/feature/AsleepConnections.tsx'), /useRestartConversation\(userId\)/);
