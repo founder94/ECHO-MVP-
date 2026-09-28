@@ -1,6 +1,6 @@
 // ECHO-QA 실제 AI 검사(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 §18·§22) — QA 프로젝트 전용 · 비밀값 출력 0.
 // friend 20 · romantic 20 · colleague 20 · 같은 계정 두 세션(friend+romantic 동시) 20. 모든 대화는 배포된 doit-agent(실제 AI)로.
-// 판정은 서버 상태(admin_session)와 화면에 보인 글(질문·받아주기·정리·마무리·소개)만으로 한다. 사용자 역할 말은 시나리오별 고정 목록(사람 역할) — 질문은 AI 가 만든다.
+// 판정은 사용자에게 보인 것(세션 목적·턴 종류·저장 여부)과 화면에 보인 글(질문·받아주기·정리·마무리·소개)만으로 한다. 사용자 역할 말은 시나리오별 고정 목록(사람 역할) — 질문은 AI 가 만든다.
 import { createHash, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 const { QA_REF, QA_ANON, QA_PW_SEED, N = '20', PREFIX = 'g', OUT } = process.env;
@@ -16,10 +16,7 @@ async function http(path, { method = 'GET', jwt = null, body = null } = {}) {
   }
 }
 const login = async (email, password) => (await http('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } })).data?.access_token ?? null;
-const adminJwt = await login('qa-admin-20260927-r4@do-it.company', pw('r4', 'admin'));
-if (!adminJwt) { console.error('관리자 로그인 실패'); process.exit(3); }
 const fn = (jwt, body) => http('/functions/v1/doit-agent', { method: 'POST', jwt, body: { requestId: randomUUID(), ...body } });
-const stored = async (sid) => (await fn(adminJwt, { action: 'admin_session', sessionId: sid })).data?.session?.stored;
 
 const ROMANCE = /연애|연인|애인|이상형|설레|설렘|호감|끌리|끌림|썸\s*타|데이트|결혼|교제|스킨십/;
 const FRIEND_GOAL = /친구\s*(사이|관계)|친구를\s*(원|만나|찾|사귀)|친구로\s*(지내|만나)|친구\s*같은\s*사이/;
@@ -40,7 +37,7 @@ async function converse(jwt, goal, run, special, extraOpening = '') {
   const first = `${GOAL_LABEL[goal]}${extraOpening}`;
   const st0 = await fn(jwt, { action: 'agent_start', tone: 'polite', mode: 'TEXT', goal, goalLabel: GOAL_LABEL[goal], firstAnswer: first });
   if (st0.status !== 200 || !st0.data?.session?.id) throw new Error(`start ${st0.status} ${st0.data?.code ?? ''}`);
-  const sid = st0.data.session.id; const log = []; let sess = st0.data.session; let k = 0;
+  const sid = st0.data.session.id; const log = []; let sess = st0.data.session; let k = 0; const firstQ = sess.current_question;
   const lines = LINES[goal]; let turn = 0;
   while (sess.phase === 'talk' && turn < 8) {
     turn++;
@@ -52,35 +49,31 @@ async function converse(jwt, goal, run, special, extraOpening = '') {
     const before = sess.current_question;
     const r = await fn(jwt, { action: 'agent_turn', sessionId: sid, text });
     if (r.status !== 200) throw new Error(`turn ${r.status} ${r.data?.code ?? ''}`);
-    sess = r.data.session; log.push({ q: before, user: text, kind: r.data.turn.kind, reply: r.data.turn.reply, next: r.data.turn.question });
+    sess = r.data.session; log.push({ q: before, user: text, kind: r.data.turn.kind, saved: r.data.turn.saved, reply: r.data.turn.reply, next: r.data.turn.question });
   }
-  return { sid, log, sess };
+  return { sid, log, sess, firstQ };
 }
 
-function judge(goal, S, log, special) {
-  const st = S.state; const asked = st.asked.map((a) => a.text);
+// 판정은 사용자에게 보인 것(질문·받아주기·정리·마무리·소개 · 세션 목적 · 턴 종류/저장 여부)만으로 한다(관리자 권한 0).
+function judge(goal, sess, log, special, firstQ) {
+  const asked = [firstQ, ...log.map((l) => l.next)].filter(Boolean);
   const shown = [...asked, ...log.map((l) => l.reply)].filter(Boolean);
   const residue = shown.filter((t) => RESIDUE[goal].test(t));
   const dup = []; for (let i = 0; i < asked.length; i++) for (let j = i + 1; j < asked.length; j++) if (dice(bare(asked[i]), bare(asked[j])) >= 0.55) dup.push([asked[i], asked[j]]);
-  const summaryTexts = [...(st.summary ?? []).map((x) => x.text), st.closing ?? '', ...(st.intro?.lines ?? []).map((l) => l.text)];
+  const summaryTexts = [...(sess.summary ?? []).map((x) => x.text), sess.closing ?? '', sess.intro?.text ?? ''];
   const summaryResidue = summaryTexts.filter((t) => t && RESIDUE[goal].test(t));
   const counsel = log.filter((l) => l.reply && COUNSEL.test(l.reply)).map((l) => l.reply);
   const emptyAck = log.filter((l) => l.kind === 'answer' && !l.reply).length;
   let correctionOk = null;
-  if (special === 'correction') {
-    const t = st.turns.find((x) => x.user === SPECIAL.correction[goal]);
-    const nextQ = t?.question ?? null;
-    correctionOk = !!t && t.kind === 'repair' && !t.saved && !!nextQ && t.question_purpose !== (st.asked.find((a) => a.text === nextQ)?.purpose) && !RESIDUE[goal].test(nextQ ?? '');
-  }
+  if (special === 'correction') { const l = log.find((x) => x.user === SPECIAL.correction[goal]); correctionOk = !!l && l.kind === 'repair' && !l.saved && !!l.next && dice(bare(l.q), bare(l.next)) < 0.55 && !RESIDUE[goal].test(l.next) && !RESIDUE[goal].test(l.reply ?? ''); }
   let repeatOk = null;
-  if (special === 'repeat') { const t = st.turns.find((x) => x.user === SPECIAL.repeat); repeatOk = !!t && t.kind === 'repair' && !t.saved && (!t.question || !asked.slice(0, asked.indexOf(t.question)).some((a) => dice(bare(a), bare(t.question)) >= 0.55)); }
+  if (special === 'repeat') { const k = log.findIndex((x) => x.user === SPECIAL.repeat); const l = log[k]; repeatOk = !!l && l.kind === 'repair' && !l.saved && (!l.next || ![firstQ, ...log.slice(0, k).map((x) => x.next)].filter(Boolean).some((a) => dice(bare(a), bare(l.next)) >= 0.55)); }
   let unsureOk = null;
-  if (special === 'unsure') { const t = st.turns.find((x) => x.user === SPECIAL.unsure); unsureOk = !!t && !t.saved; }
-  // 방금 답과 이어지는 질문(참고 지표): 다음 질문이 방금 답의 두 글자 묶음을 하나 이상 가짐
+  if (special === 'unsure') { const l = log.find((x) => x.user === SPECIAL.unsure); unsureOk = !!l && !l.saved; }
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
-  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || st.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || st.phase === 'talk';
-  return { goal_saved: st.goal, questions: asked.length, finished: st.phase !== 'talk', decision: st.turns.at(-1)?.decision, residue, dup, summary_residue: summaryResidue, counsel, empty_ack: emptyAck,
-    correction_ok: correctionOk, repeat_ok: repeatOk, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean) };
+  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
+  return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, empty_ack: emptyAck,
+    correction_ok: correctionOk, repeat_ok: repeatOk, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
 
 async function signup(run) {
@@ -92,19 +85,20 @@ const specials = ['none', 'correction', 'unsure', 'repeat', 'none'];
 async function single(goal, k) {
   const run = `${PREFIX}${goal[0]}${String(k).padStart(2, '0')}`; const jwt = await signup(run); if (!jwt) return { run, goal, error: 'signup' };
   const special = specials[k % specials.length];
-  const { sid, log } = await converse(jwt, goal, run, special);
-  const S = await stored(sid);
-  return { run, goal, special, ...judge(goal, S, log, special) };
+  const { log, sess, firstQ } = await converse(jwt, goal, run, special);
+  return { run, goal, special, ...judge(goal, sess, log, special, firstQ) };
 }
 async function dual(k) {
   const run = `${PREFIX}d${String(k).padStart(2, '0')}`; const jwt = await signup(run); if (!jwt) return { run, goal: 'dual', error: 'signup' };
   // 같은 계정 두 기기: 동시에 시작(친구 · 연애)
   const [A, B] = await Promise.all([converse(jwt, 'friend', run, 'none'), converse(jwt, 'romantic', run, 'none')]);
-  const [SA, SB] = await Promise.all([stored(A.sid), stored(B.sid)]);
-  const ja = judge('friend', SA, A.log, 'none'), jb = judge('romantic', SB, B.log, 'none');
-  const aUser = SA.state.turns.map((t) => t.user).join('|'), bUser = SB.state.turns.map((t) => t.user).join('|');
-  const cross = LINES.romantic.some((l) => aUser.includes(l)) || LINES.friend.some((l) => bUser.includes(l)) || A.sid === B.sid;
-  const profCross = (SA.profile?.goal && SA.profile.goal !== 'friend') || (SB.profile?.goal && SB.profile.goal !== 'romantic');
+  // 각 기기가 다시 불러올 때도 자기 세션(기억한 id)만 받는다
+  const [GA, GB] = await Promise.all([fn(jwt, { action: 'agent_get', sessionId: A.sid }), fn(jwt, { action: 'agent_get', sessionId: B.sid })]);
+  const SA = GA.data?.session, SB = GB.data?.session;
+  const ja = judge('friend', SA, A.log, 'none', A.firstQ), jb = judge('romantic', SB, B.log, 'none', B.firstQ);
+  const aUser = SA.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|'), bUser = SB.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
+  const cross = LINES.romantic.some((l) => aUser.includes(l)) || LINES.friend.some((l) => bUser.includes(l)) || A.sid === B.sid || SA.id !== A.sid || SB.id !== B.sid;
+  const profCross = SA.profile?.goal !== 'friend' || SB.profile?.goal !== 'romantic';
   return { run, goal: 'dual', same_session: A.sid === B.sid, cross_state: cross, profile_goal_cross: !!profCross, friend: ja, romantic: jb, fail: cross || !!profCross || ja.fail || jb.fail };
 }
 
