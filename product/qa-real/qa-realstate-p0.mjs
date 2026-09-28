@@ -46,6 +46,8 @@ for (const [bname, type, dname, opts] of DEVICES) {
   await ctx.addInitScript(([key, value]) => { try { localStorage.setItem(key, value); sessionStorage.setItem('doit_intro_seen', '1'); } catch { /* 무시 */ } }, [`sb-${QA_REF}-auth-token`, JSON.stringify(session)]);
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 100)));
+  const agentNet = []; p.on('response', async (x) => { if (!x.url().includes('/functions/v1/doit-agent')) return; let t = ''; try { t = await x.text(); } catch { /* 무시 */ } let act = ''; try { act = JSON.parse(x.request().postData() || '{}').action ?? ''; } catch { /* 무시 */ } const code = (t.match(/"(?:code|error)"\s*:\s*"([^"]{0,40})"/) || [])[1] ?? ''; agentNet.push(`${x.status()} ${act} ${code} phase=${(t.match(/"phase"\s*:\s*"(\w+)"/) || [])[1] ?? '-'} intro=${(t.match(/"intro"\s*:\s*\{"status"\s*:\s*"(\w+)"/) || [])[1] ?? '-'}`); });
+  const dump = async (label) => { const txt = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400); const btns = await p.locator('button').allInnerTexts().catch(() => []); console.log(`  DIAG ${label}: url=${new URL(p.url()).pathname}${new URL(p.url()).search} text="${txt}" buttons=${JSON.stringify(btns.map((x) => x.trim()).filter(Boolean).slice(0, 12))} agent=${JSON.stringify(agentNet.slice(-6))}`); };
 
   // ── ③ 버튼 시스템: 대표가 본 소개 쓰기 화면의 실제 계산된 색 ──
   await p.goto(`${APP}/doit/start-journey?edit=profile`, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -58,6 +60,7 @@ for (const [bname, type, dname, opts] of DEVICES) {
     await ai.click().catch(() => {});
     const swap = p.getByRole('button', { name: '이 글로 바꾸기' });
     const shown = await swap.waitFor({ timeout: 45000 }).then(() => true).catch(() => false);
+    if (!shown) await dump(`${tag} AI 초안`);
     const swapStyle = shown ? await css(swap) : null;
     check(`${tag}: 「이 글로 바꾸기」 = 유리(불투명 금색 0 · 흰 글자)`, !!swapStyle && alphaOf(swapStyle.bg) <= 0.3 && swapStyle.color === 'rgb(255, 255, 255)', JSON.stringify(swapStyle ?? 'AI 초안 안 나옴'));
   }
@@ -83,6 +86,7 @@ for (const [bname, type, dname, opts] of DEVICES) {
   await p.goto(`${APP}/doit/start-journey`, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await p.getByRole('heading', { name: /무엇부터 할까요/ }).waitFor({ timeout: 30000 }).catch(() => {});
   const same = await p.getByRole('button', { name: '대화 다시 보기' }).isVisible().catch(() => false);
+  if (!(same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false))) await dump(`${tag} 대표 화면`);
   check(`${tag}: 대표가 본 화면과 같은 상태(사진과 소개 채우기 · 대화 다시 보기 · 홈으로)`, same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false), `path=${new URL(p.url()).pathname}`);
   const restart = p.getByRole('button', { name: /처음부터 다시 시작하기/ });
   await restart.scrollIntoViewIfNeeded().catch(() => {});
