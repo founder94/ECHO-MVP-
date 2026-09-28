@@ -352,6 +352,15 @@ jobs:
           cd qa-real && npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
           QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" ADMIN_BASE=$BASE ADMIN_EMAIL=qa-adminweb-20260928@do-it.company ADMIN_ACCT=adminweb USER_EMAIL=qa-userweb-20260928@do-it.company USER_ACCT=userweb node admin-web-check.mjs
 
+      - name: 앱·브랜드 실사이트 검사(배포된 echo-app-qa · echo-brand-qa · 로그인 없음 · 읽기 전용 · Chrome·WebKit 390/1280)
+        if: always() && inputs.mode == 'qa_admin_live'
+        working-directory: product/qa-real
+        run: |
+          set -euo pipefail
+          for u in https://echo-app-qa.netlify.app https://echo-brand-qa.netlify.app; do echo "LIVE $u index sha16=$(curl -s $u/ | sha256sum | cut -c1-16)"; done
+          [ -d node_modules/playwright ] || { npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1; }
+          node live-sites-probe.mjs
+
       - name: 실제 AI 목적·세션 검사(friend·romantic·colleague·같은 계정 두 세션 각 20 · QA 전용)
         if: inputs.mode == 'qa_goal_runs'
         working-directory: product
