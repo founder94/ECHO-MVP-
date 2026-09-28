@@ -7,6 +7,7 @@ const agent = readFileSync(new URL('../supabase/functions/doit-agent/agent.ts', 
 const server = readFileSync(new URL('../supabase/functions/doit-agent/index.ts', import.meta.url), 'utf8');
 const fi = readFileSync(new URL('../supabase/functions/doit-agent/failure-intelligence.ts', import.meta.url), 'utf8');
 const workflow = readFileSync(new URL('../../.github/workflows/echo-netlify-deploy.yml', import.meta.url), 'utf8');
+const releaseLock = readFileSync(new URL('../docs/ECHO_RELEASE_VALIDATION_STRUCTURE_FINAL_LOCK_2026-09-28.md', import.meta.url), 'utf8');
 
 const P0 = [
   'direction_lock',
@@ -62,4 +63,18 @@ test('release workflow keeps PROD and QA separated', () => {
 
 test('Failure Intelligence is internal quality state, never a user fact', () => {
   assert.match(fi, /never user\/profile\/matching facts/i);
+});
+
+
+test('release validation structure keeps CEO as final approver, not technical tester', () => {
+  assert.match(releaseLock, /대표는 테스트 담당자가 아니다/);
+  assert.match(releaseLock, /Claude = 구현/);
+  assert.match(releaseLock, /ChatGPT = 기준\/상태\/서버\/운영 검수/);
+  assert.match(releaseLock, /Codex = 반대검수\/릴리스 게이트/);
+  assert.match(releaseLock, /CEO FINAL FEEL CHECK/);
+});
+
+test('paid deploys remain gated and push does not publish QA', () => {
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(workflow, /github\.event\.inputs\.go == 'GO'/);
 });
