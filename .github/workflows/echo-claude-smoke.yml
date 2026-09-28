@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -232,11 +232,11 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C: doit-agent · doit-connect = PR #12 최신본(146e2af · 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 Agent v2.4.0)과 글자까지 같아야 함
-          git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "146e2af" ] || { echo "FAIL: PR #12 head 가 검사본(146e2af)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
-          git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 검사본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect = PR #12 146e2af 와 동일"
+          # B·C·D: doit-agent · doit-connect · admin-web = ADMIN WEB 브랜치 검사본(82ba3d9 · PR #12 146e2af + 2026-09-28 대표 「ADMIN WEB」)과 글자까지 같아야 함
+          git fetch -q --depth=1 origin claude/echo-admin-web-20260928
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "82ba3d9" ] || { echo "FAIL: ADMIN WEB 브랜치 head 가 검사본(82ba3d9)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect product/supabase/functions/admin-web || { echo "FAIL: 함수가 검사본과 다름"; exit 1; }
+          echo "OK: doit-agent · doit-connect · admin-web = 82ba3d9 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true
@@ -245,9 +245,11 @@ jobs:
           [ "$(wc -l < "$C")" = "$(( $(wc -l < product/qa-deploy/prod-v29/doit-understanding.index.ts) + 1 ))" ] || { echo "FAIL: 줄 수가 운영 v29 + 1 이 아님(미배포 코드 혼입 의심)"; exit 1; }
           echo "OK: 운영 v29 대비 변경 = 승인 1줄(전화 인증 조건 제거 + 주석) · v1.1 흔적 0"
           mkdir -p stage/supabase/functions
-          cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
+          cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect product/supabase/functions/admin-web stage/supabase/functions/
+          grep -q 'ADMIN_WEB_VERSION = "admin-web-v1.0.0"' stage/supabase/functions/admin-web/index.ts || { echo "FAIL: admin-web 판 불일치"; exit 1; }
+          if grep -nE '\.(insert|update|upsert|delete)\(' stage/supabase/functions/admin-web/index.ts; then echo "FAIL: admin-web 에 쓰기 코드"; exit 1; fi
           mkdir -p stage/supabase/functions/doit-understanding && cp "$C" stage/supabase/functions/doit-understanding/index.ts
-          printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
+          printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n\n[functions.admin-web]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
           grep -q 'export const AGENT_VERSION = "echo-agent-v2.4.1"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
           grep -q 'presented' stage/supabase/functions/doit-agent/agent.ts && grep -q 'DISPUTED' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: 모호한 거절 규칙 없음"; exit 1; }
           ( cd stage && find supabase/functions -name '*.ts' -exec sha256sum {} \; | sort -k2 )
@@ -264,7 +266,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          for f in doit-agent doit-connect doit-understanding; do
+          for f in doit-agent doit-connect doit-understanding admin-web; do
             supabase functions deploy "$f" --project-ref "$QA_PROJECT_ID" --use-api
           done
 
@@ -292,7 +294,7 @@ jobs:
           echo "대상 ref = $QA_PROJECT_ID"
 
       - uses: actions/setup-node@v4
-        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_full_test' || inputs.mode == 'qa_goal_runs'
+        if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_full_test' || inputs.mode == 'qa_goal_runs' || inputs.mode == 'qa_admin_check'
         with:
           node-version: '22'
 
@@ -313,6 +315,28 @@ jobs:
           echo "qa-live phase=$QA_PHASE exit=$code"
           if [ -f ../qa-live-result.json ]; then echo "::group::qa-live-result.json"; cat ../qa-live-result.json; echo; echo "::endgroup::"; fi
           exit $code
+
+      - name: ADMIN WEB 검사(QA 전용 · 관리자 빌드를 러너 안에서 띄움 · 서버 401/403/200 · Chrome·WebKit 390/1280)
+        if: inputs.mode == 'qa_admin_check'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          ADMIN_SHA: 82ba3d91553e4edd69cf988845c9356c1aeff297
+        run: |
+          set -euo pipefail
+          QA_PW_SEED=$(printf 'echo-qa:%s' "$SUPABASE_ACCESS_TOKEN" | sha256sum | cut -c1-40); echo "::add-mask::$QA_PW_SEED"
+          git fetch -q --depth=1 origin "$ADMIN_SHA" && git worktree add -q ../adm "$ADMIN_SHA"
+          ( cd ../adm/product && npm ci --silent >/dev/null 2>&1 && VITE_PUBLIC_SUPABASE_URL="https://$QA_PROJECT_ID.supabase.co" VITE_PUBLIC_SUPABASE_ANON_KEY="$QA_ANON" VITE_SITE_ROLE=admin VITE_BUILD_COMMIT="${ADMIN_SHA:0:7}" npx vite build --outDir "$GITHUB_WORKSPACE/dist-admin" --emptyOutDir > /tmp/admin-build.log 2>&1 )
+          echo "ADMIN BUILD ${ADMIN_SHA:0:7} · index sha16=$(sha256sum dist-admin/index.html | cut -c1-16) · files=$(find dist-admin -type f | wc -l) · maps=$(find dist-admin -name '*.map' | wc -l)"
+          cd product
+          QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" node qa-real/admin-web-setup.mjs
+          # QA 검사용 관리자 계정 한 개만 관리자 역할로(QA ref · 이 메일 한 줄만). 운영 ref 는 위 안전 잠금이 막는다.
+          Q='{"query":"update public.profiles set role = '"'"'admin'"'"' where email = '"'"'qa-adminweb-20260928@do-it.company'"'"' returning id"}'
+          st=$(curl -s -o /tmp/q.json -w '%{http_code}' -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' "https://api.supabase.com/v1/projects/$QA_PROJECT_ID/database/query" -d "$Q")
+          echo "QA 관리자 역할 지정: HTTP $st · 줄 $(jq 'length' /tmp/q.json 2>/dev/null)"; rm -f /tmp/q.json
+          unset SUPABASE_ACCESS_TOKEN
+          (node qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-admin" 8790 &) ; sleep 1
+          cd qa-real && npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
+          QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" ADMIN_BASE=http://localhost:8790 ADMIN_EMAIL=qa-adminweb-20260928@do-it.company ADMIN_ACCT=adminweb USER_EMAIL=qa-userweb-20260928@do-it.company USER_ACCT=userweb node admin-web-check.mjs
 
       - name: 실제 AI 목적·세션 검사(friend·romantic·colleague·같은 계정 두 세션 각 20 · QA 전용)
         if: inputs.mode == 'qa_goal_runs'
