@@ -82,11 +82,13 @@ function judge(goal, sess, log, special, firstQ) {
 async function signup(run) {
   // 계정 후보: 이번 접두어 → 앞선 검사 접두어(gc · gb) 순으로 로그인(가입 속도 제한 회피). 같은 번호 = 같은 목적의 한 작업만 쓰므로 세션이 겹치지 않는다.
   let jwt = null; let acct = run; let email = ''; let password = '';
-  for (const pre of [ACCOUNT_PREFIX, 'gc', 'gb', 'gd', 'ge']) {
+  for (const pre of [...new Set([ACCOUNT_PREFIX, PREFIX, 'gc', 'gb', 'gd', 'ge', 'gu', 'gf', 'gg', 'gh'])]) {
     acct = run.replace(new RegExp(`^${PREFIX}`), pre); email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
     jwt = await login(email, password); if (jwt) break;
   }
-  if (!jwt) { const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); }
+  // 새 가입은 이번 접두어 이름으로. 가입 속도 제한(429)이면 기다렸다 두 번까지 다시(검사 계정 부족으로 run 이 빠지지 않게).
+  if (!jwt) { acct = run; email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
+    for (let t = 0; t < 3 && !jwt; t++) { if (t) await new Promise((ok) => setTimeout(ok, 70000)); const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); } }
   if (!jwt) return null;
   const up = await http('/auth/v1/user', { method: 'PUT', jwt, body: { data: { doit_round_started_at: new Date(Date.now() + 1000).toISOString() } } });
   if (up.status !== 200) return null;
