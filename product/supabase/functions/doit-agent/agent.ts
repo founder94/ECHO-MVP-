@@ -85,6 +85,10 @@ export const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어�
 // 방금 답에서 이어지는 질문인지(재시도 신호만 · 질문을 버리지 않는다): 답의 낱말 앞 두 글자 중 흔한 말을 뺀 것이 질문에 하나라도 있으면 이어진 것으로 본다.
 const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나"]);
 export function anchorWords(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).filter((w) => /^[가-힣A-Za-z]{2,}/.test(w)).map((w) => w.slice(0, 2)).filter((w) => !ANCHOR_STOP.has(w)))]; }
+// 받아주기가 사용자 말을 거의 그대로 옮긴 것인지(대표 §7 「사용자의 문장 그대로 복사 금지」).
+// 기준: 사용자 말의 두 글자 조각 중 65% 이상이 받아주기 한 문장에 그대로 있으면 옮긴 것으로 본다(실제 AI run gh 「한 달에 두세 번 편하게 보는 게 좋다고 하셨네요」 0.67).
+export const ACK_COPY = 0.65;
+export const ackCopies = (reply: string, latest: string) => { const b = bare(latest); if (b.length < 6) return false; const U = pairs(b); return sentences(reply).some((x) => { const R = pairs(bare(x)); let n = 0; for (const p of U) if (R.has(p)) n++; return n / U.size >= ACK_COPY; }); };
 export const anchored = (latest: string, question: string) => { const ws = anchorWords(latest); return ws.length < 2 || ws.some((w) => question.includes(w)); };
 const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()).filter(Boolean);
 // 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
@@ -708,6 +712,7 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   goal_residue: "reply 나 next.question 에 이 대화의 목적(session_goal)과 다른 목적의 말(avoid_words)이 들어갔다. 이 목적에 맞는 말로 새로 쓴다.",
   counsel_tone: "reply 에 상담사 말투(「그렇군요」「중요하군요」「힘드셨겠어요」「들려주실 수 있을까요」)가 있었다. 들은 뜻을 한 걸음 정리하는 짧은 한 문장으로 새로 쓴다.",
   help_same: "사용자가 잘 모르겠다고 했는데 next.question 이 방금 질문과 거의 같다. 같은 질문을 되풀이하지 말고, 더 쉬운 다른 방식(예: 두 가지 중 고르기처럼 가볍게)으로 묻는다.",
+  ack_copy: "reply 가 사용자 말을 거의 그대로 옮겼다. 들은 말을 되풀이하지 말고, 그 말에서 뜻 하나를 한 걸음 정리한 짧은 한 문장으로 쓴다(예: 「한 달에 두세 번 편하게 보는 정도가 좋아」 → 「자주보다는 부담 없이 이어지는 쪽이 편하네요」).",
   empty_ack: "reply 가 비었거나 질문뿐이었다. reply 에는 방금 들은 말에서 뜻 하나를 짚는 짧은 받아주기 한 문장(질문 아님)을 쓰고, 질문은 next.question 에만 쓴다.",
   not_anchored: "next.question 이 방금 답(latest)과 이어지지 않는다. 방금 답에서 뜻 하나(예: 답에 나온 장소·활동·빈도·일)를 잡아, 그 말을 넣어 그 옆으로 한 걸음 가는 질문으로 새로 쓴다(예: 「술보다 카페에서 얘기하는 게 좋아」 → 「깊은 얘기까지 하는 친구가 좋아요, 가볍게 웃고 떠드는 쪽이 좋아요?」). 칸 순서보다 방금 답과 이어지는 것이 먼저다.",
   goal_axis: "사용자가 질문의 방향이 목적과 다르다고 했다. 방금 질문(current_question)의 틀과 칸을 버리고, 이 목적(session_goal)의 다른 칸(open_purposes)을 방금 말에 이어서 묻는다.",
@@ -721,6 +726,7 @@ export function retryReasons(st: AgentState, out: Parsed, left: string[], after:
     if (first !== "reply_question" && (/[?？]/.test(out.reply) || sentences(out.reply).some((x) => ASKS.test(x)))) all.push("reply_question");
     if (first !== "counsel_tone" && COUNSEL.test(out.reply)) all.push("counsel_tone");
     if (first !== "empty_ack" && emptyAck(out)) all.push("empty_ack");
+    if (first !== "ack_copy" && out.kind === "answer" && ackCopies(out.reply, latest)) all.push("ack_copy");
     if (first !== "not_anchored" && out.kind === "answer" && out.next.question && !anchored(latest, out.next.question)) all.push("not_anchored");
   }
   return all;
@@ -742,6 +748,7 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";
   if (!out.next.question && left.length && coreAsked(st).length < MAX_CORE_QUESTIONS) return "no_question";
   if (emptyAck(out)) return "empty_ack";
+  if (out.kind === "answer" && ackCopies(out.reply, latest)) return "ack_copy";
   if (out.kind === "answer" && out.next.question && !anchored(latest, out.next.question)) return "not_anchored";
   return "";
 }
@@ -791,8 +798,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     const left = openPurposes(st).filter((id) => !parsed.extracted.some((e) => e.purpose === id));
     const last = i + 1 >= MAX_CALLS_PER_TURN;
     const whys = retryReasons(st, parsed, left, after, text); const why = whys[0] ?? "";
-    { const t = tidyReply(parsed.reply.replace(/[?？]/g, "."), parsed.next.question || null); if (t && !ackBackup && !goalResidue(st, t) && !BANNED_WORDS.test(t) && !leaksId(t)) ackBackup = t; }
-    if (why && !last) { obs.retry.push(...whys); previous = { why: whys.map((w) => RETRY_FEEDBACK[w]).join(" ") }; continue; }
+    { const t = tidyReply(parsed.reply.replace(/[?？]/g, "."), parsed.next.question || null); if (t && !ackBackup && !ackCopies(t, text) && !goalResidue(st, t) && !BANNED_WORDS.test(t) && !leaksId(t)) ackBackup = t; }
+    if (why && !last) { obs.retry.push(...whys); const words = whys.includes("not_anchored") ? ` 방금 답의 낱말: ${anchorWords(text).slice(0, 5).join(", ")} — 이 중 하나를 next.question 에 넣어, 아직 안 물은 칸(open_purposes)을 그 말에 이어서 묻는다.` : ""; previous = { why: whys.map((w) => RETRY_FEEDBACK[w]).join(" ") + words }; continue; }
     if (why) obs.retry.push(`${why}:kept`); // 두 번째도 같으면 그대로 두고 기록만 한다(대화를 멈추지 않는다)
     break;
   }
@@ -800,7 +807,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
   if (out.kind === "correction") out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
-  if (!after && out.kind === "answer" && !tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null) && ackBackup) out = { ...out, reply: ackBackup };
+  if (!after && out.kind === "answer" && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, text)) out = { ...out, reply: ackBackup }; }
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;
