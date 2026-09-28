@@ -14,6 +14,7 @@ export const LEGAL_DRAFT = true;
 export const LEGAL_DRAFT_NOTICE =
   '이 문서는 2026-09-21 기준 초안입니다(2026-09-24 사람 연결 내용 추가 · 2026-09-26 지금 제공하지 않는 기능 표시 정리). 대표 검토를 거쳐 확정되며, 확정 전 내용은 바뀔 수 있습니다.';
 
+declare const __QA_BUILD__: boolean;
 export const COMPANY = {
   name: 'DO IT COMPANY (두잇컴퍼니)',
   representative: '박진욱',
@@ -21,7 +22,7 @@ export const COMPANY = {
   registrationNumber: '[대표 입력: 사업자등록번호]',
   address: '[대표 입력: 사업장 주소]',
   serviceName: 'ECHO · DO IT',
-  siteUrl: import.meta.env?.VITE_QA_BUILD ? (import.meta.env.VITE_BRAND_ORIGIN || window.location.origin) : 'https://do-it.company',
+  siteUrl: typeof __QA_BUILD__ !== 'undefined' && __QA_BUILD__ ? window.location.origin : 'https://do-it.company',
 } as const;
 
 export interface LegalSection {
