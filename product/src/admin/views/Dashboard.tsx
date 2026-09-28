@@ -61,6 +61,7 @@ export default function Dashboard({ go }: { go: (menu: string) => void }) {
                   {decisions.length ? <ol>{decisions.map((x) => <li key={x}>{x}</li>)}</ol> : <p className="aw-muted">지금 결정할 일 없음</p>}
                 </div>
               </div>
+              {d.quality_sample ? <Notice kind="확인 필요">대화 품질 숫자는 이 기간의 최근 대화 {d.quality_sample.toLocaleString('ko-KR')}개 기준입니다(대화 시작·완료 수는 전체).</Notice> : null}
               {d.truncated ? <Notice kind="확인 필요">읽은 줄이 상한(2만 줄)을 넘어 일부 숫자가 작게 보일 수 있습니다.</Notice> : null}
             </Section>
 

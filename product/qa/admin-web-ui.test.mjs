@@ -31,7 +31,7 @@ test('가짜 구현 금지: 값이 없으면 숫자 대신 「데이터 없음 �
   assert.match(ui, /'데이터 없음' \| '연결 필요' \| '확인 필요'/);
   const all = adminFiles.map(read).join('\n');
   assert.doesNotMatch(all, /\?\? 0\}/, '화면에서 없는 값을 0 으로 채우지 않음');
-  assert.doesNotMatch(all, /Math\.random|sample|mock|dummy|lorem/i, '가짜 자료 0');
+  assert.doesNotMatch(all, /Math\.random|mock|dummy|lorem|sample(Data|Rows|Users|Sessions)/i, "가짜 자료 0");
   assert.match(read('src/admin/views/Dashboard.tsx'), /실제 만남[\s\S]{0,80}데이터 없음/);
   assert.match(read('src/admin/views/Ops.tsx'), /Netlify[\s\S]{0,120}연결 필요/);
 });

@@ -28,7 +28,7 @@ export type Level = '정상' | '주의' | '오류';
 export type QualityKey = 'repeat' | 'goal_mismatch' | 'counsel' | 'correction_ignored' | 'unsure_repeat' | 'summary_mismatch';
 
 export interface Overview {
-  asOf: string; period: Period; since: string; server: string; truncated: boolean; errors: string[];
+  asOf: string; period: Period; since: string; server: string; truncated: boolean; quality_sample: number | null; errors: string[];
   health: { level: Level; reasons: string[] };
   users: { total: number | null; signups: number | null; active: number | null; conversations_started: number | null; conversations_done: number | null; intro_saved: number | null };
   ai: { turns: number | null; failed: number | null; ok_sessions: number | null; corrections: number | null; correction_not_saved: number | null; profile_save_failed: number | null;

@@ -26,17 +26,31 @@ const json = (data: unknown, status = 200, origin: string | null = null) =>
 const fail = (code: string, message: string, status: number, origin: string | null) => json({ ok: false, code, message }, status, origin);
 
 // 여러 쪽으로 나눠 읽는다. 표가 없거나 읽지 못하면 error 를 돌려준다(0 으로 바꾸지 않는다).
-async function readAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<{ rows: T[]; error: string | null; truncated: boolean }> {
+async function readAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>, cap = ROW_CAP): Promise<{ rows: T[]; error: string | null; truncated: boolean }> {
   const rows: T[] = [];
-  for (let from = 0; from < ROW_CAP; from += PAGE) {
+  for (let from = 0; from < cap; from += PAGE) {
     const { data, error } = await build(from, from + PAGE - 1);
     if (error) return { rows, error: String((error as { code?: string; message?: string }).code ?? (error as { message?: string }).message ?? "error"), truncated: false };
     const got = (data ?? []) as T[];
     rows.push(...got);
-    if (got.length < PAGE) return { rows, error: null, truncated: false };
+    if (got.length < Math.min(PAGE, cap - from)) return { rows, error: null, truncated: false };
   }
   return { rows, error: null, truncated: true };
 }
+// 세션 줄은 대화 상태 전체가 커서(운영 QA 실측: 30일 1,081개 전체를 읽으면 함수 자원 한도 546) 판정에 쓰는 칸만 골라 읽는다.
+const SESSION_SLIM = "request_id, user_id, created_at, updated_at, agent:response_payload->agent, goal:response_payload->state->goal, goal_label:response_payload->state->goal_label, phase:response_payload->state->phase, asked:response_payload->state->asked, turns:response_payload->state->turns, summary:response_payload->state->summary, closing:response_payload->state->closing, intro:response_payload->state->intro";
+type SlimRow = L.SessionRowIn & { agent?: string; goal?: string; goal_label?: string; phase?: string; asked?: unknown; turns?: unknown; summary?: unknown; closing?: unknown; intro?: unknown };
+// 가짜 DB(검사)는 전체 줄을, 실제 서버는 골라 읽은 칸을 준다 — 둘 다 같은 모양으로.
+function unslim(r: SlimRow): L.SessionRowIn {
+  if (r.response_payload) return r;
+  const state = { goal: r.goal, goal_label: r.goal_label, phase: r.phase, asked: r.asked ?? [], turns: r.turns ?? [], summary: r.summary ?? [], closing: r.closing ?? null, intro: r.intro ?? null, slots: {}, inferred: [] } as unknown as AgentState;
+  return { request_id: r.request_id, user_id: r.user_id, created_at: r.created_at, updated_at: r.updated_at, response_payload: { agent: r.agent, state } };
+}
+const TURN_SLIM = "user_id, target_id, created_at, status, kind:response_payload->record->>kind, agent:response_payload->record->>agent, saved:response_payload->record->saved, record_error:response_payload->record->>record_error";
+type TurnSlim = L.TurnRowIn & { kind?: string; agent?: string; saved?: boolean; record_error?: string | null };
+function unslimTurn(t: TurnSlim): L.TurnRowIn { return t.response_payload ? t : { ...t, response_payload: { record: { kind: t.kind, agent: t.agent, saved: t.saved, record_error: t.record_error } } }; }
+export const SESSION_SAMPLE = 600; // 대시보드 품질 판정에 쓰는 최근 대화 수(넘으면 「최근 N개 기준」으로 알린다)
+
 async function countOf(admin: Db, table: string): Promise<{ n: number | null; error: string | null }> {
   const { count, error } = await admin.from(table).select("*", { count: "exact", head: true });
   return error ? { n: null, error: String((error as { code?: string }).code ?? "error") } : { n: count ?? 0, error: null };
@@ -83,8 +97,8 @@ export async function handle(req: Request, env: { url: string; anon: string; ser
     if (action === "overview") {
       const [profiles, sessions, turns, events, reports, blocks, matches, google] = await Promise.all([
         readAll<Profile>((a, b) => admin.from("profiles").select("id, role, created_at, bio").range(a, b)),
-        readAll<L.SessionRowIn>((a, b) => admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, response_payload").eq("action", "agent_session").gte("updated_at", since).range(a, b)),
-        readAll<L.TurnRowIn>((a, b) => admin.from("doit_request_events").select("user_id, target_id, created_at, status, response_payload").eq("action", "agent_turn").gte("created_at", since).range(a, b)),
+        readAll<SlimRow>((a, b) => admin.from("doit_request_events").select(SESSION_SLIM).eq("action", "agent_session").gte("updated_at", since).order("updated_at", { ascending: false }).range(a, b), SESSION_SAMPLE),
+        readAll<TurnSlim>((a, b) => admin.from("doit_request_events").select(TURN_SLIM).eq("action", "agent_turn").gte("created_at", since).range(a, b)),
         readAll<{ user_id: string }>((a, b) => admin.from("doit_request_events").select("user_id").gte("created_at", since).range(a, b)),
         readAll<Report>((a, b) => admin.from("user_reports").select("id, reason, status, created_at").range(a, b)),
         readAll<Block>((a, b) => admin.from("blocks").select("id, created_at").range(a, b)),
@@ -93,6 +107,10 @@ export async function handle(req: Request, env: { url: string; anon: string; ser
       ]);
       const dataErrors = [["사용자", profiles], ["대화", sessions], ["대화 기록", turns], ["활동", events], ["신고", reports], ["차단", blocks], ["연결", matches]]
         .filter(([, r]) => (r as { error: string | null }).error).map(([n]) => n as string);
+      sessions.rows = sessions.rows.map(unslim) as SlimRow[]; turns.rows = turns.rows.map(unslimTurn) as TurnSlim[];
+      // 표본(최근 N개)을 넘으면 시작·완료 수는 표에서 따로 센다(표본 수를 전체처럼 보이지 않게).
+      const { count: startedCount } = sessions.truncated ? await admin.from("doit_request_events").select("*", { count: "exact", head: true }).eq("action", "agent_session").gte("created_at", since) : { count: null };
+      const { count: doneCount } = sessions.truncated ? await admin.from("doit_request_events").select("*", { count: "exact", head: true }).eq("action", "agent_session").gte("created_at", since).neq("response_payload->state->>phase", "talk") : { count: null };
       const people = profiles.rows.filter((p) => p.role !== "admin");
       const started = sessions.rows.filter((s) => s.created_at >= since);
       const sums = sessions.rows.map(L.sessionSummary);
@@ -111,13 +129,13 @@ export async function handle(req: Request, env: { url: string; anon: string; ser
       const health = L.serviceHealth({ turns: turns.rows.length, failedTurns: failedTurns.length, quality: qualityTotal, openReports: openReports.length, severeReports: severe.length, dataErrors });
       return json({
         ok: true, asOf, period, since, server: ADMIN_WEB_VERSION, health,
-        truncated: [profiles, sessions, turns, events].some((r) => r.truncated),
+        truncated: [profiles, turns, events].some((r) => r.truncated), quality_sample: sessions.truncated ? SESSION_SAMPLE : null,
         users: {
           total: profiles.error ? null : people.length,
           signups: profiles.error ? null : people.filter((p) => p.created_at >= since).length,
           active: events.error ? null : new Set(events.rows.map((e) => e.user_id)).size,
-          conversations_started: sessions.error ? null : started.length,
-          conversations_done: sessions.error ? null : started.filter((s) => s.response_payload?.state && s.response_payload.state.phase !== "talk").length,
+          conversations_started: sessions.error ? null : sessions.truncated ? (startedCount ?? null) : started.length,
+          conversations_done: sessions.error ? null : sessions.truncated ? (doneCount ?? null) : started.filter((s) => s.response_payload?.state && s.response_payload.state.phase !== "talk").length,
           intro_saved: profiles.error ? null : people.filter((p) => (p.bio ?? "").trim()).length,
         },
         ai: {
@@ -170,13 +188,14 @@ export async function handle(req: Request, env: { url: string; anon: string; ser
     }
 
     if (action === "sessions") {
-      const s = await readAll<L.SessionRowIn>((a, b) => admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, response_payload").eq("action", "agent_session").gte("updated_at", since).order("updated_at", { ascending: false }).range(a, b));
+      const s = await readAll<SlimRow>((a, b) => admin.from("doit_request_events").select(SESSION_SLIM).eq("action", "agent_session").gte("updated_at", since).order("updated_at", { ascending: false }).range(a, b), SESSION_SAMPLE);
+      s.rows = s.rows.map(unslim) as SlimRow[];
       if (s.error) return fail("DATA_ERROR", "대화 목록을 읽지 못했어요.", 500, origin);
       const ids = [...new Set(s.rows.map((r) => r.user_id))];
       const { data: profs } = ids.length ? await admin.from("profiles").select("id, nickname, display_name").in("id", ids.slice(0, 500)) : { data: [] };
       const nick = new Map(((profs ?? []) as Profile[]).map((p) => [p.id, p.nickname || p.display_name || null]));
       const failedBySession = new Map<string, number>();
-      const t = await readAll<L.TurnRowIn>((a, b) => admin.from("doit_request_events").select("target_id, created_at, status, response_payload").eq("action", "agent_turn").eq("status", "failed").gte("created_at", since).range(a, b));
+      const t = await readAll<L.TurnRowIn>((a, b) => admin.from("doit_request_events").select("target_id, created_at, status").eq("action", "agent_turn").eq("status", "failed").gte("created_at", since).range(a, b));
       for (const x of t.rows) failedBySession.set(x.target_id, (failedBySession.get(x.target_id) ?? 0) + 1);
       let list = s.rows.map((r) => ({ ...L.sessionSummary(r), nickname: nick.get(r.user_id) ?? null, failed_turns: failedBySession.get(r.request_id) ?? 0 }));
       const f = body ?? {};
