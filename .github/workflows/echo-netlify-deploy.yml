@@ -4,13 +4,12 @@
 # - 운영 게이트: 운영(echo-brand-prod · echo-app-prod)은 자동으로 절대 올리지 않는다.
 #            대표가 Actions 에서 직접 실행(target=prod) + go 칸에 GO 입력 + 같은 검사 통과 + 환경 ECHO-PROD 승인(필수 검토자) 일 때만.
 # - 새 사이트 생성 0(사이트 ID 고정 · 모르는 ID 면 중단) · DB/Supabase 변경 0 · 비밀값 출력 0.
-# - 필요한 비밀값: NETLIFY_AUTH_TOKEN(환경 ECHO-QA · ECHO-PROD 각각). 없으면 배포 단계가 이유를 적고 멈춘다(HOLD).
+# - 필요한 비밀값: NETLIFY_AUTH_TOKEN · NETLIFY_{APP,BRAND,ADMIN}_QA_SITE_ID(저장소 Actions Secrets). 없거나 고정 ID 와 다르면 배포하지 않고 멈춘다(HOLD).
 name: echo-netlify-deploy
 
 on:
   push:
     branches: ['echo-qa']
-    paths: ['product/**', '.github/workflows/echo-netlify-deploy.yml']
   workflow_dispatch:
     inputs:
       target:
@@ -142,18 +141,30 @@ jobs:
       - name: 배포(QA 사이트 ID 고정 · 새 사이트 0)
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SECRET_APP: ${{ secrets.NETLIFY_APP_QA_SITE_ID }}
+          SECRET_BRAND: ${{ secrets.NETLIFY_BRAND_QA_SITE_ID }}
+          SECRET_ADMIN: ${{ secrets.NETLIFY_ADMIN_QA_SITE_ID }}
         run: |
           set -euo pipefail
-          [ -n "$NETLIFY_AUTH_TOKEN" ] || { echo "HOLD: 환경 ECHO-QA 에 NETLIFY_AUTH_TOKEN 이 없어 배포하지 않음"; exit 1; }
+          [ -n "$NETLIFY_AUTH_TOKEN" ] || { echo "HOLD: NETLIFY_AUTH_TOKEN 이 없어 배포하지 않음"; exit 1; }
+          # 등록된 사이트 ID 비밀값은 고정 QA ID 와 같아야 한다(값 출력 0 · 같음/다름만)
+          for kv in "APP:$SECRET_APP:$SITE_QA_APP" "BRAND:$SECRET_BRAND:$SITE_QA_BRAND" "ADMIN:$SECRET_ADMIN:$SITE_QA_ADMIN"; do
+            k=${kv%%:*}; rest=${kv#*:}; got=${rest%%:*}; pin=${rest#*:}
+            if [ -z "$got" ]; then echo "INFO NETLIFY_${k}_QA_SITE_ID 비어 있음 → 고정 QA ID 사용"; elif [ "$got" = "$pin" ]; then echo "OK NETLIFY_${k}_QA_SITE_ID = 고정 QA ID"; else echo "HOLD: NETLIFY_${k}_QA_SITE_ID 가 고정 QA ID 와 다름(운영·다른 사이트 배포 방지)"; exit 1; fi
+          done
           for pair in "app:$SITE_QA_APP:echo-app-qa" "brand:$SITE_QA_BRAND:echo-brand-qa" "admin:$SITE_QA_ADMIN:echo-admin-qa"; do
             r=${pair%%:*}; rest=${pair#*:}; site=${rest%%:*}; name=${rest#*:}
             case "$site" in "$SITE_PROD_APP"|"$SITE_PROD_BRAND") echo "FAIL: 운영 사이트를 QA 배포 대상으로 씀"; exit 1;; esac
             printf '[build]\n  publish = "."\n  command = "echo prebuilt"\n' > dist/$r/netlify.toml
-            out=$(cd dist/$r && npx -y $NETLIFY_CLI deploy --dir . --site "$site" --prod --no-build --json --message "echo-qa ${GITHUB_SHA::7} $r" 2>/dev/null)
-            echo "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(`'"$name"' deploy_id=${j.deploy_id} url=${j.url}`)})'
-            live=$(curl -s "https://$name.netlify.app/" | sha256sum | cut -c1-16); want=$(sha256sum dist/$r/index.html | cut -c1-16)
+            if ! (cd dist/$r && npx -y $NETLIFY_CLI deploy --dir . --site "$site" --prod --no-build --json --message "echo-qa ${GITHUB_SHA::7} $r" > /tmp/deploy-$r.json 2> /tmp/deploy-$r.err); then
+              echo "FAIL: $name 배포 실패"; tail -20 /tmp/deploy-$r.err; exit 1
+            fi
+            node -e 'const j=require(process.argv[1]); if(j.site_id!==process.argv[2]||!j.deploy_id){console.log("FAIL site/deploy 불일치");process.exit(1)} console.log(`'"$name"' deploy_id=${j.deploy_id} site_id=${j.site_id}`)' /tmp/deploy-$r.json "$site"
+            want=$(sha256sum dist/$r/index.html | cut -c1-16); live=""
+            for i in 1 2 3 4 5 6; do live=$(curl -s "https://$name.netlify.app/" | sha256sum | cut -c1-16); [ "$live" = "$want" ] && break; sleep 5; done
             [ "$live" = "$want" ] || { echo "FAIL: $name 실사이트 index 가 이번 빌드와 다름($live ≠ $want)"; exit 1; }
-            echo "PASS $name 실사이트 = 이번 빌드(index sha16=$live)"
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$name.netlify.app/")
+            echo "PASS $name 실사이트 열림(HTTP $code) = 이번 빌드(index sha16=$live)"
           done
 
   deploy_prod:
