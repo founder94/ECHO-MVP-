@@ -16,8 +16,9 @@ const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return
 // 2026-09-28 실측(auth.flow_state.referrer): 어떤 redirectTo 를 보내도 QA 는 폐기 주소, 운영은 브랜드 주소로 떨어졌다.
 const MEASURED_QA = { siteUrl: 'https://thriving-melba-b1449a.netlify.app', allowList: ['https://thriving-melba-b1449a.netlify.app/', 'https://thriving-melba-b1449a.netlify.app/auth/callback'] };
 const MEASURED_PROD = { siteUrl: 'https://do-it.company', allowList: ['https://do-it.company/auth/callback'] };
-const TARGET_QA = { siteUrl: 'https://echo-app-qa.netlify.app', allowList: ['https://echo-app-qa.netlify.app/auth/callback', 'https://echo-app-qa.netlify.app/**', 'https://echo-admin-qa.netlify.app/**'] };
-const TARGET_PROD = { siteUrl: 'https://app.do-it.company', allowList: ['https://app.do-it.company/auth/callback', 'https://app.do-it.company/**', 'https://admin.do-it.company/**'] };
+// 변경안 = 실제 호출처 정확한 주소만(AuthContext.oauthRedirectUrl: 현재 주소 + /auth/callback · 앱·관리자 공용). 넓은 와일드카드 없음.
+const TARGET_QA = { siteUrl: 'https://echo-app-qa.netlify.app', allowList: ['https://echo-app-qa.netlify.app/auth/callback', 'https://echo-admin-qa.netlify.app/auth/callback'] };
+const TARGET_PROD = { siteUrl: 'https://app.do-it.company', allowList: ['https://app.do-it.company/auth/callback', 'https://admin.do-it.company/auth/callback'] };
 
 test('Stale Redirect Guard: 실측한 지금 QA 설정(Site URL·허용 목록이 폐기 주소)은 FAIL — 원인 세 가지를 모두 짚는다', () => {
   const p = oauthRedirectProblems(MEASURED_QA, ENVIRONMENTS.qa);
@@ -40,6 +41,12 @@ test('Stale Redirect Guard: 목표 설정(QA·운영)은 PASS · 다른 환경 �
   assert.ok(allowEntryCovers('https://app.do-it.company/**', 'https://app.do-it.company/auth/callback'));
   assert.ok(!allowEntryCovers('https://app.do-it.company/*', 'https://app.do-it.company/a/b'));
   assert.ok(!allowEntryCovers('https://do-it.company/auth/callback', 'https://app.do-it.company/auth/callback'));
+  // 관리자 콜백이 빠지면 FAIL(관리자도 같은 로그인 코드)
+  assert.ok(oauthRedirectProblems({ ...TARGET_QA, allowList: ['https://echo-app-qa.netlify.app/auth/callback'] }, ENVIRONMENTS.qa).some((p) => p.includes('echo-admin-qa.netlify.app/auth/callback')));
+  // 관리자 로그인은 공용 AuthContext 의 redirectTo(현재 주소 + /auth/callback)를 쓰고, 관리자 앱에 /auth/callback 화면이 있다
+  assert.match(read('src/admin/AdminApp.tsx'), /signInWithGoogle\(/);
+  assert.match(read('src/admin/AdminApp.tsx'), /path="\/auth\/callback"/);
+  assert.match(read('src/context/AuthContext.tsx'), /redirectTo: oauthRedirectUrl\(\)/);
 });
 
 test('Stale Redirect Guard: 앱 코드의 redirectTo 는 지금 주소(origin)에서 만든다 — 박아 둔 옛 주소 0', () => {
@@ -165,4 +172,16 @@ test('운영 빌드 주소 잠금: 앱·브랜드·관리자 소스에 QA 주소
   assert.deepEqual(hits, []);
   const rel = read('src/admin/releaseStatus.ts');
   assert.match(rel, /IS_PROD_BUILD \? \[\] :/, 'QA 줄은 QA 빌드에서만');
+});
+
+test('QA 수동게시 비용보호: 고른 곳만 게시(기본 app 1곳) · 잘못된 값은 게시 0 · push 게시 0 · 운영 GO 게이트 유지', () => {
+  const wf = read('../.github/workflows/echo-netlify-deploy.yml');
+  assert.match(wf, /qa_roles:[\s\S]*?default: 'app'/);
+  const job = wf.slice(wf.indexOf('  deploy_qa:'), wf.indexOf('  oauth_guard_qa:'));
+  assert.match(job, /github\.event_name == 'workflow_dispatch'/, 'push 로는 게시 안 함');
+  assert.match(job, /QA_ROLES: \$\{\{ github\.event\.inputs\.qa_roles \|\| 'app' \}\}/);
+  assert.match(job, /\^\(app\|brand\|admin\)\(,\(app\|brand\|admin\)\)\*\$/, '허용 값 외에는 멈춤');
+  assert.match(job, /SKIP \$name — 선택 안 함\(Netlify 호출 0\)"; continue/);
+  assert.ok(job.indexOf('SKIP $name') < job.indexOf('npx -y $NETLIFY_CLI deploy'), '고르지 않은 곳은 배포 명령 전에 건너뜀');
+  assert.match(wf, /github\.event\.inputs\.go == 'GO'/, '운영 GO 게이트');
 });
