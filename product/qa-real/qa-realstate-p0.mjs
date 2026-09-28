@@ -5,12 +5,28 @@
 //  ① 로그인 화면 「Google로 계속하기」 → 실제로 Google 로 나가는지 + 보낸 redirectTo(서버가 받은 값은 러너 밖에서 flow_state 로 대조)
 import { chromium, webkit, devices } from 'playwright';
 import { randomUUID } from 'node:crypto';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join, extname } from 'node:path';
 const QA_REF = 'mutniujeiyujhkobadkd';
 const SB = `https://${QA_REF}.supabase.co`;
 const APP = 'https://echo-app-qa.netlify.app';
 const ANON = process.env.QA_ANON;
 if (!ANON) { console.error('QA_ANON 없음'); process.exit(2); }
 const results = [];
+// LOCAL_DIST: Netlify 게시 없이(비용 0) 이 브랜치의 QA 앱 빌드를 같은 주소(echo-app-qa)로 브라우저에 넣어 실제 렌더를 검사한다.
+//   QA 서버·실제 AI 호출은 그대로 진짜. 판정 등급 = CODE_PASS(로컬 빌드) — 게시된 사이트 LIVE_PASS 와 다르다.
+const LOCAL_DIST = process.env.LOCAL_DIST || '';
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.txt': 'text/plain' };
+const serveLocal = async (ctx) => {
+  if (!LOCAL_DIST) return;
+  await ctx.route(`${APP}/**`, (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname);
+    let file = join(LOCAL_DIST, path);
+    if (!file.startsWith(LOCAL_DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(LOCAL_DIST, 'index.html');
+    return route.fulfill({ status: 200, body: readFileSync(file), headers: { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' } });
+  });
+};
+console.log(LOCAL_DIST ? `MODE CODE_PASS(로컬 빌드 주입 · ${LOCAL_DIST})` : 'MODE LIVE(게시된 QA 사이트)');
 const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
 const http = async (path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) => {
   const r = await fetch(`${SB}${path}`, { method, headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
@@ -43,6 +59,7 @@ for (const [bname, type, dname, opts] of DEVICES) {
 
   const b = await type.launch();
   const ctx = await b.newContext({ ...opts, ...(bname === 'webkit' ? { isMobile: undefined } : {}) });
+  await serveLocal(ctx);
   await ctx.addInitScript(([key, value]) => { try { localStorage.setItem(key, value); sessionStorage.setItem('doit_intro_seen', '1'); } catch { /* 무시 */ } }, [`sb-${QA_REF}-auth-token`, JSON.stringify(session)]);
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 100)));
@@ -120,6 +137,7 @@ for (const [bname, type, dname, opts] of DEVICES) {
 
   // ── ① Google 로그인 시작: 앱이 보내는 redirectTo · 실제로 Google 로 나감 ──
   const ctx2 = await b.newContext({ ...opts, ...(bname === 'webkit' ? { isMobile: undefined } : {}) });
+  await serveLocal(ctx2);
   const p2 = await ctx2.newPage();
   const authorize = []; p2.on('request', (r) => { if (r.url().includes('/auth/v1/authorize')) authorize.push(r.url()); });
   await p2.goto(`${APP}/login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -134,5 +152,5 @@ for (const [bname, type, dname, opts] of DEVICES) {
   await b.close();
 }
 const fail = results.filter((x) => !x).length;
-console.log(`QA REAL-STATE P0 CHECK: ${results.length - fail} PASS / ${fail} FAIL`);
+console.log(`QA REAL-STATE P0 CHECK [${LOCAL_DIST ? 'CODE_PASS 기준 · 로컬 빌드' : 'LIVE'}]: ${results.length - fail} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
