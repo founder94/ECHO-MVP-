@@ -88,3 +88,43 @@ Codex = 반대검수/릴리스 게이트
 그 후에만 CEO FINAL FEEL CHECK를 요청한다.
 
 이 구조는 대표 직접 변경 없이는 해제하거나 약화하지 않는다.
+
+
+## 8. AUTO / STOP execution policy — FINAL LOCK (2026-09-29)
+
+The representative approved automatic continuation for reversible, non-paid QA work.
+
+### AUTO — continue without asking the representative
+- code inspection and implementation inside the approved scope
+- lint / type-check / unit tests / regression tests
+- build and role-separation checks
+- Failure Intelligence checks
+- correction / rejection / session / matching contract verification
+- read-only GitHub / Supabase / Netlify state checks
+- QA Edge Function deploys that do not create external paid hosting usage and are within the already-approved QA scope
+- merge of an explicitly CEO-approved PR into echo-qa when its head SHA and scope are unchanged
+- re-run of non-paid QA checks after a fix
+
+### STOP — require explicit CEO GO
+- any PROD deploy or production traffic switch
+- production DB migration / destructive DB change
+- production Auth configuration change
+- any paid Netlify publish or other action that consumes credits
+- payment / pricing / PG configuration
+- secret rotation that may interrupt service
+- deletion, irreversible data change, or security-sensitive permission escalation
+
+### Reporting rule
+Do not ask the CEO to say “continue” or “approve” for AUTO work.
+Continue until either:
+1. all AUTO gates pass, or
+2. a STOP condition is reached.
+
+At STOP, send one compact request containing:
+- exact action
+- why it is needed
+- expected cost/risk
+- rollback
+- one requested answer: GO or HOLD
+
+This policy may not be weakened without a new direct CEO decision.
