@@ -75,16 +75,16 @@ jobs:
         with:
           sparse-checkout: |
             product/qa-real/melba-render.mjs
-            product/qa-real/results/qa-zip-4ba37ce-melba.sha256
+            product/qa-real/results/qa-zip-4fbe5b4-melba.sha256
       - name: 새 QA 주소 응답·해시 대조(주소당 1회 · 최소 요청)
         env:
           BASE: https://thriving-melba-b1449a.netlify.app
         working-directory: product/qa-real
         run: |
           set +e
-          EXP=results/qa-zip-4ba37ce-melba.sha256
+          EXP=results/qa-zip-4fbe5b4-melba.sha256
           code() { curl -sS -o "$2" --max-time 20 -w '%{http_code}' "$BASE$1"; }
-          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (4ba37ce 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
+          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (4fbe5b4 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
           JS=$(grep -o '/assets/index-[^"]*\.js' idx.html | head -1); CSS=$(grep -o '/assets/index-[^"]*\.css' idx.html | head -1)
           echo "main JS $JS : HTTP $(code "$JS" js.bin)"; echo "CSS $CSS : HTTP $(code "$CSS" css.bin)"
           echo "manifest : HTTP $(code /manifest.webmanifest mf.json) · $(jq -c '{name,short_name,id,start_url,scope,display,icons:[.icons[]|.src+" "+.sizes+" "+.purpose]}' mf.json 2>/dev/null)"
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      RC_SHA: 4ba37ce44024077bc30defa1f0425d8b2bfbd0ac
+      RC_SHA: 4fbe5b45622435c9c1ec8efeb8ee52b62595ba40
       # QA 공개 키(anon · 브라우저에 공개되는 값 · 운영 키 아님)
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
@@ -126,7 +126,6 @@ jobs:
             product/qa-real/wk-diag.mjs
             product/qa-real/brand-render.mjs
             product/qa-real/spa-serve.mjs
-            product/qa-deploy/qa-pwa-label.mjs
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.RC_SHA }}
@@ -141,7 +140,7 @@ jobs:
           [ "$(git rev-parse HEAD)" = "$RC_SHA" ]
           npm ci --silent >/dev/null 2>&1
           VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_BRAND_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../../dist --emptyOutDir > ../../build.log 2>&1
-          node ../../qa/product/qa-deploy/qa-pwa-label.mjs ../../dist
+          # 2026-09-28 §27: QA 표시 붙이기(qa-pwa-label) 없음 — 올릴 ZIP 과 같은 빌드
           echo "RC $RC_SHA · index sha16=$(sha256sum ../../dist/index.html | cut -c1-16) · files=$(find ../../dist -type f | wc -l) · maps=$(find ../../dist -name '*.map' | wc -l)"
       - name: Chrome·WebKit 렌더(iPhone·Galaxy 크기 · 로그인 없음)
         working-directory: qa/product/qa-real
@@ -153,7 +152,7 @@ jobs:
         working-directory: rc/product
         run: |
           set -e
-          VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=brand npx vite build --outDir ../../dist-brand --emptyOutDir > ../../build-brand.log 2>&1
+          VITE_PUBLIC_SUPABASE_URL=https://mutniujeiyujhkobadkd.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_ANON VITE_APP_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_BRAND_ORIGIN=https://thriving-melba-b1449a.netlify.app VITE_SITE_ROLE=brand VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../../dist-brand --emptyOutDir > ../../build-brand.log 2>&1
           echo "BRAND $RC_SHA · index sha16=$(sha256sum ../../dist-brand/index.html | cut -c1-16) · files=$(find ../../dist-brand -type f | wc -l) · maps=$(find ../../dist-brand -name '*.map' | wc -l)"
           (node ../../qa/product/qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-brand" 8773 &) ; sleep 1
           cd ../../qa/product/qa-real && node brand-render.mjs http://localhost:8773
