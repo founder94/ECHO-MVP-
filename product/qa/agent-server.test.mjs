@@ -671,3 +671,19 @@ test('v2.4 방금 답과 이어지지 않는 질문은 한 번 다시 청한다(
   const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
   assert.ok(rec.retry.includes('not_anchored'));
 });
+
+test('v2.4.1 받아주기가 비지 않는다(empty_ack · 앞선 시도의 받아주기) · 「~는군요」→「~네요」 · 「~예요」 받아주기는 남긴다(실제 AI run gg)', async () => {
+  const s = newState(); s.strictAnchor = true; const h = load(s); const A = h.agent;
+  assert.equal(A.tidyReply('그런 소통 방식을 선호하시는군요.', null), '그런 소통 방식을 선호하시네요.');
+  assert.equal(A.tidyReply('한 달에 몇 번 편하게 보는 게 좋다는 거예요.', null), '한 달에 몇 번 편하게 보는 게 좋다는 거예요.');
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
+  // 첫 시도: 받아주기는 좋지만 질문이 답과 안 이어짐 → 둘째: 질문은 이어지지만 받아주기 칸이 질문뿐 → 첫 시도의 받아주기를 쓴다
+  s.ai.push(T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('relationship_style', '친구와 연락은 자주 하시나요?') }),
+    T({ reply: '카페에서 어떤 얘기를 주로 하세요?', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
+  assert.equal(r.body.turn.reply, '카페에서 얘기하는 시간이 편한 쪽이네요.');
+  assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
+  const feedback = s.aiCalls.at(-1).input.previous_attempt.why;
+  assert.ok(feedback.includes('이어지지 않는다'), '다시 청할 때 걸린 이유를 알린다');
+});
