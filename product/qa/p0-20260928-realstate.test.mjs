@@ -157,3 +157,12 @@ test('버튼 시스템 잠금: 사용자가 닿는 앱 화면의 버튼에 Tailw
   assert.deepEqual(hits, []);
   assert.ok(SOLID_TW.test('bg-white') && SOLID_TW.test('bg-[#C9A24B]') && !SOLID_TW.test('bg-white/10'), '반대 검사: 채움 클래스는 잡고 옅은 막은 통과');
 });
+
+test('운영 빌드 주소 잠금: 앱·브랜드·관리자 소스에 QA 주소(netlify.app · QA ref) 글자 0 — 운영 빌드에 섞이면 운영 게이트가 막힌다(관리자 배포 기록표 사례)', () => {
+  const hits = [];
+  const walk = (dir) => { for (const e of readdirSync(new URL(`../${dir}/`, import.meta.url), { withFileTypes: true })) { const p = `${dir}/${e.name}`; if (e.isDirectory()) walk(p); else if (/\.(tsx?|css|html)$/.test(e.name) && /netlify\.app|mutniujeiyujhkobadkd/.test(read(p))) hits.push(p); } };
+  walk('src');
+  assert.deepEqual(hits, []);
+  const rel = read('src/admin/releaseStatus.ts');
+  assert.match(rel, /IS_PROD_BUILD \? \[\] :/, 'QA 줄은 QA 빌드에서만');
+});
