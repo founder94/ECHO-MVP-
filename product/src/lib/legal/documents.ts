@@ -21,7 +21,7 @@ export const COMPANY = {
   registrationNumber: '[대표 입력: 사업자등록번호]',
   address: '[대표 입력: 사업장 주소]',
   serviceName: 'ECHO · DO IT',
-  siteUrl: 'https://do-it.company',
+  siteUrl: import.meta.env?.VITE_QA_BUILD ? (import.meta.env.VITE_BRAND_ORIGIN || window.location.origin) : 'https://do-it.company',
 } as const;
 
 export interface LegalSection {
@@ -48,7 +48,7 @@ export const TERMS_DOCUMENT: LegalDocument = {
     {
       title: '제1조 (목적과 정의)',
       paragraphs: [
-        '"서비스"란 회사가 웹사이트(do-it.company)와 그 하위 화면을 통해 제공하는 AI 자기이해 기록, 관계 이해 리포트, 프로필 준비, 사람 연결, 무료 재미 콘텐츠(준비된 것만 제공 — 사주 결과는 아직 제공하지 않음) 등 일체의 기능을 말합니다.',
+        `"서비스"란 회사가 웹사이트(${COMPANY.siteUrl.replace(/^https?:\/\//, '')})와 그 하위 화면을 통해 제공하는 AI 자기이해 기록, 관계 이해 리포트, 프로필 준비, 사람 연결, 무료 재미 콘텐츠(준비된 것만 제공 — 사주 결과는 아직 제공하지 않음) 등 일체의 기능을 말합니다.`,
         '"회원"이란 이 약관에 동의하고 계정을 만든 사람을 말합니다. "콘텐츠"란 회원이 서비스에 입력한 글·사진·선택값과, 그로부터 AI가 만든 결과물을 말합니다.',
         '서비스는 사람 사이의 잘 맞음을 점치거나, 심리치료·성격검사를 제공하는 서비스가 아닙니다. AI 결과는 회원이 스스로를 이해하는 데 참고하는 정보이며, 의학적·심리학적 진단이나 전문 상담을 대신하지 않습니다. [대표·법무 확인 필요: 이전 초안의 「만남을 주선·중개하는 서비스가 아닙니다」는 사람 연결 기능과 맞지 않아 뺐습니다. 관련 법령상 지위는 법무 검토로 정합니다.]',
         '사람 연결: 회사는 회원이 말한 내용과 고른 만남을 바탕으로, 운영자 확인을 거쳐 같은 만남을 원하는 회원을 이어 줄 수 있습니다. 연결이나 추천은 실제 만남·관계·결과를 보장하지 않으며, 연결 후보가 없을 수도 있습니다.',

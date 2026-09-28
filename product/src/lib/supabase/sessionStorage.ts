@@ -5,7 +5,7 @@
 // - 쿠키를 쓸 수 없는 환경(차단·비대응)이나 다른 호스트(localhost·미리보기 주소)에서는 localStorage 를 그대로 쓴다.
 // - 처음 한 번, 예전 localStorage 세션이 있으면 쿠키로 옮긴 뒤 localStorage 쪽은 지운다(두 곳이 어긋나 유령 로그인이 남지 않게).
 // 보안: 이 쿠키는 HttpOnly 가 아니다(브라우저 JS가 읽어야 한다). 노출 범위는 localStorage 와 같고, 우리 서브도메인끼리만 공유된다.
-export const SHARED_COOKIE_DOMAIN = 'do-it.company';
+export const SHARED_COOKIE_DOMAIN = import.meta.env?.VITE_QA_BUILD ? '' : 'do-it.company';
 const CHUNK_SIZE = 3_000; // 쿠키 이름·속성을 더해도 4KB 안에 들어오는 크기
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 400; // 세션 갱신 토큰 수명보다 길게. 실제 만료는 Supabase 가 정한다.
 const PROBE_KEY = 'doit-cookie-probe';
@@ -18,6 +18,7 @@ export interface SessionStorageAdapter {
 
 // 호스트가 공유 도메인에 속하면 그 도메인을, 아니면 null 을 준다.
 export function sharedCookieDomain(hostname: string): string | null {
+  if (!SHARED_COOKIE_DOMAIN) return null;
   const host = hostname.toLowerCase();
   return host === SHARED_COOKIE_DOMAIN || host.endsWith(`.${SHARED_COOKIE_DOMAIN}`) ? SHARED_COOKIE_DOMAIN : null;
 }

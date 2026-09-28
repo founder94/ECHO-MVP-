@@ -1,0 +1,89 @@
+name: echo-qa-final-deploy
+
+on:
+  push:
+    branches: [codex/echo-qa-device-candidate-20260928]
+
+permissions:
+  contents: read
+
+jobs:
+  qa_app:
+    runs-on: ubuntu-latest
+    environment: echo-qa-app
+    timeout-minutes: 35
+    env:
+      QA_SITE_ID: 2152f690-2d7c-48f9-8cce-d06caea11adf
+      QA_TEAM_ID: 69f5f33a2f2f197d8b507ecc
+      QA_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_PUBLIC_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+      VITE_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+      VITE_APP_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_BRAND_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_AUTH_GOOGLE_ENABLED: 'false'
+      VITE_QA_BUILD: 'true'
+      VITE_QA_HARNESS: 'false'
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - name: Freeze QA destination and credentials
+        env:
+          QA_NETLIFY_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = codex/echo-qa-device-candidate-20260928
+          test "$QA_SITE_ID" = 2152f690-2d7c-48f9-8cce-d06caea11adf
+          test -n "$VITE_PUBLIC_SUPABASE_ANON_KEY" && test -n "$QA_NETLIFY_TOKEN"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run type-check
+      - run: npm run lint
+      - run: node --test qa/*.test.mjs
+      - run: npm run build:app
+      - name: Reject incorrect QA output
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node - <<'JS'
+          const fs = require('fs'), path = require('path');
+          const dir = 'out-app', manifest = JSON.parse(fs.readFileSync(`${dir}/manifest.webmanifest`, 'utf8'));
+          if (manifest.name !== 'ECHO' || manifest.short_name !== 'ECHO' || !fs.readFileSync(`${dir}/index.html`, 'utf8').includes('apple-mobile-web-app-title" content="ECHO')) process.exit(1);
+          function scan(p) { for (const e of fs.readdirSync(p, { withFileTypes: true })) { const f = path.join(p, e.name); if (e.isDirectory()) scan(f); else { if (/\.map$|\.env|node_modules/.test(f)) throw Error('Forbidden file'); if (/\.(html|js|json|webmanifest|svg|css)$/.test(f)) { const s = fs.readFileSync(f, 'utf8'); if (/https?:\/\/(?:app\.)?do-it\.company|DO IT QA|ECHO QA|QA BUILD|service_role/.test(s)) throw Error('QA bundle mixed target: ' + f); } } } }
+          scan(dir);
+          JS
+      - name: Verify exact QA Netlify site and team
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 --header "Authorization: Bearer $NETLIFY_AUTH_TOKEN" "https://api.netlify.com/api/v1/sites/$QA_SITE_ID" -o /tmp/echo-site.json
+          node -e 'const s=require("/tmp/echo-site.json"); if(s.id!==process.env.QA_SITE_ID || s.account_id!==process.env.QA_TEAM_ID) process.exit(1)'
+      - name: Deploy app once to fixed QA site
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.QA_NETLIFY_AUTH_TOKEN }}
+        run: |
+          npx --yes netlify-cli deploy --prod --site "$QA_SITE_ID" --dir out-app --message "QA candidate $GITHUB_SHA" --json > /tmp/echo-deploy.json
+          node -e 'const d=require("/tmp/echo-deploy.json"); if(d.site_id!==process.env.QA_SITE_ID || !d.deploy_id) process.exit(1); console.log(JSON.stringify({sha:process.env.GITHUB_SHA,deploy_id:d.deploy_id,site_id:d.site_id}))'
+      - name: Smoke deployed QA paths and assets
+        run: |
+          set -euo pipefail
+          for route in / /do-it/intro?next=app /doit/start-journey /login /signup /doit/purposes /manifest.webmanifest /pwa/echo-icon-192.png /pwa/echo-icon-512.png; do
+            curl --fail --location --silent --show-error --max-time 20 --output /dev/null "$QA_ORIGIN$route"
+          done
+          node - <<'JS'
+          (async () => {
+            const base = process.env.QA_ORIGIN;
+            const m = await (await fetch(base + '/manifest.webmanifest')).json();
+            if (m.name !== 'ECHO' || m.short_name !== 'ECHO') throw Error('QA manifest name');
+            for (const icon of m.icons) { const r = await fetch(new URL(icon.src, base)); if (!r.ok || !r.headers.get('content-type')?.includes('image/')) throw Error('QA icon response'); }
+            console.log('QA smoke PASS', process.env.GITHUB_SHA);
+          })().catch(e => { console.error(e.message); process.exitCode = 1; });
+          JS

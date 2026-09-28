@@ -32,7 +32,14 @@ export default defineConfig(({ mode }) => {
     transformIndexHtml: {
       order: "pre" as const,
       handler(html: string) {
-        if (siteRole !== "app") return html;
+        if (siteRole !== "app") {
+          if (siteRole === "brand" && process.env.VITE_QA_BUILD === "true") {
+            const brandOrigin = (process.env.VITE_BRAND_ORIGIN || env.VITE_BRAND_ORIGIN || appOrigin).replace(/\/$/, "");
+            return html.replace('https://do-it.company/brand/doit-earth-original.png', `${brandOrigin}/brand/doit-earth-original.png`)
+              .replace('https://do-it.company/', `${brandOrigin}/`);
+          }
+          return html;
+        }
         // 2026-09-25 대표 지정 ECHO 앱 아이콘: 앱 빌드만 파비콘을 바꾼다(브랜드 do-it.company 파비콘은 그대로).
         const favicon = '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />';
         if (!html.includes(favicon)) throw new Error("app favicon link not found in index.html");

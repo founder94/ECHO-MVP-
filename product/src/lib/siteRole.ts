@@ -11,8 +11,8 @@ export const IS_BRAND_SITE = SITE_ROLE === 'brand';
 export const IS_APP_SITE = SITE_ROLE === 'app';
 
 // 제품 주소. 브랜드 빌드가 "지금 시작하기"·"로그인"·제품 경로를 보낼 곳. 빌드 변수로 바꿀 수 있다(예: 검사용 주소).
-export const APP_ORIGIN: string = (import.meta.env.VITE_APP_ORIGIN as string | undefined)?.replace(/\/$/, '') || 'https://app.do-it.company';
-export const BRAND_ORIGIN: string = (import.meta.env.VITE_BRAND_ORIGIN as string | undefined)?.replace(/\/$/, '') || 'https://do-it.company';
+export const APP_ORIGIN: string = (import.meta.env.VITE_APP_ORIGIN as string | undefined)?.replace(/\/$/, '') || (import.meta.env.VITE_QA_BUILD ? window.location.origin : 'https://app.do-it.company');
+export const BRAND_ORIGIN: string = (import.meta.env.VITE_BRAND_ORIGIN as string | undefined)?.replace(/\/$/, '') || (import.meta.env.VITE_QA_BUILD ? window.location.origin : 'https://do-it.company');
 
 // 브랜드 사이트에서 제품으로 넘길 때 쓰는 주소. 내부 경로만 받는다(외부 주소·스킴 금지).
 export function appUrl(path: string): string {
