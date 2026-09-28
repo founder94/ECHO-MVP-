@@ -232,11 +232,11 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C·D: doit-agent · doit-connect · admin-web = MVP LOOP 브랜치 검사본(46494e4 · ADMIN WEB 27b8102 + 2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 doit-connect v2.0)과 글자까지 같아야 함
+          # B·C·D: doit-agent · doit-connect · admin-web = MVP LOOP 브랜치 검사본(adda8db · ADMIN WEB 27b8102 + 2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 doit-connect v2.0)과 글자까지 같아야 함
           git fetch -q --depth=1 origin claude/echo-mvp-loop-20260928
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "46494e4" ] || { echo "FAIL: MVP LOOP 브랜치 head 가 검사본(46494e4)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "adda8db" ] || { echo "FAIL: MVP LOOP 브랜치 head 가 검사본(adda8db)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
           git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect product/supabase/functions/admin-web || { echo "FAIL: 함수가 검사본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect · admin-web = 46494e4 와 동일"
+          echo "OK: doit-agent · doit-connect · admin-web = adda8db 와 동일"
           grep -q 'doit-connect — 연결 서버 (v2.0' product/supabase/functions/doit-connect/index.ts || { echo "FAIL: doit-connect 판 불일치(v2.0 아님)"; exit 1; }
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
@@ -322,7 +322,7 @@ jobs:
         if: inputs.mode == 'qa_admin_check'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
-          ADMIN_SHA: 46494e4715457c8aea21c56a6149171dee295e38
+          ADMIN_SHA: adda8dbe91f187b6c6bea3f8492bc4f204b3807d
         run: |
           set -euo pipefail
           QA_PW_SEED=$(printf 'echo-qa:%s' "$SUPABASE_ACCESS_TOKEN" | sha256sum | cut -c1-40); echo "::add-mask::$QA_PW_SEED"
