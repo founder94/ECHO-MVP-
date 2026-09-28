@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -261,6 +261,47 @@ jobs:
       - name: 정정 · 거절 · 원문 보존 · 세션 격리(실서버)
         working-directory: product/qa-real
         run: node qa-core-live.mjs
+
+  agent_deploy_qa:
+    # QA 서버 doit-agent 1개만 배포(2026-09-29 AUTO · QA 전용 · 운영 0 · 비용 0): 고정 commit 의 3파일(index · agent · failure-intelligence)만 · 비밀값 변경 0.
+    if: inputs.mode == 'agent_deploy_qa'
+    environment: ECHO-QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QA_PROJECT_ID: mutniujeiyujhkobadkd
+      PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
+      AGENT_SHA: 2f21413421506ea3b0cba9635b6dfa0d3eb5d9ed
+      AGENT_VERSION: echo-agent-v2.4.3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2f21413421506ea3b0cba9635b6dfa0d3eb5d9ed
+          path: src
+      - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 3파일만)
+        env:
+          HAS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          [ "$QA_PROJECT_ID" = "mutniujeiyujhkobadkd" ] || { echo "FAIL: QA ref 불일치"; exit 1; }
+          [ "$(printf '%s' "$QA_PROJECT_ID" | sha256sum | cut -d' ' -f1)" != "$PROD_REF_SHA256" ] || { echo "FAIL: 운영 ref 가 대상"; exit 1; }
+          [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || { echo "FAIL: 수동 실행만"; exit 1; }
+          [ "$HAS_TOKEN" = "true" ] || { echo "FAIL: ECHO-QA 토큰 없음"; exit 1; }
+          [ "$(git -C src rev-parse HEAD)" = "$AGENT_SHA" ] || { echo "FAIL: 고정 commit 아님"; exit 1; }
+          F=src/product/supabase/functions/doit-agent
+          grep -q "export const AGENT_VERSION = \"$AGENT_VERSION\"" $F/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
+          mkdir -p stage/supabase/functions/doit-agent
+          cp $F/index.ts $F/agent.ts $F/failure-intelligence.ts stage/supabase/functions/doit-agent/
+          printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
+          ( cd stage && find supabase/functions -type f -exec sha256sum {} \; | sort -k2 )
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: QA doit-agent 배포(QA ref 만 · 이 함수 하나만)
+        working-directory: stage
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: supabase functions deploy doit-agent --project-ref "$QA_PROJECT_ID" --use-api
 
   realstate_p0_localbuild:
     # Netlify 크레딧 정지 중에도 쓰는 실제 상태 재현(게시 0 · 비용 0): 앱 브랜치를 러너에서 QA 설정으로 빌드하고
