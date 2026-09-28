@@ -201,14 +201,21 @@ async function full() {
   const prevA = await fn('doit-understanding', A.jwt, { action: 'connection_preview' }, 'connection_preview');
   check('연결 준비(doit-understanding · 운영 v29+1줄): 응답 200', prevA.status === 200, { status: prevA.status, code: prevA.data?.code ?? null });
   const cand = await fn('doit-connect', ADM.jwt, { action: 'admin_candidates' }, 'admin_candidates');
-  const pair = (cand.data?.candidates ?? []).find((c) => [c.user_a, c.user_b].sort().join() === [A.id, B.id].sort().join());
-  const commonA = pair ? (pair.user_a === A.id ? pair.common_a : pair.common_b) : [];
-  check('Matching(agent): A-B 실제 후보 생성', !!pair, { status: cand.status, n: (cand.data?.candidates ?? []).length, eligible: cand.data?.eligible, missing: cand.data?.missing, code: cand.data?.code ?? null });
-  check('Matching: 겹친 말 > 0 · 점수 > 0', !!pair && commonA.length > 0 && (pair.score ?? 0) > 0, { commonA, score: pair?.score });
-  evidence.overlap = pair ? { common_a: pair.common_a, common_b: pair.common_b, score: pair.score } : null;
-  check(`${AUX_UI ? '[보조 UI] ' : '[P0 CROSS-SLOT] '}overlap/score: 옛 말 A 출처 기여 0(양쪽 공통 목록)`, !!pair && ![...(pair.common_a ?? []), ...(pair.common_b ?? [])].some((n) => aNotes.has(sq(n)) || (A_MEANING.test(n) && !/부담|주말|한두\s*번/.test(n))), evidence.overlap);
-  check('Matching: 옛 「매일」·거둔 뜻 사용 0 · 사주/타로 0', !commonA.some((c) => (/매일/.test(c) && !/부담|주말/.test(c)) || /사주|타로|궁합|운세/.test(c)), commonA);
-  check('전화: 전화 미인증 A 가 후보', !!pair && pair[pair.user_a === A.id ? 'a' : 'b']?.phone_verified === false, pair ? { a: pair.a, b: pair.b } : null);
+  // 관리자 후보 목록은 상위 50쌍까지만 보여 준다(QA DB 에 이전 실행의 자격 계정이 쌓임). A-B 가 목록 밖이면 아래 상호선택 단계의 실제 A-B 후보 기록(겹친 말)으로 판정한다.
+  let pair = (cand.data?.candidates ?? []).find((c) => [c.user_a, c.user_b].sort().join() === [A.id, B.id].sort().join()) ?? null;
+  evidence.admin_candidates = { status: cand.status, listed: (cand.data?.candidates ?? []).length, eligible: cand.data?.eligible, ab_in_top50: !!pair };
+  const matchingChecks = (p, via) => {
+    const commonA = p ? (p.user_a === A.id ? p.common_a : p.common_b) ?? [] : [];
+    const both = p ? [...(p.common_a ?? []), ...(p.common_b ?? [])] : [];
+    evidence.overlap = p ? { via, common_a: p.common_a, common_b: p.common_b, score: both.length } : null;
+    check(`Matching(agent): A-B 실제 후보 생성(${via})`, !!p, evidence.admin_candidates);
+    check('Matching: 겹친 말 > 0 · 점수 > 0', !!p && commonA.length > 0, evidence.overlap);
+    check(`${AUX_UI ? '[보조 UI] ' : '[P0 CROSS-SLOT] '}overlap/score: 옛 말 A 출처 기여 0(양쪽 공통 목록)`, !!p && !both.some((n) => aNotes.has(sq(n)) || (A_MEANING.test(n) && !/부담|주말|한두\s*번/.test(n))), evidence.overlap);
+    check('Matching: 옛 「매일」·거둔 뜻 사용 0 · 사주/타로 0', !both.some((c) => (/매일/.test(c) && !/부담|주말/.test(c)) || /사주|타로|궁합|운세/.test(c)), both);
+  };
+  if (pair) matchingChecks(pair, '관리자 후보 목록');
+  const prevEligible = await fn('doit-connect', A.jwt, { action: 'my_candidates' });
+  check('전화: 전화 미인증 A 도 연결 자격(후보 받음)', prevEligible.data?.eligible === true, { eligible: prevEligible.data?.eligible, missing: prevEligible.data?.missing });
 
   // 연결 v2.0(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§19): 서버 후보 준비 → A 선택 → B 선택 → 상호선택 → 연결 → 첫 질문·공개 → 대화 → 결과 → 안전
   const NICK = { A: 'QA-A', B: 'QA-B' };
@@ -264,6 +271,7 @@ async function full() {
     const profNotes = JSON.stringify(SAafter?.profile ?? {});
     check('[결과] Outcome 기록: 본인 저장·고쳐 쓰기 200 · 잘못된 값 400 · 상대에게 안 보임 · 관리자 기록 1줄 · 프로필(매칭 재료)로 안 올라감', o1.status === 200 && o2.status === 200 && oBad.status === 400 && mineO?.met === 'yes' && mineO?.again === 'yes' && theirsO === null && (admRow?.outcomes ?? []).length === 1 && admRow.outcomes[0].met === 'yes' && !/만났|약속|다시 만나/.test(profNotes), { o1: o1.status, o2: o2.status, bad: oBad.status, mine: mineO, partner_sees: theirsO, admin: admRow?.outcomes ?? null });
     const prop = (admM.data?.proposals ?? []).find((p) => p.match_id === match.id);
+    if (!pair) matchingChecks(prop ? { user_a: A.id, common_a: prop.common ?? [], common_b: [] } : null, 'A-B 후보 기록(두 사람 겹친 말)');
     check('[관리자] 보낸 후보 기록: 상태 mutual · 두 사람 선택 yes/yes', prop?.status === 'mutual' && prop?.a_choice === 'yes' && prop?.b_choice === 'yes', prop ?? null);
     // 차단·신고
     const leave = await fn('doit-connect', B.jwt, { action: 'leave', matchId: match.id, block: true, report: true });
