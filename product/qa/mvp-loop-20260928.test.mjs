@@ -46,6 +46,21 @@ test('서버: 결과·후보 표는 서버 함수만 씀 · 결과를 확정 말
   assert.doesNotMatch(mig, /create policy|alter table public\.(profiles|doit_matches)/i, '기존 표·정책 변경 0');
 });
 
+test('역할 분리(대표 「BRAND / APP / ADMIN / SERVER 분리 · 기능을 섞지 마라」): 앱 화면 표는 함수 안에서만 만든다 — 브랜드·관리자 빌드에 앱 화면 조각 0', () => {
+  const doit = read('src/doit/routes.tsx');
+  const fnAt = doit.indexOf('export default function doitRouteTable(): RouteObject {');
+  assert.ok(fnAt > 0, '표를 만드는 함수');
+  const top = doit.slice(0, fnAt).replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(top, /lazy\(/, '모듈 맨 위 lazy() 0(쓰지 않는 빌드에도 조각이 생김)');
+  const cfg = read('src/router/config.tsx');
+  assert.match(cfg, /import doitRouteTable from '@\/doit\/routes'/);
+  const productFn = cfg.slice(cfg.indexOf('function productRouteTable'), cfg.indexOf('// 메인 진입(/)'));
+  assert.match(productFn, /doitRouteTable\(\),/, '제품 화면 표 안에서만 부른다');
+  assert.equal((cfg.match(/doitRouteTable\(\)/g) ?? []).length, 1);
+  assert.match(cfg, /const PRODUCT = ROLE !== 'brand';/);
+  assert.match(cfg, /PRODUCT \? productRouteTable\(\) : PRODUCT_PATHS_ON_BRAND/);
+});
+
 test('추천 이유 재료: 직접 고른 목적 + 내가 직접 한 말(겹친 말) — AI 추정·사주·타로·점수 0', () => {
   const fn = SERVER.slice(SERVER.indexOf('function reasonsFor'), SERVER.indexOf('async function openConnection'));
   assert.match(fn, /common_a : c\.common_b/);

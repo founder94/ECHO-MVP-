@@ -6,7 +6,7 @@ import ExternalRedirect, { AdminRedirect } from '@/components/ExternalRedirect';
 import { PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 
 // A구조 서브앱(/doit/*) — 7화면 흐름(첫 기록 → 확인·수정 → 홈 → 타임라인 → 가치 → 패턴 → 선택 기억)
-import doitRoutes from '@/doit/routes';
+import doitRouteTable from '@/doit/routes'; // 표를 만드는 함수 — 제품 빌드에서만 부른다(브랜드 빌드에 앱 화면 0)
 import { visibleInRelease } from '@/doit/lib/releaseScope';
 
 // ── 사이트 역할 (대표 확정 2026-09-21) ────────────────────────────────────────
@@ -93,7 +93,7 @@ function productRouteTable(): RouteObject[] {
     { path: '/locker', element: visibleInRelease('/locker') ? <LockerPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/next-journey', element: visibleInRelease('/next-journey') ? <NextJourneyPage /> : <Navigate to="/doit/home" replace /> },
     // DO IT 구조 (A구조) - 우주 배경 히어로 및 페이지
-    doitRoutes,
+    doitRouteTable(),
     // 예전 소개 링크도 중복 설명 없이 시작 흐름으로 연결한다. 원본 화면 파일은 보존한다.
     { path: '/do-it/1', element: <Navigate to="/doit/start-journey" replace /> },
     { path: '/do-it/2', element: <Navigate to="/doit/start-journey" replace /> },
