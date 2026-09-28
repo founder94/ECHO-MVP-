@@ -428,7 +428,7 @@ test('v1.6 소개 다시 쓰기: 대화 중 409 · 실패 → 다시 쓰기 AI 1
   const r2 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
   assert.equal(r2.body.session.intro.status, 'failed'); assert.equal(r2.body.session.intro.tries_left, 0);
   const r3 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
-  assert.equal(r3.body.limited, true); assert.equal(s.aiCalls.length, n0 + 2, '상한 뒤 AI 0');
+  assert.equal(r3.body.limited, true); assert.equal(s.aiCalls.length, n0 + 3, '상한 뒤 AI 0 (v2.4.1: HTTP 500 은 한 번 다시 부름 → r2 에서 2번)');
   assert.equal((await h.call({ action: 'agent_intro_mark', requestId: rid(), sessionId: sid, how: 'hack' })).status, 400);
   const m = await h.call({ action: 'agent_intro_mark', requestId: rid(), sessionId: sid, how: 'own' });
   assert.equal(m.body.session.intro.used, 'own');
@@ -700,4 +700,25 @@ test('v2.4.1 받아주기가 사용자 말을 그대로 옮기면 다시 청한�
   assert.equal(r.body.turn.reply, '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.');
   const why = s.aiCalls.at(-1).input.previous_attempt.why;
   assert.ok(why.includes('거의 그대로 옮겼다') && why.includes('방금 답의 낱말: 카페, 얘기'), why);
+});
+
+test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실처럼 들어가지 않는다 · 받아주기만 따로 다시 쓰기(ack) · AI 일시 오류 1번 다시(실제 AI run gi)', async () => {
+  const A = load(newState()).agent;
+  const st = A.newState({ goal: 'friend' }); A.seedFirstQuestion(st);
+  st.asked.push({ id: 'x', type: 'core', purpose: 'values_character', text: '친구와 깊은 얘기까지 하는 사이가 좋아요, 가볍게 웃고 떠드는 쪽이 더 좋아요?' });
+  assert.equal(A.askedEcho(st, '친구와 깊은 얘기까지 하는 사이가 좋은지, 가볍게 웃고 떠드는 쪽이 더 좋은지 궁금해요.'), true);
+  assert.equal(A.askedEcho(st, '카페에서 얘기하는 게 좋아요.'), false);
+  // 두 번 모두 사용자 말을 옮긴 받아주기 → ack 호출 한 번으로 바꾼다
+  const s = newState(); s.strictAnchor = true; const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
+  const copy = T({ reply: '카페에서 얘기하는 게 좋으시네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 얘기가 잘 통한다 싶은 친구는 어떤 사람이에요?') });
+  s.ai.push(copy, copy, { reply: '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.' });
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '카페에서 얘기하는 게 좋아' });
+  assert.equal(r.body.turn.reply, '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.');
+  assert.equal(r.body.turn.question, '카페에서 얘기가 잘 통한다 싶은 친구는 어떤 사람이에요?');
+  // AI 일시 오류(500)는 한 번 다시 불러 대화가 멈추지 않는다
+  s.ai.push('HTTP500', T({ extracted: [X('values_character', '말이 잘 통함', '말이 잘 통하는')], ...Q('boundaries', '말이 잘 통하는 친구랑도 이런 건 피하고 싶다 싶은 게 있어요?') }));
+  const r2 = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '말이 잘 통하는 사람이면 좋겠어' });
+  assert.equal(r2.status, 200); assert.equal(r2.body.turn.question, '말이 잘 통하는 친구랑도 이런 건 피하고 싶다 싶은 게 있어요?');
 });
