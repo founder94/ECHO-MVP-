@@ -45,7 +45,7 @@ async function converse(jwt, goal, run, special, extraOpening = '') {
     let text = lines[k % lines.length];
     if (special === 'correction' && turn === 1) text = SPECIAL.correction[goal];
     else if (special === 'unsure' && turn === 2) text = SPECIAL.unsure;
-    else if (special === 'repeat' && turn === 3) text = SPECIAL.repeat;
+    else if (special === 'repeat' && turn === 2) text = SPECIAL.repeat;
     else k++;
     const before = sess.current_question;
     const r = await fn(jwt, { action: 'agent_turn', sessionId: sid, text });
@@ -80,9 +80,12 @@ function judge(goal, sess, log, special, firstQ) {
 
 // QA 계정: 있으면 로그인, 없으면 가입. 그리고 새 회차(앱의 「처음부터 다시」와 같은 방식 · user_metadata)로 시작한다 — 앞선 검사의 대화를 이어받지 않게.
 async function signup(run) {
-  const acct = run.replace(new RegExp(`^${PREFIX}`), ACCOUNT_PREFIX);
-  const email = `qa-${acct}-20260928@do-it.company`; const password = pw(acct, 'user');
-  let jwt = await login(email, password);
+  // 계정 후보: 이번 접두어 → 앞선 검사 접두어(gc · gb) 순으로 로그인(가입 속도 제한 회피). 같은 번호 = 같은 목적의 한 작업만 쓰므로 세션이 겹치지 않는다.
+  let jwt = null; let acct = run; let email = ''; let password = '';
+  for (const pre of [ACCOUNT_PREFIX, 'gc', 'gb']) {
+    acct = run.replace(new RegExp(`^${PREFIX}`), pre); email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
+    jwt = await login(email, password); if (jwt) break;
+  }
   if (!jwt) { const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); }
   if (!jwt) return null;
   const up = await http('/auth/v1/user', { method: 'PUT', jwt, body: { data: { doit_round_started_at: new Date(Date.now() + 1000).toISOString() } } });

@@ -233,11 +233,11 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C: doit-agent · doit-connect = PR #12 최신본(222416e · 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 Agent v2.4.0)과 글자까지 같아야 함
+          # B·C: doit-agent · doit-connect = PR #12 최신본(4e8e849 · 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 Agent v2.4.0)과 글자까지 같아야 함
           git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "222416e" ] || { echo "FAIL: PR #12 head 가 검사본(222416e)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "4e8e849" ] || { echo "FAIL: PR #12 head 가 검사본(4e8e849)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
           git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 검사본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect = PR #12 222416e 와 동일"
+          echo "OK: doit-agent · doit-connect = PR #12 4e8e849 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true

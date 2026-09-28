@@ -129,7 +129,10 @@ const FATIGUE = /질문.{0,6}(너무|넘|왜케|왜\s*이렇게|진짜)?\s*(많|
 // 질문이 어렵다·뜻을 묻는 말(말 전체가 이것일 때만 · 「어려운 사람은 싫어」 같은 답은 건드리지 않는다).
 const HELP_ASK = /^\s*(아+|음+|흠+)?\s*(좀|너무|넘|진짜)?\s*(어렵(네|다|어|네요|어요|습니다|군)|무슨\s*(뜻|말)(이야|이에요|인가요|이지|야)?|예를\s*들(면|어\s*줘|어\s*주세요)?|예시\s*(좀|를)?\s*(보여\s*(줘|주세요)?|줘|주세요)?)\s*[.!~?…ㅠㅜ]*\s*$/;
 const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
+// v2.4 「잘 모르겠어」「글쎄」만 한 말은 묻는 말(ask)이 아니다 — 같은 질문을 다시 보이지 않고 모르겠다(unsure)로(저장 0 · 다음 칸으로).
+const UNSURE_ONLY = /^\s*(음+\s*)?(잘\s*)?(모르겠(어|어요|다|네|네요|는데|는데요)|몰라(요)?|글쎄(요)?)\s*[.!~…ㅠㅜ]*\s*$/;
 export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
+  if ((kind === "ask" || kind === "answer") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" };
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
