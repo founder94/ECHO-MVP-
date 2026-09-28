@@ -87,11 +87,15 @@ for (const [bname, type, dname, opts] of DEVICES) {
   // 고른 상태가 눈에 보인다(막이 더 진함) — 생활 리듬 칩
   const chips = p.locator('button[aria-pressed]');
   if (await chips.count()) {
-    const before = await css(chips.first());
-    await chips.first().click().catch(() => {});
-    await p.waitForTimeout(300);
-    const after = await css(chips.first());
-    check(`${tag}: 고른 상태 구분(유리 막이 진해짐 · 채움 아님)`, !!before && !!after && alphaOf(after.bg) > alphaOf(before.bg) && alphaOf(after.bg) <= 0.4, `${before?.bg} → ${after?.bg}`);
+    const chip = chips.first();
+    const before = await css(chip);
+    const pressedBefore = await chip.getAttribute('aria-pressed').catch(() => null);
+    await chip.click().catch(() => {});
+    // 색 바뀜은 CSS 전환(.15s) 뒤에 끝난다 — 고정 대기 대신 2초 안에 멈출 때까지 본다. 눌림 상태(aria-pressed)도 같이 기록한다.
+    let after = null; const t0 = Date.now();
+    while (Date.now() - t0 < 2000) { after = await css(chip); if (after && alphaOf(after.bg) > alphaOf(before?.bg ?? 1)) { await p.waitForTimeout(250); after = await css(chip); break; } await p.waitForTimeout(100); }
+    const pressedAfter = await chip.getAttribute('aria-pressed').catch(() => null);
+    check(`${tag}: 고른 상태 구분(유리 막이 진해짐 · 채움 아님)`, !!before && !!after && alphaOf(after.bg) > alphaOf(before.bg) && alphaOf(after.bg) <= 0.4, `${before?.bg} → ${after?.bg} · aria-pressed ${pressedBefore}→${pressedAfter} · ${Date.now() - t0}ms`);
   }
   // 이 화면의 모든 보이는 버튼: 불투명 채움 0(글자 대비 유지 = 흰 글자)
   const opaque = await p.evaluate(() => [...document.querySelectorAll('button')].filter((el) => el.offsetParent && !el.closest('[data-visual="art"]')).map((el) => { const c = getComputedStyle(el); return { t: el.textContent.trim().slice(0, 20), bg: c.backgroundColor, img: c.backgroundImage }; }));
