@@ -75,3 +75,20 @@ test('반대 검사: 규칙이 없으면(=모델이 repair 로 읽은 그대로)
   A.applyTurn(st, '그러니까 주말에 한두 번 연락하는 게 좋아요', out); // 거절 머리말이 없어 규칙 대상 아님
   assert.ok(liveDaily(st).length >= 2, 'v2.4.1 동작: 매일 연락이 그대로 남음(규칙이 막아야 하는 상태)');
 });
+
+// v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」를 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다.
+test('「잘 모르겠어요」는 repair·correction 으로 읽혀도 모르겠다(unsure) — 저장 0 · 지금 질문을 거절로 기록 0 · 매칭 rejected_meanings 0', async () => {
+  for (const k of ['repair', 'correction', 'answer', 'help', 'ask']) assert.deepEqual(A.guardKind('잘 모르겠어요', k), { kind: 'unsure', rule: 'unsure_only' }, k);
+  assert.deepEqual(A.guardKind('잘 모르겠는데 주말엔 쉬고 싶어요', 'repair').kind, 'repair', '모르겠다 + 다른 말은 이 규칙 대상 아님');
+  const st = A.newState({ tone: 'polite', goal: 'friend' }); A.seedFirstQuestion(st);
+  A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')] }));
+  const Q = '친구와 같이 하고 싶은 건 무엇인가요?';
+  st.current = { type: 'core', purpose: 'attraction_comfort', text: Q };
+  const r = await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn' ? JSON.stringify(T({ kind: 'repair', reply: '괜찮아요.' })) : '{}');
+  const turn = st.turns[st.turns.length - 1];
+  assert.equal(turn.kind, 'unsure');
+  assert.deepEqual(turn.guard, { from: 'repair', to: 'unsure', rule: 'unsure_only' });
+  assert.equal(r.response?.saved ?? false, false);
+  assert.ok(!st.disputed.includes(Q), '지금 질문이 거절로 기록되지 않음');
+  assert.ok(!(A.matchingProfile(st).rejected_meanings ?? []).includes(Q), '매칭 rejected_meanings 에 0');
+});
