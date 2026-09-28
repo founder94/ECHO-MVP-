@@ -50,10 +50,16 @@ check('원문 보존(거절한 원래 말 · 정정한 말 둘 다 그대로)', 
 const aiAfter = msgs.filter((m) => m.role === 'ai').slice(aiBeforeCorrection).map((m) => m.text);
 const aiHits = aiAfter.flatMap(leaksIn); const leaked = aiHits.filter((h) => !h.negated);
 check('거절된 의미 재등장 0(정정 뒤 AI 말)', leaked.length === 0, `ai_after=${aiAfter.length} hits=${JSON.stringify(aiHits.slice(0, 3))}`);
-const summaryText = JSON.stringify({ summary: s?.summary ?? [], profile: s?.profile ?? null, intro: s?.intro?.text ?? null });
+// 판정 대상 = 「지금 사실」만: 요약 문장 · 소개 · 매칭 재료(confirmed_preferences) · 칸의 CONFIRMED 항목(note·quote).
+// 정정 이력(corrected_from · SUPERSEDED/RETRACTED 항목 · 원문 turns)은 설계상 옛 값을 기록하므로 대상이 아니다(이력 보존 확인은 아래 별도).
+const prof = s?.profile ?? {};
+const liveItems = Object.values(prof).filter((v) => v && Array.isArray(v.items)).flatMap((v) => v.items.filter((i) => i.status === 'CONFIRMED').map((i) => `${i.note} ${i.quote}`));
+const summaryText = JSON.stringify({ summary: (s?.summary ?? []).map((x) => x.text), intro: s?.intro?.text ?? null, prefs: prof.confirmed_preferences ?? [], live: liveItems });
 const factHits = leaksIn(summaryText);
 check('요약·프로필·소개에 거절된 뜻(매일 연락) 사실로 0', factHits.every((h) => h.negated), `phase=${s?.phase} hits=${JSON.stringify(factHits.slice(0, 4))}`);
 check('최신 정정이 이긴다(요약·프로필·소개에 주말 반영 · 또는 아직 요약 전)', s?.phase !== 'done' || /주말/.test(summaryText), `phase=${s?.phase} 주말=${/주말/.test(summaryText)}`);
+const lineage = JSON.stringify(Object.values(prof).filter((v) => v && Array.isArray(v.items)).flatMap((v) => v.items.flatMap((i) => [...(i.corrected_from ?? []), ...(i.status !== 'CONFIRMED' ? [i.note] : [])])));
+check('정정 이력 보존(밀린 옛 값이 이력에 남음 · 지금 사실은 아님)', s?.phase !== 'done' || A_MEANING.test(lineage) || /매일/.test(lineage), `lineage=${lineage.slice(0, 160)}`);
 
 // ④ 세션 격리
 const bGet = await agent(B.jwt, { action: 'agent_get', sessionId: sid });
