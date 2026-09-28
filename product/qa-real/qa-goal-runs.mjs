@@ -23,6 +23,8 @@ const ROMANCE = /연애|연인|애인|이상형|설레|설렘|호감|끌리|끌�
 const FRIEND_GOAL = /친구\s*(사이|관계)|친구를\s*(원|만나|찾|사귀)|친구로\s*(지내|만나)|친구\s*같은\s*사이/;
 const RESIDUE = { friend: ROMANCE, colleague: ROMANCE, romantic: FRIEND_GOAL };
 const COUNSEL = /그렇군요|힘드셨겠|들려주실 수 있을까요|중요하군요/;
+// 받아주기 칸의 마침표 질문(물음표 없이 묻는 문장)
+const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어느|누구|몇)[^.!?]*(세요|나요|까요|가요|는지요|하시나요|인가요|해요|예요|이에요)\s*[.!]?$/;
 const bare = (t) => String(t ?? '').normalize('NFKC').replace(/\s+/g, '').replace(/[.,!?~…·"'「」]/g, '');
 const pairs = (t) => { const o = new Set(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
 const dice = (a, b) => { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); };
@@ -32,7 +34,7 @@ const LINES = {
   romantic: ['다정하고 대화가 잘 통하는 사람한테 마음이 가요', '천천히 알아가면서 진지하게 만나고 싶어요', '연락은 하루에 한두 번이면 충분해요', '거짓말하지 않는 게 제일 중요해요', '주말에 같이 맛집 다니는 거 좋아해요', '표현을 잘 해주는 사람이면 좋겠어요'],
   colleague: ['사이드 프로젝트로 앱을 같이 만들 사람을 찾아요', '맡은 일은 끝까지 책임지는 사람이 좋아요', '의견이 다르면 바로 얘기하고 정리하는 편이에요', '저는 기획을 하고 개발을 맡아줄 사람이 필요해요', '주에 한 번은 온라인으로 회의하고 싶어요', '연락 없이 사라지는 건 피하고 싶어요'],
 };
-const SPECIAL = { correction: { friend: '연애 질문 아니야, 친구 얘기야', colleague: '연애 얘기 아니고 일 얘기예요', romantic: '친구 얘기 아니고 연애 얘기예요' }, unsure: '잘 모르겠어', repeat: '그 질문 전에 했잖아' };
+const SPECIAL = { correction: { friend: '연애 질문 아니야, 친구 얘기야', colleague: '연애 얘기 아니고 일 얘기예요', romantic: '친구 얘기 아니고 연애 얘기예요' }, unsure: ['잘 모르겠어', '딱히 생각 안 나'], repeat: '그 질문 전에 했잖아' };
 
 async function converse(jwt, goal, run, special, extraOpening = '') {
   const first = `${GOAL_LABEL[goal]}${extraOpening}`;
@@ -44,7 +46,7 @@ async function converse(jwt, goal, run, special, extraOpening = '') {
     turn++;
     let text = lines[k % lines.length];
     if (special === 'correction' && turn === 1) text = SPECIAL.correction[goal];
-    else if (special === 'unsure' && turn === 2) text = SPECIAL.unsure;
+    else if (special === 'unsure' && turn === 2) text = SPECIAL.unsure[/[13579]$/.test(run) ? 1 : 0];
     else if (special === 'repeat' && turn === 2) text = SPECIAL.repeat;
     else k++;
     const before = sess.current_question;
@@ -64,6 +66,7 @@ function judge(goal, sess, log, special, firstQ) {
   const summaryTexts = [...(sess.summary ?? []).map((x) => x.text), sess.closing ?? '', sess.intro?.text ?? ''];
   const summaryResidue = summaryTexts.filter((t) => t && RESIDUE[goal].test(t));
   const counsel = log.filter((l) => l.reply && COUNSEL.test(l.reply)).map((l) => l.reply);
+  const replyAsks = log.filter((l) => l.reply && (/[?？]/.test(l.reply) || l.reply.split(/(?<=[.!?])\s+/).some((x) => ASKS.test(x.trim())))).map((l) => l.reply);
   const emptyAck = log.filter((l) => l.kind === 'answer' && !l.reply).length;
   let correctionOk = null;
   if (special === 'correction') { const l = log.find((x) => x.user === SPECIAL.correction[goal]); correctionOk = !!l && l.kind === 'repair' && !l.saved && !!l.next && dice(bare(l.q), bare(l.next)) < 0.55 && !RESIDUE[goal].test(l.next) && !RESIDUE[goal].test(l.reply ?? ''); }
@@ -71,21 +74,24 @@ function judge(goal, sess, log, special, firstQ) {
   let repeatDetail = null;
   if (special === 'repeat') { const k = log.findIndex((x) => x.user === SPECIAL.repeat); const l = log[k]; repeatDetail = l ? { q: l.q, kind: l.kind, saved: l.saved, next: l.next } : 'no_turn'; repeatOk = !!l && l.kind === 'repair' && !l.saved && (!l.next || ![firstQ, ...log.slice(0, k).map((x) => x.next)].filter(Boolean).some((a) => dice(bare(a), bare(l.next)) >= 0.55)); }
   let unsureOk = null;
-  if (special === 'unsure') { const l = log.find((x) => x.user === SPECIAL.unsure); unsureOk = !!l && !l.saved; }
+  if (special === 'unsure') { const l = log.find((x) => SPECIAL.unsure.includes(x.user)); unsureOk = !!l && !l.saved && l.kind !== 'ask' && (!l.next || dice(bare(l.q ?? ''), bare(l.next)) < 0.55); }
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
-  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
-  return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, empty_ack: emptyAck,
+  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || replyAsks.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
+  return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, reply_asks: replyAsks, empty_ack: emptyAck,
     correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, trace: log.map((l) => [l.user.slice(0, 8), l.kind, l.asked, (l.next ?? '').slice(0, 14)]), asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
 
 // QA 계정: 있으면 로그인, 없으면 가입. 그리고 새 회차(앱의 「처음부터 다시」와 같은 방식 · user_metadata)로 시작한다 — 앞선 검사의 대화를 이어받지 않게.
+const PRES = [...new Set([ACCOUNT_PREFIX, PREFIX, 'gc', 'gb', 'gd', 'ge', 'gu', 'gf', 'gg', 'gh'])];
+const used = new Set(); // 한 계정은 한 작업만(세션·회차가 겹치지 않게)
+const cand = (acct) => ({ acct, email: `qa-${acct}-20260928@do-it.company`, password: pw(acct, 'user') });
+const bad = new Set(); // 없는 계정은 다시 두드리지 않는다
+async function tryLogin(c) { if (used.has(c.email) || bad.has(c.email)) return null; used.add(c.email); const jwt = await login(c.email, c.password); if (!jwt) { used.delete(c.email); bad.add(c.email); } return jwt; }
 async function signup(run) {
-  // 계정 후보: 이번 접두어 → 앞선 검사 접두어(gc · gb) 순으로 로그인(가입 속도 제한 회피). 같은 번호 = 같은 목적의 한 작업만 쓰므로 세션이 겹치지 않는다.
+  // 계정 후보: 같은 번호의 앞선 검사 계정 → 그래도 없으면 아직 안 쓴 다른 번호의 앞선 검사 계정(가입 속도 제한 회피 · 새 가입 최소화).
   let jwt = null; let acct = run; let email = ''; let password = '';
-  for (const pre of [...new Set([ACCOUNT_PREFIX, PREFIX, 'gc', 'gb', 'gd', 'ge', 'gu', 'gf', 'gg', 'gh'])]) {
-    acct = run.replace(new RegExp(`^${PREFIX}`), pre); email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
-    jwt = await login(email, password); if (jwt) break;
-  }
+  for (const pre of PRES) { ({ acct, email, password } = cand(run.replace(new RegExp(`^${PREFIX}`), pre))); jwt = await tryLogin({ acct, email, password }); if (jwt) break; }
+  if (!jwt) outer: for (const pre of PRES) for (const l of ['f', 'r', 'c', 'd']) for (let i = 1; i <= 20; i++) { ({ acct, email, password } = cand(`${pre}${l}${String(i).padStart(2, '0')}`)); jwt = await tryLogin({ acct, email, password }); if (jwt) break outer; }
   // 새 가입은 이번 접두어 이름으로. 가입 속도 제한(429)이면 기다렸다 두 번까지 다시(검사 계정 부족으로 run 이 빠지지 않게).
   if (!jwt) { acct = run; email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
     for (let t = 0; t < 3 && !jwt; t++) { if (t) await new Promise((ok) => setTimeout(ok, 70000)); const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); } }
@@ -122,7 +128,8 @@ const results = []; let next = 0; const conc = 4;
 await Promise.all(Array.from({ length: conc }, async () => { while (next < jobs.length) { const j = jobs[next++]; try { results.push(await j()); } catch (e) { results.push({ error: String(e.message ?? e).slice(0, 120) }); } } }));
 const by = (g) => results.filter((r) => r.goal === g && !r.error);
 const agg = (rs) => ({ runs: rs.length, fail: rs.filter((r) => r.fail).length, residue: rs.filter((r) => r.residue?.length).length, dup_questions: rs.filter((r) => r.dup?.length).length, summary_residue: rs.filter((r) => r.summary_residue?.length).length,
-  counsel_ack: rs.filter((r) => r.counsel?.length).length, correction_fail: rs.filter((r) => r.correction_ok === false).length, repeat_fail: rs.filter((r) => r.repeat_ok === false).length, unsure_fail: rs.filter((r) => r.unsure_ok === false).length,
+  counsel_ack: rs.filter((r) => r.counsel?.length).length, reply_asks: rs.filter((r) => r.reply_asks?.length).length, empty_ack: rs.reduce((a, r) => a + (r.empty_ack ?? 0), 0),
+  followup_linked: (() => { const t = rs.map((r) => (r.linked ?? '0/0').split('/').map(Number)); const a = t.reduce((x, y) => x + y[0], 0), b = t.reduce((x, y) => x + y[1], 0); return `${a}/${b}`; })(), correction_fail: rs.filter((r) => r.correction_ok === false).length, repeat_fail: rs.filter((r) => r.repeat_ok === false).length, unsure_fail: rs.filter((r) => r.unsure_ok === false).length,
   goal_mismatch: rs.filter((r) => r.goal_saved && r.goal_saved !== r.goal).length, unfinished: rs.filter((r) => r.finished === false).length, avg_questions: +(rs.reduce((a, r) => a + (r.questions ?? 0), 0) / Math.max(1, rs.length)).toFixed(2) });
 // 목적 이름만 바꾼 질문(친구 질문에서 「친구」를 빼면 연애 질문과 거의 같은지 · 교차 비교)
 const strip = (t) => bare(t).replace(/친구|연인|연애|사람|상대|분/g, '');
@@ -138,7 +145,7 @@ summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colle
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
 // 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
 const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')} :: ${JSON.stringify(r.trace)}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
-  r.counsel?.length && `counsel:${r.counsel[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
+  r.counsel?.length && `counsel:${r.counsel[0]}`, r.reply_asks?.length && `reply_asks:${r.reply_asks[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
 const digest = [];
 for (const r of results) {
   if (r.error) { digest.push(`ERROR ${r.error}`); continue; }

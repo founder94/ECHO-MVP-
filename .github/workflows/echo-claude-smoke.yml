@@ -75,16 +75,16 @@ jobs:
         with:
           sparse-checkout: |
             product/qa-real/melba-render.mjs
-            product/qa-real/results/qa-zip-4fbe5b4-melba.sha256
+            product/qa-real/results/qa-zip-1c43024-melba.sha256
       - name: 새 QA 주소 응답·해시 대조(주소당 1회 · 최소 요청)
         env:
           BASE: https://thriving-melba-b1449a.netlify.app
         working-directory: product/qa-real
         run: |
           set +e
-          EXP=results/qa-zip-4fbe5b4-melba.sha256
+          EXP=results/qa-zip-1c43024-melba.sha256
           code() { curl -sS -o "$2" --max-time 20 -w '%{http_code}' "$BASE$1"; }
-          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (4fbe5b4 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
+          echo "/ : HTTP $(code / idx.html) · index sha16=$(sha256sum idx.html | cut -c1-16) (1c43024 기대 $(grep ' index.html$' $EXP | cut -c1-16))"
           JS=$(grep -o '/assets/index-[^"]*\.js' idx.html | head -1); CSS=$(grep -o '/assets/index-[^"]*\.css' idx.html | head -1)
           echo "main JS $JS : HTTP $(code "$JS" js.bin)"; echo "CSS $CSS : HTTP $(code "$CSS" css.bin)"
           echo "manifest : HTTP $(code /manifest.webmanifest mf.json) · $(jq -c '{name,short_name,id,start_url,scope,display,icons:[.icons[]|.src+" "+.sizes+" "+.purpose]}' mf.json 2>/dev/null)"
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      RC_SHA: 4fbe5b45622435c9c1ec8efeb8ee52b62595ba40
+      RC_SHA: 1c43024d8fc43d2226abc12340cd129a914d72da
       # QA 공개 키(anon · 브라우저에 공개되는 값 · 운영 키 아님)
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
@@ -232,11 +232,11 @@ jobs:
         if: inputs.mode == 'qa_deploy_and_signup' || inputs.mode == 'qa_deploy_only'
         run: |
           set -euo pipefail
-          # B·C: doit-agent · doit-connect = PR #12 최신본(4fbe5b4 · 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 Agent v2.4.0)과 글자까지 같아야 함
+          # B·C: doit-agent · doit-connect = PR #12 최신본(1c43024 · 2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」 Agent v2.4.0)과 글자까지 같아야 함
           git fetch -q --depth=1 origin claude/echo-p0-release-blockers-20260927
-          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "4fbe5b4" ] || { echo "FAIL: PR #12 head 가 검사본(4fbe5b4)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
+          [ "$(git rev-parse --short=7 FETCH_HEAD)" = "1c43024" ] || { echo "FAIL: PR #12 head 가 검사본(1c43024)이 아님: $(git rev-parse --short=7 FETCH_HEAD)"; exit 1; }
           git diff --quiet FETCH_HEAD HEAD -- product/supabase/functions/doit-agent product/supabase/functions/doit-connect || { echo "FAIL: doit-agent/doit-connect 가 PR #12 검사본과 다름"; exit 1; }
-          echo "OK: doit-agent · doit-connect = PR #12 4fbe5b4 와 동일"
+          echo "OK: doit-agent · doit-connect = PR #12 1c43024 와 동일"
           C=product/qa-deploy/doit-understanding/index.ts
           [ "$(sha256sum "$C" | cut -d' ' -f1)" = "$UNDERSTANDING_SHA256" ] || { echo "FAIL: 배포 후보 해시 불일치"; exit 1; }
           diff product/qa-deploy/prod-v29/doit-understanding.index.ts "$C" > /tmp/d.txt || true
@@ -248,7 +248,7 @@ jobs:
           cp -r product/supabase/functions/doit-agent product/supabase/functions/doit-connect stage/supabase/functions/
           mkdir -p stage/supabase/functions/doit-understanding && cp "$C" stage/supabase/functions/doit-understanding/index.ts
           printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n\n[functions.doit-connect]\nverify_jwt = true\n\n[functions.doit-understanding]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
-          grep -q 'export const AGENT_VERSION = "echo-agent-v2.4.0"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
+          grep -q 'export const AGENT_VERSION = "echo-agent-v2.4.1"' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
           grep -q 'presented' stage/supabase/functions/doit-agent/agent.ts && grep -q 'DISPUTED' stage/supabase/functions/doit-agent/agent.ts || { echo "FAIL: 모호한 거절 규칙 없음"; exit 1; }
           ( cd stage && find supabase/functions -name '*.ts' -exec sha256sum {} \; | sort -k2 )
 
