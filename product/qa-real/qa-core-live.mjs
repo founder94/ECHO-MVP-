@@ -90,6 +90,31 @@ const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
 check('서버 판 = echo-agent-v2.4.3', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.3' || s?.profile?.version === 'echo-agent-v2.4.3', `version=${s?.profile?.version ?? '-'}`);
 
+// ── F(2026-09-29 대표 「FINAL RELEASE CLOSING」): 같은 계정 친구 ↔ 연애 세션 격리
+const ro = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애', firstAnswer: '진지한 연애를 하고 싶어요' });
+const rid = ro.data?.session?.id;
+check('목적 격리: 같은 계정 연애 = 친구·취미와 다른 세션 · goal=romantic', !!rid && rid !== fid && rid !== hid && ro.data?.session?.goal === 'romantic', `romantic=${rid?.slice(0, 8)} goal=${ro.data?.session?.goal}`);
+// ── B: 모호한 거절 「그런 뜻 아니야」 — 바로 앞 AI 해석을 거두고, 거둔 뜻이 뒤 AI 말·지금 사실(요약·소개·confirmed_preferences)에 다시 나오지 않는다
+const rt = (text) => agent(C.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: rid, text });
+await rt('조용한 곳에서 오래 이야기하는 게 좋아요');
+const before = await agent(C.jwt, { action: 'agent_get', sessionId: rid });
+const aiN = (before.data?.session?.messages ?? []).filter((m) => m.role === 'ai').length;
+const vr = await rt('그런 뜻 아니야');
+check('「그런 뜻 아니야」 처리 · 사실로 저장 0', vr.status === 200 && vr.data?.turn?.saved === false, `status=${vr.status} kind=${vr.data?.turn?.kind} saved=${vr.data?.turn?.saved}`);
+await rt('천천히 알아가는 사이가 좋아요');
+const rg = (await agent(C.jwt, { action: 'agent_get', sessionId: rid })).data?.session ?? {};
+const rprof = rg.profile ?? {};
+const slots = Object.values(rprof).filter((v) => v && Array.isArray(v.items));
+const retracted = slots.flatMap((v) => (v.history ?? []).filter((i) => i.status === 'RETRACTED').map((i) => i.note)).concat(rprof.rejected_meanings ?? []).filter(Boolean);
+const liveNotes = slots.flatMap((v) => v.items.filter((i) => i.status === 'CONFIRMED').map((i) => i.note));
+const aiLater = (rg.messages ?? []).filter((m) => m.role === 'ai').slice(aiN + 1).map((m) => m.text).join(' ');
+const factsR = JSON.stringify({ summary: (rg.summary ?? []).map((x) => x.text), intro: rg.intro?.text ?? null, prefs: rprof.confirmed_preferences ?? [], live: liveNotes });
+if (!retracted.length) console.log('INVALID 「그런 뜻 아니야」 거둠 검사: 이번 실제 AI 가 앞 답에 해석을 보이지 않아 거둘 뜻이 없음(PASS 아님 · FAIL 아님)');
+else check('「그런 뜻 아니야」 거둔 뜻이 뒤 AI 말·지금 사실에 0', retracted.every((r) => !aiLater.includes(r) && !factsR.includes(r)), `retracted=${JSON.stringify(retracted.slice(0, 3))}`);
+check('「그런 뜻 아니야」 사용자 원문 보존', (rg.messages ?? []).some((m) => m.role === 'user' && m.text === '조용한 곳에서 오래 이야기하는 게 좋아요') && (rg.messages ?? []).some((m) => m.role === 'user' && m.text === '그런 뜻 아니야'));
+const fAfter = ((await agent(C.jwt, { action: 'agent_get', sessionId: fid })).data?.session?.messages ?? []).map((m) => m.text);
+check('목적 격리: 친구 세션에 연애 세션 말 0 · 연애 세션에 친구·취미 세션 말 0', !fAfter.some((t) => /진지한 연애|조용한 곳에서 오래/.test(t)) && !(rg.messages ?? []).some((m) => m.role === 'user' && /등산|친구를 만나고 싶어요|잘 모르겠어요|질문이 너무 많아요/.test(m.text)), `friend=${fAfter.length} romantic=${(rg.messages ?? []).length}`);
+
 const fail = results.filter((x) => !x).length;
 console.log(`QA CORE LIVE: ${results.length - fail} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

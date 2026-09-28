@@ -13,42 +13,62 @@ const DEVICES = [
   ['iphone', { viewport: { width: 390, height: 844 }, userAgent: devices['iPhone 13'].userAgent, hasTouch: true, deviceScaleFactor: 3 }],
 ];
 const text = (p) => p.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').trim()).catch(() => '');
+// 2026-09-29 WebKit 진단(run 106): 로그아웃 첫 방문은 / → /do-it/intro(약 3.3초) → /doit/start-journey 읽는 중 문구 → 화면(4.1~5.1초).
+// 고정 5초 뒤 한 번 보는 방식은 읽는 중 문구(「내 프로필을 가져오고 있어요.」)를 화면 실패로 잘못 읽었다 → 의미 있는 화면이 뜰 때까지(최대 20초) 기다린다.
+const LOADING = /가져오고 있어요|확인하고 있어요|불러오고 있어요|잠시만/;
+async function meaningful(p, maxMs = 20000) {
+  const t0 = Date.now(); let t = '';
+  while (Date.now() - t0 < maxMs) {
+    t = await text(p); const path = (() => { try { return new URL(p.url()).pathname; } catch { return ''; } })();
+    if (t.length > 20 && !(LOADING.test(t) && t.length < 60) && path !== '/do-it/intro') return { t, ms: Date.now() - t0 };
+    await p.waitForTimeout(250);
+  }
+  return { t, ms: null };
+}
+const crashes = [];
 
-for (const [bname, type] of [['chrome', chromium], ['webkit', webkit]]) {
-  for (const [dname, opts] of DEVICES) {
+// WebKit 자동화 브라우저가 인트로 캔버스 중 멈추면(page crash · 페이지 오류 0 · 재시도 통과) 같은 경우를 한 번 다시 하고 멈춤 횟수는 따로 보고한다(제품 FAIL 로 섞지 않음).
+async function runDevice(bname, type, dname, opts, attempt = 1) {
     const b = await type.launch();
     const ctx = await b.newContext({ ...opts, ...(bname === 'webkit' ? { isMobile: undefined } : {}) });
     const p = await ctx.newPage();
     const tag = `${bname} ${dname}`;
+    let crashed = false; p.on('crash', () => { crashed = true; });
+    const pending = []; const check = (name, ok, detail = '') => pending.push([name, ok, detail]);
     const sbHosts = new Set(); const mixed = new Set(); const errs = []; const purposes = [];
     p.on('request', (r) => { const u = r.url(); if (/\.supabase\.co\//.test(u)) sbHosts.add(new URL(u).host); if (MIXED.test(u)) mixed.add(u.slice(0, 90)); });
     p.on('response', (r) => { if (r.url().includes('/rest/v1/purposes')) purposes.push(`${new URL(r.url()).host} ${r.status()}`); });
     p.on('pageerror', (e) => errs.push(String(e).slice(0, 100)));
 
     // 1) 브랜드 → 「ECHO 시작하기」 → 앱 (실제 사람 경로)
-    await p.goto(`${BRAND}/`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await p.goto(`${BRAND}/`, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
     const cta = p.locator('a:has-text("ECHO 시작하기")').first();
     await cta.waitFor({ state: 'visible', timeout: 30000 }).catch(async () => { await p.goto(`${BRAND}/do-it/landing`, { waitUntil: 'domcontentloaded' }); await cta.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {}); });
     await Promise.all([p.waitForURL((u) => u.href.startsWith(APP), { timeout: 30000 }).catch(() => {}), cta.click({ timeout: 10000 }).catch(() => {})]);
-    await p.waitForLoadState('domcontentloaded').catch(() => {}); await p.waitForTimeout(7000);
-    const t1 = await text(p);
+    await p.waitForLoadState('domcontentloaded').catch(() => {});
+    const { t: t1 } = await meaningful(p);
     check(`${tag}: 브랜드 「ECHO 시작하기」 → ${APP} 도착 · 화면 글자 있음 · Site not found 아님`, p.url().startsWith(APP) && t1.length > 20 && !/Site not found/i.test(t1), `landed=${p.url()} text=${t1.slice(0, 40)}`);
 
     // 2) 앱 첫 화면 · 로그인 화면 직접 열기
-    const r2 = await p.goto(`${APP}/`, { waitUntil: 'domcontentloaded', timeout: 45000 }); await p.waitForTimeout(5000);
-    const t2 = await text(p);
-    check(`${tag}: ${APP}/ 200 · 화면 글자 있음`, r2?.status() === 200 && t2.length > 20 && !/Site not found/i.test(t2), `status=${r2?.status()} path=${new URL(p.url()).pathname} text=${t2.slice(0, 40)}`);
-    const r3 = await p.goto(`${APP}/login`, { waitUntil: 'domcontentloaded', timeout: 45000 }); await p.waitForTimeout(5000);
-    const inputs = await p.locator('input[type="email"], input[type="password"], button').count();
+    const r2 = await p.goto(`${APP}/`, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null);
+    const { t: t2, ms: m2 } = await meaningful(p);
+    check(`${tag}: ${APP}/ 200 · 의미 있는 화면(읽는 중 문구·인트로 아님)`, r2?.status() === 200 && m2 !== null && !/Site not found/i.test(t2), `status=${r2?.status()} path=${(() => { try { return new URL(p.url()).pathname; } catch { return '?'; } })()} meaningful=${m2 ?? 'NONE'}ms text=${t2.slice(0, 40)}`);
+    const r3 = await p.goto(`${APP}/login`, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => null); await meaningful(p);
+    const inputs = await p.locator('input[type="email"], input[type="password"], button').count().catch(() => 0);
     check(`${tag}: ${APP}/login 200 · 로그인 화면(입력칸·버튼) 보임`, r3?.status() === 200 && inputs > 0, `status=${r3?.status()} controls=${inputs} path=${new URL(p.url()).pathname}`);
 
     // 3) 연결 대상: 브라우저가 실제로 부른 Supabase
     check(`${tag}: 브라우저가 부른 Supabase = 운영(${PROD_SB}) 하나뿐`, sbHosts.size > 0 && [...sbHosts].every((h) => h === PROD_SB), JSON.stringify([...sbHosts]));
     check(`${tag}: 운영 목적 목록(purposes) 운영 Supabase 에서 200`, purposes.length > 0 && purposes.every((x) => x === `${PROD_SB} 200`), JSON.stringify(purposes.slice(0, 3)));
     check(`${tag}: QA Supabase · thriving-melba · echo-*-qa · netlify.app 요청 0 · 페이지 오류 0`, mixed.size === 0 && errs.length === 0, JSON.stringify({ mixed: [...mixed], errs: errs.slice(0, 2) }));
-    await b.close();
-  }
+    await b.close().catch(() => {});
+    if (crashed && attempt === 1) { crashes.push(`${tag} (재시도)`); return runDevice(bname, type, dname, opts, 2); }
+    if (crashed) crashes.push(`${tag} (재시도도 멈춤)`);
+    for (const [n, ok, d] of pending) results.push(!!ok), console.log(`${ok ? 'PASS' : 'FAIL'} ${n}${d ? ` · ${d}` : ''}`);
+    if (crashed) { results.push(false); console.log(`FAIL ${tag}: 재시도에서도 브라우저 멈춤`); }
 }
+for (const [bname, type] of [['chrome', chromium], ['webkit', webkit]]) for (const [dname, opts] of DEVICES) await runDevice(bname, type, dname, opts);
+console.log(`AUTOMATION CRASH (재시도 뒤 통과한 것은 제품 FAIL 아님): ${crashes.length ? crashes.join(' · ') : '0'}`);
 
 // 4) 운영 APP 파일 전수(첫 화면 + 거기서 이어지는 모든 js 조각)
 const seen = new Set(); const queue = ['/']; let all = '';
