@@ -64,23 +64,24 @@ if (ADMIN_BASE) {
         const s = who === 'admin' ? admin : who === 'user' ? user : null;
         if (s) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${QA_REF}-auth-token`, session(s)]);
         const tag = `${bname} ${w} ${who}`;
-        await p.goto(`${ADMIN_BASE}/?m=users`); await p.waitForTimeout(4000);
+        const settle = async () => { await p.waitForSelector('.aw-top h1, .aw-card', { timeout: 20000 }).catch(() => {}); await p.waitForFunction(() => !document.querySelector('.aw-loading'), null, { timeout: 30000 }).catch(() => {}); };
+        await p.goto(`${ADMIN_BASE}/?m=users`); await settle(); await p.waitForTimeout(500);
         const txt = await p.evaluate(() => document.body.innerText);
         if (who === 'none') check(`화면 ${tag}: 로그인 없음 → 로그인 화면`, p.url().endsWith('/login') && txt.includes('관리자 계정만'), p.url());
         if (who === 'user') check(`화면 ${tag}: 일반 사용자 직접 주소 → 거절 · 관리자 자료 호출 0`, txt.includes('관리자 권한이 없습니다') && calls.length === 0, `calls=${calls.length}`);
         if (who === 'admin') {
           check(`화면 ${tag}: 사용자 목록(실제)`, txt.includes('사용자') && (await p.locator('.aw-table tbody tr').count()) > 0);
-          await p.goto(`${ADMIN_BASE}/`); await p.waitForTimeout(5000);
+          await p.goto(`${ADMIN_BASE}/`); await settle(); await p.waitForSelector('.aw-level--big', { timeout: 30000 }).catch(() => {});
           const dash = await p.evaluate(() => ({ level: document.querySelector('.aw-level--big')?.textContent ?? null, stats: document.querySelectorAll('.aw-stat').length, overflow: document.documentElement.scrollWidth > innerWidth + 1, missing: [...document.querySelectorAll('.aw-missing')].map((e) => e.textContent) }));
           check(`화면 ${tag}: 대시보드 상태 글자 · 숫자 칸 · 가로 넘침 없음`, /정상|주의|오류/.test(dash.level ?? '') && dash.stats >= 20 && !dash.overflow, JSON.stringify(dash));
-          await p.goto(`${ADMIN_BASE}/?m=conversations`); await p.waitForTimeout(4000);
+          await p.goto(`${ADMIN_BASE}/?m=conversations`); await settle(); await p.waitForSelector('.aw-row', { timeout: 20000 }).catch(() => {});
           const rows = await p.locator('.aw-row').count();
-          if (rows) { await p.locator('.aw-row').first().click(); await p.waitForTimeout(3000); await p.getByRole('button', { name: '원문 보기' }).click(); await p.waitForTimeout(300); }
+          if (rows) { await p.locator('.aw-row').first().click(); await p.getByRole('button', { name: '원문 보기' }).click({ timeout: 20000 }).catch(() => {}); await p.waitForTimeout(300); }
           const turns = await p.locator('.aw-turn').count();
           check(`화면 ${tag}: AI 대화 목록·원문 조회`, rows > 0 && turns > 0, `대화 ${rows} · 턴 ${turns}`);
           let menuFail = [];
           for (const m of ['facts', 'profiles', 'connect', 'safety', 'status', 'release', 'failures', 'alerts', 'settings', 'audit', 'data']) {
-            await p.goto(`${ADMIN_BASE}/?m=${m}`); await p.waitForTimeout(2500);
+            await p.goto(`${ADMIN_BASE}/?m=${m}`); await settle();
             const bad = await p.evaluate(() => ({ h1: document.querySelector('.aw-top h1')?.textContent, err: [...document.querySelectorAll('.aw-notice--bad')].map((e) => e.textContent), overflow: document.documentElement.scrollWidth > innerWidth + 1 }));
             if (!bad.h1 || bad.overflow || bad.err.length) menuFail.push(`${m}:${bad.err.join('/') || (bad.overflow ? 'overflow' : 'noh1')}`);
           }
