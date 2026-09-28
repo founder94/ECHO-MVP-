@@ -29,11 +29,12 @@ const fail = (code: string, message: string, status: number, origin: string | nu
 async function readAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>, cap = ROW_CAP): Promise<{ rows: T[]; error: string | null; truncated: boolean }> {
   const rows: T[] = [];
   for (let from = 0; from < cap; from += PAGE) {
-    const { data, error } = await build(from, from + PAGE - 1);
+    const { data, error } = await build(from, Math.min(from + PAGE, cap) - 1);
     if (error) return { rows, error: String((error as { code?: string; message?: string }).code ?? (error as { message?: string }).message ?? "error"), truncated: false };
     const got = (data ?? []) as T[];
     rows.push(...got);
     if (got.length < Math.min(PAGE, cap - from)) return { rows, error: null, truncated: false };
+    if (from + PAGE >= cap) return { rows, error: null, truncated: true };
   }
   return { rows, error: null, truncated: true };
 }

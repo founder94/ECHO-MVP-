@@ -81,12 +81,14 @@ export function qualityOf(st: AgentState): Record<QualityKey, number> {
 const sumQ = (q: Record<QualityKey, number>) => Object.values(q).reduce((a, b) => a + b, 0);
 
 // 목적 이름만 바꾼 질문(대표 §9): 친구 대화의 질문에서 목적 낱말을 빼면 연애 대화의 질문과 거의 같은지(기간 안의 실제 질문끼리).
+export const LABEL_ONLY_MAX = 250;
 export function labelOnlyPairs(sessions: { goal: string; questions: string[] }[], limit = 5): { a: string; b: string }[] {
   const strip = (t: string) => bare(t).replace(/친구|연인|연애|사람|상대|분|동료|함께일할/g, "");
-  const f = sessions.filter((s) => s.goal === "friend").flatMap((s) => s.questions.slice(1));
-  const r = sessions.filter((s) => s.goal === "romantic").flatMap((s) => s.questions.slice(1));
+  // 서로 다른 질문만 · 목적마다 최대 LABEL_ONLY_MAX 개(실제 QA 실측: 1,000개 대화를 전부 맞대면 함수 계산 한도 546).
+  const uniq = (goal: string) => [...new Set(sessions.filter((s) => s.goal === goal).flatMap((s) => s.questions.slice(1)))].slice(0, LABEL_ONLY_MAX);
+  const f = uniq("friend"); const r = uniq("romantic").map((x) => ({ x, s: strip(x) }));
   const out: { a: string; b: string }[] = [];
-  for (const a of f) { const b = r.find((x) => dice(strip(a), strip(x)) >= 0.8); if (b) out.push({ a, b }); if (out.length >= limit) break; }
+  for (const a of f) { const sa = strip(a); const b = r.find((x) => dice(sa, x.s) >= 0.8); if (b) out.push({ a, b: b.x }); if (out.length >= limit) break; }
   return out;
 }
 
