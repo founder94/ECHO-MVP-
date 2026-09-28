@@ -1,0 +1,45 @@
+name: echo-qa-browser
+on:
+  push:
+    branches: [codex/echo-qa-device-candidate-20260928]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VITE_PUBLIC_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+      VITE_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+      VITE_APP_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_BRAND_ORIGIN: https://echo-qa-app-20260927.netlify.app
+      VITE_AUTH_GOOGLE_ENABLED: 'false'
+      VITE_QA_BUILD: 'true'
+      VITE_QA_HARNESS: 'false'
+    defaults:
+      run:
+        working-directory: product
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Build exact candidate APP and BRAND
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          npm run build:app
+          npm run build:brand
+      - name: Chrome and WebKit on iPhone and Galaxy dimensions
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium webkit > /tmp/echo-browser-install.log 2>&1
+          (npx vite preview --outDir out-app --host 127.0.0.1 --port 8770 > /tmp/echo-app-preview.log 2>&1 &)
+          (npx vite preview --outDir out-brand --host 127.0.0.1 --port 8773 > /tmp/echo-brand-preview.log 2>&1 &)
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8770/ > /dev/null && curl --fail --silent http://127.0.0.1:8773/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node qa-real/browser-smoke.mjs
