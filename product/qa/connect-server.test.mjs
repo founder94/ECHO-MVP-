@@ -158,7 +158,7 @@ test('phone_sync: 화면이 verified:true 를 보내도 Auth 확인이 없으면
 
 test('관리자 아닌 사람은 후보·결정·목록을 못 본다(403)', async () => {
   const call = loadServer(world());
-  for (const action of ['admin_candidates', 'admin_matches', 'admin_decide']) {
+  for (const action of ['admin_candidates', 'admin_matches', 'admin_decide', 'admin_members']) {
     const r = await call(ID.a, { action, userA: ID.a, userB: ID.b, decision: 'approve' });
     assert.equal(r.status, 403, action);
   }
@@ -618,4 +618,19 @@ test('P0-6 T15: Agent 만 쓴 사용자 — legacy 는 겹친 말 0(끊김 재�
   assert.equal(c.no_common, false, '겹친 말 0 고정 아님');
   assert.ok(c.score > 0);
   assert.ok(JSON.stringify(c).includes('조용한 곳에서 대화하는 걸 좋아해요'), '겹친 말 = 두 사람 모두 확정한 값');
+});
+
+test('ADMIN WEB: admin_members — 같은 연결 자격 계산 · 사람별 준비·부족 항목만(소개 글·확정 문장·전화번호 0) · 쓰기 0', async () => {
+  const s = world();
+  const call = loadServer(s);
+  const before = s.writes.length;
+  const r = await call(ID.admin, { action: 'admin_members' });
+  assert.equal(r.status, 200);
+  const cand = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.members.filter((m) => m.eligible).length, cand.body.eligible, '후보 계산과 같은 기준');
+  const d = r.body.members.find((m) => m.id === ID.d);
+  assert.ok(d && !d.eligible && d.missing.includes('photos'));
+  const text = JSON.stringify(r.body);
+  assert.ok(!/bio|confirmed|phone"/.test(text.replace(/phone_verified/g, '')), '소개·확정 문장·전화번호 필드 없음');
+  assert.equal(s.writes.length, before, '읽기만');
 });

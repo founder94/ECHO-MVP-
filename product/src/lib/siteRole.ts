@@ -3,15 +3,18 @@
 // - app   : app.do-it.company — 제품 전부(로그인·대화·사진·연결). 모바일 웹 앱(PWA).
 // - all   : (기본) 지금까지의 통합 빌드. 7차까지의 검사 환경. 스위치를 안 주면 이 값이다.
 // 빌드 때 VITE_SITE_ROLE 로 정한다. 실행 중에 바뀌지 않으며, 역할에 없는 화면 코드는 번들에 들어가지 않는다(라우터에서 lazy 를 조건 안에 둔다).
-export type SiteRole = 'brand' | 'app' | 'all';
+// - admin : admin.do-it.company — 대표·운영자 관리자 페이지만(2026-09-28 대표 「ADMIN WEB」). 사용자 앱·브랜드 화면은 들어가지 않는다.
+export type SiteRole = 'brand' | 'app' | 'admin' | 'all';
 
 const raw = import.meta.env.VITE_SITE_ROLE;
-export const SITE_ROLE: SiteRole = raw === 'brand' ? 'brand' : raw === 'app' ? 'app' : 'all';
+export const SITE_ROLE: SiteRole = raw === 'brand' ? 'brand' : raw === 'app' ? 'app' : raw === 'admin' ? 'admin' : 'all';
 export const IS_BRAND_SITE = SITE_ROLE === 'brand';
 export const IS_APP_SITE = SITE_ROLE === 'app';
 
 // 제품 주소. 브랜드 빌드가 "지금 시작하기"·"로그인"·제품 경로를 보낼 곳. 빌드 변수로 바꿀 수 있다(예: 검사용 주소).
 export const APP_ORIGIN: string = (import.meta.env.VITE_APP_ORIGIN as string | undefined)?.replace(/\/$/, '') || 'https://app.do-it.company';
+// 관리자 주소(사용자 앱에서 /admin 으로 들어오면 여기로 보낸다). 운영 연결(DNS)은 대표 GO 뒤.
+export const ADMIN_ORIGIN: string = (import.meta.env.VITE_ADMIN_ORIGIN as string | undefined)?.replace(/\/$/, '') || 'https://admin.do-it.company';
 export const BRAND_ORIGIN: string = (import.meta.env.VITE_BRAND_ORIGIN as string | undefined)?.replace(/\/$/, '') || 'https://do-it.company';
 
 // 브랜드 사이트에서 제품으로 넘길 때 쓰는 주소. 내부 경로만 받는다(외부 주소·스킴 금지).

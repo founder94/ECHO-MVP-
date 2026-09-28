@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from "react-router-dom";
 import { lazy, type ReactElement } from "react";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
+import { AdminRedirect } from "@/components/ExternalRedirect";
 
 const DoitApp = lazy(() => import("@/doit/DoitApp"));
 const Fortune = lazy(() => import("@/doit/pages/do-it/fortune/page"));
@@ -28,7 +29,10 @@ const JustTry = lazy(() => import("@/doit/pages/do-it/just-try/page"));
 const Notifications = lazy(() => import("@/doit/pages/do-it/notifications/page"));
 const Settings = lazy(() => import("@/doit/pages/do-it/settings/page"));
 const Profile = lazy(() => import("@/doit/pages/do-it/profile/page"));
-const AdminMobile = lazy(() => import("@/doit/pages/do-it/admin/page"));
+// 2026-09-28 대표 「ADMIN WEB」: 앱 빌드(app.do-it.company)·브랜드 빌드에는 관리자 화면 코드를 넣지 않는다 — 관리자 주소로 보낸다.
+const APP_BUILD = import.meta.env.VITE_SITE_ROLE === "app" || import.meta.env.VITE_SITE_ROLE === "brand"; // 브랜드 빌드에도 관리자 조각을 만들지 않는다(브랜드는 /doit 경로를 앱으로 넘긴다)
+const AdminMobile = APP_BUILD ? null : lazy(() => import("@/doit/pages/do-it/admin/page"));
+const adminMobileEl: ReactElement = AdminMobile ? <AdminMobile /> : <AdminRedirect />;
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // DO IT(A 구조) 화면 전부는 /doit 아래에 산다. 원래 A 프로젝트의 경로에 /doit 만 앞에 붙었다.
@@ -70,7 +74,8 @@ const doitRoutes: RouteObject = {
     { path: "notifications", element: gate("/doit/notifications", <Notifications />) },
     { path: "settings", element: <Settings /> },
     { path: "profile", element: <Profile /> },
-    { path: "admin/mobile", element: <AdminMobile /> },
+    { path: "admin/mobile", element: adminMobileEl },
+    ...(APP_BUILD ? [{ path: "admin/*", element: <AdminRedirect /> }] : []),
     { path: "*", element: <NotFound /> },
   ],
 };

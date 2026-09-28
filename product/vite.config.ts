@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import AutoImport from "unplugin-auto-import/vite";
 // import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
 
@@ -25,6 +25,23 @@ export default defineConfig(({ mode }) => {
   const appOrigin = (process.env.VITE_APP_ORIGIN || env.VITE_APP_ORIGIN || "https://app.do-it.company").replace(/\/$/, "");
   // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
   const APP_START_COLOR = "#3fdcb3";
+  const ADMIN_HTML = `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#111111" />
+    <title>DO IT 관리자</title>
+    <style>html, body, #root { min-height: 100%; margin: 0; } body { background: #f4f4f2; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/admin/main.tsx"></script>
+  </body>
+</html>
+`;
   const siteRolePlugin = {
     name: "doit-site-role",
     // 앱 빌드에만 PWA(홈 화면 설치) 태그를 넣는다. 브랜드 사이트는 설치 대상이 아니다.
@@ -32,6 +49,8 @@ export default defineConfig(({ mode }) => {
     transformIndexHtml: {
       order: "pre" as const,
       handler(html: string) {
+        // 2026-09-28 대표 「ADMIN WEB」: 관리자 빌드는 머리부터 따로 — 검색 제외 · 설치(PWA) 없음 · 브랜드 그림·공유 태그 없음 · 입구는 src/admin/main.tsx.
+        if (siteRole === "admin") return ADMIN_HTML;
         if (siteRole !== "app") return html;
         // 2026-09-25 대표 지정 ECHO 앱 아이콘: 앱 빌드만 파비콘을 바꾼다(브랜드 do-it.company 파비콘은 그대로).
         const favicon = '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />';
@@ -77,6 +96,13 @@ export default defineConfig(({ mode }) => {
     },
     // 브랜드 빌드의 _redirects: 제품 경로는 서버에서 바로 앱 주소로 보낸다(화면 로드 전).
     writeBundle(options: { dir?: string }) {
+      // 관리자 빌드: 모든 경로 = 관리자 화면 하나 · 검색 제외 · 다른 사이트 안에 넣기 금지. 앱·브랜드용 공용 파일(설치 설정·앱 아이콘·브랜드 그림)은 빼낸다.
+      if (siteRole === "admin" && options.dir) {
+        for (const extra of ["manifest.webmanifest", "pwa", "brand"]) rmSync(resolve(options.dir, extra), { recursive: true, force: true });
+        writeFileSync(resolve(options.dir, "_redirects"), "/*    /index.html   200\n");
+        writeFileSync(resolve(options.dir, "_headers"), ["/*", "  X-Frame-Options: DENY", "  X-Content-Type-Options: nosniff", "  Referrer-Policy: no-referrer", "  X-Robots-Tag: noindex, nofollow", "  Cache-Control: no-store", ""].join("\n"));
+        return;
+      }
       if (siteRole !== "brand" || !options.dir) return;
       const rules = [
         "/doit/*", "/login", "/signup", "/auth/*", "/legal/consent", "/start", "/home",

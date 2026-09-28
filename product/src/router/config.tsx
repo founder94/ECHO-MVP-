@@ -2,7 +2,7 @@ import { Navigate, type RouteObject } from 'react-router-dom';
 import { lazy } from 'react';
 import DoItLandingPage from '@/pages/do-it/landing/page';
 import DoItEntry from '@/pages/do-it/intro/DoItEntry';
-import ExternalRedirect from '@/components/ExternalRedirect';
+import ExternalRedirect, { AdminRedirect } from '@/components/ExternalRedirect';
 import { PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 
 // A구조 서브앱(/doit/*) — 7화면 흐름(첫 기록 → 확인·수정 → 홈 → 타임라인 → 가치 → 패턴 → 선택 기억)
@@ -69,8 +69,6 @@ function productRouteTable(): RouteObject[] {
   const FortunePage = lazy(() => import('@/pages/do-it/fortune/page'));
   const PhotoPage = lazy(() => import('@/pages/do-it/photo/page'));
   const GradePage = lazy(() => import('@/pages/do-it/grade/page'));
-  const AdminLoginPage = lazy(() => import('@/pages/admin/login/page'));
-  const AdminMobilePage = lazy(() => import('@/pages/admin/page'));
   // QA 검사 도구(/qa/doit-understanding) — 제품 기능이 아니다. VITE_QA_HARNESS=true 로 빌드했을 때만 라우트를 등록한다.
   // 이건 "노출 제어"이지 보안 경계가 아니다. 실제 경계는 서버(doit-understanding)의 verify_jwt → getUser() → 인증 uid → RPC/RLS 다.
   const QaDoitUnderstanding = import.meta.env.VITE_QA_HARNESS === 'true' ? lazy(() => import('@/qa/QaDoitUnderstanding')) : null;
@@ -105,10 +103,19 @@ function productRouteTable(): RouteObject[] {
     { path: '/do-it/fortune', element: visibleInRelease('/do-it/fortune') ? <FortunePage /> : <Navigate to="/doit/fortune" replace /> },
     { path: '/do-it/photo', element: visibleInRelease('/do-it/photo') ? <PhotoPage /> : <Navigate to="/doit/start-journey?edit=photos" replace /> },
     { path: '/do-it/grade', element: visibleInRelease('/do-it/grade') ? <GradePage /> : <Navigate to="/doit/home" replace /> },
-    // 관리자 운영센터(와일드카드보다 앞에 위치)
-    { path: '/admin', element: <Navigate to="/admin/mobile" replace /> },
-    { path: '/admin/login', element: <AdminLoginPage /> },
-    { path: '/admin/mobile', element: <AdminMobilePage /> },
+    // 관리자 운영센터(와일드카드보다 앞에 위치). 2026-09-28 대표 「ADMIN WEB」: 앱 빌드에는 관리자 화면을 넣지 않는다 — 관리자 주소(admin.do-it.company)로 보낸다.
+    // 관리자 사이트는 따로 빌드한다(VITE_SITE_ROLE=admin → src/admin/main.tsx). 통합 빌드(검사 환경)는 예전 화면을 그대로 둔다.
+    ...(ROLE === 'app'
+      ? [{ path: '/admin', element: <AdminRedirect /> }, { path: '/admin/*', element: <AdminRedirect /> }]
+      : (() => {
+        const AdminLoginPage = lazy(() => import('@/pages/admin/login/page'));
+        const AdminMobilePage = lazy(() => import('@/pages/admin/page'));
+        return [
+          { path: '/admin', element: <Navigate to="/admin/mobile" replace /> },
+          { path: '/admin/login', element: <AdminLoginPage /> },
+          { path: '/admin/mobile', element: <AdminMobilePage /> },
+        ];
+      })()),
     // QA 빌드에서만 존재한다. 일반 빌드에서는 와일드카드가 받아 NotFound 가 된다.
     ...(QaDoitUnderstanding ? [{ path: '/qa/doit-understanding', element: <QaDoitUnderstanding /> } as RouteObject] : []),
   ];
