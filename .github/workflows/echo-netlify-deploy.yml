@@ -1,6 +1,7 @@
 # ECHO Netlify 배포(2026-09-28 대표 「ZIP 수동 업로드 없이 자동배포」).
-# - QA 자동: `echo-qa` 브랜치에 push 하면 검사(lint·type·전체 테스트·역할별 빌드·주소 잠금) 통과 뒤
-#            echo-app-qa / echo-brand-qa / echo-admin-qa 세 곳에 역할별 빌드를 각각 올린다(echo-qa-harness 는 대상 아님).
+# - QA 자동검사: `echo-qa` 브랜치 push 때 검사(lint·type·전체 테스트·역할별 빌드·주소 잠금)만 자동 실행한다.
+# - QA 게시: Netlify Production Deploy는 1회당 15 credits이므로 push마다 게시하지 않는다. workflow_dispatch target=qa 때만
+#            echo-app-qa / echo-brand-qa / echo-admin-qa 세 곳에 역할별 빌드를 게시한다(echo-qa-harness 는 대상 아님).
 # - 운영 게이트: 운영(echo-brand-prod · echo-app-prod)은 자동으로 절대 올리지 않는다.
 #            대표가 Actions 에서 직접 실행(target=prod) + go 칸에 GO 입력 + 같은 검사 통과 + 환경 ECHO-PROD 승인(필수 검토자) 일 때만.
 # - 새 사이트 생성 0(사이트 ID 고정 · 모르는 ID 면 중단) · DB/Supabase 변경 0 · 비밀값 출력 0.
@@ -124,9 +125,9 @@ jobs:
           retention-days: 7
 
   deploy_qa:
-    name: QA 자동배포(echo-app-qa · echo-brand-qa · echo-admin-qa)
+    name: QA 수동게시(echo-app-qa · echo-brand-qa · echo-admin-qa · 비용보호)
     needs: gate
-    if: needs.gate.outputs.target == 'qa'
+    if: needs.gate.outputs.target == 'qa' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ECHO-QA
     timeout-minutes: 20
