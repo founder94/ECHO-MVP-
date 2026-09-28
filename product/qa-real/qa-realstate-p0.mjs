@@ -47,33 +47,6 @@ for (const [bname, type, dname, opts] of DEVICES) {
   const p = await ctx.newPage();
   const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 100)));
 
-  // ── ② 대표 화면 그대로: start-journey 선택 화면 ──
-  await p.goto(`${APP}/doit/start-journey`, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await p.getByRole('heading', { name: /무엇부터 할까요/ }).waitFor({ timeout: 30000 }).catch(() => {});
-  const same = await p.getByRole('button', { name: '대화 다시 보기' }).isVisible().catch(() => false);
-  check(`${tag}: 대표가 본 화면과 같은 상태(사진과 소개 채우기 · 대화 다시 보기 · 홈으로)`, same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false), `path=${new URL(p.url()).pathname}`);
-  const restart = p.getByRole('button', { name: /처음부터 다시 시작하기/ });
-  await restart.scrollIntoViewIfNeeded().catch(() => {});
-  const box = await restart.boundingBox().catch(() => null);
-  const onTop = box ? await p.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return !!el && !!el.closest('button') && /처음부터 다시 시작하기/.test(el.closest('button').textContent); }, [box.x + box.width / 2, box.y + box.height / 2]) : false;
-  const vp = p.viewportSize();
-  check(`${tag}: 실제 렌더 — 「처음부터 다시 시작하기」가 보이고 · 화면 안 · 가리는 것 0 · 누를 수 있는 크기`, !!box && onTop && box.y >= 0 && box.y + box.height <= vp.height && box.height >= 40, JSON.stringify(box && { y: Math.round(box.y), h: Math.round(box.height), w: Math.round(box.width) }));
-  const style = await restart.evaluate((el) => { const c = getComputedStyle(el); return { bg: c.backgroundColor, color: c.color, border: c.borderTopColor }; }).catch(() => null);
-  check(`${tag}: 다시 시작 버튼도 유리 버튼(채움 0 · 흰 글자)`, !!style && alphaOf(style.bg) <= 0.3 && style.color === 'rgb(255, 255, 255)', JSON.stringify(style));
-  const t0 = Date.now();
-  await restart.tap().catch(async () => restart.click());
-  const arrived = await p.getByRole('heading', { name: /어떤 만남을\s*원하세요\?/ }).waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
-  check(`${tag}: 한 번 탭 → 확인 창 없이 첫 질문(어떤 만남을 원하세요?)`, arrived && !(await p.getByText('계속할게요').isVisible().catch(() => false)), `path=${new URL(p.url()).pathname} ms=${Date.now() - t0}`);
-  const me = await http('/auth/v1/user', { jwt });
-  const round = me.data?.user_metadata?.doit_round_started_at;
-  const tok2 = await http('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refresh_token } });
-  const jwt2 = tok2.data?.access_token ?? jwt;
-  const get = await agent(jwt2, { action: 'agent_get' });
-  const prof = await http(`/rest/v1/profiles?id=eq.${uid}&select=purpose_id`, { jwt: jwt2 });
-  const recAfter = await http(`/rest/v1/doit_records?select=id&user_id=eq.${uid}`, { jwt: jwt2 });
-  check(`${tag}: 진짜 새 회차(서버 시각 기록 · 옛 세션 안 돌아옴)`, !!round && Date.parse(round) >= t0 - 5000 && (get.data?.session === null || get.data?.session?.id !== oldSid), `round=${round} session=${get.data?.session?.id?.slice(0, 8) ?? null}`);
-  check(`${tag}: 목적·Profile 유지 · 지난 대화 기록 유지(지운 것 0)`, prof.data?.[0]?.purpose_id === 'friend' && (recBefore.status !== 200 || (recAfter.data?.length ?? -1) === (recBefore.data?.length ?? -2)), `purpose=${prof.data?.[0]?.purpose_id} records ${recBefore.data?.length ?? recBefore.status}→${recAfter.data?.length ?? recAfter.status}`);
-
   // ── ③ 버튼 시스템: 대표가 본 소개 쓰기 화면의 실제 계산된 색 ──
   await p.goto(`${APP}/doit/start-journey?edit=profile`, { waitUntil: 'domcontentloaded', timeout: 45000 });
   const ai = p.getByRole('button', { name: /AI가 대신 작성하기|AI로 다시 쓰기/ });
@@ -101,6 +74,37 @@ for (const [bname, type, dname, opts] of DEVICES) {
   const opaque = await p.evaluate(() => [...document.querySelectorAll('button')].filter((el) => el.offsetParent && !el.closest('[data-visual="art"]')).map((el) => { const c = getComputedStyle(el); return { t: el.textContent.trim().slice(0, 20), bg: c.backgroundColor, img: c.backgroundImage }; }));
   const bad = opaque.filter((x) => { const m = x.bg.match(/rgba?\(([^)]+)\)/); const a = m ? (m[1].split(/[ ,/]+/).filter(Boolean)[3] ?? 1) : 0; return Number(a) > 0.6 || /gradient/.test(x.img); });
   check(`${tag}: 소개 쓰기 화면의 보이는 버튼 ${opaque.length}개 중 불투명 채움 0`, bad.length === 0, JSON.stringify(bad.slice(0, 3)));
+
+  // 대표 상태 맞추기: 앱이 소개를 저장할 때 부르는 것과 같은 서버 호출(agent_intro_mark) — 대표 화면 = 소개 확인까지 끝난 상태
+  const mk = await agent(jwt, { action: 'agent_intro_mark', requestId: randomUUID(), sessionId: oldSid, how: 'as_is' });
+  check(`${tag}: 소개 확인 기록(앱 저장과 같은 서버 호출)`, mk.status === 200 && !!mk.data?.session?.intro?.used, `status=${mk.status} used=${mk.data?.session?.intro?.used}`);
+
+  // ── ② 대표 화면 그대로: start-journey 선택 화면 ──
+  await p.goto(`${APP}/doit/start-journey`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await p.getByRole('heading', { name: /무엇부터 할까요/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  const same = await p.getByRole('button', { name: '대화 다시 보기' }).isVisible().catch(() => false);
+  check(`${tag}: 대표가 본 화면과 같은 상태(사진과 소개 채우기 · 대화 다시 보기 · 홈으로)`, same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false), `path=${new URL(p.url()).pathname}`);
+  const restart = p.getByRole('button', { name: /처음부터 다시 시작하기/ });
+  await restart.scrollIntoViewIfNeeded().catch(() => {});
+  const box = await restart.boundingBox().catch(() => null);
+  const onTop = box ? await p.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return !!el && !!el.closest('button') && /처음부터 다시 시작하기/.test(el.closest('button').textContent); }, [box.x + box.width / 2, box.y + box.height / 2]) : false;
+  const vp = p.viewportSize();
+  check(`${tag}: 실제 렌더 — 「처음부터 다시 시작하기」가 보이고 · 화면 안 · 가리는 것 0 · 누를 수 있는 크기`, !!box && onTop && box.y >= 0 && box.y + box.height <= vp.height && box.height >= 40, JSON.stringify(box && { y: Math.round(box.y), h: Math.round(box.height), w: Math.round(box.width) }));
+  const style = await restart.evaluate((el) => { const c = getComputedStyle(el); return { bg: c.backgroundColor, color: c.color, border: c.borderTopColor }; }).catch(() => null);
+  check(`${tag}: 다시 시작 버튼도 유리 버튼(채움 0 · 흰 글자)`, !!style && alphaOf(style.bg) <= 0.3 && style.color === 'rgb(255, 255, 255)', JSON.stringify(style));
+  const t0 = Date.now();
+  await restart.tap().catch(async () => restart.click());
+  const arrived = await p.getByRole('heading', { name: /어떤 만남을\s*원하세요\?/ }).waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
+  check(`${tag}: 한 번 탭 → 확인 창 없이 첫 질문(어떤 만남을 원하세요?)`, arrived && !(await p.getByText('계속할게요').isVisible().catch(() => false)), `path=${new URL(p.url()).pathname} ms=${Date.now() - t0}`);
+  const me = await http('/auth/v1/user', { jwt });
+  const round = me.data?.user_metadata?.doit_round_started_at;
+  const tok2 = await http('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refresh_token } });
+  const jwt2 = tok2.data?.access_token ?? jwt;
+  const get = await agent(jwt2, { action: 'agent_get' });
+  const prof = await http(`/rest/v1/profiles?id=eq.${uid}&select=purpose_id`, { jwt: jwt2 });
+  const recAfter = await http(`/rest/v1/doit_records?select=id&user_id=eq.${uid}`, { jwt: jwt2 });
+  check(`${tag}: 진짜 새 회차(서버 시각 기록 · 옛 세션 안 돌아옴)`, !!round && Date.parse(round) >= t0 - 5000 && (get.data?.session === null || get.data?.session?.id !== oldSid), `round=${round} session=${get.data?.session?.id?.slice(0, 8) ?? null}`);
+  check(`${tag}: 목적·Profile 유지 · 지난 대화 기록 유지(지운 것 0)`, prof.data?.[0]?.purpose_id === 'friend' && (recBefore.status !== 200 || (recAfter.data?.length ?? -1) === (recBefore.data?.length ?? -2)), `purpose=${prof.data?.[0]?.purpose_id} records ${recBefore.data?.length ?? recBefore.status}→${recAfter.data?.length ?? recAfter.status}`);
 
   // ── ① Google 로그인 시작: 앱이 보내는 redirectTo · 실제로 Google 로 나감 ──
   const ctx2 = await b.newContext({ ...opts, ...(bname === 'webkit' ? { isMobile: undefined } : {}) });
