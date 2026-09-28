@@ -15,6 +15,9 @@ export interface AgentMatchSource { confirmed: string[]; confirmedAreas: number;
 export const AGENT_READY_MIN_CONFIRMED_AREAS = 3;
 export const AGENT_CONFIRMED_MAX = 12;
 const CONTENT_WORDS = /사주|타로|카드|궁합|운세/;
+// 2026-09-29 대표 「FINAL RELEASE CLOSING」 매칭 안전: 사용자가 직접 말한 값 · 직접 확인한 값 · 직접 고친 값만 매칭 재료(공통점 · 준비 칸 수).
+// AI 가 사용자 말을 정리한 문장(AI_EXTRACTED)은 CONFIRMED 여도 쓰지 않는다(추정 INFERRED 는 signals() 가 이미 뺌).
+export const MATCH_SOURCE_TYPES = new Set(["USER_DIRECT", "USER_CONFIRMED", "USER_CORRECTED"]);
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (v && typeof v === "object" && !Array.isArray(v) ? v as Obj : null);
@@ -84,6 +87,7 @@ export function sourceFromProfile(profile: unknown, phase: unknown, sessionAt: s
   const rejected = retractedNotes(profile); // ②
   const gone = supersededSources(profile); // ③
   const usable = all.filter((i) => {
+    if (!MATCH_SOURCE_TYPES.has(i.source_type)) return false;
     if (typeof i.source_turn === "number" && gone.some((g) => g.turn === i.source_turn && g.quote === bareQuote(i.quote ?? ""))) return false;
     const lc = lastCorrected.get(i.purpose);
     if (lc !== undefined && typeof i.source_turn === "number" && i.source_turn < lc) return false;

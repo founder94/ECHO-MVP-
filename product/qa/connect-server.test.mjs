@@ -573,8 +573,9 @@ test('v15.1 후보: 「모르겠어요」·지친 말로 채운 다섯 칸은 �
 // (가짜 DB 는 select 의 JSON 경로를 풀지 않으므로 줄에 profile·phase 를 바로 넣는다 — 실제 경로 문법은 deno check 로만 확인.)
 const agentProfile = (notes) => ({
   relationship_intent: { status: 'CONFIRMED', items: [{ note: notes[0], quote: notes[0], status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1 }] },
-  attraction_comfort: { status: 'CONFIRMED', items: [{ note: notes[1], quote: notes[1], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 2 }] },
-  values_character: { status: 'CONFIRMED', items: [{ note: notes[2], quote: notes[2], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 3 }, { note: '추정만 있는 말', quote: '', status: 'CONFIRMED', source_type: 'AI_INFERRED', source_turn: 3 }] },
+  // 2026-09-29 매칭 재료 = 사용자 출처(USER_DIRECT · USER_CONFIRMED · USER_CORRECTED)만 — AI 정리(AI_EXTRACTED)·추정(AI_INFERRED)은 재료 0.
+  attraction_comfort: { status: 'CONFIRMED', items: [{ note: notes[1], quote: notes[1], status: 'CONFIRMED', source_type: 'USER_CONFIRMED', source_turn: 2 }, { note: 'AI 가 정리한 말', quote: notes[1], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 2 }] },
+  values_character: { status: 'CONFIRMED', items: [{ note: notes[2], quote: notes[2], status: 'CONFIRMED', source_type: 'USER_CORRECTED', source_turn: 3 }, { note: '추정만 있는 말', quote: '', status: 'CONFIRMED', source_type: 'AI_INFERRED', source_turn: 3 }] },
   relationship_style: { status: 'OPEN', items: [] }, boundaries: { status: 'OPEN', items: [] },
 });
 const agentRow = (uid, notes, phase = 'done', at = '2026-09-24T00:00:00Z') => ({ user_id: uid, request_id: `${uid}-s`, action: 'agent_session', status: 'applied', created_at: at, updated_at: at, profile: agentProfile(notes), phase });
@@ -597,6 +598,7 @@ test('Matching Integration: MATCH_SOURCE=agent 면 Agent 확정 값으로 겹친
   assert.equal(r.body.candidates.length, 1);
   const text = JSON.stringify(r.body);
   assert.ok(!text.includes('추정만 있는 말'), 'AI 추정은 응답 어디에도 없다');
+  assert.ok(!text.includes('AI 가 정리한 말'), 'AI 정리(AI_EXTRACTED)는 응답 어디에도 없다');
   assert.ok(!text.includes('주말엔 요리를 해요'), 'Agent 사용자는 legacy 재료(doit_insights)를 쓰지 않는다');
 });
 

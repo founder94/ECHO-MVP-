@@ -1,6 +1,6 @@
 {
  "schema": "echo-failure-v2",
- "updated": "2026-09-28",
+ "updated": "2026-09-29",
  "failures": [
   {
    "id": "GF-01",
@@ -4607,7 +4607,7 @@
    "defense_level": "CANDIDATE",
    "status": "MITIGATED",
    "status_note": "QA 실제 상태 재현 PASS 뒤에도 대표 실기기 확인 전 VERIFIED 아님",
-   "experiment": "product/qa-real/qa-restart-realstate.mjs",
+   "experiment": "QA 브랜치 claude/echo-p0-qa-20260927 product/qa-real/qa-restart-realstate.mjs",
    "evidence_level": "ACTUAL",
    "user_result": "FAIL(대표 iPhone)",
    "real_ai": "해당 없음",
@@ -4619,7 +4619,7 @@
    },
    "refs": [
     "product/src/doit/pages/do-it/start-journey/page.tsx",
-    "product/qa-real/qa-restart-realstate.mjs"
+    "product/qa/p0-20260928-realstate.test.mjs"
    ]
   },
   {
@@ -4665,6 +4665,188 @@
    "refs": [
     "product/src/doit/components/feature/glass-button.css",
     "product/src/doit/components/feature/GlassButton.tsx"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "4/4 PASS · 규칙 없으면 FAIL(반대 검사)",
+   "user_result": "UNKNOWN",
+   "id": "GF-100",
+   "title": "CORRECTION_READ_AS_REPAIR — 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」를 모델이 항의(repair)로 읽어 거절한 옛 값이 CONFIRMED 로 남음",
+   "family": "F-CLASSIFY",
+   "date": "2026-09-29 QA 실서버 core_live run 90/91 · echo-agent-v2.4.1",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "REAL_AI_SCRIPTED (QA 시험 계정 · 정해 둔 문장 · 실제 AI)",
+   "user_text": "아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+   "situation": "거절 머리말 + 새 값으로 정정한 턴",
+   "ai_behavior": "턴 종류를 repair 로 판정 → 정정 엔진·옛 항목 고르기 미실행 → 「매일 연락」이 두 칸에 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞임",
+   "expected": "서버가 정정(correction)으로 확정 · 옛 값 SUPERSEDED · 새 값 USER_CORRECTED",
+   "types": [
+    "정정무시",
+    "오분류"
+   ],
+   "layers": [
+    "Model",
+    "Orchestration"
+   ],
+   "layer_note": "모델 분류 한 번에 의존한 턴 종류 결정",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실서버 재현 ○**(run 90/91) · 가짜 AI 재현 ○(qa/reject-with-value-correction.test.mjs)",
+   "solution_candidates": "서버 규칙 rejectWithNewValue → guardKind repair→correction(rule reject_with_value) · v2.4.2",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "QA 실서버 run 94·100 PASS(저장소 근거 파일 없음 → REAL_AI_VERIFIED 로 올리지 않음) · 운영 미배포",
+   "counter_test": "qa/reject-with-value-correction.test.mjs 3번 테스트(규칙을 거치지 않으면 매일 연락 잔존)",
+   "experiment": "product/supabase/functions/doit-agent/agent.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "QA run 94·100 PASS",
+   "refs": [
+    "product/supabase/functions/doit-agent/agent.ts",
+    "product/qa/reject-with-value-correction.test.mjs",
+    "git:9826e36"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "PASS(qa/reject-with-value-correction.test.mjs 4번)",
+   "user_result": "UNKNOWN",
+   "id": "GF-101",
+   "title": "UNSURE_READ_AS_REPAIR — 「잘 모르겠어요」를 모델이 항의(repair)로 읽어 지금 질문이 거절(rejected_meanings)로 기록",
+   "family": "F-CLASSIFY",
+   "date": "2026-09-29 QA 실서버 core_live run 95 · echo-agent-v2.4.2",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "REAL_AI_SCRIPTED (QA 시험 계정 · 실제 AI)",
+   "user_text": "잘 모르겠어요",
+   "situation": "핵심 질문에 모르겠다고만 답한 턴",
+   "ai_behavior": "턴 종류 repair → 지금 질문이 disputed → 매칭 rejected_meanings 에 질문이 들어감",
+   "expected": "모르겠다(unsure) = 정상 입력 · 저장 0 · 거절 기록 0",
+   "types": [
+    "오분류",
+    "미확정 사실화"
+   ],
+   "layers": [
+    "Model",
+    "Orchestration"
+   ],
+   "layer_note": "모델 분류가 서버 상태(거절 기록)를 바로 바꿈",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실서버 재현 ○**(run 95) · 가짜 AI 재현 ○",
+   "solution_candidates": "guardKind unsure_only 를 repair·correction 에도 적용 · v2.4.3",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "QA 실서버 run 100 PASS(저장소 근거 파일 없음) · 운영 미배포",
+   "counter_test": "guardKind('잘 모르겠는데 주말엔 쉬고 싶어요') 는 규칙 대상 아님",
+   "experiment": "product/supabase/functions/doit-agent/agent.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "QA run 100 PASS",
+   "refs": [
+    "product/supabase/functions/doit-agent/agent.ts",
+    "product/qa/reject-with-value-correction.test.mjs",
+    "git:2f21413"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "—",
+   "user_result": "UNKNOWN",
+   "id": "GF-102",
+   "title": "HARNESS_FIXED_WAIT — 운영 APP 직접 진입을 고정 5초 뒤 한 번 보고 판정 → 인트로(약 3.3초) 뒤 읽는 중 문구를 화면 실패로 읽음 · WebKit 자동화 멈춤을 제품 FAIL 로 섞음",
+   "family": "F-EVAL",
+   "date": "2026-09-28 prod_app_live WebKit · 2026-09-29 webkit_diag run 106",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (GitHub Actions Playwright WebKit · 운영 app.do-it.company · 로그아웃)",
+   "user_text": "—",
+   "situation": "로그아웃 첫 방문 / → /do-it/intro → /doit/start-journey",
+   "ai_behavior": "검사가 5초 시점 「내 프로필을 가져오고 있어요.」를 봄 · WebKit 29회 중 3회 page crash(모두 인트로 중 · 배율 3 · JS 오류 0 · 재시도 전부 통과)",
+   "expected": "의미 있는 화면이 뜰 때까지 기다려 판정 · 자동화 멈춤은 재시도 후 따로 보고",
+   "types": [
+    "검사 결함"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "원인 = 검사 타이밍(확인) · 멈춤 = CI WebKit 인트로 캔버스(배율 3 · 1170×2532) 가설",
+   "cause_confidence": "MIXED",
+   "reproduction": "**실측 ○** run 106: Chrome 20회 멈춤 0 · WebKit 첫 화면 4.1~5.1초 · 멈춤 3/29(배율 3만 · 배율 1은 0/3)",
+   "solution_candidates": "prod-app-live: meaningful() 대기(최대 20초) + 멈춤 1회 재시도·별도 보고(제품 코드 수정 0)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "실기기 Safari 확인 전 인트로 캔버스 가설은 미확정 · 제품 수정 근거 부족",
+   "counter_test": "run 106 타임라인: 고정 5초 = 읽는 중 · meaningful = 4.1~5.1초에 화면",
+   "experiment": "QA 브랜치 product/qa-real/prod-app-live.mjs",
+   "evidence_level": "ACTUAL",
+   "real_ai": "해당 없음",
+   "refs": [
+    "product/src/doit/pages/do-it/start-journey/page.tsx",
+    "product/src/pages/do-it/intro/page.tsx"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "PASS",
+   "user_result": "UNKNOWN",
+   "id": "GF-103",
+   "title": "MATCH_SOURCE_NOT_USER — Agent 매칭 재료(MATCH_SOURCE=agent)가 AI 정리(AI_EXTRACTED)도 공통점·준비 칸 수에 씀",
+   "family": "F-CONTRACT",
+   "date": "2026-09-29 코드 대조(대표 「FINAL RELEASE CLOSING」 매칭 안전 기준)",
+   "origin": "CODE",
+   "origin_note": "CODE (agentSource.ts 읽기 · 기본값 legacy 경로는 doit_insights confirmed/corrected 만)",
+   "user_text": "—",
+   "situation": "MATCH_SOURCE=agent(기본 꺼짐) 경로",
+   "ai_behavior": "CONFIRMED 이고 추정만 아니면 AI_EXTRACTED 문장도 공통점으로 상대에게 보일 수 있었음",
+   "expected": "매칭 재료 = USER_DIRECT · USER_CONFIRMED · USER_CORRECTED 만",
+   "types": [
+    "제품 계약 불일치"
+   ],
+   "layers": [
+    "Product Contract"
+   ],
+   "layer_note": "정보 상태(출처) 기준이 매칭 읽기 쪽에서 강제되지 않음",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**코드 재현 ○** — 수정 전 5 FAIL · 수정 후 92/92(qa/agent-match-source · p0-6 · cross-slot · connect-server)",
+   "solution_candidates": "agentSource.ts MATCH_SOURCE_TYPES 필터",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "경로 기본 꺼짐 · 운영 미배포 · 에이전트가 대부분 값을 AI_EXTRACTED 로 저장하므로 이 경로를 켜려면 사용자 확인 단계가 먼저 필요",
+   "counter_test": "qa/agent-match-source.test.mjs 8번 · p0-6 T7",
+   "experiment": "product/supabase/functions/doit-connect/agentSource.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "해당 없음",
+   "refs": [
+    "product/supabase/functions/doit-connect/agentSource.ts",
+    "product/qa/agent-match-source.test.mjs"
    ]
   }
  ]

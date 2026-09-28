@@ -21,6 +21,8 @@ const live = (st) => A.PURPOSES.flatMap((p) => st.slots[p.id].items.filter((i) =
 const status = (st, id, note) => st.slots[id].items.find((i) => i.note === note)?.status;
 const introText = (st) => (st.intro?.lines ?? []).map((l) => l.text).join(' ');
 const src = (st) => M.sourceFromProfile(A.matchingProfile(st), 'done', null);
+// 2026-09-29 매칭 재료 = 사용자 출처만(AI_EXTRACTED 0). 밀림·거둠 규칙 자체를 보려면 AI 정리를 사용자가 확인한 값으로 바꿔 넣는다.
+const srcUser = (st) => { const p = A.matchingProfile(st); for (const id of A.PURPOSES.map((x) => x.id)) for (const i of p[id].items) if (i.source_type === 'AI_EXTRACTED') i.source_type = 'USER_CONFIRMED'; return M.sourceFromProfile(p, 'done', null); };
 const UI_STYLE = { correction: true, purpose: 'relationship_style' };
 const OLD = '연락은 매일 하는 게 좋아요';
 const NEW = '매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요';
@@ -89,7 +91,8 @@ test('C3b v2.2.2 이전에 저장된 상태(다른 칸 옛 값이 CONFIRMED 로 
   // 예전 규칙 모양 재현: 같은 칸만 밀리고 다른 칸 복제는 CONFIRMED 로 남은 상태
   A.applyTurn(st, NEW, T({ kind: 'correction', extracted: [X('relationship_style', '주말에 한두 번 연락이 좋음', NEW)] }));
   st.slots.values_character.items[0].status = 'CONFIRMED';
-  const s = src(st);
+  const s = srcUser(st);
+  assert.ok(!src(st).confirmed.includes('친구 같은 만남'), 'AI 정리(AI_EXTRACTED)로만 남은 값은 매칭 재료 0');
   assert.ok(!s.confirmed.includes(OLD), JSON.stringify(s.confirmed));
   assert.ok(s.confirmed.includes('주말에 한두 번 연락이 좋음'));
   assert.ok(s.confirmed.includes('친구 같은 만남'), '관계없는 값 보존');
@@ -139,7 +142,8 @@ test('M Matching 관통: 정정 포함 · 밀린 값 제외 · 거둔 뜻 제외
   A.applyTurn(st, '사주 궁합 같은 건 안 믿어요', T({ extracted: [X('boundaries', '타로 결과 좋음', '사주 궁합 같은 건 안 믿어요')] }));
   st.current = null;
   await A.runTurn(st, NEW, fixLlm(), { ui: UI_STYLE });
-  const s = src(st);
+  const s = srcUser(st);
+  assert.ok(!src(st).confirmed.includes('친구 같은 만남'), 'AI 정리(AI_EXTRACTED)로만 남은 값은 매칭 재료 0');
   assert.ok(s.confirmed.includes('주말에 한두 번 연락이 좋음'));
   assert.ok(!s.confirmed.includes(OLD) && !s.confirmed.includes('매일 연락하는 게 좋음'));
   assert.equal(status(st, 'attraction_comfort', '외향적인 사람'), 'RETRACTED', '전제: 거절 뜻이 실제로 저장돼 있다가 거둬짐');
