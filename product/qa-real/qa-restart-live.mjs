@@ -30,10 +30,10 @@ for (const [bname, type, dname, opts] of DEVICES) {
   const session = tok.data; const jwt = session?.access_token; const uid = session?.user?.id;
   check(`${tag}: QA 시험 계정 가입·로그인`, su.status === 200 && tok.status === 200 && !!jwt, `signup=${su.status} login=${tok.status}`);
   if (!jwt) continue;
-  const pp = await http(`/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', jwt, body: { purpose_id: 'friend', purpose_label: '친구를 만나고 싶어요' }, headers: { Prefer: 'return=minimal' } });
+  const pp = await http(`/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', jwt, body: { purpose_id: 'friend', purpose_label: '친구를 만나고 싶어요', consent_version: 'v1.0' }, headers: { Prefer: 'return=minimal' } });
   const st = await http('/functions/v1/doit-agent', { method: 'POST', jwt, body: { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구를 만나고 싶어요' } });
   const oldSid = st.data?.session?.id ?? null;
-  check(`${tag}: 준비 — 목적 저장 · 대화 세션 1개 시작(QA 서버)`, pp.status === 204 && st.status === 200 && !!oldSid, `profile=${pp.status} agent_start=${st.status}`);
+  check(`${tag}: 준비 — 약관 동의(v1.0)·목적 저장 · 대화 세션 1개 시작(QA 서버)`, pp.status === 204 && st.status === 200 && !!oldSid, `profile=${pp.status} agent_start=${st.status}`);
 
   // 2) 로그인된 브라우저로 「나의 이해」 → 「처음부터 다시 시작하기」 한 번 탭
   const b = await type.launch();
