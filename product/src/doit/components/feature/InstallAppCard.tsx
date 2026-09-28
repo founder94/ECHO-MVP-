@@ -103,7 +103,7 @@ export default function InstallAppCard({ variant = 'suggest' }: { variant?: 'sug
     return (
       <section className="doit-install doit-install--menu" aria-live="polite">
         <h2>홈 화면에 추가됨</h2>
-        <p>지금 홈 화면의 <b>DO IT</b> 아이콘으로 열려 있어요.</p>
+        <p>지금 홈 화면의 <b>ECHO</b> 아이콘으로 열려 있어요.</p>
       </section>
     );
   }
@@ -122,7 +122,7 @@ export default function InstallAppCard({ variant = 'suggest' }: { variant?: 'sug
     return (
       <section className="doit-install" aria-live="polite">
         <h2>홈 화면에 두었어요</h2>
-        <p>다음에는 홈 화면의 <b>DO IT</b> 아이콘으로 바로 들어오세요.</p>
+        <p>다음에는 홈 화면의 <b>ECHO</b> 아이콘으로 바로 들어오세요.</p>
       </section>
     );
   }

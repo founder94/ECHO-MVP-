@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import vm from 'node:vm';
+import path from 'node:path';
 
 const ID = {
   admin: '00000000-0000-4000-8000-000000000001',
@@ -65,8 +66,8 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   const sandbox = {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
-    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
+    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...state.env })[k] ?? '' }, serve: (h) => { handler = h; } },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name.startsWith('.')) return local(path.join('supabase/functions/doit-connect', name)); throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       state.aiCalls.push(JSON.parse(init.body));
       const answer = ai();
@@ -74,6 +75,13 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
       return new Response(JSON.stringify({ choices: [{ message: { content: typeof answer === 'string' ? answer : JSON.stringify(answer) } }] }), { status: 200 });
     },
   };
+  // 같은 함수 폴더·다른 함수 폴더의 순수 모듈(agentSource.ts → doit-agent/matching.ts)만 허용 — 네트워크·DB 모듈은 여전히 막는다.
+  function local(file) {
+    const mod = { exports: {} };
+    const code = ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    vm.runInNewContext(code, { exports: mod.exports, module: mod, require: (n) => { if (n.startsWith('.')) return local(path.join(path.dirname(file), n)); throw new Error(`Unexpected dependency ${n}`); } }, { filename: file });
+    return mod.exports;
+  }
   vm.runInNewContext(compiled, sandbox, { filename: 'doit-connect.ts' });
   assert.ok(handler);
   return async (who, payload, { auth = true } = {}) => {
@@ -169,12 +177,52 @@ test('후보: 자격 + 같은 목적 + 겹친 말이 있는 쌍만 나온다(목
   assert.equal(r.body.eligible, 3);
 });
 
-test('후보: 전화 인증이 없는 사람은 자격이 없다(프로필도 pending, Auth 확인도 없음)', async () => {
+// 2026-09-27 대표 「P0-1 · 전화 인증 연결 필수 해제」: 초기 베타·출시 단계에서 전화 인증은 연결 자격 조건이 아니다(참고 정보로만).
+// (이전 규칙 「전화 인증이 없으면 자격 없음」은 문자 발송 업체 미연결로 연결 가능 인원을 0으로 만들었다 — 이 검사가 그 규칙을 대신한다.)
+test('P0-1: 전화 인증을 안 한 정상 사용자도 연결 후보 · 전화 인증은 참고 정보 · verification_status 는 건드리지 않는다', async () => {
+  const s = world();
+  s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null }; // 프로필 pending · Auth 확인도 없음
+  const call = loadServer(s);
+  const r = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]], '다른 자격을 갖추면 후보');
+  assert.equal(r.body.missing.phone, undefined, '「자격이 안 되는 이유」에 전화 인증 없음');
+  assert.ok(r.body.phone_unverified >= 1, '참고: 전화 인증 안 한 사람 수');
+  assert.equal(r.body.candidates[0].a.phone_verified, false, '후보 카드에 참고로 표시');
+  const d = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  assert.equal(d.status, 200, '결정 순간 재확인에서도 전화 인증으로 막지 않는다');
+  assert.equal(s.tables.profiles.find((p) => p.id === ID.a).verification_status, 'pending', 'verification_status 값 그대로(인증됨으로 바꾸지 않음)');
+  assert.ok(!s.writes.some((w) => w.name === 'profiles'), 'profiles 쓰기 0');
+});
+
+test('P0-1: 전화 인증을 마친 사용자는 전과 같다 · 차단한 사이는 전화 인증과 상관없이 연결 금지', async () => {
+  let s = world();
+  let r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]]);
+  assert.equal(r.body.candidates[0].b.phone_verified, true);
+  s = world();
+  s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null };
+  s.tables.blocks.push({ blocker_id: ID.b, blocked_user_id: ID.a });
+  const call = loadServer(s);
+  r = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0, '차단한 사이는 후보 0');
+  const d = await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  assert.equal(d.status, 409); assert.equal(d.body.code, 'NOT_ELIGIBLE');
+});
+
+test('P0-1: 전화 인증 없이 이어진 연결도 그만하기·차단·신고 안전 규칙은 그대로', async () => {
   const s = world();
   s.users[ID.a] = { ...s.users[ID.a], phone: '', phone_confirmed_at: null };
-  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
-  assert.equal(r.body.candidates.length, 0);
-  assert.equal(r.body.missing.phone, 1);
+  const call = loadServer(s);
+  await call(ID.admin, { action: 'admin_decide', userA: ID.a, userB: ID.b, decision: 'approve' });
+  const matchId = s.tables.doit_matches[0].id;
+  assert.equal((await call(ID.a, { action: 'answer', matchId, text: '010-1234-5678 로 연락 주세요' })).body.code, 'BLOCKED_CONTENT', '연락처 막기 그대로');
+  const r = await call(ID.b, { action: 'leave', matchId, block: true, report: true });
+  assert.equal(r.status, 200);
+  assert.equal(s.tables.doit_matches[0].status, 'closed');
+  assert.equal(s.tables.user_reports[0].target_user_id, ID.a);
+  const again = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(again.body.candidates.length, 0, '결정한 쌍·차단한 사이는 다시 후보가 되지 않는다');
 });
 
 test('후보: 새 회차를 시작하기 전 답·맞다고 한 말은 세지 않는다', async () => {
@@ -507,4 +555,67 @@ test('v15.1 후보: 「모르겠어요」·지친 말로 채운 다섯 칸은 �
   s2.tables.doit_records = s2.tables.doit_records.map((x) => x.user_id === ID.a && x.text === '답 5' ? { ...x, text: '그게 아니라 조용한 사람이 좋다는 거예요' } : x);
   r = await loadServer(s2)(ID.admin, { action: 'admin_candidates' });
   assert.equal(r.body.candidates.length, 1, '설명이 붙은 정정은 내용 있는 답으로 센다');
+});
+
+// Matching Integration(2026-09-27 FINAL IMPLEMENTATION MASTER · PHASE 10): MATCH_SOURCE=agent 일 때만 Agent 확정 상태(CONFIRMED)를 재료로 쓴다.
+// (가짜 DB 는 select 의 JSON 경로를 풀지 않으므로 줄에 profile·phase 를 바로 넣는다 — 실제 경로 문법은 deno check 로만 확인.)
+const agentProfile = (notes) => ({
+  relationship_intent: { status: 'CONFIRMED', items: [{ note: notes[0], quote: notes[0], status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1 }] },
+  attraction_comfort: { status: 'CONFIRMED', items: [{ note: notes[1], quote: notes[1], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 2 }] },
+  values_character: { status: 'CONFIRMED', items: [{ note: notes[2], quote: notes[2], status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 3 }, { note: '추정만 있는 말', quote: '', status: 'CONFIRMED', source_type: 'AI_INFERRED', source_turn: 3 }] },
+  relationship_style: { status: 'OPEN', items: [] }, boundaries: { status: 'OPEN', items: [] },
+});
+const agentRow = (uid, notes, phase = 'done', at = '2026-09-24T00:00:00Z') => ({ user_id: uid, request_id: `${uid}-s`, action: 'agent_session', status: 'applied', created_at: at, updated_at: at, profile: agentProfile(notes), phase });
+
+test('Matching Integration: 기본값(legacy)은 agent_session 을 읽지 않는다 — 지금과 같다', async () => {
+  const s = world(); s.tables.doit_request_events = [agentRow(ID.a, ['전혀 다른 말 1', '전혀 다른 말 2', '전혀 다른 말 3'], 'talk')];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]], 'Agent 가 대화 중이어도 legacy 재료로 판정(기존 결과 그대로)');
+});
+
+test('Matching Integration: MATCH_SOURCE=agent 면 Agent 확정 값으로 겹친 말을 찾고 · 추정은 재료가 아니다', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } });
+  s.tables.doit_request_events = [
+    agentRow(ID.a, ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요']),
+    agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']),
+  ];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.candidates.length, 1);
+  const text = JSON.stringify(r.body);
+  assert.ok(!text.includes('추정만 있는 말'), 'AI 추정은 응답 어디에도 없다');
+  assert.ok(!text.includes('주말엔 요리를 해요'), 'Agent 사용자는 legacy 재료(doit_insights)를 쓰지 않는다');
+});
+
+test('Matching Integration: MATCH_SOURCE=agent · 대화 중(talk)인 Agent 사용자는 legacy 답이 다섯 개여도 자격 없음', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } });
+  s.tables.doit_request_events = [agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요'], 'talk')];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.body.candidates.length, 0);
+  assert.equal(r.body.missing.answers, 1, 'b 는 answers 가 모자란 것으로 센다');
+});
+
+// 2026-09-27 출시 차단 P0-6 · T15: Agent 로만 대화한 사용자(옛 표 doit_insights·doit_records 0줄).
+// 기본값(legacy · 지금 운영)은 겹친 말 0 · 답 수 모자람으로 후보 0 — 끊김 재현. MATCH_SOURCE=agent 면 Agent 확정 값으로 겹친 말이 생긴다(0 고정 아님).
+test('P0-6 T15: Agent 만 쓴 사용자 — legacy 는 겹친 말 0(끊김 재현) · agent 는 유효한 확정 값으로 겹친 말 > 0', async () => {
+  const onlyAgent = (env) => {
+    const s = world(env ? { env } : {});
+    s.tables.doit_insights = []; s.tables.doit_records = [];
+    s.tables.doit_request_events = [
+      agentRow(ID.a, ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요']),
+      agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']),
+    ];
+    return s;
+  };
+  const legacy = await loadServer(onlyAgent(null))(ID.admin, { action: 'admin_candidates' });
+  assert.equal(legacy.status, 200);
+  assert.equal(legacy.body.candidates.length, 0, '지금 운영(legacy): Agent 사용자는 답 수 0 → 자격 없음');
+  const agent = await loadServer(onlyAgent({ MATCH_SOURCE: 'agent' }))(ID.admin, { action: 'admin_candidates' });
+  assert.equal(agent.status, 200);
+  assert.equal(agent.body.candidates.length, 1);
+  const c = agent.body.candidates[0];
+  assert.equal(c.no_common, false, '겹친 말 0 고정 아님');
+  assert.ok(c.score > 0);
+  assert.ok(JSON.stringify(c).includes('조용한 곳에서 대화하는 걸 좋아해요'), '겹친 말 = 두 사람 모두 확정한 값');
 });

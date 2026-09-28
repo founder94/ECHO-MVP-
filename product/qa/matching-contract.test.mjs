@@ -16,7 +16,7 @@ const prof = (over = {}) => ({ relationship_intent: { status: 'CONFIRMED', items
 const person = (id, over = {}) => ({ user_id: id, real_user: true, conversation_done: true, intro_confirmed: true, photo_primary: true, phone_verified: true, purpose_id: 'friend', profile: prof(), ...over });
 
 test('자격: 전화 인증이 화면만 있고 실제로 안 됐으면 후보가 될 수 없다', () => {
-  assert.deepEqual(M.eligibility(person('a', { phone_verified: false })).missing, ['phone_verified']);
+  assert.deepEqual(M.eligibility(person('a', { phone_verified: false })), { eligible: true, missing: [] }, 'P0-1(2026-09-27): 전화 인증은 자격 조건이 아니다(참고 정보)');
   assert.equal(M.eligibility(person('a')).eligible, true);
   assert.ok(M.eligibility(person('a', { profile: prof({ relationship_intent: { status: 'UNKNOWN', items: [] } }) })).missing.includes('confirmed_info'));
 });
@@ -24,9 +24,10 @@ test('자격: 전화 인증이 화면만 있고 실제로 안 됐으면 후보�
 test('후보 집합: 자격 미달·차단·목적 다름은 서버가 뺀다 · 나 자신 0 · 내가 자격 미달이면 후보 0', () => {
   const me = person('me');
   const r = M.candidateSet(me, [person('me'), person('ok'), person('nophone', { phone_verified: false }), person('blk'), person('other', { purpose_id: 'dating' }), person('fake', { real_user: false })], new Set(['blk:me']));
-  assert.deepEqual(r.candidates.map((c) => c.user_id), ['ok']);
-  assert.deepEqual(Object.fromEntries(r.excluded.map((e) => [e.user_id, e.reason.split(':')[0]])), { nophone: 'not_eligible', blk: 'blocked', other: 'relationship_intent_differs', fake: 'not_eligible' });
-  assert.equal(M.candidateSet(person('me', { phone_verified: false }), [person('ok')], new Set()).candidates.length, 0);
+  assert.deepEqual(r.candidates.map((c) => c.user_id), ['ok', 'nophone'], 'P0-1: 전화 인증 미완료만으로는 빼지 않는다');
+  assert.deepEqual(Object.fromEntries(r.excluded.map((e) => [e.user_id, e.reason.split(':')[0]])), { blk: 'blocked', other: 'relationship_intent_differs', fake: 'not_eligible' });
+  assert.equal(M.candidateSet(person('me', { phone_verified: false }), [person('ok')], new Set()).candidates.length, 1, 'P0-1: 나도 전화 인증 없이 후보를 받는다');
+  assert.equal(M.candidateSet(person('me', { real_user: false }), [person('ok')], new Set()).candidates.length, 0, '내가 자격 미달이면 후보 0(그대로)');
 });
 
 test('HARD/SOFT: AI 정리·추측으로는 HARD 를 만들지 않고, 추측만으로 사람을 빼지 않는다', () => {

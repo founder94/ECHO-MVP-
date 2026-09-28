@@ -68,6 +68,18 @@ function roundStartOf(user: { user_metadata?: Record<string, unknown> | null }):
 class ProviderError extends Error { code: string; constructor(code: string) { super(code); this.code = code; } }
 // OpenAI 한 번 부르기. 응답의 실제 모델 이름·토큰 수(usage)를 함께 돌려준다(관리자 관측).
 function openAI(apiKey: string, model: string): A.Llm {
+  // v2.4.1: 속도 제한(429)·일시 오류(5xx)·연결 끊김은 1.5초 뒤 한 번만 다시(실제 AI run gi: AI_ERROR 5/80). 시간 초과는 다시 하지 않는다(기다림 상한 유지).
+  const once = openAIOnce(apiKey, model);
+  return async (kind, system, input) => {
+    try { return await once(kind, system, input); } catch (e) {
+      const code = (e as ProviderError)?.code ?? "";
+      if (!/^http_(429|5\d\d)$|^network$/.test(code)) throw e;
+      await new Promise((ok) => setTimeout(ok, 1500));
+      return await once(kind, system, input);
+    }
+  };
+}
+function openAIOnce(apiKey: string, model: string): A.Llm {
   return async (_kind, system, input) => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS);
@@ -110,6 +122,7 @@ export function sessionView(id: string, stored: Stored) {
   const done = st.phase !== "talk";
   return {
     id, agent: stored.agent, tone: st.tone, mode: st.mode, phase: done ? "done" : "talk",
+    goal: A.isGoal(st.goal) ? st.goal : null, goal_label: st.goal_label ?? null, // v2.4 이 세션의 관계 목적(기기마다 다른 목적이면 다른 세션)
     progress: { asked: A.coreAsked(st).length, of: A.MAX_CORE_QUESTIONS },
     current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
@@ -119,13 +132,25 @@ export function sessionView(id: string, stored: Stored) {
   };
 }
 
-async function currentSession(admin: Db, userId: string, since: string | null): Promise<SessionRow | null> {
+// v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 같은 계정이라도 관계 목적(goal)이 다르면 다른 세션이다.
+// goal 을 주면 이번 회차에서 그 목적의 가장 최근 세션만(다른 목적 세션을 이어받지 않음). goal 이 없으면(예전 앱) 예전처럼 가장 최근 세션.
+async function currentSession(admin: Db, userId: string, since: string | null, goal: A.GoalId | null = null): Promise<SessionRow | null> {
   let q = admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
     .eq("user_id", userId).eq("action", SESSION_ACTION).eq("status", "applied");
   if (since) q = q.gte("created_at", since);
-  const { data } = await q.order("created_at", { ascending: false }).limit(1);
-  const row = (data ?? [])[0] as SessionRow | undefined;
-  return row && row.response_payload && typeof row.response_payload === "object" ? row : null;
+  const { data } = await q.order("created_at", { ascending: false }).limit(goal ? 20 : 1);
+  const rows = ((data ?? []) as SessionRow[]).filter((r) => r.response_payload && typeof r.response_payload === "object");
+  if (!goal) return rows[0] ?? null;
+  return rows.find((r) => ((r.response_payload as unknown as Stored).state?.goal ?? "open") === goal) ?? null;
+}
+// 기기가 기억한 세션 id 로 읽기(그 계정 · 이번 회차 세션일 때만). 없거나 다른 회차면 null.
+async function sessionById(admin: Db, userId: string, id: string, since: string | null): Promise<SessionRow | null> {
+  const { data } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
+    .eq("user_id", userId).eq("request_id", id).eq("action", SESSION_ACTION).eq("status", "applied").maybeSingle();
+  const row = data as SessionRow | null;
+  if (!row || !row.response_payload || typeof row.response_payload !== "object") return null;
+  if (since && String(row.created_at) < since) return null;
+  return row;
 }
 
 async function isAdmin(admin: Db, userId: string): Promise<boolean> {
@@ -134,11 +159,11 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
 }
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
-  const { obs, response } = await A.runTurn(st, text, ctx.llm);
+  const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정
   if (response.error) {
     logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry });
     // v2.0 실패 관측: AI 가 답을 못 만든 턴도 기존 표(doit_request_events · status failed)에 코드·수치만 남긴다(원문 0 · 새 표 0). 관리자 TURN_ERROR 후보의 재료.
@@ -188,7 +213,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
     // v2.0: 서버 말 종류 가드(guard)가 바로잡은 턴은 규칙 이름을 남긴다(LLM 이 무엇이라 했는지 → 서버가 무엇으로 봤는지).
     guard: lastTurn?.guard ?? null, superseded: lastTurn?.superseded ?? 0,
-    flags: { correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
+    flags: { ui_correction: !!ui, correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
     ...A.versionTrace(), // 2026-09-26 VERSION TRACE: 에이전트·프롬프트·서버 규칙·파이프라인 판(실패를 판과 묶는다)
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
@@ -229,7 +254,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const since = roundStartOf(user);
 
     if (action === "agent_get") {
-      const row = await currentSession(admin, userId, since);
+      // v2.3: 기기가 기억한 세션 id 가 있으면 그 세션(다른 기기의 다른 목적 세션을 섞어 보이지 않는다). 없으면 예전처럼 가장 최근 세션.
+      const want = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      const row = (want ? await sessionById(admin, userId, want, since) : null) ?? await currentSession(admin, userId, since);
       return json({ ok: true, session: row ? sessionView(row.request_id, row.response_payload as unknown as Stored) : null }, 200, origin);
     }
 
@@ -278,14 +305,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).
-      const existing = await currentSession(admin, userId, since);
+      // v2.3: 같은 목적(goal)의 세션만 이어받는다. 다른 기기에서 다른 목적으로 시작한 세션은 이어받지 않고 새 세션을 만든다.
+      const goal = A.isGoal(body.goal) ? body.goal : null;
+      const goalLabel = goal && typeof body.goalLabel === "string" ? body.goalLabel.trim().slice(0, 40) || null : null;
+      if (body.goal != null && !goal) return fail("BAD_REQUEST", "고른 만남을 다시 골라 주세요.", 400, origin);
+      const existing = await currentSession(admin, userId, since, goal);
       if (existing) return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
       const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
-      const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode }), round_since: since, profile: null, handoff: null };
+      const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
       if (first) {
         // 앱의 첫 질문(목적 타일 화면)에 한 답 = 첫 턴. 세션 id 는 요청 id 에서 만들고, 턴 기록은 요청 id 로 남긴다.
         A.seedFirstQuestion(stored.state);
@@ -333,7 +364,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // agent_turn
     const sessionId = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
-    const text = typeof body.text === "string" ? body.text.trim() : "";
+    // v2.2.1 P0-5: 화면 정정(body.correction · 예전 앱의 고정 머리 「「칸」 부분을 고칠게요.」)은 사용자 말만 떼어 정정으로 넘긴다.
+    const ui = A.uiCorrectionFrom(body as { text?: unknown; correction?: unknown });
+    if (body.correction != null && !ui) return fail("BAD_REQUEST", "고칠 칸을 다시 골라 주세요.", 400, origin);
+    const text = ui ? ui.text : typeof body.text === "string" ? body.text.trim() : "";
     if (!sessionId || !text) return fail("BAD_REQUEST", "보낼 말을 적어 주세요.", 400, origin);
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
     if (prior) {
@@ -350,7 +384,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
     if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false);
+    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui);
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
     return fail("ERROR", "서버 오류가 발생했어요.", 500, origin);

@@ -1,0 +1,30 @@
+/* 제품 화면 공통 오른쪽 위 메뉴(2026-09-28). 이 클래스들 아래만 — 전역 body·:root 변경 0. */
+.echo-corner-button{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:calc(env(safe-area-inset-right) + 12px);z-index:70;display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:999px;border:1px solid rgb(255 255 255/.7);background:rgb(255 255 255/.14);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 1px 8px rgb(30 40 40/.14);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:scale .18s ease,opacity .18s ease,background-color .18s ease}
+.echo-corner-button svg{filter:drop-shadow(0 1px 1px rgb(40 50 40/.3))}
+.echo-corner-button:active{scale:.94;background:rgb(255 255 255/.26)}
+.echo-corner-button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.echo-corner-backdrop{position:fixed;inset:0;z-index:68;background:rgb(10 14 18/.18)}
+.echo-corner-panel{position:fixed;top:calc(env(safe-area-inset-top) + 60px);right:calc(env(safe-area-inset-right) + 12px);z-index:69;width:min(288px,calc(100vw - 24px));max-height:calc(100dvh - env(safe-area-inset-top) - 76px);overflow:auto;border-radius:20px;background:linear-gradient(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%);box-shadow:0 12px 36px rgb(20 30 30/.28);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
+.echo-corner-panel *{color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
+.echo-corner-caption{margin:0;padding:14px 18px 8px;font-size:12px;letter-spacing:.12em;opacity:.9}
+.echo-corner-item{display:block;padding:12px 18px;border-top:1px solid rgb(255 255 255/.35);text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s ease}
+.echo-corner-item:active{background:rgb(255 255 255/.18)}
+.echo-corner-item:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+.echo-corner-label{display:block;font-size:15px;font-weight:600}
+.echo-corner-desc{display:block;margin-top:2px;font-size:12px;opacity:.92}
+.echo-corner-account{padding:12px 18px 16px;border-top:1px solid rgb(255 255 255/.35)}
+.echo-corner-session{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;border-radius:999px;border:1px solid rgb(255 255 255/.7);background:rgb(255 255 255/.12);font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:scale .18s ease,background-color .18s ease}
+.echo-corner-session:active:not(:disabled){scale:.97;background:rgb(255 255 255/.24)}
+.echo-corner-session:disabled{opacity:.7;cursor:default}
+.echo-corner-error{margin:10px 0 0;font-size:12px}
+@media(prefers-reduced-motion:reduce){.echo-corner-button,.echo-corner-item,.echo-corner-session{transition:none}}
+
+/* 2026-09-28 §12 모든 주요 버튼 눌림 표시: 누르는 순간 살짝 작아지고(0.97) 조금 어두워진다(0.18초). 제품 화면 틀 안만.
+   transform 대신 scale 속성을 쓴다 — 위치를 transform 으로 잡은 요소도 자리가 흔들리지 않는다. */
+:is(.doit-root,.doit-app-pastel,.echo-dialogue) :where(button,a[href],[role="button"],[role="radio"],[role="tab"],summary){-webkit-tap-highlight-color:transparent}
+:is(.doit-root,.doit-app-pastel,.echo-dialogue) :is(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]:is([class*="button"],[class*="action"],[class*="primary"],[class*="session"],[class*="link"],[class*="pill"],[class*="tile"],[class*="item"],[class*="cta"])):not(:disabled):not([aria-disabled="true"]):active{scale:.97;filter:brightness(.94)}
+:is(.doit-root,.doit-app-pastel,.echo-dialogue) :where(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]){transition-property:scale,filter,opacity,background-color,border-color,box-shadow,color;transition-duration:.18s;transition-timing-function:ease}
+@media(prefers-reduced-motion:reduce){:is(.doit-root,.doit-app-pastel,.echo-dialogue) :is(button,[role="button"],[role="radio"],[role="tab"],summary,a[href]):active{scale:1!important}}
+
+/* 대화 머리줄: 오른쪽 위 공통 메뉴 버튼(44px) 자리를 비운다 — 머리줄 링크와 겹침 0. */
+.echo-dialogue .echo-dialogue-header{padding-right:52px}

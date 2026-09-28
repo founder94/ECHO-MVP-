@@ -37,8 +37,9 @@ test('ECHO가 이해한 나: 다섯 칸 · [맞아요]/[조금 달라요]/[다�
   const c = read('src/doit/components/feature/AgentProfileCheck.tsx');
   for (const t of ['>맞아요<', '>조금 달라요<', '>다시 말할게요<', '어느 부분이 다른가요?', '이렇게 이해하면 맞을까요?', '>다시 고칠게요<']) assert.ok(c.includes(t), t);
   assert.match(c, /const ORDER = Object\.keys\(AGENT_PURPOSE_LABELS\);/);
-  assert.match(c, /agentTurn\(userId, session\.id, t\)/, '고친 말은 같은 대화 서버(정정 엔진)로');
-  assert.match(c, /「\$\{AGENT_PURPOSE_LABELS\[view\.purpose\]\}」 부분을 고칠게요\. \$\{view\.text\.trim\(\)\}/);
+  assert.match(c, /agentTurn\(userId, session\.id, t, \{ purpose \}\)/, '고친 말은 같은 대화 서버(정정 엔진)로 · 정정 표시와 함께(2026-09-27 P0-5)');
+  assert.match(c, /sendFix\(view\.text\.trim\(\), view\.purpose\)/, '고른 칸은 문장 머리가 아니라 정정 표시로');
+  assert.ok(!c.includes('부분을 고칠게요'), '문장 머리로 칸을 알리지 않는다');
   assert.match(c, /slot\?\.status === 'SKIPPED' \? '넘겼어요' : '아직 말하지 않았어요'/, 'UNKNOWN 을 억지로 채우지 않는다');
   assert.equal((read('src/doit/components/feature/AgentConversation.tsx').match(/<AgentProfileCheck /g) ?? []).length, 1);
   assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{!done && <form className="echo-composer"/, '끝난 뒤 입력칸은 확인 카드 한 곳');

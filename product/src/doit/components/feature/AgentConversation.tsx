@@ -15,7 +15,6 @@ import { VOICE_CONVERSATION_ENABLED, takeAgentChoice, type AgentChoice } from '@
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
 import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
 import { takeContentSeed } from '@/doit/lib/contentSeed';
-import { MenuButton } from '@/doit/components/feature/TopBar';
 
 interface Props {
   userId: string;
@@ -23,6 +22,7 @@ interface Props {
   firstAnswer: string | null;
   // 고른 만남(기존 대화 화면 제목에 쓴다). 없으면 제목만 짧게.
   purposeLabel?: string | null;
+  goal?: { id: string; label: string } | null; // v2.4 세션의 관계 목적(기기마다 다를 수 있음)
   onRestart: () => Promise<string | null>;
   onContinue: () => void;
   // 앱 홈 「처음부터 다시 시작하기」(?restart=1)로 들어오면 확인 창을 연 채로 연다.
@@ -49,7 +49,7 @@ const VOICE_STATE: Record<VoicePhase, [string, string]> = {
 // ECHO Conversation Agent 화면. 질문·진행·저장은 서버(doit-agent)가 정한다. 이 화면은 보이고 보내기만 한다.
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
 // 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
-export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, onRestart, onContinue, restartPrompt = false }: Props) {
+export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue, restartPrompt = false }: Props) {
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -121,7 +121,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
 
   const start = (choice: AgentChoice = { tone, mode }) => void run(choice.mode === 'VOICE' ? '이해하는 중이에요' : '첫 이야기를 듣고 있어요', async () => {
     // 소리 길은 누름 안에서만 연다: 선택창 「말로 시작하기」 누름(아래 onConfirm) 또는 히어로 선택창 누름. 여기는 누름 밖일 수 있어 부르지 않는다(한 번 열기 표시가 헛되이 켜지지 않게).
-    const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed() });
+    const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed(), goal });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
   });
@@ -170,7 +170,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     if (failure && alive.current) setError(failure);
   });
 
-  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link><MenuButton /></header>; // 2026-09-26 대표 실기기: 대화 중에도 메뉴(사주·타로 등)로 갈 수 있게 — 대화는 서버에 남아 돌아오면 이어진다
+  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>; // 메뉴(사주·타로 등)는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) — 대화는 서버에 남아 돌아오면 이어진다
   const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={restart}>처음부터 시작할게요</button></div></div>;
   const restartPill = (where: 'top' | 'bottom') => <button className="echo-restart-pill" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed(where)}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>;
 
@@ -184,7 +184,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   if (!session) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
     <p className="echo-eyebrow">만나기 전에</p>
-    {purposeLabel ? <h1>{purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
+    {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
+    {(session?.goal_label ?? purposeLabel) ? <h1>{session?.goal_label ?? purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}

@@ -255,8 +255,10 @@ test('약관: 앱 안 탈퇴와 메일 요청 둘 다 적혀 있고, 쓰지 않�
 test('MVP 메뉴(2026-09-26): Just Try·KEY·등급·공간·월드·알림 숨김 · 사주·타로는 보임(대표 정정) · 탭은 홈·연결·프로필 · 주소 정의는 보존 · 바로 들어오면 앱 홈', () => {
   const nav = read('src/doit/components/feature/BottomNav.tsx');
   assert.match(nav, /const tabs = allTabs\.filter\(\(tab\) => visibleInRelease\(tab\.to\)\);/);
-  const top = read('src/doit/components/feature/TopBar.tsx');
-  assert.match(top, /ECHO와 이야기하기/, '메뉴 문구도 운영과 같다');
+  // 2026-09-28: 메뉴는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu). 항목은 같은 숨김 목록(visibleInRelease)을 따른다.
+  const menu = read('src/components/AppCornerMenu.tsx');
+  assert.match(menu, /ECHO와 이야기하기/, '메뉴 문구도 운영과 같다');
+  assert.match(menu, /\.filter\(\(item\) => visibleInRelease\(item\.to\.split\('#'\)\[0\]\)\)/);
   const routes = read('src/doit/routes.tsx');
   for (const p of ['spaces', 'world', 'just-try', 'grade', 'notifications', 'fortune']) assert.match(routes, new RegExp(`path: "${p}"`), p);
   const compile = (p) => ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;

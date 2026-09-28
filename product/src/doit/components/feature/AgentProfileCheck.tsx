@@ -65,7 +65,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     const before = purpose ? notesOf(session, purpose) : profileSignature(session);
     setBusy(true); setError(null); setReply(null);
     try {
-      const r = await agentTurn(userId, session.id, t);
+      const r = await agentTurn(userId, session.id, t, { purpose }); // 정정 버튼 = 정정(칸은 사용자가 고른 것 · 서버가 확정)
       if (!alive.current) return;
       onSession(r.session);
       if (r.turn.reply) setReply(r.turn.reply);
@@ -104,8 +104,8 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       <label className="echo-context" htmlFor="echo-profile-fix">「{AGENT_PURPOSE_LABELS[view.purpose]}」를 내 말로 고쳐 주세요. 내가 고친 말이 가장 먼저예요.</label>
       <textarea id="echo-profile-fix" value={view.text} maxLength={TEXT_MAX} rows={3} disabled={busy} onChange={e => setView({ ...view, text: e.target.value.slice(0, TEXT_MAX) })} />
       <div className="echo-done-actions">
-        {/* 서버가 어느 칸인지 알도록 칸 이름을 앞에 붙여 보낸다(사용자가 고른 칸 · 문장은 사용자 것 그대로). */}
-        <button type="button" className="echo-primary" disabled={busy || !view.text.trim()} onClick={() => void sendFix(`「${AGENT_PURPOSE_LABELS[view.purpose]}」 부분을 고칠게요. ${view.text.trim()}`, view.purpose)}>이렇게 고칠게요</button>
+        {/* 사용자가 고른 칸은 정정 표시(correction.purpose)로 따로 보낸다 · 문장은 사용자 것 그대로(2026-09-27 P0-5). */}
+        <button type="button" className="echo-primary" disabled={busy || !view.text.trim()} onClick={() => void sendFix(view.text.trim(), view.purpose)}>이렇게 고칠게요</button>
         <button type="button" className="echo-text-button" disabled={busy} onClick={() => setView({ kind: 'pick' })}>다른 부분 고르기</button>
       </div>
     </> : view.kind === 'retell' ? <>

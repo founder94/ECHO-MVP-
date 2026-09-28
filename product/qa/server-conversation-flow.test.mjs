@@ -793,6 +793,14 @@ test('v14.2 연결 자격 = 이번 회차 다섯 가지 질문에 모두 답함(
   assert.equal(body.eligible, false);
 });
 
+test('P0-1 connection_preview: 전화 인증을 안 해도 나머지를 갖추면 연결 자격 · 전화 인증은 참고로만 표시', async () => {
+  const answer = (i) => ({ id: `ans-${i}`, user_id: USER, text: `답 ${i}`, status: 'confirmed', created_at: '2026-09-23T10:00:00Z' });
+  const state = baseState({ profiles: [{ id: USER, purpose_id: 'friend', purpose_label: '친구', bio: '안녕하세요', verification_status: 'none' }], photos: [1, 2, 3].map((slot) => ({ user_id: USER, slot })), insights: [], records: [1, 2, 3, 4, 5].map((i) => answer(i)) });
+  const body = (await loadServer({}, state).call({ action: 'connection_preview' })).body;
+  assert.equal(body.readiness.phone_verified, false, '참고 정보는 그대로 알려 준다');
+  assert.equal(body.eligible, true, '전화 인증 미완료만으로 자격을 떨어뜨리지 않는다');
+});
+
 test('v14.2 연결 자격 기준(5)이 질문 수(TOPICS)와 같다 — 화면의 n / 5 와 어긋날 수 없다', () => {
   const src = readFileSync('supabase/functions/doit-understanding/index.ts', 'utf8');
   const need = Number(src.match(/CONNECT_ANSWERS_NEEDED: (\d+)/)[1]);

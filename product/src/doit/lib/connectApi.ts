@@ -33,7 +33,9 @@ export interface AdminCandidate {
 }
 export interface AdminCandidates {
   pool: number; eligible: number;
-  missing: { purpose: number; phone: number; answers: number; photos: number; intro: number };
+  missing: { purpose: number; answers: number; photos: number; intro: number };
+  /** 2026-09-27 P0-1: 전화 인증은 연결 자격이 아니다 — 참고 인원만(예전 서버 응답에는 없을 수 있음). */
+  phone_unverified?: number;
   candidates: AdminCandidate[];
 }
 export interface AdminMatch {

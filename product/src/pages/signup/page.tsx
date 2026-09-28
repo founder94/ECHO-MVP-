@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GOOGLE_LOGIN_ENABLED } from '@/lib/authProviders';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeReturnPath } from '@/lib/auth/returnPath';
@@ -93,7 +94,7 @@ export default function Signup() {
   return (
     <div className="doit-app-pastel min-h-screen flex flex-col">{/* 2026-09-26 대표: 히어로 밖 화면은 파스텔(검정 바탕 0) */}
       {/* Top logo bar */}
-      <header className="w-full px-6 md:px-10 lg:px-16 py-5">
+      <header className="w-full px-6 md:px-10 lg:px-16 py-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <Link to="/" aria-label="DO IT 홈으로" className="inline-flex min-h-[44px] items-center gap-2.5 hover:opacity-80 transition-opacity">
           <DoItSymbol decorative className="!h-8 !w-8 md:!h-10 md:!w-10" />
           <span className="text-lg font-bold tracking-tight text-white">DO IT</span>
@@ -236,25 +237,27 @@ export default function Signup() {
                 )}
               </button>
 
-              {/* Google */}
-              <button
-                type="button"
-                onClick={handleGoogle}
-                disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
-                className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {googleStatus === 'google' ? (
-                  <>
-                    <i className="ri-loader-4-line animate-spin" />
-                    Google로 이동 중...
-                  </>
-                ) : (
-                  <>
-                    <i className="ri-google-fill" />
-                    Google로 계속하기
-                  </>
-                )}
-              </button>
+              {/* Google · 제공자가 꺼진 환경(QA)에서는 숨김 */}
+              {GOOGLE_LOGIN_ENABLED && (
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
+                  className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {googleStatus === 'google' ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin" />
+                      Google로 이동 중...
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-google-fill" />
+                      Google로 계속하기
+                    </>
+                  )}
+                </button>
+              )}
 
               {/* Login link */}
               <p className="text-center text-xs text-foreground-500 pt-2">

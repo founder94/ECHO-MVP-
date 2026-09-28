@@ -2569,7 +2569,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         intro: !!(typeof me?.bio === "string" && me.bio.trim()),
         phone_verified: me?.verification_status === "verified",
       };
-      const eligible = readiness.answers >= readiness.answers_needed && readiness.photos >= readiness.photos_needed && readiness.intro && readiness.phone_verified;
+      // 2026-09-27 대표 「P0-1」: 전화 인증은 연결 자격 조건이 아니다(readiness.phone_verified 는 참고로만 화면에 보임 · doit-connect 와 같은 기준).
+      const eligible = readiness.answers >= readiness.answers_needed && readiness.photos >= readiness.photos_needed && readiness.intro;
       let waiting = 0, candidates = 0;
       const common: string[] = [];
       if (me?.purpose_id) {

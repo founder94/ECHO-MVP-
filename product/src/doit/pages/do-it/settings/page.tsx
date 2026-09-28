@@ -35,8 +35,8 @@ export default function Settings() {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
   const { hash } = useLocation();
-  // 앱 홈의 「홈 화면에 ECHO 추가」 링크(#install)로 들어오면 그 항목으로 바로 내려 준다.
-  useEffect(() => { if (hash === "#install") document.getElementById("install")?.scrollIntoView({ block: "start" }); }, [hash]);
+  // 메뉴의 「앱 설치」(#install)·「약관 · 개인정보」(#policy)로 들어오면 그 항목으로 바로 내려 준다.
+  useEffect(() => { if (hash === "#install" || hash === "#policy") document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" }); }, [hash]);
 
   async function handleSignOut() {
     if (signOutInFlight.current || loading || !user) return;
@@ -116,7 +116,7 @@ export default function Settings() {
           <AccountDeletion userId={user?.id ?? null} authLoading={loading} />
         </section>
 
-        <section className="doit-settings-section" aria-labelledby="settings-policy-heading">
+        <section id="policy" className="doit-settings-section" aria-labelledby="settings-policy-heading">
           <h3 id="settings-policy-heading" className="doit-settings-heading">서비스 안내</h3>
           {/* 문서 본문은 src/lib/legal/documents.ts 하나에서 온다(/legal/terms, /legal/privacy). */}
           <div className="doit-settings-panel">
