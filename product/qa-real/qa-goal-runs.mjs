@@ -16,7 +16,9 @@ async function http(path, { method = 'GET', jwt = null, body = null } = {}) {
     return { status: r.status, data: d };
   }
 }
-const login = async (email, password) => (await http('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } })).data?.access_token ?? null;
+const loginR = async (email, password) => { const r = await http('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } }); return { jwt: r.data?.access_token ?? null, status: r.status }; };
+const login = async (email, password) => (await loginR(email, password)).jwt;
+const setupWhy = {}; // 계정 준비 실패 이유(검사 장치 오류 구분용)
 const fn = (jwt, body) => http('/functions/v1/doit-agent', { method: 'POST', jwt, body: { requestId: randomUUID(), ...body } });
 
 const ROMANCE = /연애|연인|애인|이상형|설레|설렘|호감|끌리|끌림|썸\s*타|데이트|결혼|교제|스킨십/;
@@ -76,7 +78,7 @@ function judge(goal, sess, log, special, firstQ) {
   let unsureOk = null;
   if (special === 'unsure') { const l = log.find((x) => SPECIAL.unsure.includes(x.user)); unsureOk = !!l && !l.saved && l.kind !== 'ask' && (!l.next || dice(bare(l.q ?? ''), bare(l.next)) < 0.55); }
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
-  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || replyAsks.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
+  const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || replyAsks.length > 0 || emptyAck > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
   return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, reply_asks: replyAsks, empty_ack: emptyAck,
     correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, trace: log.map((l) => [l.user.slice(0, 8), l.kind, l.asked, (l.next ?? '').slice(0, 14)]), asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
@@ -86,7 +88,7 @@ const PRES = [...new Set([ACCOUNT_PREFIX, PREFIX, 'gc', 'gb', 'gd', 'ge', 'gu', 
 const used = new Set(); // 한 계정은 한 작업만(세션·회차가 겹치지 않게)
 const cand = (acct) => ({ acct, email: `qa-${acct}-20260928@do-it.company`, password: pw(acct, 'user') });
 const bad = new Set(); // 없는 계정은 다시 두드리지 않는다
-async function tryLogin(c) { if (used.has(c.email) || bad.has(c.email)) return null; used.add(c.email); const jwt = await login(c.email, c.password); if (!jwt) { used.delete(c.email); bad.add(c.email); } return jwt; }
+async function tryLogin(c) { if (used.has(c.email) || bad.has(c.email)) return null; used.add(c.email); const { jwt, status } = await loginR(c.email, c.password); if (!jwt) { used.delete(c.email); if (status === 400) bad.add(c.email); else setupWhy.login = (setupWhy.login ?? 0) + 1; } return jwt; } // 400 = 없는 계정 · 그 밖(429 등)은 다시 쓸 수 있게 둔다
 async function signup(run) {
   // 계정 후보: 같은 번호의 앞선 검사 계정 → 그래도 없으면 아직 안 쓴 다른 번호의 앞선 검사 계정(가입 속도 제한 회피 · 새 가입 최소화).
   let jwt = null; let acct = run; let email = ''; let password = '';
@@ -94,10 +96,10 @@ async function signup(run) {
   if (!jwt) outer: for (const pre of PRES) for (const l of ['f', 'r', 'c', 'd']) for (let i = 1; i <= 20; i++) { ({ acct, email, password } = cand(`${pre}${l}${String(i).padStart(2, '0')}`)); jwt = await tryLogin({ acct, email, password }); if (jwt) break outer; }
   // 새 가입은 이번 접두어 이름으로. 가입 속도 제한(429)이면 기다렸다 두 번까지 다시(검사 계정 부족으로 run 이 빠지지 않게).
   if (!jwt) { acct = run; email = `qa-${acct}-20260928@do-it.company`; password = pw(acct, 'user');
-    for (let t = 0; t < 3 && !jwt; t++) { if (t) await new Promise((ok) => setTimeout(ok, 70000)); const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); } }
+    for (let t = 0; t < 3 && !jwt; t++) { if (t) await new Promise((ok) => setTimeout(ok, 70000)); const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); if (!jwt) setupWhy[`signup_${su.status}`] = (setupWhy[`signup_${su.status}`] ?? 0) + 1; } }
   if (!jwt) return null;
   const up = await http('/auth/v1/user', { method: 'PUT', jwt, body: { data: { doit_round_started_at: new Date(Date.now() + 1000).toISOString() } } });
-  if (up.status !== 200) return null;
+  if (up.status !== 200) { setupWhy[`round_${up.status}`] = (setupWhy[`round_${up.status}`] ?? 0) + 1; return null; }
   await new Promise((ok) => setTimeout(ok, 1200));
   return jwt;
 }
@@ -136,7 +138,7 @@ const strip = (t) => bare(t).replace(/친구|연인|연애|사람|상대|분/g, 
 const fq = by('friend').flatMap((r) => r.asked.slice(1)), rq = by('romantic').flatMap((r) => r.asked.slice(1));
 const labelOnly = fq.filter((a) => rq.some((b) => dice(strip(a), strip(b)) >= 0.8));
 const duals = results.filter((r) => r.goal === 'dual' && !r.error);
-const summary = { total_jobs: jobs.length, errors: results.filter((r) => r.error).length, error_samples: results.filter((r) => r.error).slice(0, 5).map((r) => r.error),
+const summary = { total_jobs: jobs.length, errors: results.filter((r) => r.error).length, account_setup_errors: setupWhy, error_samples: results.filter((r) => r.error).slice(0, 5).map((r) => r.error),
   friend: agg(by('friend')), romantic: agg(by('romantic')), colleague: agg(by('colleague')),
   dual: { runs: duals.length, fail: duals.filter((r) => r.fail).length, same_session: duals.filter((r) => r.same_session).length, cross_state: duals.filter((r) => r.cross_state).length, profile_goal_cross: duals.filter((r) => r.profile_goal_cross).length,
     friend_side_fail: duals.filter((r) => r.friend.fail).length, romantic_side_fail: duals.filter((r) => r.romantic.fail).length },
@@ -145,7 +147,7 @@ summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colle
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
 // 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
 const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')} :: ${JSON.stringify(r.trace)}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
-  r.counsel?.length && `counsel:${r.counsel[0]}`, r.reply_asks?.length && `reply_asks:${r.reply_asks[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
+  r.counsel?.length && `counsel:${r.counsel[0]}`, r.reply_asks?.length && `reply_asks:${r.reply_asks[0]}`, r.empty_ack && `empty_ack:${r.empty_ack} :: ${JSON.stringify(r.trace)}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
 const digest = [];
 for (const r of results) {
   if (r.error) { digest.push(`ERROR ${r.error}`); continue; }
