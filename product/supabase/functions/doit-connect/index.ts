@@ -44,7 +44,7 @@ type Db = SupabaseClient;
 const ACTIONS = new Set([
   "phone_sync",
   "my_matches", "my_turns", "answer", "message", "leave",
-  "admin_candidates", "admin_matches", "admin_decide",
+  "admin_candidates", "admin_matches", "admin_decide", "admin_members",
 ]);
 
 const LIMITS = {
@@ -724,6 +724,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       for (const m of members) for (const k of m.missing) missing[k] = (missing[k] ?? 0) + 1;
       logDiag({ action, pool: members.length, eligible: eligible.length, candidates: candidates.length, no_common: candidates.filter((c) => c.no_common === true).length });
       return json({ ok: true, pool: members.length, eligible: eligible.length, missing, phone_unverified: members.filter((m) => !m.phoneVerified).length, candidates: candidates.slice(0, LIMITS.CANDIDATES_MAX) }, 200, origin);
+    }
+
+    // 2026-09-28 ADMIN WEB: 사람별 연결 준비(같은 loadMembers 기준 · 읽기만). 소개 글·확정 문장·전화번호는 주지 않고 참·거짓과 부족 항목만.
+    if (action === "admin_members") {
+      const members = await loadMembers(admin);
+      return json({ ok: true, members: members.map((m) => ({ id: m.id, eligible: m.eligible, missing: m.missing, phone_verified: m.phoneVerified, photos: m.requiredPhotos, answers: m.answers, purpose: m.purposeLabel ?? m.purposeId })) }, 200, origin);
     }
 
     if (action === "admin_matches") {
