@@ -46,6 +46,6 @@ export const FAILURE_RULES = Object.freeze({
     priority: "P1",
     rule: "Severe failures should retain emotional, time, financial, and mental cost when known; never invent amounts.",
   },
-} as const;
+} as const);
 
 export type FailureRuleKey = keyof typeof FAILURE_RULES;
