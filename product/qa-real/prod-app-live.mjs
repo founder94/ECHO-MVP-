@@ -47,6 +47,8 @@ async function runDevice(bname, type, dname, opts, attempt = 1) {
     await Promise.all([p.waitForURL((u) => u.href.startsWith(APP), { timeout: 30000 }).catch(() => {}), cta.click({ timeout: 10000 }).catch(() => {})]);
     await p.waitForLoadState('domcontentloaded').catch(() => {});
     const { t: t1 } = await meaningful(p);
+    // 목적 목록 요청은 화면이 뜬 뒤에 올 수 있다(고정 대기를 없앤 뒤 run 107 에서 3/4 가 도착 전에 다음 주소로 넘어감) → 최대 10초 응답을 기다린다.
+    for (let i = 0; i < 40 && !purposes.length && !crashed; i++) await p.waitForTimeout(250);
     check(`${tag}: 브랜드 「ECHO 시작하기」 → ${APP} 도착 · 화면 글자 있음 · Site not found 아님`, p.url().startsWith(APP) && t1.length > 20 && !/Site not found/i.test(t1), `landed=${p.url()} text=${t1.slice(0, 40)}`);
 
     // 2) 앱 첫 화면 · 로그인 화면 직접 열기
