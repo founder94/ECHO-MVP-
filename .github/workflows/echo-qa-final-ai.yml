@@ -1,0 +1,59 @@
+name: echo-qa-final-ai
+
+on:
+  push:
+    branches: [codex/echo-final-qa-20260928]
+
+permissions:
+  contents: read
+
+jobs:
+  qa_real_ai:
+    runs-on: ubuntu-latest
+    environment: ECHO-QA
+    timeout-minutes: 90
+    concurrency:
+      group: echo-qa-final-ai
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lock QA project and deployed server candidate
+        env:
+          QA_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'codex/echo-final-qa-20260928'
+          test -n "$QA_TOKEN"
+          code=$(curl --silent --show-error --output /tmp/echo-function.json --write-out '%{http_code}' \
+            --header "Authorization: Bearer $QA_TOKEN" \
+            https://api.supabase.com/v1/projects/mutniujeiyujhkobadkd/functions/doit-agent)
+          test "$code" = 200
+          jq -e '.version == 23 and .ezbr_sha256 == "57b595ae184d08347bea04bd1c5b17788f3f3d163325da2e54d87f8a9085ae57" and .verify_jwt == true' /tmp/echo-function.json >/dev/null
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real AI 80 runs on QA only
+        working-directory: product
+        env:
+          QA_REF: mutniujeiyujhkobadkd
+          QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+          QA_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          N: '20'
+          PREFIX: zf
+          ACCOUNT_PREFIX: gc
+          OUT: ../echo-final-ai-results.json
+        run: |
+          set -euo pipefail
+          test -n "$QA_ANON"
+          export QA_PW_SEED
+          QA_PW_SEED=$(printf 'echo-qa:%s' "$QA_TOKEN" | sha256sum | cut -c1-40)
+          echo "::add-mask::$QA_PW_SEED"
+          unset QA_TOKEN
+          node qa-real/qa-goal-runs.mjs
+      - name: Preserve full QA result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echo-final-ai-results
+          path: echo-final-ai-results.json
+          if-no-files-found: ignore

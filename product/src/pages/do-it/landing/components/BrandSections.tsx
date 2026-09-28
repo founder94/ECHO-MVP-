@@ -1,4 +1,4 @@
-import { appUrl } from '@/lib/siteRole';
+import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import './brand-sections.css';
 
 // 회사 홈페이지(do-it.company) 전용 브랜딩 구간 (대표 2026-09-23 "모바일 말고는 회사 홈페이지 브랜딩용이야.
@@ -141,10 +141,10 @@ export function BrandMobileStart() {
           </div>
           {/* 컴퓨터로 볼 때: 휴대폰 카메라로 QR 을 비추면 앱이 열린다 */}
           <div className="doit-brand-handoff-desk" id="doit-start-qr">
-            <img className="doit-brand-qr" src="/brand/app-qr.svg" width="168" height="168" alt="app.do-it.company 로 가는 QR 코드" />
+            {!import.meta.env.VITE_QA_BUILD && <img className="doit-brand-qr" src="/brand/app-qr.svg" width="168" height="168" alt="ECHO 앱으로 가는 QR 코드" />}
             <div>
               <p className="doit-brand-handoff-title">휴대폰 카메라로 비춰 보세요.</p>
-              <p>바로 DO IT이 열려요. 주소는 <strong>https://app.do-it.company</strong></p>
+              <p>바로 ECHO가 열려요. 주소는 <strong>{APP_ORIGIN}</strong></p>
               <a className="doit-brand-handoff-link" href={startUrl}>이 컴퓨터에서 열기</a>
             </div>
           </div>
@@ -174,7 +174,7 @@ export function BrandAbout() {
         </div>
         <div className="doit-brand-about-row">
           <dt>서비스</dt>
-          <dd>DO IT 모바일 앱 · <a href={appUrl('/')}>https://app.do-it.company</a></dd>
+          <dd>ECHO 모바일 앱 · <a href={appUrl('/')}>{APP_ORIGIN}</a></dd>
         </div>
         <div className="doit-brand-about-row">
           <dt>문의</dt>

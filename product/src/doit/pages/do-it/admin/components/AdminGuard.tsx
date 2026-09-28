@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase } from "@/doit/lib/supabase";
 import AdminShell from "./AdminShell";
+import { APP_ORIGIN } from "@/lib/siteRole";
 
 // 5상태: checking / signed_out / denied / error / ok
 type GuardState = "checking" | "signed_out" | "denied" | "error" | "ok";
@@ -227,7 +228,7 @@ export default function AdminGuard({ onLeaveAdmin }: AdminGuardProps) {
 
           <div className="mt-5 rounded-md bg-secondary-50 px-3 py-3">
             <p className="text-xs leading-relaxed text-secondary-900">
-              미리보기 주소와 https://app.do-it.company 는 로그인 정보가 공유되지 않습니다.
+              미리보기 주소와 {APP_ORIGIN} 는 로그인 정보가 공유되지 않습니다.
               미리보기에서는 관리자 계정으로 다시 로그인해 주세요.
             </p>
           </div>
