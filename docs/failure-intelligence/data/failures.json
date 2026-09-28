@@ -1,6 +1,6 @@
 {
  "schema": "echo-failure-v2",
- "updated": "2026-09-25",
+ "updated": "2026-09-28",
  "failures": [
   {
    "id": "GF-01",
@@ -4527,6 +4527,144 @@
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md",
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md",
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "현재 QA·운영 실측 설정을 넣으면 가드가 FAIL, 목표 설정이면 PASS(qa/p0-20260928-realstate.test.mjs)",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-97",
+   "title": "STALE_REDIRECT — 폐기된 도메인이 인증 설정에 남아 실제 사용자를 죽은 사이트로 보냄",
+   "family": "F-DEPLOY",
+   "date": "2026-09-28 대표 실기기 iPhone · QA Google 로그인",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone 「Site not found」 · QA auth.flow_state.referrer 실측)",
+   "user_text": "Google 로그인 인증 후 melba-b1449a.netlify.app 으로 이동 → Netlify Site not found",
+   "situation": "QA APP 주소를 thriving-melba → echo-app-qa 로 바꿨지만 Supabase Auth 의 Site URL·Redirect URLs 는 옛 주소 그대로",
+   "ai_behavior": "앱은 redirectTo=https://echo-app-qa.netlify.app/auth/callback 을 보냄 → 허용 목록에 없어 Supabase 가 Site URL(폐기 주소)로 보냄. 실측: echo-app-qa·admin·임의 주소 모두 referrer=https://thriving-melba-b1449a.netlify.app. 운영도 app.do-it.company/auth/callback 이 허용 목록에 없어 referrer=https://do-it.company(브랜드)로 떨어짐(9/13 이후 15건)",
+   "expected": "Site URL = 실제 APP 주소 · 허용 목록에 APP/auth/callback · 폐기 주소 0",
+   "types": [
+    "배포 불일치",
+    "Stale Redirect"
+   ],
+   "layers": [
+    "Infrastructure",
+    "Product Contract"
+   ],
+   "layer_note": "앱 주소를 바꾸는 변경이 인증 설정(Supabase Site URL·Redirect URLs)까지 가지 않았다 — 빌드·배포 검사가 인증 설정을 보지 않았다",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실측 재현 ○** — /auth/v1/authorize?provider=google&redirect_to=<APP>/auth/callback 뒤 auth.flow_state.referrer 가 Site URL 로 기록됨(QA·운영)",
+   "solution_candidates": "Stale Redirect Guard: 빌드·릴리즈 전에 OAuth Site URL + Redirect Allow List + 실제 APP 도메인이 일치하지 않으면 FAIL(product/scripts/oauth-redirect-guard.mjs)",
+   "mock_result": "—",
+   "defense_level": "CANDIDATE",
+   "status": "UNRESOLVED",
+   "status_note": "QA·운영 Auth 설정 변경은 Supabase 대시보드(또는 Auth 설정 권한 토큰) 필요 — 이 세션의 QA 토큰은 Auth 설정 읽기 403",
+   "experiment": "product/scripts/oauth-redirect-guard.mjs",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "대표 실기기에서 로그인 직후 죽은 사이트",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/scripts/oauth-redirect-guard.mjs",
+    "product/qa/p0-20260928-realstate.test.mjs"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "수정 전 빌드에서는 conversation-choice 화면에 버튼 0 → 테스트 FAIL",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-98",
+   "title": "REAL_STATE_FAIL — 자동 검사 PASS(18/0)인데 대표 실제 상태에서는 「처음부터 다시 시작하기」가 없음",
+   "family": "F-EVAL",
+   "date": "2026-09-28 대표 실기기 iPhone · 온보딩 완료 뒤 화면",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone 화면: 사진과 소개 채우기 · 대화 다시 보기 · 홈으로)",
+   "user_text": "온보딩 완료 후 현재 화면에 처음부터 다시 시작하기 버튼이 실제로 존재하지 않는다",
+   "situation": "/doit/start-journey 의 conversation-choice 단계(대화를 마친 사용자가 오는 「오늘은 무엇부터 할까요?」)",
+   "ai_behavior": "「모든 진입점 연결 완료 · 18 PASS」 보고. 검사는 이미 있던 버튼(홈·나의 이해·연결·대화 화면)만 찾았고, 새 가입 계정으로 /doit/understanding 에 주소로 바로 들어갔다 — 대표가 실제로 도달한 상태(대화 완료 · start-journey)를 재현하지 않았다",
+   "expected": "대표와 같은 상태(대화 완료 계정 · 같은 경로)에서 실제 화면에 버튼이 보이고 한 번 탭으로 새 회차",
+   "types": [
+    "Mock PASS / 실AI FAIL",
+    "검사 결함",
+    "잘못된 보고",
+    "Real-State FAIL"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "검사 대상이 '버튼이 있는 곳'이었지 '사용자가 도달하는 화면'이 아니었다(존재 검사 ≠ 실제 상태)",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실제 상태 재현** — QA 새 계정에 약관·목적 · 실제 대화를 끝까지(phase=done) 만든 뒤 /doit/start-journey 에서 화면 렌더 확인",
+   "solution_candidates": "Real-State Replay 테스트: 사용자가 실제로 도달하는 상태를 만들어 그 화면의 렌더 결과(보임·눌림·가림 0)를 본다",
+   "mock_result": "PASS(18/0 · 잘못된 대상)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "QA 실제 상태 재현 PASS 뒤에도 대표 실기기 확인 전 VERIFIED 아님",
+   "experiment": "product/qa-real/qa-restart-realstate.mjs",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "완료 보고를 믿고 확인했는데 없음",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/src/doit/pages/do-it/start-journey/page.tsx",
+    "product/qa-real/qa-restart-realstate.mjs"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "인라인 채움 버튼 하나를 되돌리면 전수 검사 테스트 FAIL",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-99",
+   "title": "DESIGN_SYSTEM_LOCK_IGNORED — 화면마다 따로 쓴 불투명 흰색·금색 버튼이 유리 버튼 기준을 깸",
+   "family": "F-CONTRACT",
+   "date": "2026-09-28 대표 실기기 iPhone · 소개 쓰기 화면",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone: 「AI가 대신 작성하기」 불투명 흰색 · 「이 글로 바꾸기」 불투명 금색)",
+   "user_text": "ECHO 앱의 투명/글라스 버튼 기준과 불일치",
+   "situation": "유리 버튼 기준(echo-ui.css)은 클래스 이름으로만 걸렸고, 화면 인라인 style 로 색을 박은 버튼은 기준을 피해 갔다",
+   "ai_behavior": "앱 버튼 22곳이 인라인 style 로 불투명 채움(흰 그라데이션·금색·회색·검정) · CSS 18개 규칙이 불투명 채움을 기본값으로 둠",
+   "expected": "모든 CTA·선택 버튼 = 공통 유리 버튼(투명 막 + 얇은 흰 테두리 + 흰 글자) · 상태는 막·테두리·흐림으로만",
+   "types": [
+    "제품 계약 불일치",
+    "DESIGN_SYSTEM_LOCK_IGNORED"
+   ],
+   "layers": [
+    "Product Contract"
+   ],
+   "layer_note": "원인 = 개별 화면별 스타일 작성 / 공통 토큰 미강제",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**코드 재현 ○** — 앱 TSX 버튼 인라인 채움 22곳 · CSS 18규칙(전수 검색)",
+   "solution_candidates": "공통 GlassButton · glass-button.css(인라인 색도 이김) + 채움 버튼 전수 검사 테스트(qa/p0-20260928-realstate.test.mjs)",
+   "mock_result": "—",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "대표 실기기 iPhone·Galaxy 확인 전 VERIFIED 아님",
+   "experiment": "product/src/doit/components/feature/glass-button.css",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/src/doit/components/feature/glass-button.css",
+    "product/src/doit/components/feature/GlassButton.tsx"
    ]
   }
  ]

@@ -217,28 +217,14 @@ export function TaroCardSelect({
 
               <div className="mt-6 grid grid-cols-2 gap-2">
                 {purposes.map((item) => (
-                  <button
+                  <button aria-pressed={purpose === item}
                     key={item}
                     type="button"
                     onClick={() =>
                       setPurpose(item)
                     }
-                    className="min-h-12 rounded-2xl px-3 text-left text-[13px] transition"
-                    style={{
-                      color:
-                        purpose === item
-                          ? "#f3dfa8"
-                          : colors.textMuted,
-                      border: `1px solid ${
-                        purpose === item
-                          ? "#c6a866"
-                          : colors.border
-                      }`,
-                      background:
-                        purpose === item
-                          ? "rgba(198,168,102,.12)"
-                          : colors.surface,
-                    }}
+                    className="echo-glass-btn echo-glass-btn--choice min-h-12 rounded-2xl px-3 text-left text-[13px] transition"
+                    
                   >
                     {item}
                   </button>
@@ -315,7 +301,7 @@ export function TaroCardSelect({
               <div className="mt-7 flex flex-wrap justify-center gap-2.5 py-2">
                 {deck.slice(0, SPREAD).map(
                   (card, index) => (
-                    <motion.button
+                    <motion.button data-visual="art"
                       key={card.id}
                       type="button"
                       aria-label={`펼친 ${SPREAD}장 중 ${index + 1}번째 카드 고르기`}

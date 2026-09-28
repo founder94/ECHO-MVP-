@@ -88,24 +88,11 @@ function PathCard({
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       onClick={onClick}
-      className="relative w-full text-left rounded-3xl overflow-hidden flex flex-col"
-      style={{
-        padding: "28px 24px 24px",
-        backgroundColor: pressed
-          ? "#12151c"
-          : colors.surface,
-        border: `1px solid ${
-          pressed
-            ? "rgba(255,255,255,0.18)"
-            : colors.border
-        }`,
-        transform: pressed
+      className="echo-glass-btn echo-glass-btn--choice relative w-full text-left rounded-3xl overflow-hidden flex flex-col"
+      style={{ padding: "28px 24px 24px", transform: pressed
           ? "scale(0.985)"
-          : "scale(1)",
-        transition:
-          "transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease",
-        minHeight: 200,
-      }}
+          : "scale(1)", transition:
+          "transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease", minHeight: 200 }}
     >
       <div
         className="absolute top-0 right-0 w-32 h-32 pointer-events-none"

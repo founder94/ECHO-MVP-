@@ -57,5 +57,5 @@
 .doit-outcome legend{margin-bottom:6px;font-size:13px;color:#dfe3ea}
 .doit-outcome-chips{display:flex;flex-wrap:wrap;gap:6px}
 .doit-outcome-chips button{min-height:40px;padding:8px 14px;border:1px solid #c2cad13d;border-radius:999px;background:transparent;color:#d9dee7;font-size:13px;cursor:pointer}
-.doit-outcome-chips button[aria-pressed=true]{background:#d9dde4;color:#15171b;border-color:transparent}
+.doit-outcome-chips button[aria-pressed=true]{background:rgb(255 255 255/.24);color:#fff;border-color:transparent;border:1px solid rgb(255 255 255/.7)}
 .doit-outcome-chips button:disabled{opacity:.5;cursor:default}

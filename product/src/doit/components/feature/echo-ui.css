@@ -6,6 +6,7 @@
    - 글자색: 파스텔 위 사용자 글은 흰색(보조 글도 흰색 · 흐린 은색·회색 0).
    - 판·버튼: 검정·짙은 회색 채움 0. 투명 유리(흰 6%) + 얇은 흰 테두리. 누른 상태도 흰 막을 조금 더 진하게(검정으로 바뀌지 않음).
    - 버튼 3단계: 주요(흰 막 24% + 흰 테두리) · 보조(투명 + 테두리) · 글 버튼(배경 없음 + 밑줄). */
+@import "./glass-button.css"; /* 2026-09-28 공통 유리 버튼 한 벌 */
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
   --echo-font:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;
   --echo-glass:rgb(255 255 255/.06);

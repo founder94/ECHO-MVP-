@@ -31,7 +31,7 @@
 .doit-understanding-refresh{display:grid;place-items:center;width:44px;height:44px;border:1px solid #bac4d12e;border-radius:50%;background:transparent;color:#c7ced8;font-size:21px;cursor:pointer}
 .doit-understanding-filters{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:20px}
 .doit-understanding-filters button{min-height:40px;padding:9px 13px;border:1px solid #bac4d129;border-radius:999px;background:transparent;color:#acb5c2;font-size:12px;font-weight:500;cursor:pointer}
-.doit-understanding-filters button[aria-pressed="true"]{background:#d8dde5;color:#171b22;border-color:#e0e4e9;font-weight:600}
+.doit-understanding-filters button[aria-pressed="true"]{background:rgb(255 255 255/.24);color:#fff;border-color:#e0e4e9;font-weight:600;border:1px solid rgb(255 255 255/.7)}
 .doit-understanding-empty-state{padding:34px 0 42px;border-top:1px solid #ffffff1b}
 .doit-understanding-empty-state p{margin:0;color:#d6dbe2;font-size:14px;line-height:1.85;font-weight:500}
 .doit-understanding-empty-state span{display:block;margin-top:10px;font-size:12px;line-height:1.8;color:#a2acbb}
@@ -47,7 +47,7 @@
 .doit-understanding-pending{padding:24px 20px;border:1px dashed #c4cddc40;border-radius:18px;background:#d1d9e305;margin:16px 0 30px}
 .doit-understanding-pending .doit-product-kicker{margin-bottom:10px;font-size:9px}
 @media(max-width:360px){.doit-understanding-page{padding-top:27px}.doit-understanding-summary{gap:11px}.doit-understanding-summary strong{font-size:26px}.doit-understanding-filters{gap:6px}.doit-understanding-filters button{padding-inline:10px;font-size:11px}}
-.doit-understanding-page .doit-restart-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:14px;padding:10px 18px;border:1px solid #d9dfe8a6;border-radius:999px;background:#1b1f26;color:#eef1f5;font-size:13px;font-weight:600;text-decoration:none}
+.doit-understanding-page .doit-restart-pill{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:14px;padding:10px 18px;border:1px solid rgb(255 255 255/.7);border-radius:999px;background:rgb(255 255 255/.08);color:#fff;font-size:13px;font-weight:600;text-decoration:none}
 .doit-understanding-page .doit-restart-pill>span{font-size:15px;line-height:1;color:#e6ebf3}
 /* 2026-09-26 「나의 이해」 다섯 칸 · 지금/지난 기록 */
 .doit-understanding-area{margin:0 0 8px}

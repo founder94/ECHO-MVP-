@@ -225,7 +225,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={formStatus === 'submitting' || !consentReady}
-                className="w-full py-3 rounded-xl echo-primary bg-white text-[#080808] text-sm font-semibold hover:bg-white/85 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                className="echo-glass-btn echo-glass-btn--primary w-full py-3 rounded-xl echo-primary text-sm font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
               >
                 {formStatus === 'submitting' ? (
                   <>
@@ -243,7 +243,7 @@ export default function Signup() {
                   type="button"
                   onClick={handleGoogle}
                   disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
-                  className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                  className="echo-glass-btn echo-glass-btn--secondary w-full py-3 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {googleStatus === 'google' ? (
                     <>

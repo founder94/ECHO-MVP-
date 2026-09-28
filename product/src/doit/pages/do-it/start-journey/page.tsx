@@ -13,6 +13,7 @@ import { ProfileBuild } from "@/doit/app/plan-a/screens/ProfileBuild";
 import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
 import "@/doit/components/feature/app-pastel.css";
+import RestartConversationButton from "@/doit/components/feature/RestartConversationButton";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
 import { photoSetComplete } from "@/doit/lib/photoPolicy";
 import { requestAgentIntroDraft, requestIntroDraft } from "@/doit/lib/introDraft";
@@ -447,14 +448,8 @@ export default function StartJourney() {
         <button
           type="button"
           onClick={retryLoad}
-          className="mt-6 rounded-full px-6 py-3 whitespace-nowrap"
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#15191e",
-            backgroundColor: "#d5dbe3",
-            cursor: "pointer",
-          }}
+          className="echo-glass-btn echo-glass-btn--primary mt-6 rounded-full px-6 py-3 whitespace-nowrap"
+          style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}
         >
           다시 시도
         </button>
@@ -479,7 +474,7 @@ export default function StartJourney() {
             <p style={{ fontSize: 13, lineHeight: 1.8, color: "#b5bac3", margin: 0 }}>
               생각보다 오래 걸려요. 인터넷이 잘 되는지 확인하고 다시 눌러 주세요.
             </p>
-            <button type="button" onClick={retryLoad} className="mt-5 rounded-full px-6 py-3 whitespace-nowrap" style={{ fontSize: 14, fontWeight: 600, color: "#15191e", backgroundColor: "#d5dbe3", cursor: "pointer" }}>
+            <button type="button" onClick={retryLoad} className="echo-glass-btn echo-glass-btn--primary mt-5 rounded-full px-6 py-3 whitespace-nowrap" style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               다시 시도
             </button>
             <button type="button" onClick={() => navigate("/doit/home")} className="mt-3 block mx-auto px-6 py-3" style={{ fontSize: 13, color: "#c4cad3", background: "none", border: 0, cursor: "pointer" }}>
@@ -579,6 +574,8 @@ export default function StartJourney() {
       {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 직접 채우기</button></>
         : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
         : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
+      {/* 2026-09-28 대표 실기기(iPhone) 「온보딩 뒤 이 화면에 처음부터 다시 시작하기가 없다」: 대화를 시작했으면 여기에도 둔다 — 앱 공통 동작 하나(한 번 탭 · 확인 창 0 · 목적·Profile·지난 대화 유지). */}
+      {(talkDone || answered > 0) && user && <RestartConversationButton userId={user.id} className="echo-restart-pill" />}
       <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
 

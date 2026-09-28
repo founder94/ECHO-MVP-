@@ -191,13 +191,8 @@ export function PurposeSelect({
             <button
               type="button"
               onClick={onRetry}
-              className="echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
-              style={{
-                fontSize: 13,
-                color: colors.onAccent,
-                backgroundColor: colors.accent,
-                cursor: "pointer",
-              }}
+              className="echo-glass-btn echo-glass-btn--primary echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
+              style={{ fontSize: 13, cursor: "pointer" }}
             >
               다시 시도
             </button>
@@ -226,13 +221,8 @@ export function PurposeSelect({
               <button
                 type="button"
                 onClick={onRetry}
-                className="echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
-                style={{
-                  fontSize: 13,
-                  color: colors.onAccent,
-                  backgroundColor: colors.accent,
-                  cursor: "pointer",
-                }}
+                className="echo-glass-btn echo-glass-btn--primary echo-primary mt-3 rounded-full px-5 py-2.5 whitespace-nowrap"
+                style={{ fontSize: 13, cursor: "pointer" }}
               >
                 다시 확인
               </button>

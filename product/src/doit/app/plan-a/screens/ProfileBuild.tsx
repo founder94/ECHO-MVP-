@@ -302,13 +302,8 @@ export function ProfileBuild({
                     type="button"
                     onClick={() => void requestDraft()}
                     disabled={draftState.kind === "busy" || saving}
-                    className="w-full flex items-center justify-center gap-2 rounded-2xl min-h-12 px-4 py-3 disabled:opacity-60"
-                    style={{
-                      background: "linear-gradient(115deg,#f0f2f4,#bbc4d0)",
-                      color: "#141820",
-                      fontSize: 14,
-                      fontWeight: 700,
-                    }}
+                    className="echo-glass-btn echo-glass-btn--primary w-full flex items-center justify-center gap-2 rounded-2xl min-h-12 px-4 py-3 disabled:opacity-60"
+                    style={{ fontSize: 14, fontWeight: 700 }}
                   >
                     <Sparkles size={16} aria-hidden="true" />
                     {draftState.kind === "busy"
@@ -330,8 +325,8 @@ export function ProfileBuild({
                         <button
                           type="button"
                           onClick={() => { setIntro(draftState.text); setDraftState({ kind: "filled" }); }}
-                          className="flex-1 rounded-xl min-h-11 px-3"
-                          style={{ backgroundColor: colors.accent, color: colors.onAccent, fontSize: 13, fontWeight: 700 }}
+                          className="echo-glass-btn echo-glass-btn--primary flex-1 rounded-xl min-h-11 px-3"
+                          style={{ fontSize: 13, fontWeight: 700 }}
                         >
                           이 글로 바꾸기
                         </button>
@@ -407,23 +402,9 @@ export function ProfileBuild({
                         )
                       }
                       aria-pressed={active}
-                      className="rounded-full px-3.5 py-2 whitespace-nowrap"
-                      style={{
-                        fontSize: 13,
-                        color: active
-                          ? colors.onAccent
-                          : colors.textMuted,
-                        backgroundColor: active
-                          ? colors.accent
-                          : surfaces.field,
-                        border: `1px solid ${
-                          active
-                            ? colors.accent
-                            : colors.borderStrong
-                        }`,
-                        transition:
-                          "all 0.15s ease",
-                      }}
+                      className="echo-glass-btn echo-glass-btn--choice rounded-full px-3.5 py-2 whitespace-nowrap"
+                      style={{ fontSize: 13, transition:
+                          "all 0.15s ease" }}
                     >
                       {rhythm}
                     </button>

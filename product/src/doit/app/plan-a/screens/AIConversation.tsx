@@ -419,7 +419,7 @@ export function AIConversation({
                       reaction.key;
 
                     return (
-                      <motion.button
+                      <motion.button aria-pressed={active}
                         type="button"
                         key={reaction.key}
                         whileTap={{
@@ -430,24 +430,9 @@ export function AIConversation({
                             reaction.key,
                           )
                         }
-                        className="rounded-full px-4 flex items-center gap-1.5"
-                        style={{
-                          height: 44,
-                          fontSize: 14,
-                          color: active
-                            ? colors.onAccent
-                            : colors.text,
-                          backgroundColor: active
-                            ? colors.accent
-                            : colors.surface,
-                          border: `1px solid ${
-                            active
-                              ? colors.accent
-                              : colors.border
-                          }`,
-                          transition:
-                            "background-color 0.15s ease, color 0.15s ease",
-                        }}
+                        className="echo-glass-btn echo-glass-btn--choice rounded-full px-4 flex items-center gap-1.5"
+                        style={{ height: 44, fontSize: 14, transition:
+                            "background-color 0.15s ease, color 0.15s ease" }}
                       >
                         {active && (
                           <Check size={14} />

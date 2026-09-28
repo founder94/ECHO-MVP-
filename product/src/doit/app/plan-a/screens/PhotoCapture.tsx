@@ -403,14 +403,8 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={() => void loadSaved()}
-          className="mt-6 rounded-full px-6 py-3 whitespace-nowrap"
-          style={{
-            backgroundColor: colors.text,
-            color: colors.bg,
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="echo-glass-btn echo-glass-btn--primary mt-6 rounded-full px-6 py-3 whitespace-nowrap"
+          style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}
         >
           다시 시도
         </button>
@@ -554,7 +548,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
 
       {sourceChoice && <PhotoDialog title={SLOTS[sourceChoice.slot].label} onClose={() => setSourceChoice(null)}>
         <p style={{ color: "#fff", fontSize: 13, lineHeight: 1.8, marginBottom: 20 }}>편한 방법으로 사진을 골라주세요.</p>
-        <button type="button" className="w-full flex items-center justify-center gap-2 rounded-2xl min-h-14 px-4 py-4 mb-3" style={{ background: "linear-gradient(115deg,#f0f2f4,#bbc4d0)", color: "#141820", fontWeight: 600 }} onClick={() => { setCamera(sourceChoice); setSourceChoice(null); }}><Camera size={18} />지금 촬영</button>
+        <button type="button" className="echo-glass-btn echo-glass-btn--primary w-full flex items-center justify-center gap-2 rounded-2xl min-h-14 px-4 py-4 mb-3" style={{ fontWeight: 600 }} onClick={() => { setCamera(sourceChoice); setSourceChoice(null); }}><Camera size={18} />지금 촬영</button>
         <button type="button" className="w-full flex items-center justify-center gap-2 rounded-2xl min-h-14 px-4 py-4" style={{ border: "1px solid #cbd5e34d", color: "#e5e9ef", fontWeight: 600 }} onClick={() => {
           albumTargetRef.current = sourceChoice;
           setSourceChoice(null);
@@ -570,7 +564,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         </> : <p style={{ fontSize: 12, lineHeight: 1.8, color: "#c5ccd7", marginTop: 16 }}>최근 2개월 안의 날짜가 사진 정보에 기록되어 있어요.</p>}
         <p style={{ fontSize: 12, lineHeight: 1.8, color: "#fff", marginTop: 8 }}>사진 정보는 바뀌거나 빠질 수 있어요. 실제 촬영일·본인 여부·AI 생성 여부를 확인한 것은 아니에요.</p>
         {slotErrors[album.target.slot] && <p role="alert" style={{ color: colors.danger, fontSize: 12, lineHeight: 1.7, marginTop: 12 }}>{slotErrors[album.target.slot]}</p>}
-        <button type="button" disabled={saveBusy || (album.dateCheck.kind === "needs-confirmation" && !confirmedRecent)} onClick={() => void confirmAlbum()} className="w-full rounded-2xl min-h-14 px-4 py-4 mt-5 disabled:opacity-40" style={{ background: "linear-gradient(115deg,#f0f2f4,#bbc4d0)", color: "#141820", fontWeight: 600 }}>{saveBusy ? "사진 저장 중" : "이 사진 올리기"}</button>
+        <button type="button" disabled={saveBusy || (album.dateCheck.kind === "needs-confirmation" && !confirmedRecent)} onClick={() => void confirmAlbum()} className="echo-glass-btn echo-glass-btn--primary w-full rounded-2xl min-h-14 px-4 py-4 mt-5 disabled:opacity-40" style={{ fontWeight: 600 }}>{saveBusy ? "사진 저장 중" : "이 사진 올리기"}</button>
       </PhotoDialog>}
       {camera && (
         <CameraSheet
