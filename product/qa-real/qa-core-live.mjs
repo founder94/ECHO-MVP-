@@ -88,7 +88,7 @@ check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repai
 const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
 const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
-check('서버 판 = echo-agent-v2.4.2', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.2' || s?.profile?.version === 'echo-agent-v2.4.2', `version=${s?.profile?.version ?? '-'}`);
+check('서버 판 = echo-agent-v2.4.3', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.3' || s?.profile?.version === 'echo-agent-v2.4.3', `version=${s?.profile?.version ?? '-'}`);
 
 const fail = results.filter((x) => !x).length;
 console.log(`QA CORE LIVE: ${results.length - fail} PASS / ${fail} FAIL`);
