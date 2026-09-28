@@ -6,6 +6,7 @@ import { useAuth } from '@/doit/hooks/useAuth';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } from '@/doit/lib/understandingApi';
 import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
+import ConnectionCandidates from './ConnectionCandidates';
 import './asleep-connections.css';
 import { PHONE_VERIFY_READY } from '@/doit/lib/phoneVerify'; // 문자 발송 업체 연결 전 false(전화 인증 화면과 같은 값)
 
@@ -30,6 +31,7 @@ const SUBLINE = '지금은 연결을 준비하는 중이에요.';
 export default function AsleepConnections() {
   const { user, loading } = useAuth();
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [opened, setOpened] = useState(0); // v2.0 상호선택으로 연결이 열리면 「내 연결」을 다시 읽는다
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId || !A_STRUCTURE_SERVER_ENABLED) return;
@@ -51,7 +53,8 @@ export default function AsleepConnections() {
       {user && !A_STRUCTURE_SERVER_ENABLED && <p className="doit-asleep-status">연결 준비 화면은 서버 연결 뒤에 열려요.</p>}
       {user && A_STRUCTURE_SERVER_ENABLED && state.kind === 'loading' && <div className="doit-asleep-wait" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>내가 확인한 말로 준비 상태를 살피고 있어요.</p></div>}
       {state.kind === 'error' && <p className="doit-product-error" role="alert">{state.message}</p>}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches userId={user.id} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates userId={user.id} onOpened={() => setOpened(n => n + 1)} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} />}
       {state.kind === 'ready' && <Ready preview={state.preview} />}
     </section>
   </MobileLayout>;
@@ -90,7 +93,7 @@ function Ready({ preview }: { preview: Preview }) {
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">{preview.purpose ? `연결까지 남은 것 · ${preview.purpose}` : '연결까지 남은 것 · 원하는 만남을 아직 고르지 않았어요'}</p>
       <ul className="doit-asleep-check doit-asleep-check--small">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span>{!PHONE_VERIFY_READY && row.label === '전화 인증' && !row.done ? <span>{row.label}</span> : <Link to={row.to}>{row.label}</Link>}<strong>{row.detail}</strong></li>)}</ul>
-      <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. 겹치는 사람이 있으면 대표가 직접 확인한 뒤 위 「내 연결」에 보여 드려요.' : '질문·소개·사진 세 가지를 채우면 연결을 받을 수 있어요(전화 인증은 선택이에요). 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
+      <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. ECHO가 같은 만남을 원하는 사람 중 후보를 준비하면 위에 보여 드려요. 두 사람이 모두 고르면 연결이 열려요.' : '질문·소개·사진 세 가지를 채우면 연결을 받을 수 있어요(전화 인증은 선택이에요). 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
     </div>
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">지금 같은 만남을 기다리는 사람</p>

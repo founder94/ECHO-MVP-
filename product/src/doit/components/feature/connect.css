@@ -40,3 +40,22 @@
 .doit-turns strong{display:block;font-size:16px;line-height:1.6;word-break:keep-all}
 .doit-turns span{display:block;margin-top:4px;font-size:13px;line-height:1.7;color:#aab0bc;word-break:keep-all}
 .doit-turns .doit-turns-go{display:block;margin-top:10px;font-style:normal;font-size:13px;font-weight:600;color:#e6ebf3;text-decoration:underline;text-underline-offset:4px}
+/* v2.0 당신이 잠든 사이 — 후보(.doit-candidates 아래에서만) */
+.doit-candidates{margin:22px 0}
+.doit-candidates-title{margin:0 0 6px;font-size:20px;font-weight:700;line-height:1.5;color:#f2f3f5;word-break:keep-all}
+.doit-candidates-title--wait{font-size:16px}
+.doit-candidate{margin:12px 0 14px;padding:20px;border:1px solid #c2cad12d;border-radius:20px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
+.doit-candidate[data-state=waiting]{opacity:.85}
+.doit-candidate-why{margin:0;font-size:15px;font-weight:600;color:#eef0f3}
+.doit-candidate-reasons{margin:10px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:6px}
+.doit-candidate-reasons li{font-size:13px;line-height:1.75;color:#c5cbd5;word-break:keep-all;overflow-wrap:anywhere}
+.doit-candidate-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;margin-top:16px}
+.doit-candidate-actions .doit-product-action{flex:1 1 100%}
+.doit-candidates .doit-product-action:disabled{opacity:.5;cursor:default}
+.doit-outcome{margin-top:18px;padding:16px;border-radius:16px;background:#1c1f25}
+.doit-outcome fieldset{margin:0 0 12px;padding:0;border:0}
+.doit-outcome legend{margin-bottom:6px;font-size:13px;color:#dfe3ea}
+.doit-outcome-chips{display:flex;flex-wrap:wrap;gap:6px}
+.doit-outcome-chips button{min-height:40px;padding:8px 14px;border:1px solid #c2cad13d;border-radius:999px;background:transparent;color:#d9dee7;font-size:13px;cursor:pointer}
+.doit-outcome-chips button[aria-pressed=true]{background:#d9dde4;color:#15171b;border-color:transparent}
+.doit-outcome-chips button:disabled{opacity:.5;cursor:default}

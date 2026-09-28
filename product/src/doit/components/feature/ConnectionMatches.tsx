@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, type MyMatch } from '@/doit/lib/connectApi';
+import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField } from '@/doit/lib/connectApi';
 import './connect.css';
 
 // 내 연결 — 대표가 승인한 연결만 여기 온다(연결 원칙 2026-09-21).
@@ -69,7 +69,7 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
   const [leaving, setLeaving] = useState(false);
 
   if (match.status === 'closed') {
-    return <article className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p></article>;
+    return <article className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
   }
 
   const submit = async (event: FormEvent, kind: 'answer' | 'message') => {
@@ -173,6 +173,7 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
+      <OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} />
     </>}
 
     {error && <p className="doit-product-error" role="alert">{error}</p>}
@@ -186,4 +187,40 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
           <button type="button" className="doit-connect-link" onClick={() => setLeaving(false)} disabled={busy}>계속할게요</button>
         </div>}
   </article>;
+}
+
+// v2.0 결과 기록(대표 「FINAL MVP IMPLEMENTATION MASTER」 §19) — 본인 것만 · 누를 때마다 그 칸만 저장. 상대에게 보이지 않고, 내 프로필·확정한 말로 올리지 않는다.
+const OUTCOME_QUESTIONS: { field: OutcomeField; legend: string; options: [string, string][] }[] = [
+  { field: 'talked', legend: '이야기를 나눠 봤어요?', options: [['yes', '나눴어요'], ['no', '아직이요']] },
+  { field: 'met', legend: '실제로 만났어요?', options: [['yes', '만났어요'], ['planned', '약속했어요'], ['no', '아니요']] },
+  { field: 'again', legend: '다시 만나고 싶어요?', options: [['yes', '네'], ['unsure', '잘 모르겠어요'], ['no', '아니요']] },
+  { field: 'helpful', legend: '이 연결이 도움이 됐어요?', options: [['yes', '네'], ['unsure', '보통이에요'], ['no', '아니요']] },
+];
+
+function OutcomeForm({ userId, matchId, initial }: { userId: string; matchId: string; initial: MatchOutcome | null }) {
+  const [value, setValue] = useState<Partial<Record<OutcomeField, string | null>>>(initial ?? {});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pick = async (field: OutcomeField, option: string) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await sendOutcome(userId, matchId, { [field]: option });
+      setValue(prev => ({ ...prev, [field]: option }));
+    } catch (e) {
+      setError(errorText(e, '저장하지 못했어요. 다시 눌러 주세요.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <div className="doit-outcome" role="group" aria-label="이 연결은 어땠어요">
+    <p className="doit-match-kicker">이 연결은 어땠어요? (나만 보여요)</p>
+    {OUTCOME_QUESTIONS.map(q => <fieldset key={q.field}>
+      <legend>{q.legend}</legend>
+      <div className="doit-outcome-chips">{q.options.map(([opt, label]) => <button key={opt} type="button" aria-pressed={value[q.field] === opt} disabled={busy} onClick={() => void pick(q.field, opt)}>{label}</button>)}</div>
+    </fieldset>)}
+    {error && <p className="doit-product-error" role="alert">{error}</p>}
+    <p className="doit-connect-note">다음 후보를 더 잘 준비하는 데만 써요. 상대에게 보이지 않고, 내 소개나 확정한 이야기로 바뀌지 않아요.</p>
+  </div>;
 }

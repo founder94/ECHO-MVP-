@@ -69,5 +69,8 @@ export interface SourcesOut {
 }
 export interface ConnectCandidates { pool: number; eligible: number; missing: { purpose: number; answers: number; photos: number; intro: number }; phone_unverified?: number;
   candidates: { user_a: string; user_b: string; purpose: string | null; a: { nickname: string; confirmed: number }; b: { nickname: string; confirmed: number }; common_a: string[]; common_b: string[]; score: number; no_common?: boolean }[] }
-export interface ConnectMatch { id: string; status: 'approved' | 'rejected' | 'closed'; created_at: string; first_question: string | null; common: string[]; a: string; b: string; answered: number; messages: number }
+export interface ConnectOutcome { talked: string | null; met: string | null; again: string | null; helpful: string | null }
+export interface ConnectMatch { id: string; status: 'approved' | 'rejected' | 'closed'; created_at: string; first_question: string | null; common: string[]; a: string; b: string; answered: number; messages: number; outcomes?: ConnectOutcome[] }
+// v2.0 서버가 준비한 후보(상호선택 대기·성사·거절). 예전 서버는 보내지 않는다.
+export interface ConnectProposal { id: string; status: 'proposed' | 'mutual' | 'declined' | 'withdrawn'; source: 'server' | 'admin'; created_at: string; common: string[]; a: string; b: string; a_choice: string | null; b_choice: string | null; match_id: string | null }
 export interface ConnectMember { id: string; eligible: boolean; missing: string[]; phone_verified: boolean; photos: number; answers: number; purpose: string | null }
