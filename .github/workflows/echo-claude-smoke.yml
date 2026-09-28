@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -323,6 +323,25 @@ jobs:
           done
           echo "=== http -> https"
           for h in do-it.company app.do-it.company; do curl -s -o /dev/null -w "http://$h -> %{http_code} %{redirect_url}\n" --max-time 15 "http://$h/"; done
+
+  webkit_diag:
+    # WebKit 직접 진입 진단(읽기 전용 · 운영은 로그아웃만 · 로그인은 QA 새 시험 계정) — 배포 0 · 변경 0.
+    if: inputs.mode == 'webkit_diag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: WebKit · Chrome 진입 매트릭스
+        working-directory: product/qa-real
+        run: |
+          set -euo pipefail
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
+          node webkit-diag.mjs 2>&1 | grep -v '^ROW '
 
   realstate_p0_localbuild:
     # Netlify 크레딧 정지 중에도 쓰는 실제 상태 재현(게시 0 · 비용 0): 앱 브랜치를 러너에서 QA 설정으로 빌드하고
