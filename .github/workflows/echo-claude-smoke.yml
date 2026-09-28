@@ -329,10 +329,7 @@ jobs:
           echo "ADMIN BUILD ${ADMIN_SHA:0:7} · index sha16=$(sha256sum dist-admin/index.html | cut -c1-16) · files=$(find dist-admin -type f | wc -l) · maps=$(find dist-admin -name '*.map' | wc -l)"
           cd product
           QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" node qa-real/admin-web-setup.mjs
-          # QA 검사용 관리자 계정 한 개만 관리자 역할로(QA ref · 이 메일 한 줄만). 운영 ref 는 위 안전 잠금이 막는다.
-          Q='{"query":"update public.profiles set role = '"'"'admin'"'"' where email = '"'"'qa-adminweb-20260928@do-it.company'"'"' returning id"}'
-          st=$(curl -s -o /tmp/q.json -w '%{http_code}' -X POST -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' "https://api.supabase.com/v1/projects/$QA_PROJECT_ID/database/query" -d "$Q")
-          echo "QA 관리자 역할 지정: HTTP $st · 줄 $(jq 'length' /tmp/q.json 2>/dev/null)"; rm -f /tmp/q.json
+          # QA 검사용 관리자 계정(qa-adminweb-20260928) 한 개만 QA DB 에서 관리자 역할(2026-09-28 · Supabase 연결 도구로 한 줄 지정 — 이 토큰은 DB 쓰기 권한 없음 · 권한 확대 0).
           unset SUPABASE_ACCESS_TOKEN
           (node qa-real/spa-serve.mjs "$GITHUB_WORKSPACE/dist-admin" 8790 &) ; sleep 1
           cd qa-real && npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
