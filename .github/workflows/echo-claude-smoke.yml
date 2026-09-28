@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -173,6 +173,23 @@ jobs:
           set -euo pipefail
           npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
           node prod-brand-live.mjs
+
+  prod_app_live:
+    # 운영 APP 실사이트 읽기 전용 확인(app.do-it.company 연결 대상 = 운영 Supabase 하나뿐) · 비밀값·배포·가입 0.
+    if: inputs.mode == 'prod_app_live'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 운영 APP 실사이트(Galaxy·iPhone 크기 · Chrome·WebKit)
+        working-directory: product/qa-real
+        run: |
+          set -euo pipefail
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
+          node prod-app-live.mjs
 
   qa_live:
     if: startsWith(inputs.mode, 'qa_')
