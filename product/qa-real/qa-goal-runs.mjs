@@ -122,5 +122,18 @@ const summary = { total_jobs: jobs.length, errors: results.filter((r) => r.error
   label_only_rewrites: labelOnly.length, label_only_samples: labelOnly.slice(0, 5) };
 summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colleague.fail + summary.dual.fail + summary.errors + (labelOnly.length ? 1 : 0);
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
+// 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
+const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
+  r.counsel?.length && `counsel:${r.counsel[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && 'repeat', r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
+const digest = [];
+for (const r of results) {
+  if (r.error) { digest.push(`ERROR ${r.error}`); continue; }
+  if (r.goal === 'dual') { if (r.fail) digest.push(`${r.run} dual cross=${r.cross_state} prof=${r.profile_goal_cross} F[${why(r.friend)}] R[${why(r.romantic)}]`); continue; }
+  if (r.fail) digest.push(`${r.run} ${r.goal}/${r.special} ${why(r)}`);
+}
 console.log(JSON.stringify(summary, null, 1));
+console.log('FAIL DIGEST'); for (const d of digest) console.log(d);
+// 예시 대화(목적별 1개씩 · 사람 검토용)
+for (const g of ['friend', 'romantic', 'colleague']) { const r = results.find((x) => x.goal === g && !x.error && x.special === 'none'); if (r) console.log(`SAMPLE ${g}:`, JSON.stringify({ asked: r.asked, users: r.users, replies: r.replies, summary: r.summary })); }
+const c = results.find((x) => x.special === 'correction' && x.goal === 'friend' && !x.error); if (c) console.log('SAMPLE friend/correction:', JSON.stringify({ asked: c.asked, users: c.users, replies: c.replies }));
 process.exitCode = summary.total_fail ? 1 : 0;

@@ -329,5 +329,4 @@ jobs:
           QA_REF="$QA_PROJECT_ID" QA_PW_SEED="$QA_PW_SEED" N=20 PREFIX="$QA_RUN" OUT=../goal-runs.json node qa-real/qa-goal-runs.mjs
           code=$?
           echo "goal-runs exit=$code"
-          if [ -f ../goal-runs.json ]; then echo "::group::goal-runs.json"; cat ../goal-runs.json; echo; echo "::endgroup::"; fi
           exit $code
