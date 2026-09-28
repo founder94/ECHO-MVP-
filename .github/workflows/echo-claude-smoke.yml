@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -367,6 +367,33 @@ jobs:
       - name: 실서버 계약
         working-directory: product/qa-real
         run: node qa-connect-live.mjs
+
+  prod_app_fingerprint:
+    # 운영 APP 이 어느 소스로 만든 것인지 읽기 전용 대조(2026-09-29 PROD PRE-FLIGHT): 고정 commit 을 운영 공개값으로 APP 역할만 빌드 → 실사이트와 index·js 이름 비교. 게시 0 · 운영 변경 0.
+    if: inputs.mode == 'prod_app_fingerprint'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SRC_SHA: 3f0c591dc4c012145d2dd409820945b4e6932edd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: 3f0c591dc4c012145d2dd409820945b4e6932edd
+          path: src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 운영 공개값으로 APP 역할 빌드(echo-netlify-deploy gate 와 같은 명령 · 배포 0)
+        working-directory: src/product
+        run: |
+          set -euo pipefail
+          npm ci --silent
+          C=${SRC_SHA::7}
+          env VITE_PUBLIC_SUPABASE_URL=https://zyyhhxyupizcqhxqnxuu.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn VITE_APP_ORIGIN=https://app.do-it.company VITE_BRAND_ORIGIN=https://do-it.company VITE_ADMIN_ORIGIN=https://admin.do-it.company VITE_BUILD_COMMIT=$C VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir > /dev/null
+          echo "local app index sha16=$(sha256sum ../dist/app/index.html | cut -c1-16) files=$(find ../dist/app -type f | wc -l)"
+      - name: 실사이트 대조(읽기 전용)
+        run: node product/qa-real/prod-app-fingerprint.mjs src/dist/app
 
   prod_domain_probe:
     # 운영 도메인 읽기 전용 실측(DNS · SSL · HTTP · 리다이렉트 · 캐시 헤더) — 배포 0 · 변경 0 · 비밀값 0.
