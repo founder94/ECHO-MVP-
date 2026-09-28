@@ -687,3 +687,17 @@ test('v2.4.1 받아주기가 비지 않는다(empty_ack · 앞선 시도의 받�
   const feedback = s.aiCalls.at(-1).input.previous_attempt.why;
   assert.ok(feedback.includes('이어지지 않는다'), '다시 청할 때 걸린 이유를 알린다');
 });
+
+test('v2.4.1 받아주기가 사용자 말을 그대로 옮기면 다시 청한다(ack_copy) · 이어지지 않은 질문엔 답의 낱말을 알려 준다(실제 AI run gh)', async () => {
+  const s = newState(); s.strictAnchor = true; const h = load(s); const A = h.agent;
+  assert.equal(A.ackCopies('한 달에 두세 번 편하게 보는 게 좋다고 하셨네요.', '한 달에 두세 번 편하게 보는 정도가 좋아'), true);
+  assert.equal(A.ackCopies('자주보다는 부담 없이 이어지는 쪽이 편하네요.', '한 달에 두세 번 편하게 보는 정도가 좋아'), false);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
+  s.ai.push(T({ reply: '카페에서 얘기하는 게 좋으시네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '친구에게서 어떤 모습이 잘 맞는다고 느끼세요?') }),
+    T({ reply: '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 얘기가 잘 통한다 싶은 친구는 어떤 사람이에요?') }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '카페에서 얘기하는 게 좋아' });
+  assert.equal(r.body.turn.reply, '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.');
+  const why = s.aiCalls.at(-1).input.previous_attempt.why;
+  assert.ok(why.includes('거의 그대로 옮겼다') && why.includes('방금 답의 낱말: 카페, 얘기'), why);
+});
