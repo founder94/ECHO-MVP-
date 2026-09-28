@@ -612,7 +612,7 @@ function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null
   const mine = (mySide(c, userId) === "a" ? c.common_a : c.common_b) ?? [];
   const out: string[] = [];
   if (purposeLabel) out.push(`두 분 모두 「${purposeLabel}」 만남을 원한다고 직접 골랐어요.`);
-  for (const t of mine.slice(0, LIMITS.REASONS_MAX - out.length)) out.push(`내가 직접 이야기한 「${t}」와 비슷한 이야기를 상대도 직접 했어요.`);
+  for (const t of mine.slice(0, LIMITS.REASONS_MAX - out.length)) out.push(`내가 직접 한 말 「${t}」 — 상대도 비슷한 이야기를 직접 했어요.`); // 조사(와/과)를 붙이지 않는다(받침에 따라 틀림)
   if (!mine.length) out.push("아직 겹친 이야기는 없어요. 원하는 만남이 같아서 먼저 보여 드려요.");
   return out.slice(0, LIMITS.REASONS_MAX);
 }
