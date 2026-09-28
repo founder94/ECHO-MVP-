@@ -58,6 +58,9 @@ for (const [bname, type, dname, opts] of DEVICES) {
   check(`${tag}: 「AI가 대신 작성하기」 = 유리(불투명 흰 채움·그라데이션 0 · 흰 글자 · 흰 테두리)`, !!aiStyle && alphaOf(aiStyle.bg) <= 0.3 && aiStyle.img === 'none' && aiStyle.color === 'rgb(255, 255, 255)', JSON.stringify(aiStyle));
   if (aiStyle) {
     await ai.click().catch(() => {});
+    // 소개 칸이 비어 있으면 첫 탭은 초안을 바로 채운다(「AI로 다시 쓰기」). 「이 글로 바꾸기」는 이미 글이 있을 때 나오는 비교 화면 → 한 번 더 누른다(대표 화면과 같은 상황).
+    const again = p.getByRole('button', { name: 'AI로 다시 쓰기' });
+    if (await again.waitFor({ timeout: 45000 }).then(() => true).catch(() => false)) await again.click().catch(() => {});
     const swap = p.getByRole('button', { name: '이 글로 바꾸기' });
     const shown = await swap.waitFor({ timeout: 45000 }).then(() => true).catch(() => false);
     if (!shown) await dump(`${tag} AI 초안`);
@@ -85,6 +88,11 @@ for (const [bname, type, dname, opts] of DEVICES) {
   // ── ② 대표 화면 그대로: start-journey 선택 화면 ──
   await p.goto(`${APP}/doit/start-journey`, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await p.getByRole('heading', { name: /무엇부터 할까요/ }).waitFor({ timeout: 30000 }).catch(() => {});
+  // 서버에서 대화 상태를 읽는 동안(「지난 대화를 확인하고 있어요…」)은 판정하지 않는다 — 읽기 전 잘못된 버튼이 잠깐 보이던 문제는 앱에서 막았다.
+  const flashed = await p.getByRole('button', { name: '대화 시작하기' }).isVisible().catch(() => false);
+  const loading = p.getByText('지난 대화를 확인하고 있어요');
+  await loading.waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+  check(`${tag}: 화면이 처음 뜰 때 틀린 버튼(대화 시작하기) 0 — 서버 상태를 읽은 뒤에만 버튼`, !flashed);
   const same = await p.getByRole('button', { name: '대화 다시 보기' }).isVisible().catch(() => false);
   if (!(same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false))) await dump(`${tag} 대표 화면`);
   check(`${tag}: 대표가 본 화면과 같은 상태(사진과 소개 채우기 · 대화 다시 보기 · 홈으로)`, same && await p.getByRole('button', { name: '사진과 소개 채우기' }).isVisible().catch(() => false), `path=${new URL(p.url()).pathname}`);
