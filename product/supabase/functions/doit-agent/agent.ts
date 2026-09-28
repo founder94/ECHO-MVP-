@@ -76,6 +76,13 @@ const GOAL_MISMATCH = /(연애|친구|동료|일|취미|대화)\s*(질문|얘기
 export const SIMILAR_Q = 0.55;
 // 충분히 알았으면 다섯 개를 다 채우지 않고 마친다(고정 5문항 아님): 질문 셋 이상 한 뒤 원하는 만남 + 쓸 만한 칸 셋 이상.
 export const ENOUGH_SLOTS = 4;
+// 상담사 말투(받아주기 금지 표현 · 대표 §8·§9). 모델이 쓰면 한 번 다시 청하고, 그래도 쓰면 그 문장만 뺀다.
+export const COUNSEL = /그렇군요|힘드셨겠|들려주실\s*수\s*있을까요|중요하군요/;
+const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()).filter(Boolean);
+// 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
+export function tidyReply(reply: string, question: string | null): string {
+  return sentences(reply).filter((x) => !COUNSEL.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).join(" ");
+}
 export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;
 
@@ -509,7 +516,10 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   // 같은 질문을 다시 보이는 것은 질문마다 한 번뿐이다(운영 실측: 다시 보인 질문에 사용자가 「아까 말했는데」). 두 번째부터는 다음 목적으로 간다.
   const pending = out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) ? st.current : null;
   // 「예를 들면?」: 같은 목적을 더 쉽게 다시 묻는다(질문 수 0 · 저장 0). 질문마다 MAX_HELP_PER_QUESTION 번까지.
-  const helping = out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION ? st.current : null;
+  // v2.4: 다시 묻는 질문이 방금 질문과 거의 같으면(「잘 모르겠어」에 같은 질문 되풀이) 다시 보이지 않고 이 칸을 넘긴다(억지 성향 저장 0).
+  const helpSame = out.kind === "help" && !!st.current && !!out.next.question && dice(bare(st.current.text), bare(out.next.question)) >= SIMILAR_Q;
+  if (helpSame && st.current && st.slots[st.current.purpose].status === "UNKNOWN") { st.slots[st.current.purpose].status = "SKIPPED"; turn.dropped = "help_same"; }
+  const helping = out.kind === "help" && !helpSame && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION ? st.current : null;
   if (st.phase === "talk" && out.kind !== "stop" && !opts.limitReached && !disputeAsk) {
     const n = out.next;
     // 먼저 답하기(ask): 답을 못 받은 지금 질문을 그대로 둔다(질문 수를 늘리지 않는다). AI 가 말을 바꿔 다시 물었으면 그 문장으로 바꿔 보인다.
@@ -535,7 +545,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => dice(bare(a.text), bare(question!)) >= SIMILAR_Q)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_similar"; }
   if (question && goalResidue(st, question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "goal_residue"; }
   if (question && BANNED_WORDS.test(question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; }
-  let reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) || goalResidue(st, out.reply) ? "" : out.reply;
+  let reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) || goalResidue(st, out.reply) ? "" : tidyReply(out.reply, question);
   // 모호한 거절로 어느 해석인지 특정하지 못했으면 한 줄만 확인한다(지금 질문은 그대로 · 핵심 질문 수 0). 대화가 끝난 뒤면 답 글로.
   if (disputeAsk) { if (st.phase === "talk" && st.current) { question = DISPUTE_CHECK; decision = "dispute_check"; } else reply = DISPUTE_CHECK; }
   const finish = !question && st.phase === "talk";
@@ -683,6 +693,8 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   asked_before: "next.question 이 이 대화에서 이미 한 질문과 같다. 사용자가 이미 말한 것은 extracted 에 넣고, open_purposes 의 다른 목적을 묻는다.",
   asked_similar: "next.question 이 asked_before 의 질문과 거의 같은 뜻이다. 방금 답에서 이어지는 다른 것을 묻는다.",
   goal_residue: "reply 나 next.question 에 이 대화의 목적(session_goal)과 다른 목적의 말(avoid_words)이 들어갔다. 이 목적에 맞는 말로 새로 쓴다.",
+  counsel_tone: "reply 에 상담사 말투(「그렇군요」「중요하군요」「힘드셨겠어요」「들려주실 수 있을까요」)가 있었다. 들은 뜻을 한 걸음 정리하는 짧은 한 문장으로 새로 쓴다.",
+  help_same: "사용자가 잘 모르겠다고 했는데 next.question 이 방금 질문과 거의 같다. 같은 질문을 되풀이하지 말고, 더 쉬운 다른 방식(예: 두 가지 중 고르기처럼 가볍게)으로 묻는다.",
   goal_axis: "사용자가 질문의 방향이 목적과 다르다고 했다. 방금 질문(current_question)의 틀과 칸을 버리고, 이 목적(session_goal)의 다른 칸(open_purposes)을 방금 말에 이어서 묻는다.",
 };
 export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean, latest = ""): string {
@@ -691,9 +703,10 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (after || out.kind === "stop") return "";
   // ask 는 지금 질문을 서버가 그대로 둔다(질문마다 한 번). 이미 한 번 다시 보였으면 다른 종류와 같이 다음 질문을 본다.
   if (out.kind === "ask" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && !(st.current.keeps ?? 0) && !out.extracted.some((e) => e.purpose === st.current!.purpose)) return "";
-  if (out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION) return out.next.question ? "" : "help_question"; // 더 쉬운 같은 목적 질문이 있어야 한다
+  if (out.kind === "help" && st.current && st.slots[st.current.purpose].status === "UNKNOWN" && (st.current.helps ?? 0) < MAX_HELP_PER_QUESTION) return !out.next.question ? "help_question" : dice(bare(st.current.text), bare(out.next.question)) >= SIMILAR_Q ? "help_same" : ""; // 더 쉬운 같은 목적 질문이 있어야 한다
   if (out.next.question && st.asked.some((a) => squash(a.text) === squash(out.next.question))) return "asked_before";
   if (goalResidue(st, out.reply) || goalResidue(st, out.next.question)) return "goal_residue";
+  if (COUNSEL.test(out.reply)) return "counsel_tone";
   if (out.next.question && st.asked.some((a) => dice(bare(a.text), bare(out.next.question)) >= SIMILAR_Q)) return "asked_similar";
   const wantsCore = out.next.question && !(out.next.type === "clarify" && out.kind === "answer" && clarifyAllowed(st));
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";

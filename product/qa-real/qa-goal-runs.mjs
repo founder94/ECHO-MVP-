@@ -4,6 +4,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 const { QA_REF, QA_ANON, QA_PW_SEED, N = '20', PREFIX = 'g', OUT } = process.env;
+const ACCOUNT_PREFIX = process.env.ACCOUNT_PREFIX || PREFIX; // 가입 속도 제한을 피하려고 앞선 검사의 QA 계정을 다시 쓴다(새 회차로 시작)
 if (QA_REF !== 'mutniujeiyujhkobadkd' || !QA_ANON || !QA_PW_SEED) { console.error('QA 환경값 없음/불일치'); process.exit(2); }
 const URL0 = `https://${QA_REF}.supabase.co`;
 const pw = (run, tag) => `Qa!${createHash('sha256').update(`${QA_PW_SEED}:${run}:${tag}`).digest('base64url').slice(0, 24)}`;
@@ -67,19 +68,27 @@ function judge(goal, sess, log, special, firstQ) {
   let correctionOk = null;
   if (special === 'correction') { const l = log.find((x) => x.user === SPECIAL.correction[goal]); correctionOk = !!l && l.kind === 'repair' && !l.saved && !!l.next && dice(bare(l.q), bare(l.next)) < 0.55 && !RESIDUE[goal].test(l.next) && !RESIDUE[goal].test(l.reply ?? ''); }
   let repeatOk = null;
-  if (special === 'repeat') { const k = log.findIndex((x) => x.user === SPECIAL.repeat); const l = log[k]; repeatOk = !!l && l.kind === 'repair' && !l.saved && (!l.next || ![firstQ, ...log.slice(0, k).map((x) => x.next)].filter(Boolean).some((a) => dice(bare(a), bare(l.next)) >= 0.55)); }
+  let repeatDetail = null;
+  if (special === 'repeat') { const k = log.findIndex((x) => x.user === SPECIAL.repeat); const l = log[k]; repeatDetail = l ? { q: l.q, kind: l.kind, saved: l.saved, next: l.next } : 'no_turn'; repeatOk = !!l && l.kind === 'repair' && !l.saved && (!l.next || ![firstQ, ...log.slice(0, k).map((x) => x.next)].filter(Boolean).some((a) => dice(bare(a), bare(l.next)) >= 0.55)); }
   let unsureOk = null;
   if (special === 'unsure') { const l = log.find((x) => x.user === SPECIAL.unsure); unsureOk = !!l && !l.saved; }
   const linked = log.filter((l) => l.next && l.kind === 'answer').map((l) => [...pairs(bare(l.user))].some((p) => bare(l.next).includes(p) && !/[요어해]$/.test(p)));
   const fail = residue.length > 0 || dup.length > 0 || summaryResidue.length > 0 || counsel.length > 0 || sess.goal !== goal || sess.profile?.goal !== goal || correctionOk === false || repeatOk === false || unsureOk === false || sess.phase !== 'done';
   return { goal_saved: sess.goal, profile_goal: sess.profile?.goal ?? null, questions: sess.progress?.asked, finished: sess.phase === 'done', residue, dup, summary_residue: summaryResidue, counsel, empty_ack: emptyAck,
-    correction_ok: correctionOk, repeat_ok: repeatOk, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
+    correction_ok: correctionOk, repeat_ok: repeatOk, repeat_detail: repeatDetail, unsure_ok: unsureOk, linked: linked.length ? `${linked.filter(Boolean).length}/${linked.length}` : '0/0', fail, asked, replies: log.map((l) => l.reply), summary: summaryTexts.filter(Boolean), users: log.map((l) => l.user) };
 }
 
+// QA 계정: 있으면 로그인, 없으면 가입. 그리고 새 회차(앱의 「처음부터 다시」와 같은 방식 · user_metadata)로 시작한다 — 앞선 검사의 대화를 이어받지 않게.
 async function signup(run) {
-  const email = `qa-${run}-20260928@do-it.company`; const password = pw(run, 'user');
-  const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${run}` } } });
-  return su.data?.access_token ?? await login(email, password);
+  const acct = run.replace(new RegExp(`^${PREFIX}`), ACCOUNT_PREFIX);
+  const email = `qa-${acct}-20260928@do-it.company`; const password = pw(acct, 'user');
+  let jwt = await login(email, password);
+  if (!jwt) { const su = await http('/auth/v1/signup', { method: 'POST', body: { email, password, data: { nickname: `QA-${acct}` } } }); jwt = su.data?.access_token ?? await login(email, password); }
+  if (!jwt) return null;
+  const up = await http('/auth/v1/user', { method: 'PUT', jwt, body: { data: { doit_round_started_at: new Date(Date.now() + 1000).toISOString() } } });
+  if (up.status !== 200) return null;
+  await new Promise((ok) => setTimeout(ok, 1200));
+  return jwt;
 }
 const specials = ['none', 'correction', 'unsure', 'repeat', 'none'];
 async function single(goal, k) {
@@ -124,7 +133,7 @@ summary.total_fail = summary.friend.fail + summary.romantic.fail + summary.colle
 if (OUT) writeFileSync(OUT, JSON.stringify({ summary, results }, null, 1));
 // 실패 요약(한 줄씩): 어떤 검사가 걸렸는지 + 걸린 글 최대 2개
 const why = (r) => [r.residue?.length && `residue:${r.residue.slice(0, 2).join(' / ')}`, r.dup?.length && `dup:${r.dup.slice(0, 1).map((d) => d.join(' ≈ ')).join('')}`, r.summary_residue?.length && `summary:${r.summary_residue.slice(0, 1).join('')}`,
-  r.counsel?.length && `counsel:${r.counsel[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && 'repeat', r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
+  r.counsel?.length && `counsel:${r.counsel[0]}`, r.goal_saved !== r.goal && r.goal !== 'dual' && `goal:${r.goal_saved}`, r.profile_goal && r.profile_goal !== r.goal && `profile_goal:${r.profile_goal}`, r.correction_ok === false && 'correction', r.repeat_ok === false && `repeat:${JSON.stringify(r.repeat_detail)}`, r.unsure_ok === false && 'unsure', r.finished === false && 'unfinished'].filter(Boolean).join(' | ');
 const digest = [];
 for (const r of results) {
   if (r.error) { digest.push(`ERROR ${r.error}`); continue; }
