@@ -60,12 +60,14 @@ function load(state) {
   const compile = (f) => ts.transpileModule(readFileSync(new URL(f, DIR), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const agentMod = { exports: {} };
   vm.runInNewContext(compile('agent.ts'), { module: agentMod, exports: agentMod.exports, console }, { filename: 'agent.ts' });
+  const failureMod = { exports: {} };
+  vm.runInNewContext(compile('failure-intelligence.ts'), { module: failureMod, exports: failureMod.exports, console }, { filename: 'failure-intelligence.ts' });
   let handler = null;
   const logs = [];
   const sandbox = {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
       state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });

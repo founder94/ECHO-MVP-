@@ -17,7 +17,7 @@ const emit = (src, out) => {
 emit('../supabase/functions/doit-agent/matching.ts', 'matching.mjs');
 const A = await import(pathToFileURL(emit('../supabase/functions/doit-connect/agentSource.ts', 'agentSource.mjs')).href);
 
-const item = (note, over = {}) => ({ note, quote: note, status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 1, ...over });
+const item = (note, over = {}) => ({ note, quote: note, status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1, ...over }); // 기본 = 사용자 원문(2026-09-29 매칭 재료 = 사용자 출처만)
 const slot = (items, status = 'CONFIRMED') => ({ status, items, history: [] });
 const full = () => ({
   relationship_intent: slot([item('천천히 알아가고 싶다')]),
@@ -56,7 +56,7 @@ test('사주·타로 결과는 매칭 재료가 아니다', () => {
   assert.equal(s.confirmedAreas, 3); assert.ok(!s.confirmed.some((n) => /타로/.test(n)));
 });
 
-test('경계(boundaries)는 사용자 직접 확인·AI 정리 모두 확정이면 센다(기존 signals 계약)', () => {
+test('경계(boundaries)는 사용자 직접 확인 값이 확정이면 센다', () => {
   const p = full(); p.boundaries = slot([item('담배는 피하고 싶다', { source_type: 'USER_CONFIRMED' })]);
   assert.equal(A.sourceFromProfile(p, 'done', null).confirmedAreas, 4);
 });
@@ -77,4 +77,22 @@ test('사용자마다 이번 회차의 가장 최근 세션 하나만', () => {
   const m = A.agentSources(rows, (uid) => (uid === 'u2' ? '2026-09-10T00:00:00Z' : null));
   assert.equal(m.get('u1').ready, false, '최근 세션(대화 중)이 기준');
   assert.equal(m.has('u2'), false, '지난 회차 세션은 쓰지 않음 → legacy 재료로 돌아감');
+});
+
+// 2026-09-29 대표 「FINAL RELEASE CLOSING」 매칭 안전: 매칭 재료는 사용자가 직접 말한 값(USER_DIRECT) · 직접 확인한 값(USER_CONFIRMED) · 직접 고친 값(USER_CORRECTED)만.
+// AI 가 사용자 말을 정리한 문장(AI_EXTRACTED)은 CONFIRMED 여도 매칭 재료(공통점 · 준비 칸 수)가 아니다.
+test('매칭 재료 = USER_DIRECT · USER_CONFIRMED · USER_CORRECTED 만 — AI 정리(AI_EXTRACTED)·추정(AI_INFERRED·PHOTO_INFERRED)은 0', () => {
+  const p = {
+    relationship_intent: slot([item('천천히 알아가고 싶어요', { source_type: 'USER_DIRECT' }), item('신중한 관계를 원함', { source_type: 'AI_EXTRACTED' })]),
+    attraction_comfort: slot([item('말이 통하면 편해요', { source_type: 'USER_CONFIRMED' })]),
+    values_character: slot([item('약속을 지키는 사람이 좋아요', { source_type: 'USER_CORRECTED', source_turn: 3 })]),
+    relationship_style: slot([item('연락을 자주 하는 것을 선호함', { source_type: 'AI_EXTRACTED' })]),
+    boundaries: slot([item('사진으로 본 인상', { source_type: 'PHOTO_INFERRED' })]),
+  };
+  const s = A.sourceFromProfile(p, 'done', null);
+  assert.deepEqual([...s.confirmed].sort(), ['말이 통하면 편해요', '약속을 지키는 사람이 좋아요', '천천히 알아가고 싶어요'].sort(), JSON.stringify(s.confirmed));
+  assert.equal(s.confirmedAreas, 3, 'AI 정리만 있는 칸(relationship_style)은 준비 칸 수에 들지 않음');
+  const ai = full(); for (const id of ['relationship_intent', 'attraction_comfort', 'values_character']) ai[id].items = ai[id].items.map((i) => ({ ...i, source_type: 'AI_EXTRACTED' }));
+  const onlyAi = A.sourceFromProfile(ai, 'done', null); // 모든 값이 AI 정리
+  assert.deepEqual(onlyAi.confirmed, []); assert.equal(onlyAi.ready, false);
 });

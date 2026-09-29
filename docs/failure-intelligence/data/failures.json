@@ -1,6 +1,6 @@
 {
  "schema": "echo-failure-v2",
- "updated": "2026-09-25",
+ "updated": "2026-09-29",
  "failures": [
   {
    "id": "GF-01",
@@ -4527,6 +4527,326 @@
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md",
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md",
     "docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "현재 QA·운영 실측 설정을 넣으면 가드가 FAIL, 목표 설정이면 PASS(qa/p0-20260928-realstate.test.mjs)",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-97",
+   "title": "STALE_REDIRECT — 폐기된 도메인이 인증 설정에 남아 실제 사용자를 죽은 사이트로 보냄",
+   "family": "F-DEPLOY",
+   "date": "2026-09-28 대표 실기기 iPhone · QA Google 로그인",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone 「Site not found」 · QA auth.flow_state.referrer 실측)",
+   "user_text": "Google 로그인 인증 후 melba-b1449a.netlify.app 으로 이동 → Netlify Site not found",
+   "situation": "QA APP 주소를 thriving-melba → echo-app-qa 로 바꿨지만 Supabase Auth 의 Site URL·Redirect URLs 는 옛 주소 그대로",
+   "ai_behavior": "앱은 redirectTo=https://echo-app-qa.netlify.app/auth/callback 을 보냄 → 허용 목록에 없어 Supabase 가 Site URL(폐기 주소)로 보냄. 실측: echo-app-qa·admin·임의 주소 모두 referrer=https://thriving-melba-b1449a.netlify.app. 운영도 app.do-it.company/auth/callback 이 허용 목록에 없어 referrer=https://do-it.company(브랜드)로 떨어짐(9/13 이후 15건)",
+   "expected": "Site URL = 실제 APP 주소 · 허용 목록에 APP/auth/callback · 폐기 주소 0",
+   "types": [
+    "배포 불일치",
+    "Stale Redirect"
+   ],
+   "layers": [
+    "Infrastructure",
+    "Product Contract"
+   ],
+   "layer_note": "앱 주소를 바꾸는 변경이 인증 설정(Supabase Site URL·Redirect URLs)까지 가지 않았다 — 빌드·배포 검사가 인증 설정을 보지 않았다",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실측 재현 ○** — /auth/v1/authorize?provider=google&redirect_to=<APP>/auth/callback 뒤 auth.flow_state.referrer 가 Site URL 로 기록됨(QA·운영)",
+   "solution_candidates": "Stale Redirect Guard: 빌드·릴리즈 전에 OAuth Site URL + Redirect Allow List + 실제 APP 도메인이 일치하지 않으면 FAIL(product/scripts/oauth-redirect-guard.mjs)",
+   "mock_result": "—",
+   "defense_level": "CANDIDATE",
+   "status": "UNRESOLVED",
+   "status_note": "QA·운영 Auth 설정 변경은 Supabase 대시보드(또는 Auth 설정 권한 토큰) 필요 — 이 세션의 QA 토큰은 Auth 설정 읽기 403",
+   "experiment": "product/scripts/oauth-redirect-guard.mjs",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "대표 실기기에서 로그인 직후 죽은 사이트",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/scripts/oauth-redirect-guard.mjs",
+    "product/qa/p0-20260928-realstate.test.mjs"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "수정 전 빌드에서는 conversation-choice 화면에 버튼 0 → 테스트 FAIL",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-98",
+   "title": "REAL_STATE_FAIL — 자동 검사 PASS(18/0)인데 대표 실제 상태에서는 「처음부터 다시 시작하기」가 없음",
+   "family": "F-EVAL",
+   "date": "2026-09-28 대표 실기기 iPhone · 온보딩 완료 뒤 화면",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone 화면: 사진과 소개 채우기 · 대화 다시 보기 · 홈으로)",
+   "user_text": "온보딩 완료 후 현재 화면에 처음부터 다시 시작하기 버튼이 실제로 존재하지 않는다",
+   "situation": "/doit/start-journey 의 conversation-choice 단계(대화를 마친 사용자가 오는 「오늘은 무엇부터 할까요?」)",
+   "ai_behavior": "「모든 진입점 연결 완료 · 18 PASS」 보고. 검사는 이미 있던 버튼(홈·나의 이해·연결·대화 화면)만 찾았고, 새 가입 계정으로 /doit/understanding 에 주소로 바로 들어갔다 — 대표가 실제로 도달한 상태(대화 완료 · start-journey)를 재현하지 않았다",
+   "expected": "대표와 같은 상태(대화 완료 계정 · 같은 경로)에서 실제 화면에 버튼이 보이고 한 번 탭으로 새 회차",
+   "types": [
+    "Mock PASS / 실AI FAIL",
+    "검사 결함",
+    "잘못된 보고",
+    "Real-State FAIL"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "검사 대상이 '버튼이 있는 곳'이었지 '사용자가 도달하는 화면'이 아니었다(존재 검사 ≠ 실제 상태)",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실제 상태 재현** — QA 새 계정에 약관·목적 · 실제 대화를 끝까지(phase=done) 만든 뒤 /doit/start-journey 에서 화면 렌더 확인",
+   "solution_candidates": "Real-State Replay 테스트: 사용자가 실제로 도달하는 상태를 만들어 그 화면의 렌더 결과(보임·눌림·가림 0)를 본다",
+   "mock_result": "PASS(18/0 · 잘못된 대상)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "QA 실제 상태 재현 PASS 뒤에도 대표 실기기 확인 전 VERIFIED 아님",
+   "experiment": "QA 브랜치 claude/echo-p0-qa-20260927 product/qa-real/qa-restart-realstate.mjs",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "완료 보고를 믿고 확인했는데 없음",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/src/doit/pages/do-it/start-journey/page.tsx",
+    "product/qa/p0-20260928-realstate.test.mjs"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "counter_test": "인라인 채움 버튼 하나를 되돌리면 전수 검사 테스트 FAIL",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "id": "GF-99",
+   "title": "DESIGN_SYSTEM_LOCK_IGNORED — 화면마다 따로 쓴 불투명 흰색·금색 버튼이 유리 버튼 기준을 깸",
+   "family": "F-CONTRACT",
+   "date": "2026-09-28 대표 실기기 iPhone · 소개 쓰기 화면",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (대표 iPhone: 「AI가 대신 작성하기」 불투명 흰색 · 「이 글로 바꾸기」 불투명 금색)",
+   "user_text": "ECHO 앱의 투명/글라스 버튼 기준과 불일치",
+   "situation": "유리 버튼 기준(echo-ui.css)은 클래스 이름으로만 걸렸고, 화면 인라인 style 로 색을 박은 버튼은 기준을 피해 갔다",
+   "ai_behavior": "앱 버튼 22곳이 인라인 style 로 불투명 채움(흰 그라데이션·금색·회색·검정) · CSS 18개 규칙이 불투명 채움을 기본값으로 둠",
+   "expected": "모든 CTA·선택 버튼 = 공통 유리 버튼(투명 막 + 얇은 흰 테두리 + 흰 글자) · 상태는 막·테두리·흐림으로만",
+   "types": [
+    "제품 계약 불일치",
+    "DESIGN_SYSTEM_LOCK_IGNORED"
+   ],
+   "layers": [
+    "Product Contract"
+   ],
+   "layer_note": "원인 = 개별 화면별 스타일 작성 / 공통 토큰 미강제",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**코드 재현 ○** — 앱 TSX 버튼 인라인 채움 22곳 · CSS 18규칙(전수 검색)",
+   "solution_candidates": "공통 GlassButton · glass-button.css(인라인 색도 이김) + 채움 버튼 전수 검사 테스트(qa/p0-20260928-realstate.test.mjs)",
+   "mock_result": "—",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "대표 실기기 iPhone·Galaxy 확인 전 VERIFIED 아님",
+   "experiment": "product/src/doit/components/feature/glass-button.css",
+   "evidence_level": "ACTUAL",
+   "user_result": "FAIL(대표 iPhone)",
+   "real_ai": "해당 없음",
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "refs": [
+    "product/src/doit/components/feature/glass-button.css",
+    "product/src/doit/components/feature/GlassButton.tsx"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "4/4 PASS · 규칙 없으면 FAIL(반대 검사)",
+   "user_result": "UNKNOWN",
+   "id": "GF-100",
+   "title": "CORRECTION_READ_AS_REPAIR — 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」를 모델이 항의(repair)로 읽어 거절한 옛 값이 CONFIRMED 로 남음",
+   "family": "F-CLASSIFY",
+   "date": "2026-09-29 QA 실서버 core_live run 90/91 · echo-agent-v2.4.1",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "REAL_AI_SCRIPTED (QA 시험 계정 · 정해 둔 문장 · 실제 AI)",
+   "user_text": "아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요",
+   "situation": "거절 머리말 + 새 값으로 정정한 턴",
+   "ai_behavior": "턴 종류를 repair 로 판정 → 정정 엔진·옛 항목 고르기 미실행 → 「매일 연락」이 두 칸에 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞임",
+   "expected": "서버가 정정(correction)으로 확정 · 옛 값 SUPERSEDED · 새 값 USER_CORRECTED",
+   "types": [
+    "정정무시",
+    "오분류"
+   ],
+   "layers": [
+    "Model",
+    "Orchestration"
+   ],
+   "layer_note": "모델 분류 한 번에 의존한 턴 종류 결정",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실서버 재현 ○**(run 90/91) · 가짜 AI 재현 ○(qa/reject-with-value-correction.test.mjs)",
+   "solution_candidates": "서버 규칙 rejectWithNewValue → guardKind repair→correction(rule reject_with_value) · v2.4.2",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "QA 실서버 run 94·100 PASS(저장소 근거 파일 없음 → REAL_AI_VERIFIED 로 올리지 않음) · 운영 미배포",
+   "counter_test": "qa/reject-with-value-correction.test.mjs 3번 테스트(규칙을 거치지 않으면 매일 연락 잔존)",
+   "experiment": "product/supabase/functions/doit-agent/agent.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "QA run 94·100 PASS",
+   "refs": [
+    "product/supabase/functions/doit-agent/agent.ts",
+    "product/qa/reject-with-value-correction.test.mjs",
+    "git:9826e36"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "PASS(qa/reject-with-value-correction.test.mjs 4번)",
+   "user_result": "UNKNOWN",
+   "id": "GF-101",
+   "title": "UNSURE_READ_AS_REPAIR — 「잘 모르겠어요」를 모델이 항의(repair)로 읽어 지금 질문이 거절(rejected_meanings)로 기록",
+   "family": "F-CLASSIFY",
+   "date": "2026-09-29 QA 실서버 core_live run 95 · echo-agent-v2.4.2",
+   "origin": "REAL_AI_SCRIPTED",
+   "origin_note": "REAL_AI_SCRIPTED (QA 시험 계정 · 실제 AI)",
+   "user_text": "잘 모르겠어요",
+   "situation": "핵심 질문에 모르겠다고만 답한 턴",
+   "ai_behavior": "턴 종류 repair → 지금 질문이 disputed → 매칭 rejected_meanings 에 질문이 들어감",
+   "expected": "모르겠다(unsure) = 정상 입력 · 저장 0 · 거절 기록 0",
+   "types": [
+    "오분류",
+    "미확정 사실화"
+   ],
+   "layers": [
+    "Model",
+    "Orchestration"
+   ],
+   "layer_note": "모델 분류가 서버 상태(거절 기록)를 바로 바꿈",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**실서버 재현 ○**(run 95) · 가짜 AI 재현 ○",
+   "solution_candidates": "guardKind unsure_only 를 repair·correction 에도 적용 · v2.4.3",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "QA 실서버 run 100 PASS(저장소 근거 파일 없음) · 운영 미배포",
+   "counter_test": "guardKind('잘 모르겠는데 주말엔 쉬고 싶어요') 는 규칙 대상 아님",
+   "experiment": "product/supabase/functions/doit-agent/agent.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "QA run 100 PASS",
+   "refs": [
+    "product/supabase/functions/doit-agent/agent.ts",
+    "product/qa/reject-with-value-correction.test.mjs",
+    "git:2f21413"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "—",
+   "user_result": "UNKNOWN",
+   "id": "GF-102",
+   "title": "HARNESS_FIXED_WAIT — 운영 APP 직접 진입을 고정 5초 뒤 한 번 보고 판정 → 인트로(약 3.3초) 뒤 읽는 중 문구를 화면 실패로 읽음 · WebKit 자동화 멈춤을 제품 FAIL 로 섞음",
+   "family": "F-EVAL",
+   "date": "2026-09-28 prod_app_live WebKit · 2026-09-29 webkit_diag run 106",
+   "origin": "ACTUAL",
+   "origin_note": "ACTUAL (GitHub Actions Playwright WebKit · 운영 app.do-it.company · 로그아웃)",
+   "user_text": "—",
+   "situation": "로그아웃 첫 방문 / → /do-it/intro → /doit/start-journey",
+   "ai_behavior": "검사가 5초 시점 「내 프로필을 가져오고 있어요.」를 봄 · WebKit 29회 중 3회 page crash(모두 인트로 중 · 배율 3 · JS 오류 0 · 재시도 전부 통과)",
+   "expected": "의미 있는 화면이 뜰 때까지 기다려 판정 · 자동화 멈춤은 재시도 후 따로 보고",
+   "types": [
+    "검사 결함"
+   ],
+   "layers": [
+    "Evaluation"
+   ],
+   "layer_note": "원인 = 검사 타이밍(확인) · 멈춤 = CI WebKit 인트로 캔버스(배율 3 · 1170×2532) 가설",
+   "cause_confidence": "MIXED",
+   "reproduction": "**실측 ○** run 106: Chrome 20회 멈춤 0 · WebKit 첫 화면 4.1~5.1초 · 멈춤 3/29(배율 3만 · 배율 1은 0/3)",
+   "solution_candidates": "prod-app-live: meaningful() 대기(최대 20초) + 멈춤 1회 재시도·별도 보고(제품 코드 수정 0)",
+   "defense_level": "CANDIDATE",
+   "status": "MITIGATED",
+   "status_note": "실기기 Safari 확인 전 인트로 캔버스 가설은 미확정 · 제품 수정 근거 부족",
+   "counter_test": "run 106 타임라인: 고정 5초 = 읽는 중 · meaningful = 4.1~5.1초에 화면",
+   "experiment": "QA 브랜치 product/qa-real/prod-app-live.mjs",
+   "evidence_level": "ACTUAL",
+   "real_ai": "해당 없음",
+   "refs": [
+    "product/src/doit/pages/do-it/start-journey/page.tsx",
+    "product/src/pages/do-it/intro/page.tsx"
+   ]
+  },
+  {
+   "side_effects": "—",
+   "solution_attempts": [],
+   "golden_flows": [],
+   "user_harm": {
+    "emotional": "UNKNOWN",
+    "mental": "UNKNOWN",
+    "time": "UNKNOWN",
+    "material": "UNKNOWN"
+   },
+   "mock_result": "PASS",
+   "user_result": "UNKNOWN",
+   "id": "GF-103",
+   "title": "MATCH_SOURCE_NOT_USER — Agent 매칭 재료(MATCH_SOURCE=agent)가 AI 정리(AI_EXTRACTED)도 공통점·준비 칸 수에 씀",
+   "family": "F-CONTRACT",
+   "date": "2026-09-29 코드 대조(대표 「FINAL RELEASE CLOSING」 매칭 안전 기준)",
+   "origin": "CODE",
+   "origin_note": "CODE (agentSource.ts 읽기 · 기본값 legacy 경로는 doit_insights confirmed/corrected 만)",
+   "user_text": "—",
+   "situation": "MATCH_SOURCE=agent(기본 꺼짐) 경로",
+   "ai_behavior": "CONFIRMED 이고 추정만 아니면 AI_EXTRACTED 문장도 공통점으로 상대에게 보일 수 있었음",
+   "expected": "매칭 재료 = USER_DIRECT · USER_CONFIRMED · USER_CORRECTED 만",
+   "types": [
+    "제품 계약 불일치"
+   ],
+   "layers": [
+    "Product Contract"
+   ],
+   "layer_note": "정보 상태(출처) 기준이 매칭 읽기 쪽에서 강제되지 않음",
+   "cause_confidence": "CONFIRMED",
+   "reproduction": "**코드 재현 ○** — 수정 전 5 FAIL · 수정 후 92/92(qa/agent-match-source · p0-6 · cross-slot · connect-server)",
+   "solution_candidates": "agentSource.ts MATCH_SOURCE_TYPES 필터",
+   "defense_level": "MOCK_VERIFIED",
+   "status": "MITIGATED",
+   "status_note": "경로 기본 꺼짐 · 운영 미배포 · 에이전트가 대부분 값을 AI_EXTRACTED 로 저장하므로 이 경로를 켜려면 사용자 확인 단계가 먼저 필요",
+   "counter_test": "qa/agent-match-source.test.mjs 8번 · p0-6 T7",
+   "experiment": "product/supabase/functions/doit-connect/agentSource.ts",
+   "evidence_level": "ACTUAL",
+   "real_ai": "해당 없음",
+   "refs": [
+    "product/supabase/functions/doit-connect/agentSource.ts",
+    "product/qa/agent-match-source.test.mjs"
    ]
   }
  ]

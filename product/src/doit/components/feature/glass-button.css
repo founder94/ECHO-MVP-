@@ -1,0 +1,32 @@
+/* ECHO 공통 유리 버튼(2026-09-28 대표 「P0 UI · BUTTON SYSTEM FINAL LOCK」) — 앱의 모든 CTA·선택 버튼이 여기서 파생된다.
+   - 배경 채움 0: 불투명 흰색·금색·검정 금지. 투명 유리(흰 막) + 얇은 흰 테두리 + 흰 글자.
+   - 상태는 막의 진하기·테두리·흐림만으로: 기본 < 누름/고름 < 주요. 비활성도 회색 채움이 아니라 낮은 불투명도의 유리.
+   - 화면 인라인 style 이 색을 박아 두어도 이긴다(!important) — 화면별 금색/흰색 버튼이 다시 생기지 않게.
+   - 전역(body·:root) 규칙 0: 이 클래스를 단 요소에만 적용. */
+.echo-glass-btn{
+  --glass-film:rgb(255 255 255/.08);
+  --glass-film-strong:rgb(255 255 255/.24);
+  --glass-film-press:rgb(255 255 255/.34);
+  --glass-line:rgb(255 255 255/.7);
+  background:var(--glass-film)!important;
+  background-image:none!important;
+  border:1px solid var(--glass-line)!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff;
+  box-shadow:none!important;
+  -webkit-backdrop-filter:blur(14px) saturate(1.1);
+  backdrop-filter:blur(14px) saturate(1.1);
+  text-shadow:0 1px 2px rgb(20 30 40/.22); /* 밝은 파스텔 위에서도 흰 글자가 읽히게 */
+  cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease,opacity .15s ease;
+}
+.echo-glass-btn *{color:#fff!important;-webkit-text-fill-color:#fff}
+.echo-glass-btn--primary{background:var(--glass-film-strong)!important;border-color:#fff!important}
+.echo-glass-btn--secondary{background:transparent!important}
+.echo-glass-btn--choice{background:var(--glass-film)!important}
+.echo-glass-btn--text{background:transparent!important;border:0!important;text-decoration:underline;text-underline-offset:4px;-webkit-backdrop-filter:none;backdrop-filter:none}
+.echo-glass-btn[aria-pressed="true"],.echo-glass-btn.is-selected{background:var(--glass-film-strong)!important;border:1.5px solid #fff!important}
+.echo-glass-btn:not(:disabled):hover{border-color:#fff!important}
+.echo-glass-btn:not(:disabled):active{background:var(--glass-film-press)!important}
+.echo-glass-btn:disabled,.echo-glass-btn[aria-disabled="true"]{opacity:.45;cursor:default}
+.echo-glass-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}

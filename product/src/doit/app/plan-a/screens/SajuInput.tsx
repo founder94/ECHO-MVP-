@@ -158,28 +158,14 @@ export function SajuInput({
                 ["male", "남성"],
                 ["unspecified", "선택 안 함"],
               ].map(([value, label]) => (
-                <button
+                <button aria-pressed={gender === value}
                   key={value}
                   type="button"
                   onClick={() =>
                     setGender(value)
                   }
-                  className="h-12 rounded-2xl text-[13px]"
-                  style={{
-                    ...fieldStyle,
-                    borderColor:
-                      gender === value
-                        ? "#c7aa69"
-                        : colors.borderStrong,
-                    color:
-                      gender === value
-                        ? "#efd99f"
-                        : colors.textMuted,
-                    background:
-                      gender === value
-                        ? "rgba(199,170,105,.12)"
-                        : colors.surface,
-                  }}
+                  className="echo-glass-btn echo-glass-btn--choice h-12 rounded-2xl text-[13px]"
+                  style={{ ...fieldStyle }}
                 >
                   {label}
                 </button>

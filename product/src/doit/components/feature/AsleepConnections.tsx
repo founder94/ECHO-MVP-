@@ -6,7 +6,9 @@ import { useAuth } from '@/doit/hooks/useAuth';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } from '@/doit/lib/understandingApi';
 import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
+import ConnectionCandidates from './ConnectionCandidates';
 import './asleep-connections.css';
+import { useRestartConversation } from '@/doit/hooks/useRestartConversation';
 import { PHONE_VERIFY_READY } from '@/doit/lib/phoneVerify'; // 문자 발송 업체 연결 전 false(전화 인증 화면과 같은 값)
 
 // "당신이 잠든 사이" (대표 확정 2026-09-21 연결 원칙 · 2026-09-22 지시 "저장한 걸로 사람을 매칭").
@@ -27,9 +29,13 @@ type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 
 const HEADLINE = <>나는 말하고,<br />찾는 건 ECHO가.</>;
 const SUBLINE = '지금은 연결을 준비하는 중이에요.';
 
+// 「다섯 가지 질문」 칸이 가리키는 곳이 「처음부터 다시」일 때의 표시(주소가 아니라 공통 동작을 부른다).
+const RESTART = 'restart:conversation';
+
 export default function AsleepConnections() {
   const { user, loading } = useAuth();
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [opened, setOpened] = useState(0); // v2.0 상호선택으로 연결이 열리면 「내 연결」을 다시 읽는다
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId || !A_STRUCTURE_SERVER_ENABLED) return;
@@ -51,20 +57,24 @@ export default function AsleepConnections() {
       {user && !A_STRUCTURE_SERVER_ENABLED && <p className="doit-asleep-status">연결 준비 화면은 서버 연결 뒤에 열려요.</p>}
       {user && A_STRUCTURE_SERVER_ENABLED && state.kind === 'loading' && <div className="doit-asleep-wait" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>내가 확인한 말로 준비 상태를 살피고 있어요.</p></div>}
       {state.kind === 'error' && <p className="doit-product-error" role="alert">{state.message}</p>}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches userId={user.id} />}
-      {state.kind === 'ready' && <Ready preview={state.preview} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates userId={user.id} onOpened={() => setOpened(n => n + 1)} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} />}
+      {state.kind === 'ready' && <Ready preview={state.preview} userId={userId} />}
     </section>
   </MobileLayout>;
 }
 
-function Ready({ preview }: { preview: Preview }) {
+function Ready({ preview, userId }: { preview: Preview; userId: string | null }) {
+  // 「처음부터 다시 답하기」는 앱 공통 동작 하나(useRestartConversation) — 누르면 새 회차를 열고 곧바로 ECHO 첫 대화 화면.
+  const { restart, busy: restarting, error: restartError } = useRestartConversation(userId);
+
   const r = preview.readiness;
   const turns = r.turns ?? r.answers;
   const skipped = r.uninformative ?? 0;
   // v15.1 다섯 칸을 다 썼는데 내용 있는 답이 모자라면(「모르겠어요」 등) 이어서 답할 곳이 없다 → 「처음부터 다시 답하기」가 빠져나갈 문이다.
   const turnsUsedUp = turns >= r.answers_needed && r.answers < r.answers_needed;
   const rows: { label: string; done: boolean; detail: string; to: string }[] = [
-    { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: turnsUsedUp ? '/doit/conversation?restart=1' : '/doit/conversation' },
+    { label: '다섯 가지 질문', done: r.answers >= r.answers_needed, detail: `${Math.min(r.answers, r.answers_needed)} / ${r.answers_needed}`, to: turnsUsedUp ? RESTART : '/doit/conversation' },
     // 2026-09-25 대표 MASTER §10 순서: 대화 → AI 소개 확인 → 사진 → 전화 인증 → 연결 준비. 대화 에이전트가 켜진 앱은 대화 끝 화면에서 AI 초안을 확인한다.
     { label: '내 소개', done: r.intro, detail: r.intro ? '있음' : '아직', to: ECHO_AGENT_ENABLED ? '/doit/conversation' : '/doit/start-journey?edit=profile' },
     { label: '필수 사진(전신·패션·취미)', done: r.photos >= r.photos_needed, detail: `${Math.min(r.photos, r.photos_needed)} / ${r.photos_needed}`, to: '/doit/start-journey?edit=photos' },
@@ -84,13 +94,16 @@ function Ready({ preview }: { preview: Preview }) {
     <div className="doit-asleep-card doit-asleep-next">
       <p className="doit-asleep-label">다음 할 일</p>
       <p className="doit-asleep-next-title">{next ? next.title : '연결 준비를 모두 마쳤어요'}</p>
-      {next && <Link className="doit-product-action" to={next.to}>{next.action}<span aria-hidden="true">↗</span></Link>}
+      {next && (next.to === RESTART
+        ? <button type="button" className="doit-product-action" disabled={restarting} onClick={() => void restart()}>{next.action}<span aria-hidden="true">↗</span></button>
+        : <Link className="doit-product-action" to={next.to}>{next.action}<span aria-hidden="true">↗</span></Link>)}
+      {restartError && <p className="doit-product-error" role="alert">{restartError}</p>}
       {skipped > 0 && <p className="doit-asleep-status">「모르겠어요」처럼 넘긴 답 {skipped}개는 연결 자격에 세지 않아요. 적은 말은 그대로 남아 있어요.{turnsUsedUp ? ' 처음부터 다시 답하면 채울 수 있어요.' : ''}</p>}
     </div>
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">{preview.purpose ? `연결까지 남은 것 · ${preview.purpose}` : '연결까지 남은 것 · 원하는 만남을 아직 고르지 않았어요'}</p>
-      <ul className="doit-asleep-check doit-asleep-check--small">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span>{!PHONE_VERIFY_READY && row.label === '전화 인증' && !row.done ? <span>{row.label}</span> : <Link to={row.to}>{row.label}</Link>}<strong>{row.detail}</strong></li>)}</ul>
-      <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. 겹치는 사람이 있으면 대표가 직접 확인한 뒤 위 「내 연결」에 보여 드려요.' : '질문·소개·사진 세 가지를 채우면 연결을 받을 수 있어요(전화 인증은 선택이에요). 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
+      <ul className="doit-asleep-check doit-asleep-check--small">{rows.map(row => <li key={row.label} data-done={row.done ? 'true' : 'false'}><span aria-hidden="true">{row.done ? '●' : '○'}</span>{!PHONE_VERIFY_READY && row.label === '전화 인증' && !row.done ? <span>{row.label}</span> : row.to === RESTART ? <button type="button" className="doit-asleep-link-button" disabled={restarting} onClick={() => void restart()}>{row.label}</button> : <Link to={row.to}>{row.label}</Link>}<strong>{row.detail}</strong></li>)}</ul>
+      <p className="doit-asleep-status">{preview.eligible ? '연결 자격을 갖췄어요. ECHO가 같은 만남을 원하는 사람 중 후보를 준비하면 위에 보여 드려요. 두 사람이 모두 고르면 연결이 열려요.' : '질문·소개·사진 세 가지를 채우면 연결을 받을 수 있어요(전화 인증은 선택이에요). 그 전까지 내 이야기는 아무에게도 보이지 않아요.'}</p>
     </div>
     <div className="doit-asleep-card">
       <p className="doit-asleep-label">지금 같은 만남을 기다리는 사람</p>
@@ -102,6 +115,6 @@ function Ready({ preview }: { preview: Preview }) {
     </div>
     {/* 2026-09-24 대표 실기기: 다섯 가지를 다 답했는데도 「질문에 이어서 답하기」가 떠서, 누르면 "다 들었어요"만 나왔다.
         남은 것 중 첫 번째는 맨 위 「다음 할 일」 큰 버튼으로(2026-09-25), 다 답했으면 「처음부터 다시 답하기」를 작은 버튼으로 둔다. */}
-    {answersDone && <Link className="doit-product-action doit-product-action--secondary" to="/doit/conversation?restart=1">처음부터 다시 답하기<span aria-hidden="true">↗</span></Link>}
+    {answersDone && <button type="button" className="doit-product-action doit-product-action--secondary" disabled={restarting} onClick={() => void restart()}>처음부터 다시 답하기<span aria-hidden="true">↗</span></button>}
   </>;
 }

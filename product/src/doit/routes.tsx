@@ -3,6 +3,10 @@ import { lazy, type ReactElement } from "react";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
 import { AdminRedirect } from "@/components/ExternalRedirect";
 
+// 2026-09-28 대표 「BRAND / APP / ADMIN / SERVER 역할 분리 · 기능을 섞지 마라」: 화면 lazy() 를 모듈 맨 위에 두면
+// 브랜드 빌드처럼 이 표를 쓰지 않는 빌드에도 앱 화면 조각이 만들어진다(실측: 브랜드 ZIP 에 앱 화면·연결 화면 포함).
+// 그래서 표 전체를 함수 안에서 만든다 — 함수를 부르지 않는 빌드(brand · admin)에는 앱 화면 코드가 들어가지 않는다.
+export default function doitRouteTable(): RouteObject {
 const DoitApp = lazy(() => import("@/doit/DoitApp"));
 const Fortune = lazy(() => import("@/doit/pages/do-it/fortune/page"));
 const DoItHome = lazy(() => import("@/doit/pages/do-it/home/page"));
@@ -40,7 +44,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 // 2026-09-26 MVP: 숨긴 화면(releaseScope)으로 바로 들어오면 앱 홈으로(가짜 결과·준비 중 화면 0).
 const gate = (to: string, element: ReactElement) => (visibleInRelease(to) ? element : <Navigate to="/doit/home" replace />);
 
-const doitRoutes: RouteObject = {
+return {
   path: "/doit",
   element: <DoitApp />,
   children: [
@@ -79,5 +83,4 @@ const doitRoutes: RouteObject = {
     { path: "*", element: <NotFound /> },
   ],
 };
-
-export default doitRoutes;
+}

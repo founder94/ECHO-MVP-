@@ -51,6 +51,9 @@
   "예시 도움 필요",
   "소개 초안 뜻 왜곡",
   "문서와 실제 처리 불일치",
-  "조용한 버림(이유 기록 없음)"
+  "조용한 버림(이유 기록 없음)",
+  "Stale Redirect",
+  "Real-State FAIL",
+  "DESIGN_SYSTEM_LOCK_IGNORED"
  ]
 }

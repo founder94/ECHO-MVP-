@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { motion } from "motion/react";
+import "@/doit/components/feature/glass-button.css";
 
 interface PrimaryButtonProps {
   children: ReactNode;
@@ -23,26 +24,9 @@ export function PrimaryButton({
       }
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`${solid ? "echo-primary-button" : "echo-secondary-button"} w-full rounded-full px-6 flex items-center justify-center transition-opacity whitespace-nowrap`}
-      style={{
-        height: 54,
-        fontFamily: "'Do Hyeon', sans-serif",
-        fontSize: 15,
-        color: solid ? "#F5F3EF" : "#9CA3AF",
-        background: solid
-          ? "linear-gradient(180deg, #3C414D 0%, #363B47 100%)"
-          : "transparent",
-        border: solid
-          ? "1px solid rgba(255,255,255,0.18)"
-          : "1px solid rgba(255,255,255,0.18)",
-        boxShadow: solid
-          ? "inset 0 1px 0 rgba(255,255,255,0.20), 0 4px 16px rgba(0,0,0,0.35)"
-          : "none",
-        opacity: disabled ? 0.4 : 1,
-        cursor: disabled
-          ? "not-allowed"
-          : "pointer",
-      }}
+      // 2026-09-28 대표 「BUTTON SYSTEM FINAL LOCK」: 채움 버튼 0 — 공통 유리 버튼(glass-button.css) 한 벌에서 파생.
+      className={`echo-glass-btn ${solid ? "echo-glass-btn--primary echo-primary-button" : "echo-glass-btn--secondary echo-secondary-button"} w-full rounded-full px-6 flex items-center justify-center transition-opacity whitespace-nowrap`}
+      style={{ height: 54, fontFamily: "'Do Hyeon', sans-serif", fontSize: 15 }}
     >
       {children}
     </motion.button>

@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.4.1"; // v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.4.4"; // v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -143,9 +143,36 @@ const HELP_ASK = /^\s*(아+|음+|흠+)?\s*(좀|너무|넘|진짜)?\s*(어렵(네
 const SKIP_ASK = /다음\s*질문\s*(으로)?\s*(넘어|가)|이\s*질문\s*(은)?\s*(패스|넘어|넘길)/;
 // v2.4 「잘 모르겠어」「글쎄」만 한 말은 묻는 말(ask)이 아니다 — 같은 질문을 다시 보이지 않고 모르겠다(unsure)로(저장 0 · 다음 칸으로).
 const UNSURE_ONLY = /^\s*(음+\s*)?(잘\s*)?(모르겠(어|어요|다|네|네요|는데|는데요)|몰라(요)?|글쎄(요)?|(딱히|별로|잘)?\s*생각\s*(이|은)?\s*(안|잘\s*안)\s*나(요|네|네요|는데|는데요)?)\s*[.!~…ㅠㅜ]*\s*$/;
-export function guardKind(text: string, kind: Kind): { kind: Kind; rule: string | null } {
-  if ((kind === "ask" || kind === "answer" || kind === "help") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다
+// v2.4.2 거절 머리말 + 새 값 = 정정(서버 규칙 · 결정적). 머리말(「아니」「그런 뜻 아니야」「틀렸어」…)을 떼고도 새 내용(한글 6자 이상)이 남을 때만.
+// 이미 말했다는 항의(PAST_REF)·질문 피로(FATIGUE)·목적 방향 정정(GOAL_MISMATCH)은 정정이 아니다(repair 유지).
+const REJECT_LEAD = /^\s*(아니(요|야|에요)?|아냐|아닌데(요)?|그게\s*아니(라|고|야|에요)?|그건\s*아니(라|고|야|에요)?|그런\s*(뜻|말|게|의미)\s*(이\s*)?아니(야|에요|고|라|요)?|틀렸(어|어요|다|네요)?|잘못\s*(이해|알아)\s*(했|들었)?\S*|실제로는)[\s,.!~…]*/;
+const GENERAL_NO_LEAD = /^\s*(아니(요|야|에요)?|아냐|아닌데(요)?)[\s,.!~…]*/;
+const EXPLICIT_REJECT_LEAD = /^\s*(그게\s*아니|그건\s*아니|그런\s*(뜻|말|게|의미)\s*(이\s*)?아니|틀렸|잘못\s*(이해|알아)|실제로는)/;
+export function rejectWithNewValue(text: string): boolean {
+  const t = String(text ?? "").trim();
+  if (GOAL_MISMATCH.test(t) || PAST_REF.test(t) || FATIGUE.test(t)) return false;
+  let rest = t; let explicit = false;
+  for (let i = 0; i < 3; i++) {
+    const m = rest.match(REJECT_LEAD); if (!m || !m[0]) break;
+    if (EXPLICIT_REJECT_LEAD.test(rest)) explicit = true;
+    rest = rest.slice(m[0].length);
+  }
+  // 「아니요, 카페에서 이야기하는 게 좋아요」는 답일 수 있다. 명시적으로 앞선
+  // 해석을 부정하지 않았다면 옛 확정값을 정정으로 밀거나 질문을 거절로 기록하지 않는다.
+  return explicit && (rest.match(/[가-힣]/g) ?? []).length >= 6;
+}
+function ordinaryNoAnswer(text: string): boolean {
+  const lead = text.match(GENERAL_NO_LEAD)?.[0];
+  if (!lead || PAST_REF.test(text) || FATIGUE.test(text) || SKIP_ASK.test(text) || GOAL_MISMATCH.test(text)) return false;
+  const rest = text.slice(lead.length).trim();
+  return !EXPLICIT_REJECT_LEAD.test(rest) && !/(?:말고|대신|부담스러|부담돼|부담되)/.test(rest) && !rejectWithNewValue(text) && (rest.match(/[가-힣]/g) ?? []).length >= 6;
+}
+export function guardKind(text: string, kind: Kind, uiCorrection = false): { kind: Kind; rule: string | null } {
+  if (uiCorrection) return { kind: "correction", rule: null }; // 사용자가 화면에서 고친 것은 모델의 말 종류와 무관하게 정정
+  if ((kind === "ask" || kind === "answer" || kind === "help" || kind === "repair" || kind === "correction") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다 · v2.4.3 repair 로 읽히면 지금 질문이 거절로 기록됐다(QA 실서버)
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
+  if (kind === "repair" && rejectWithNewValue(text)) return { kind: "correction", rule: "reject_with_value" }; // v2.4.2 거절 + 새 값 = 정정(최신 사용자 말이 옛 값을 이긴다)
+  if ((kind === "repair" || kind === "correction") && ordinaryNoAnswer(text)) return { kind: "answer", rule: "no_with_answer" };
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
   if (HELP_ASK.test(text)) return { kind: "help", rule: "help_request" };
@@ -426,9 +453,9 @@ export function cleanHint(v: unknown): string {
 export interface TurnResponse { kind: string; reply: string; question: string | null; saved: boolean; extracted: { purpose: string; note: string }[]; recovered: string[]; finish: boolean; question_type: string | null; question_purpose: string | null }
 
 // ── 서버 결정(결정적). LLM 출력은 후보다.
-export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: { limitReached?: boolean } = {}): TurnResponse {
+export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: { limitReached?: boolean; uiCorrection?: boolean } = {}): TurnResponse {
   const text = String(latest ?? "").trim();
-  const g = guardKind(text, llmOut.kind);
+  const g = guardKind(text, llmOut.kind, opts.uiCorrection);
   const out: Parsed = g.rule ? { ...llmOut, kind: g.kind } : llmOut;
   const turn: TurnRec = { n: st.turns.length + 1, ai: st.current?.text ?? null, question_purpose: st.current?.purpose ?? null, question_type: st.current?.type ?? null, user: text, kind: out.kind };
   if (g.rule) turn.guard = { from: llmOut.kind, to: g.kind, rule: g.rule };
@@ -439,7 +466,8 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   const quoteTurn = (q: string): number | null => {
     if (!squash(q)) return null;
     // v2.0: 서버 가드가 항의·피로·넘기기로 바로잡은 말은 이번 말에서 아무것도 받지 않는다(앞선 말에서 되살리기만).
-    if (FROM_LATEST.has(out.kind) && !g.rule && inText(q)) return turn.n;
+    // v2.4.2 거절 + 새 값(reject_with_value)은 새 값을 받는 것이 목적이므로 예외(항의·피로·넘기기는 그대로 0).
+    if (FROM_LATEST.has(out.kind) && (!g.rule || g.rule === "reject_with_value" || g.rule === "no_with_answer") && inText(q)) return turn.n;
     for (let k = st.turns.length - 2; k >= 0; k--) if (squash(st.turns[k].user).includes(squash(q))) return st.turns[k].n;
     return null;
   };
@@ -822,7 +850,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   }
   if (!out) return { obs, response: { error: "READ_FAILED" } };
   if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
-  if (out.kind === "correction") out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE
+  if (out.kind === "correction" && guardKind(text, out.kind, !!ui).kind === "correction") out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE
+  else if (out.kind === "repair" && rejectWithNewValue(text)) out = await pickStale(st, text, out, llm, obs); // v2.4.2 거절 + 새 값: 서버가 정정으로 확정하므로(guardKind) 옛 항목 고르기도 같이
   // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
   if (!after && out.kind === "answer" && !ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, text)) { const a = await rewriteAck(st, text, out.next.question || null, llm, obs); if (a) ackBackup = a; } }
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
@@ -832,13 +861,13 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     st.after_turns++;
     st.phase = "post";
     const before = confirmedSignature(st);
-    const r = applyTurn(st, text, { ...out, next: { type: "none", purpose: "", question: "" } }); st.phase = "done";
+    const r = applyTurn(st, text, { ...out, next: { type: "none", purpose: "", question: "" } }, { uiCorrection: !!ui }); st.phase = "done";
     if (confirmedSignature(st) !== before) await syncIntro(st, llm, obs); // v2.2.1 P0-3: 끝난 뒤 확정 상태가 바뀌면 소개도 지금 상태로
     const profile = matchingProfile(st);
     return { obs, response: { ...r, question: null, finish: false, after: true, profile, handoff: matchingHandoff(profile) } };
   }
   const limitReached = st.turns.length + 1 >= MAX_TALK_TURNS;
-  const response: Json = { ...applyTurn(st, text, out, { limitReached }) };
+  const response: Json = { ...applyTurn(st, text, out, { limitReached, uiCorrection: !!ui }) };
   if (response.finish) {
     let raw: string | null = null;
     try { raw = await call(llm, obs, "closing", closingPrompt(st.tone), { session_goal: { id: isGoal(st.goal) ? st.goal : "open", name: goalOf(st).name, avoid_words: avoidText(st) }, heard: heardQuoted(st), corrections: st.corrections.slice(-3), rejected: rejectedForAi(st) }); } catch { obs.retry.push("closing"); }

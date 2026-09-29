@@ -380,7 +380,7 @@ export function FreeResult({
                   fit === option.key;
 
                 return (
-                  <button
+                  <button aria-pressed={active}
                     key={option.key}
                     onClick={() => {
                       setFit(option.key);
@@ -389,25 +389,9 @@ export function FreeResult({
                           "different",
                       );
                     }}
-                    className="flex-1 rounded-full flex items-center justify-center"
-                    style={{
-                      height: 44,
-                      fontSize: 14,
-                      color: active
-                        ? colors.onAccent
-                        : colors.text,
-                      backgroundColor:
-                        active
-                          ? colors.accent
-                          : "transparent",
-                      border: `1px solid ${
-                        active
-                          ? colors.accent
-                          : colors.borderStrong
-                      }`,
-                      transition:
-                        "background-color 0.15s ease, color 0.15s ease",
-                    }}
+                    className="echo-glass-btn echo-glass-btn--choice flex-1 rounded-full flex items-center justify-center"
+                    style={{ height: 44, fontSize: 14, transition:
+                        "background-color 0.15s ease, color 0.15s ease" }}
                   >
                     {option.label}
                   </button>

@@ -106,24 +106,16 @@ export function PathSelect({ onDoit, onEcho, onSkipToFortune }: Props) {
             const active = selected === opt.id;
             const Icon = opt.icon;
             return (
-              <motion.button
+              <motion.button aria-pressed={active}
                 key={opt.id}
                 type="button"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.06, duration: 0.4 }}
                 onClick={() => setSelected(opt.id)}
-                className="w-full rounded-3xl px-5 py-5 text-left"
-                style={{
-                  backgroundColor: active
-                    ? colors.accentSoft
-                    : colors.surface,
-                  border: `1px solid ${
-                    active ? colors.accent : colors.border
-                  }`,
-                  transition:
-                    "background-color 0.15s ease, border-color 0.15s ease",
-                }}
+                className="echo-glass-btn echo-glass-btn--choice w-full rounded-3xl px-5 py-5 text-left"
+                style={{ transition:
+                    "background-color 0.15s ease, border-color 0.15s ease" }}
               >
                 <div className="flex items-start gap-4">
                   <div

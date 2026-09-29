@@ -286,13 +286,8 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
           <button
             type="button"
             onClick={() => void capture()}
-            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full whitespace-nowrap"
-            style={{
-              backgroundColor: colors.accent,
-              color: colors.onAccent,
-              fontSize: 15,
-              cursor: "pointer",
-            }}
+            className="echo-glass-btn echo-glass-btn--primary flex h-[52px] w-full items-center justify-center gap-2 rounded-full whitespace-nowrap"
+            style={{ fontSize: 15, cursor: "pointer" }}
           >
             <i className="ri-camera-line" />
             촬영
@@ -303,13 +298,8 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
           <button
             type="button"
             onClick={() => void startCamera()}
-            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full whitespace-nowrap"
-            style={{
-              backgroundColor: colors.accent,
-              color: colors.onAccent,
-              fontSize: 15,
-              cursor: "pointer",
-            }}
+            className="echo-glass-btn echo-glass-btn--primary flex h-[52px] w-full items-center justify-center gap-2 rounded-full whitespace-nowrap"
+            style={{ fontSize: 15, cursor: "pointer" }}
           >
             <i className="ri-camera-line" />
             카메라 켜기
@@ -339,13 +329,8 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
             <button
               type="button"
               onClick={() => void confirm()}
-              className="flex h-[52px] flex-1 items-center justify-center gap-2 rounded-full whitespace-nowrap"
-              style={{
-                backgroundColor: colors.accent,
-                color: colors.onAccent,
-                fontSize: 15,
-                cursor: "pointer",
-              }}
+              className="echo-glass-btn echo-glass-btn--primary flex h-[52px] flex-1 items-center justify-center gap-2 rounded-full whitespace-nowrap"
+              style={{ fontSize: 15, cursor: "pointer" }}
             >
               <i className="ri-check-line" />
               사용하기

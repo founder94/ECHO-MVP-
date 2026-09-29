@@ -13,6 +13,7 @@ import { ProfileBuild } from "@/doit/app/plan-a/screens/ProfileBuild";
 import type { ProfileDraft } from "@/doit/app/plan-a/screens/ProfileBuild";
 import { ProfileReview } from "@/doit/app/plan-a/screens/ProfileReview";
 import "@/doit/components/feature/app-pastel.css";
+import RestartConversationButton from "@/doit/components/feature/RestartConversationButton";
 import { PhotoCapture } from "@/doit/app/plan-a/screens/PhotoCapture";
 import { photoSetComplete } from "@/doit/lib/photoPolicy";
 import { requestAgentIntroDraft, requestIntroDraft } from "@/doit/lib/introDraft";
@@ -447,14 +448,8 @@ export default function StartJourney() {
         <button
           type="button"
           onClick={retryLoad}
-          className="mt-6 rounded-full px-6 py-3 whitespace-nowrap"
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#15191e",
-            backgroundColor: "#d5dbe3",
-            cursor: "pointer",
-          }}
+          className="echo-glass-btn echo-glass-btn--primary mt-6 rounded-full px-6 py-3 whitespace-nowrap"
+          style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}
         >
           다시 시도
         </button>
@@ -479,7 +474,7 @@ export default function StartJourney() {
             <p style={{ fontSize: 13, lineHeight: 1.8, color: "#b5bac3", margin: 0 }}>
               생각보다 오래 걸려요. 인터넷이 잘 되는지 확인하고 다시 눌러 주세요.
             </p>
-            <button type="button" onClick={retryLoad} className="mt-5 rounded-full px-6 py-3 whitespace-nowrap" style={{ fontSize: 14, fontWeight: 600, color: "#15191e", backgroundColor: "#d5dbe3", cursor: "pointer" }}>
+            <button type="button" onClick={retryLoad} className="echo-glass-btn echo-glass-btn--primary mt-5 rounded-full px-6 py-3 whitespace-nowrap" style={{ fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
               다시 시도
             </button>
             <button type="button" onClick={() => navigate("/doit/home")} className="mt-3 block mx-auto px-6 py-3" style={{ fontSize: 13, color: "#c4cad3", background: "none", border: 0, cursor: "pointer" }}>
@@ -573,12 +568,20 @@ export default function StartJourney() {
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
+    // 2026-09-28 Real-State Replay: 대화 상태를 읽기 전(약 1초) 「대화 시작하기」가 잠깐 보였다가 바뀌었다 → 읽는 동안은 틀린 버튼을 그리지 않는다.
+    if (ECHO_AGENT_ENABLED && user && agentSession === undefined) {
+      return <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+        <p className="echo-lead" role="status">지난 대화를 확인하고 있어요…</p>
+        <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button></section>;
+    }
     return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
       <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
       {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 직접 채우기</button></>
         : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
         : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
+      {/* 2026-09-28 대표 실기기(iPhone) 「온보딩 뒤 이 화면에 처음부터 다시 시작하기가 없다」: 대화를 시작했으면 여기에도 둔다 — 앱 공통 동작 하나(한 번 탭 · 확인 창 0 · 목적·Profile·지난 대화 유지). */}
+      {(talkDone || answered > 0) && user && <RestartConversationButton userId={user.id} className="echo-restart-pill" />}
       <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
 

@@ -601,7 +601,7 @@ test('v14.1 다섯 개를 채우면 질문과 입력창을 닫고 끝났다고 �
   assert.match(text, /사진과 소개 채우기/);
   assert.match(text, /연결까지 남은 것 보기/);
   // 다시 시작할 길이 있다.
-  assert.match(text, /「처음부터 시작하기」/);
+  assert.match(text, /「처음부터 다시 시작하기」/);
 });
 
 test('v14.1 다섯 개를 채우면 다음 질문을 서버에 더 요청하지 않는다', async () => {
@@ -611,7 +611,7 @@ test('v14.1 다섯 개를 채우면 다음 질문을 서버에 더 요청하지 
 });
 
 // v14.3 (대표 실기기 "처음부터 다시 하기도 없어"): 맨 아래에만 있어 화면 위에서 안 보였다.
-test('v14.3 처음부터 다시 — 화면 위쪽에 버튼이 있고, 누르면 그 자리에 확인 창이 뜬다', async () => {
+test('v14.3·2026-09-28 처음부터 다시 — 화면 위쪽에 버튼이 있고, 한 번 누르면 확인 창 없이 바로 새 회차를 시작한다', async () => {
   let restarted = 0;
   const h = componentHarness({ load: async () => ({ records: manyRecords(2), insights: [] }) }, { props: { onRestart: async () => { restarted++; return null; } } });
   await h.flush();
@@ -620,54 +620,45 @@ test('v14.3 처음부터 다시 — 화면 위쪽에 버튼이 있고, 누르면
   const eyebrow = nodes.findIndex(node => node.props.className === 'echo-eyebrow');
   assert.ok(top > -1, '위쪽 버튼이 없다');
   assert.ok(top < eyebrow, '위쪽 버튼이 제목보다 위에 있어야 한다');
-  h.click('처음부터 시작하기');
+  h.click('처음부터 다시 시작하기');
   await h.flush();
-  assert.match(h.content(), /지금 대화를 여기서 끝내고 처음부터 다시 시작할까요\?/);
-  h.click('처음부터 시작할게요');
-  await h.flush();
-  assert.equal(restarted, 1, '확인을 누르면 실제로 새 회차를 시작한다');
+  assert.doesNotMatch(h.content(), /지금 대화를 여기서 끝내고/, '확인 창 0(대표 2026-09-28 「한 번의 탭」)');
+  assert.equal(restarted, 1, '한 번 누르면 실제로 새 회차를 시작한다');
 });
 
-test('v14.3 앱 홈에서 들어오면(restartPrompt) 확인 창이 바로 열려 있고, 취소하면 버튼으로 돌아간다', async () => {
-  const h = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) }, { props: { onRestart: async () => null, restartPrompt: true } });
+test('2026-09-28 끝 화면의 두 「처음부터 다시 시작하기」(끝 화면 안·아래)도 같은 동작 하나 — 누를 때마다 확인 창 없이 한 번씩', async () => {
+  let restarted = 0;
+  const h = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) }, { props: { onRestart: async () => { restarted++; return null; } } });
   await h.flush();
-  assert.match(h.content(), /지금 대화를 여기서 끝내고 처음부터 다시 시작할까요\?/);
-  h.click('계속할게요');
+  h.clickNth('처음부터 다시 시작하기', 0);
   await h.flush();
-  assert.doesNotMatch(h.content(), /지금 대화를 여기서 끝내고/);
-  // 취소 뒤 끝 화면 버튼·아래 버튼 모두 다시 누를 수 있다(굳지 않는다). 끝 화면에서는 위 버튼 대신 끝 화면 버튼을 쓴다.
-  h.clickNth('처음부터 시작하기', 0);
+  assert.equal(restarted, 1);
+  h.clickNth('처음부터 다시 시작하기', 1);
   await h.flush();
-  h.click('계속할게요');
-  await h.flush();
-  h.clickNth('처음부터 시작하기', 1);
-  await h.flush();
-  assert.match(h.content(), /지금 대화를 여기서 끝내고/);
+  assert.equal(restarted, 2);
+  assert.doesNotMatch(h.content(), /지금 대화를 여기서 끝내고|계속할게요/, '확인 창 0');
 });
 
 // v15.2(대표 2026-09-24): 전에는 기록이 없으면 위 버튼을 숨겼다. 이제 대화에 들어온 순간부터 보인다(TEST C — 정상 대화 중 첫 답 전).
-test('v15.2 TEST C 대화에 들어온 순간(첫 답 전)부터 위쪽 「처음부터 시작하기」가 있다', async () => {
+test('v15.2 TEST C 대화에 들어온 순간(첫 답 전)부터 위쪽 「처음부터 다시 시작하기」가 있다', async () => {
   const h = componentHarness({ load: async () => ({ records: [], insights: [] }) }, { props: { onRestart: async () => null } });
   await h.flush();
   assert.ok(h.contentNodes().some(node => node.props.className === 'echo-restart-top'));
 });
 
-test('2026-09-24 끝 화면에서도 「처음부터 시작하기」가 바로 보이고, 확인하면 실제로 새 회차를 시작한다', async () => {
+test('2026-09-24 끝 화면에서도 「처음부터 다시 시작하기」가 바로 보이고, 한 번 누르면 실제로 새 회차를 시작한다', async () => {
   let restarted = 0;
   const h = componentHarness({ load: async () => ({ records: manyRecords(5), insights: [] }) }, { props: { onRestart: async () => { restarted++; return null; } } });
   await h.flush();
   assert.match(h.content(), /다섯 가지, 다 들었어요/);
   assert.equal(h.contentNodes().some(node => node.props.className === 'echo-restart-top'), false, '끝 화면에서는 위 버튼을 겹쳐 두지 않는다');
-  h.clickNth('처음부터 시작하기', 0);
-  await h.flush();
-  assert.match(h.content(), /지금 대화를 여기서 끝내고 처음부터 다시 시작할까요\?/);
-  h.click('처음부터 시작할게요');
+  h.clickNth('처음부터 다시 시작하기', 0);
   await h.flush();
   assert.equal(restarted, 1);
 });
 
 // ── v15.2 대표 실기기 실제 실패(2026-09-24 "그냥 편한친구 부담없이" → "다음 질문을 아직 만들지 못했어요") — 「처음부터 시작하기」 ──
-test('v15.2 TEST B 다음 질문을 못 만든 오류 상태에서도 위쪽 「처음부터 시작하기」가 눌린다(막다른 길 없음)', async () => {
+test('v15.2 TEST B 다음 질문을 못 만든 오류 상태에서도 위쪽 「처음부터 다시 시작하기」가 눌린다(막다른 길 없음)', async () => {
   let restarted = 0;
   const h = componentHarness({
     load: async () => ({ records: [record('a')], insights: [] }),
@@ -678,24 +669,19 @@ test('v15.2 TEST B 다음 질문을 못 만든 오류 상태에서도 위쪽 「
   await h.flush();
   assert.match(h.content(), /다음 질문을 아직 만들지 못했어요/);
   assert.ok(h.contentNodes().some(node => node.props.className === 'echo-restart-top'), '오류 상태에서도 위쪽 버튼이 있다');
-  h.clickNth('처음부터 시작하기', 0);
-  await h.flush();
-  h.click('처음부터 시작할게요');
+  h.clickNth('처음부터 다시 시작하기', 0);
   await h.flush();
   assert.equal(restarted, 1);
 });
 
-test('v15.2 TEST D·E 「처음부터 시작할게요」는 새 회차만 시작한다 — 한 번 누르면 한 번, 기록을 지우거나 고치는 요청은 0건', async () => {
+test('v15.2 TEST D·E·2026-09-28 「처음부터 다시 시작하기」는 새 회차만 시작한다 — 한 번 누르면 한 번, 기록을 지우거나 고치는 요청은 0건', async () => {
   let restarted = 0;
   const h = componentHarness({ load: async () => ({ records: manyRecords(2), insights: [] }) }, { props: { onRestart: async () => { restarted++; return null; } } });
   await h.flush();
   const before = h.calls.map(c => c.name);
-  h.clickNth('처음부터 시작하기', 0);
+  h.clickNth('처음부터 다시 시작하기', 0);
   await h.flush();
-  // 1차 선택만으로는 아무것도 바뀌지 않는다(실수 방지 — 두 번째 확인이 있어야 한다).
-  assert.equal(restarted, 0);
-  h.click('처음부터 시작할게요');
-  await h.flush();
+  // 대표 2026-09-28 「한 번의 탭」: 확인 창 없이 한 번에 새 회차(지난 이야기는 지우지 않으므로 되돌릴 데이터 손실 0).
   assert.equal(restarted, 1);
   const after = h.calls.map(c => c.name).slice(before.length);
   assert.equal(after.some(name => /delete|update|reject|correct|confirm/i.test(name)), false, `기록을 지우거나 바꾸는 요청이 없다: ${after.join(',')}`);
@@ -808,9 +794,7 @@ test('v1.1 저장 안 한 말(「취미생활?」·문제제기)도 다음 요�
   const fourth = plain(h.calls.filter(c => c.name === 'turn')[3].args[0]);
   assert.equal(fourth.recent.length, 3, '최근 3줄만');
   assert.deepEqual(fourth.recent.map(r => r.saved), [false, false, true]);
-  h.clickNth('처음부터 시작하기', 0);
-  await h.flush();
-  h.click('처음부터 시작할게요');
+  h.clickNth('처음부터 다시 시작하기', 0);
   await h.flush();
   replies.push(saved('d', question('d', '다음 질문?')));
   await h.send('새로 시작한 첫 답');

@@ -14,7 +14,7 @@
 .doit-install-steps strong{color:#e9eaec;font-weight:600}
 .doit-install-inline{display:inline-flex;align-items:center;gap:4px;vertical-align:-3px}
 .doit-install-share{display:block;flex:none}
-.doit-install-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:18px;padding:0 22px;border:1px solid #ffffff2e;border-radius:999px;background:#f2f1ef;color:#0b0b0e;font-size:14px;font-weight:700;text-decoration:none;cursor:pointer}
+.doit-install-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:18px;padding:0 22px;border:1px solid rgb(255 255 255/.7);border-radius:999px;background:rgb(255 255 255/.24);color:#fff;font-size:14px;font-weight:700;text-decoration:none;cursor:pointer}
 .doit-install-action:focus-visible,.doit-install-secondary:focus-visible,.doit-install-later:focus-visible,.doit-install-reopen:focus-visible{outline:2px solid #e0e3e9;outline-offset:3px}
 .doit-install-copy{margin-top:14px}
 .doit-install-secondary{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border:1px solid #ffffff2e;border-radius:999px;background:transparent;color:#e0e3e9;font-size:13px;font-weight:600;cursor:pointer}

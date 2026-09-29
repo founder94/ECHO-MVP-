@@ -33,7 +33,7 @@
 .doit-product-status:before{content:"";width:5px;height:5px;border-radius:50%;background:#aab1bd;box-shadow:0 0 0 4px #c8d0df0b}
 .doit-product-note{padding:22px 0;margin-top:16px;border-block:1px solid rgba(255,255,255,.1)}
 .doit-product-note p{font-size:13px;line-height:1.85;color:#aeb2bb;margin:10px 0 0;word-break:keep-all}
-.doit-product-action{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:56px;padding:16px 21px;margin-top:26px;border:1px solid #ffffff35;border-radius:16px;background:linear-gradient(115deg,#f1f1ee,#d1d4d9);color:#15171b;font-size:14px;font-weight:600;text-decoration:none;box-shadow:0 6px 18px #0003,inset 0 1px 0 #fff8;transition:transform .22s,box-shadow .22s;cursor:pointer}
+.doit-product-action{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:56px;padding:16px 21px;margin-top:26px;border:1px solid rgb(255 255 255/.7);border-radius:16px;background:rgb(255 255 255/.24);color:#fff;font-size:14px;font-weight:600;text-decoration:none;box-shadow:none;transition:transform .22s,box-shadow .22s;cursor:pointer}
 .doit-product-action:active{transform:scale(.985)}
 .doit-product-action--secondary{background:transparent;border-color:#ffffff24;color:#d6d8de;box-shadow:none;margin-top:12px}
 .doit-product-footnote{font-size:11px;line-height:1.8;color:#9399a5;margin:20px 0 0}
@@ -60,7 +60,7 @@
 @media(max-width:360px){.doit-product-main,.doit-profile-review{padding-inline:20px}.doit-product-topbar>div{padding-inline:14px}.doit-product-topbar h1{font-size:15px}.doit-product-topbar .doit-official-symbol{width:28px;height:28px}.doit-product-stage{height:205px}}
 @media(prefers-reduced-motion:reduce){.doit-product-story,.doit-product-stage .doit-official-symbol{animation:none;transform:none}.doit-product-action{transition:none}}
 /* 밝은 실버 버튼과 어두운 금속 표면을 번갈아 써 강약을 둔다. */
-.doit-product-action{background:linear-gradient(115deg,#f2f3f1 0%,#d5d9df 38%,#e7e9ec 60%,#bbc2cc 100%);border-color:#f5f6f7a6}
-.doit-product-action--secondary{background:linear-gradient(120deg,#343a4466,#151920 54%,#30374477);border-color:#bdc6d149;color:#e4e7ec}
+.doit-product-action{background:rgb(255 255 255/.24);border-color:#f5f6f7a6;color:#fff;border:1px solid rgb(255 255 255/.7)}
+.doit-product-action--secondary{background:rgb(255 255 255/.08);border-color:#bdc6d149;color:#fff;border:1px solid rgb(255 255 255/.7)}
 .doit-profile-card{border-color:#c0cad23d;background:radial-gradient(ellipse at top right,#bbc9dd1c,transparent 70%),linear-gradient(145deg,#20242c,#101216);box-shadow:inset 0 1px 0 #ffffff0d,0 22px 50px #0003}
 .doit-product-stage:before{background:radial-gradient(ellipse,#cfdae726,transparent 68%)}

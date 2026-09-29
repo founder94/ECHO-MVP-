@@ -22,7 +22,17 @@ export interface MyMatch {
   revealed: boolean;
   partner?: MatchPartner;
   messages?: MatchMessage[];
+  /** v2.0 내가 남긴 결과(상대 것은 오지 않는다). 예전 서버는 보내지 않는다. */
+  outcome?: MatchOutcome | null;
 }
+
+// v2.0(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§19): 서버가 준비한 후보 · 상호선택 · 결과.
+// 후보 단계에서 서버는 상대의 이름·사진·소개·말을 보내지 않는다(화면이 숨기는 게 아니다). 이유는 내가 직접 한 말과 직접 고른 목적뿐.
+export type CandidateChoice = 'yes' | 'no' | 'hide';
+export interface MyCandidate { id: string; created_at: string; purpose: string | null; reasons: string[]; my_choice: CandidateChoice | null; waiting: boolean }
+export interface MyCandidates { eligible: boolean; missing: string[]; prepared: number; candidates: MyCandidate[] }
+export type OutcomeField = 'talked' | 'met' | 'again' | 'helpful';
+export interface MatchOutcome { talked: 'yes' | 'no' | null; met: 'yes' | 'planned' | 'no' | null; again: 'yes' | 'unsure' | 'no' | null; helpful: 'yes' | 'unsure' | 'no' | null }
 
 export interface AdminCandidate {
   user_a: string; user_b: string; purpose: string | null;
@@ -50,21 +60,22 @@ export async function fetchMyMatches(userId: string): Promise<MyMatches> {
   return { matches: Array.isArray(out.matches) ? out.matches : [], consented: out.consented === true };
 }
 
-export interface MyTurns { open: number; turns: { answer: number; reply: number; opened: number } }
+export interface MyTurns { open: number; turns: { answer: number; reply: number; opened: number; choose: number } }
 
 /** 앱 홈용 — 내 차례 개수만(이름·내용 없음). */
 export async function fetchMyTurns(userId: string): Promise<MyTurns> {
   const out = await serverFunctionRequest<Partial<MyTurns>>('doit-connect', { action: 'my_turns' }, userId);
-  const t = out.turns ?? { answer: 0, reply: 0, opened: 0 };
+  const t: Partial<MyTurns['turns']> = out.turns ?? {};
   const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
-  return { open: n(out.open), turns: { answer: n(t.answer), reply: n(t.reply), opened: n(t.opened) } };
+  return { open: n(out.open), turns: { answer: n(t.answer), reply: n(t.reply), opened: n(t.opened), choose: n(t.choose) } };
 }
 
-/** 홈 카드 문구 — 할 일이 여럿이면 먼저 할 것(첫 답 → 새로 열림 → 받은 이야기) 하나만. 없으면 null. */
+/** 홈 카드 문구 — 할 일이 여럿이면 먼저 할 것(첫 답 → 새로 열림 → 받은 이야기 → 새 후보) 하나만. 없으면 null. */
 export function turnsMessage(t: MyTurns['turns']): { title: string; detail: string } | null {
   if (t.answer > 0) return { title: t.answer > 1 ? `첫 질문 ${t.answer}개가 와 있어요` : '새 연결에 첫 질문이 와 있어요', detail: '둘 다 답하면 서로의 이름과 사진이 열려요.' };
   if (t.opened > 0) return { title: '서로 열렸어요', detail: '상대의 답과 사진을 볼 수 있어요. 먼저 한마디 건네 보세요.' };
   if (t.reply > 0) return { title: t.reply > 1 ? `${t.reply}개의 연결에서 이야기가 왔어요` : '상대가 이야기를 보냈어요', detail: '내 연결에서 이어서 답할 수 있어요.' };
+  if (t.choose > 0) return { title: '당신이 잠든 사이, ECHO가 먼저 살펴봤어요', detail: t.choose > 1 ? `후보 ${t.choose}명이 와 있어요. 두 사람이 모두 고르면 연결이 열려요.` : '후보 한 명이 와 있어요. 두 사람이 모두 고르면 연결이 열려요.' };
   return null;
 }
 
@@ -97,4 +108,19 @@ export async function fetchAdminMatches(): Promise<AdminMatch[]> {
 
 export async function decideMatch(userA: string, userB: string, decision: 'approve' | 'reject', noCommonOk = false): Promise<{ status: string; first_question?: string; question_source?: 'ai' | 'fixed' }> {
   return serverFunctionRequest('doit-connect', { action: 'admin_decide', userA, userB, decision, ...(noCommonOk ? { noCommonOk: true } : {}) });
+}
+
+export async function fetchMyCandidates(userId: string): Promise<MyCandidates> {
+  const out = await serverFunctionRequest<Partial<MyCandidates>>('doit-connect', { action: 'my_candidates' }, userId);
+  return { eligible: out.eligible === true, missing: Array.isArray(out.missing) ? out.missing : [], prepared: typeof out.prepared === 'number' ? out.prepared : 0, candidates: Array.isArray(out.candidates) ? out.candidates : [] };
+}
+
+/** 후보 고르기. 둘 다 'yes' 일 때만 서버가 연결을 연다(status 'mutual'). 한쪽만이면 'waiting'. */
+export async function chooseCandidate(userId: string, candidateId: string, choice: CandidateChoice): Promise<{ status: 'waiting' | 'mutual' | 'declined' | string; match_id?: string | null }> {
+  return serverFunctionRequest('doit-connect', { action: 'choose', candidateId, choice }, userId);
+}
+
+/** 연결 결과(본인 것만). 추천을 다듬는 데만 쓰고 내 프로필·확정한 말로 올리지 않는다. */
+export async function sendOutcome(userId: string, matchId: string, patch: Partial<Record<OutcomeField, string>>): Promise<void> {
+  await serverFunctionRequest('doit-connect', { action: 'outcome', matchId, ...patch }, userId);
 }

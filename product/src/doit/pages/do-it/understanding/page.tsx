@@ -6,6 +6,7 @@ import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
 import { ECHO_AGENT_ENABLED, agentGet, type AgentSession, type AgentSlot } from '@/doit/lib/agentApi';
 import { AREA_LABEL, areaOf, groupByArea, splitCurrent, type AreaId, type ViewItem } from '@/doit/lib/understandingView';
+import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
 import '@/doit/components/feature/understanding-pages.css';
 
 // 나의 이해 = 「기억한다」(2026-09-26 대표 「FINAL HUMAN UX」 §11~§14 · §30~§33 · §39).
@@ -115,6 +116,8 @@ export default function Understanding() {
           </>
         )}
         <Link className="doit-product-action" to="/doit/conversation">ECHO와 이야기하기 <span aria-hidden="true">↗</span></Link>
+        {/* 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 나의 이해 → 한 번 탭 → ECHO 첫 대화 화면(홈·요약 화면 경유 0). 기록·확정한 말은 그대로 남는다. */}
+        {A_STRUCTURE_SERVER_ENABLED && user && <RestartConversationButton userId={user.id} />}
         <p className="doit-product-footnote">나만 보는 곳이에요. 다른 사람에게 보이는 프로필과는 따로예요.</p>
       </div>
     </MobileLayout>

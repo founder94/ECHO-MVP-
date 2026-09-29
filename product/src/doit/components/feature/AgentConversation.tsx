@@ -25,8 +25,6 @@ interface Props {
   goal?: { id: string; label: string } | null; // v2.4 세션의 관계 목적(기기마다 다를 수 있음)
   onRestart: () => Promise<string | null>;
   onContinue: () => void;
-  // 앱 홈 「처음부터 다시 시작하기」(?restart=1)로 들어오면 확인 창을 연 채로 연다.
-  restartPrompt?: boolean;
 }
 
 const TEXT_MAX = 1000;
@@ -49,7 +47,7 @@ const VOICE_STATE: Record<VoicePhase, [string, string]> = {
 // ECHO Conversation Agent 화면. 질문·진행·저장은 서버(doit-agent)가 정한다. 이 화면은 보이고 보내기만 한다.
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
 // 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
-export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue, restartPrompt = false }: Props) {
+export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue }: Props) {
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,7 +67,6 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [profileOk, setProfileOk] = useState(false); // 「ECHO가 이해한 나」를 [맞아요]로 확인했다(이 기기)
   const [hintFor, setHintFor] = useState<string | null>(null); // 「예시 보기」를 연 질문(질문이 바뀌면 저절로 닫힌다)
   const [choosing, setChoosing] = useState(true);
-  const [restartArmed, setRestartArmed] = useState<false | 'top' | 'bottom' | 'done'>(restartPrompt ? 'top' : false);
   const alive = useRef(true);
   const inFlight = useRef(false);
   const heroStarted = useRef(false);
@@ -171,8 +168,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   });
 
   const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>; // 메뉴(사주·타로 등)는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) — 대화는 서버에 남아 돌아오면 이어진다
-  const restartConfirm = <div className="echo-restart" role="group" aria-label="처음부터 시작하기"><p className="echo-context">지금 대화를 여기서 끝내고 처음부터 다시 시작할까요? 지난 이야기는 지우지 않아요.</p><div className="echo-reactions"><button disabled={!!busy} onClick={() => setRestartArmed(false)}>계속할게요</button><button disabled={!!busy} onClick={restart}>처음부터 시작할게요</button></div></div>;
-  const restartPill = (where: 'top' | 'bottom') => <button className="echo-restart-pill" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed(where)}><RotateCcw size={14} aria-hidden="true" />처음부터 시작하기</button>;
+  // 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 확인 창 없이 한 번 탭 → 새 회차 + ECHO 첫 대화 화면(앱 공통 동작 useRestartConversation · 지난 이야기는 지우지 않음).
+  const restartPill = () => <button className="echo-restart-pill" disabled={!!busy} onClick={restart}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 시작하기</button>;
 
   if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!loadError}>
     {header}
@@ -212,7 +209,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {!done && <div className="echo-steps" role="status" aria-label={`지금까지 ${answered}가지 들었어요`}>
       <span className="echo-steps-count">{answered}가지 들었어요</span>
     </div>}
-    {!done && (restartArmed === 'top' ? restartConfirm : <div className="echo-restart-top">{restartPill('top')}</div>)}
+    {!done && <div className="echo-restart-top">{restartPill()}</div>}
     <p className="echo-eyebrow">{done ? '다 들었어요' : '대화 중'}{!done && voiceUi && <span className="echo-mode-pill">말로 대화 중</span>}</p>
     {/* 2026-09-26 대표 실기기 FAIL USER_CONTEXT_NOT_ACKNOWLEDGED: 서버(AI)가 만든 받아주기 말이 질문 카드 위 작은 회색 줄이라 보이지 않았고,
         그 위 고정 제목 「잘 들었어요. 다음 질문이에요.」가 대신 서 있었다. → 받아주기 말이 있으면 그 말이 제목 자리에 선다(문장은 서버가 준 그대로 · 화면이 만들지 않는다). */}
@@ -248,7 +245,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         {/* 한 번에 할 일 하나(대표 MASTER §10): 소개를 고르기 전에는 아래 소개 카드가 주요 행동이고, 고른 뒤에는 사진이 주요 행동이다. */}
         {introChosen && <button className="echo-primary" disabled={!!busy} onClick={onContinue}>사진 채우러 가기 <ChevronRight size={18} /></button>}
         <Link className="echo-secondary" to="/doit/connections">연결까지 남은 것 보기 <ChevronRight size={18} /></Link>
-        {restartArmed === 'done' ? restartConfirm : <button className="echo-secondary" disabled={!!busy || !!restartArmed} onClick={() => setRestartArmed('done')}>처음부터 시작하기</button>}
+        <button className="echo-secondary" disabled={!!busy} onClick={restart}>처음부터 다시 시작하기</button>
       </div>
     </section>}
     {/* 2026-09-26 MVP FINAL PATCH: 다섯 문답 뒤 「ECHO가 이해한 나」(AI 초안) → [맞아요] / [조금 달라요] / [다시 말할게요]. 확인 뒤에 DO IT MUSIC 카드와 소개·사진 단계. */}
@@ -266,6 +263,6 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
     </form>}
     {!done && <div className="echo-reactions"><button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button><button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button></div>}
-    <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartArmed === 'bottom' ? restartConfirm : restartPill('bottom')}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p></footer>
+    <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartPill()}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p></footer>
   </section>;
 }

@@ -5,9 +5,9 @@
 - 실제 증거가 있는 실패만 ACTUAL 로 적는다. 추정은 HYPOTHESIS, 예문은 SYNTHETIC.
 - 이전 판(v1 9건 · v2 21건)은 지우지 않았다: `docs/claude-final-review-20260916/PATCH-20260925-ab-spike/GOLDEN_FAILURE_LIBRARY_v1_20260925.md`, git 기록.
 - 사용자 피해(감정·정신·시간·물질)는 근거가 있는 것만 적고, 없으면 UNKNOWN.
-- 합계 96건 — 증거 수준: ACTUAL 86 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 50 · ACTUAL_RECONSTRUCTED 1 · CODE 16 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 18 · FOUNDER_STATEMENT 8
-- 상태: UNRESOLVED 43 · MITIGATED 48 · RESOLVED 5
-- 방어 수준: MOCK_VERIFIED 16 · CANDIDATE 53 · NONE 27
+- 합계 103건 — 증거 수준: ACTUAL 93 · CANDIDATE 8 · HYPOTHESIS 2 · 출처: ACTUAL 54 · ACTUAL_RECONSTRUCTED 1 · CODE 17 · SYNTHETIC 1 · CODE+SYNTHETIC 2 · REAL_AI_SCRIPTED 20 · FOUNDER_STATEMENT 8
+- 상태: UNRESOLVED 44 · MITIGATED 54 · RESOLVED 5
+- 방어 수준: MOCK_VERIFIED 19 · CANDIDATE 57 · NONE 27
 - **REAL_AI_VERIFIED · USER_VERIFIED · VERIFIED = 0건.** 실제 AI 실행은 BLOCKED_BY_ENVIRONMENT.
 
 ## 한눈에
@@ -110,6 +110,13 @@
 | GF-94 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-STATUS | 소개 초안 뜻 왜곡 · 미확정 사실화 | Model · Product Contract | HYPOTHESIS | CANDIDATE | MITIGATED |
 | GF-95 | 2026-09-22 배포 · 2026-0 | ACTUAL | CODE | F-ADVISOR | 문서와 실제 처리 불일치 · 잘못된 보고 | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
 | GF-96 | 2026-09-25 실제 AI run 1 | ACTUAL | REAL_AI_SCRIPTED | F-DRIFT | 질문 추상도 과다 · 무거운 질문 | Model · Orchestration | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-97 | 2026-09-28 대표 실기기 iPho | ACTUAL | ACTUAL | F-DEPLOY | 배포 불일치 · Stale Redirect | Infrastructure · Product Contract | CONFIRMED | CANDIDATE | UNRESOLVED |
+| GF-98 | 2026-09-28 대표 실기기 iPho | ACTUAL | ACTUAL | F-EVAL | Mock PASS / 실AI FAIL · 검사 결함 · 잘못된 보고 · Real-State FAIL | Evaluation | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-99 | 2026-09-28 대표 실기기 iPho | ACTUAL | ACTUAL | F-CONTRACT | 제품 계약 불일치 · DESIGN_SYSTEM_LOCK_IGNORED | Product Contract | CONFIRMED | CANDIDATE | MITIGATED |
+| GF-100 | 2026-09-29 QA 실서버 core | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 정정무시 · 오분류 | Model · Orchestration | CONFIRMED | MOCK_VERIFIED | MITIGATED |
+| GF-101 | 2026-09-29 QA 실서버 core | ACTUAL | REAL_AI_SCRIPTED | F-CLASSIFY | 오분류 · 미확정 사실화 | Model · Orchestration | CONFIRMED | MOCK_VERIFIED | MITIGATED |
+| GF-102 | 2026-09-28 prod_app_li | ACTUAL | ACTUAL | F-EVAL | 검사 결함 | Evaluation | MIXED | CANDIDATE | MITIGATED |
+| GF-103 | 2026-09-29 코드 대조(대표 「F | ACTUAL | CODE | F-CONTRACT | 제품 계약 불일치 | Product Contract | CONFIRMED | MOCK_VERIFIED | MITIGATED |
 
 ## GF-01 같은 뜻 질문 반복
 
@@ -3246,3 +3253,523 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | REGRESSION_OF→GF-92(ACTUAL) |
 | 근거 | `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN13_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN14_result.md` · `docs/claude-final-review-20260916/PATCH-20260925-master-ux/REAL_AI_RUN15_result.md` |
+
+## GF-97 STALE_REDIRECT — 폐기된 도메인이 인증 설정에 남아 실제 사용자를 죽은 사이트로 보냄
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DEPLOY — 배포·운영 과정 결함 |
+| 발생 날짜 | 2026-09-28 대표 실기기 iPhone · QA Google 로그인 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — ACTUAL (대표 iPhone 「Site not found」 · QA auth.flow_state.referrer 실측) |
+| 사용자 상황 | QA APP 주소를 thriving-melba → echo-app-qa 로 바꿨지만 Supabase Auth 의 Site URL·Redirect URLs 는 옛 주소 그대로 |
+| 사용자 원문 | Google 로그인 인증 후 melba-b1449a.netlify.app 으로 이동 → Netlify Site not found |
+| AI 행동 | 앱은 redirectTo=https://echo-app-qa.netlify.app/auth/callback 을 보냄 → 허용 목록에 없어 Supabase 가 Site URL(폐기 주소)로 보냄. 실측: echo-app-qa·admin·임의 주소 모두 referrer=https://thriving-melba-b1449a.netlify.app. 운영도 app.do-it.company/auth/callback 이 허용 목록에 없어 referrer=https://do-it.company(브랜드)로 떨어짐(9/13 이후 15건) |
+| 기대 행동 | Site URL = 실제 APP 주소 · 허용 목록에 APP/auth/callback · 폐기 주소 0 |
+| Failure Type | 배포 불일치 · Stale Redirect |
+| 원인 Layer | Infrastructure · Product Contract (원인 확신: CONFIRMED) — 앱 주소를 바꾸는 변경이 인증 설정(Supabase Site URL·Redirect URLs)까지 가지 않았다 — 빌드·배포 검사가 인증 설정을 보지 않았다 |
+| 사용자 피해 · 감정 | 대표 실기기에서 로그인 직후 죽은 사이트 |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **실측 재현 ○** — /auth/v1/authorize?provider=google&redirect_to=<APP>/auth/callback 뒤 auth.flow_state.referrer 가 Site URL 로 기록됨(QA·운영) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | Stale Redirect Guard: 빌드·릴리즈 전에 OAuth Site URL + Redirect Allow List + 실제 APP 도메인이 일치하지 않으면 FAIL(product/scripts/oauth-redirect-guard.mjs) |
+| 실험 결과 | product/scripts/oauth-redirect-guard.mjs |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | 현재 QA·운영 실측 설정을 넣으면 가드가 FAIL, 목표 설정이면 PASS(qa/p0-20260928-realstate.test.mjs) |
+| 실AI 결과 | 해당 없음 |
+| 사용자 결과 | FAIL(대표 iPhone) |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | QA·운영 Auth 설정 변경은 Supabase 대시보드(또는 Auth 설정 권한 토큰) 필요 — 이 세션의 QA 토큰은 Auth 설정 읽기 403 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/scripts/oauth-redirect-guard.mjs` · `product/qa/p0-20260928-realstate.test.mjs` |
+
+## GF-98 REAL_STATE_FAIL — 자동 검사 PASS(18/0)인데 대표 실제 상태에서는 「처음부터 다시 시작하기」가 없음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVAL — 평가 결함(가짜 통과) |
+| 발생 날짜 | 2026-09-28 대표 실기기 iPhone · 온보딩 완료 뒤 화면 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — ACTUAL (대표 iPhone 화면: 사진과 소개 채우기 · 대화 다시 보기 · 홈으로) |
+| 사용자 상황 | /doit/start-journey 의 conversation-choice 단계(대화를 마친 사용자가 오는 「오늘은 무엇부터 할까요?」) |
+| 사용자 원문 | 온보딩 완료 후 현재 화면에 처음부터 다시 시작하기 버튼이 실제로 존재하지 않는다 |
+| AI 행동 | 「모든 진입점 연결 완료 · 18 PASS」 보고. 검사는 이미 있던 버튼(홈·나의 이해·연결·대화 화면)만 찾았고, 새 가입 계정으로 /doit/understanding 에 주소로 바로 들어갔다 — 대표가 실제로 도달한 상태(대화 완료 · start-journey)를 재현하지 않았다 |
+| 기대 행동 | 대표와 같은 상태(대화 완료 계정 · 같은 경로)에서 실제 화면에 버튼이 보이고 한 번 탭으로 새 회차 |
+| Failure Type | Mock PASS / 실AI FAIL · 검사 결함 · 잘못된 보고 · Real-State FAIL |
+| 원인 Layer | Evaluation (원인 확신: CONFIRMED) — 검사 대상이 '버튼이 있는 곳'이었지 '사용자가 도달하는 화면'이 아니었다(존재 검사 ≠ 실제 상태) |
+| 사용자 피해 · 감정 | 완료 보고를 믿고 확인했는데 없음 |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **실제 상태 재현** — QA 새 계정에 약관·목적 · 실제 대화를 끝까지(phase=done) 만든 뒤 /doit/start-journey 에서 화면 렌더 확인 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | Real-State Replay 테스트: 사용자가 실제로 도달하는 상태를 만들어 그 화면의 렌더 결과(보임·눌림·가림 0)를 본다 |
+| 실험 결과 | QA 브랜치 claude/echo-p0-qa-20260927 product/qa-real/qa-restart-realstate.mjs |
+| Mock 결과 | PASS(18/0 · 잘못된 대상) |
+| 부작용 | — |
+| 역검사 결과 | 수정 전 빌드에서는 conversation-choice 화면에 버튼 0 → 테스트 FAIL |
+| 실AI 결과 | 해당 없음 |
+| 사용자 결과 | FAIL(대표 iPhone) |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | QA 실제 상태 재현 PASS 뒤에도 대표 실기기 확인 전 VERIFIED 아님 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/src/doit/pages/do-it/start-journey/page.tsx` · `product/qa/p0-20260928-realstate.test.mjs` |
+
+## GF-99 DESIGN_SYSTEM_LOCK_IGNORED — 화면마다 따로 쓴 불투명 흰색·금색 버튼이 유리 버튼 기준을 깸
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 제품 계약 불일치 |
+| 발생 날짜 | 2026-09-28 대표 실기기 iPhone · 소개 쓰기 화면 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — ACTUAL (대표 iPhone: 「AI가 대신 작성하기」 불투명 흰색 · 「이 글로 바꾸기」 불투명 금색) |
+| 사용자 상황 | 유리 버튼 기준(echo-ui.css)은 클래스 이름으로만 걸렸고, 화면 인라인 style 로 색을 박은 버튼은 기준을 피해 갔다 |
+| 사용자 원문 | ECHO 앱의 투명/글라스 버튼 기준과 불일치 |
+| AI 행동 | 앱 버튼 22곳이 인라인 style 로 불투명 채움(흰 그라데이션·금색·회색·검정) · CSS 18개 규칙이 불투명 채움을 기본값으로 둠 |
+| 기대 행동 | 모든 CTA·선택 버튼 = 공통 유리 버튼(투명 막 + 얇은 흰 테두리 + 흰 글자) · 상태는 막·테두리·흐림으로만 |
+| Failure Type | 제품 계약 불일치 · DESIGN_SYSTEM_LOCK_IGNORED |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — 원인 = 개별 화면별 스타일 작성 / 공통 토큰 미강제 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **코드 재현 ○** — 앱 TSX 버튼 인라인 채움 22곳 · CSS 18규칙(전수 검색) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 공통 GlassButton · glass-button.css(인라인 색도 이김) + 채움 버튼 전수 검사 테스트(qa/p0-20260928-realstate.test.mjs) |
+| 실험 결과 | product/src/doit/components/feature/glass-button.css |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | 인라인 채움 버튼 하나를 되돌리면 전수 검사 테스트 FAIL |
+| 실AI 결과 | 해당 없음 |
+| 사용자 결과 | FAIL(대표 iPhone) |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 대표 실기기 iPhone·Galaxy 확인 전 VERIFIED 아님 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/src/doit/components/feature/glass-button.css` · `product/src/doit/components/feature/GlassButton.tsx` |
+
+## GF-100 CORRECTION_READ_AS_REPAIR — 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」를 모델이 항의(repair)로 읽어 거절한 옛 값이 CONFIRMED 로 남음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-29 QA 실서버 core_live run 90/91 · echo-agent-v2.4.1 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — REAL_AI_SCRIPTED (QA 시험 계정 · 정해 둔 문장 · 실제 AI) |
+| 사용자 상황 | 거절 머리말 + 새 값으로 정정한 턴 |
+| 사용자 원문 | 아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 한두 번 연락하는 게 좋아요 |
+| AI 행동 | 턴 종류를 repair 로 판정 → 정정 엔진·옛 항목 고르기 미실행 → 「매일 연락」이 두 칸에 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞임 |
+| 기대 행동 | 서버가 정정(correction)으로 확정 · 옛 값 SUPERSEDED · 새 값 USER_CORRECTED |
+| Failure Type | 정정무시 · 오분류 |
+| 원인 Layer | Model · Orchestration (원인 확신: CONFIRMED) — 모델 분류 한 번에 의존한 턴 종류 결정 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **실서버 재현 ○**(run 90/91) · 가짜 AI 재현 ○(qa/reject-with-value-correction.test.mjs) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 서버 규칙 rejectWithNewValue → guardKind repair→correction(rule reject_with_value) · v2.4.2 |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | 4/4 PASS · 규칙 없으면 FAIL(반대 검사) |
+| 부작용 | — |
+| 역검사 결과 | qa/reject-with-value-correction.test.mjs 3번 테스트(규칙을 거치지 않으면 매일 연락 잔존) |
+| 실AI 결과 | QA run 94·100 PASS |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | MOCK_VERIFIED |
+| 현재 상태 | QA 실서버 run 94·100 PASS(저장소 근거 파일 없음 → REAL_AI_VERIFIED 로 올리지 않음) · 운영 미배포 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/supabase/functions/doit-agent/agent.ts` · `product/qa/reject-with-value-correction.test.mjs` · `git:9826e36` |
+
+## GF-101 UNSURE_READ_AS_REPAIR — 「잘 모르겠어요」를 모델이 항의(repair)로 읽어 지금 질문이 거절(rejected_meanings)로 기록
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CLASSIFY — 말의 종류 오분류(답·되물음·항의·정정) |
+| 발생 날짜 | 2026-09-29 QA 실서버 core_live run 95 · echo-agent-v2.4.2 |
+| 증거 수준 | ACTUAL |
+| 출처 | REAL_AI_SCRIPTED — REAL_AI_SCRIPTED (QA 시험 계정 · 실제 AI) |
+| 사용자 상황 | 핵심 질문에 모르겠다고만 답한 턴 |
+| 사용자 원문 | 잘 모르겠어요 |
+| AI 행동 | 턴 종류 repair → 지금 질문이 disputed → 매칭 rejected_meanings 에 질문이 들어감 |
+| 기대 행동 | 모르겠다(unsure) = 정상 입력 · 저장 0 · 거절 기록 0 |
+| Failure Type | 오분류 · 미확정 사실화 |
+| 원인 Layer | Model · Orchestration (원인 확신: CONFIRMED) — 모델 분류가 서버 상태(거절 기록)를 바로 바꿈 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **실서버 재현 ○**(run 95) · 가짜 AI 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | guardKind unsure_only 를 repair·correction 에도 적용 · v2.4.3 |
+| 실험 결과 | product/supabase/functions/doit-agent/agent.ts |
+| Mock 결과 | PASS(qa/reject-with-value-correction.test.mjs 4번) |
+| 부작용 | — |
+| 역검사 결과 | guardKind('잘 모르겠는데 주말엔 쉬고 싶어요') 는 규칙 대상 아님 |
+| 실AI 결과 | QA run 100 PASS |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | MOCK_VERIFIED |
+| 현재 상태 | QA 실서버 run 100 PASS(저장소 근거 파일 없음) · 운영 미배포 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/supabase/functions/doit-agent/agent.ts` · `product/qa/reject-with-value-correction.test.mjs` · `git:2f21413` |
+
+## GF-102 HARNESS_FIXED_WAIT — 운영 APP 직접 진입을 고정 5초 뒤 한 번 보고 판정 → 인트로(약 3.3초) 뒤 읽는 중 문구를 화면 실패로 읽음 · WebKit 자동화 멈춤을 제품 FAIL 로 섞음
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVAL — 평가 결함(가짜 통과) |
+| 발생 날짜 | 2026-09-28 prod_app_live WebKit · 2026-09-29 webkit_diag run 106 |
+| 증거 수준 | ACTUAL |
+| 출처 | ACTUAL — ACTUAL (GitHub Actions Playwright WebKit · 운영 app.do-it.company · 로그아웃) |
+| 사용자 상황 | 로그아웃 첫 방문 / → /do-it/intro → /doit/start-journey |
+| 사용자 원문 | — |
+| AI 행동 | 검사가 5초 시점 「내 프로필을 가져오고 있어요.」를 봄 · WebKit 29회 중 3회 page crash(모두 인트로 중 · 배율 3 · JS 오류 0 · 재시도 전부 통과) |
+| 기대 행동 | 의미 있는 화면이 뜰 때까지 기다려 판정 · 자동화 멈춤은 재시도 후 따로 보고 |
+| Failure Type | 검사 결함 |
+| 원인 Layer | Evaluation (원인 확신: MIXED) — 원인 = 검사 타이밍(확인) · 멈춤 = CI WebKit 인트로 캔버스(배율 3 · 1170×2532) 가설 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **실측 ○** run 106: Chrome 20회 멈춤 0 · WebKit 첫 화면 4.1~5.1초 · 멈춤 3/29(배율 3만 · 배율 1은 0/3) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | prod-app-live: meaningful() 대기(최대 20초) + 멈춤 1회 재시도·별도 보고(제품 코드 수정 0) |
+| 실험 결과 | QA 브랜치 product/qa-real/prod-app-live.mjs |
+| Mock 결과 | — |
+| 부작용 | — |
+| 역검사 결과 | run 106 타임라인: 고정 5초 = 읽는 중 · meaningful = 4.1~5.1초에 화면 |
+| 실AI 결과 | 해당 없음 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | CANDIDATE |
+| 현재 상태 | 실기기 Safari 확인 전 인트로 캔버스 가설은 미확정 · 제품 수정 근거 부족 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/src/doit/pages/do-it/start-journey/page.tsx` · `product/src/pages/do-it/intro/page.tsx` |
+
+## GF-103 MATCH_SOURCE_NOT_USER — Agent 매칭 재료(MATCH_SOURCE=agent)가 AI 정리(AI_EXTRACTED)도 공통점·준비 칸 수에 씀
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 제품 계약 불일치 |
+| 발생 날짜 | 2026-09-29 코드 대조(대표 「FINAL RELEASE CLOSING」 매칭 안전 기준) |
+| 증거 수준 | ACTUAL |
+| 출처 | CODE — CODE (agentSource.ts 읽기 · 기본값 legacy 경로는 doit_insights confirmed/corrected 만) |
+| 사용자 상황 | MATCH_SOURCE=agent(기본 꺼짐) 경로 |
+| 사용자 원문 | — |
+| AI 행동 | CONFIRMED 이고 추정만 아니면 AI_EXTRACTED 문장도 공통점으로 상대에게 보일 수 있었음 |
+| 기대 행동 | 매칭 재료 = USER_DIRECT · USER_CONFIRMED · USER_CORRECTED 만 |
+| Failure Type | 제품 계약 불일치 |
+| 원인 Layer | Product Contract (원인 확신: CONFIRMED) — 정보 상태(출처) 기준이 매칭 읽기 쪽에서 강제되지 않음 |
+| 사용자 피해 · 감정 | UNKNOWN |
+| 사용자 피해 · 정신 | UNKNOWN |
+| 사용자 피해 · 시간 | UNKNOWN |
+| 사용자 피해 · 물질 | UNKNOWN |
+| 재현 여부 | **코드 재현 ○** — 수정 전 5 FAIL · 수정 후 92/92(qa/agent-match-source · p0-6 · cross-slot · connect-server) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | agentSource.ts MATCH_SOURCE_TYPES 필터 |
+| 실험 결과 | product/supabase/functions/doit-connect/agentSource.ts |
+| Mock 결과 | PASS |
+| 부작용 | — |
+| 역검사 결과 | qa/agent-match-source.test.mjs 8번 · p0-6 T7 |
+| 실AI 결과 | 해당 없음 |
+| 사용자 결과 | UNKNOWN |
+| 방어 수준 | MOCK_VERIFIED |
+| 현재 상태 | 경로 기본 꺼짐 · 운영 미배포 · 에이전트가 대부분 값을 AI_EXTRACTED 로 저장하므로 이 경로를 켜려면 사용자 확인 단계가 먼저 필요 |
+| Golden Test | 아직 없음 |
+| 관련 실패(Graph) | 없음 |
+| 근거 | `product/supabase/functions/doit-connect/agentSource.ts` · `product/qa/agent-match-source.test.mjs` |
+
+<!-- 2026-09-29 PROD RELEASE 실행 중 새 기록(Claude) -->
+
+## GF-104 RELEASE_ORDER_BYPASSED — PROD APP 게시가 서버 배포·실서버 검증보다 먼저 실행됨(push 트리거 one-shot)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 배포 순서 |
+| 발생 날짜 | 2026-09-29 03:51–03:54 UTC(대표 GO 순서 6단계 APP 이 4·5단계보다 먼저) |
+| 증거 수준 | ACTUAL |
+| 출처 | GitHub run 36518981559(prod-app-release-once.yml · echo-qa push cdfb36c) · deploy 6abb3679e423e7ac98bd9105 |
+| 사용자 상황 | APP 이 에이전트 v2.4.3 배포(04:1x) 전 약 20분 동안 이전 서버 판과 함께 운영 |
+| 사용자 원문 | — |
+| AI 행동 | 워크플로 파일 push 만으로 운영 게시가 실행됨(수동 확인 단계 0) |
+| 기대 행동 | 순서 1→8, 5단계(server live A–H) PASS 뒤에만 APP 게시 |
+| 원인 Layer | Release Process (원인 확신: CONFIRMED) — 게시 조건에 앞 단계 결과가 묶이지 않음 |
+| 사용자 피해 | 실사용자 영향: 그 사이 agent_turn 기록 0건(실측 · SQL 건수만) → 확인된 피해 0 |
+| 재현 여부 | 재현 ○(워크플로 정의가 push 트리거) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 운영 게시 워크플로는 workflow_dispatch + 앞 단계 PASS 표식(run id) 입력을 요구 |
+| 심각도 | HIGH — 대표 GO 순서와 실제 순서가 달라 대표가 보고를 다시 확인해야 함 |
+| 현재 상태 | RECORDED(가드 미구현 · 제안만) |
+
+## GF-105 DEPLOY_GUARD_ADMIN_HOLD — 운영 배포 가드가 HOLD 중인 ADMIN callback 을 필수로 요구
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 절차 가드와 제품 요구 혼동 |
+| 발생 날짜 | 2026-09-29 PROD 준비 |
+| 증거 수준 | ACTUAL |
+| 출처 | product/scripts/oauth-redirect-guard.mjs(prod adminRequired) |
+| 사용자 상황 | APP 만 내보내는 운영 배포 |
+| 사용자 원문 | — |
+| AI 행동 | ADMIN PROD HOLD 인데 admin callback 없음을 FAIL 로 봐서 APP 게시가 막힐 뻔함 |
+| 기대 행동 | HOLD 인 역할은 필수 조건에서 뺀다(APP callback·Site URL·폐기 주소 검사는 그대로) |
+| 원인 Layer | Workflow Guard (CONFIRMED) |
+| 사용자 피해 | 없음(게시 전 발견) |
+| 재현 여부 | 역검사 수정 전 FAIL → 수정 후 PASS(p0-20260928-realstate PROD_APP_ONLY) |
+| 해결 시도(실패한 해결책 포함) | 08ba6e9 |
+| 해결 후보 | MEDIUM |
+| 심각도 | FIXED · CODE_VERIFIED |
+
+## GF-106 TEST_ACCOUNT_EMAIL_LIMIT — PROD 이메일 발송 한도(429)로 두 번째 시험 계정을 못 만듦
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-TEST-INFRA — 시험 계정 준비 |
+| 발생 날짜 | 2026-09-29 PROD 검증 |
+| 증거 수준 | ACTUAL |
+| 출처 | signup 429 over_email_send_rate_limit(04:3x·04:42·04:50 UTC 재시도) |
+| 사용자 상황 | 다른 사용자 격리(G) · 매칭 A/B 상호 선택 E2E |
+| 사용자 원문 | — |
+| AI 행동 | 시험 계정 b 생성 불가 → 두 계정이 필요한 검사가 NOT_MEASURED |
+| 기대 행동 | 운영 검증 전에 확인된 시험 계정 2개 이상 준비 |
+| 원인 Layer | Test Infra (CONFIRMED) — 운영 Auth 이메일 확인 필수 + 기본 발송 한도 |
+| 사용자 피해 | 해당 없음(시험만) |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | Auth 설정 변경 금지(승인 범위 밖) → 한도 풀림 대기 |
+| 해결 후보 | 릴리스 전 단계에 PROD 시험 계정 2개 준비를 체크리스트로 |
+| 심각도 | HIGH — 완료 판정을 막음 |
+| 현재 상태 | OPEN |
+
+## GF-107 TRANSCRIBE_BYTE_DRIFT — MCP 로 서버 함수 원문을 옮겨 적을 때 읽기 경계의 빈 줄 1개가 빠짐
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DEPLOY — 원본 불일치 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v11 배포 |
+| 증거 수준 | ACTUAL |
+| 출처 | get_edge_function 대조: index.ts·failure-intelligence.ts 동일 · agent.ts 107456 B vs 3f0c591 107457 B(389행 빈 줄 1개) |
+| 사용자 상황 | 운영 배포 |
+| 사용자 원문 | — |
+| AI 행동 | Read 도구 한 쪽 끝(389행)에서 빈 줄을 놓침 |
+| 기대 행동 | 배포 파일 = 3f0c591 바이트 동일 |
+| 원인 Layer | Deploy Method (CONFIRMED) — 전송 수단이 파일 복사가 아니라 옮겨 적기 |
+| 사용자 피해 | 동작 차이 0(빈 줄 1개 · 나머지 바이트 전부 동일 확인) |
+| 재현 여부 | 재현 △ |
+| 해결 시도(실패한 해결책 포함) | 재전송은 같은 긴 전송이 끊길 위험이 있어 보류 · 차이를 정확히 기록 |
+| 해결 후보 | PROD 함수 배포 토큰으로 CLI 배포(파일 그대로) · 배포 뒤 바이트 대조는 항상 |
+| 심각도 | LOW |
+| 현재 상태 | RECORDED |
+
+## GF-108 VAGUE_REJECT_EARLY_FINISH — 「그런 뜻 아니야」 뒤 AI 가 이미 한 질문을 다시 내고 서버가 버려 대화가 일찍 끝남
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONVERSATION — 흐름 |
+| 발생 날짜 | 2026-09-29 04:49 UTC PROD UI E2E(chrome galaxy) |
+| 증거 수준 | ACTUAL |
+| 출처 | agent_turn 기록: kind=repair · decision=finish · retry=[asked_before](질문 4개에서 끝) |
+| 사용자 상황 | 모호한 거절 직후 |
+| 사용자 원문 | 그런 뜻 아니야 |
+| AI 행동 | 다음 질문이 이미 한 질문과 같아 서버가 버림 → 질문 없음 → 마침 |
+| 기대 행동 | 같은 칸을 다른 말로 묻거나 한 줄 확인(dispute_check) |
+| 원인 Layer | AI Output + Server Rule (PLAUSIBLE) |
+| 사용자 피해 | 대화가 짧게 끝남(원문 보존·거절 뜻 재등장 0 은 지켜짐) |
+| 재현 여부 | E2E 대화 약 9회 중 2회(04:49 거절 뒤 · 04:59 정정 뒤 — 물을 칸이 남지 않아 마침 · 질문 3개) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | asked_before 로 버린 턴은 한 번 더 다른 질문을 청하거나 dispute_check 로 |
+| 심각도 | MEDIUM |
+| 현재 상태 | OPEN · 이번 릴리스 범위 밖(코드 변경 0) |
+
+## GF-109 LABEL_AS_FACT — AI 가 칸 이름(「연락 · 만남의 속도와 마음을 표현하는 방식」)을 사용자 정보 note 로 저장
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-HALLUCINATION — 정보 상태 |
+| 발생 날짜 | 2026-09-29 04:25 UTC PROD 실서버 검증(romantic 세션) |
+| 증거 수준 | ACTUAL |
+| 출처 | profile.relationship_style.items[0] note=칸 설명 문장 · source_type=AI_EXTRACTED · confirmed_preferences 에 포함 |
+| 사용자 상황 | 연애 목적 대화 |
+| 사용자 원문 | 조용한 곳에서 오래 이야기하는 게 좋아요 |
+| AI 행동 | 사용자가 말하지 않은 문장이 「ECHO가 이해한 나」·요약 재료에 들어감 |
+| 기대 행동 | note 는 사용자 말의 뜻만 · 칸 설명 문장 0 |
+| 원인 Layer | AI Output (CONFIRMED) — 서버 검사에 note==칸 설명 비교 없음 |
+| 사용자 피해 | 매칭 재료에는 안 들어감(AI_EXTRACTED 제외 · H 검사 PASS) |
+| 재현 여부 | 1회 관찰 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | applyTurn 에서 note 가 goal dims/label 과 같으면 버림(서버 규칙 · 승인 필요) |
+| 심각도 | MEDIUM |
+| 현재 상태 | OPEN · 이번 릴리스 범위 밖(코드 변경 0) |
+
+## GF-110 HARNESS_PATH_JOIN — 로컬 브라우저 검사 도구가 경로 비교 실수로 JS 파일 대신 index.html 을 돌려줌(빈 화면)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVALUATION — 검사 도구 |
+| 발생 날짜 | 2026-09-29 04:3x UTC PROD UI E2E 준비 |
+| 증거 수준 | ACTUAL |
+| 출처 | prod-ui-e2e.mjs: LOCAL_DIST=…/pwtool/../dist/app · join() 이 정규화한 경로와 startsWith 비교 불일치 → 모든 자산이 index.html |
+| 사용자 상황 | 검사 환경 |
+| 사용자 원문 | — |
+| AI 행동 | 검사 도구가 빈 화면을 「로그인 실패」로 보고 |
+| 기대 행동 | 경로를 resolve() 로 정규화한 뒤 비교 |
+| 원인 Layer | Evaluation (CONFIRMED) — 제품 아님 |
+| 사용자 피해 | 시간(재실행 3회) |
+| 재현 여부 | 재현 ○ · 수정 뒤 로그인 PASS |
+| 해결 시도(실패한 해결책 포함) | resolve(LOCAL_DIST) |
+| 해결 후보 | LOW |
+| 심각도 | FIXED(검사 도구) |
+
+## GF-111 SANDBOX_PROXY_CERT — 검사 환경 브라우저가 프록시 인증서를 믿지 않아 PROD API 실패처럼 보임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-ENVIRONMENT — 검사 환경 |
+| 발생 날짜 | 2026-09-29 04:4x UTC |
+| 증거 수준 | ACTUAL |
+| 출처 | Chromium goto supabase.co · github.com = ERR_CERT_AUTHORITY_INVALID · 앱 화면 「네트워크 연결을 확인해 주세요」 |
+| 사용자 상황 | 샌드박스 브라우저 |
+| 사용자 원문 | — |
+| AI 행동 | PROD 로그인 실패처럼 보임 |
+| 기대 행동 | TLS 검사를 끄지 않고 Supabase 요청만 Node(프록시 CA 로 검사)로 중계 |
+| 원인 Layer | Environment (CONFIRMED) — 제품 아님 · 같은 PROD Auth 는 서버 직접 호출과 GitHub 실브라우저에서 정상 |
+| 사용자 피해 | 시간 |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | ignoreHTTPSErrors 는 쓰지 않음(금지) |
+| 해결 후보 | route 중계(요청·응답 내용 변경 0) |
+| 심각도 | LOW |
+| 현재 상태 | WORKED_AROUND(검사 도구) |
+
+## GF-112 WEBKIT_EVAL_MISMATCH — WebKit pageerror 「Fetch API cannot load …/purposes」와 같은 요청 200 기록이 한 검사에 함께 나옴
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVALUATION — 판정 불일치 |
+| 발생 날짜 | 2026-09-29 run 36523406968(2건 · iPhone·Galaxy WebKit) |
+| 증거 수준 | ACTUAL |
+| 출처 | 재현 검사 run 118: 18회 중 purposes 오류 0 · 모든 purposes 200 본문 수신 · requestfailed 0 · 이동 중 요청 0 · 화면 오류 문구 0 |
+| 사용자 상황 | 로그아웃 첫 방문 / |
+| 사용자 원문 | — |
+| AI 행동 | 검사가 진단 기록을 제품 FAIL 로 셈 · 새 판정 도구도 처음엔 /login(purposes 요청 없음)을 PRODUCT_BUG 로 잘못 셈 |
+| 기대 행동 | 요청 수명·화면 상태로 판정(제품 오류 = 화면 오류/진행 불가/요청 실패) |
+| 원인 Layer | Evaluation (PLAUSIBLE) — 재현 0/18 · / → /do-it/intro → start-journey 이동 중 앞선 요청이 끊긴 기록으로 추정(증거: 최초 2건만) |
+| 사용자 피해 | 없음(사용자 화면 오류 0) |
+| 재현 여부 | 재현 ×(0/18) |
+| 해결 시도(실패한 해결책 포함) | 판정 규칙 수정(bd7089a) |
+| 해결 후보 | webkit_purposes_diag 모드 유지 |
+| 심각도 | LOW |
+| 현재 상태 | HARNESS/WEBKIT DIAGNOSTIC · 제품 수정 0 |
+
+## GF-113 UNAPPROVED_AGENT_IN_PROD — 승인되지 않은 doit-agent v2.4.4(v12)가 운영에 올라감
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 승인 범위 이탈 |
+| 발생 날짜 | 2026-09-29 04:58:52 UTC(PROD doit-agent v12 · ezbr 88136fc5…) |
+| 증거 수준 | ACTUAL |
+| 출처 | get_edge_function: agent.ts = echo-qa HEAD(54c3326 · PR #19) 바이트 동일 · 실서버 profile.version=echo-agent-v2.4.4 · 같은 시각 GitHub Actions 실행 0(배포 경로 확인 불가) |
+| 사용자 상황 | 운영 서버 |
+| 사용자 원문 | — |
+| AI 행동 | 대표 GO 판(v2.4.3) 대신 QA 최신판이 운영에 배포됨 |
+| 기대 행동 | 운영 = 대표 승인 판만(v2.4.3) · 변경은 새 GO 뒤 |
+| 원인 Layer | Release Process (CONFIRMED 사실 · 배포 주체 확인 불가) |
+| 사용자 피해 | 실사용자 대화 0건(04:58 이후 agent_turn 26건 전부 시험 계정) · 대표가 다시 판단해야 함(HIGH) |
+| 재현 여부 | 해당 없음 |
+| 해결 시도(실패한 해결책 포함) | 되돌리기 보류(운영 변경 = 대표 결정) |
+| 해결 후보 | 운영 함수 배포는 한 경로(승인 워크플로)로만 · 배포 뒤 version 문자열 자동 대조 |
+| 심각도 | HIGH |
+| 현재 상태 | OPEN · 대표 결정 대기 |
+
+## GF-114 EXTRA_APP_PUBLISHES — 승인 RC 게시 뒤 운영 APP 이 두 번 더 게시됨(검증 중 대상이 바뀜)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 검증 대상 변동 |
+| 발생 날짜 | 2026-09-29 04:20(70ebbef) · 04:46(d880ad6) UTC |
+| 증거 수준 | ACTUAL |
+| 출처 | echo-netlify-deploy run 36520734943 · 36522738709(workflow_dispatch · codex/fix-journey-* 브랜치) · Netlify deploy 6abb4292016355fcb285872e 「PROD GO d880ad6 app」 |
+| 사용자 상황 | 운영 APP |
+| 사용자 원문 | — |
+| AI 행동 | 04:46~04:49 UI E2E 가 이미 교체된 3f0c591 파일로 돌아 현재 운영을 증명하지 못함(발견 뒤 현재 deploy 파일로 재실행) |
+| 기대 행동 | 검증 중 운영 게시 0 · 게시마다 검증 대상 갱신 |
+| 원인 Layer | Release Process (CONFIRMED) |
+| 사용자 피해 | 시간(재검사) · 실사용자 영향 확인된 것 0 |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | 현재 deploy 파일로 E2E 재실행 PASS |
+| 해결 후보 | 검증 시작 시 deploy id 고정·검사 끝에 다시 확인 |
+| 심각도 | MEDIUM |
+| 현재 상태 | RECORDED |
+
+## GF-115 MATCH_READINESS_UNREACHABLE — 대화 AI 는 답 3개에서 「충분」으로 마치는데 연결 서버는 답 5개를 요구해 정상 사용자가 매칭 준비에 도달하지 못함
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 서버 간 기준 불일치 |
+| 발생 날짜 | 2026-09-29 05:4x UTC PROD 2계정 매칭 E2E |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 a·b: 새 회차 대화 decision=finish_enough(질문 3개 · 저장 답 3개) → doit-connect my_candidates eligible=false missing=[answers] · 후보 0. 같은 종료는 승인 v2.4.3(04:47:39)에서도 관측 |
+| 사용자 상황 | 사진 3장·소개·목적·연결 동의를 모두 마친 사용자 |
+| 사용자 원문 | — |
+| AI 행동 | Agent 는 enoughInfo(질문 3개 이상 + 칸 4개 확정)로 대화를 마침 · 연결 서버(legacy 기준)는 이번 회차 답 5개(CONNECT_ANSWERS_NEEDED=5)를 요구 |
+| 기대 행동 | 대화를 정상으로 마친 사용자는 연결 준비가 된다(두 서버가 같은 준비 기준) |
+| 원인 Layer | Product Contract (CONFIRMED) — doit-agent agent.ts ENOUGH_SLOTS·MIN_CORE_BEFORE_ENOUGH vs doit-connect index.ts LIMITS.CONNECT_ANSWERS_NEEDED · agent 모드(MATCH_SOURCE=agent)여도 b 는 사용자 출처 칸 2개로 미준비 |
+| 사용자 피해 | 정상 사용자에게 「연결까지 남은 것: 답」이 남고 매칭 루프 전체가 막힘(실사용자 영향: 현재 friend 목적 실사용자 0 · 다른 목적 실사용자 2명도 같은 규칙) |
+| 재현 여부 | 재현 ○(2/2 계정) |
+| 해결 시도(실패한 해결책 포함) | 없음(운영 변경 금지) |
+| 해결 후보 | ① agent.ts: 연결 준비 전에는 finish_enough 로 마치지 않음(MIN_CORE_BEFORE_ENOUGH=5 · 대표 v2.4 「5개 전에 마침」 결정과 충돌) ② doit-connect: Agent 사용자 준비 = 대화 완료 + 사용자 출처 확정 칸 N개(MATCH_SOURCE=agent · AGENT_READY_MIN 조정) — 둘 다 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
+| 심각도 | HIGH(P0 후보 · 매칭 루프 차단) |
+| 현재 상태 | FIX READY(A안 · 대표 결정 2026-09-29) — doit-agent v2.4.5(32abd74): 답 기록 5개 전 「충분」 종료 0 · 더 묻기 상한 2 · 거절 반복이면 준비 미완료로 멈춤. 역검사 v2.4.4 FAIL → v2.4.5 PASS(qa/agent-v245-readiness 7/7) · QA 실서버 2계정 매칭 31/31(답 5/5 · 후보 → 상호 → 연결 → 결과). 운영 게시 완료(대표 승인 2026-09-29 · doit-agent v14 · 3파일 원본과 바이트 일치). 운영 실측: 답 5개 전 조기 종료 0 · 준비 미완료 멈춤 정상 · 2계정 매칭 21/21(b 재실행 1회 뒤). 남은 결함 → GF-117 |
+
+## GF-116 TRANSCRIPTION_DROPPED_BLANK_LINE_PROD — 운영 함수 전사 게시에서 빈 줄 1개 누락(v13)
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-RELEASE — 게시물 ≠ 승인 원본 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v13 |
+| 증거 수준 | ACTUAL |
+| 출처 | 게시 직후 get_edge_function 바이트 대조: agent.ts 1줄(turnPrompt 안 빈 줄) 누락 · index.ts·failure-intelligence.ts 일치 |
+| 기대 행동 | 운영 번들 = 승인 원본(바이트 일치) |
+| 원인 Layer | Release Process (CONFIRMED) — MCP 전사 게시(운영 배포 토큰 없음) · 출력 구간 경계에서 빈 줄 누락(이전 전사 오류와 같은 계열) |
+| 사용자 피해 | 없음(v13 약 66분 동안 시험 계정 외 대화 이벤트 0 · SQL 확인) · 프롬프트 판 해시만 달라짐 |
+| 해결 | 즉시 같은 번들 재게시 v14 → 3파일 바이트 일치 확인 |
+| 해결 후보(재발 방지) | 전사 대신 저장소 파일을 그대로 올리는 운영 배포 경로(대표 승인·토큰 필요) · 그 전까지는 게시 직후 바이트 대조를 필수 절차로 유지 |
+| 심각도 | MEDIUM |
+| 현재 상태 | RESOLVED(v14) |
+
+## GF-117 CONVERSATIONAL_CORRECTION_MISSED — 말로 한 「아니요 + 새 값」 정정이 옛 확정값을 밀어내지 못함(v2.4.5 운영 실측)
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-CORRECTION — 최신 정정 미반영 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v14(v2.4.5) 실서버 확인 |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 a · goal conversation 세션 262da097: 「술 마시면서 시끌벅적하게 이야기하는 게 좋아요」 → AI 「즐겁고 활기찬 분위기도 중요하겠네요」 → 「아니요, 카페에서 이야기하는 게 좋아요」 = kind answer · 옛 값 CONFIRMED 유지 + 새 값은 다른 칸(values_character)에 USER_DIRECT 로 추가 |
+| 기대 행동 | 방금 보인 해석을 고치는 「아니요 + 새 값」은 정정 · 옛 값은 SUPERSEDED |
+| 원인 Layer | Server Rule (CONFIRMED) — v2.4.5 decideKind 는 직전 턴 presented 로 판단하는데, presented 는 AI_EXTRACTED 항목 중 답 글에 글자가 겹칠 때만 기록된다. 이번 옛 값은 원문 그대로 저장(USER_DIRECT)이고 AI 받아주기는 뜻을 바꿔 말해(겹침 부족) presented=null → 정정 판단 불가. 모델도 answer 로 읽음 |
+| 사용자 피해 | 요약·프로필에 거절하려던 옛 값이 지금 사실로 남을 수 있음. 연결 서버(legacy)는 doit_records 원문을 읽으므로 같은 회차의 옛 말도 재료로 남음 |
+| 재현 여부 | 1/1(실제 AI) · 화면 「고치기」 경로는 정상(PASS) |
+| 해결 후보 | ① presented 에 원문 저장 항목(USER_DIRECT)도 포함하고, 받아주기가 그 칸을 짚었는지를 글자 겹침 대신 「직전 턴에 저장된 칸 + 지금 질문이 예/아니요 질문이 아님」으로 판단 ② 「아니요」로 시작하고 지금 질문이 예/아니요 질문이 아닐 때 한 줄 확인(「앞에서 말한 ○○를 고치는 거죠?」) 후 정정 ③ 화면에 「고치기」 버튼을 받아주기 옆에 항상 노출(서버 확정 경로) — 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
+| 심각도 | HIGH(정정 반영은 제품 기준 P0 항목) |
+| 현재 상태 | OPEN · PROD HOLD(추가 게시 0) |
+
+## GF-118 FILL_QUESTION_DUPLICATE_STOPS_NOT_READY — 더 묻기 단계에서 AI 가 이미 한 질문을 되풀이해 준비 미완료(4/5)로 멈춤
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 서버 간 기준 불일치(GF-115 잔여) |
+| 발생 날짜 | 2026-09-29 PROD 2계정 매칭 E2E 1차 |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 b · friend 세션 87f29d3c: 답 3개로 다섯 칸이 모두 채워짐 → 저장 4개 → 더 묻기 질문이 이미 한 질문과 같아(두 번 청해도) 서버가 버림(dropped=asked_before) → decision=finish_not_ready · 연결 자격 미달 · 후보 0 |
+| 기대 행동 | 사용자가 거절하지 않았으면 다른 칸·다른 장면으로 한 번 더 물어 준비 완료 |
+| 원인 Layer | Server Rule (CONFIRMED) — 중복 질문을 버린 뒤 다른 더 묻기 칸으로 대체하지 않고 바로 마침 · 모델이 fill_request 에서 방금 질문을 되풀이 |
+| 사용자 피해 | 정상 사용자가 대화를 마쳤는데 연결 준비가 안 됨(안전하게 멈추지만 매칭 불가) |
+| 재현 여부 | 1/3(운영 friend 대화 3회 중 1회) · 같은 계정 재실행은 5/5 |
+| 해결 후보 | 중복·유사로 버린 질문이 fill 이면 같은 턴에서 다음 fillTargets 칸의 서버 기본 안내로 한 번 더 청하거나, 다음 턴에 fill 을 계속 허용(상한 2 유지) — 코드·검사 후 대표 승인 |
+| 심각도 | HIGH |
+| 현재 상태 | OPEN · PROD HOLD(추가 게시 0) |
+

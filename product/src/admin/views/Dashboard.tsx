@@ -1,7 +1,7 @@
 // 대시보드 — 대표가 20초 안에: 서비스 정상인가 · 사용자가 들어오나 · AI 대화 문제 · 연결이 막혔나 · 신고 · 내가 결정할 것.
 // 숫자는 모두 서버(admin-web · doit-connect)가 실제 표에서 센 값이다. 못 읽은 칸은 「확인 필요」, 기록 칸이 없는 것은 「데이터 없음」.
 import { useState } from 'react';
-import { adminCall, PERIOD_LABEL, type ConnectCandidates, type ConnectMatch, type Overview, type Period } from '../api';
+import { adminCall, PERIOD_LABEL, type ConnectCandidates, type ConnectMatch, type ConnectProposal, type Overview, type Period } from '../api';
 import { useLoad } from '../useLoad';
 import { LevelBadge, Loading, Notice, Section, Stat } from '../ui';
 import { when } from '../format';
@@ -13,9 +13,9 @@ async function loadConnect(): Promise<Connect> {
   try {
     const [c, m] = await Promise.all([
       adminCall<ConnectCandidates & { ok: true }>('doit-connect', { action: 'admin_candidates' }),
-      adminCall<{ matches: ConnectMatch[] }>('doit-connect', { action: 'admin_matches' }),
+      adminCall<{ matches: ConnectMatch[]; proposals?: ConnectProposal[] }>('doit-connect', { action: 'admin_matches' }),
     ]);
-    return { candidates: c, matches: Array.isArray(m.matches) ? m.matches : [], error: null };
+    return { candidates: c, matches: Array.isArray(m.matches) ? m.matches : [], proposals: Array.isArray(m.proposals) ? m.proposals : null, error: null };
   } catch (e) {
     return { candidates: null, matches: null, error: e instanceof Error ? e.message : '연결 자료를 읽지 못했습니다.' };
   }
@@ -46,6 +46,9 @@ export default function Dashboard({ go }: { go: (menu: string) => void }) {
         const approved = connect?.matches ? connect.matches.filter((m) => m.status === 'approved').length : null;
         const talking = connect?.matches ? connect.matches.filter((m) => m.messages > 0).length : null;
         const bothAnswered = connect?.matches ? connect.matches.filter((m) => m.answered >= 2).length : null;
+        // v2.0 실제 만남 = 연결된 두 사람 중 한 사람이라도 「만났어요」라고 직접 남긴 연결 수(서버 기록 · 예전 서버면 null → 데이터 없음).
+        const met = connect?.matches && connect.proposals ? connect.matches.filter((m) => (m.outcomes ?? []).some((o) => o.met === 'yes')).length : null;
+        const waitingChoice = connect?.proposals ? connect.proposals.filter((p) => p.status === 'proposed').length : null;
         const q = d.ai.quality;
         return (
           <>
@@ -105,11 +108,12 @@ export default function Dashboard({ go }: { go: (menu: string) => void }) {
               {connect?.error ? <Notice kind="확인 필요">{connect.error}</Notice> : null}
               <div className="aw-grid">
                 <Stat label="연결 준비 사용자" value={connect?.candidates?.eligible ?? null} />
-                <Stat label="후보(승인 대기)" value={connect?.candidates ? connect.candidates.candidates.length : null} />
+                <Stat label="후보(보내기 전)" value={connect?.candidates ? connect.candidates.candidates.length : null} />
+                <Stat label="후보(선택 기다림)" value={waitingChoice} />
                 <Stat label="둘 다 첫 답" value={bothAnswered} />
                 <Stat label="연결됨" value={approved} />
                 <Stat label="이야기 오감" value={talking} />
-                <Stat label="실제 만남" value={null} missing="데이터 없음" hint="만남을 기록하는 칸 없음" />
+                <Stat label="실제 만남" value={met} missing="데이터 없음" hint="사용자가 직접 남긴 결과 기준" />
               </div>
             </Section>
 

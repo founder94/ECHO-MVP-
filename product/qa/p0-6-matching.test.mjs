@@ -26,8 +26,13 @@ const done = (st) => { st.phase = 'done'; st.current = null; return st; };
 const src = (st) => M.sourceFromProfile(A.matchingProfile(st), st.phase, null);
 const has = (s, t) => s.confirmed.some((n) => n.includes(t));
 
-test('T7 Agent 확정 값 → 매칭 재료에 들어간다', () => {
-  const s = src(done(base()));
+// 2026-09-29 대표 「FINAL RELEASE CLOSING」 매칭 안전: 매칭 재료 = 사용자 출처(USER_DIRECT · USER_CONFIRMED · USER_CORRECTED)만.
+// 에이전트가 AI 정리(AI_EXTRACTED)로만 저장한 값은 CONFIRMED 여도 재료가 아니다 → 사용자가 확인한 값만 흐른다.
+const userConfirmed = (p) => { for (const id of ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries']) for (const i of p[id]?.items ?? []) if (i.source_type === 'AI_EXTRACTED') i.source_type = 'USER_CONFIRMED'; return p; };
+test('T7 Agent 확정 값 → 사용자 확인 값이면 매칭 재료 · AI 정리로만 남은 값은 0', () => {
+  const ai = src(done(base()));
+  assert.deepEqual(ai.confirmed, [], `AI 정리만: ${JSON.stringify(ai.confirmed)}`); assert.equal(ai.ready, false);
+  const s = M.sourceFromProfile(userConfirmed(A.matchingProfile(done(base()))), 'done', null);
   assert.ok(has(s, '친구 같은 만남') && has(s, '약속을 지키는 사람') && has(s, '매일 연락'), JSON.stringify(s.confirmed));
   assert.equal(s.ready, true);
 });
@@ -78,7 +83,7 @@ test('T12 거절한 뜻 A 가 다른 표현으로 AI 정리에 다시 나오면 
   const old = A.matchingProfile(st);
   old.relationship_intent.items.push({ note: '진지한 연애를 원하는 편', quote: '진지하게 생각해요', status: 'CONFIRMED', source_type: 'AI_EXTRACTED', source_turn: 4 });
   assert.ok(!M.sourceFromProfile(old, 'done', null).confirmed.includes('진지한 연애를 원하는 편'));
-  assert.ok(has(s, '말이 잘 통하는 사람'), '다른 사실은 그대로');
+  assert.ok(has(M.sourceFromProfile(userConfirmed(A.matchingProfile(done(st))), 'done', null), '말이 잘 통하는 사람'), '다른 사실은 사용자 확인 값이면 그대로');
   const p = A.matchingProfile(st);
   p.values_character.items.push({ note: '진지한 연애를 원해요', quote: '진지한 연애를 원해요', status: 'CONFIRMED', source_type: 'USER_CORRECTED', source_turn: 9 });
   assert.ok(M.sourceFromProfile(p, 'done', null).confirmed.includes('진지한 연애를 원해요'), '사용자가 나중에 직접 고쳐 말한 값은 사용자 최신 설명이라 쓴다');

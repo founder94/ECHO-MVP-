@@ -65,11 +65,8 @@ export default function StartPage() {
             type="button"
             onClick={() => choose('echo')}
             aria-pressed={selected === 'echo'}
-            className="relative w-full text-left rounded-[20px] p-[18px] min-h-[112px] cursor-pointer transition-all duration-200 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0c1526]/40 focus-visible:ring-offset-2"
-            style={{
-              background: 'linear-gradient(135deg, #e6f5ec 0%, #f2faf4 55%, #edf6ef 100%)',
-              border: selected === 'echo' ? '1.5px solid #0c1526' : '1px solid rgba(12,21,38,0.08)',
-            }}
+            className="echo-glass-btn echo-glass-btn--choice relative w-full text-left rounded-[20px] p-[18px] min-h-[112px] cursor-pointer transition-all duration-200 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0c1526]/40 focus-visible:ring-offset-2"
+            
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10.5px] tracking-[0.3em] font-semibold" style={{ color: 'rgba(12,21,38,0.55)' }}>

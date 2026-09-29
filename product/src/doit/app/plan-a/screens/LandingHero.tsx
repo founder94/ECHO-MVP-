@@ -108,17 +108,8 @@ export function LandingHero({
           transition={{ delay: 0.6, duration: 0.7 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="mt-10 inline-flex w-full max-w-[480px] items-center justify-center gap-2 rounded-full whitespace-nowrap cursor-pointer md:w-[280px]"
-          style={{
-            height: 60,
-            fontFamily: "'Do Hyeon', sans-serif",
-            fontSize: 15,
-            color: "#F5F3EF",
-            background: "linear-gradient(180deg, #3C414D 0%, #363B47 100%)",
-            border: "1px solid rgba(255,255,255,0.22)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.20), 0 4px 16px rgba(0,0,0,0.35)",
-          }}
+          className="echo-glass-btn echo-glass-btn--primary mt-10 inline-flex w-full max-w-[480px] items-center justify-center gap-2 rounded-full whitespace-nowrap cursor-pointer md:w-[280px]"
+          style={{ height: 60, fontFamily: "'Do Hyeon', sans-serif", fontSize: 15 }}
         >
           무료로 시작하기
           <ArrowRight size={18} />

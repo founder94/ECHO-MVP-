@@ -56,7 +56,9 @@ export default function ConnectionApprovals() {
     try {
       const out = await decideMatch(c.user_a, c.user_b, decision, decision === "approve" && c.no_common === true);
       setNotice(decision === "approve"
-        ? `${c.a.nickname} · ${c.b.nickname} 연결을 열었어요. 첫 질문: "${out.first_question ?? ""}"${out.question_source === "fixed" ? " (AI 질문이 검사에 걸려 기본 질문을 썼어요)" : ""}`
+        ? out.status === "proposed"
+          ? `${c.a.nickname} · ${c.b.nickname} 두 사람에게 후보로 보냈어요. 둘 다 「이어지고 싶어요」를 누르면 연결이 열려요.` // v2.0 상호선택
+          : `${c.a.nickname} · ${c.b.nickname} 연결을 열었어요. 첫 질문: "${out.first_question ?? ""}"${out.question_source === "fixed" ? " (AI 질문이 검사에 걸려 기본 질문을 썼어요)" : ""}`
         : `${c.a.nickname} · ${c.b.nickname} 쌍을 넘겼어요. 다시 후보로 나오지 않아요.`);
       await load();
     } catch (e) {

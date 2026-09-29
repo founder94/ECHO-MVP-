@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 import { rmSync, writeFileSync } from "node:fs";
 import AutoImport from "unplugin-auto-import/vite";
+import { brandOriginProblem } from "./scripts/brand-origin-guard.mjs";
 // import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
 
 const base = process.env.BASE_PATH || "/";
@@ -23,6 +24,17 @@ export default defineConfig(({ mode }) => {
   // 사이트 역할(대표 확정 2026-09-21): brand = do-it.company / app = app.do-it.company / 없음 = 통합.
   const siteRole = process.env.VITE_SITE_ROLE || env.VITE_SITE_ROLE || "";
   const appOrigin = (process.env.VITE_APP_ORIGIN || env.VITE_APP_ORIGIN || "https://app.do-it.company").replace(/\/$/, "");
+  // 2026-09-28 P0: 운영 BRAND 에 QA 앱 주소가 들어가 「Site not found」 — 운영/QA 주소가 섞인 BRAND 빌드는 만들지 않는다(scripts/brand-origin-guard.mjs).
+  if (mode === "production") {
+    const problem = brandOriginProblem({
+      siteRole,
+      supabaseUrl,
+      appOrigin: process.env.VITE_APP_ORIGIN || env.VITE_APP_ORIGIN,
+      brandOrigin: process.env.VITE_BRAND_ORIGIN || env.VITE_BRAND_ORIGIN,
+      adminOrigin: process.env.VITE_ADMIN_ORIGIN || env.VITE_ADMIN_ORIGIN,
+    });
+    if (problem) throw new Error(`BRAND build blocked: ${problem}`);
+  }
   // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
   const APP_START_COLOR = "#3fdcb3";
   const ADMIN_HTML = `<!doctype html>
