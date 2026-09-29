@@ -1,0 +1,88 @@
+name: prod-app-release-once
+
+on:
+  push:
+    branches: ['echo-qa']
+    paths:
+      - '.github/workflows/prod-app-release-once.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-app-release-once
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: PROD APP one-shot release
+    runs-on: ubuntu-latest
+    environment: ECHO-PROD
+    timeout-minutes: 30
+    env:
+      SRC_SHA: 3f0c591dc4c012145d2dd409820945b4e6932edd
+      SITE_PROD_APP: ff078012-fe79-4108-a210-201554ab0dea
+      PROD_SUPABASE_URL: https://zyyhhxyupizcqhxqnxuu.supabase.co
+      PROD_SUPABASE_PUBLISHABLE: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn
+      APP_ORIGIN: https://app.do-it.company
+      BRAND_ORIGIN: https://do-it.company
+      ADMIN_ORIGIN: https://admin.do-it.company
+      NETLIFY_CLI: netlify-cli@27.10.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SRC_SHA }}
+          path: src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build pinned PROD APP
+        working-directory: src/product
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          C=${SRC_SHA::7}
+          env VITE_PUBLIC_SUPABASE_URL=$PROD_SUPABASE_URL \
+              VITE_PUBLIC_SUPABASE_ANON_KEY=$PROD_SUPABASE_PUBLISHABLE \
+              VITE_APP_ORIGIN=$APP_ORIGIN \
+              VITE_BRAND_ORIGIN=$BRAND_ORIGIN \
+              VITE_ADMIN_ORIGIN=$ADMIN_ORIGIN \
+              VITE_BUILD_COMMIT=$C \
+              VITE_SITE_ROLE=app \
+              VITE_A_STRUCTURE_SERVER_ENABLED=true \
+              VITE_ECHO_FOLLOWUP_ENABLED=true \
+              VITE_ECHO_AGENT_ENABLED=true \
+              npx vite build --outDir ../../dist/app --emptyOutDir
+      - name: Guard PROD-only build
+        run: |
+          set -euo pipefail
+          test -f dist/app/index.html
+          test "$(find dist/app -name '*.map' | wc -l)" = "0"
+          test "$(grep -rl 'mutniujeiyujhkobadkd' dist/app | wc -l)" = "0"
+          test "$(grep -rl 'thriving-melba-b1449a' dist/app | wc -l)" = "0"
+          test "$(grep -rl 'echo-app-qa' dist/app | wc -l)" = "0"
+          test "$(grep -rl 'netlify.app' dist/app | wc -l)" = "0"
+          grep -rl 'zyyhhxyupizcqhxqnxuu' dist/app >/dev/null
+      - name: Deploy existing PROD APP site only
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$NETLIFY_AUTH_TOKEN"
+          printf '[build]\n  publish = "."\n  command = "echo prebuilt"\n' > dist/app/netlify.toml
+          (cd dist/app && npx -y $NETLIFY_CLI deploy --dir . --site "$SITE_PROD_APP" --prod --no-build --json --message "PROD GO $SRC_SHA app" > /tmp/deploy.json)
+          node -e 'const j=require("/tmp/deploy.json"); if(j.site_id!==process.env.SITE_PROD_APP||!j.deploy_id) process.exit(1); console.log("deploy_id="+j.deploy_id)'
+      - name: Verify live APP
+        run: |
+          set -euo pipefail
+          want=$(sha256sum dist/app/index.html | cut -c1-16)
+          live=""
+          for i in 1 2 3 4 5 6 7 8; do
+            live=$(curl -sS https://app.do-it.company/ | sha256sum | cut -c1-16 || true)
+            [ "$live" = "$want" ] && break
+            sleep 5
+          done
+          [ "$live" = "$want" ]
+          code=$(curl -sS -o /dev/null -w '%{http_code}' https://app.do-it.company/)
+          [ "$code" = "200" ]
+          echo "PASS app.do-it.company index_sha16=$live http=$code"
