@@ -96,6 +96,29 @@ export async function saveProfileText(
   });
 }
 
+// 기존 프로필의 닉네임만 수정한다. 빈 행을 새로 만들지 않고 사진·소개·권한 필드는 건드리지 않는다.
+export async function saveNickname(userId: string, value: string): Promise<string | null> {
+  const nickname = value.trim();
+  if (!nickname || nickname.length > 20) return "닉네임은 1~20자로 적어 주세요.";
+  const supabase = getSupabase();
+  if (!supabase) return "Supabase가 연결되지 않았습니다.";
+
+  try {
+    const { data: auth, error: authError } = await supabase.auth.getSession();
+    if (authError || !userId || auth.session?.user.id !== userId) return "로그인을 다시 확인해 주세요.";
+    const { data, error } = await supabase.from("profiles")
+      .update({ nickname })
+      .eq("id", userId)
+      .select("id,nickname")
+      .maybeSingle();
+    if (error) return error.message;
+    return data?.id === userId && data.nickname === nickname
+      ? null : "프로필을 수정할 수 없어요. 로그인 상태를 확인해 주세요.";
+  } catch {
+    return "연결이 끊겨 저장 결과를 확인하지 못했어요. 입력한 내용은 그대로 두고 다시 시도해 주세요.";
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 프로필 읽기(load) — 재로그인 후 기존 프로필을 화면에 다시 채우는 경로.
 // 저장(save)만 있고 읽기가 없으면 "완료"가 아니므로, 이 함수가 그 빈자리를 메운다.

@@ -594,12 +594,14 @@ export default function StartJourney() {
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
+    const hasExistingProfile = Boolean(readyProfile && [readyProfile.nickname, readyProfile.intro, readyProfile.region, readyProfile.lifeRhythm].some((value) => value?.trim()));
+    const viewOrBuildProfile = () => hasExistingProfile ? navigate("/doit/profile") : goProfile();
     return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
-      <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
+      <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? hasExistingProfile ? "다섯 가지 대화를 마쳤어요. 저장한 프로필을 확인해 보세요." : "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
-      {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 직접 채우기</button></>
-        : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
-        : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
+      {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={viewOrBuildProfile}>{hasExistingProfile ? "내 프로필 보기" : "사진과 소개 직접 채우기"}</button></>
+        : talkDone ? <><button className="echo-primary" onClick={viewOrBuildProfile}>{hasExistingProfile ? "내 프로필 보기" : "사진과 소개 채우기"}</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
+        : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={viewOrBuildProfile}>{hasExistingProfile ? "내 프로필 보기" : "사진과 소개 먼저 채우기"}</button></>}
       {/* 2026-09-28 대표 실기기(iPhone) 「온보딩 뒤 이 화면에 처음부터 다시 시작하기가 없다」: 대화를 시작했으면 여기에도 둔다 — 앱 공통 동작 하나(한 번 탭 · 확인 창 0 · 목적·Profile·지난 대화 유지). */}
       <div className="echo-journey-exit-actions">
         {(talkDone || answered > 0) && user && <RestartConversationButton userId={user.id} className="echo-restart-pill" />}
