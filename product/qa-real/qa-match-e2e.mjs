@@ -4,8 +4,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 const QA_URL = 'https://mutniujeiyujhkobadkd.supabase.co';
-if (process.env.SB_URL !== QA_URL || !process.env.SB_KEY || !process.env.ACCT_FILE || process.env.SIGNUP || process.env.JPEG_FILE) {
-  throw new Error('QA only: explicit QA URL/key and existing test accounts required; account/photo creation disabled');
+if (process.env.SB_URL !== QA_URL || !process.env.SB_KEY || !process.env.ACCT_FILE || !process.env.QA_PAIR_PREFLIGHT_FILE || process.env.SIGNUP || process.env.JPEG_FILE) {
+  throw new Error('QA only: explicit QA URL/key, existing test accounts and read-only pair preflight required; account/photo creation disabled');
 }
 const SB = QA_URL, KEY = process.env.SB_KEY;
 const ACCTS = JSON.parse(readFileSync(process.env.ACCT_FILE, 'utf8'));
@@ -44,7 +44,15 @@ async function prepare(tag) {
 
 const A = await prepare('a'); const B = await prepare('b');
 if (!check('두 계정의 목적 동일', A.purpose === B.purpose)) STOP('purpose');
-// 후보 생성 전에 두 계정의 기존 연결 상태를 확인한다. QA 테스트 전용 목적의 실제 사용자 격리는 별도로 읽기 전용 검증해야 한다.
+// 후보 생성은 읽기 전용 SQL로 확인한 QA 전용 자격 풀(정확히 이 두 계정)에서만 허용한다.
+const preflight = JSON.parse(readFileSync(process.env.QA_PAIR_PREFLIGHT_FILE, 'utf8'));
+if (!check('QA 후보 풀 사전검증: 최근 5분 · 두 계정만', preflight.project === 'mutniujeiyujhkobadkd'
+  && preflight.purpose === A.purpose && preflight.eligibleCount === 2
+  && Array.isArray(preflight.accountIds) && preflight.accountIds.length === 2
+  && [A.uid, B.uid].every((id) => preflight.accountIds.includes(id))
+  && Number.isFinite(Date.parse(preflight.verifiedAt))
+  && Date.now() - Date.parse(preflight.verifiedAt) >= 0
+  && Date.now() - Date.parse(preflight.verifiedAt) < 5 * 60_000)) STOP('pair preflight');
 for (const member of [A, B]) {
   const prior = await fn('doit-connect', member.jwt, { action: 'my_matches' });
   if (!check(`${member.tag}: 기존 연결 0`, prior.status === 200 && prior.data?.matches?.length === 0)) STOP('prior matches');
