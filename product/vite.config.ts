@@ -129,7 +129,7 @@ export default defineConfig(({ mode }) => {
         "/doit/*", "/login", "/signup", "/auth/*", "/legal/consent", "/start", "/home",
         "/weather", "/weather-check", "/story-start", "/step/*", "/understanding-check", "/white-door",
         "/payment/*", "/payment", "/report", "/locker", "/next-journey", "/admin/*", "/admin",
-        "/do-it/fortune", "/do-it/photo", "/do-it/grade",
+        "/do-it/intro", "/do-it/fortune", "/do-it/photo", "/do-it/grade",
       ].map((p) => `${p}  ${appOrigin}${p.replace("*", ":splat")}  302`);
       writeFileSync(resolve(options.dir, "_redirects"), [...rules, "/*    /index.html   200", ""].join("\n"));
     },
