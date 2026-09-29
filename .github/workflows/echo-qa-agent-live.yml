@@ -1,0 +1,31 @@
+name: echo-qa-agent-live
+
+on:
+  push:
+    branches: ['echo-qa']
+    paths:
+      - '.github/workflows/echo-qa-agent-live.yml'
+      - 'product/qa-real/qa-core-live.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core_live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ECHO-QA
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: QA server live check (real AI, production writes 0)
+        working-directory: product
+        run: |
+          set -euo pipefail
+          QA_ANON="$(sed -n 's/^  QA_SUPABASE_ANON: //p' ../.github/workflows/echo-netlify-deploy.yml)"
+          [ -n "$QA_ANON" ] || { echo 'QA public key missing'; exit 1; }
+          export QA_ANON
+          node qa-real/qa-core-live.mjs
