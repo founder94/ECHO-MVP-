@@ -3580,7 +3580,7 @@
 | 기대 행동 | 같은 칸을 다른 말로 묻거나 한 줄 확인(dispute_check) |
 | 원인 Layer | AI Output + Server Rule (PLAUSIBLE) |
 | 사용자 피해 | 대화가 짧게 끝남(원문 보존·거절 뜻 재등장 0 은 지켜짐) |
-| 재현 여부 | 3회 중 1회(다른 2회는 dispute_check 정상) |
+| 재현 여부 | E2E 대화 약 9회 중 2회(04:49 거절 뒤 · 04:59 정정 뒤 — 물을 칸이 남지 않아 마침 · 질문 3개) |
 | 해결 시도(실패한 해결책 포함) | 없음 |
 | 해결 후보 | asked_before 로 버린 턴은 한 번 더 다른 질문을 청하거나 dispute_check 로 |
 | 심각도 | MEDIUM |
@@ -3605,3 +3605,102 @@
 | 해결 후보 | applyTurn 에서 note 가 goal dims/label 과 같으면 버림(서버 규칙 · 승인 필요) |
 | 심각도 | MEDIUM |
 | 현재 상태 | OPEN · 이번 릴리스 범위 밖(코드 변경 0) |
+
+## GF-110 HARNESS_PATH_JOIN — 로컬 브라우저 검사 도구가 경로 비교 실수로 JS 파일 대신 index.html 을 돌려줌(빈 화면)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVALUATION — 검사 도구 |
+| 발생 날짜 | 2026-09-29 04:3x UTC PROD UI E2E 준비 |
+| 증거 수준 | ACTUAL |
+| 출처 | prod-ui-e2e.mjs: LOCAL_DIST=…/pwtool/../dist/app · join() 이 정규화한 경로와 startsWith 비교 불일치 → 모든 자산이 index.html |
+| 사용자 상황 | 검사 환경 |
+| 사용자 원문 | — |
+| AI 행동 | 검사 도구가 빈 화면을 「로그인 실패」로 보고 |
+| 기대 행동 | 경로를 resolve() 로 정규화한 뒤 비교 |
+| 원인 Layer | Evaluation (CONFIRMED) — 제품 아님 |
+| 사용자 피해 | 시간(재실행 3회) |
+| 재현 여부 | 재현 ○ · 수정 뒤 로그인 PASS |
+| 해결 시도(실패한 해결책 포함) | resolve(LOCAL_DIST) |
+| 해결 후보 | LOW |
+| 심각도 | FIXED(검사 도구) |
+
+## GF-111 SANDBOX_PROXY_CERT — 검사 환경 브라우저가 프록시 인증서를 믿지 않아 PROD API 실패처럼 보임
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-ENVIRONMENT — 검사 환경 |
+| 발생 날짜 | 2026-09-29 04:4x UTC |
+| 증거 수준 | ACTUAL |
+| 출처 | Chromium goto supabase.co · github.com = ERR_CERT_AUTHORITY_INVALID · 앱 화면 「네트워크 연결을 확인해 주세요」 |
+| 사용자 상황 | 샌드박스 브라우저 |
+| 사용자 원문 | — |
+| AI 행동 | PROD 로그인 실패처럼 보임 |
+| 기대 행동 | TLS 검사를 끄지 않고 Supabase 요청만 Node(프록시 CA 로 검사)로 중계 |
+| 원인 Layer | Environment (CONFIRMED) — 제품 아님 · 같은 PROD Auth 는 서버 직접 호출과 GitHub 실브라우저에서 정상 |
+| 사용자 피해 | 시간 |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | ignoreHTTPSErrors 는 쓰지 않음(금지) |
+| 해결 후보 | route 중계(요청·응답 내용 변경 0) |
+| 심각도 | LOW |
+| 현재 상태 | WORKED_AROUND(검사 도구) |
+
+## GF-112 WEBKIT_EVAL_MISMATCH — WebKit pageerror 「Fetch API cannot load …/purposes」와 같은 요청 200 기록이 한 검사에 함께 나옴
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-EVALUATION — 판정 불일치 |
+| 발생 날짜 | 2026-09-29 run 36523406968(2건 · iPhone·Galaxy WebKit) |
+| 증거 수준 | ACTUAL |
+| 출처 | 재현 검사 run 118: 18회 중 purposes 오류 0 · 모든 purposes 200 본문 수신 · requestfailed 0 · 이동 중 요청 0 · 화면 오류 문구 0 |
+| 사용자 상황 | 로그아웃 첫 방문 / |
+| 사용자 원문 | — |
+| AI 행동 | 검사가 진단 기록을 제품 FAIL 로 셈 · 새 판정 도구도 처음엔 /login(purposes 요청 없음)을 PRODUCT_BUG 로 잘못 셈 |
+| 기대 행동 | 요청 수명·화면 상태로 판정(제품 오류 = 화면 오류/진행 불가/요청 실패) |
+| 원인 Layer | Evaluation (PLAUSIBLE) — 재현 0/18 · / → /do-it/intro → start-journey 이동 중 앞선 요청이 끊긴 기록으로 추정(증거: 최초 2건만) |
+| 사용자 피해 | 없음(사용자 화면 오류 0) |
+| 재현 여부 | 재현 ×(0/18) |
+| 해결 시도(실패한 해결책 포함) | 판정 규칙 수정(bd7089a) |
+| 해결 후보 | webkit_purposes_diag 모드 유지 |
+| 심각도 | LOW |
+| 현재 상태 | HARNESS/WEBKIT DIAGNOSTIC · 제품 수정 0 |
+
+## GF-113 UNAPPROVED_AGENT_IN_PROD — 승인되지 않은 doit-agent v2.4.4(v12)가 운영에 올라감
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 승인 범위 이탈 |
+| 발생 날짜 | 2026-09-29 04:58:52 UTC(PROD doit-agent v12 · ezbr 88136fc5…) |
+| 증거 수준 | ACTUAL |
+| 출처 | get_edge_function: agent.ts = echo-qa HEAD(54c3326 · PR #19) 바이트 동일 · 실서버 profile.version=echo-agent-v2.4.4 · 같은 시각 GitHub Actions 실행 0(배포 경로 확인 불가) |
+| 사용자 상황 | 운영 서버 |
+| 사용자 원문 | — |
+| AI 행동 | 대표 GO 판(v2.4.3) 대신 QA 최신판이 운영에 배포됨 |
+| 기대 행동 | 운영 = 대표 승인 판만(v2.4.3) · 변경은 새 GO 뒤 |
+| 원인 Layer | Release Process (CONFIRMED 사실 · 배포 주체 확인 불가) |
+| 사용자 피해 | 실사용자 대화 0건(04:58 이후 agent_turn 26건 전부 시험 계정) · 대표가 다시 판단해야 함(HIGH) |
+| 재현 여부 | 해당 없음 |
+| 해결 시도(실패한 해결책 포함) | 되돌리기 보류(운영 변경 = 대표 결정) |
+| 해결 후보 | 운영 함수 배포는 한 경로(승인 워크플로)로만 · 배포 뒤 version 문자열 자동 대조 |
+| 심각도 | HIGH |
+| 현재 상태 | OPEN · 대표 결정 대기 |
+
+## GF-114 EXTRA_APP_PUBLISHES — 승인 RC 게시 뒤 운영 APP 이 두 번 더 게시됨(검증 중 대상이 바뀜)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 검증 대상 변동 |
+| 발생 날짜 | 2026-09-29 04:20(70ebbef) · 04:46(d880ad6) UTC |
+| 증거 수준 | ACTUAL |
+| 출처 | echo-netlify-deploy run 36520734943 · 36522738709(workflow_dispatch · codex/fix-journey-* 브랜치) · Netlify deploy 6abb4292016355fcb285872e 「PROD GO d880ad6 app」 |
+| 사용자 상황 | 운영 APP |
+| 사용자 원문 | — |
+| AI 행동 | 04:46~04:49 UI E2E 가 이미 교체된 3f0c591 파일로 돌아 현재 운영을 증명하지 못함(발견 뒤 현재 deploy 파일로 재실행) |
+| 기대 행동 | 검증 중 운영 게시 0 · 게시마다 검증 대상 갱신 |
+| 원인 Layer | Release Process (CONFIRMED) |
+| 사용자 피해 | 시간(재검사) · 실사용자 영향 확인된 것 0 |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | 현재 deploy 파일로 E2E 재실행 PASS |
+| 해결 후보 | 검증 시작 시 deploy id 고정·검사 끝에 다시 확인 |
+| 심각도 | MEDIUM |
+| 현재 상태 | RECORDED |

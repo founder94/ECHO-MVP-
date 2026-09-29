@@ -79,3 +79,21 @@
 2. 운영 doit-agent `echo-agent-v2.4.3`(= QA v40 소스)
 3. 운영 doit-connect v2.0(75e183d) + `doit_connect_v2_mutual` migration
 4. 운영 APP 게시(1회 · 약 15 크레딧)
+
+## 10. PROD 실행 실측(2026-09-29 03:5x–05:2x UTC · 대표 GO → FINAL CLOSING)
+
+| 항목 | 실측 | 근거 |
+|---|---|---|
+| Auth | Site URL https://app.do-it.company · APP callback 있음 · ADMIN callback 없음(HOLD) | prod_secrets_preflight run 115 |
+| DB | migration doit_connect_v2_mutual 적용 · doit_match_candidates · doit_match_outcomes RLS=true · 정책 0 · service_role 전용 | apply_migration + 읽기 SQL |
+| doit-connect | v7 → v9 · verify_jwt=true · ezbr e6c8c1a465eb22bf… = QA v37 · 3f0c591 바이트 동일 · 실서버 계약 11/11 | get_edge_function 대조 |
+| doit-agent (Claude 배포) | v11 · 3f0c591 v2.4.3 · index.ts·failure-intelligence.ts 바이트 동일 · agent.ts 389행 빈 줄 1개만 차이(빈 줄 제외 전 줄 동일) · 실서버 실제 AI 19/19 | get_edge_function + 기계 diff |
+| doit-agent (현재) | **v12 · 04:58:52 UTC · echo-agent-v2.4.4(echo-qa HEAD 54c3326 바이트 동일) · 배포 주체 확인 불가(GitHub 실행 0) · 대표 미승인** | list/get_edge_function · 실서버 version |
+| APP 게시 이력 | 03:54 6abb3679…(3f0c591) → 04:20(70ebbef) → 04:46 **6abb4292016355fcb285872e「PROD GO d880ad6 app」(현재)** | Netlify get-deploy · run 36518981559/36520734943/36522738709 |
+| 현재 APP 소스 | 3f0c591 + 57c730d·70ebbef·d880ad6(start-journey 화면·CSS · OAuth 가드) · 서버 코드 변경 0 | git diff |
+| APP 파일 | 110개 · 운영 Supabase 1 · QA 0 · melba 0 · echo-*-qa 0 · netlify.app 0 · index-C3MO_4cC.js | run 116 |
+| BRAND | 22/22(Chrome·WebKit × iPhone·Galaxy) · 재배포 0 | run 117 |
+| APP 로그아웃 실사이트 | 24/26 · WebKit 2건 = purposes 진단 기록(재현 0/18) | run 116 · 118 |
+| APP 로그인 E2E(현재 deploy 파일 · PROD 서버) | Chrome Galaxy 13/13 · iPhone 13/13 · WebKit 로그인 E2E = 확인 불가(샌드박스 WebKit 없음 · GitHub 에 비밀번호 전달 금지) | prod-ui-e2e.mjs |
+| 시험 계정 | a b8af5aa0… · b 5dcdf105…(확인 SQL 1건씩) · probe e6b64a4b…(미확인) · 후보·매칭·결과 0 · 삭제 0 | SQL 건수 |
+| 실사용자 영향 | 03:00 이후 agent_turn 58건 전부 시험 계정 · 실사용자 0 | SQL 건수 |
