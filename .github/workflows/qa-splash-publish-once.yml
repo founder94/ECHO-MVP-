@@ -1,0 +1,71 @@
+name: qa-splash-publish-once
+
+on:
+  push:
+    branches: ['chatgpt/qa-splash-publish-once-20260930']
+    paths: ['.github/workflows/qa-splash-publish-once.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-splash-publish-once
+  cancel-in-progress: false
+
+env:
+  NETLIFY_CLI: netlify-cli@27.10.0
+  QA_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+  QA_SUPABASE_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtdXRuaXVqZWl5dWpoa29iYWRrZCIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+  SITE_QA_APP: a9b101c6-121b-4371-adb9-4e42193dca24
+  CANONICAL_SHA: 18157b5e67cb2cd9bdcdb2edc495582491703042
+  EXPECTED_INDEX_SHA16: f5d2c42ff33f17a0
+
+jobs:
+  publish:
+    name: QA APP splash final publish once
+    runs-on: ubuntu-latest
+    environment: ECHO-QA
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        working-directory: product
+        run: npm ci --no-audit --no-fund
+      - name: Build canonical QA APP only
+        working-directory: product
+        run: |
+          set -euo pipefail
+          C="${CANONICAL_SHA:0:7}"
+          env VITE_PUBLIC_SUPABASE_URL="$QA_SUPABASE_URL"               VITE_PUBLIC_SUPABASE_ANON_KEY="$QA_SUPABASE_ANON"               VITE_APP_ORIGIN=https://echo-app-qa.netlify.app               VITE_BRAND_ORIGIN=https://echo-brand-qa.netlify.app               VITE_ADMIN_ORIGIN=https://echo-admin-qa.netlify.app               VITE_BUILD_COMMIT="$C"               VITE_SITE_ROLE=app               VITE_A_STRUCTURE_SERVER_ENABLED=true               VITE_ECHO_FOLLOWUP_ENABLED=true               VITE_ECHO_AGENT_ENABLED=true               npx vite build --outDir ../dist/app --emptyOutDir
+      - name: Verify exact tested artifact before spending credits
+        run: |
+          set -euo pipefail
+          [ -f dist/app/index.html ]
+          [ "$(find dist/app -name '*.map' | wc -l)" = 0 ]
+          ! grep -R -q -- 'zyyhhxyupizcqhxqnxuu' dist/app
+          ! grep -R -q -- 'admin-web' dist/app
+          got="$(sha256sum dist/app/index.html | cut -c1-16)"
+          echo "APP index sha16=$got"
+          [ "$got" = "$EXPECTED_INDEX_SHA16" ] || { echo "HOLD: tested artifact mismatch"; exit 1; }
+      - name: Publish QA APP only (15 credits expected)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$NETLIFY_AUTH_TOKEN" ] || { echo "HOLD: NETLIFY_AUTH_TOKEN missing"; exit 1; }
+          printf '[build]\n  publish = "."\n  command = "echo prebuilt"\n' > dist/app/netlify.toml
+          (cd dist/app && npx -y $NETLIFY_CLI deploy --dir . --site "$SITE_QA_APP" --prod --no-build --json --message "QA splash final ${CANONICAL_SHA:0:7}" > /tmp/deploy.json)
+          node -e 'const j=require("/tmp/deploy.json"); if(j.site_id!==process.env.SITE_QA_APP||!j.deploy_id) process.exit(1); console.log("deploy_id="+j.deploy_id)'
+          live=""
+          for i in 1 2 3 4 5 6; do
+            live="$(curl -s https://echo-app-qa.netlify.app/ | sha256sum | cut -c1-16)"
+            [ "$live" = "$EXPECTED_INDEX_SHA16" ] && break
+            sleep 5
+          done
+          [ "$live" = "$EXPECTED_INDEX_SHA16" ] || { echo "FAIL: live index mismatch $live"; exit 1; }
+          code="$(curl -s -o /dev/null -w '%{http_code}' https://echo-app-qa.netlify.app/)"
+          [ "$code" = "200" ] || { echo "FAIL: HTTP $code"; exit 1; }
+          echo "PASS echo-app-qa HTTP 200 index sha16=$live"
