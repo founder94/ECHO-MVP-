@@ -201,3 +201,22 @@ test('09-30 §4: choices only after unsure/skip, format-checked, server appends 
   const src = readFileSync(here('../src/doit/components/feature/AgentConversation.tsx'), 'utf8');
   assert.match(src, /session\.current_choices\.map\(choice => <button[^>]*onClick=\{\(\) => send\(choice\)\}/, '누르면 그 글자를 보통 답으로 보낸다(화면이 판단하지 않음)');
 });
+
+// QA v69 사람 검토: 보기가 예/아니요뿐 · 모르겠다 뒤 「산책 좋죠!」(다음 질문을 미리 대답) · 정정 뒤 「그렇게 자주 만나면 좋겠네요」(고친 값과 반대) · 「그렇게 말씀하셨네요」.
+test('09-30 v69: yes/no choices rejected; unsafe acks after unsure/correction are dropped', async () => {
+  assert.deepEqual(A.cleanChoices(['네, 좋아요', '아니요, 싫어요']), []);
+  assert.equal(A.unsafeTurnAck('unsure', '산책 좋죠!', '잘 모르겠어요', '친구와 공원에서 산책하면 좋나요?'), true);
+  assert.equal(A.unsafeTurnAck('unsure', '그럴 수도 있죠.', '잘 모르겠어요', '친구와 공원에서 산책하면 좋나요?'), false);
+  assert.equal(A.unsafeTurnAck('correction', '그렇게 자주 만나면 좋겠네요.', '한 달에 한두 번 만나는 게 좋아요', '주말이 편해요?'), true);
+  assert.equal(A.unsafeTurnAck('correction', '아, 한 달에 한두 번이면 딱 좋죠', '한 달에 한두 번 만나는 게 좋아요', '주말이 편해요?'), false);
+  assert.equal(A.unsafeTurnAck('answer', '그렇게 말씀하셨네요.', '고양이 너무 좋지', '고양이 좋아요?'), true);
+  const st = start();
+  await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '친구랑 카페에서 만나면 편해요?') }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  const r = await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ kind: 'unsure', reply: '산책 좋죠!', next: N('contact_rhythm', '친구와 공원에서 산책하면 좋나요?') }))
+    : JSON.stringify({ reply: '' }));
+  assert.equal(r.response.reply, '', '다음 질문을 미리 대답한 받아주기는 빼고 질문만');
+  assert.ok(r.obs.retry.includes('ack_dropped:unsure'));
+});

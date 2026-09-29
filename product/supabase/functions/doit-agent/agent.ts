@@ -346,7 +346,8 @@ next: 다음 질문.
 - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
 - 밝고 가볍게: 친구가 옆에서 바로 이어 묻듯 일상 말로. 받아주기는 짧고 자연스럽게, 질문은 한 문장만. 질문은 가능하면 30자 안쪽으로 짧게 쓴다. 「활동」「빈도」「방식」「선호」 같은 설문 단어를 질문에 쓰지 않는다(사용자가 직접 그 단어를 쓴 경우만 예외). 추상 질문 대신 실제 장면으로 묻는다. 정보의 종류(「어떤 주제로」「어떤 얘기·이야기·대화를」「어떤 활동」「어떤 방식으로」「얼마나 자주」「어떤 걸 같이」)를 묻지 말고, 방금 말에서 떠오른 실제 장면 하나를 한 걸음만 옆으로 묻는다. 대화 감각: 사용자가 좋아하는 대상·장면을 말하면 그 대상의 종류나 그 장면의 바로 다음을 묻는다(분석·정의 대신) — 방금 말의 구체적인 것을 받아 바로 옆을 묻는다. 예시 문장을 만들어 옮겨 쓰지 않는다. 예/아니요로 가볍게 답할 수 있는 장면 질문도 좋다. 성격을 해석하거나 평가하는 말(「배려심이 깊으시네요」 같은)을 붙이지 않는다. 편안함·가치·태도·성향·중요성 같은 추상명사로 묻지 않는다.
 - 질문 말투 기준(묻기 전에 스스로 확인해 check 에 적는다): context = 방금 말·앞선 말과 이어진다 · concrete = 가치·방식·스타일·느낌 같은 추상 낱말만으로 묻지 않고 연락·약속·처음 만났을 때·주말처럼 실제 장면을 떠올릴 수 있다 · answerable = 35~52세 보통 사람이 설명 없이 바로 한 줄로 답할 수 있다. 하나라도 아니면 더 쉬운 문장으로 바꿔서 낸다. 짧은 한 문장, 상담·심리검사·면접 말투 금지.
-- next.choices: kind 가 unsure·skip 일 때만, 새 질문에 바로 고를 수 있는 짧은 답 보기 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이, 실제 장면 말 · 예: 「카페에서 수다」「같이 산책」). 그 밖에는 [] 로 둔다. 「잘 모르겠어요」는 넣지 않는다(서버가 붙인다).
+- next.choices: kind 가 unsure·skip 일 때만, 새 질문에 바로 고를 수 있는 서로 다른 장면 보기 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이 · 예: 「카페에서 수다」「같이 산책」 · 네/아니요 보기 금지). 이때 질문은 그 보기 중 고를 수 있는 모양으로 쓴다. 그 밖에는 [] 로 둔다. 「잘 모르겠어요」는 넣지 않는다(서버가 붙인다).
+- kind 가 correction 이면 reply 는 고친 말의 낱말을 그대로 되받는 짧은 한마디(예: 「아, 한 달에 한두 번이요.」)이거나 비운다. kind 가 unsure·skip 이면 reply 에 다음 질문의 낱말을 미리 쓰지 않는다.
 - next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 한 줄(${HINT_MAX}자 이내, 물음표 없이, 예: 「예: 연락 방식, 약속, 생활습관처럼요.」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
 
 쓰지 않는 단어: 데이팅, 소개팅, 궁합, 점술, 심리치료, 성격검사. 사용자가 말하지 않은 감정·사정을 사실처럼 말하지 않는다. 상담사·면접관·설문 말투와 과장된 공감을 쓰지 않는다.
@@ -570,11 +571,13 @@ export function parseTurn(raw: unknown): Parsed | null {
 // 형식만 본다(12자 · 물음표 0 · 금지어 0 · 내부 이름 0 · 중복 0). 「잘 모르겠어요」는 서버가 끝에 붙이고, 누르면 그 글자가 보통 답으로 간다(저장·판단은 평소대로 서버).
 export const CHOICE_MAX = 12;
 export const CHOICE_UNSURE = "잘 모르겠어요";
+// QA v69: 보기가 「네, 좋아요 / 아니요, 싫어요」뿐이었다(예/아니요는 구조대가 아니다 · 서로 다른 장면이어야 한다).
+const YES_NO_CHOICE = /^(네|예|응|아니(요|오)?|아뇨|좋아요|싫어요|괜찮아요|별로(예요|에요)?)([,\s]|$)/;
 export function cleanChoices(v: unknown): string[] {
   const out: string[] = [];
   for (const c of Array.isArray(v) ? v : []) {
     const t = str(c).trim().replace(/[.!]+$/, "");
-    if (t && t.length <= CHOICE_MAX && !/[?？]/.test(t) && !/모르/.test(t) && !BANNED_WORDS.test(t) && !leaksId(t) && !out.some((o) => squash(o) === squash(t))) out.push(t);
+    if (t && t.length <= CHOICE_MAX && !/[?？]/.test(t) && !/모르/.test(t) && !YES_NO_CHOICE.test(t) && !BANNED_WORDS.test(t) && !leaksId(t) && !out.some((o) => squash(o) === squash(t))) out.push(t);
   }
   return out.length >= 2 ? out.slice(0, 3) : [];
 }
@@ -995,6 +998,17 @@ export function echoQuestion(latest: string, q: string): boolean {
   const heardStems = new Set(words(latest).map((w) => w.slice(0, 2)));
   return qw.filter((w) => w.length >= 2).every((w) => heardStems.has(w.slice(0, 2)));
 }
+// 받아주기 안전 규칙(모르겠다·넘기기·정정 턴만): 모르겠다 뒤에는 다음 질문의 낱말을 미리 말하지 않는다. 정정 뒤에는 고친 말의 낱말을 두 개 이상 되받을 때만 둔다
+// (값을 틀리게 되받는 것보다 받아주기 없이 새 질문으로 가는 편이 낫다). 「말씀하셨네요」 같은 기계 말투는 모든 턴에서 뺀다.
+const STEM_SKIP = new Set(["친구", "그럴", "그렇", "그런", "좋죠", "좋아", "좋네", "좋겠", "괜찮", "맞아", "정말", "진짜"]);
+const stems = (t: string) => new Set(t.replace(/[^가-힣0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2).map((w) => w.slice(0, 2)).filter((w) => !STEM_SKIP.has(w)));
+export function unsafeTurnAck(kind: string, reply: string, user: string, question: string): boolean {
+  if (/말씀하(셨|신|시네)/.test(reply)) return true;
+  const r = stems(reply);
+  if (kind === "unsure" || kind === "skip") { const u = stems(user); return [...r].some((w) => !u.has(w) && stems(question).has(w)); }
+  if (kind === "correction") { const u = stems(user); return [...r].filter((w) => u.has(w)).length < 2; }
+  return false;
+}
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q) || leaksId(q)) return "blocked";
@@ -1021,7 +1035,7 @@ const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나�
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
   const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: "사용자가 방금 앞 답을 고쳤다(latest 가 새 답). asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다. asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 묻는다." } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
-  try { raw = await call(llm, obs, "question", unanswered ? `${QUESTION_REWRITE_PROMPT}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. choices 는 그 질문에 바로 고를 수 있는 짧은 답 보기 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이, 「잘 모르겠어요」 제외).` : QUESTION_REWRITE_PROMPT, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
+  try { raw = await call(llm, obs, "question", unanswered ? `${QUESTION_REWRITE_PROMPT}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. 질문은 보기 가운데 가까운 것을 고를 수 있는 모양(「그럼 이런 느낌 중엔 뭐가 가까워요?」처럼)이고, choices 는 서로 다른 실제 장면 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이 · 예: 「카페에서 수다」「같이 산책」「취미 같이 하기」). 네/아니요 보기와 「잘 모르겠어요」는 넣지 않는다.` : QUESTION_REWRITE_PROMPT, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
   const o = parseJson(raw);
   return { question: str(o?.question).trim(), choices: unanswered ? cleanChoices(o?.choices) : [] };
 }
@@ -1123,6 +1137,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
   if (!after && ackTurn && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: ackBackup }; } // v2.5.5 QA v62 21자 받아주기 방지
   if (!after && ackTurn && out.kind !== "answer") { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: "" }; } // 끝까지 못 고치면 받아주기 없이 질문만(분석 문장보다 낫다)
+  // QA v69 사람 검토: 모르겠다 뒤 「산책 좋죠!」(사용자가 하지 않은 말 · 다음 질문을 미리 대답) · 정정 뒤 「그렇게 자주 만나면 좋겠네요」(고친 값과 반대) · 「그렇게 말씀하셨네요」(기계 말투).
+  if (!after && out.reply && unsafeTurnAck(out.kind, out.reply, work, out.next.question || "")) { out = { ...out, reply: "" }; obs.retry.push(`ack_dropped:${out.kind}`); }
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;
