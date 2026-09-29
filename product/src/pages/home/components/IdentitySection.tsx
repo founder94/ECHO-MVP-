@@ -36,10 +36,10 @@ export default function IdentitySection() {
           </p>
 
           <Link
-            to="/signup"
+            to="/do-it/intro"
             className="inline-flex items-center gap-2 px-8 py-3 rounded-full border border-white/60 text-white text-sm font-semibold hover:bg-white/15 hover:border-white/80 transition-all duration-400 cursor-pointer whitespace-nowrap"
           >
-            오늘의 마음날씨 시작하기
+            모바일 앱 깔기
             <i className="ri-arrow-right-s-line" />
           </Link>
         </AnimatedSection>

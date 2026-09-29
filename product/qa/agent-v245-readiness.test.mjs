@@ -100,14 +100,14 @@ function threeAnswers() {
   A.applyTurn(st, '카페에서 오래 이야기하는 게 좋아요', T({ extracted: [X('attraction_comfort', '카페에서 이야기함', '카페에서 오래 이야기하는 게 좋아요'), X('relationship_style', '오래 이야기함', '오래 이야기하는')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
   return st;
 }
-test('GF-115: 답 기록이 5개 미만이면 「충분」으로 마치지 않고 남은 칸을 묻는다', () => {
+test('v2.5.0: 세 번의 유효한 답으로 확정 영역 4개가 채워지면 고정 5문항을 채우지 않고 마친다', () => {
   const st = threeAnswers();
   const r = A.applyTurn(st, '약속을 잘 지키는 사람이 좋아요', T({ extracted: [X('values_character', '약속을 잘 지킴', '약속을 잘 지키는 사람이 좋아요')], next: N('boundaries', '친구 사이에서 불편한 건 뭐예요?') }));
   assert.equal(A.savedAnswers(st), 3);
-  assert.equal(r.finish, false, `답 3개에서 마침: decision=${st.turns.at(-1).decision}`);
-  assert.equal(r.question_purpose, 'boundaries');
+  assert.equal(r.finish, true, `충분한데 계속 질문함: decision=${st.turns.at(-1).decision}`);
+  assert.equal(st.turns.at(-1).decision, 'finish_enough');
 });
-test('GF-115: 다섯 칸을 다 물었는데 답이 모자라면 모르는 것 하나를 더 묻는다(fill) · 상한 2 · 답 5개가 되면 마침', () => {
+test('v2.5.0: 한 질문을 모르겠다고 넘어가도 확정 영역 4개가 모이면 추가 채우기 질문 없이 마친다', () => {
   const st = start();
   A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')], next: N('attraction_comfort', 'Q2?') }));
   A.applyTurn(st, '잘 모르겠어요', T({ kind: 'unsure', next: N('values_character', 'Q3?') }));
@@ -115,10 +115,8 @@ test('GF-115: 다섯 칸을 다 물었는데 답이 모자라면 모르는 것 �
   A.applyTurn(st, '연락은 이틀에 한 번이 편해요', T({ extracted: [X('relationship_style', '이틀에 한 번 연락', '연락은 이틀에 한 번이 편해요')], next: N('boundaries', 'Q5?') }));
   const r5 = A.applyTurn(st, '갑자기 약속 취소하는 건 싫어요', T({ extracted: [X('boundaries', '갑자기 취소 싫음', '갑자기 약속 취소하는 건 싫어요')], next: N('attraction_comfort', '친구랑 주말에 뭘 하면 즐거우세요?') }));
   assert.equal(A.coreAsked(st).length, 5); assert.equal(A.savedAnswers(st), 4);
-  assert.equal(r5.finish, false, `다섯 칸 뒤 답 4개에서 마침: ${st.turns.at(-1).decision}`);
-  assert.equal(st.current?.type, 'fill');
-  const r6 = A.applyTurn(st, '전시 보러 가는 게 좋아요', T({ extracted: [X('attraction_comfort', '전시 보러 감', '전시 보러 가는 게 좋아요')], next: N('attraction_comfort', 'Q?') }));
-  assert.equal(A.savedAnswers(st), 5); assert.equal(r6.finish, true); assert.ok(['finish', 'finish_enough'].includes(st.turns.at(-1).decision), st.turns.at(-1).decision);
+  assert.equal(r5.finish, true, `충분한데 fill 질문 생성: ${st.turns.at(-1).decision}`);
+  assert.equal(st.asked.filter((q) => q.type === 'fill').length, 0);
   assert.equal(A.matchingProfile(st).readiness?.ready, true);
 });
 test('GF-115: 두 번 연속 모르겠다/넘기기면 끝없이 묻지 않고 「준비 미완료」로 멈춘다', () => {
