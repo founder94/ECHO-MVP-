@@ -7,7 +7,7 @@ import './app-back-button.css';
 // - 위쪽 가운데 작은 알약 모양. 페이지마다 다른 머리글(왼쪽 심볼·오른쪽 링크)과 겹치지 않는 자리다.
 // - 진입 화면(온보딩·랜딩·시작 흐름)과 이미 자기 뒤로가기가 있는 화면에서는 숨긴다(같은 버튼 두 개 금지).
 // - 돌아갈 기록이 없으면(주소로 바로 들어온 경우) 앱은 시작 흐름, 브랜드는 첫 화면으로 보낸다. 빈 화면에 두지 않는다.
-const HIDDEN_PATHS = new Set(['/', '/do-it/intro', '/do-it/hero', '/do-it/landing', '/doit/start-journey', '/auth/callback']);
+const HIDDEN_PATHS = new Set(['/', '/do-it/intro', '/do-it/hero', '/do-it/landing', '/doit/start-journey', '/doit/conversation', '/auth/callback']);
 // 자기 자신(.doit-back-pill)은 제외한다. 포함하면 "있다→숨김→없다→표시"를 무한 반복하며 화면을 막는다(2026-09-22 실제 발생, 수정).
 const OWN_BACK_SELECTOR = '[aria-label="뒤로"], [aria-label="뒤로 가기"]:not(.doit-back-pill), .doit-product-topbar';
 // 지연 불러오기 화면이 그려질 때까지 몇 번만 다시 확인한다(DOM 감시자 대신 시간 확인: 되먹임 고리가 생기지 않는다).
