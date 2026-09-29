@@ -238,7 +238,7 @@ export function decideKind(st: AgentState, text: string, out: { kind: Kind; extr
       const modelFix = out.kind === "correction" || out.kind === "repair";
       if (!hitsCurrent && shape !== "polar") {
         if (modelFix && hit) return { kind: "correction", rule: "no_corrects_prev" }; // 열린·고르기 질문에 「아니요」 + 앞 칸의 새 값 + 모델도 정정으로 읽음 = 앞말 정정
-        if (hit || !out.extracted.length) return { kind: "answer", rule: "fix_check" }; // 어느 쪽인지 서버가 확신할 수 없음 → 지우지 않고 한 번 확인
+        return { kind: "answer", rule: "fix_check" }; // 지금 질문에 대한 답이 아닌 「아니요 + 새 값」 = 앞말을 고치는 뜻일 수 있음 → 지우지 않고 한 번 확인(QA 실측: 새 값이 제3의 칸으로 뽑힘)
       }
       if (!hitsCurrent && shape === "polar" && modelFix && hit) return { kind: "answer", rule: "fix_check" }; // 예/아니요 질문인데 앞 칸만 가리킴 → 한 번 확인
       // 지금 질문 칸에만 새 값 → 보통 답(아래 guardKind)
