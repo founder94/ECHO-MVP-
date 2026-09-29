@@ -10,7 +10,7 @@ const read = (p) => readFileSync(path.join(root, p), 'utf8');
 test('v2.5 human mirror: friend goal does not seed survey words', () => {
   const s = read('supabase/functions/doit-agent/agent.ts');
   const friend = s.slice(s.indexOf('friend: { name: "친구"'), s.indexOf('romantic: { name: "연애"'));
-  for (const word of ['활동', '빈도', '관계 방식', '선호']) assert.ok(!friend.includes(word), word);
+  for (const word of ['활동', '빈도', '방식', '선호']) assert.ok(!friend.includes(word), word);
   assert.match(s, /방금 답에서 태어나야 한다/);
   assert.match(s, /실제 사람이 바로 반응/);
   assert.match(s, /READY_SAVED_ANSWERS = 3/);
@@ -40,7 +40,7 @@ test('one homepage CTA is mobile app install and brand redirects to the app intr
 
 test('v2.5.1 mirror guard rejects analytic acknowledgements and generic person questions', () => {
   const s = read('supabase/functions/doit-agent/agent.ts');
-  assert.match(s, /echo-agent-v2\.5\.1/);
+  assert.match(s, /echo-agent-v2\.5\.2/);
   assert.match(s, /analyticAck/);
   assert.match(s, /genericPersonQuestion/);
   assert.match(s, /원하시네요/);
