@@ -34,7 +34,9 @@ test('시작 화면(설치 앱 splash)은 대표 선택 딥 네이비 · 초록 
 
 test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React 가 뜨면 표시를 떼고, 파스텔 앱 화면 첫 바탕은 그대로', () => {
   const vite = read('vite.config.ts');
-  assert.match(vite, /html\.echo-app-launch-root body \{ background: \$\{APP_LAUNCH_BG\}; \}/);
+  assert.match(vite, /html\.echo-app-launch-root body::after \{ content: ''; position: fixed; inset: 0;/);
+  assert.match(vite, /echo-launch-artwork\.webp/);
+  assert.match(vite, /apple-touch-startup-image/);
   assert.match(vite, /location\.pathname\.indexOf\("\/do-it\/intro"\)===0/);
   assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.remove\(APP_LAUNCH_CLASS\)/);
   assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
