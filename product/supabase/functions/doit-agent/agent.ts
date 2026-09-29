@@ -90,7 +90,7 @@ const SURVEY_QUESTION_WORDS = ["활동", "빈도", "관계 방식", "선호", "�
 export function surveyQuestion(latest: string, question: string): boolean { return SURVEY_QUESTION_WORDS.some((w) => question.includes(w) && !latest.includes(w)); }
 // v2.5.1: 말은 부드러운데 여전히 설문처럼 들리는 대표 실기기 문장 차단.
 // 「어떤 친구/사람과 … 좋을까요?」처럼 사람 유형을 다시 정의하게 하는 질문보다, 방금 말의 구체 장면을 이어 묻는다.
-const GENERIC_PERSON_Q = /^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?\b.*(좋|편|원하|맞)/;
+const GENERIC_PERSON_Q = /^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?[^?]*(좋|편|원하|맞)/;
 export function genericPersonQuestion(question: string): boolean { return GENERIC_PERSON_Q.test(question); }
 // 받아주기가 사용자의 말을 분석 요약하는 문장으로 길어지는 것을 막는다.
 // 짧은 맞장구는 허용하고, 「원하시네요/중요하네요/쪽이네요」처럼 해석 결론을 대신 내려 주는 문장은 다시 만든다.
