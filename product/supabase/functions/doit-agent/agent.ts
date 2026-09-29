@@ -1108,9 +1108,12 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   //   ① 질문 한 문장만 다시 청한다(같은 목적 → 다른 목적 · 최대 2번) ② 앞선 시도 중 규칙을 지킨 질문 ③ 서버 안내 한 줄(대화에 한 번) ④ 그래도 없으면 기록만 남기고 둔다.
   // v2.5.5 QA 장면 C·E: 모르겠다·넘기기·항의·정정 뒤의 새 질문도 같은 기준(「…빈도는 어떻게 되면 좋을까요?」「…친구는 어떤 사람일까요?」가 그대로 나갔다).
   //   모르겠다·넘기기·항의 뒤에는 방금 말에 답이 없으니 「방금 답과 이어짐」 대신 앞선 사용자 말에 기대어 다시 청한다.
-  const answered = out.kind === "answer" || out.kind === "correction";
+  // QA v70 장면 C: AI 가 「help」로 낸 「잘 모르겠어요」를 서버가 뒤에서 unsure 로 고치는데, 질문·받아주기 검사는 AI 의 help 를 보고 건너뛰었다.
+  //   검사는 서버가 확정할 말 종류(guardKind)로 한다(기록·상태 처리는 그대로 applyTurn 이 한다).
+  const kindNow: string = guardKind(work, out.kind, !!ui).kind;
+  const answered = kindNow === "answer" || kindNow === "correction";
   const qBase = answered ? work : (st.turns.at(-1)?.user ?? work);
-  if (!after && !forced && ["answer", "correction", "unsure", "skip", "repair"].includes(out.kind) && out.next.question && questionFlaw(st, qBase, out.next.question, answered) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
+  if (!after && !forced && ["answer", "correction", "unsure", "skip", "repair"].includes(kindNow) && out.next.question && questionFlaw(st, qBase, out.next.question, answered) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
     const pool = openPurposes(st).length ? openPurposes(st) : fillTargets(st);
     const cand = pool.filter((id) => !out!.extracted.some((e) => e.purpose === id));
     const order = [...new Set([out.next.purpose, ...cand].filter((id) => cand.includes(id)))].slice(0, 2);
@@ -1119,7 +1122,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     // v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) → 다른 목적 한 번. 거절된 AI 질문 문장은 기록에 남긴다(사용자 원문 아님 · 40자).
     let rejected: { question: string; why: string } | null = null;
     for (const purpose of [order[0], order[0], order[1]].filter((p): p is string => !!p)) {
-      const { question: q, choices } = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, out.kind === "correction");
+      const { question: q, choices } = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, kindNow === "correction");
       const flaw = q ? questionFlaw(st, qBase, q, answered) : "empty";
       if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null, choices }; obs.retry.push("question_rewrite"); break; }
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
@@ -1131,14 +1134,14 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   }
   // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
   // 2026-09-30 QA 장면 C·E(30회 중 4 FAIL): 모르겠다·정정·넘기기·항의 턴의 받아주기도 같은 기준(짧게 · 분석 0 · 옮겨 쓰기 0). 이 턴들은 받아주기가 비어도 된다.
-  const ackTurn = ["answer", "correction", "unsure", "skip", "repair"].includes(out.kind);
-  const ackBad = (t: string) => (out!.kind === "answer" && !t) || (!!t && (ackCopies(t, work) || analyticAck(t)));
+  const ackTurn = ["answer", "correction", "unsure", "skip", "repair"].includes(kindNow);
+  const ackBad = (t: string) => (kindNow === "answer" && !t) || (!!t && (ackCopies(t, work) || analyticAck(t)));
   if (!after && ackTurn && !ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) { const a = await rewriteAck(st, work, out.next.question || null, llm, obs); if (a) ackBackup = a; } }
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
   if (!after && ackTurn && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: ackBackup }; } // v2.5.5 QA v62 21자 받아주기 방지
-  if (!after && ackTurn && out.kind !== "answer") { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: "" }; } // 끝까지 못 고치면 받아주기 없이 질문만(분석 문장보다 낫다)
+  if (!after && ackTurn && kindNow !== "answer") { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: "" }; } // 끝까지 못 고치면 받아주기 없이 질문만(분석 문장보다 낫다)
   // QA v69 사람 검토: 모르겠다 뒤 「산책 좋죠!」(사용자가 하지 않은 말 · 다음 질문을 미리 대답) · 정정 뒤 「그렇게 자주 만나면 좋겠네요」(고친 값과 반대) · 「그렇게 말씀하셨네요」(기계 말투).
-  if (!after && out.reply && unsafeTurnAck(out.kind, out.reply, work, out.next.question || "")) { out = { ...out, reply: "" }; obs.retry.push(`ack_dropped:${out.kind}`); }
+  if (!after && out.reply && unsafeTurnAck(kindNow, out.reply, work, out.next.question || "")) { out = { ...out, reply: "" }; obs.retry.push(`ack_dropped:${kindNow}`); }
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;

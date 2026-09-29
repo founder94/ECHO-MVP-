@@ -220,3 +220,20 @@ test('09-30 v69: yes/no choices rejected; unsafe acks after unsure/correction ar
   assert.equal(r.response.reply, '', '다음 질문을 미리 대답한 받아주기는 빼고 질문만');
   assert.ok(r.obs.retry.includes('ack_dropped:unsure'));
 });
+
+// QA v70 장면 C9: AI 가 「잘 모르겠어요」를 help 로 내고 설명형 받아주기 + 「얼마나 자주」 질문을 냈다. 서버가 unsure 로 고치는 턴도 같은 검사를 받는다.
+test('09-30 v70: help that the server turns into unsure is checked like unsure (question rewritten, analytic ack removed)', async () => {
+  const st = start();
+  await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '친구랑 카페에서 만나면 편해요?') }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  const r = await A.runTurn(st, '잘 모르겠어요', async (kind) => {
+    if (kind === 'turn') return JSON.stringify(T({ kind: 'help', reply: '예를 들어, 친구와의 연락 방식이나 만나는 빈도 같은 것들이요.', next: N('contact_rhythm', '친구와 연락은 얼마나 자주 하고 싶으세요?') }));
+    if (kind === 'question') return JSON.stringify({ question: '그럼 이런 느낌 중엔 뭐가 가까워요?', choices: ['카페에서 수다', '같이 산책'] });
+    return JSON.stringify({ reply: '괜찮아요.' });
+  });
+  assert.equal(r.response.kind, 'unsure');
+  assert.equal(r.response.question, '그럼 이런 느낌 중엔 뭐가 가까워요?');
+  assert.ok(!A.analyticAck(r.response.reply) && !/빈도/.test(r.response.reply), r.response.reply);
+  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책', '잘 모르겠어요']);
+});
