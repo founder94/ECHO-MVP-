@@ -27,10 +27,19 @@ for (const [dname, opts] of DEV) for (let run = 1; run <= Number(process.env.RUN
       const path0 = (() => { try { return new URL(p.url()).pathname; } catch { return ''; } })();
       const t = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
       const controls = await p.locator('button, a[href], input').count().catch(() => 0);
-      const hasPurpose200 = [...reqs.values()].some((q) => q.status === 200 && typeof q.body === 'number');
+      const purposeRows = [...reqs.values()];
+      const hasPurpose200 = purposeRows.some((q) => q.status === 200 && typeof q.body === 'number');
+      const purposeFailed = purposeRows.some((q) => q.failed);
+      const purposeStarted = purposeRows.length > 0;
       const visibleErrNow = ERRTEXT.test(t);
       const routeReady = path0 !== '/do-it/intro' && path0 !== '/';
-      if (routeReady && (visibleErrNow || controls > 0 || hasPurpose200) && Date.now() - w0 > 3000) break;
+      // start-journey에서는 purposes 요청이 시작됐으면 응답/실패까지 기다린다.
+      // 버튼이 먼저 보였다는 이유로 네트워크 판정을 조기 종료하지 않는다.
+      if (routeReady && Date.now() - w0 > 3000) {
+        if (visibleErrNow || hasPurpose200 || purposeFailed) break;
+        if (path0 !== '/doit/start-journey' && controls > 0) break;
+        if (path0 === '/doit/start-journey' && !purposeStarted && controls > 0 && Date.now() - w0 > 8000) break;
+      }
       await p.waitForTimeout(250);
     } }
   const text = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
