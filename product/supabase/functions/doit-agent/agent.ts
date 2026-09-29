@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.5.3"; // v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.5.4"; // v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -947,6 +947,30 @@ async function rewriteAck(st: AgentState, latest: string, question: string | nul
   return ok ? t : "";
 }
 
+const QUESTION_REWRITE_PROMPT = `너는 ECHO의 다음 질문 한 문장만 자연스럽게 다시 쓴다. JSON {"question":"..."} 하나만 낸다.
+- latest는 사용자가 방금 한 말이다. bad_question의 의도는 유지하되, latest에서 바로 이어지는 말처럼 쓴다.
+- 실제 친구가 바로 묻는 짧은 한국어. 30자 안팎, 최대 34자, 물음표 하나.
+- 「활동」「빈도」「방식」「선호」「가치관」「성향」「중요성」「어떤 주제로」「함께하고 싶으세요」 금지(사용자가 latest에서 직접 쓴 단어는 예외).
+- 「어떤 친구/사람이 좋아요」처럼 사람 유형을 다시 정의하게 묻지 않는다.
+- 처음 만남, 연락, 장소, 방금 나온 이야기처럼 바로 떠올릴 수 있는 실제 장면으로 묻는다.
+- 사용자에게 없는 감정·성격·욕구를 만들지 않는다.`;
+function questionNeedsHumanizing(latest: string, q: string): boolean {
+  return surveyQuestion(latest, q) || genericPersonQuestion(q) || stiffQuestion(q) || !anchored(latest, q);
+}
+async function rewriteQuestion(st: AgentState, latest: string, bad: string, purpose: string, llm: Llm, obs: Obs): Promise<string> {
+  for (let i = 0; i < 2; i++) {
+    let raw = "";
+    try { raw = await call(llm, obs, "turn", QUESTION_REWRITE_PROMPT, { latest, bad_question: bad, purpose: dimLabel(st, purpose), session_goal: goalOf(st).name, tone: TONES[st.tone]?.label ?? "" }); }
+    catch { obs.retry.push("question_rewrite_failed"); continue; }
+    const q = str(parseJson(raw)?.question);
+    const ok = !!q && q.length <= 34 && (q.match(/[?？]/g) ?? []).length === 1 && /[?？]$/.test(q)
+      && !questionNeedsHumanizing(latest, q) && !goalResidue(st, q) && !BANNED_WORDS.test(q) && !leaksId(q) && !questionBlocked(st, q);
+    obs.retry.push(ok ? "question_rewrite" : "question_rewrite_rejected");
+    if (ok) return q;
+  }
+  return "";
+}
+
 // ── 한 턴. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
 // v2.2.4 옛 항목 고르기(정정 턴에만): 지금 저장된 항목(CONFIRMED · 모든 칸)을 번호 목록으로 주고, 이 정정 때문에 더는 사실이 아닌 번호만 고르게 한다.
 // 고른 번호 → 그 항목의 note 글자 그대로를 wrong 에 더한다. 서버는 글자까지 같은 항목과 그 같은 출처 복제만 처리한다(v2.2.3 · 뜻 유사도 삭제 0).
@@ -1006,6 +1030,13 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     break;
   }
   if (!out) return { obs, response: { error: "READ_FAILED" } };
+  // v2.5.4: 세 번 다시 청했는데도 설문/면접 말투가 남으면 그 문장을 그대로 내보내지 않는다.
+  // 같은 모델에게 질문 한 문장만 최대 두 번 다시 쓰게 하고 서버 규칙을 모두 통과한 문장만 채택한다.
+  if (!after && out.kind === "answer" && out.next.question && questionNeedsHumanizing(work, out.next.question)) {
+    const q = await rewriteQuestion(st, work, out.next.question, out.next.purpose, llm, obs);
+    if (!q) return { obs, response: { error: "QUESTION_STYLE" } };
+    out = { ...out, next: { ...out.next, question: q } };
+  }
   if (ui) out = asUiCorrection(out, text, ui); // v2.2.1 P0-5: 화면 정정은 서버가 정정으로 확정
   if (forced) { if (forced.kind === "correction") out = await pickStale(st, work, { ...out, kind: "correction" }, llm, obs); }
   else if (decideKind(st, text, out, !!ui).kind === "correction" && (out.kind === "correction" || !rejectWithNewValue(text))) out = await pickStale(st, text, out, llm, obs); // v2.2.4 CROSS_SLOT_STALE_STATE

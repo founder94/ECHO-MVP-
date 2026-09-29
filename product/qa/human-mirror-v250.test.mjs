@@ -42,7 +42,7 @@ test('one homepage CTA is mobile app install and brand redirects to the app intr
 
 test('v2.5.1 mirror guard rejects analytic acknowledgements and generic person questions', () => {
   const s = read('supabase/functions/doit-agent/agent.ts');
-  assert.match(s, /echo-agent-v2\.5\.3/);
+  assert.match(s, /echo-agent-v2\.5\.4/);
   assert.match(s, /analyticAck/);
   assert.match(s, /genericPersonQuestion/);
   assert.match(s, /원하시네요/);
@@ -58,3 +58,11 @@ test('v2.5.3 keeps follow-up short and rejects stiff survey phrasing', () => {
 });
 
 // v2.5.3 QA trigger
+
+test('v2.5.4 never displays a stubborn survey-style question without a humanizer pass', () => {
+  const s = read('supabase/functions/doit-agent/agent.ts');
+  assert.match(s, /questionNeedsHumanizing/);
+  assert.match(s, /QUESTION_REWRITE_PROMPT/);
+  assert.match(s, /QUESTION_STYLE/);
+  assert.match(s, /question_rewrite/);
+});
