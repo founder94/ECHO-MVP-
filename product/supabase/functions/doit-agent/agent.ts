@@ -107,7 +107,7 @@ export function stiffQuestion(question: string, latest = ""): boolean { return q
 const GENERIC_PERSON_Q = /^\s*(그럼\s*)?어떤\s*(친구|사람|분)(과|와|랑|이랑|이|을|를|한테|에게)?(\s|[?？]|$)|^\s*(그럼\s*)?어떤\s*[가-힣]{1,4}(의|인|한)?\s*(친구|사람|분)(이|가|을|를|와|과|랑)?(\s|[?？]|$)|^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?[^?]*(좋|편|원하|맞)/;
 // 2026-09-30 마감 지시 §3: 문장 끝에서 사람을 정의하게 하는 질문(QA 장면 E v64 「편하게 대화할 수 있는 친구는 어떤 사람일까요?」).
 // 「천천히 알아갈 때 어떤 사람이면 말이 잘 이어질 것 같아요?」처럼 장면에 붙은 질문은 대표가 든 좋은 예라 막지 않는다.
-const PERSON_DEFINE_END = /(친구|사람|분)(은|는)?\s*어떤\s*(사람|친구|분|스타일|타입|유형)(일까요|인가요|이에요|예요|이세요|인지|일까|이야|이면\s*좋)/;
+const PERSON_DEFINE_END = /(친구|사람|분)(은|는)?\s*어떤\s*(사람|친구|분|스타일|타입|유형)(이어야|여야|일까요|인가요|이에요|예요|이세요|인지|일까|이야|이면\s*좋)/; // QA v73 장면 C 「…친구는 어떤 사람이어야 할까요?」
 // 2026-09-30 QA v67 장면 B: 「고양이와 함께할 때 어떤 친구가 좋을까요?」 — 문장 중간이라도 「어떤 친구/사람/분이 좋·괜찮·맞」은 사람 유형을 묻는 말이다.
 const PERSON_PICK = /어떤\s*(친구|사람|분)(이|가|은|는|을|를|이랑|랑|와|과)?\s*(좋|괜찮|맞|어울|편하)/;
 export function genericPersonQuestion(question: string): boolean { return GENERIC_PERSON_Q.test(question) || PERSON_DEFINE_END.test(question) || PERSON_PICK.test(question); }
@@ -1009,10 +1009,18 @@ const STEM_SKIP = new Set(["친구", "그럴", "그렇", "그런", "좋죠", "�
 const stems = (t: string) => new Set(t.replace(/[^가-힣0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2).map((w) => w.slice(0, 2)).filter((w) => !STEM_SKIP.has(w)));
 export function unsafeTurnAck(kind: string, reply: string, user: string, question: string): boolean {
   if (/말씀하(셨|신|시네)/.test(reply)) return true;
+  if ((kind === "unsure" || kind === "skip") && /모르/.test(reply)) return true; // QA v73: 「어디가 좋을지 잘 모르겠네요.」 — 사용자의 모르겠다를 AI 말처럼 되풀이
   const r = stems(reply);
   if (kind === "unsure" || kind === "skip") { const u = stems(user); return [...r].some((w) => !u.has(w) && stems(question).has(w)); }
   if (kind === "correction") { const u = stems(user); return [...r].filter((w) => u.has(w)).length < 2; }
   return false;
+}
+// QA v73 장면 C: 「카페에서 만나면 좋나요?」에 잘 모르겠다고 했는데 바로 「카페에서 수다 떨고 싶어요?」 — 같은 방향 반복(마감 지시 §8-7).
+// 모르겠다·넘기기·항의 뒤 새 질문이 방금 질문의 장면 낱말(흔한 말 제외)을 다시 쓰면 같은 방향으로 본다.
+const DIRECTION_SKIP = new Set([...STEM_SKIP, "편하", "편한", "편해", "편할", "좋은", "좋다", "만나", "만날", "좋나", "좋을", "좋으", "처음", "얘기", "이야", "그럼", "함께", "같이", "싶어", "싶나", "싶으", "어디", "언제", "어떤", "사람", "하면", "있으", "있나", "있을", "주로", "보내", "시간"]);
+export function sameDirection(prev: string, q: string): boolean {
+  const p = new Set([...stems(prev)].filter((w) => !DIRECTION_SKIP.has(w)));
+  return [...stems(q)].some((w) => !DIRECTION_SKIP.has(w) && p.has(w));
 }
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true, stale = ""): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
@@ -1022,6 +1030,7 @@ export function questionFlaw(st: AgentState, latest: string, q: string, anchor =
   if (genericPersonQuestion(q)) return "generic_person";
   if (stiffQuestion(q, latest)) return "stiff_question";
   if (anchor && echoQuestion(latest, q)) return "echo";
+  if (!anchor && st.current?.text && sameDirection(st.current.text, q)) return "same_direction";
   if (anchor && !anchored(latest, q)) return "not_anchored";
   return "";
 }
@@ -1036,7 +1045,7 @@ const QUESTION_REWRITE_PROMPT = `너는 친구처럼 대화를 이어 가는 사
 - 15~25자 한 문장, 물음표 하나로 끝낸다. 「어떤」으로 시작하지 않는다. 방금 말의 장면을 넣어 예/아니요나 둘 중 하나로 가볍게 답할 수 있게 묻는 것을 먼저 고른다. 상담·면접·설문 말투 금지.
 - rejected 가 있으면 그 문장이 왜 안 됐는지(why)를 보고 그 틀을 피한다.
 - asked_before·bad_tries 와 같은 뜻을 다시 묻지 않는다. heard 에 있는 것은 묻지 않는다. avoid_words 의 말은 쓰지 않는다. tone 의 말투를 지킨다.`;
-const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
+const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", same_direction: "방금 모르겠다고 한 질문과 같은 장면(같은 낱말)을 다시 물었다 · 전혀 다른 장면으로", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
   const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
@@ -1138,7 +1147,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
       const like = flaw === "blocked" ? st.asked.map((a) => a.text).sort((x, y) => dice(bare(y), bare(q)) - dice(bare(x), bare(q)))[0] : "";
       rejected = { question: q, why: like ? `${FLAW_WHY.blocked}(「${like}」와 같은 틀 · 다른 문장 모양으로)` : FLAW_WHY[flaw] ?? flaw }; // 2026-09-30 QA v67 장면 E: 정정 뒤 같은 틀(값만 바꾼 질문)을 세 번 내서 안내 한 줄로 떨어졌다
     }
-    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "unsure_paste", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered, staleQ))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
+    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "unsure_paste", "same_direction", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered, staleQ))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && !answered && spareChoices && !questionBlocked(st, choiceQuestionText(st.tone))) { fixed = { type: "core", purpose: spareChoices.purpose, question: choiceQuestionText(st.tone), hint: "", check: null, choices: spareChoices.choices }; obs.retry.push("question_choices"); }
     if (!fixed && cand.length && !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone))) { fixed = { type: "core", purpose: cand[0], question: fillFallbackText(st.tone), hint: "", check: null }; st.fill_fallback_used = true; obs.retry.push("question_fallback"); }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)

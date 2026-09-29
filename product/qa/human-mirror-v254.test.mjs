@@ -278,3 +278,16 @@ test('09-30 §7: after a correction the recomputed next question may resemble th
   assert.equal(r.response.question, NEW_Q3);
   assert.ok(!r.obs.retry.includes('question_fallback'));
 });
+
+// QA v73 사람 검토: 모르겠다 뒤 같은 장면 반복(카페 → 카페) · 「…친구는 어떤 사람이어야 할까요?」 · 「어디가 좋을지 잘 모르겠네요.」
+test('09-30 v73: same direction after unsure, "어떤 사람이어야", and AI-side 모르겠네요 are flaws', () => {
+  assert.equal(A.sameDirection('편하게 얘기할 친구와 카페에서 만나면 좋나요?', '친구와 카페에서 수다 떨고 싶어요?'), true);
+  assert.equal(A.sameDirection('편하게 얘기할 친구와 카페에서 만나면 좋나요?', '친구와 공원에서 산책하면 좋나요?'), false);
+  assert.equal(A.sameDirection('편하게 얘기할 친구와 카페에서 만나면 좋나요?', A.choiceQuestionText('polite')), false);
+  assert.equal(A.genericPersonQuestion('편하게 얘기할 친구는 어떤 사람이어야 할까요?'), true);
+  assert.equal(A.unsafeTurnAck('unsure', '어디가 좋을지 잘 모르겠네요.', '잘 모르겠어요', '친구와 공원에서 산책하면 좋나요?'), true);
+  const st = start();
+  st.current = { type: 'core', purpose: 'relationship_style', text: '편하게 얘기할 친구와 카페에서 만나면 좋나요?' };
+  assert.equal(A.questionFlaw(st, '편하게 얘기할 친구를 찾고 있어요', '친구와 카페에서 수다 떨고 싶어요?', false), 'same_direction');
+  assert.equal(A.questionFlaw(st, '편하게 얘기할 친구를 찾고 있어요', '친구와 공원에서 산책하면 좋나요?', false), '');
+});
