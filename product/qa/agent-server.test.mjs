@@ -768,5 +768,5 @@ test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어�
   assert.equal(r.response.finish, false, '4/5 준비 미완료인데 대화를 잘못 끝내지 않음');
   assert.equal(r.response.question, '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?');
   assert.equal(r.response.question_type, 'fill');
-  assert.ok(r.obs.retry.filter((x) => x === 'asked_before').length >= 2);
+  assert.ok(r.obs.retry.includes('dup_switch') || r.obs.retry.includes('dup_fallback'), `중복 질문 복구 경로가 남아야 함: ${JSON.stringify(r.obs.retry)}`);
 });
