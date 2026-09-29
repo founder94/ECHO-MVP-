@@ -425,7 +425,8 @@ const FIX_NO = /^\s*(아니(요|에요|야)?|아뇨|아냐|아닌데요?|그게\
 // v2.4.7 GF-118 서버가 버릴 질문(이미 한 질문과 같거나 비슷함 · 다른 목적 말 · 금지어)인지 — applyTurn 의 버리기 규칙과 같다.
 export const questionBlocked = (st: AgentState, q: string | null | undefined) => !q || st.asked.some((a) => squash(a.text) === squash(q) || dice(bare(a.text), bare(q)) >= SIMILAR_Q) || goalResidue(st, q) || BANNED_WORDS.test(q);
 // v2.4.7 GF-118 모델이 새 질문을 끝내 못 만들 때의 서버 안내 한 줄(대화에 한 번 · 질문 목록 아님).
-export const fillFallbackText = (tone: Tone) => tone === "casual" ? "이 밖에 이런 사람이면 좋겠다 싶은 게 있으면 한 가지만 편하게 말해 줄래?" : tone === "formal" ? "이 밖에 이런 분이면 좋겠다 싶은 점이 있으면 한 가지만 편하게 말씀해 주시겠어요?" : "이 밖에 이런 사람이면 좋겠다 싶은 게 있으면 한 가지만 편하게 들려줄래요?";
+// 2026-09-30 QA 장면 E: 옛 안내 한 줄(「이 밖에 이런 사람이면 좋겠다 싶은 게…」)은 34자를 넘고 사람 유형을 묻는 말이라 짧은 이어 묻기로 바꾼다.
+export const fillFallbackText = (tone: Tone) => tone === "casual" ? "그 얘기 조금만 더 들려줄래?" : tone === "formal" ? "그 이야기 조금만 더 들려주시겠어요?" : "그 얘기 조금만 더 들려줄래요?";
 export const fixCheckText = (tone: Tone, note: string) => { const n = note ? `「${note}」 부분` : "앞에서 한 말"; return tone === "casual" ? `앞에서 말한 ${n}을 고치는 뜻 맞아?` : tone === "formal" ? `앞에서 말씀하신 ${n}을 고치시는 뜻이 맞습니까?` : `앞에서 말한 ${n}을 고치는 뜻이 맞나요?`; };
 const pairs = (t: string) => { const o = new Set<string>(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
 function dice(a: string, b: string): number { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); }
@@ -968,12 +969,22 @@ async function rewriteAck(st: AgentState, latest: string, question: string | nul
 
 // v2.5.4 대표 「HUMAN MIRROR」: 다음 질문 한 문장이 사람 말 기준을 못 넘는 이유(없으면 "").
 export function questionNeedsHumanizing(latest: string, q: string): boolean { return surveyQuestion(latest, q) || genericPersonQuestion(q) || stiffQuestion(q, latest) || !anchored(latest, q); }
+// 2026-09-30 QA 장면 E(10회 중 7): 방금 답을 거의 그대로 되물었다(「한 달에 한두 번 만나는 게 좋아요」 → 「한 달에 한두 번 만나는 게 편해요?」).
+// 끝 서술어를 뺀 질문 낱말(두 글자 이상)이 모두 방금 말에 이미 있으면 새로 묻는 것이 없는 되묻기로 본다(앞 두 글자로 비교 · 조사·어미 차이 무시).
+export function echoQuestion(latest: string, q: string): boolean {
+  const words = (t: string) => t.replace(/[^가-힣0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  const qw = words(q).slice(0, -1);
+  if (qw.length < 2) return false;
+  const heardStems = new Set(words(latest).map((w) => w.slice(0, 2)));
+  return qw.filter((w) => w.length >= 2).every((w) => heardStems.has(w.slice(0, 2)));
+}
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q) || leaksId(q)) return "blocked";
   if (surveyQuestion(latest, q)) return "survey_tone";
   if (genericPersonQuestion(q)) return "generic_person";
   if (stiffQuestion(q, latest)) return "stiff_question";
+  if (anchor && echoQuestion(latest, q)) return "echo";
   if (anchor && !anchored(latest, q)) return "not_anchored";
   return "";
 }
@@ -982,12 +993,13 @@ const QUESTION_REWRITE_PROMPT = `너는 친구처럼 대화를 이어 가는 사
 - want_to_learn 은 이 대화에서 아직 모르는 것의 이름일 뿐이다. 그 이름을 질문 문장으로 옮기지 않고, 그 이름의 「어떤 ~」 틀도 따르지 않는다.
 - 모양(user_words 가 있을 때): user_words 가운데 한 낱말로 시작해, 처음 연락·첫 만남·만나는 곳·시간·자주 보기 같은 실제 장면 하나를 넣은 예/아니요 질문(「<낱말> …이면 …가 편해요?」 같은 모양 · 낱말과 장면은 이번 대화에서 고른다).
 - 정보의 종류를 묻지 않는다: 「어떤 주제로」「어떤 얘기·이야기·대화를」「어떤 활동」「어떤 방식으로」「얼마나 자주」「어떤 걸 같이」「어떤 친구·사람이 좋아요」 금지. 선호·가치관·성향·중요·편안함 같은 추상어 금지.
+- 방금 말을 그대로 되묻지 않는다(「한 달에 한두 번 만나요」 뒤에 「한 달에 한두 번 만나는 게 편해요?」 금지). 방금 말에 없던 장면(곳·때·처음 연락 등) 하나를 더한다.
 - 방금 말에서 떠오른 실제 장면 하나를 한 걸음만 옆으로 묻는다. user_words 중 하나를 넣거나 그 말에서 바로 이어지는 장면이어야 한다.
 - 대화 감각: 사용자가 말한 대상·장면의 종류나 바로 다음 장면을 묻는다(분석·정의 대신).
 - 15~25자 한 문장, 물음표 하나로 끝낸다. 「어떤」으로 시작하지 않는다. 방금 말의 장면을 넣어 예/아니요나 둘 중 하나로 가볍게 답할 수 있게 묻는 것을 먼저 고른다. 상담·면접·설문 말투 금지.
 - rejected 가 있으면 그 문장이 왜 안 됐는지(why)를 보고 그 틀을 피한다.
 - asked_before·bad_tries 와 같은 뜻을 다시 묻지 않는다. heard 에 있는 것은 묻지 않는다. avoid_words 의 말은 쓰지 않는다. tone 의 말투를 지킨다.`;
-const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
+const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false): Promise<string> {
   let raw: string;
   const input = { ...(rejected ? { rejected } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
@@ -1080,7 +1092,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
       rejected = { question: q, why: FLAW_WHY[flaw] ?? flaw };
     }
-    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "survey_tone", "generic_person", "stiff_question"].includes(questionFlaw(st, qBase, n.question, answered))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
+    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && cand.length && !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone))) { fixed = { type: "core", purpose: cand[0], question: fillFallbackText(st.tone), hint: "", check: null }; st.fill_fallback_used = true; obs.retry.push("question_fallback"); }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }

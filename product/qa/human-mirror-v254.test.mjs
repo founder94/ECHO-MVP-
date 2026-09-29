@@ -159,3 +159,19 @@ test('2026-09-30 QA 장면 C 30회 중 FAIL: 모르겠다 턴의 분석형 받�
   assert.equal(r.response.reply, '', '다시 쓴 받아주기도 길면 비운다');
   assert.equal(r.response.question, '친구와 공원에서 산책하면 좋나요?');
 });
+
+// 2026-09-30 QA v66 사람 검토: 장면 E 10회 중 7회가 방금 답을 거의 그대로 되물었다. 서버가 되묻기를 다시 청하고, 마지막 안내 한 줄도 짧은 이어 묻기로.
+test('09-30 v66: echo of the last answer is a question flaw; the fallback line is short and not a person-type ask', () => {
+  const L = '한 달에 한두 번 만나는 게 좋아요';
+  assert.equal(A.echoQuestion(L, '한 달에 한두 번 만나는 게 편해요?'), true);
+  assert.equal(A.echoQuestion('일주일에 세 번 만나는 게 좋아요', '일주일에 세 번 만나면 더 좋을까요?'), true);
+  assert.equal(A.echoQuestion(L, '한 달에 한두 번 만나는 게 좋으면 주말이 편해요?'), false);
+  assert.equal(A.echoQuestion('고양이 너무 좋지', '고양이와 함께하는 시간은 즐거워요?'), false);
+  assert.equal(A.questionFlaw(start(), L, '한 달에 한두 번 만나는 게 편해요?'), 'echo');
+  for (const tone of ['polite', 'casual', 'formal']) {
+    const f = A.fillFallbackText(tone);
+    assert.ok(f.length <= 25 && /[?？]$/.test(f), f);
+    assert.equal(A.genericPersonQuestion(f), false);
+    assert.equal(A.stiffQuestion(f, L), false);
+  }
+});
