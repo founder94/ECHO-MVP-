@@ -45,9 +45,11 @@
 
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { agentSources, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
-// MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
-const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
+import { agentSources, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27)
+// ECHO Agent 대화가 있는 사용자는 Agent 의 사용자 확인 상태를 매칭 재료로 쓴다.
+// Agent 세션이 없는 기존 사용자는 아래 members() 에서 기존 답 기록으로 돌아간다.
+// 명시적 legacy 설정은 긴급 복구용으로 유지한다.
+const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "agent").trim() === "agent" ? "agent" : "legacy";
 
 type Json = Record<string, unknown>;
 type Db = SupabaseClient;
