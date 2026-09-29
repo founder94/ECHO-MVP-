@@ -1,0 +1,221 @@
+{
+  "at": "2026-09-13T12:57:04.907Z",
+  "note": "합성 대체음(stub) 사용 · 원음·청취 검사 아님",
+  "counters": {
+    "track1": 11,
+    "track2": 5,
+    "youtube": 0,
+    "supabase": 0,
+    "otherExternal": 83,
+    "staticCdn": 54
+  },
+  "externalRequestsSample": [
+    "fonts.googleapis.com/css2",
+    "cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "fonts.googleapis.com/css2",
+    "cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css",
+    "fonts.googleapis.com/css2",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/9f9467758f384952b2b7be95c66346bb.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/fa4d2c87287d86610de3616874542765.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/9eacf987b509a7f1e82d97b336aad767.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/00e22a08c8c91bffb4d4897c1dd0f382.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/698ef6ca1ef9cb8b612105afcf45e0c4.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/037abbccdd29e65701c7e52e41c7649b.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/d34dcd844cc13206ef636387c0d2c60c.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/380788c2eefdeec83ae8e7348973e76f.png",
+    "static.readdy.ai/image/e224f7e72060e6f454dd03772ed2f9f9/92fd366464141c8ebb1faf9c6bc2d87b.png",
+    "fonts.googleapis.com/css2",
+    "cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "fonts.googleapis.com/css2",
+    "cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+  ],
+  "results": [
+    {
+      "name": "배치: 09 구간 시작하기 버튼 바로 아래(카드 상단 > 버튼 하단, 간격<80px)",
+      "pass": true,
+      "detail": "btnBottom=482 cardTop=502"
+    },
+    {
+      "name": "카드 1개만 렌더",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "홈 BGM(YouTube) 랜딩에 없음: iframe 0 · youtube 요청 0",
+      "pass": true,
+      "detail": "yt=0"
+    },
+    {
+      "name": "A. 최초 무음(자동재생 없음): Audio 1개, paused, 요청 0",
+      "pass": true,
+      "detail": "{\"n\":1,\"src\":\"\",\"ct\":0,\"paused\":true,\"ended\":false,\"err\":null}"
+    },
+    {
+      "name": "A. 선택 전 재생·끄기 버튼 disabled",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "A. 원음 1 클릭 → 실제 재생(playing) · currentTime 증가",
+      "pass": true,
+      "detail": "ct 0.17→0.88"
+    },
+    {
+      "name": "A. 재생 표시 = playing 이벤트 기준(버튼 라벨 일시정지)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "J. 표시 시간 ≈ 실제 currentTime",
+      "pass": true,
+      "detail": "0:00 / 0:05"
+    },
+    {
+      "name": "D. 일시정지: paused · 위치 유지(0.8s 후 동일)",
+      "pass": true,
+      "detail": "ct=1.03"
+    },
+    {
+      "name": "D. 재개: 같은 위치에서 이어짐(리셋 아님)",
+      "pass": true,
+      "detail": "resume ct=1.11 (paused at 1.03)"
+    },
+    {
+      "name": "B. 원음 1→2 전환: src=원음2 · 재생 중 · Audio 인스턴스 여전히 1개(동시 재생 불가)",
+      "pass": true,
+      "detail": "n=1"
+    },
+    {
+      "name": "J. 전환 직후 표시 초기화(0:0x / 0:03)",
+      "pass": true,
+      "detail": "0:00 / 0:03"
+    },
+    {
+      "name": "E. 음악 끄기: paused · src 비움 · 2.5s 후에도 재시작 없음",
+      "pass": true,
+      "detail": "src=\"http://127.0.0.1:4175/do-it/landing\""
+    },
+    {
+      "name": "E. 끄기 후 표시 0:00 / 0:00",
+      "pass": true,
+      "detail": "0:00 / 0:00"
+    },
+    {
+      "name": "C. 이어 듣기 시작: 원음 1 재생",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "C. 원음 1 종료 → 원음 2 자동 이어 재생(같은 엘리먼트)",
+      "pass": true,
+      "detail": "ct=0.17"
+    },
+    {
+      "name": "C. 원음 2 종료 → 정지 · 2.5s 후 재시작 없음(무한반복 없음)",
+      "pass": true,
+      "detail": "paused=true ended=true"
+    },
+    {
+      "name": "J. 종료 후 표시 0:00 / 0:03 · 버튼 라벨 재생",
+      "pass": true,
+      "detail": "0:00 / 0:03"
+    },
+    {
+      "name": "C. 이어 듣기 전체 동안 트랙 요청 횟수 정상(원음1 1회·원음2 1회 추가)",
+      "pass": true,
+      "detail": "{\"track1\":2,\"track2\":2,\"youtube\":0,\"supabase\":0,\"otherExternal\":9,\"staticCdn\":6}"
+    },
+    {
+      "name": "G. 느린 로딩 중 끄기 → 늦은 응답 후에도 정지 유지 · 오류 안내 없음",
+      "pass": true,
+      "detail": "{\"paused\":true,\"src\":\"o-it/landing\"}"
+    },
+    {
+      "name": "G. 빠른 1→2 전환(느린 로딩): 최종 src=원음2 · 재생 중 · 이후 원음1로 되돌아가지 않음",
+      "pass": true,
+      "detail": "src2=true"
+    },
+    {
+      "name": "F. 느린 로딩 후 일시정지 유지(늦은 이벤트로 재생 전환 없음)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "F. 같은 곡 연속 클릭(재시작) → 정상 재생",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "I/H. 원음 2 로드 실패(404) → 일반 실패 안내 표시(차단 문구 아님) · 재생 표시 꺼짐(버튼 라벨 재생)",
+      "pass": true,
+      "detail": "failed=1 blocked=0 mediaErr=4 elemPaused=false"
+    },
+    {
+      "name": "I. 다시 재생(서버 정상) → 재생 성공 · 오류 안내 해제 · media error 해제",
+      "pass": true,
+      "detail": "paused=false ct=0.24 err=null noticeStill=0"
+    },
+    {
+      "name": "H(합성). NotAllowedError → \"브라우저가 재생을 막았어요\" · 재생 표시 꺼짐",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "H(합성). 차단 안내의 다시 재생 → 실제 재생 · 안내 해제",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "H(합성). 일반 오류 → \"음원을 재생하지 못했어요\"",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "H(합성). AbortError(사용자 취소·교체) → 안내 없음",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "이탈(/do-it/hero 로 이동): 카드 언마운트 → 이전 Audio paused · src 비움",
+      "pass": true,
+      "detail": "[]"
+    },
+    {
+      "name": "뒤로가기 재방문: 자동 재생 없음 · 선택 없음(재생 버튼 disabled)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "키보드: 원음 1 Enter → 재생",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "키보드: 일시정지 Space → 정지",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "버튼 이름: 재생/일시정지·음악 끄기·원음 1·원음 2·이어 듣기 모두 접근 가능한 이름 있음",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "반응형 360px: 카드 폭 ≤ 뷰포트 · 가로 넘침 없음 · 시작하기 버튼 가림 없음",
+      "pass": true,
+      "detail": "card x=24 w=312 overflow=false overlap=false"
+    },
+    {
+      "name": "반응형 390px: 카드 폭 ≤ 뷰포트 · 가로 넘침 없음 · 시작하기 버튼 가림 없음",
+      "pass": true,
+      "detail": "card x=24 w=342 overflow=false overlap=false"
+    },
+    {
+      "name": "반응형 430px: 카드 폭 ≤ 뷰포트 · 가로 넘침 없음 · 시작하기 버튼 가림 없음",
+      "pass": true,
+      "detail": "card x=24 w=382 overflow=false overlap=false"
+    }
+  ]
+}

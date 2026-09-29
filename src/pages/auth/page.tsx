@@ -49,6 +49,9 @@ export default function AuthPage() {
   const { signup, login, socialLogin } = useAuth();
 
   const [authMode, setAuthMode] = useState<AuthMode>(searchParams.get('mode') === 'login' ? 'login' : 'signup');
+  // 로그인 후 복귀 경로 — 앱 내부 경로만 허용 (외부 URL 오픈 리다이렉트 차단)
+  const rawReturnTo = searchParams.get('returnTo');
+  const returnTo = rawReturnTo && rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/';
   const [signupStep, setSignupStep] = useState<SignupStep>('entry');
   const [canvasPhase, setCanvasPhase] = useState<CanvasPhase>('entry');
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
@@ -300,7 +303,7 @@ export default function AuthPage() {
 
     setLoginStatus('success');
     setTimeout(() => {
-      navigate('/');
+      navigate(returnTo, { replace: true });
     }, 1000);
   };
 
@@ -322,7 +325,7 @@ export default function AuthPage() {
     }
 
     setSocialLoading(provider);
-    const result = await socialLogin(providerKey);
+    const result = await socialLogin(providerKey, returnTo);
 
     if (result.success && result.url) {
       window.location.href = result.url;

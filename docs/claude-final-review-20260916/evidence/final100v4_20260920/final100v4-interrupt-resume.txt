@@ -1,0 +1,14 @@
+# 중단→재개 실검사 (final100v4) 2026-09-20T03:56:28Z
+## 중단 직전
+결과 줄 수=30 마지막 완료 iteration i=29 (표시 30/100) case=C conversation_id=b256330c-b731-47e2-96e8-5d4748337926 완주=True
+상태 파일: starts=9개(최근 03:56:07) launches=1 rateRefusals=1 aiRetries=0
+프로세스: 6485:./supervise3.sh 6487:./integrity-watch.sh 6497:run100v3.mjs 
+## 중단 실행
+kill -TERM 6497 03:56:28
+## 재개 후
+프로세스: 6485:./supervise3.sh 6487:./integrity-watch.sh 8068:run100v3.mjs 
+[supervise3] attempt=1 rows=0 03:20:51
+[supervise3] attempt=2 rows=30 03:56:33
+[v3] 시작 회차=30 결과줄=30 AI_RETRY=미설정 상태파일=final100v4-results.jsonl.state.json
+결과 줄 수=30 중복 i=0 연속성=정상 마지막 i=29
+상태 파일 launches=2 (재개 1회)

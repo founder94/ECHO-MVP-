@@ -1,0 +1,408 @@
+{
+ "schema": "echo-golden-spec-v1",
+ "frozen": "2026-09-25",
+ "check_types": {
+  "saved": {
+   "layer": "server",
+   "means": "이 입력을 답으로 저장했다"
+  },
+  "not_saved": {
+   "layer": "server",
+   "means": "이 입력을 답으로 저장하지 않았다"
+  },
+  "no_error": {
+   "layer": "server",
+   "means": "질문 생성 실패·읽기 실패 오류가 없다"
+  },
+  "reply_present": {
+   "layer": "model",
+   "means": "반응·답 문장이 있다(물음·항의에 먼저 답)"
+  },
+  "no_fixed_line": {
+   "layer": "model",
+   "means": "운영에서 실제로 나간 고정 문장(아래 목록)이 글자 그대로 들어 있지 않다 — 문장 목록 대조이지 품질 점수가 아니다"
+  }
+ },
+ "fixed_lines": [
+  "저는 DO IT의 AI예요",
+  "조금만 더 들려줄래요?",
+  "한 가지만 더 들려줄래요?",
+  "제가 어렵게 물었어요",
+  "질문을 만들지 못했어요",
+  "어떤 생각에 대해 궁금하신 건가요?",
+  "방금 남긴 기록에서 가장 마음에 남는 부분은 어디였나요?"
+ ],
+ "specs": [
+  {
+   "fail_id": "GF-01",
+   "flow": "FLOW1",
+   "turns": [
+    5,
+    6
+   ],
+   "context": "사용자가 이미 말했다고 항의(적었자네 · 몇번째 같은말이야!!)",
+   "bad_behavior": "같은 뜻 질문을 표현만 바꿔 되풀이",
+   "expected": "이미 들은 말(진심·행동)을 짚고 인정 · 같은 뜻 질문 없음 · 질문 없어도 됨",
+   "forbidden": "같은 뜻 재질문 · 질문 생성 실패 화면",
+   "checks": [
+    "not_saved",
+    "no_error",
+    "reply_present"
+   ],
+   "review_question": "이미 들은 「진심」「행동」을 짚었나? 같은 뜻을 다시 묻지 않았나?",
+   "counter_test": "정상 답(마음이지머·행동으로 보여줄때)은 저장되고 이어 묻는다",
+   "source": "운영 Galaxy 2026-09-25"
+  },
+  {
+   "fail_id": "GF-02",
+   "flow": "FLOW1",
+   "turns": [
+    1,
+    3,
+    4
+   ],
+   "context": "정상 답",
+   "bad_behavior": "질문 생성 실패(서버가 후보 전부 탈락)",
+   "expected": "이어지는 질문 또는 반응",
+   "forbidden": "「다음 질문을 만들지 못했어요」",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "방금 답에서 이어졌나?",
+   "counter_test": "—",
+   "source": "운영 query_logs 04:22:13"
+  },
+  {
+   "fail_id": "GF-03",
+   "flow": "FLOW1",
+   "turns": [
+    6
+   ],
+   "context": "항의 턴",
+   "bad_behavior": "항의 직후 질문 생성 실패",
+   "expected": "문제 인정 + 이미 들은 말 짚기",
+   "forbidden": "질문 생성 실패 · 같은 질문",
+   "checks": [
+    "not_saved",
+    "no_error",
+    "reply_present"
+   ],
+   "review_question": "문제를 인정하고 방향을 바꿨나?",
+   "counter_test": "—",
+   "source": "운영 query_logs 04:25:48"
+  },
+  {
+   "fail_id": "GF-05",
+   "flow": "FLOW3",
+   "turns": [
+    2
+   ],
+   "context": "「어떤 활동을 함께…」 뒤 짧은 물음표 답",
+   "bad_behavior": "규칙이 되묻기로 강제 → 뒤집힌 질문",
+   "expected": "답으로 받거나 뜻을 확인",
+   "forbidden": "「취미생활에 대해 어떤 것들이 궁금한가요?」 같은 뒤집힌 질문",
+   "checks": [
+    "no_error"
+   ],
+   "review_question": "취미 이야기로 받았거나 뜻을 물었나? 사용자에게 궁금한 걸 되묻지 않았나?",
+   "counter_test": "분명한 답 26개는 규칙이 강제하지 않는다(Replay R4)",
+   "source": "LEVEL 3 FAIL #3"
+  },
+  {
+   "fail_id": "GF-06",
+   "flow": "FLOW3",
+   "turns": [
+    3
+   ],
+   "context": "질문 방향 제안(내 취미를 물어봐야지)",
+   "bad_behavior": "ask 로 분류 · 고정 사실문 · 잘못된 질문 유지",
+   "expected": "문제 인정 → 제안한 방향으로",
+   "forbidden": "고정 문장 「저는 DO IT의 AI예요」 · 같은 질문 유지",
+   "checks": [
+    "not_saved",
+    "no_error",
+    "reply_present",
+    "no_fixed_line"
+   ],
+   "review_question": "사용자가 제안한 방향으로 갔나?",
+   "counter_test": "—",
+   "source": "LEVEL 3 FAIL #3"
+  },
+  {
+   "fail_id": "GF-07",
+   "flow": "FLOW3",
+   "turns": [
+    4
+   ],
+   "context": "짧은 정상 답",
+   "bad_behavior": "저장 뒤 질문 생성 실패(repeat)",
+   "expected": "셋 중 하나를 이어 묻기 또는 반응",
+   "forbidden": "질문 생성 실패",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "싸이클·테니스·골프 중 하나에서 이어졌나?",
+   "counter_test": "—",
+   "source": "LEVEL 3 FAIL #3"
+  },
+  {
+   "fail_id": "GF-08",
+   "flow": "FLOW2",
+   "turns": [
+    1
+   ],
+   "context": "짧은 첫 답",
+   "bad_behavior": "「활동」으로 점프",
+   "expected": "「부담없이」·「편한 친구」에서 이어 묻기",
+   "forbidden": "주제 칸 채우기형 점프",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "「부담없이」에서 이어졌나(활동 점프 아님)?",
+   "counter_test": "—",
+   "source": "LEVEL 3 FAIL #2"
+  },
+  {
+   "fail_id": "GF-10",
+   "flow": "FLOW2",
+   "turns": [
+    1
+   ],
+   "context": "12자 첫 답",
+   "bad_behavior": "후보 9개 전부 탈락",
+   "expected": "질문 하나",
+   "forbidden": "질문 생성 실패",
+   "checks": [
+    "no_error"
+   ],
+   "review_question": "—",
+   "counter_test": "—",
+   "source": "LEVEL 3 FAIL #1"
+  },
+  {
+   "fail_id": "GF-11",
+   "flow": "FLOW2",
+   "turns": [
+    2
+   ],
+   "context": "점프에 대한 되물음",
+   "bad_behavior": "답으로 저장 · 502",
+   "expected": "저장 안 함 · 인정하고 방향 바꿈",
+   "forbidden": "되물음을 칸에 셈 · 오류",
+   "checks": [
+    "not_saved",
+    "no_error"
+   ],
+   "review_question": "「갑자기」 에 대해 설명·사과했나?",
+   "counter_test": "—",
+   "source": "LEVEL 3 FAIL #2"
+  },
+  {
+   "fail_id": "GF-12",
+   "flow": "FLOW5",
+   "turns": [
+    1
+   ],
+   "context": "구절형 답",
+   "bad_behavior": "구절을 질문에 끼워 문장 파손",
+   "expected": "문장이 성립하는 질문",
+   "forbidden": "「…싫어서는 어떤 모습일까요?」",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "사용자 구절을 끼워 문장이 깨지지 않았나?",
+   "counter_test": "—",
+   "source": "운영 2026-09-22"
+  },
+  {
+   "fail_id": "GF-14",
+   "flow": "FLOW5",
+   "turns": [
+    4,
+    5
+   ],
+   "context": "되묻기·항의",
+   "bad_behavior": "답으로 저장",
+   "expected": "저장 안 함",
+   "forbidden": "되묻기를 칸에 셈",
+   "checks": [
+    "not_saved",
+    "no_error"
+   ],
+   "review_question": "쉽게 다시 물었나?",
+   "counter_test": "—",
+   "source": "CLAUDE.md v14.3"
+  },
+  {
+   "fail_id": "GF-22",
+   "flow": "FLOW6",
+   "turns": [
+    1,
+    2
+   ],
+   "context": "사용자가 AI 에게 직접 물음",
+   "bad_behavior": "답하지 않고 되묻기",
+   "expected": "먼저 답하기",
+   "forbidden": "질문을 질문으로 되받기",
+   "checks": [
+    "not_saved",
+    "reply_present"
+   ],
+   "review_question": "물은 것에 실제로 답했나?",
+   "counter_test": "—",
+   "source": "COMPANION_FIX_REPORT 2026-09-16"
+  },
+  {
+   "fail_id": "GF-53",
+   "flow": "FLOW6",
+   "turns": [
+    2
+   ],
+   "context": "AI 에게 한 질문(오타 가능성)",
+   "bad_behavior": "규칙이 meta 로 강제 → 답 없음",
+   "expected": "먼저 답하기(오타가 날 수 있다는 사실)",
+   "forbidden": "쉬운 말로 같은 질문 되풀이",
+   "checks": [
+    "not_saved",
+    "reply_present"
+   ],
+   "review_question": "오타 질문에 답했나?",
+   "counter_test": "—",
+   "source": "Replay R1"
+  },
+  {
+   "fail_id": "GF-26",
+   "flow": "FLOW6",
+   "turns": [
+    3,
+    4
+   ],
+   "context": "AI 에게 따짐",
+   "bad_behavior": "질문을 질문으로 되받음 · 답 누락",
+   "expected": "먼저 답하고 사과·설명",
+   "forbidden": "「어떤 생각에 대해 궁금하신 건가요?」 같은 되받기",
+   "checks": [
+    "not_saved",
+    "reply_present",
+    "no_fixed_line"
+   ],
+   "review_question": "따진 내용에 답했나?",
+   "counter_test": "—",
+   "source": "SERVER_CORE_FINAL_REPORT 2026-09-18"
+  },
+  {
+   "fail_id": "GF-25",
+   "flow": "FLOW6",
+   "turns": [
+    5
+   ],
+   "context": "정정",
+   "bad_behavior": "정정 전 해석으로 같은 질문",
+   "expected": "정정 내용(사람이 힘듦)을 반영",
+   "forbidden": "정정 전 내용(일) 전제 질문",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "「사람이 더 힘들다」를 반영했나?",
+   "counter_test": "—",
+   "source": "CANARY_FINDINGS 2026-09-18"
+  },
+  {
+   "fail_id": "GF-36",
+   "flow": "FLOW7",
+   "turns": [
+    1
+   ],
+   "context": "띄어쓰기 없는 답",
+   "bad_behavior": "후보 탈락 → 생뚱맞은 구제 질문",
+   "expected": "「진실된 마음」에서 이어 묻기",
+   "forbidden": "고정 구제 문장",
+   "checks": [
+    "saved",
+    "no_error",
+    "no_fixed_line"
+   ],
+   "review_question": "「진실된 마음」에서 이어졌나?",
+   "counter_test": "—",
+   "source": "ASLEEP 보고 §G"
+  },
+  {
+   "fail_id": "GF-24",
+   "flow": "FLOW7",
+   "turns": [
+    2
+   ],
+   "context": "짧은 답",
+   "bad_behavior": "같은 뜻 후보 3번 막혀 종료",
+   "expected": "이어 묻기",
+   "forbidden": "대화 종료",
+   "checks": [
+    "saved",
+    "no_error"
+   ],
+   "review_question": "「돈 때문에」에서 이어졌나?",
+   "counter_test": "—",
+   "source": "FIELD_DEFECTS 2026-09-17"
+  },
+  {
+   "fail_id": "GF-33",
+   "flow": "FLOW7",
+   "turns": [
+    3
+   ],
+   "context": "질문 방향 항의",
+   "bad_behavior": "항의가 답으로 저장 · 고정 안전문장",
+   "expected": "저장 안 함 · 반영 약속이 아니라 실제 반영",
+   "forbidden": "고정 문장 「조금만 더 들려줄래요?」",
+   "checks": [
+    "not_saved",
+    "no_error",
+    "reply_present",
+    "no_fixed_line"
+   ],
+   "review_question": "앞 말을 반영한 질문으로 바뀌었나?",
+   "counter_test": "—",
+   "source": "v27 파일 머리 주석"
+  },
+  {
+   "fail_id": "GF-33",
+   "flow": "FLOW4",
+   "turns": [
+    8
+   ],
+   "context": "지친 말",
+   "bad_behavior": "이해 후보 「할 말이 없다.」로 해석",
+   "expected": "저장·해석 안 함",
+   "forbidden": "지친 말을 성향으로",
+   "checks": [
+    "not_saved",
+    "no_error"
+   ],
+   "review_question": "쉬어 가도 된다고 했나?",
+   "counter_test": "—",
+   "source": "v27 파일 머리 주석"
+  },
+  {
+   "fail_id": "GF-46",
+   "flow": "FLOW4",
+   "turns": [
+    3
+   ],
+   "context": "내용 없는 거절",
+   "bad_behavior": "막다른 길",
+   "expected": "무엇이 달랐는지 한 번 묻기",
+   "forbidden": "질문 생성 실패",
+   "checks": [
+    "no_error"
+   ],
+   "review_question": "무엇이 달랐는지 물었나?",
+   "counter_test": "—",
+   "source": "FINAL100V4 2026-09-20"
+  }
+ ]
+}

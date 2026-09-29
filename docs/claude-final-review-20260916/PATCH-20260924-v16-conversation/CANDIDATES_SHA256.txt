@@ -1,0 +1,5 @@
+# v16 배포 후보 (2026-09-24 · 운영 배포 미승인 · 전달 안 함)
+doit-understanding/index.ts  6eaaaff64c51dd009b77c09baefed87ccd4327d95c49b63c166f15bd8ffebdd7  224,106바이트  (저장소 product/supabase/functions/doit-understanding/index.ts)
+1_APP_여기에올릴것_doitmobile.zip (44차 후보)  62daa374504f3fbd2f1f6046ab2b6de49f1fc137422fd16f28c6676a1f15063f  3,055,389바이트 · 149개 파일 · 소스맵 0 · .env 0 · 비밀키 모양 0
+doit-connect/index.ts  변경 없음 (9c2bac14… = 운영 버전 5)
+되돌리기: rollback/doit-understanding.v26.ts = 운영 버전 26(v15.2) fd2e1eee… · 앱 = Netlify 6ab50bb9…(43차)

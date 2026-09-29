@@ -1,0 +1,36 @@
+--- ../bak-legal/doit/pages/do-it/settings/page.tsx	2026-09-21 10:44:45.476712563 +0000
++++ src/doit/pages/do-it/settings/page.tsx	2026-09-21 10:44:45.496478368 +0000
+@@ -124,18 +124,21 @@
+ 
+         <section className="doit-settings-section" aria-labelledby="settings-policy-heading">
+           <h3 id="settings-policy-heading" className="doit-settings-heading">서비스 안내</h3>
+-          {/* 정본 정책 문서나 공개 경로가 확인되면 실제 문서 링크로 교체한다.
+-              임시 법률 문구, 빈 문서 모달, 허위 동의/접수는 제공하지 않는다. */}
+-          <dl className="doit-settings-status-list">
+-            <div>
+-              <dt>이용약관</dt>
+-              <dd>현재 이 화면에서 열람할 수 있는 문서가 준비되지 않았어요.</dd>
+-            </div>
+-            <div>
+-              <dt>개인정보 처리방침</dt>
+-              <dd>현재 이 화면에서 열람할 수 있는 문서가 준비되지 않았어요.</dd>
+-            </div>
+-          </dl>
++          {/* 문서 본문은 src/lib/legal/documents.ts 하나에서 온다(/legal/terms, /legal/privacy). */}
++          <div className="doit-settings-panel">
++            <SettingsLink
++              to="/legal/terms"
++              icon="ri-file-text-line"
++              title="이용약관"
++              description="서비스 이용 조건과 결제·환불 기준을 확인해요."
++            />
++            <SettingsLink
++              to="/legal/privacy"
++              icon="ri-shield-check-line"
++              title="개인정보 처리방침"
++              description="어떤 정보를 왜 모으고 어떻게 지키는지 확인해요."
++            />
++          </div>
+         </section>
+ 
+         <p className="doit-settings-signature">DO IT COMPANY · JUST TRY</p>

@@ -1,0 +1,14 @@
+import { useSyncExternalStore } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
+import { signatureSound } from '@/doit/sound/signatureSound';
+
+// 대화 화면의 작은 소리 버튼. 음악이 없어도 대화는 그대로다 — 이 버튼은 켜고 끄기만 한다.
+export default function SoundControl() {
+  const sound = signatureSound();
+  const { state } = useSyncExternalStore(sound.subscribe, sound.getSnapshot, sound.getSnapshot);
+  const playing = state === 'playing';
+  const label = playing ? '배경 음악 끄기' : state === 'error' ? '배경 음악을 불러오지 못했어요. 다시 켜 보기' : '배경 음악 켜기';
+  return <button type="button" className="echo-sound" aria-pressed={playing} aria-label={label} title={label} onClick={() => sound.toggle()}>
+    {playing ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}
+  </button>;
+}

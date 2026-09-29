@@ -1,0 +1,304 @@
+{
+ "version": "golden-v1.2",
+ "frozen": "2026-09-25",
+ "rule": "ACTUAL = 운영 기록·대표 실기기에 실제로 입력된 말(근거 문서 있음). SYNTHETIC = 예문·대체. expect 는 사람이 붙인 기대 종류(실제 AI 에 전달 안 함). 새 예문으로 ACTUAL 을 덮지 않는다.",
+ "flows": [
+  {
+   "id": "FLOW1",
+   "note": "운영 Galaxy 2026-09-25 04:20~04:26 KST — 같은 의미 질문 반복 후 질문 생성 실패(운영 query_logs 실측)",
+   "purpose": "아직 정하지 않았어요",
+   "steps": [
+    {
+     "text": "가볍게 우선 사람을 알아가고 싶어",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "나 진심이라고 적은거 같은데",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "마음이지머",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "행동으로 보여줄때",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "적었자네",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "몇번째 같은말이야!!",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    },
+    {
+     "text": "행동이라고!!",
+     "expect": "correction",
+     "origin": "ACTUAL",
+     "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md"
+    }
+   ],
+   "source": "운영 Galaxy 2026-09-25 04:20~04:26 KST · doit_request_events·query_logs 읽기 — docs/claude-final-review-20260916/PATCH-20260925-ab-spike/CTO_AB_SPIKE_보고_20260925.md",
+   "failures": [
+    "GF-01",
+    "GF-02",
+    "GF-03",
+    "GF-04"
+   ]
+  },
+  {
+   "id": "FLOW2",
+   "note": "LEVEL 3 FAIL #1·#2(2026-09-24 대표 실기기) — 짧은 답 뒤 「활동」 점프 · 되물음",
+   "purpose": "편하게 지낼 친구를 원해요",
+   "steps": [
+    {
+     "text": "그냥 편한친구 부담없이",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "LEVEL 3 FAIL #1·#2(대표 Galaxy 2026-09-24) — PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md · PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
+    },
+    {
+     "text": "활동?갑자기?",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "LEVEL 3 FAIL #1·#2(대표 Galaxy 2026-09-24) — PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md · PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md"
+    }
+   ],
+   "source": "LEVEL 3 FAIL #1·#2(대표 Galaxy 2026-09-24) — PATCH-20260924-level3-fix/LEVEL3_실제실패_수정_v15.2_20260924.md · PATCH-20260924-level3-fail2/LEVEL3_FAIL2_구조원인분석_20260924.md",
+   "failures": [
+    "GF-08",
+    "GF-10",
+    "GF-11"
+   ]
+  },
+  {
+   "id": "FLOW3",
+   "note": "LEVEL 3 FAIL #3(2026-09-24 22:58~23:00 KST 대표 Galaxy) — 첫 답 원문은 기록에 없어 FAIL #1 첫 답으로 대신함(SYNTHETIC)",
+   "purpose": "편하게 지낼 친구를 원해요",
+   "steps": [
+    {
+     "text": "그냥 편한친구 부담없이",
+     "expect": "answer",
+     "origin": "SYNTHETIC",
+     "source": "FAIL #3 첫 답 원문 미기록(20자) → FAIL #1 첫 답으로 대체"
+    },
+    {
+     "text": "취미생활?",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "LEVEL 3 FAIL #3(대표 Galaxy 2026-09-24 22:58~23:00 KST) — PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
+    },
+    {
+     "text": "아니 같은 취미생활 너가 어떤 취미가 있냐고 나한테 물어봐야 하는 거 아니야?",
+     "expect": "repair",
+     "origin": "ACTUAL(캡처 재구성)",
+     "source": "LEVEL 3 FAIL #3(대표 Galaxy 2026-09-24 22:58~23:00 KST) — PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
+    },
+    {
+     "text": "싸이클 테니스 골프",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "LEVEL 3 FAIL #3(대표 Galaxy 2026-09-24 22:58~23:00 KST) — PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md"
+    }
+   ],
+   "source": "LEVEL 3 FAIL #3(대표 Galaxy 2026-09-24 22:58~23:00 KST) — PATCH-20260924-level3-fail3/LEVEL3_FAIL3_ROOT_CAUSE_20260924.md",
+   "failures": [
+    "GF-05",
+    "GF-06",
+    "GF-07"
+   ]
+  },
+  {
+   "id": "FLOW4",
+   "note": "추가 세트 — 지시서 예문(문제제기·정정·되묻기·모르겠어요·긴 답) + 「할말이없다 휴」는 실제 입력(2026-09-25 정정)",
+   "purpose": "연애로 이어질 만남을 원해요",
+   "steps": [
+    {
+     "text": "나는 사람을 빨리 만나는 것보다 천천히 알아가고 싶어.",
+     "expect": "answer",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "왜 또 물어봐?",
+     "expect": "repair",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "아니 그게 아니라",
+     "expect": "correction",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "활동 말고 편하게 대화하는 사람을 원한다는 거예요",
+     "expect": "correction",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "그 질문 말고",
+     "expect": "repair",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "왜 그걸 물어봐?",
+     "expect": "ask",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "모르겠어요",
+     "expect": "unsure",
+     "origin": "SYNTHETIC",
+     "source": "지시서·검사표 예문 또는 원문 미기록 대체"
+    },
+    {
+     "text": "할말이없다 휴",
+     "expect": "fatigue",
+     "origin": "ACTUAL",
+     "source": "대표 실기기 2026-09-24 09:17~09:21 KST 운영 이벤트(v27 파일 머리 주석) — 앞서 SYNTHETIC 으로 잘못 표시한 것을 정정"
+    }
+   ],
+   "source": "지시서 예문(CTO A/B 기준본 Repair 예시 · LEVEL 3 검사표) — 실제 사용자 입력 아님",
+   "failures": [
+    "GF-09",
+    "GF-33",
+    "GF-46"
+   ]
+  },
+  {
+   "id": "FLOW5",
+   "note": "v13.7~v14.3 운영 실제 입력(2026-09-22~24) — 문장 파손·무거운 질문·되묻기 저장. 목적은 기록에 없어 대체(SYNTHETIC)",
+   "purpose": "아직 정하지 않았어요",
+   "source": "PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md §K · CLAUDE.md v14.3 결정 기록(2026-09-24)",
+   "failures": [
+    "GF-12",
+    "GF-13",
+    "GF-14"
+   ],
+   "steps": [
+    {
+     "text": "에너지가 뺏기가 싫어서",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "ASLEEP 보고 §K(2) — 운영에서 질문에 끼워져 문장이 깨진 입력"
+    },
+    {
+     "text": "배려",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "ASLEEP 보고 §K(6) — 운영에서 깨졌던 입력"
+    },
+    {
+     "text": "그냥 아무생각없어",
+     "expect": "unsure",
+     "origin": "ACTUAL",
+     "source": "ASLEEP 보고 §K(6) — 운영에서 깨졌던 입력"
+    },
+    {
+     "text": "딥하네",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "CLAUDE.md v14.3 — 운영 대화에서 답으로 저장된 되묻기"
+    },
+    {
+     "text": "활동?질문이 머이래",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "CLAUDE.md v14.3 — 운영 대화에서 답으로 저장된 되묻기"
+    }
+   ]
+  },
+  {
+   "id": "FLOW6",
+   "note": "ANSWER FIRST — 사용자가 AI 에게 직접 물음(ECHO 옛 흐름 2026-09-16 대표 입력 3개 + 실제 AI 검사용 스크립트 문장 2개). 목적은 기록에 없어 대체",
+   "purpose": "아직 정하지 않았어요",
+   "source": "docs/claude-final-review-20260916/COMPANION_FIX_REPORT_20260916.md · docs/claude-final-review-20260916/SERVER_CORE_FINAL_REPORT_20260918.md · docs/claude-final-review-20260916/CANARY_FINDINGS_20260918.md",
+   "failures": [
+    "GF-22",
+    "GF-25",
+    "GF-26",
+    "GF-53"
+   ],
+   "steps": [
+    {
+     "text": "어떻게 대처하는게 좋을까?",
+     "expect": "ask",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "ai가 오타기 날수도 있어?",
+     "expect": "ask",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "질문했는데 답을 못햐?",
+     "expect": "repair",
+     "origin": "ACTUAL",
+     "source": "COMPANION_FIX_REPORT_20260916.md 9행 — 대표 iPhone"
+    },
+    {
+     "text": "내가 언제 그렇게 말했어?",
+     "expect": "repair",
+     "origin": "SYNTHETIC",
+     "source": "실제 AI 검사용 스크립트 문장(SERVER_CORE_FINAL_REPORT_20260918.md 12행)"
+    },
+    {
+     "text": "사실은 일보다 사람이 더 힘들어요",
+     "expect": "correction",
+     "origin": "SYNTHETIC",
+     "source": "실제 AI 캐너리 스크립트 문장(CANARY_FINDINGS_20260918.md 30행)"
+    }
+   ]
+  },
+  {
+   "id": "FLOW7",
+   "note": "대표 실제 입력 — 짧은 답 · 띄어쓰기 없는 답 · 질문 방향 항의(2026-09-17·22·24). 목적은 기록에 없어 대체",
+   "purpose": "편하게 지낼 친구를 원해요",
+   "source": "docs/claude-final-review-20260916/FIELD_DEFECTS_20260917.md · docs/claude-final-review-20260916/PATCH-20260921-v13-first-conversation/docs/ECHO_ASLEEP_CONVERSATION_FINAL_REPORT_20260922.md · docs/claude-final-review-20260916/PATCH-20260924-homepage-final/prod/doit-understanding.v27.prod.ts",
+   "failures": [
+    "GF-24",
+    "GF-33",
+    "GF-36"
+   ],
+   "steps": [
+    {
+     "text": "진실된마음",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "ASLEEP 보고 §G — 대표 실기기 2026-09-22 09:50 KST"
+    },
+    {
+     "text": "돈때문에",
+     "expect": "answer",
+     "origin": "ACTUAL",
+     "source": "FIELD_DEFECTS_20260917.md 25행 — 대표 iPhone 2026-09-17"
+    },
+    {
+     "text": "뭘더 얘길해야해 너가 내 내용을 반영해서 다음 질문을 해야하는거 아니야?",
+     "expect": "repair",
+     "origin": "ACTUAL(재구성)",
+     "source": "v27 파일 머리 주석(앞부분) + product/qa/conversation-rules.test.mjs 133행(전체 문장) — 대표 실기기 2026-09-24"
+    }
+   ]
+  }
+ ]
+}

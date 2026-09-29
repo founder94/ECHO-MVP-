@@ -1,0 +1,50 @@
+.doit-brand-hero{position:relative;isolation:isolate;min-height:100svh;display:flex;flex-direction:column;overflow:hidden;background:#000;color:#f6f6f4;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.doit-brand-hero *{box-sizing:border-box}
+.doit-brand-hero a{color:inherit;text-decoration:none}
+.doit-brand-hero a:focus-visible{outline:2px solid #fff;outline-offset:7px}
+.doit-brand-hero p,.doit-brand-hero h1{margin:0}
+.doit-brand-nav{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:24px 5vw;border-bottom:1px solid #ffffff0d}
+.doit-brand-company{font-size:18px;font-weight:750;letter-spacing:-.035em}
+.doit-brand-company>span{font-size:9px;letter-spacing:.18em;font-weight:450;margin-left:10px;color:#aaa}
+.doit-brand-nav nav{display:flex;align-items:center;gap:32px}
+.doit-brand-nav nav>a,.doit-brand-nav nav>.doit-brand-session{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:12px;color:#c4c4c4}
+.doit-brand-nav nav>.doit-brand-session{margin:0;padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.doit-brand-nav nav>.doit-brand-session:disabled{cursor:default;opacity:.7}
+.doit-brand-main{width:100%;max-width:1600px;margin:auto;display:flex;align-items:center;flex-direction:column;padding:44px 0 48px}
+.doit-brand-badge{display:inline-flex;gap:9px;align-items:center;font-size:12px;font-weight:500;letter-spacing:.16em}
+.doit-brand-badge>span{font-size:7px}
+.doit-brand-art{width:100%;max-width:1440px;aspect-ratio:3.85;position:relative;overflow:hidden;margin:20px 0 38px!important}
+.doit-brand-art img{position:absolute;max-width:none;width:100%;height:auto;left:0;top:-47.5%;user-select:none}
+.doit-brand-art::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#000 0%,transparent 7%,transparent 89%,#000 100%)}
+.doit-brand-intro{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:48px;width:90%;max-width:1280px}
+.doit-brand-line{font-size:clamp(25px,3vw,44px);font-weight:500;line-height:1.45;letter-spacing:-.045em;word-break:keep-all}
+.doit-brand-invitation{display:flex;flex-direction:column;align-items:flex-start;padding-bottom:4px;max-width:320px}
+.doit-brand-start{display:inline-flex;justify-content:space-between;align-items:center;gap:42px;min-height:58px;min-width:248px;padding:14px 28px;border:1px solid #ffffff8c;border-radius:999px;font-size:16px;font-weight:600;background:#000;transition:background .2s,color .2s,border-color .2s}
+.doit-brand-start svg{width:18px;height:18px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.doit-brand-start:hover{background:#fff;color:#080808;border-color:#fff}
+.doit-brand-status{font-weight:500;font-size:12px;line-height:1.8;color:#969696;margin-top:16px!important;word-break:keep-all;letter-spacing:-.01em}
+.doit-brand-bottom{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 5vw;padding:22px 0 26px;border-top:1px solid #ffffff1a;color:#8d8d8d;font-size:10px;letter-spacing:.07em}
+.doit-brand-bottom>a{display:flex;align-items:center;gap:24px;min-height:32px;font-size:11px;letter-spacing:.01em;color:#c5c5c5}
+.doit-brand-bottom>a>span{font-size:19px;font-weight:300}
+.doit-brand-mobile-break{display:none}
+.doit-brand-sr,.doit-brand-skip{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.doit-brand-skip:focus{clip:auto;width:auto;height:auto;top:10px;left:10px;padding:12px;background:#fff;color:#000;z-index:10}
+.doit-brand-legal{background:#000;color:#a4a4a4;padding:36px max(24px,5vw);display:flex;justify-content:space-between;gap:24px;border-top:1px solid #ffffff20;font-size:11px;line-height:1.9}
+.doit-brand-legal summary{cursor:pointer;color:#ddd;padding:4px 0;margin-bottom:10px}
+.doit-brand-legal a{color:#c6c6c6}
+.doit-brand-legal p{margin:4px 0}
+@media(max-width:700px){
+ .doit-brand-nav{padding:14px 24px}.doit-brand-company{font-size:17px}.doit-brand-company>span{font-size:8px;margin-left:8px}
+ .doit-brand-nav nav{gap:18px}.doit-brand-nav nav>a,.doit-brand-nav nav>.doit-brand-session{font-size:11px;gap:8px}
+ .doit-brand-main{padding:32px 0 36px}.doit-brand-badge{font-size:11px}
+ .doit-brand-art{aspect-ratio:2.55;margin:28px 0 30px!important}.doit-brand-art img{width:150%;left:-25%;top:-47.5%}
+ .doit-brand-intro{display:flex;flex-direction:column;align-items:stretch;width:calc(100% - 48px);margin:0 24px;gap:28px}
+ .doit-brand-line{font-size:clamp(25px,6.55vw,34px);line-height:1.5;letter-spacing:-.045em}
+ .doit-brand-mobile-break{display:block}.doit-brand-invitation{max-width:none;align-items:flex-start}
+ .doit-brand-start{font-size:15px;min-height:54px;min-width:224px;padding:12px 27px}
+ .doit-brand-status{font-size:11px;margin-top:15px!important;line-height:1.9}
+ .doit-brand-bottom{margin:0 24px;padding:15px 0 calc(17px + env(safe-area-inset-bottom));font-size:9px;letter-spacing:.02em}
+ .doit-brand-bottom>a{font-size:10px;gap:12px}.doit-brand-legal{display:block;font-size:11px}.doit-brand-legal>a{display:inline-block;margin-top:17px}
+}
+@media(max-height:700px) and (max-width:700px){.doit-brand-main{padding:24px 0}.doit-brand-art{margin:18px 0!important}.doit-brand-intro{gap:22px}.doit-brand-line{font-size:25px}}
+@media(prefers-reduced-motion:reduce){.doit-brand-hero *{animation:none!important;transition:none!important}}

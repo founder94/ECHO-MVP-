@@ -1,0 +1,127 @@
+[
+  {
+    "name": "S1 비로그인 /payment?c=c0ffee00-0000-4000-8000-000000000001 → /login",
+    "pass": true,
+    "detail": "actual /login"
+  },
+  {
+    "name": "S1 비로그인 /report?c=c0ffee00-0000-4000-8000-000000000001 → /login",
+    "pass": true,
+    "detail": "actual /login"
+  },
+  {
+    "name": "S1 비로그인 /step/7?c=c0ffee00-0000-4000-8000-000000000001 → /login",
+    "pass": true,
+    "detail": "actual /login"
+  },
+  {
+    "name": "S1 비로그인 /admin/mobile → /admin/login",
+    "pass": true,
+    "detail": "actual /admin/login"
+  },
+  {
+    "name": "S2 White Door 는 서버 report_ready 에서만 열림",
+    "pass": true
+  },
+  {
+    "name": "S2 결제 화면: 결제 준비 중 버튼(비활성) + 안내 문구",
+    "pass": true
+  },
+  {
+    "name": "S2 상품·설명 문구 고정본",
+    "pass": true
+  },
+  {
+    "name": "S2 결제 준비 중 버튼을 눌러도 주문 생성·Toss 요청 0건",
+    "pass": true,
+    "detail": "echo-payment=0 toss=0"
+  },
+  {
+    "name": "S2 미결제 리포트 화면 → 결제 안내로 이동(본문 미노출)",
+    "pass": true
+  },
+  {
+    "name": "S2 미결제 상태에서 리포트 생성 요청 0건",
+    "pass": true,
+    "detail": "report calls=0"
+  },
+  {
+    "name": "S3 STEP 7 저장 전 White Door 직접 진입 → /step/7 로 되돌림",
+    "pass": true
+  },
+  {
+    "name": "S3 STEP 7 화면에 서버 질문 표시",
+    "pass": true
+  },
+  {
+    "name": "S3 390px STEP 화면 가로 스크롤 0",
+    "pass": true
+  },
+  {
+    "name": "S3 답변 저장 후에만 White Door 로 이동",
+    "pass": true
+  },
+  {
+    "name": "S3 연속 3회 클릭에도 answer 요청 1건",
+    "pass": true,
+    "detail": "answer calls=1"
+  },
+  {
+    "name": "S3 answer 요청에 요청 토큰 포함",
+    "pass": true
+  },
+  {
+    "name": "S3 무료 STEP 진행 중 결제 함수 호출 0건",
+    "pass": true
+  },
+  {
+    "name": "S4 저장 실패 시 오류 표시 + 입력 원문 보존",
+    "pass": true
+  },
+  {
+    "name": "S4 재시도 성공 → /step/6 (서버 상태로만 이동)",
+    "pass": true
+  },
+  {
+    "name": "S4 재시도는 같은 요청 토큰(중복 저장 방지)",
+    "pass": true,
+    "detail": "tokens=2"
+  },
+  {
+    "name": "S4 새 단계 질문은 별도 ask 로 생성돼 표시",
+    "pass": true
+  },
+  {
+    "name": "S5 기존 구매자 리포트 재열람",
+    "pass": true
+  },
+  {
+    "name": "S5 구매자가 결제 화면에 들어와도 리포트로 직행(재결제 없음)",
+    "pass": true
+  },
+  {
+    "name": "S6 Galaxy S24 390px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 Galaxy 360px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone 15 393px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone SE 375px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  },
+  {
+    "name": "S6 iPhone 15 Pro Max 430px 여정 화면 3종: 가로 스크롤 0·버튼 화면 안·입력 16px",
+    "pass": true,
+    "detail": "[\"/step/7:scroll=true,off=0,font=16\",\"/weather-check:scroll=true,off=0,font=16\",\"/step/7:scroll=true,off=0,font=16\"]"
+  }
+]

@@ -1,0 +1,235 @@
+/* 글꼴은 index.html 에서 뒤에서 받는다(2026-09-23). 여기서 @import 하면 구글 폰트가 막힐 때 화면 조각 전체가 멈춘다. */
+
+/*
+  DO IT(A 구조) 전용 스타일. A·B 통합(2026-09-05).
+  - 모든 규칙은 .doit-root 아래로만 적용된다. ECHO(B)의 :root / body / index.css 는 건드리지 않는다.
+  - A 프로젝트 index.css 의 :root 토큰이 .doit-root 로 옮겨졌다(같은 변수 이름을 쓰므로 범위를 나눠 충돌 0).
+*/
+
+.doit-root {
+  --ink: #090A0A;
+  --paper: #FFFFFF;
+  --gray: #B8B8B0;
+  --dark: #222422;
+  --signal: #FF5A1F;
+
+  --font-heading: "Fraunces", "Gothic A1", serif;
+  --font-body: "Gothic A1", system-ui, sans-serif;
+  --font-label: "Gothic A1", system-ui, sans-serif;
+
+  --background-50: 0.99 0.005 80;
+  --background-100: 0.97 0.01 80;
+  --background-200: 0.94 0.015 80;
+  --background-300: 0.90 0.02 78;
+  --background-400: 0.85 0.02 76;
+  --background-500: 0.80 0.02 74;
+  --background-600: 0.73 0.02 72;
+  --background-700: 0.60 0.02 70;
+  --background-800: 0.46 0.02 68;
+  --background-900: 0.33 0.015 66;
+  --background-950: 0.22 0.012 64;
+
+  --primary-50: 0.97 0.02 45;
+  --primary-100: 0.93 0.04 42;
+  --primary-200: 0.87 0.07 40;
+  --primary-300: 0.78 0.10 38;
+  --primary-400: 0.69 0.13 36;
+  --primary-500: 0.60 0.14 35;
+  --primary-600: 0.52 0.13 34;
+  --primary-700: 0.44 0.11 33;
+  --primary-800: 0.37 0.09 32;
+  --primary-900: 0.30 0.07 31;
+  --primary-950: 0.23 0.05 31;
+
+  --accent-50: 0.97 0.015 110;
+  --accent-100: 0.93 0.03 110;
+  --accent-200: 0.88 0.05 110;
+  --accent-300: 0.80 0.06 110;
+  --accent-400: 0.71 0.06 110;
+  --accent-500: 0.62 0.06 110;
+  --accent-600: 0.54 0.055 110;
+  --accent-700: 0.46 0.05 110;
+  --accent-800: 0.38 0.045 110;
+  --accent-900: 0.30 0.04 110;
+  --accent-950: 0.23 0.03 110;
+
+  --secondary-50: 0.97 0.02 70;
+  --secondary-100: 0.93 0.035 70;
+  --secondary-200: 0.88 0.05 68;
+  --secondary-300: 0.79 0.05 66;
+  --secondary-400: 0.70 0.05 64;
+  --secondary-500: 0.62 0.05 62;
+  --secondary-600: 0.54 0.045 62;
+  --secondary-700: 0.46 0.04 61;
+  --secondary-800: 0.38 0.035 60;
+  --secondary-900: 0.30 0.03 58;
+  --secondary-950: 0.23 0.025 56;
+
+  --foreground-50: 0.99 0.003 70;
+  --foreground-100: 0.96 0.006 70;
+  --foreground-200: 0.90 0.01 68;
+  --foreground-300: 0.80 0.015 66;
+  --foreground-400: 0.68 0.02 64;
+  --foreground-500: 0.58 0.02 62;
+  --foreground-600: 0.49 0.02 60;
+  --foreground-700: 0.41 0.02 58;
+  --foreground-800: 0.33 0.018 56;
+  --foreground-900: 0.27 0.016 54;
+  --foreground-950: 0.21 0.014 52;
+
+  --grade-red: #C4453C;
+  --grade-gold: #C9A24B;
+  --grade-silver: #A8B0B8;
+  --grade-perfume: #D9A7A0;
+  --grade-platinum: #6E7A84;
+  --grade-black: #1A1A1A;
+
+  /* A의 html, body 규칙을 뿌리 요소로 옮김 */
+  background: var(--ink);
+  color: var(--paper);
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  min-height: 100dvh;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.doit-root *,
+.doit-root *::before,
+.doit-root *::after {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.doit-root ::selection {
+  background: var(--signal);
+  color: var(--ink);
+}
+
+/* Tailwind 글꼴 유틸을 A 토큰으로 되돌린다(.doit-root 안에서만, ECHO 설정은 그대로). */
+.doit-root .font-heading { font-family: var(--font-heading); }
+.doit-root .font-body { font-family: var(--font-body); }
+.doit-root .font-label { font-family: var(--font-label); }
+.doit-root .font-sans { font-family: "Instrument Sans", system-ui, sans-serif; }
+
+.doit-root .skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  background: var(--signal);
+  color: var(--ink);
+  padding: 12px 20px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+.doit-root .skip-link:focus { left: 12px; top: 12px; }
+
+.doit-root .type-display {
+  font-family: "Archivo Black", Impact, sans-serif;
+  letter-spacing: -0.06em;
+  line-height: 0.82;
+  text-transform: uppercase;
+}
+
+.doit-root .type-mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.doit-root .type-label {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.doit-root .paper-bg { background: var(--paper); color: var(--ink); }
+.doit-root .ink-bg { background: var(--ink); color: var(--paper); }
+.doit-root .signal-bg { background: var(--signal); color: var(--ink); }
+
+.doit-root .tabular { font-variant-numeric: tabular-nums; }
+
+.doit-root .grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+  opacity: 0.35;
+}
+
+.doit-root .grain-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(9,10,10,0.05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doit-root * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============ DO IT (PLAN A) 화면 뿌리 ============ */
+.doit-root .do-it-app {
+  background: oklch(var(--background-100));
+  color: oklch(var(--foreground-950));
+  font-family: var(--font-body);
+  min-height: 100dvh;
+}
+
+@keyframes do-it-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.doit-root .animate-fade-up { animation: do-it-fade-up 0.5s ease both; }
+
+@keyframes do-it-spin {
+  to { transform: rotate(360deg); }
+}
+.doit-root .animate-spin-slow { animation: do-it-spin 1.2s linear infinite; }
+
+/* ============ DO IT Hero (Space) ============ */
+@keyframes do-it-star {
+  0%, 100% { opacity: 0.12; transform: translate3d(0, 0, 0) scale(0.7); }
+  50% { opacity: 0.95; transform: translate3d(-7px, 5px, 0) scale(1); }
+}
+.doit-root .animate-star { animation: do-it-star 3.5s ease-in-out infinite; }
+
+@keyframes do-it-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+.doit-root .animate-float-slow { animation: do-it-float 8s ease-in-out infinite; }
+
+@keyframes do-it-earth-rise {
+  from { transform: translateY(48px) scale(0.96); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.doit-root .animate-earth-rise { animation: do-it-earth-rise 1.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes do-it-surface {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(-12px, 10px, 0) rotate(2deg); }
+}
+.doit-root .animate-surface { animation: do-it-surface 18s ease-in-out infinite; }
+
+@keyframes do-it-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+.doit-root .animate-glow { animation: do-it-glow 5s ease-in-out infinite; }

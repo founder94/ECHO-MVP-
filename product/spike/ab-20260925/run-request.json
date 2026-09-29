@@ -1,0 +1,99 @@
+{
+ "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
+ "requested_at": "2026-09-25",
+ "approved_by": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §23 실제 AI 검사",
+ "run": 15,
+ "mode": "prod_agent",
+ "what": "v1.8 — 소개 초안 뜻 왜곡 수정(판정 규칙 prod_agent_gate.why_v9)",
+ "history": [
+  {
+   "run": 1,
+   "mode": "ab",
+   "actions_run": 36103690087,
+   "commit": "23a4484"
+  },
+  {
+   "run": 2,
+   "mode": "models",
+   "actions_run": 36107887216,
+   "commit": "809c3cd"
+  },
+  {
+   "run": 3,
+   "mode": "model_gate",
+   "actions_run": 36108344306,
+   "commit": "e0de6dc"
+  },
+  {
+   "run": 4,
+   "mode": "core",
+   "actions_run": 36111514762,
+   "commit": "133ff56"
+  },
+  {
+   "run": 5,
+   "mode": "agent",
+   "actions_run": 36114445447,
+   "commit": "5411c2c"
+  },
+  {
+   "run": 6,
+   "mode": "agent",
+   "actions_run": 36115418519,
+   "commit": "c285210"
+  },
+  {
+   "run": 7,
+   "mode": "prod_agent",
+   "actions_run": 36118572833,
+   "commit": "4308f28"
+  },
+  {
+   "run": 8,
+   "mode": "prod_agent",
+   "actions_run": 36119280537,
+   "commit": "eff7ad2"
+  },
+  {
+   "run": 9,
+   "mode": "prod_agent",
+   "actions_run": 36119792722,
+   "commit": "407260e"
+  },
+  {
+   "run": 10,
+   "mode": "prod_agent",
+   "actions_run": 36127469093,
+   "commit": "198d91a"
+  },
+  {
+   "run": 11,
+   "mode": "prod_agent",
+   "actions_run": 36129571721,
+   "commit": "c9a8e32"
+  },
+  {
+   "run": 12,
+   "mode": "prod_agent",
+   "actions_run": null,
+   "commit": null
+  },
+  {
+   "run": 13,
+   "mode": "prod_agent",
+   "actions_run": 36138550587,
+   "commit": "d917445"
+  },
+  {
+   "run": 14,
+   "mode": "prod_agent",
+   "actions_run": 36139695084,
+   "commit": "70c1466"
+  }
+ ],
+ "models": [
+  "gpt-4o-mini",
+  "gpt-4.1-mini",
+  "gpt-4.1"
+ ]
+}

@@ -1,0 +1,25 @@
+@import "./metal-silver.css";
+@import "./doit-type.css";
+/* 앱으로 받기 안내 (2026-09-23). 전역 스타일을 건드리지 않도록 .doit-install* 아래에만 둔다. */
+.doit-install{padding:23px 20px;border:1px solid #ccd4df26;border-radius:18px;background:linear-gradient(140deg,#c4cfdf0d,#12151b);margin:4px 0 28px;color:#e9eaec}
+.doit-install h2{margin:0;font-size:15px;font-weight:600;line-height:1.6;color:#e9eaec}
+.doit-install p{margin:10px 0 0;color:#aeb5bf;font-size:13px;font-weight:500;line-height:1.85;word-break:keep-all}
+.doit-install b{color:#e9eaec;font-weight:600}
+.doit-install .doit-install-note{color:#c3c9d2}
+.doit-install-steps{margin:14px 0 0;padding:0 0 0 20px;list-style:decimal outside;color:#c3c9d2;font-size:13px;font-weight:500;line-height:1.85;word-break:keep-all}
+.doit-install-steps li::marker{color:#e9eaec;font-weight:700}
+/* 갤럭시 안내는 순서가 아니라 '쓰는 브라우저에 맞는 것 하나'라 번호를 달지 않는다. */
+.doit-install-steps--choices{padding:0;list-style:none}
+.doit-install-steps li+li{margin-top:8px}
+.doit-install-steps strong{color:#e9eaec;font-weight:600}
+.doit-install-inline{display:inline-flex;align-items:center;gap:4px;vertical-align:-3px}
+.doit-install-share{display:block;flex:none}
+.doit-install-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:18px;padding:0 22px;border:1px solid #ffffff2e;border-radius:999px;background:#f2f1ef;color:#0b0b0e;font-size:14px;font-weight:700;text-decoration:none;cursor:pointer}
+.doit-install-action:focus-visible,.doit-install-secondary:focus-visible,.doit-install-later:focus-visible,.doit-install-reopen:focus-visible{outline:2px solid #e0e3e9;outline-offset:3px}
+.doit-install-copy{margin-top:14px}
+.doit-install-secondary{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border:1px solid #ffffff2e;border-radius:999px;background:transparent;color:#e0e3e9;font-size:13px;font-weight:600;cursor:pointer}
+.doit-install .doit-install-address{margin-top:8px;font-size:12px;color:#9da5b1}
+.doit-install-address span{color:#e0e3e9;user-select:all;word-break:break-all}
+.doit-install-later{display:block;min-height:44px;margin-top:10px;padding:8px 0;border:0;background:none;color:#9da5b1;font-size:12px;font-weight:600;cursor:pointer}
+.doit-install-reopen{display:inline-flex;align-items:center;gap:16px;min-height:44px;margin:0 0 20px;padding:8px 0;border:0;background:none;color:#e0e3e9;font-size:13px;font-weight:600;cursor:pointer}
+.doit-install-reopen>span{color:#b8c0cc}

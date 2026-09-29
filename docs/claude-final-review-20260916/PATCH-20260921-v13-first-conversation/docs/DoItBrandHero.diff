@@ -1,0 +1,52 @@
+--- ../bak-hero/DoItBrandHero.tsx.bak	2026-09-21 10:34:00.058274953 +0000
++++ src/components/DoItBrandHero.tsx	2026-09-21 10:34:00.098159807 +0000
+@@ -1,15 +1,33 @@
+-import type { MouseEvent } from 'react';
++import { useRef, useState, type MouseEvent } from 'react';
+ import DoItSymbol from './DoItSymbol';
++import { useAuth } from '@/context/AuthContext';
+ import './doit-brand-hero.css';
+ 
+ interface Props { onStart?: () => void; motionPaused?: boolean; onToggleMotion?: () => void }
+ 
++// 2026-09-21 대표 지시: 로그인한 상태면 "로그인" 대신 "로그아웃"이 보여야 한다.
++// 글자·동작만 바꾼다(위치·크기·색은 기존 nav 링크 규칙 그대로). 세션 확인 중에는 기존 "로그인" 링크를 유지한다.
+ export default function DoItBrandHero({ onStart, motionPaused, onToggleMotion }: Props) {
++  const { user, loading, signOut } = useAuth();
++  const [signingOut, setSigningOut] = useState(false);
++  const signOutInFlight = useRef(false);
+   const start = (event: MouseEvent<HTMLAnchorElement>) => {
+     if (!onStart || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+     event.preventDefault();
+     onStart();
+   };
++  const handleSignOut = async () => {
++    if (signOutInFlight.current) return;
++    signOutInFlight.current = true;
++    setSigningOut(true);
++    try {
++      // AuthContext.signOut 은 실패해도 로컬 세션을 비우므로 여기서는 따로 오류 화면을 만들지 않는다.
++      await signOut();
++    } finally {
++      signOutInFlight.current = false;
++      setSigningOut(false);
++    }
++  };
+   return (
+     <section className="doit-brand-hero" aria-labelledby="doit-brand-title" data-motion-scene>
+       <a className="doit-brand-skip" href="#doit-stories">소개로 바로가기</a>
+@@ -17,7 +35,13 @@
+         <span className="doit-brand-company"><DoItSymbol decorative />DO IT <span>COMPANY</span></span>
+         <nav aria-label="홈페이지 메뉴">
+           <a href="#doit-stories">우리의 생각</a>
+-          <a href="/login">로그인 <span aria-hidden="true">↗</span></a>
++          {!loading && user ? (
++            <button type="button" className="doit-brand-session" onClick={() => { void handleSignOut(); }} disabled={signingOut} aria-busy={signingOut}>
++              {signingOut ? '로그아웃 중' : '로그아웃'} <span aria-hidden="true">↗</span>
++            </button>
++          ) : (
++            <a href="/login">로그인 <span aria-hidden="true">↗</span></a>
++          )}
+         </nav>
+       </header>
+       <div className="doit-brand-main">

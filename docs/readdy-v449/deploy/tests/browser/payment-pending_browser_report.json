@@ -1,0 +1,132 @@
+{
+  "at": "2026-09-13T11:19:15.060Z",
+  "outDir": "/tmp/claude-0/-home-user-ECHO-MVP-/32b2e916-384e-5880-bd86-61d37f6fbd49/scratchpad/zipcheck/out",
+  "counters": {
+    "createOrder": 0,
+    "confirmPayment": 0,
+    "tossSdkLoad": 0,
+    "tossGlobalAccess": 0,
+    "echoPaymentAny": 0,
+    "resume": 4,
+    "profilesUpsert": 4,
+    "authCalls": 0,
+    "staticCdn": 24,
+    "otherExternal": 0
+  },
+  "tossGlobalAccess": 0,
+  "externalRequests": [
+    "GET fonts.googleapis.com/css2",
+    "GET cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "GET cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "GET fonts.googleapis.com/css2",
+    "GET cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css",
+    "GET fonts.googleapis.com/css2",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/rest/v1/profiles",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/functions/v1/get-step-question action=resume",
+    "GET fonts.googleapis.com/css2",
+    "GET cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "GET cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "GET fonts.googleapis.com/css2",
+    "GET cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css",
+    "GET fonts.googleapis.com/css2",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/rest/v1/profiles",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/functions/v1/get-step-question action=resume",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/functions/v1/get-step-question action=resume",
+    "GET fonts.googleapis.com/css2",
+    "GET cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "GET cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "GET fonts.googleapis.com/css2",
+    "GET cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css",
+    "GET fonts.googleapis.com/css2",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/rest/v1/profiles",
+    "GET fonts.googleapis.com/css2",
+    "GET cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css",
+    "GET cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css",
+    "GET fonts.googleapis.com/css2",
+    "GET cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css",
+    "GET fonts.googleapis.com/css2",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/rest/v1/profiles",
+    "POST zyyhhxyupizcqhxqnxuu.supabase.co/functions/v1/get-step-question action=resume"
+  ],
+  "consoleErrors": [],
+  "results": [
+    {
+      "name": "/payment: 4,900원 표시",
+      "pass": true
+    },
+    {
+      "name": "/payment: 안내 문구 표시",
+      "pass": true
+    },
+    {
+      "name": "/payment: 버튼 라벨 \"결제 준비 중\" + disabled",
+      "pass": true,
+      "detail": "count=1"
+    },
+    {
+      "name": "/payment: 활성 결제 버튼(\"4,900원으로 이야기 이어가기\") 없음",
+      "pass": true
+    },
+    {
+      "name": "/payment: resume 호출 1회(서버 상태 확인은 정상 경로)",
+      "pass": true,
+      "detail": "resume=1"
+    },
+    {
+      "name": "/payment: 강제 클릭 후 주문 생성 요청 0",
+      "pass": true,
+      "detail": "createOrder=0"
+    },
+    {
+      "name": "/payment: Toss SDK 로드 시도 0",
+      "pass": true,
+      "detail": "sdkLoad=0"
+    },
+    {
+      "name": "/payment: window.TossPayments 접근(=requestPayment 경로) 0",
+      "pass": true,
+      "detail": "access=0"
+    },
+    {
+      "name": "/payment: 새로고침 후 동일 화면(버튼 disabled)",
+      "pass": true
+    },
+    {
+      "name": "/payment: \"조금 더 생각해 볼게요\" → 이전 장면 이동",
+      "pass": true,
+      "detail": "→ /white-door?c=harness-conv-0001"
+    },
+    {
+      "name": "/payment/success: \"결제가 확인되지 않았어요.\" + 준비 중 안내",
+      "pass": true
+    },
+    {
+      "name": "/payment/success: confirmPayment 요청 0",
+      "pass": true,
+      "detail": "confirm=0"
+    },
+    {
+      "name": "/payment/success: echo-payment 함수 호출 전체 0",
+      "pass": true,
+      "detail": "any=0"
+    },
+    {
+      "name": "/payment/success: STEP 3 으로 이동하지 않음(paid 생성 없음)",
+      "pass": true
+    },
+    {
+      "name": "/payment/success: 새로고침 후 동일(승인 요청 0 유지)",
+      "pass": true
+    },
+    {
+      "name": "/payment/success: \"다시 결제하기\" → /payment 로 복귀(여전히 disabled)",
+      "pass": true
+    },
+    {
+      "name": "/payment 비로그인 직접 진입 → /login 이동",
+      "pass": true,
+      "detail": "→ /login"
+    }
+  ],
+  "RESULT": "BROWSER VERIFIED"
+}

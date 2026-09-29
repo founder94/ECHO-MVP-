@@ -1,0 +1,28 @@
+--- ../bak-v13/src/pages/do-it/intro/page.tsx	2026-09-21 11:24:57.913047855 +0000
++++ src/pages/do-it/intro/page.tsx	2026-09-21 11:42:19.484991116 +0000
+@@ -1,7 +1,9 @@
+ import { useEffect, useRef, useState } from 'react';
+ import { useNavigate } from 'react-router-dom';
+ import DoItIntroFrame from '@/components/DoItIntroFrame';
++import IntroUniverse from '@/components/IntroUniverse';
+ import { MAIN_ENTRY_PATH } from '@/lib/echo/appMode';
++import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
+ 
+ // 다음 화면(/do-it/landing)의 첫 배경을 미리 읽는다. 이미지 로드가 늦어도 온보딩 진행은 막지 않는다.
+ const LANDING_IMAGE =
+@@ -138,6 +140,7 @@
+       }
+       if (dt >= navAt) {
+         navigatedRef.current = true;
++        markIntroSeen();
+         navigate(MAIN_ENTRY_PATH, { replace: true });
+         return;
+       }
+@@ -151,5 +154,6 @@
+     };
+   }, [reducedMotion, navigate]);
+ 
+-  return <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} />;
++  // 3D 연출(별 워프·점으로 모이는 심볼·기울기·빛 번짐)은 동작 줄이기 설정이 아닐 때만 그린다.
++  return <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} scene={reducedMotion === false ? <IntroUniverse progress={progress} leaving={leaving} /> : null} />;
+ }

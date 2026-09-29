@@ -1,0 +1,1132 @@
+--- a/src/lib/echo/api.ts
++++ b/src/lib/echo/api.ts
+@@ -49,6 +49,7 @@
+   | 'in_progress'
+   | 'no_candidate'
+   | 'rate_limited'
++  | 'timeout'
+   | 'error';
+ 
+ export interface ReportSection {
+@@ -218,13 +219,43 @@
+   return null;
+ }
+ 
++// 2026-09-16: 모든 서버 함수 호출에 유한 대기 상한을 둔다(STEP 1·2·이해 확인처럼 별도 컨트롤러가 없는 화면 포함).
++// 서버 최악값: 질문 생성 6초×2회, 리포트 20초×2회. 상한을 넘으면 화면은 기다림을 끝내고 입력·토큰을 유지한 채 재시도할 수 있다.
++// 요청 자체는 취소되지 않으므로(functions-js 에 AbortSignal 없음) 재시도는 같은 토큰으로 보내고 서버가 중복을 판정한다.
++export const REQUEST_TIMEOUT_MS = 40_000;
++export const REPORT_REQUEST_TIMEOUT_MS = 75_000;
++export const REQUEST_TIMEOUT_MESSAGE = '응답이 늦어지고 있어요. 작성한 내용은 그대로 있어요. 잠시 후 다시 눌러 주세요.';
++
++type Invoked = { data: unknown; error: unknown };
++type RacedInvoke = { kind: 'value'; value: Invoked } | { kind: 'timeout' };
++function raceInvoke(request: Promise<Invoked>, timeoutMs: number): Promise<RacedInvoke> {
++  return new Promise((resolve) => {
++    const timer = setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
++    request.then(
++      (value) => {
++        clearTimeout(timer);
++        resolve({ kind: 'value', value });
++      },
++      (err) => {
++        clearTimeout(timer);
++        resolve({ kind: 'value', value: { data: null, error: err } });
++      },
++    );
++  });
++}
++
+ async function call<T extends { ok: boolean; code?: string; error?: string; reason?: FlowReason }>(
+   fn: string,
+   action: string,
+   payload: Record<string, unknown>,
+ ): Promise<T> {
+   try {
+-    const { data, error } = await supabase.functions.invoke(fn, { body: { action, ...payload } });
++    const timeoutMs = action === 'report' ? REPORT_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
++    const raced = await raceInvoke(supabase.functions.invoke(fn, { body: { action, ...payload } }), timeoutMs);
++    if (raced.kind === 'timeout') {
++      return { ok: false, reason: 'timeout', code: 'CLIENT_TIMEOUT', error: REQUEST_TIMEOUT_MESSAGE } as T;
++    }
++    const { data, error } = raced.value;
+     if (error) {
+       const body = await readErrorBody(error);
+       if (body) return { ...body, ok: false, reason: mapReason(body.code) } as T;
+--- a/src/lib/echo/startSave.ts
++++ b/src/lib/echo/startSave.ts
+@@ -91,7 +91,12 @@
+ 
+     const raced = await raceTimeout(p, this.deps.timeoutMs ?? START_TIMEOUT_MS);
+     if (this.cancelled || seq !== this.seq) return { kind: 'stale' };
+-    if (raced.kind === 'timeout') return { kind: 'timeout', submittedText };
++    if (raced.kind === 'timeout') {
++      // 2026-09-16: 시간 초과 뒤에는 화면 잠금(busy)을 풀어 다시 누를 수 있게 한다. 같은 원문은 같은 토큰으로 다시 보내고,
++      // 서버가 토큰으로 중복을 판정한다(처리 중이면 IN_PROGRESS, 끝났으면 저장된 상태). 늦게 온 첫 응답은 무시된다.
++      if (this.inFlight === p) this.inFlight = null;
++      return { kind: 'timeout', submittedText };
++    }
+     if (raced.kind === 'rejected') {
+       return {
+         kind: 'failure',
+--- a/src/lib/echo/journeySave.ts
++++ b/src/lib/echo/journeySave.ts
+@@ -83,7 +83,11 @@
+ 
+     const raced = await raceTimeout(request, this.deps.timeoutMs ?? START_TIMEOUT_MS);
+     if (this.cancelled || seq !== this.seq) return { kind: 'stale' };
+-    if (raced.kind === 'timeout') return { kind: 'timeout', submittedText };
++    if (raced.kind === 'timeout') {
++      // 2026-09-16: 시간 초과 뒤 화면 잠금 해제. 같은 원문·같은 토큰으로 재시도하면 서버가 중복을 판정한다(IN_PROGRESS 또는 저장된 상태).
++      if (this.inFlight === request) this.inFlight = null;
++      return { kind: 'timeout', submittedText };
++    }
+     if (raced.kind === 'rejected') {
+       return {
+         kind: 'failure',
+--- a/src/pages/do-it/payment/page.tsx
++++ b/src/pages/do-it/payment/page.tsx
+@@ -77,10 +77,9 @@
+         return;
+       }
+       if (order.alreadyPaid) {
++        // 2026-09-16: 서버가 실제 paid 기록을 확인한 경우 곧바로 리포트로 연결한다(전에는 report_ready → /white-door 로 우회).
+         if (order.paid || order.reportEntitled) {
+-          const target = routeWithConversation(order.status, conversationId);
+-          if (target) navigate(target, { replace: true });
+-          else setPayError(UNKNOWN_STATE_MESSAGE);
++          navigate(`/report?c=${encodeURIComponent(conversationId)}`, { replace: true });
+         } else {
+           setPayError(UNKNOWN_STATE_MESSAGE);
+         }
+--- a/src/pages/do-it/payment/success/page.tsx
++++ b/src/pages/do-it/payment/success/page.tsx
+@@ -3,7 +3,7 @@
+ import SceneShell, { type ScenePhase } from '@/pages/do-it/components/SceneShell';
+ import { GHOST_BUTTON, PRIMARY_BUTTON, useReveal } from '@/pages/do-it/components/sceneStyles';
+ import { useConversationGate } from '@/pages/do-it/components/useConversationGate';
+-import { IN_PROGRESS_RETRY_MS, REPORT_PRICE_KRW, UNKNOWN_STATE_MESSAGE, confirmPayment, getPaymentStatus, routeWithConversation, type PaymentState } from '@/lib/echo/api';
++import { IN_PROGRESS_RETRY_MS, REPORT_PRICE_KRW, UNKNOWN_STATE_MESSAGE, confirmPayment, type PaymentState } from '@/lib/echo/api';
+ import { PAYMENT_PENDING_NOTICE, isPaymentEnabled } from '@/lib/echo/toss';
+ 
+ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+@@ -22,7 +22,6 @@
+   const [phase, setPhase] = useState<ScenePhase>('loading');
+   const [errorMessage, setErrorMessage] = useState('');
+   const [failed, setFailed] = useState(false);
+-  const [paymentSaved, setPaymentSaved] = useState(false);
+ 
+   const paymentPath = `/payment?c=${encodeURIComponent(conversationId)}`;
+   const returnPath = `/payment/success?${searchParams.toString()}`;
+@@ -31,7 +30,6 @@
+     setPhase('loading');
+     setErrorMessage('');
+     setFailed(false);
+-    setPaymentSaved(false);
+     if (!isPaymentEnabled()) {
+       setFailed(true);
+       setPhase('ready');
+@@ -76,17 +74,10 @@
+       setErrorMessage(UNKNOWN_STATE_MESSAGE);
+       return;
+     }
+-    // paid 저장 뒤에는 대화 완료 상태를 그대로 보존한다. 상태 조회 실패여도 재결제시키지 않는다.
+-    const latest = result.status ? result : await getPaymentStatus(confirmedConversationId);
+-    const target = routeWithConversation(latest.status, confirmedConversationId);
+-    if (!latest.ok || !target) {
+-      setPaymentSaved(true);
+-      setFailed(true);
+-      setPhase('ready');
+-      setErrorMessage('결제는 안전하게 저장됐어요. 잠시 후 진행 상태만 다시 확인해 주세요. 다시 결제할 필요는 없어요.');
+-      return;
+-    }
+-    navigate(target, { replace: true });
++    // 2026-09-16: paid 저장 뒤에는 대화 완료 상태를 그대로 보존하고 곧바로 리포트로 연결한다(White Door·STEP 3 되돌림 없음).
++    // 전에는 routeForStatus(report_ready)=/white-door 로 보내 구매자가 안내 화면을 한 번 더 거쳤다.
++    // 리포트 화면이 서버에서 완료·구매 권한을 다시 확인하므로 프론트는 권한을 만들지 않는다. 재결제는 없다.
++    navigate(`/report?c=${encodeURIComponent(confirmedConversationId)}`, { replace: true });
+   };
+ 
+   useConversationGate(returnPath, () => void confirm());
+@@ -96,14 +87,14 @@
+       {failed && (
+         <>
+           <h1 style={reveal(120)} className="text-[24px] leading-snug font-bold text-white mb-3">
+-            {paymentSaved ? '결제는 확인됐어요.' : '결제가 확인되지 않았어요.'}
++            결제가 확인되지 않았어요.
+           </h1>
+           <p style={reveal(240)} className="text-[13.5px] leading-relaxed text-white/60 mb-10 max-w-xs">
+             {errorMessage}
+           </p>
+           <div style={reveal(360)} className="w-full max-w-xs flex flex-col gap-3">
+-            <button type="button" onClick={() => paymentSaved ? void confirm() : navigate(paymentPath, { replace: true })} className={PRIMARY_BUTTON}>
+-              {paymentSaved ? '계속 진행 확인하기' : '결제 안내로 돌아가기'}
++            <button type="button" onClick={() => navigate(paymentPath, { replace: true })} className={PRIMARY_BUTTON}>
++              결제 안내로 돌아가기
+             </button>
+             <button type="button" onClick={() => navigate('/')} className={GHOST_BUTTON}>
+               처음으로
+--- a/src/pages/do-it/components/SceneShell.tsx
++++ b/src/pages/do-it/components/SceneShell.tsx
+@@ -31,7 +31,7 @@
+   const reveal = useReveal();
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/components/StepQuestionScreen.tsx
++++ b/src/pages/do-it/components/StepQuestionScreen.tsx
+@@ -195,7 +195,7 @@
+   const isRequesting = phase === 'loading';
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/start/page.tsx
++++ b/src/pages/do-it/start/page.tsx
+@@ -37,7 +37,7 @@
+   };
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport overflow-hidden">
+       {/* 배경: B구조 파스텔 */}
+       <div
+         className="absolute inset-0"
+--- a/src/pages/do-it/understanding-check/page.tsx
++++ b/src/pages/do-it/understanding-check/page.tsx
+@@ -275,7 +275,7 @@
+   const isRequesting = phase === 'loading';
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/weather-check/page.tsx
++++ b/src/pages/do-it/weather-check/page.tsx
+@@ -180,7 +180,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={iconKey} />
+       <WeatherEffect iconKey={iconKey} />
+ 
+--- a/src/pages/do-it/weather/page.tsx
++++ b/src/pages/do-it/weather/page.tsx
+@@ -132,7 +132,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={weather?.iconKey ?? null} />
+       <WeatherEffect iconKey={weather?.iconKey ?? null} />
+ 
+--- a/src/pages/do-it/white-door/page.tsx
++++ b/src/pages/do-it/white-door/page.tsx
+@@ -83,7 +83,7 @@
+   });
+ 
+   return (
+-    <section className="relative w-full min-h-[100dvh] flex items-center justify-center overflow-hidden">
++    <section className="relative w-full echo-min-h-viewport flex items-center justify-center overflow-hidden">
+       <WeatherBackdrop iconKey={null} />
+ 
+       <div className="relative z-10 w-full max-w-md mx-auto px-6 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+32px)]">
+--- a/src/pages/do-it/weather/components/WeatherEffect.tsx
++++ b/src/pages/do-it/weather/components/WeatherEffect.tsx
+@@ -104,9 +104,9 @@
+               left: 0,
+               width: cloud.width,
+               height: cloud.height,
++              // 2026-09-16 모바일 GPU 대응: 타원 그라디언트가 이미 투명으로 사라지므로 filter: blur 를 제거한다(Android 사각 잘림·iOS 부하 방지).
+               background:
+                 'radial-gradient(ellipse at center, rgba(210,224,244,0.6) 0%, rgba(210,224,244,0) 70%)',
+-              filter: 'blur(16px)',
+               animationDelay: cloud.delay,
+               animationDuration: cloud.duration,
+             }}
+@@ -128,9 +128,11 @@
+               left: 0,
+               width: '100%',
+               height: '160px',
++              // 2026-09-16 모바일 GPU 대응: filter: blur(28px) 대신 위·아래를 마스크로 투명하게 만들어 같은 안개 띠를 낸다.
+               background:
+                 'linear-gradient(to right, transparent, rgba(214,222,232,0.30), rgba(214,222,232,0.30), transparent)',
+-              filter: 'blur(28px)',
++              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 35%, black 65%, transparent)',
++              maskImage: 'linear-gradient(to bottom, transparent, black 35%, black 65%, transparent)',
+               animationDelay: fog.delay,
+               animationDuration: fog.duration,
+             }}
+--- a/src/router/index.ts
++++ b/src/router/index.ts
+@@ -28,7 +28,7 @@
+       fallback: createElement(
+         "div",
+         {
+-          className: "min-h-[100dvh] bg-[#07111f] text-white flex flex-col items-center justify-center gap-3",
++          className: "echo-min-h-viewport bg-[#07111f] text-white flex flex-col items-center justify-center gap-3",
+           role: "status",
+           "aria-live": "polite",
+         },
+--- a/src/pages/do-it/fortune/components/ConversationFlow.tsx
++++ b/src/pages/do-it/fortune/components/ConversationFlow.tsx
+@@ -77,11 +77,14 @@
+     if (!isLast) {
+       if (perspectives.length <= index + 1) {
+         setAdvancing(true);
++        let generated = false;
+         try {
+-          await generateNext();
++          generated = await generateNext();
+         } finally {
+           setAdvancing(false);
+         }
++        // 2026-09-16: 다음 질문 생성에 실패하면 현재 칸에 머문다(질문 없는 칸으로 이동 금지). 오류 문구는 훅의 error 로 표시된다.
++        if (!generated) return;
+       }
+       setIndex((i) => i + 1);
+     }
+--- a/src/doit/hooks/useOpenAIConversation.ts
++++ b/src/doit/hooks/useOpenAIConversation.ts
+@@ -115,7 +115,8 @@
+     }
+   }, []);
+ 
+-  const generateNext = useCallback(async () => {
++  // 2026-09-16: 생성 성공 여부를 돌려준다. 실패했을 때 화면이 질문 없는 다음 칸으로 넘어가지 않게 하기 위해서다.
++  const generateNext = useCallback(async (): Promise<boolean> => {
+     setLoading(true);
+     setError(null);
+ 
+@@ -135,10 +136,12 @@
+         },
+       ]);
+       setAnswers((previous) => [...previous, emptyAnswer()]);
++      return true;
+     } catch (err) {
+       setError(
+         err instanceof Error ? err.message : "잠시 후 다시 시도해 주세요.",
+       );
++      return false;
+     } finally {
+       setLoading(false);
+     }
+--- a/src/doit/pages/do-it/profile/page.tsx
++++ b/src/doit/pages/do-it/profile/page.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react";
++import { useEffect, useState } from "react";
+ import { Link } from "react-router-dom";
+ import MobileLayout from "@/doit/components/feature/MobileLayout";
+ import GradeBadge from "@/doit/components/feature/GradeBadge";
+@@ -7,39 +7,92 @@
+ import ConnectionCard from "@/doit/components/feature/ConnectionCard";
+ import DemoNotice from "@/doit/components/feature/DemoNotice";
+ import { myProfile, spaces, connections, purposes } from "@/doit/mocks/do-it";
++import { useAuth } from "@/doit/hooks/useAuth";
++import { loadProfile, type LoadedProfile } from "@/doit/lib/profileSave";
+ 
+ const purposeMap: Record<string, string> = {};
+ purposes.forEach((p) => { purposeMap[p.id] = p.label; });
+ 
+ type TabKey = "spaces" | "keys";
+ 
++// 2026-09-16: 실제 저장한 프로필(닉네임·소개·목적·지역·생활 리듬)을 이 화면에 연결한다.
++// 등급·공간·연결·미션 수치는 아직 서버 집계가 없어 데모로 남기고, 그 사실을 화면에 그대로 적는다.
++type RealProfileState =
++  | { status: "loading" }
++  | { status: "signed_out" }
++  | { status: "none" }
++  | { status: "ok"; profile: LoadedProfile }
++  | { status: "error"; message: string };
++
++function formatJoined(iso: string | undefined): string {
++  if (!iso) return "";
++  const d = new Date(iso);
++  if (Number.isNaN(d.getTime())) return "";
++  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
++}
++
+ export default function Profile() {
+   const [tab, setTab] = useState<TabKey>("spaces");
++  const { user, loading: authLoading } = useAuth();
++  const [real, setReal] = useState<RealProfileState>({ status: "loading" });
++
++  useEffect(() => {
++    let alive = true;
++    if (authLoading) return;
++    if (!user) {
++      setReal({ status: "signed_out" });
++      return;
++    }
++    setReal({ status: "loading" });
++    void loadProfile(user.id).then((result) => {
++      if (!alive) return;
++      if (result.status === "error") setReal({ status: "error", message: result.message });
++      else if (!result.profile) setReal({ status: "none" });
++      else setReal({ status: "ok", profile: result.profile });
++    });
++    return () => {
++      alive = false;
++    };
++  }, [user, authLoading]);
+ 
+   const mySpaces = spaces.filter((s) => s.status !== "locked").slice(0, 4);
+   const myConnections = connections;
+ 
++  const profile = real.status === "ok" ? real.profile : null;
++  const displayName = profile?.nickname?.trim() || (real.status === "ok" || real.status === "none" ? "닉네임을 아직 정하지 않았어요" : "");
++  const intro = profile?.intro?.trim() || (real.status === "ok" || real.status === "none" ? "소개를 아직 적지 않았어요" : "");
++  const facts = [profile?.purposeLabel, profile?.region, profile?.lifeRhythm].filter((v): v is string => !!v && !!v.trim());
++  const joined = formatJoined(user?.created_at);
++
+   return (
+     <MobileLayout title="프로필" showNav activeTab="profile">
+       <div className="animate-fade-up pt-4">
+-        <DemoNotice text="프로필·등급은 아직 서버에 연결되지 않았어요. 아래 내용은 데모 미리보기입니다." />
++        <DemoNotice text="닉네임·소개·목적·지역은 내가 저장한 값이에요. 등급과 공간·연결·미션 수치는 아직 서버 집계가 없어 데모 미리보기로 표시돼요." />
+         {/* Profile header */}
+         <div className="mb-6 flex flex-col items-center text-center">
+           <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+             <i className="ri-user-3-line text-3xl" />
+           </span>
+           <h2 className="mt-3 font-heading text-xl font-semibold text-foreground-950">
+-            {myProfile.name}
++            {real.status === "loading" && "불러오는 중…"}
++            {real.status === "signed_out" && "로그인이 필요해요"}
++            {real.status === "error" && "불러오기 실패"}
++            {(real.status === "ok" || real.status === "none") && displayName}
+           </h2>
+           <div className="mt-1">
+             <GradeBadge grade={myProfile.grade} />
+           </div>
+           <p className="mt-2 max-w-xs text-sm leading-relaxed text-foreground-500">
+-            {myProfile.bio}
+-          </p>
+-          <p className="mt-1 text-xs text-foreground-400">
+-            가입일 {myProfile.joinedAt}
++            {real.status === "error" ? real.message : real.status === "signed_out" ? "로그인하면 내가 저장한 프로필을 볼 수 있어요." : intro}
+           </p>
++          {facts.length > 0 && (
++            <p className="mt-1 text-xs text-foreground-500">{facts.join(" · ")}</p>
++          )}
++          {joined && (
++            <p className="mt-1 text-xs text-foreground-400">
++              가입일 {joined}
++            </p>
++          )}
+         </div>
+ 
+         {/* Stats */}
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,5 @@
+ {
+   "dependencies": {
+-    "@stripe/react-stripe-js": "4.0.2",
+     "@supabase/supabase-js": "2.57.4",
+     "firebase": "12.0.0",
+     "i18next": "25.4.1",
+@@ -43,4 +42,4 @@
+   },
+   "type": "module",
+   "version": "0.0.0"
+-}
+\ No newline at end of file
++}
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -8,7 +8,6 @@
+       "name": "react",
+       "version": "0.0.0",
+       "dependencies": {
+-        "@stripe/react-stripe-js": "4.0.2",
+         "@supabase/supabase-js": "2.57.4",
+         "firebase": "12.0.0",
+         "i18next": "25.4.1",
+@@ -1594,99 +1593,6 @@
+         "vitest": "^2.1.2"
+       }
+     },
+-    "../../implementation/project/node_modules/@stripe/react-stripe-js": {
+-      "version": "4.0.2",
+-      "license": "MIT",
+-      "dependencies": {
+-        "prop-types": "^15.7.2"
+-      },
+-      "devDependencies": {
+-        "@arethetypeswrong/cli": "^0.15.3",
+-        "@babel/cli": "^7.7.0",
+-        "@babel/core": "^7.7.2",
+-        "@babel/preset-env": "^7.7.1",
+-        "@babel/preset-react": "^7.7.0",
+-        "@rollup/plugin-babel": "^6.0.4",
+-        "@rollup/plugin-commonjs": "^25.0.7",
+-        "@rollup/plugin-node-resolve": "^15.2.3",
+-        "@rollup/plugin-replace": "^5.0.5",
+-        "@rollup/plugin-terser": "^0.4.4",
+-        "@storybook/react": "^6.5.0-beta.8",
+-        "@stripe/stripe-js": "^7.8.0",
+-        "@testing-library/jest-dom": "^5.16.4",
+-        "@testing-library/react": "^13.1.1",
+-        "@testing-library/react-hooks": "^8.0.0",
+-        "@types/jest": "^25.1.1",
+-        "@types/react": "^18.0.0",
+-        "@types/react-dom": "^18.0.0",
+-        "@typescript-eslint/eslint-plugin": "^2.18.0",
+-        "@typescript-eslint/parser": "^2.18.0",
+-        "babel-eslint": "^10.0.3",
+-        "babel-jest": "^24.9.0",
+-        "babel-loader": "^8.0.6",
+-        "eslint": "6.6.0",
+-        "eslint-config-airbnb": "18.0.1",
+-        "eslint-config-prettier": "^6.10.0",
+-        "eslint-plugin-import": "^2.18.2",
+-        "eslint-plugin-jest": "^22.6.3",
+-        "eslint-plugin-jsx-a11y": "^6.2.3",
+-        "eslint-plugin-prettier": "^3.1.2",
+-        "eslint-plugin-react": "^7.14.3",
+-        "eslint-plugin-react-hooks": "^1.7.0",
+-        "fork-ts-checker-webpack-plugin": "^4.0.3",
+-        "jest": "^25.1.0",
+-        "prettier": "^1.19.1",
+-        "react": "18.1.0",
+-        "react-docgen-typescript-loader": "^3.6.0",
+-        "react-dom": "18.1.0",
+-        "react-test-renderer": "^18.0.0",
+-        "rimraf": "^2.6.2",
+-        "rollup": "^4.12.0",
+-        "rollup-plugin-ts": "^3.4.5",
+-        "ts-jest": "^25.1.0",
+-        "ts-loader": "^6.2.1",
+-        "typescript": "^4.1.2"
+-      },
+-      "peerDependencies": {
+-        "@stripe/stripe-js": ">=1.44.1 <8.0.0",
+-        "react": ">=16.8.0 <20.0.0",
+-        "react-dom": ">=16.8.0 <20.0.0"
+-      }
+-    },
+-    "../../implementation/project/node_modules/@stripe/stripe-js": {
+-      "version": "7.10.0",
+-      "extraneous": true,
+-      "license": "MIT",
+-      "devDependencies": {
+-        "@arethetypeswrong/cli": "^0.15.3",
+-        "@babel/core": "^7.7.2",
+-        "@babel/preset-env": "^7.7.1",
+-        "@rollup/plugin-replace": "^2.3.1",
+-        "@types/jest": "^24.0.25",
+-        "@typescript-eslint/eslint-plugin": "^4.15.2",
+-        "@typescript-eslint/parser": "^4.15.2",
+-        "babel-eslint": "^10.0.3",
+-        "babel-jest": "^24.9.0",
+-        "conditional-type-checks": "^1.0.5",
+-        "eslint": "^6.8.0",
+-        "eslint-config-prettier": "^6.8.0",
+-        "eslint-plugin-import": "^2.18.2",
+-        "eslint-plugin-jest": "^22.6.3",
+-        "eslint-plugin-prettier": "^3.1.1",
+-        "jest": "^24.9.0",
+-        "prettier": "^1.19.1",
+-        "rimraf": "^2.6.2",
+-        "rollup": "^2.79.2",
+-        "rollup-plugin-babel": "^4.3.3",
+-        "rollup-plugin-typescript2": "^0.25.3",
+-        "ts-jest": "^24.3.0",
+-        "typescript": "~4.8.0",
+-        "zx": "^4.2.0"
+-      },
+-      "engines": {
+-        "node": ">=12.16"
+-      }
+-    },
+     "../../implementation/project/node_modules/@supabase/auth-js": {
+       "version": "2.71.1",
+       "extraneous": true,
+@@ -7795,10 +7701,6 @@
+       "resolved": "../../implementation/project/node_modules/@eslint/js",
+       "link": true
+     },
+-    "node_modules/@stripe/react-stripe-js": {
+-      "resolved": "../../implementation/project/node_modules/@stripe/react-stripe-js",
+-      "link": true
+-    },
+     "node_modules/@supabase/supabase-js": {
+       "resolved": "../../implementation/project/node_modules/@supabase/supabase-js",
+       "link": true
+--- a/qa/step7-contract.test.mjs
++++ b/qa/step7-contract.test.mjs
+@@ -71,8 +71,9 @@
+   assert.match(toss, /PAYMENT_GATE: PaymentGate = 'review_pending'/);
+   assert.match(toss, /결제 준비 중/);
+   assert.match(toss, /현재 결제 서비스를 준비하고 있어요\.[\s\S]*결제는 아직 진행되지 않습니다\./);
+-  assert.match(success, /routeWithConversation\(latest\.status/);
+-  assert.match(success, /다시 결제할 필요는 없어요/);
++  // 2026-09-16: 승인 뒤에는 리포트로 곧바로 연결한다(White Door·STEP 3 되돌림 없음). 재결제 유도 문구·재조회 없음.
++  assert.match(success, /navigate\(`\/report\?c=\$\{encodeURIComponent\(confirmedConversationId\)\}`, \{ replace: true \}\)/);
++  assert.doesNotMatch(success, /getPaymentStatus|routeWithConversation\(latest\.status|\/step\/3/);
+   assert.match(report, /if \(!state\.reportEntitled\)/);
+   assert.match(report, /navigate\(`\/payment\?c=/);
+   assert.match(whiteDoor, /state\.status !== 'report_ready'/);
+--- /dev/null
++++ b/qa/question-salvage.test.mjs
+@@ -0,0 +1,131 @@
++// 2026-09-16 운영 로그 근거 검사: [gsq] validate_fail reason=NOT_QUESTION / MULTIPLE_QUESTIONS 가 2회 연속 → NO_CANDIDATE.
++// 서버 규칙(tidyQuestionText · softenLeadingQuestion)이 모델 출력의 끝 장식과 짧은 공감 되묻기를 정리해
++// 유효한 질문 하나로 만드는지, 그리고 진짜 두 질문·비질문은 그대로 거르는지 확인한다.
++// 실제 OpenAI 호출은 없다(가짜 fetch). 사용자 원문은 로그에 남기지 않는다.
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFile } from 'node:fs/promises';
++import { resolve } from 'node:path';
++import { pathToFileURL } from 'node:url';
++import ts from 'typescript';
++
++const root = resolve(process.env.ECHO_PROJECT_ROOT || process.cwd());
++
++async function loadExports(relativePath, exposeLine) {
++  const absolutePath = resolve(root, relativePath);
++  let source = await readFile(absolutePath, 'utf8');
++  source = source.replace(
++    /import \{ createClient, type SupabaseClient \} from "npm:@supabase\/supabase-js@2\.57\.4";/,
++    'const createClient = () => ({});',
++  );
++  if (relativePath.includes('echo-journey')) {
++    const qualityUrl = pathToFileURL(resolve(absolutePath, '..', 'question-quality.ts')).href;
++    source = source.replace('from "./question-quality.ts";', `from ${JSON.stringify(qualityUrl)};`);
++  }
++  source += `\n${exposeLine}\n//# sourceURL=${absolutePath}?salvage=${Date.now()}-${Math.random()}\n`;
++  const compiled = ts.transpileModule(source, {
++    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
++    fileName: absolutePath,
++  }).outputText;
++  globalThis.Deno = { env: { get: () => '' }, serve: () => {} };
++  globalThis.__echoExposed = null;
++  await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
++  assert.ok(globalThis.__echoExposed, `${relativePath} did not expose test hooks`);
++  return globalThis.__echoExposed;
++}
++
++const EVIDENCE = '오늘은 마음이 편안해\n편안해서 조금 여유가 생겼어';
++
++test('get-step-question: trailing emoji / closing quote after the question mark is trimmed, not rejected', async () => {
++  const { validateSingleQuestion, tidyQuestionText } = await loadExports(
++    'supabase/functions/get-step-question/index.ts',
++    'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
++  );
++  const decorated = '편안하다고 말해주셨네요. 그 편안함이 어떤 때 가장 크게 느껴졌나요? 😊';
++  const result = validateSingleQuestion(decorated, 200, true, EVIDENCE);
++  assert.equal(result.ok, true);
++  assert.equal(result.text, '편안하다고 말해주셨네요. 그 편안함이 어떤 때 가장 크게 느껴졌나요?');
++  assert.equal(tidyQuestionText('"그 편안함이 어떤 때 가장 크게 느껴졌나요?"'), '그 편안함이 어떤 때 가장 크게 느껴졌나요?');
++  assert.equal(tidyQuestionText('그 편안함이 어떤 때 가장 크게 느껴졌나요?..'), '그 편안함이 어떤 때 가장 크게 느껴졌나요?');
++});
++
++test('get-step-question: a short empathetic lead-in question mark becomes a period so one real question remains', async () => {
++  const { validateSingleQuestion, softenLeadingQuestion } = await loadExports(
++    'supabase/functions/get-step-question/index.ts',
++    'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
++  );
++  const twoMarks = '많이 편안했죠? 그 편안함에서 지금 가장 또렷한 느낌은 무엇인가요?';
++  assert.equal(softenLeadingQuestion(twoMarks), '많이 편안했죠. 그 편안함에서 지금 가장 또렷한 느낌은 무엇인가요?');
++  const result = validateSingleQuestion(twoMarks, 200, true, EVIDENCE);
++  assert.equal(result.ok, true);
++  assert.equal((result.text.match(/\?/g) ?? []).length, 1);
++});
++
++test('get-step-question: genuine double questions, non-questions and trailing sentences are still rejected', async () => {
++  const { validateSingleQuestion, questionShape } = await loadExports(
++    'supabase/functions/get-step-question/index.ts',
++    'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
++  );
++  // 앞 문장이 30자보다 길면 진짜 두 질문으로 보고 거른다
++  const longLead = '오늘 편안했던 이유가 여유가 생겨서라고 이해했는데 맞나요? 그 여유는 어떤 때 가장 크게 느껴졌나요?';
++  assert.deepEqual(validateSingleQuestion(longLead, 200, true, EVIDENCE), { ok: false, error: 'MULTIPLE_QUESTIONS' });
++  // 세 질문
++  const three = '편안했나요? 이유는 무엇인가요? 어떤 때였나요?';
++  assert.deepEqual(validateSingleQuestion(three, 200, true, EVIDENCE), { ok: false, error: 'MULTIPLE_QUESTIONS' });
++  // 물음표 없음
++  assert.deepEqual(validateSingleQuestion('오늘은 편안한 하루였네요.', 200, true, EVIDENCE), { ok: false, error: 'NOT_QUESTION' });
++  // 물음표 뒤에 글자가 있는 꼬리는 손대지 않는다(보수적)
++  const trailingSentence = '그 편안함이 어떤 때 가장 크게 느껴졌나요? 편하게 말해줘요.';
++  assert.deepEqual(validateSingleQuestion(trailingSentence, 200, true, EVIDENCE), { ok: false, error: 'NOT_QUESTION' });
++  // 진단 형태 정보에는 원문이 없다
++  assert.equal(questionShape(trailingSentence), 'qmarks=1 tail=text');
++  assert.equal(questionShape('무엇인가요? ✨'), 'qmarks=1 tail=deco');
++  assert.equal(questionShape('오늘은 편안한 하루였네요.'), 'qmarks=0 tail=none');
++});
++
++test('get-step-question: grounding and forbidden-term rules still apply after tidying', async () => {
++  const { validateSingleQuestion } = await loadExports(
++    'supabase/functions/get-step-question/index.ts',
++    'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
++  );
++  assert.deepEqual(validateSingleQuestion('그 상처가 어디에서 왔나요? 😊', 200, true, EVIDENCE), { ok: false, error: 'NOT_GROUNDED' });
++  assert.deepEqual(validateSingleQuestion('편안함을 진단하면 무엇인가요? 😊', 200, true, EVIDENCE), { ok: false, error: 'FORBIDDEN' });
++});
++
++test('candidate JSON questions are tidied in both servers without changing letters', async () => {
++  const gsq = await loadExports(
++    'supabase/functions/get-step-question/index.ts',
++    'globalThis.__echoExposed = { validateSingleQuestion, tidyQuestionText, softenLeadingQuestion, parseCandidates, questionShape };',
++  );
++  const raw = JSON.stringify({ candidates: [{ acknowledgement: '편안하다고 했죠.', question: '그 편안함이 어떤 때 가장 크게 느껴졌나요? ✨', anchor: '편안', assumptions: [], meaning: '때', keys: ['편안함'] }] });
++  const parsed = gsq.parseCandidates(raw);
++  assert.equal(parsed.ok, true);
++  assert.equal(parsed.candidates[0].question, '그 편안함이 어떤 때 가장 크게 느껴졌나요?');
++
++  const journey = await loadExports(
++    'supabase/functions/echo-journey/index.ts',
++    'globalThis.__echoExposed = { parseCandidates, tidyQuestionText };',
++  );
++  const journeyParsed = journey.parseCandidates(raw);
++  assert.equal(journeyParsed.length, 1);
++  assert.equal(journeyParsed[0].question, '그 편안함이 어떤 때 가장 크게 느껴졌나요?');
++  // 꼬리에 글자가 있으면 그대로 두고, 이후 품질 규칙(not_question)이 거른다
++  assert.equal(journey.tidyQuestionText('무엇인가요? 편하게요.'), '무엇인가요? 편하게요.');
++});
++
++test('paid buyers are routed straight to the report, never back through White Door or STEP 3', async () => {
++  const [success, payment, api] = await Promise.all([
++    readFile(resolve(root, 'src/pages/do-it/payment/success/page.tsx'), 'utf8'),
++    readFile(resolve(root, 'src/pages/do-it/payment/page.tsx'), 'utf8'),
++    readFile(resolve(root, 'src/lib/echo/api.ts'), 'utf8'),
++  ]);
++  assert.match(success, /navigate\(`\/report\?c=\$\{encodeURIComponent\(confirmedConversationId\)\}`, \{ replace: true \}\)/);
++  assert.doesNotMatch(success, /getPaymentStatus/);
++  assert.doesNotMatch(success, /\/step\/3/);
++  const alreadyPaidBlock = payment.slice(payment.indexOf('if (order.alreadyPaid)'), payment.indexOf('if (!order.orderId'));
++  assert.match(alreadyPaidBlock, /navigate\(`\/report\?c=\$\{encodeURIComponent\(conversationId\)\}`, \{ replace: true \}\)/);
++  assert.doesNotMatch(alreadyPaidBlock, /routeWithConversation\(order\.status/);
++  // 상태 매핑 자체는 유지: report_ready 는 White Door(완주 전환 화면), report_done 은 리포트
++  assert.match(api, /case 'report_ready':\s*return '\/white-door';/);
++  assert.match(api, /case 'report_done':\s*return '\/report';/);
++});
+--- a/qa/save-controllers.test.ts
++++ b/qa/save-controllers.test.ts
+@@ -37,11 +37,13 @@
+   });
+ 
+   assert.equal((await controller.submit('same text')).kind, 'timeout');
+-  assert.equal((await controller.submit('same text')).kind, 'busy');
++  // 2026-09-16: 시간 초과 뒤에는 잠기지 않고(busy 아님) 같은 토큰으로 다시 보낸다. 서버가 토큰으로 중복을 판정한다.
++  assert.equal(controller.isInFlight, false);
++  assert.equal((await controller.submit('same text')).kind, 'success');
+   first.resolve({ ok: true, conversationId: 'conversation-1' });
+   await tick();
+-  assert.equal((await controller.submit('same text')).kind, 'success');
+   assert.deepEqual(tokens, ['token-a', 'token-a']);
++  assert.equal(controller.requestToken, '');
+ });
+ 
+ test('start: changed text receives a new token after a timed-out request settles', async () => {
+--- a/qa/full-flow-edge-simulation.test.mjs
++++ b/qa/full-flow-edge-simulation.test.mjs
+@@ -256,9 +256,11 @@
+         title: '오늘의 편안함을 이해하는 기록',
+         summary: '나는 편안함을 중요하게 느꼈어요. 오늘의 말을 바탕으로 나를 이해해 봤어요.',
+         sections: [
+-          { heading: '지금의 마음', body: '나는 오늘 편안하다고 직접 말했어요. 이 감정은 지금 확인된 내용이에요. 이 마음을 천천히 살펴볼 수 있어요.', status: 'confirmed' },
+-          { heading: '내가 중요하게 여긴 것', body: '나는 여유가 중요하다고 말했어요. 이것은 내 표현에서 확인한 내용이에요. 다른 뜻을 억지로 붙이지 않았어요.', status: 'confirmed' },
++          { heading: '지금의 마음', body: '나는 오늘 편안하다고 직접 말했어요. 이 감정은 지금 확인된 내용이에요. 이 마음을 천천히 살펴볼 수 있어요.', status: 'confirmed', anchor: '편안' },
++          { heading: '내가 중요하게 여긴 것', body: '나는 여유가 중요하다고 말했어요. 이것은 내 표현에서 확인한 내용이에요. 다른 뜻을 억지로 붙이지 않았어요.', status: 'confirmed', anchor: '여유' },
+           { heading: '다음에 살펴볼 것', body: '이 편안함을 이어갈 방법은 아직 후보예요. 나에게 맞는지 천천히 확인해 볼 수 있을 것 같아요. 지금 정답을 정할 필요는 없어요.', status: 'candidate' },
++          // AI 가 confirmed 라고 주장하지만 사용자 근거에 없는 표현(관계) → 서버가 candidate 로 내려야 한다
++          { heading: '반복되는 패턴', body: '나는 관계에서 늘 먼저 물러나는 편이에요. 이것은 여러 번 확인된 사실이에요. 앞으로도 같은 선택을 할 가능성이 커요.', status: 'confirmed', anchor: '관계에서 물러나' },
+         ],
+         next_step: '오늘 편안했던 이유를 한 줄로 남겨볼 수 있어요.',
+       });
+@@ -642,6 +644,11 @@
+   assert.equal(db.rows.reports.length, 0);
+   const generated = await invoke(journey, 'user-1', { action: 'report', conversationId, token: token('report2') });
+   assert.equal(generated.body.status, 'report_done');
++  // 2026-09-16: '확정' 은 서버가 결정한다. anchor 가 사용자 근거·본문에 모두 있는 항목만 confirmed, 근거 없는 '반복 패턴' 주장은 candidate.
++  assert.deepEqual(
++    generated.body.report.content.sections.map((section) => section.status),
++    ['confirmed', 'confirmed', 'candidate', 'candidate'],
++  );
+   assert.equal(generated.body.hasReport, true);
+   assert.match(generated.body.report.title, /편안함/);
+   const reopened = await invoke(journey, 'user-1', { action: 'report', conversationId, token: token('report3') });
+--- /dev/null
++++ b/eslint-rules/route-element-jsx.js
+@@ -0,0 +1,96 @@
++/**
++ * Enforce that React Router route `element` values are JSX, not component references.
++ *
++ * Example (good):
++ *   { path: "/x", element: <Page /> }
++ *
++ * Example (bad):
++ *   { path: "/x", element: Page }
++ */
++export default {
++  rules: {
++    'route-element-jsx': {
++      meta: {
++        type: 'problem',
++        docs: {
++          description:
++            'Require RouteObject.element to be JSX (e.g. <Comp />), not a component reference.',
++        },
++        schema: [],
++        messages: {
++          mustBeJsx:
++            '`element` must be JSX (e.g. `<{{name}} />`). You likely meant to render the component, not pass it.',
++        },
++      },
++      create(context) {
++        const sourceCode = context.sourceCode
++
++        function getKeyName(key) {
++          if (!key) return null
++          if (key.type === 'Identifier') return key.name
++          if (key.type === 'Literal') return String(key.value)
++          return null
++        }
++
++        function isJsxLike(node) {
++          if (!node) return false
++          switch (node.type) {
++            case 'JSXElement':
++            case 'JSXFragment':
++              return true
++            case 'Literal':
++              // allow null for "no element"
++              return node.value === null
++            case 'ConditionalExpression':
++              return isJsxLike(node.consequent) && isJsxLike(node.alternate)
++            case 'LogicalExpression':
++              // e.g. condition && <Comp />
++              return isJsxLike(node.right)
++            case 'CallExpression': {
++              // allow React.createElement(...)
++              const callee = node.callee
++              return (
++                callee?.type === 'MemberExpression' &&
++                callee.object?.type === 'Identifier' &&
++                callee.object.name === 'React' &&
++                callee.property?.type === 'Identifier' &&
++                callee.property.name === 'createElement'
++              )
++            }
++            default:
++              return false
++          }
++        }
++
++        function getSuggestedName(node) {
++          if (!node) return 'Component'
++          if (node.type === 'Identifier') return node.name
++          if (node.type === 'MemberExpression') {
++            return sourceCode.getText(node)
++          }
++          return 'Component'
++        }
++
++        return {
++          Property(node) {
++            const keyName = getKeyName(node.key)
++            if (keyName !== 'element') return
++            if (node.computed) return
++
++            // Only report when it's clearly not JSX-like (to avoid false positives).
++            if (isJsxLike(node.value)) return
++
++            // Common "wrong" pattern: Identifier / MemberExpression / LazyExoticComponent variable, etc.
++            const suggested = getSuggestedName(node.value)
++            context.report({
++              node: node.value,
++              messageId: 'mustBeJsx',
++              data: { name: suggested },
++            })
++          },
++        }
++      },
++    },
++  },
++}
++
+--- a/src/index.css
++++ b/src/index.css
+@@ -120,6 +120,54 @@
+     background-color: oklch(var(--foreground-50) / 0.2);
+     color: oklch(var(--foreground-50));
+   }
++
++  /* 2026-09-16 반응형 수정: 화면 폭을 넘는 장식 요소가 가로 스크롤을 만들지 않도록 문서 폭을 100% 로 고정한다.
++     색·글꼴·간격은 바꾸지 않는다. */
++  html,
++  body,
++  #root {
++    width: 100%;
++    max-width: 100%;
++    overflow-x: hidden;
++  }
++  /* body·#root 는 clip 을 지원하는 브라우저에서 clip 으로 둔다(hidden 은 스크롤 컨테이너를 만들어
++     앵커 이동·scroll-margin 계산에 끼어든다). 미지원 브라우저는 위 hidden 이 그대로 적용된다. */
++  body,
++  #root {
++    overflow-x: clip;
++  }
++}
++
++/* 2026-09-16 반응형 수정: 페이지 최상위 높이. Android Chrome 주소창이 접히고 펼쳐질 때 100vh 가 튀므로
++   100dvh 를 우선 쓰고, dvh 를 모르는 브라우저는 100vh 로 되돌아간다. */
++.echo-min-h-viewport {
++  min-height: 100vh;
++  min-height: 100dvh;
++}
++
++/* 2026-09-16 iPhone 대응: iOS Safari 는 글자 크기 16px 미만인 입력칸에 초점이 가면 화면을 자동 확대하고 되돌리지 않는다.
++   모바일 폭에서만 입력칸 글자를 16px 로 맞춘다(색·여백·테두리는 그대로). */
++@media (max-width: 767px) {
++  #root textarea,
++  #root input[type='text'],
++  #root input[type='email'],
++  #root input[type='password'],
++  #root input[type='tel'],
++  #root input[type='search'],
++  #root input:not([type]) {
++    font-size: 16px;
++  }
++}
++
++/* 2026-09-16 반응형 수정: 메뉴(ECHO·경험·기록) 앵커 이동 시 섹션 제목이 고정 헤더(64/80px) 뒤로 숨지 않도록
++   헤더 높이만큼 스크롤 여백을 둔다. 홈(.echo-home) 안의 id 섹션에만 적용. */
++.echo-home main section[id] {
++  scroll-margin-top: calc(4rem + env(safe-area-inset-top));
++}
++@media (min-width: 768px) {
++  .echo-home main section[id] {
++    scroll-margin-top: calc(5rem + env(safe-area-inset-top));
++  }
+ }
+ 
+ @layer components {
+--- a/src/pages/home/page.tsx
++++ b/src/pages/home/page.tsx
+@@ -26,9 +26,11 @@
+ export default function Home() {
+   return (
+     <ParallaxProvider intensity={1}>
+-      <div className="min-h-screen relative">
++      {/* 2026-09-16 반응형 수정: min-h-screen(100vh) → 100dvh + 100vh 폴백(.echo-min-h-viewport), 가로 폭 100% 고정 */}
++      <div className="echo-home echo-min-h-viewport relative w-full max-w-full">
+         {/* Full page background image with float effect */}
+-        <div className="fixed inset-0 z-0 animate-float-bg">
++        {/* 2026-09-16 반응형 수정: 배경층은 입력을 받지 않는다(pointer-events-none). 이미지·애니메이션은 그대로 */}
++        <div className="fixed inset-0 z-0 pointer-events-none animate-float-bg">
+           <img
+             src="https://storage.helloreaddy.io/project_files/3af9018b-0984-400b-9a04-099fb48dbecd/c125683b-65fb-46b7-abb4-538de3a9e593_compressed__3.webp"
+             alt=""
+--- /dev/null
++++ b/src/pages/home/scrollToSection.ts
+@@ -0,0 +1,14 @@
++// 2026-09-16 반응형 수정: 홈 안의 앵커 이동(메뉴 ECHO·경험·기록, 푸터 ECHO·기록)을 고정 헤더 높이만큼 보정한다.
++// 섹션이 overflow-hidden(ParallaxSection) 안에 있어 CSS scroll-margin 이 뷰포트까지 전달되지 않으므로
++// 헤더 실측 높이를 빼서 window 를 직접 스크롤한다. 고정 px 값은 쓰지 않는다.
++export const HOME_NAV_ATTR = 'data-echo-nav';
++
++export function scrollToSectionBelowHeader(id: string): boolean {
++  const target = document.getElementById(id);
++  if (!target) return false;
++  const nav = document.querySelector<HTMLElement>(`[${HOME_NAV_ATTR}]`);
++  const headerHeight = nav ? nav.getBoundingClientRect().height : 0;
++  const top = target.getBoundingClientRect().top + window.scrollY - headerHeight;
++  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
++  return true;
++}
+--- a/src/pages/home/components/PastelBlobs.tsx
++++ b/src/pages/home/components/PastelBlobs.tsx
+@@ -57,14 +57,16 @@
+           key={i}
+           className="absolute rounded-full animate-blob-float"
+           style={{
+-            backgroundColor: blob.color,
++            // 2026-09-16 반응형 수정: 큰 원에 filter: blur(100px) 를 걸면 Android Chrome(GPU 합성)에서
++            // 블러 레이어가 사각형 타일 경계에서 잘려 "직각으로 끊긴 초록 배경"으로 보인다.
++            // 같은 색·크기·위치·애니메이션을 유지하고, 번짐은 필터 대신 투명으로 사라지는 radial-gradient 로 표현한다.
++            background: `radial-gradient(circle at center, ${blob.color} 0%, ${blob.color} 18%, transparent 70%)`,
+             width: blob.size,
+             height: blob.size,
+             top: blob.top,
+             left: blob.left,
+             right: blob.right,
+             bottom: blob.bottom,
+-            filter: 'blur(100px)',
+             animationDelay: blob.delay,
+             animationDuration: blob.duration,
+           }}
+--- a/src/pages/home/components/FloatingEffects.tsx
++++ b/src/pages/home/components/FloatingEffects.tsx
+@@ -153,11 +153,14 @@
+           top: '-10%',
+           left: '50%',
+           transform: 'translateX(-50%)',
+-          width: '140vw',
+-          height: '70vw',
++          // 2026-09-16 반응형 수정: 140vw 대신 부모(fixed inset-0 = 화면) 기준 140%. 비율은 2:1 로 동일.
++          width: '140%',
++          aspectRatio: '2 / 1',
+           borderRadius: '50%',
+           background: 'conic-gradient(from 180deg at 50% 100%, transparent 0deg, rgba(255,180,180,0.05) 30deg, rgba(255,230,150,0.05) 60deg, rgba(160,255,200,0.05) 90deg, rgba(160,220,255,0.05) 120deg, rgba(210,180,255,0.05) 150deg, transparent 180deg)',
+-          filter: 'blur(50px)',
++          // filter: blur(50px) 제거(Android GPU 블러 잘림 원인). 가장자리는 마스크로 투명하게 사라지게 한다.
++          WebkitMaskImage: 'radial-gradient(ellipse at 50% 100%, black 40%, transparent 72%)',
++          maskImage: 'radial-gradient(ellipse at 50% 100%, black 40%, transparent 72%)',
+           animation: 'rainbow-sweep 14s ease-in-out infinite',
+         }}
+       />
+@@ -172,8 +175,9 @@
+             top: '-10%',
+             width: beam.width,
+             height: '120%',
+-            background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.04) 60%, transparent 100%)',
+-            filter: 'blur(20px)',
++            // 2026-09-16 반응형 수정: filter: blur(20px) 제거. 세로 방향 밝기는 그대로 두고
++            // 가로 가장자리를 타원 그라디언트로 투명하게 만들어 같은 "빛 기둥" 느낌을 낸다.
++            background: 'radial-gradient(ellipse 50% 50% at 50% 45%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 45%, transparent 100%)',
+             animation: `light-beam-sway ${beam.duration} ease-in-out infinite`,
+             animationDelay: beam.delay,
+             transformOrigin: 'top center',
+@@ -197,7 +201,8 @@
+             boxShadow: `inset -5px -5px 15px rgba(255,255,255,0.1), 0 0 ${parseInt(orb.size) * 0.6}px hsla(${orb.hue}, 60%, 70%, 0.15)`,
+             animation: `orb-float-3d ${orb.duration} ease-in-out infinite`,
+             animationDelay: orb.delay,
+-            backdropFilter: 'blur(2px)',
++            // 2026-09-16 반응형 수정: backdrop-filter 제거(Android 에서 뒤 배경 샘플링 시 사각 잔상 위험).
++            // 구슬 자체의 그라디언트·테두리·그림자는 그대로다.
+             perspective: '800px',
+           }}
+         >
+@@ -210,7 +215,6 @@
+               width: '25%',
+               height: '20%',
+               background: 'radial-gradient(ellipse, rgba(255,255,255,0.5) 0%, transparent 70%)',
+-              filter: 'blur(2px)',
+             }}
+           />
+         </div>
+@@ -230,11 +234,12 @@
+             animationDelay: cloud.delay,
+           }}
+         >
++          {/* 2026-09-16 반응형 수정: 구름 조각의 filter: blur 를 제거하고 같은 밝기의 타원 그라디언트로 번짐을 표현한다. */}
+           <div className="relative" style={{ width: '220px', height: '90px' }}>
+-            <div className="absolute rounded-full" style={{ width: '110px', height: '65px', background: 'rgba(255,255,255,0.07)', top: '12px', left: '25px', filter: 'blur(24px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '90px', height: '55px', background: 'rgba(255,255,255,0.05)', top: '8px', left: '70px', filter: 'blur(20px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '70px', height: '45px', background: 'rgba(255,255,255,0.04)', top: '22px', left: '5px', filter: 'blur(18px)' }} />
+-            <div className="absolute rounded-full" style={{ width: '50px', height: '35px', background: 'rgba(255,255,255,0.06)', top: '5px', left: '120px', filter: 'blur(16px)' }} />
++            <div className="absolute rounded-full" style={{ width: '110px', height: '65px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.07) 0%, transparent 70%)', top: '12px', left: '25px' }} />
++            <div className="absolute rounded-full" style={{ width: '90px', height: '55px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)', top: '8px', left: '70px' }} />
++            <div className="absolute rounded-full" style={{ width: '70px', height: '45px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%)', top: '22px', left: '5px' }} />
++            <div className="absolute rounded-full" style={{ width: '50px', height: '35px', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%)', top: '5px', left: '120px' }} />
+           </div>
+         </div>
+       ))}
+--- a/src/pages/home/components/Navbar.tsx
++++ b/src/pages/home/components/Navbar.tsx
+@@ -1,6 +1,7 @@
+ import { useState, useEffect } from 'react';
+ import { Link } from 'react-router-dom';
+ import { useAuth } from '@/context/AuthContext';
++import { HOME_NAV_ATTR, scrollToSectionBelowHeader } from '@/pages/home/scrollToSection';
+ 
+ interface AppMenuItem {
+   label: string;
+@@ -46,11 +47,8 @@
+ 
+   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+     e.preventDefault();
+-    const targetId = href.replace('#', '');
+-    const element = document.getElementById(targetId);
+-    if (element) {
+-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+-    }
++    // 2026-09-16 반응형 수정: 고정 헤더 높이만큼 보정해 섹션 제목이 헤더 뒤로 숨지 않게 한다.
++    scrollToSectionBelowHeader(href.replace('#', ''));
+     setMobileMenuOpen(false);
+     setDesktopMenuOpen(false);
+   };
+@@ -68,11 +66,15 @@
+ 
+   return (
+     <nav
+-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+-        scrolled ? 'bg-transparent' : 'bg-transparent'
++      {...{ [HOME_NAV_ATTR]: '' }}
++      // 2026-09-16 반응형 수정: 스크롤 후에도 투명이라 메뉴 글자가 본문 글자 위에 겹쳐 보였다.
++      // 스크롤 전(히어로 위)은 그대로 투명, 스크롤 후에는 테마 배경색 75% 로 본문과 분리한다(블러 없음).
++      // 상단 safe-area(노치·상태바) 만큼 안쪽 여백을 준다.
++      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 pt-[env(safe-area-inset-top)] ${
++        scrolled ? 'bg-background-50/75' : 'bg-transparent'
+       }`}
+     >
+-      <div className="w-full px-6 md:px-10 lg:px-16">
++      <div className="w-full max-w-full px-6 md:px-10 lg:px-16">
+         <div className="flex items-center justify-between h-16 md:h-20">
+           {/* Logo */}
+           <a
+--- a/src/pages/home/components/Footer.tsx
++++ b/src/pages/home/components/Footer.tsx
+@@ -1,6 +1,11 @@
+ import AnimatedSection from '@/components/AnimatedSection';
++import { scrollToSectionBelowHeader } from '@/pages/home/scrollToSection';
+ 
+ export default function Footer() {
++  // 2026-09-16 반응형 수정: 푸터의 섹션 앵커도 메뉴와 같이 고정 헤더 높이만큼 보정해 이동한다.
++  const handleAnchor = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
++    if (scrollToSectionBelowHeader(id)) e.preventDefault();
++  };
+   return (
+     <footer className="relative w-full py-10 md:py-16">
+       {/* Top blur transition */}
+@@ -61,10 +66,10 @@
+                   <a href="/" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     처음
+                   </a>
+-                  <a href="#meaning" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
++                  <a href="#meaning" onClick={(e) => handleAnchor(e, 'meaning')} className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     ECHO
+                   </a>
+-                  <a href="#jukebox" className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
++                  <a href="#jukebox" onClick={(e) => handleAnchor(e, 'jukebox')} className="text-sm text-white hover:text-white/90 transition-colors whitespace-nowrap">
+                     기록
+                   </a>
+                 </div>
+--- a/src/components/ScrollToTop.tsx
++++ b/src/components/ScrollToTop.tsx
+@@ -20,7 +20,7 @@
+       type="button"
+       onClick={scrollToTop}
+       aria-label="Scroll to top"
+-      className={`fixed bottom-8 right-6 md:right-10 z-40 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-500 via-accent-500 to-secondary-500 text-white flex items-center justify-center transition-all duration-500 cursor-pointer hover:scale-110 animate-gradient-text ${
++      className={`fixed bottom-[calc(2rem+env(safe-area-inset-bottom))] right-6 md:right-10 z-40 w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary-500 via-accent-500 to-secondary-500 text-white flex items-center justify-center transition-all duration-500 cursor-pointer hover:scale-110 animate-gradient-text ${
+         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+       }`}
+     >
+--- a/src/components/MusicPlayer.tsx
++++ b/src/components/MusicPlayer.tsx
+@@ -121,7 +121,7 @@
+       <div id="youtube-music-player" className="absolute -left-[9999px] -top-[9999px] w-0 h-0 opacity-0 pointer-events-none" />
+ 
+       {/* 플로팅 음악 토글 버튼 */}
+-      <div className="fixed bottom-6 left-6 z-[100] flex flex-col items-start gap-2">
++      <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-6 z-[100] flex flex-col items-start gap-2">
+         {/* 토글 버튼 */}
+         <button
+           type="button"

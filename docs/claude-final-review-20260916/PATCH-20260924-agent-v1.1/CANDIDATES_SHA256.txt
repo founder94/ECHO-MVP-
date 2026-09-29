@@ -1,0 +1,18 @@
+ECHO Agent v1.1 (LEVEL 3 FAIL #3 fix) 배포 후보 — 2026-09-24 · 운영 배포 0 (전략본부 검수 대기)
+
+[서버] supabase/functions/doit-understanding/index.ts
+  SHA-256 c8c0cf85efb9c2cf9a8a39fcf6fe1f26385d3df433f9f4c3d11a0d69ea503f9e (236,895바이트)
+  운영 대상: Supabase zyyhhxyupizcqhxqnxuu · doit-understanding (현재 운영 = 버전 27 · 승인 지문 1aab6423…)
+  되돌리기: rollback/doit-understanding.v27.ts (1aab6423…)
+  주의: 대시보드 편집기로 붙여 넣으면 파일 끝 줄바꿈 1바이트가 빠질 수 있다(지난번 사례) → 그 경우 운영 지문 = 이 파일의 앞 236,894바이트 지문. 배포 후 cmp 로 확인.
+
+[서버·변경 없음] doit-connect 9c2bac14… (운영 버전 5와 같음) → 배포 대상 아님
+
+[앱] 1_APP_여기에올릴것_doitmobile.zip (앱 45차 후보)
+  SHA-256 725cc5a64ed9aab3ce76b8cf368fb124209cb25315fc8c9f97cb6049c7142cda (3,055,488바이트 · 149개 파일)
+  빌드 폴더와 차이 0 · 소스맵 0 · .env 0 · 비밀키 0
+  운영 대상: Netlify doitmobile (app.do-it.company)
+
+[홈페이지] 배포 대상 아님 — 대화 화면은 홈페이지에 경로가 없다. 빌드 조각 이름(해시)만 바뀌고 보이는 화면 변화 0. 앞서 전달한 061f7397… 그대로 유효.
+
+배포 순서(승인 시): 서버 → 앱. 새 서버는 옛 앱(44차)과 호환(recent 가 없으면 저장된 답으로 맥락을 만든다).

@@ -1,0 +1,35 @@
+# ECONOMY P1 · 누락검사 보완 (replay / REQUEST_CONFLICT) · 운영 DB · 실제 실행 로그
+# 실행 도구: Supabase MCP execute_sql (관리 API) · 접속 역할 postgres · RPC 호출 역할 SET LOCAL ROLE service_role
+# 작업창: Claude Code 세션 session_014JuYeorypLuXLiCzgFASRi (이 세션). 과거 03:54~03:58 smoke의 작업창 식별자: 확인 불가.
+# 원본 production_smoke 로그: 이 작업공간에 없음 (find/grep 0건). 이 로그는 새 검사 기록이며 과거 로그를 대체하지 않는다.
+
+[프로젝트] zyyhhxyupizcqhxqnxuu (ap-northeast-2) · migration 20260913033639 economy_p1_key_ledger_r2 (유일)
+[테스트 사용자] ec000000-0000-4000-8000-0000000e5510 · email ec***@test.doit.invalid · auth.users 생성 2026-09-13 03:54:07 UTC · provider 없음 · profiles.role=user
+
+[기존 요청 4건 (읽기 전용, 04:30 UTC)]
+c001 ec000000-0000-4000-8000-00000000c001 key_charge_revenue applied 03:54:22 UTC hash 8de0b05b… 복원해시 일치
+d001 ec000000-0000-4000-8000-00000000d001 key_grant_reward   applied 03:57:44 UTC hash ae942b0b… 복원해시 일치
+f001 ec000000-0000-4000-8000-00000000f001 key_reverse(charge) applied 03:58:02 UTC hash bae152a4… 복원해시 일치
+f002 ec000000-0000-4000-8000-00000000f002 key_reverse(grant)  applied 03:58:02 UTC hash ba0e1d66… 복원해시 일치
+복원 인수:
+  charge: amount=1 source=test_only_smoke source_id=smoke-charge-20260913
+  grant : amount=1 source=test_only_smoke source_id=smoke-grant-20260913 policy_version=TEST_ONLY_SMOKE expires_at=NULL
+  reverse: original_tx 682518ac…(charge) / 409a3475…(grant), amount=-1, reason 'TEST_ONLY_SMOKE reversal of charge|grant'
+
+[함수 정의 md5 (04:30 UTC)] key_charge_revenue acda4d13a63ed87ca5f627fc03f8150d · key_grant_reward 2df6c167be4c7bcc9edc7618d98166cb · key_reverse c1be9699ef966db965470e784bce3eda · key_spend 0f9be9333eaeba16c9a609bd78df96b4
+  r2 검증본과의 동일 여부: 확인 불가 (r2 원문 미보유)
+[권한] EXECUTE: key_charge_revenue/key_grant_reward/key_reverse → postgres, service_role · key_spend → postgres, authenticated
+[제약] key_ledger_cause_uniq UNIQUE(user_id, source, source_id) WHERE source_id IS NOT NULL · key_request_events_once UNIQUE(user_id, request_id)
+
+[누락검사 실행 · 단일 DO 블록 · 종료 시 RAISE EXCEPTION 'ROLLBACK_BY_DESIGN' 로 전체 롤백]
+executed_at_utc 2026-09-13 04:31:33.091 (KST 13:31:33)
+before  req 4 / led 4 / bal [{reward 0, revenue 0, updated 03:58:02}] / req_ids_md5 67e9b590… / led_ids_md5 2755c6ae…
+A charge replay (c001, 원본 인수) → {"ok":true,"balance":{"revenue":1},"charged":1,"requestId":"…c001"} · 저장 result_json 과 동일: true
+B grant replay  (d001, 원본 인수) → {"ok":true,"balance":{"reward":1},"granted":1,"requestId":"…d001"} · 저장 result_json 과 동일: true
+   ※ 응답의 balance 1 은 최초 실행 시점 값의 replay. 현재 실제 잔액은 0.
+C conflict (c001, amount 1→2) → SQLSTATE 40900 message REQUEST_CONFLICT (예외 블록으로 포착, 그 외 오류 없음)
+after_inside_txn 동일 (unchanged_inside_txn=true) → 이후 예외로 트랜잭션 전체 롤백
+
+[롤백 후 영속 상태 대조 · 04:32:05 UTC] req 4 / led 4 / bal 1 (reward 0, revenue 0, updated 03:58:02 유지) / md5 동일 / pending 0 / 비테스트 사용자 ledger 0 / payments 0 / auth.users 2
+[23505 → CAUSE_ALREADY_APPLIED] 이번 검사에서 유발하지 않음(새 원인 생성 금지). 운영 실행 증거 검증 필요. 스테이징 로그 미보유.
+[운영 영속 변경 건수] 0
