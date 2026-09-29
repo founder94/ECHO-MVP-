@@ -724,3 +724,49 @@ test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실�
   const r2 = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '말이 잘 통하는 사람이면 좋겠어' });
   assert.equal(r2.status, 200); assert.equal(r2.body.turn.question, '말이 잘 통하는 친구랑도 이런 건 피하고 싶다 싶은 게 있어요?');
 });
+
+
+test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어져 4/5에서 종료되지 않음', async () => {
+  const s = newState(); const h = load(s);
+  const st = h.agent.newState({ goal: 'friend' });
+
+  // 다섯 칸의 뜻은 이미 들었지만, 실제 저장된 사용자 답은 4개뿐인 상태.
+  // GF-115 준비 기준 때문에 한 번 더 유효한 답을 받아야 한다.
+  for (const [i, id] of h.agent.PIDS.entries()) {
+    st.slots[id].status = 'CONFIRMED';
+    st.slots[id].items.push({
+      note: `확정-${id}`, quote: `원문-${id}`, turn: Math.min(i + 1, 4),
+      source: 'answer', status: 'CONFIRMED', source_type: 'USER_DIRECT'
+    });
+  }
+  st.turns = [1, 2, 3, 4].map((n) => ({
+    n, ai: `질문-${n}`, question_purpose: h.agent.PIDS[Math.min(n - 1, 4)],
+    question_type: 'core', user: `답-${n}`, kind: 'answer', saved: true
+  }));
+  st.asked = [
+    { type: 'core', purpose: 'relationship_intent', text: '친구랑 보통 뭐 하고 싶어요?' },
+    { type: 'core', purpose: 'attraction_comfort', text: '어떤 친구와 있으면 편해요?' },
+    { type: 'core', purpose: 'values_character', text: '친구를 볼 때 뭘 중요하게 봐요?' },
+    { type: 'core', purpose: 'relationship_style', text: '연락은 자주 하는 게 좋아요?' },
+    { type: 'core', purpose: 'boundaries', text: '친구 사이에서 싫은 건 뭐예요?' },
+  ];
+  st.current = st.asked.at(-1);
+
+  const dup = T({ kind: 'unsure', reply: '아직 잘 모르겠네요.', ...Q('relationship_intent', '친구랑 보통 뭐 하고 싶어요?') });
+  const fresh = T({ kind: 'unsure', reply: '아직 잘 모르겠네요.', ...Q('relationship_style', '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?') });
+  const outs = [dup, dup, fresh];
+  let calls = 0;
+  const llm = async (kind) => {
+    assert.equal(kind, 'turn');
+    const out = outs[calls++];
+    if (!out) throw new Error('unexpected extra call');
+    return JSON.stringify(out);
+  };
+
+  const r = await h.agent.runTurn(st, '잘 모르겠어요', llm);
+  assert.equal(calls, 3, '중복 후보 2개를 서버가 거절한 뒤 세 번째 후보를 사용');
+  assert.equal(r.response.finish, false, '4/5 준비 미완료인데 대화를 잘못 끝내지 않음');
+  assert.equal(r.response.question, '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?');
+  assert.equal(r.response.question_type, 'fill');
+  assert.ok(r.obs.retry.filter((x) => x === 'asked_before').length >= 2);
+});
