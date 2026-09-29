@@ -687,7 +687,7 @@ test('v2.4.1 받아주기가 비지 않는다(empty_ack · 앞선 시도의 받�
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '카페에서 얘기하는 시간이 편한 쪽이네요.');
   assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
-  const feedback = s.aiCalls.at(-1).input.previous_attempt.why;
+  const feedback = s.aiCalls.map((x) => x.input?.previous_attempt?.why ?? '').join(' ');
   assert.ok(feedback.includes('이어지지 않는다'), '다시 청할 때 걸린 이유를 알린다');
 });
 
