@@ -59,7 +59,7 @@ const summaryText = JSON.stringify({ summary: (s?.summary ?? []).map((x) => x.te
 const factHits = leaksIn(summaryText);
 check('요약·프로필·소개에 거절된 뜻(매일 연락) 사실로 0', factHits.every((h) => h.negated), `phase=${s?.phase} hits=${JSON.stringify(factHits.slice(0, 4))}`);
 check('최신 정정이 이긴다(요약·프로필·소개에 주말 반영 · 또는 아직 요약 전)', s?.phase !== 'done' || /주말/.test(summaryText), `phase=${s?.phase} 주말=${/주말/.test(summaryText)}`);
-const lineage = JSON.stringify(Object.values(prof).filter((v) => v && Array.isArray(v.items)).flatMap((v) => v.items.flatMap((i) => [...(i.corrected_from ?? []), ...(i.status !== 'CONFIRMED' ? [i.note] : [])])));
+const lineage = JSON.stringify(Object.values(prof).filter((v) => v && Array.isArray(v.items)).flatMap((v) => [...v.items.flatMap((i) => i.corrected_from ?? []), ...(Array.isArray(v.history) ? v.history.filter((i) => i.status !== 'CONFIRMED').map((i) => i.note) : [])]));
 check('정정 이력 보존(밀린 옛 값이 이력에 남음 · 지금 사실은 아님)', s?.phase !== 'done' || A_MEANING.test(lineage) || /매일/.test(lineage), `lineage=${lineage.slice(0, 160)}`);
 
 // ④ 세션 격리
