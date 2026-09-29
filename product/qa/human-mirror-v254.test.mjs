@@ -52,17 +52,18 @@ test('v2.5.4 세 번 청해도 설문형이면 그대로 내보내지 않고 질
   assert.equal(st.slots.boundaries.status, 'CONFIRMED', '저장·상태 처리는 그대로');
 });
 
-test('v2.5.4 다시 청한 질문도 설문형이면 다른 목적으로 한 번 더, 그래도 안 되면 서버 안내 한 줄(설문 문장 0)', async () => {
+test('v2.5.5 다시 청한 질문도 설문형이면 거절 이유와 함께 한 번 더 · 다른 목적으로 한 번 더, 그래도 안 되면 서버 안내 한 줄(설문 문장 0)', async () => {
   const st = start();
-  const purposes = [];
+  const purposes = []; const whys = [];
   const llm = async (kind, _system, input) => {
     if (kind === 'turn') return turnOut(STIFF);
-    if (kind === 'question') { purposes.push(input.want_to_learn); return JSON.stringify({ question: '어떤 활동을 함께하고 싶으세요?' }); }
+    if (kind === 'question') { purposes.push(input.want_to_learn); whys.push(input.rejected?.why ?? null); return JSON.stringify({ question: '어떤 활동을 함께하고 싶으세요?' }); }
     return JSON.stringify({ reply: '오, 좋죠.' });
   };
   const r = await A.runTurn(st, PHRASE, llm);
-  assert.equal(purposes.length, 2, '같은 목적 한 번 + 다른 목적 한 번');
-  assert.notEqual(purposes[0], purposes[1]);
+  assert.equal(purposes.length, 3, 'v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) + 다른 목적 한 번');
+  assert.equal(purposes[0], purposes[1]); assert.notEqual(purposes[1], purposes[2]);
+  assert.equal(whys[0], null); assert.ok(whys[1], '두 번째 다시 쓰기에 거절 이유를 알린다');
   assert.equal(r.response.question, A.fillFallbackText('polite'));
   assert.ok(!A.infoKindQuestion(r.response.question, PHRASE) && !A.surveyQuestion(PHRASE, r.response.question));
   assert.ok(r.obs.retry.includes('question_fallback'));
