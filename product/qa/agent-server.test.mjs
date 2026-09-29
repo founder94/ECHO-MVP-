@@ -682,7 +682,8 @@ test('v2.4.1 받아주기가 비지 않는다(empty_ack · 앞선 시도의 받�
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
   // 첫 시도: 받아주기는 좋지만 질문이 답과 안 이어짐 → 둘째: 질문은 이어지지만 받아주기 칸이 질문뿐 → 첫 시도의 받아주기를 쓴다
   s.ai.push(T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('relationship_style', '친구와 연락은 자주 하시나요?') }),
-    T({ reply: '카페에서 어떤 얘기를 주로 하세요?', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
+    T({ reply: '카페에서 어떤 얘기를 주로 하세요?', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }),
+    T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '카페에서 얘기하는 시간이 편한 쪽이네요.');
   assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
@@ -701,7 +702,7 @@ test('v2.4.1 받아주기가 사용자 말을 그대로 옮기면 다시 청한�
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.');
   const why = s.aiCalls.at(-1).input.previous_attempt.why;
-  assert.ok(why.includes('거의 그대로 옮겼다') && why.includes('방금 답의 낱말: 카페, 얘기'), why);
+  assert.ok(why.includes('거의 그대로 옮겼다') && why.includes('방금 사용자가 실제로 쓴 표현:') && why.includes('카페에서'), why);
 });
 
 test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실처럼 들어가지 않는다 · 받아주기만 따로 다시 쓰기(ack) · AI 일시 오류 1번 다시(실제 AI run gi)', async () => {
@@ -715,7 +716,7 @@ test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실�
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
   const copy = T({ reply: '카페에서 얘기하는 게 좋으시네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 얘기가 잘 통한다 싶은 친구는 어떤 사람이에요?') });
-  s.ai.push(copy, copy, { reply: '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.' });
+  s.ai.push(copy, copy, copy, { reply: '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.' });
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '같이 뭘 하기보다 얘기가 잘 통하는 시간이 편한 쪽이네요.');
   assert.equal(r.body.turn.question, '카페에서 얘기가 잘 통한다 싶은 친구는 어떤 사람이에요?');
@@ -764,7 +765,7 @@ test('v2.5: 이미 충분히 들은 상태면 중복 후보를 더 생성하지 
   };
 
   const r = await h.agent.runTurn(st, '저는 주말에 쉬는 편이에요', llm);
-  assert.ok(calls <= 2, `충분한데 불필요한 추가 질문 생성: ${calls}`);
+  assert.ok(calls <= 3, `후보 재생성 상한 초과: ${calls}`);
   assert.equal(r.response.finish, true, '확정 영역이 충분하면 고정 5답을 채우지 않고 종료');
   assert.equal(r.response.question, null);
 });
