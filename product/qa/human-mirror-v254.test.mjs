@@ -145,3 +145,17 @@ test('2026-09-30 마감 §7·§15: 휴대폰 뒤로 = 직전 답 고치기 · �
   assert.match(sheet, /<InstallAppCard variant="menu" \/>/);
   assert.match(sheet, /pathname\.startsWith\('\/do-it\/intro'\)/, '시작 그림·인트로를 가리지 않는다');
 });
+
+test('2026-09-30 QA 장면 C 30회 중 FAIL: 모르겠다 턴의 분석형 받아주기(「아, 친구를 찾고 계시네요.」)는 짧게 다시 쓰거나 비운다', async () => {
+  const st = start();
+  A.applyTurn(st, '편하게 얘기할 친구를 찾고 있어요', T({ extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('attraction_comfort', '편하게 얘기할 친구와 카페에서 만나면 좋나요?') }));
+  const llm = async (kind) => {
+    if (kind === 'turn') return JSON.stringify(T({ kind: 'unsure', reply: '아, 친구를 찾고 계시네요.', next: N('relationship_style', '친구와 공원에서 산책하면 좋나요?') }));
+    if (kind === 'ack') return JSON.stringify({ reply: '그찮, 그럴 수 있죠 다음에 천천히 생각해 봐도 돼요' });
+    return JSON.stringify({ question: '' });
+  };
+  const r = await A.runTurn(st, '잘 모르겠어요', llm);
+  assert.equal(r.response.kind, 'unsure');
+  assert.equal(r.response.reply, '', '다시 쓴 받아주기도 길면 비운다');
+  assert.equal(r.response.question, '친구와 공원에서 산책하면 좋나요?');
+});

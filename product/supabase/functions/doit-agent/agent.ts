@@ -1085,9 +1085,13 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }
   // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
-  if (!after && out.kind === "answer" && !ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, work) || analyticAck(t)) { const a = await rewriteAck(st, work, out.next.question || null, llm, obs); if (a) ackBackup = a; } }
+  // 2026-09-30 QA 장면 C·E(30회 중 4 FAIL): 모르겠다·정정·넘기기·항의 턴의 받아주기도 같은 기준(짧게 · 분석 0 · 옮겨 쓰기 0). 이 턴들은 받아주기가 비어도 된다.
+  const ackTurn = ["answer", "correction", "unsure", "skip", "repair"].includes(out.kind);
+  const ackBad = (t: string) => (out!.kind === "answer" && !t) || (!!t && (ackCopies(t, work) || analyticAck(t)));
+  if (!after && ackTurn && !ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) { const a = await rewriteAck(st, work, out.next.question || null, llm, obs); if (a) ackBackup = a; } }
   // v2.4.1 마지막 답의 받아주기가 정리 뒤 비면, 앞선 시도의 쓸 만한 받아주기를 쓴다(받아주기 없이 질문만 보이지 않게).
-  if (!after && out.kind === "answer" && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (!t || ackCopies(t, work) || analyticAck(t)) out = { ...out, reply: ackBackup }; } // v2.5.5 QA v62 21자 받아주기 방지
+  if (!after && ackTurn && ackBackup) { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: ackBackup }; } // v2.5.5 QA v62 21자 받아주기 방지
+  if (!after && ackTurn && out.kind !== "answer") { const t = tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null); if (ackBad(t)) out = { ...out, reply: "" }; } // 끝까지 못 고치면 받아주기 없이 질문만(분석 문장보다 낫다)
   if (/[?？]/.test(out.reply)) out = { ...out, reply: out.reply.replace(/[?？]/g, ".") }; // 반응 칸의 물음표는 질문 수를 늘리므로 화면에 물음표로 내지 않는다
   if (after) {
     st.after_turns++;
