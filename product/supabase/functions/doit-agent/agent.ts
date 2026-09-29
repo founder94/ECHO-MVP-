@@ -430,7 +430,10 @@ const FIX_NO = /^\s*(아니(요|에요|야)?|아뇨|아냐|아닌데요?|그게\
 export const questionBlocked = (st: AgentState, q: string | null | undefined) => !q || st.asked.some((a) => squash(a.text) === squash(q) || dice(bare(a.text), bare(q)) >= SIMILAR_Q) || goalResidue(st, q) || BANNED_WORDS.test(q);
 // v2.4.7 GF-118 모델이 새 질문을 끝내 못 만들 때의 서버 안내 한 줄(대화에 한 번 · 질문 목록 아님).
 // 2026-09-30 QA 장면 E: 옛 안내 한 줄(「이 밖에 이런 사람이면 좋겠다 싶은 게…」)은 34자를 넘고 사람 유형을 묻는 말이라 짧은 이어 묻기로 바꾼다.
-export const fillFallbackText = (tone: Tone) => tone === "casual" ? "그 얘기 조금만 더 들려줄래?" : tone === "formal" ? "그 이야기 조금만 더 들려주시겠어요?" : "그 얘기 조금만 더 들려줄래요?";
+// QA v71: 「그 얘기 조금만 더 들려줄래요?」는 대표 「나쁜 느낌」 예(「조금 더 들려주실 수 있을까요?」)와 같은 결이라, 대표가 든 좋은 질문 예로 바꾼다.
+export const fillFallbackText = (tone: Tone) => tone === "casual" ? "그럼 처음 만날 땐 어디가 제일 편할 것 같아?" : tone === "formal" ? "그럼 처음 만나실 땐 어디가 가장 편하실 것 같으세요?" : "그럼 처음 만날 땐 어디가 제일 편할 것 같아요?";
+// 2026-09-30 §4 대표 예: 모르겠다 뒤 「그럼 이런 느낌 중 가까운 건 있어요?」 + 보기. 다시 쓴 질문이 모두 떨어져도 쓸 만한 보기가 모였으면 이 한 줄로 묻는다.
+export const choiceQuestionText = (tone: Tone) => tone === "casual" ? "그럼 이런 느낌 중엔 뭐가 가까워?" : tone === "formal" ? "그럼 이런 느낌 중엔 무엇이 가까우세요?" : "그럼 이런 느낌 중엔 뭐가 가까워요?";
 export const fixCheckText = (tone: Tone, note: string) => { const n = note ? `「${note}」 부분` : "앞에서 한 말"; return tone === "casual" ? `앞에서 말한 ${n}을 고치는 뜻 맞아?` : tone === "formal" ? `앞에서 말씀하신 ${n}을 고치시는 뜻이 맞습니까?` : `앞에서 말한 ${n}을 고치는 뜻이 맞나요?`; };
 const pairs = (t: string) => { const o = new Set<string>(); for (let i = 0; i < t.length - 1; i++) o.add(t.slice(i, i + 2)); return o; };
 function dice(a: string, b: string): number { const A = pairs(a), B = pairs(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return (2 * n) / (A.size + B.size); }
@@ -1034,7 +1037,7 @@ const QUESTION_REWRITE_PROMPT = `너는 친구처럼 대화를 이어 가는 사
 const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
-  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: "사용자가 방금 앞 답을 고쳤다(latest 가 새 답). asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다. asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 묻는다." } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
+  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
   try { raw = await call(llm, obs, "question", unanswered ? `${QUESTION_REWRITE_PROMPT}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. 질문은 보기 가운데 가까운 것을 고를 수 있는 모양(「그럼 이런 느낌 중엔 뭐가 가까워요?」처럼)이고, choices 는 서로 다른 실제 장면 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이 · 예: 「카페에서 수다」「같이 산책」「취미 같이 하기」). 네/아니요 보기와 「잘 모르겠어요」는 넣지 않는다.` : QUESTION_REWRITE_PROMPT, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
   const o = parseJson(raw);
   return { question: str(o?.question).trim(), choices: unanswered ? cleanChoices(o?.choices) : [] };
@@ -1121,14 +1124,19 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     let fixed: Parsed["next"] | null = null;
     // v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) → 다른 목적 한 번. 거절된 AI 질문 문장은 기록에 남긴다(사용자 원문 아님 · 40자).
     let rejected: { question: string; why: string } | null = null;
+    let spareChoices: { purpose: string; choices: string[] } | null = null;
     for (const purpose of [order[0], order[0], order[1]].filter((p): p is string => !!p)) {
       const { question: q, choices } = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, kindNow === "correction");
       const flaw = q ? questionFlaw(st, qBase, q, answered) : "empty";
       if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null, choices }; obs.retry.push("question_rewrite"); break; }
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
-      rejected = { question: q, why: FLAW_WHY[flaw] ?? flaw }; // 2026-09-30 QA v67 장면 E: 정정 뒤 같은 틀(값만 바꾼 질문)을 세 번 내서 안내 한 줄로 떨어졌다
+      if (choices.length && !spareChoices) spareChoices = { purpose, choices }; // 질문은 떨어져도 보기는 형식 검사를 이미 통과했다
+      // QA v71 장면 E: 「비슷했다」만으로는 같은 틀을 세 번 냈다 → 어느 질문과 비슷했는지 알려 준다(AI 가 만든 질문 문장 · 사용자 원문 아님).
+      const like = flaw === "blocked" ? st.asked.map((a) => a.text).sort((x, y) => dice(bare(y), bare(q)) - dice(bare(x), bare(q)))[0] : "";
+      rejected = { question: q, why: like ? `${FLAW_WHY.blocked}(「${like}」와 같은 틀 · 다른 문장 모양으로)` : FLAW_WHY[flaw] ?? flaw }; // 2026-09-30 QA v67 장면 E: 정정 뒤 같은 틀(값만 바꾼 질문)을 세 번 내서 안내 한 줄로 떨어졌다
     }
     if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "unsure_paste", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
+    if (!fixed && !answered && spareChoices && !questionBlocked(st, choiceQuestionText(st.tone))) { fixed = { type: "core", purpose: spareChoices.purpose, question: choiceQuestionText(st.tone), hint: "", check: null, choices: spareChoices.choices }; obs.retry.push("question_choices"); }
     if (!fixed && cand.length && !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone))) { fixed = { type: "core", purpose: cand[0], question: fillFallbackText(st.tone), hint: "", check: null }; st.fill_fallback_used = true; obs.retry.push("question_fallback"); }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }

@@ -170,7 +170,7 @@ test('09-30 v66: echo of the last answer is a question flaw; the fallback line i
   assert.equal(A.questionFlaw(start(), L, '한 달에 한두 번 만나는 게 편해요?'), 'echo');
   for (const tone of ['polite', 'casual', 'formal']) {
     const f = A.fillFallbackText(tone);
-    assert.ok(f.length <= 25 && /[?？]$/.test(f), f);
+    assert.ok(f.length <= 34 && /[?？]$/.test(f) && !/들려/.test(f), f);
     assert.equal(A.genericPersonQuestion(f), false);
     assert.equal(A.stiffQuestion(f, L), false);
   }
@@ -236,4 +236,23 @@ test('09-30 v70: help that the server turns into unsure is checked like unsure (
   assert.equal(r.response.question, '그럼 이런 느낌 중엔 뭐가 가까워요?');
   assert.ok(!A.analyticAck(r.response.reply) && !/빈도/.test(r.response.reply), r.response.reply);
   assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책', '잘 모르겠어요']);
+});
+
+// QA v71 장면 C5·E6: 다시 쓴 질문이 세 번 다 떨어져 안내 한 줄로 갔다. 모르겠다 턴은 모인 보기로 대표 예 「그럼 이런 느낌 중엔 뭐가 가까워요?」를 묻고,
+// 「비슷했다」로 떨어진 다시 쓰기에는 어느 질문과 비슷했는지 알려 준다.
+test('09-30 v71: unsure turn with rejected rewrites falls back to the choice question; blocked why names the similar question', async () => {
+  const st = start();
+  await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '친구랑 카페에서 만나면 편해요?') }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  const whys = [];
+  const r = await A.runTurn(st, '잘 모르겠어요', async (kind, _s, input) => {
+    if (kind === 'turn') return JSON.stringify(T({ kind: 'unsure', next: N('contact_rhythm', '친구와 만나면 어떤 활동이 좋을까요?') }));
+    if (kind === 'question') { whys.push(input.rejected?.why ?? null); return JSON.stringify({ question: '친구랑 카페에서 만나면 편해요?', choices: ['카페에서 수다', '같이 산책', '네, 좋아요'] }); }
+    return JSON.stringify({ reply: '' });
+  });
+  assert.equal(r.response.question, A.choiceQuestionText('polite'));
+  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책', '잘 모르겠어요']);
+  assert.ok(r.obs.retry.includes('question_choices'));
+  assert.match(whys[1] ?? '', /「친구랑 카페에서 만나면 편해요\?」와 같은 틀/);
 });
