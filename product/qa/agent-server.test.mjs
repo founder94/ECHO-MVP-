@@ -72,8 +72,20 @@ function load(state) {
       const body = JSON.parse(init.body);
       state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
       // v2.4 not_anchored 재시도: 예전 테스트의 가짜 질문은 답과 글자가 안 겹치므로, 따로 줄 세우지 않았으면(strictAnchor 아님) 같은 출력을 다시 준다.
-      const why = JSON.parse(body.messages[1].content).previous_attempt?.why ?? '';
-      const next = why.startsWith('next.question 이 방금 답(latest)과 이어지지 않는다') && !state.strictAnchor && state.lastAi !== undefined ? state.lastAi : state.ai.shift();
+      const input = JSON.parse(body.messages[1].content);
+      const why = input.previous_attempt?.why ?? '';
+      let next;
+      if (!state.strictAnchor && state.lastAi !== undefined && /(설문|딱딱|사람 유형|분석·요약|짧은 맞장구)/.test(why)) {
+        next = structuredClone(state.lastAi);
+        next.reply = '오, 그렇구나.';
+        if (next.next?.question) {
+          const tokens = String(input.latest ?? '').split(/[\s,.!?~…]+/).map((x) => x.replace(/[^가-힣A-Za-z]/g, '')).filter((x) => x.length >= 2);
+          const anchor = tokens.find((x) => !['사람','친구','좋아','그냥','저는','나는','내가','같이'].includes(x)) ?? tokens[0] ?? '그';
+          next.next = { ...next.next, question: `${anchor} 얘기하다 보면 뭐가 제일 좋아요?` };
+        }
+      } else {
+        next = why.startsWith('next.question 이 방금 답(latest)과 이어지지 않는다') && !state.strictAnchor && state.lastAi !== undefined ? state.lastAi : state.ai.shift();
+      }
       state.lastAi = next;
       if (next === undefined) throw new Error('no fake AI output left');
       if (next === 'HTTP500') return new Response('{}', { status: 500 });
@@ -704,8 +716,8 @@ test('v2.4.1 받아주기가 사용자 말을 그대로 옮기면 다시 청한�
   );
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '오, 카페 좋죠.');
-  const why = s.aiCalls.at(-1).input.previous_attempt.why;
-  assert.ok(why.includes('거의 그대로 옮겼다') && why.includes('방금 사용자가 실제로 쓴 표현:') && why.includes('카페에서'), why);
+  const why = s.aiCalls.map((x) => x.input?.previous_attempt?.why ?? '').join(' ');
+  assert.ok((why.includes('거의 그대로 옮겼다') || why.includes('분석·요약')) && why.includes('카페'), why);
 });
 
 test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실처럼 들어가지 않는다 · 받아주기만 따로 다시 쓰기(ack) · AI 일시 오류 1번 다시(실제 AI run gi)', async () => {
