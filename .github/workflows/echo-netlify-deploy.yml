@@ -41,8 +41,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: echo-netlify-deploy-${{ github.event.inputs.target || 'qa' }}
-  cancel-in-progress: false
+  # Push 검사는 운영 수동 승인 대기와 독립. 새 commit 이 오면 지난 QA 검사만 취소한다.
+  group: echo-netlify-deploy-${{ github.event_name == 'push' && 'qa-check' || github.event.inputs.target || 'qa' }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   NETLIFY_CLI: netlify-cli@27.10.0
