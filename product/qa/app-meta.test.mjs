@@ -42,6 +42,18 @@ test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React
   assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
 });
 
+test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 최소 1초 · 흐려지며 사라짐 · 온보딩 경로에서만 · 라우팅 변경 0', () => {
+  const sync = read('src/components/ThemeColorSync.tsx');
+  const theme = read('src/lib/themeColor.ts');
+  const vite = read('vite.config.ts');
+  assert.match(theme, /APP_LAUNCH_MIN_MS = 1000;/);
+  assert.match(theme, /APP_LAUNCH_FADE_MS = 220;/);
+  assert.match(sync, /APP_LAUNCH_MIN_MS - performance\.now\(\)/);
+  assert.match(sync, /classList\.add\(APP_LAUNCH_OUT_CLASS\)/);
+  assert.doesNotMatch(sync, /navigate\(/, '스플래시가 목적지를 정하지 않는다');
+  assert.match(vite, /html\.echo-app-launch-root\.echo-app-launch-out body::after \{ opacity: 0; \}/);
+});
+
 test('앱 빌드만 theme-color·첫 body 바탕을 파스텔로 바꾼다(없으면 빌드 실패)', () => {
   const vite = read('vite.config.ts');
   assert.match(vite, /swap\('<meta name="theme-color" content="#08070c" \/>', `<meta name="theme-color" content="\$\{APP_START_COLOR\}" \/>`\)/);
