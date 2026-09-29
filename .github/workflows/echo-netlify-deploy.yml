@@ -251,7 +251,7 @@ jobs:
 
   prod_auth_readback:
     name: PROD Auth readback (read-only)
-    if: github.event_name == 'push' && github.ref_name == 'echo-qa'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod' && github.event.inputs.go == 'GO'
     runs-on: ubuntu-latest
     environment: ECHO-PROD
     timeout-minutes: 5
