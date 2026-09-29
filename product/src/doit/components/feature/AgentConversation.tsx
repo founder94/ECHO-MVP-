@@ -220,7 +220,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : ack ? <h1 className="echo-ack-heading">{ack}</h1> : <h1>{myAnswers.length ? <>잘 들었어요.<br />다음 질문이에요.</> : '첫 질문이에요.'}</h1>}
     {!done && <p className="echo-lead">{voiceUi ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
     {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
-    {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
+    {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 고친 답 기준으로 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
     {editingPrevious && !done && previousQuestion && <div className="echo-question-card"><p className="echo-question">{previousQuestion}</p></div>}
     {question && !editingPrevious && <div className="echo-question-card">
       <p className="echo-question">{question}</p>

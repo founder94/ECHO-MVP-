@@ -185,7 +185,7 @@ test('먼저 답하기·정정·항의: 저장 0 · 틀린 기억 거둠 · 문�
 
 test('지침(stop): 들은 만큼 정리하고 마침 · 저장 금지 입력: 고정 안내·원문 저장 0', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') })); // v2.5.4: 「어떤 사람이 편해요?」는 v2.5.1 부터 사람 유형 재정의 질문(서버가 다시 청함)
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   const b = await say('제 번호 010-1234-5678 이에요');
@@ -542,9 +542,9 @@ test('v2.4 세션 격리: 같은 계정 · 기기 A(친구)와 기기 B(연애)�
   const getA = await h.call({ action: 'agent_get', sessionId: a.body.session.id });
   assert.equal(getA.body.session.id, a.body.session.id); assert.equal(getA.body.session.goal, 'friend');
   // 두 세션에 동시에 말해도 서로의 턴·질문이 섞이지 않는다
-  s.ai.push(T({ extracted: [X('attraction_comfort', '카페에서 얘기', '카페에서 얘기하는')], ...Q('relationship_style', '그런 친구랑은 얼마나 자주 보면 좋아요?') }));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '카페에서 얘기', '카페에서 얘기하는')], ...Q('relationship_style', '카페에서 보면 오래 얘기하는 편이에요?') })); // v2.5.4: 「얼마나 자주」는 정보 종류 질문(대표 HUMAN MIRROR)
   const ta = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: a.body.session.id, text: '카페에서 얘기하는 게 좋아' });
-  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '연락은 얼마나 자주 하는 게 좋아요?') }));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '다정한 사람이면 연락도 자주 오면 좋아요?') }));
   const tb = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: b.body.session.id, text: '다정한 사람이 좋아요' });
   const aUsers = ta.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
   const bUsers = tb.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
@@ -679,9 +679,9 @@ test('v2.4 방금 답과 이어지지 않는 질문은 한 번 다시 청한다(
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑 뭐 하면서 놀고 싶어요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
   s.ai.push(T({ extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('relationship_style', '친구와 연락은 자주 하시나요?') }),
-    T({ extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 얘기할 때 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
+    T({ extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 편이에요?') })); // v2.5.4: 34자 넘는 질문은 v2.5.3 부터 다시 청함
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
-  assert.equal(r.body.turn.question, '카페에서 얘기할 때 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
+  assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 편이에요?');
   const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
   assert.ok(rec.retry.includes('not_anchored'));
 });
@@ -694,11 +694,11 @@ test('v2.4.1 받아주기가 비지 않는다(empty_ack · 앞선 시도의 받�
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구' })).body.session.id;
   // 첫 시도: 받아주기는 좋지만 질문이 답과 안 이어짐 → 둘째: 질문은 이어지지만 받아주기 칸이 질문뿐 → 첫 시도의 받아주기를 쓴다
   s.ai.push(T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('relationship_style', '친구와 연락은 자주 하시나요?') }),
-    T({ reply: '카페에서 어떤 얘기를 주로 하세요?', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }),
-    T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?') }));
+    T({ reply: '카페에서 어떤 얘기를 주로 하세요?', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 편이에요?') }),
+    T({ reply: '카페에서 얘기하는 시간이 편한 쪽이네요.', extracted: [X('attraction_comfort', '카페 대화', '카페에서 얘기')], ...Q('values_character', '카페에서 깊은 얘기까지 하는 편이에요?') }));
   const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '술보다는 카페에서 얘기하는 게 좋아' });
   assert.equal(r.body.turn.reply, '카페에서 얘기하는 시간이 편한 쪽이네요.');
-  assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 친구가 좋아요, 가볍게 떠드는 쪽이 좋아요?');
+  assert.equal(r.body.turn.question, '카페에서 깊은 얘기까지 하는 편이에요?');
   const feedback = s.aiCalls.map((x) => x.input?.previous_attempt?.why ?? '').join(' ');
   assert.ok(feedback.includes('이어지지 않는다'), '다시 청할 때 걸린 이유를 알린다');
 });
@@ -736,9 +736,9 @@ test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실�
   assert.equal(r.body.turn.reply, '오, 카페 좋죠.');
   assert.equal(r.body.turn.question, '카페에서 얘기할 때 무슨 얘기가 제일 재밌어요?');
   // AI 일시 오류(500)는 한 번 다시 불러 대화가 멈추지 않는다
-  s.ai.push('HTTP500', T({ extracted: [X('values_character', '말이 잘 통함', '말이 잘 통하는')], ...Q('boundaries', '말이 잘 통하는 친구랑도 이런 건 피하고 싶다 싶은 게 있어요?') }));
+  s.ai.push('HTTP500', T({ extracted: [X('values_character', '말이 잘 통함', '말이 잘 통하는')], ...Q('boundaries', '말이 잘 통해도 이건 싫다 싶은 게 있어요?') })); // v2.5.4: 34자 이내
   const r2 = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '말이 잘 통하는 사람이면 좋겠어' });
-  assert.equal(r2.status, 200); assert.equal(r2.body.turn.question, '말이 잘 통하는 친구랑도 이런 건 피하고 싶다 싶은 게 있어요?');
+  assert.equal(r2.status, 200); assert.equal(r2.body.turn.question, '말이 잘 통해도 이건 싫다 싶은 게 있어요?');
 });
 
 
