@@ -25,6 +25,8 @@ test('conversation back edits the previous answer instead of leaving the flow', 
   const chat = read('src/doit/components/feature/AgentConversation.tsx');
   assert.match(back, /'\/doit\/conversation'/);
   assert.match(chat, /직전 답 고치기/);
+  assert.match(chat, /직전 답으로 돌아왔어요/);
+  assert.match(chat, /previousQuestion/);
   assert.match(chat, /correctionMode \? \{ purpose: null \} : undefined/);
   assert.match(chat, /그 뒤 질문도 고친 답 기준으로 다시 정해요/);
 });
