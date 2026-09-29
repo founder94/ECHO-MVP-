@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.5.0"; // v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.5.1"; // v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -88,6 +88,14 @@ export function anchorWords(latest: string): string[] { return [...new Set(Strin
 export function anchorTokens(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).map((w) => w.replace(/[^가-힣A-Za-z]/g, "")).filter((w) => w.length >= 2 && !ANCHOR_STOP.has(w.slice(0, 2))))].sort((a, b) => b.length - a.length); }
 const SURVEY_QUESTION_WORDS = ["활동", "빈도", "관계 방식", "선호", "편안함", "가치관", "성향", "중요성"];
 export function surveyQuestion(latest: string, question: string): boolean { return SURVEY_QUESTION_WORDS.some((w) => question.includes(w) && !latest.includes(w)); }
+// v2.5.1: 말은 부드러운데 여전히 설문처럼 들리는 대표 실기기 문장 차단.
+// 「어떤 친구/사람과 … 좋을까요?」처럼 사람 유형을 다시 정의하게 하는 질문보다, 방금 말의 구체 장면을 이어 묻는다.
+const GENERIC_PERSON_Q = /^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?\b.*(좋|편|원하|맞)/;
+export function genericPersonQuestion(question: string): boolean { return GENERIC_PERSON_Q.test(question); }
+// 받아주기가 사용자의 말을 분석 요약하는 문장으로 길어지는 것을 막는다.
+// 짧은 맞장구는 허용하고, 「원하시네요/중요하네요/쪽이네요」처럼 해석 결론을 대신 내려 주는 문장은 다시 만든다.
+const ANALYTIC_ACK = /(원하(?:시)?네요|선호하|중요하|쪽이\s*(?:더\s*)?(?:편|좋)|라는\s*뜻|라고\s*볼\s*수)/;
+export function analyticAck(reply: string): boolean { return reply.length > 18 || ANALYTIC_ACK.test(reply); }
 // 받아주기가 사용자 말을 거의 그대로 옮긴 것인지(대표 §7 「사용자의 문장 그대로 복사 금지」).
 // 기준: 사용자 말의 두 글자 조각 중 65% 이상이 받아주기 한 문장에 그대로 있으면 옮긴 것으로 본다(실제 AI run gh 「한 달에 두세 번 편하게 보는 게 좋다고 하셨네요」 0.67).
 export const ACK_COPY = 0.65;
@@ -871,6 +879,8 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   empty_ack: "reply 가 비었거나 질문뿐이었다. reply 에는 방금 들은 말에서 뜻 하나를 짚는 짧은 받아주기 한 문장(질문 아님)을 쓰고, 질문은 next.question 에만 쓴다.",
   not_anchored: "next.question 이 방금 답(latest)과 이어지지 않는다. 방금 답에 실제로 나온 사람·장면·단어·속도·거리감 중 하나를 잡아 바로 이어 묻는다. 칸 순서보다 방금 답과 이어지는 것이 먼저다.",
   survey_tone: "next.question 이 설문·분석 문장처럼 들린다. 활동·빈도·관계 방식·선호·편안함·가치관·성향·중요성 같은 추상 단어를 쓰지 말고, 방금 사용자가 한 말의 구체적인 표현을 받아 친구처럼 짧게 이어 묻는다.",
+  generic_person: "「어떤 친구/사람과 … 좋을까요?」처럼 사람 유형을 다시 정의하게 묻지 않는다. 방금 말에 나온 구체 장면·단어 하나를 잡아 바로 다음 말을 묻는다. 예를 들어 속도를 말했으면 처음 연락·첫 만남 같은 실제 장면으로 이어 간다.",
+  analytic_ack: "reply 가 사용자의 말을 분석·요약해 결론 내리는 문장이다. 설명하지 말고 짧은 맞장구 한마디로 받아준다. 18자 안쪽, 해석·평가·성격 단정 0.",
   goal_axis: "사용자가 질문의 방향이 목적과 다르다고 했다. 방금 질문(current_question)의 틀과 칸을 버리고, 이 목적(session_goal)의 다른 칸(open_purposes)을 방금 말에 이어서 묻는다.",
 };
 // v2.4.1 한 번의 다시 청하기에 걸린 이유를 모두 알린다(이유 하나만 알려 두 번째에 다른 약속이 깨지는 것을 줄인다).
@@ -883,7 +893,9 @@ export function retryReasons(st: AgentState, out: Parsed, left: string[], after:
     if (first !== "counsel_tone" && COUNSEL.test(out.reply)) all.push("counsel_tone");
     if (first !== "empty_ack" && emptyAck(out)) all.push("empty_ack");
     if (first !== "ack_copy" && out.kind === "answer" && ackCopies(out.reply, latest)) all.push("ack_copy");
+    if (first !== "analytic_ack" && out.kind === "answer" && analyticAck(out.reply)) all.push("analytic_ack");
     if (first !== "survey_tone" && out.kind === "answer" && out.next.question && surveyQuestion(latest, out.next.question)) all.push("survey_tone");
+    if (first !== "generic_person" && out.kind === "answer" && out.next.question && genericPersonQuestion(out.next.question)) all.push("generic_person");
     if (first !== "not_anchored" && out.kind === "answer" && out.next.question && !anchored(latest, out.next.question)) all.push("not_anchored");
   }
   return all;
@@ -906,23 +918,26 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (!out.next.question && left.length && (coreAsked(st).length < MAX_CORE_QUESTIONS || fillTargets(st).length)) return "no_question";
   if (emptyAck(out)) return "empty_ack";
   if (out.kind === "answer" && ackCopies(out.reply, latest)) return "ack_copy";
+  if (out.kind === "answer" && analyticAck(out.reply)) return "analytic_ack";
   if (out.kind === "answer" && out.next.question && surveyQuestion(latest, out.next.question)) return "survey_tone";
+  if (out.kind === "answer" && out.next.question && genericPersonQuestion(out.next.question)) return "generic_person";
   if (out.kind === "answer" && out.next.question && !anchored(latest, out.next.question)) return "not_anchored";
   return "";
 }
 
 export interface RunResult { obs: Obs; response: Json }
 
-const ACK_PROMPT = `너는 방금 사용자 말(latest)에 사람이 자연스럽게 반응하는 짧은 한 문장만 쓴다. JSON {"reply": "..."} 하나만 낸다.
-- 분석·요약·평가하지 않는다. 친구가 바로 옆에서 듣고 반응하듯 짧게 쓴다.
-- 사용자가 쓴 핵심 단어 한두 개를 자연스럽게 되받는 것은 괜찮지만 문장을 길게 되풀이하지 않는다.
-- 질문하지 않는다(물음표 0). 상담 말투(「그렇군요」「~군요」「힘드셨겠어요」) 금지. 성격 단정·감정 해석 금지. 32자 이내.
-- next_question 이 있으면 그 질문으로 자연스럽게 이어지게 쓴다(질문 문장을 옮기지 않는다).`;
+const ACK_PROMPT = `너는 방금 사용자 말(latest)에 실제 사람이 바로 반응하는 짧은 한마디만 쓴다. JSON {"reply": "..."} 하나만 낸다.
+- 설명·요약·분석·평가하지 않는다. 「진짜」「오, 그건 좋죠」「아 그렇구나」처럼 짧은 맞장구가 기준이다. 같은 표현을 반복하지 않는다.
+- 사용자가 쓴 핵심 단어 한두 개를 가볍게 되받는 건 괜찮지만, 사용자 문장을 다시 정리해 결론 내리지 않는다.
+- 「원하시네요」「중요하네요」「~쪽이네요」처럼 상담·분석처럼 들리는 끝맺음 금지.
+- 질문하지 않는다(물음표 0). 성격 단정·감정 해석 금지. 18자 이내.
+- next_question 이 있으면 그 질문 앞에 붙었을 때 자연스러운 한마디만 쓴다.`;
 async function rewriteAck(st: AgentState, latest: string, question: string | null, llm: Llm, obs: Obs): Promise<string> {
   let raw: string;
   try { raw = await call(llm, obs, "ack", ACK_PROMPT, { latest, next_question: question, session_goal: goalOf(st).name, tone: TONES[st.tone]?.label ?? "" }); } catch { obs.retry.push("ack_rewrite_failed"); return ""; }
   const o = parseJson(raw); const t = tidyReply(str(o?.reply).replace(/[?？]/g, "."), question);
-  const ok = !!t && t.length <= 80 && !ackCopies(t, latest) && !COUNSEL.test(t) && !goalResidue(st, t) && !BANNED_WORDS.test(t) && !leaksId(t);
+  const ok = !!t && t.length <= 18 && !analyticAck(t) && !ackCopies(t, latest) && !COUNSEL.test(t) && !goalResidue(st, t) && !BANNED_WORDS.test(t) && !leaksId(t);
   obs.retry.push(ok ? "ack_rewrite" : "ack_rewrite_rejected");
   return ok ? t : "";
 }
