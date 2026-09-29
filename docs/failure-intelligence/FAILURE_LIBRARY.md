@@ -3704,3 +3704,23 @@
 | 해결 후보 | 검증 시작 시 deploy id 고정·검사 끝에 다시 확인 |
 | 심각도 | MEDIUM |
 | 현재 상태 | RECORDED |
+
+## GF-115 MATCH_READINESS_UNREACHABLE — 대화 AI 는 답 3개에서 「충분」으로 마치는데 연결 서버는 답 5개를 요구해 정상 사용자가 매칭 준비에 도달하지 못함
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 서버 간 기준 불일치 |
+| 발생 날짜 | 2026-09-29 05:4x UTC PROD 2계정 매칭 E2E |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 a·b: 새 회차 대화 decision=finish_enough(질문 3개 · 저장 답 3개) → doit-connect my_candidates eligible=false missing=[answers] · 후보 0. 같은 종료는 승인 v2.4.3(04:47:39)에서도 관측 |
+| 사용자 상황 | 사진 3장·소개·목적·연결 동의를 모두 마친 사용자 |
+| 사용자 원문 | — |
+| AI 행동 | Agent 는 enoughInfo(질문 3개 이상 + 칸 4개 확정)로 대화를 마침 · 연결 서버(legacy 기준)는 이번 회차 답 5개(CONNECT_ANSWERS_NEEDED=5)를 요구 |
+| 기대 행동 | 대화를 정상으로 마친 사용자는 연결 준비가 된다(두 서버가 같은 준비 기준) |
+| 원인 Layer | Product Contract (CONFIRMED) — doit-agent agent.ts ENOUGH_SLOTS·MIN_CORE_BEFORE_ENOUGH vs doit-connect index.ts LIMITS.CONNECT_ANSWERS_NEEDED · agent 모드(MATCH_SOURCE=agent)여도 b 는 사용자 출처 칸 2개로 미준비 |
+| 사용자 피해 | 정상 사용자에게 「연결까지 남은 것: 답」이 남고 매칭 루프 전체가 막힘(실사용자 영향: 현재 friend 목적 실사용자 0 · 다른 목적 실사용자 2명도 같은 규칙) |
+| 재현 여부 | 재현 ○(2/2 계정) |
+| 해결 시도(실패한 해결책 포함) | 없음(운영 변경 금지) |
+| 해결 후보 | ① agent.ts: 연결 준비 전에는 finish_enough 로 마치지 않음(MIN_CORE_BEFORE_ENOUGH=5 · 대표 v2.4 「5개 전에 마침」 결정과 충돌) ② doit-connect: Agent 사용자 준비 = 대화 완료 + 사용자 출처 확정 칸 N개(MATCH_SOURCE=agent · AGENT_READY_MIN 조정) — 둘 다 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
+| 심각도 | HIGH(P0 후보 · 매칭 루프 차단) |
+| 현재 상태 | OPEN · 대표 결정 대기 · 코드 변경 0 |

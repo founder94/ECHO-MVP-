@@ -97,3 +97,13 @@
 | APP 로그인 E2E(현재 deploy 파일 · PROD 서버) | Chrome Galaxy 13/13 · iPhone 13/13 · WebKit 로그인 E2E = 확인 불가(샌드박스 WebKit 없음 · GitHub 에 비밀번호 전달 금지) | prod-ui-e2e.mjs |
 | 시험 계정 | a b8af5aa0… · b 5dcdf105…(확인 SQL 1건씩) · probe e6b64a4b…(미확인) · 후보·매칭·결과 0 · 삭제 0 | SQL 건수 |
 | 실사용자 영향 | 03:00 이후 agent_turn 58건 전부 시험 계정 · 실사용자 0 | SQL 건수 |
+
+## 11. CLOSING ORDER 실측(2026-09-29 05:3x–05:4x UTC)
+
+| 항목 | 실측 |
+|---|---|
+| 현재 운영(재확인) | APP 6abb4292016355fcb285872e · BRAND 6aba38743c51bb3203c74d47 · doit-connect v9(e6c8c1a4…) · doit-agent v12(echo-agent-v2.4.4 · 88136fc5…) — 직전 보고와 같음 |
+| v12 게시 경위 | 모든 브랜치 워크플로에 운영 doit-agent 배포 경로 0(함수 배포 2개는 QA ref) · 04:58 GitHub 실행 0 → 게시 주체 확인 불가(GitHub 밖) |
+| 2계정 매칭 | a·b 준비(사진 3·소개·목적 friend·연결 동의·새 회차 대화) PASS → 대화가 답 3개에서 finish_enough 로 끝나 eligible=false(missing answers) → 후보 0 → STOP(GF-115) |
+| 이번에 생긴 시험 데이터 | Storage profile-photos 6개(회색 「QA TEST」 이미지) · profile_photos 6행 · 시험 profiles 2개 목적·소개 · user_metadata(회차·연결 동의) · 대화 세션 2 · 기록 6 · 후보·매칭·결과 0 · 삭제 0 |
+| Netlify | 새 게시 0 · 크레딧 사용 0 |
