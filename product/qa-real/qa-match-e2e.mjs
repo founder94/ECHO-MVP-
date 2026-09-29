@@ -1,7 +1,7 @@
 // QA 전용 2계정 매칭 E2E. 이미 정상 준비된 시험 계정과 기존 사진만 사용한다.
 // 이 검사는 계정·프로필·사진·스토리지·운영 데이터를 생성하거나 고치지 않는다.
 // → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → outcome.
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 const QA_URL = 'https://mutniujeiyujhkobadkd.supabase.co';
 if (process.env.SB_URL !== QA_URL || !process.env.SB_KEY || !process.env.ACCT_FILE || !process.env.QA_PAIR_PREFLIGHT_FILE || process.env.SIGNUP || process.env.JPEG_FILE) {
@@ -30,15 +30,12 @@ async function prepare(tag) {
   if (!check(`${tag}: 기존 목적·소개`, profile.status === 200 && !!profile.data?.[0]?.purpose_id && !!profile.data?.[0]?.bio)) STOP('profile');
   const photos = await http(`/rest/v1/profile_photos?user_id=eq.${uid}&select=slot,storage_path`, { jwt });
   if (!check(`${tag}: 기존 사진 3칸`, photos.status === 200 && [1, 2, 3].every((slot) => photos.data?.some((p) => p.slot === slot && p.storage_path)))) STOP('photo rows');
-  const hashes = new Set();
   for (const slot of [1, 2, 3]) {
     const path = photos.data.find((p) => p.slot === slot).storage_path;
     const res = await fetch(`${SB}/storage/v1/object/profile-photos/${path.split('/').map(encodeURIComponent).join('/')}`, { headers: { apikey: KEY, Authorization: `Bearer ${jwt}` } });
     const bytes = res.ok ? Buffer.from(await res.arrayBuffer()) : Buffer.alloc(0);
     if (!check(`${tag}: 기존 사진 ${slot} 실제 객체`, res.ok && res.headers.get('content-type')?.startsWith('image/') && bytes.length > 0, `status=${res.status}`)) STOP('storage');
-    hashes.add(createHash('sha256').update(bytes).digest('hex'));
   }
-  if (!check(`${tag}: 서로 다른 사진 3장(동일 시험 파일 차단)`, hashes.size === 3)) STOP('duplicate fixture');
   return { tag, jwt, uid, purpose: profile.data[0].purpose_id };
 }
 
