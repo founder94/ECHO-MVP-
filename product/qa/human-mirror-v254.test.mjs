@@ -32,6 +32,8 @@ test('v2.5.4 정보 종류를 묻는 질문은 사람 말이 아니다(사용자
   assert.ok(A.infoKindQuestion('얼마나 자주 보는 게 좋아요?', PHRASE));
   assert.ok(A.genericPersonQuestion('어떤 친구와 대화가 잘 통할까요?'), 'v2.5.5 run 36575134665 실제 질문');
   assert.ok(A.genericPersonQuestion('어떤 사람이 편해요?'));
+  assert.ok(A.genericPersonQuestion('어떤 성격의 친구가 좋을까요?'), 'QA 장면 C v60');
+  assert.ok(!A.genericPersonQuestion('어떤 장난감이 좋나요?'));
   assert.ok(!A.genericPersonQuestion('친구랑은 주로 뭐 하면서 놀아요?'));
 });
 
