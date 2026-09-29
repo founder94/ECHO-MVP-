@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DoItSymbol from "@/components/DoItSymbol";
 import SymbolLoader from "@/components/SymbolLoader";
-import { withTimeout } from "@/doit/lib/withTimeout";
+import { READ_TIMEOUT_MS, withTimeout } from "@/doit/lib/withTimeout";
 import { A_STRUCTURE_SERVER_ENABLED } from "@/doit/lib/understandingApi";
 import { ECHO_AGENT_ENABLED, agentGet, agentIntroMark, type AgentSession } from "@/doit/lib/agentApi";
 import "@/doit/components/feature/core-conversation.css";
@@ -79,6 +79,11 @@ type LoadState =
   | { kind: "ready"; profile: LoadedProfile | null }
   | { kind: "error"; message: string };
 
+type AgentChoiceState =
+  | { kind: "loading" }
+  | { kind: "ready"; userId: string; session: AgentSession | null }
+  | { kind: "error"; userId: string };
+
 export default function StartJourney() {
   const navigate = useNavigate();
   const [search] = useSearchParams();
@@ -96,14 +101,18 @@ export default function StartJourney() {
   const [savedPurposeId, setSavedPurposeId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("purpose");
-  // 「무엇부터 할까요」의 큰 버튼 하나를 대화 진행으로 정한다(대표 2026-09-25). 못 읽으면 null — 「대화 시작하기」로 두고 대화 화면이 이어서 판단한다.
-  const [agentSession, setAgentSession] = useState<AgentSession | null | undefined>(undefined);
+  // 대화 상태를 읽은 뒤에만 선택 화면을 그린다. 읽기 실패를 "새 대화"로 해석하지 않는다.
+  const [agentChoice, setAgentChoice] = useState<AgentChoiceState>({ kind: "loading" });
+  const [agentRetry, setAgentRetry] = useState(0);
   useEffect(() => {
     if (step !== "conversation-choice" || !user?.id || !ECHO_AGENT_ENABLED) return;
     let current = true;
-    agentGet(user.id).then((s) => { if (current) setAgentSession(s); }).catch(() => { if (current) setAgentSession(null); });
+    setAgentChoice({ kind: "loading" });
+    withTimeout(agentGet(user.id), READ_TIMEOUT_MS, "agentGet")
+      .then((session) => { if (current) setAgentChoice({ kind: "ready", userId: user.id, session }); })
+      .catch(() => { if (current) setAgentChoice({ kind: "error", userId: user.id }); });
     return () => { current = false; };
-  }, [step, user?.id]);
+  }, [step, user?.id, agentRetry]);
   // v13.7(대표 실기기 2026-09-22 "프로필로 넘어가다가 갑자기 화면이 바뀐다"): 대화로 갈 것이 확정되면
   // 목적·프로필 화면을 스치듯 보여 주지 않고 전환 화면 하나만 보여 준 뒤 이동한다.
   const [leaving, setLeaving] = useState(false);
@@ -563,17 +572,28 @@ export default function StartJourney() {
   if (step === "conversation-choice") {
     // v14.2: 이미 시작한 사람도 여기로 온다. 무엇을 할지 스스로 고르게 하고, 홈으로 돌아갈 길을 함께 둔다.
     // 2026-09-25 대표 Galaxy: 버튼이 나란히 있어 무엇을 먼저 할지 몰랐다 → 큰 버튼은 하나(대화), 사진·소개는 작은 버튼. 대화를 마쳤으면 사진·소개가 큰 버튼.
+    if (ECHO_AGENT_ENABLED && user && (agentChoice.kind === "loading" || agentChoice.userId !== user.id)) {
+      return <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true">
+        <div className="echo-journey-session-loading" role="status" aria-live="polite">
+          <SymbolLoader size={96} label="지난 대화를 불러오는 중이에요." />
+        </div>
+      </section>;
+    }
+    if (ECHO_AGENT_ENABLED && user && agentChoice.kind === "error") {
+      return <section className="echo-dialogue echo-dialogue--pastel">
+        <DoItSymbol decorative />
+        <h1>대화를 확인하지 못했어요.</h1>
+        <p className="echo-lead">저장된 내용은 그대로 있어요. 다시 불러와 주세요.</p>
+        <button className="echo-primary" onClick={() => { setAgentChoice({ kind: "loading" }); setAgentRetry((n) => n + 1); }}>다시 시도</button>
+        <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button>
+      </section>;
+    }
+    const agentSession = agentChoice.kind === "ready" ? agentChoice.session : null;
     const talkDone = agentSession?.phase === "done";
     const introPending = talkDone && agentSession?.intro?.status === "ready" && !agentSession.intro.used;
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
     const goProfile = () => setStep("profile-build");
-    // 2026-09-28 Real-State Replay: 대화 상태를 읽기 전(약 1초) 「대화 시작하기」가 잠깐 보였다가 바뀌었다 → 읽는 동안은 틀린 버튼을 그리지 않는다.
-    if (ECHO_AGENT_ENABLED && user && agentSession === undefined) {
-      return <section className="echo-dialogue echo-dialogue--pastel" aria-busy="true"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
-        <p className="echo-lead" role="status">지난 대화를 확인하고 있어요…</p>
-        <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button></section>;
-    }
     return <section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative /><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
       <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
