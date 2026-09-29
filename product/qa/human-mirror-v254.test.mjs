@@ -103,6 +103,8 @@ test('v2.5.4 지시문: 「대화 주제」로 유도하던 예시를 빼고 한
 
 test('v2.5.5 QA 장면 B·C·E: 받아주기 속 숨은 질문은 빼고 · 모르겠다·정정 뒤의 새 질문도 같은 기준으로 다시 청한다', async () => {
   assert.equal(A.tidyReply('고양이 정말 귀엽죠! 어떤 고양이가 제일 마음에 들어요.', null), '고양이 정말 귀엽죠!');
+  assert.equal(A.tidyReply('진짜. 어떤 고양이 좋아하는데.', null), '진짜.', 'QA 장면 B v61');
+  assert.ok(!readFileSync(here('../supabase/functions/doit-agent/agent.ts'), 'utf8').includes('어떤 고양이 좋아하는데'), '베껴 쓰인 예시 문장을 지시문에서 뺐다');
   assert.equal(A.tidyReply('한 달에 몇 번 편하게 보는 게 좋다는 거예요.', null), '한 달에 몇 번 편하게 보는 게 좋다는 거예요.');
   assert.ok(A.surveyQuestion('고양이 너무 좋지', '고양이랑 놀 때 어떤 기분이 드나요?'));
   const st = start();
