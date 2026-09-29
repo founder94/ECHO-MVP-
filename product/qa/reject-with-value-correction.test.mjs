@@ -50,6 +50,38 @@ test('거절 머리말 + 새 값은 서버가 정정으로 확정한다 — 항�
   assert.deepEqual(A.guardKind(CORR, 'answer'), { kind: 'answer', rule: null }, '답으로 읽힌 경우는 이 규칙 대상 아님(기존 흐름)');
 });
 
+test('일반 「아니요 + 답」은 정정이 아니다 — 기존 양립 가능한 사실·질문을 거두지 않고 새 답을 보존한다', () => {
+  const st = measuredState();
+  const q = '친구와 어떤 활동을 함께 하고 싶으세요?';
+  st.current = { type: 'core', purpose: 'attraction_comfort', text: q };
+  const text = '아니요, 저는 카페에서 얘기하는 게 좋아요';
+  assert.equal(A.rejectWithNewValue(text), false);
+  assert.deepEqual(A.guardKind(text, 'repair'), { kind: 'answer', rule: 'no_with_answer' });
+  assert.deepEqual(A.guardKind(text, 'correction'), { kind: 'answer', rule: 'no_with_answer' });
+  A.applyTurn(st, text, T({ kind: 'repair', extracted: [X('attraction_comfort', '카페에서 대화하는 게 좋음', '카페에서 얘기하는 게 좋아요')] }));
+  assert.equal(st.turns.at(-1).kind, 'answer');
+  assert.ok(liveDaily(st).length >= 2, '이미 확정된 연락 선호가 지워지지 않음');
+  assert.ok(live(st).some((i) => /카페/.test(i.note)), '새 사용자 답도 저장');
+  assert.ok(!A.matchingProfile(st).rejected_meanings.includes(q), '정상 질문이 거절 의미로 기록되지 않음');
+});
+
+test('모델이 정정이라고 읽어도 일반 답에는 옛 항목 고르기를 호출하지 않고, 화면 정정은 유지한다', async () => {
+  const text = '아니요, 저는 카페에서 얘기하는 게 좋아요';
+  const st = measuredState();
+  st.current = { type: 'core', purpose: 'attraction_comfort', text: '친구와 어떤 활동을 함께 하고 싶으세요?' };
+  let picks = 0;
+  const llm = async (kind) => {
+    if (kind === 'pick') { picks++; return JSON.stringify({ stale: [1] }); }
+    return JSON.stringify(T({ kind: 'correction', extracted: [X('attraction_comfort', '카페에서 대화하는 게 좋음', '카페에서 얘기하는 게 좋아요')] }));
+  };
+  await A.runTurn(st, text, llm);
+  assert.equal(picks, 0);
+  assert.equal(st.turns.at(-1).kind, 'answer');
+  assert.ok(liveDaily(st).length >= 2);
+  assert.ok(!A.matchingProfile(st).rejected_meanings.includes('친구와 어떤 활동을 함께 하고 싶으세요?'));
+  assert.deepEqual(A.guardKind(text, 'correction', true), { kind: 'correction', rule: null }, '화면 정정은 정정으로 확정');
+});
+
 test('실서버 FAIL 재현: repair 로 읽힌 정정 → 매일 연락 두 칸 모두 지금 상태에서 빠지고 · 주말 값은 사용자 정정으로 남는다', async () => {
   const st = measuredState();
   await A.runTurn(st, CORR, llm());
