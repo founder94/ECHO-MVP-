@@ -1,0 +1,28 @@
+name: echo-qa-auth-public-probe
+
+on:
+  push:
+    branches: ['codex/qa-auth-probe-20260929']
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: QA Google provider public check
+        run: |
+          node <<'NODE'
+          const base = 'https://mutniujeiyujhkobadkd.supabase.co';
+          const settings = await fetch(base + '/auth/v1/settings');
+          const body = await settings.json().catch(() => ({}));
+          console.log('QA Auth settings status=' + settings.status + ' Google=' + String(body.external?.google));
+          const target = 'https://echo-app-qa.netlify.app/auth/callback';
+          const response = await fetch(base + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(target), { redirect: 'manual' });
+          const loc = response.headers.get('location') || '';
+          let host = ''; try { host = new URL(loc).hostname; } catch {}
+          console.log('QA Google authorize status=' + response.status + ' location_host=' + host);
+          if (settings.status !== 200 || body.external?.google !== true || response.status !== 302 || !/google\.com$/.test(host)) process.exitCode = 1;
+          NODE
