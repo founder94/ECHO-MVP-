@@ -15,6 +15,9 @@ test('v2.5 human mirror: friend goal does not seed survey words', () => {
   assert.match(s, /사람이 자연스럽게 반응/);
   assert.match(s, /READY_SAVED_ANSWERS = 3/);
   assert.match(s, /ENOUGH_SLOTS = 4/);
+  assert.match(s, /MAX_CALLS_PER_TURN = 3/);
+  assert.match(s, /surveyQuestion/);
+  assert.match(s, /글자 그대로 next\.question/);
 });
 
 test('conversation back edits the previous answer instead of leaving the flow', () => {
