@@ -68,7 +68,7 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   const sandbox = {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
-    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...state.env })[k] ?? '' }, serve: (h) => { handler = h; } },
+    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...state.env })[k] }, serve: (h) => { handler = h; } },
     require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name.startsWith('.')) return local(path.join('supabase/functions/doit-connect', name)); throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       state.aiCalls.push(JSON.parse(init.body));
@@ -106,7 +106,7 @@ const CONSENTED = { doit_connect_consent_version: 'connect-v1', doit_connect_con
 function world(over = {}) {
   const user = (id, phone = true, meta = CONSENTED) => ({ id, phone: phone ? '821000000000' : '', phone_confirmed_at: phone ? '2026-09-23T00:00:00Z' : null, user_metadata: { ...meta } });
   const state = {
-    current: ID.a, logs: [], writes: [], aiCalls: [],
+    current: ID.a, logs: [], writes: [], aiCalls: [], env: { MATCH_SOURCE: 'legacy' },
     users: { [ID.admin]: user(ID.admin), [ID.a]: user(ID.a), [ID.b]: user(ID.b), [ID.c]: user(ID.c), [ID.d]: user(ID.d) },
     tables: {
       profiles: [
@@ -569,7 +569,7 @@ test('v15.1 후보: 「모르겠어요」·지친 말로 채운 다섯 칸은 �
   assert.equal(r.body.candidates.length, 1, '설명이 붙은 정정은 내용 있는 답으로 센다');
 });
 
-// Matching Integration(2026-09-27 FINAL IMPLEMENTATION MASTER · PHASE 10): MATCH_SOURCE=agent 일 때만 Agent 확정 상태(CONFIRMED)를 재료로 쓴다.
+// Matching Integration: 기존 테스트는 명시적 legacy 복구 경로, 기본값은 Agent 확정 상태(CONFIRMED)를 재료로 쓴다.
 // (가짜 DB 는 select 의 JSON 경로를 풀지 않으므로 줄에 profile·phase 를 바로 넣는다 — 실제 경로 문법은 deno check 로만 확인.)
 const agentProfile = (notes) => ({
   relationship_intent: { status: 'CONFIRMED', items: [{ note: notes[0], quote: notes[0], status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1 }] },
@@ -585,6 +585,28 @@ test('Matching Integration: 기본값(legacy)은 agent_session 을 읽지 않는
   const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]], 'Agent 가 대화 중이어도 legacy 재료로 판정(기존 결과 그대로)');
+});
+
+test('Matching Integration: 설정값이 없으면 Agent 완료 상태로 판정하고 대화 중 사용자는 후보가 아니다', async () => {
+  const s = world({ env: {} });
+  s.tables.doit_request_events = [agentRow(ID.a, ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'], 'talk')];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.candidates.length, 0);
+  assert.equal(r.body.missing.answers, 1);
+});
+
+test('Matching Integration: 기본 Agent 경로에서 옛 답이 없어도 완료한 두 사람을 후보로 찾는다', async () => {
+  const s = world({ env: {} });
+  s.tables.doit_insights = []; s.tables.doit_records = [];
+  s.tables.doit_request_events = [
+    agentRow(ID.a, ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요']),
+    agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']),
+  ];
+  const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.candidates.length, 1);
+  assert.ok(JSON.stringify(r.body.candidates[0]).includes('조용한 곳에서 대화하는 걸 좋아해요'));
 });
 
 test('Matching Integration: MATCH_SOURCE=agent 면 Agent 확정 값으로 겹친 말을 찾고 · 추정은 재료가 아니다', async () => {
