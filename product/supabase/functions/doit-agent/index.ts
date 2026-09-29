@@ -190,9 +190,11 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
   }
   // 2) 매칭에 쓰는 답이면 기록으로도 남긴다(기존 RPC · 같은 턴은 같은 기록).
   let recordId: string | null = null; let recordError: string | null = null;
+  // v2.4.7 「앞말을 고치는 뜻이 맞나요?」에 「네」로 답한 턴: 답 기록은 확인한 원문(「아니요, …」)으로 남긴다(「네」 자체는 답이 아니다).
+  const recordText = typeof response.record_text === "string" && response.record_text ? response.record_text : text;
   if (response.saved === true && lastTurn) {
     const { data, error } = await ctx.admin.rpc("doit_apply_record_create", { p_user_id: ctx.userId, p_request_id: await derivedUuid(`${requestId}:record`), p_action: "record_create",
-      p_payload_hash: await sha256(text), p_text: text, p_original_text: text, p_emotion: "", p_status: "confirmed" });
+      p_payload_hash: await sha256(recordText), p_text: recordText, p_original_text: recordText, p_emotion: "", p_status: "confirmed" });
     const out = data as { ok?: boolean; record?: { id?: string } } | null;
     if (error || !out?.ok) recordError = "record_save_failed"; else recordId = out.record?.id ?? null;
   }
