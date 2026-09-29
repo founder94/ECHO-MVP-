@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { IS_APP_SITE } from '@/lib/siteRole';
-import { APP_LAUNCH_CLASS, APP_LAUNCH_FADE_MS, APP_LAUNCH_MIN_MS, APP_LAUNCH_OUT_CLASS, APP_PASTEL, APP_ROOT_CLASS, themeColorFor } from '@/lib/themeColor';
+import { APP_LAUNCH_CLASS, APP_LAUNCH_FADE_MS, APP_LAUNCH_IMAGE, APP_LAUNCH_MIN_MS, APP_LAUNCH_OUT_CLASS, APP_PASTEL, APP_ROOT_CLASS, themeColorFor } from '@/lib/themeColor';
 
 // 2026-09-26 대표 PRE-DEPLOY FIX #2: 휴대폰 상단 막대 색(theme-color)을 화면 바탕에 맞춘다.
 // 앱은 파스텔 첫 색으로 시작한다(index.html · manifest). 우주 화면(온보딩·히어로)과 검은 바탕 화면에서만 검정으로 바꾼다.
@@ -22,10 +22,44 @@ export default function ThemeColorSync() {
     const root = document.documentElement;
     const clear = () => { root.classList.remove(APP_LAUNCH_CLASS); root.classList.remove(APP_LAUNCH_OUT_CLASS); };
     if (pathname.startsWith('/do-it/intro') && root.classList.contains(APP_LAUNCH_CLASS)) {
-      const wait = Math.max(0, APP_LAUNCH_MIN_MS - performance.now());
-      let done = 0;
-      const fade = window.setTimeout(() => { root.classList.add(APP_LAUNCH_OUT_CLASS); done = window.setTimeout(clear, APP_LAUNCH_FADE_MS); }, wait);
-      return () => { window.clearTimeout(fade); window.clearTimeout(done); clear(); };
+      // 로딩 시작 시각이 아니라 실제 이미지가 준비된 뒤부터 표시 시간을 센다.
+      // 느린 실기기에서도 이미지가 뜨자마자 사라지는 문제를 막는다.
+      let hold = 0;
+      let fadeDone = 0;
+      let safety = 0;
+      let started = false;
+      let cancelled = false;
+      const startVisibleHold = () => {
+        if (started || cancelled) return;
+        started = true;
+        hold = window.setTimeout(() => {
+          if (cancelled) return;
+          root.classList.add(APP_LAUNCH_OUT_CLASS);
+          fadeDone = window.setTimeout(clear, APP_LAUNCH_FADE_MS);
+        }, APP_LAUNCH_MIN_MS);
+      };
+      const artwork = new Image();
+      artwork.src = APP_LAUNCH_IMAGE;
+      const ready = () => {
+        if (typeof artwork.decode === 'function') void artwork.decode().catch(() => undefined).finally(startVisibleHold);
+        else startVisibleHold();
+      };
+      if (artwork.complete) ready();
+      else {
+        artwork.addEventListener('load', ready, { once: true });
+        artwork.addEventListener('error', startVisibleHold, { once: true });
+      }
+      // 네트워크 이상으로 load 이벤트가 안 와도 화면이 영구 고정되지는 않는다.
+      safety = window.setTimeout(startVisibleHold, 1800);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(hold);
+        window.clearTimeout(fadeDone);
+        window.clearTimeout(safety);
+        artwork.removeEventListener('load', ready);
+        artwork.removeEventListener('error', startVisibleHold);
+        clear();
+      };
     }
     clear();
   }, [pathname]);

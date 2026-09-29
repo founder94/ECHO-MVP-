@@ -40,7 +40,8 @@ export default defineConfig(({ mode }) => {
   // 2026-09-29 대표 「시작 화면 배경 변경」(대표 선택 이미지 실측 · 딥 네이비): 앱 아이콘 → 시작 화면(Android 는 manifest background_color 로 그림) → 온보딩(/do-it/intro) 첫 바탕.
   // 파스텔 앱 화면(/doit)의 첫 바탕(APP_START_COLOR)은 그대로 둔다. src/lib/themeColor.ts APP_LAUNCH_COLOR 와 같은 값.
   const APP_LAUNCH_COLOR = "#041433";
-  const APP_LAUNCH_BG = `url('/pwa/echo-launch-artwork.webp') center center / cover no-repeat ${APP_LAUNCH_COLOR}`;
+  const APP_LAUNCH_ASSET = '/pwa/echo-launch-artwork.webp?v=20260930f';
+  const APP_LAUNCH_BG = `url('${APP_LAUNCH_ASSET}') center center / cover no-repeat ${APP_LAUNCH_COLOR}`;
   const ADMIN_HTML = `<!doctype html>
 <html lang="ko">
   <head>
@@ -81,14 +82,15 @@ export default defineConfig(({ mode }) => {
         const appName = "ECHO"; // 2026-09-28 대표 APP NAME FINAL LOCK: 설치 앱 이름 = ECHO(DO IT 은 회사·브랜드 이름)
         const appDesc = "당신이 잠든 사이에. 내 말로 시작하는 만남.";
         const appImage = `${appOrigin}/pwa/echo-icon-512.png?v=20260925b`;
-        swap('<meta name="theme-color" content="#08070c" />', `<meta name="theme-color" content="${APP_START_COLOR}" />`);
+        swap('<meta name="theme-color" content="#08070c" />', `<meta name="theme-color" content="${APP_LAUNCH_COLOR}" />`);
         // 전역 index.css 의 body 바탕(검정)이 뒤에 와서 덮으므로, 앱 첫 화면만 html 표시(echo-app-pastel-root)로 더 세게 잡는다.
         // 표시는 ThemeColorSync 가 파스텔 앱 경로(/doit)에서만 남기고, 히어로(/)·관리자에서는 뗀다 — 전역 body 규칙 자체는 바꾸지 않는다.
-        swap('<html lang="ko">', '<html lang="ko" class="echo-app-pastel-root">');
-        swap("body { background: #08070c; }", `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`);
-        // 시작 화면 → 온보딩 사이 첫 바탕: 설치 앱 시작 주소(/do-it/intro)에서만 네이비(React 가 뜨면 ThemeColorSync 가 표시를 뗀다 · 초록 번쩍임 0).
-        swap(`html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`, `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }\n    html.echo-app-launch-root body { background: ${APP_LAUNCH_COLOR}; }\n    html.echo-app-launch-root body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; background: ${APP_LAUNCH_BG}; pointer-events: none; opacity: 1; transition: opacity 220ms ease-out; }\n    html.echo-app-launch-root.echo-app-launch-out body::after { opacity: 0; }`);
-        swap(`<meta name="theme-color" content="${APP_START_COLOR}" />`, `<meta name="theme-color" content="${APP_START_COLOR}" />\n    <script>(function(){try{if(location.pathname.indexOf("/do-it/intro")===0){var d=document.documentElement;d.classList.remove("echo-app-pastel-root");d.classList.add("echo-app-launch-root");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${APP_LAUNCH_COLOR}")}}catch(e){}})();</script>`);
+        swap('<html lang="ko">', '<html lang="ko" class="echo-app-launch-root">');
+        swap("body { background: #08070c; }", `body { background: #08070c; }\n    html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`);
+        // 첫 픽셀부터 launch-root(네이비)로 시작한다. intro 가 아닌 직접 진입만 head 안에서 즉시 원래 색으로 되돌린다.
+        // 따라서 설치 앱 실행 시 초록(APP_START_COLOR)이 먼저 그려질 틈이 없다.
+        swap(`html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`, `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }\n    html.echo-app-launch-root body { background: ${APP_LAUNCH_COLOR}; }\n    html.echo-app-launch-root body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; background: ${APP_LAUNCH_BG}; pointer-events: none; opacity: 1; transition: opacity 260ms ease-out; }\n    html.echo-app-launch-root.echo-app-launch-out body::after { opacity: 0; }`);
+        swap(`<meta name="theme-color" content="${APP_LAUNCH_COLOR}" />`, `<meta name="theme-color" content="${APP_LAUNCH_COLOR}" />\n    <script>(function(){try{var p=location.pathname,d=document.documentElement,m=document.querySelector('meta[name="theme-color"]');var intro=p.indexOf("/do-it/intro")===0;var pastel=p==="/doit"||p.indexOf("/doit/")===0||p.indexOf("/login")===0||p.indexOf("/signup")===0||p.indexOf("/legal")===0;if(intro){d.classList.add("echo-app-launch-root");d.classList.remove("echo-app-pastel-root");if(m)m.setAttribute("content","${APP_LAUNCH_COLOR}")}else if(pastel){d.classList.remove("echo-app-launch-root");d.classList.add("echo-app-pastel-root");if(m)m.setAttribute("content","${APP_START_COLOR}")}else{d.classList.remove("echo-app-launch-root");d.classList.remove("echo-app-pastel-root");if(m)m.setAttribute("content","#08070c")}}catch(e){}})();</script>`);
         swap("<title>DO IT COMPANY | JUST TRY.</title>", `<title>${appName}</title>`);
         swap('<meta name="description" content="사람은 프로필보다, 함께한 행동에서 더 많이 보이니까. DO IT COMPANY · ECHO" />', `<meta name="description" content="${appDesc}" />\n    <link rel="canonical" href="${appOrigin}/" />`);
         swap('<meta property="og:title" content="DO IT COMPANY | JUST TRY." />', `<meta property="og:type" content="website" />\n    <meta property="og:site_name" content="${appName}" />\n    <meta property="og:title" content="${appName}" />`);
@@ -103,8 +105,8 @@ export default defineConfig(({ mode }) => {
           "</head>",
           [
             '    <link rel="manifest" href="/manifest.webmanifest" />',
-            '    <link rel="preload" as="image" href="/pwa/echo-launch-artwork.webp" type="image/webp" fetchpriority="high" />',
-            '    <link rel="apple-touch-startup-image" href="/pwa/echo-launch-artwork.webp" />',
+                        `<link rel="preload" as="image" href="${APP_LAUNCH_ASSET}" type="image/webp" fetchpriority="high" />`,
+                        `<link rel="apple-touch-startup-image" href="${APP_LAUNCH_ASSET}" />`,
             '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png?v=20260925b" />',
             '    <meta name="apple-mobile-web-app-capable" content="yes" />',
             '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',
