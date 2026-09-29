@@ -105,10 +105,13 @@ export function stiffQuestion(question: string, latest = ""): boolean { return q
 // 「어떤 친구/사람과 … 좋을까요?」처럼 사람 유형을 다시 정의하게 하는 질문보다, 방금 말의 구체 장면을 이어 묻는다.
 // v2.5.5 「어떤 친구와 대화가 잘 통할까요?」(QA run 36575134665 실제 질문)처럼 「어떤 친구/사람…」으로 시작하는 질문 전체.
 const GENERIC_PERSON_Q = /^\s*(그럼\s*)?어떤\s*(친구|사람|분)(과|와|랑|이랑|이|을|를|한테|에게)?(\s|[?？]|$)|^\s*(그럼\s*)?어떤\s*[가-힣]{1,4}(의|인|한)?\s*(친구|사람|분)(이|가|을|를|와|과|랑)?(\s|[?？]|$)|^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?[^?]*(좋|편|원하|맞)/;
-export function genericPersonQuestion(question: string): boolean { return GENERIC_PERSON_Q.test(question); }
+// 2026-09-30 마감 지시 §3: 문장 끝에서 사람을 정의하게 하는 질문(QA 장면 E v64 「편하게 대화할 수 있는 친구는 어떤 사람일까요?」).
+// 「천천히 알아갈 때 어떤 사람이면 말이 잘 이어질 것 같아요?」처럼 장면에 붙은 질문은 대표가 든 좋은 예라 막지 않는다.
+const PERSON_DEFINE_END = /(친구|사람|분)(은|는)?\s*어떤\s*(사람|친구|분|스타일|타입|유형)(일까요|인가요|이에요|예요|이세요|인지|일까|이야|이면\s*좋)/;
+export function genericPersonQuestion(question: string): boolean { return GENERIC_PERSON_Q.test(question) || PERSON_DEFINE_END.test(question); }
 // 받아주기가 사용자의 말을 분석 요약하는 문장으로 길어지는 것을 막는다.
 // 짧은 맞장구는 허용하고, 「원하시네요/중요하네요/쪽이네요」처럼 해석 결론을 대신 내려 주는 문장은 다시 만든다.
-const ANALYTIC_ACK = /(원하(?:시)?네요|선호하|중요하|쪽이\s*(?:더\s*)?(?:편|좋)|라는\s*뜻|라고\s*볼\s*수)/;
+const ANALYTIC_ACK = /(원하(?:시)?네요|선호하|중요하|쪽이\s*(?:더\s*)?(?:편|좋)|라는\s*뜻|라고\s*볼\s*수|싶으시(?:네요|군요|구나)|찾고\s*계시(?:네요|군요)|모르시(?:네요|군요))/; // 2026-09-30 QA v64 「그런 친구를 만나고 싶으시네요」 · 「잘 모르시네요」 = 해석을 대신 내림
 export function analyticAck(reply: string): boolean { return reply.length > 18 || ANALYTIC_ACK.test(reply); }
 // 받아주기가 사용자 말을 거의 그대로 옮긴 것인지(대표 §7 「사용자의 문장 그대로 복사 금지」).
 // 기준: 사용자 말의 두 글자 조각 중 65% 이상이 받아주기 한 문장에 그대로 있으면 옮긴 것으로 본다(실제 AI run gh 「한 달에 두세 번 편하게 보는 게 좋다고 하셨네요」 0.67).
@@ -119,8 +122,10 @@ const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()
 // 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
 // v2.5.5 받아주기 안에 숨은 질문(QA 장면 B 「어떤 고양이가 제일 마음에 들어요.」 · 물음표 없이 「~요.」로 끝남)도 뺀다 — 한 턴에 질문은 하나.
 const REPLY_ASK = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어느|누구|몇)\s*\S+[^.!?]*((?<!예|에|네|죠|거든|군|지|다는\s*거|라는\s*거)요|는데|니|냐|래|나)\s*[.!]?$/; // v2.5.5 반말 「~는데.」로 끝난 숨은 질문(QA 장면 B v61)도 // 「~거예요·~네요」 같은 설명·맞장구는 남긴다
+// 2026-09-30 QA v63 장면 C 「자주 만나고 싶다는 건가요.」: 의문사 없이 「~건가요·~인가요·~나요·~까요」로 끝난 되묻기도 받아주기에 두지 않는다.
+const REPLY_Q_END = /(건가요|인가요|나요|까요|는지요|을까|ㄹ까)\s*[.!]?$/;
 export function tidyReply(reply: string, question: string | null): string {
-  return sentences(reply).filter((x) => !COUNSEL.test(x) && !ASKS.test(x) && !REPLY_ASK.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).map(softEnd).join(" ");
+  return sentences(reply).filter((x) => !COUNSEL.test(x) && !ASKS.test(x) && !REPLY_ASK.test(x) && !REPLY_Q_END.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).map(softEnd).join(" ");
 }
 export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => !needsMoreAnswers(st) && coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;

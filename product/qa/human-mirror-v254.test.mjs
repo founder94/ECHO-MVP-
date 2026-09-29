@@ -35,6 +35,11 @@ test('v2.5.4 정보 종류를 묻는 질문은 사람 말이 아니다(사용자
   assert.ok(A.genericPersonQuestion('어떤 성격의 친구가 좋을까요?'), 'QA 장면 C v60');
   assert.ok(!A.genericPersonQuestion('어떤 장난감이 좋나요?'));
   assert.ok(!A.genericPersonQuestion('친구랑은 주로 뭐 하면서 놀아요?'));
+  assert.ok(A.genericPersonQuestion('편하게 대화할 수 있는 친구는 어떤 사람일까요?'), 'QA 장면 E v64');
+  assert.ok(!A.genericPersonQuestion('천천히 알아갈 때 어떤 사람이면 말이 잘 이어질 것 같아요?'), '대표가 든 좋은 질문');
+  assert.ok(A.analyticAck('그런 친구를 만나고 싶으시네요.'));
+  assert.equal(A.tidyReply('자주 만나고 싶다는 건가요.', null), '');
+  assert.equal(A.tidyReply('오, 그건 좋죠.', null), '오, 그건 좋죠.');
   // 2026-09-30 대표 마감 지시 §3 좋은 질문 후보 · 나쁜 질문
   const MONEY = '돈관계 안 하고 천천히 대화하면서 스며들고 싶어';
   for (const q of ['처음엔 어떤 얘기부터 하면 편할 것 같아요?', '그럼 처음 만날 땐 어디가 제일 편할 것 같아요?']) assert.ok(!A.infoKindQuestion(q, MONEY) && !A.surveyQuestion(MONEY, q) && !A.genericPersonQuestion(q), q);
@@ -124,4 +129,19 @@ test('v2.5.5 QA 장면 B·C·E: 받아주기 속 숨은 질문은 빼고 · 모�
   assert.equal(r.response.kind, 'unsure'); assert.equal(r.response.saved, false);
   assert.equal(r.response.question, '편하게 얘기하려면 주말이 좋아요?');
   assert.ok(seen.includes('question'));
+});
+
+test('2026-09-30 마감 §7·§15: 휴대폰 뒤로 = 직전 답 고치기 · 브랜드 「모바일 앱 깔기」 별도 버튼 하나 → 앱 설치 카드', () => {
+  const chat = readFileSync(here('../src/doit/components/feature/AgentConversation.tsx'), 'utf8');
+  assert.match(chat, /addEventListener\('popstate', onPop\)/);
+  assert.match(chat, /echoBackGuard/);
+  assert.match(chat, /setEditingPrevious\(true\); setDraft\(lastAnswerRef\.current\)/);
+  const brand = readFileSync(here('../src/pages/do-it/landing/components/BrandSections.tsx'), 'utf8');
+  assert.equal((brand.match(/MOBILE_INSTALL_LABEL\}/g) ?? []).length, 1, '모바일 앱 깔기 버튼은 하나');
+  assert.match(brand, /MOBILE_START_LABEL = 'ECHO 시작하기'/, '주 시작 버튼 이름 그대로');
+  assert.match(brand, /INSTALL_PATH = '\/do-it\/intro\?next=app&install=1'/);
+  const sheet = readFileSync(here('../src/components/InstallIntentSheet.tsx'), 'utf8');
+  assert.match(sheet, /IS_APP_SITE && readIntent\(\)/);
+  assert.match(sheet, /<InstallAppCard variant="menu" \/>/);
+  assert.match(sheet, /pathname\.startsWith\('\/do-it\/intro'\)/, '시작 그림·인트로를 가리지 않는다');
 });

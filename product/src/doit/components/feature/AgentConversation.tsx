@@ -164,6 +164,28 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, session, heroChoice]);
 
+  // 2026-09-30 대표 마감 지시 §7: 대화 중 휴대폰 뒤로(안드로이드 뒤로·아이폰 밀어서 뒤로)가 대화 화면을 떠나 처음 쪽으로 가던 문제.
+  // 답이 하나라도 있으면 같은 주소의 기록 한 칸을 앞에 두고, 뒤로를 누르면 화면을 떠나지 않고 「직전 답 고치기」로 연다(고치면 서버가 뒤 질문을 다시 정한다).
+  // 고치는 중에 한 번 더 뒤로 = 고치기 취소. 답이 없거나 대화가 끝났으면 원래 뒤로 그대로.
+  const lastAnswer = session ? [...session.messages].reverse().find(m => m.role === 'user')?.text ?? '' : '';
+  const guardBack = !!session && session.phase !== 'done' && !!lastAnswer;
+  const editingRef = useRef(false);
+  editingRef.current = editingPrevious;
+  const lastAnswerRef = useRef('');
+  lastAnswerRef.current = lastAnswer;
+  useEffect(() => {
+    if (!guardBack) return;
+    const mark = () => window.history.pushState({ ...(window.history.state ?? {}), echoBackGuard: true }, '');
+    if (!(window.history.state as { echoBackGuard?: boolean } | null)?.echoBackGuard) mark();
+    const onPop = () => {
+      mark();
+      if (editingRef.current) { setEditingPrevious(false); setDraft(''); return; }
+      setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [guardBack]);
+
   const restart = () => void run('처음부터 준비하고 있어요', async () => {
     const failure = await onRestart();
     if (failure && alive.current) setError(failure);
