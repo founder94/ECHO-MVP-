@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 // 대표 2026-09-26 PRE-DEPLOY FINAL FIX
 // #1 앱 공유 정보(canonical·og·twitter)는 https://app.do-it.company 기준.
-// #2 앱 첫 바탕색은 검정(#08070c)이 아니라 실제 파스텔 토큰(pastel-bg.css --pastel-underlay 첫 색).
+// #2 설치 앱 시작 색은 대표가 선택한 남색. 앱 내부 파스텔 화면 색은 그대로 유지한다.
 // 브랜드 사이트(do-it.company)는 그대로다 — 원본 index.html 은 브랜드 값을 유지하고, 앱 빌드에서만 바꾼다.
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -14,17 +14,17 @@ const read = (p) => readFileSync(path.join(root, p), 'utf8');
 
 const pastelFirst = () => read('src/doit/components/feature/pastel-bg.css').match(/--pastel-underlay:\s*linear-gradient\(180deg,\s*(#[0-9a-f]{6}) 0%/i)?.[1]?.toLowerCase();
 
-test('앱 첫 바탕색은 지어낸 색이 아니라 파스텔 토큰의 첫 색이다', () => {
+test('앱 시작 화면은 남색이고 내부 화면의 파스텔 색은 유지한다', () => {
   const token = pastelFirst();
   assert.ok(token, 'pastel-bg.css 토큰을 찾지 못했다');
-  assert.match(read('vite.config.ts'), new RegExp(`const APP_START_COLOR = "${token}";`, 'i'));
+  assert.match(read('vite.config.ts'), /const APP_START_COLOR = "#07142d";/);
   assert.match(read('src/lib/themeColor.ts'), new RegExp(`export const APP_PASTEL = '${token}';`, 'i'));
   const manifest = JSON.parse(read('public/manifest.webmanifest'));
-  assert.equal(manifest.background_color.toLowerCase(), token);
-  assert.equal(manifest.theme_color.toLowerCase(), token);
+  assert.equal(manifest.background_color.toLowerCase(), '#07142d');
+  assert.equal(manifest.theme_color.toLowerCase(), '#07142d');
 });
 
-test('앱 빌드만 theme-color·첫 body 바탕을 파스텔로 바꾼다(없으면 빌드 실패)', () => {
+test('앱 빌드만 theme-color·첫 body 바탕을 남색으로 바꾼다(없으면 빌드 실패)', () => {
   const vite = read('vite.config.ts');
   assert.match(vite, /swap\('<meta name="theme-color" content="#08070c" \/>', `<meta name="theme-color" content="\$\{APP_START_COLOR\}" \/>`\)/);
   assert.match(vite, /swap\(["']body \{ background: #08070c; \}["'], `html\.echo-app-pastel-root body \{ background: \$\{APP_START_COLOR\}; \}`\)/);
