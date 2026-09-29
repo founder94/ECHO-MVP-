@@ -1,0 +1,5 @@
+/* 2026-09-30 「모바일 앱 깔기」로 들어왔을 때만 뜨는 아래 설치 카드. 전역 스타일을 건드리지 않도록 .doit-install-intent* 아래에만 둔다. */
+.doit-install-intent{position:fixed;left:0;right:0;bottom:0;z-index:60;max-width:480px;margin:0 auto;padding:0 12px calc(12px + env(safe-area-inset-bottom));box-sizing:border-box}
+.doit-install-intent .doit-install{margin:0;background:linear-gradient(140deg,#1b2230,#0d1016);box-shadow:0 -8px 28px rgb(0 0 0/.35)}
+.doit-install-intent-close{display:block;width:100%;min-height:44px;margin-top:6px;border:0;border-radius:999px;background:rgb(13 16 22/.9);color:#d5dae1;font-size:13px;font-weight:600;cursor:pointer}
+.doit-install-intent-close:focus-visible{outline:2px solid #e0e3e9;outline-offset:2px}

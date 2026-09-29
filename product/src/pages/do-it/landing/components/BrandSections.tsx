@@ -39,6 +39,8 @@ const STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
 const SOON_LABEL = '준비 중';
 // 홈페이지 아래쪽 시작 버튼은 이 말로 통일한다(히어로 버튼은 대표 최종 승인 2026-09-24 「ECHO 시작하기」).
 export const MOBILE_START_LABEL = 'ECHO 시작하기'; // 대표 FINAL TWO-SITE LOCK(2026-09-25): 홈페이지 CTA 이름 = 「ECHO 시작하기」(히어로 버튼과 같은 이름)
+export const MOBILE_INSTALL_LABEL = '모바일 앱 깔기'; // 2026-09-30 대표 마감 지시 §15(별도 버튼 하나)
+export const INSTALL_PATH = '/do-it/intro?next=app&install=1'; // 앱 시작 주소(manifest start_url) + 설치 카드 표시
 const DOTS_EARTH_SRC = '/brand/doit-dots-earth.webp';
 
 // 배경 사진(2026-09-23 대표 "홈페이지 배경에 이 사진들을 다 넣고 브랜딩해"). 이야기 01~09 에 쓰지 않은 파란 우주인 사진 4장.
@@ -139,6 +141,8 @@ export function BrandMobileStart() {
           <div className="doit-brand-handoff-phone">
             <a className="doit-brand-handoff-action" href={startUrl}>{MOBILE_START_LABEL}</a>
             <p>한 번 열고 홈 화면에 놓아 두면, 다음부터는 아이콘으로 바로 열려요.</p>
+            {/* 2026-09-30 대표 마감 지시 §15: 시작 버튼은 그대로 두고, 별도 버튼 하나만 「모바일 앱 깔기」. 앱 주소에서 기존 설치 카드(갤럭시 설치 창 · 아이폰 홈 화면 추가 안내)를 띄운다. */}
+            <a className="doit-brand-handoff-link" href={appUrl(INSTALL_PATH)}>{MOBILE_INSTALL_LABEL}</a>
           </div>
           {/* 컴퓨터로 볼 때: 휴대폰 카메라로 QR 을 비추면 앱이 열린다 */}
           <div className="doit-brand-handoff-desk" id="doit-start-qr">
