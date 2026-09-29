@@ -427,7 +427,9 @@ export const DISPUTE_CHECK = "어떤 부분이 달랐는지만 한 번 알려줄
 const FIX_YES = /^\s*(네+|예|응+|어|맞아요?|맞습니다|그래요?|ㅇㅇ|넵|넹|네\s*맞아요?|맞아요?\s*고칠게요|고치는\s*(거|게)\s*맞아요?)\s*[.!~…]*\s*$/;
 const FIX_NO = /^\s*(아니(요|에요|야)?|아뇨|아냐|아닌데요?|그게\s*아니(에요|야)?|고치는\s*(거|게)\s*아니(에요|야)?)\s*[.!~…]*\s*$/;
 // v2.4.7 GF-118 서버가 버릴 질문(이미 한 질문과 같거나 비슷함 · 다른 목적 말 · 금지어)인지 — applyTurn 의 버리기 규칙과 같다.
-export const questionBlocked = (st: AgentState, q: string | null | undefined) => !q || st.asked.some((a) => squash(a.text) === squash(q) || dice(bare(a.text), bare(q)) >= SIMILAR_Q) || goalResidue(st, q) || BANNED_WORDS.test(q);
+// 2026-09-30 §7 정정 뒤 재계산: 고치기 전 답에서 나온 질문(stale · 답을 받지 못함)은 「비슷한 질문」 비교에서만 뺀다. 글자까지 같은 재사용은 그대로 막는다.
+// (QA v71·v72 장면 E: 「고친 값으로 다시 정한 다음 질문」이 옛 질문과 비슷하다고 세 번 막혀 안내 한 줄로 떨어졌다.)
+export const questionBlocked = (st: AgentState, q: string | null | undefined, stale = "") => !q || st.asked.some((a) => squash(a.text) === squash(q) || (!(stale && a.text === stale) && dice(bare(a.text), bare(q)) >= SIMILAR_Q)) || goalResidue(st, q) || BANNED_WORDS.test(q);
 // v2.4.7 GF-118 모델이 새 질문을 끝내 못 만들 때의 서버 안내 한 줄(대화에 한 번 · 질문 목록 아님).
 // 2026-09-30 QA 장면 E: 옛 안내 한 줄(「이 밖에 이런 사람이면 좋겠다 싶은 게…」)은 34자를 넘고 사람 유형을 묻는 말이라 짧은 이어 묻기로 바꾼다.
 // QA v71: 「그 얘기 조금만 더 들려줄래요?」는 대표 「나쁜 느낌」 예(「조금 더 들려주실 수 있을까요?」)와 같은 결이라, 대표가 든 좋은 질문 예로 바꾼다.
@@ -762,7 +764,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   }
   // 이미 한 질문과 글자까지 같은 새 질문은 보이지 않는다(먼저 답하기로 한 번 다시 보인 것은 위에서 따로 센다).
   if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => squash(a.text) === squash(question))) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_before"; }
-  if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => dice(bare(a.text), bare(question!)) >= SIMILAR_Q)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_similar"; }
+  if (question && decision !== "keep_after_answer" && decision !== "help_rephrase" && st.asked.slice(0, -1).some((a) => !(out.kind === "correction" && a.text === turn.ai) && dice(bare(a.text), bare(question!)) >= SIMILAR_Q)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "asked_similar"; }
   if (question && goalResidue(st, question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; turn.dropped = "goal_residue"; }
   if (question && BANNED_WORDS.test(question)) { st.asked.pop(); st.current = null; question = null; decision = "finish"; }
   let reply = BANNED_WORDS.test(out.reply) || leaksId(out.reply) || goalResidue(st, out.reply) ? "" : tidyReply(out.reply, question);
@@ -959,7 +961,7 @@ export function retryReason(st: AgentState, out: Parsed, left: string[], after: 
   if (out.next.question && st.asked.some((a) => squash(a.text) === squash(out.next.question))) return "asked_before";
   if (goalResidue(st, out.reply) || goalResidue(st, out.next.question)) return "goal_residue";
   if (COUNSEL.test(out.reply)) return "counsel_tone";
-  if (out.next.question && st.asked.some((a) => dice(bare(a.text), bare(out.next.question)) >= SIMILAR_Q)) return "asked_similar";
+  if (out.next.question && st.asked.some((a) => !(out.kind === "correction" && a.text === st.current?.text) && dice(bare(a.text), bare(out.next.question)) >= SIMILAR_Q)) return "asked_similar";
   const wantsCore = out.next.question && !(out.next.type === "clarify" && out.kind === "answer" && clarifyAllowed(st));
   if (wantsCore && left.length && !left.includes(out.next.purpose)) return "purpose_used";
   if (!out.next.question && left.length && (coreAsked(st).length < MAX_CORE_QUESTIONS || fillTargets(st).length)) return "no_question";
@@ -1012,9 +1014,9 @@ export function unsafeTurnAck(kind: string, reply: string, user: string, questio
   if (kind === "correction") { const u = stems(user); return [...r].filter((w) => u.has(w)).length < 2; }
   return false;
 }
-export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true): string {
+export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true, stale = ""): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
-  if (questionBlocked(st, q) || leaksId(q)) return "blocked";
+  if (questionBlocked(st, q, stale) || leaksId(q)) return "blocked";
   if (/모르겠|잘\s*몰라/.test(q)) return "unsure_paste"; // 2026-09-30 QA v67 장면 C: 「모르겠어요면 처음 연락은 문자로 해요?」
   if (surveyQuestion(latest, q)) return "survey_tone";
   if (genericPersonQuestion(q)) return "generic_person";
@@ -1115,8 +1117,9 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   //   검사는 서버가 확정할 말 종류(guardKind)로 한다(기록·상태 처리는 그대로 applyTurn 이 한다).
   const kindNow: string = guardKind(work, out.kind, !!ui).kind;
   const answered = kindNow === "answer" || kindNow === "correction";
+  const staleQ = kindNow === "correction" ? st.current?.text ?? "" : ""; // 고치기 전 답에서 나온, 답을 받지 못한 질문
   const qBase = answered ? work : (st.turns.at(-1)?.user ?? work);
-  if (!after && !forced && ["answer", "correction", "unsure", "skip", "repair"].includes(kindNow) && out.next.question && questionFlaw(st, qBase, out.next.question, answered) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
+  if (!after && !forced && ["answer", "correction", "unsure", "skip", "repair"].includes(kindNow) && out.next.question && questionFlaw(st, qBase, out.next.question, answered, staleQ) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
     const pool = openPurposes(st).length ? openPurposes(st) : fillTargets(st);
     const cand = pool.filter((id) => !out!.extracted.some((e) => e.purpose === id));
     const order = [...new Set([out.next.purpose, ...cand].filter((id) => cand.includes(id)))].slice(0, 2);
@@ -1127,7 +1130,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     let spareChoices: { purpose: string; choices: string[] } | null = null;
     for (const purpose of [order[0], order[0], order[1]].filter((p): p is string => !!p)) {
       const { question: q, choices } = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, kindNow === "correction");
-      const flaw = q ? questionFlaw(st, qBase, q, answered) : "empty";
+      const flaw = q ? questionFlaw(st, qBase, q, answered, staleQ) : "empty";
       if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null, choices }; obs.retry.push("question_rewrite"); break; }
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
       if (choices.length && !spareChoices) spareChoices = { purpose, choices }; // 질문은 떨어져도 보기는 형식 검사를 이미 통과했다
@@ -1135,7 +1138,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
       const like = flaw === "blocked" ? st.asked.map((a) => a.text).sort((x, y) => dice(bare(y), bare(q)) - dice(bare(x), bare(q)))[0] : "";
       rejected = { question: q, why: like ? `${FLAW_WHY.blocked}(「${like}」와 같은 틀 · 다른 문장 모양으로)` : FLAW_WHY[flaw] ?? flaw }; // 2026-09-30 QA v67 장면 E: 정정 뒤 같은 틀(값만 바꾼 질문)을 세 번 내서 안내 한 줄로 떨어졌다
     }
-    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "unsure_paste", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
+    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "unsure_paste", "survey_tone", "generic_person", "stiff_question", "echo"].includes(questionFlaw(st, qBase, n.question, answered, staleQ))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && !answered && spareChoices && !questionBlocked(st, choiceQuestionText(st.tone))) { fixed = { type: "core", purpose: spareChoices.purpose, question: choiceQuestionText(st.tone), hint: "", check: null, choices: spareChoices.choices }; obs.retry.push("question_choices"); }
     if (!fixed && cand.length && !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone))) { fixed = { type: "core", purpose: cand[0], question: fillFallbackText(st.tone), hint: "", check: null }; st.fill_fallback_used = true; obs.retry.push("question_fallback"); }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
@@ -1163,7 +1166,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   // v2.4.7 GF-118: 다음 질문이 이미 한 질문과 같거나 비슷해 서버가 버릴 질문이면, 멈추지 않고 ① 다른 칸으로 한 번 더 청하고 ② 그래도 안 되면 서버 안내 한 줄(대화에 한 번)로 이어 간다.
   const willAsk = !forced || forced.kind === "answer" ? decideKind(st, work, out, !!ui).rule !== "fix_check" : true;
   const cand = openPurposes(st).length ? openPurposes(st) : fillTargets(st);
-  if (willAsk && ["answer", "correction"].includes(out.kind) && cand.length && needsMoreAnswers(st) && !!out.next.question && questionBlocked(st, out.next.question)) {
+  if (willAsk && ["answer", "correction"].includes(out.kind) && cand.length && needsMoreAnswers(st) && !!out.next.question && questionBlocked(st, out.next.question, out.kind === "correction" ? staleQ : "")) {
     const alt = cand.filter((id) => id !== out!.next.purpose).length ? cand.filter((id) => id !== out!.next.purpose) : cand;
     const input = turnInput(st, work);
     input.open_purposes = alt.map((id) => ({ purpose: id, label: dimLabel(st, id) }));

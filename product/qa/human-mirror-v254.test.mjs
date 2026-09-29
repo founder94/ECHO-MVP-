@@ -256,3 +256,25 @@ test('09-30 v71: unsure turn with rejected rewrites falls back to the choice que
   assert.ok(r.obs.retry.includes('question_choices'));
   assert.match(whys[1] ?? '', /「친구랑 카페에서 만나면 편해요\?」와 같은 틀/);
 });
+
+// 2026-09-30 §7 + QA v71·v72 장면 E: 정정 뒤 「고친 값으로 다시 정한 다음 질문」은 고치기 전 답에서 나온(답을 받지 못한) 질문과 비슷해도 쓴다. 글자까지 같은 재사용은 막는다.
+test('09-30 §7: after a correction the recomputed next question may resemble the stale one, but never repeats it verbatim', async () => {
+  const st = start();
+  await A.runTurn(st, '편하게 자주 볼 수 있는 동네 친구를 찾고 있어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '동네 친구', '동네 친구')], next: N('relationship_style', '자주 보면 좋을 것 같아요?') }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  const OLD_Q3 = '일주일에 세 번 만나는 날에 가고 싶은 장소가 있나요?';
+  await A.runTurn(st, '일주일에 세 번 만나는 게 좋아요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_style', '일주일에 세 번 만나는 게 좋아요', '일주일에 세 번 만나는 게 좋아요')], next: N('values_character', OLD_Q3) }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  assert.equal(st.current.text, OLD_Q3);
+  const NEW_Q3 = '한 달에 한두 번 만나는 날에 가고 싶은 카페가 있나요?';
+  assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', NEW_Q3), 'blocked', '보통 턴에서는 여전히 비슷한 질문으로 막힌다');
+  assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', NEW_Q3, true, OLD_Q3), '', '정정 턴에서는 고친 값으로 다시 정한 질문을 쓴다');
+  assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', OLD_Q3, true, OLD_Q3), 'blocked', '옛 질문 글자 그대로 재사용은 막는다');
+  const r = await A.runTurn(st, '한 달에 한두 번 만나는 게 좋아요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ kind: 'correction', reply: '', extracted: [X('relationship_style', '한 달에 한두 번 만나는 게 좋아요', '한 달에 한두 번 만나는 게 좋아요')], next: N('values_character', NEW_Q3) }))
+    : JSON.stringify({ reply: '' }), { ui: { correction: true, purpose: 'relationship_style' } });
+  assert.equal(r.response.question, NEW_Q3);
+  assert.ok(!r.obs.retry.includes('question_fallback'));
+});
