@@ -124,14 +124,19 @@ else {
   if (!did) check('일반 답 세션 시작', false, `status=${d0.status}`);
   else {
     const first = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: '친구와 산책하는 게 좋아요' });
-    const old = first.data?.session?.profile?.confirmed_preferences ?? [];
     const beforeQ = first.data?.session?.current_question ?? '';
     const no = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: '아니요, 저는 카페에서 얘기하는 게 좋아요' });
-    const after = no.data?.session?.profile ?? {};
+    let finish = no.data?.session;
+    for (const a of REST) {
+      if (!finish || finish.phase === 'done') break;
+      const step = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: a });
+      finish = step.data?.session;
+    }
+    const after = finish?.profile ?? {};
     const prefs = after.confirmed_preferences ?? [];
     const live = Object.values(after).filter((v) => v && Array.isArray(v.items)).flatMap((v) => v.items.filter((i) => i.status === 'CONFIRMED').map((i) => i.note));
-    check('일반 아니요 답: 기존 사실 유지 · 카페 답 저장', no.status === 200 && no.data?.turn?.kind === 'answer' && (!old.some((x) => /산책/.test(x)) || prefs.some((x) => /산책/.test(x)) || live.some((x) => /산책/.test(x))) && [...prefs, ...live].some((x) => /카페/.test(x)), `status=${no.status} kind=${no.data?.turn?.kind}`);
-    check('일반 아니요 답: 질문을 거절 의미로 기록 0', !beforeQ || !(after.rejected_meanings ?? []).includes(beforeQ));
+    check('일반 아니요 답: 기존 사실 유지 · 카페 답 저장', no.status === 200 && no.data?.turn?.kind === 'answer' && finish?.phase === 'done' && [...prefs, ...live].some((x) => /산책/.test(x)) && [...prefs, ...live].some((x) => /카페/.test(x)), `status=${no.status} kind=${no.data?.turn?.kind} saved=${no.data?.turn?.saved} phase=${finish?.phase} 산책=${[...prefs, ...live].some((x) => /산책/.test(x))} 카페=${[...prefs, ...live].some((x) => /카페/.test(x))}`);
+    check('일반 아니요 답: 질문을 거절 의미로 기록 0', !beforeQ || !(after.rejected_meanings ?? []).includes(beforeQ), `phase=${finish?.phase}`);
   }
 }
 
