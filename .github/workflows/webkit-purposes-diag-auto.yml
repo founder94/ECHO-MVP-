@@ -1,0 +1,27 @@
+name: webkit-purposes-diag-auto
+on:
+  push:
+    branches: ['claude/echo-p0-qa-20260927']
+    paths:
+      - 'product/qa-real/webkit-purposes-diag.mjs'
+      - '.github/workflows/webkit-purposes-diag-auto.yml'
+permissions:
+  contents: read
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: WebKit PROD root/login/start-journey diagnostic
+        working-directory: product/qa-real
+        env:
+          RUNS: '3'
+        run: |
+          set -euo pipefail
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps webkit >/dev/null 2>&1
+          node webkit-purposes-diag.mjs
