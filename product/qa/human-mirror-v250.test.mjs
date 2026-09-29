@@ -54,3 +54,5 @@ test('v2.5.3 keeps follow-up short and rejects stiff survey phrasing', () => {
   assert.match(s, /질문은 가능하면 30자 안쪽/);
   assert.match(s, /함께하고\\s\*싶으세요/);
 });
+
+// v2.5.3 QA trigger
