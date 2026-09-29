@@ -402,6 +402,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - name: 비밀값 존재 · Netlify 인증(GET 1회) · 운영 Auth 설정 읽기(GET 1회) — 상태 코드만
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
@@ -412,18 +413,7 @@ jobs:
             echo "SUPABASE_PROD_AUTH_READ_TOKEN=PRESENT"
             code=$(curl -s -o /tmp/authcfg.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN" https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth)
             echo "SUPABASE_AUTH_CONFIG_READ_STATUS=$code"
-            # 설정값 중 URL 두 가지만(비밀값 아님): Site URL · 허용 목록이 필요한 콜백을 덮는지 · 폐기 주소 · 목록 항목 수
-            [ "$code" = 200 ] && node -e '
-              const c=require("/tmp/authcfg.json"); const list=String(c.uri_allow_list??"").split(",").map(s=>s.trim()).filter(Boolean);
-              const cover=(e,u)=>{e=e.replace(/\/+$/,"");u=u.replace(/\/+$/,""); if(!e.includes("*"))return e===u; const rx=new RegExp("^"+e.split("**").map(p=>p.split("*").map(q=>q.replace(/[.+?^${}()|[\]\\]/g,"\\$&")).join("[^/]*")).join(".*")+"$"); return rx.test(u);};
-              const has=(u)=>list.some(e=>cover(e,u));
-              console.log("AUTH_SITE_URL="+c.site_url);
-              console.log("AUTH_ALLOW_APP_CALLBACK="+has("https://app.do-it.company/auth/callback"));
-              console.log("AUTH_ALLOW_ADMIN_CALLBACK="+has("https://admin.do-it.company/auth/callback"));
-              console.log("AUTH_ALLOW_LIST_COUNT="+list.length);
-              console.log("AUTH_ALLOW_LIST_ORIGINS="+[...new Set(list.map(e=>{try{return new URL(e.replace(/\*+/g,"x")).origin}catch{return "?"}}))].join(" "));
-              console.log("AUTH_RETIRED_PRESENT="+[c.site_url,...list].some(v=>/melba-b1449a|localhost|ready\.co/i.test(String(v))));
-            '
+            [ "$code" = 200 ] && node product/qa-real/auth-readback.mjs /tmp/authcfg.json
             rm -f /tmp/authcfg.json
           else echo "SUPABASE_PROD_AUTH_READ_TOKEN=MISSING"; fi
           if [ -n "$NETLIFY_AUTH_TOKEN" ]; then
