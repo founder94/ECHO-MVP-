@@ -752,8 +752,8 @@ test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어�
   ];
   st.current = st.asked.at(-1);
 
-  const dup = T({ kind: 'unsure', reply: '아직 잘 모르겠네요.', ...Q('relationship_intent', '친구랑 보통 뭐 하고 싶어요?') });
-  const fresh = T({ kind: 'unsure', reply: '아직 잘 모르겠네요.', ...Q('relationship_style', '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?') });
+  const dup = T({ kind: 'answer', reply: '주말에는 쉬는 편이시네요.', ...Q('relationship_intent', '친구랑 보통 뭐 하고 싶어요?') });
+  const fresh = T({ kind: 'answer', reply: '주말에는 쉬는 편이시네요.', ...Q('relationship_style', '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?') });
   const outs = [dup, dup, fresh];
   let calls = 0;
   const llm = async (kind) => {
@@ -763,7 +763,7 @@ test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어�
     return JSON.stringify(out);
   };
 
-  const r = await h.agent.runTurn(st, '잘 모르겠어요', llm);
+  const r = await h.agent.runTurn(st, '저는 주말에 쉬는 편이에요', llm);
   assert.equal(calls, 3, '중복 후보 2개를 서버가 거절한 뒤 세 번째 후보를 사용');
   assert.equal(r.response.finish, false, '4/5 준비 미완료인데 대화를 잘못 끝내지 않음');
   assert.equal(r.response.question, '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?');
