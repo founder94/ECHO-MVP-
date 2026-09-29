@@ -217,7 +217,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         그 위 고정 제목 「잘 들었어요. 다음 질문이에요.」가 대신 서 있었다. → 받아주기 말이 있으면 그 말이 제목 자리에 선다(문장은 서버가 준 그대로 · 화면이 만들지 않는다). */}
     {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : ack ? <h1 className="echo-ack-heading">{ack}</h1> : <h1>{myAnswers.length ? <>잘 들었어요.<br />다음 질문이에요.</> : '첫 질문이에요.'}</h1>}
     {!done && <p className="echo-lead">{voiceUi ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
-    {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button echo-previous-answer" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
+    {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
     {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" />직전 답을 고쳐 적어 주세요. 저장하면 그 뒤 질문도 고친 답 기준으로 다시 정해요.<button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
     {question && !editingPrevious && <div className="echo-question-card">
       <p className="echo-question">{question}</p>
