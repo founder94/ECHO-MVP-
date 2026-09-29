@@ -68,6 +68,16 @@ test('A′ · 운영 실측 모양(모델 answer · 아무것도 못 뽑음) →
   assert.equal(st.pending_fix, null);
 });
 
+test('A‴ · QA 실측 모양(앞말은 원문으로 한 칸 · 모델은 새 값을 제3의 칸으로) → 보통 답으로 넘기지 않고 한 번 확인 → 「네」면 앞 칸에서 정정', async () => {
+  const st = loudState();
+  const r0 = A.applyTurn(st, CAFE, T({ kind: 'repair', extracted: [X('relationship_style', '카페에서 이야기하는 게 좋아요', '카페에서 이야기하는 게 좋아요')], next: N('boundaries', '피하고 싶은 게 있나요?') }));
+  assert.equal(r0.kind, 'fix_check');
+  assert.ok(live(st, 'attraction_comfort').some((i) => i.quote === LOUD) && !/카페/.test(allLive(st)));
+  await A.runTurn(st, '네', script([T({ kind: 'correction', extracted: [X('relationship_style', '카페에서 이야기함', '카페에서 이야기하는 게 좋아요')], next: N('boundaries', '피하고 싶은 게 있나요?') })]));
+  assert.ok(!/시끌벅적/.test(allLive(st)), allLive(st));
+  assert.ok(live(st, 'attraction_comfort').some((i) => /카페/.test(i.note)), '새 값은 고친 그 칸(앞 턴 칸)에');
+});
+
 test('A″ · 확인에 「아니요」 → 그때 말은 지금 질문의 보통 답 · 기존 사실 그대로 · 다른 말이면 확인을 접고 새 말 처리', async () => {
   const st = loudState();
   A.applyTurn(st, CAFE, T({ kind: 'answer', extracted: [], next: N('relationship_style', '얼마나 자주 만나고 싶어요?') }));
