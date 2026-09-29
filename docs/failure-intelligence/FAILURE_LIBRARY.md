@@ -3723,4 +3723,53 @@
 | 해결 시도(실패한 해결책 포함) | 없음(운영 변경 금지) |
 | 해결 후보 | ① agent.ts: 연결 준비 전에는 finish_enough 로 마치지 않음(MIN_CORE_BEFORE_ENOUGH=5 · 대표 v2.4 「5개 전에 마침」 결정과 충돌) ② doit-connect: Agent 사용자 준비 = 대화 완료 + 사용자 출처 확정 칸 N개(MATCH_SOURCE=agent · AGENT_READY_MIN 조정) — 둘 다 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
 | 심각도 | HIGH(P0 후보 · 매칭 루프 차단) |
-| 현재 상태 | FIX READY(A안 · 대표 결정 2026-09-29) — doit-agent v2.4.5(32abd74): 답 기록 5개 전 「충분」 종료 0 · 더 묻기 상한 2 · 거절 반복이면 준비 미완료로 멈춤. 역검사 v2.4.4 FAIL → v2.4.5 PASS(qa/agent-v245-readiness 7/7) · QA 실서버 2계정 매칭 31/31(답 5/5 · 후보 → 상호 → 연결 → 결과). 운영 게시 대기(대표 승인) |
+| 현재 상태 | FIX READY(A안 · 대표 결정 2026-09-29) — doit-agent v2.4.5(32abd74): 답 기록 5개 전 「충분」 종료 0 · 더 묻기 상한 2 · 거절 반복이면 준비 미완료로 멈춤. 역검사 v2.4.4 FAIL → v2.4.5 PASS(qa/agent-v245-readiness 7/7) · QA 실서버 2계정 매칭 31/31(답 5/5 · 후보 → 상호 → 연결 → 결과). 운영 게시 완료(대표 승인 2026-09-29 · doit-agent v14 · 3파일 원본과 바이트 일치). 운영 실측: 답 5개 전 조기 종료 0 · 준비 미완료 멈춤 정상 · 2계정 매칭 21/21(b 재실행 1회 뒤). 남은 결함 → GF-117 |
+
+## GF-116 TRANSCRIPTION_DROPPED_BLANK_LINE_PROD — 운영 함수 전사 게시에서 빈 줄 1개 누락(v13)
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-RELEASE — 게시물 ≠ 승인 원본 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v13 |
+| 증거 수준 | ACTUAL |
+| 출처 | 게시 직후 get_edge_function 바이트 대조: agent.ts 1줄(turnPrompt 안 빈 줄) 누락 · index.ts·failure-intelligence.ts 일치 |
+| 기대 행동 | 운영 번들 = 승인 원본(바이트 일치) |
+| 원인 Layer | Release Process (CONFIRMED) — MCP 전사 게시(운영 배포 토큰 없음) · 출력 구간 경계에서 빈 줄 누락(이전 전사 오류와 같은 계열) |
+| 사용자 피해 | 없음(v13 약 66분 동안 시험 계정 외 대화 이벤트 0 · SQL 확인) · 프롬프트 판 해시만 달라짐 |
+| 해결 | 즉시 같은 번들 재게시 v14 → 3파일 바이트 일치 확인 |
+| 해결 후보(재발 방지) | 전사 대신 저장소 파일을 그대로 올리는 운영 배포 경로(대표 승인·토큰 필요) · 그 전까지는 게시 직후 바이트 대조를 필수 절차로 유지 |
+| 심각도 | MEDIUM |
+| 현재 상태 | RESOLVED(v14) |
+
+## GF-117 CONVERSATIONAL_CORRECTION_MISSED — 말로 한 「아니요 + 새 값」 정정이 옛 확정값을 밀어내지 못함(v2.4.5 운영 실측)
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-CORRECTION — 최신 정정 미반영 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v14(v2.4.5) 실서버 확인 |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 a · goal conversation 세션 262da097: 「술 마시면서 시끌벅적하게 이야기하는 게 좋아요」 → AI 「즐겁고 활기찬 분위기도 중요하겠네요」 → 「아니요, 카페에서 이야기하는 게 좋아요」 = kind answer · 옛 값 CONFIRMED 유지 + 새 값은 다른 칸(values_character)에 USER_DIRECT 로 추가 |
+| 기대 행동 | 방금 보인 해석을 고치는 「아니요 + 새 값」은 정정 · 옛 값은 SUPERSEDED |
+| 원인 Layer | Server Rule (CONFIRMED) — v2.4.5 decideKind 는 직전 턴 presented 로 판단하는데, presented 는 AI_EXTRACTED 항목 중 답 글에 글자가 겹칠 때만 기록된다. 이번 옛 값은 원문 그대로 저장(USER_DIRECT)이고 AI 받아주기는 뜻을 바꿔 말해(겹침 부족) presented=null → 정정 판단 불가. 모델도 answer 로 읽음 |
+| 사용자 피해 | 요약·프로필에 거절하려던 옛 값이 지금 사실로 남을 수 있음. 연결 서버(legacy)는 doit_records 원문을 읽으므로 같은 회차의 옛 말도 재료로 남음 |
+| 재현 여부 | 1/1(실제 AI) · 화면 「고치기」 경로는 정상(PASS) |
+| 해결 후보 | ① presented 에 원문 저장 항목(USER_DIRECT)도 포함하고, 받아주기가 그 칸을 짚었는지를 글자 겹침 대신 「직전 턴에 저장된 칸 + 지금 질문이 예/아니요 질문이 아님」으로 판단 ② 「아니요」로 시작하고 지금 질문이 예/아니요 질문이 아닐 때 한 줄 확인(「앞에서 말한 ○○를 고치는 거죠?」) 후 정정 ③ 화면에 「고치기」 버튼을 받아주기 옆에 항상 노출(서버 확정 경로) — 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
+| 심각도 | HIGH(정정 반영은 제품 기준 P0 항목) |
+| 현재 상태 | OPEN · PROD HOLD(추가 게시 0) |
+
+## GF-118 FILL_QUESTION_DUPLICATE_STOPS_NOT_READY — 더 묻기 단계에서 AI 가 이미 한 질문을 되풀이해 준비 미완료(4/5)로 멈춤
+
+| 항목 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 서버 간 기준 불일치(GF-115 잔여) |
+| 발생 날짜 | 2026-09-29 PROD 2계정 매칭 E2E 1차 |
+| 증거 수준 | ACTUAL |
+| 출처 | 시험 계정 b · friend 세션 87f29d3c: 답 3개로 다섯 칸이 모두 채워짐 → 저장 4개 → 더 묻기 질문이 이미 한 질문과 같아(두 번 청해도) 서버가 버림(dropped=asked_before) → decision=finish_not_ready · 연결 자격 미달 · 후보 0 |
+| 기대 행동 | 사용자가 거절하지 않았으면 다른 칸·다른 장면으로 한 번 더 물어 준비 완료 |
+| 원인 Layer | Server Rule (CONFIRMED) — 중복 질문을 버린 뒤 다른 더 묻기 칸으로 대체하지 않고 바로 마침 · 모델이 fill_request 에서 방금 질문을 되풀이 |
+| 사용자 피해 | 정상 사용자가 대화를 마쳤는데 연결 준비가 안 됨(안전하게 멈추지만 매칭 불가) |
+| 재현 여부 | 1/3(운영 friend 대화 3회 중 1회) · 같은 계정 재실행은 5/5 |
+| 해결 후보 | 중복·유사로 버린 질문이 fill 이면 같은 턴에서 다음 fillTargets 칸의 서버 기본 안내로 한 번 더 청하거나, 다음 턴에 fill 을 계속 허용(상한 2 유지) — 코드·검사 후 대표 승인 |
+| 심각도 | HIGH |
+| 현재 상태 | OPEN · PROD HOLD(추가 게시 0) |
+
