@@ -9,6 +9,7 @@ import ConsentGate from "./components/legal/ConsentGate";
 import AppBackButton from "./components/AppBackButton";
 import AppCornerMenu from "./components/AppCornerMenu";
 import ThemeColorSync from "./components/ThemeColorSync";
+import InstallIntentSheet from "./components/InstallIntentSheet";
 
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
               <AppBackButton />
               <AppCornerMenu />
               <AppRoutes />
+              <InstallIntentSheet />
             </BrowserRouter>
           </AuthProvider>
         </ThemeProvider>
