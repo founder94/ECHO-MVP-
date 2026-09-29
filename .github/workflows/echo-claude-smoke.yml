@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -444,6 +444,23 @@ jobs:
           done
           echo "=== http -> https"
           for h in do-it.company app.do-it.company; do curl -s -o /dev/null -w "http://$h -> %{http_code} %{redirect_url}\n" --max-time 15 "http://$h/"; done
+
+  webkit_purposes_diag:
+    # 운영 APP WebKit purposes 판정(읽기 전용 · 로그아웃 · 입력·저장·배포 0) — 대표 「FINAL CLOSING」 §5.
+    if: inputs.mode == 'webkit_purposes_diag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: WebKit iPhone·Galaxy × 3회 × 경로 3개
+        working-directory: product/qa-real
+        run: |
+          set -euo pipefail
+          npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps webkit >/dev/null 2>&1
+          node webkit-purposes-diag.mjs
 
   webkit_diag:
     # WebKit 직접 진입 진단(읽기 전용 · 운영은 로그아웃만 · 로그인은 QA 새 시험 계정) — 배포 0 · 변경 0.
