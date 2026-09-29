@@ -35,8 +35,12 @@ export default defineConfig(({ mode }) => {
     });
     if (problem) throw new Error(`BRAND build blocked: ${problem}`);
   }
-  // 설치 앱 시작 화면과 React 첫 렌더 전 바탕색. 화면별 색은 ThemeColorSync 가 이후 적용한다.
-  const APP_START_COLOR = "#07142d";
+  // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
+  const APP_START_COLOR = "#3fdcb3";
+  // 2026-09-29 대표 「시작 화면 배경 변경」(대표 선택 이미지 실측 · 딥 네이비): 앱 아이콘 → 시작 화면(Android 는 manifest background_color 로 그림) → 온보딩(/do-it/intro) 첫 바탕.
+  // 파스텔 앱 화면(/doit)의 첫 바탕(APP_START_COLOR)은 그대로 둔다. src/lib/themeColor.ts APP_LAUNCH_COLOR 와 같은 값.
+  const APP_LAUNCH_COLOR = "#041433";
+  const APP_LAUNCH_BG = `radial-gradient(ellipse 70% 45% at 50% 46%, #0a2552 0%, ${APP_LAUNCH_COLOR} 62%, #020a1b 100%) ${APP_LAUNCH_COLOR}`;
   const ADMIN_HTML = `<!doctype html>
 <html lang="ko">
   <head>
@@ -69,7 +73,7 @@ export default defineConfig(({ mode }) => {
         if (!html.includes(favicon)) throw new Error("app favicon link not found in index.html");
         // 2026-09-26 대표 PRE-DEPLOY FIX #1: 앱 주소를 공유하면 회사 홈페이지가 아니라 ECHO 앱으로 보이게(주소·이름·그림 모두 앱 기준).
         // 이름·설명은 새로 짓지 않고 앱 설치 설정(manifest)에 이미 승인돼 있는 값을 그대로 쓴다.
-        // 앱을 연 직후에는 대표 선택 남색을 표시하고, 화면 진입 후에는 ThemeColorSync 가 해당 화면의 색을 적용한다.
+        // FIX #2: 앱의 첫 바탕·상단 막대 색은 검정(#08070c) 대신 파스텔 줄기 첫 색(pastel-bg.css --pastel-underlay 0% = APP_START_COLOR).
         const swap = (from: string, to: string) => {
           if (!html.includes(from)) throw new Error(`app head: not found: ${from.slice(0, 60)}`);
           html = html.replace(from, to);
@@ -78,10 +82,13 @@ export default defineConfig(({ mode }) => {
         const appDesc = "당신이 잠든 사이에. 내 말로 시작하는 만남.";
         const appImage = `${appOrigin}/pwa/echo-icon-512.png?v=20260925b`;
         swap('<meta name="theme-color" content="#08070c" />', `<meta name="theme-color" content="${APP_START_COLOR}" />`);
-        // 전역 index.css 의 body 바탕이 뒤에 와서 덮지 않도록 첫 렌더 전 색을 지정한다.
-        // ThemeColorSync 는 이후 파스텔 앱 경로의 표시를 유지한다.
+        // 전역 index.css 의 body 바탕(검정)이 뒤에 와서 덮으므로, 앱 첫 화면만 html 표시(echo-app-pastel-root)로 더 세게 잡는다.
+        // 표시는 ThemeColorSync 가 파스텔 앱 경로(/doit)에서만 남기고, 히어로(/)·관리자에서는 뗀다 — 전역 body 규칙 자체는 바꾸지 않는다.
         swap('<html lang="ko">', '<html lang="ko" class="echo-app-pastel-root">');
         swap("body { background: #08070c; }", `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`);
+        // 시작 화면 → 온보딩 사이 첫 바탕: 설치 앱 시작 주소(/do-it/intro)에서만 네이비(React 가 뜨면 ThemeColorSync 가 표시를 뗀다 · 초록 번쩍임 0).
+        swap(`html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`, `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }\n    html.echo-app-launch-root body { background: ${APP_LAUNCH_BG}; }`);
+        swap(`<meta name="theme-color" content="${APP_START_COLOR}" />`, `<meta name="theme-color" content="${APP_START_COLOR}" />\n    <script>(function(){try{if(location.pathname.indexOf("/do-it/intro")===0){var d=document.documentElement;d.classList.remove("echo-app-pastel-root");d.classList.add("echo-app-launch-root");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${APP_LAUNCH_COLOR}")}}catch(e){}})();</script>`);
         swap("<title>DO IT COMPANY | JUST TRY.</title>", `<title>${appName}</title>`);
         swap('<meta name="description" content="사람은 프로필보다, 함께한 행동에서 더 많이 보이니까. DO IT COMPANY · ECHO" />', `<meta name="description" content="${appDesc}" />\n    <link rel="canonical" href="${appOrigin}/" />`);
         swap('<meta property="og:title" content="DO IT COMPANY | JUST TRY." />', `<meta property="og:type" content="website" />\n    <meta property="og:site_name" content="${appName}" />\n    <meta property="og:title" content="${appName}" />`);
