@@ -19,9 +19,25 @@ test('앱 첫 바탕색은 지어낸 색이 아니라 파스텔 토큰의 첫 �
   assert.ok(token, 'pastel-bg.css 토큰을 찾지 못했다');
   assert.match(read('vite.config.ts'), new RegExp(`const APP_START_COLOR = "${token}";`, 'i'));
   assert.match(read('src/lib/themeColor.ts'), new RegExp(`export const APP_PASTEL = '${token}';`, 'i'));
+});
+
+// 2026-09-29 대표 「시작 화면 배경 변경」: 앱 아이콘을 누른 뒤 시작 화면(Android 는 manifest background_color 로 그림)은 대표 선택 딥 네이비. 초록 0.
+test('시작 화면(설치 앱 splash)은 대표 선택 딥 네이비 · 초록 0 · 아이콘 파일은 그대로', () => {
   const manifest = JSON.parse(read('public/manifest.webmanifest'));
-  assert.equal(manifest.background_color.toLowerCase(), token);
-  assert.equal(manifest.theme_color.toLowerCase(), token);
+  assert.equal(manifest.background_color.toLowerCase(), '#041433');
+  assert.equal(manifest.theme_color.toLowerCase(), '#041433');
+  assert.match(read('vite.config.ts'), /const APP_LAUNCH_COLOR = "#041433";/);
+  assert.match(read('src/lib/themeColor.ts'), /export const APP_LAUNCH_COLOR = '#041433';/);
+  assert.deepEqual(manifest.icons.map((i) => i.src), ['/pwa/echo-icon-192.png?v=20260925b', '/pwa/echo-icon-512.png?v=20260925b', '/pwa/echo-icon-512-maskable.png?v=20260925b']);
+  assert.equal(manifest.start_url, '/do-it/intro?next=app');
+});
+
+test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React 가 뜨면 표시를 떼고, 파스텔 앱 화면 첫 바탕은 그대로', () => {
+  const vite = read('vite.config.ts');
+  assert.match(vite, /html\.echo-app-launch-root body \{ background: \$\{APP_LAUNCH_BG\}; \}/);
+  assert.match(vite, /location\.pathname\.indexOf\("\/do-it\/intro"\)===0/);
+  assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.remove\(APP_LAUNCH_CLASS\)/);
+  assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
 });
 
 test('앱 빌드만 theme-color·첫 body 바탕을 파스텔로 바꾼다(없으면 빌드 실패)', () => {
