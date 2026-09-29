@@ -1,16 +1,16 @@
 // QA 서버 doit-connect 실서버 확인(2026-09-29 PROD PRE-FLIGHT) — 배포한 소스가 부팅되고 인증·권한·요청 검사가 그대로인지. 새 시험 계정 · 운영 0.
 // 전체 연결 루프(후보 → 서로 선택 → 연결 → 결과)는 run 72(45/45 · 같은 index.ts)에서 확인. 여기서는 배포 직후 서버 계약만 본다.
 import { randomUUID } from 'node:crypto';
-const SB = 'https://mutniujeiyujhkobadkd.supabase.co';
+const SB = process.env.SB_URL ?? 'https://mutniujeiyujhkobadkd.supabase.co';
 const ANON = process.env.QA_ANON;
 const results = [];
 const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
 const call = async (jwt, body) => { const r = await fetch(`${SB}/functions/v1/doit-connect`, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) }, body: JSON.stringify(body) }); let data = null; try { data = await r.json(); } catch { /* 빈 응답 */ } return { status: r.status, data }; };
 const post = (path, body, jwt) => fetch(`${SB}${path}`, { method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((x) => x.json());
 
-const email = `qa-connectlive-${Date.now()}@do-it.company`; const password = `Qa!${randomUUID()}`;
-await post('/auth/v1/signup', { email, password });
-const s = await post('/auth/v1/token?grant_type=password', { email, password });
+let s;
+if (process.env.ACCT_FILE) { const acc = JSON.parse((await import('node:fs')).readFileSync(process.env.ACCT_FILE, 'utf8'))[process.env.ACCT ?? 'a']; s = await post('/auth/v1/token?grant_type=password', { email: acc.email, password: acc.password }); }
+else { const email = `qa-connectlive-${Date.now()}@do-it.company`; const password = `Qa!${randomUUID()}`; await post('/auth/v1/signup', { email, password }); s = await post('/auth/v1/token?grant_type=password', { email, password }); }
 const jwt = s?.access_token;
 if (!jwt) { check('QA 시험 계정', false); process.exit(1); }
 
