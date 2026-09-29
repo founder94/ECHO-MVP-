@@ -1,0 +1,265 @@
+# ECHO Netlify 배포(2026-09-28 대표 「ZIP 수동 업로드 없이 자동배포」).
+# - QA 자동검사: `echo-qa` 브랜치 push 때 검사(lint·type·전체 테스트·역할별 빌드·주소 잠금)만 자동 실행한다.
+# - QA 게시: Netlify Production Deploy는 1회당 15 credits이므로 push마다 게시하지 않는다. workflow_dispatch target=qa 때만
+#            qa_roles 로 고른 곳에만 게시한다(기본 app = echo-app-qa 1곳 · brand/admin 은 골랐을 때만 · echo-qa-harness 는 대상 아님).
+# - 운영 게이트: 운영(echo-brand-prod · echo-app-prod)은 자동으로 절대 올리지 않는다.
+#            대표가 Actions 에서 직접 실행(target=prod) + go 칸에 GO 입력 + 같은 검사 통과 + 환경 ECHO-PROD 승인(필수 검토자) 일 때만.
+# - 새 사이트 생성 0(사이트 ID 고정 · 모르는 ID 면 중단) · DB/Supabase 변경 0 · 비밀값 출력 0.
+# - 필요한 비밀값: NETLIFY_AUTH_TOKEN · NETLIFY_{APP,BRAND,ADMIN}_QA_SITE_ID(저장소 Actions Secrets). 없거나 고정 ID 와 다르면 배포하지 않고 멈춘다(HOLD).
+name: echo-netlify-deploy
+
+on:
+  push:
+    branches: ['echo-qa']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'qa = QA 3곳 · prod = 운영(대표 GO 필요)'
+        required: true
+        default: 'qa'
+        type: choice
+        options: ['qa', 'prod']
+      prod_roles:
+        description: '운영에 올릴 역할(prod 일 때만) — brand · app · brand,app'
+        required: false
+        default: 'brand'
+        type: choice
+        options: ['brand', 'app', 'brand,app']
+      qa_roles:
+        description: 'QA 수동게시 대상(qa 일 때만 · 1곳당 Netlify 15 credits) — 기본 app 만'
+        required: false
+        default: 'app'
+        type: choice
+        options: ['app', 'admin', 'brand', 'app,admin', 'app,brand,admin']
+      go:
+        description: '운영 배포 승인 — 대표가 GO 라고 적어야 운영 배포'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-netlify-deploy-${{ github.event.inputs.target || 'qa' }}
+  cancel-in-progress: false
+
+env:
+  NETLIFY_CLI: netlify-cli@27.10.0
+  # 공개 값(브라우저에 들어가는 공개 키·사이트 ID) — 비밀값 아님.
+  QA_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+  QA_SUPABASE_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+  PROD_SUPABASE_URL: https://zyyhhxyupizcqhxqnxuu.supabase.co
+  PROD_SUPABASE_PUBLISHABLE: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn
+  SITE_QA_APP: a9b101c6-121b-4371-adb9-4e42193dca24     # echo-app-qa
+  SITE_QA_BRAND: ecfce61d-6606-4afd-91f9-8c20677af5e7   # echo-brand-qa
+  SITE_QA_ADMIN: 6c55b31e-52b3-4374-9c43-446ae7b8d002   # echo-admin-qa
+  SITE_PROD_APP: ff078012-fe79-4108-a210-201554ab0dea   # echo-app-prod (app.do-it.company)
+  SITE_PROD_BRAND: 7a4934db-aff3-437d-815a-ffbf49d4b819 # echo-brand-prod (do-it.company)
+
+jobs:
+  gate:
+    name: 검사 + 역할별 빌드(${{ github.event.inputs.target || 'qa' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      target: ${{ steps.t.outputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: t
+        name: 대상 정하기
+        run: |
+          t="${{ github.event.inputs.target || 'qa' }}"
+          [ "$t" = qa ] || [ "$t" = prod ] || { echo "FAIL: target=$t"; exit 1; }
+          echo "target=$t" >> "$GITHUB_OUTPUT"; echo "target=$t · commit=${GITHUB_SHA::7} · branch=$GITHUB_REF_NAME"
+      - name: 설치
+        working-directory: product
+        run: npm ci --no-audit --no-fund
+      - name: lint · type-check
+        working-directory: product
+        run: |
+          npm run -s lint
+          npm run -s type-check
+      - name: 전체 테스트
+        working-directory: product
+        run: node --test qa/*.test.mjs qa/*.test.ts
+      - name: 역할별 빌드(APP · BRAND · ADMIN — 주소 잠금 포함)
+        working-directory: product
+        run: |
+          set -euo pipefail
+          T="${{ steps.t.outputs.target }}"
+          if [ "$T" = qa ]; then
+            SB_URL=$QA_SUPABASE_URL; SB_KEY=$QA_SUPABASE_ANON
+            APP_O=https://echo-app-qa.netlify.app; BRAND_O=https://echo-brand-qa.netlify.app; ADMIN_O=https://echo-admin-qa.netlify.app
+          else
+            SB_URL=$PROD_SUPABASE_URL; SB_KEY=$PROD_SUPABASE_PUBLISHABLE
+            APP_O=https://app.do-it.company; BRAND_O=https://do-it.company; ADMIN_O=https://admin.do-it.company
+          fi
+          C=${GITHUB_SHA::7}
+          common="VITE_PUBLIC_SUPABASE_URL=$SB_URL VITE_PUBLIC_SUPABASE_ANON_KEY=$SB_KEY VITE_APP_ORIGIN=$APP_O VITE_BRAND_ORIGIN=$BRAND_O VITE_ADMIN_ORIGIN=$ADMIN_O VITE_BUILD_COMMIT=$C"
+          env $common VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir
+          env $common VITE_SITE_ROLE=brand npx vite build --outDir ../dist/brand --emptyOutDir
+          env $common VITE_SITE_ROLE=admin npx vite build --outDir ../dist/admin --emptyOutDir
+          # 브랜드는 앱 설치 대상이 아니다(쓰지 않는 설치 파일 빼기)
+          grep -q 'manifest.webmanifest\|/pwa/' ../dist/brand/index.html || rm -rf ../dist/brand/manifest.webmanifest ../dist/brand/pwa
+      - name: 빌드 검사(역할 분리 · 운영/QA 주소 혼입 0 · 소스맵 0)
+        run: |
+          set -euo pipefail
+          T="${{ steps.t.outputs.target }}"; fail=0
+          c() { grep -rl -- "$1" "$2" | wc -l; }
+          for r in app brand admin; do
+            [ -f dist/$r/index.html ] || { echo "FAIL $r index 없음"; fail=1; }
+            [ "$(find dist/$r -name '*.map' | wc -l)" = 0 ] || { echo "FAIL $r 소스맵"; fail=1; }
+            [ "$(c melba-b1449a dist/$r)" = 0 ] || { echo "FAIL $r 폐기된 옛 QA 주소(melba-b1449a)"; fail=1; }
+            if [ "$T" = qa ]; then [ "$(c zyyhhxyupizcqhxqnxuu dist/$r)" = 0 ] || { echo "FAIL $r QA 빌드에 운영 Supabase"; fail=1; }
+            else [ "$(c mutniujeiyujhkobadkd dist/$r)" = 0 ] && [ "$(c netlify.app dist/$r)" = 0 ] || { echo "FAIL $r 운영 빌드에 QA 주소"; fail=1; }; fi
+          done
+          [ "$(c doit-connect dist/brand)" = 0 ] && [ "$(c DoitApp dist/brand)" = 0 ] && [ "$(c admin-web dist/brand)" = 0 ] || { echo "FAIL 브랜드에 앱·관리자 코드"; fail=1; }
+          [ "$(c admin-web dist/app)" = 0 ] || { echo "FAIL 앱에 관리자 코드"; fail=1; }
+          [ "$(c DoitApp dist/admin)" = 0 ] && grep -q noindex dist/admin/index.html || { echo "FAIL 관리자 분리/검색 제외"; fail=1; }
+          if [ "$T" = qa ]; then want=https://echo-app-qa.netlify.app; else want=https://app.do-it.company; fi
+          [ "$(grep -oE 'https://[^/ ]+' dist/brand/_redirects | sort -u)" = "$want" ] || { echo "FAIL 브랜드 _redirects 목적지"; fail=1; }
+          for r in app brand admin; do echo "$r files=$(find dist/$r -type f | wc -l) index sha16=$(sha256sum dist/$r/index.html | cut -c1-16)"; done
+          exit $fail
+      - uses: actions/upload-artifact@v4
+        with:
+          name: echo-dist-${{ steps.t.outputs.target }}
+          path: dist
+          retention-days: 7
+
+  deploy_qa:
+    name: QA 수동게시(선택한 곳만 · 기본 echo-app-qa 1곳 · 비용보호)
+    needs: gate
+    if: needs.gate.outputs.target == 'qa' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ECHO-QA
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: echo-dist-qa
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 배포(QA 사이트 ID 고정 · 새 사이트 0)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SECRET_APP: ${{ secrets.NETLIFY_APP_QA_SITE_ID }}
+          SECRET_BRAND: ${{ secrets.NETLIFY_BRAND_QA_SITE_ID }}
+          SECRET_ADMIN: ${{ secrets.NETLIFY_ADMIN_QA_SITE_ID }}
+          QA_ROLES: ${{ github.event.inputs.qa_roles || 'app' }}
+        run: |
+          set -euo pipefail
+          # 선택한 곳만 게시(2026-09-28 크레딧 초과 → 비용보호): 모르는 값이면 게시 0 으로 멈춘다.
+          [[ "$QA_ROLES" =~ ^(app|brand|admin)(,(app|brand|admin))*$ ]] || { echo "HOLD: qa_roles 값이 올바르지 않음($QA_ROLES) — 게시 0"; exit 1; }
+          n=$(tr ',' '\n' <<<"$QA_ROLES" | sort -u | wc -l); echo "게시 대상: $QA_ROLES · $n곳 · 예상 $((n*15)) credits"
+          [ -n "$NETLIFY_AUTH_TOKEN" ] || { echo "HOLD: NETLIFY_AUTH_TOKEN 이 없어 배포하지 않음"; exit 1; }
+          # 등록된 사이트 ID 비밀값은 고정 QA ID 와 같아야 한다(값 출력 0 · 같음/다름만)
+          for kv in "APP:$SECRET_APP:$SITE_QA_APP" "BRAND:$SECRET_BRAND:$SITE_QA_BRAND" "ADMIN:$SECRET_ADMIN:$SITE_QA_ADMIN"; do
+            k=${kv%%:*}; rest=${kv#*:}; got=${rest%%:*}; pin=${rest#*:}
+            if [ -z "$got" ]; then echo "INFO NETLIFY_${k}_QA_SITE_ID 비어 있음 → 고정 QA ID 사용"; elif [ "$got" = "$pin" ]; then echo "OK NETLIFY_${k}_QA_SITE_ID = 고정 QA ID"; else echo "HOLD: NETLIFY_${k}_QA_SITE_ID 가 고정 QA ID 와 다름(운영·다른 사이트 배포 방지)"; exit 1; fi
+          done
+          for pair in "app:$SITE_QA_APP:echo-app-qa" "brand:$SITE_QA_BRAND:echo-brand-qa" "admin:$SITE_QA_ADMIN:echo-admin-qa"; do
+            r=${pair%%:*}; rest=${pair#*:}; site=${rest%%:*}; name=${rest#*:}
+            case ",$QA_ROLES," in *",$r,"*) ;; *) echo "SKIP $name — 선택 안 함(Netlify 호출 0)"; continue;; esac
+            case "$site" in "$SITE_PROD_APP"|"$SITE_PROD_BRAND") echo "FAIL: 운영 사이트를 QA 배포 대상으로 씀"; exit 1;; esac
+            printf '[build]\n  publish = "."\n  command = "echo prebuilt"\n' > dist/$r/netlify.toml
+            if ! (cd dist/$r && npx -y $NETLIFY_CLI deploy --dir . --site "$site" --prod --no-build --json --message "echo-qa ${GITHUB_SHA::7} $r" > /tmp/deploy-$r.json 2> /tmp/deploy-$r.err); then
+              echo "FAIL: $name 배포 실패"; tail -20 /tmp/deploy-$r.err; exit 1
+            fi
+            node -e 'const j=require(process.argv[1]); if(j.site_id!==process.argv[2]||!j.deploy_id){console.log("FAIL site/deploy 불일치");process.exit(1)} console.log(`'"$name"' deploy_id=${j.deploy_id} site_id=${j.site_id}`)' /tmp/deploy-$r.json "$site"
+            want=$(sha256sum dist/$r/index.html | cut -c1-16); live=""
+            for i in 1 2 3 4 5 6; do live=$(curl -s "https://$name.netlify.app/" | sha256sum | cut -c1-16); [ "$live" = "$want" ] && break; sleep 5; done
+            [ "$live" = "$want" ] || { echo "FAIL: $name 실사이트 index 가 이번 빌드와 다름($live ≠ $want)"; exit 1; }
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$name.netlify.app/")
+            echo "PASS $name 실사이트 열림(HTTP $code) = 이번 빌드(index sha16=$live)"
+          done
+
+  oauth_guard_qa:
+    # Stale Redirect Guard(2026-09-28 GF-97): QA Supabase Auth 의 Site URL·Redirect URLs 가 QA APP 주소와 맞는지 실제 설정을 읽어 검사.
+    # 맞지 않으면 이 작업이 빨간불(대표 확인 필요) — QA 화면 배포 자체는 막지 않는다(다른 수정의 QA 검사를 위해). 운영은 아래 deploy_prod 에서 막는다.
+    name: OAuth 주소 검사(QA · Stale Redirect Guard)
+    needs: gate
+    if: needs.gate.outputs.target == 'qa'
+    runs-on: ubuntu-latest
+    environment: ECHO-QA
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: QA Site URL · Redirect URLs · 폐기 주소
+        id: oauth_guard
+        continue-on-error: true
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: node product/scripts/oauth-redirect-guard.mjs qa
+      - name: OAuth 검사 결과 분리 기록
+        if: always()
+        run: |
+          if [ "${{ steps.oauth_guard.outcome }}" = "failure" ]; then
+            echo "::warning::AUTH_PERMISSION_HOLD — QA OAuth 설정 자동검사만 미확인(403 가능). QA 앱/브랜드/관리자 배포 성공 여부와 분리한다."
+          else
+            echo "PASS: QA OAuth 주소 검사"
+          fi
+
+  deploy_prod:
+    name: 운영 배포(대표 GO · 승인 게이트)
+    needs: gate
+    if: needs.gate.outputs.target == 'prod' && github.event_name == 'workflow_dispatch' && github.event.inputs.go == 'GO' && github.actor == 'founder94'
+    runs-on: ubuntu-latest
+    environment: ECHO-PROD
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Stale Redirect Guard(운영 OAuth Site URL · Redirect URLs = app.do-it.company · 폐기 주소 0 — 아니면 배포 중단)
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_PROD_AUTH_READ_TOKEN }}
+        run: node product/scripts/oauth-redirect-guard.mjs prod
+      - uses: actions/download-artifact@v4
+        with:
+          name: echo-dist-prod
+          path: dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 운영 배포(선택한 역할만 · 사이트 ID 고정)
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          ROLES: ${{ github.event.inputs.prod_roles }}
+        run: |
+          set -euo pipefail
+          [ -n "$NETLIFY_AUTH_TOKEN" ] || { echo "HOLD: 환경 ECHO-PROD 에 NETLIFY_AUTH_TOKEN 이 없어 배포하지 않음"; exit 1; }
+          for r in $(echo "$ROLES" | tr ',' ' '); do
+            case "$r" in brand) site=$SITE_PROD_BRAND; host=do-it.company;; app) site=$SITE_PROD_APP; host=app.do-it.company;; *) echo "FAIL: 운영 역할 $r"; exit 1;; esac
+            printf '[build]\n  publish = "."\n  command = "echo prebuilt"\n' > dist/$r/netlify.toml
+            out=$(cd dist/$r && npx -y $NETLIFY_CLI deploy --dir . --site "$site" --prod --no-build --json --message "PROD GO ${GITHUB_SHA::7} $r" 2>/dev/null)
+            echo "$out" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(`'"$host"' deploy_id=${j.deploy_id}`)})'
+            live=$(curl -s "https://$host/" | sha256sum | cut -c1-16); want=$(sha256sum dist/$r/index.html | cut -c1-16)
+            [ "$live" = "$want" ] || { echo "FAIL: $host 실사이트 index 가 이번 빌드와 다름"; exit 1; }
+            echo "PASS $host = 이번 빌드(index sha16=$live)"
+          done
+
+
+  prod_auth_readback:
+    name: PROD Auth readback (read-only)
+    if: github.event_name == 'push' && github.ref_name == 'echo-qa'
+    runs-on: ubuntu-latest
+    environment: ECHO-PROD
+    timeout-minutes: 5
+    steps:
+      - name: Read PROD Auth URL config only
+        env:
+          SUPABASE_PROD_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_PROD_AUTH_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_PROD_AUTH_READ_TOKEN" ] || { echo "HOLD: missing token"; exit 1; }
+          curl -sS -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN"             https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth             | python -c 'import sys,json; d=json.load(sys.stdin); print("site_url="+str(d.get("site_url"))); print("uri_allow_list="+",".join(d.get("uri_allow_list") or []))'
