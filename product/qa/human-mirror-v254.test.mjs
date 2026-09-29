@@ -175,3 +175,11 @@ test('09-30 v66: echo of the last answer is a question flaw; the fallback line i
     assert.equal(A.stiffQuestion(f, L), false);
   }
 });
+
+// 2026-09-30 QA v67 사람 검토: 장면 B 「어떤 친구가 좋을까요?」(사람 유형) · 장면 C 「모르겠어요면 …?」(사용자 말 옮겨 붙이기).
+test('09-30 v67: mid-sentence person pick and pasted 모르겠어요 are question flaws', () => {
+  assert.equal(A.genericPersonQuestion('고양이와 함께할 때 어떤 친구가 좋을까요?'), true);
+  assert.equal(A.genericPersonQuestion('천천히 알아갈 때 어떤 사람이면 말이 잘 이어질 것 같아요?'), false);
+  assert.equal(A.questionFlaw(start(), '잘 모르겠어요', '모르겠어요면 처음 연락은 문자로 해요?', false), 'unsure_paste');
+  assert.equal(A.questionFlaw(start(), '편하게 얘기할 친구를 찾고 있어요', '친구와 처음 연락할 때 문자로 시작하면 좋나요?', false), '');
+});
