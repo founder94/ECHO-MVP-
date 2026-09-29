@@ -581,8 +581,11 @@ export default function StartJourney() {
         : talkDone ? <><button className="echo-primary" onClick={goProfile}>사진과 소개 채우기</button><button className="echo-secondary" onClick={goTalk}>대화 다시 보기</button></>
         : <><button className="echo-primary" onClick={goTalk}>{answered > 0 ? "대화 이어가기" : "대화 시작하기"}</button><button className="echo-text-button" onClick={goProfile}>사진과 소개 먼저 채우기</button></>}
       {/* 2026-09-28 대표 실기기(iPhone) 「온보딩 뒤 이 화면에 처음부터 다시 시작하기가 없다」: 대화를 시작했으면 여기에도 둔다 — 앱 공통 동작 하나(한 번 탭 · 확인 창 0 · 목적·Profile·지난 대화 유지). */}
-      {(talkDone || answered > 0) && user && <RestartConversationButton userId={user.id} className="echo-restart-pill" />}
-      <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button><p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
+      <div className="echo-journey-exit-actions">
+        {(talkDone || answered > 0) && user && <RestartConversationButton userId={user.id} className="echo-restart-pill" />}
+        <button className="echo-text-button" onClick={() => navigate("/doit/home")}>홈으로</button>
+      </div>
+      <p className="echo-fine">적은 이야기는 다른 사람에게 저절로 보이지 않아요.</p></section>;
   }
 
   if (step === "profile-build") {
