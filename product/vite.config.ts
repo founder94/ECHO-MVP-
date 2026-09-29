@@ -105,8 +105,8 @@ export default defineConfig(({ mode }) => {
           "</head>",
           [
             '    <link rel="manifest" href="/manifest.webmanifest" />',
-            '    <link rel="preload" as="image" href="/pwa/echo-launch-artwork.webp" type="image/webp" fetchpriority="high" />',
-            '    <link rel="apple-touch-startup-image" href="/pwa/echo-launch-artwork.webp" />',
+                        `<link rel="preload" as="image" href="${APP_LAUNCH_ASSET}" type="image/webp" fetchpriority="high" />`,
+                        `<link rel="apple-touch-startup-image" href="${APP_LAUNCH_ASSET}" />`,
             '    <link rel="apple-touch-icon" sizes="180x180" href="/pwa/echo-icon-180.png?v=20260925b" />',
             '    <meta name="apple-mobile-web-app-capable" content="yes" />',
             '    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />',

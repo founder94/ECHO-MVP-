@@ -37,7 +37,8 @@ test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React
   assert.match(vite, /html\.echo-app-launch-root body::after \{ content: ''; position: fixed; inset: 0;/);
   assert.match(vite, /echo-launch-artwork\.webp/);
   assert.match(vite, /apple-touch-startup-image/);
-  assert.match(vite, /location\.pathname\.indexOf\("\/do-it\/intro"\)===0/);
+  assert.match(vite, /var p=location\.pathname/);
+  assert.match(vite, /p\.indexOf\("\/do-it\/intro"\)===0/);
   assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.remove\(APP_LAUNCH_CLASS\)/);
   assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
 });
@@ -48,17 +49,22 @@ test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 실제 �
   const vite = read('vite.config.ts');
   assert.match(theme, /APP_LAUNCH_MIN_MS = 1500;/);
   assert.match(theme, /APP_LAUNCH_FADE_MS = 260;/);
-  assert.match(sync, /APP_LAUNCH_MIN_MS - performance\.now\(\)/);
+  assert.match(sync, /artwork\.decode/);
+  assert.match(sync, /startVisibleHold/);
+  assert.doesNotMatch(sync, /APP_LAUNCH_MIN_MS - performance\.now\(\)/);
   assert.match(sync, /classList\.add\(APP_LAUNCH_OUT_CLASS\)/);
   assert.doesNotMatch(sync, /navigate\(/, '스플래시가 목적지를 정하지 않는다');
   assert.match(vite, /html\.echo-app-launch-root\.echo-app-launch-out body::after \{ opacity: 0; \}/);
+  assert.match(vite, /APP_LAUNCH_ASSET = '\/pwa\/echo-launch-artwork\.webp\?v=20260930f'/);
+  assert.match(vite, /href="\$\{APP_LAUNCH_ASSET\}"/);
 });
 
 test('앱 빌드만 theme-color·첫 body 바탕을 파스텔로 바꾼다(없으면 빌드 실패)', () => {
   const vite = read('vite.config.ts');
-  assert.match(vite, /swap\('<meta name="theme-color" content="#08070c" \/>', `<meta name="theme-color" content="\$\{APP_START_COLOR\}" \/>`\)/);
-  assert.match(vite, /swap\(["']body \{ background: #08070c; \}["'], `html\.echo-app-pastel-root body \{ background: \$\{APP_START_COLOR\}; \}`\)/);
-  assert.match(vite, /swap\('<html lang="ko">', '<html lang="ko" class="echo-app-pastel-root">'\)/);
+  assert.match(vite, /swap\('<meta name="theme-color" content="#08070c" \/>', `<meta name="theme-color" content="\$\{APP_LAUNCH_COLOR\}" \/>`\)/);
+  assert.match(vite, /body \{ background: #08070c; \}/);
+  assert.match(vite, /html\.echo-app-pastel-root body \{ background: \$\{APP_START_COLOR\}; \}/);
+  assert.match(vite, /swap\('<html lang="ko">', '<html lang="ko" class="echo-app-launch-root">'\)/);
   assert.match(read('src/lib/themeColor.ts'), /export const APP_ROOT_CLASS = 'echo-app-pastel-root';/);
   assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.toggle\(APP_ROOT_CLASS, color === APP_PASTEL\)/);
   assert.match(vite, /if \(!html\.includes\(from\)\) throw new Error/);
