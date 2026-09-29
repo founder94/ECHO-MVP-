@@ -15,7 +15,15 @@ export default function ThemeColorSync() {
     if (meta) meta.content = color;
     // 첫 화면 파스텔 바탕 표시(index.html): 파스텔 앱 경로에서만 남긴다. 히어로·관리자는 원래 바탕 그대로.
     document.documentElement.classList.toggle(APP_ROOT_CLASS, color === APP_PASTEL);
-    // 시작 화면 네이비 첫 바탕은 React 가 뜨기 전까지만(온보딩·히어로·앱 화면 색은 그대로).
+    // OS 시작 화면 다음에도 같은 그림을 잠깐 보여 준 뒤 온보딩으로 넘긴다.
+    // 경로가 바뀌면 즉시 제거해 다른 화면을 가리지 않는다.
+    if (pathname.startsWith('/do-it/intro')) {
+      const timer = window.setTimeout(() => document.documentElement.classList.remove(APP_LAUNCH_CLASS), 650);
+      return () => {
+        window.clearTimeout(timer);
+        document.documentElement.classList.remove(APP_LAUNCH_CLASS);
+      };
+    }
     document.documentElement.classList.remove(APP_LAUNCH_CLASS);
   }, [pathname]);
   return null;
