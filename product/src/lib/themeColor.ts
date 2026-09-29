@@ -5,10 +5,11 @@ export const APP_ROOT_CLASS = 'echo-app-pastel-root';
 // 2026-09-29 대표 「시작 화면 배경 변경」: 앱 아이콘을 눌러 온보딩(/do-it/intro)으로 들어올 때 React 가 뜨기 전 첫 바탕 = 시작 화면 딥 네이비(manifest 와 같은 값). ThemeColorSync 가 뜨자마자 뗀다.
 export const APP_LAUNCH_CLASS = 'echo-app-launch-root';
 export const APP_LAUNCH_COLOR = '#041433';
+export const APP_LAUNCH_IMAGE = '/pwa/echo-launch-artwork.webp?v=20260930f';
 // 2026-09-30 대표 「온보딩 전 임시 비주얼 스플래시」: 첫 화면에서 최소 이만큼(페이지를 연 때부터) 보인 뒤 부드럽게 사라진다.
 export const APP_LAUNCH_OUT_CLASS = 'echo-app-launch-out';
-export const APP_LAUNCH_MIN_MS = 1000;
-export const APP_LAUNCH_FADE_MS = 220;
+export const APP_LAUNCH_MIN_MS = 1500;
+export const APP_LAUNCH_FADE_MS = 260;
 const DARK = '#08070c'; // 히어로·관리자: 이전과 같은 값(Hero FINAL LOCK — 상단 막대 색도 그대로)
 
 export function themeColorFor(pathname: string): string {

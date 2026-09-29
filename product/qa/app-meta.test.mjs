@@ -42,12 +42,12 @@ test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React
   assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
 });
 
-test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 최소 1초 · 흐려지며 사라짐 · 온보딩 경로에서만 · 라우팅 변경 0', () => {
+test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 실제 이미지 준비 뒤 최소 1.5초 · 흐려지며 사라짐 · 온보딩 경로에서만 · 라우팅 변경 0', () => {
   const sync = read('src/components/ThemeColorSync.tsx');
   const theme = read('src/lib/themeColor.ts');
   const vite = read('vite.config.ts');
-  assert.match(theme, /APP_LAUNCH_MIN_MS = 1000;/);
-  assert.match(theme, /APP_LAUNCH_FADE_MS = 220;/);
+  assert.match(theme, /APP_LAUNCH_MIN_MS = 1500;/);
+  assert.match(theme, /APP_LAUNCH_FADE_MS = 260;/);
   assert.match(sync, /APP_LAUNCH_MIN_MS - performance\.now\(\)/);
   assert.match(sync, /classList\.add\(APP_LAUNCH_OUT_CLASS\)/);
   assert.doesNotMatch(sync, /navigate\(/, '스플래시가 목적지를 정하지 않는다');
