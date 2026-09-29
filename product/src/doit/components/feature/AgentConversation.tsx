@@ -250,6 +250,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       {session.current_hint && (hintFor === question
         ? <p className="echo-fine" role="note">{session.current_hint}</p>
         : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (voiceUi && canSpeak()) say(session.current_hint ?? ''); }}>예시 보기</button>)}
+      {/* 2026-09-30 마감 지시 §4 주관식 본체 + 객관식 구조대: 모르겠다·넘기기 뒤에만 서버가 준 답 보기를 보인다. 누르면 그 글자를 보통 답으로 보낸다(판단·저장은 서버). */}
+      {!!session.current_choices?.length && <div className="echo-choice-row" role="group" aria-label="가까운 답 고르기">
+        {session.current_choices.map(choice => <button key={choice} type="button" className="echo-choice" disabled={!!busy} onClick={() => send(choice)}>{choice}</button>)}
+      </div>}
     </div>}
     {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
     {voiceUi && !done && (talk.supported

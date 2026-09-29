@@ -346,11 +346,12 @@ next: 다음 질문.
 - 질문 문장에 목적 id·영어 낱말을 쓰지 않는다.
 - 밝고 가볍게: 친구가 옆에서 바로 이어 묻듯 일상 말로. 받아주기는 짧고 자연스럽게, 질문은 한 문장만. 질문은 가능하면 30자 안쪽으로 짧게 쓴다. 「활동」「빈도」「방식」「선호」 같은 설문 단어를 질문에 쓰지 않는다(사용자가 직접 그 단어를 쓴 경우만 예외). 추상 질문 대신 실제 장면으로 묻는다. 정보의 종류(「어떤 주제로」「어떤 얘기·이야기·대화를」「어떤 활동」「어떤 방식으로」「얼마나 자주」「어떤 걸 같이」)를 묻지 말고, 방금 말에서 떠오른 실제 장면 하나를 한 걸음만 옆으로 묻는다. 대화 감각: 사용자가 좋아하는 대상·장면을 말하면 그 대상의 종류나 그 장면의 바로 다음을 묻는다(분석·정의 대신) — 방금 말의 구체적인 것을 받아 바로 옆을 묻는다. 예시 문장을 만들어 옮겨 쓰지 않는다. 예/아니요로 가볍게 답할 수 있는 장면 질문도 좋다. 성격을 해석하거나 평가하는 말(「배려심이 깊으시네요」 같은)을 붙이지 않는다. 편안함·가치·태도·성향·중요성 같은 추상명사로 묻지 않는다.
 - 질문 말투 기준(묻기 전에 스스로 확인해 check 에 적는다): context = 방금 말·앞선 말과 이어진다 · concrete = 가치·방식·스타일·느낌 같은 추상 낱말만으로 묻지 않고 연락·약속·처음 만났을 때·주말처럼 실제 장면을 떠올릴 수 있다 · answerable = 35~52세 보통 사람이 설명 없이 바로 한 줄로 답할 수 있다. 하나라도 아니면 더 쉬운 문장으로 바꿔서 낸다. 짧은 한 문장, 상담·심리검사·면접 말투 금지.
+- next.choices: kind 가 unsure·skip 일 때만, 새 질문에 바로 고를 수 있는 짧은 답 보기 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이, 실제 장면 말 · 예: 「카페에서 수다」「같이 산책」). 그 밖에는 [] 로 둔다. 「잘 모르겠어요」는 넣지 않는다(서버가 붙인다).
 - next.hint: 이 질문에 무엇을 말하면 되는지 범위만 알려 주는 한 줄(${HINT_MAX}자 이내, 물음표 없이, 예: 「예: 연락 방식, 약속, 생활습관처럼요.」). 답을 대신 써 주는 예(「배려심 있는 사람」 같은 답 문장)는 쓰지 않는다. 질문이 없으면 비운다.
 
 쓰지 않는 단어: 데이팅, 소개팅, 궁합, 점술, 심리치료, 성격검사. 사용자가 말하지 않은 감정·사정을 사실처럼 말하지 않는다. 상담사·면접관·설문 말투와 과장된 공감을 쓰지 않는다.
 
-JSON 하나로만 답한다: {"kind":"","understood":"","reply":"","extracted":[{"purpose":"","note":"","quote":""}],"inferred":[{"trait":"","basis":""}],"declared":null,"wrong":[],"next":{"type":"core","purpose":"","question":"","hint":"","check":{"context":true,"concrete":true,"answerable":true}}}`;
+JSON 하나로만 답한다: {"kind":"","understood":"","reply":"","extracted":[{"purpose":"","note":"","quote":""}],"inferred":[{"trait":"","basis":""}],"declared":null,"wrong":[],"next":{"type":"core","purpose":"","question":"","hint":"","choices":[],"check":{"context":true,"concrete":true,"answerable":true}}}`;
 }
 
 export function closingPrompt(tone: Tone): string {
@@ -381,7 +382,7 @@ type Json = Record<string, unknown>;
 // status: CONFIRMED = 지금 쓰는 값(ACTIVE) · SUPERSEDED = 사용자 정정으로 새 값에 밀림 · RETRACTED = 사용자가 아니라고 함(거절 뜻) · DISPUTED = 모호한 거절로 어느 해석인지 몰라 확인 중(지금 값 아님 · 지우지 않음). 옛 값은 지우지 않는다(이력).
 export type SourceType = "USER_DIRECT" | "AI_EXTRACTED" | "AI_INFERRED" | "USER_CONFIRMED" | "USER_CORRECTED" | "PHOTO_INFERRED" | "PROFILE_DIRECT";
 export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED" | "DISPUTED"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
-export interface Asked { type: "core" | "clarify" | "fill"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null }
+export interface Asked { type: "core" | "clarify" | "fill"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null; choices?: string[] | null }
 export interface TurnRec { guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; presented?: { purpose: string; note: string }[]; fix_text?: string; fix_of?: number; vague_reject?: string; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
@@ -399,7 +400,7 @@ export interface IntroLine { text: string; basis: string }
 // status: ready = 쓸 문장이 있음 · failed = AI 가 썼지만 쓸 문장이 0(또는 AI 실패) · none = 들은 말이 없어 쓰지 않음.
 // used: 사용자가 고른 것(as_is = 이대로 · edited = 고쳐서 · own = 직접 씀). 소개란 저장은 화면이 한다 — 여기는 출처 기록.
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
-export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null } }
+export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null; choices?: string[] } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
 export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
@@ -560,11 +561,24 @@ export function parseTurn(raw: unknown): Parsed | null {
     inferred: list(o.inferred).map((m) => ({ trait: str(m.trait), basis: str(m.basis) })).filter((m) => m.trait),
     declared: d ? { mbti: str(d.mbti), blood_type: str(d.blood_type), quote: str(d.quote) } : null,
     wrong: (Array.isArray(o.wrong) ? o.wrong : []).map(str).filter(Boolean),
-    next: { type: type === "core" || type === "clarify" ? type : "none", purpose: str(n.purpose), question: leaksId(n.question) ? "" : str(n.question), hint: cleanHint(n.hint),
+    next: { type: type === "core" || type === "clarify" ? type : "none", purpose: str(n.purpose), question: leaksId(n.question) ? "" : str(n.question), hint: cleanHint(n.hint), choices: cleanChoices(n.choices),
       check: n.check && typeof n.check === "object" ? Object.fromEntries(["context", "concrete", "answerable"].map((k) => [k, (n.check as Json)[k] === true])) : null },
   };
 }
 
+// 2026-09-30 마감 지시 §4 주관식 본체 + 객관식 구조대: 모르겠다·넘기기 뒤에만 AI 가 낸 짧은 답 보기(최대 3개)를 보인다.
+// 형식만 본다(12자 · 물음표 0 · 금지어 0 · 내부 이름 0 · 중복 0). 「잘 모르겠어요」는 서버가 끝에 붙이고, 누르면 그 글자가 보통 답으로 간다(저장·판단은 평소대로 서버).
+export const CHOICE_MAX = 12;
+export const CHOICE_UNSURE = "잘 모르겠어요";
+export function cleanChoices(v: unknown): string[] {
+  const out: string[] = [];
+  for (const c of Array.isArray(v) ? v : []) {
+    const t = str(c).trim().replace(/[.!]+$/, "");
+    if (t && t.length <= CHOICE_MAX && !/[?？]/.test(t) && !/모르/.test(t) && !BANNED_WORDS.test(t) && !leaksId(t) && !out.some((o) => squash(o) === squash(t))) out.push(t);
+  }
+  return out.length >= 2 ? out.slice(0, 3) : [];
+}
+export function choicesFor(st: AgentState): string[] | null { return st.current?.choices?.length ? [...st.current.choices, CHOICE_UNSURE] : null; }
 // 예시 한 줄: 형식만 본다(길이·물음표·금지어·내부 이름). 뜻의 좋고 나쁨은 심사하지 않는다.
 export function cleanHint(v: unknown): string {
   const h = str(v);
@@ -737,6 +751,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
       if (fill.includes(n.purpose)) { ask(st, "fill", n.purpose, n.question); question = n.question; decision = "fill"; }
     }
     if (question && st.current && decision !== "help_rephrase" && decision !== "keep_after_answer") { st.current.hint = n.hint || null; st.asked[st.asked.length - 1].hint = st.current.hint; }
+    if (question && st.current && decision !== "help_rephrase" && decision !== "keep_after_answer") { st.current.choices = ["unsure", "skip"].includes(out.kind) && n.choices?.length ? n.choices : null; st.asked[st.asked.length - 1].choices = st.current.choices; }
     turn.check = n.check ?? null;
   }
   // 이미 한 질문과 글자까지 같은 새 질문은 보이지 않는다(먼저 답하기로 한 번 다시 보인 것은 위에서 따로 센다).
@@ -1003,11 +1018,12 @@ const QUESTION_REWRITE_PROMPT = `너는 친구처럼 대화를 이어 가는 사
 - rejected 가 있으면 그 문장이 왜 안 됐는지(why)를 보고 그 틀을 피한다.
 - asked_before·bad_tries 와 같은 뜻을 다시 묻지 않는다. heard 에 있는 것은 묻지 않는다. avoid_words 의 말은 쓰지 않는다. tone 의 말투를 지킨다.`;
 const FLAW_WHY: Record<string, string> = { format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다" };
-async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false): Promise<string> {
+async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
   const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: "사용자가 방금 앞 답을 고쳤다(latest 가 새 답). asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다. asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 묻는다." } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "" };
-  try { raw = await call(llm, obs, "question", QUESTION_REWRITE_PROMPT, input); } catch { obs.retry.push("question_rewrite_failed"); return ""; }
-  return str(parseJson(raw)?.question).trim();
+  try { raw = await call(llm, obs, "question", unanswered ? `${QUESTION_REWRITE_PROMPT}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. choices 는 그 질문에 바로 고를 수 있는 짧은 답 보기 2~3개(각 ${CHOICE_MAX}자 이내, 물음표 없이, 「잘 모르겠어요」 제외).` : QUESTION_REWRITE_PROMPT, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
+  const o = parseJson(raw);
+  return { question: str(o?.question).trim(), choices: unanswered ? cleanChoices(o?.choices) : [] };
 }
 
 // ── 한 턴. 대화가 끝난 뒤의 말은 고치기로만 받는다(새 질문 0).
@@ -1089,9 +1105,9 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     // v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) → 다른 목적 한 번. 거절된 AI 질문 문장은 기록에 남긴다(사용자 원문 아님 · 40자).
     let rejected: { question: string; why: string } | null = null;
     for (const purpose of [order[0], order[0], order[1]].filter((p): p is string => !!p)) {
-      const q = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, out.kind === "correction");
+      const { question: q, choices } = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected, !answered, out.kind === "correction");
       const flaw = q ? questionFlaw(st, qBase, q, answered) : "empty";
-      if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null }; obs.retry.push("question_rewrite"); break; }
+      if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null, choices }; obs.retry.push("question_rewrite"); break; }
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
       rejected = { question: q, why: FLAW_WHY[flaw] ?? flaw }; // 2026-09-30 QA v67 장면 E: 정정 뒤 같은 틀(값만 바꾼 질문)을 세 번 내서 안내 한 줄로 떨어졌다
     }
