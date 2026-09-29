@@ -407,8 +407,11 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           SUPABASE_PROD_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_PROD_AUTH_READ_TOKEN }}
+          HAS_PROD_ACCESS: ${{ secrets.SUPABASE_PROD_ACCESS_TOKEN != '' }}
+          HAS_ACCESS: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
         run: |
           set -uo pipefail
+          echo "SUPABASE_PROD_ACCESS_TOKEN present=$HAS_PROD_ACCESS · SUPABASE_ACCESS_TOKEN present=$HAS_ACCESS"
           if [ -n "$SUPABASE_PROD_AUTH_READ_TOKEN" ]; then
             echo "SUPABASE_PROD_AUTH_READ_TOKEN=PRESENT"
             code=$(curl -s -o /tmp/authcfg.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN" https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth)
