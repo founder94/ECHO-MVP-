@@ -40,10 +40,17 @@ test('one homepage CTA is mobile app install and brand redirects to the app intr
 
 test('v2.5.1 mirror guard rejects analytic acknowledgements and generic person questions', () => {
   const s = read('supabase/functions/doit-agent/agent.ts');
-  assert.match(s, /echo-agent-v2\.5\.2/);
+  assert.match(s, /echo-agent-v2\.5\.3/);
   assert.match(s, /analyticAck/);
   assert.match(s, /genericPersonQuestion/);
   assert.match(s, /원하시네요/);
   assert.match(s, /GENERIC_PERSON_Q/);
   assert.match(s, /18자 이내/);
+});
+
+test('v2.5.3 keeps follow-up short and rejects stiff survey phrasing', () => {
+  const s = read('supabase/functions/doit-agent/agent.ts');
+  assert.match(s, /stiffQuestion/);
+  assert.match(s, /질문은 가능하면 30자 안쪽/);
+  assert.match(s, /함께하고\\s\*싶으세요/);
 });
