@@ -98,3 +98,22 @@ test('v2.5.4 지시문: 「대화 주제」로 유도하던 예시를 빼고 한
   assert.match(s, /한 걸음만 옆으로 묻는다/);
   assert.match(s, /echo-agent-v2\.5\.5/);
 });
+
+test('v2.5.5 QA 장면 B·C·E: 받아주기 속 숨은 질문은 빼고 · 모르겠다·정정 뒤의 새 질문도 같은 기준으로 다시 청한다', async () => {
+  assert.equal(A.tidyReply('고양이 정말 귀엽죠! 어떤 고양이가 제일 마음에 들어요.', null), '고양이 정말 귀엽죠!');
+  assert.equal(A.tidyReply('한 달에 몇 번 편하게 보는 게 좋다는 거예요.', null), '한 달에 몇 번 편하게 보는 게 좋다는 거예요.');
+  assert.ok(A.surveyQuestion('고양이 너무 좋지', '고양이랑 놀 때 어떤 기분이 드나요?'));
+  const st = start();
+  A.applyTurn(st, '편하게 얘기할 친구를 찾고 있어요', T({ extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('attraction_comfort', '편하게 얘기할 친구를 카페에서 만나면 좋겠어요?') }));
+  const seen = [];
+  const llm = async (kind, _s, input) => {
+    seen.push(kind);
+    if (kind === 'turn') return JSON.stringify(T({ kind: 'unsure', reply: '괜찮아요.', next: N('relationship_style', '친구와 연락하거나 만나는 빈도는 어떻게 되면 좋을까요?') }));
+    if (kind === 'question') { assert.equal(input.latest, '편하게 얘기할 친구를 찾고 있어요', '모르겠다 뒤에는 앞선 사용자 말에 기대어 묻는다'); return JSON.stringify({ question: '편하게 얘기하려면 주말이 좋아요?' }); }
+    return JSON.stringify({ reply: '괜찮아요.' });
+  };
+  const r = await A.runTurn(st, '잘 모르겠어요', llm);
+  assert.equal(r.response.kind, 'unsure'); assert.equal(r.response.saved, false);
+  assert.equal(r.response.question, '편하게 얘기하려면 주말이 좋아요?');
+  assert.ok(seen.includes('question'));
+});

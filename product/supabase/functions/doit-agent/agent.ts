@@ -86,7 +86,7 @@ export const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어�
 const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나"]);
 export function anchorWords(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).filter((w) => /^[가-힣A-Za-z]{2,}/.test(w)).map((w) => w.slice(0, 2)).filter((w) => !ANCHOR_STOP.has(w)))]; }
 export function anchorTokens(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).map((w) => w.replace(/[^가-힣A-Za-z]/g, "")).filter((w) => w.length >= 2 && !ANCHOR_STOP.has(w.slice(0, 2))))].sort((a, b) => b.length - a.length); }
-const SURVEY_QUESTION_WORDS = ["활동", "빈도", "방식", "선호", "편안함", "가치관", "성향", "중요성"];
+const SURVEY_QUESTION_WORDS = ["활동", "빈도", "방식", "선호", "편안함", "가치관", "성향", "중요성", "기분"]; // v2.5.5 「놀 때 어떤 기분이 드나요?」(QA 장면 B) = 상담 말투
 export function surveyQuestion(latest: string, question: string): boolean { return SURVEY_QUESTION_WORDS.some((w) => question.includes(w) && !latest.includes(w)); }
 const STIFF_QUESTION = /(함께하고\s*싶으세요|어떤\s*주제로|어떤\s*이야기를\s*나누고\s*싶으세요|어떤\s*대화를\s*하고\s*싶으세요|어떤\s*모습|어떤\s*점이\s*중요|어떤\s*부분)/;
 // v2.5.4 정보 종류를 묻는 틀(「어떤 주제로·어떤 얘기를·어떤 대화를·어떤 걸 같이·어떤 활동·어떤 방식으로·얼마나 자주」). 사용자가 방금 그 말(주제·활동·방식·자주)을 직접 썼으면 문맥상 허용한다.
@@ -116,8 +116,10 @@ export const ackCopies = (reply: string, latest: string) => { const b = bare(lat
 export const anchored = (latest: string, question: string) => { const ws = anchorWords(latest); return ws.length < 2 || ws.some((w) => question.includes(w)); };
 const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()).filter(Boolean);
 // 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
+// v2.5.5 받아주기 안에 숨은 질문(QA 장면 B 「어떤 고양이가 제일 마음에 들어요.」 · 물음표 없이 「~요.」로 끝남)도 뺀다 — 한 턴에 질문은 하나.
+const REPLY_ASK = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어느|누구|몇)\s*\S+[^.!?]*(?<!예|에|네|죠|거든|군|지|다는\s*거|라는\s*거)요\s*[.!]?$/; // 「~거예요·~네요」 같은 설명·맞장구는 남긴다
 export function tidyReply(reply: string, question: string | null): string {
-  return sentences(reply).filter((x) => !COUNSEL.test(x) && !ASKS.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).map(softEnd).join(" ");
+  return sentences(reply).filter((x) => !COUNSEL.test(x) && !ASKS.test(x) && !REPLY_ASK.test(x) && !(question && dice(bare(x), bare(question)) >= SIMILAR_Q)).map(softEnd).join(" ");
 }
 export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => !needsMoreAnswers(st) && coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;
@@ -960,13 +962,13 @@ async function rewriteAck(st: AgentState, latest: string, question: string | nul
 
 // v2.5.4 대표 「HUMAN MIRROR」: 다음 질문 한 문장이 사람 말 기준을 못 넘는 이유(없으면 "").
 export function questionNeedsHumanizing(latest: string, q: string): boolean { return surveyQuestion(latest, q) || genericPersonQuestion(q) || stiffQuestion(q, latest) || !anchored(latest, q); }
-export function questionFlaw(st: AgentState, latest: string, q: string): string {
+export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q) || leaksId(q)) return "blocked";
   if (surveyQuestion(latest, q)) return "survey_tone";
   if (genericPersonQuestion(q)) return "generic_person";
   if (stiffQuestion(q, latest)) return "stiff_question";
-  if (!anchored(latest, q)) return "not_anchored";
+  if (anchor && !anchored(latest, q)) return "not_anchored";
   return "";
 }
 // 질문 한 문장만 다시 청한다(상태·저장·받아주기는 그대로 · 서버가 다시 검사).
@@ -1053,7 +1055,11 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   else if (!forced && out.kind === "repair" && rejectWithNewValue(text)) out = await pickStale(st, text, out, llm, obs); // v2.4.2 거절 + 새 값: 서버가 정정으로 확정하므로(guardKind) 옛 항목 고르기도 같이
   // v2.5.4 세 번 청해도 다음 질문이 설문형·딱딱함·사람 유형 재정의·방금 답과 끊김이면 그대로 내보내지 않는다:
   //   ① 질문 한 문장만 다시 청한다(같은 목적 → 다른 목적 · 최대 2번) ② 앞선 시도 중 규칙을 지킨 질문 ③ 서버 안내 한 줄(대화에 한 번) ④ 그래도 없으면 기록만 남기고 둔다.
-  if (!after && !forced && out.kind === "answer" && out.next.question && questionFlaw(st, work, out.next.question) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
+  // v2.5.5 QA 장면 C·E: 모르겠다·넘기기·항의·정정 뒤의 새 질문도 같은 기준(「…빈도는 어떻게 되면 좋을까요?」「…친구는 어떤 사람일까요?」가 그대로 나갔다).
+  //   모르겠다·넘기기·항의 뒤에는 방금 말에 답이 없으니 「방금 답과 이어짐」 대신 앞선 사용자 말에 기대어 다시 청한다.
+  const answered = out.kind === "answer" || out.kind === "correction";
+  const qBase = answered ? work : (st.turns.at(-1)?.user ?? work);
+  if (!after && !forced && ["answer", "correction", "unsure", "skip", "repair"].includes(out.kind) && out.next.question && questionFlaw(st, qBase, out.next.question, answered) && decideKind(st, work, out, !!ui).rule !== "fix_check") {
     const pool = openPurposes(st).length ? openPurposes(st) : fillTargets(st);
     const cand = pool.filter((id) => !out!.extracted.some((e) => e.purpose === id));
     const order = [...new Set([out.next.purpose, ...cand].filter((id) => cand.includes(id)))].slice(0, 2);
@@ -1062,13 +1068,13 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     // v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) → 다른 목적 한 번. 거절된 AI 질문 문장은 기록에 남긴다(사용자 원문 아님 · 40자).
     let rejected: { question: string; why: string } | null = null;
     for (const purpose of [order[0], order[0], order[1]].filter((p): p is string => !!p)) {
-      const q = await rewriteQuestion(st, work, purpose, bad, llm, obs, rejected);
-      const flaw = q ? questionFlaw(st, work, q) : "empty";
+      const q = await rewriteQuestion(st, qBase, purpose, bad, llm, obs, rejected);
+      const flaw = q ? questionFlaw(st, qBase, q, answered) : "empty";
       if (!flaw) { fixed = { type: "core", purpose, question: q, hint: "", check: null }; obs.retry.push("question_rewrite"); break; }
       obs.retry.push(`question_rewrite_rejected:${flaw}:${q.slice(0, 40)}`); if (q) bad.push(q);
       rejected = { question: q, why: FLAW_WHY[flaw] ?? flaw };
     }
-    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "survey_tone", "generic_person", "stiff_question"].includes(questionFlaw(st, work, n.question))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
+    if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "survey_tone", "generic_person", "stiff_question"].includes(questionFlaw(st, qBase, n.question, answered))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && cand.length && !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone))) { fixed = { type: "core", purpose: cand[0], question: fillFallbackText(st.tone), hint: "", check: null }; st.fill_fallback_used = true; obs.retry.push("question_fallback"); }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }
