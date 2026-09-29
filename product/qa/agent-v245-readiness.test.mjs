@@ -20,17 +20,28 @@ const T = (o = {}) => ({ kind: 'answer', understood: '', reply: '', extracted: [
 const live = (st, id) => st.slots[id].items.filter((i) => i.status === 'CONFIRMED');
 const start = (goal = 'friend') => { const st = A.newState({ tone: 'polite', goal }); A.seedFirstQuestion(st); return st; };
 
-test('「아니요 + 새 값」이 방금 보인 AI 해석과 같은 칸이면 정정 — 옛 해석은 지금 사실에서 빠지고 새 값이 USER_CORRECTED', () => {
+test('v2.4.7: 「아니요 + 새 값」이 앞 해석과 같은 칸이면 애매할 때 즉시 지우지 않고 한 번 확인', async () => {
   const st = start();
   A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')], next: N('attraction_comfort', '친구랑 뭘 하면 즐거우세요?') }));
-  // AI 가 답을 「자주 만나서 노는 걸 좋아하심」으로 해석해 받아주기로 보였다(presented)
   A.applyTurn(st, '같이 노는 게 좋아요', T({ reply: '자주 만나서 노는 걸 좋아하시네요.', extracted: [X('attraction_comfort', '자주 만나서 노는 걸 좋아하심', '같이 노는 게 좋아요')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
   assert.ok((st.turns.at(-1).presented ?? []).some((p) => p.purpose === 'attraction_comfort'), '전제: 해석이 사용자에게 보임');
+
   const r = A.applyTurn(st, '아니요, 카페에서 이야기하는 게 좋아요', T({ kind: 'answer', extracted: [X('attraction_comfort', '카페에서 이야기하는 걸 좋아함', '카페에서 이야기하는 게 좋아요')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
-  assert.equal(r.kind, 'correction');
+  assert.equal(r.kind, 'fix_check');
+  assert.equal(r.saved, false);
+  assert.ok(live(st, 'attraction_comfort').some((i) => /자주 만나서/.test(i.note)), '확인 전에는 옛 사실을 지우지 않음');
+  assert.ok(!live(st, 'attraction_comfort').some((i) => /카페/.test(i.note)), '확인 전에는 새 사실도 확정하지 않음');
+  assert.ok(st.pending_fix, '확인 대기 상태 보존');
+
+  const llm = async (kind) => {
+    if (kind === 'pick') return JSON.stringify({ stale: [2] });
+    return JSON.stringify(T({ kind: 'correction', extracted: [X('attraction_comfort', '카페에서 이야기하는 걸 좋아함', '카페에서 이야기하는 게 좋아요')], wrong: ['자주 만나서 노는 걸 좋아하심'], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
+  };
+  const yes = await A.runTurn(st, '네', llm);
+  assert.equal(yes.response.kind, 'correction');
   const now = live(st, 'attraction_comfort');
-  assert.ok(now.every((i) => !/자주 만나서/.test(i.note)), `옛 해석이 지금 사실로 남음: ${JSON.stringify(now.map((i) => i.note))}`);
-  assert.ok(now.some((i) => i.source_type === 'USER_CORRECTED' && /카페/.test(i.note)));
+  assert.ok(now.every((i) => !/자주 만나서/.test(i.note)), '확인 뒤 옛 값은 현재 사실에서 빠짐');
+  assert.ok(now.some((i) => i.source_type === 'USER_CORRECTED' && /카페/.test(i.note)), '확인 뒤 새 값만 최신 정정으로 확정');
   assert.ok(st.turns.some((t) => t.user === '같이 노는 게 좋아요'), '사용자 원문은 보존');
 });
 
@@ -44,7 +55,7 @@ test('「아니요 + 답」이 새 질문에 대한 답이면(보인 해석이 �
   assert.equal(st.disputed.length, 0, '지금 질문을 거절로 기록하지 않음');
 });
 
-test('실AI 재현: 앞선 원문을 그대로 되말한 것을 해석으로 보지 않아 일반 답이 기존 사실을 지우지 않는다', () => {
+test('v2.4.7 실AI 재현: 모호한 「아니요 + 새 값」은 확인 뒤 일반 답이면 기존 사실을 지우지 않는다', async () => {
   const st = start();
   A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')], next: N('attraction_comfort', '친구와 함께 하고 싶은 활동이나 장소가 있나요?') }));
   A.applyTurn(st, '친구와 산책하는 게 좋아요', T({
@@ -52,15 +63,27 @@ test('실AI 재현: 앞선 원문을 그대로 되말한 것을 해석으로 보
     extracted: [X('relationship_style', '친구와 산책하는 게 좋아요', '친구와 산책하는 게 좋아요')],
     next: N('values_character', '친구에게서 어떤 모습이 잘 맞는다고 느끼세요?'),
   }));
-  assert.ok(st.turns.at(-1).presented?.length, '실AI 처럼 되말한 문장이 presented 로 기록됨');
+  assert.ok(st.turns.at(-1).presented?.length, '전제: 앞선 해석이 화면에 보임');
+
   const r = A.applyTurn(st, '아니요, 저는 카페에서 얘기하는 게 좋아요', T({
     kind: 'answer',
     extracted: [X('relationship_style', '카페에서 이야기하는 걸 좋아함', '카페에서 얘기하는 게 좋아요')],
     next: N('boundaries', '친구 사이에서 부담스러운 것은 무엇인가요?'),
   }));
-  assert.equal(r.kind, 'answer');
-  assert.ok(live(st, 'relationship_style').some((i) => /산책/.test(i.note)));
-  assert.equal(st.disputed.length, 0);
+  assert.equal(r.kind, 'fix_check');
+  assert.ok(live(st, 'relationship_style').some((i) => /산책/.test(i.note)), '확인 전 기존 사실 유지');
+  assert.ok(!live(st, 'relationship_style').some((i) => /카페/.test(i.note)), '확인 전 새 값 확정 0');
+
+  const llm = async () => JSON.stringify(T({
+    kind: 'answer',
+    extracted: [X('relationship_style', '카페에서 이야기하는 걸 좋아함', '카페에서 얘기하는 게 좋아요')],
+    next: N('boundaries', '친구 사이에서 부담스러운 것은 무엇인가요?'),
+  }));
+  const no = await A.runTurn(st, '아니요', llm);
+  assert.equal(no.response.kind, 'answer');
+  assert.ok(live(st, 'relationship_style').some((i) => /산책/.test(i.note)), '앞말 정정이 아니므로 기존 산책 사실 유지');
+  assert.ok(live(st, 'relationship_style').some((i) => /카페/.test(i.note)), '일반 답으로 카페 사실 추가');
+  assert.equal(st.disputed.length, 0, '현재 질문을 거절 의미로 기록하지 않음');
 });
 
 test('화면 「고치기」는 모델 종류와 관계없이 정정', () => {

@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.4.6'); // 일반 「아니요 + 새 답」이 잘못된 정정으로 이전 사실을 지우지 않게 보호
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.4.7'); // GF-117 모호한 정정 1회 확인 + GF-118 중복 질문 stuck 방지
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
