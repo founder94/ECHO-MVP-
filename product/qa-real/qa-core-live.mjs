@@ -127,7 +127,12 @@ else {
     const first = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: '친구와 산책하는 게 좋아요' });
     const beforeQ = first.data?.session?.current_question ?? '';
     const no = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: '아니요, 저는 카페에서 얘기하는 게 좋아요' });
-    let finish = no.data?.session;
+    let resolved = no;
+    if (no.data?.turn?.kind === 'fix_check') {
+      resolved = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: '아니요' });
+      check('일반 아니요 답: 모호하면 한 번 확인 후 보통 답으로 확정', resolved.status === 200 && resolved.data?.turn?.kind === 'answer' && resolved.data?.turn?.saved === true, `status=${resolved.status} kind=${resolved.data?.turn?.kind} saved=${resolved.data?.turn?.saved}`);
+    }
+    let finish = resolved.data?.session;
     for (const a of REST) {
       if (!finish || finish.phase === 'done') break;
       const step = await agent(D.jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: did, text: a });
@@ -136,7 +141,7 @@ else {
     const after = finish?.profile ?? {};
     const prefs = after.confirmed_preferences ?? [];
     const live = Object.values(after).filter((v) => v && Array.isArray(v.items)).flatMap((v) => v.items.filter((i) => i.status === 'CONFIRMED').map((i) => i.note));
-    check('일반 아니요 답: 기존 사실 유지 · 카페 답 저장', no.status === 200 && no.data?.turn?.kind === 'answer' && finish?.phase === 'done' && [...prefs, ...live].some((x) => /산책/.test(x)) && [...prefs, ...live].some((x) => /카페/.test(x)), `status=${no.status} kind=${no.data?.turn?.kind} saved=${no.data?.turn?.saved} phase=${finish?.phase} 산책=${[...prefs, ...live].some((x) => /산책/.test(x))} 카페=${[...prefs, ...live].some((x) => /카페/.test(x))}`);
+    check('일반 아니요 답: 기존 사실 유지 · 카페 답 저장', no.status === 200 && ['answer','fix_check'].includes(no.data?.turn?.kind) && finish?.phase === 'done' && [...prefs, ...live].some((x) => /산책/.test(x)) && [...prefs, ...live].some((x) => /카페/.test(x)), `status=${no.status} first_kind=${no.data?.turn?.kind} resolved_kind=${resolved.data?.turn?.kind} phase=${finish?.phase} 산책=${[...prefs, ...live].some((x) => /산책/.test(x))} 카페=${[...prefs, ...live].some((x) => /카페/.test(x))}`);
     check('일반 아니요 답: 질문을 거절 의미로 기록 0', !beforeQ || !(after.rejected_meanings ?? []).includes(beforeQ), `phase=${finish?.phase}`);
   }
 }
