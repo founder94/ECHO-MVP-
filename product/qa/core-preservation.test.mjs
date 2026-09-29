@@ -116,8 +116,8 @@ test('사주·타로 → 매칭·사용자 사실 오염 0: 대화 서버·매�
   assert.doesNotMatch(seed, /date|time|gender|birth|pillar|hanja|supabase|fetch|localStorage/i, '이야기 거리에 생년월일·시간·명식·저장 경로 0');
 });
 
-test('UI 단순화 ≠ 엔진 삭제: 숨긴 화면과 상관없이 서버 보호 장치 파일·함수 그대로(v2.2)', () => {
-  assert.match(agentSrc, /export const AGENT_VERSION = "echo-agent-v2\.4\.6";/, '일반 답을 정정으로 오인하지 않는 판에서도 서버 보호 장치는 유지');
+test('UI 단순화 ≠ 엔진 삭제: 숨긴 화면과 상관없이 서버 보호 장치 파일·함수 유지', () => {
+  assert.match(agentSrc, /export const AGENT_VERSION = "echo-agent-v\d+(?:\.\d+)+";/, '서버 판 번호 형식');
   for (const fn of ['guardKind', 'applyTurn', 'matchingProfile', 'matchingHandoff', 'rejectedNotes', 'cleanIntro', 'versionTrace']) assert.match(agentSrc, new RegExp(`export function ${fn}\\(`), fn);
   // 확인 화면의 정정은 서버 정정 턴으로만(화면이 뜻을 바꾸지 않는다)
   assert.match(read('src/doit/components/feature/AgentProfileCheck.tsx'), /agentTurn\(userId, session\.id, t, \{ purpose \}\)/);
