@@ -3723,4 +3723,4 @@
 | 해결 시도(실패한 해결책 포함) | 없음(운영 변경 금지) |
 | 해결 후보 | ① agent.ts: 연결 준비 전에는 finish_enough 로 마치지 않음(MIN_CORE_BEFORE_ENOUGH=5 · 대표 v2.4 「5개 전에 마침」 결정과 충돌) ② doit-connect: Agent 사용자 준비 = 대화 완료 + 사용자 출처 확정 칸 N개(MATCH_SOURCE=agent · AGENT_READY_MIN 조정) — 둘 다 대표 결정 필요 · 되돌리기 = 이전 함수 판 재배포 |
 | 심각도 | HIGH(P0 후보 · 매칭 루프 차단) |
-| 현재 상태 | OPEN · 대표 결정 대기 · 코드 변경 0 |
+| 현재 상태 | FIX READY(A안 · 대표 결정 2026-09-29) — doit-agent v2.4.5(32abd74): 답 기록 5개 전 「충분」 종료 0 · 더 묻기 상한 2 · 거절 반복이면 준비 미완료로 멈춤. 역검사 v2.4.4 FAIL → v2.4.5 PASS(qa/agent-v245-readiness 7/7) · QA 실서버 2계정 매칭 31/31(답 5/5 · 후보 → 상호 → 연결 → 결과). 운영 게시 대기(대표 승인) |
