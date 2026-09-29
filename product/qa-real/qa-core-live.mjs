@@ -89,7 +89,7 @@ check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repai
 const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
 const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
-check('서버 판 = echo-agent-v2.5.0', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.5.0' || s?.profile?.version === 'echo-agent-v2.5.0', `version=${s?.profile?.version ?? '-'}`);
+check('서버 판 = echo-agent-v2.5.1', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.5.1' || s?.profile?.version === 'echo-agent-v2.5.1', `version=${s?.profile?.version ?? '-'}`);
 
 // ── v2.5 실제 AI 대화 품질: 설문 문구 대신 방금 답에서 이어지는 질문
 const H = await account('human-v250');
@@ -105,7 +105,8 @@ else {
   const hack = afterUser.length > 1 ? afterUser[0] : '';
   check('v2.5 질문 = 설문 단어 0', h0.status === 200 && !!hq && !/(활동|빈도|관계\s*방식|선호)/.test(hq), `q=${hq}`);
   check('v2.5 질문 = 방금 답과 맥락 연결', /(천천히|대화|스며|관계)/.test(hq), `q=${hq}`);
-  check('v2.5 받아주기 = 짧고 상담사 말투 0', !hack || (hack.length <= 80 && !/(그렇군요|중요하군요|힘드셨겠)/.test(hack)), `ack=${hack}`);
+  check('v2.5 질문 = 사람 유형 다시 묻는 설문형 0', !/^\s*(그럼\s*)?어떤\s*(친구|사람)(과|이|을|를)?[^?]*(좋|편|원하|맞)/.test(hq), `q=${hq}`);
+  check('v2.5 받아주기 = 짧고 상담사 말투 0', !hack || (hack.length <= 18 && !/(그렇군요|중요하군요|힘드셨겠|원하시네요|선호하|쪽이\s*(?:더\s*)?(?:편|좋))/.test(hack)), `ack=${hack}`);
 }
 
 // ── F(2026-09-29 대표 「FINAL RELEASE CLOSING」): 같은 계정 친구 ↔ 연애 세션 격리
