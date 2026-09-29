@@ -10,7 +10,7 @@ name: echo-netlify-deploy
 
 on:
   push:
-    branches: ['echo-qa']
+    branches: ['echo-qa', 'release/prod-app-candidate-20260929']
   workflow_dispatch:
     inputs:
       target:
