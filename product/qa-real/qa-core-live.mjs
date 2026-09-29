@@ -89,7 +89,24 @@ check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repai
 const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
 const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
-check('서버 판 = echo-agent-v2.4.7', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.7' || s?.profile?.version === 'echo-agent-v2.4.7', `version=${s?.profile?.version ?? '-'}`);
+check('서버 판 = echo-agent-v2.5.0', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.5.0' || s?.profile?.version === 'echo-agent-v2.5.0', `version=${s?.profile?.version ?? '-'}`);
+
+// ── v2.5 실제 AI 대화 품질: 설문 문구 대신 방금 답에서 이어지는 질문
+const H = await account('human-v250');
+if (!H.jwt) check('v2.5 사람 같은 대화 QA 시험 계정', false);
+else {
+  const phrase = '돈 관계는 싫고 천천히 대화하면서 스며드는 친구를 만나고 싶어요';
+  const h0 = await agent(H.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'friend', goalLabel: '친구', firstAnswer: phrase });
+  const hs = h0.data?.session ?? {};
+  const hq = hs.current_question ?? '';
+  const hmsgs = hs.messages ?? [];
+  const lastUser = hmsgs.map((m) => m.role).lastIndexOf('user');
+  const afterUser = hmsgs.slice(lastUser + 1).filter((m) => m.role === 'ai').map((m) => m.text);
+  const hack = afterUser.length > 1 ? afterUser[0] : '';
+  check('v2.5 질문 = 설문 단어 0', h0.status === 200 && !!hq && !/(활동|빈도|관계\s*방식|선호)/.test(hq), `q=${hq}`);
+  check('v2.5 질문 = 방금 답과 맥락 연결', /(천천히|대화|스며|관계)/.test(hq), `q=${hq}`);
+  check('v2.5 받아주기 = 짧고 상담사 말투 0', !hack || (hack.length <= 80 && !/(그렇군요|중요하군요|힘드셨겠)/.test(hack)), `ack=${hack}`);
+}
 
 // ── F(2026-09-29 대표 「FINAL RELEASE CLOSING」): 같은 계정 친구 ↔ 연애 세션 격리
 const ro = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애', firstAnswer: '진지한 연애를 하고 싶어요' });
