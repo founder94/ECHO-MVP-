@@ -44,6 +44,25 @@ test('「아니요 + 답」이 새 질문에 대한 답이면(보인 해석이 �
   assert.equal(st.disputed.length, 0, '지금 질문을 거절로 기록하지 않음');
 });
 
+test('실AI 재현: 앞선 원문을 그대로 되말한 것을 해석으로 보지 않아 일반 답이 기존 사실을 지우지 않는다', () => {
+  const st = start();
+  A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')], next: N('attraction_comfort', '친구와 함께 하고 싶은 활동이나 장소가 있나요?') }));
+  A.applyTurn(st, '친구와 산책하는 게 좋아요', T({
+    reply: '산책하는 걸 좋아하신다니, 자연 속에서 친구와 이야기 나누는 시간이 좋겠네요.',
+    extracted: [X('relationship_style', '친구와 산책하는 게 좋아요', '친구와 산책하는 게 좋아요')],
+    next: N('values_character', '친구에게서 어떤 모습이 잘 맞는다고 느끼세요?'),
+  }));
+  assert.ok(st.turns.at(-1).presented?.length, '실AI 처럼 되말한 문장이 presented 로 기록됨');
+  const r = A.applyTurn(st, '아니요, 저는 카페에서 얘기하는 게 좋아요', T({
+    kind: 'answer',
+    extracted: [X('relationship_style', '카페에서 이야기하는 걸 좋아함', '카페에서 얘기하는 게 좋아요')],
+    next: N('boundaries', '친구 사이에서 부담스러운 것은 무엇인가요?'),
+  }));
+  assert.equal(r.kind, 'answer');
+  assert.ok(live(st, 'relationship_style').some((i) => /산책/.test(i.note)));
+  assert.equal(st.disputed.length, 0);
+});
+
 test('화면 「고치기」는 모델 종류와 관계없이 정정', () => {
   for (const t of ['주말에 한 번 정도가 좋아요', '아니요, 주말에 한 번 정도가 좋아요']) {
     assert.equal(A.guardKind(t, 'answer', true).kind, 'correction', t);
