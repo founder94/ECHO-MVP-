@@ -12,7 +12,7 @@ test('v2.5 human mirror: friend goal does not seed survey words', () => {
   const friend = s.slice(s.indexOf('friend: { name: "친구"'), s.indexOf('romantic: { name: "연애"'));
   for (const word of ['활동', '빈도', '관계 방식', '선호']) assert.ok(!friend.includes(word), word);
   assert.match(s, /방금 답에서 태어나야 한다/);
-  assert.match(s, /사람이 자연스럽게 반응/);
+  assert.match(s, /실제 사람이 바로 반응/);
   assert.match(s, /READY_SAVED_ANSWERS = 3/);
   assert.match(s, /ENOUGH_SLOTS = 4/);
   assert.match(s, /MAX_CALLS_PER_TURN = 3/);
@@ -44,6 +44,6 @@ test('v2.5.1 mirror guard rejects analytic acknowledgements and generic person q
   assert.match(s, /analyticAck/);
   assert.match(s, /genericPersonQuestion/);
   assert.match(s, /원하시네요/);
-  assert.match(s, /어떤\\s\*\(친구\|사람\)/);
+  assert.match(s, /GENERIC_PERSON_Q/);
   assert.match(s, /18자 이내/);
 });
