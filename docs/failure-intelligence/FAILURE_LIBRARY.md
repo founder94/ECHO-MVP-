@@ -3484,3 +3484,124 @@
 | Golden Test | 아직 없음 |
 | 관련 실패(Graph) | 없음 |
 | 근거 | `product/supabase/functions/doit-connect/agentSource.ts` · `product/qa/agent-match-source.test.mjs` |
+
+<!-- 2026-09-29 PROD RELEASE 실행 중 새 기록(Claude) -->
+
+## GF-104 RELEASE_ORDER_BYPASSED — PROD APP 게시가 서버 배포·실서버 검증보다 먼저 실행됨(push 트리거 one-shot)
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-RELEASE — 배포 순서 |
+| 발생 날짜 | 2026-09-29 03:51–03:54 UTC(대표 GO 순서 6단계 APP 이 4·5단계보다 먼저) |
+| 증거 수준 | ACTUAL |
+| 출처 | GitHub run 36518981559(prod-app-release-once.yml · echo-qa push cdfb36c) · deploy 6abb3679e423e7ac98bd9105 |
+| 사용자 상황 | APP 이 에이전트 v2.4.3 배포(04:1x) 전 약 20분 동안 이전 서버 판과 함께 운영 |
+| 사용자 원문 | — |
+| AI 행동 | 워크플로 파일 push 만으로 운영 게시가 실행됨(수동 확인 단계 0) |
+| 기대 행동 | 순서 1→8, 5단계(server live A–H) PASS 뒤에만 APP 게시 |
+| 원인 Layer | Release Process (원인 확신: CONFIRMED) — 게시 조건에 앞 단계 결과가 묶이지 않음 |
+| 사용자 피해 | 실사용자 영향: 그 사이 agent_turn 기록 0건(실측 · SQL 건수만) → 확인된 피해 0 |
+| 재현 여부 | 재현 ○(워크플로 정의가 push 트리거) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | 운영 게시 워크플로는 workflow_dispatch + 앞 단계 PASS 표식(run id) 입력을 요구 |
+| 심각도 | HIGH — 대표 GO 순서와 실제 순서가 달라 대표가 보고를 다시 확인해야 함 |
+| 현재 상태 | RECORDED(가드 미구현 · 제안만) |
+
+## GF-105 DEPLOY_GUARD_ADMIN_HOLD — 운영 배포 가드가 HOLD 중인 ADMIN callback 을 필수로 요구
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONTRACT — 절차 가드와 제품 요구 혼동 |
+| 발생 날짜 | 2026-09-29 PROD 준비 |
+| 증거 수준 | ACTUAL |
+| 출처 | product/scripts/oauth-redirect-guard.mjs(prod adminRequired) |
+| 사용자 상황 | APP 만 내보내는 운영 배포 |
+| 사용자 원문 | — |
+| AI 행동 | ADMIN PROD HOLD 인데 admin callback 없음을 FAIL 로 봐서 APP 게시가 막힐 뻔함 |
+| 기대 행동 | HOLD 인 역할은 필수 조건에서 뺀다(APP callback·Site URL·폐기 주소 검사는 그대로) |
+| 원인 Layer | Workflow Guard (CONFIRMED) |
+| 사용자 피해 | 없음(게시 전 발견) |
+| 재현 여부 | 역검사 수정 전 FAIL → 수정 후 PASS(p0-20260928-realstate PROD_APP_ONLY) |
+| 해결 시도(실패한 해결책 포함) | 08ba6e9 |
+| 해결 후보 | MEDIUM |
+| 심각도 | FIXED · CODE_VERIFIED |
+
+## GF-106 TEST_ACCOUNT_EMAIL_LIMIT — PROD 이메일 발송 한도(429)로 두 번째 시험 계정을 못 만듦
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-TEST-INFRA — 시험 계정 준비 |
+| 발생 날짜 | 2026-09-29 PROD 검증 |
+| 증거 수준 | ACTUAL |
+| 출처 | signup 429 over_email_send_rate_limit(04:3x·04:42·04:50 UTC 재시도) |
+| 사용자 상황 | 다른 사용자 격리(G) · 매칭 A/B 상호 선택 E2E |
+| 사용자 원문 | — |
+| AI 행동 | 시험 계정 b 생성 불가 → 두 계정이 필요한 검사가 NOT_MEASURED |
+| 기대 행동 | 운영 검증 전에 확인된 시험 계정 2개 이상 준비 |
+| 원인 Layer | Test Infra (CONFIRMED) — 운영 Auth 이메일 확인 필수 + 기본 발송 한도 |
+| 사용자 피해 | 해당 없음(시험만) |
+| 재현 여부 | 재현 ○ |
+| 해결 시도(실패한 해결책 포함) | Auth 설정 변경 금지(승인 범위 밖) → 한도 풀림 대기 |
+| 해결 후보 | 릴리스 전 단계에 PROD 시험 계정 2개 준비를 체크리스트로 |
+| 심각도 | HIGH — 완료 판정을 막음 |
+| 현재 상태 | OPEN |
+
+## GF-107 TRANSCRIBE_BYTE_DRIFT — MCP 로 서버 함수 원문을 옮겨 적을 때 읽기 경계의 빈 줄 1개가 빠짐
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-DEPLOY — 원본 불일치 |
+| 발생 날짜 | 2026-09-29 PROD doit-agent v11 배포 |
+| 증거 수준 | ACTUAL |
+| 출처 | get_edge_function 대조: index.ts·failure-intelligence.ts 동일 · agent.ts 107456 B vs 3f0c591 107457 B(389행 빈 줄 1개) |
+| 사용자 상황 | 운영 배포 |
+| 사용자 원문 | — |
+| AI 행동 | Read 도구 한 쪽 끝(389행)에서 빈 줄을 놓침 |
+| 기대 행동 | 배포 파일 = 3f0c591 바이트 동일 |
+| 원인 Layer | Deploy Method (CONFIRMED) — 전송 수단이 파일 복사가 아니라 옮겨 적기 |
+| 사용자 피해 | 동작 차이 0(빈 줄 1개 · 나머지 바이트 전부 동일 확인) |
+| 재현 여부 | 재현 △ |
+| 해결 시도(실패한 해결책 포함) | 재전송은 같은 긴 전송이 끊길 위험이 있어 보류 · 차이를 정확히 기록 |
+| 해결 후보 | PROD 함수 배포 토큰으로 CLI 배포(파일 그대로) · 배포 뒤 바이트 대조는 항상 |
+| 심각도 | LOW |
+| 현재 상태 | RECORDED |
+
+## GF-108 VAGUE_REJECT_EARLY_FINISH — 「그런 뜻 아니야」 뒤 AI 가 이미 한 질문을 다시 내고 서버가 버려 대화가 일찍 끝남
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-CONVERSATION — 흐름 |
+| 발생 날짜 | 2026-09-29 04:49 UTC PROD UI E2E(chrome galaxy) |
+| 증거 수준 | ACTUAL |
+| 출처 | agent_turn 기록: kind=repair · decision=finish · retry=[asked_before](질문 4개에서 끝) |
+| 사용자 상황 | 모호한 거절 직후 |
+| 사용자 원문 | 그런 뜻 아니야 |
+| AI 행동 | 다음 질문이 이미 한 질문과 같아 서버가 버림 → 질문 없음 → 마침 |
+| 기대 행동 | 같은 칸을 다른 말로 묻거나 한 줄 확인(dispute_check) |
+| 원인 Layer | AI Output + Server Rule (PLAUSIBLE) |
+| 사용자 피해 | 대화가 짧게 끝남(원문 보존·거절 뜻 재등장 0 은 지켜짐) |
+| 재현 여부 | 3회 중 1회(다른 2회는 dispute_check 정상) |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | asked_before 로 버린 턴은 한 번 더 다른 질문을 청하거나 dispute_check 로 |
+| 심각도 | MEDIUM |
+| 현재 상태 | OPEN · 이번 릴리스 범위 밖(코드 변경 0) |
+
+## GF-109 LABEL_AS_FACT — AI 가 칸 이름(「연락 · 만남의 속도와 마음을 표현하는 방식」)을 사용자 정보 note 로 저장
+
+| 칸 | 내용 |
+|---|---|
+| Family | F-HALLUCINATION — 정보 상태 |
+| 발생 날짜 | 2026-09-29 04:25 UTC PROD 실서버 검증(romantic 세션) |
+| 증거 수준 | ACTUAL |
+| 출처 | profile.relationship_style.items[0] note=칸 설명 문장 · source_type=AI_EXTRACTED · confirmed_preferences 에 포함 |
+| 사용자 상황 | 연애 목적 대화 |
+| 사용자 원문 | 조용한 곳에서 오래 이야기하는 게 좋아요 |
+| AI 행동 | 사용자가 말하지 않은 문장이 「ECHO가 이해한 나」·요약 재료에 들어감 |
+| 기대 행동 | note 는 사용자 말의 뜻만 · 칸 설명 문장 0 |
+| 원인 Layer | AI Output (CONFIRMED) — 서버 검사에 note==칸 설명 비교 없음 |
+| 사용자 피해 | 매칭 재료에는 안 들어감(AI_EXTRACTED 제외 · H 검사 PASS) |
+| 재현 여부 | 1회 관찰 |
+| 해결 시도(실패한 해결책 포함) | 없음 |
+| 해결 후보 | applyTurn 에서 note 가 goal dims/label 과 같으면 버림(서버 규칙 · 승인 필요) |
+| 심각도 | MEDIUM |
+| 현재 상태 | OPEN · 이번 릴리스 범위 밖(코드 변경 0) |
