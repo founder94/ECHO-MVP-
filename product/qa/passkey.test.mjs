@@ -95,7 +95,7 @@ test('보안: 얼굴 로그인 코드는 로그·브라우저 저장소에 아�
   // 로그인 화면: 지원될 때만 버튼, 기존 로그인 버튼 그대로.
   assert.match(login, /\{PASSKEY_LOGIN_ENABLED && faceSupport === 'ok' && \(/, '대표 2026-09-25: 서버가 켜지기 전까지 얼굴·지문 로그인 버튼은 숨긴다');
   assert.match(read('src/lib/auth/passkey.ts'), /export const PASSKEY_LOGIN_ENABLED = false;/);
-  assert.match(login, /Google로 계속하기/);
+  assert.match(login, /Google로 시작하기/); // 2026-09-30 대표 지시 문구
   assert.match(login, /type="submit"/);
   assert.match(login, /navigate\(from, \{ replace: true \}\);\n      return;/, '얼굴 로그인 성공 뒤 이메일 로그인과 같은 곳으로');
   // 설정: 로그인한 사람만, 지우기는 한 번 더 묻는다.

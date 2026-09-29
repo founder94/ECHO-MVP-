@@ -29,9 +29,12 @@ export default function ThemeColorSync() {
       let safety = 0;
       let started = false;
       let cancelled = false;
-      const startVisibleHold = () => {
-        if (started || cancelled) return;
+      // 2026-09-30 대표 「이미지가 실제로 그려진 때부터 최소 1초」: 느린 망에서 안전 타이머가 먼저 돌았는데 그림이 뒤늦게 오면,
+      // 그림이 온 때부터 다시 센다(그림이 0.1초만 보이고 사라지지 않게). 그림이 끝내 안 오면 네이비 바탕 그대로 넘어간다(초록 0).
+      const startVisibleHold = (restart = false) => {
+        if (cancelled || (started && !restart)) return;
         started = true;
+        window.clearTimeout(hold);
         hold = window.setTimeout(() => {
           if (cancelled) return;
           root.classList.add(APP_LAUNCH_OUT_CLASS);
@@ -41,23 +44,24 @@ export default function ThemeColorSync() {
       const artwork = new Image();
       artwork.src = APP_LAUNCH_IMAGE;
       const ready = () => {
-        if (typeof artwork.decode === 'function') void artwork.decode().catch(() => undefined).finally(startVisibleHold);
-        else startVisibleHold();
+        const shown = () => startVisibleHold(started && root.classList.contains(APP_LAUNCH_CLASS) && !root.classList.contains(APP_LAUNCH_OUT_CLASS));
+        if (typeof artwork.decode === 'function') void artwork.decode().catch(() => undefined).finally(shown);
+        else shown();
       };
       if (artwork.complete) ready();
       else {
         artwork.addEventListener('load', ready, { once: true });
-        artwork.addEventListener('error', startVisibleHold, { once: true });
+        artwork.addEventListener('error', () => startVisibleHold(), { once: true });
       }
       // 네트워크 이상으로 load 이벤트가 안 와도 화면이 영구 고정되지는 않는다.
-      safety = window.setTimeout(startVisibleHold, 1800);
+      safety = window.setTimeout(() => startVisibleHold(), 1800);
       return () => {
         cancelled = true;
         window.clearTimeout(hold);
         window.clearTimeout(fadeDone);
         window.clearTimeout(safety);
         artwork.removeEventListener('load', ready);
-        artwork.removeEventListener('error', startVisibleHold);
+
         clear();
       };
     }

@@ -18,6 +18,6 @@ test('인트로: next=app(또는 app 빌드)이면 제품 입구(/doit/start-jou
 });
 test('Google 버튼: 기본 켜짐(운영 그대로) · VITE_AUTH_GOOGLE_ENABLED=false 일 때만 로그인·가입에서 숨김 · 관리자 로그인 변경 0', () => {
   assert.match(read('src/lib/authProviders.ts'), /import\.meta\.env\.VITE_AUTH_GOOGLE_ENABLED !== 'false'/);
-  for (const p of ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx']) { const s = read(p); assert.match(s, /\{GOOGLE_LOGIN_ENABLED && \(/, p); assert.match(s, /Google로 계속하기/, p); }
+  for (const p of ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx']) { const s = read(p); assert.match(s, /\{GOOGLE_LOGIN_ENABLED && \(/, p); assert.match(s, /Google로 시작하기/, p); assert.match(s, /<GoogleGIcon \/>/, p); }
   assert.doesNotMatch(read('src/pages/admin/login/page.tsx'), /GOOGLE_LOGIN_ENABLED/);
 });

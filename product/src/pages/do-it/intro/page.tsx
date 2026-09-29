@@ -5,6 +5,7 @@ import IntroUniverse, { type SymbolStatus } from '@/components/IntroUniverse';
 import { MAIN_ENTRY_PATH, PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
 import { markIntroSeen } from '@/pages/do-it/intro/introSeen';
 import { IS_APP_SITE } from '@/lib/siteRole';
+import { APP_LAUNCH_CLASS } from '@/lib/themeColor';
 
 // 다음 화면(/do-it/landing)의 첫 배경을 미리 읽는다. 이미지 로드가 늦어도 온보딩 진행은 막지 않는다.
 const LANDING_IMAGE =
@@ -63,6 +64,18 @@ export default function DoItIntroPage() {
   const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
   // 3D 연출이 심볼을 맡았는지. false 인 동안에는 원본 심볼 <img> 가 그대로 보인다.
   const [symbolReady, setSymbolReady] = useState(false);
+  // 2026-09-30 대표 「네이비 E 이미지 → 기존 온보딩」: 시작 그림(ThemeColorSync)이 덮고 있는 동안에는 온보딩 시간을 세지 않는다.
+  // (그림 아래에서 온보딩이 먼저 흘러 느린 망에서는 통째로 가려진 채 다음 화면으로 넘어갔다.) 그림이 걷히면 온보딩이 처음부터 그대로 돈다.
+  const [launchDone, setLaunchDone] = useState(() => typeof document === 'undefined' || !document.documentElement.classList.contains(APP_LAUNCH_CLASS));
+  useEffect(() => {
+    if (launchDone) return;
+    const root = document.documentElement;
+    const check = () => { if (!root.classList.contains(APP_LAUNCH_CLASS)) setLaunchDone(true); };
+    const observer = new MutationObserver(check);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    check();
+    return () => observer.disconnect();
+  }, [launchDone]);
 
   const rafRef = useRef(0);
   const navigatedRef = useRef(false);
@@ -141,7 +154,7 @@ export default function DoItIntroPage() {
 
   // 진행률 엔진. engineStartedRef 같은 "한 번만" 잠금을 두지 않아, 다시 진입·개발 모드 재설정에서도 새 실행이 시작된다.
   useEffect(() => {
-    if (reducedMotion === null) return;
+    if (reducedMotion === null || !launchDone) return;
     const reduced = reducedMotion;
 
     // 실행당 상태 초기화 (재진입·StrictMode 재실행에서 새 실행이 실제로 시작되도록)
@@ -201,7 +214,7 @@ export default function DoItIntroPage() {
       document.removeEventListener('visibilitychange', onVisibility);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [reducedMotion, navigate, checkMode, toProduct]);
+  }, [reducedMotion, launchDone, navigate, checkMode, toProduct]);
 
   // 3D 연출(별 워프·점으로 모이는 심볼·기울기·빛 번짐)은 동작 줄이기 설정이 아닐 때만 그린다.
   const frame = <DoItIntroFrame progress={progress} leaving={leaving} reducedMotion={Boolean(reducedMotion)} symbolReady={symbolReady} scene={reducedMotion === false ? <IntroUniverse progress={progress} leaving={leaving} onSymbolReady={handleSymbolReady} onSymbolStatus={setSymbolStatus} /> : null} />;

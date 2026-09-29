@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import GoogleGIcon from '@/components/GoogleGIcon';
 import { GOOGLE_LOGIN_ENABLED } from '@/lib/authProviders';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -252,8 +253,8 @@ export default function Signup() {
                     </>
                   ) : (
                     <>
-                      <i className="ri-google-fill" />
-                      Google로 계속하기
+                      <GoogleGIcon />
+                      Google로 시작하기
                     </>
                   )}
                 </button>
