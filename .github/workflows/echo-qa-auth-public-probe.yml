@@ -12,15 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - name: QA Google provider public check
         run: |
           node <<'NODE'
+          const { readFileSync } = await import('node:fs');
+          const workflow = readFileSync('.github/workflows/echo-netlify-deploy.yml', 'utf8');
+          const key = workflow.match(/^  QA_SUPABASE_ANON: (.+)$/m)?.[1];
+          if (!key) throw new Error('QA public key missing');
           const base = 'https://mutniujeiyujhkobadkd.supabase.co';
-          const settings = await fetch(base + '/auth/v1/settings');
+          const settings = await fetch(base + '/auth/v1/settings', { headers: { apikey: key } });
           const body = await settings.json().catch(() => ({}));
           console.log('QA Auth settings status=' + settings.status + ' Google=' + String(body.external?.google));
           const target = 'https://echo-app-qa.netlify.app/auth/callback';
-          const response = await fetch(base + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(target), { redirect: 'manual' });
+          const response = await fetch(base + '/auth/v1/authorize?provider=google&redirect_to=' + encodeURIComponent(target), { redirect: 'manual', headers: { apikey: key } });
           const loc = response.headers.get('location') || '';
           let host = ''; try { host = new URL(loc).hostname; } catch {}
           console.log('QA Google authorize status=' + response.status + ' location_host=' + host);
