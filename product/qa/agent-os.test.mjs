@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.4.4'); // 일반 「아니요 + 새 답」이 잘못된 정정으로 이전 사실을 지우지 않게 보호
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.4.5'); // 일반 「아니요 + 새 답」이 잘못된 정정으로 이전 사실을 지우지 않게 보호
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
@@ -100,14 +100,16 @@ test('소개·마무리 AI 입력에 거절 뜻(rejected)이 함께 간다 — �
   assert.match(src, /introPrompt\(st\.tone\), \{ session_goal: \{ name: goalOf\(st\)\.name \}, heard: heardQuoted\(st\), corrections: st\.corrections\.slice\(-3\), rejected: rejectedForAi\(st\) \}/);
 });
 
-// v2.4(2026-09-28 대표 「고정 5문항 폐기」): 5 는 최대치일 뿐 — 충분히 알면(질문 3개 이상 + 원하는 만남 + 칸 넷) 더 묻지 않고 마친다.
-test('방향 잠금: 충분하면 5개 전에 마침 · 핵심 질문 5 뒤 여섯 번째 정보 질문 0', () => {
+// 다섯 질문은 최대치. AI 정리만으로는 연결 재료가 채워진 것으로 취급하지 않는다.
+test('방향 잠금: AI 정리만 있으면 일찍 끝내지 않고 · 핵심 질문 5 뒤 여섯 번째 정보 질문 0', () => {
   const early = started();
   const pids = ['attraction_comfort', 'values_character', 'relationship_style', 'boundaries'];
   A.applyTurn(early, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: pids[0], question: 'Q1?' } }));
   let last;
   for (let k = 0; k < 3; k++) last = A.applyTurn(early, `답${k}이에요`, out('answer', { extracted: [X(pids[k], `답${k}`, `답${k}`)], next: { type: 'core', purpose: pids[k + 1], question: `Q${k + 2}?` } }));
-  assert.equal(last.finish, true); assert.equal(A.coreAsked(early).length, 4); assert.equal(early.turns.at(-1).decision, 'finish_enough');
+  assert.equal(last.finish, false, 'AI 정리 네 칸만으로 연결 준비라고 판단하지 않는다');
+  assert.equal(A.coreAsked(early).length, 5);
+  assert.equal(A.applyTurn(early, '마지막 답이에요', out('answer', { extracted: [X('boundaries', '마지막 답', '마지막 답')] })).finish, true);
   // 답이 모이지 않으면(모르겠다) 최대 5개까지만 묻는다.
   const st = started();
   A.applyTurn(st, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: pids[0], question: 'Q1?' } }));
@@ -115,6 +117,19 @@ test('방향 잠금: 충분하면 5개 전에 마침 · 핵심 질문 5 뒤 여�
   assert.equal(A.coreAsked(st).length, 5);
   const r = A.applyTurn(st, '더 있어요', out('answer', { next: { type: 'core', purpose: 'relationship_intent', question: '하나 더?' } }));
   assert.equal(r.question, null); assert.equal(r.finish, true);
+});
+
+test('사용자가 직접 말한 세 영역과 충분한 정보가 있으면 다섯 질문 전에 마친다', () => {
+  const st = started();
+  const pids = ['attraction_comfort', 'values_character', 'relationship_style'];
+  const questions = ['사람을 볼 때 무엇이 중요해요?', '얼마나 자주 연락하고 싶어요?', '싫은 태도는 무엇인가요?'];
+  const answers = ['농담이 잘 통하는 사람이 편해요', '약속을 지키는 사람이 좋아요', '연락은 주말에 한 번이면 좋아요'];
+  A.applyTurn(st, '친구를 천천히 알아가고 싶어요', out('answer', { next: { type: 'core', purpose: pids[0], question: '누구와 편해요?' } }));
+  let last;
+  for (let k = 0; k < 3; k++) last = A.applyTurn(st, answers[k], out('answer', { next: { type: 'core', purpose: pids[k + 1] ?? 'boundaries', question: questions[k] } }));
+  assert.equal(last.finish, true);
+  assert.equal(st.turns.at(-1).decision, 'finish_enough');
+  assert.equal(A.coreAsked(st).length, 4);
 });
 
 test('정보 계보: 값마다 출처 종류·출처 턴·사용자 원문·확인 시각 (AI 정리 ≠ 사용자 직접)', () => {
