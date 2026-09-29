@@ -35,6 +35,10 @@ test('v2.5.4 정보 종류를 묻는 질문은 사람 말이 아니다(사용자
   assert.ok(A.genericPersonQuestion('어떤 성격의 친구가 좋을까요?'), 'QA 장면 C v60');
   assert.ok(!A.genericPersonQuestion('어떤 장난감이 좋나요?'));
   assert.ok(!A.genericPersonQuestion('친구랑은 주로 뭐 하면서 놀아요?'));
+  // 2026-09-30 대표 마감 지시 §3 좋은 질문 후보 · 나쁜 질문
+  const MONEY = '돈관계 안 하고 천천히 대화하면서 스며들고 싶어';
+  for (const q of ['처음엔 어떤 얘기부터 하면 편할 것 같아요?', '그럼 처음 만날 땐 어디가 제일 편할 것 같아요?']) assert.ok(!A.infoKindQuestion(q, MONEY) && !A.surveyQuestion(MONEY, q) && !A.genericPersonQuestion(q), q);
+  for (const q of ['친구를 만나는 빈도는 어떻게 되면 좋을까요?', '어떤 활동을 하고 싶으세요?', '어떤 유형의 사람이 좋으세요?', '친구 사이에서 중요하게 생각하는 점은 무엇인가요?', '어떤 관계 방식을 선호하시나요?']) assert.ok(A.surveyQuestion(MONEY, q) || A.stiffQuestion(q, MONEY) || A.genericPersonQuestion(q), q);
 });
 
 test('v2.5.4 세 번 청해도 설문형이면 그대로 내보내지 않고 질문 한 문장만 다시 청한다', async () => {

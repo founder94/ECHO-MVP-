@@ -86,19 +86,20 @@ export const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어�
 const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나"]);
 export function anchorWords(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).filter((w) => /^[가-힣A-Za-z]{2,}/.test(w)).map((w) => w.slice(0, 2)).filter((w) => !ANCHOR_STOP.has(w)))]; }
 export function anchorTokens(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).map((w) => w.replace(/[^가-힣A-Za-z]/g, "")).filter((w) => w.length >= 2 && !ANCHOR_STOP.has(w.slice(0, 2))))].sort((a, b) => b.length - a.length); }
-const SURVEY_QUESTION_WORDS = ["활동", "빈도", "방식", "선호", "편안함", "가치관", "성향", "중요성", "기분"]; // v2.5.5 「놀 때 어떤 기분이 드나요?」(QA 장면 B) = 상담 말투
+const SURVEY_QUESTION_WORDS = ["활동", "빈도", "방식", "선호", "편안함", "가치", "성향", "중요성", "중요하게", "유형", "기분"]; // v2.5.5 「놀 때 어떤 기분이 드나요?」(QA 장면 B) = 상담 말투 · 2026-09-30 대표 마감 지시 §3 「유형·가치·중요하게 생각」
 export function surveyQuestion(latest: string, question: string): boolean { return SURVEY_QUESTION_WORDS.some((w) => question.includes(w) && !latest.includes(w)); }
 const STIFF_QUESTION = /(함께하고\s*싶으세요|어떤\s*주제로|어떤\s*이야기를\s*나누고\s*싶으세요|어떤\s*대화를\s*하고\s*싶으세요|어떤\s*모습|어떤\s*점이\s*중요|어떤\s*부분)/;
 // v2.5.4 정보 종류를 묻는 틀(「어떤 주제로·어떤 얘기를·어떤 대화를·어떤 걸 같이·어떤 활동·어떤 방식으로·얼마나 자주」). 사용자가 방금 그 말(주제·활동·방식·자주)을 직접 썼으면 문맥상 허용한다.
-const INFO_KIND_Q: { re: RegExp; own?: RegExp }[] = [
+// 2026-09-30 대표 마감 지시 §3: 「처음엔 어떤 얘기부터 하면 편할 것 같아요?」처럼 장면(처음·첫 만남·~부터)에 붙은 얘기 질문은 좋은 질문이다(scene).
+const INFO_KIND_Q: { re: RegExp; own?: RegExp; scene?: RegExp }[] = [
   { re: /어떤\s*주제/, own: /주제/ },
-  { re: /어떤\s*(얘기|이야기|대화)(를|로|가|는)?/ },
+  { re: /어떤\s*(얘기|이야기|대화)(를|로|가|는)?/, scene: /(처음|첫\s*만남|만날\s*때|만나면|부터)/ },
   { re: /어떤\s*걸\s*같이/ },
   { re: /어떤\s*활동/, own: /활동/ },
   { re: /어떤\s*방식/, own: /방식/ },
   { re: /얼마나\s*자주/, own: /자주/ },
 ];
-export function infoKindQuestion(question: string, latest = ""): boolean { return INFO_KIND_Q.some((k) => k.re.test(question) && !(k.own && k.own.test(latest))); }
+export function infoKindQuestion(question: string, latest = ""): boolean { return INFO_KIND_Q.some((k) => k.re.test(question) && !(k.own && k.own.test(latest)) && !(k.scene && k.scene.test(question))); }
 export function stiffQuestion(question: string, latest = ""): boolean { return question.length > 34 || STIFF_QUESTION.test(question) || infoKindQuestion(question, latest); }
 // v2.5.1: 말은 부드러운데 여전히 설문처럼 들리는 대표 실기기 문장 차단.
 // 「어떤 친구/사람과 … 좋을까요?」처럼 사람 유형을 다시 정의하게 하는 질문보다, 방금 말의 구체 장면을 이어 묻는다.
