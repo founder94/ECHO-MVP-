@@ -183,3 +183,21 @@ test('09-30 v67: mid-sentence person pick and pasted 모르겠어요 are questio
   assert.equal(A.questionFlaw(start(), '잘 모르겠어요', '모르겠어요면 처음 연락은 문자로 해요?', false), 'unsure_paste');
   assert.equal(A.questionFlaw(start(), '편하게 얘기할 친구를 찾고 있어요', '친구와 처음 연락할 때 문자로 시작하면 좋나요?', false), '');
 });
+
+// 2026-09-30 마감 지시 §4 주관식 본체 + 객관식 구조대: 모르겠다 뒤에만 답 보기(형식 검사 · 서버가 「잘 모르겠어요」를 붙임), 보통 답 뒤에는 0.
+test('09-30 §4: choices only after unsure/skip, format-checked, server appends 잘 모르겠어요', async () => {
+  assert.deepEqual(A.cleanChoices(['카페에서 수다', '같이 산책', '취미 같이 하기', '넷째']), ['카페에서 수다', '같이 산책', '취미 같이 하기']);
+  assert.deepEqual(A.cleanChoices(['어디가 좋아요?', '아주아주아주아주아주 긴 보기 문장', '잘 모르겠어요']), [], '물음표·12자 초과·모르겠 보기는 버리고, 2개 미만이면 보기 없음');
+  const st = start();
+  const first = await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: { ...N('relationship_style', '친구랑 카페에서 만나면 편해요?'), choices: ['카페', '공원'] } }))
+    : JSON.stringify({ reply: '좋죠.' }));
+  assert.equal(A.choicesFor(st), null, '보통 답 뒤에는 AI 가 보기를 내도 보이지 않는다');
+  assert.ok(first.response.question);
+  await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn'
+    ? JSON.stringify(T({ kind: 'unsure', reply: '', next: { ...N('contact_rhythm', '처음엔 문자로 시작하면 편해요?'), choices: ['문자로 천천히', '바로 통화', '만나서 얘기'] } }))
+    : JSON.stringify({ reply: '' }));
+  assert.deepEqual(A.choicesFor(st), ['문자로 천천히', '바로 통화', '만나서 얘기', '잘 모르겠어요']);
+  const src = readFileSync(here('../src/doit/components/feature/AgentConversation.tsx'), 'utf8');
+  assert.match(src, /session\.current_choices\.map\(choice => <button[^>]*onClick=\{\(\) => send\(choice\)\}/, '누르면 그 글자를 보통 답으로 보낸다(화면이 판단하지 않음)');
+});

@@ -125,7 +125,8 @@ export function sessionView(id: string, stored: Stored) {
     id, agent: stored.agent, tone: st.tone, mode: st.mode, phase: done ? "done" : "talk",
     goal: A.isGoal(st.goal) ? st.goal : null, goal_label: st.goal_label ?? null, // v2.4 이 세션의 관계 목적(기기마다 다른 목적이면 다른 세션)
     progress: { asked: A.coreAsked(st).length, of: A.MAX_CORE_QUESTIONS },
-    current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, messages,
+    // 2026-09-30 마감 지시 §4: current_choices = 모르겠다·넘기기 뒤에만 보이는 짧은 답 보기(없으면 null · 누르면 그 글자가 보통 답으로 간다)
+    current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, current_choices: done ? null : A.choicesFor(st), messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
     profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
     // v1.6 소개 초안: 문장과 상태만(근거 인용·버린 이유는 관리자 화면에서만).
