@@ -726,7 +726,7 @@ test('v2.4.1 정리·소개에 AI 질문(「~는지 궁금해요」)이 사실�
 });
 
 
-test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어져 4/5에서 종료되지 않음', async () => {
+test('v2.5: 이미 충분히 들은 상태면 중복 후보를 더 생성하지 않고 먼저 마친다', async () => {
   const s = newState(); const h = load(s);
   const st = h.agent.newState({ goal: 'friend' });
 
@@ -764,9 +764,7 @@ test('GF-118: 중복 질문 후보 2회 뒤 세 번째 새 질문으로 이어�
   };
 
   const r = await h.agent.runTurn(st, '저는 주말에 쉬는 편이에요', llm);
-  assert.equal(calls, 3, '중복 후보 2개를 서버가 거절한 뒤 세 번째 후보를 사용');
-  assert.equal(r.response.finish, false, '4/5 준비 미완료인데 대화를 잘못 끝내지 않음');
-  assert.equal(r.response.question, '주말에 만나면 몇 시간 정도 같이 있는 게 편해요?');
-  assert.equal(r.response.question_type, 'fill');
-  assert.ok(r.obs.retry.includes('dup_switch') || r.obs.retry.includes('dup_fallback'), `중복 질문 복구 경로가 남아야 함: ${JSON.stringify(r.obs.retry)}`);
+  assert.ok(calls <= 2, `충분한데 불필요한 추가 질문 생성: ${calls}`);
+  assert.equal(r.response.finish, true, '확정 영역이 충분하면 고정 5답을 채우지 않고 종료');
+  assert.equal(r.response.question, null);
 });
