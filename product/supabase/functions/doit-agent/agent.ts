@@ -75,7 +75,7 @@ const GOAL_MISMATCH = /(연애|친구|동료|일|취미|대화)\s*(질문|얘기
 // 비슷한 질문(두 글자 묶음 겹침) — 같은 뜻을 말만 바꿔 다시 묻는 것을 막는다(서버 규칙 · 모델 판단 0).
 export const SIMILAR_Q = 0.55;
 // 충분히 알았으면 다섯 개를 다 채우지 않고 마친다(고정 5문항 아님): 질문 셋 이상 한 뒤 원하는 만남 + 쓸 만한 칸 셋 이상.
-export const ENOUGH_SLOTS = 4;
+export const ENOUGH_SLOTS = 3;
 // 상담사 말투(받아주기 금지 표현 · 대표 §8·§9). 모델이 쓰면 한 번 다시 청하고, 그래도 쓰면 그 문장만 뺀다.
 export const COUNSEL = /그렇군요|힘드셨겠|들려주실\s*수\s*있을까요|중요하군요/;
 // 그 밖의 「~군요」(실제 AI run gf: 「친구에 대한 이야기군요」)는 뜻을 두고 끝맺음만 가볍게 「~네요」로 바꾼다(받아주기를 비우지 않는다).
@@ -98,9 +98,9 @@ export function tidyReply(reply: string, question: string | null): string {
 export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => !needsMoreAnswers(st) && coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;
 
-// v2.4.5 GF-115 A안: 연결 서버(doit-connect loadMembers)의 연결 자격 = 이번 회차에 남긴 답 기록 5개(LIMITS.CONNECT_ANSWERS_NEEDED).
-// 답 기록은 저장된 턴(turn.saved)마다 하나씩 생긴다(index.ts runAndSave). 이 수에 못 미치면 Agent 가 대화를 「충분」으로 마치지 않는다.
-export const READY_SAVED_ANSWERS = 5;
+// v2.5.0: 고정 5문항 금지. 약 5턴 안에서 충분히 알았으면 3~4턴에도 끝낼 수 있다.
+// 연결 쪽 Agent 자격도 확정 정보 영역 3개를 기준으로 보므로, 대화도 최소 3개의 유효한 사용자 답 이후 충분 여부를 판단한다.
+export const READY_SAVED_ANSWERS = 3;
 export const MAX_FILL_QUESTIONS = 2; // 다섯 칸을 다 물었는데 답이 모자랄 때 더 묻는 상한(끝없이 묻지 않는다)
 const DECLINE_KINDS = new Set(["unsure", "skip", "stop"]);
 const liveTurn = (st: AgentState, n: number) => PIDS.some((id) => st.slots[id].items.some((i) => i.turn === n && i.status === "CONFIRMED"));
