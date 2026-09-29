@@ -25,13 +25,14 @@ test('히어로: 「움직임 줄이기」 버튼 0 · 기기 설정 동작 줄�
 });
 
 // 2026-09-28 「FINAL MASTER」 §12~§15
-test('공통 메뉴: 오른쪽 맨 위 하나(안전 영역 포함) · 브랜드 빌드·온보딩·로그인 복귀·관리자 0 · 화면별 메뉴·설정 아이콘 0', () => {
+test('공통 메뉴: 앱 시작·온보딩부터 오른쪽 맨 위 하나(안전 영역 포함) · 브랜드·OAuth 복귀·관리자·QA만 숨김 · 화면별 중복 메뉴 0', () => {
   const menu = read('src/components/AppCornerMenu.tsx');
   const css = read('src/components/app-corner-menu.css');
   assert.match(read('src/App.tsx'), /<AppCornerMenu \/>/);
   assert.match(menu, /if \(IS_BRAND_SITE \|\| HIDDEN_PATH\.test\(location\.pathname\)\) return null;/);
-  for (const p of ['/', '/do-it/intro', '/do-it/landing', '/auth/callback', '/admin/mobile']) assert.ok(new RegExp(menu.match(/const HIDDEN_PATH = \/(.*)\/;/)[1]).test(p), p);
-  for (const p of ['/doit/start-journey', '/login', '/signup', '/doit/conversation', '/doit/profile', '/doit/settings', '/doit/connections']) assert.ok(!new RegExp(menu.match(/const HIDDEN_PATH = \/(.*)\/;/)[1]).test(p), p);
+  const hidden = new RegExp(menu.match(/const HIDDEN_PATH = \/(.*)\/;/)[1]);
+  for (const p of ['/auth/callback', '/admin/mobile', '/qa/test']) assert.ok(hidden.test(p), p);
+  for (const p of ['/', '/do-it/intro', '/do-it/hero', '/do-it/landing', '/doit/start-journey', '/login', '/signup', '/doit/conversation', '/doit/profile', '/doit/settings', '/doit/connections']) assert.ok(!hidden.test(p), p);
   assert.match(css, /\.echo-corner-button\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 8px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);z-index:70;[^}]*width:44px;height:44px/);
   for (const p of ['src/doit/components/feature/TopBar.tsx', 'src/doit/components/feature/AgentConversation.tsx', 'src/doit/pages/do-it/fortune/page.tsx']) {
     const s = read(p); assert.doesNotMatch(s, /MenuButton|ri-settings-3-line/, p);
