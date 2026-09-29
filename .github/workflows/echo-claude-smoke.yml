@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -394,6 +394,28 @@ jobs:
           echo "local app index sha16=$(sha256sum ../dist/app/index.html | cut -c1-16) files=$(find ../dist/app -type f | wc -l)"
       - name: 실사이트 대조(읽기 전용)
         run: node product/qa-real/prod-app-fingerprint.mjs src/dist/app
+
+  prod_secrets_preflight:
+    # 2026-09-29 대표 「PROD SECRET PREFLIGHT」: ECHO-PROD 비밀값 존재(PRESENT/MISSING)와 권한 작동(HTTP 상태 코드)만. 값·일부 값 출력 0 · 변경 0 · 게시 0.
+    if: inputs.mode == 'prod_secrets_preflight'
+    environment: ECHO-PROD
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 비밀값 존재 · Netlify 인증(GET 1회) · 운영 Auth 설정 읽기(GET 1회) — 상태 코드만
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SUPABASE_PROD_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_PROD_AUTH_READ_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -n "$SUPABASE_PROD_AUTH_READ_TOKEN" ]; then
+            echo "SUPABASE_PROD_AUTH_READ_TOKEN=PRESENT"
+            echo "SUPABASE_AUTH_CONFIG_READ_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN" https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth)"
+          else echo "SUPABASE_PROD_AUTH_READ_TOKEN=MISSING"; fi
+          if [ -n "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "NETLIFY_AUTH_TOKEN=PRESENT"
+            echo "NETLIFY_APP_PROD_SITE_READ_STATUS=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" https://api.netlify.com/api/v1/sites/ff078012-fe79-4108-a210-201554ab0dea)"
+          else echo "NETLIFY_AUTH_TOKEN=MISSING"; fi
 
   prod_domain_probe:
     # 운영 도메인 읽기 전용 실측(DNS · SSL · HTTP · 리다이렉트 · 캐시 헤더) — 배포 0 · 변경 0 · 비밀값 0.
