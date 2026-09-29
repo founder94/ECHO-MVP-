@@ -271,12 +271,12 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      AGENT_SHA: 3cccfc37fbd129d833b595d8feacacf90c15dbb6
+      AGENT_SHA: 913b3a37274e0c67cd5d31638bf8101e0daaa569
       AGENT_VERSION: echo-agent-v2.5.5
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 3cccfc37fbd129d833b595d8feacacf90c15dbb6
+          ref: 913b3a37274e0c67cd5d31638bf8101e0daaa569
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 3파일만)
         env:
