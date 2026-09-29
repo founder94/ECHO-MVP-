@@ -169,4 +169,4 @@ const fail = results.filter((x) => !x).length;
 console.log(`QA CORE LIVE: ${results.length - fail} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
 
-// v2.5.3 live QA trigger
+// v2.5.4 live QA trigger
