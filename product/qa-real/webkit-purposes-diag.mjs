@@ -20,9 +20,21 @@ for (const [dname, opts] of DEV) for (let run = 1; run <= Number(process.env.RUN
   p.on('requestfinished', (r) => { const q = reqs.get(r); if (q) q.finished = ms(); });
   p.on('requestfailed', (r) => { const q = reqs.get(r); if (q) q.failed = { at: ms(), errorText: r.failure()?.errorText ?? '' }; });
   let status = null; try { const res = await p.goto(`${APP}${path}`, { waitUntil: 'domcontentloaded', timeout: 45000 }); status = res?.status() ?? null; } catch (e) { status = `goto:${String(e.message).slice(0, 60)}`; }
-  { const w0 = Date.now(); while (Date.now() - w0 < 20000) { if (crashed != null) break; const path0 = (() => { try { return new URL(p.url()).pathname; } catch { return ''; } })(); const t = await p.locator('body').innerText().catch(() => ''); if (path0 !== '/do-it/intro' && t.length > 20 && Date.now() - w0 > 3000) break; await p.waitForTimeout(250); } }
+  // / -> intro -> start-journey 전환 뒤에는 본문 글자만 먼저 생기고 실제 조작 요소는 조금 늦게 붙을 수 있다.
+  // 본문 20자만으로 조기 종료하면 정상 로딩을 PRODUCT_BUG로 오판하므로, 실제 usable/error/purposes 증거를 기다린다.
+  { const w0 = Date.now(); while (Date.now() - w0 < 20000) {
+      if (crashed != null) break;
+      const path0 = (() => { try { return new URL(p.url()).pathname; } catch { return ''; } })();
+      const t = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
+      const controls = await p.locator('button, a[href], input').count().catch(() => 0);
+      const hasPurpose200 = [...reqs.values()].some((q) => q.status === 200 && typeof q.body === 'number');
+      const visibleErrNow = ERRTEXT.test(t);
+      const routeReady = path0 !== '/do-it/intro' && path0 !== '/';
+      if (routeReady && (visibleErrNow || controls > 0 || hasPurpose200) && Date.now() - w0 > 3000) break;
+      await p.waitForTimeout(250);
+    } }
   const text = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
-  const btns = (await p.locator('button, a[href]').allInnerTexts().catch(() => [])).map((x) => x.trim()).filter(Boolean);
+  const btns = (await p.locator('button, a[href], input').allInnerTexts().catch(() => [])).map((x) => x.trim()).filter(Boolean);
   const visibleError = ERRTEXT.test(text); const usable = text.length > 20 && btns.length > 0;
   const list = [...reqs.values()].map((q) => ({ ...q, navDuring: navs.some((n) => n.at >= q.start && n.at <= (q.failed?.at ?? q.finished ?? ms())) }));
   const ok200 = list.filter((q) => q.status === 200 && typeof q.body === 'number').length;
