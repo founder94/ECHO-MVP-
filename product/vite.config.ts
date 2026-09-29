@@ -37,6 +37,10 @@ export default defineConfig(({ mode }) => {
   }
   // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
   const APP_START_COLOR = "#3fdcb3";
+  // 2026-09-29 대표 「시작 화면 배경 변경」(대표 선택 이미지 실측 · 딥 네이비): 앱 아이콘 → 시작 화면(Android 는 manifest background_color 로 그림) → 온보딩(/do-it/intro) 첫 바탕.
+  // 파스텔 앱 화면(/doit)의 첫 바탕(APP_START_COLOR)은 그대로 둔다. src/lib/themeColor.ts APP_LAUNCH_COLOR 와 같은 값.
+  const APP_LAUNCH_COLOR = "#041433";
+  const APP_LAUNCH_BG = `radial-gradient(ellipse 70% 45% at 50% 46%, #0a2552 0%, ${APP_LAUNCH_COLOR} 62%, #020a1b 100%) ${APP_LAUNCH_COLOR}`;
   const ADMIN_HTML = `<!doctype html>
 <html lang="ko">
   <head>
@@ -82,6 +86,9 @@ export default defineConfig(({ mode }) => {
         // 표시는 ThemeColorSync 가 파스텔 앱 경로(/doit)에서만 남기고, 히어로(/)·관리자에서는 뗀다 — 전역 body 규칙 자체는 바꾸지 않는다.
         swap('<html lang="ko">', '<html lang="ko" class="echo-app-pastel-root">');
         swap("body { background: #08070c; }", `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`);
+        // 시작 화면 → 온보딩 사이 첫 바탕: 설치 앱 시작 주소(/do-it/intro)에서만 네이비(React 가 뜨면 ThemeColorSync 가 표시를 뗀다 · 초록 번쩍임 0).
+        swap(`html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }`, `html.echo-app-pastel-root body { background: ${APP_START_COLOR}; }\n    html.echo-app-launch-root body { background: ${APP_LAUNCH_BG}; }`);
+        swap(`<meta name="theme-color" content="${APP_START_COLOR}" />`, `<meta name="theme-color" content="${APP_START_COLOR}" />\n    <script>(function(){try{if(location.pathname.indexOf("/do-it/intro")===0){var d=document.documentElement;d.classList.remove("echo-app-pastel-root");d.classList.add("echo-app-launch-root");var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content","${APP_LAUNCH_COLOR}")}}catch(e){}})();</script>`);
         swap("<title>DO IT COMPANY | JUST TRY.</title>", `<title>${appName}</title>`);
         swap('<meta name="description" content="사람은 프로필보다, 함께한 행동에서 더 많이 보이니까. DO IT COMPANY · ECHO" />', `<meta name="description" content="${appDesc}" />\n    <link rel="canonical" href="${appOrigin}/" />`);
         swap('<meta property="og:title" content="DO IT COMPANY | JUST TRY." />', `<meta property="og:type" content="website" />\n    <meta property="og:site_name" content="${appName}" />\n    <meta property="og:title" content="${appName}" />`);
