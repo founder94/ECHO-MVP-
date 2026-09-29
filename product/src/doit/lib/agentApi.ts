@@ -25,6 +25,7 @@ export interface AgentSession {
   progress: { asked: number; of: number };
   current_question: string | null;
   current_hint?: string | null; // 질문의 답 범위를 알려 주는 한 줄 예시(서버 v1.4 · 없으면 버튼을 그리지 않는다)
+  current_choices?: string[] | null; // 2026-09-30 모르겠다·넘기기 뒤에만 오는 짧은 답 보기(누르면 그 글자를 답으로 보낸다 · 없으면 그리지 않는다)
   messages: { role: 'ai' | 'user'; text: string }[];
   summary: { purpose: string; text: string }[]; closing: string | null;
   profile: AgentProfile | null; handoff: { status: string } | null;

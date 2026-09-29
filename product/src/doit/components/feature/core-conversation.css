@@ -115,6 +115,9 @@
 .echo-dialogue .echo-profile-item{display:grid;gap:2px;font-size:15px;line-height:1.7}
 .echo-dialogue .echo-profile-item small{font-size:12px;line-height:1.6;opacity:.85}
 .echo-dialogue .echo-profile-item.is-empty{opacity:.8}
+/* 2026-09-30 마감 지시 §4 모르겠다·넘기기 뒤 답 보기(대화 화면 안에서만 · 전역 영향 0 · 색은 아래 파스텔 판에서) */
+.echo-dialogue .echo-choice-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}
+.echo-dialogue .echo-choice{min-height:44px;padding:10px 16px;border-radius:999px;background:#171a20;color:#dbe0e7;border:1px solid #c3ccda38;font-size:13px;font-weight:500;word-break:keep-all}
 /* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
@@ -205,3 +208,5 @@
 .echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected{background:#fff;border-color:#fff;box-shadow:none}
 .echo-dialogue.echo-dialogue--pastel .echo-opening-tile.is-selected :is(.echo-opening-tile-label,.echo-opening-tile-desc){color:#111317;-webkit-text-fill-color:#111317;-webkit-text-stroke:0}
 @media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{transition:none}.echo-dialogue.echo-dialogue--pastel .echo-opening-tile:active{transform:none}}
+/* 2026-09-30 §4 답 보기: 파스텔 위에서는 다른 판처럼 옅은 흰 판 + 흰 글씨 */
+.echo-dialogue.echo-dialogue--pastel .echo-choice{background:rgb(255 255 255/.18);color:var(--conversation-text);border-color:rgb(255 255 255/.7)}
