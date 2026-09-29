@@ -247,3 +247,19 @@ jobs:
             [ "$live" = "$want" ] || { echo "FAIL: $host 실사이트 index 가 이번 빌드와 다름"; exit 1; }
             echo "PASS $host = 이번 빌드(index sha16=$live)"
           done
+
+
+  prod_auth_readback:
+    name: PROD Auth readback (read-only)
+    if: github.event_name == 'push' && github.ref_name == 'echo-qa'
+    runs-on: ubuntu-latest
+    environment: ECHO-PROD
+    timeout-minutes: 5
+    steps:
+      - name: Read PROD Auth URL config only
+        env:
+          SUPABASE_PROD_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_PROD_AUTH_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$SUPABASE_PROD_AUTH_READ_TOKEN" ] || { echo "HOLD: missing token"; exit 1; }
+          curl -sS -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN"             https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth             | python -c 'import sys,json; d=json.load(sys.stdin); print("site_url="+str(d.get("site_url"))); print("uri_allow_list="+",".join(d.get("uri_allow_list") or []))'
