@@ -1,61 +1,63 @@
-// PROD 2계정 매칭 E2E(2026-09-29 대표 「PROD RELEASE CLOSING ORDER」 §4) — 시험 계정 a·b 만 · 목적 friend(실사용자 0 확인 뒤) · 비밀값 출력 0.
-// 앱과 같은 경로: 새 회차(user_metadata) · 목적·소개(profiles) · 사진 3장(Storage profile-photos + profile_photos) · 연결 동의(user_metadata) · 대화(doit-agent)
+// QA 전용 2계정 매칭 E2E. 이미 정상 준비된 시험 계정과 기존 사진만 사용한다.
+// 이 검사는 계정·프로필·사진·스토리지·운영 데이터를 생성하거나 고치지 않는다.
 // → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → outcome.
-import { randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-const SB = process.env.SB_URL ?? 'https://zyyhhxyupizcqhxqnxuu.supabase.co', KEY = process.env.SB_KEY ?? 'sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn';
-const PURPOSE = { id: process.env.PURPOSE_ID ?? 'friend', label: process.env.PURPOSE_LABEL ?? '친구를 만나고 싶어요', goal: process.env.GOAL ?? 'friend' };
-const ACCTS = process.env.SIGNUP ? {} : JSON.parse(readFileSync(process.env.ACCT_FILE, 'utf8'));
-const JPEG = readFileSync(process.env.JPEG_FILE);
+import { createHash, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+const QA_URL = 'https://mutniujeiyujhkobadkd.supabase.co';
+if (process.env.SB_URL !== QA_URL || !process.env.SB_KEY || !process.env.ACCT_FILE || process.env.SIGNUP || process.env.JPEG_FILE) {
+  throw new Error('QA only: explicit QA URL/key and existing test accounts required; account/photo creation disabled');
+}
+const SB = QA_URL, KEY = process.env.SB_KEY;
+const ACCTS = JSON.parse(readFileSync(process.env.ACCT_FILE, 'utf8'));
+if (!['a', 'b'].every((tag) => typeof ACCTS[tag]?.email === 'string' && /(?:^|[._+-])(?:test|qa|e2e)(?:[._+-]|[0-9]|@)/i.test(ACCTS[tag].email) && typeof ACCTS[tag]?.password === 'string') || ACCTS.a.email === ACCTS.b.email) {
+  throw new Error('two distinct existing test-only accounts required');
+}
 const results = []; const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); return !!ok; };
-const http = async (path, { method = 'GET', jwt = null, body = null, headers = {}, raw = null } = {}) => {
-  const r = await fetch(`${SB}${path}`, { method, headers: { apikey: KEY, Authorization: `Bearer ${jwt ?? KEY}`, ...(raw ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: raw ?? (body ? JSON.stringify(body) : undefined) });
+const http = async (path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) => {
+  const r = await fetch(`${SB}${path}`, { method, headers: { apikey: KEY, Authorization: `Bearer ${jwt ?? KEY}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let data = null; try { data = t ? JSON.parse(t) : null; } catch { data = t.slice(0, 200); }
   return { status: r.status, data };
 };
 const fn = (name, jwt, body) => http(`/functions/v1/${name}`, { method: 'POST', jwt, body });
-const STOP = (why) => { console.log(`STOP ${why}`); const f = results.filter((x) => !x).length; console.log(`PROD MATCH E2E: ${results.length - f} PASS / ${f} FAIL (STOPPED)`); process.exit(1); };
-const ANSWERS = ['주말에 카페에서 이야기 나눌 친구를 찾고 있어요', '대화가 잘 통하고 편한 사람이 좋아요', '약속을 잘 지키는 사람이 중요해요', '연락은 이틀에 한 번 정도가 편해요', '갑자기 약속을 취소하는 건 피하고 싶어요', '산책이나 전시 보는 걸 좋아해요', '천천히 알아가는 게 좋아요', '오늘은 여기까지 할게요'];
+const STOP = (why) => { console.log(`STOP ${why}`); const f = results.filter((x) => !x).length; console.log(`QA MATCH E2E: ${results.length - f} PASS / ${f} FAIL (STOPPED)`); process.exit(1); };
 
 async function prepare(tag) {
-  if (process.env.SIGNUP) { ACCTS[tag] = { email: `qa-v245-${Date.now()}-${tag}@do-it.company`, password: `Qa!${randomUUID()}` }; await http('/auth/v1/signup', { method: 'POST', body: ACCTS[tag] }); }
   const a = ACCTS[tag];
   const tok = await http('/auth/v1/token?grant_type=password', { method: 'POST', body: { email: a.email, password: a.password } });
-  let jwt = tok.data?.access_token; const uid = tok.data?.user?.id; const refresh = tok.data?.refresh_token;
+  const jwt = tok.data?.access_token; const uid = tok.data?.user?.id;
   if (!check(`${tag}: 로그인`, !!jwt, `status=${tok.status}`)) STOP('login');
-  // 새 회차 + 연결 동의(앱과 같은 user_metadata)
-  const now = new Date().toISOString();
-  const md = await http('/auth/v1/user', { method: 'PUT', jwt, body: { data: { doit_round_started_at: now, doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: now } } });
-  check(`${tag}: 새 회차 · 연결 동의 저장`, md.status === 200, `status=${md.status}`);
-  const t2 = await http('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: refresh } }); jwt = t2.data?.access_token ?? jwt;
-  const pr = await http(`/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', jwt, body: { purpose_id: PURPOSE.id, purpose_label: PURPOSE.label, consent_version: 'v1.0', bio: `QA 시험 계정 ${tag} — 주말에 편하게 이야기 나눌 친구를 찾아요.` }, headers: { Prefer: 'return=minimal' } });
-  check(`${tag}: 목적(${PURPOSE.id})·소개 저장`, pr.status === 204, `status=${pr.status}`);
+  const profile = await http(`/rest/v1/profiles?id=eq.${uid}&select=purpose_id,bio`, { jwt });
+  if (!check(`${tag}: 기존 목적·소개`, profile.status === 200 && !!profile.data?.[0]?.purpose_id && !!profile.data?.[0]?.bio)) STOP('profile');
+  const photos = await http(`/rest/v1/profile_photos?user_id=eq.${uid}&select=slot,storage_path`, { jwt });
+  if (!check(`${tag}: 기존 사진 3칸`, photos.status === 200 && [1, 2, 3].every((slot) => photos.data?.some((p) => p.slot === slot && p.storage_path)))) STOP('photo rows');
+  const hashes = new Set();
   for (const slot of [1, 2, 3]) {
-    const path = `${uid}/${slot}/${randomUUID()}.jpg`;
-    const up = await http(`/storage/v1/object/profile-photos/${path}`, { method: 'POST', jwt, raw: JPEG, headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'false' } });
-    const row = await http('/rest/v1/profile_photos?on_conflict=user_id,slot', { method: 'POST', jwt, body: { user_id: uid, slot, storage_path: path, is_primary: slot === 1, updated_at: new Date().toISOString() }, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } });
-    if (!check(`${tag}: 사진 ${slot} 업로드·연결(앱 경로)`, up.status === 200 && [201, 204].includes(row.status), `storage=${up.status} row=${row.status}`)) STOP('photo');
+    const path = photos.data.find((p) => p.slot === slot).storage_path;
+    const res = await fetch(`${SB}/storage/v1/object/profile-photos/${path.split('/').map(encodeURIComponent).join('/')}`, { headers: { apikey: KEY, Authorization: `Bearer ${jwt}` } });
+    const bytes = res.ok ? Buffer.from(await res.arrayBuffer()) : Buffer.alloc(0);
+    if (!check(`${tag}: 기존 사진 ${slot} 실제 객체`, res.ok && res.headers.get('content-type')?.startsWith('image/') && bytes.length > 0, `status=${res.status}`)) STOP('storage');
+    hashes.add(createHash('sha256').update(bytes).digest('hex'));
   }
-  const st = await fn('doit-agent', jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: PURPOSE.goal, goalLabel: PURPOSE.label, firstAnswer: PURPOSE.label });
-  let s = st.data?.session; let n = 0;
-  check(`${tag}: 새 회차 대화 시작(${PURPOSE.goal})`, st.status === 200 && !!s?.id && !st.data?.existing, `status=${st.status} existing=${st.data?.existing}`);
-  for (const t of ANSWERS) { if (!s || s.phase === 'done') break; const r = await fn('doit-agent', jwt, { action: 'agent_turn', requestId: randomUUID(), sessionId: s.id, text: t }); s = r.data?.session ?? s; n++; }
-  check(`${tag}: 대화 마침(phase=done)`, s?.phase === 'done', `turns=${n} agent=${s?.profile?.version ?? '-'}`);
-  if (s?.profile?.readiness) check(`${tag}: v2.4.5 준비 상태 = 답 ${s.profile.readiness.saved_answers}/${s.profile.readiness.needed} · ready`, s.profile.readiness.ready === true, JSON.stringify(s.profile.readiness));
-  return { tag, jwt, uid, sid: s?.id };
+  if (!check(`${tag}: 서로 다른 사진 3장(동일 시험 파일 차단)`, hashes.size === 3)) STOP('duplicate fixture');
+  return { tag, jwt, uid, purpose: profile.data[0].purpose_id };
 }
 
 const A = await prepare('a'); const B = await prepare('b');
-// 쓰기 직전 격리 재확인은 러너 밖 SQL 로 이미 했다(friend = 시험 계정 2명뿐). 여기서는 후보 상대가 B 인지 서버 응답으로 다시 확인한다.
+if (!check('두 계정의 목적 동일', A.purpose === B.purpose)) STOP('purpose');
+// 후보 생성 전에 두 계정의 기존 연결 상태를 확인한다. QA 테스트 전용 목적의 실제 사용자 격리는 별도로 읽기 전용 검증해야 한다.
+for (const member of [A, B]) {
+  const prior = await fn('doit-connect', member.jwt, { action: 'my_matches' });
+  if (!check(`${member.tag}: 기존 연결 0`, prior.status === 200 && prior.data?.matches?.length === 0)) STOP('prior matches');
+}
 const ca = await fn('doit-connect', A.jwt, { action: 'my_candidates' });
-check('A: 연결 자격(eligible)', ca.status === 200 && ca.data?.eligible === true, `status=${ca.status} missing=${JSON.stringify(ca.data?.missing)} prepared=${ca.data?.prepared}`);
+if (!check('A: 연결 자격(eligible)', ca.status === 200 && ca.data?.eligible === true, `status=${ca.status} missing=${JSON.stringify(ca.data?.missing)} prepared=${ca.data?.prepared}`)) STOP('eligibility');
 const candA = (ca.data?.candidates ?? [])[0];
 if (!check('A: 서버가 후보 1개 준비', (ca.data?.candidates ?? []).length === 1, `count=${(ca.data?.candidates ?? []).length}`)) STOP('no candidate');
 const leakKeys = Object.keys(candA).filter((k) => /user|nick|name|photo|bio|email|phone|partner/i.test(k));
-check('A: 후보 화면 자료에 상대 개인정보 0(이름·사진·소개·연락처·id)', leakKeys.length === 0, `keys=${JSON.stringify(Object.keys(candA))}`);
+if (!check('A: 후보 화면 자료에 상대 개인정보 0(이름·사진·소개·연락처·id)', leakKeys.length === 0, `keys=${JSON.stringify(Object.keys(candA))}`)) STOP('privacy');
 const cb = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
 const candB = (cb.data?.candidates ?? [])[0];
-check('B: 같은 후보를 봄(시험 계정끼리만)', cb.status === 200 && candB?.id === candA.id, `eligible=${cb.data?.eligible} count=${(cb.data?.candidates ?? []).length}`);
+if (!check('B: 같은 후보를 봄(시험 계정끼리만)', cb.status === 200 && cb.data?.eligible === true && (cb.data?.candidates ?? []).length === 1 && candB?.id === candA.id, `eligible=${cb.data?.eligible} count=${(cb.data?.candidates ?? []).length}`)) STOP('pair isolation');
 const ya = await fn('doit-connect', A.jwt, { action: 'choose', candidateId: candA.id, choice: 'yes' });
 check('A yes → 기다림(한쪽 yes 로 연결 0)', ya.status === 200 && ya.data?.status === 'waiting', `status=${ya.status} ${ya.data?.status}`);
 const ma0 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
@@ -75,7 +77,6 @@ const mA2 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
 check('A 결과가 내 연결에 보임(본인 것만)', mA2.data?.matches?.[0]?.outcome?.talked === 'yes');
 const bad = await fn('doit-connect', B.jwt, { action: 'outcome', matchId: randomUUID(), talked: 'yes' });
 check('남의/없는 연결에 결과 기록 차단(404)', bad.status === 404, `status=${bad.status}`);
-writeFileSync('prod-match-e2e.ids.json', JSON.stringify({ a: A.uid, b: B.uid, aSession: A.sid, bSession: B.sid, candidate: candA.id, match: matchId }));
 const f = results.filter((x) => !x).length;
-console.log(`PROD MATCH E2E: ${results.length - f} PASS / ${f} FAIL`);
+console.log(`QA MATCH E2E: ${results.length - f} PASS / ${f} FAIL`);
 process.exit(f ? 1 : 0);
