@@ -206,7 +206,10 @@ function plainNoWithValue(text: string): boolean {
 }
 export function decideKind(st: AgentState, text: string, out: { kind: Kind; extracted: { purpose: string }[] }, uiCorrection = false): { kind: Kind; rule: string | null } {
   if (!uiCorrection && ["answer", "repair", "correction"].includes(out.kind) && plainNoWithValue(text)) {
-    const shown = new Set((st.turns.at(-1)?.presented ?? []).map((p) => p.purpose));
+    const prev = st.turns.at(-1);
+    // 원문을 그대로 받아 적은 문장은 AI 의 새로운 해석이 아니다. 이 경우
+    // 「아니요 + 새 답」으로 다른 질문에 답해도 앞선 사실을 지우지 않는다.
+    const shown = new Set((prev?.presented ?? []).filter((p) => squash(p.note) !== squash(prev?.user ?? "")).map((p) => p.purpose));
     if (shown.size && out.extracted.some((e) => shown.has(e.purpose))) return { kind: "correction", rule: out.kind === "correction" ? null : "no_corrects_shown" };
   }
   return guardKind(text, out.kind, uiCorrection);
