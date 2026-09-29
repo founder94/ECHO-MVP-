@@ -8,9 +8,9 @@ const DEV = [['iphone', { viewport: { width: 390, height: 844 }, userAgent: devi
   ['galaxy', { viewport: { width: 412, height: 915 }, userAgent: devices['Galaxy S9+'].userAgent, hasTouch: true, deviceScaleFactor: 3 }]];
 const ERRTEXT = /잠시 후 다시|불러오지 못|오류가 발생|네트워크 연결을 확인|다시 불러오기|Site not found/;
 const rows = []; let product = 0, diag = 0;
-for (const [dname, opts] of DEV) for (let run = 1; run <= 3; run++) for (const path of PATHS) {
+for (const [dname, opts] of DEV) for (let run = 1; run <= Number(process.env.RUNS ?? 5); run++) for (const path of PATHS) {
   const b = await webkit.launch(); const ctx = await b.newContext(opts); const p = await ctx.newPage();
-  const t0 = Date.now(); const ms = () => Date.now() - t0;
+  const t0 = Date.now(); const ms = () => Date.now() - t0; let crashed = null; p.on('crash', () => { crashed = ms(); });
   const navs = []; const reqs = new Map(); const pageErrors = []; const consoleErrors = [];
   p.on('framenavigated', (f) => { if (f === p.mainFrame()) navs.push({ at: ms(), url: f.url() }); });
   p.on('pageerror', (e) => pageErrors.push({ at: ms(), msg: String(e.message || e).slice(0, 140) }));
@@ -20,7 +20,7 @@ for (const [dname, opts] of DEV) for (let run = 1; run <= 3; run++) for (const p
   p.on('requestfinished', (r) => { const q = reqs.get(r); if (q) q.finished = ms(); });
   p.on('requestfailed', (r) => { const q = reqs.get(r); if (q) q.failed = { at: ms(), errorText: r.failure()?.errorText ?? '' }; });
   let status = null; try { const res = await p.goto(`${APP}${path}`, { waitUntil: 'domcontentloaded', timeout: 45000 }); status = res?.status() ?? null; } catch (e) { status = `goto:${String(e.message).slice(0, 60)}`; }
-  await p.waitForTimeout(9000);
+  { const w0 = Date.now(); while (Date.now() - w0 < 20000) { if (crashed != null) break; const path0 = (() => { try { return new URL(p.url()).pathname; } catch { return ''; } })(); const t = await p.locator('body').innerText().catch(() => ''); if (path0 !== '/do-it/intro' && t.length > 20 && Date.now() - w0 > 3000) break; await p.waitForTimeout(250); } }
   const text = (await p.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ');
   const btns = (await p.locator('button, a[href]').allInnerTexts().catch(() => [])).map((x) => x.trim()).filter(Boolean);
   const visibleError = ERRTEXT.test(text); const usable = text.length > 20 && btns.length > 0;
@@ -28,13 +28,15 @@ for (const [dname, opts] of DEV) for (let run = 1; run <= 3; run++) for (const p
   const ok200 = list.filter((q) => q.status === 200 && typeof q.body === 'number').length;
   const purposesErr = pageErrors.concat(consoleErrors).filter((e) => /purposes/.test(e.msg));
   // 판정: 화면 오류 문구 0 · 화면 진행 가능 · purposes 가 최소 한 번 200 본문 수신 → 오류 기록은 진단(제품 아님). 아니면 PRODUCT.
-  const verdict = !visibleError && usable && ok200 >= 1 ? (purposesErr.length ? 'HARNESS_WEBKIT_DIAGNOSTIC' : 'CLEAN') : 'PRODUCT_BUG';
+  const needsPurposes = path !== '/login'; // 로그인 화면은 purposes 를 부르지 않는다(판정 규칙 수정 · run 118)
+  const verdict = crashed != null ? 'AUTOMATION_CRASH' : !visibleError && usable && (!needsPurposes || ok200 >= 1) ? (purposesErr.length ? 'HARNESS_WEBKIT_DIAGNOSTIC' : 'CLEAN') : 'PRODUCT_BUG';
   if (verdict === 'PRODUCT_BUG') product++; if (verdict === 'HARNESS_WEBKIT_DIAGNOSTIC') diag++;
   rows.push({ dname, run, path, status, final: new URL(p.url()).pathname, verdict });
-  console.log(`${verdict} webkit ${dname} #${run} ${path} http=${status} final=${new URL(p.url()).pathname} usable=${usable} visibleError=${visibleError} navs=${JSON.stringify(navs.map((n) => [n.at, new URL(n.url).pathname]))}`);
+  console.log(`${verdict} webkit ${dname} #${run} ${path} crash=${crashed} http=${status} final=${new URL(p.url()).pathname} usable=${usable} visibleError=${visibleError} navs=${JSON.stringify(navs.map((n) => [n.at, new URL(n.url).pathname]))}`);
   for (const q of list) console.log(`   purposes start=${q.start}ms status=${q.status} body=${q.body} finished=${q.finished} failed=${JSON.stringify(q.failed)} navDuring=${q.navDuring}`);
   for (const e of purposesErr) console.log(`   error at=${e.at}ms ${e.msg}`);
   await b.close();
 }
-console.log(`WEBKIT PURPOSES DIAG: runs=${rows.length} PRODUCT_BUG=${product} HARNESS_WEBKIT_DIAGNOSTIC=${diag} CLEAN=${rows.length - product - diag}`);
+const crashes = rows.filter((r) => r.verdict === 'AUTOMATION_CRASH').length;
+console.log(`WEBKIT PURPOSES DIAG: runs=${rows.length} PRODUCT_BUG=${product} HARNESS_WEBKIT_DIAGNOSTIC=${diag} AUTOMATION_CRASH=${crashes} CLEAN=${rows.length - product - diag - crashes}`);
 process.exit(product ? 1 : 0);
