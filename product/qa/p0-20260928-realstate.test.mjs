@@ -43,6 +43,12 @@ test('Stale Redirect Guard: 목표 설정(QA·운영)은 PASS · 다른 환경 �
   assert.ok(!allowEntryCovers('https://do-it.company/auth/callback', 'https://app.do-it.company/auth/callback'));
   // 관리자 콜백이 빠지면 FAIL(관리자도 같은 로그인 코드)
   assert.ok(oauthRedirectProblems({ ...TARGET_QA, allowList: ['https://echo-app-qa.netlify.app/auth/callback'] }, ENVIRONMENTS.qa).some((p) => p.includes('echo-admin-qa.netlify.app/auth/callback')));
+  // 2026-09-29 대표 「PROD RELEASE FINAL EXECUTION」: ADMIN PROD 는 HOLD(운영 DNS·사이트 없음) — 운영 APP 게시를 관리자 콜백 유무로 막지 않는다.
+  // 실측 운영 설정(Site URL = APP · 허용 목록 = APP 콜백 1줄)은 통과, 관리자 콜백이 있어도 통과, APP 콜백이 없거나 폐기 주소가 있으면 여전히 FAIL.
+  const PROD_APP_ONLY = { siteUrl: 'https://app.do-it.company', allowList: ['https://app.do-it.company/auth/callback'] };
+  assert.deepEqual(oauthRedirectProblems(PROD_APP_ONLY, ENVIRONMENTS.prod), [], '운영: ADMIN HOLD 동안 APP 콜백만으로 통과');
+  assert.ok(oauthRedirectProblems({ ...PROD_APP_ONLY, allowList: [] }, ENVIRONMENTS.prod).some((p) => p.includes('app.do-it.company/auth/callback')), '운영: APP 콜백 없으면 FAIL');
+  assert.ok(oauthRedirectProblems({ ...PROD_APP_ONLY, siteUrl: 'https://do-it.company' }, ENVIRONMENTS.prod).length > 0, '운영: Site URL 이 브랜드면 FAIL');
   // 관리자 로그인은 공용 AuthContext 의 redirectTo(현재 주소 + /auth/callback)를 쓰고, 관리자 앱에 /auth/callback 화면이 있다
   assert.match(read('src/admin/AdminApp.tsx'), /signInWithGoogle\(/);
   assert.match(read('src/admin/AdminApp.tsx'), /path="\/auth\/callback"/);
