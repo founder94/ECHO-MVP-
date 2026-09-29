@@ -82,6 +82,38 @@ test('existing profile updates only allowed fields; id remains a filter', async 
   assert.ok(calls[0].steps.some((step) => step[0] === 'eq' && step[1] === 'id' && step[2] === 'owner'));
 });
 
+test('nickname edit changes only the owner nickname and confirms the returned value', async () => {
+  const { client, calls } = harness([result({ id: 'owner', nickname: '새 이름' })]);
+  const { saveNickname } = moduleWithClient(source, () => client);
+  assert.equal(await saveNickname('owner', '  새 이름  '), null);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].table, 'profiles');
+  assert.deepEqual(Object.keys(getBody(calls[0], 'update')), ['nickname']);
+  assert.equal(getBody(calls[0], 'update').nickname, '새 이름');
+  assert.ok(calls[0].steps.some((step) => step[0] === 'eq' && step[1] === 'id' && step[2] === 'owner'));
+  assert.equal(calls[0].steps.some((step) => step[0] === 'insert'), false);
+});
+
+test('nickname edit rejects invalid values, switched accounts, and unconfirmed writes', async () => {
+  for (const nickname of ['', ' '.repeat(2), '가'.repeat(21)]) {
+    const { client, calls } = harness([]);
+    const { saveNickname } = moduleWithClient(source, () => client);
+    assert.notEqual(await saveNickname('owner', nickname), null);
+    assert.equal(calls.length, 0);
+  }
+  const switched = harness([], ['other']);
+  const { saveNickname: switchedSave } = moduleWithClient(source, () => switched.client);
+  assert.notEqual(await switchedSave('owner', '새 이름'), null);
+  assert.equal(switched.calls.length, 0);
+
+  for (const response of [result(null), result({ id: 'owner', nickname: '이전 이름' })]) {
+    const { client, calls } = harness([response]);
+    const { saveNickname } = moduleWithClient(source, () => client);
+    assert.notEqual(await saveNickname('owner', '새 이름'), null);
+    assert.equal(calls.length, 1);
+  }
+});
+
 test('missing profile inserts with id only after update returns no row', async () => {
   const { client, calls } = harness([result(null), result({ id: 'owner' })]);
   const { savePurpose } = moduleWithClient(source, () => client);

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import DoItSymbol from "@/components/DoItSymbol";
 import ProfilePhotoGallery from "@/doit/components/feature/ProfilePhotoGallery";
 import { useAuth } from "@/doit/hooks/useAuth";
-import { loadProfile, type LoadedProfile } from "@/doit/lib/profileSave";
+import { loadProfile, saveNickname, type LoadedProfile } from "@/doit/lib/profileSave";
 
 // 실제 저장한 프로필만 표시한다. 등급·참여 수·연결 수를 예시로 채우지 않는다.
 type RealProfileState =
@@ -25,6 +25,19 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [real, setReal] = useState<RealProfileState>({ status: "loading" });
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
+  const accountRef = useRef(user?.id);
+  accountRef.current = user?.id;
+
+  useEffect(() => {
+    setEditingNickname(false);
+    setNicknameDraft("");
+    setNicknameSaving(false);
+    setNicknameError(null);
+  }, [user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -58,6 +71,33 @@ export default function Profile() {
   ];
   const joined = formatJoined(user?.created_at);
 
+  async function submitNickname(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user || visible.status !== "ok" || visible.userId !== user.id || nicknameSaving) return;
+    const nickname = nicknameDraft.trim();
+    if (!nickname || nickname.length > 20) {
+      setNicknameError("닉네임은 1~20자로 적어 주세요.");
+      return;
+    }
+    if (nickname === visible.profile.nickname?.trim()) {
+      setEditingNickname(false);
+      return;
+    }
+    const userId = user.id;
+    setNicknameSaving(true);
+    setNicknameError(null);
+    const error = await saveNickname(userId, nickname);
+    if (accountRef.current !== userId) return;
+    setNicknameSaving(false);
+    if (error) {
+      setNicknameError("저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    setReal((current) => current.status === "ok" && current.userId === userId
+      ? { ...current, profile: { ...current.profile, nickname } } : current);
+    setEditingNickname(false);
+  }
+
   return (
     <MobileLayout title="프로필" showNav activeTab="profile">
       <section className="doit-product-story">
@@ -73,6 +113,22 @@ export default function Profile() {
             {visible.status === "error" && "프로필을 읽지 못했어요"}
             {(visible.status === "ok" || visible.status === "none") && displayName}
           </h3>
+          {visible.status === "ok" && (editingNickname ?
+            <form className="doit-nickname-form" onSubmit={(event) => void submitNickname(event)}>
+              <label htmlFor="doit-nickname-input">닉네임</label>
+              <input id="doit-nickname-input" value={nicknameDraft} maxLength={20} autoComplete="nickname"
+                onChange={(event) => { setNicknameDraft(event.target.value); setNicknameError(null); }} disabled={nicknameSaving} />
+              <div className="doit-nickname-actions">
+                <button type="submit" disabled={nicknameSaving}>{nicknameSaving ? "저장 중…" : "저장"}</button>
+                <button type="button" disabled={nicknameSaving} onClick={() => { setEditingNickname(false); setNicknameError(null); }}>취소</button>
+              </div>
+              {nicknameError && <p className="doit-product-error" role="alert">{nicknameError}</p>}
+            </form>
+            : <button type="button" className="doit-nickname-edit" onClick={() => {
+              setNicknameDraft(profile?.nickname ?? "");
+              setNicknameError(null);
+              setEditingNickname(true);
+            }}>닉네임 바꾸기</button>)}
           <p className="doit-profile-intro">
             {visible.status === "error" ? "저장된 건 그대로예요. 조금 뒤 다시 열어 주세요." : visible.status === "signed_out" ? "로그인하면 내 소개와 연결 목적이 보여요." : intro}
           </p>

@@ -41,6 +41,15 @@
 .doit-profile-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:32px}
 .doit-profile-card-head .doit-official-symbol{width:58px;height:58px;margin:-12px}
 .doit-profile-name{font:600 28px/1.45 var(--font-heading,"Gothic A1",sans-serif);letter-spacing:-.04em;overflow-wrap:anywhere;margin:0;color:#f2f1ef}
+.doit-nickname-edit{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;padding:8px 0;border:0;background:none;color:#d6d9df;text-decoration:underline;text-underline-offset:4px;font-size:13px;cursor:pointer}
+.doit-nickname-form{display:grid;gap:12px;margin-top:14px}
+.doit-nickname-form label{font-size:13px;color:#d6d9df}
+.doit-nickname-form input{width:100%;min-height:48px;padding:10px 13px;border:1px solid #ffffff80;border-radius:12px;background:#111318;color:#fff;font:inherit;font-size:16px}
+.doit-nickname-form input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.doit-nickname-actions{display:flex;gap:10px}
+.doit-nickname-actions button{min-width:80px;min-height:44px;padding:8px 14px;border:1px solid #ffffff80;border-radius:12px;background:#ffffff26;color:#fff;font:inherit;font-size:14px;cursor:pointer}
+.doit-nickname-actions button:disabled{opacity:.6;cursor:default}
+.doit-nickname-form .doit-product-error{margin:0}
 .doit-profile-intro{font-size:14px;line-height:1.9;color:#c1c4cb;margin-top:16px;white-space:pre-wrap;overflow-wrap:anywhere}
 .doit-profile-facts{margin-top:24px}
 .doit-profile-facts>div{padding:17px 0;border-top:1px solid #ffffff12;display:grid;grid-template-columns:76px minmax(0,1fr);gap:16px;align-items:start}
