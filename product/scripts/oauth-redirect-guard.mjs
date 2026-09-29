@@ -45,6 +45,12 @@ export function retiredDomainHits(text) {
   return RETIRED.slice(0, 1).flatMap((rx) => (String(text).match(new RegExp(rx.source, 'gi')) ?? []));
 }
 
+// 3 = management API read permission HOLD. A bad redirect configuration or
+// unexpected API failure is a real guard failure (1), never a permission HOLD.
+export function authReadExitCode(status) {
+  return status === 401 || status === 403 ? 3 : 1;
+}
+
 // CLI: node scripts/oauth-redirect-guard.mjs qa|prod — Supabase Management API 로 Auth 설정을 읽어 검사(값·토큰 출력 0).
 // 토큰: SUPABASE_AUTH_READ_TOKEN(Auth 설정 읽기 권한). 없거나 권한이 없으면 FAIL(확인 못 한 것을 통과로 두지 않음).
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -52,9 +58,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const env = ENVIRONMENTS[envName];
   if (!env) { console.error('usage: oauth-redirect-guard.mjs qa|prod'); process.exit(2); }
   const token = process.env.SUPABASE_AUTH_READ_TOKEN;
-  if (!token) { console.log(`FAIL ${envName}: SUPABASE_AUTH_READ_TOKEN 없음 — OAuth 설정을 확인하지 못해 통과시키지 않음`); process.exit(1); }
+  if (!token) { console.log(`HOLD ${envName}: SUPABASE_AUTH_READ_TOKEN 없음 — OAuth 설정 미확인`); process.exit(3); }
   const res = await fetch(`https://api.supabase.com/v1/projects/${env.ref}/config/auth`, { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status !== 200) { console.log(`FAIL ${envName}: Auth 설정 읽기 ${res.status}(토큰 권한 확인 필요) — 통과시키지 않음`); process.exit(1); }
+  if (res.status !== 200) { console.log(`${authReadExitCode(res.status) === 3 ? 'HOLD' : 'FAIL'} ${envName}: Auth 설정 읽기 ${res.status} — 설정 미확인`); process.exit(authReadExitCode(res.status)); }
   const cfg = await res.json();
   const problems = oauthRedirectProblems({ siteUrl: cfg.site_url, allowList: cfg.uri_allow_list }, env);
   if (problems.length) { for (const p of problems) console.log(`FAIL ${envName}: ${p}`); process.exit(1); }
