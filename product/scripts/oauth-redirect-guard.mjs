@@ -11,7 +11,8 @@ export const RETIRED = [/melba-b1449a/i, /\blocalhost\b/i, /ready\.co\b/i];
 
 export const ENVIRONMENTS = {
   qa: { ref: 'mutniujeiyujhkobadkd', app: 'https://echo-app-qa.netlify.app', admin: 'https://echo-admin-qa.netlify.app', live: ['https://echo-app-qa.netlify.app', 'https://echo-admin-qa.netlify.app', 'https://echo-brand-qa.netlify.app'] },
-  prod: { ref: 'zyyhhxyupizcqhxqnxuu', app: 'https://app.do-it.company', admin: 'https://admin.do-it.company', live: ['https://app.do-it.company', 'https://admin.do-it.company', 'https://do-it.company'] },
+  // 2026-09-29 대표 「PROD RELEASE FINAL EXECUTION」: ADMIN PROD = HOLD(운영 DNS·사이트 없음) → 관리자 콜백은 허용(살아 있는 주소)하되 필수는 아님. ADMIN 운영을 열 때 adminRequired 를 true 로.
+  prod: { ref: 'zyyhhxyupizcqhxqnxuu', app: 'https://app.do-it.company', admin: 'https://admin.do-it.company', adminRequired: false, live: ['https://app.do-it.company', 'https://admin.do-it.company', 'https://do-it.company'] },
 };
 
 const trim = (u) => String(u ?? '').trim().replace(/\/+$/, '');
@@ -33,7 +34,7 @@ export function oauthRedirectProblems({ siteUrl, allowList }, env) {
   if (trim(siteUrl) !== trim(env.app)) problems.push(`Site URL 이 APP 주소가 아님: ${siteUrl || '(비어 있음)'} ≠ ${env.app}`);
   if (!list.some((e) => allowEntryCovers(e, callback))) problems.push(`허용 목록에 ${callback} 없음 → redirectTo 가 Site URL 로 떨어진다`);
   // 관리자도 같은 로그인 코드(AuthContext.oauthRedirectUrl = 현재 주소 + /auth/callback)를 쓴다 — 정확한 콜백 한 줄이 있어야 한다.
-  if (env.admin && !list.some((e) => allowEntryCovers(e, `${env.admin}/auth/callback`))) problems.push(`허용 목록에 ${env.admin}/auth/callback 없음 → 관리자 Google 로그인도 Site URL 로 떨어진다`);
+  if (env.admin && env.adminRequired !== false && !list.some((e) => allowEntryCovers(e, `${env.admin}/auth/callback`))) problems.push(`허용 목록에 ${env.admin}/auth/callback 없음 → 관리자 Google 로그인도 Site URL 로 떨어진다`);
   for (const v of [siteUrl, ...list]) if (RETIRED.some((rx) => rx.test(String(v ?? '')))) problems.push(`폐기 주소가 남아 있음: ${v}`);
   for (const e of list) { const o = originOf(e); if (o && !env.live.includes(o) && !RETIRED.some((rx) => rx.test(e))) problems.push(`허용 목록에 이 환경의 살아 있는 주소가 아닌 항목: ${e}`); }
   return [...new Set(problems)];
