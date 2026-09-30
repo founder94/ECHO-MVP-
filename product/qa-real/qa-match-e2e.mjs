@@ -1,6 +1,6 @@
 // QA 전용 2계정 매칭 E2E. 이미 정상 준비된 시험 계정과 기존 사진만 사용한다.
 // 이 검사는 계정·프로필·사진·스토리지·운영 데이터를 생성하거나 고치지 않는다.
-// → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → outcome.
+// → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → A/B 첫 답 → 상대 공개 → A↔B 메시지 → outcome.
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 const QA_URL = 'https://mutniujeiyujhkobadkd.supabase.co';
@@ -79,6 +79,37 @@ const mA = await fn('doit-connect', A.jwt, { action: 'my_matches' }); const mB =
 const itA = (mA.data?.matches ?? []).find((m) => m.id === matchId), itB = (mB.data?.matches ?? []).find((m) => m.id === matchId);
 if (!check('A·B 모두 연결 1개 · 열림(open)', (mA.data?.matches ?? []).length === 1 && (mB.data?.matches ?? []).length === 1 && itA?.status === 'open' && itB?.status === 'open')) STOP('match readback');
 if (!check('첫 답 전 상대 정보 0(blind-first: partner 없음 · revealed=false)', !itA?.partner && !itB?.partner && itA?.revealed === false && itB?.revealed === false)) STOP('privacy');
+const aAnswerText = '처음에는 편하게 서로의 일상 이야기를 나누고 싶어요.';
+const bAnswerText = '저도 부담 없이 천천히 대화를 이어가고 싶어요.';
+const aa = await fn('doit-connect', A.jwt, { action: 'answer', matchId, text: aAnswerText });
+if (!check('A 첫 질문 답변 저장', aa.status === 200 && aa.data?.ok === true, `status=${aa.status}`)) STOP('A first answer');
+const afterA = await fn('doit-connect', A.jwt, { action: 'my_matches' });
+const afterAItem = (afterA.data?.matches ?? []).find((m) => m.id === matchId);
+if (!check('A만 답한 상태에서도 상대 공개 0', afterA.status === 200 && afterAItem?.my_answer === aAnswerText && afterAItem?.partner_answered === false && afterAItem?.revealed === false && !afterAItem?.partner)) STOP('one-sided reveal');
+const earlyMsg = await fn('doit-connect', A.jwt, { action: 'message', matchId, text: '아직 둘 다 답하기 전 메시지' });
+if (!check('둘 다 첫 답 전 메시지 차단', earlyMsg.status === 409 && earlyMsg.data?.ok === false, `status=${earlyMsg.status}`)) STOP('early message');
+const ba = await fn('doit-connect', B.jwt, { action: 'answer', matchId, text: bAnswerText });
+if (!check('B 첫 질문 답변 저장', ba.status === 200 && ba.data?.ok === true, `status=${ba.status}`)) STOP('B first answer');
+const [revealedA, revealedB] = await Promise.all([
+  fn('doit-connect', A.jwt, { action: 'my_matches' }),
+  fn('doit-connect', B.jwt, { action: 'my_matches' }),
+]);
+const rA = (revealedA.data?.matches ?? []).find((m) => m.id === matchId);
+const rB = (revealedB.data?.matches ?? []).find((m) => m.id === matchId);
+if (!check('양쪽 첫 답 완료 → 상대 공개', revealedA.status === 200 && revealedB.status === 200 && rA?.revealed === true && rB?.revealed === true && !!rA?.partner && !!rB?.partner && rA?.partner?.answer === bAnswerText && rB?.partner?.answer === aAnswerText)) STOP('reveal');
+const msgA = '반가워요. 오늘 하루는 어땠어요?';
+const msgB = '반가워요. 저는 괜찮았어요. 당신은요?';
+const am = await fn('doit-connect', A.jwt, { action: 'message', matchId, text: msgA });
+if (!check('메시지 A→B 저장', am.status === 200 && am.data?.ok === true, `status=${am.status}`)) STOP('A message');
+const bm = await fn('doit-connect', B.jwt, { action: 'message', matchId, text: msgB });
+if (!check('메시지 B→A 저장', bm.status === 200 && bm.data?.ok === true, `status=${bm.status}`)) STOP('B message');
+const [chatA, chatB] = await Promise.all([
+  fn('doit-connect', A.jwt, { action: 'my_matches' }),
+  fn('doit-connect', B.jwt, { action: 'my_matches' }),
+]);
+const cA = (chatA.data?.matches ?? []).find((m) => m.id === matchId);
+const cB = (chatB.data?.matches ?? []).find((m) => m.id === matchId);
+if (!check('양방향 메시지 실제 조회', Array.isArray(cA?.messages) && Array.isArray(cB?.messages) && cA.messages.some((m) => m.mine === true && m.body === msgA) && cA.messages.some((m) => m.mine === false && m.body === msgB) && cB.messages.some((m) => m.mine === false && m.body === msgA) && cB.messages.some((m) => m.mine === true && m.body === msgB))) STOP('message readback');
 const oc = await fn('doit-connect', A.jwt, { action: 'outcome', matchId, talked: 'yes', again: 'unsure' });
 if (!check('A 결과 기록(outcome) 저장', oc.status === 200 && oc.data?.ok === true, `status=${oc.status}`)) STOP('outcome');
 const mA2 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
