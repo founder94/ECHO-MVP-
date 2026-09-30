@@ -1,0 +1,49 @@
+name: temp-prod-build-artifact
+on:
+  push:
+    branches: ['chatgpt/prod-build-artifact-20260930']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: install
+        working-directory: product
+        run: npm ci --no-audit --no-fund
+      - name: lint-type-test
+        working-directory: product
+        run: |
+          npm run -s lint
+          npm run -s type-check
+          node --test qa/*.test.mjs qa/*.test.ts
+      - name: build-prod-app-brand
+        working-directory: product
+        env:
+          VITE_PUBLIC_SUPABASE_URL: https://zyyhhxyupizcqhxqnxuu.supabase.co
+          VITE_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn
+          VITE_APP_ORIGIN: https://app.do-it.company
+          VITE_BRAND_ORIGIN: https://do-it.company
+          VITE_ADMIN_ORIGIN: https://admin.do-it.company
+          VITE_BUILD_COMMIT: b7022fc
+        run: |
+          VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir
+          VITE_SITE_ROLE=brand npx vite build --outDir ../dist/brand --emptyOutDir
+      - name: guard
+        run: |
+          set -euo pipefail
+          grep -R "mutniujeiyujhkobadkd" dist && exit 1 || true
+          grep -R "echo-app-qa.netlify.app" dist && exit 1 || true
+          grep -R "echo-brand-qa.netlify.app" dist && exit 1 || true
+          test -f dist/app/index.html
+          test -f dist/brand/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: echo-dist-prod-manual-approved
+          path: dist
+          retention-days: 1
