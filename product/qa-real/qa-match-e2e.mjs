@@ -1,7 +1,7 @@
 // QA 전용 2계정 매칭 E2E. 이미 정상 준비된 시험 계정과 기존 사진만 사용한다.
 // 이 검사는 계정·프로필·사진·스토리지·운영 데이터를 생성하거나 고치지 않는다.
 // → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → outcome.
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 const QA_URL = 'https://mutniujeiyujhkobadkd.supabase.co';
 if (process.env.SB_URL !== QA_URL || !process.env.SB_KEY || !process.env.ACCT_FILE || !process.env.QA_PAIR_PREFLIGHT_FILE || process.env.SIGNUP || process.env.JPEG_FILE) {
@@ -30,12 +30,15 @@ async function prepare(tag) {
   if (!check(`${tag}: 기존 목적·소개`, profile.status === 200 && !!profile.data?.[0]?.purpose_id && !!profile.data?.[0]?.bio)) STOP('profile');
   const photos = await http(`/rest/v1/profile_photos?user_id=eq.${uid}&select=slot,storage_path`, { jwt });
   if (!check(`${tag}: 기존 사진 3칸`, photos.status === 200 && [1, 2, 3].every((slot) => photos.data?.some((p) => p.slot === slot && p.storage_path)))) STOP('photo rows');
+  const photoHashes = [];
   for (const slot of [1, 2, 3]) {
     const path = photos.data.find((p) => p.slot === slot).storage_path;
     const res = await fetch(`${SB}/storage/v1/object/profile-photos/${path.split('/').map(encodeURIComponent).join('/')}`, { headers: { apikey: KEY, Authorization: `Bearer ${jwt}` } });
     const bytes = res.ok ? Buffer.from(await res.arrayBuffer()) : Buffer.alloc(0);
     if (!check(`${tag}: 기존 사진 ${slot} 실제 객체`, res.ok && res.headers.get('content-type')?.startsWith('image/') && bytes.length > 0, `status=${res.status}`)) STOP('storage');
+    photoHashes.push(createHash('sha256').update(bytes).digest('hex'));
   }
+  if (!check(`${tag}: 사진 3장 서로 다른 파일`, new Set(photoHashes).size === 3)) STOP('duplicate photos');
   return { tag, jwt, uid, purpose: profile.data[0].purpose_id };
 }
 
@@ -64,24 +67,24 @@ const cb = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
 const candB = (cb.data?.candidates ?? [])[0];
 if (!check('B: 같은 후보를 봄(시험 계정끼리만)', cb.status === 200 && cb.data?.eligible === true && (cb.data?.candidates ?? []).length === 1 && candB?.id === candA.id, `eligible=${cb.data?.eligible} count=${(cb.data?.candidates ?? []).length}`)) STOP('pair isolation');
 const ya = await fn('doit-connect', A.jwt, { action: 'choose', candidateId: candA.id, choice: 'yes' });
-check('A yes → 기다림(한쪽 yes 로 연결 0)', ya.status === 200 && ya.data?.status === 'waiting', `status=${ya.status} ${ya.data?.status}`);
+if (!check('A yes → 기다림(한쪽 yes 로 연결 0)', ya.status === 200 && ya.data?.status === 'waiting', `status=${ya.status} ${ya.data?.status}`)) STOP('A choice');
 const ma0 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
-check('한쪽 yes 뒤 A 의 연결 0', ma0.status === 200 && (ma0.data?.matches ?? []).length === 0, `matches=${(ma0.data?.matches ?? []).length}`);
+if (!check('한쪽 yes 뒤 A 의 연결 0', ma0.status === 200 && (ma0.data?.matches ?? []).length === 0, `matches=${(ma0.data?.matches ?? []).length}`)) STOP('premature match');
 const yb = await fn('doit-connect', B.jwt, { action: 'choose', candidateId: candA.id, choice: 'yes' });
-check('B yes → 상호(mutual) · 연결 열림', yb.status === 200 && yb.data?.status === 'mutual' && !!yb.data?.match_id, `status=${yb.status} ${yb.data?.status} q=${yb.data?.question_source}`);
+if (!check('B yes → 상호(mutual) · 연결 열림', yb.status === 200 && yb.data?.status === 'mutual' && !!yb.data?.match_id, `status=${yb.status} ${yb.data?.status} q=${yb.data?.question_source}`)) STOP('B choice');
 const matchId = yb.data?.match_id;
 const again = await fn('doit-connect', B.jwt, { action: 'choose', candidateId: candA.id, choice: 'yes' });
-check('같은 선택 재전송 → 같은 연결(중복 0)', again.status === 200 && again.data?.status === 'mutual' && again.data?.match_id === matchId, `status=${again.status} same=${again.data?.match_id === matchId}`);
+if (!check('같은 선택 재전송 → 같은 연결(중복 0)', again.status === 200 && again.data?.status === 'mutual' && again.data?.match_id === matchId, `status=${again.status} same=${again.data?.match_id === matchId}`)) STOP('duplicate choice');
 const mA = await fn('doit-connect', A.jwt, { action: 'my_matches' }); const mB = await fn('doit-connect', B.jwt, { action: 'my_matches' });
 const itA = (mA.data?.matches ?? []).find((m) => m.id === matchId), itB = (mB.data?.matches ?? []).find((m) => m.id === matchId);
-check('A·B 모두 연결 1개 · 열림(open)', (mA.data?.matches ?? []).length === 1 && (mB.data?.matches ?? []).length === 1 && itA?.status === 'open' && itB?.status === 'open');
-check('첫 답 전 상대 정보 0(blind-first: partner 없음 · revealed=false)', !itA?.partner && !itB?.partner && itA?.revealed === false && itB?.revealed === false);
+if (!check('A·B 모두 연결 1개 · 열림(open)', (mA.data?.matches ?? []).length === 1 && (mB.data?.matches ?? []).length === 1 && itA?.status === 'open' && itB?.status === 'open')) STOP('match readback');
+if (!check('첫 답 전 상대 정보 0(blind-first: partner 없음 · revealed=false)', !itA?.partner && !itB?.partner && itA?.revealed === false && itB?.revealed === false)) STOP('privacy');
 const oc = await fn('doit-connect', A.jwt, { action: 'outcome', matchId, talked: 'yes', again: 'unsure' });
-check('A 결과 기록(outcome) 저장', oc.status === 200 && oc.data?.ok === true, `status=${oc.status}`);
+if (!check('A 결과 기록(outcome) 저장', oc.status === 200 && oc.data?.ok === true, `status=${oc.status}`)) STOP('outcome');
 const mA2 = await fn('doit-connect', A.jwt, { action: 'my_matches' });
-check('A 결과가 내 연결에 보임(본인 것만)', mA2.data?.matches?.[0]?.outcome?.talked === 'yes');
+if (!check('A 결과가 내 연결에 보임(본인 것만)', mA2.data?.matches?.[0]?.outcome?.talked === 'yes')) STOP('outcome readback');
 const bad = await fn('doit-connect', B.jwt, { action: 'outcome', matchId: randomUUID(), talked: 'yes' });
-check('남의/없는 연결에 결과 기록 차단(404)', bad.status === 404, `status=${bad.status}`);
+check('없는 연결에 결과 기록 차단(404)', bad.status === 404, `status=${bad.status}`);
 const f = results.filter((x) => !x).length;
 console.log(`QA MATCH E2E: ${results.length - f} PASS / ${f} FAIL`);
 process.exit(f ? 1 : 0);
