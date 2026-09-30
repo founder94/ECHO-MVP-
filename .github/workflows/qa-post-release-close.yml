@@ -1,0 +1,141 @@
+name: qa-post-release-close
+
+on:
+  push:
+    branches: ['echo-qa']
+    paths:
+      - '.github/workflows/qa-post-release-close.yml'
+      - 'product/qa-real/qa-match-e2e-provision.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: qa-post-release-close
+  cancel-in-progress: false
+
+env:
+  QA_SUPABASE_URL: https://mutniujeiyujhkobadkd.supabase.co
+  QA_SUPABASE_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+
+jobs:
+  close:
+    if: github.ref == 'refs/heads/echo-qa'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: ECHO-QA
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 전체 품질
+        id: quality
+        continue-on-error: true
+        working-directory: product
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run -s lint
+          npm run -s type-check
+          node --test qa/*.test.mjs qa/*.test.ts
+          C=${GITHUB_SHA::7}
+          common="VITE_PUBLIC_SUPABASE_URL=$QA_SUPABASE_URL VITE_PUBLIC_SUPABASE_ANON_KEY=$QA_SUPABASE_ANON VITE_APP_ORIGIN=https://echo-app-qa.netlify.app VITE_BRAND_ORIGIN=https://echo-brand-qa.netlify.app VITE_ADMIN_ORIGIN=https://echo-admin-qa.netlify.app VITE_BUILD_COMMIT=$C"
+          env $common VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir
+          env $common VITE_SITE_ROLE=brand npx vite build --outDir ../dist/brand --emptyOutDir
+          env $common VITE_SITE_ROLE=admin npx vite build --outDir ../dist/admin --emptyOutDir
+          grep -q 'manifest.webmanifest\|/pwa/' ../dist/brand/index.html || rm -rf ../dist/brand/manifest.webmanifest ../dist/brand/pwa
+          fail=0
+          c() { grep -rl -- "$1" "../dist/$2" | wc -l; }
+          for r in app brand admin; do
+            [ -f ../dist/$r/index.html ] || fail=1
+            [ "$(find ../dist/$r -name '*.map' | wc -l)" = 0 ] || fail=1
+            [ "$(grep -rl -- zyyhhxyupizcqhxqnxuu ../dist/$r | wc -l)" = 0 ] || fail=1
+          done
+          [ "$(grep -rl -- doit-connect ../dist/brand | wc -l)" = 0 ] || fail=1
+          [ "$(grep -rl -- admin-web ../dist/app | wc -l)" = 0 ] || fail=1
+          [ "$(grep -rl -- DoitApp ../dist/admin | wc -l)" = 0 ] || fail=1
+          grep -q noindex ../dist/admin/index.html || fail=1
+          exit $fail
+
+      - name: real-AI
+        id: real_ai
+        continue-on-error: true
+        working-directory: product
+        run: |
+          set -euo pipefail
+          export QA_ANON="$QA_SUPABASE_ANON"
+          node qa-real/qa-core-live.mjs
+
+      - name: OAuth Auth Config read
+        id: oauth
+        continue-on-error: true
+        working-directory: product
+        env:
+          SUPABASE_AUTH_READ_TOKEN: ${{ secrets.SUPABASE_QA_AUTH_READ_TOKEN }}
+        run: |
+          set +e
+          node scripts/oauth-redirect-guard.mjs qa
+          code=$?
+          if [ "$code" -eq 0 ]; then echo OAUTH_GUARD_PASS > /tmp/oauth-status; exit 0; fi
+          if [ "$code" -eq 3 ]; then echo AUTH_PERMISSION_HOLD > /tmp/oauth-status; exit 3; fi
+          echo OAUTH_GUARD_FAIL > /tmp/oauth-status
+          exit "$code"
+
+      - name: Matching QA fixture + E2E
+        id: matching
+        continue-on-error: true
+        working-directory: product
+        env:
+          SB_URL: https://mutniujeiyujhkobadkd.supabase.co
+          SB_KEY: ${{ env.QA_SUPABASE_ANON }}
+          ACCT_FILE: qa-match-accts.json
+          QA_PAIR_PREFLIGHT_FILE: qa-match-preflight.json
+        run: |
+          set -euo pipefail
+          node qa-real/qa-match-e2e-provision.mjs
+          node qa-real/qa-match-e2e.mjs
+
+      - name: 마감 결과 이슈 기록
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALITY: ${{ steps.quality.outcome }}
+          REAL_AI: ${{ steps.real_ai.outcome }}
+          OAUTH_STEP: ${{ steps.oauth.outcome }}
+          MATCHING: ${{ steps.matching.outcome }}
+        run: |
+          set -euo pipefail
+          OAUTH=$(cat /tmp/oauth-status 2>/dev/null || echo OAUTH_UNKNOWN)
+          [ "$QUALITY" = success ] && Q=QUALITY_PASS || Q=QUALITY_FAIL
+          [ "$REAL_AI" = success ] && R=REAL_AI_PASS || R=REAL_AI_FAIL
+          [ "$MATCHING" = success ] && M=MATCH_E2E_PASS || M=MATCH_E2E_FAIL
+          title="ECHO_CLOSE_RUN ${GITHUB_SHA::7} · $Q · $R · $OAUTH · $M"
+          body=$(cat <<EOF
+          commit: $GITHUB_SHA
+          branch: $GITHUB_REF_NAME
+          quality: $Q
+          real_ai: $R
+          oauth: $OAUTH
+          matching: $M
+          prod_test: 0
+          prod_deploy: 0
+          prod_data_change: 0
+          EOF
+          )
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+
+      - name: 최종 gate
+        if: always()
+        env:
+          QUALITY: ${{ steps.quality.outcome }}
+          REAL_AI: ${{ steps.real_ai.outcome }}
+          OAUTH_STEP: ${{ steps.oauth.outcome }}
+          MATCHING: ${{ steps.matching.outcome }}
+        run: |
+          OAUTH=$(cat /tmp/oauth-status 2>/dev/null || echo OAUTH_UNKNOWN)
+          echo "quality=$QUALITY real_ai=$REAL_AI oauth=$OAUTH matching=$MATCHING"
+          [ "$QUALITY" = success ] && [ "$REAL_AI" = success ] && [ "$OAUTH" = OAUTH_GUARD_PASS ] && [ "$MATCHING" = success ]
