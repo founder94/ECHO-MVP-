@@ -3,8 +3,7 @@
 // No PROD URL, no direct DB writes, no service-role key, no account deletion.
 // Trigger marker: 2026-09-30 post-release closing run.
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
-import { deflateSync } from 'node:zlib';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const SB = 'https://mutniujeiyujhkobadkd.supabase.co';
 const KEY = process.env.SB_KEY;
@@ -39,31 +38,9 @@ const http = async (path, { method='GET', jwt=null, body=null, raw=null, headers
 };
 const fn = (name, jwt, body) => http(`/functions/v1/${name}`, { method:'POST', jwt, body });
 
-function crc32(buf) {
-  let c = 0xffffffff;
-  for (const b of buf) {
-    c ^= b;
-    for (let k=0;k<8;k++) c = (c >>> 1) ^ ((c & 1) ? 0xedb88320 : 0);
-  }
-  return (c ^ 0xffffffff) >>> 0;
-}
-function chunk(type, data) {
-  const t = Buffer.from(type);
-  const out = Buffer.alloc(12 + data.length);
-  out.writeUInt32BE(data.length,0); t.copy(out,4); data.copy(out,8);
-  const crc = crc32(Buffer.concat([t,data]));
-  out.writeUInt32BE(crc,8+data.length);
-  return out;
-}
-function png(r,g,b) {
-  const sig = Buffer.from([137,80,78,71,13,10,26,10]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(1,0); ihdr.writeUInt32BE(1,4);
-  ihdr[8]=8; ihdr[9]=6; ihdr[10]=0; ihdr[11]=0; ihdr[12]=0;
-  const raw = Buffer.from([0,r,g,b,255]);
-  return Buffer.concat([sig, chunk('IHDR',ihdr), chunk('IDAT',deflateSync(raw)), chunk('IEND',Buffer.alloc(0))]);
-}
-const IMAGES = [png(220,70,70), png(70,180,90), png(70,110,220)];
+const JPEG_BASE = readFileSync(new URL('../brand-src/echo-app-icon-original-20260925.jpg', import.meta.url));
+// Storage bucket allows image/jpeg only. Keep real JPEG bytes and append harmless slot markers so the three files hash differently.
+const IMAGES = [1, 2, 3].map((slot) => Buffer.concat([JPEG_BASE, Buffer.from('\nQA-E2E-SLOT-' + slot + '\n')]));
 
 const ANSWERS = [
   '처음엔 카페에서 한두 시간 편하게 이야기하고 싶어요',
@@ -112,10 +89,10 @@ async function makeAccount(tag, seed) {
 
   for (let i=0;i<3;i++) {
     const slot=i+1;
-    const storagePath=`${uid}/${slot}/${randomUUID()}.png`;
+    const storagePath=`${uid}/${slot}/${randomUUID()}.jpg`;
     const up=await http(`/storage/v1/object/profile-photos/${storagePath}`, {
       method:'POST', jwt, raw:IMAGES[i],
-      headers:{ 'Content-Type':'image/png', 'x-upsert':'false' }
+      headers:{ 'Content-Type':'image/jpeg', 'x-upsert':'false' }
     });
     check(`${tag}: Storage 사진 ${slot}`, [200,201].includes(up.status), `status=${up.status}`);
     const row=await http('/rest/v1/profile_photos?on_conflict=user_id,slot', {
