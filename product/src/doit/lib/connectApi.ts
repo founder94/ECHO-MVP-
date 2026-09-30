@@ -75,7 +75,8 @@ export function turnsMessage(t: MyTurns['turns']): { title: string; detail: stri
   if (t.answer > 0) return { title: t.answer > 1 ? `첫 질문 ${t.answer}개가 와 있어요` : '새 연결에 첫 질문이 와 있어요', detail: '둘 다 답하면 서로의 이름과 사진이 열려요.' };
   if (t.opened > 0) return { title: '서로 열렸어요', detail: '상대의 답과 사진을 볼 수 있어요. 먼저 한마디 건네 보세요.' };
   if (t.reply > 0) return { title: t.reply > 1 ? `${t.reply}개의 연결에서 이야기가 왔어요` : '상대가 이야기를 보냈어요', detail: '내 연결에서 이어서 답할 수 있어요.' };
-  if (t.choose > 0) return { title: '당신이 잠든 사이, ECHO가 먼저 살펴봤어요', detail: t.choose > 1 ? `후보 ${t.choose}명이 와 있어요. 두 사람이 모두 고르면 연결이 열려요.` : '후보 한 명이 와 있어요. 두 사람이 모두 고르면 연결이 열려요.' };
+  // 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 §3: 재진입 첫 문장 = 「당신이 잠든 사이, ECHO가 한 사람을 발견했어요」(수는 서버가 센 그대로).
+  if (t.choose > 0) return { title: t.choose > 1 ? `당신이 잠든 사이, ECHO가 ${t.choose}명을 발견했어요` : '당신이 잠든 사이, ECHO가 한 사람을 발견했어요', detail: '왜 이 사람인지 먼저 보여 드릴게요. 두 사람이 모두 고르면 연결이 열려요.' };
   return null;
 }
 
