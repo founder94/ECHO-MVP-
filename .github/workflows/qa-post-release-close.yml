@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/qa-post-release-close.yml'
       - 'product/qa-real/qa-match-e2e-provision.mjs'
+      - 'product/qa-real/qa-match-e2e.mjs'
   workflow_dispatch:
 
 permissions:
