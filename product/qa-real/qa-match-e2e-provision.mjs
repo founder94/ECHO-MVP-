@@ -1,6 +1,7 @@
 // QA-only ECHO Matching E2E fixture provisioning.
 // Creates two isolated QA accounts through public Auth/Storage/app server paths only.
 // No PROD URL, no direct DB writes, no service-role key, no account deletion.
+// Trigger marker: 2026-09-30 post-release closing run.
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
