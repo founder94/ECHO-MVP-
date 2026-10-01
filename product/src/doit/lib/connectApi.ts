@@ -32,7 +32,12 @@ export interface MyMatch {
 // 후보 단계에서 서버는 상대의 이름·사진·소개·말을 보내지 않는다(화면이 숨기는 게 아니다). 이유는 내가 직접 한 말과 직접 고른 목적뿐.
 export type CandidateChoice = 'yes' | 'no' | 'hide';
 export interface MyCandidate { id: string; created_at: string; purpose: string | null; reasons: string[]; my_choice: CandidateChoice | null; waiting: boolean }
-export interface MyCandidates { eligible: boolean; missing: string[]; prepared: number; candidates: MyCandidate[] }
+/** FI-018(2026-10-01): 연결 자격을 서버가 계산한 그대로(화면이 따로 세지 않는다). conversation = Agent 공통 계약(conversationReadiness). 예전 서버는 보내지 않는다(null). */
+export interface ConnectReadiness {
+  conversation: { ready: boolean; source: 'agent' | 'legacy'; finished: boolean; have: number; need: number };
+  purpose: boolean; intro: boolean; photos: number; photos_needed: number; phone_verified: boolean;
+}
+export interface MyCandidates { eligible: boolean; missing: string[]; prepared: number; candidates: MyCandidate[]; readiness: ConnectReadiness | null }
 export type OutcomeField = 'talked' | 'met' | 'again' | 'helpful';
 export interface MatchOutcome { talked: 'yes' | 'no' | null; met: 'yes' | 'planned' | 'no' | null; again: 'yes' | 'unsure' | 'no' | null; helpful: 'yes' | 'unsure' | 'no' | null }
 
@@ -115,7 +120,9 @@ export async function decideMatch(userA: string, userB: string, decision: 'appro
 
 export async function fetchMyCandidates(userId: string): Promise<MyCandidates> {
   const out = await serverFunctionRequest<Partial<MyCandidates>>('doit-connect', { action: 'my_candidates' }, userId);
-  return { eligible: out.eligible === true, missing: Array.isArray(out.missing) ? out.missing : [], prepared: typeof out.prepared === 'number' ? out.prepared : 0, candidates: Array.isArray(out.candidates) ? out.candidates : [] };
+  const r = out.readiness;
+  const readiness = r && typeof r === 'object' && r.conversation && typeof r.conversation.ready === 'boolean' ? r : null;
+  return { eligible: out.eligible === true, missing: Array.isArray(out.missing) ? out.missing : [], prepared: typeof out.prepared === 'number' ? out.prepared : 0, candidates: Array.isArray(out.candidates) ? out.candidates : [], readiness };
 }
 
 /** 후보 고르기. 둘 다 'yes' 일 때만 서버가 연결을 연다(status 'mutual'). 한쪽만이면 'waiting'. */

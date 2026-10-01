@@ -113,19 +113,20 @@ test('로그인 안 함 → 401 · 모르는 동작 → 400', async () => {
 test('다섯 질문 흐름: 목적 타일이 첫 답 → 핵심 질문 5개에서 멈춤 · 여섯 번째 없음 · 매칭 프로필 · 넘기기 · 기록 저장', async () => {
   const s = newState(); const h = load(s);
   assert.equal((await h.call({ action: 'agent_get' })).body.session, null);
-  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  // FI-018(v2.5.6): 준비 = 사용자 출처 확정 칸 3 — AI 가 물은 칸에 말 전체를 인용한 답은 원문(USER_DIRECT)으로도 남는다
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
   assert.equal(start.status, 200); const sid = start.body.session.id;
   assert.equal(start.body.session.progress.asked, 2);
   assert.deepEqual(start.body.session.messages.map((m) => m.role), ['ai', 'user', 'ai', 'ai']);
   assert.equal(start.body.session.messages[0].text, '어떤 만남을 원하세요?');
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
-  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
   assert.equal((await say('잘 웃는 사람')).body.session.progress.asked, 3);
   s.ai.push(T({ kind: 'skip', ...Q('relationship_style', '천천히 알아가는 게 편해요?') }));
   const sk = await say('다음 질문으로 넘어가요');
   assert.equal(sk.body.turn.saved, false); assert.equal(sk.body.session.progress.asked, 4);
-  s.ai.push(T({ extracted: [X('relationship_style', '천천히', '천천히')], ...Q('boundaries', '피하고 싶은 게 있어요?') }));
+  s.ai.push(T({ extracted: [X('relationship_style', '천천히', '네 천천히요')], ...Q('boundaries', '피하고 싶은 게 있어요?') }));
   assert.equal((await say('네 천천히요')).body.session.progress.asked, 5);
   // 다섯 번째 답: AI 가 여섯 번째 질문을 내도(이미 물은 목적) 서버가 받지 않고 마친다.
   s.ai.push(T({ extracted: [X('boundaries', '거짓말 싫음', '거짓말')], ...Q('values_character', '하나만 더 물어봐도 돼요?') }), { summary: [{ purpose: 'boundaries', text: '거짓말은 싫어요' }], closing: '이제 조금 알 것 같아요.' });
@@ -274,7 +275,8 @@ test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel · �
 // 「아까 말했는데」 뒤 그 답이 되살아나지 않은 채 끝났다. v1.3: 앞선 말에서 되살리고 · 같은 질문을 두 번 다시 보이지 않고 · 항의 문장은 답으로 남기지 않는다.
 test('기억: 「아까 말했는데」 → 앞선 말에서 되살림 · 항의 문장 저장 0 · 앞선 말은 기록으로 · 같은 질문 재노출 1회까지', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ extracted: [X('relationship_intent', '연애', '연애로')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  // FI-018(v2.5.6): 준비 = 사용자 출처 확정 칸 3 — 첫 답은 AI 가 말 전체를 인용(→ 원문도 USER_DIRECT 로 남음)
+  s.ai.push(T({ extracted: [X('relationship_intent', '연애', '연애로 이어질 만남')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '연애로 이어질 만남' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   s.ai.push(T({ extracted: [], ...Q('values_character', '사람 볼 때 뭘 봐요?') })); // 막연한 답을 AI 가 놓침
@@ -386,7 +388,8 @@ test('help 에 쉬운 질문이 없으면 한 번 다시 청한다(help_question
 
 // ── v1.6(2026-09-25 대표 MASTER §2·§4): 밝고 가벼운 말투 지침 · 대화를 마칠 때 같은 호출에서 소개 초안 · 다시 쓰기 · 고른 것 기록.
 async function finishedSession(s, h, closingOut) {
-  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  // FI-018(v2.5.6): 준비 = 사용자 출처 확정 칸 3 — AI 가 물은 칸에 말 전체를 인용한 답은 원문(USER_DIRECT)으로도 남는다
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
   const sid = start.body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
@@ -427,7 +430,8 @@ test('v1.6 소개 초안: 마칠 때 같은 호출 · 근거(내가 친 글자) 
 
 test('v1.6 소개 다시 쓰기: 대화 중 409 · 실패 → 다시 쓰기 AI 1번 · 3번 상한 뒤 AI 0 · 들은 말 없으면 none(AI 0) · 고른 것 기록', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '편하게')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  // FI-018(v2.5.6): 준비 = 사용자 출처 확정 칸 3 — AI 가 물은 칸에 말 전체를 인용한 답은 원문(USER_DIRECT)으로도 남는다
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
   const sid = start.body.session.id;
   assert.equal((await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid })).status, 409, '대화 중에는 쓰지 않는다');
@@ -464,7 +468,7 @@ test('v1.6 소개 다시 쓰기: 대화 중 409 · 실패 → 다시 쓰기 AI 1
 
 test('v1.9 대표 실기기 재현(2026-09-25): AI 가 놓친 답은 원문으로 · 항의+새 이야기는 새 이야기 저장 · 「모르겠어요」는 저장 0', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화', '깊은 대화부터')], ...Q('attraction_comfort', '같이 있으면 편하고 끌리는 사람은 어떤 사람일까요?') }));
+  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '같이 있으면 편하고 끌리는 사람은 어떤 사람일까요?') })); // FI-018: 말 전체 인용 → 원문도 USER_DIRECT
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '깊은 대화부터 시작하고 싶어요' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   const state = () => s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
@@ -472,7 +476,7 @@ test('v1.9 대표 실기기 재현(2026-09-25): AI 가 놓친 답은 원문으�
   s.ai.push(T({ extracted: [], ...Q('values_character', '사람을 만날 때 가장 먼저 어떤 점을 보나요?') }));
   assert.equal((await say('능력이좀 있는사람')).body.turn.saved, true);
   assert.deepEqual(state().slots.attraction_comfort.items.map((i) => i.quote), ['능력이좀 있는사람']);
-  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람')], ...Q('relationship_style', '연락은 자주 하는 편인가요?') }));
+  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람 내가 지금 능력이 없었기 때문에')], ...Q('relationship_style', '연락은 자주 하는 편인가요?') }));
   await say('능력이 있는 사람 내가 지금 능력이 없었기 때문에');
   // ② 항의 + 새 이야기: 새 이야기(이번 말에 실제로 있는 글자)는 저장 · 항의 문장 원문 저장 0
   s.ai.push(T({ kind: 'repair', reply: '네, 아까 말씀하셨죠.', extracted: [X('relationship_style', '연락 자주', '연락은 자주하는 편')], ...Q('boundaries', '이건 좋고 이건 싫다 싶은 게 있나요?') }));
@@ -783,4 +787,68 @@ test('v2.5: 이미 충분히 들은 상태면 중복 후보를 더 생성하지 
   assert.ok(calls <= 3, `후보 재생성 상한 초과: ${calls}`);
   assert.equal(r.response.finish, true, '확정 영역이 충분하면 고정 5답을 채우지 않고 종료');
   assert.equal(r.response.question, null);
+});
+
+// ── FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): Agent 완료 판단 = 연결 서버 대화 자격과 같은 함수(conversationReadiness).
+// QA 실서버(run 36841364057 · 재현 2026-10-01): A 는 대화를 마쳤는데 사용자 출처 칸이 2개라 연결 자격 0(candidate 0) — 같은 모양을 서버 흐름으로 다시 만든다.
+const fi018Done = async (h, s) => {
+  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화부터 시작하고 싶어요', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '깊은 대화는 처음에 어디서 하면 편해요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'conversation', goalLabel: '깊은 대화부터 시작하고 싶어요', firstAnswer: '깊은 대화부터 시작하고 싶어요' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  // 두 번째 답: AI 가 물은 칸(attraction)에 원문을 넣지 않고 다른 칸(style)에 정리 → 물은 칸에는 사용자 원문
+  s.ai.push(T({ extracted: [X('relationship_style', '처음엔 카페에서 한두 시간', '카페에서 한두 시간')], ...Q('values_character', '카페에서 이야기하다 보면 뭐가 제일 좋아요?') }));
+  await say('처음엔 카페에서 한두 시간 편하게 이야기하고 싶어요');
+  return { sid, say };
+};
+test('FI-018 CASE 9(Agent): QA 실패 모양(물은 칸에 AI 가 원문 그대로 정리) → 사용자 출처 3칸 · 대화 완료 = conversation_ready', async () => {
+  const s = newState(); const h = load(s);
+  const { say } = await fi018Done(h, s);
+  // 세 번째 답: AI 가 물은 칸(values)에 말 전체를 그대로 정리(QA 실서버 A 와 같은 모양 · 예전엔 AI 출처로만 남아 자격 0)
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  const end = await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요');
+  assert.equal(end.status, 200);
+  const p = end.body.session.profile;
+  assert.ok(p.values_character.items.some((i) => i.source_type === 'USER_DIRECT'), '물은 칸의 사용자 원문이 남는다');
+  assert.ok(!p.values_character.items.some((i) => i.source_type === 'AI_EXTRACTED' && i.note === '서로 말 끊지 않고 천천히 듣는 대화가 좋아요'), '같은 글자의 AI 정리는 원문으로 대신(두 번 0)');
+  assert.equal(p.readiness.confirmed_areas, 3); assert.equal(p.readiness.ready, true);
+  assert.equal(end.body.session.phase, 'done');
+  assert.equal(p.readiness.conversation_ready, true, '대화를 마친 사용자 = 연결 서버가 보는 대화 조건 충족');
+  // 같은 프로필을 연결 서버 재료 함수가 읽어도 같은 답(SSOT)
+  assert.equal(h.agent.conversationReadiness(p, end.body.session.phase).conversation_ready, true);
+});
+test('FI-018 CASE 3(Agent): 준비 칸이 모자라면 대화가 끝나도 conversation_ready=false(준비 미완료로 멈춤 기록)', async () => {
+  const s = newState(); const h = load(s);
+  const { say } = await fi018Done(h, s);
+  for (const [p, q] of [['values_character', 'Q3?'], ['relationship_style', 'Q4?'], ['boundaries', 'Q5?'], ['attraction_comfort', 'Q6?']]) s.ai.push(T({ kind: 'unsure', ...Q(p, q) }));
+  s.ai.push({ summary: [], closing: '오늘은 여기까지 할게요.' });
+  let last;
+  for (let k = 0; k < 4 && (!last || last.body.session.phase === 'talk'); k++) last = await say('잘 모르겠어요');
+  const p = last.body.session.profile;
+  assert.equal(last.body.session.phase, 'done');
+  assert.equal(p.readiness.conversation_ready, false); assert.ok(p.readiness.confirmed_areas < 3);
+  assert.ok(last.body.session.messages.length > 0);
+});
+test('FI-018 CASE 7: Agent 완료 뒤 서버 오류(AI 실패) → 저장된 상태·확정 프로필 그대로(훼손 0) · 다시 보낼 수 있음', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  const done = await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요');
+  assert.equal(done.body.session.phase, 'done');
+  const stored = () => structuredClone(s.tables.doit_request_events.find((r) => r.action === 'agent_session' && r.request_id === sid)?.response_payload ?? s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload);
+  const before = stored();
+  s.ai.push('HTTP500');
+  const bad = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그리고 연락은 이틀에 한 번이 좋아요' });
+  assert.equal(bad.status, 502);
+  assert.deepEqual(stored(), before, '실패한 턴은 정상 상태를 덮어쓰지 않는다');
+  assert.equal(before.profile.readiness.conversation_ready, true);
+});
+test('FI-018 CASE 8: 같은 사용자가 다시 들어옴 → 같은 세션 · AI 다시 안 부름 · 이미 확정한 질문 다시 묻기 0', async () => {
+  const s = newState(); const h = load(s);
+  const { sid } = await fi018Done(h, s);
+  const calls = s.aiCalls.length;
+  const asked = (await h.call({ action: 'agent_get' })).body.session.messages.filter((m) => m.role === 'ai').map((m) => m.text);
+  const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'conversation', goalLabel: '깊은 대화부터 시작하고 싶어요', firstAnswer: '깊은 대화부터 시작하고 싶어요' });
+  assert.equal(again.body.session.id, sid); assert.equal(again.body.existing, true); assert.equal(s.aiCalls.length, calls);
+  const now = again.body.session.messages.filter((m) => m.role === 'ai').map((m) => m.text);
+  assert.deepEqual(now, asked, '다시 들어와도 같은 질문을 새로 덧붙이지 않는다');
 });

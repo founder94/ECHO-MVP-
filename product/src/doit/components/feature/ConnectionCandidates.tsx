@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { chooseCandidate, fetchMyCandidates, type CandidateChoice, type MyCandidate } from '@/doit/lib/connectApi';
+import { chooseCandidate, fetchMyCandidates, type CandidateChoice, type MyCandidate, type MyCandidates } from '@/doit/lib/connectApi';
 import './connect.css';
 
 // 당신이 잠든 사이 — 서버(doit-connect v2.0)가 준비한 소수 후보(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§17).
@@ -15,7 +15,7 @@ type Mutual = { matchId: string | null };
 
 const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '이번에는 넘길게요', hide: '숨기기' };
 
-export default function ConnectionCandidates({ userId, onOpened }: { userId: string; onOpened: (matchId: string | null) => void }) {
+export default function ConnectionCandidates({ userId, onOpened, onServerState }: { userId: string; onOpened: (matchId: string | null) => void; onServerState?: (state: MyCandidates) => void }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,13 +28,13 @@ export default function ConnectionCandidates({ userId, onOpened }: { userId: str
     const mine = ++seq.current;
     try {
       const out = await fetchMyCandidates(userId);
-      if (mine === seq.current) setLoad({ kind: 'ready', eligible: out.eligible, candidates: out.candidates });
+      if (mine === seq.current) { setLoad({ kind: 'ready', eligible: out.eligible, candidates: out.candidates }); onServerState?.(out); } // FI-018 연결 준비 칸도 같은 서버 응답으로
     } catch {
       if (mine !== seq.current) return;
       // 불러오기 실패에는 저장 실패 문구(서버 창구의 기본 문구 「저장 결과를 확인하지 못했어요…」)를 쓰지 않는다(QA 브라우저 검사 20).
       setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: '불러오지 못했어요. 다시 확인해 볼게요.' });
     }
-  }, [userId]);
+  }, [userId, onServerState]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 

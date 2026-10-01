@@ -8,13 +8,13 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
-// agentSource.ts 는 ../doit-agent/matching.ts 를 그대로 쓴다(중복 구현 0) — 같은 상대 경로로 옮겨 풀어 둔다.
+// agentSource.ts 는 ../doit-agent/agent.ts 의 공통 준비 계약(conversationReadiness · FI-018)을 그대로 쓴다(중복 구현 0) — 같은 상대 경로로 옮겨 풀어 둔다.
 const dir = mkdtempSync(path.join(tmpdir(), 'agentsrc-'));
 const emit = (src, out) => {
   const code = ts.transpileModule(readFileSync(new URL(src, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const file = path.join(dir, out); writeFileSync(file, code.replace('"../doit-agent/matching.ts"', '"./matching.mjs"')); return file;
+  const file = path.join(dir, out); writeFileSync(file, code.replace('"../doit-agent/agent.ts"', '"./agent.mjs"')); return file;
 };
-emit('../supabase/functions/doit-agent/matching.ts', 'matching.mjs');
+emit('../supabase/functions/doit-agent/agent.ts', 'agent.mjs');
 const A = await import(pathToFileURL(emit('../supabase/functions/doit-connect/agentSource.ts', 'agentSource.mjs')).href);
 
 const item = (note, over = {}) => ({ note, quote: note, status: 'CONFIRMED', source_type: 'USER_DIRECT', source_turn: 1, ...over }); // 기본 = 사용자 원문(2026-09-29 매칭 재료 = 사용자 출처만)

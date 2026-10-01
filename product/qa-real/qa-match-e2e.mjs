@@ -59,13 +59,16 @@ for (const member of [A, B]) {
 }
 const ca = await fn('doit-connect', A.jwt, { action: 'my_candidates' });
 if (!check('A: 연결 자격(eligible)', ca.status === 200 && ca.data?.eligible === true, `status=${ca.status} missing=${JSON.stringify(ca.data?.missing)} prepared=${ca.data?.prepared}`)) STOP('eligibility');
-const candA = (ca.data?.candidates ?? [])[0];
-if (!check('A: 서버가 후보 1개 준비', (ca.data?.candidates ?? []).length === 1, `count=${(ca.data?.candidates ?? []).length}`)) STOP('no candidate');
+// 2026-10-01: QA 풀에 앞선 실행의 시험 계정이 남아 있어도 이 쌍(A↔B)의 후보 하나만 쓴다(다른 후보는 고르지도 숨기지도 않음 · 다른 계정 변경 0).
+const cb0 = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
+const sharedIds = (ca.data?.candidates ?? []).map((c) => c.id).filter((id) => (cb0.data?.candidates ?? []).some((d) => d.id === id));
+const candA = (ca.data?.candidates ?? []).find((c) => c.id === sharedIds[0]);
+if (!check('A: 서버가 A↔B 후보 1개 준비(공통 후보 정확히 1)', sharedIds.length === 1 && !!candA && (!preflight.pairCandidateId || preflight.pairCandidateId === candA.id), `A=${(ca.data?.candidates ?? []).length} 공통=${sharedIds.length}`)) STOP('no candidate');
 const leakKeys = Object.keys(candA).filter((k) => /user|nick|name|photo|bio|email|phone|partner/i.test(k));
 if (!check('A: 후보 화면 자료에 상대 개인정보 0(이름·사진·소개·연락처·id)', leakKeys.length === 0, `keys=${JSON.stringify(Object.keys(candA))}`)) STOP('privacy');
 const cb = await fn('doit-connect', B.jwt, { action: 'my_candidates' });
-const candB = (cb.data?.candidates ?? [])[0];
-if (!check('B: 같은 후보를 봄(시험 계정끼리만)', cb.status === 200 && cb.data?.eligible === true && (cb.data?.candidates ?? []).length === 1 && candB?.id === candA.id, `eligible=${cb.data?.eligible} count=${(cb.data?.candidates ?? []).length}`)) STOP('pair isolation');
+const candB = (cb.data?.candidates ?? []).find((c) => c.id === candA.id);
+if (!check('B: 같은 후보를 봄(A↔B 쌍)', cb.status === 200 && cb.data?.eligible === true && candB?.id === candA.id, `eligible=${cb.data?.eligible} count=${(cb.data?.candidates ?? []).length}`)) STOP('pair isolation');
 const ya = await fn('doit-connect', A.jwt, { action: 'choose', candidateId: candA.id, choice: 'yes' });
 if (!check('A yes → 기다림(한쪽 yes 로 연결 0)', ya.status === 200 && ya.data?.status === 'waiting', `status=${ya.status} ${ya.data?.status}`)) STOP('A choice');
 const ma0 = await fn('doit-connect', A.jwt, { action: 'my_matches' });

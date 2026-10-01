@@ -13,7 +13,7 @@ const dir = mkdtempSync(path.join(tmpdir(), 'xslot-'));
 const emit = (src, out, fix = (x) => x) => { const f = path.join(dir, out); writeFileSync(f, fix(ts.transpileModule(readFileSync(new URL(src, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText)); return pathToFileURL(f).href; };
 const A = await import(emit('../supabase/functions/doit-agent/agent.ts', 'agent.mjs'));
 emit('../supabase/functions/doit-agent/matching.ts', 'matching.mjs');
-const M = await import(emit('../supabase/functions/doit-connect/agentSource.ts', 'agentSource.mjs', (x) => x.replace('"../doit-agent/matching.ts"', '"./matching.mjs"')));
+const M = await import(emit('../supabase/functions/doit-connect/agentSource.ts', 'agentSource.mjs', (x) => x.replace('"../doit-agent/agent.ts"', '"./agent.mjs"')));
 
 const X = (purpose, note, quote) => ({ purpose, note, quote });
 const T = (o = {}) => ({ kind: 'answer', understood: '', reply: '그렇군요.', extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'none', purpose: '', question: '' }, ...o });

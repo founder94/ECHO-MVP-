@@ -20,7 +20,7 @@ const X = (purpose, note, quote) => ({ purpose, note, quote });
 function started() { const st = A.newState({ tone: 'polite' }); A.seedFirstQuestion(st); return st; }
 
 test('버전: v2.1 · 판 추적(에이전트·프롬프트 해시·서버 규칙·파이프라인)', () => {
-  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.5.5'); // 사람 같은 맥락 대화 + 충분하면 3~5턴 안에서 종료
+  assert.equal(A.AGENT_VERSION, 'echo-agent-v2.5.6'); // 사람 같은 맥락 대화 + 충분하면 3~5턴 안에서 종료
   const v = A.versionTrace();
   assert.deepEqual(Object.keys(v), ['agent_version', 'prompt_version', 'policy_version', 'pipeline_version']);
   assert.match(v.prompt_version, /^p-[0-9a-f]{8}$/);
@@ -106,7 +106,8 @@ test('방향 잠금(v2.5): 고정 5문항 없이 충분한 정보면 3~5턴 안�
   const pids = ['attraction_comfort', 'values_character', 'relationship_style', 'boundaries'];
   A.applyTurn(early, '친구', out('answer', { extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: pids[0], question: 'Q1?' } }));
   let last;
-  for (let k = 0; k < 3; k++) last = A.applyTurn(early, `답${k}이에요`, out('answer', { extracted: [X(pids[k], `답${k}`, `답${k}`)], next: { type: 'core', purpose: pids[k + 1], question: `Q${k + 2}?` } }));
+  // FI-018(v2.5.6): 준비 칸 = 사용자 출처 확정 칸 — 물은 칸에 말 전체를 정리한 답(인용 = 사용자 말 전체)은 원문(USER_DIRECT)으로도 남는다.
+  for (let k = 0; k < 3; k++) last = A.applyTurn(early, `답${k}이에요`, out('answer', { extracted: [X(pids[k], `답${k}`, `답${k}이에요`)], next: { type: 'core', purpose: pids[k + 1], question: `Q${k + 2}?` } }));
   assert.equal(A.savedAnswers(early), 4);
   assert.equal(last.finish, true, '확정 영역 4개 이상이면 다섯 번째를 억지로 묻지 않는다');
   assert.equal(early.turns.at(-1).decision, 'finish_enough');
