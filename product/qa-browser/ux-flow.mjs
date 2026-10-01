@@ -285,7 +285,7 @@ await run(36, '서버 readiness: 모두 갖춤 + eligible → 「모두 마쳤�
 });
 // 37~42 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 주관식 본체 + 객관식 구조대(서버 계약 모양 그대로 · 보기는 서버가 준 것만).
 const RQ = '첫 만남은 어떤 분위기로 하고 싶으세요?';
-const RS = (o = {}) => ({ ...AGENT_SESSION, current_question: RQ, messages: [{ role: 'ai', text: '어떤 친구를 만나고 싶어요?' }, { role: 'user', text: '편하게 얘기할 친구요' }, { role: 'ai', text: RQ }], current_rescue: { options: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'], show: false, fallback: false }, previous: null, ...o });
+const RS = (o = {}) => ({ ...AGENT_SESSION, current_question: RQ, messages: [{ role: 'ai', text: '어떤 친구를 만나고 싶어요?' }, { role: 'user', text: '편하게 얘기할 친구요' }, { role: 'ai', text: RQ }], current_rescue: { options: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'], symbols: ['🫧', '🫧', '🍽️'], show: false, fallback: false }, previous: null, ...o });
 const openConv = async (p) => { await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1000); await p.locator('.echo-question').filter({ hasText: RQ }).first().waitFor({ timeout: 15000 }); };
 await run(37, '구조대 기본: 주관식 본체 · 보기 0 → 잘 모르겠어요 → 보기 3 · 눌러도 안 넘어감 · 보내면 choice', IPHONE, { agent: { session: RS() } }, async (p, s) => {
   await openConv(p);
@@ -303,7 +303,8 @@ await run(37, '구조대 기본: 주관식 본체 · 보기 0 → 잘 모르겠�
   await opts.nth(1).click(); await p.waitForTimeout(400);
   expect(await opts.nth(1).getAttribute('aria-pressed') === 'true', '고른 표시 없음');
   const sel = await opts.nth(1).evaluate(e => { const c = getComputedStyle(e); return { bg: c.backgroundColor, color: c.color, bw: c.borderTopWidth }; }); const off = await opts.nth(0).evaluate(e => getComputedStyle(e).backgroundColor);
-  const mark = await opts.nth(1).evaluate(e => getComputedStyle(e, '::before').content);
+  const mark = await opts.nth(1).evaluate(e => getComputedStyle(e.querySelector('.echo-option-text') ?? e, '::after').content + getComputedStyle(e, '::before').content);
+  const sym = await opts.nth(0).locator('.echo-option-mark').innerText(); expect(sym.length > 0 && sym.length <= 3, `심볼 칸 ${sym}`);
   expect(sel.bg !== off && parseFloat(sel.bw) >= 1 && mark.includes('✓'), `고른 표시가 또렷하지 않음 ${JSON.stringify(sel)} vs ${off} ${mark}`);
   expect(!s.st.calls.some(c => c.action === 'agent_turn'), '보기를 누르자 바로 넘어감(자동 진행 금지)');
   await p.screenshot({ path: 'uxshots/37b-picked.png' });

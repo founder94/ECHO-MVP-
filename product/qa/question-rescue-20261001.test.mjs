@@ -33,7 +33,7 @@ const afterFirst = async () => { const st = start(); A.applyTurn(st, '편하게 
 test('Q1 질문 본체는 늘 주관식: 보통 답 뒤 보기는 서버가 들고만 있고 먼저 펼치지 않는다 · 화면은 입력칸을 늘 그린다', async () => {
   const st = await afterFirst();
   assert.equal(st.current.text, '처음 만나면 어디가 편해요?');
-  assert.deepEqual(A.rescueView(st), { options: ['조용한 카페', '같이 걷기', '밥 먹으면서'], show: false, fallback: false });
+  assert.deepEqual(A.rescueView(st), { options: ['조용한 카페', '같이 걷기', '밥 먹으면서'], symbols: ['☕', '🚶', '🍽️'], show: false, fallback: false });
   assert.match(UI, /\{!done && <form className="echo-composer"/, '대화 중에는 주관식 입력칸이 늘 있다');
   assert.match(UI, /\{rescueOpen && <div className="echo-rescue"/, '보기는 펼쳤을 때만');
   assert.match(UI, /const rescueOpen = !!question && !editingPrevious && \(rescueFor\?\.q === question \? rescueFor\.open : !!rescue\?\.show\);/, '펼침 = 내가 누름(A·B) 또는 서버가 먼저 펼침(C·D)');
@@ -195,7 +195,7 @@ test('FI: 보기를 끝내 못 만들면 안전 안내(fallback)만 · RESCUE_OP
   const st = start();
   const r = await A.requestRescue(st, fake([], [{ choices: ['잘 모르겠어요', '네'] }]));
   assert.ok(r.fi.includes('RESCUE_OPTIONS_MISSING'));
-  assert.deepEqual(A.rescueView(st), { options: [], show: false, fallback: true });
+  assert.deepEqual(A.rescueView(st), { options: [], symbols: [], show: false, fallback: true });
   assert.ok(st.fi_pending.includes('RESCUE_OPTIONS_MISSING'), '다음 턴 기록에 붙는다');
   A.applyTurn(st, '편하게 얘기할 친구요', T({ extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '처음 만나면 어디가 편해요?') }));
   assert.ok(st.turns.at(-1).fi.includes('RESCUE_OPTIONS_MISSING'));
@@ -208,11 +208,23 @@ test('원인 고정: 항의·피로 턴의 「그럼 이런 느낌 중엔 뭐가
   const st = await afterFirst();
   const r = A.applyTurn(st, '질문이 너무 많아요', T({ kind: 'repair', next: N('values_character', A.choiceQuestionText('polite'), ['말 잘 통하는 사람', '약속 잘 지키는 사람']) }));
   assert.equal(r.question, A.choiceQuestionText('polite'));
-  assert.deepEqual(A.rescueView(st), { options: ['말 잘 통하는 사람', '약속 잘 지키는 사람'], show: true, fallback: false });
+  assert.deepEqual(A.rescueView(st), { options: ['말 잘 통하는 사람', '약속 잘 지키는 사람'], symbols: ['', ''], show: true, fallback: false });
   // 「첫 만남은 어떤 분위기로…」: AI 가 보기를 빼먹으면 서버가 보기만 다시 청한다(도움 요청 때)
   const s2 = start();
   A.applyTurn(s2, '편하게 얘기할 친구요', T({ extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '첫 만남은 어떤 분위기로 하고 싶으세요?') }));
   assert.deepEqual(A.rescueView(s2).options, []);
   await A.requestRescue(s2, fake([], [{ choices: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'] }]));
-  assert.deepEqual(A.rescueView(s2), { options: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'], show: true, fallback: false });
+  assert.deepEqual(A.rescueView(s2), { options: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'], symbols: ['🫧', '🫧', '🍽️'], show: true, fallback: false });
+});
+
+test('A-PREMIUM 심볼: 서버가 정해 둔 생활형 심볼 1개만(감정 이모지·하트 0) · 맞는 게 없으면 빈 칸', () => {
+  assert.equal(A.optionSymbol('조용한 카페가 좋아요'), '☕');
+  assert.equal(A.optionSymbol('같이 걸으면 편해요'), '🚶');
+  assert.equal(A.optionSymbol('밥 먹으면서 천천히요'), '🍽️');
+  assert.equal(A.optionSymbol('그날 분위기 따라요'), '🌿');
+  assert.equal(A.optionSymbol('약속 잘 지키는 사람'), '');
+  const src = readFileSync(here('../supabase/functions/doit-agent/agent.ts'), 'utf8');
+  const set = src.slice(src.indexOf('const OPTION_SYMBOLS'), src.indexOf('export const optionSymbol'));
+  assert.doesNotMatch(set, /😂|😍|🥹|❤|💕|💘|😊/);
+  assert.ok((set.match(/"[^"]+"\]/g) ?? []).length <= 12, '12개 이하');
 });

@@ -703,10 +703,18 @@ export function cleanChoices(v: unknown): string[] { return screenChoices(null, 
 // 화면에 줄 보기: 서버가 정한 보기만(도움 행동 「잘 모르겠어요」는 보기에 섞지 않는다 — 화면의 별도 버튼).
 export function choicesFor(st: AgentState): string[] | null { return st.current?.choices && st.current.choices.length >= CHOICE_MIN ? [...st.current.choices] : null; }
 // 화면 계약: options = 서버가 승인한 보기 · show = 서버가 먼저 펼쳐 둠(C·D) · fallback = 보기를 못 만들어 「직접 설명할게요 / 잘 모르겠어요 / 넘어갈게요」만.
-export function rescueView(st: AgentState): { options: string[]; show: boolean; fallback: boolean } | null {
+// 2026-10-01 대표 「FINAL DESIGN」 §12 A-PREMIUM: 보기마다 생활형 작은 심볼 1개(정해 둔 12개 안에서만 · 서버가 낱말로 고름 · AI 호출 0).
+//   맞는 것이 없으면 빈 칸("")이고 화면은 작은 점을 그린다. 감정 이모지(😂😍🥹)·하트는 목록에 없다.
+const OPTION_SYMBOLS: [RegExp, string][] = [
+  [/카페|커피|차\s*한\s*잔|디저트/, "☕"], [/걷|산책|걸으/, "🚶"], [/밥|식사|먹|맛집|요리/, "🍽️"], [/음악|노래|공연/, "🎧"],
+  [/책|공부|도서관/, "📚"], [/밤|저녁/, "🌙"], [/낮|아침|햇/, "☀️"], [/대화|얘기|이야기|수다|연락|메시지|문자|전화/, "💬"],
+  [/가볍|부담\s*없|편하게|여유/, "🫧"], [/집|쉬|휴식|편안|조용/, "🪴"], [/분위기|자연|따라|그때그때|공원|바다|숲/, "🌿"],
+];
+export const optionSymbol = (text: string) => OPTION_SYMBOLS.find(([re]) => re.test(text))?.[1] ?? "";
+export function rescueView(st: AgentState): { options: string[]; symbols: string[]; show: boolean; fallback: boolean } | null {
   if (st.phase !== "talk" || !st.current) return null;
   const options = choicesFor(st) ?? [];
-  return { options, show: !!st.current.rescue_show && options.length >= CHOICE_MIN, fallback: !options.length && !!st.current.rescue_fallback };
+  return { options, symbols: options.map(optionSymbol), show: !!st.current.rescue_show && options.length >= CHOICE_MIN, fallback: !options.length && !!st.current.rescue_fallback };
 }
 // 서버가 보기를 먼저 펼칠 때(C·D): 모르겠다·넘기기·도움 뒤 · 질문 피로 뒤 · 질문이 고르기 모양.
 const PICK_SHAPE = /중(엔|에|에서)\s*(뭐|무엇|어느|어떤|가까)|고르(면|자면|라면)|골라/; // 「이런 느낌 중엔 뭐가 가까워요?」 같은 고르기 모양
