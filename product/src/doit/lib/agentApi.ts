@@ -25,7 +25,10 @@ export interface AgentSession {
   progress: { asked: number; of: number };
   current_question: string | null;
   current_hint?: string | null; // 질문의 답 범위를 알려 주는 한 줄 예시(서버 v1.4 · 없으면 버튼을 그리지 않는다)
-  current_choices?: string[] | null; // 2026-09-30 모르겠다·넘기기 뒤에만 오는 짧은 답 보기(누르면 그 글자를 답으로 보낸다 · 없으면 그리지 않는다)
+  current_choices?: string[] | null; // 예전 앱용(서버가 먼저 펼친 보기만). 새 화면은 current_rescue 를 쓴다.
+  // 2026-10-01 주관식 본체 + 객관식 구조대: options = 서버가 거른 보기(2~4) · show = 서버가 먼저 펼침 · fallback = 보기를 못 만듦(안전 안내만)
+  current_rescue?: AgentRescue | null;
+  previous?: { question: string; options: string[]; chosen: string } | null; // 직전 질문을 보기로 답했으면 그 보기와 고른 것(뒤로·고치기 복원)
   messages: { role: 'ai' | 'user'; text: string }[];
   summary: { purpose: string; text: string }[]; closing: string | null;
   profile: AgentProfile | null; handoff: { status: string } | null;
@@ -34,6 +37,7 @@ export interface AgentSession {
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
+export interface AgentRescue { options: string[]; show: boolean; fallback: boolean }
 export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean }
 
 export const AGENT_PURPOSE_LABELS: Record<string, string> = {
@@ -85,10 +89,18 @@ export async function agentStart(userId: string, input: { tone: AgentTone; mode:
 }
 
 // correction = 「ECHO가 이해한 나」에서 누른 정정(칸 id · 다시 말하기는 null). 서버가 정정으로 확정한다(문장으로 추측하지 않음 · 2026-09-27 P0-5).
-export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }): Promise<{ session: AgentSession; turn: AgentTurn }> {
-  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}) });
+// rescue.choice = 누른 보기(서버가 지금 질문의 승인 보기인지 다시 확인하고 사용자 직접 답으로 저장) · rescue.rescueOpen = 보기가 펼쳐져 있었음.
+export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }, rescue?: { choice?: string; rescueOpen?: boolean }): Promise<{ session: AgentSession; turn: AgentTurn }> {
+  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}), ...(rescue?.choice ? { choice: rescue.choice } : {}), ...(rescue?.rescueOpen ? { rescueOpen: true } : {}) });
   if (!validSession(r.session) || !r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
   return r;
+}
+
+// 2026-10-01 「잘 모르겠어요」 = 구조 요청(답 아님 · 저장 0). 서버가 지금 질문의 보기를 정해 돌려준다(이미 있으면 AI 호출 0).
+export async function agentRescue(userId: string, sessionId: string): Promise<AgentSession> {
+  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_rescue', sessionId });
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  return r.session;
 }
 
 // 소개 초안 다시 쓰기(AI 1번 · 대화 한 번에 3번까지) · 사용자가 고른 것 기록(출처 표시: 이대로/고쳐서/직접).

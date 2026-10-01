@@ -42,7 +42,7 @@ test('one homepage CTA is mobile app install and brand redirects to the app intr
 
 test('v2.5.1 mirror guard rejects analytic acknowledgements and generic person questions', () => {
   const s = read('supabase/functions/doit-agent/agent.ts');
-  assert.match(s, /echo-agent-v2\.5\.7/);
+  assert.match(s, /echo-agent-v2\.5\.8/);
   assert.match(s, /analyticAck/);
   assert.match(s, /genericPersonQuestion/);
   assert.match(s, /원하시네요/);

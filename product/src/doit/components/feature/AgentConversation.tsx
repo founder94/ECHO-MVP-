@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { DEFAULT_AGENT_TONE, agentGet, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
+import { DEFAULT_AGENT_TONE, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
@@ -33,6 +33,10 @@ const LOAD_ERROR = '대화를 불러오지 못했어요. 인터넷이 잘 되는
 // 빠져나갈 문: 사용자가 누르면 그 말을 그대로 보낸다(서버·AI 가 넘기기·그만하기로 읽는다). 고정 질문이 아니다.
 const SKIP_TEXT = '이 질문은 넘어갈게요';
 const STOP_TEXT = '오늘은 여기까지 할게요';
+// 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」 주관식 본체 + 객관식 구조대.
+// 「잘 모르겠어요」 = 구조 요청(답 아님 · 서버가 지금 질문의 보기를 정해 준다). 보기를 못 만들었을 때(fallback)만 그 말을 서버에 보내 다음으로 간다.
+const UNSURE_TEXT = '잘 모르겠어요';
+const RESCUE_LEAD = '이런 느낌 중에 가까운 게 있어요?';
 
 const SPEAK_FAILED = '소리로 읽지 못했어요. 대답은 화면에 적어 두었어요.';
 // 말로 대화하기 네 가지 상태(대표 2026-09-26 「대기 / 듣는 중 / 이해하는 중 / ECHO가 말하는 중」).
@@ -68,6 +72,11 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [profileOk, setProfileOk] = useState(false); // 「ECHO가 이해한 나」를 [맞아요]로 확인했다(이 기기)
   const [hintFor, setHintFor] = useState<string | null>(null); // 「예시 보기」를 연 질문(질문이 바뀌면 저절로 닫힌다)
   const [choosing, setChoosing] = useState(true);
+  // 구조대: 보기를 펼친 질문 · 고른 보기(질문이 바뀌면 저절로 닫힘). 보기를 눌러도 바로 넘어가지 않는다 — 「답변 보내기」로 보낸다.
+  // rescueFor = 이 질문에서 내가 펼치거나(잘 모르겠어요) 접은(직접 설명할게요) 상태. 없으면 서버가 정한 펼침(show)을 따른다.
+  const [rescueFor, setRescueFor] = useState<{ q: string; open: boolean } | null>(null);
+  const [pick, setPick] = useState<{ q: string; choice: string } | null>(null);
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
   const alive = useRef(true);
   const inFlight = useRef(false);
   const heroStarted = useRef(false);
@@ -125,17 +134,19 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   });
 
   // spokenTurn = 말로 대화하기 마이크로 들은 말(글로 적은 말과 같은 서버·같은 기억·같은 정정/거절 규칙으로 간다).
-  const send = (text: string, spokenTurn = false, correctionMode = false) => {
+  const send = (text: string, spokenTurn = false, correctionMode = false, choice: string | null = null) => {
     const t = text.trim();
     if (!session || !t) return;
+    const rescueOpen = !!session.current_question && (rescueFor?.q === session.current_question ? rescueFor.open : !!session.current_rescue?.show);
     if (voice.listening) voice.stop();
     const spoke = spokenTurn || voiceTurn.current; voiceTurn.current = false;
     if (spoke && !spokenTurn) unlockSpeech(); // 보내기 누름 안에서 소리 길을 연다(마이크로 들은 말은 마이크 누름에서 이미 열었다)
     void run(VOICE_CONVERSATION_ENABLED && session.mode === 'VOICE' ? '이해하는 중이에요' : '듣고 있어요', async () => {
-      const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined);
+      const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
       speakNew(session, r.session, spoke); setSession(r.session);
       setDraft(prev => (prev.trim() === t ? '' : prev));
+      setPick(null);
       if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
     });
@@ -180,11 +191,26 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const onPop = () => {
       mark();
       if (editingRef.current) { setEditingPrevious(false); setDraft(''); return; }
-      setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null);
+      setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null); setPick(null);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [guardBack]);
+
+  // (A)·(B) 「잘 모르겠어요」: 답이 아니라 구조 요청. 서버가 들고 있는 보기가 있으면 바로 펼치고, 없으면 서버에 보기를 청한다(저장 0 · 질문 수 0).
+  const askRescue = () => {
+    if (!session?.current_question) return;
+    const q = session.current_question;
+    setPick(null); setNotice(null);
+    if ((session.current_rescue?.options.length ?? 0) >= 2) { setRescueFor({ q, open: true }); return; }
+    void run('가까운 보기를 찾고 있어요', async () => {
+      const s = await agentRescue(userId, session.id);
+      if (!alive.current) return;
+      setSession(s); if (s.current_question) setRescueFor({ q: s.current_question, open: true });
+    });
+  };
+  // 「직접 설명할게요」: 보기를 접고 주관식으로(언제든 돌아갈 수 있다).
+  const explainSelf = () => { if (session?.current_question) setRescueFor({ q: session.current_question, open: false }); setPick(null); requestAnimationFrame(() => draftRef.current?.focus()); };
 
   const restart = () => void run('처음부터 준비하고 있어요', async () => {
     const failure = await onRestart();
@@ -228,6 +254,13 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const introChosen = introSaved || !!session.intro?.used; // 소개를 이미 골랐다(이대로·고침·직접)
   // 말로 대화 화면은 VOICE_CONVERSATION_ENABLED 가 켜졌을 때만(MVP DEFERRED). 예전에 「말로」로 시작한 대화도 글 화면으로 이어 간다.
   const voiceUi = VOICE_CONVERSATION_ENABLED && session.mode === 'VOICE';
+  // 구조대 상태(서버 계약 그대로): 펼침 = 내가 「잘 모르겠어요」를 눌렀거나 서버가 먼저 펼침. 보기·안전 안내는 서버가 준 것만.
+  const rescue = question ? session.current_rescue ?? null : null;
+  const rescueOptions = rescue?.options ?? [];
+  const rescueOpen = !!question && !editingPrevious && (rescueFor?.q === question ? rescueFor.open : !!rescue?.show);
+  const picked = pick && pick.q === question ? pick.choice : null;
+  // 뒤로·직전 답 고치기: 직전 질문을 보기로 답했으면 그 보기와 고른 것을 되살린다(고친 말은 정정으로 서버가 다시 정한다).
+  const prevChoice = editingPrevious && session.previous && session.previous.question === previousQuestion ? session.previous : null;
 
   return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
     {header}
@@ -243,16 +276,37 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {!done && <p className="echo-lead">{voiceUi ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
     {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
     {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 고친 답 기준으로 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
-    {editingPrevious && !done && previousQuestion && <div className="echo-question-card"><p className="echo-question">{previousQuestion}</p></div>}
+    {editingPrevious && !done && previousQuestion && <div className="echo-question-card"><p className="echo-question">{previousQuestion}</p>
+      {prevChoice && prevChoice.options.length > 0 && <div className="echo-rescue" role="group" aria-label="고른 답 바꾸기">
+        <div className="echo-choice-row">
+          {prevChoice.options.map(choice => <button key={choice} type="button" className={draft.trim() === choice ? 'echo-choice is-selected' : 'echo-choice'} aria-pressed={draft.trim() === choice} disabled={!!busy} onClick={() => setDraft(choice)}>{choice}</button>)}
+        </div>
+      </div>}
+    </div>}
     {question && !editingPrevious && <div className="echo-question-card">
       <p className="echo-question">{question}</p>
       {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
       {session.current_hint && (hintFor === question
         ? <p className="echo-fine" role="note">{session.current_hint}</p>
         : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (voiceUi && canSpeak()) say(session.current_hint ?? ''); }}>예시 보기</button>)}
-      {/* 2026-09-30 마감 지시 §4 주관식 본체 + 객관식 구조대: 모르겠다·넘기기 뒤에만 서버가 준 답 보기를 보인다. 누르면 그 글자를 보통 답으로 보낸다(판단·저장은 서버). */}
-      {!!session.current_choices?.length && <div className="echo-choice-row" role="group" aria-label="가까운 답 고르기">
-        {session.current_choices.map(choice => <button key={choice} type="button" className="echo-choice" disabled={!!busy} onClick={() => send(choice)}>{choice}</button>)}
+      {/* 2026-10-01 주관식 본체 + 객관식 구조대: 보기는 펼쳤을 때만(내가 「잘 모르겠어요」를 눌렀거나 서버가 먼저 펼침). 보기 = 서버가 승인한 것만.
+          누르면 고른 표시만 하고(바로 넘어가지 않음) 「답변 보내기」로 보낸다 → 서버가 사용자 직접 답으로 저장. 「직접 설명할게요」로 언제든 주관식으로. */}
+      {rescueOpen && <div className="echo-rescue" role="group" aria-label="가까운 답 고르기">
+        {rescueOptions.length >= 2 ? <>
+          <p className="echo-rescue-lead">{RESCUE_LEAD}</p>
+          <div className="echo-choice-row">
+            {rescueOptions.map(choice => <button key={choice} type="button" className={picked === choice ? 'echo-choice is-selected' : 'echo-choice'} aria-pressed={picked === choice} disabled={!!busy} onClick={() => { setPick(picked === choice ? null : { q: question, choice }); if (picked !== choice) setDraft(''); }}>{choice}</button>)}
+          </div>
+          <button type="button" className="echo-text-button echo-rescue-self" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
+        </> : <>
+          {/* 보기를 못 만들었을 때의 안전 안내(서버 fallback · 실패 코드로 기록됨 — 구조대가 작동한 것으로 세지 않는다) */}
+          <p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>
+          <div className="echo-choice-row">
+            <button type="button" className="echo-choice" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
+            <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(UNSURE_TEXT)}>잘 모르겠어요</button>
+            <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문은 넘어갈게요</button>
+          </div>
+        </>}
       </div>}
     </div>}
     {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
@@ -289,13 +343,15 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {/* 홈 화면에 두기 제안(2026-09-26): 소개를 고른 뒤 한 번만. 소개 카드와 겹쳐 권하지 않는다. 설치 안 해도 그대로 쓴다. */}
     {done && introChosen && <InstallAppCard />}
     {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). */}
-    {!done && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (!busy && draft.trim()) send(draft, false, editingPrevious); }}>
+    {!done && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (busy) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
       <label htmlFor="echo-message">{editingPrevious ? '직전 답 고치기' : done ? '고칠 게 있으면 적어 주세요' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
-      <textarea id="echo-message" value={draft} onChange={event => setDraft(event.target.value.slice(0, TEXT_MAX))} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
+      <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
       {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
-      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="이야기 보내기" disabled={!!busy || !draft.trim()}><ArrowUp size={20} /></button></div></div>
+      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}<button type="submit" aria-label="답변 보내기" disabled={!!busy || (!draft.trim() && !(picked && !editingPrevious))}><ArrowUp size={20} /></button></div></div>
     </form>}
-    {!done && !editingPrevious && <div className="echo-reactions"><button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button><button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button></div>}
+    {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP). 보기가 펼쳐져 있으면 「잘 모르겠어요」 자리는 비운다. */}
+    {!done && !editingPrevious && <div className="echo-reactions">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
+    {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => send(STOP_TEXT)}>오늘은 여기까지 할게요</button>}
     <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartPill()}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p></footer>
   </section>;
 }

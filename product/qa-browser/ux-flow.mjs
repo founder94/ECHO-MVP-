@@ -76,6 +76,8 @@ async function newPage(browser, vp, server) {
         A.session = { ...A.session, messages: msgs, current_question: body.correction ? A.recomputed : A.session.current_question };
         return route.fulfill({ json: { ok: true, session: A.session, turn: { kind: body.correction ? 'correction' : 'answer', reply: '', question: A.session.current_question, saved: true, finish: false, after: false } } });
       }
+      // 2026-10-01 구조대: 「잘 모르겠어요」 = agent_rescue(서버가 보기를 정해 돌려줌 · 이 검사 안에서는 init.agent.onRescue 모양 그대로)
+      if (body.action === 'agent_rescue' && A.onRescue) A.session = { ...A.session, current_rescue: A.onRescue };
       return route.fulfill({ json: { ok: true, session: A.session } });
     }
     if (u.pathname === '/functions/v1/doit-connect') {
@@ -280,6 +282,79 @@ await run(35, '서버 readiness: 목적 없음 → 다음 할 일 = 원하는 �
 await run(36, '서버 readiness: 모두 갖춤 + eligible → 「모두 마쳤어요」', IPHONE, { eligible: true, missing: [], readiness: SR({}) }, async (p) => {
   await go(p); await p.waitForTimeout(400); const t = await text(p);
   expect(t.includes('연결 준비를 모두 마쳤어요'), '자격을 갖췄는데 완료 문구 없음'); return '자격 · 완료 문구';
+});
+// 37~42 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 주관식 본체 + 객관식 구조대(서버 계약 모양 그대로 · 보기는 서버가 준 것만).
+const RQ = '첫 만남은 어떤 분위기로 하고 싶으세요?';
+const RS = (o = {}) => ({ ...AGENT_SESSION, current_question: RQ, messages: [{ role: 'ai', text: '어떤 친구를 만나고 싶어요?' }, { role: 'user', text: '편하게 얘기할 친구요' }, { role: 'ai', text: RQ }], current_rescue: { options: ['조용하고 편하게', '밝고 가볍게', '밥 먹으면서'], show: false, fallback: false }, previous: null, ...o });
+const openConv = async (p) => { await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1000); await p.locator('.echo-question').filter({ hasText: RQ }).first().waitFor({ timeout: 15000 }); };
+await run(37, '구조대 기본: 주관식 본체 · 보기 0 → 잘 모르겠어요 → 보기 3 · 눌러도 안 넘어감 · 보내면 choice', IPHONE, { agent: { session: RS() } }, async (p, s) => {
+  await openConv(p);
+  expect(await p.locator('#echo-message').isVisible(), 'Q1 주관식 입력칸 없음');
+  expect(await p.locator('.echo-rescue').count() === 0, 'Q1 보기가 먼저 펼쳐짐');
+  const help = p.locator('.echo-reactions button', { hasText: '잘 모르겠어요' }); expect(await help.count() === 1, '잘 모르겠어요 버튼 없음');
+  expect(await p.locator('.echo-reactions button', { hasText: '이 질문 넘어가기' }).count() === 1, '넘어가기 버튼 없음');
+  await p.screenshot({ path: 'uxshots/37a-default.png' });
+  await help.click(); await p.waitForTimeout(300);
+  expect(!s.st.calls.some(c => c.action === 'agent_rescue'), '서버가 들고 있던 보기인데 다시 청함');
+  const opts = p.locator('.echo-rescue .echo-choice'); const n = await opts.count();
+  expect(n >= 2 && n <= 4, `Q2·Q13 보기 수 ${n}`); expect((await p.locator('.echo-rescue-lead').innerText()).includes('이런 느낌 중에 가까운 게 있어요?'), '안내 문구');
+  for (let k = 0; k < n; k++) { const h = (await opts.nth(k).boundingBox()).height; expect(h >= 44 && h <= 64, `누름 높이 ${h}`); }
+  const texts = await opts.allInnerTexts(); expect(!texts.some(t => /모르|선호|외향|[A-Za-z]{3,}/.test(t)), `Q14 보기 말 ${texts}`);
+  await opts.nth(1).click(); await p.waitForTimeout(400);
+  expect(await opts.nth(1).getAttribute('aria-pressed') === 'true', '고른 표시 없음');
+  const sel = await opts.nth(1).evaluate(e => { const c = getComputedStyle(e); return { bg: c.backgroundColor, color: c.color, bw: c.borderTopWidth }; }); const off = await opts.nth(0).evaluate(e => getComputedStyle(e).backgroundColor);
+  const mark = await opts.nth(1).evaluate(e => getComputedStyle(e, '::before').content);
+  expect(sel.bg !== off && parseFloat(sel.bw) >= 1 && mark.includes('✓'), `고른 표시가 또렷하지 않음 ${JSON.stringify(sel)} vs ${off} ${mark}`);
+  expect(!s.st.calls.some(c => c.action === 'agent_turn'), '보기를 누르자 바로 넘어감(자동 진행 금지)');
+  await p.screenshot({ path: 'uxshots/37b-picked.png' });
+  await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
+  const turn = s.st.calls.find(c => c.action === 'agent_turn');
+  expect(turn && turn.text === '밝고 가볍게' && turn.choice === '밝고 가볍게' && turn.rescueOpen === true, `Q7 보낸 것 ${JSON.stringify(turn)?.slice(0, 160)}`);
+  return '본체 주관식 · 보기 3 · 고른 표시 · 보내기 = choice';
+});
+await run(38, '「직접 설명할게요」 = 보기 접고 주관식(입력칸 초점) · 적으면 고른 보기 풀림', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용하고 편하게', '밝고 가볍게'], show: true, fallback: false } }) } }, async (p, s) => {
+  await openConv(p);
+  expect(await p.locator('.echo-rescue').count() === 1, '서버가 먼저 펼친 보기(C·D)가 안 보임');
+  expect(await p.locator('.echo-reactions button', { hasText: '잘 모르겠어요' }).count() === 0, '보기가 펼쳐졌는데 잘 모르겠어요 버튼이 남음');
+  await p.locator('.echo-rescue .echo-choice').first().click();
+  await p.locator('.echo-rescue-self').click(); await p.waitForTimeout(300);
+  expect(await p.locator('.echo-rescue').count() === 0, 'Q12 보기가 안 접힘');
+  expect(await p.evaluate(() => document.activeElement?.id) === 'echo-message', 'Q12 입력칸 초점 아님');
+  await p.locator('#echo-message').fill('조용한 데서 천천히요'); await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
+  const turn = s.st.calls.find(c => c.action === 'agent_turn'); expect(turn && !turn.choice && turn.text === '조용한 데서 천천히요', `주관식으로 보냄 ${JSON.stringify(turn)?.slice(0, 120)}`);
+  await p.screenshot({ path: 'uxshots/38-explain-self.png' }); return '보기 접힘 · 입력칸 초점 · 주관식 전송(choice 0)';
+});
+await run(39, '보기를 못 만들면 안전 안내(직접 설명할게요 / 잘 모르겠어요 / 이 질문은 넘어갈게요)', IPHONE, { agent: { session: RS({ current_rescue: { options: [], show: false, fallback: false } }), onRescue: { options: [], show: false, fallback: true } } }, async (p, s) => {
+  await openConv(p);
+  await p.locator('.echo-reactions button', { hasText: '잘 모르겠어요' }).click(); await p.waitForTimeout(800);
+  expect(s.st.calls.some(c => c.action === 'agent_rescue'), '보기가 없는데 서버에 청하지 않음');
+  const t = await p.locator('.echo-rescue').innerText();
+  for (const w of ['직접 설명할게요', '잘 모르겠어요', '이 질문은 넘어갈게요']) expect(t.includes(w), `안전 안내 ${w} 없음`);
+  await p.screenshot({ path: 'uxshots/39-fallback.png' });
+  await p.locator('.echo-rescue .echo-choice', { hasText: '이 질문은 넘어갈게요' }).click(); await p.waitForTimeout(800);
+  const turn = s.st.calls.find(c => c.action === 'agent_turn'); expect(turn && turn.text === '이 질문은 넘어갈게요' && !turn.choice, `넘기기 전송 ${JSON.stringify(turn)?.slice(0, 120)}`);
+  return 'fallback 3 버튼 · 넘기기 = SKIP 전송(choice 0)';
+});
+await run(40, '뒤로 = 직전 질문 · 고른 보기 · 보기 목록 복원(Q11)', IPHONE, { agent: { session: RS({ messages: [{ role: 'ai', text: '처음 만나면 어디가 편해요?' }, { role: 'user', text: '조용한 카페' }, { role: 'ai', text: RQ }], previous: { question: '처음 만나면 어디가 편해요?', options: ['조용한 카페', '같이 걷기', '밥 먹으면서'], chosen: '조용한 카페' } }), recomputed: RQ } }, async (p, s) => {
+  await openConv(p);
+  await p.goBack(); await p.waitForTimeout(800);
+  expect((await p.locator('.echo-question').first().innerText()).includes('처음 만나면 어디가 편해요?'), '직전 질문 복원 안 됨');
+  expect(await p.locator('#echo-message').inputValue() === '조용한 카페', '고른 답 복원 안 됨');
+  const chosen = p.locator('.echo-choice[aria-pressed="true"]'); expect(await chosen.count() === 1 && (await chosen.innerText()).includes('조용한 카페'), '고른 보기 표시 복원 안 됨');
+  await p.screenshot({ path: 'uxshots/40-back-restore.png' });
+  await p.locator('.echo-choice', { hasText: '같이 걷기' }).click(); await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
+  const turn = s.st.calls.find(c => c.action === 'agent_turn'); expect(turn && turn.correction && turn.text === '같이 걷기', `정정 전송 ${JSON.stringify(turn)?.slice(0, 120)}`);
+  return '질문·고른 보기·목록 복원 · 바꾼 보기 = 정정';
+});
+await run(41, 'Q15 넘침 0(320~430px) · 보기 4개 긴 글자 · 누름 높이 44+', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용한 카페에서 수다', '공원에서 같이 걷기', '맛있는 밥 먹으면서', '전시 보고 커피 한 잔'], show: true, fallback: false } }) } }, async (p) => {
+  const out = [];
+  for (const w of [320, 360, 375, 390, 414, 430]) {
+    await p.setViewportSize({ width: w, height: 844 }); await openConv(p);
+    const m = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth, over: [...document.querySelectorAll('.echo-rescue .echo-choice, .echo-reactions button, .echo-composer')].filter(e => { const r = e.getBoundingClientRect(); return r.right > innerWidth + 0.5 || r.left < -0.5; }).length, low: [...document.querySelectorAll('.echo-rescue .echo-choice, .echo-rescue-self, .echo-reactions button')].filter(e => e.getBoundingClientRect().height < 44).length }));
+    expect(m.sw <= m.iw && m.over === 0 && m.low === 0, `${w}px ${JSON.stringify(m)}`); out.push(w);
+    if (w === 320) await p.screenshot({ path: 'uxshots/41-320.png', fullPage: true });
+  }
+  return `넘침 0 · ${out.join('/')}px`;
 });
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
