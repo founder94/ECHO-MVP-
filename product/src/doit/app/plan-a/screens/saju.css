@@ -1,6 +1,7 @@
 /* 무료 사주 결과 — 사주·타로 콘텐츠 테마(대표 2026-09-26 「Content Dark Exception」). 이 화면(.saju-page) 아래로만.
    글꼴·굵기 단계는 앱과 같은 한 벌(Pretendard · 제목 800 · 소제목 700 · 본문 600), 글자는 밝은 흰색(흐린 회색 0). 카드·버튼은 유리 + 얇은 흰 테두리. */
-.saju-page{min-height:100dvh;background:radial-gradient(ellipse at 50% -10%,#1d2340 0%,#0a0d14 60%);color:#fff;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:calc(env(safe-area-inset-top) + 56px) 0 calc(env(safe-area-inset-bottom) + 32px)}
+/* 2026-10-01 대표 「MOBILE BACKGROUND FINAL LOCK」: 사주 화면도 같은 파스텔 바탕 위(어두운 세계 0) — 옛 남색 바탕은 지웠다. 조도·재질은 fortune-space.css. */
+.saju-page{min-height:100dvh;background:transparent;color:#fff;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:calc(env(safe-area-inset-top) + 56px) 0 calc(env(safe-area-inset-bottom) + 32px)}
 .saju-page *{font-family:inherit}
 .saju-inner{max-width:440px;margin:0 auto;padding:0 20px;overflow-wrap:anywhere;word-break:keep-all}
 .saju-kicker{margin:0 0 8px;font-size:13px;font-weight:700;color:#e8d7a8}

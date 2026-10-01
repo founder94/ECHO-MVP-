@@ -56,7 +56,8 @@ test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·배치 규�
 });
 
 test('움직임은 옛 float-bg 하나 · 움직임 줄이기면 멈춤', () => {
-  assert.equal((bg.match(/animation:float-bg 20s ease-in-out infinite/g) ?? []).length, 1);
+  // 2026-10-01 BACKGROUND FINAL LOCK: 속도만 상태 토큰(--echo-pastel-drift)으로 — 기본값은 그대로 20초
+  assert.equal((bg.match(/animation:float-bg var\(--echo-pastel-drift,20s\) ease-in-out infinite/g) ?? []).length, 1);
   assert.match(bg, /@media\(prefers-reduced-motion:reduce\)\{:is\(\.echo-dialogue\.echo-dialogue--pastel,\.doit-app-pastel\)::before\{animation:none\}\}/);
   assert.match(css, /@import "\.\/pastel-bg\.css";/, '대화 화면이 바탕 한 벌을 불러온다');
   assert.match(read('src/index.css'), /@keyframes float-bg/);

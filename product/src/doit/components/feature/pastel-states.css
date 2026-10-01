@@ -1,0 +1,25 @@
+/* 2026-10-01 대표 「MOBILE BACKGROUND FINAL LOCK」 — 후반부 상태 변화.
+   바탕 색은 pastel-bg.css 한 벌 그대로. 여기서는 색을 바꾸지 않고 밝기(--echo-pastel-light)·채도(--echo-pastel-sat)·움직임 속도(--echo-pastel-drift)만 조절한다.
+   상태는 화면 안에 실제로 그려진 요소로 정한다(:has) — 서버가 확인한 상태가 그려졌을 때만 바뀐다. 지원하지 않는 브라우저는 기본 바탕 그대로(안전).
+   뒤에 오는 규칙이 이긴다: 후보 < 기다림 < 서로 선택 < 첫 질문 < 답 기다림 < 공개 < 대화 < 결과. */
+.doit-app-pastel{--echo-pastel-light:1;--echo-pastel-sat:1;--echo-pastel-drift:20s;--echo-pastel-shift:.6s}
+/* 기다림: 조금 가라앉고 느리게(재촉하지 않는 숨) */
+.doit-app-pastel:has(.echo-waiting){--echo-pastel-light:.97;--echo-pastel-drift:28s}
+/* 서로 선택: 같은 색이 조금 밝아진다 */
+.doit-app-pastel:has(.doit-mutual){--echo-pastel-light:1.05}
+/* 연결·첫 질문(얼굴 공개 전 · blind-first): 초점 — 밝기 그대로, 움직임만 조금 느리게. 상태는 연결 카드의 data-state(서버 값으로 정해짐) */
+.doit-app-pastel:has(.doit-match[data-state="ask"]){--echo-pastel-light:1;--echo-pastel-drift:26s}
+.doit-app-pastel:has(.doit-match[data-state="wait"]){--echo-pastel-light:.97;--echo-pastel-drift:28s}
+/* 서로 공개(둘 다 첫 답 뒤): 살짝 밝게. 부분 공개는 PRIVACY_ARCHITECTURE_HOLD 라 상태 없음 */
+.doit-app-pastel:has(.doit-match[data-state="talk"]){--echo-pastel-light:1.03;--echo-pastel-drift:26s}
+/* 대화(메시지가 생긴 뒤 · 선택자 세기가 공개 규칙보다 높아야 이긴다): 효과 강도만 낮춘다(채도·움직임↓) — 색 DNA 는 그대로 */
+.doit-app-pastel:has(.doit-match-messages li[data-mine]){--echo-pastel-light:1.02;--echo-pastel-sat:.88;--echo-pastel-drift:40s}
+/* 결과(연결이 끝난 뒤 결과 기록): 정리되는 느낌 */
+.doit-app-pastel:has(.doit-match[data-state="closed"]){--echo-pastel-light:.99;--echo-pastel-sat:.92;--echo-pastel-drift:32s}
+/* 설정: 더 밝고 정돈된 판(움직임 거의 멈춤) */
+.doit-app-pastel:has(.doit-settings){--echo-pastel-light:1.07;--echo-pastel-sat:.9;--echo-pastel-drift:60s}
+/* 탈퇴: 같은 색을 점차 낮은 채도·깊이로 — 다른 테마로 바꾸지 않는다 */
+.doit-app-pastel:has(.doit-leave-preview){--echo-pastel-light:.97;--echo-pastel-sat:.7;--echo-pastel-shift:1.2s}
+.doit-app-pastel:has(.doit-leave-confirm[aria-busy="true"]){--echo-pastel-light:.95;--echo-pastel-sat:.55}
+.doit-app-pastel:has(.doit-leave[role="status"]){--echo-pastel-light:.95;--echo-pastel-sat:.5}
+@media(prefers-reduced-motion:reduce){.doit-app-pastel{--echo-pastel-shift:0s}}
