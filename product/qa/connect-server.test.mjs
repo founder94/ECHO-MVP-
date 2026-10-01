@@ -23,16 +23,22 @@ function fakeDb(state) {
   const chain = (name) => {
     let rows = table(name).slice();
     let op = 'select', patch = null;
+    const keys = []; let window = null;
+    const sorted = () => { if (keys.length) rows.sort((x, y) => { for (const [col, dir] of keys) { if (x[col] === y[col]) continue; return (x[col] < y[col] ? -1 : 1) * dir; } return 0; }); return rows; };
     const c = {
-      select: () => c, order: (col, o) => { rows.sort((x, y) => (x[col] < y[col] ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return c; }, limit: (n) => { rows = rows.slice(0, n); return c; },
+      select: () => c, order: (col, o) => { keys.push([col, o?.ascending === false ? -1 : 1]); return c; },
+      limit: (n) => { rows = sorted().slice(0, n); keys.length = 0; return c; },
+      range: (from, to) => { (state.ranges ??= []).push([name, from, to]); window = [from, Math.min(to, from + (state.maxRows ?? 1000) - 1)]; return c; },
       eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
       in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
       not: (col, _is, v) => { rows = rows.filter((r) => r[col] !== v && r[col] !== undefined); return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
-      maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
+      maybeSingle: () => Promise.resolve({ data: sorted()[0] ?? null, error: null }),
       then: (ok, bad) => {
         if (op === 'update') { for (const r of rows) Object.assign(r, patch); state.writes.push({ name, op, patch }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
-        return Promise.resolve({ data: rows, error: null }).then(ok, bad);
+        const fail = state.failOn?.(name); if (fail) return Promise.resolve({ data: null, error: fail }).then(ok, bad);
+        const out = sorted(); const sliced = window ? out.slice(window[0], window[1] + 1) : out.slice(0, state.maxRows ?? Infinity);
+        return Promise.resolve({ data: sliced, error: null }).then(ok, bad);
       },
     };
     return c;
@@ -86,13 +92,15 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   }
   vm.runInNewContext(compiled, sandbox, { filename: 'doit-connect.ts' });
   assert.ok(handler);
-  return async (who, payload, { auth = true } = {}) => {
+  const call = async (who, payload, { auth = true } = {}) => {
     state.current = who;
     const headers = { 'content-type': 'application/json' };
     if (auth) headers.Authorization = 'Bearer t';
     const res = await handler(new Request('http://fn/', { method: 'POST', headers, body: JSON.stringify(payload) }));
     return { status: res.status, body: await res.json() };
   };
+  call.exports = sandbox.exports;
+  return call;
 }
 
 const confirmedRows = (uid, texts, at = '2026-09-23T01:00:00Z') => texts.map((text) => ({ user_id: uid, text, status: 'confirmed', created_at: at, updated_at: at }));
@@ -926,20 +934,115 @@ test('v2.1 안전: 후보 단계 차단·신고 — 숨김과 함께 저장 · �
 });
 
 // 2026-10-01 QA 실측(my_candidates 500 · agent_sessions_failed): 사람 449명의 id 를 in(…) 한 번에 넣어 요청 주소가 한도를 넘었다.
-test('규모: 사람 460명이어도 in(…) 목록은 한 번에 100명 이하 · 결과는 나누기 전과 같다(후보·자격)', async () => {
+// 449명·17.5KB 는 재현 조건일 뿐 서비스 한도가 아니다 — 경계값·큰 합성 자료·쪽 나누기·일부 실패·동시 요청·로그를 같은 검사로 본다.
+const uid = (i) => `9${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`;
+const many = (n) => Array.from({ length: n }, (_, i) => uid(i));
+const server = () => loadServer(world());
+
+test('규모 · 경계값: 0·1·99·100·101·449·460·5000명 — 묶음 ≤100 · 누락·중복 0 · 묶음 수 = ⌈n/100⌉ · 중복 id 는 한 번만', async () => {
+  const { inChunks, IN_CHUNK } = server().exports;
+  assert.equal(IN_CHUNK, 100);
+  for (const n of [0, 1, 99, 100, 101, 449, 460, 5000]) {
+    const ids = many(n); const seen = [];
+    const r = await inChunks([...ids, ...ids.slice(0, 3)], (part, from) => { if (from === 0) seen.push(part.length); return Promise.resolve({ data: from === 0 ? part.map((id) => ({ id })) : [], error: null }); });
+    assert.equal(r.error, null);
+    assert.equal(seen.length, Math.ceil(n / 100), `n=${n} 묶음 수`);
+    assert.ok(seen.every((k) => k <= 100), `n=${n} 묶음 크기`);
+    assert.equal(JSON.stringify([...r.data].map((x) => x.id).sort()), JSON.stringify([...ids].sort()), `n=${n} 누락·중복 0`);
+    assert.equal(r.requests, Math.ceil(n / 100) * 2, '묶음마다 자료 쪽 + 끝 확인 빈 쪽');
+  }
+});
+
+test('규모 · 실제 인코딩 주소 길이: 449명 한 번 = 약 17KB(재현) · 100명 묶음 = 5KB 이하', async () => {
+  const { PostgrestClient } = await import('@supabase/postgrest-js');
+  const urls = [];
+  const db = new PostgrestClient('https://mutniujeiyujhkobadkd.supabase.co/rest/v1', { fetch: async (u) => { urls.push(String(u)); return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } }); } });
+  const q = (ids) => db.from('doit_request_events').select('id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase').eq('action', 'agent_session').eq('status', 'applied').in('user_id', ids).order('updated_at', { ascending: false }).order('id').range(0, 999);
+  await q(many(449)); await q(many(100));
+  assert.ok(urls[0].length > 16_000, `449명 한 번 ${urls[0].length}자`);
+  assert.ok(urls[1].length < 5_000, `100명 묶음 ${urls[1].length}자`);
+});
+
+test('규모 · 쪽 나누기: 서버 max-rows(300)가 쪽 크기보다 작아도 끝까지 읽는다 · 한 사람이 많아도 다른 사람이 밀려나지 않는다', async () => {
+  const s = world(); s.maxRows = 300;
+  // D(사진 부족 · 후보 아님)가 같은 묶음에서 최근 기록 3000줄 — 예전 「묶음 × 24줄」 제한이면 A·B 의 답이 밀려 자격을 잃었다.
+  for (let i = 0; i < 3000; i++) s.tables.doit_records.push({ id: `r${i}`, user_id: ID.d, status: 'confirmed', text: `최근 기록 ${i}`, created_at: '2026-09-30T00:00:00Z' });
+  const call = loadServer(s);
+  const r = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.eligible, true, 'A 의 답이 밀려나지 않는다');
+  assert.equal(r.body.candidates.length, 1);
+  assert.ok(s.ranges.filter(([t]) => t === 'doit_records').length >= 11, '3000+ 줄을 300줄 쪽으로 끝까지');
+});
+
+test('규모 · Agent 세션이 한 사람에게 여러 줄 · 최신 줄이 여러 쪽 뒤에 있어도 그 줄로 판정', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } }); s.maxRows = 200;
+  const notes = ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'];
+  s.tables.doit_request_events = [
+    ...Array.from({ length: 900 }, (_, i) => ({ ...agentRow(ID.d, notes, 'talk', `2026-09-30T00:${String(i % 60).padStart(2, '0')}:00Z`), id: `d${i}` })),
+    { ...agentRow(ID.a, notes, 'talk', '2026-09-20T00:00:00Z'), id: 'a-old' },
+    { ...agentRow(ID.a, notes, 'done', '2026-09-25T00:00:00Z'), id: 'a-new' },
+    { ...agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']), id: 'b1' },
+  ];
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.readiness.conversation.ready, true, 'A 의 최신(done) 줄이 900줄 뒤에 있어도 반영');
+  assert.equal(r.body.candidates.length, 1);
+});
+
+test('규모 · 일부 묶음 실패 = 전체 실패(500 · 「후보 0명」으로 숨기지 않음) · 차단 자료 실패면 고르기도 멈춤', async () => {
+  const s = world(); s.failOn = (t) => (t === 'doit_records' ? { code: '57014', message: 'canceling statement due to statement timeout' } : null);
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 500);
+  assert.ok(!('candidates' in r.body));
+  const log = s.logs.map((l) => JSON.parse(l)).find((l) => l.evt_error);
+  assert.equal(log.evt_error, 'records_failed'); assert.equal(log.db_code, '57014');
+  const s2 = world(); const call2 = loadServer(s2);
+  await call2(ID.a, { action: 'my_candidates' });
+  const c = candOf(s2, ID.a, ID.b);
+  s2.failOn = (t) => (t === 'blocks' ? { code: 'PGRST301' } : null);
+  const ch = await call2(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  assert.equal(ch.status, 500, '차단 자료를 못 읽으면 연결 판단을 하지 않는다');
+  assert.equal(s2.tables.doit_matches.length, 0);
+});
+
+test('규모 · 동시 요청 ≤4 · 쪽 상한에 닿으면 실패(무한 반복 0)', async () => {
+  const { inChunks, IN_CONCURRENCY, IN_MAX_PAGES } = server().exports;
+  let live = 0, peak = 0;
+  const r = await inChunks(many(1000), async (part, from) => { live++; peak = Math.max(peak, live); await new Promise((ok) => setTimeout(ok, 2)); live--; return { data: from === 0 ? [{ id: part[0] }] : [], error: null }; });
+  assert.equal(r.error, null); assert.equal(r.data.length, 10); assert.ok(peak <= IN_CONCURRENCY, `동시 ${peak}`);
+  let calls = 0;
+  const stuck = await inChunks(many(5), () => { calls++; return Promise.resolve({ data: [{ id: 'x' }], error: null }); });
+  assert.equal(stuck.error.code, 'PAGE_LIMIT'); assert.equal(calls, IN_MAX_PAGES); assert.equal(stuck.data.length, 0, '일부만 읽은 자료를 돌려주지 않는다');
+});
+
+test('오류 기록: 민감한 모양의 예외에서도 원문·URL·id·토큰·전화번호 0 · 단계·종류·코드·추적 id·시간은 남음', async () => {
+  const secret = 'user 010-1234-5678 token=eyJhbGciOiJIUzI1NiJ9.x.y url=https://db/rest/v1/x?user_id=in.(10000000-0000-4000-8000-00000000000a) 원문 대화: 비밀이에요';
+  for (const fail of [{ code: '57014', message: secret, details: secret, hint: secret }, new TypeError(secret)]) {
+    const s = world(); s.failOn = (t) => { if (t !== 'doit_insights') return null; if (fail instanceof Error) throw fail; return fail; };
+    const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+    assert.equal(r.status, 500);
+    const all = s.logs.join('\n');
+    for (const bad of ['010-1234', 'eyJ', 'rest/v1', '10000000-0000', '비밀', 'token', 'statement']) assert.ok(!all.includes(bad), `로그에 ${bad}`);
+    const log = s.logs.map((l) => JSON.parse(l)).find((l) => l.evt_error);
+    assert.ok(log && /^[0-9a-f]{8}$/.test(log.trace) && typeof log.ms === 'number', JSON.stringify(log));
+    assert.equal(log.evt_error, fail instanceof Error ? 'unexpected' : 'insights_failed');
+    assert.equal(log.type, fail instanceof Error ? 'TypeError' : 'StageError');
+    assert.ok(s.logs.every((l) => !l.trim().includes('\n')), '로그는 한 줄');
+  }
+});
+
+test('규모 · 관리자 후보: 사람 460명이어도 요청마다 in 목록 ≤100 · 결과는 나누기 전과 같다', async () => {
   const s = world();
   for (let i = 0; i < 455; i++) {
-    const id = `9${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`;
+    const id = uid(i);
     s.users[id] = { id, phone: '', phone_confirmed_at: null, user_metadata: {} };
     s.tables.profiles.push({ id, role: 'user', nickname: `p${i}`, purpose_id: 'hobby', purpose_label: '취미', bio: '', verification_status: 'pending' });
   }
   const call = loadServer(s);
-  const r = await call(ID.a, { action: 'my_candidates' });
-  assert.equal(r.status, 200);
-  assert.equal(r.body.eligible, true);
-  assert.equal(r.body.candidates.length, 1, '같은 목적(친구) B 한 명은 그대로 후보');
-  assert.ok(Math.max(...s.inSizes) <= 100, `가장 긴 in 목록 ${Math.max(...s.inSizes)}`);
   const adm = await call(ID.admin, { action: 'admin_candidates' });
   assert.equal(adm.status, 200);
-  assert.ok(Math.max(...s.inSizes) <= 100);
+  assert.deepEqual(adm.body.candidates.map((c) => [c.user_a, c.user_b]), [[ID.a, ID.b]]);
+  assert.ok(Math.max(...s.inSizes) <= 100, `가장 긴 in 목록 ${Math.max(...s.inSizes)}`);
+  assert.equal(adm.body.pool, 460 - 1, '목적이 있는 사람 수(관리자 제외)');
 });
