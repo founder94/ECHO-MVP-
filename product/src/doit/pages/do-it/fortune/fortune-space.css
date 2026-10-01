@@ -1,0 +1,14 @@
+/* 2026-10-01 대표 결정 「Saju / Tarot = ECHO 파스텔 세계관 유지」 — 사주·타로 화면(.echo-fortune-space) 아래에서만.
+   - 바탕: 앱과 같은 파스텔(.doit-app-pastel) 그대로 · 어두운 전용 바탕(#0A0D14 · saju.css 의 남색 그라데이션) 0.
+   - 다른 방 느낌은 네 가지로만: 빛(위에서 내려오는 옅은 저녁빛 + 아주 얕은 막) · 깊이(카드의 따뜻한 그림자) · 재질(얇은 결) · 글자(명조 제목 — 화면이 이미 쓰는 serif).
+   - 판·입력칸 = 앱과 같은 투명 판 + 얇은 흰 테두리 · 글자 흰색(파스텔 위 대비는 앱과 같은 기준).
+   - 움직임 0 추가(바탕의 기존 흐름만) · 흐림 추가 0 · 전역(body·:root) 0. */
+.echo-fortune-space{--echo-pastel-veil:.10;--app-page:transparent;--app-surface:rgb(255 255 255/.10);--app-surface-border:#f4ead2b3;--app-on-page:#fff;--fortune-bar:rgb(255 255 255/.14);--fortune-shadow:rgb(92 64 30/.28);--fortune-selected-text:#fff;--fortune-selected-line:#fff;min-height:100dvh;color:#fff}
+/* 빛: 화면 위쪽에서 내려오는 따뜻한 빛 한 줄기(고정 · 그림 한 장 · 움직임 0) */
+.echo-fortune-light{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 60% at 50% -10%,rgb(255 244 214/.34) 0%,rgb(255 244 214/0) 60%),repeating-linear-gradient(115deg,rgb(255 255 255/.035) 0 2px,transparent 2px 7px)}
+.echo-fortune-space>:not(.echo-fortune-light){position:relative;z-index:1}
+/* plan-a 화면의 바깥 판(바탕색 = surfaces.page)이 파스텔을 덮지 않게 · saju 결과 화면의 남색 바탕도 같은 공간으로 */
+.echo-fortune-space .saju-page{background:transparent}
+.echo-fortune-space :is(.saju-card,.saju-char){background:rgb(255 255 255/.10);border-color:#f4ead2b3}
+.echo-fortune-space :is(.saju-title,.saju-h2){font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo",Georgia,serif;letter-spacing:-.01em}
+.echo-fortune-space .saju-kicker{color:#fff6dc}

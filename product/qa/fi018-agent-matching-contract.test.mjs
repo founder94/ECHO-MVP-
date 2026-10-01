@@ -100,3 +100,13 @@ test('질문 피로(v2.5.6): 모델이 넘기기(skip)로 읽어도 항의 · �
   assert.deepEqual(A.guardKind('이 질문은 패스', 'skip'), { kind: 'skip', rule: null });
   assert.deepEqual(A.guardKind('질문이 너무 많아요', 'stop'), { kind: 'stop', rule: null });
 });
+
+test('v2.5.7 평범한 「아니요 + 새 값」은 모델이 앞말 정정으로 읽어도 지우기 전에 한 번 확인 · 바꾸는 표시가 있으면 바로 정정', () => {
+  const mk = () => { const st = A.newState({ tone: 'polite', goal: 'friend' }); A.seedFirstQuestion(st); at(st, 'attraction_comfort');
+    A.applyTurn(st, '친구와 산책하는 게 좋아요', T({ extracted: [X('attraction_comfort', '산책', '친구와 산책하는 게 좋아요')], next: { type: 'core', purpose: 'values_character', question: '어떤 이야기를 나누면 좋아요?' } })); return st; };
+  const st = mk();
+  const k = A.decideKind(st, '아니요, 저는 카페에서 얘기하는 게 좋아요', { kind: 'correction', extracted: [{ purpose: 'attraction_comfort' }] });
+  assert.deepEqual(k, { kind: 'answer', rule: 'fix_check' }, 'QA run 36860757126 모양: 확인 없이 산책을 밀지 않는다');
+  const k2 = A.decideKind(mk(), '아니 산책 말고 카페에서 얘기하는 게 좋아요', { kind: 'correction', extracted: [{ purpose: 'attraction_comfort' }] });
+  assert.deepEqual(k2, { kind: 'correction', rule: 'no_corrects_prev' }, '바꾸는 대상이 드러난 정정은 바로');
+});

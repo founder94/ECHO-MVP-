@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- 화면 보조 조각(상수+컴포넌트) 한 파일 유지. 동작 영향 없음 */
 import { motion } from "motion/react";
-import { colors, serif } from "../theme";
+import { colors, serif, surfaces } from "../theme";
 import { TAROT_DECK } from "../tarotDeck";
 
 // FreeResult 화면의 보조 조각들. 파일 길이 제한(레디 20,000자)으로 FreeResult.tsx 에서 분리했다.
@@ -119,13 +119,13 @@ export function ResultCard({
       }}
       className="rounded-2xl p-4"
       style={{
-        backgroundColor: colors.surface,
+        backgroundColor: surfaces.card,
         border: `1px solid ${colors.border}`,
       }}
     >
       <p
         style={{
-          color: colors.textFaint,
+          color: surfaces.onPageFaint,
           fontSize: 11,
           letterSpacing: "0.1em",
           marginBottom: 6,
@@ -165,7 +165,7 @@ export function SajuPreviewSection() {
       className="mb-6 rounded-3xl p-5"
       style={{
         backgroundColor:
-          colors.surface,
+          surfaces.card,
         border: `1px solid ${colors.border}`,
       }}
     >
@@ -191,7 +191,7 @@ export function SajuPreviewSection() {
               <p
                 style={{
                   color:
-                    colors.textFaint,
+                    surfaces.onPageFaint,
                   fontSize: 10,
                 }}
               >
@@ -235,7 +235,7 @@ export function SajuPreviewSection() {
                 className="mt-2 leading-4"
                 style={{
                   color:
-                    colors.textFaint,
+                    surfaces.onPageFaint,
                   fontSize: 9,
                 }}
               >
@@ -249,7 +249,7 @@ export function SajuPreviewSection() {
       <div className="mt-5">
         <p
           style={{
-            color: colors.textMuted,
+            color: surfaces.onPage,
             fontSize: 12,
           }}
         >
@@ -276,7 +276,7 @@ export function SajuPreviewSection() {
                 <span
                   style={{
                     color:
-                      colors.textFaint,
+                      surfaces.onPageFaint,
                     fontSize: 10,
                   }}
                 >
@@ -291,7 +291,7 @@ export function SajuPreviewSection() {
       <p
         className="mt-4 text-[11px] leading-5"
         style={{
-          color: colors.textFaint,
+          color: surfaces.onPageFaint,
         }}
       >
         사주 명식은 아직 준비 중입니다. 실제 천간·지지·오행

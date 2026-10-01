@@ -107,7 +107,7 @@ test('v2.5.4 지시문: 「대화 주제」로 유도하던 예시를 빼고 한
   assert.ok(!s.includes('처음 만났을 때 무슨 얘기부터 하고 싶어요?'));
   assert.ok(!s.includes('대화 주제처럼 실제 장면으로'));
   assert.match(s, /한 걸음만 옆으로 묻는다/);
-  assert.match(s, /echo-agent-v2\.5\.6/);
+  assert.match(s, /echo-agent-v2\.5\.7/);
 });
 
 test('v2.5.5 QA 장면 B·C·E: 받아주기 속 숨은 질문은 빼고 · 모르겠다·정정 뒤의 새 질문도 같은 기준으로 다시 청한다', async () => {
