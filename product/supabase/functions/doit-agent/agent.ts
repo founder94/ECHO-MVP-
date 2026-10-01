@@ -673,6 +673,10 @@ const HELP_IN_CHOICE = /모르|넘어|넘길|건너|패스|그만|여기까지|�
 const INTERNAL_CHOICE = /선호|외향|내향|성향|유형|타입|슬롯|카테고리|관계\s*의도|빈도|활동\s*(선호|유형|성향)|[A-Za-z]{3,}/;
 // 너무 막연해서 답이 되지 않는 보기.
 const ABSTRACT_CHOICE = /^(좋은|괜찮은|적당한|무난한|편한|그냥|보통)\s*(것|거|사람|느낌|분위기|편|정도)?$|^(그때그때|상황\s*따라|다\s*좋아요?|모두|전부|둘\s*다|다른\s*(것|거))$/;
+// 이미 들은 말과 핵심 낱말(두 글자 줄기)이 둘 이상 겹치면 같은 것을 다시 내미는 보기다(실제 AI QA D1: 「연락은 주말에 한두 번」 뒤 보기 「주말에 자주 연락」).
+const STEM_STOP = new Set(["그냥", "좋아", "싶어", "하는", "있는", "같이", "사람", "친구", "만나", "하고", "에서", "으로"]);
+const choiceStems = (t: string) => new Set(String(t ?? "").split(/[\s,.!?~…·]+/).map((w) => w.replace(/[^가-힣]/g, "")).filter((w) => w.length >= 2).map((w) => w.slice(0, 2)).filter((w) => !STEM_STOP.has(w)));
+const coveredBy = (answered: string, option: string) => { const a = choiceStems(answered); let n = 0; for (const w of choiceStems(option)) if (a.has(w)) n++; return n >= 2; };
 const nearSame = (a: string, b: string) => { const x = bare(a), y = bare(b); return !!x && !!y && (x === y || (Math.min(x.length, y.length) >= 3 && (x.includes(y) || y.includes(x))) || dice(x, y) >= 0.7); };
 // 거절된 뜻: 「그건 다 아닌데」로 거절된 보기 + 사용자가 아니라고 한 해석(RETRACTED·DISPUTED)·밀린 값.
 const rejectedMeanings = (st: AgentState) => [...(st.rejected_choices ?? []), ...(st.current?.rescue_rejected ?? []), ...PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED" || i.status === "DISPUTED").map((i) => i.note))];
@@ -689,7 +693,7 @@ export function screenChoices(st: AgentState | null, v: unknown, question = ""):
     if (INTERNAL_CHOICE.test(t)) { drop(RESCUE_FI.NOT_ANSWERING, "internal_term"); continue; }
     if (out.some((o) => squash(o) === squash(t) || dice(bare(o), bare(t)) >= 0.8)) { drop(RESCUE_FI.DUPLICATE, "duplicate"); continue; }
     if (st && (sameAsRejected(st, t) || rejected.some((r) => nearSame(r, t)))) { drop(RESCUE_FI.REJECTED, "rejected"); continue; }
-    if (answered.some((a) => nearSame(a, t))) { drop(RESCUE_FI.ALREADY, "already_answered"); continue; }
+    if (answered.some((a) => nearSame(a, t) || coveredBy(a, t))) { drop(RESCUE_FI.ALREADY, "already_answered"); continue; }
     out.push(t);
   }
   return { choices: out.length >= CHOICE_MIN ? out.slice(0, CHOICE_LIMIT) : [], fi: [...fi], dropped };

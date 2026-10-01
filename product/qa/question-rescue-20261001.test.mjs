@@ -149,6 +149,11 @@ test('Q10 이미 답한 것은 보기로 다시 내밀지 않는다(Context Memo
   A.applyTurn(st, '천천히 알아가는 게 좋아요', T({ extracted: [X('relationship_style', '천천히 알아가기', '천천히 알아가는 게 좋아요')], next: N('values_character', '처음 만나면 어디가 편해요?') }));
   const r = A.screenChoices(st, ['천천히 알아가기', '조용한 카페', '같이 걷기'], '처음 만나면 어디가 편해요?');
   assert.deepEqual(r.choices, ['조용한 카페', '같이 걷기']); assert.ok(r.fi.includes('RESCUE_OPTIONS_ALREADY_ANSWERED'));
+  // 실제 AI QA D1(2026-10-01): 「연락은 주말에 한두 번」을 이미 말했는데 보기 「주말에 자주 연락」 — 글자가 달라도 핵심 낱말 둘이 겹치면 뺀다
+  const s2 = start();
+  A.applyTurn(s2, '연락은 주말에 한두 번이면 충분해요', T({ extracted: [X('relationship_style', '주말에 한두 번 연락', '연락은 주말에 한두 번')], next: N('values_character', '처음 만나면 뭐 하고 싶어요?') }));
+  const r2 = A.screenChoices(s2, ['주말에 자주 연락', '주말에 가끔 연락', '주말에 전화하기', '같이 영화 보기'], '처음 만나면 뭐 하고 싶어요?');
+  assert.deepEqual(r2.choices, ['주말에 전화하기', '같이 영화 보기']);
 });
 
 test('Q11 뒤로·직전 답 고치기: 직전 질문 · 고른 보기 · 보기 목록을 되살린다(서버 previous) · 고친 말은 정정으로', () => {
