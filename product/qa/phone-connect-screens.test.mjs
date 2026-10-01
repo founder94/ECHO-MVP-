@@ -92,7 +92,7 @@ test('인증 화면이 실제로 열린다(라우터) · 연결 화면 전화 �
 
 test('내 연결: 상대 정보는 서버가 revealed 로 보낸 뒤에만 그린다 · 저장 금지 안내 · 그만하기 확인', () => {
   const s = read(MATCHES);
-  assert.match(s, /\{match\.revealed && match\.partner && <header/);
+  assert.match(s, /\{match\.revealed && match\.partner && <PartnerFrame /); // 2026-10-01 ECHO FRAME 으로 바뀜(공개 조건은 그대로)
   assert.match(s, /match\.revealed && match\.partner\s*\n?\s*\? <p><span>\{match\.partner\.nickname\}의 답/);
   assert.match(s, /연락처·링크는 보낼 수 없어요/);
   assert.match(s, /그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요/);

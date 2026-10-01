@@ -22,6 +22,8 @@ const PREVIEW = { purpose: '깊은 대화부터 시작하고 싶어요', readine
 const cand = (id, extra = {}) => ({ id, created_at: '2026-09-30T00:00:00Z', purpose: '깊은 대화부터 시작하고 싶어요', reasons: ['두 분 모두 「깊은 대화부터 시작하고 싶어요」 만남을 원한다고 직접 골랐어요.', '내가 직접 한 말 「천천히 알아가고 싶어요」 — 상대도 비슷한 이야기를 직접 했어요.'], my_choice: null, waiting: false, ...extra });
 const MID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
 const match = (extra = {}) => ({ id: MID, status: 'open', created_at: '2026-09-30T00:00:00Z', first_question: '요즘 가장 편하게 쉬는 시간은 언제예요?', my_answer: null, partner_answered: false, revealed: false, outcome: null, ...extra });
+const QA_PHOTO = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="600"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd8e6"/><stop offset="1" stop-color="#f1c9a8"/></linearGradient></defs><rect width="480" height="600" fill="url(#g)"/><text x="240" y="300" font-size="22" text-anchor="middle" fill="#2c4a4a">QA 시험 그림 · 사람 아님</text></svg>';
+const PHOTO_URL = `${SB}/storage/v1/object/sign/profile-photos/bbbbbbbb/1/qa.jpg?token=qa`;
 const PARTNER = { nickname: '하늘', bio: '천천히 알아가는 걸 좋아해요.', purpose: '깊은 대화부터 시작하고 싶어요', answer: '저녁에 산책할 때요.', photo_url: null };
 
 // 시나리오별 서버 상태(계약 모양 그대로). calls 에 요청 본문을 남겨 화면이 무엇을 보냈는지 본다.
@@ -55,6 +57,13 @@ async function newPage(browser, vp, server) {
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify(SESSION)]);
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(); const u = new URL(req.url());
+    // 2026-10-01 프로필 FRAME: 서명된 사진 주소(서버가 공개 뒤에만 주는 것)를 이 검사 안에서만 대신 준다 — 사람 사진이 아닌 무늬 그림(가짜 사람 0).
+    if (u.pathname.startsWith('/storage/v1/')) {
+      server.st.storage = (server.st.storage ?? 0) + 1;
+      if (server.st.photoDelay) await new Promise(r => setTimeout(r, server.st.photoDelay));
+      if (server.st.photoFail) return route.fulfill({ status: 404, body: '' });
+      return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: QA_PHOTO });
+    }
     if (u.pathname.startsWith('/auth/v1/user')) return route.fulfill({ json: USER });
     if (u.pathname.startsWith('/auth/v1/token')) return route.fulfill({ json: SESSION });
     if (u.pathname.startsWith('/rest/v1/profiles') && req.method() === 'GET') {
@@ -356,6 +365,51 @@ await run(41, 'Q15 넘침 0(320~430px) · 보기 4개 긴 글자 · 누름 높�
     if (w === 320) await p.screenshot({ path: 'uxshots/41-320.png', fullPage: true });
   }
   return `넘침 0 · ${out.join('/')}px`;
+});
+// 42~49 2026-10-01 대표 「PROFILE / PHOTO REVEAL / SCENES」: ECHO FRAME + FILM(처음 한 번) — 서버가 공개(revealed)라고 보낸 상대만.
+const FP = (o = {}) => ({ ...PARTNER, photo_url: PHOTO_URL, bio: '주말엔 동네를 오래 걸어요. 조용한 카페도 좋아하고요.', ...o });
+const revealedMatch = (o = {}) => match({ my_answer: '주말 아침', partner_answered: true, revealed: true, partner: FP(o), messages: [] });
+const frameBox = (p) => p.evaluate(() => { const f = document.querySelector('.doit-partner-scene'); const r = f?.getBoundingClientRect(); return r ? { w: r.width, h: r.height, vw: innerWidth } : null; });
+await run(42, 'P1·P23 FRAME: 한 문장 → 틀 안의 실제 사진(꽉 찬 사진 아님) → 이름·단서', IPHONE, { matches: [revealedMatch()] }, async (p) => {
+  await go(p); await p.waitForTimeout(1800);
+  const order = await p.evaluate(() => [...document.querySelectorAll('.doit-partner-frame > *')].map(e => e.className));
+  expect(order[0] === 'doit-partner-sentence' && order[1] === 'doit-partner-scene', `순서 ${order}`);
+  expect((await p.locator('.doit-partner-sentence p').innerText()) === '주말엔 동네를 오래 걸어요.', '한 문장 = 직접 쓴 소개의 첫 문장');
+  const b = await frameBox(p); expect(b && b.w <= b.vw * 0.8 && Math.abs(b.w / b.h - 0.8) < 0.02, `틀 크기 ${JSON.stringify(b)}`);
+  const t = await text(p); expect(!/\d+\s*%|65|35/.test(t), 'P22 숫자·퍼센트 노출');
+  await p.screenshot({ path: 'uxshots/42-frame.png' }); return `문장→사진(${Math.round(b.w)}×${Math.round(b.h)})→이름`;
+});
+await run(43, 'P7·P8·P21 FILM: 처음 한 번만 · 다시 열면 바로', IPHONE, { matches: [revealedMatch()] }, async (p) => {
+  await go(p); const first = await p.locator('.doit-partner-frame').getAttribute('data-film');
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(600); const again = await p.locator('.doit-partner-frame').getAttribute('data-film');
+  expect(first === 'true' && again === null, `처음=${first} 다시=${again}`); return '처음 장면 진입 · 다시 열면 정지 상태';
+});
+await run(44, 'P9 reduced motion: 장면 진입 = 단순 흐려짐 없는 페이드', IPHONE, { matches: [revealedMatch()] }, async (p) => {
+  await p.emulateMedia({ reducedMotion: 'reduce' }); await go(p);
+  // 앱 공통 「움직임 줄이기」 규칙이 장면 진입을 끄거나 페이드로 바꾼다 — 어느 쪽이든 흐림·이동 없이 처음부터 다 보여야 한다.
+  const st = await p.evaluate(() => ['.doit-partner-sentence', '.doit-partner-scene'].map(s => { const c = getComputedStyle(document.querySelector(s)); return { a: c.animationName, f: c.filter, t: c.transform, o: c.opacity }; }));
+  expect(st.every(x => ['none', 'echo-frame-fade'].includes(x.a) && x.f === 'none' && x.t === 'none' && x.o === '1'), `움직임 ${JSON.stringify(st)}`); return st.map(x => x.a).join(',');
+});
+await run(45, 'P11·P24 느린 사진(3초): 자리 먼저 잡음 · 밀림 0', IPHONE, { matches: [revealedMatch()], photoDelay: 3000 }, async (p) => {
+  await p.goto(`${BASE}/doit/connections`, { waitUntil: 'domcontentloaded' }); await p.locator('.doit-partner-scene').waitFor({ timeout: 15000 }); await p.waitForTimeout(1600); const before = await frameBox(p); const loading = await p.locator('.doit-partner-scene').getAttribute('data-photo');
+  await p.waitForTimeout(3200); const after = await frameBox(p); const ready = await p.locator('.doit-partner-scene').getAttribute('data-photo');
+  expect(loading === 'loading' && ready === 'ready' && before.h === after.h, `밀림 ${before.h}→${after.h} ${loading}/${ready}`); return `높이 ${Math.round(before.h)} 고정`;
+});
+await run(46, 'P12 사진 실패: 빈 틀 + ECHO 심볼 + 다시 불러오기(서버에서 새 주소)', IPHONE, { matches: [revealedMatch()], photoFail: true }, async (p, s) => {
+  await go(p); await p.waitForTimeout(800);
+  expect(await p.locator('.doit-partner-scene-empty').innerText().then(t => t.includes('사진을 불러오지 못했어요')), '실패 안내 없음');
+  const n = s.st.calls.filter(c => c.action === 'my_matches').length; await p.locator('.doit-partner-scene-empty button').click(); await p.waitForTimeout(800);
+  expect(s.st.calls.filter(c => c.action === 'my_matches').length > n, '다시 불러오기가 서버에 다시 묻지 않음'); return '빈 틀 · 서버 재요청';
+});
+await run(47, 'P3·SECURITY 공개 전: 상대 사진 요청 0 · DOM 사진/주소 0', IPHONE, { matches: [match({ my_answer: '주말 아침', partner_answered: true })] }, async (p, s) => {
+  await go(p); await p.waitForTimeout(800);
+  const dom = await p.evaluate(() => ({ imgs: [...document.querySelectorAll('.doit-match img')].length, sign: document.documentElement.outerHTML.includes('object/sign'), frame: !!document.querySelector('.doit-partner-frame'), bg: [...document.querySelectorAll('.doit-match *')].some(e => getComputedStyle(e).backgroundImage.includes('storage')) }));
+  expect(!s.st.storage && dom.imgs === 0 && !dom.sign && !dom.frame && !dom.bg, `노출 ${JSON.stringify(dom)} storage=${s.st.storage ?? 0}`); return '사진 요청 0 · 주소 0 · 틀 0';
+});
+for (const [n, w] of [[48, 320], [49, 430]]) await run(n, `P13·P15·P17 ${w}px · 긴 한국어 소개 넘침 0`, { width: w, height: 844 }, { matches: [revealedMatch({ bio: '주말에는 오래된 동네 골목을 천천히 걸으면서 작은 서점이나 조용한 카페를 찾아다니는 걸 정말 좋아하고, 평일 저녁엔 짧게라도 산책을 꼭 해요.' })] }, async (p) => {
+  await go(p); await p.waitForTimeout(1800);
+  const m = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth, over: [...document.querySelectorAll('.doit-partner-frame *')].filter(e => e.getBoundingClientRect().right > innerWidth + .5).length }));
+  expect(m.sw <= m.iw && m.over === 0, JSON.stringify(m)); if (w === 320) await p.screenshot({ path: 'uxshots/48-frame-320.png', fullPage: true }); return `넘침 0 · 긴 문장은 「…」로 줄이고 나머지는 아래에`;
 });
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {

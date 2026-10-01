@@ -1,0 +1,29 @@
+/* 2026-10-01 ECHO FRAME(상대 프로필의 기본 장면). .doit-partner-frame 아래로만 — 전역·배경·다른 화면 0.
+   한 문장 → 틀 안의 실제 사진(화면을 꽉 채우지 않음 · 4:5 자리를 먼저 잡아 밀림 0) → 이름·관계 단서.
+   효과는 처음 한 번의 FILM(장면 진입) 하나뿐. 다시 열면 정지 상태. 사진을 흐림으로 가리는 규칙은 없다(공개 전 사진은 서버가 보내지 않는다). */
+.doit-partner-frame{display:grid;gap:16px;margin:0 0 20px;padding:0 0 20px;border-bottom:1px solid var(--echo-surface-line,rgb(255 255 255/.4));color:var(--echo-text,#fff)}
+.doit-partner-sentence{margin:0;display:grid;gap:6px}
+.doit-partner-sentence p{margin:0;font-size:20px;font-weight:700;line-height:1.5;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
+.doit-partner-sentence cite{font-style:normal;font-size:12px;font-weight:600;color:rgb(255 255 255/.92)}
+.doit-partner-scene{position:relative;margin:0;justify-self:center;width:min(78%,300px);aspect-ratio:4/5;border-radius:22px;overflow:hidden;background:rgb(255 255 255/.14);box-shadow:0 0 0 1px rgb(255 255 255/.55)}
+.doit-partner-scene img{display:block;width:100%;height:100%;object-fit:cover;transition:opacity .32s ease}
+.doit-partner-scene[data-photo=loading] img{opacity:0}
+.doit-partner-scene-empty{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:8px;padding:16px;text-align:center}
+.doit-partner-scene-empty p{margin:0;font-size:13px;font-weight:600;line-height:1.6;word-break:keep-all}
+.doit-partner-anchor{width:36px;height:36px}
+.doit-partner-meta{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.doit-partner-meta strong{font-size:16px;font-weight:700}
+.doit-partner-meta span{font-size:13px;font-weight:600;color:rgb(255 255 255/.86)}
+.doit-partner-bio{margin:0;font-size:14px;font-weight:500;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+
+/* FILM: 처음 한 번 — 0.2초 한 문장 → 0.5초 사진이 또렷해짐 → 0.9초 이름·단서. 약 1.4초 뒤 정지. */
+.doit-partner-frame[data-film] .doit-partner-sentence{animation:echo-frame-rise .5s cubic-bezier(.2,.7,.2,1) .2s both}
+.doit-partner-frame[data-film] .doit-partner-scene{animation:echo-frame-focus .7s cubic-bezier(.2,.7,.2,1) .5s both}
+.doit-partner-frame[data-film] :is(.doit-partner-meta,.doit-partner-bio){animation:echo-frame-rise .5s cubic-bezier(.2,.7,.2,1) .9s both}
+@keyframes echo-frame-rise{from{opacity:0;transform:translateY(8px)}}
+@keyframes echo-frame-focus{from{opacity:0;filter:blur(6px);transform:scale(.985)}}
+@media(prefers-reduced-motion:reduce){
+  .doit-partner-frame[data-film] :is(.doit-partner-sentence,.doit-partner-meta,.doit-partner-bio,.doit-partner-scene){animation:echo-frame-fade .3s ease both}
+  .doit-partner-scene img{transition:none}
+}
+@keyframes echo-frame-fade{from{opacity:0}}

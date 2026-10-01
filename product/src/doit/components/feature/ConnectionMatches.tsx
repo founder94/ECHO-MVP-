@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField } from '@/doit/lib/connectApi';
 import './connect.css';
+import PartnerFrame from './PartnerFrame';
 
 // 내 연결 — 대표가 승인한 연결만 여기 온다(연결 원칙 2026-09-21).
 // 순서: 같은 첫 질문 → 둘 다 답하면 이름·사진·소개·서로의 답이 열림(blind-first) → 이야기.
@@ -135,16 +136,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const keepVisible = (el: HTMLElement) => { el.scrollIntoView({ block: 'center' }); window.visualViewport?.addEventListener('resize', () => el.scrollIntoView({ block: 'center' }), { once: true }); };
 
   return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state={stage} data-focus={focused ? 'true' : undefined}>
-    {match.revealed && match.partner && <header className="doit-match-partner">
-      {match.partner.photo_url
-        ? <img src={match.partner.photo_url} alt={`${match.partner.nickname}의 대표 사진`} loading="lazy" referrerPolicy="no-referrer" />
-        : <span className="doit-match-photo-empty" aria-hidden="true" />}
-      <div>
-        <strong>{match.partner.nickname}</strong>
-        {match.partner.purpose && <span>{match.partner.purpose}</span>}
-        {match.partner.bio && <p>{match.partner.bio}</p>}
-      </div>
-    </header>}
+    {/* 2026-10-01 ECHO FRAME: 서버가 공개(revealed)라고 보낸 상대만 — 한 문장 → 실제 사진 장면 → 이름·관계 단서. 공개 전에는 상대 정보가 오지 않는다. */}
+    {match.revealed && match.partner && <PartnerFrame matchId={match.id} partner={match.partner} onRetry={() => void onChanged()} />}
 
     {stage === 'ask' && match.via_mutual === true && <p className="doit-mutual-title">상대도 당신이 궁금했대요.</p>}
     {stage === 'ask' && <p className="doit-match-intro">두 분 모두 편하게 시작할 수 있게<br />ECHO가 하나만 물어볼게요.</p>}
