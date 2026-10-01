@@ -71,3 +71,41 @@
 .doit-match:focus{outline:none}
 .doit-connect-form textarea{scroll-margin-bottom:calc(120px + env(safe-area-inset-bottom))}
 .doit-matches{padding-bottom:env(safe-area-inset-bottom)}
+/* 2026-10-01 대표 「POST-IMPLEMENTATION UI/STATE MASTER」: 후보 → 서로 골랐어요 → 첫 질문 → 공개 → 이야기 → 결과까지 대화 화면과 같은 파스텔 한 벌.
+   - 바탕(pastel-bg)은 그대로 · 어두운 판(#14171c·#1c1f25·#22262d) 0 → 대화 화면과 같은 투명 판 + 얇은 흰 테두리(--app-surface-border) + 흰 글자.
+   - 유리(흐림)는 핵심 순간(서로 골랐어요) 하나에만 · 움직임은 opacity·transform 만 · 줄이기 설정이면 움직임 0.
+   - .doit-app-pastel(앱 틀) 안에서만 — 다른 화면·전역 0. */
+.doit-app-pastel{--echo-dur-fast:180ms;--echo-dur-base:280ms;--echo-dur-medium:420ms;--echo-dur-slow:700ms;--echo-ease-standard:cubic-bezier(.2,0,0,1);--echo-ease-emphasized:cubic-bezier(.3,0,0,1);--echo-ease-decelerate:cubic-bezier(0,0,0,1);--echo-surface-soft:rgb(255 255 255/.10);--echo-surface-line:#ffffff40}
+.doit-app-pastel :is(.doit-candidate,.doit-match,.doit-turns){background:var(--echo-surface-soft);border-color:var(--app-surface-border);box-shadow:inset 0 1px 0 rgb(255 255 255/.28)}
+.doit-app-pastel :is(.doit-match-consent,.doit-match-leave,.doit-outcome){background:transparent;border:1px solid var(--echo-surface-line)}
+.doit-app-pastel .doit-connect-input{background:var(--echo-surface-soft);border-color:var(--app-surface-border);color:#fff}
+.doit-app-pastel .doit-connect-input::placeholder{color:rgb(255 255 255/.78)}
+.doit-app-pastel .doit-connect-input:focus{outline-color:#fff}
+.doit-app-pastel :is(.doit-connect,.doit-candidates,.doit-matches,.doit-turns) :is(p,span,li,strong,b,legend,label,.doit-match-kicker,.doit-candidates-title,.doit-candidate-found,.doit-candidate-teaser,.doit-candidate-why,.doit-match-question,.doit-match-intro,.doit-mutual-title,.doit-mutual-body,.doit-connect-note):not([role=alert]):not([class*=error]){color:#fff}
+.doit-app-pastel .doit-match-kicker{color:rgb(255 255 255/.86)}
+.doit-app-pastel .doit-connect-link{color:#fff}
+.doit-app-pastel .doit-connect-link:disabled{color:rgb(255 255 255/.6)}
+.doit-app-pastel .doit-match-partner{border-color:var(--echo-surface-line)}
+.doit-app-pastel :is(.doit-match-partner img,.doit-match-photo-empty){background:var(--echo-surface-soft);box-shadow:0 0 0 1px var(--app-surface-border)}
+/* 이야기: 상대 말 = 투명 판 + 테두리 · 내 말 = 기본 버튼과 같은 흰 막(흰 글자 대비 유지 · 예전 밝은 말풍선 위 흰 글자 문제 해결) */
+.doit-app-pastel .doit-match-messages li{background:transparent;border:1px solid var(--app-surface-border);color:#fff}
+.doit-app-pastel .doit-match-messages li[data-mine=true]{background:rgb(255 255 255/.24);border-color:rgb(255 255 255/.7);color:#fff}
+.doit-app-pastel .doit-outcome-chips button{border-color:var(--app-surface-border);color:#fff}
+/* 서로 골랐어요: 이 화면의 유일한 유리 판(가벼운 흐림 하나) + 두 신호가 가운데로 모여 하나로 맞춰지는 정렬 */
+.doit-app-pastel .doit-mutual{background:rgb(255 255 255/.16);border-color:rgb(255 255 255/.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgb(255 255 255/.4)}
+.echo-mutual-align{position:relative;display:block;width:64px;height:22px;margin:2px 0 10px}
+.echo-mutual-align i{position:absolute;top:5px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgb(255 255 255/.22)}
+.echo-mutual-align i:first-child{left:0;animation:echo-align-left var(--echo-dur-slow,700ms) var(--echo-ease-emphasized,ease) both}
+.echo-mutual-align i:last-child{right:0;animation:echo-align-right var(--echo-dur-slow,700ms) var(--echo-ease-emphasized,ease) both}
+@keyframes echo-align-left{from{transform:translateX(0);opacity:.6}to{transform:translateX(20px);opacity:1}}
+@keyframes echo-align-right{from{transform:translateX(0);opacity:.6}to{transform:translateX(-20px);opacity:1}}
+/* 기다림: 돌아가는 표시 대신 숨 쉬듯 천천히 커졌다 작아지는 점 하나(소리·진동 없이도 기다리는 중임을 안다) */
+.echo-signal-pulse{display:inline-block;flex:none;width:9px;height:9px;margin-right:10px;border-radius:50%;background:#fff;vertical-align:middle;animation:echo-breathe 2.4s var(--echo-ease-standard,ease-in-out) infinite}
+@keyframes echo-breathe{0%,100%{transform:scale(.8);opacity:.55;box-shadow:0 0 0 0 rgb(255 255 255/.35)}50%{transform:scale(1);opacity:1;box-shadow:0 0 0 7px rgb(255 255 255/0)}}
+.echo-waiting{display:flex;align-items:center}
+/* 장면 전환: 이유가 열릴 때 · 서로 골랐어요 · 연결로 옮겨 갈 때 · 공개될 때 — 살짝 떠오르며 자리 잡기(fade + settle) */
+.doit-app-pastel .doit-candidate[data-state=choose] .doit-candidate-reasons,.doit-app-pastel .doit-mutual,.doit-app-pastel .doit-match-partner,.doit-app-pastel .doit-match-messages li:last-child{animation:echo-settle var(--echo-dur-medium,420ms) var(--echo-ease-decelerate,ease-out) both}
+.doit-app-pastel .doit-match[data-focus=true]{animation:echo-focus var(--echo-dur-slow,700ms) var(--echo-ease-emphasized,ease) both;border-color:rgb(255 255 255/.85)}
+@keyframes echo-settle{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes echo-focus{0%{transform:scale(.985);box-shadow:0 0 0 0 rgb(255 255 255/.5)}100%{transform:none;box-shadow:0 0 0 6px rgb(255 255 255/0)}}
+@media(prefers-reduced-motion:reduce){.echo-mutual-align i,.echo-signal-pulse,.doit-app-pastel .doit-candidate[data-state=choose] .doit-candidate-reasons,.doit-app-pastel .doit-mutual,.doit-app-pastel .doit-match-partner,.doit-app-pastel .doit-match-messages li:last-child,.doit-app-pastel .doit-match[data-focus=true]{animation:none}.echo-mutual-align i:first-child{transform:translateX(20px)}.echo-mutual-align i:last-child{transform:translateX(-20px)}}

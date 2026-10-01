@@ -176,7 +176,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       <p><span>내 답</span>{match.my_answer}</p>
       {match.revealed && match.partner
         ? <p><span>{match.partner.nickname}의 답</span>{match.partner.answer}</p>
-        : <p className="doit-connect-note">상대의 답을 기다리고 있어요. 답이 오면 이름과 사진이 함께 열려요.</p>}
+        : <p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />상대의 답을 기다리고 있어요. 답이 오면 이름과 사진이 함께 열려요.</p>}
     </div>}
 
     {stage === 'talk' && <>

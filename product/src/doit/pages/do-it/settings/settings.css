@@ -61,3 +61,12 @@
 
 /* 2026-09-28: 메뉴의 #install·#policy·#accessibility 로 내려올 때 머리줄(56px) 아래에 멈춘다. */
 .doit-settings-section{scroll-margin-top:calc(env(safe-area-inset-top) + 72px)}
+/* 2026-10-01: 공개 규칙 · 도움말(설정 안에서만) */
+.doit-settings-rules{margin:0;padding:16px 16px 16px 34px;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+.doit-settings-help details{padding:14px 16px;border-bottom:1px solid rgb(255 255 255/.25)}
+.doit-settings-help summary{cursor:pointer;font-size:14px;font-weight:600;min-height:24px}
+.doit-settings-help details p{margin:8px 0 0;font-size:13px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}
+.doit-settings-help .doit-settings-mail{display:block;padding:14px 16px;font-size:13px}
+.doit-settings-hint{margin:10px 2px 0;font-size:12.5px;line-height:1.7;word-break:keep-all}
+.doit-app-pastel .doit-settings-help :is(summary,p,a){color:#fff}
+.doit-app-pastel .doit-settings-hint{color:#fff}
