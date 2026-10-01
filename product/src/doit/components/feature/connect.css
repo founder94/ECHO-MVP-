@@ -59,3 +59,15 @@
 .doit-outcome-chips button{min-height:40px;padding:8px 14px;border:1px solid #c2cad13d;border-radius:999px;background:transparent;color:#d9dee7;font-size:13px;cursor:pointer}
 .doit-outcome-chips button[aria-pressed=true]{background:rgb(255 255 255/.24);color:#fff;border-color:transparent;border:1px solid rgb(255 255 255/.7)}
 .doit-outcome-chips button:disabled{opacity:.5;cursor:default}
+/* 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」: 후보를 한 단계씩 여는 카드 · 서로 골랐을 때의 차분한 보상 · 첫 질문 안내 · 이어진 연결 표시 */
+.doit-candidate-found{margin:6px 0 0;font-size:17px;font-weight:600;line-height:1.5;color:#eef0f3;word-break:keep-all}
+.doit-candidate-teaser{margin:8px 0 14px;font-size:13px;line-height:1.7;color:#c5cbd5;word-break:keep-all}
+.doit-candidate[data-state=closed] .doit-product-action{margin-top:4px}
+.doit-mutual{margin:12px 0 16px;padding:24px 20px;border:1px solid #c2cad140;border-radius:20px;background:radial-gradient(ellipse at top,#dfe6f21c,transparent 70%),#14171c}
+.doit-mutual-title{margin:8px 0 6px;font-size:22px;font-weight:600;line-height:1.45;color:#f4f5f7;word-break:keep-all}
+.doit-mutual-body{margin:0 0 16px;font-size:14px;line-height:1.7;color:#c5cbd5;word-break:keep-all}
+.doit-match-intro{margin:0 0 12px;font-size:14px;line-height:1.7;color:#dfe3e9;word-break:keep-all}
+.doit-match[data-focus=true]{border-color:#dfe6f266}
+.doit-match:focus{outline:none}
+.doit-connect-form textarea{scroll-margin-bottom:calc(120px + env(safe-area-inset-bottom))}
+.doit-matches{padding-bottom:env(safe-area-inset-bottom)}

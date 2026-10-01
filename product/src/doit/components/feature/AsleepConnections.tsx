@@ -27,7 +27,8 @@ type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 
 
 // 2026-09-26 대표 「FINAL HUMAN UX」 §23·§41: 연결 0건인 지금 「AI가 먼저 만나봅니다」는 앞서가는 말 → 제품 훅(나는 말한다 · 찾는 건 ECHO가)으로. 히어로 문구는 그대로.
 const HEADLINE = <>나는 말하고,<br />찾는 건 ECHO가.</>;
-const SUBLINE = '지금은 연결을 준비하는 중이에요.';
+// 2026-09-30: 후보·서로 골랐어요 화면 위에 「지금은 준비 중」이 같이 서 있어 어긋났다 → 어느 상태에서나 맞는 한 줄.
+const SUBLINE = '내가 한 말을 바탕으로, 이어질 만한 사람을 ECHO가 먼저 살펴봐요.';
 
 // 「다섯 가지 질문」 칸이 가리키는 곳이 「처음부터 다시」일 때의 표시(주소가 아니라 공통 동작을 부른다).
 const RESTART = 'restart:conversation';
@@ -36,6 +37,7 @@ export default function AsleepConnections() {
   const { user, loading } = useAuth();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [opened, setOpened] = useState(0); // v2.0 상호선택으로 연결이 열리면 「내 연결」을 다시 읽는다
+  const [focusMatch, setFocusMatch] = useState<string | null>(null); // 2026-09-30: 「이야기 시작하기」 → 서버가 준 그 연결로
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId || !A_STRUCTURE_SERVER_ENABLED) return;
@@ -57,8 +59,8 @@ export default function AsleepConnections() {
       {user && !A_STRUCTURE_SERVER_ENABLED && <p className="doit-asleep-status">연결 준비 화면은 서버 연결 뒤에 열려요.</p>}
       {user && A_STRUCTURE_SERVER_ENABLED && state.kind === 'loading' && <div className="doit-asleep-wait" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>내가 확인한 말로 준비 상태를 살피고 있어요.</p></div>}
       {state.kind === 'error' && <p className="doit-product-error" role="alert">{state.message}</p>}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates userId={user.id} onOpened={() => setOpened(n => n + 1)} />}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates userId={user.id} onOpened={matchId => { setFocusMatch(matchId); setOpened(n => n + 1); }} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} focusId={focusMatch} />}
       {state.kind === 'ready' && <Ready preview={state.preview} userId={userId} />}
     </section>
   </MobileLayout>;

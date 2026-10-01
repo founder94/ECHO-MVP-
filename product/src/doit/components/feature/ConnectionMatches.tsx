@@ -15,7 +15,8 @@ function errorText(e: unknown, fallback: string): string {
   return e instanceof UnderstandingError && e.message ? e.message : fallback;
 }
 
-export default function ConnectionMatches({ userId }: { userId: string }) {
+// 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 §12: 서로 골라 연결이 열리면 그 연결(서버가 준 match_id)로 바로 데려간다. 화면이 연결을 만들지 않는다.
+export default function ConnectionMatches({ userId, focusId = null }: { userId: string; focusId?: string | null }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const seq = useRef(0);
 
@@ -24,14 +25,23 @@ export default function ConnectionMatches({ userId }: { userId: string }) {
     try {
       const { matches, consented } = await fetchMyMatches(userId);
       if (mine === seq.current) setLoad({ kind: 'ready', matches, consented });
-    } catch (e) {
+    } catch {
       if (mine !== seq.current) return;
-      const missing = e instanceof UnderstandingError && (e.code === 'NETWORK_ERROR' || e.code === 'BAD_REQUEST');
-      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: missing ? '연결 목록을 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.' : errorText(e, '연결 목록을 불러오지 못했어요.') });
+      // 불러오기 실패에 저장 실패 문구를 쓰지 않는다(2026-09-30 QA 브라우저 검사 20)
+      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: '연결 목록을 불러오지 못했어요. 다시 확인해 볼게요.' });
     }
   }, [userId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const focusReady = load.kind === 'ready' && !!focusId && load.matches.some(m => m.id === focusId);
+  useEffect(() => {
+    if (!focusReady || !focusId) return;
+    const el = document.getElementById(`match-${focusId}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    el.focus({ preventScroll: true });
+  }, [focusReady, focusId]);
 
   const hasOpen = load.kind === 'ready' && load.matches.some(m => m.status === 'open');
   useEffect(() => {
@@ -49,11 +59,12 @@ export default function ConnectionMatches({ userId }: { userId: string }) {
       <p className="doit-asleep-label">내 연결 {load.matches.filter(m => m.status === 'open').length}</p>
       <button type="button" className="doit-connect-link" onClick={() => void refresh()}>새로 보기</button>
     </div>
-    {load.matches.map(m => <MatchCard key={m.id} match={m} userId={userId} consented={load.consented} onConsented={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: true } : prev)} onConsentLost={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: false } : prev)} onChanged={refresh} />)}
+    {load.matches.map(m => <MatchCard key={m.id} focused={m.id === focusId} match={m} userId={userId} consented={load.consented} onConsented={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: true } : prev)} onConsentLost={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: false } : prev)} onChanged={refresh} />)}
   </section>;
 }
 
 interface MatchCardProps {
+  focused: boolean;
   match: MyMatch;
   userId: string;
   consented: boolean;
@@ -62,14 +73,14 @@ interface MatchCardProps {
   onChanged: () => Promise<void>;
 }
 
-function MatchCard({ match, userId, consented, onConsented, onConsentLost, onChanged }: MatchCardProps) {
+function MatchCard({ focused, match, userId, consented, onConsented, onConsentLost, onChanged }: MatchCardProps) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   if (match.status === 'closed') {
-    return <article className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
+    return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
   }
 
   const submit = async (event: FormEvent, kind: 'answer' | 'message') => {
@@ -102,12 +113,12 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
     else onConsented();
   };
 
-  const leave = async (report: boolean) => {
+  const leave = async (block: boolean, report: boolean) => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await leaveMatch(userId, match.id, { block: report, report });
+      await leaveMatch(userId, match.id, { block, report });
       setLeaving(false);
       await onChanged();
     } catch (e) {
@@ -120,7 +131,10 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
   const max = match.my_answer ? MESSAGE_MAX : ANSWER_MAX;
   const stage = !match.my_answer ? 'ask' : !match.revealed ? 'wait' : 'talk';
 
-  return <article className="doit-match" data-state={stage}>
+  // 휴대폰 글자판이 입력칸을 가리지 않게: 입력칸을 누르면 화면 가운데로 올린다(글자판이 뜬 뒤 한 번 더).
+  const keepVisible = (el: HTMLElement) => { el.scrollIntoView({ block: 'center' }); window.visualViewport?.addEventListener('resize', () => el.scrollIntoView({ block: 'center' }), { once: true }); };
+
+  return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state={stage} data-focus={focused ? 'true' : undefined}>
     {match.revealed && match.partner && <header className="doit-match-partner">
       {match.partner.photo_url
         ? <img src={match.partner.photo_url} alt={`${match.partner.nickname}의 대표 사진`} loading="lazy" referrerPolicy="no-referrer" />
@@ -132,6 +146,7 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
       </div>
     </header>}
 
+    {stage === 'ask' && <p className="doit-match-intro">두 분 모두 편하게 시작할 수 있게<br />ECHO가 하나만 물어볼게요.</p>}
     <p className="doit-match-kicker">두 사람에게 같은 질문</p>
     <p className="doit-match-question">{match.first_question}</p>
 
@@ -151,7 +166,7 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
       <p className="doit-connect-note">내가 답하고 상대도 답하면, 그때 서로의 이름과 사진이 열려요.</p>
       <form className="doit-connect-form" onSubmit={e => void submit(e, 'answer')}>
         <label className="doit-connect-label" htmlFor={`answer-${match.id}`}>내 답</label>
-        <textarea id={`answer-${match.id}`} className="doit-connect-input" rows={3} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
+        <textarea id={`answer-${match.id}`} className="doit-connect-input" rows={3} onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '내 답 보내기'}<span aria-hidden="true">↗</span></button>
       </form>
     </>}
@@ -169,7 +184,7 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
       </ol>
       <form className="doit-connect-form doit-match-send" onSubmit={e => void submit(e, 'message')}>
         <label className="doit-connect-label" htmlFor={`message-${match.id}`}>이어서 이야기하기</label>
-        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={2} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
+        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={2} onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
@@ -182,8 +197,9 @@ function MatchCard({ match, userId, consented, onConsented, onConsentLost, onCha
       ? <button type="button" className="doit-connect-link" onClick={() => setLeaving(true)} disabled={busy}>이 연결 그만하기</button>
       : <div className="doit-match-leave" role="group" aria-label="그만하기 확인">
           <p>그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요.</p>
-          <button type="button" className="doit-connect-link" onClick={() => void leave(false)} disabled={busy}>그만할게요</button>
-          <button type="button" className="doit-connect-link" onClick={() => void leave(true)} disabled={busy}>차단하고 신고할게요</button>
+          <button type="button" className="doit-connect-link" onClick={() => void leave(false, false)} disabled={busy}>그만할게요</button>
+          <button type="button" className="doit-connect-link" onClick={() => void leave(true, false)} disabled={busy}>차단할게요</button>
+          <button type="button" className="doit-connect-link" onClick={() => void leave(true, true)} disabled={busy}>차단하고 신고할게요</button>
           <button type="button" className="doit-connect-link" onClick={() => setLeaving(false)} disabled={busy}>계속할게요</button>
         </div>}
   </article>;

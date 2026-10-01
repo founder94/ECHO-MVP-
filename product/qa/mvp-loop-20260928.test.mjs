@@ -16,10 +16,11 @@ test('후보 화면: 서버가 준 이유만 그림 · 상대 이름·사진·�
   assert.doesNotMatch(CAND, /nickname|photo_url|partner|\bbio\b/, '후보 단계에 상대 정보 칸 없음');
   assert.doesNotMatch(CAND, /%|점수|궁합|사주|타로/);
   assert.doesNotMatch(CAND, /setTimeout|Math\.random|mock|dummy/i);
-  assert.match(CAND, /당신이 잠든 사이,<br \/>ECHO가 먼저 살펴봤어요\./);
-  assert.match(CAND, /ECHO가 연결을 준비하고 있어요\./);
+  // 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 §3·§8·§24 문구(이전 09-28 문구를 대체)
+  assert.match(CAND, /당신이 잠든 사이,<br \/>ECHO가 한 사람을 발견했어요\./);
+  assert.match(CAND, /아직 보여 드릴 사람은 없어요\./);
   assert.match(CAND, /이어지고 싶어요/);
-  assert.match(CAND, /이번엔 넘길게요/);
+  assert.match(CAND, /이번에는 넘길게요/);
   assert.match(CAND, /숨기기/);
   assert.match(CAND, /최종 선택은 언제나 내가 해요/);
 });

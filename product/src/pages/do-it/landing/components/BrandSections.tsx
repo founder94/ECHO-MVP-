@@ -33,7 +33,7 @@ const STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
   // 대표 FINAL TWO-SITE LOCK(2026-09-25): 대화 → 연결 준비 → ECHO 가 대신 찾음. 「당신이 잠든 사이」= 내가 찾아다니지 않아도 ECHO 가 대신 찾는다는 뜻(수면 감지 아님) · 연결은 아직 열리지 않아 「준비 중」.
   { title: 'ECHO와 짧게 이야기해요', body: '어떤 만남을 원하는지, 어떤 사람이 편한지. 다섯 번이면 충분해요.' },
   { title: '연결을 준비해요', body: '최근 사진 세 장과, 나를 소개할 몇 줄.' },
-  { title: '당신이 잠든 사이, ECHO가 찾아요', body: '내가 계속 찾아다니지 않아도, AI가 먼저 만나봅니다.', soon: true },
+  { title: '당신이 잠든 사이, ECHO가 찾아요', body: '내가 계속 찾아다니지 않아도, ECHO가 내 말과 겹치는 사람을 먼저 살펴봐요. 두 사람이 모두 고를 때만 이어져요.', soon: true }, // 2026-09-30 §17 실제 기능보다 앞서가는 말(「AI가 먼저 만나봅니다」) 대신 실제 동작
 ];
 
 const SOON_LABEL = '준비 중';

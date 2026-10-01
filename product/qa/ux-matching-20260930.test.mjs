@@ -1,0 +1,55 @@
+// 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 화면 원본 검사 — 궁금증 단계 공개 · 대기 · 서로 골랐어요 · 첫 질문 안내 · 차단/신고 · 거짓 표시 0.
+// 실제 화면 흐름은 브라우저 시나리오(scratchpad ux-flow.mjs · 서버 응답은 계약 그대로 대신 준다)가 따로 본다.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+const code = (p) => read(p).replace(/^\s*\/\/.*$/gm, '');
+const CAND = code('src/doit/components/feature/ConnectionCandidates.tsx');
+const MATCHES = code('src/doit/components/feature/ConnectionMatches.tsx');
+
+test('후보는 한 번에 펼치지 않는다: 한 사람 → 이유가 있다는 것 → 「왜 이 사람인지 보기」 → 이유 → 선택', () => {
+  assert.match(CAND, /한 사람을 발견했어요\./);
+  assert.match(CAND, /왜 이 사람인지, ECHO가 본 이유가 있어요\./);
+  assert.match(CAND, /왜 이 사람인지 보기/);
+  const closed = CAND.indexOf('{!open && <>'), reasons = CAND.indexOf('c.reasons.map'), actions = CAND.indexOf("choose(c, 'yes')");
+  assert.ok(closed > 0 && closed < reasons && reasons < actions, '이유와 선택은 연 뒤에만');
+  assert.match(CAND, /const open = c\.waiting \|\| !!opened\[c\.id\];/, '이미 고른 후보는 열린 채');
+});
+
+test('거리·위치·점수·가짜 타이머 0 · 서버가 주지 않는 거리 문구를 만들지 않는다', () => {
+  for (const s of [CAND, MATCHES]) {
+    assert.doesNotMatch(s, /distance|latitude|longitude|\bkm\b|현재 위치|지도|생활권|가까운 곳/);
+    assert.doesNotMatch(s, /%|점수|궁합|운명|완벽/);
+    assert.doesNotMatch(s, /setTimeout|setInterval\(\(\) => set|Math\.random|mock|dummy/i);
+  }
+});
+
+test('대기: 「내 선택은 전해졌어요」 · 상대가 관심 있다는 말 0 · 서로 골랐어요 보상은 서버 mutual 뒤에만', () => {
+  assert.match(CAND, /내 선택은 전해졌어요/);
+  assert.doesNotMatch(CAND.slice(0, CAND.indexOf('if (mutual) return')), /상대도 (당신이 )?궁금|상대도 관심/);
+  assert.match(CAND, /if \(out\.status === 'mutual'\) setMutual\(/);
+  assert.match(CAND, /상대도 당신이 궁금했대요\./);
+  assert.match(CAND, /두 사람 모두 조금 더 이야기해 보고 싶다고 했어요\./);
+  assert.match(CAND, /이야기 시작하기/);
+  assert.doesNotMatch(CAND, /축하|🎉|!!\s*<\/|요!!/);
+  assert.doesNotMatch(CAND, /nickname|photo_url|partner|\bbio\b/, '보상 화면에도 상대 정보 0');
+});
+
+test('연결: 서버가 준 match_id 로만 이동 · 첫 질문 안내 · blind-first(상대 정보는 revealed 뒤) · 차단/신고 따로', () => {
+  assert.match(CAND, /setMutual\(\{ matchId: typeof out\.match_id === 'string' \? out\.match_id : null \}\)/);
+  assert.match(MATCHES, /document\.getElementById\(`match-\$\{focusId\}`\)/);
+  assert.match(MATCHES, /두 분 모두 편하게 시작할 수 있게<br \/>ECHO가 하나만 물어볼게요\./);
+  assert.match(MATCHES, /\{match\.revealed && match\.partner && <header/);
+  assert.match(MATCHES, /leave\(true, false\)\} disabled=\{busy\}>차단할게요/);
+  assert.match(MATCHES, /leave\(true, true\)\} disabled=\{busy\}>차단하고 신고할게요/);
+  assert.match(MATCHES, /onFocus=\{e => keepVisible\(e\.currentTarget\)\}/, '글자판이 입력칸을 가리지 않게');
+});
+
+test('홈 카드·홈페이지: 재진입 첫 문장 · 실제 기능보다 앞서가는 말 0 · 가격 표시 0', () => {
+  const api = code('src/doit/lib/connectApi.ts');
+  assert.match(api, /당신이 잠든 사이, ECHO가 한 사람을 발견했어요/);
+  const brand = read('src/pages/do-it/landing/components/BrandSections.tsx');
+  assert.match(brand, /ECHO가 내 말과 겹치는 사람을 먼저 살펴봐요\. 두 사람이 모두 고를 때만 이어져요\./);
+  for (const s of [CAND, MATCHES, api]) assert.doesNotMatch(s, /\d[\d,]*\s*원|4,900|결제|프리미엄/);
+});

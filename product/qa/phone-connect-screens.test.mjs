@@ -98,7 +98,7 @@ test('내 연결: 상대 정보는 서버가 revealed 로 보낸 뒤에만 그�
   assert.match(s, /그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요/);
   assert.match(s, /차단하고 신고할게요/);
   assert.match(s, /계속할게요/, '확인 창에도 빠져나갈 문');
-  assert.match(read(ASLEEP), /<ConnectionMatches key=\{opened\} userId=\{user\.id\} \/>/);
+  assert.match(read(ASLEEP), /<ConnectionMatches key=\{opened\} userId=\{user\.id\} focusId=\{focusMatch\} \/>/);
 });
 
 test('연결 승인 메뉴: 관리자 화면에 있고, 이야기 내용은 보여 주지 않는다', () => {
@@ -156,7 +156,7 @@ test('v1.2 홈 「내 차례」: 먼저 할 일 하나만, 할 일이 없으면 
   const { turnsMessage } = loadConnectApi();
   assert.equal(turnsMessage({ answer: 0, reply: 0, opened: 0 }), null);
   assert.equal(turnsMessage({ answer: 0, reply: 0, opened: 0, choose: 0 }), null);
-  assert.match(turnsMessage({ answer: 0, reply: 0, opened: 0, choose: 2 }).title, /당신이 잠든 사이, ECHO가 먼저 살펴봤어요/, 'v2.0 새 후보');
+  assert.match(turnsMessage({ answer: 0, reply: 0, opened: 0, choose: 2 }).title, /당신이 잠든 사이, ECHO가 2명을 발견했어요/, 'v2.0 새 후보 · 2026-09-30 문구');
   assert.match(turnsMessage({ answer: 1, reply: 3, opened: 1 }).title, /첫 질문/);
   assert.match(turnsMessage({ answer: 2, reply: 0, opened: 0 }).title, /첫 질문 2개/);
   assert.match(turnsMessage({ answer: 0, reply: 2, opened: 1 }).title, /서로 열렸어요/);
