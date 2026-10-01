@@ -154,6 +154,11 @@ test('Q10 이미 답한 것은 보기로 다시 내밀지 않는다(Context Memo
   A.applyTurn(s2, '연락은 주말에 한두 번이면 충분해요', T({ extracted: [X('relationship_style', '주말에 한두 번 연락', '연락은 주말에 한두 번')], next: N('values_character', '처음 만나면 뭐 하고 싶어요?') }));
   const r2 = A.screenChoices(s2, ['주말에 자주 연락', '주말에 가끔 연락', '주말에 전화하기', '같이 영화 보기'], '처음 만나면 뭐 하고 싶어요?');
   assert.deepEqual(r2.choices, ['주말에 전화하기', '같이 영화 보기']);
+  // 실제 AI QA D1 재검(2026-10-01): 속도 칸이 확정이면 속도·횟수를 묻는 질문은 다시 청하고(covered), 속도 보기는 뺀다
+  assert.equal(A.questionFlaw(s2, '솔직한 사람이 편해요', '주말에 연락하면 더 자주 만나고 싶나요?', false), 'covered');
+  assert.equal(A.questionFlaw(s2, '솔직한 사람이 편해요', '솔직한 친구와 주말에 만나면 좋나요?', false), '');
+  assert.deepEqual(A.screenChoices(s2, ['자주 만나고 싶어요', '가끔 만나도 좋아요', '카페에서 수다', '같이 영화 보기']).choices, ['카페에서 수다', '같이 영화 보기']);
+  assert.equal(A.questionFlaw(start(), '친구요', '친구랑 얼마나 자주 만나면 좋아요?', false) === 'covered', false, '속도를 아직 안 들었으면 막지 않는다');
 });
 
 test('Q11 뒤로·직전 답 고치기: 직전 질문 · 고른 보기 · 보기 목록을 되살린다(서버 previous) · 고친 말은 정정으로', () => {
