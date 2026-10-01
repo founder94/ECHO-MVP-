@@ -1083,7 +1083,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     return fail(CODES.BAD_REQUEST, "알 수 없는 요청이에요.", 400, origin);
-  } catch {
+  } catch (e) {
+    // 원인 추적용: 오류 종류와 짧은 설명만(따옴표 안 값은 지움 · 사용자 원문 0).
+    const err = e instanceof Error ? e : new Error(String(e));
+    logDiag({ evt_error: err.name, why: err.message.replace(/(["'`]).*?\1/g, "…").slice(0, 120), at: (err.stack ?? "").split("\n").slice(1, 3).map((l) => l.trim().replace(/\(?file:\/\/\S*\/functions\//, "")).join(" | ").slice(0, 200) });
     return fail(CODES.ERROR, "서버 오류가 발생했어요.", 500, origin);
   }
 });
