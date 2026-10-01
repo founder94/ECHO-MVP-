@@ -271,12 +271,12 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      AGENT_SHA: 168f68c58d73850a14ffcb9267717093fef3b8d0
-      AGENT_VERSION: echo-agent-v2.5.5
+      AGENT_SHA: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
+      AGENT_VERSION: echo-agent-v2.5.6
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 168f68c58d73850a14ffcb9267717093fef3b8d0
+          ref: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 3파일만)
         env:
@@ -312,13 +312,13 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      CONNECT_SHA: 3f0c591dc4c012145d2dd409820945b4e6932edd
+      CONNECT_SHA: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 3f0c591dc4c012145d2dd409820945b4e6932edd
+          ref: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · 3파일만)
         env:
@@ -332,9 +332,11 @@ jobs:
           [ "$(git -C src rev-parse HEAD)" = "$CONNECT_SHA" ] || { echo "FAIL: 고정 commit 아님"; exit 1; }
           F=src/product/supabase/functions
           grep -q 'MATCH_SOURCE_TYPES' $F/doit-connect/agentSource.ts || { echo "FAIL: 매칭 재료 필터 없음"; exit 1; }
+          # FI-018(2026-10-01): agentSource.ts 는 Agent 공통 준비 계약(doit-agent/agent.ts conversationReadiness)을 그대로 쓴다.
+          grep -q 'from "../doit-agent/agent.ts"' $F/doit-connect/agentSource.ts || { echo "FAIL: 공통 계약 import 없음"; exit 1; }
           mkdir -p stage/supabase/functions/doit-connect stage/supabase/functions/doit-agent
           cp $F/doit-connect/index.ts $F/doit-connect/agentSource.ts stage/supabase/functions/doit-connect/
-          cp $F/doit-agent/matching.ts stage/supabase/functions/doit-agent/
+          cp $F/doit-agent/agent.ts stage/supabase/functions/doit-agent/
           printf 'project_id = "%s"\n\n[functions.doit-connect]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
           ( cd stage && find supabase/functions -type f -exec sha256sum {} \; | sort -k2 )
       - uses: supabase/setup-cli@v1
