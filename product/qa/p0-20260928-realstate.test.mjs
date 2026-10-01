@@ -117,6 +117,8 @@ function cssSolidButtons() {
     const s = readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     for (const m of s.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const sel = m[1].trim(); if (!/button|-btn\b|-action|primary|-pill|cta|choice-confirm|reactions/i.test(sel) || sel.includes('glass-btn')) continue;
+      // 2026-10-01 대표 승인 「Primary CTA 스타일 변경」: 연결 흐름(.doit-connect · .doit-match)의 주요 CTA 만 흰 단색(깊은 청록 글씨) 예외 — connect.css 의 이 범위 하나만.
+      if (f.endsWith('/src/doit/components/feature/connect.css') && sel.startsWith('.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary)')) continue;
       for (const d of m[2].matchAll(/(?:^|;)\s*(background(?:-color|-image)?)\s*:\s*([^;]+)/g)) if (!/var\(--echo-glass|transparent|none/.test(d[2]) && OPAQUE.test(d[2])) hits.push(`${f.slice(ROOT.length)}: ${sel.slice(0, 60)} ${d[1]}: ${d[2].trim().slice(0, 40)}`);
     }
   }

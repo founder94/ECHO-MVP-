@@ -109,3 +109,9 @@
 @keyframes echo-settle{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes echo-focus{0%{transform:scale(.985);box-shadow:0 0 0 0 rgb(255 255 255/.5)}100%{transform:none;box-shadow:0 0 0 6px rgb(255 255 255/0)}}
 @media(prefers-reduced-motion:reduce){.echo-mutual-align i,.echo-signal-pulse,.doit-app-pastel .doit-candidate[data-state=choose] .doit-candidate-reasons,.doit-app-pastel .doit-mutual,.doit-app-pastel .doit-match-partner,.doit-app-pastel .doit-match-messages li:last-child,.doit-app-pastel .doit-match[data-focus=true]{animation:none}.echo-mutual-align i:first-child{transform:translateX(20px)}.echo-mutual-align i:last-child{transform:translateX(-20px)}}
+/* 2026-10-01 대표 승인 「Primary CTA 스타일 변경」: 연결 흐름(후보 · 서로 선택 · 연결 · 첫 질문 · 공개 · 대화)의 주요 버튼만 흰 단색 판 + 깊은 청록 글씨.
+   대비: 흰 판 위 #0f4a4a ≈ 9.6:1 (전에는 파스텔 위 반투명 흰 판 + 흰 글씨 ≈ 1.3:1). 본문·보조 글씨의 흰색 체계와 보조 버튼은 그대로.
+   그라데이션·유리 0 · 그림자는 아주 얕게 하나 · 누름은 아주 작게(0.99) · 바탕 FINAL LOCK 그대로. echo-ui.css 의 버튼 3단계(!important)보다 이 범위가 더 구체적이라 이긴다. */
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary){background:#fff!important;border:1px solid #fff!important;color:#0f4a4a!important;-webkit-text-fill-color:#0f4a4a;box-shadow:0 1px 2px rgb(15 74 74/.08)!important;transition:transform .12s ease,background-color .12s ease}
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary) span{color:inherit!important;-webkit-text-fill-color:#0f4a4a}
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary):not(:disabled):active{background:#f2f6f6!important;transform:scale(.99)}
