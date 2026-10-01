@@ -1280,7 +1280,10 @@ export function sameDirection(prev: string, q: string): boolean {
 const PACE_WORDS = /자주|몇\s*번|빈도|천천히|빨리|속도|매일|가끔/; // 보기용(속도 보기를 다시 내밀지 않음)
 // 질문용: 속도를 「묻는」 모양만(고친 값을 장면 앞에 붙여 다른 것을 묻는 질문 — 「한 달에 한두 번 만나는 날에 가고 싶은 카페」 — 은 막지 않는다).
 const PACE_ASK = /얼마나\s*(자주|빨리|천천히)|몇\s*번|더\s*자주|자주\s*(만나|연락|보)|빈도|속도|(천천히|빨리)\s*(알아가|가까워|친해)/;
-export const paceCovered = (st: AgentState) => !(st.current?.type === "fill" && st.current.purpose === "relationship_style") && (st.slots.relationship_style?.items ?? []).some((i) => i.status === "CONFIRMED" && i.source_type !== "AI_INFERRED");
+// 속도를 이미 들음 = 속도 칸이 확정이거나, 어느 칸이든 지금 확정된 사용자 말에 속도·횟수 표현이 있음(실제 AI QA D1 재검: 첫 답 「연락은 주말에 한두 번」이 다른 칸으로 정리돼 속도 칸이 비어 있었다).
+const PACE_SAID = /자주|몇\s*번|한두\s*번|두세\s*번|매일|천천히|빨리|가끔|일주일에|한\s*달에/;
+export const paceCovered = (st: AgentState) => !(st.current?.type === "fill" && st.current.purpose === "relationship_style")
+  && (PIDS.some((id) => st.slots[id].items.some((i) => i.status === "CONFIRMED" && i.source_type !== "AI_INFERRED" && (id === "relationship_style" || PACE_SAID.test(`${i.note} ${i.quote}`)))));
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true, stale = ""): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q, stale) || leaksId(q)) return "blocked";
