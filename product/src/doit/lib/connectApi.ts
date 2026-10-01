@@ -101,8 +101,25 @@ export async function sendMatchMessage(userId: string, matchId: string, text: st
   await serverFunctionRequest('doit-connect', { action: 'message', matchId, text }, userId);
 }
 
-export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean }): Promise<void> {
-  await serverFunctionRequest('doit-connect', { action: 'leave', matchId, ...options }, userId);
+// 2026-10-01 대표 「SAFETY LAYER」: 신고 사유 6개(서버 doit-connect REPORT_REASONS 와 같아야 한다 · 검사가 확인한다).
+export type ReportReason = 'unpleasant' | 'scam' | 'fake' | 'threat' | 'spam' | 'other';
+export const REPORT_REASONS: readonly (readonly [ReportReason, string])[] = [
+  ['unpleasant', '불쾌한 대화'], ['scam', '사기·금전 요구'], ['fake', '허위 정보'], ['threat', '위협·강요'], ['spam', '스팸'], ['other', '기타'],
+];
+/** 서버가 실제로 저장했다고 답한 것만 true(화면이 「접수했어요」를 지어내지 않는다). 예전 서버는 보내지 않는다(false). */
+export interface SafetySaved { blocked: boolean; reported: boolean }
+const saved = (out: { blocked?: unknown; reported?: unknown }): SafetySaved => ({ blocked: out.blocked === true, reported: out.reported === true });
+
+export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean; reason?: ReportReason }): Promise<SafetySaved> {
+  const { reason, ...rest } = options;
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'leave', matchId, ...rest, ...(reason ? { reason } : {}) }, userId);
+  return saved(out ?? {});
+}
+
+/** 후보 단계 차단·신고(숨김과 함께). 서버가 저장한 것만 돌려준다. */
+export async function reportCandidate(userId: string, candidateId: string, options: { block: boolean; reason?: ReportReason }): Promise<SafetySaved> {
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'choose', candidateId, choice: 'hide', block: options.block, ...(options.reason ? { reason: options.reason } : {}) }, userId);
+  return saved(out ?? {});
 }
 
 export async function fetchAdminCandidates(): Promise<AdminCandidates> {

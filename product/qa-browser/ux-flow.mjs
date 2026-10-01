@@ -37,14 +37,15 @@ function makeServer(init) {
       case 'my_turns': return { json: { ok: true, open: st.matches.length, turns: { answer: 0, reply: 0, opened: 0, choose: st.candidates.filter(c => !c.waiting).length } } };
       case 'choose': {
         const c = st.candidates.find(x => x.id === body.candidateId);
-        if (body.choice !== 'yes') { st.candidates = st.candidates.filter(x => x.id !== body.candidateId); return { json: { ok: true, status: 'declined' } }; }
-        if (st.partnerYes?.includes(body.candidateId)) { st.candidates = st.candidates.filter(x => x.id !== body.candidateId); st.matches = [match()]; return { json: { ok: true, status: 'mutual', match_id: MID, first_question: match().first_question, question_source: 'fixed' } }; }
+        // 2026-10-01 SAFETY: 서버 v2.1 은 차단·신고를 실제로 저장했을 때만 blocked/reported 를 준다(st.oldServer 면 예전처럼 안 줌).
+        if (body.choice !== 'yes') { st.candidates = st.candidates.filter(x => x.id !== body.candidateId); return { json: { ok: true, status: 'declined', ...(st.oldServer ? {} : { blocked: body.block === true, reported: typeof body.reason === 'string' }) } }; }
+        if (st.partnerYes?.includes(body.candidateId)) { st.candidates = st.candidates.filter(x => x.id !== body.candidateId); st.matches = [match({ via_mutual: true })]; return { json: { ok: true, status: 'mutual', match_id: MID, first_question: match().first_question, question_source: 'fixed' } }; }
         Object.assign(c, { my_choice: 'yes', waiting: true }); return { json: { ok: true, status: 'waiting' } };
       }
       case 'my_matches': return { json: { ok: true, matches: st.matches, consented: st.consented } };
       case 'answer': { const m = st.matches[0]; m.my_answer = body.text; if (st.partnerAnswered) { m.partner_answered = true; m.revealed = true; m.partner = PARTNER; m.messages = []; } return { json: { ok: true } }; }
       case 'message': { const m = st.matches[0]; m.messages = [...(m.messages ?? []), { id: String(Date.now()), mine: true, body: body.text, created_at: new Date().toISOString() }]; return { json: { ok: true } }; }
-      case 'leave': { st.matches[0].status = 'closed'; return { json: { ok: true } }; }
+      case 'leave': { st.matches[0].status = 'closed'; return { json: { ok: true, ...(st.oldServer ? {} : { blocked: body.block === true, reported: typeof body.reason === 'string' || body.report === true }) } }; }
       case 'outcome': return { json: { ok: true } };
       default: return { json: { ok: true } };
     }
@@ -165,12 +166,12 @@ await run(9, '선택 후 대기(다시 열어도 유지)', IPHONE, { candidates:
 });
 await run(10, 'mutual (서버가 mutual 이라고 답할 때만)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
-  const t = await text(p); expect(t.includes('상대도 당신이 궁금했대요.'), '보상 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
-  await p.screenshot({ path: 'uxshots/10-mutual.png' }); return '보상 화면 · 상대 정보 0';
+  const t = await text(p); expect(t.includes('텔레파시가 통했어요.') && t.includes('서로 같은 선택을 했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
+  await p.waitForTimeout(900); await p.screenshot({ path: 'uxshots/10-mutual.png' }); return 'ZZARIT · 상대 정보 0';
 });
 await run(11, 'connection (서버 match_id 로 이동)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
-  await p.getByRole('button', { name: /이야기 시작하기/ }).click(); await p.waitForTimeout(1200);
+  await p.getByRole('button', { name: /첫 이야기 시작하기/ }).click(); await p.waitForTimeout(1200);
   const focused = await p.evaluate((id) => document.activeElement?.id === `match-${id}`, MID);
   expect(focused, '그 연결로 이동 안 됨'); return `#match-${MID.slice(0, 8)} 포커스`;
 });
@@ -195,10 +196,10 @@ await run(16, 'chat', IPHONE, { matches: [match({ my_answer: '주말 아침', pa
   const t = await text(p); expect(t.includes('반가워요') && t.includes('안녕하세요!'), '메시지 목록'); expect(s.st.calls.some(c => c.action === 'message'), 'message 요청');
   await p.screenshot({ path: 'uxshots/16-chat.png' }); return '보내기 → 목록';
 });
-for (const [n, name, btn, want] of [[17, 'leave', '그만할게요', { block: false, report: false }], [18, 'block', '차단할게요', { block: true, report: false }], [19, 'report', '차단하고 신고할게요', { block: true, report: true }]]) {
+for (const [n, name, btn, want] of [[17, 'leave', '그만할게요', { block: false, report: false }], [18, 'block', '차단할게요', { block: true, report: false }], [19, 'report(사유 고르기 · 2026-10-01 SAFETY)', '차단하고 신고할게요', { block: true, report: true, reason: 'unpleasant' }]]) {
   await run(n, name, IPHONE, { matches: [match({ my_answer: 'a', partner_answered: true, revealed: true, partner: PARTNER, messages: [] })] }, async (p, s) => {
-    await go(p); await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: btn, exact: true }).click(); await p.waitForTimeout(600);
-    const call = s.st.calls.find(c => c.action === 'leave'); expect(call && call.block === want.block && call.report === want.report, `보낸 값 ${JSON.stringify(call)}`);
+    await go(p); await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: btn, exact: true }).click(); if (want.reason) await p.getByRole('button', { name: '불쾌한 대화' }).click(); await p.waitForTimeout(600);
+    const call = s.st.calls.find(c => c.action === 'leave'); expect(call && call.block === want.block && call.report === want.report && call.reason === want.reason, `보낸 값 ${JSON.stringify(call)}`);
     expect((await text(p)).includes('이 연결은 끝났어요'), '끝남 표시'); return `leave block=${want.block} report=${want.report}`;
   });
 }
@@ -260,8 +261,9 @@ await run(30, 'back guard: 폰 뒤로 → 직전 답 고치기 → 서버 재계
   await p.screenshot({ path: 'uxshots/30b-recomputed.png' }); return '뒤로 → 직전 답 편집 → correction 전송 → 서버 새 질문';
 });
 // 31·32 via_mutual(2026-10-01): 먼저 고른 사람도 서버가 via_mutual=true 를 줄 때만 「상대도 당신이 궁금했대요」.
-await run(31, 'via_mutual=true: 먼저 고른 사람도 서로 골랐다는 문구', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
-  await go(p); const t = await text(p);
+await run(31, 'via_mutual=true: 먼저 고른 사람도 ZZARIT 한 번 → 서로 골랐다는 문구', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await go(p); expect((await text(p)).includes('텔레파시가 통했어요.'), '기다리던 사람 ZZARIT 없음');
+  await p.getByRole('button', { name: /첫 이야기 시작하기/ }).click(); await p.waitForTimeout(300); const t = await text(p);
   expect(t.includes('상대도 당신이 궁금했대요.'), 'via_mutual 문구 없음'); expect(t.includes('ECHO가 하나만 물어볼게요.'), '첫 질문 안내');
   await p.screenshot({ path: 'uxshots/31-via-mutual.png' }); return '서버 via_mutual=true → 문구 1';
 });
@@ -410,6 +412,76 @@ for (const [n, w] of [[48, 320], [49, 430]]) await run(n, `P13·P15·P17 ${w}px 
   await go(p); await p.waitForTimeout(1800);
   const m = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth, over: [...document.querySelectorAll('.doit-partner-frame *')].filter(e => e.getBoundingClientRect().right > innerWidth + .5).length }));
   expect(m.sw <= m.iw && m.over === 0, JSON.stringify(m)); if (w === 320) await p.screenshot({ path: 'uxshots/48-frame-320.png', fullPage: true }); return `넘침 0 · 긴 문장은 「…」로 줄이고 나머지는 아래에`;
+});
+
+// 50~60 FLOW + SAFETY(2026-10-01 대표 「COMPLETE PRODUCT FLOW」·「SAFETY LAYER」).
+const pickReason = async (p) => { await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); };
+await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·재진입 0', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
+  await go(p); await pickReason(p); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(400);
+  expect(await p.locator('.echo-zzarit').count() === 1, 'ZZARIT 없음');
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(700);
+  expect(await p.locator('.echo-zzarit').count() === 0, '새로고침에 다시 뜸'); expect((await text(p)).includes('ECHO가 하나만 물어볼게요.'), '연결로 이어지지 않음');
+  return '1회 · 새로고침 0';
+});
+await run(51, 'ZZARIT 연출 ≈1.2초 뒤 정지 · 밝기 4% · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await go(p); await p.waitForTimeout(100);
+  const during = await p.evaluate(() => document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length);
+  await p.waitForTimeout(1400);
+  const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, lift: getComputedStyle(document.querySelector('.echo-zzarit-lift')).opacity, focus: document.activeElement?.textContent }));
+  expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(Number(after.lift) >= .03 && Number(after.lift) <= .05, `밝기 ${after.lift}`);
+  expect(/첫 이야기 시작하기/.test(after.focus ?? ''), '버튼 포커스');
+  await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `실행 중 ${during} → 1.5초 뒤 0 · 막 ${after.lift}`;
+});
+await run(52, 'ZZARIT 움직임 줄이기: 처음부터 정지 화면 · 진동 0', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await p.emulateMedia({ reducedMotion: 'reduce' }); await p.addInitScript(() => { window.__vib = 0; navigator.vibrate = () => { window.__vib++; return true; }; });
+  await go(p); const m = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).length, vib: window.__vib, title: getComputedStyle(document.querySelector('.echo-zzarit-title')).opacity }));
+  expect(m.run === 0 && m.vib === 0 && m.title === '1', JSON.stringify(m)); return '움직임 0 · 진동 0 · 글자 바로 보임';
+});
+for (const [n, w] of [[53, 320], [54, 360], [55, 430]]) await run(n, `ZZARIT ${w}px: 넘침 0 · 버튼 화면 안`, { width: w, height: w === 320 ? 640 : 844 }, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await go(p); await p.waitForTimeout(1300);
+  const m = await p.evaluate(() => { const b = document.querySelector('.echo-zzarit-cta').getBoundingClientRect(); return { sw: document.scrollingElement.scrollWidth, iw: innerWidth, right: b.right, h: b.height }; });
+  expect(m.sw <= m.iw && m.right <= m.iw && m.h >= 44, JSON.stringify(m)); if (w === 320) await p.screenshot({ path: 'uxshots/53-zzarit-320.png', fullPage: true }); return `넘침 0 · 버튼 ${Math.round(m.h)}px`;
+});
+await run(56, 'SAFETY 후보 신고 3번: 불편해요 → 신고할게요 → 사유 · 서버가 접수했다고 할 때만 「접수했어요」', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
+  await go(p); await pickReason(p);
+  await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).click(); await p.getByRole('button', { name: '신고할게요' }).click();
+  expect(await p.locator('.doit-safety-reasons button').count() === 6, '사유 6개');
+  await p.screenshot({ path: 'uxshots/56-report-reasons.png' });
+  await p.getByRole('button', { name: '위협·강요' }).click(); await p.waitForTimeout(500);
+  const call = s.st.calls.find(c => c.action === 'choose'); expect(call && call.choice === 'hide' && call.block === true && call.reason === 'threat', JSON.stringify(call));
+  const t = await text(p); expect(t.includes('접수했어요.') && t.includes('다시 추천되지 않아요'), '접수 문구'); return 'choose hide+block+threat · 접수했어요';
+});
+await run(57, 'SAFETY 후보 차단 2번 · 예전 서버(저장 확인 없음)면 「접수·차단했어요」 말하지 않음', IPHONE, { candidates: [cand('c1'), cand('c2')], oldServer: true }, async (p, s) => {
+  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).first().click();
+  await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).first().click(); await p.getByRole('button', { name: '차단할게요' }).click(); await p.waitForTimeout(500);
+  const t = await text(p); expect(s.st.calls.some(c => c.action === 'choose' && c.block === true && !('reason' in c)), '차단 요청');
+  expect(!t.includes('접수했어요') && !t.includes('차단했어요') && t.includes('숨겼어요'), '서버 확인 없이 차단·접수 문구'); return '서버 확인 없으면 숨김만 말함';
+});
+await run(58, 'SAFETY 연결 신고 3번: 그만하기 → 차단하고 신고할게요 → 사유 · 접수했어요 · 끝난 연결', IPHONE, { matches: [revealedMatch()] }, async (p, s) => {
+  await go(p); await p.waitForTimeout(600);
+  expect((await text(p)).includes('불편하면 언제든 나갈 수 있어요.'), '안전 문구');
+  await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: '차단하고 신고할게요' }).click();
+  await p.getByRole('button', { name: '사기·금전 요구' }).click(); await p.waitForTimeout(600);
+  const call = s.st.calls.find(c => c.action === 'leave'); expect(call && call.block === true && call.report === true && call.reason === 'scam', JSON.stringify(call));
+  const t = await text(p); expect(t.includes('접수했어요.') && t.includes('이 연결은 끝났어요'), '접수·끝남'); expect(!t.includes('하늘의 답'), '끝난 뒤 상대 말 표시');
+  return 'leave block+report+scam · 끝난 연결';
+});
+await run(59, '만나기 전 안내: 「약속했어요」 고른 뒤에만', IPHONE, { matches: [revealedMatch()] }, async (p) => {
+  await go(p); await p.waitForTimeout(600); expect(await p.locator('.doit-meet-safety').count() === 0, '고르기 전 표시');
+  await p.getByRole('button', { name: '약속했어요' }).click(); await p.waitForTimeout(300);
+  const t = await p.locator('.doit-meet-safety').innerText(); expect(t.includes('사람이 많은 곳') && t.includes('신고'), t); return '선택 뒤 4줄';
+});
+await run(60, 'ECHO 사용법: 메뉴 → 설정 #guide · 9항목 · 320px 넘침 0', { width: 320, height: 640 }, {}, async (p) => {
+  await p.goto(`${BASE}/doit/settings#guide`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+  const m = await p.evaluate(() => ({ n: document.querySelectorAll('#guide details').length, top: Math.round(document.getElementById('guide').getBoundingClientRect().top), sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
+  expect(m.n === 9 && m.top < 200 && m.sw <= m.iw, JSON.stringify(m));
+  await p.locator('#guide summary', { hasText: '안전하게 쓰기' }).click(); expect((await p.locator('#guide').innerText()).includes('차단하면 다시 추천되지 않아요'), '안전 안내');
+  await p.screenshot({ path: 'uxshots/60-guide-320.png' }); return `9항목 · 바로 그 자리(top ${m.top})`;
+});
+for (const [n, w] of [[61, 320], [62, 430]]) await run(n, `SAFETY ${w}px: 신고 사유 줄 넘침 0 · 버튼 44px`, { width: w, height: 760 }, { candidates: [cand('c1')] }, async (p) => {
+  await go(p); await pickReason(p); await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).click(); await p.getByRole('button', { name: '신고할게요' }).click();
+  const m = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth, small: [...document.querySelectorAll('.doit-safety-reasons button')].filter(b => b.getBoundingClientRect().height < 44 || b.getBoundingClientRect().right > innerWidth).length }));
+  expect(m.sw <= m.iw && m.small === 0, JSON.stringify(m)); return '넘침 0';
 });
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
