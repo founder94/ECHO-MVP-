@@ -228,3 +228,11 @@ test('A-PREMIUM 심볼: 서버가 정해 둔 생활형 심볼 1개만(감정 이
   assert.doesNotMatch(set, /😂|😍|🥹|❤|💕|💘|😊/);
   assert.ok((set.match(/"[^"]+"\]/g) ?? []).length <= 12, '12개 이하');
 });
+
+test('실제 AI QA D1 재검: 첫 답의 속도 표현이 다른 칸으로 정리돼도 속도를 다시 묻지 않는다', () => {
+  const st = start();
+  A.applyTurn(st, '천천히 알아가는 친구가 좋고 연락은 주말에 한두 번이면 충분해요', T({ extracted: [X('relationship_intent', '천천히 알아가는 친구', '천천히 알아가는 친구가 좋고 연락은 주말에 한두 번이면 충분해요')], next: N('values_character', '솔직한 친구가 편해요?') }));
+  assert.equal(st.slots.relationship_style.status, 'UNKNOWN');
+  assert.equal(A.questionFlaw(st, '솔직한 사람이 편해요', '주말에 연락하면 더 자주 만나는 게 좋나요?', false), 'covered');
+  assert.equal(A.questionFlaw(start(), '솔직한 사람이 편해요', '주말에 연락하면 더 자주 만나는 게 좋나요?', false) === 'covered', false, '아직 안 들었으면 막지 않음');
+});
