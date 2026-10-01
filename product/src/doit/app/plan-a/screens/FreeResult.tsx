@@ -508,8 +508,9 @@ export function FreeResult({
               lineHeight: 1.65,
             }}
           >
-            조금 더 이야기하면, AI가 내가 원하는 관계와
-            잘 맞는 사람을 찾는 데 도움을 줄 수 있어요.
+            {/* 2026-10-01 UI/UX FINAL CLOSE: 타로는 참고 콘텐츠 — 연결(매칭) 근거로 약속하지 않는다. 대화의 주체는 ECHO. */}
+            카드는 재미로 보는 참고예요. 내가 원하는 관계는
+            ECHO와 직접 이야기하면서 정리할 수 있어요.
           </p>
         </motion.div>
 
@@ -534,7 +535,7 @@ export function FreeResult({
         }}
       >
         <PrimaryButton onClick={onJoin}>
-          AI와 조금 더 이야기하기
+          ECHO와 조금 더 이야기하기
         </PrimaryButton>
 
         <PrimaryButton
