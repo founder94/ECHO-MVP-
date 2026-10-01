@@ -130,14 +130,15 @@ const B=await makeAccount('b',seed);
 
 const ca=await fn('doit-connect',A.jwt,{action:'my_candidates'});
 check('A: eligible', ca.status===200 && ca.data?.eligible===true, `count=${(ca.data?.candidates??[]).length}`);
-check('A: 후보 정확히 1', (ca.data?.candidates??[]).length===1, `count=${(ca.data?.candidates??[]).length}`);
-const candA=(ca.data?.candidates??[])[0];
-
+// 2026-10-01: QA 풀에는 앞선 마감 실행이 남긴 시험 계정(qa-e2e-close-*)도 자격이 있어 A 에게 후보가 여럿 올 수 있다(읽기 전용 SQL 로 확인 · 실사용자 0).
+// 이 검사는 A·B 둘 다에게 보이는 공통 후보(A↔B 쌍) 하나만 쓰고, 다른 후보는 고르지도 숨기지도 않는다(다른 계정 상태 변경 0).
+const listA=(ca.data?.candidates??[]);
 const cb=await fn('doit-connect',B.jwt,{action:'my_candidates'});
 check('B: eligible', cb.status===200 && cb.data?.eligible===true, `count=${(cb.data?.candidates??[]).length}`);
-check('B: 후보 정확히 1', (cb.data?.candidates??[]).length===1, `count=${(cb.data?.candidates??[]).length}`);
-const candB=(cb.data?.candidates??[])[0];
-check('A/B 같은 후보', !!candA?.id && candB?.id===candA.id);
+const listB=(cb.data?.candidates??[]);
+const shared=listA.filter((c)=>listB.some((d)=>d.id===c.id));
+check('A/B 공통 후보 정확히 1(A↔B 쌍)', shared.length===1, `A=${listA.length} B=${listB.length} 공통=${shared.length}`);
+const candA=shared[0];
 
 writeFileSync(ACCT_FILE, JSON.stringify({
   a:{email:A.email,password:A.password},
@@ -146,7 +147,8 @@ writeFileSync(ACCT_FILE, JSON.stringify({
 writeFileSync(PREFLIGHT_FILE, JSON.stringify({
   project:'mutniujeiyujhkobadkd',
   purpose:PURPOSE.id,
-  eligibleCount:2,
+  eligibleCount:2, // 이 쌍(A·B)만 · 다른 자격 계정이 있어도 E2E 는 공통 후보 하나만 쓴다
+  pairCandidateId:candA.id,
   accountIds:[A.uid,B.uid],
   verifiedAt:new Date().toISOString()
 }), { mode:0o600 });
