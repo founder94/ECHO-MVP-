@@ -1269,12 +1269,14 @@ export function sameDirection(prev: string, q: string): boolean {
 }
 // 2026-10-01 대표 P0 장면 D(실제 AI QA): 관계 속도(연락·만남이 얼마나 자주·천천히)를 사용자가 이미 말했는데, 방금 말의 낱말을 잇는 규칙 때문에
 //   「주말에 연락하면 더 자주 만나고 싶나요?」처럼 속도를 다시 물었다 → 속도 칸이 이미 확정이면 속도를 묻는 질문·보기는 이미 답한 것(다시 묻지 않음).
-const PACE_WORDS = /자주|몇\s*번|얼마나|빈도|천천히|빨리|속도|매일|가끔|한두\s*번/;
+const PACE_WORDS = /자주|몇\s*번|빈도|천천히|빨리|속도|매일|가끔/; // 보기용(속도 보기를 다시 내밀지 않음)
+// 질문용: 속도를 「묻는」 모양만(고친 값을 장면 앞에 붙여 다른 것을 묻는 질문 — 「한 달에 한두 번 만나는 날에 가고 싶은 카페」 — 은 막지 않는다).
+const PACE_ASK = /얼마나\s*(자주|빨리|천천히)|몇\s*번|더\s*자주|자주\s*(만나|연락|보)|빈도|속도|(천천히|빨리)\s*(알아가|가까워|친해)/;
 export const paceCovered = (st: AgentState) => !(st.current?.type === "fill" && st.current.purpose === "relationship_style") && (st.slots.relationship_style?.items ?? []).some((i) => i.status === "CONFIRMED" && i.source_type !== "AI_INFERRED");
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true, stale = ""): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q, stale) || leaksId(q)) return "blocked";
-  if (paceCovered(st) && PACE_WORDS.test(q)) return "covered";
+  if (paceCovered(st) && PACE_ASK.test(q)) return "covered";
   if (/모르겠|잘\s*몰라/.test(q)) return "unsure_paste"; // 2026-09-30 QA v67 장면 C: 「모르겠어요면 처음 연락은 문자로 해요?」
   if (surveyQuestion(latest, q)) return "survey_tone";
   if (genericPersonQuestion(q)) return "generic_person";
