@@ -46,7 +46,7 @@
 
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { agentSources, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
+import { agentSources, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
 
@@ -353,6 +353,12 @@ interface Member {
   requiredPhotos: number;
   eligible: boolean;
   missing: string[];
+  readiness: MemberReadiness;
+}
+// FI-018 연결 자격 = conversation_ready(대화 · Agent 와 같은 함수) AND 목적 AND 소개 AND 필수 사진 — 서버가 계산해 화면에 그대로 준다(화면이 따로 세지 않는다).
+interface MemberReadiness {
+  conversation: { ready: boolean; source: "agent" | "legacy"; finished: boolean; have: number; need: number };
+  purpose: boolean; intro: boolean; photos: number; photos_needed: number; phone_verified: boolean;
 }
 
 interface AuthInfo { phoneConfirmed: boolean; since: string | null }
@@ -424,21 +430,27 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     const id = String(p.id);
     const phoneVerified = str(p.verification_status) === "verified" || !!auth.get(id)?.phoneConfirmed;
     const agent = agentSrc.get(id);
-    const mine = agent ? agent.confirmed : confirmed.get(id) ?? [];
+    const mine = MATCH_SOURCE === "agent" ? agent?.confirmed ?? [] : confirmed.get(id) ?? []; // FI-018 Agent 매칭에서는 Agent 확정 재료만
     const requiredPhotos = slots.get(id)?.size ?? 0;
     const bio = cleanText(p.bio);
     const missing: string[] = [];
     if (!p.purpose_id) missing.push("purpose");
     // 2026-09-27 대표 「P0-1 · 전화 인증 연결 필수 해제」: 초기 베타·출시 단계에서 전화 인증은 연결 자격 조건이 아니다(참고 정보 phoneVerified 로만 남김 ·
     // 문자 발송 업체 미연결로 연결 가능 인원이 0이던 구조 제거). 인증 기능·phone_sync·verification_status 는 그대로다.
-    const answered = agent ? agent.confirmedAreas : answers.get(id) ?? 0;
-    if (agent ? !agent.ready : answered < LIMITS.CONNECT_ANSWERS_NEEDED) missing.push("answers"); // Agent 사용자: 대화를 마쳤고 확정 정보가 있는 정보 영역이 기준(AGENT_READY_MIN_CONFIRMED_AREAS · 임시 3) 이상(질문 수·목적 개수 아님 · 관계 목적은 위 purpose 로 따로)
+    // FI-018: Agent 매칭(MATCH_SOURCE=agent)에서는 대화 준비를 Agent 공통 계약(conversationReadiness)만으로 본다 — Agent 대화가 없으면 준비 0(예전 「답 5개」 기록 수로 대신하지 않음).
+    //   legacy(MATCH_SOURCE 미설정)는 예전 서버 그대로(이번 회차 내용 있는 답 수).
+    const conversation: MemberReadiness["conversation"] = MATCH_SOURCE === "agent"
+      ? { ready: !!agent?.ready, source: "agent", finished: !!agent?.finished, have: agent?.confirmedAreas ?? 0, need: AGENT_READY_MIN_CONFIRMED_AREAS }
+      : { ready: (answers.get(id) ?? 0) >= LIMITS.CONNECT_ANSWERS_NEEDED, source: "legacy", finished: (answers.get(id) ?? 0) >= LIMITS.CONNECT_ANSWERS_NEEDED, have: answers.get(id) ?? 0, need: LIMITS.CONNECT_ANSWERS_NEEDED };
+    const answered = conversation.have;
+    if (!conversation.ready) missing.push("answers");
     if (requiredPhotos < LIMITS.CONNECT_PHOTOS_NEEDED) missing.push("photos");
     if (!bio) missing.push("intro");
     return {
       id, nickname: cleanText(p.nickname) || cleanText(p.display_name) || "이름 없음",
       purposeId: p.purpose_id ? String(p.purpose_id) : null, purposeLabel: p.purpose_label ? String(p.purpose_label) : null,
       bio, phoneVerified, confirmed: mine, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
+      readiness: { conversation, purpose: !!p.purpose_id, intro: !!bio, photos: Math.min(requiredPhotos, LIMITS.CONNECT_PHOTOS_NEEDED), photos_needed: LIMITS.CONNECT_PHOTOS_NEEDED, phone_verified: phoneVerified },
     };
   });
 }
@@ -847,7 +859,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null), my_choice: mine, waiting: mine === "yes" });
       }
       logDiag({ action, eligible, prepared, shown: out.length });
-      return json({ ok: true, eligible, missing: me?.missing ?? ["purpose"], prepared, candidates: out }, 200, origin);
+      return json({ ok: true, eligible, missing: me?.missing ?? ["purpose"], readiness: me?.readiness ?? null, prepared, candidates: out }, 200, origin);
     }
 
     // ⑨ 상호선택. 둘 다 yes 일 때만 연결이 열린다.

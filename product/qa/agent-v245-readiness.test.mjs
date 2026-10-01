@@ -51,7 +51,9 @@ test('「아니요 + 답」이 새 질문에 대한 답이면(보인 해석이 �
   A.applyTurn(st, '같이 노는 게 좋아요', T({ reply: '같이 노는 시간이 즐거우시네요.', extracted: [X('attraction_comfort', '같이 노는 걸 좋아함', '같이 노는 게 좋아요')], next: N('relationship_style', '친구랑 매일 연락하는 편이세요?') }));
   const r = A.applyTurn(st, '아니요, 주말에 한 번 정도 연락하는 게 좋아요', T({ kind: 'correction', extracted: [X('relationship_style', '주말에 한 번 정도 연락함', '주말에 한 번 정도 연락하는 게 좋아요')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
   assert.equal(r.kind, 'answer');
-  assert.equal(live(st, 'attraction_comfort').length, 1, '다른 칸 확정 사실 유지');
+  // FI-018(v2.5.6): 물은 칸에 말 전체를 정리한 답은 사용자 원문(USER_DIRECT)도 함께 남는다 — 다른 칸 확정 사실이 지워지지 않았는지는 AI 정리 · 원문 각각으로 본다.
+  assert.equal(live(st, 'attraction_comfort').filter((i) => i.source_type === 'AI_EXTRACTED').length, 1, '다른 칸 확정 사실 유지');
+  assert.equal(live(st, 'attraction_comfort').filter((i) => i.source_type === 'USER_DIRECT').length, 1, '사용자 원문도 유지');
   assert.equal(st.disputed.length, 0, '지금 질문을 거절로 기록하지 않음');
 });
 
@@ -100,12 +102,22 @@ function threeAnswers() {
   A.applyTurn(st, '카페에서 오래 이야기하는 게 좋아요', T({ extracted: [X('attraction_comfort', '카페에서 이야기함', '카페에서 오래 이야기하는 게 좋아요'), X('relationship_style', '오래 이야기함', '오래 이야기하는')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
   return st;
 }
-test('v2.5.0: 세 번의 유효한 답으로 확정 영역 4개가 채워지면 고정 5문항을 채우지 않고 마친다', () => {
-  const st = threeAnswers();
+test('v2.5.0 + FI-018: 세 번의 유효한 답으로 사용자 출처 확정 칸이 3개 이상이면 고정 5문항을 채우지 않고 마친다', () => {
+  const st = start();
+  A.applyTurn(st, '친구를 만나고 싶어요', T({ extracted: [X('relationship_intent', '친구를 만나고 싶음', '친구를 만나고 싶어요')], next: N('attraction_comfort', '친구랑 뭘 하면 즐거우세요?') }));
+  // 물은 칸(attraction)에는 AI 가 아무것도 넣지 않고 다른 칸(style)에만 정리 → 물은 칸에는 사용자 원문(USER_DIRECT) · style 은 AI 정리
+  A.applyTurn(st, '카페에서 오래 이야기하는 게 좋아요', T({ extracted: [X('relationship_style', '오래 이야기함', '오래 이야기하는')], next: N('values_character', '잘 맞는 친구는 어떤 모습이에요?') }));
   const r = A.applyTurn(st, '약속을 잘 지키는 사람이 좋아요', T({ extracted: [X('values_character', '약속을 잘 지킴', '약속을 잘 지키는 사람이 좋아요')], next: N('boundaries', '친구 사이에서 불편한 건 뭐예요?') }));
   assert.equal(A.savedAnswers(st), 3);
   assert.equal(r.finish, true, `충분한데 계속 질문함: decision=${st.turns.at(-1).decision}`);
   assert.equal(st.turns.at(-1).decision, 'finish_enough');
+});
+test('FI-018: 확정 칸이 4개여도 사용자 출처 칸이 3개 미만이면(AI 정리뿐) 「충분」으로 마치지 않는다 — 연결 서버와 같은 기준', () => {
+  const st = threeAnswers(); // 두 번째 답을 AI 가 두 칸으로 나눠 정리 → 그 두 칸은 AI 정리뿐
+  const r = A.applyTurn(st, '약속을 잘 지키는 사람이 좋아요', T({ extracted: [X('values_character', '약속을 잘 지킴', '약속을 잘 지키는 사람이 좋아요')], next: N('boundaries', '친구 사이에서 불편한 건 뭐예요?') }));
+  assert.equal(r.finish, false, `준비 칸 부족인데 마침: decision=${st.turns.at(-1).decision}`);
+  assert.equal(A.stateReadiness(st).confirmed_areas, 2);
+  assert.notEqual(st.turns.at(-1).decision, 'finish_enough');
 });
 test('v2.5.0: 한 질문을 모르겠다고 넘어가도 확정 영역 4개가 모이면 추가 채우기 질문 없이 마친다', () => {
   const st = start();
@@ -133,5 +145,5 @@ test('GF-109: 칸 설명 문장(목적별 dims)은 사용자 정보로 저장하
   A.applyTurn(st, '진지한 연애를 하고 싶어요', T({ extracted: [X('relationship_intent', '진지한 연애를 원함', '진지한 연애를 하고 싶어요')], next: N('attraction_comfort', 'Q?') }));
   A.applyTurn(st, '조용한 곳에서 오래 이야기하는 게 좋아요', T({ extracted: [X('relationship_style', '연락 · 만남의 속도와 마음을 표현하는 방식', '조용한 곳에서 오래 이야기하는 게 좋아요'), X('attraction_comfort', '조용한 곳에서 이야기함', '조용한 곳에서 오래 이야기하는 게 좋아요')], next: N('values_character', 'Q?') }));
   assert.equal(live(st, 'relationship_style').length, 0, JSON.stringify(live(st, 'relationship_style').map((i) => i.note)));
-  assert.equal(live(st, 'attraction_comfort').length, 1);
+  assert.equal(live(st, 'attraction_comfort').filter((i) => i.source_type === 'AI_EXTRACTED').length, 1);
 });

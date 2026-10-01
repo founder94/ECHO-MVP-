@@ -31,7 +31,7 @@ function makeServer(init) {
     st.calls.push(body);
     const f = st.fail[body.action]; if (f && f.times > 0) { f.times--; return { status: f.status ?? 500, json: { ok: false, code: f.code ?? 'ERROR', message: f.message ?? '서버 오류' } }; }
     switch (body.action) {
-      case 'my_candidates': return { json: { ok: true, eligible: st.eligible ?? true, missing: [], prepared: 0, candidates: st.candidates } };
+      case 'my_candidates': return { json: { ok: true, eligible: st.eligible ?? true, missing: st.missing ?? [], ...(st.readiness ? { readiness: st.readiness } : {}), prepared: 0, candidates: st.candidates } };
       case 'my_turns': return { json: { ok: true, open: st.matches.length, turns: { answer: 0, reply: 0, opened: 0, choose: st.candidates.filter(c => !c.waiting).length } } };
       case 'choose': {
         const c = st.candidates.find(x => x.id === body.candidateId);
@@ -257,6 +257,19 @@ await run(31, 'via_mutual=true: 먼저 고른 사람도 서로 골랐다는 문�
 await run(32, 'via_mutual 없음/false: 관리자 연결·예전 서버는 문구 0', IPHONE, { matches: [match(), match({ id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeef', via_mutual: false })] }, async (p) => {
   await go(p); const t = await text(p);
   expect(!t.includes('상대도 당신이 궁금했대요'), '근거 없이 문구 표시'); return '문구 0';
+});
+// 33·34 FI-018(2026-10-01): 연결 준비 칸은 연결 서버 readiness 그대로(Agent 공통 계약) — 옛 「다섯 가지 질문 n/5」 숫자 0 · 서버가 사진만 부족하다고 하면 사진이 다음 할 일.
+const SR = (o = {}) => ({ conversation: { ready: true, source: 'agent', finished: true, have: 3, need: 3 }, purpose: true, intro: true, photos: 3, photos_needed: 3, phone_verified: false, ...o });
+await run(33, 'FI-018 서버 readiness: 대화 마침 + 사진 부족 → 다음 할 일 = 사진 · 다섯 가지 질문 0', IPHONE, { eligible: false, missing: ['photos'], readiness: SR({ photos: 2 }) }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await text(p);
+  expect(t.includes('ECHO와 대화') && t.includes('마침'), '대화 칸 = 서버 conversation.ready'); expect(!t.includes('다섯 가지 질문'), '옛 답 수 칸이 남음');
+  expect(t.includes('필수 사진 세 장을 채워요'), '다음 할 일이 사진이 아님'); expect(t.includes('2 / 3'), '사진 수 = 서버 값');
+  await p.screenshot({ path: 'uxshots/33-server-readiness.png' }); return '대화 마침 · 사진 2/3 · 다음 할 일 사진';
+});
+await run(34, 'FI-018 서버 readiness: 대화 준비 미완료 → 다음 할 일 = 대화 이어가기(숫자 대신 「조금 더」)', IPHONE, { eligible: false, missing: ['answers'], readiness: SR({ conversation: { ready: false, source: 'agent', finished: true, have: 2, need: 3 } }) }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await text(p);
+  expect(t.includes('ECHO와 대화를 조금 더 해요'), '다음 할 일이 대화가 아님'); expect(t.includes('조금 더'), '대화 칸 상태'); expect(!/\d+ \/ 5/.test(t), '옛 n/5');
+  return '대화 칸 미완료 · 대화 이어가기';
 });
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {

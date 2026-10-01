@@ -17,7 +17,7 @@
 
 // v1.8(2026-09-25, 실제 AI run 14 결과를 읽고): 소개 초안이 상대에게 바라는 말(「다정한 사람」)을 「저는 다정한 사람」으로 바꾸고, 오타 조각을 문장으로 넣었다 → 소개 규칙에 두 줄만 더했다(서버 검사 추가 0).
 // v1.9(2026-09-25 대표 실기기): AI 가 놓친 답을 원문으로 남김 · 항의에 섞인 새 이야기 저장 · 받아주기에서 이유를 되묻지 않음(아래 FROM_LATEST · NOT_AN_ANSWER · turnPrompt).
-export const AGENT_VERSION = "echo-agent-v2.5.5"; // v2.5.5(2026-09-29 대표 「HUMAN MIRROR CONVERSATION」): v2.5.4 질문 다듬기(QUESTION_STYLE)가 다시 쓰기에 실패하면 턴을 오류로 끝내 QA 실AI 6 FAIL(run 36575134665 · 연애 세션 시작 실패 등) → 대화를 멈추지 않는 순서(질문만 다시 청하기 → 규칙을 지킨 앞선 시도 → 서버 안내 한 줄)로 합치고, 「어떤 친구와 대화가 잘 통할까요?」처럼 「어떤 친구/사람…」으로 시작하는 사람 유형 질문도 막는다. 아래 v2.5.4(이 작업본) 내용 포함. v2.5.4(QA run 36574334013 FAIL 「어떤 주제로 대화하는 게 편할까요?」): ① 정보 종류(주제·얘기·대화·활동·방식·얼마나 자주)를 묻는 질문을 서버가 설문형으로 본다(사용자가 그 말을 직접 쓴 경우는 문맥으로 허용) ② 세 번 청해도 질문이 설문형·딱딱함·사람 유형 재정의·방금 답과 끊김이면 그대로 내보내지 않고, 질문 한 문장만 따로 다시 청한다(같은 목적 → 다른 목적 · 최대 2번) ③ 그래도 못 만들면 앞선 시도 중 규칙을 지킨 질문 → 서버 안내 한 줄 순서로 쓴다 ④ 대화 지시문의 예시를 「대화 주제」 쪽에서 「방금 말 한 걸음 옆 장면」 쪽으로 바꿈. v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
+export const AGENT_VERSION = "echo-agent-v2.5.6"; // v2.5.6(2026-10-01 대표 「FI-018 AGENT ↔ MATCHING CONTRACT」): ① 준비 기준 하나(conversationReadiness) — Agent 의 충분·더 묻기·준비 미완료 멈춤과 연결 서버 대화 자격이 같은 함수(사용자 출처 확정 칸 3 · 답 수 기준 0) ② 서버가 물은 칸의 사용자 원문은 AI 정리가 있어도 USER_DIRECT 로 남김 ③ 더 물을 칸 = 빈 칸 → AI 정리뿐인 칸 ④ 질문 피로를 모델이 넘기기로 읽어도 항의(저장 0). v2.5.5(2026-09-29 대표 「HUMAN MIRROR CONVERSATION」): v2.5.4 질문 다듬기(QUESTION_STYLE)가 다시 쓰기에 실패하면 턴을 오류로 끝내 QA 실AI 6 FAIL(run 36575134665 · 연애 세션 시작 실패 등) → 대화를 멈추지 않는 순서(질문만 다시 청하기 → 규칙을 지킨 앞선 시도 → 서버 안내 한 줄)로 합치고, 「어떤 친구와 대화가 잘 통할까요?」처럼 「어떤 친구/사람…」으로 시작하는 사람 유형 질문도 막는다. 아래 v2.5.4(이 작업본) 내용 포함. v2.5.4(QA run 36574334013 FAIL 「어떤 주제로 대화하는 게 편할까요?」): ① 정보 종류(주제·얘기·대화·활동·방식·얼마나 자주)를 묻는 질문을 서버가 설문형으로 본다(사용자가 그 말을 직접 쓴 경우는 문맥으로 허용) ② 세 번 청해도 질문이 설문형·딱딱함·사람 유형 재정의·방금 답과 끊김이면 그대로 내보내지 않고, 질문 한 문장만 따로 다시 청한다(같은 목적 → 다른 목적 · 최대 2번) ③ 그래도 못 만들면 앞선 시도 중 규칙을 지킨 질문 → 서버 안내 한 줄 순서로 쓴다 ④ 대화 지시문의 예시를 「대화 주제」 쪽에서 「방금 말 한 걸음 옆 장면」 쪽으로 바꿈. v2.4.7(2026-09-29 대표 「POST-RELEASE CLOSING」 · GF-117 · GF-118): ① 「아니요 + 새 값」 정정 계약 — 서버가 지금 질문의 모양(예/아니요 · 고르기 · 열린 질문)과 바로 앞 턴에 저장된 칸을 보고 정정·보통 답·한 번 확인을 정한다(애매하면 지우지 않고 「앞에서 말한 ○○를 고치는 뜻이 맞나요?」 한 번) ② 더 묻기 질문이 이미 한 질문과 같으면 다른 칸으로 한 번 더 청하고, 그래도 안 되면 서버 안내 한 줄로 이어 간다(같은 질문 반복으로 멈춤 0) ③ 준비 답 수 = 지금도 확정 사실이 남아 있는 저장 답(정정으로 밀린 답은 세지 않음). v2.4.6: QA 실AI 원문 되말하기의 정정 오인 수정. v2.4.5(2026-09-29 대표 「최종 실행 지시」 · GF-115 A안 · GF-109): ① 연결 자격(답 5개 · doit-connect CONNECT_ANSWERS_NEEDED)에 못 미치면 「충분」으로 마치지 않고, 다섯 칸을 다 물었으면 모르는 것 하나를 더 묻는다(상한 2 · 두 번 연속 모르겠다/넘기기/그만이면 준비 미완료로 멈춤) ② 방금 보인 AI 해석과 같은 칸에 「아니요 + 새 값」을 말하면 정정(아니면 v2.4.4 처럼 보통 답) ③ 칸 설명 문장을 사용자 정보로 저장하지 않음. v2.4.4: 일반 「아니요 + 새 답」의 정정 오인과 무관한 확정 사실 삭제를 방지. v2.4.3(2026-09-29 QA 실서버 CORE 검사): 「잘 모르겠어요」만 한 말을 모델이 항의(repair)로 읽으면 지금 질문이 거절(disputed → 매칭 rejected_meanings)로 기록됐다 → 모르겠다만 한 말은 repair·correction 으로 읽혀도 unsure(정상 입력 · 저장 0 · 거절 기록 0). v2.4.2(2026-09-29 QA 실서버 CORE 검사 FAIL): 「아니 그런 뜻 아니야. 매일은 부담스럽고 주말에 …」처럼 거절로 시작해 새 값을 말한 턴을 모델이 항의(repair)로 읽으면 정정 엔진·옛 항목 고르기가 돌지 않아 거절한 옛 값(매일 연락)이 CONFIRMED 로 남아 요약·소개·매칭 재료에 섞였다 → 서버 규칙: 거절 머리말 + 새 내용이면 정정(correction)으로 확정(항의·피로·목적 방향 정정은 그대로 repair). v2.4.1(2026-09-28 대표 「TEST PRODUCT FINAL COMPLETION」): 방금 답과 안 이어진 질문은 한 번 다시 청함(not_anchored) · 받아주기의 마침표 질문 빼기 · 「~군요」→「~네요」 · 「딱히 생각 안 나」= 모르겠다 · help 로 읽힌 「잘 모르겠어」도 같은 질문 재노출 0. v2.4.0(2026-09-28 대표 「CONVERSATION QUALITY + PURPOSE ISOLATION + SESSION SAFETY」): 세션마다 관계 목적(goal)을 따로 가진다 · 목적마다 알아볼 것(칸의 뜻)이 다르다 · 받아주기 기준 · 목적 방향 정정(「연애 질문 아니야」) 시 질문 축 전환 · 비슷한 질문 반복 차단 · 충분하면 5개 전에 마침 · 정리·소개에 다른 목적 말 0. // v2.2.4(2026-09-27 · QA 실제 AI 20회 중 1회 놓침): 정정 턴에만 「옛 항목 고르기」 호출 1번(지금 저장된 항목 번호 목록에서 이 정정으로 더는 사실이 아닌 번호만) → 고른 번호의 문장을 글자 그대로 wrong 에 더한다(서버 처리는 v2.2.3 그대로 · 실패하면 아무것도 안 지움). v2.2.3(2026-09-27 대표 「FINAL RELEASE CLOSING」 · P0 CROSS_SLOT_STALE_STATE 만): 정정이면 AI 가 heard 목록에서 더는 맞지 않는 항목을 칸과 관계없이 note 글자 그대로 고른다(wrong) · 서버는 글자까지 같은 항목만 거두고, 그 항목과 같은 출처(같은 turn · 같은 원문)의 다른 칸 복제도 함께 밀린다(뜻 유사도 0). v2.2.2(2026-09-27 대표 「CROSS-SLOT CORRECTION」): 정정으로 밀린 옛 값과 같은 출처(같은 turn · 같은 원문)의 다른 칸 값도 함께 밀림 · 같은 정정 재전송 중복 0 · 모호한 거절(「그런 뜻 아니야」)은 바로 앞 답에 실제로 보인 AI 해석만 거둠(여럿이면 DISPUTED + 한 줄 확인) · 거둔 뜻의 재생성 차단. v2.2.1(2026-09-27 대표 「RELEASE BLOCKER FIX」 · 출시 차단 P0 만): P0-3 끝난 뒤 상태가 바뀌면 소개도 지금 상태로(옛 값 문장 0) · P0-4 표현이 조금 다른 거절도 방금 보인 해석이면 거둠(서버 규칙 · 다른 사실 지움 0) · P0-5 화면 정정 버튼 = 정정(모델 추측 0)
 // v2.2 이전 설명: // v2.0(2026-09-26 AI OS 최소 운영형): 서버 말 종류 가드 · 정정 시 같은 목적 옛 뜻 교체 · 거절 뜻 소개 차단
 // v2.2(2026-09-26 RELEASE CANDIDATE §12): 「어렵네·무슨 뜻이야·예를 들면」은 AI 가 answer 라 해도 도움(help)으로 — 답 저장 0 · 질문 수 0
 // v2.1(2026-09-26 MISSING CONTRACTS): 정보 계보(출처 종류·출처 턴·확인/교체/거절 시각) · SUPERSEDED 상태 · 판 추적(프롬프트·규칙·파이프라인)
@@ -133,23 +133,80 @@ export const MIN_CORE_BEFORE_ENOUGH = 3;
 export const enoughInfo = (st: AgentState) => !needsMoreAnswers(st) && coreAsked(st).length >= MIN_CORE_BEFORE_ENOUGH && st.slots.relationship_intent?.status === "CONFIRMED" && PIDS.filter((id) => st.slots[id].status === "CONFIRMED").length >= ENOUGH_SLOTS;
 
 // v2.5.0: 고정 5문항 금지. 약 5턴 안에서 충분히 알았으면 3~4턴에도 끝낼 수 있다.
-// 연결 쪽 Agent 자격도 확정 정보 영역 3개를 기준으로 보므로, 대화도 최소 3개의 유효한 사용자 답 이후 충분 여부를 판단한다.
-export const READY_SAVED_ANSWERS = 3;
-export const MAX_FILL_QUESTIONS = 2; // 다섯 칸을 다 물었는데 답이 모자랄 때 더 묻는 상한(끝없이 묻지 않는다)
+// v2.5.6 FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): 준비 기준은 아래 conversationReadiness 하나뿐이다.
+//   Agent 의 「충분 · 더 묻기 · 준비 미완료로 멈춤」과 연결 서버(doit-connect agentSource.ts)의 대화 자격이 같은 함수를 쓴다(답 수 · 질문 칸 수로 판단 0).
+export const READY_SAVED_ANSWERS = 3; // 참고 숫자(기록 화면용) — 준비 판단에는 쓰지 않는다
+export const MAX_FILL_QUESTIONS = 2; // 확정 정보 칸이 모자랄 때 더 묻는 상한(끝없이 묻지 않는다)
 const DECLINE_KINDS = new Set(["unsure", "skip", "stop"]);
 const liveTurn = (st: AgentState, n: number) => PIDS.some((id) => st.slots[id].items.some((i) => i.turn === n && i.status === "CONFIRMED"));
-// v2.4.7 준비 답 = 저장된 답 가운데 지금도 확정 사실이 남아 있는 답(정정으로 밀리거나 거둔 답 · 모르겠다 · 항의 · AI 추측은 세지 않는다).
+// v2.4.7 저장 답 = 저장된 답 가운데 지금도 확정 사실이 남아 있는 답(참고 숫자).
 export const savedAnswers = (st: AgentState) => st.turns.filter((t) => t.saved && liveTurn(st, t.n)).length;
-export const needsMoreAnswers = (st: AgentState) => savedAnswers(st) < READY_SAVED_ANSWERS;
+
+// ── FI-018 대화 준비 공통 계약(conversation_ready). 입력 = 매칭 프로필 모양(matchingProfile · DB 의 agent_session profile) — 서버 상태에서 만든 값만.
+// 칸 하나가 「준비된 칸」이려면: 칸이 CONFIRMED 이고, 사용자 출처(USER_DIRECT · USER_CONFIRMED · USER_CORRECTED) 값이 하나 이상 남아 있어야 한다.
+// 빼는 것: AI 정리(AI_EXTRACTED) 단독 · 추정(INFERRED) · 미확정 · 거절·교체된 값(history) · 같은 칸의 최신 정정보다 앞선 값 · 정정으로 밀린 출처의 다른 칸 복제
+//   · 거절한 뜻을 AI 가 다시 정리한 값 · 사주·타로 같은 참고 결과.
+// conversation_ready = 대화를 마침(done·post) AND 준비된 칸 >= CONVERSATION_READY_MIN_AREAS. 이것은 「연결 전체 자격」이 아니다(목적·사진·소개 등은 연결 서버가 따로 본다).
+export const CONVERSATION_READY_MIN_AREAS = 3; // 임시값(2026-09-27 v3.4 실측) — 이 상수 하나로만 바꾼다
+export const READY_SOURCE_TYPES = new Set(["USER_DIRECT", "USER_CONFIRMED", "USER_CORRECTED"]);
+export const READY_CONFIRMED_MAX = 12;
+const READY_CONTENT_WORDS = /사주|타로|카드|궁합|운세/;
+type RdObj = Record<string, unknown>;
+const rdObj = (v: unknown): RdObj | null => (v && typeof v === "object" && !Array.isArray(v) ? v as RdObj : null);
+const rdClean = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 120) : "");
+const rdSquash = (t: string) => t.normalize("NFKC").replace(/\s+/g, "");
+const rdBare = (t: string) => rdSquash(t).replace(/[.,!?~…·"'「」]/g, "");
+interface RdItem { purpose: string; note: string; quote: string; status: string; source_type: string; source_turn: number | null }
+const rdItems = (slot: RdObj | null, key: "items" | "history", purpose: string): RdItem[] => (Array.isArray(slot?.[key]) ? slot![key] as unknown[] : []).map(rdObj).filter((o): o is RdObj => !!o)
+  .map((o) => ({ purpose, note: rdClean(o.note), quote: rdClean(o.quote), status: String(o.status ?? ""), source_type: String(o.source_type ?? ""), source_turn: typeof o.source_turn === "number" ? o.source_turn : null }));
+export interface ConversationReadiness {
+  conversation_ready: boolean; finished: boolean; areas_ready: boolean; confirmed_areas: number; areas_needed: number;
+  ready_areas: string[]; missing_areas: string[]; confirmed: string[];
+  excluded: { ai_only: number; inferred_or_unconfirmed: number; superseded_or_rejected: number; stale_before_correction: number; content: number };
+}
+export function conversationReadiness(profile: unknown, phase: unknown): ConversationReadiness {
+  const p = rdObj(profile);
+  const finished = phase === "done" || phase === "post";
+  const excluded = { ai_only: 0, inferred_or_unconfirmed: 0, superseded_or_rejected: 0, stale_before_correction: 0, content: 0 };
+  const slots = Object.fromEntries(PIDS.map((id) => [id, rdObj(p?.[id])]));
+  const all = PIDS.flatMap((id) => rdItems(slots[id], "items", id));
+  const hist = PIDS.flatMap((id) => rdItems(slots[id], "history", id));
+  excluded.superseded_or_rejected = hist.length;
+  // 정정으로 밀린 출처(같은 턴 · 같은 원문) — 칸과 관계없이. 거둔 뜻(RETRACTED)과 같은 AI 재정리는 AI 출처라 위 출처 규칙에서 이미 빠진다.
+  const lastFixBySlot = new Map<string, number>();
+  for (const i of all) if (i.source_type === "USER_CORRECTED" && typeof i.source_turn === "number") lastFixBySlot.set(i.purpose, Math.max(lastFixBySlot.get(i.purpose) ?? -1, i.source_turn));
+  const gone = hist.filter((i) => typeof i.source_turn === "number" && !!rdBare(i.quote) && (i.status === "SUPERSEDED" || (i.status === "RETRACTED" && i.source_turn! < (lastFixBySlot.get(i.purpose) ?? -1))))
+    .map((i) => ({ turn: i.source_turn as number, quote: rdBare(i.quote) }));
+  const usable = all.filter((i) => {
+    if (i.status !== "CONFIRMED" || /INFERRED/.test(i.source_type)) { excluded.inferred_or_unconfirmed++; return false; }
+    if (!i.note || READY_CONTENT_WORDS.test(i.note)) { excluded.content++; return false; }
+    if (!READY_SOURCE_TYPES.has(i.source_type)) { excluded.ai_only++; return false; }
+    if (typeof i.source_turn === "number" && gone.some((g) => g.turn === i.source_turn && g.quote === rdBare(i.quote))) { excluded.superseded_or_rejected++; return false; }
+    const lc = lastFixBySlot.get(i.purpose);
+    if (lc !== undefined && typeof i.source_turn === "number" && i.source_turn < lc) { excluded.stale_before_correction++; return false; }
+    return true;
+  });
+  const confirmed: string[] = [];
+  for (const i of usable) if (confirmed.length < READY_CONFIRMED_MAX && !confirmed.includes(i.note)) confirmed.push(i.note);
+  const ready_areas = PIDS.filter((id) => slots[id]?.status === "CONFIRMED" && usable.some((i) => i.purpose === id));
+  const areas_ready = ready_areas.length >= CONVERSATION_READY_MIN_AREAS;
+  return { conversation_ready: finished && areas_ready, finished, areas_ready, confirmed_areas: ready_areas.length, areas_needed: CONVERSATION_READY_MIN_AREAS,
+    ready_areas, missing_areas: PIDS.filter((id) => !ready_areas.includes(id)), confirmed, excluded };
+}
+// 대화 중 판단도 같은 함수(지금 상태로 만든 프로필 칸 · 대화 마침 여부는 보지 않음).
+export const stateReadiness = (st: AgentState) => conversationReadiness(profileSlots(st), st.phase);
+export const needsMoreAnswers = (st: AgentState) => !stateReadiness(st).areas_ready;
 const declining = (st: AgentState) => { const last = st.turns.slice(-2); return last.length === 2 && last.every((t) => DECLINE_KINDS.has(t.kind)); };
-// 더 물을 칸: 아직 답을 못 받은 칸(물었지만 UNKNOWN) → 들은 것이 적은 칸. 사용자가 넘긴 칸(SKIPPED)은 다시 묻지 않는다.
+// 더 물을 칸: 아직 답을 못 받은 칸(물었지만 UNKNOWN) → 확정됐지만 사용자 출처 값이 없는 칸(AI 정리뿐) → 들은 것이 적은 칸. 사용자가 넘긴 칸(SKIPPED)은 다시 묻지 않는다.
 export function fillTargets(st: AgentState): string[] {
   if (st.phase !== "talk" || !needsMoreAnswers(st) || st.asked.filter((q) => q.type === "fill").length >= MAX_FILL_QUESTIONS || declining(st)) return [];
+  const ready = new Set(stateReadiness(st).ready_areas);
   const live = (id: string) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").length;
   const filled = new Set(st.asked.filter((q) => q.type === "fill").map((q) => q.purpose));
-  return [...PIDS.filter((id) => st.slots[id].status === "UNKNOWN"), ...PIDS.filter((id) => st.slots[id].status === "CONFIRMED").sort((a, b) => live(a) - live(b))].filter((id) => !filled.has(id));
+  const aiOnly = PIDS.filter((id) => st.slots[id].status === "CONFIRMED" && !ready.has(id)).sort((a, b) => live(a) - live(b));
+  return [...PIDS.filter((id) => st.slots[id].status === "UNKNOWN"), ...aiOnly, ...PIDS.filter((id) => st.slots[id].status === "CONFIRMED" && ready.has(id)).sort((a, b) => live(a) - live(b))].filter((id) => !filled.has(id));
 }
-export const readiness = (st: AgentState) => ({ saved_answers: savedAnswers(st), needed: READY_SAVED_ANSWERS, ready: !needsMoreAnswers(st) });
+export const readiness = (st: AgentState) => { const r = stateReadiness(st); return { saved_answers: savedAnswers(st), needed: r.areas_needed, ready: r.areas_ready, conversation_ready: r.conversation_ready, confirmed_areas: r.confirmed_areas, ready_areas: r.ready_areas, missing_areas: r.missing_areas }; };
 
 export type Tone = "formal" | "polite" | "casual";
 export const TONES: Record<Tone, { label: string; rule: string }> = {
@@ -226,6 +283,7 @@ export function guardKind(text: string, kind: Kind, uiCorrection = false): { kin
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
   if (kind === "repair" && rejectWithNewValue(text)) return { kind: "correction", rule: "reject_with_value" }; // v2.4.2 거절 + 새 값 = 정정(최신 사용자 말이 옛 값을 이긴다)
   if ((kind === "repair" || kind === "correction") && ordinaryNoAnswer(text)) return { kind: "answer", rule: "no_with_answer" };
+  if (kind === "skip" && FATIGUE.test(text) && !SKIP_ASK.test(text)) return { kind: "repair", rule: "fatigue" }; // v2.5.6 QA 실AI(run 36841364057): 「질문이 너무 많아요」를 모델이 넘기기로 읽으면 다음 질문을 그대로 냈다 → 피로는 항의(저장 0). 「다음 질문으로 넘어가」가 함께 있으면 넘기기 그대로
   if (kind !== "answer") return { kind, rule: null };
   if (SKIP_ASK.test(text)) return { kind: "skip", rule: "skip_request" };
   if (HELP_ASK.test(text)) return { kind: "help", rule: "help_request" };
@@ -710,10 +768,27 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   if (out.kind === "skip" && st.current && st.slots[st.current.purpose].status === "UNKNOWN") st.slots[st.current.purpose].status = "SKIPPED";
   // v2.4 목적 방향 정정: 방금 질문의 칸은 이번 목적에서 틀린 틀로 물은 것 — 그 칸을 넘기고(질문 축 전환) 방금 질문은 다시 쓰지 않는다(disputed).
   if (g.rule === "goal_mismatch" && st.current && st.current.purpose !== "relationship_intent" && st.slots[st.current.purpose].status === "UNKNOWN") st.slots[st.current.purpose].status = "SKIPPED";
-  if (out.kind === "answer" && st.current && st.slots[st.current.purpose]?.status === "UNKNOWN" && !kept.some((k) => k.purpose === st.current!.purpose && k.turn === turn.n)
+  // v2.5.6 FI-018: 서버가 물은 칸(st.current.purpose)에 사용자가 답한 원문은 그 칸의 사용자 출처 값(USER_DIRECT)이다(칸은 서버 질문이 정함 · 값은 사용자가 친 글자).
+  //   (예전 그대로) 물은 칸이 비어 있고 AI 가 그 칸에 아무것도 넣지 않았으면 원문을 남긴다.
+  //   (새로) AI 가 이번 말을 물은 칸에만 정리했고, 그 정리의 글자나 인용(quote)이 사용자 말 전체와 같으면 원문 값으로도 남긴다
+  //     (AI 가 「이 말 전체가 이 칸의 답」이라고 한 경우 — 새 뜻 0 · AI 정리는 AI 출처 그대로 · 글자까지 같은 정리는 원문으로 대신).
+  //   (새로) 연결 준비가 모자라 서버가 그 칸을 다시 물은 질문(fill)에 답했고, AI 가 이번 말을 그 칸에만 정리했으면 원문도 남긴다.
+  //   AI 가 이번 말을 다른 칸으로도 나눠 정리했으면(여러 뜻이 섞인 말) 원문을 통째로 남기지 않는다 — 나중에 한 칸만 고쳐도 옛 뜻이 원문에 남아 매칭에 새지 않게.
+  //   QA 실서버(2026-10-01): AI 가 물은 칸에 원문 그대로 정리하면 AI 출처로만 남아, 대화는 끝났는데 연결 자격(사용자 출처 칸 3)이 모자랐다.
+  const turnKept = kept.filter((k) => k.turn === turn.n);
+  const rawSlot = st.current ? st.slots[st.current.purpose] : null;
+  const onlyHere = !!st.current && turnKept.length > 0 && turnKept.every((k) => k.purpose === st.current!.purpose);
+  const rawBefore = !!rawSlot && rawSlot.status === "UNKNOWN" && !turnKept.some((k) => k.purpose === st.current!.purpose);
+  const whole = (i: Item) => squash(i.note) === squash(text.slice(0, RAW_NOTE_MAX)) || squash(i.quote) === squash(text);
+  const rawTwin = !!rawSlot && onlyHere && rawSlot.items.some((i) => i.turn === turn.n && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED" && whole(i));
+  const rawFill = !!rawSlot && onlyHere && st.current?.type === "fill";
+  if (out.kind === "answer" && st.current && rawSlot && (rawBefore || rawTwin || rawFill)
+    && !rawSlot.items.some((i) => i.turn === turn.n && i.status === "CONFIRMED" && i.source_type !== "AI_EXTRACTED")
     && squash(text).length >= 4 && !NOT_AN_ANSWER(text)) {
     const pid = st.current.purpose;
     const item: Item = { note: text.slice(0, RAW_NOTE_MAX), quote: text, turn: turn.n, source: "answer_raw", status: "CONFIRMED", source_type: "USER_DIRECT", confirmed_at: now() };
+    const twin = st.slots[pid].items.findIndex((i) => i.turn === turn.n && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED" && squash(i.note) === squash(item.note));
+    if (twin >= 0) { const [gone] = st.slots[pid].items.splice(twin, 1); const k = kept.findIndex((x) => x.purpose === pid && x.turn === turn.n && x.note === gone.note); if (k >= 0) kept.splice(k, 1); }
     st.slots[pid].items.push(item); st.slots[pid].status = "CONFIRMED"; kept.push({ purpose: pid, note: item.note, turn: turn.n });
   }
   // 저장(기록 표에 이번 말을 남김)은 이번 말에서 나온 정보가 있을 때만 — 「아까 말했는데」 같은 항의는 되살리기만 하고 답으로 남지 않는다.
@@ -783,10 +858,15 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
 
 // ── 매칭 프로필(서버 상태에서 만든다 — LLM 요약이 아니다).
 export function versionTrace() { return { agent_version: AGENT_VERSION, prompt_version: PROMPT_VERSION, policy_version: POLICY_VERSION, pipeline_version: PIPELINE_VERSION }; }
-export function matchingProfile(st: AgentState) {
-  // 매칭·소개에는 지금 값(CONFIRMED)만 · 각 값에 계보를 붙인다(출처 종류·출처 턴·사용자 원문·확인 시각·정정 전 값). 이력(교체·거절)은 history 로 따로.
+// 매칭·소개에는 지금 값(CONFIRMED)만 · 각 값에 계보를 붙인다(출처 종류·출처 턴·사용자 원문·확인 시각·정정 전 값). 이력(교체·거절)은 history 로 따로.
+// FI-018: 준비 판단(conversationReadiness)과 매칭 프로필이 같은 칸 모양을 쓴다.
+function slotLineage(st: AgentState, id: string) {
   const lineage = (i: Item) => ({ note: i.note, quote: i.quote, status: i.status, source_type: i.source_type ?? (i.source === "answer_raw" ? "USER_DIRECT" : "AI_EXTRACTED"), source_turn: i.turn, source_user_text: (() => { const t = st.turns.find((x) => x.n === i.turn); return t ? t.fix_text ?? t.user : null; })(), confirmed_at: i.confirmed_at ?? null, corrected_from: i.corrected_from ?? [], superseded_at: i.superseded_at ?? null, rejected_at: i.rejected_at ?? null });
-  const slot = (id: string) => ({ status: st.slots[id].status, items: st.slots[id].items.filter((i) => i.status === "CONFIRMED").map(lineage), history: st.slots[id].items.filter((i) => i.status !== "CONFIRMED").map(lineage) });
+  return { status: st.slots[id].status, items: st.slots[id].items.filter((i) => i.status === "CONFIRMED").map(lineage), history: st.slots[id].items.filter((i) => i.status !== "CONFIRMED").map(lineage) };
+}
+export const profileSlots = (st: AgentState) => Object.fromEntries(PIDS.map((id) => [id, slotLineage(st, id)]));
+export function matchingProfile(st: AgentState) {
+  const slot = (id: string) => slotLineage(st, id);
   return {
     version: AGENT_VERSION, tone: st.tone, input_mode: st.mode, goal: isGoal(st.goal) ? st.goal : "open", // v2.4 이 정리가 나온 세션의 관계 목적
     relationship_intent: slot("relationship_intent"), attraction_comfort: slot("attraction_comfort"), values_character: slot("values_character"),
@@ -798,7 +878,7 @@ export function matchingProfile(st: AgentState) {
     mbti: st.declared.mbti ? { value: st.declared.mbti, status: "CONFIRMED" } : { value: null, status: "UNKNOWN" },
     blood_type: st.declared.blood_type ? { value: st.declared.blood_type, status: "CONFIRMED" } : { value: null, status: "UNKNOWN" },
     core_questions: coreAsked(st).length, clarifications: st.clarify.total,
-    readiness: readiness(st), // v2.4.5 연결 자격(답 5개)과 같은 기준의 준비 상태
+    readiness: readiness(st), // FI-018 연결 서버와 같은 함수(conversationReadiness)의 준비 상태
     versions: versionTrace(),
   };
 }

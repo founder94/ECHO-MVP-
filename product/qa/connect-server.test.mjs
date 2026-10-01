@@ -607,7 +607,8 @@ test('Matching Integration: MATCH_SOURCE=agent · 대화 중(talk)인 Agent 사�
   s.tables.doit_request_events = [agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요'], 'talk')];
   const r = await loadServer(s)(ID.admin, { action: 'admin_candidates' });
   assert.equal(r.body.candidates.length, 0);
-  assert.equal(r.body.missing.answers, 1, 'b 는 answers 가 모자란 것으로 센다');
+  // FI-018(2026-10-01): Agent 매칭에서는 대화 준비를 Agent 공통 계약으로만 본다 — b(대화 중) 와 Agent 대화가 없는 a·c·d(옛 답 다섯 개) 모두 준비 0.
+  assert.equal(r.body.missing.answers, 4, '옛 「답 다섯 개」로 대신하지 않는다');
 });
 
 // 2026-09-27 출시 차단 P0-6 · T15: Agent 로만 대화한 사용자(옛 표 doit_insights·doit_records 0줄).
@@ -826,4 +827,46 @@ test('via_mutual: 후보 상호선택 없이 열린 연결(예전 관리자 직�
   assert.equal(m.via_mutual, false, '관리자가 연 연결에 「상대도 당신이 궁금했대요」 근거를 주지 않는다');
   s.tables.doit_match_candidates.push({ id: 'c0000000-0000-4000-8000-000000000001', user_a: ID.a, user_b: ID.b, a_choice: 'yes', b_choice: null, status: 'mutual', match_id: m.id });
   assert.equal((await call(ID.a, { action: 'my_matches' })).body.matches[0].via_mutual, false, '양쪽 yes 가 아니면 status 값만으로 true 로 만들지 않는다');
+});
+
+// ── FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): 연결 자격 = conversation_ready(Agent 공통 계약) AND 목적 AND 소개 AND 필수 사진.
+// 화면은 서버가 준 readiness 를 그대로 그린다(화면 계산 0). Agent 매칭에서 옛 「답 다섯 개」는 대화 준비가 아니다.
+const fi018 = (rows) => { const s = world({ env: { MATCH_SOURCE: 'agent' } }); s.tables.doit_request_events = rows; return s; };
+const READY = ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'];
+test('FI-018 CASE 1: conversation_ready + 목적·소개·사진 → matching_eligible=true · 후보 생성 · 화면용 readiness 동봉', async () => {
+  const s = fi018([agentRow(ID.a, READY), agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요'])]);
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200); assert.equal(r.body.eligible, true); assert.deepEqual(r.body.missing, []);
+  assert.deepEqual(r.body.readiness.conversation, { ready: true, source: 'agent', finished: true, have: 3, need: 3 });
+  assert.equal(r.body.readiness.photos, 3); assert.equal(r.body.readiness.intro, true); assert.equal(r.body.readiness.purpose, true);
+  assert.equal(r.body.candidates.length, 1, '실제 후보 생성');
+});
+test('FI-018 CASE 2: conversation_ready 지만 사진 부족 → matching_eligible=false · 이유는 photos 하나로 분명', async () => {
+  const s = fi018([agentRow(ID.a, READY)]);
+  s.tables.profile_photos = s.tables.profile_photos.filter((p) => !(p.user_id === ID.a && p.slot === 3));
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.body.eligible, false); assert.deepEqual(r.body.missing, ['photos']);
+  assert.equal(r.body.readiness.conversation.ready, true, '대화 조건은 충족으로 따로 보인다');
+  assert.equal(r.body.readiness.photos, 2); assert.equal(r.body.candidates.length, 0);
+});
+test('FI-018 CASE 3: conversation_ready=false(대화 중) → matching_eligible=false · 이유 answers · 옛 답 다섯 개로 대신하지 않음', async () => {
+  const s = fi018([agentRow(ID.a, READY, 'talk')]);
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.body.eligible, false); assert.deepEqual(r.body.missing, ['answers']);
+  assert.deepEqual(r.body.readiness.conversation, { ready: false, source: 'agent', finished: false, have: 3, need: 3 });
+  const none = await loadServer(fi018([]))(ID.a, { action: 'my_candidates' });
+  assert.equal(none.body.eligible, false, 'Agent 대화가 없으면 doit_records 다섯 개가 있어도 준비 0');
+  assert.equal(none.body.readiness.conversation.have, 0);
+});
+test('FI-018 CASE 9(연결): QA 실패 모양 — 대화를 마쳤지만 사용자 출처 칸 2(나머지 AI 정리) → 후보 0 · 같은 함수가 Agent 쪽에서도 「준비 안 됨」', async () => {
+  // QA 재현(2026-10-01) A 의 profile 모양: intent·attraction = USER_DIRECT, values·style = AI_EXTRACTED
+  const it = (note, source_type, turn) => ({ note, quote: note, status: 'CONFIRMED', source_type, source_turn: turn });
+  const qaA = { relationship_intent: { status: 'CONFIRMED', items: [it('깊은 대화부터 시작하고 싶어요', 'USER_DIRECT', 1)], history: [] }, attraction_comfort: { status: 'CONFIRMED', items: [it('처음엔 카페에서 한두 시간 편하게 이야기하고 싶어요', 'USER_DIRECT', 2)], history: [] }, values_character: { status: 'CONFIRMED', items: [it('서로 말 끊지 않고 천천히 듣는 대화가 좋아요', 'AI_EXTRACTED', 3)], history: [] }, relationship_style: { status: 'CONFIRMED', items: [it('처음엔 카페에서 한두 시간 편하게 이야기하고 싶어요', 'AI_EXTRACTED', 2)], history: [] }, boundaries: { status: 'UNKNOWN', items: [], history: [] } };
+  const row = { ...agentRow(ID.a, READY), profile: qaA };
+  const r = await loadServer(fi018([row, agentRow(ID.b, READY)]))(ID.a, { action: 'my_candidates' });
+  assert.equal(r.body.eligible, false); assert.deepEqual(r.body.missing, ['answers']); assert.equal(r.body.readiness.conversation.have, 2);
+  // 고친 Agent(v2.5.6)는 물은 칸의 원문을 USER_DIRECT 로 남기므로 같은 대화가 3칸이 된다(agent-server FI-018 CASE 9) — 여기서는 그 결과 모양으로 후보가 생기는지 본다.
+  qaA.values_character.items.push(it('서로 말 끊지 않고 천천히 듣는 대화가 좋아요', 'USER_DIRECT', 3));
+  const fixed = await loadServer(fi018([{ ...row, profile: qaA }, agentRow(ID.b, READY)]))(ID.a, { action: 'my_candidates' });
+  assert.equal(fixed.body.eligible, true); assert.equal(fixed.body.candidates.length, 1);
 });
