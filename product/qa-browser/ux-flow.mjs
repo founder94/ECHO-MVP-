@@ -248,6 +248,16 @@ await run(30, 'back guard: 폰 뒤로 → 직전 답 고치기 → 서버 재계
   const q = await p.locator('.echo-question').first().innerText(); expect(q.includes('한 달에 한두 번이면 주말이 편해요?'), `새 질문=${q}`);
   await p.screenshot({ path: 'uxshots/30b-recomputed.png' }); return '뒤로 → 직전 답 편집 → correction 전송 → 서버 새 질문';
 });
+// 31·32 via_mutual(2026-10-01): 먼저 고른 사람도 서버가 via_mutual=true 를 줄 때만 「상대도 당신이 궁금했대요」.
+await run(31, 'via_mutual=true: 먼저 고른 사람도 서로 골랐다는 문구', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await go(p); const t = await text(p);
+  expect(t.includes('상대도 당신이 궁금했대요.'), 'via_mutual 문구 없음'); expect(t.includes('ECHO가 하나만 물어볼게요.'), '첫 질문 안내');
+  await p.screenshot({ path: 'uxshots/31-via-mutual.png' }); return '서버 via_mutual=true → 문구 1';
+});
+await run(32, 'via_mutual 없음/false: 관리자 연결·예전 서버는 문구 0', IPHONE, { matches: [match(), match({ id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeef', via_mutual: false })] }, async (p) => {
+  await go(p); const t = await text(p);
+  expect(!t.includes('상대도 당신이 궁금했대요'), '근거 없이 문구 표시'); return '문구 0';
+});
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
   await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {});

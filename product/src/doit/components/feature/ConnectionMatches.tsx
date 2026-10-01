@@ -146,6 +146,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </div>
     </header>}
 
+    {stage === 'ask' && match.via_mutual === true && <p className="doit-mutual-title">상대도 당신이 궁금했대요.</p>}
     {stage === 'ask' && <p className="doit-match-intro">두 분 모두 편하게 시작할 수 있게<br />ECHO가 하나만 물어볼게요.</p>}
     <p className="doit-match-kicker">두 사람에게 같은 질문</p>
     <p className="doit-match-question">{match.first_question}</p>

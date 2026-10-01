@@ -53,3 +53,9 @@ test('홈 카드·홈페이지: 재진입 첫 문장 · 실제 기능보다 앞�
   assert.match(brand, /ECHO가 내 말과 겹치는 사람을 먼저 살펴봐요\. 두 사람이 모두 고를 때만 이어져요\./);
   for (const s of [CAND, MATCHES, api]) assert.doesNotMatch(s, /\d[\d,]*\s*원|4,900|결제|프리미엄/);
 });
+
+test('via_mutual(2026-10-01): 먼저 고른 사람도 서버가 via_mutual=true 를 줄 때만 「상대도 당신이 궁금했대요」 · 관리자 연결·예전 서버는 안 보임', () => {
+  assert.match(MATCHES, /stage === 'ask' && match\.via_mutual === true && <p className="doit-mutual-title">상대도 당신이 궁금했대요\.<\/p>/);
+  assert.equal((MATCHES.match(/상대도 당신이 궁금했대요/g) ?? []).length, 1, '다른 조건에서 이 문구를 쓰지 않는다');
+  assert.match(code('src/doit/lib/connectApi.ts'), /via_mutual\?: boolean;/);
+});

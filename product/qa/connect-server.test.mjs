@@ -707,6 +707,8 @@ test('v2.0 상호선택: 한쪽만 yes 면 연결 0 · 둘 다 yes 일 때만 �
   assert.equal(m.status, 'open');
   assert.equal(m.revealed, false, '연결이 열려도 둘 다 첫 질문에 답하기 전에는 상대 정보 0');
   assert.ok(!('partner' in m));
+  assert.equal(m.via_mutual, true, '먼저 고른 쪽(A)도 서로 골라 열린 연결임을 서버에서 받는다');
+  assert.equal((await call(ID.b, { action: 'my_matches' })).body.matches[0].via_mutual, true);
   const again = await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' });
   assert.equal(again.body.status, 'mutual', '같은 선택 다시 눌러도 같은 결과(멱등)');
   assert.equal(s.tables.doit_matches.length, 1);
@@ -813,4 +815,15 @@ test('v2.0 소수 후보: 한 사람에게 동시에 3개까지만', async () =>
   }
   const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
   assert.equal(r.body.candidates.length, 3);
+});
+
+test('via_mutual: 후보 상호선택 없이 열린 연결(예전 관리자 직접 연결)은 false · 한쪽만 yes 인 후보는 연결 자체가 없다', async () => {
+  const s = world();
+  const call = loadServer(s);
+  s.tables.doit_matches.push({ id: 'm0000000-0000-4000-8000-000000000001', user_a: ID.a, user_b: ID.b, purpose_id: 'p', common: [], first_question: '처음 질문', status: 'approved', created_at: '2026-09-20T00:00:00Z' });
+  const m = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+  assert.equal(m.status, 'open');
+  assert.equal(m.via_mutual, false, '관리자가 연 연결에 「상대도 당신이 궁금했대요」 근거를 주지 않는다');
+  s.tables.doit_match_candidates.push({ id: 'c0000000-0000-4000-8000-000000000001', user_a: ID.a, user_b: ID.b, a_choice: 'yes', b_choice: null, status: 'mutual', match_id: m.id });
+  assert.equal((await call(ID.a, { action: 'my_matches' })).body.matches[0].via_mutual, false, '양쪽 yes 가 아니면 status 값만으로 true 로 만들지 않는다');
 });
