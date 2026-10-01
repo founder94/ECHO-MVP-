@@ -26,7 +26,7 @@ function fakeDb(state) {
     const c = {
       select: () => c, order: (col, o) => { rows.sort((x, y) => (x[col] < y[col] ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return c; }, limit: (n) => { rows = rows.slice(0, n); return c; },
       eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
-      in: (col, vals) => { rows = rows.filter((r) => vals.includes(r[col])); return c; },
+      in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
       not: (col, _is, v) => { rows = rows.filter((r) => r[col] !== v && r[col] !== undefined); return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
       maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
@@ -923,4 +923,23 @@ test('v2.1 안전: 후보 단계 차단·신고 — 숨김과 함께 저장 · �
   const h = await call2(ID.a, { action: 'choose', candidateId: c2.id, choice: 'hide' });
   assert.deepEqual([h.body.blocked, h.body.reported], [false, false], '숨기기만 하면 차단·신고 0');
   assert.equal((hideOnly.tables.user_reports ?? []).length, 0);
+});
+
+// 2026-10-01 QA 실측(my_candidates 500 · agent_sessions_failed): 사람 449명의 id 를 in(…) 한 번에 넣어 요청 주소가 한도를 넘었다.
+test('규모: 사람 460명이어도 in(…) 목록은 한 번에 100명 이하 · 결과는 나누기 전과 같다(후보·자격)', async () => {
+  const s = world();
+  for (let i = 0; i < 455; i++) {
+    const id = `9${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`;
+    s.users[id] = { id, phone: '', phone_confirmed_at: null, user_metadata: {} };
+    s.tables.profiles.push({ id, role: 'user', nickname: `p${i}`, purpose_id: 'hobby', purpose_label: '취미', bio: '', verification_status: 'pending' });
+  }
+  const call = loadServer(s);
+  const r = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.eligible, true);
+  assert.equal(r.body.candidates.length, 1, '같은 목적(친구) B 한 명은 그대로 후보');
+  assert.ok(Math.max(...s.inSizes) <= 100, `가장 긴 in 목록 ${Math.max(...s.inSizes)}`);
+  const adm = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(adm.status, 200);
+  assert.ok(Math.max(...s.inSizes) <= 100);
 });

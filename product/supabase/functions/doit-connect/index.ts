@@ -391,9 +391,9 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
   const [{ data: photos }, { data: insights }, { data: records }, auth] = await Promise.all([
-    admin.from("profile_photos").select("user_id, slot").in("user_id", ids),
-    admin.from("doit_insights").select("user_id, text, created_at").in("user_id", ids).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
-    admin.from("doit_records").select("user_id, text, status, created_at").in("user_id", ids).order("created_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
+    inChunks<Json>(ids, (part) => admin.from("profile_photos").select("user_id, slot").in("user_id", part)),
+    inChunks<Json>(ids, (part) => admin.from("doit_insights").select("user_id, text, created_at").in("user_id", part).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(part.length * LIMITS.CONFIRMED_PER_USER)),
+    inChunks<Json>(ids, (part) => admin.from("doit_records").select("user_id, text, status, created_at").in("user_id", part).order("created_at", { ascending: false }).limit(part.length * LIMITS.CONFIRMED_PER_USER)),
     authInfoOf(admin, new Set(ids)),
   ]);
   // 이번 회차에 남긴 내 답 가운데 관계에 대한 정보가 담긴 답 수(아니라고 한 기록 제외).
@@ -413,10 +413,10 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   // Matching Integration: Agent 확정 상태(있는 사용자만 · 이번 회차) — 대화 원문(turns)은 읽지 않고 profile·phase 만 고른다.
   const agentSrc = MATCH_SOURCE === "agent"
     ? await (async () => {
-      const { data, error: agentError } = await admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
-        .eq("action", "agent_session").eq("status", "applied").in("user_id", ids).order("updated_at", { ascending: false }).limit(ids.length * 5); // 최신 줄부터
+      const { data, error: agentError } = await inChunks<Json>(ids, (part) => admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", part).order("updated_at", { ascending: false }).limit(part.length * 5)); // 최신 줄부터
       if (agentError) throw new Error("agent_sessions_failed");
-      return agentSources((data ?? []) as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+      return agentSources((data ?? []) as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
     })()
     : new Map();
   const confirmed = new Map<string, string[]>();
@@ -462,13 +462,24 @@ function commonOf(a: Member, b: Member): { a: string[]; b: string[] } {
   return { a: pick(a.confirmed, b.confirmed), b: pick(b.confirmed, a.confirmed) };
 }
 
+// 2026-10-01 QA 실측: 사람 449명의 id 를 in(…) 한 번에 넣으면 요청 주소가 길어져(약 17.5KB) agent_session 읽기가 실패했다
+// (my_candidates 500 · 모든 사용자). 긴 목록은 IN_CHUNK 명씩 나눠 동시에 묻고 합친다. 한 사람의 줄은 한 묶음 안에 있어 사람별 순서는 그대로다.
+export const IN_CHUNK = 100;
+export async function inChunks<T>(ids: readonly string[], run: (part: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<{ data: T[]; error: unknown }> {
+  const parts: string[][] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) parts.push(ids.slice(i, i + IN_CHUNK));
+  const results = await Promise.all(parts.map((part) => run(part)));
+  const failed = results.find((r) => r.error);
+  return { data: results.flatMap((r) => r.data ?? []), error: failed ? failed.error : null };
+}
+
 // 차단은 어느 한쪽만 해도 둘은 다시 이어지지 않는다.
 async function blockedPairs(admin: Db, ids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (!ids.length) return out;
   const [{ data: byMe }, { data: byOther }] = await Promise.all([
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocker_id", ids),
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocked_user_id", ids),
+    inChunks<Json>(ids, (part) => admin.from("blocks").select("blocker_id, blocked_user_id").in("blocker_id", part)),
+    inChunks<Json>(ids, (part) => admin.from("blocks").select("blocker_id, blocked_user_id").in("blocked_user_id", part)),
   ]);
   for (const r of [...(byMe ?? []), ...(byOther ?? [])]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
   return out;
