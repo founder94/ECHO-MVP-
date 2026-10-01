@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'secret_presence_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -271,12 +271,12 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      AGENT_SHA: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
-      AGENT_VERSION: echo-agent-v2.5.6
+      AGENT_SHA: ee8d78647faf8dd9c43b618adcfe20f18ed5c307
+      AGENT_VERSION: echo-agent-v2.5.7
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
+          ref: ee8d78647faf8dd9c43b618adcfe20f18ed5c307
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 3파일만)
         env:
@@ -312,13 +312,13 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      CONNECT_SHA: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
+      CONNECT_SHA: ee8d78647faf8dd9c43b618adcfe20f18ed5c307
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 02aedd0a1cde43f12fee7b6ed3d90b0f2c7d1c9f
+          ref: ee8d78647faf8dd9c43b618adcfe20f18ed5c307
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · 3파일만)
         env:
@@ -353,6 +353,33 @@ jobs:
       - name: 배포 직후 실서버 계약(401 · 403 · 400 · 404 · 200)
         working-directory: product/qa-real
         run: node qa-connect-live.mjs
+
+  secret_presence_qa:
+    # 2026-10-01 대표 「QA OAuth 확인용 토큰 등록」: 어떤 이름의 비밀값이 이 워크플로에서 보이는지만 확인(값 출력 0 · 길이·일부도 출력 0 · 있으면 true/없으면 false).
+    if: inputs.mode == 'secret_presence_qa'
+    environment: ECHO-QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      A1: ${{ secrets.SUPABASE_QA_AUTH_READ_TOKEN != '' }}
+      A2: ${{ secrets.SUPABASE_AUTH_READ_TOKEN != '' }}
+      A3: ${{ secrets.SUPABASE_QA_OAUTH_READ_TOKEN != '' }}
+      A4: ${{ secrets.QA_AUTH_READ_TOKEN != '' }}
+      A5: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN != '' }}
+      A6: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+      A7: ${{ secrets.SUPABASE_QA_AUTH_TOKEN != '' }}
+      A8: ${{ secrets.QA_SUPABASE_AUTH_READ_TOKEN != '' }}
+    steps:
+      - name: 이름별로 보이는지만(값 0)
+        run: |
+          echo "SUPABASE_QA_AUTH_READ_TOKEN=$A1"
+          echo "SUPABASE_AUTH_READ_TOKEN=$A2"
+          echo "SUPABASE_QA_OAUTH_READ_TOKEN=$A3"
+          echo "QA_AUTH_READ_TOKEN=$A4"
+          echo "SUPABASE_QA_ACCESS_TOKEN=$A5"
+          echo "SUPABASE_ACCESS_TOKEN=$A6"
+          echo "SUPABASE_QA_AUTH_TOKEN=$A7"
+          echo "QA_SUPABASE_AUTH_READ_TOKEN=$A8"
 
   connect_live_qa:
     # QA 서버 doit-connect 실서버 계약만(배포 0 · 운영 0).
