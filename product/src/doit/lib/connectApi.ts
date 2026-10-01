@@ -20,6 +20,8 @@ export interface MyMatch {
   my_answer: string | null;
   partner_answered: boolean;
   revealed: boolean;
+  /** 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결이면 true(서버 계산 · 관리자가 연 연결은 false). 예전 서버는 보내지 않는다. */
+  via_mutual?: boolean;
   partner?: MatchPartner;
   messages?: MatchMessage[];
   /** v2.0 내가 남긴 결과(상대 것은 오지 않는다). 예전 서버는 보내지 않는다. */

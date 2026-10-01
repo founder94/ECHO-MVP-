@@ -23,6 +23,7 @@
 // ③ admin_decide(관리자): 대표가 승인하면 AI 가 두 사람에게 같은 첫 질문을 만든다(검사에 걸리면 고정 문장). 넘기기도 기록한다.
 //    결정 순간에 자격·목적·차단·겹침을 서버가 다시 확인한다(화면이 보낸 값을 믿지 않는다).
 // ④ my_matches: 내 연결. 두 사람이 모두 첫 질문에 답하기 전에는 상대의 이름·사진·소개·답을 절대 내려 주지 않는다(blind-first).
+//    via_mutual: 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결이면 true(관리자가 연 연결은 false). 후보 표만으로 서버가 계산한다(2026-10-01).
 // ⑤ answer / message: 첫 답, 그 뒤 이야기. 저장 금지 입력(연락처·식별번호·링크·성적 표현)은 막고 안내한다.
 // ⑥ leave: 그만하기(차단·신고 선택). 끝난 연결은 상대 정보를 다시 내려 주지 않는다.
 // ⑦ admin_matches(관리자): 연결 목록과 진행(답 수·이야기 수). 이야기 내용은 내려 주지 않는다.
@@ -636,6 +637,13 @@ async function openConnection(admin: Db, c: CandidateRow): Promise<{ ok: true; m
   return { ok: true, matchId: String(m.id), firstQuestion: raced ? null : first.question, questionSource: raced ? null : first.source };
 }
 
+/** 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결만(관리자가 연 연결은 아님). 후보 표의 status=mutual · 양쪽 yes · match_id 로만 판단한다. */
+async function mutualMatchIds(admin: Db, matchIds: string[]): Promise<Set<string>> {
+  if (!matchIds.length) return new Set();
+  const { data } = await admin.from("doit_match_candidates").select("match_id, a_choice, b_choice").in("match_id", matchIds).eq("status", "mutual");
+  return new Set((data ?? []).filter((r) => r.a_choice === "yes" && r.b_choice === "yes" && r.match_id).map((r) => String(r.match_id)));
+}
+
 async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promise<Json[]> {
   if (!matchIds.length) return [];
   let q = admin.from("doit_match_outcomes").select("match_id, user_id, talked, met, again, helpful, updated_at").in("match_id", matchIds);
@@ -694,6 +702,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const blocked = await blockedPairs(admin, [userId]);
       const answers = await answersOf(admin, rows.map((r) => r.id));
       const myOutcomes = new Map((await outcomesOf(admin, rows.map((r) => r.id), userId)).map((o) => [String(o.match_id), o]));
+      const viaMutual = await mutualMatchIds(admin, rows.map((r) => r.id));
       const out = [];
       for (const m of rows) {
         const partnerId = m.user_a === userId ? m.user_b : m.user_a;
@@ -708,6 +717,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           my_answer: open ? mine?.answer ?? null : null,
           partner_answered: open ? !!theirs : false,
           revealed,
+          via_mutual: viaMutual.has(m.id),
           outcome: (() => { const o = myOutcomes.get(m.id); return o ? { talked: o.talked ?? null, met: o.met ?? null, again: o.again ?? null, helpful: o.helpful ?? null } : null; })(),
         };
         if (revealed) {
