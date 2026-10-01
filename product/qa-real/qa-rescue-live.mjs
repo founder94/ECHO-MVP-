@@ -43,7 +43,7 @@ for (let k = 1; k <= REPEAT; k++) {
     check(`A${k} 구조 요청은 답이 아니다(대화 기록에 사용자 말 추가 0)`, (rs.data?.session?.messages ?? []).filter((m) => m.role === 'user').length === (st.data?.session?.messages ?? []).filter((m) => m.role === 'user').length);
     const u = await call(jwt, { action: 'agent_turn', sessionId: sid, text: '잘 모르겠어요' });
     const r2 = u.data?.session?.current_rescue;
-    check(`A${k} 잘 모르겠어요(씀) = unsure · 저장 0 · 다음 질문 보기 먼저 펼침(또는 안전 안내 기록)`, u.status === 200 && u.data?.turn?.kind === 'unsure' && u.data?.turn?.saved === false && (!u.data?.turn?.question || (r2?.show === true && goodOptions(r2)) || r2?.fallback === true), `Q「${u.data?.turn?.question}」 → ${JSON.stringify(r2?.options)} show=${r2?.show} fallback=${r2?.fallback}`);
+    check(`A${k} 잘 모르겠어요(씀) = unsure · 저장 0 · 다음 질문 보기 먼저 펼침(또는 안전 안내 기록)`, u.status === 200 && u.data?.turn?.kind === 'unsure' && u.data?.turn?.saved === false && (!u.data?.turn?.question || (r2?.show === true && goodOptions(r2)) || r2?.fallback === true), `kind=${u.data?.turn?.kind} saved=${u.data?.turn?.saved} Q「${u.data?.turn?.question}」 → ${JSON.stringify(r2?.options)} show=${r2?.show} fallback=${r2?.fallback}`);
   }
   // ── B 「그건 다 아닌데」 → 억지 없이 직접 · 거절 보기 재등장 0
   {

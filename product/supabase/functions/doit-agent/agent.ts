@@ -288,7 +288,7 @@ export function guardKind(text: string, kind: Kind, uiCorrection = false): { kin
   if (STOP_ONLY.test(text)) return { kind: "stop", rule: kind === "stop" ? null : "stop_request" }; // 2026-10-01 도움 행동은 답이 아니다(모델이 answer 로 읽어도 저장 0)
   if (SKIP_ONLY.test(text)) return { kind: "skip", rule: kind === "skip" ? null : "skip_request" };
   if (ANNOYED_ONLY.test(text)) return { kind: "repair", rule: "fatigue" }; // 「답답해요」 = 질문 피로(UX 피드백) · 사실 저장 0
-  if ((kind === "ask" || kind === "answer" || kind === "help" || kind === "repair" || kind === "correction") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다 · v2.4.3 repair 로 읽히면 지금 질문이 거절로 기록됐다(QA 실서버)
+  if ((kind === "ask" || kind === "answer" || kind === "help" || kind === "repair" || kind === "correction" || kind === "skip") && UNSURE_ONLY.test(text)) return { kind: "unsure", rule: "unsure_only" }; // 2026-10-01 실제 AI QA A3: 「잘 모르겠어요」를 넘기기(skip)로 읽으면 그 칸이 넘김으로 기록됐다 — 모르겠다 = 구조 요청(unsure) // 실제 AI run gu: help 로 읽혀 같은 질문이 다시 보였다 · v2.4.3 repair 로 읽히면 지금 질문이 거절로 기록됐다(QA 실서버)
   if (kind !== "stop" && GOAL_MISMATCH.test(text)) return { kind: "repair", rule: "goal_mismatch" }; // v2.4 목적 방향 정정은 종류와 관계없이 항의로(답으로 저장 0)
   if (kind === "repair" && rejectWithNewValue(text)) return { kind: "correction", rule: "reject_with_value" }; // v2.4.2 거절 + 새 값 = 정정(최신 사용자 말이 옛 값을 이긴다)
   if ((kind === "repair" || kind === "correction") && ordinaryNoAnswer(text)) return { kind: "answer", rule: "no_with_answer" };
@@ -1287,7 +1287,7 @@ export const paceCovered = (st: AgentState) => !(st.current?.type === "fill" && 
 export function questionFlaw(st: AgentState, latest: string, q: string, anchor = true, stale = ""): string {
   if (!q || !/[?？]\s*$/.test(q) || (q.match(/[?？]/g) ?? []).length > 1) return "format";
   if (questionBlocked(st, q, stale) || leaksId(q)) return "blocked";
-  if (paceCovered(st) && PACE_ASK.test(q)) return "covered";
+  if ((paceCovered(st) || PACE_SAID.test(latest)) && PACE_ASK.test(q)) return "covered"; // 방금 말(첫 답 포함 · 아직 저장 전)에 속도가 있어도 다시 묻지 않는다(실제 AI QA D3)
   if (/모르겠|잘\s*몰라/.test(q)) return "unsure_paste"; // 2026-09-30 QA v67 장면 C: 「모르겠어요면 처음 연락은 문자로 해요?」
   if (surveyQuestion(latest, q)) return "survey_tone";
   if (genericPersonQuestion(q)) return "generic_person";
