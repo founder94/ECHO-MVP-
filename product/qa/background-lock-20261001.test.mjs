@@ -1,6 +1,7 @@
 // 2026-10-01 대표 「ECHO MOBILE BACKGROUND FINAL LOCK」 검사.
 // - 모든 파스텔 모바일 화면 = pastel-bg.css 한 벌(화면별 새 바탕 0).
 // - 색 흐름: 위 Aqua/Cyan + Pastel Blue → 가운데 Mint/Green + Aqua → 아래 Soft Yellow → Coral/Peach. 갈색·올리브 0.
+//   값은 대표 기준 이미지(2026-10-01 「이 색감」)를 실측한 것 — 왼쪽은 민트→노랑→코랄, 오른쪽은 아쿠아가 길게 내려와 피치로.
 // - 띠 경계가 보이지 않게: 띠는 흐림(blur 40px) 아래에서만 쓴다. 띠 사이 색 차이가 너무 크면 흐림으로도 경계가 남는다.
 // - 상태 변화는 색 교체가 아니라 밝기·채도·움직임 토큰으로만.
 // 실제 화면 픽셀 측정(390px · 15개 후반부 화면)은 qa-browser 측정 도구로 했다 — 이 파일은 코드 계약만 본다.
@@ -34,12 +35,12 @@ test('색 흐름: 위 Aqua/Cyan+Pastel Blue · 가운데 Mint/Green+Aqua · 아�
   // 위: 청록~하늘(160°~205°) · 맨 위 오른쪽은 파스텔 파랑(190° 이상)
   for (const c of top) assert.ok(c.h >= 160 && c.h <= 205, `위 색상 ${c.h.toFixed(0)}°`);
   assert.ok(hsl(rows[0][4]).h >= 190 && hsl(rows[1][4]).h >= 190, '위 오른쪽 파스텔 파랑');
-  // 가운데: 민트·초록~청록(95°~185° · 아래쪽 끝은 노랑으로 넘어가는 연두까지)
-  for (const c of mid) assert.ok(c.h >= 95 && c.h <= 185, `가운데 색상 ${c.h.toFixed(0)}°`);
-  // 아래: 노랑~산호·복숭아(5°~95° · 마지막 열은 청록 잔향 허용 없음 → 맨 아래 3줄은 전부 따뜻한 색)
-  for (const c of rows.slice(8).flat().map(hsl)) assert.ok(c.h >= 5 && c.h <= 60, `맨 아래 색상 ${c.h.toFixed(0)}°`);
-  // 갈색·올리브 0: 따뜻한 색은 밝고(명도 ≥ 66%) 탁하지 않다(채도 ≥ 60%)
-  for (const c of bot.filter((c) => c.h <= 70)) { assert.ok(c.l >= 0.66, `어두운 갈색 명도 ${(c.l * 100).toFixed(0)}%`); assert.ok(c.s >= 0.6, `탁한 색 채도 ${(c.s * 100).toFixed(0)}%`); }
+  // 가운데: 민트·초록~아쿠아(85°~200° · 기준 이미지처럼 오른쪽은 아쿠아·하늘이 더 길게 내려온다)
+  for (const c of mid) assert.ok(c.h >= 85 && c.h <= 200, `가운데 색상 ${c.h.toFixed(0)}°`);
+  // 아래: 맨 아래 두 줄은 전부 노랑~코랄·피치(0°~60°)
+  for (const c of rows.slice(9).flat().map(hsl)) assert.ok(c.h >= 0 && c.h <= 60, `맨 아래 색상 ${c.h.toFixed(0)}°`);
+  // 갈색·어두운 흙색 0: 아래쪽 따뜻한 칸은 모두 밝다(명도 ≥ 60%) · 탁하지 않다(채도 ≥ 45%)
+  for (const c of bot.filter((c) => c.h <= 70)) { assert.ok(c.l >= 0.6, `어두운 갈색 명도 ${(c.l * 100).toFixed(0)}%`); assert.ok(c.s >= 0.45, `탁한 색 채도 ${(c.s * 100).toFixed(0)}%`); }
 });
 
 test('띠 경계가 보이지 않게: 위아래 이웃 띠의 같은 칸 색 차이가 흐림으로 섞이는 범위 안', () => {
@@ -52,7 +53,7 @@ test('띠 경계가 보이지 않게: 위아래 이웃 띠의 같은 칸 색 차
 });
 
 test('스크롤 바탕(밑깔림) 세 곳이 같은 줄기 · 첫 색 = 앱 첫 바탕색(#3fdcb3)', () => {
-  const under = '#3fdcb3 0%,#4ee5b4 25%,#a5e3a5 45%,#efe39d 60%,#f1bf8f 78%,#e68b77 100%';
+  const under = '#3fdcb3 0%,#3ad6e0 18%,#7be5ca 40%,#cae9a6 58%,#e1d490 72%,#f3b78a 88%,#e0927d 100%';
   assert.ok(bg.includes(`--pastel-underlay:linear-gradient(180deg,${under})`));
   assert.ok(read('src/components/route-fallback.css').includes(`linear-gradient(180deg,${under})`));
   assert.ok(read('src/doit/doit.css').includes(`linear-gradient(180deg, ${under.replaceAll(',', ', ')})`));
