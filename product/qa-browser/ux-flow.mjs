@@ -271,6 +271,16 @@ await run(34, 'FI-018 서버 readiness: 대화 준비 미완료 → 다음 할 �
   expect(t.includes('ECHO와 대화를 조금 더 해요'), '다음 할 일이 대화가 아님'); expect(t.includes('조금 더'), '대화 칸 상태'); expect(!/\d+ \/ 5/.test(t), '옛 n/5');
   return '대화 칸 미완료 · 대화 이어가기';
 });
+// 2026-10-01 UI/UX FINAL CLOSE: 칸이 다 차도 서버가 목적 미선택(자격 없음)이면 「모두 마쳤어요」 0 · 다음 할 일 = 만남 고르기
+await run(35, '서버 readiness: 목적 없음 → 다음 할 일 = 원하는 만남 고르기(「모두 마쳤어요」 0)', IPHONE, { eligible: false, missing: ['purpose'], readiness: SR({ purpose: false }) }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await text(p);
+  expect(t.includes('원하는 만남을 골라요'), '다음 할 일이 목적 고르기가 아님'); expect(!t.includes('연결 준비를 모두 마쳤어요'), '서버 자격 없음인데 「모두 마쳤어요」');
+  return '목적 없음 · 만남 고르기';
+});
+await run(36, '서버 readiness: 모두 갖춤 + eligible → 「모두 마쳤어요」', IPHONE, { eligible: true, missing: [], readiness: SR({}) }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await text(p);
+  expect(t.includes('연결 준비를 모두 마쳤어요'), '자격을 갖췄는데 완료 문구 없음'); return '자격 · 완료 문구';
+});
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
   await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {});

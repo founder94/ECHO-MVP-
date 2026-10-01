@@ -57,6 +57,16 @@ export default function DoItIntroPage() {
   const [checkMode] = useState(() => search.get('check') === '1');
   // 설치 앱(PWA) 시작(manifest start_url = /do-it/intro?next=app): 인트로 뒤 제품 입구로. 다른 값은 무시(임의 주소 이동 0).
   const [toProduct] = useState(() => IS_APP_SITE || search.get('next') === 'app');
+  // 2026-10-01 UI/UX FINAL CLOSE(첫 화면 실측): 라우터(v7)는 이동을 startTransition 으로 감싸서, 다음 화면 조각을 받는 동안
+  //   대기 화면 대신 이 온보딩의 마지막 장면(검게 사라진 화면)을 그대로 둔다 — QA 실측 약 1.5초 빈 검정.
+  //   온보딩이 도는 몇 초 동안 다음 화면(/doit 틀 + 시작 흐름) 조각을 미리 받아 두어 그 틈을 없앤다. 화면·시간·문구 변화 0.
+  //   브랜드 빌드는 이 줄이 빌드에서 빠진다(역할 값을 직접 비교 → 앱 화면 조각 0).
+  useEffect(() => {
+    if (import.meta.env.VITE_SITE_ROLE !== 'brand' && toProduct) {
+      void import('@/doit/DoitApp').catch(() => {}); // /doit 틀(지연 조각)
+      void import('@/doit/pages/do-it/start-journey/page').catch(() => {});
+    }
+  }, [toProduct]);
   const [symbolStatus, setSymbolStatus] = useState<SymbolStatus | null>(null);
   const [finalCheck, setFinalCheck] = useState<{ imgShown: boolean; reveal: 'canvas' | 'img' } | null>(null);
   const [progress, setProgress] = useState(1); // 1~100 부동소수 (숫자·픽셀 공용)

@@ -106,11 +106,15 @@ function Ready({ preview, server, userId }: { preview: Preview; server: MyCandid
   };
   // 전화 인증이 아직 준비 중이면 「다음 할 일」로 내밀지 않는다(누를 수 있는 버튼처럼 보이지 않게).
   const firstLeft = rows.find(row => !row.done && row.label !== '전화 인증'); // 전화 인증(선택)은 「다음 할 일」로 내밀지 않는다
-  const next = firstLeft ? { to: firstLeft.to, ...(firstLeft === rows[0] && turnsUsedUp ? { title: '다섯 가지를 처음부터 다시 답해요', action: '처음부터 다시 답하기' } : ACTIONS[firstLeft.label] ?? { title: firstLeft.label, action: firstLeft.label }) } : null;
+  // 2026-10-01 UI/UX FINAL CLOSE: 원하는 만남(목적)도 서버 readiness 값으로 본다. 화면 칸이 다 찼어도 서버가 자격 없음이면 「모두 마쳤어요」라고 하지 않는다.
+  const purposeLeft = sr ? !sr.purpose : false;
+  const next = purposeLeft
+    ? { to: '/doit/start-journey', title: '원하는 만남을 골라요', action: '만남 고르기' }
+    : firstLeft ? { to: firstLeft.to, ...(firstLeft === rows[0] && turnsUsedUp ? { title: '다섯 가지를 처음부터 다시 답해요', action: '처음부터 다시 답하기' } : ACTIONS[firstLeft.label] ?? { title: firstLeft.label, action: firstLeft.label }) } : null;
   return <>
     <div className="doit-asleep-card doit-asleep-next">
       <p className="doit-asleep-label">다음 할 일</p>
-      <p className="doit-asleep-next-title">{next ? next.title : '연결 준비를 모두 마쳤어요'}</p>
+      <p className="doit-asleep-next-title">{next ? next.title : eligible ? '연결 준비를 모두 마쳤어요' : 'ECHO가 연결 준비를 확인하고 있어요'}</p>
       {next && (next.to === RESTART
         ? <button type="button" className="doit-product-action" disabled={restarting} onClick={() => void restart()}>{next.action}<span aria-hidden="true">↗</span></button>
         : <Link className="doit-product-action" to={next.to}>{next.action}<span aria-hidden="true">↗</span></Link>)}
