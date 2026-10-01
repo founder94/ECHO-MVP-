@@ -63,6 +63,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
 
   // 서버가 이번 선택으로 두 사람 모두 골랐다고 답했을 때만(상대 정보 0 · 차분하게).
   if (mutual) return <section className="doit-connect doit-mutual" aria-label="서로 골랐어요" role="status">
+    <span className="echo-mutual-align" aria-hidden="true"><i /><i /></span>
     <p className="doit-match-kicker">서로 골랐어요</p>
     <p className="doit-mutual-title">상대도 당신이 궁금했대요.</p>
     <p className="doit-mutual-body">두 사람 모두 조금 더 이야기해 보고 싶다고 했어요.</p>
@@ -93,7 +94,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>
           <ul className="doit-candidate-reasons">{c.reasons.map(r => <li key={r}>{r}</li>)}</ul>
           {c.waiting
-            ? <p className="doit-connect-note">내 선택은 전해졌어요. 상대도 고르면 연결이 열려요.</p>
+            ? <p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />내 선택은 전해졌어요. 상대도 고르면 연결이 열려요.</p>
             : <div className="doit-candidate-actions" role="group" aria-label={`후보 ${i + 1} 고르기`}>
                 <button type="button" className="doit-product-action" disabled={!!busy} onClick={() => void choose(c, 'yes')}>{busy === c.id ? '저장하는 중' : CHOICE_LABEL.yes}<span aria-hidden="true">↗</span></button>
                 <button type="button" className="doit-connect-link" disabled={!!busy} onClick={() => void choose(c, 'no')}>{CHOICE_LABEL.no}</button>

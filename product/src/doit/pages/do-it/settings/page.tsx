@@ -28,6 +28,19 @@ function SettingsLink({ to, icon, title, description }: SettingsLinkProps) {
   );
 }
 
+// 서버(doit-connect)가 실제로 지키는 공개 순서와 같은 말(화면이 새 규칙을 만들지 않는다).
+const VISIBILITY_RULES = [
+  '후보일 때는 서로의 이름·사진·소개가 보이지 않아요. ECHO가 이어 본 이유만 보여요.',
+  '두 사람이 모두 「이어지고 싶어요」를 고르면 연결이 열려요. 한 사람만 고르면 상대에게 알려지지 않아요.',
+  '연결 뒤 같은 질문에 두 사람이 모두 답하면, 그때 닉네임·대표 사진·소개·고른 만남·그 답이 서로 보여요.',
+  '그만하거나 차단하면 그 연결의 상대 정보는 다시 보이지 않아요.',
+];
+const HELP = [
+  { q: '연결은 어떻게 열리나요?', a: 'ECHO가 내 이야기와 겹치는 사람을 후보로 보여 드려요. 두 사람이 모두 고를 때만 연결이 열리고, 첫 질문에 둘 다 답하면 서로를 볼 수 있어요.' },
+  { q: '불편한 상대가 있어요.', a: '연결 카드의 「이 연결 그만하기」에서 그만하기 · 차단 · 차단하고 신고하기를 고를 수 있어요. 차단한 사람과는 다시 이어지지 않아요.' },
+  { q: '내 기록을 지우고 싶어요.', a: '이 화면의 「내 정보 관리」에서 탈퇴하면 계정과 기록, 사진이 함께 지워져요.' },
+];
+
 export default function Settings() {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
@@ -97,6 +110,25 @@ export default function Settings() {
             )}
           </div>
           {signOutError && <p className="doit-product-error" role="alert">{signOutError}</p>}
+          {/* 2026-10-01 대표 「POST-IMPLEMENTATION MASTER」 O: 로그아웃해도 무엇이 남는지 분명히(서버 기록은 계정에 그대로 · 이 기기의 로그인만 끝남). */}
+          {user && <p className="doit-settings-hint">로그아웃해도 대화·연결·사진은 내 계정에 그대로 남아요. 다시 로그인하면 이어서 볼 수 있어요.</p>}
+        </section>
+
+        {/* 2026-10-01 같은 지시 N 「공개 범위」: 바꾸는 스위치가 아니라 서버가 지키는 규칙을 그대로 알려 준다(설정값을 지어내지 않음). */}
+        <section className="doit-settings-section" aria-labelledby="settings-visibility-heading">
+          <h3 id="settings-visibility-heading" className="doit-settings-heading">누가 무엇을 보나요</h3>
+          <ul className="doit-settings-note doit-settings-rules">
+            {VISIBILITY_RULES.map(rule => <li key={rule}>{rule}</li>)}
+          </ul>
+        </section>
+
+        {/* 같은 지시 N 「사주 정보 · 타로 기록」: 이미 있는 화면(/doit/fortune)으로. 입력한 생년월일은 저장하지 않고, 타로 기록은 이 기기에만 있다. */}
+        <section className="doit-settings-section" aria-labelledby="settings-fortune-heading">
+          <h3 id="settings-fortune-heading" className="doit-settings-heading">사주 · 타로</h3>
+          <div className="doit-settings-panel">
+            <SettingsLink to="/doit/fortune" icon="ri-sun-line" title="사주 보기" description="입력한 생년월일은 저장하지 않아요." />
+            <SettingsLink to="/doit/fortune" icon="ri-stack-line" title="타로와 지난 카드" description="지난 카드는 이 기기에만 남아요." />
+          </div>
         </section>
 
         {/* 2026-09-26 대표 실기기 「앱은 어디서 받아?」: 설치를 강요하지 않고, 필요할 때 언제든 찾을 수 있는 자리. */}
@@ -132,6 +164,15 @@ export default function Settings() {
               title="개인정보 처리방침"
               description="내 정보를 어떻게 다루는지 적혀 있어요."
             />
+          </div>
+        </section>
+
+        {/* 같은 지시 N 「도움말」: 자주 묻는 것 몇 가지(서버 규칙과 같은 말) + 문의 메일(탈퇴 안내와 같은 주소). */}
+        <section className="doit-settings-section" aria-labelledby="settings-help-heading">
+          <h3 id="settings-help-heading" className="doit-settings-heading">도움말</h3>
+          <div className="doit-settings-panel doit-settings-help">
+            {HELP.map(item => <details key={item.q}><summary>{item.q}</summary><p>{item.a}</p></details>)}
+            <a className="doit-settings-mail" href="mailto:0423doit@gmail.com">다른 문의 · 0423doit@gmail.com</a>
           </div>
         </section>
 
