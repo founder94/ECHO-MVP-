@@ -29,3 +29,10 @@ test('다른 방 느낌 = 빛·깊이·재질·글자만(색 세계 교체 0 · 
   assert.doesNotMatch(css, /(^|[\s,}])(body|html|:root)\s*[{,]/);
   assert.doesNotMatch(css, /#0a0d14|#07090f|#1d2340/i, '예전 어두운 남색 바탕 0');
 });
+
+test('사주·타로: 위 여백이 safe-area 를 포함해 「뒤로」 알약 아래에서 시작(iPhone PWA 가림 0) · 결과 화면은 두 번 더하지 않음', () => {
+  const css = readFileSync('src/doit/pages/do-it/fortune/fortune-space.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.echo-fortune-space\{padding-top:calc\(env\(safe-area-inset-top\) \+ 16px\)\}/);
+  assert.match(css, /\.echo-fortune-space \.saju-page\{padding-top:40px\}/);
+  assert.match(readFileSync('src/components/app-back-button.css', 'utf8'), /\.doit-back-pill\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 8px\)/);
+});

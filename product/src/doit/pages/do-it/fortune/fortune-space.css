@@ -12,3 +12,8 @@
 .echo-fortune-space :is(.saju-card,.saju-char){background:rgb(255 255 255/.10);border-color:#f4ead2b3}
 .echo-fortune-space :is(.saju-title,.saju-h2){font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo",Georgia,serif;letter-spacing:-.01em}
 .echo-fortune-space .saju-kicker{color:#fff6dc}
+/* 2026-10-01 DESIGN 100% 검수: 사주·타로 화면 위 여백이 휴대폰 상단(safe-area)을 빼지 않아, 같은 safe-area 를 쓰는 「뒤로」 알약(safe-area + 8px · 높이 32px)이
+   iPhone 앱(PWA)에서 첫 줄(FREE · 기본 사주 / 제목)을 가렸다. 바깥 공간에 safe-area + 16px 를 더해 알약 아래로 내린다(알약과 첫 줄 사이 ≥ 12px).
+   사주 결과(.saju-page)는 원래 자기 safe-area 여백을 가지므로 그만큼 빼서 두 번 더하지 않는다. */
+.echo-fortune-space{padding-top:calc(env(safe-area-inset-top) + 16px)}
+.echo-fortune-space .saju-page{padding-top:40px}
