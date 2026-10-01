@@ -194,7 +194,7 @@ await run(16, 'chat', IPHONE, { matches: [match({ my_answer: '주말 아침', pa
   const t = await text(p); expect(t.includes('반가워요') && t.includes('안녕하세요!'), '메시지 목록'); expect(s.st.calls.some(c => c.action === 'message'), 'message 요청');
   await p.screenshot({ path: 'uxshots/16-chat.png' }); return '보내기 → 목록';
 });
-for (const [n, name, btn, want] of [[17, 'leave', '그만할게요', { block: false, report: false }], [18, 'block', '차단할게요', { block: true, report: false }], [19, 'report(사유 고르기 · 2026-10-01 SAFETY)', '차단하고 신고할게요', { block: true, report: true, reason: 'unpleasant' }]]) {
+for (const [n, name, btn, want] of [[17, 'leave', '그만할게요', { block: false, report: false }], [18, 'block', '차단할게요', { block: true, report: false }], [19, 'report(사유 고르기 · 차단 기본 함께 · 2026-10-02)', '신고할게요', { block: true, report: true, reason: 'unpleasant' }]]) {
   await run(n, name, IPHONE, { matches: [match({ my_answer: 'a', partner_answered: true, revealed: true, partner: PARTNER, messages: [] })] }, async (p, s) => {
     await go(p); await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: btn, exact: true }).click(); if (want.reason) await p.getByRole('button', { name: '불쾌한 대화' }).click(); await p.waitForTimeout(600);
     const call = s.st.calls.find(c => c.action === 'leave'); expect(call && call.block === want.block && call.report === want.report && call.reason === want.reason, `보낸 값 ${JSON.stringify(call)}`);
@@ -381,19 +381,19 @@ await run(57, 'SAFETY 후보 차단 2번 · 예전 서버(저장 확인 없음)�
   const t = await text(p); expect(s.st.calls.some(c => c.action === 'choose' && c.block === true && !('reason' in c)), '차단 요청');
   expect(!t.includes('접수했어요') && !t.includes('차단했어요') && t.includes('숨겼어요'), '서버 확인 없이 차단·접수 문구'); return '서버 확인 없으면 숨김만 말함';
 });
-await run(58, 'SAFETY 연결 신고 3번: 그만하기 → 차단하고 신고할게요 → 사유 · 접수했어요 · 끝난 연결', IPHONE, { matches: [revealedMatch()] }, async (p, s) => {
+await run(58, 'SAFETY 연결 신고 3번: 그만하기 → 신고할게요 → 사유 · 접수했어요 · 끝난 연결', IPHONE, { matches: [revealedMatch()] }, async (p, s) => {
   await go(p); await p.waitForTimeout(600);
   expect((await text(p)).includes('불편하면 언제든 나갈 수 있어요.'), '안전 문구');
-  await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: '차단하고 신고할게요' }).click();
+  await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: '신고할게요', exact: true }).click();
   await p.getByRole('button', { name: '사기·금전 요구' }).click(); await p.waitForTimeout(600);
   const call = s.st.calls.find(c => c.action === 'leave'); expect(call && call.block === true && call.report === true && call.reason === 'scam', JSON.stringify(call));
   const t = await text(p); expect(t.includes('접수했어요.') && t.includes('이 연결은 끝났어요'), '접수·끝남'); expect(!t.includes('하늘의 답'), '끝난 뒤 상대 말 표시');
   return 'leave block+report+scam · 끝난 연결';
 });
 await run(59, '만나기 전 안내: 「약속했어요」 고른 뒤에만', IPHONE, { matches: [revealedMatch()] }, async (p) => {
-  await go(p); await p.waitForTimeout(600); expect(await p.locator('.doit-meet-safety').count() === 0, '고르기 전 표시');
+  await go(p); await p.waitForTimeout(600); expect(await p.locator('.doit-meet-safety:not(.doit-meet-safety--peek)').count() === 0, '고르기 전 표시');
   await p.getByRole('button', { name: '약속했어요' }).click(); await p.waitForTimeout(300);
-  const t = await p.locator('.doit-meet-safety').innerText(); expect(t.includes('사람이 많은 곳') && t.includes('신고'), t); return '선택 뒤 4줄';
+  const t = await p.locator('.doit-meet-safety:not(.doit-meet-safety--peek)').innerText(); expect(t.includes('사람이 많은 곳') && t.includes('신고'), t); return '선택 뒤 4줄';
 });
 await run(60, 'ECHO 사용법: 메뉴 → 설정 #guide · 9항목 · 320px 넘침 0', { width: 320, height: 640 }, {}, async (p) => {
   await p.goto(`${BASE}/doit/settings#guide`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
@@ -406,6 +406,29 @@ for (const [n, w] of [[61, 320], [62, 430]]) await run(n, `SAFETY ${w}px: 신고
   await go(p); await pickReason(p); await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).click(); await p.getByRole('button', { name: '신고할게요' }).click();
   const m = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, iw: innerWidth, small: [...document.querySelectorAll('.doit-safety-reasons button')].filter(b => b.getBoundingClientRect().height < 44 || b.getBoundingClientRect().right > innerWidth).length }));
   expect(m.sw <= m.iw && m.small === 0, JSON.stringify(m)); return '넘침 0';
+});
+
+// 63~66 2026-10-02 QA 마감 v1.1: 신고와 차단은 별도 · 저장 실패면 「접수/차단」 거짓 표시 0 · 만나기 전 안내는 이야기 화면에서도.
+await run(63, 'SAFETY 신고만(차단 체크 해제): block=false · 접수했어요 · 「차단했어요」 0', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
+  await go(p); await pickReason(p); await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).click(); await p.getByRole('button', { name: '신고할게요' }).click();
+  await p.getByLabel('차단도 함께 하기').uncheck(); await p.getByRole('button', { name: '스팸' }).click(); await p.waitForTimeout(500);
+  const call = s.st.calls.find(c => c.action === 'choose'); expect(call && call.block === false && call.reason === 'spam', JSON.stringify(call));
+  const t = await text(p); expect(t.includes('접수했어요') && !t.includes('차단했어요'), t.slice(0, 200)); return 'block=false · 접수만';
+});
+await run(64, 'SAFETY 저장 실패(500): 「접수했어요」·「차단했어요」 0 · 다시 누를 수 있음', IPHONE, { candidates: [cand('c1')], fail: { choose: { times: 1, status: 500, message: '저장하지 못했어요. 다시 눌러 주세요.' } } }, async (p) => {
+  await go(p); await pickReason(p); await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).click(); await p.getByRole('button', { name: '차단할게요' }).click(); await p.waitForTimeout(500);
+  const t = await text(p); expect(!/접수했어요|차단했어요|숨겼어요/.test(t), '실패인데 완료 문구'); expect(await p.locator('.doit-candidates [role=alert]').count() === 1, `실패 안내 없음 ${t.slice(0, 160)}`);
+  return '실패 안내만';
+});
+await run(65, 'SAFETY 연결 신고 저장 실패: 끝남·접수 거짓 표시 0', IPHONE, { matches: [revealedMatch()], fail: { leave: { times: 1, status: 500, message: '지금은 끝내지 못했어요. 다시 눌러 주세요.' } } }, async (p) => {
+  await go(p); await p.waitForTimeout(500);
+  await p.getByRole('button', { name: '이 연결 그만하기' }).click(); await p.getByRole('button', { name: '신고할게요', exact: true }).click(); await p.getByRole('button', { name: '위협·강요' }).click(); await p.waitForTimeout(600);
+  const t = await text(p); expect(!/접수했어요|차단했어요|이 연결은 끝났어요/.test(t), '실패인데 완료'); expect(await p.locator('.doit-match [role=alert]').count() === 1, `실패 안내 ${t.slice(0, 160)}`);
+  return '실패 안내 · 연결 유지';
+});
+await run(66, '만나기 전 안전 안내: 이야기 화면에서 「약속했어요」 없이도 열림', IPHONE, { matches: [revealedMatch()] }, async (p) => {
+  await go(p); await p.waitForTimeout(500); await p.getByText('만나기 전 안전 안내').click();
+  const t = await p.locator('.doit-meet-safety--peek').innerText(); expect(t.includes('사람이 많은 곳'), t); return '이야기 화면에서 열림';
 });
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {

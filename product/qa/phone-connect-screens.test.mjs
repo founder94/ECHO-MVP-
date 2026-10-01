@@ -96,7 +96,7 @@ test('내 연결: 상대 정보는 서버가 revealed 로 보낸 뒤에만 그�
   assert.match(s, /match\.revealed && match\.partner\s*\n?\s*\? <p><span>\{match\.partner\.nickname\}의 답/);
   assert.match(s, /연락처·링크는 보낼 수 없어요/);
   assert.match(s, /그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요/);
-  assert.match(s, /차단하고 신고할게요/);
+  assert.match(s, /신고할게요/); // 2026-10-02: 「차단하고 신고」 → 「신고」 + 차단 체크(별도 행동)
   assert.match(s, /계속할게요/, '확인 창에도 빠져나갈 문');
   assert.match(read(ASLEEP), /<ConnectionMatches key=\{opened\} userId=\{user\.id\} focusId=\{focusMatch\} \/>/);
 });

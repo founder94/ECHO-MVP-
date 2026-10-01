@@ -139,6 +139,8 @@ function SafetyRow({ candidate, index, busy, safety, setSafety, protect }: {
   candidate: MyCandidate; index: number; busy: boolean; safety: Safety | null;
   setSafety: (s: Safety | null) => void; protect: (c: MyCandidate, block: boolean, reason?: ReportReason) => Promise<void>;
 }) {
+  // 2026-10-02 대표 「QA 마감 v1.1」 §7: 차단과 신고는 별도 행동 — 신고할 때 차단은 고를 수 있게(기본은 함께). 차단은 사유 없이 바로.
+  const [alsoBlock, setAlsoBlock] = useState(true);
   const mine = safety?.id === candidate.id ? safety : null;
   if (!mine) return <button type="button" className="doit-connect-link doit-safety-open" disabled={busy} onClick={() => setSafety({ id: candidate.id, step: 'menu' })}>불편해요 · 차단 · 신고</button>;
   return <div className="doit-safety" role="group" aria-label={`후보 ${index + 1} 차단·신고`}>
@@ -147,8 +149,9 @@ function SafetyRow({ candidate, index, busy, safety, setSafety, protect }: {
       <button type="button" className="doit-connect-link" disabled={busy} onClick={() => void protect(candidate, true)}>차단할게요</button>
       <button type="button" className="doit-connect-link" disabled={busy} onClick={() => setSafety({ id: candidate.id, step: 'report' })}>신고할게요</button>
     </> : <>
-      <p className="doit-connect-note">어떤 점이 불편했나요? 신고하면 차단도 함께 돼요.</p>
-      <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" disabled={busy} onClick={() => void protect(candidate, true, code)}>{label}</button>)}</div>
+      <p className="doit-connect-note">어떤 점이 불편했나요?</p>
+      <label className="doit-safety-also"><input type="checkbox" checked={alsoBlock} onChange={e => setAlsoBlock(e.target.checked)} disabled={busy} /> 차단도 함께 하기</label>
+      <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" disabled={busy} onClick={() => void protect(candidate, alsoBlock, code)}>{label}</button>)}</div>
     </>}
     <button type="button" className="doit-connect-link" disabled={busy} onClick={() => setSafety(null)}>닫기</button>
   </div>;

@@ -84,6 +84,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<false | 'menu' | 'report'>(false);
+  const [alsoBlock, setAlsoBlock] = useState(true); // 신고와 차단은 별도 — 신고할 때 차단은 고를 수 있다(기본은 함께)
   // ZZARIT: 먼저 고르고 기다리던 사람도, 서버가 서로 골라 열린 연결(via_mutual)이라고 줄 때 이 연결에서 한 번만.
   const [zzarit, setZzarit] = useState(() => match.status === 'open' && match.via_mutual === true && !match.my_answer && claimZzarit(match.id));
 
@@ -196,6 +197,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
       <p className="doit-connect-note">불편하면 언제든 나갈 수 있어요. 아래 「이 연결 그만하기」에서 차단·신고도 할 수 있어요.</p>
+      <details className="doit-meet-safety doit-meet-safety--peek"><summary>만나기 전 안전 안내</summary><MeetSafetyList /></details>
       <OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} />
     </>}
 
@@ -208,12 +210,13 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
             <p>그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요. 차단하면 다시 추천되지 않아요.</p>
             <button type="button" className="doit-connect-link" onClick={() => void leave(false, false)} disabled={busy}>그만할게요</button>
             <button type="button" className="doit-connect-link" onClick={() => void leave(true, false)} disabled={busy}>차단할게요</button>
-            <button type="button" className="doit-connect-link" onClick={() => setLeaving('report')} disabled={busy}>차단하고 신고할게요</button>
+            <button type="button" className="doit-connect-link" onClick={() => setLeaving('report')} disabled={busy}>신고할게요</button>
             <button type="button" className="doit-connect-link" onClick={() => setLeaving(false)} disabled={busy}>계속할게요</button>
           </div>
         : <div className="doit-match-leave" role="group" aria-label="신고 사유">
-            <p>어떤 점이 불편했나요? 고르면 이 연결은 끝나고 차단도 함께 돼요.</p>
-            <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" onClick={() => void leave(true, true, code)} disabled={busy}>{label}</button>)}</div>
+            <p>어떤 점이 불편했나요? 고르면 이 연결은 끝나요.</p>
+            <label className="doit-safety-also"><input type="checkbox" checked={alsoBlock} onChange={e => setAlsoBlock(e.target.checked)} disabled={busy} /> 차단도 함께 하기</label>
+            <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" onClick={() => void leave(alsoBlock, true, code)} disabled={busy}>{label}</button>)}</div>
             <button type="button" className="doit-connect-link" onClick={() => setLeaving('menu')} disabled={busy}>뒤로</button>
           </div>}
   </article>;
@@ -252,14 +255,21 @@ function OutcomeForm({ userId, matchId, initial }: { userId: string; matchId: st
     </fieldset>)}
     {value.met === 'planned' && <div className="doit-meet-safety" role="note" aria-label="만나기 전에">
       <p className="doit-match-kicker">만나기 전에, 짧게</p>
-      <ul>
-        <li>처음엔 사람이 많은 곳에서 낮에 만나요.</li>
-        <li>오가는 길은 내가 정하고, 믿는 사람에게 약속 장소를 알려 두세요.</li>
-        <li>돈·계좌·개인정보를 달라고 하면 만나지 말고 신고해 주세요.</li>
-        <li>불편하면 언제든 자리를 떠나도 괜찮아요.</li>
-      </ul>
+      <MeetSafetyList />
     </div>}
     {error && <p className="doit-product-error" role="alert">{error}</p>}
     <p className="doit-connect-note">다음 후보를 더 잘 준비하는 데만 써요. 상대에게 보이지 않고, 내 소개나 확정한 이야기로 바뀌지 않아요.</p>
   </div>;
+}
+
+// 만나기 전 안전 안내 — 「약속했어요」 뒤에도, 이야기 화면에서 만남을 검토할 때도 같은 문장(2026-10-02 §10).
+// 「약속했어요」는 사용자가 남기는 기록일 뿐이다. 앱이 만남·상대를 확인하거나 보증한다는 뜻이 아니다.
+const MEET_SAFETY = [
+  '처음엔 사람이 많은 곳에서 낮에 만나요.',
+  '오가는 길은 내가 정하고, 믿는 사람에게 약속 장소를 알려 두세요.',
+  '돈·계좌·개인정보를 달라고 하면 만나지 말고 신고해 주세요.',
+  '불편하면 언제든 자리를 떠나도 괜찮아요.',
+];
+function MeetSafetyList() {
+  return <ul>{MEET_SAFETY.map(t => <li key={t}>{t}</li>)}</ul>;
 }

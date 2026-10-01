@@ -1046,3 +1046,20 @@ test('규모 · 관리자 후보: 사람 460명이어도 요청마다 in 목록 
   assert.ok(Math.max(...s.inSizes) <= 100, `가장 긴 in 목록 ${Math.max(...s.inSizes)}`);
   assert.equal(adm.body.pool, 460 - 1, '목적이 있는 사람 수(관리자 제외)');
 });
+
+test('v2.1 안전 · 재시도: 같은 숨기기·신고를 다시 보내면 200 · 신고 1건 · 다른 사유는 따로 남음 · 바꿔 고르기는 여전히 409', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  const first = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', block: true, reason: 'scam' });
+  const again = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', block: true, reason: 'scam' });
+  assert.deepEqual([first.status, again.status], [200, 200]);
+  assert.deepEqual([again.body.status, again.body.blocked, again.body.reported], ['declined', true, true]);
+  assert.equal(s.tables.user_reports.length, 1, '같은 신고 재시도 = 1건');
+  const more = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'threat' });
+  assert.equal(more.status, 200);
+  assert.equal(s.tables.user_reports.length, 2, '다른 사유(추가 증거)는 버리지 않는다');
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' })).status, 409, '넘긴 뒤 이어지고 싶어요로 바꾸기 0');
+  assert.equal((await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'hide' })).status, 409, '상대가 끝낸 후보를 내가 다시 고르기 0');
+});

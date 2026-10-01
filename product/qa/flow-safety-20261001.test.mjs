@@ -65,21 +65,24 @@ test('안전 문구: 정해진 세 문장 · 「완벽하게 보호」 같은 �
   assert.doesNotMatch(all, /완벽하게 보호|100% 안전|절대 안전/);
 });
 
-test('2~3번 안에: 후보 숨기기 1 · 차단 2 · 신고 3(불편해요 → 신고할게요 → 사유) · 연결 신고 3(그만하기 → 차단하고 신고 → 사유)', () => {
+test('2~3번 안에: 후보 숨기기 1 · 차단 2 · 신고 3(불편해요 → 신고할게요 → 사유) · 연결 신고 3(그만하기 → 신고할게요 → 사유) · 신고와 차단은 별도', () => {
   assert.match(CAND, /onClick=\{\(\) => void choose\(c, 'hide'\)\}>\{CHOICE_LABEL\.hide\}/);
   assert.match(CAND, /setSafety\(\{ id: candidate\.id, step: 'menu' \}\)\}>불편해요 · 차단 · 신고/);
   assert.match(CAND, /void protect\(candidate, true\)\}>차단할게요/);
-  assert.match(CAND, /void protect\(candidate, true, code\)\}>\{label\}/);
+  assert.match(CAND, /void protect\(candidate, alsoBlock, code\)\}>\{label\}/);
+  for (const src of [CAND, MATCH]) assert.match(src, /<input type="checkbox" checked=\{alsoBlock\} onChange=\{e => setAlsoBlock\(e\.target\.checked\)\}[^>]*\/> 차단도 함께 하기/, '신고할 때 차단은 고를 수 있다');
+  assert.doesNotMatch(CAND + MATCH, /신고하면 차단도 함께 돼요|차단도 함께 돼요/, '신고가 차단을 강제하지 않는다');
   assert.match(MATCH, /setLeaving\('menu'\)\} disabled=\{busy\}>이 연결 그만하기/);
-  assert.match(MATCH, /void leave\(true, true, code\)\} disabled=\{busy\}>\{label\}/);
+  assert.match(MATCH, /void leave\(alsoBlock, true, code\)\} disabled=\{busy\}>\{label\}/);
   assert.match(CAND, /CHOICE_LABEL\.yes/); assert.match(CAND, /yes: '이어지고 싶어요', no: '이번에는 넘길게요'/);
 });
 
-test('만나기 전 안내: 「약속했어요」를 고른 뒤에만 · 짧고 실용적 · 위험한 행동 권유 0', () => {
+test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서도 언제든 · 짧고 실용적 · 위험한 행동 권유 0', () => {
   assert.match(MATCH, /\{value\.met === 'planned' && <div className="doit-meet-safety"/);
-  const tips = MATCH.slice(MATCH.indexOf('doit-meet-safety'), MATCH.indexOf('</ul>', MATCH.indexOf('doit-meet-safety')));
-  assert.ok((tips.match(/<li>/g) ?? []).length <= 4);
-  assert.doesNotMatch(tips, /술|집으로|숙소|밤늦게|차에 타/);
+  assert.match(MATCH, /<details className="doit-meet-safety doit-meet-safety--peek"><summary>만나기 전 안전 안내<\/summary><MeetSafetyList \/><\/details>/);
+  const tips = MATCH.slice(MATCH.indexOf('const MEET_SAFETY'), MATCH.indexOf('];', MATCH.indexOf('const MEET_SAFETY')));
+  assert.ok((tips.match(/'/g) ?? []).length / 2 <= 4);
+  assert.doesNotMatch(tips, /술|집으로|숙소|밤늦게|차에 타|확인된 사람|안전한 상대|인증/);
 });
 
 test('ECHO 사용법: 메뉴에서 바로 · 실제 기능만(KEY·미션·72시간·보상·가격 0) · 항목마다 3~5문장', () => {

@@ -46,8 +46,8 @@ test('연결: 서버가 준 match_id 로만 이동 · 첫 질문 안내 · blind
   assert.match(MATCHES, /두 분 모두 편하게 시작할 수 있게<br \/>ECHO가 하나만 물어볼게요\./);
   assert.match(MATCHES, /\{match\.revealed && match\.partner && <PartnerFrame /); // 2026-10-01 ECHO FRAME 으로 바뀜(공개 조건은 그대로)
   assert.match(MATCHES, /leave\(true, false\)\} disabled=\{busy\}>차단할게요/);
-  assert.match(MATCHES, /setLeaving\('report'\)\} disabled=\{busy\}>차단하고 신고할게요/);
-  assert.match(MATCHES, /onClick=\{\(\) => void leave\(true, true, code\)\} disabled=\{busy\}>\{label\}/, '신고는 사유를 골라야 보낸다(2026-10-01 SAFETY)');
+  assert.match(MATCHES, /setLeaving\('report'\)\} disabled=\{busy\}>신고할게요/); // 2026-10-02: 신고와 차단은 별도(차단은 체크로 고름)
+  assert.match(MATCHES, /onClick=\{\(\) => void leave\(alsoBlock, true, code\)\} disabled=\{busy\}>\{label\}/, '신고는 사유를 골라야 보낸다 · 차단은 따로 고름');
   assert.match(MATCHES, /onFocus=\{e => keepVisible\(e\.currentTarget\)\}/, '글자판이 입력칸을 가리지 않게');
 });
 

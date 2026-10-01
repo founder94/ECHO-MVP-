@@ -125,3 +125,7 @@
 .doit-meet-safety{margin:4px 0 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
 .doit-meet-safety ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.7;word-break:keep-all}
 .doit-app-pastel :is(.doit-safety,.doit-meet-safety) :is(p,li,.doit-match-kicker){color:#fff}
+.doit-safety-also{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13px;color:inherit}
+.doit-safety-also input{width:18px;height:18px;accent-color:#0f4a4a}
+.doit-meet-safety--peek summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:600}
+.doit-app-pastel :is(.doit-safety-also,.doit-meet-safety--peek summary){color:#fff}

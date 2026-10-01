@@ -968,6 +968,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const col = side === "a" ? "a_choice" : "b_choice";
       const already = side === "a" ? c.a_choice : c.b_choice;
       if (c.status === "mutual" && already === "yes" && choice === "yes") return json({ ok: true, status: "mutual", match_id: c.match_id }, 200, origin);
+      // 같은 넘기기·숨기기를 다시 보내면(네트워크 재시도·두 탭) 오류 대신 같은 결과. 신고·차단도 다시 기록하지 않고 저장된 상태를 돌려준다(중복 0).
+      if (c.status === "declined" && already === choice && choice !== "yes") {
+        const partner = side === "a" ? c.user_b : c.user_a;
+        const saved = safety ? await recordSafety(admin, userId, partner, "candidate", ask.block, ask.reason) : { blocked: false, reported: false };
+        return json({ ok: true, status: "declined", ...saved }, 200, origin);
+      }
       if (c.status !== "proposed") return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
       // 차단·신고는 「이어지고 싶어요」를 누른 뒤(기다리는 중)에도 할 수 있다 — 그 선택을 거두고 끝낸다.
       if (already !== null && already !== choice && !safety) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
