@@ -236,3 +236,9 @@ test('실제 AI QA D1 재검: 첫 답의 속도 표현이 다른 칸으로 정�
   assert.equal(A.questionFlaw(st, '솔직한 사람이 편해요', '주말에 연락하면 더 자주 만나는 게 좋나요?', false), 'covered');
   assert.equal(A.questionFlaw(start(), '솔직한 사람이 편해요', '주말에 연락하면 더 자주 만나는 게 좋나요?', false) === 'covered', false, '아직 안 들었으면 막지 않음');
 });
+
+test('실제 AI QA A3·D3 재검: 「잘 모르겠어요」를 skip 으로 읽어도 unsure · 첫 답(저장 전)에 속도가 있으면 첫 질문도 속도를 다시 묻지 않음', () => {
+  assert.deepEqual(A.guardKind('잘 모르겠어요', 'skip'), { kind: 'unsure', rule: 'unsure_only' });
+  assert.equal(A.guardKind('이 질문은 넘어갈게요', 'skip').kind, 'skip');
+  assert.equal(A.questionFlaw(start(), '천천히 알아가는 친구가 좋고 연락은 주말에 한두 번이면 충분해요', '주말에 연락하면 더 자주 보고 싶나요?', true), 'covered');
+});
