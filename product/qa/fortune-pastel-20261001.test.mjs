@@ -24,7 +24,7 @@ test('다른 방 느낌 = 빛·깊이·재질·글자만(색 세계 교체 0 · 
   assert.match(css, /\.echo-fortune-light\{position:fixed[^}]*radial-gradient/, '빛');
   assert.match(css, /--fortune-shadow:/, '깊이');
   assert.match(css, /repeating-linear-gradient/, '재질(결)');
-  assert.match(css, /Noto Serif KR/, '글자');
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /Serif|Myeongjo|Myungjo|Georgia/, '명조 제목 0(2026-10-01 DESIGN 100%: Pretendard 한 벌)');
   assert.doesNotMatch(css, /animation|backdrop-filter|filter:blur/);
   assert.doesNotMatch(css, /(^|[\s,}])(body|html|:root)\s*[{,]/);
   assert.doesNotMatch(css, /#0a0d14|#07090f|#1d2340/i, '예전 어두운 남색 바탕 0');

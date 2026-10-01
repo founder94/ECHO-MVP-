@@ -28,3 +28,12 @@ test('첫 화면: 온보딩이 도는 동안 다음 화면(/doit 틀 + 시작 �
   assert.match(read('src/doit/routes.tsx'), /const DoitApp = lazy\(\(\) => import\("@\/doit\/DoitApp"\)\);/);
   assert.match(read('src/doit/routes.tsx'), /const StartJourney = lazy\(\(\) => import\("@\/doit\/pages\/do-it\/start-journey\/page"\)\);/);
 });
+
+test('DESIGN 100%: 서로 선택 화면 효과는 하나(신호 맞춤) · 탈퇴 최종 버튼은 흰 판 + 적갈색 글씨(붉은 경고 판 0)', () => {
+  const connect = read('src/doit/components/feature/connect.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const settleRule = connect.match(/([^{}]+)\{animation:echo-settle/)[1];
+  assert.doesNotMatch(settleRule, /\.doit-mutual/, '서로 선택 화면에 올라오기 효과가 겹침');
+  assert.match(connect, /\.echo-mutual-align i:first-child\{[^}]*animation:echo-align-left/);
+  const settings = read('src/doit/pages/do-it/settings/settings.css');
+  assert.match(settings, /\.doit-app-pastel \.doit-leave-confirm\{background:#fff;border-color:#fff;color:#8a3a32;/);
+});

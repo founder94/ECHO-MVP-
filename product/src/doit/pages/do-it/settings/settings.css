@@ -70,3 +70,7 @@
 .doit-settings-hint{margin:10px 2px 0;font-size:12.5px;line-height:1.7;word-break:keep-all}
 .doit-app-pastel .doit-settings-help :is(summary,p,a){color:#fff}
 .doit-app-pastel .doit-settings-hint{color:#fff}
+/* 2026-10-01 DESIGN 100%: 탈퇴 최종 버튼 — 어두운 붉은 판(#3a1c1c) 대신 연결 흐름 주요 버튼과 같은 흰 판 + 깊은 적갈색 글씨(≈ 8:1).
+   위험한 행동임은 글씨 색으로만 알린다(빨간 경고 화면·검은 판 0). 비활성은 그대로 흐리게. */
+.doit-app-pastel .doit-leave-confirm{background:#fff;border-color:#fff;color:#8a3a32;box-shadow:0 1px 2px rgb(15 74 74/.08)}
+.doit-app-pastel .doit-leave-confirm:not(:disabled):active{background:#f6f2f1;transform:scale(.99)}
