@@ -14,6 +14,8 @@ DB · RLS · Migration · Storage policy · 결제 · 가격 · PROD 는 이 문
 | 멱등 | 같은 신고자·대상·사유 신고는 1건만. 차단은 `(blocker_id, blocked_user_id)` 고유키 | `recordSafety()` |
 | 응답 | `blocked`, `reported` = **실제로 저장된 것만** true. 화면은 `reported` 일 때만 「접수했어요」 | 화면 `SafetySaved` |
 | 예전 화면 호환 | `report: true` + 사유 없음 → 그대로 `reason = "connection"` | 서버 검사 「v2.1 안전」 |
+| **규모 버그 수정** | QA 실배포 확인 중 발견: 사람 449명의 id 를 `in(…)` 하나에 넣어 요청 주소가 약 17.5KB → agent_session 읽기 실패 → **my_candidates 가 모든 사용자에게 500**. `inChunks()` 로 100명씩 나눠 동시에 묻는다(loadMembers · blockedPairs). 460명 검사: 고치기 전 실패 · 뒤 통과. **운영(PROD) doit-connect 에도 같은 코드가 있다 — 운영 인원이 약 450명을 넘기 전에 반영 필요(운영 배포는 대표 승인)** | `inChunks()` |
+| 오류 기록 | 전체 오류 처리(catch)에 오류 종류·짧은 이유만 기록(따옴표 안 값 지움 · 사용자 원문 0) | 같은 파일 끝 |
 | 관리자 | 한국어 사유가 reason 에 있어 기존 「중대 의심」 글자 검사(위협·사기)가 그대로 잡는다 | `admin-web/logic.ts` `SEVERE` |
 
 QA 실DB 확인(읽기 전용): `user_reports.reason` text · CHECK 없음, `blocks` 고유키 `(blocker_id, blocked_user_id)` → 새 칸·표 불필요.
