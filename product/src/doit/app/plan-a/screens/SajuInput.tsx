@@ -10,7 +10,7 @@ import {
   MapPin,
   Sparkles,
 } from "lucide-react";
-import { colors, serif } from "../theme";
+import { colors, serif, surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { SajuInput as SajuCalcInput } from "@/doit/lib/saju/engine";
 
@@ -25,7 +25,7 @@ interface Props {
 type Calendar = "solar" | "lunar" | "leap";
 
 const fieldStyle = {
-  backgroundColor: colors.surface,
+  backgroundColor: surfaces.card,
   border: `1px solid ${colors.borderStrong}`,
   color: colors.text,
 };
@@ -65,7 +65,7 @@ export function SajuInput({
     <div
       className="flex min-h-screen flex-col"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <div className="flex-1 px-6 pb-5 pt-10">
@@ -82,7 +82,7 @@ export function SajuInput({
           <p
             className="mb-2 text-[11px] tracking-[.2em]"
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
             }}
           >
             FREE · 기본 사주
@@ -104,7 +104,7 @@ export function SajuInput({
           <p
             className="mt-3 text-sm leading-6"
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
             }}
           >
             입력한 걸 한 번 보여 드리고,
@@ -117,14 +117,14 @@ export function SajuInput({
             <span
               className="mb-2 block text-xs"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
               }}
             >
               이름 또는 별명{" "}
               <b
                 className="font-normal"
                 style={{
-                  color: colors.textFaint,
+                  color: surfaces.onPageFaint,
                 }}
               >
                 선택
@@ -146,7 +146,7 @@ export function SajuInput({
             <span
               className="mb-2 block text-xs"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
               }}
             >
               전통 계산 구분
@@ -175,7 +175,7 @@ export function SajuInput({
             <p
               className="mt-2 text-[11px] leading-4"
               style={{
-                color: colors.textFaint,
+                color: surfaces.onPageFaint,
               }}
             >
               10년 흐름(대운)의 방향을 정하는 데만 써요.
@@ -187,7 +187,7 @@ export function SajuInput({
             <span
               className="mb-2 block text-xs"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
               }}
             >
               달력
@@ -215,12 +215,12 @@ export function SajuInput({
                     ...fieldStyle,
                     borderColor:
                       calendar === value
-                        ? "#c7aa69"
+                        ? "var(--fortune-selected-line, #c7aa69)"
                         : colors.borderStrong,
                     color:
                       calendar === value
-                        ? "#efd99f"
-                        : colors.textMuted,
+                        ? "var(--fortune-selected-text, #efd99f)"
+                        : surfaces.onPage,
                   }}
                 >
                   {calendar === value && (
@@ -242,7 +242,7 @@ export function SajuInput({
             <span
               className="mb-2 flex items-center gap-2 text-xs"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
               }}
             >
               <CalendarDays size={14} />
@@ -265,7 +265,7 @@ export function SajuInput({
               <span
                 className="mb-2 flex items-center gap-2 text-xs"
                 style={{
-                  color: colors.textMuted,
+                  color: surfaces.onPage,
                 }}
               >
                 <Clock3 size={14} />
@@ -296,15 +296,15 @@ export function SajuInput({
               className="mt-2 flex items-center gap-2 text-xs"
               style={{
                 color: unknown
-                  ? "#e4cb8f"
-                  : colors.textMuted,
+                  ? "var(--fortune-selected-text, #e4cb8f)"
+                  : surfaces.onPage,
               }}
             >
               <span
                 className="flex h-5 w-5 items-center justify-center rounded-md border"
                 style={{
                   borderColor: unknown
-                    ? "#c7aa69"
+                    ? "var(--fortune-selected-line, #c7aa69)"
                     : colors.borderStrong,
                   background: unknown
                     ? "rgba(199,170,105,.16)"
@@ -319,7 +319,7 @@ export function SajuInput({
             <p
               className="mt-2 text-[11px] leading-4"
               style={{
-                color: colors.textFaint,
+                color: surfaces.onPageFaint,
               }}
             >
               시간을 몰라도 괜찮아요. 그럴 땐 시주는 비워 두고
@@ -331,7 +331,7 @@ export function SajuInput({
             <span
               className="mb-2 flex items-center gap-2 text-xs"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
               }}
             >
               <MapPin size={14} />
@@ -339,7 +339,7 @@ export function SajuInput({
               <b
                 className="font-normal"
                 style={{
-                  color: colors.textFaint,
+                  color: surfaces.onPageFaint,
                 }}
               >
                 선택
@@ -361,7 +361,7 @@ export function SajuInput({
             <p
               className="mt-2 text-[11px]"
               style={{
-                color: colors.textFaint,
+                color: surfaces.onPageFaint,
               }}
             >
               지역 보정 방식은 실제 사주 엔진 연동 후
@@ -402,7 +402,7 @@ export function SajuInput({
               <dl className="mt-3 grid grid-cols-[88px_1fr] gap-y-2 text-xs">
                 <dt
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   이름
@@ -417,7 +417,7 @@ export function SajuInput({
 
                 <dt
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   생년월일
@@ -437,7 +437,7 @@ export function SajuInput({
 
                 <dt
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   출생시간
@@ -452,7 +452,7 @@ export function SajuInput({
 
                 <dt
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   출생지역
@@ -474,7 +474,7 @@ export function SajuInput({
                 }
                 className="mt-4 text-xs underline underline-offset-4"
                 style={{
-                  color: colors.textMuted,
+                  color: surfaces.onPage,
                 }}
               >
                 수정할게요
@@ -486,9 +486,9 @@ export function SajuInput({
         <div
           className="mt-6 rounded-2xl p-4 text-[11.5px] leading-5"
           style={{
-            background: colors.surface,
+            background: surfaces.card,
             border: `1px solid ${colors.border}`,
-            color: colors.textFaint,
+            color: surfaces.onPageFaint,
           }}
         >
           입력한 생일·시간은 이 휴대폰에서 계산에만 쓰고
@@ -521,7 +521,7 @@ export function SajuInput({
             onClick={onSwitchToTaro}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm"
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               border: `1px solid ${colors.border}`,
             }}
           >

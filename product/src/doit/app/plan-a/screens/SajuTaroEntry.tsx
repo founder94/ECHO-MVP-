@@ -5,7 +5,7 @@ import {
 } from "react";
 import { motion } from "motion/react";
 import { Sparkles, Star } from "lucide-react";
-import { colors, serif } from "../theme";
+import { colors, serif, surfaces } from "../theme";
 
 interface Props {
   onSaju: () => void;
@@ -116,7 +116,7 @@ function PathCard({
 
       <p
         style={{
-          color: colors.textFaint,
+          color: surfaces.onPageFaint,
           fontSize: 11,
           letterSpacing: "0.18em",
           marginBottom: 6,
@@ -139,7 +139,7 @@ function PathCard({
 
       <p
         style={{
-          color: colors.textMuted,
+          color: surfaces.onPage,
           fontSize: 13.5,
           lineHeight: 1.6,
         }}
@@ -150,7 +150,7 @@ function PathCard({
       <div
         className="mt-auto pt-5 flex items-center gap-1.5"
         style={{
-          color: colors.textMuted,
+          color: surfaces.onPage,
           fontSize: 12.5,
         }}
       >
@@ -169,7 +169,7 @@ export function SajuTaroEntry({
     <div
       className="relative flex flex-col min-h-screen"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <StarField />
@@ -191,7 +191,7 @@ export function SajuTaroEntry({
         >
           <p
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11,
               letterSpacing: "0.22em",
               marginBottom: 14,
@@ -216,7 +216,7 @@ export function SajuTaroEntry({
 
           <p
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               fontSize: 14.5,
               lineHeight: 1.7,
             }}
@@ -263,7 +263,7 @@ export function SajuTaroEntry({
           transition={{ delay: 0.6 }}
           className="text-center py-8"
           style={{
-            color: colors.textFaint,
+            color: surfaces.onPageFaint,
             fontSize: 12,
             lineHeight: 1.6,
           }}

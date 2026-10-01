@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Star,
 } from "lucide-react";
-import { colors, serif } from "../theme";
+import { colors, serif, surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import {
   TarotCardArt,
@@ -148,7 +148,7 @@ export function TaroCardSelect({
     <div
       className="relative flex min-h-screen flex-col overflow-hidden"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <motion.div
@@ -170,7 +170,7 @@ export function TaroCardSelect({
       <div className="relative z-10 flex-1 px-5 pb-4 pt-9">
         <p
           style={{
-            color: colors.textFaint,
+            color: surfaces.onPageFaint,
             fontSize: 11,
             letterSpacing: ".2em",
             marginBottom: 9,
@@ -208,7 +208,7 @@ export function TaroCardSelect({
               <p
                 className="mt-3 text-sm leading-6"
                 style={{
-                  color: colors.textMuted,
+                  color: surfaces.onPage,
                 }}
               >
                 관계 목적을 먼저 고르면 카드와 대화가
@@ -246,7 +246,7 @@ export function TaroCardSelect({
                   type="button"
                   onClick={() => setPhase("history")}
                   className="mx-auto mt-3 flex h-11 items-center justify-center rounded-full px-5 text-sm"
-                  style={{ color: colors.textMuted, border: `1px solid ${colors.border}` }}
+                  style={{ color: surfaces.onPage, border: `1px solid ${colors.border}` }}
                 >
                   지난 카드 보기
                 </button>
@@ -291,7 +291,7 @@ export function TaroCardSelect({
               <p
                 className="mt-2 text-sm leading-6"
                 style={{
-                  color: colors.textMuted,
+                  color: surfaces.onPage,
                 }}
               >
                 78장을 섞어 {SPREAD}장을 펼쳤어요. 직접
@@ -323,8 +323,8 @@ export function TaroCardSelect({
                           "linear-gradient(145deg,#eed99f,#725b30,#eed99f)",
                         boxShadow:
                           picking === card.id
-                            ? "0 22px 44px rgba(0,0,0,.55),0 0 34px rgba(238,217,159,.45)"
-                            : "0 14px 30px rgba(0,0,0,.5)",
+                            ? "0 22px 44px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 34px rgba(238,217,159,.45)"
+                            : "0 14px 30px var(--fortune-shadow, rgba(0,0,0,.5))",
                       }}
                     >
                       <TarotCardBack index={index} />
@@ -337,7 +337,7 @@ export function TaroCardSelect({
                 onClick={reshuffle}
                 className="mx-auto flex h-11 items-center gap-2 rounded-full px-5 text-sm"
                 style={{
-                  color: colors.textMuted,
+                  color: surfaces.onPage,
                   border: `1px solid ${colors.border}`,
                 }}
               >
@@ -362,7 +362,7 @@ export function TaroCardSelect({
                 <p
                   className="text-xs tracking-[.18em]"
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   방금 당신이 고른 카드
@@ -387,7 +387,7 @@ export function TaroCardSelect({
                     background:
                       "linear-gradient(145deg,#f6e2a6,#725b30,#f6e2a6)",
                     boxShadow:
-                      "0 26px 70px rgba(0,0,0,.62),0 0 45px rgba(205,174,117,.2)",
+                      "0 26px 70px var(--fortune-shadow, rgba(0,0,0,.62)),0 0 45px rgba(205,174,117,.2)",
                   }}
                 >
                   <TarotCardArt
@@ -409,7 +409,7 @@ export function TaroCardSelect({
                 <p
                   className="mt-1 text-[11px] tracking-[.18em]"
                   style={{
-                    color: colors.textFaint,
+                    color: surfaces.onPageFaint,
                   }}
                 >
                   {selected.nameEn}
@@ -419,7 +419,7 @@ export function TaroCardSelect({
                   className="mt-4 rounded-2xl p-4 text-left"
                   style={{
                     background:
-                      colors.surface,
+                      surfaces.card,
                     border: `1px solid ${colors.border}`,
                   }}
                 >
@@ -436,7 +436,7 @@ export function TaroCardSelect({
                   <p
                     className="mt-2 text-sm leading-6"
                     style={{
-                      color: colors.textMuted,
+                      color: surfaces.onPage,
                     }}
                   >
                     <b
@@ -457,7 +457,7 @@ export function TaroCardSelect({
           {phase === "history" && (
             <motion.section key="history" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
               <h1 style={{ fontFamily: serif, fontSize: 27, lineHeight: 1.28, color: colors.text }}>지난 카드</h1>
-              <p className="mt-2 text-sm leading-6" style={{ color: colors.textMuted }}>
+              <p className="mt-2 text-sm leading-6" style={{ color: surfaces.onPage }}>
                 이 기기에서 뽑은 카드예요. 보기만 할 수 있어요.
               </p>
               <ul className="mt-5 flex flex-col gap-2">
@@ -465,13 +465,13 @@ export function TaroCardSelect({
                   const card = TAROT_DECK.find((c) => c.id === h.cardId);
                   if (!card) return null;
                   return (
-                    <li key={`${h.cardId}-${h.at}`} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
+                    <li key={`${h.cardId}-${h.at}`} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: surfaces.card, border: `1px solid ${colors.border}` }}>
                       <div className="h-[72px] w-[47px] shrink-0 overflow-hidden rounded-[8px]">
                         <TarotCardArt card={card} />
                       </div>
                       <div className="min-w-0 text-left">
                         <p className="text-sm" style={{ color: colors.text }}>{card.nameKo}</p>
-                        <p className="mt-0.5 text-xs" style={{ color: colors.textFaint }}>{h.at.slice(0, 10)}{h.purpose ? ` · ${h.purpose}` : ""}</p>
+                        <p className="mt-0.5 text-xs" style={{ color: surfaces.onPageFaint }}>{h.at.slice(0, 10)}{h.purpose ? ` · ${h.purpose}` : ""}</p>
                       </div>
                     </li>
                   );
@@ -487,19 +487,19 @@ export function TaroCardSelect({
         <div
           className="mt-5 flex items-start gap-2.5 rounded-2xl p-3.5"
           style={{
-            backgroundColor: colors.surface,
+            backgroundColor: surfaces.card,
             border: `1px solid ${colors.border}`,
           }}
         >
           <ShieldCheck
             size={15}
-            color={colors.textFaint}
+            color={surfaces.onPageFaint}
             className="mt-0.5 shrink-0"
           />
 
           <p
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11.5,
               lineHeight: 1.55,
             }}
@@ -515,7 +515,7 @@ export function TaroCardSelect({
         style={{
           borderTop: `1px solid ${colors.border}`,
           background:
-            "rgba(15,15,20,.88)",
+            "var(--fortune-bar, rgba(15,15,20,.88))", // 2026-10-01 대표: 사주·타로도 파스텔 세계 안(틀 안에서는 옅은 흰 막)
           backdropFilter: "blur(18px)",
         }}
       >
@@ -532,7 +532,7 @@ export function TaroCardSelect({
               onClick={onSwitchToSaju}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm"
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
                 border: `1px solid ${colors.border}`,
               }}
             >

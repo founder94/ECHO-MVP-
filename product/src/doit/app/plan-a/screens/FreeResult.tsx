@@ -8,7 +8,7 @@ import {
   Pencil,
   Loader2,
 } from "lucide-react";
-import { colors, serif } from "../theme";
+import { colors, serif, surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import {
   generateTarotInterpretation,
@@ -145,7 +145,7 @@ export function FreeResult({
     <div
       className="flex flex-col min-h-screen"
       style={{
-        backgroundColor: colors.bg,
+        backgroundColor: surfaces.page,
       }}
     >
       <div className="flex-1 overflow-y-auto px-6 pt-10 pb-4">
@@ -160,12 +160,12 @@ export function FreeResult({
         >
           <Info
             size={12}
-            color={colors.textFaint}
+            color={surfaces.onPageFaint}
           />
 
           <span
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11,
               letterSpacing: "0.08em",
             }}
@@ -198,7 +198,7 @@ export function FreeResult({
         >
           <p
             style={{
-              color: colors.textFaint,
+              color: surfaces.onPageFaint,
               fontSize: 11,
               letterSpacing: "0.18em",
               marginBottom: 8,
@@ -230,7 +230,7 @@ export function FreeResult({
                   background:
                     "linear-gradient(145deg,#f6e2a6,#725b30,#f6e2a6)",
                   boxShadow:
-                    "0 18px 48px rgba(0,0,0,.55),0 0 30px rgba(205,174,117,.18)",
+                    "0 18px 48px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 30px rgba(205,174,117,.18)",
                 }}
               >
                 <TarotCardArt
@@ -241,7 +241,7 @@ export function FreeResult({
               <p
                 className="mt-3 text-center text-[11px] tracking-[.18em]"
                 style={{
-                  color: colors.textFaint,
+                  color: surfaces.onPageFaint,
                 }}
               >
                 {selectedCard.nameEn}
@@ -251,7 +251,7 @@ export function FreeResult({
 
           <p
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               fontSize: 15,
               lineHeight: 1.7,
               marginBottom: 12,
@@ -264,7 +264,7 @@ export function FreeResult({
           {mode === "taro" && tarotError && (
             <p
               style={{
-                color: colors.textMuted,
+                color: surfaces.onPage,
                 fontSize: 15,
                 lineHeight: 1.7,
               }}
@@ -304,9 +304,9 @@ export function FreeResult({
               className="rounded-full px-3 py-1"
               style={{
                 fontSize: 12,
-                color: colors.textMuted,
+                color: surfaces.onPage,
                 backgroundColor:
-                  colors.surface,
+                  surfaces.card,
                 border: `1px solid ${colors.border}`,
               }}
             >
@@ -350,7 +350,7 @@ export function FreeResult({
             }}
             className="mt-6 rounded-2xl p-5"
             style={{
-              backgroundColor: colors.surface,
+              backgroundColor: surfaces.card,
               border: `1px solid ${colors.border}`,
             }}
           >
@@ -424,7 +424,7 @@ export function FreeResult({
                   <p
                     style={{
                       color:
-                        colors.textMuted,
+                        surfaces.onPage,
                       fontSize: 13,
                       lineHeight: 1.55,
                       margin:
@@ -448,7 +448,7 @@ export function FreeResult({
                     className="w-full resize-none rounded-2xl px-4 py-3 outline-none"
                     style={{
                       backgroundColor:
-                        colors.bg,
+                        surfaces.page,
                       border: `1px solid ${colors.border}`,
                       color: colors.text,
                       fontSize: 14,
@@ -461,14 +461,14 @@ export function FreeResult({
                     <Pencil
                       size={12}
                       color={
-                        colors.textFaint
+                        surfaces.onPageFaint
                       }
                     />
 
                     <span
                       style={{
                         color:
-                          colors.textFaint,
+                          surfaces.onPageFaint,
                         fontSize: 11,
                       }}
                     >
@@ -503,7 +503,7 @@ export function FreeResult({
         >
           <p
             style={{
-              color: colors.textMuted,
+              color: surfaces.onPage,
               fontSize: 13.5,
               lineHeight: 1.65,
             }}
@@ -516,7 +516,7 @@ export function FreeResult({
         <p
           className="mt-5 text-center"
           style={{
-            color: colors.textFaint,
+            color: surfaces.onPageFaint,
             fontSize: 11.5,
             lineHeight: 1.6,
           }}
