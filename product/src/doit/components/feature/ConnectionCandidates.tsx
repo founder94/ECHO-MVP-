@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { chooseCandidate, fetchMyCandidates, type CandidateChoice, type MyCandidate, type MyCandidates } from '@/doit/lib/connectApi';
+import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
+import { claimZzarit } from '@/doit/lib/zzarit';
+import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 
 // 당신이 잠든 사이 — 서버(doit-connect v2.0)가 준비한 소수 후보(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§17).
@@ -9,9 +11,12 @@ import './connect.css';
 // 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 §3·§4: 후보를 한 번에 펼치지 않고 한 사람 → 이유가 있다는 것 → 이유 → 선택 순서로 연다.
 //   여는 것은 화면 순서뿐이다(서버가 준 것만 · 상대를 알아볼 정보는 서버가 보내지 않는다). 거리(Nearby Signal)는 서버가 거리 구간을 줄 때까지 그리지 않는다.
 //   「서로 골랐어요」 보상 화면은 서버가 이번 선택으로 mutual 이라고 답했을 때만 연다.
+// 2026-10-01 대표 「COMPLETE PRODUCT FLOW」: 그 화면 = ZZARIT(서버 mutual + match_id 확인 뒤 · 그 연결에서 한 번만 · 새로고침해도 다시 안 뜸).
+//   「SAFETY LAYER」: 숨기기 1번 · 차단 2번 · 신고(사유 고르기) 3번 안에. 「접수했어요」는 서버가 저장했다고 답할 때만.
 
 type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; eligible: boolean; candidates: MyCandidate[] };
-type Mutual = { matchId: string | null };
+type Mutual = { matchId: string };
+type Safety = { id: string; step: 'menu' | 'report' };
 
 const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '이번에는 넘길게요', hide: '숨기기' };
 
@@ -22,6 +27,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
   const [notice, setNotice] = useState<string | null>(null);
   const [opened, setOpened] = useState<Record<string, boolean>>({}); // 「왜 이 사람인지 보기」를 누른 후보(화면 순서만 · 저장하지 않는다)
   const [mutual, setMutual] = useState<Mutual | null>(null);
+  const [safety, setSafety] = useState<Safety | null>(null);
   const seq = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -45,9 +51,34 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
     setNotice(null);
     try {
       const out = await chooseCandidate(userId, candidate.id, choice);
-      if (out.status === 'mutual') setMutual({ matchId: typeof out.match_id === 'string' ? out.match_id : null });
+      if (out.status === 'mutual') {
+        // 서버가 연결(match_id)까지 확인했을 때만 ZZARIT. 이미 본 연결이면 바로 그 연결로.
+        if (typeof out.match_id === 'string') { if (claimZzarit(out.match_id)) setMutual({ matchId: out.match_id }); else onOpened(out.match_id); }
+        else setNotice('서로 같은 선택을 했어요. 아래 내 연결에서 이어 볼게요.');
+      }
       else if (out.status === 'waiting') setNotice('내 선택은 전해졌어요. 상대가 고르기 전에는 내가 고른 사실이 상대에게 보이지 않아요.');
       else setNotice(choice === 'hide' ? '숨겼어요. 이 후보는 다시 보이지 않아요.' : '넘겼어요. 이 후보는 다시 보이지 않아요.');
+      await refresh();
+    } catch (e) {
+      setError(e instanceof UnderstandingError && e.message ? e.message : '저장하지 못했어요. 다시 눌러 주세요.');
+      await refresh();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // 차단·신고(숨김과 함께). 서버가 저장했다고 답한 것만 말한다.
+  const protect = async (candidate: MyCandidate, block: boolean, reason?: ReportReason) => {
+    if (busy) return;
+    setBusy(candidate.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const out = await reportCandidate(userId, candidate.id, { block, reason });
+      setSafety(null);
+      setNotice(out.reported ? '접수했어요. 이 후보는 다시 보이지 않고, 다시 추천되지 않아요.'
+        : out.blocked ? '차단했어요. 이 후보는 다시 보이지 않고, 다시 추천되지 않아요.'
+        : '숨겼어요. 이 후보는 다시 보이지 않아요.');
       await refresh();
     } catch (e) {
       setError(e instanceof UnderstandingError && e.message ? e.message : '저장하지 못했어요. 다시 눌러 주세요.');
@@ -61,15 +92,8 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
   if (load.kind === 'error') return <div className="doit-connect doit-candidates"><p className="doit-product-error" role="alert">{load.message}</p><button type="button" className="doit-connect-link" onClick={() => void refresh()}>다시 확인하기</button></div>;
   if (!load.eligible) return null; // 연결 준비가 끝나지 않았으면 아래 「연결까지 남은 것」이 다음 할 일을 보여 준다
 
-  // 서버가 이번 선택으로 두 사람 모두 골랐다고 답했을 때만(상대 정보 0 · 차분하게).
-  if (mutual) return <section className="doit-connect doit-mutual" aria-label="서로 골랐어요" role="status">
-    <span className="echo-mutual-align" aria-hidden="true"><i /><i /></span>
-    <p className="doit-match-kicker">서로 골랐어요</p>
-    <p className="doit-mutual-title">상대도 당신이 궁금했대요.</p>
-    <p className="doit-mutual-body">두 사람 모두 조금 더 이야기해 보고 싶다고 했어요.</p>
-    <button type="button" className="doit-product-action" onClick={() => { onOpened(mutual.matchId); setMutual(null); }}>이야기 시작하기<span aria-hidden="true">↗</span></button>
-    <p className="doit-connect-note">먼저 ECHO가 두 분께 같은 질문 하나를 드려요. 둘 다 답하면 서로의 이름과 사진이 열려요.</p>
-  </section>;
+  // 서버가 이번 선택으로 두 사람 모두 골랐다고(mutual + match_id) 답했을 때만 · 상대 정보 0 · 차분하게.
+  if (mutual) return <ZzaritMoment onStart={() => { onOpened(mutual.matchId); setMutual(null); }} />;
 
   const fresh = load.candidates.filter(c => !c.waiting).length;
   const title = fresh === 1 ? <>당신이 잠든 사이,<br />ECHO가 한 사람을 발견했어요.</>
@@ -100,6 +124,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
                 <button type="button" className="doit-connect-link" disabled={!!busy} onClick={() => void choose(c, 'no')}>{CHOICE_LABEL.no}</button>
                 <button type="button" className="doit-connect-link" disabled={!!busy} onClick={() => void choose(c, 'hide')}>{CHOICE_LABEL.hide}</button>
               </div>}
+          <SafetyRow candidate={c} index={i} busy={!!busy} safety={safety} setSafety={setSafety} protect={protect} />
         </>}
       </article>;
     })}
@@ -107,4 +132,24 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
     {error && <p className="doit-product-error" role="alert">{error}</p>}
     {load.candidates.length > 0 && <p className="doit-connect-note">두 사람이 모두 「이어지고 싶어요」를 누를 때만 연결이 열려요. 그 전에는 서로의 이름·사진이 보이지 않아요. 최종 선택은 언제나 내가 해요.</p>}
   </section>;
+}
+
+// 후보 안전 줄 — 「불편해요」 → 차단 / 신고(사유). 경찰 앱처럼 크게 만들지 않고 조용한 글자 버튼으로.
+function SafetyRow({ candidate, index, busy, safety, setSafety, protect }: {
+  candidate: MyCandidate; index: number; busy: boolean; safety: Safety | null;
+  setSafety: (s: Safety | null) => void; protect: (c: MyCandidate, block: boolean, reason?: ReportReason) => Promise<void>;
+}) {
+  const mine = safety?.id === candidate.id ? safety : null;
+  if (!mine) return <button type="button" className="doit-connect-link doit-safety-open" disabled={busy} onClick={() => setSafety({ id: candidate.id, step: 'menu' })}>불편해요 · 차단 · 신고</button>;
+  return <div className="doit-safety" role="group" aria-label={`후보 ${index + 1} 차단·신고`}>
+    {mine.step === 'menu' ? <>
+      <p className="doit-connect-note">차단하면 다시 추천되지 않아요. 상대에게 알림은 가지 않아요.</p>
+      <button type="button" className="doit-connect-link" disabled={busy} onClick={() => void protect(candidate, true)}>차단할게요</button>
+      <button type="button" className="doit-connect-link" disabled={busy} onClick={() => setSafety({ id: candidate.id, step: 'report' })}>신고할게요</button>
+    </> : <>
+      <p className="doit-connect-note">어떤 점이 불편했나요? 신고하면 차단도 함께 돼요.</p>
+      <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" disabled={busy} onClick={() => void protect(candidate, true, code)}>{label}</button>)}</div>
+    </>}
+    <button type="button" className="doit-connect-link" disabled={busy} onClick={() => setSafety(null)}>닫기</button>
+  </div>;
 }

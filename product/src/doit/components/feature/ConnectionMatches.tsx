@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { ANSWER_MAX, MESSAGE_MAX, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField } from '@/doit/lib/connectApi';
+import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
+import { claimZzarit } from '@/doit/lib/zzarit';
+import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 import PartnerFrame from './PartnerFrame';
 
@@ -19,6 +21,7 @@ function errorText(e: unknown, fallback: string): string {
 // 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」 §12: 서로 골라 연결이 열리면 그 연결(서버가 준 match_id)로 바로 데려간다. 화면이 연결을 만들지 않는다.
 export default function ConnectionMatches({ userId, focusId = null }: { userId: string; focusId?: string | null }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
+  const [safetyNote, setSafetyNote] = useState<string | null>(null); // 서버가 저장했다고 답한 차단·신고만
   const seq = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -60,7 +63,8 @@ export default function ConnectionMatches({ userId, focusId = null }: { userId: 
       <p className="doit-asleep-label">내 연결 {load.matches.filter(m => m.status === 'open').length}</p>
       <button type="button" className="doit-connect-link" onClick={() => void refresh()}>새로 보기</button>
     </div>
-    {load.matches.map(m => <MatchCard key={m.id} focused={m.id === focusId} match={m} userId={userId} consented={load.consented} onConsented={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: true } : prev)} onConsentLost={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: false } : prev)} onChanged={refresh} />)}
+    {safetyNote && <p className="doit-connect-note doit-safety-done" role="status">{safetyNote}</p>}
+    {load.matches.map(m => <MatchCard key={m.id} focused={m.id === focusId} match={m} userId={userId} consented={load.consented} onConsented={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: true } : prev)} onConsentLost={() => setLoad(prev => prev.kind === 'ready' ? { ...prev, consented: false } : prev)} onChanged={refresh} onSafety={setSafetyNote} />)}
   </section>;
 }
 
@@ -72,13 +76,16 @@ interface MatchCardProps {
   onConsented: () => void;
   onConsentLost: () => void;
   onChanged: () => Promise<void>;
+  onSafety: (note: string) => void;
 }
 
-function MatchCard({ focused, match, userId, consented, onConsented, onConsentLost, onChanged }: MatchCardProps) {
+function MatchCard({ focused, match, userId, consented, onConsented, onConsentLost, onChanged, onSafety }: MatchCardProps) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState(false);
+  const [leaving, setLeaving] = useState<false | 'menu' | 'report'>(false);
+  // ZZARIT: 먼저 고르고 기다리던 사람도, 서버가 서로 골라 열린 연결(via_mutual)이라고 줄 때 이 연결에서 한 번만.
+  const [zzarit, setZzarit] = useState(() => match.status === 'open' && match.via_mutual === true && !match.my_answer && claimZzarit(match.id));
 
   if (match.status === 'closed') {
     return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
@@ -114,13 +121,14 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
     else onConsented();
   };
 
-  const leave = async (block: boolean, report: boolean) => {
+  const leave = async (block: boolean, report: boolean, reason?: ReportReason) => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      await leaveMatch(userId, match.id, { block, report });
+      const out = await leaveMatch(userId, match.id, { block, report, reason });
       setLeaving(false);
+      onSafety(out.reported ? '접수했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : out.blocked ? '차단했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : '그 연결을 끝냈어요. 서로의 이야기는 더 보이지 않아요.');
       await onChanged();
     } catch (e) {
       setError(errorText(e, '지금은 끝내지 못했어요. 다시 눌러 주세요.'));
@@ -134,6 +142,10 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
 
   // 휴대폰 글자판이 입력칸을 가리지 않게: 입력칸을 누르면 화면 가운데로 올린다(글자판이 뜬 뒤 한 번 더).
   const keepVisible = (el: HTMLElement) => { el.scrollIntoView({ block: 'center' }); window.visualViewport?.addEventListener('resize', () => el.scrollIntoView({ block: 'center' }), { once: true }); };
+
+  if (zzarit) return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="zzarit">
+    <ZzaritMoment onStart={() => setZzarit(false)} />
+  </article>;
 
   return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state={stage} data-focus={focused ? 'true' : undefined}>
     {/* 2026-10-01 ECHO FRAME: 서버가 공개(revealed)라고 보낸 상대만 — 한 문장 → 실제 사진 장면 → 이름·관계 단서. 공개 전에는 상대 정보가 오지 않는다. */}
@@ -150,6 +162,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
         <li>두 사람이 모두 답하면, 상대에게 내 <b>닉네임 · 대표 사진 · 소개 · 고른 만남 · 이 질문에 쓴 답</b>이 보여요.</li>
         <li>둘 다 답하기 전에는 아무것도 보이지 않아요.</li>
         <li>전화번호와 이메일은 보이지 않아요. 연락처와 링크는 보낼 수도 없어요.</li>
+        <li>정확한 위치는 상대에게 보이지 않아요.</li>
         <li>「이 연결 그만하기」를 누르면 언제든 끝나고, 더 보이지 않아요.</li>
       </ul>
       <button className="doit-product-action" type="button" onClick={() => void consent()} disabled={busy}>{busy ? '저장하는 중' : '확인했어요, 답할게요'}<span aria-hidden="true">↗</span></button>
@@ -182,20 +195,27 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
+      <p className="doit-connect-note">불편하면 언제든 나갈 수 있어요. 아래 「이 연결 그만하기」에서 차단·신고도 할 수 있어요.</p>
       <OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} />
     </>}
 
     {error && <p className="doit-product-error" role="alert">{error}</p>}
 
     {!leaving
-      ? <button type="button" className="doit-connect-link" onClick={() => setLeaving(true)} disabled={busy}>이 연결 그만하기</button>
-      : <div className="doit-match-leave" role="group" aria-label="그만하기 확인">
-          <p>그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요.</p>
-          <button type="button" className="doit-connect-link" onClick={() => void leave(false, false)} disabled={busy}>그만할게요</button>
-          <button type="button" className="doit-connect-link" onClick={() => void leave(true, false)} disabled={busy}>차단할게요</button>
-          <button type="button" className="doit-connect-link" onClick={() => void leave(true, true)} disabled={busy}>차단하고 신고할게요</button>
-          <button type="button" className="doit-connect-link" onClick={() => setLeaving(false)} disabled={busy}>계속할게요</button>
-        </div>}
+      ? <button type="button" className="doit-connect-link" onClick={() => setLeaving('menu')} disabled={busy}>이 연결 그만하기</button>
+      : leaving === 'menu'
+        ? <div className="doit-match-leave" role="group" aria-label="그만하기 확인">
+            <p>그만하면 서로의 이야기가 더 보이지 않고, 다시 이어지지 않아요. 차단하면 다시 추천되지 않아요.</p>
+            <button type="button" className="doit-connect-link" onClick={() => void leave(false, false)} disabled={busy}>그만할게요</button>
+            <button type="button" className="doit-connect-link" onClick={() => void leave(true, false)} disabled={busy}>차단할게요</button>
+            <button type="button" className="doit-connect-link" onClick={() => setLeaving('report')} disabled={busy}>차단하고 신고할게요</button>
+            <button type="button" className="doit-connect-link" onClick={() => setLeaving(false)} disabled={busy}>계속할게요</button>
+          </div>
+        : <div className="doit-match-leave" role="group" aria-label="신고 사유">
+            <p>어떤 점이 불편했나요? 고르면 이 연결은 끝나고 차단도 함께 돼요.</p>
+            <div className="doit-safety-reasons">{REPORT_REASONS.map(([code, label]) => <button key={code} type="button" className="doit-connect-link" onClick={() => void leave(true, true, code)} disabled={busy}>{label}</button>)}</div>
+            <button type="button" className="doit-connect-link" onClick={() => setLeaving('menu')} disabled={busy}>뒤로</button>
+          </div>}
   </article>;
 }
 
@@ -230,6 +250,15 @@ function OutcomeForm({ userId, matchId, initial }: { userId: string; matchId: st
       <legend>{q.legend}</legend>
       <div className="doit-outcome-chips">{q.options.map(([opt, label]) => <button key={opt} type="button" aria-pressed={value[q.field] === opt} disabled={busy} onClick={() => void pick(q.field, opt)}>{label}</button>)}</div>
     </fieldset>)}
+    {value.met === 'planned' && <div className="doit-meet-safety" role="note" aria-label="만나기 전에">
+      <p className="doit-match-kicker">만나기 전에, 짧게</p>
+      <ul>
+        <li>처음엔 사람이 많은 곳에서 낮에 만나요.</li>
+        <li>오가는 길은 내가 정하고, 믿는 사람에게 약속 장소를 알려 두세요.</li>
+        <li>돈·계좌·개인정보를 달라고 하면 만나지 말고 신고해 주세요.</li>
+        <li>불편하면 언제든 자리를 떠나도 괜찮아요.</li>
+      </ul>
+    </div>}
     {error && <p className="doit-product-error" role="alert">{error}</p>}
     <p className="doit-connect-note">다음 후보를 더 잘 준비하는 데만 써요. 상대에게 보이지 않고, 내 소개나 확정한 이야기로 바뀌지 않아요.</p>
   </div>;

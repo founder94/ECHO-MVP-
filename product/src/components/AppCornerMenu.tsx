@@ -17,6 +17,7 @@ const ITEMS = [
   { label: '나의 이해', desc: '맞다고 한 것만 모아 뒀어요', to: '/doit/understanding' },
   { label: '오늘의 나 · 사주·타로', desc: '재미로 가볍게 보는 무료 콘텐츠', to: '/doit/fortune' },
   { label: '앱 설치', desc: '홈 화면에서 바로 열어요', to: '/doit/settings#install' },
+  { label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '/doit/settings#guide' },
   { label: '설정', desc: '소개·사진·계정', to: '/doit/settings' },
   { label: '약관 · 개인정보', desc: '서비스 규칙과 내 정보', to: '/doit/settings#policy' },
 ].filter((item) => visibleInRelease(item.to.split('#')[0]));

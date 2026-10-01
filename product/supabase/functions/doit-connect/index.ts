@@ -1,4 +1,4 @@
-// doit-connect — 연결 서버 (v2.0 · 2026-09-28 · 후보 준비 · 상호선택 · 결과 기록 — 아래 v2.0 설명)
+// doit-connect — 연결 서버 (v2.1 · 2026-10-01 신고 사유 · 후보 차단·신고 / v2.0 · 2026-09-28 후보 준비 · 상호선택 · 결과 기록)
 //
 // v1.2(대표 2026-09-24 "최종완성하라고"): 막힌 곳 세 군데를 푼다.
 //  (a) 겹친 말이 없는 같은 목적 쌍도 후보 목록 맨 뒤에 "겹친 말 없음"으로 보여 준다(빠져나갈 문). 추천 순서는 그대로 겹친 말 우선이고,
@@ -26,6 +26,8 @@
 //    via_mutual: 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결이면 true(관리자가 연 연결은 false). 후보 표만으로 서버가 계산한다(2026-10-01).
 // ⑤ answer / message: 첫 답, 그 뒤 이야기. 저장 금지 입력(연락처·식별번호·링크·성적 표현)은 막고 안내한다.
 // ⑥ leave: 그만하기(차단·신고 선택). 끝난 연결은 상대 정보를 다시 내려 주지 않는다.
+//    v2.1(2026-10-01 대표 「SAFETY LAYER」): 신고 사유(reason: unpleasant·scam·fake·threat·spam·other)를 받는다. 같은 사람·같은 사유 신고는 한 번만 쌓인다.
+//    후보 단계(choose hide/no)에서도 block·reason 을 받아 차단·신고한다(새 표·칸 없음 · 기존 blocks·user_reports). 응답 blocked·reported 는 실제로 저장된 것만.
 // ⑦ admin_matches(관리자): 연결 목록과 진행(답 수·이야기 수). 이야기 내용은 내려 주지 않는다.
 //
 // v2.0(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§19 · QA 전용 표 doit_match_candidates·doit_match_outcomes):
@@ -565,6 +567,32 @@ interface CandidateRow {
 }
 const CANDIDATE_COLS = "id, user_a, user_b, purpose_id, common_a, common_b, a_choice, b_choice, status, match_id, source, created_at";
 const CHOICES = new Set(["yes", "no", "hide"]);
+// 신고 사유 — 화면 버튼과 같은 6개. 저장은 「어디서:코드 한국어」(관리자 화면의 중대 의심 글자 검사가 그대로 읽는다).
+export const REPORT_REASONS: Readonly<Record<string, string>> = {
+  unpleasant: "불쾌한 대화", scam: "사기·금전 요구", fake: "허위 정보", threat: "위협·강요", spam: "스팸", other: "기타",
+};
+type SafetyAsk = { block: boolean; reason: string | null; bad: boolean };
+function safetyAsk(body: Record<string, unknown>): SafetyAsk {
+  const raw = body.reason;
+  if (raw === undefined || raw === null) return { block: body.block === true, reason: null, bad: false };
+  const code = typeof raw === "string" ? raw : "";
+  return { block: body.block === true, reason: Object.hasOwn(REPORT_REASONS, code) ? code : null, bad: !Object.hasOwn(REPORT_REASONS, code) };
+}
+// 차단·신고를 실제로 저장하고, 저장된 것만 true 로 돌려준다. 같은 사람·같은 사유 신고는 한 번만.
+async function recordSafety(admin: Db, userId: string, targetId: string, where: "connection" | "candidate", block: boolean, report: string | null): Promise<{ blocked: boolean; reported: boolean }> {
+  let blocked = false, reported = false;
+  if (block) {
+    const { error } = await admin.from("blocks").upsert({ blocker_id: userId, blocked_user_id: targetId, reason: where }, { onConflict: "blocker_id,blocked_user_id", ignoreDuplicates: true });
+    blocked = !error;
+  }
+  if (report !== null) {
+    const reason = report === "legacy" ? where : `${where}:${report} ${REPORT_REASONS[report]}`;
+    const { data: had } = await admin.from("user_reports").select("id").eq("reporter_id", userId).eq("target_user_id", targetId).eq("reason", reason).limit(1).maybeSingle();
+    if (had) reported = true;
+    else { const { error } = await admin.from("user_reports").insert({ reporter_id: userId, target_user_id: targetId, reason, detail: null }); reported = !error; }
+  }
+  return { blocked, reported };
+}
 const OUTCOME_FIELDS: Record<string, readonly string[]> = {
   talked: ["yes", "no"], met: ["yes", "planned", "no"], again: ["yes", "unsure", "no"], helpful: ["yes", "unsure", "no"],
 };
@@ -826,16 +854,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!UUID_RE.test(matchId)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
       const found = await loadMatch(admin, matchId, userId);
       if (!found) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
-      const block = body.block === true;
-      const report = body.report === true;
+      const ask = safetyAsk(body);
+      if (ask.bad) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const block = ask.block;
+      const report = ask.reason ?? (body.report === true ? "legacy" : null); // 예전 화면(report:true · 사유 없음)은 그대로 "connection"
       if (found.match.status === "approved") {
         const { error } = await admin.from("doit_matches").update({ status: "closed", closed_by: userId, updated_at: new Date().toISOString() }).eq("id", matchId);
         if (error) return fail(CODES.ERROR, "지금은 끝내지 못했어요. 다시 눌러 주세요.", 500, origin);
       }
-      if (block) await admin.from("blocks").upsert({ blocker_id: userId, blocked_user_id: found.partnerId, reason: "connection" }, { onConflict: "blocker_id,blocked_user_id", ignoreDuplicates: true });
-      if (report) await admin.from("user_reports").insert({ reporter_id: userId, target_user_id: found.partnerId, reason: "connection", detail: null });
-      logDiag({ action, block, report });
-      return json({ ok: true }, 200, origin);
+      const saved = await recordSafety(admin, userId, found.partnerId, "connection", block, report);
+      logDiag({ action, block, report: report !== null, reason: ask.reason });
+      return json({ ok: true, ...saved }, 200, origin);
     }
 
     // ⑧ 당신이 잠든 사이 — 내 후보. 자격이 있으면 부족한 만큼 서버가 먼저 준비하고, 후보 단계에서는 상대 정보를 내려 주지 않는다.
@@ -867,6 +896,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const id = str(body.candidateId);
       const choice = str(body.choice);
       if (!UUID_RE.test(id) || !CHOICES.has(choice)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const ask = safetyAsk(body);
+      const safety = ask.block || ask.reason !== null;
+      if (ask.bad || (safety && choice === "yes")) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
       const { data: row } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", id).maybeSingle();
       const c = row ? asCandidate(row) : null;
       if (!c || (c.user_a !== userId && c.user_b !== userId)) return fail(CODES.NOT_FOUND, "이 후보를 찾지 못했어요.", 404, origin);
@@ -875,18 +907,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const already = side === "a" ? c.a_choice : c.b_choice;
       if (c.status === "mutual" && already === "yes" && choice === "yes") return json({ ok: true, status: "mutual", match_id: c.match_id }, 200, origin);
       if (c.status !== "proposed") return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
-      if (already !== null && already !== choice) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
+      // 차단·신고는 「이어지고 싶어요」를 누른 뒤(기다리는 중)에도 할 수 있다 — 그 선택을 거두고 끝낸다.
+      if (already !== null && already !== choice && !safety) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
       const partnerId = side === "a" ? c.user_b : c.user_a;
       if ((await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
         await admin.from("doit_match_candidates").update({ status: "withdrawn", updated_at: new Date().toISOString() }).eq("id", id);
+        if (safety) { const saved = await recordSafety(admin, userId, partnerId, "candidate", ask.block, ask.reason); return json({ ok: true, status: "declined", ...saved }, 200, origin); }
         return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
       }
       const now = new Date().toISOString();
       if (choice !== "yes") {
         const { error } = await admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id);
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
-        logDiag({ action, choice });
-        return json({ ok: true, status: "declined" }, 200, origin);
+        const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", ask.block, ask.reason) : { blocked: false, reported: false };
+        logDiag({ action, choice, block: saved.blocked, reason: ask.reason });
+        return json({ ok: true, status: "declined", ...saved }, 200, origin);
       }
       if (already !== "yes") {
         const { error } = await admin.from("doit_match_candidates").update({ [col]: "yes", updated_at: now }).eq("id", id);

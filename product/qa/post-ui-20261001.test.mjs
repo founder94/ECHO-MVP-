@@ -30,8 +30,10 @@ test('기다림 = 숨 쉬는 점(돌아가는 표시 0) · 서로 골랐어요 =
   assert.match(CAND, /className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" \/>내 선택은 전해졌어요\./);
   assert.match(MATCH, /className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" \/>상대의 답을 기다리고 있어요\./);
   assert.doesNotMatch(CAND + MATCH, /spinner|animate-spin/);
+  // 2026-10-01 ZZARIT 로 바뀜: 두 신호 맞춤은 ZzaritMoment 안에만, 그 화면은 서버 mutual + match_id 뒤에만 연다.
   const mutualAt = CAND.indexOf('if (mutual) return');
-  assert.ok(CAND.indexOf('echo-mutual-align') > mutualAt, '정렬 표시는 서버 mutual 화면 안에만');
+  assert.ok(CAND.indexOf('<ZzaritMoment') > mutualAt, 'ZZARIT 은 서버 mutual 화면 안에만');
+  assert.match(read('src/doit/components/feature/ZzaritMoment.tsx'), /className="echo-zzarit-signal" \/><span className="echo-zzarit-signal" \/>/);
 });
 
 test('사용자 화면에 내부 설계 말 0(65% · 35% · Reveal · Lock · KEY Unlock · 상태 이름)', () => {

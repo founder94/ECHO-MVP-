@@ -870,3 +870,57 @@ test('FI-018 CASE 9(연결): QA 실패 모양 — 대화를 마쳤지만 사용�
   const fixed = await loadServer(fi018([{ ...row, profile: qaA }, agentRow(ID.b, READY)]))(ID.a, { action: 'my_candidates' });
   assert.equal(fixed.body.eligible, true); assert.equal(fixed.body.candidates.length, 1);
 });
+
+// v2.1(2026-10-01 대표 「SAFETY LAYER」): 신고 사유 · 후보 단계 차단·신고 · 응답은 실제로 저장된 것만 · 같은 신고는 한 번만.
+test('v2.1 안전: 연결 신고 사유 6개만 · 저장값 「connection:코드 한국어」 · 같은 사유 다시 눌러도 1건 · 예전 report:true 는 그대로', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const matchId = s.tables.doit_matches[0].id;
+  assert.equal((await call(ID.b, { action: 'leave', matchId, block: true, reason: 'hack' })).status, 400, '모르는 사유는 거절');
+  assert.equal(s.tables.doit_matches[0].status, 'approved', '거절된 요청은 아무것도 바꾸지 않는다');
+  const r = await call(ID.b, { action: 'leave', matchId, block: true, reason: 'threat' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.blocked, r.body.reported], [true, true]);
+  assert.equal(s.tables.doit_matches[0].status, 'closed');
+  assert.equal(s.tables.user_reports.length, 1);
+  assert.equal(s.tables.user_reports[0].reason, 'connection:threat 위협·강요');
+  assert.equal(s.tables.user_reports[0].detail, null, '자유 글 저장 0');
+  assert.equal(s.tables.user_reports[0].target_user_id, ID.a);
+  const again = await call(ID.b, { action: 'leave', matchId, block: true, reason: 'threat' });
+  assert.equal(again.body.reported, true);
+  assert.equal(s.tables.user_reports.length, 1, '같은 사람·같은 사유 신고는 한 번만');
+  const legacy = await call(ID.b, { action: 'leave', matchId, block: false, report: true });
+  assert.equal(legacy.body.reported, true);
+  assert.equal(s.tables.user_reports[1].reason, 'connection', '예전 화면 호환');
+  const m = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+  assert.equal(m.status, 'closed'); assert.ok(!('partner' in m) && !('messages' in m), '끝난 연결은 상대 정보·이야기 0');
+  assert.equal((await call(ID.a, { action: 'message', matchId, text: '안녕하세요' })).status >= 400, true, '차단 뒤 새 메시지 0');
+  assert.ok(!s.logs.some((l) => l.includes(NICK_B) || l.includes('위협·강요')), '로그에 이름·한국어 사유 원문 0');
+});
+
+test('v2.1 안전: 후보 단계 차단·신고 — 숨김과 함께 저장 · 기다리는 중(yes)에도 가능 · yes+차단은 400 · 다시 추천 0', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes', block: true })).status, 400, '이어지고 싶어요 + 차단은 모순');
+  await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  const r = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', block: true, reason: 'spam' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.status, r.body.blocked, r.body.reported], ['declined', true, true]);
+  assert.equal(candOf(s, ID.a, ID.b).status, 'declined');
+  assert.equal(s.tables.user_reports[0].reason, 'candidate:spam 스팸');
+  assert.ok(s.tables.blocks.some((b) => b.blocker_id === ID.a && b.blocked_user_id === ID.b && b.reason === 'candidate'));
+  assert.equal((await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' })).status, 409, '상대가 뒤늦게 골라도 연결 0');
+  assert.equal(s.tables.doit_matches.length, 0);
+  assert.equal((await call(ID.a, { action: 'my_candidates' })).body.candidates.length, 0);
+  assert.equal((await call(ID.admin, { action: 'admin_run_matching' })).body.made, 0, '차단한 사이 다시 추천 0');
+  const hideOnly = world();
+  const call2 = loadServer(hideOnly);
+  await call2(ID.a, { action: 'my_candidates' });
+  const c2 = candOf(hideOnly, ID.a, ID.b);
+  const h = await call2(ID.a, { action: 'choose', candidateId: c2.id, choice: 'hide' });
+  assert.deepEqual([h.body.blocked, h.body.reported], [false, false], '숨기기만 하면 차단·신고 0');
+  assert.equal((hideOnly.tables.user_reports ?? []).length, 0);
+});
