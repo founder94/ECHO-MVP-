@@ -24,6 +24,15 @@ const ch = await call(jwt, { action: 'choose', candidateId: randomUUID(), choice
 check('choose 남의·없는 후보 = 404(쓰기 0)', ch.status === 404, `status=${ch.status}`);
 const chBad = await call(jwt, { action: 'choose', candidateId: 'x', choice: 'maybe' });
 check('choose 잘못된 요청 = 400', chBad.status === 400, `status=${chBad.status}`);
+// 2026-10-01 v2.1 안전: 잘못된 신고 사유·「이어지고 싶어요」+차단은 쓰기 전에 400 · 없는 후보 차단·신고는 404(쓰기 0)
+const chYesBlock = await call(jwt, { action: 'choose', candidateId: randomUUID(), choice: 'yes', block: true });
+check('choose yes + 차단 = 400(모순)', chYesBlock.status === 400, `status=${chYesBlock.status}`);
+const chBadReason = await call(jwt, { action: 'choose', candidateId: randomUUID(), choice: 'hide', block: true, reason: 'hack' });
+check('choose 모르는 신고 사유 = 400', chBadReason.status === 400, `status=${chBadReason.status}`);
+const chReport = await call(jwt, { action: 'choose', candidateId: randomUUID(), choice: 'hide', block: true, reason: 'spam' });
+check('choose 없는 후보 차단·신고 = 404(쓰기 0)', chReport.status === 404, `status=${chReport.status}`);
+const lvBad = await call(jwt, { action: 'leave', matchId: randomUUID(), block: true, reason: 'threat' });
+check('leave 없는 연결 신고 = 404(쓰기 0)', lvBad.status === 404, `status=${lvBad.status}`);
 const oc = await call(jwt, { action: 'outcome', matchId: randomUUID(), met: 'yes' });
 check('outcome 없는 연결 = 404(쓰기 0)', oc.status === 404, `status=${oc.status}`);
 const ocBad = await call(jwt, { action: 'outcome', matchId: randomUUID(), met: 'maybe' });
