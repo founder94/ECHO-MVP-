@@ -1,0 +1,9 @@
+-- ROLLBACK 초안 · 실행 금지 · PENDING_20261002_meet_gate_B.sql 짝
+-- 1단계(기본): doit-connect 의 meet_* 동작을 끈다(코드) — 표·기록은 그대로.
+-- 2단계(보존 정책 승인 뒤에만): 아래 삭제. 기록이 있으면 먼저 보존 사본 여부를 대표가 정한다.
+-- begin;
+-- drop table if exists public.doit_meet_intents;
+-- drop table if exists public.doit_meet_checks;
+-- drop table if exists public.doit_video_participation;
+-- drop table if exists public.doit_video_sessions;
+-- commit;
