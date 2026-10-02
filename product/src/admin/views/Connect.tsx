@@ -89,6 +89,16 @@ export default function Connect() {
           </table></div>
         )) : null}
       </Section>
+      {/* 2026-10-02 PR #99: 마지막 구간 네 기록은 서로 다른 기록이다. 저장 표·영상 서비스(승인 묶음 B) 전이라 서버 창구가 없다 → 0 이 아니라 「연결 필요」. */}
+      <Section title="마지막 구간(만나기 전)" sub="영상 참여 · 각자 모습 확인 · 각자 만남 의사 · 약속 합의는 각각 따로 셉니다(하나가 다른 하나를 대신하지 않음)">
+        <Notice kind="연결 필요">이 네 기록은 아직 저장되지 않아요(만남 기능 꺼짐 · 저장 표와 영상 서비스 연결 전). 서버가 기록을 시작하면 그 값만 보여 줘요.</Notice>
+        <div className="aw-grid">
+          <Stat label="영상 참여(두 사람 모두)" value={null} missing="연결 필요" />
+          <Stat label="모습 확인(각자)" value={null} missing="연결 필요" />
+          <Stat label="만남 의사(각자)" value={null} missing="연결 필요" />
+          <Stat label="약속 합의(두 사람 모두 원함)" value={null} missing="연결 필요" />
+        </div>
+      </Section>
       <Section title="연결 기록" sub="결과(대화·만남·다시 만나고 싶음)는 사용자가 직접 남긴 값입니다">
         {matches.kind === 'loading' ? <Loading /> : null}
         {matches.kind === 'error' ? <Notice kind="오류">{matches.message}</Notice> : null}

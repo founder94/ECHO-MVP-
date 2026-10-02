@@ -324,3 +324,43 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 - 실서버 계약 19/19: meet 3동작 = 503 MEET_NOT_CONFIGURED(응답 키 ok·code 만) · 로그인 없음 401 · 기존 15개 그대로.
 - 두 계정 실제 안전 E2E 96/96(run muqw2tm4 · 새 버전) — 기존 연결 흐름 영향 0.
 - 하지 않은 것: 켜진 상태의 실서버 검사(표 없음 · 승인 묶음 B 전) · 실기기 · 영상 공급자.
+
+## 16. PR99-B — sessionId 계약 채택 · 실제 활성화 준비(2026-10-02)
+### 16.1 결정(전략본부 · 다시 묻지 않음)
+- `meet_status` 에 `sessionId` 를 **조건부**로 포함: 이 연결에 속한 영상 확인용 ECHO 내부 기록 번호(`doit_video_sessions.id`) — 로그인 세션·토큰·통화 입장권·공급자 방 번호(`provider_session_ref`)가 아님.
+- 반환 조건: 서버가 확인한 현재 참가자 + 그 연결의 기록 + 현재 확인 절차에 걸린 유효 기록(meetGate 의 공동 세션). 없으면 `null`(가짜 번호·「마지막 기록 아무거나」 0).
+- 번호를 돌려받아도 서버가 연결·참가자·기록·현재 동의·차단을 다시 확인(지금 meetApi.authorizeEvidence 가 이미 함). 번호 있음 ≠ 확인·의사 완료.
+- 담당: `meetApi.ts` 변경 = Codex(작업 PR99-B-API). Claude 는 이 파일을 고치지 않는다.
+
+### 16.2 이번에 Claude 가 한 것(Codex 결과와 독립)
+| ID | 담당 | 기준 | 파일 | 완료 조건 | 결과 |
+|---|---|---|---|---|---|
+| PR99-B-STEP | Claude | a37ac99 | doit-connect/index.ts(meetPolicy) | 마지막 구간을 실제 상태 전이로 판정 · 스위치로 참이 되지 않음 | 연결(approved) → 두 사람 첫 답 저장 → 두 사람 현재 공개 동의 = 공개된 연결일 때만 `lastStepOpen` 참(my_matches 공개 조건과 같음) · 동의 철회·답 읽기 실패 = 닫힘 |
+| PR99-B-UI | Claude | 〃 | MeetStep.tsx · ConnectionMatches.tsx · connectApi.ts · connect.css | 서버 상태만 그림 · 꺼짐/실패/「지금은 어려움」 = 그리지 않음 · 번호 없으면 버튼 0 · 번호는 화면에 안 보임 | 이야기 단계 카드 안 한 구간(영상 안내 / 상대 모습 확인 / 만남 의사 3택 / 기다림 / 둘 다 원함 → 약속 안내 + 안전 안내) |
+| PR99-B-ADMIN | Claude | 〃 | admin/views/Connect.tsx | 네 기록 따로 · 0 아님 | 영상 참여 · 모습 확인 · 만남 의사 · 약속 합의 = 「연결 필요」(서버 창구 생기면 그 값만) |
+
+- 신고 정책 대조: `user_reports` 의 resolved/closed 가 아닌 신고 = 멈춤 — 관리자 서버(admin-web)의 「열린 신고」 정의와 같다. 신고는 제재·가해 확정이 아니라 **이 두 사람의 만남 단계만 보류**. 응답은 「unavailable」 하나(신고·차단·동의 중 무엇인지, 누가 신고했는지 드러내지 않음 · 검사로 고정).
+- 앞 구간(6·탐색 / 4·협동)은 서버에 아직 없다 → 생기면 그 완료 기록을 meetPolicy 한 곳에 더한다.
+
+### 16.3 승인 묶음 B — 실제 실행안(QA 먼저 · PROD 는 별도)
+| 저장소 | 목적 | 재사용 가능한 기존 자료 | 정확한 변경 | 누가 쓰나 |
+|---|---|---|---|---|
+| doit_video_sessions | 이 연결의 영상 한 번(공급자 콜백 서명 확인됨) | doit_matches(연결) | 새 표 · match_id FK · (provider, provider_session_ref) 유일 | 공급자 콜백 함수(service_role) |
+| doit_video_participation | 사람별 참여 사실·시각·카메라 켠 초 | 없음(영상·음성 내용 저장 0) | 새 표 · (session_id, user_id) 기본키 | 〃 |
+| doit_meet_checks | 각자 상대 모습 확인 | 없음 | 새 표 · (session_id, user_id) 기본키(재시도 = 한 줄) | doit-connect meet_check |
+| doit_meet_intents | 각자 만남 의사(바꿀 수 있음 · 이력) | doit_match_outcomes 는 사용자 자기 기록(「약속했어요」)이라 판정 재료로 못 씀 | 새 표 · (user_id, request_id) 유일(같은 제출 1회 · 다른 내용 409) | doit-connect meet_intent |
+- 권한: 네 표 모두 RLS 켬 · 정책 0 · anon/authenticated 권한 회수 · service_role 만(기존 doit_matches 계열과 같은 방식). 화면이 직접 읽고 쓰는 길 0.
+- 표 수가 목표가 아니다: Codex meetApi 가 이 네 이름·칸을 읽도록 이미 만들어져 있어, 합치면 meetApi 변경이 더 커진다 → 이 구성이 최소 변경.
+- 실행 파일: `supabase/drafts/PENDING_20261002_meet_gate_B.sql`(그대로) · 되돌리기 `ROLLBACK_20261002_meet_gate_B.sql`(1단계 = 기능 끄기 · 표 삭제는 보존 정책 결정 뒤).
+- 영상 공급자 의존: ① 1:1 방 만들기 ② 서버로 오는 참여·종료 콜백 + **서명 비밀값**으로 검증 ③ 녹화 0. 이 콜백을 받아 위 두 표에 쓰는 함수는 **아직 없음**(담당 Codex 제안 — 저장 연결부).
+- 적용 순서(QA): ① SQL 적용(QA) → ② 표·RLS·권한 읽기 확인 → ③ Codex PR99-B-API 병합 + 콜백 함수 → ④ 공급자 비밀값 QA 등록 → ⑤ QA 에만 `MEET_API_ENABLED=true` → ⑥ 두 계정·두 기기 실제 흐름(영상 → 각자 확인 → 각자 의사 → 허용 → 차단·동의 철회 시 닫힘) → ⑦ PROD 는 별도 승인.
+- 복구 한계: 기능은 즉시 끌 수 있음(설정 하나) · 이미 쌓인 기록은 보존 정책 결정 전 삭제하지 않음 · 공급자 쪽 기록 회수는 공급자 정책에 따름.
+
+### 16.4 대표 승인 요청(한 묶음 · 이것만)
+| 항목 | 대상 | 바뀌는 것 | 영향 | 복구 |
+|---|---|---|---|---|
+| B-1 QA 표 적용 | QA DB(mutniujeiyujhkobadkd) | 위 표 4개 + RLS·권한 | 기존 흐름 영향 0(새 표만 · 기능 꺼짐) | 기능 끔 · 기록 없으면 표 삭제 가능 |
+| B-2 영상 공급자 선택 | 공급자 1곳 · 비용 | QA 비밀값 1개(서명 검증용) 등록 | 외부 비용 · 영상이 공급자를 거침(녹화 0 조건) | 비밀값 삭제 · 공급자 해지 |
+| B-3 기록 보존 | 참여·확인·의사 기록 | 보관 기간 · 탈퇴 시 삭제(지금 초안은 계정 삭제 시 함께 삭제) | 개인정보 처리방침 문구 | 정책 문서 |
+| B-4 QA 켜기 | QA doit-connect | `MEET_API_ENABLED=true`(QA 만) | QA 사용자에게 마지막 구간 보임 | 값 삭제 = 즉시 꺼짐 |
+- B-4 는 B-1·B-2·Codex 결과가 준비된 뒤에만. PROD·가격·보상·관계없는 설정 변경 0.

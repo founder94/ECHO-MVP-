@@ -827,18 +827,23 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
  * - blocked: 둘 중 누구든 차단(blocks · 지금 읽음).
  * - safetyHold: 두 사람 사이에 아직 처리되지 않은 신고가 있으면 멈춤(user_reports · resolved/closed 가 아닌 것).
  * - consent: 두 사람의 현재 연결 공개 동의 판(Auth 메타데이터 · 지금 읽음).
- * - lastStepOpen: 2·4·6 의 마지막 확인 구간을 서버가 판정할 출처가 아직 없다 → 닫힘(안전 쪽). 출처가 정해지면 여기만 바꾼다.
+ * - lastStepOpen: 2·4·6 의 마지막 구간(「2·결정」 = 영상 · 모습 확인 · 만남 의사)에 들어왔는지 — 지금 서버에 있는 실제 상태 전이로 판정:
+ *   서로 선택 → 연결(approved) → 두 사람 모두 첫 답 저장 → 두 사람 모두 현재 공개 동의 = 공개(FULL_SAFE)된 연결.
+ *   my_matches 의 공개 판정과 같은 조건이다(연결 열림·차단은 meetGate 가 따로 본다). 앞 구간(6·탐색 / 4·협동)이 서버에
+ *   생기면 그 완료 기록을 여기에 더한다 — 스위치(MEET_API_ENABLED)로 이 값이 참이 되지는 않는다.
  * 읽기 실패는 meetApi 가 열지 않는 쪽(MEET_UNAVAILABLE)으로 처리한다.
  */
 export function meetPolicy(admin: Db): MeetPolicyReader {
-  return async (_matchId, a, b) => {
+  return async (matchId, a, b) => {
     const blocked = (await blockedPairs(admin, [a])).has(pairKey(a, b));
     const { data: reports, error } = await admin.from("user_reports").select("reporter_id, target_user_id, status").in("reporter_id", [a, b]).in("target_user_id", [a, b]);
     if (error) throw new StageError("blocks_failed", dbCodeOf(error));
     const safetyHold = (reports ?? []).some((r) => r.reporter_id !== r.target_user_id && r.status !== "resolved" && r.status !== "closed");
     const auth = await authInfoOf(admin, new Set([a, b]));
     const version = (u: string) => (auth.get(u)?.consented ? CONNECT_CONSENT_VERSION : null);
-    return { blocked, safetyHold, consent: { required: CONNECT_CONSENT_VERSION, a: version(a), b: version(b) }, lastStepOpen: false };
+    const answered = (await answersOf(admin, [matchId])).get(matchId) ?? new Map();
+    const lastStepOpen = answered.has(a) && answered.has(b) && version(a) !== null && version(b) !== null;
+    return { blocked, safetyHold, consent: { required: CONNECT_CONSENT_VERSION, a: version(a), b: version(b) }, lastStepOpen };
   };
 }
 

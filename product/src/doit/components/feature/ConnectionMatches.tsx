@@ -5,6 +5,7 @@ import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 import PartnerFrame from './PartnerFrame';
+import MeetStep from './MeetStep';
 
 // 내 연결 — 대표가 승인한 연결만 여기 온다(연결 원칙 2026-09-21).
 // 순서: 같은 첫 질문 → 둘 다 답하면 이름·사진·소개·서로의 답이 열림(blind-first) → 이야기.
@@ -200,6 +201,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
       <p className="doit-connect-note">불편하면 언제든 나갈 수 있어요. 아래 「이 연결 그만하기」에서 차단·신고도 할 수 있어요.</p>
+      <MeetStep userId={userId} matchId={match.id} safety={<MeetSafetyList />} />
       <details className="doit-meet-safety doit-meet-safety--peek"><summary>만나기 전 안전 안내</summary><MeetSafetyList /></details>
       <OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} />
     </>}

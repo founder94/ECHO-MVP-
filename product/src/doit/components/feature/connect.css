@@ -129,3 +129,9 @@
 .doit-safety-also input{width:18px;height:18px;accent-color:#0f4a4a}
 .doit-meet-safety--peek summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:600}
 .doit-app-pastel :is(.doit-safety-also,.doit-meet-safety--peek summary){color:#fff}
+/* 2026-10-02 PR #99 마지막 구간 — 기존 카드·버튼·칩을 그대로 쓰고 간격만 */
+.doit-meet{margin-top:18px;padding-top:14px;border-top:1px solid var(--echo-surface-line,#ffffff40)}
+.doit-meet-title{margin:6px 0 4px;font-size:18px;font-weight:700;line-height:1.5;color:#f4f5f7;word-break:keep-all}
+.doit-app-pastel .doit-meet .doit-meet-title{color:#fff}
+.doit-meet .doit-product-action{margin-top:10px}
+.doit-meet .doit-outcome-chips{margin-top:10px}
