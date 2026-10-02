@@ -1,0 +1,43 @@
+✔ default disabled: zero database access (2.398978ms)
+✔ nonparticipant cannot read existing room or mutate confirmation (0.825295ms)
+✔ server evidence alone does not imply appearance or meeting intent (1.398139ms)
+✔ unsigned, other room, or camera off evidence cannot enable confirmation (0.720948ms)
+✔ each participant confirms own appearance; retries preserve one row (0.837483ms)
+✔ both checks and both yes permit plan; new no intent closes permission (1.59793ms)
+✔ logical intent retry stable, changed payload conflict, actors separate (0.760707ms)
+✔ current policy block, withdrawal, stage, safety prevent writes (0.538873ms)
+✔ connection closes during evidence reads: current read prevents write (0.24556ms)
+✔ read failure and partial evidence fail closed rather than empty (0.661748ms)
+✔ policy or durable write failure cannot grant meeting permission (0.273352ms)
+✔ HTTP adapter uses verified actor; body assertions cannot bypass final stage (0.2785ms)
+✔ equal latest intent timestamps fail closed, not arbitrary yes (0.215485ms)
+✔ unknown policy errors never expose internal details through HTTP (0.210508ms)
+✔ joint session id is visible only with current confirmation access (0.174033ms)
+✔ runtime verifies Auth; body identity cannot impersonate participant (0.548557ms)
+✔ runtime OFF/missing progression reader is unconnected, not normal zero (0.179461ms)
+✔ old connect-v1 alone never authorizes new video flow (0.208594ms)
+✔ status publishes opaque version; stale or absent mutation version rejected (1.041681ms)
+✔ server eligibility, final stage, reveal version prevent confirmation (0.471841ms)
+✔ current Auth consent withdrawal or reverse block prevents writes (0.366823ms)
+✔ permission read failure is bounded error, no success or secret (0.28549ms)
+✔ session evidence must match current server consent/assets/context version (0.242676ms)
+✔ normal persistence readback in new runtime, concurrent actor yes and retry (1.740074ms)
+✔ write failure then same logical retry recovers without memory fallback (0.451902ms)
+✔ prior success never revives permission after consent/context/block change (0.705474ms)
+✔ admin uses current DB role, not claimed role; aggregate no raw intent or identities (0.391971ms)
+✔ admin read failure and disabled feature are errors, not zero counts (0.134232ms)
+✔ unconfigured verifier cannot accept client completion (19.062953ms)
+✔ invalid signature stops before storage (0.32467ms)
+✔ verified provider canonical facts alone enter atomic storage contract (0.600546ms)
+✔ invalid duration or duplicate participant never calls RPC (0.605323ms)
+✔ missing RPC, incomplete receipt and provider failure never claim storage (0.695158ms)
+✔ duplicate final proof returns only server RPC replay receipt (0.276187ms)
+✔ signed nonterminal event waits for canonical final evidence without storing completion (0.280844ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105.419968
