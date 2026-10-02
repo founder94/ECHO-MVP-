@@ -1,0 +1,26 @@
+✔ connect-v1 reveal consent and independent video consent coexist (3.266494ms)
+✔ connect consent cannot substitute for absent or invalid video consent (1.28427ms)
+✔ video withdrawal preserves connect consent and revokes meeting authorization (2.147033ms)
+✔ runtime verifies Auth; body identity cannot impersonate participant (0.277599ms)
+✔ runtime OFF/missing progression reader is unconnected, not normal zero (0.775852ms)
+✔ old connect-v1 alone never authorizes new video flow (0.201625ms)
+✔ status publishes opaque version; stale or absent mutation version rejected (0.539595ms)
+✔ server eligibility, final stage, reveal version prevent confirmation (0.45016ms)
+✔ current Auth consent withdrawal or reverse block prevents writes (0.455798ms)
+✔ permission read failure is bounded error, no success or secret (0.349838ms)
+✔ session evidence must match current server consent/assets/context version (0.247383ms)
+✔ normal persistence readback in new runtime, concurrent actor yes and retry (1.789683ms)
+✔ write failure then same logical retry recovers without memory fallback (0.358061ms)
+✔ prior success never revives permission after consent/context/block change (1.096286ms)
+✔ admin uses current DB role, not claimed role; aggregate no raw intent or identities (0.618875ms)
+✔ admin read failure and disabled feature are errors, not zero counts (0.167503ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.441659
+
+PROCESS_EXIT=0
