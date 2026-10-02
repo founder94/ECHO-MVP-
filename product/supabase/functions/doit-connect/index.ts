@@ -523,7 +523,7 @@ export async function inChunks<T>(ids: readonly string[], run: (part: string[], 
 
 // 실패 단계 이름(고정 목록)과 DB 오류 코드만 들고 다니는 오류. 원문·요청 주소·id 는 담지 않는다.
 const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "blocks_failed", "auth_list_failed",
-  "connection_read_failed", "answers_read_failed", "mutual_read_failed", "candidate_read_failed", "candidate_write_failed", "mutual_claim_failed", "message_retry_read_failed"] as const;
+  "connection_read_failed", "answers_read_failed", "mutual_read_failed", "candidate_read_failed", "candidate_write_failed", "mutual_claim_failed", "message_retry_read_failed", "outcomes_read_failed", "messages_read_failed"] as const;
 type Stage = (typeof STAGES)[number];
 class StageError extends Error {
   constructor(readonly stage: Stage, readonly dbCode: string | null) { super(stage); this.name = "StageError"; }
@@ -815,7 +815,8 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
   if (!matchIds.length) return [];
   let q = admin.from("doit_match_outcomes").select("match_id, user_id, talked, met, again, helpful, updated_at").in("match_id", matchIds);
   if (userId) q = q.eq("user_id", userId);
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) throw new StageError("outcomes_read_failed", dbCodeOf(error)); // 읽기 실패를 「기록 없음」으로 숨기지 않는다(PR #98)
   return (data ?? []) as Json[];
 }
 
@@ -861,10 +862,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     if (action === "my_matches") {
-      const [{ data: asA }, { data: asB }] = await Promise.all([
+      const [{ data: asA, error: eA }, { data: asB, error: eB }] = await Promise.all([
         admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("user_a", userId).in("status", ["approved", "closed"]).limit(LIMITS.MATCHES_MAX),
         admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("user_b", userId).in("status", ["approved", "closed"]).limit(LIMITS.MATCHES_MAX),
       ]);
+      if (eA || eB) throw new StageError("connection_read_failed", dbCodeOf(eA ?? eB)); // 읽기 실패를 「연결 0개」 성공으로 바꾸지 않는다(PR #98)
       const rows = [...(asA ?? []), ...(asB ?? [])] as MatchRow[];
       rows.sort((x, y) => (x.created_at < y.created_at ? 1 : -1));
       const blocked = await blockedPairs(admin, [userId]);
@@ -892,16 +894,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
           outcome: (() => { const o = myOutcomes.get(m.id); return o ? { talked: o.talked ?? null, met: o.met ?? null, again: o.again ?? null, helpful: o.helpful ?? null } : null; })(),
         };
         if (revealed) {
-          const [{ data: p }, photo, { data: msgs }] = await Promise.all([
+          const [{ data: p, error: eP }, photo, { data: msgs, error: eM }] = await Promise.all([
             admin.from("profiles").select("nickname, display_name, bio, purpose_label").eq("id", partnerId).maybeSingle(),
             primaryPhotoUrl(admin, partnerId),
             admin.from("doit_match_messages").select("id, sender_id, body, created_at").eq("match_id", m.id).order("created_at", { ascending: false }).limit(LIMITS.MESSAGES_SHOWN),
           ]);
-          // 상대 정보를 내려 주기 직전 연결 상태·차단을 다시 읽는다 — 그 사이 끝났거나 차단됐으면 닫힌 모습으로.
+          if (eP) throw new StageError("profiles_failed", dbCodeOf(eP));
+          if (eM) throw new StageError("messages_read_failed", dbCodeOf(eM));
+          // 사진·프로필·이야기를 읽는 동안 바뀐 것을 반영한다(PR #98): 연결·차단·두 사람의 현재 공개 동의를 그 뒤에 다시 읽고,
+          // 그 결과로만 공개 여부를 정한다. 다시 읽기가 실패하면 공개하지 않는다(위에서 만든 사진 주소·상대 정보는 버린다).
+          // 한계: 이 다시 읽기와 응답 사이의 아주 짧은 틈, 이미 상대 기기에 내려간 사진·주소의 회수는 이 수정의 범위가 아니다.
           const current = await loadMatch(admin, m.id, userId);
           if (!current || current.match.status !== "approved" || (await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
             revealed = false;
             Object.assign(item, { status: "closed", revealed: false, reveal_state: "CANDIDATE_SAFE", first_question: null, my_answer: null, partner_answered: false });
+            out.push(item); continue;
+          }
+          let consentNow: Map<string, AuthInfo> | null = null;
+          try { consentNow = await authInfoOf(admin, new Set([userId, partnerId])); } catch { logDiag({ action, reveal_recheck: "consent_read_failed" }); }
+          if (!consentNow || consentNow.get(userId)?.consented !== true || consentNow.get(partnerId)?.consented !== true) {
+            revealed = false;
+            Object.assign(item, { revealed: false, reveal_state: "CANDIDATE_SAFE" });
             out.push(item); continue;
           }
           item.partner = {
@@ -918,19 +931,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // (c) 내 차례만 센다. 앱 홈 카드용 — 이름·질문·이야기 내용은 내려 주지 않는다.
     if (action === "my_turns") {
-      const [{ data: asA }, { data: asB }] = await Promise.all([
+      const [{ data: asA, error: eA }, { data: asB, error: eB }] = await Promise.all([
         admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_a", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
         admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_b", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
       ]);
+      if (eA || eB) throw new StageError("connection_read_failed", dbCodeOf(eA ?? eB));
       const blocked = await blockedPairs(admin, [userId]);
       const rows = [...(asA ?? []), ...(asB ?? [])].map((m) => ({ id: String(m.id), partnerId: String(m.user_a) === userId ? String(m.user_b) : String(m.user_a) }))
         .filter((m) => !blocked.has(pairKey(userId, m.partnerId)));
       const answers = await answersOf(admin, rows.map((r) => r.id));
       const turns = { answer: 0, reply: 0, opened: 0, choose: 0 };
-      const [{ data: pa }, { data: pb }] = await Promise.all([
+      const [{ data: pa, error: ePa }, { data: pb, error: ePb }] = await Promise.all([
         admin.from("doit_match_candidates").select("user_a, user_b, a_choice, b_choice").eq("user_a", userId).eq("status", "proposed"),
         admin.from("doit_match_candidates").select("user_a, user_b, a_choice, b_choice").eq("user_b", userId).eq("status", "proposed"),
       ]);
+      if (ePa || ePb) throw new StageError("candidate_read_failed", dbCodeOf(ePa ?? ePb));
       for (const c of [...(pa ?? []), ...(pb ?? [])]) {
         const partner = String(c.user_a) === userId ? String(c.user_b) : String(c.user_a);
         if (!blocked.has(pairKey(userId, partner)) && (String(c.user_a) === userId ? c.a_choice : c.b_choice) == null) turns.choose++;
@@ -942,7 +957,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         else if (got.has(m.partnerId)) revealedIds.push(m.id);
       }
       if (revealedIds.length) {
-        const { data: msgs } = await admin.from("doit_match_messages").select("match_id, sender_id, created_at").in("match_id", revealedIds).order("created_at", { ascending: false }).limit(revealedIds.length * LIMITS.MESSAGES_SHOWN);
+        const { data: msgs, error: eMsgs } = await admin.from("doit_match_messages").select("match_id, sender_id, created_at").in("match_id", revealedIds).order("created_at", { ascending: false }).limit(revealedIds.length * LIMITS.MESSAGES_SHOWN);
+        if (eMsgs) throw new StageError("messages_read_failed", dbCodeOf(eMsgs));
         const last = new Map<string, string>();
         for (const r of msgs ?? []) if (!last.has(String(r.match_id))) last.set(String(r.match_id), String(r.sender_id));
         for (const id of revealedIds) {

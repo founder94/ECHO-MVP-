@@ -70,7 +70,7 @@ function fakeDb(state) {
   return {
     auth: {
       getUser: async () => ({ data: { user: state.users[state.current] }, error: null }),
-      admin: { listUsers: async () => ({ data: { users: Object.values(state.users) }, error: null }) },
+      admin: { listUsers: async () => (state.authFail?.() ? { data: null, error: { code: 'AUTH_DOWN' } } : { data: { users: Object.values(state.users) }, error: null }) },
     },
     from: (name) => Object.assign((state.beforeRead?.(name), chain(name)), {
       // insert(row) 은 바로 기다릴 수도, .select().maybeSingle() 로 만든 줄을 받을 수도 있다(실제 supabase-js 와 같은 모양).
@@ -1358,4 +1358,62 @@ test('[v3 통합] 내가 자격을 잃으면 이미 만든 후보도 보여 주�
   s.tables.profile_photos = s.tables.profile_photos.filter((p) => p.user_id !== ID.a);
   const mine = await call(ID.a, { action: 'my_candidates' });
   assert.deepEqual([mine.body.eligible, mine.body.candidates.length], [false, 0]);
+});
+
+// PR #98(Codex 독립 검증) 결함 2건 — 공개 직전 현재 동의 재확인 · 조회 실패를 빈 목록으로 숨기지 않기.
+async function revealedPair() {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  await call(ID.a, { action: 'answer', matchId: m, text: '답 A' }); await call(ID.b, { action: 'answer', matchId: m, text: '답 B' });
+  return { s, call, m };
+}
+const duringPhotoRead = (s, act) => { let done = false; s.beforeRead = (t) => { if (t === 'profile_photos' && !done) { done = true; act(); } }; };
+const noPartner = (item) => { assert.equal(item.revealed, false); assert.equal(item.reveal_state, 'CANDIDATE_SAFE'); assert.ok(!('partner' in item)); assert.ok(!JSON.stringify(item).includes('https://signed/'), '사진 주소 0'); };
+
+test('[PR98] 사진을 읽는 사이 상대가 공개 동의를 거두면 상대 정보·사진 주소 0(연결은 열린 그대로)', async () => {
+  const { s, call } = await revealedPair();
+  duringPhotoRead(s, () => { s.users[ID.b].user_metadata = {}; });
+  const item = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+  noPartner(item); assert.equal(item.status, 'open');
+});
+test('[PR98] 사진을 읽는 사이 내가 동의를 거둬도 같은 결과', async () => {
+  const { s, call } = await revealedPair();
+  duringPhotoRead(s, () => { s.users[ID.a].user_metadata = {}; });
+  noPartner((await call(ID.a, { action: 'my_matches' })).body.matches[0]);
+});
+test('[PR98] 같은 구간에서 차단 · 연결 종료가 생기면 닫힌 모습 · 상대 정보·사진 주소 0', async () => {
+  for (const act of [(s) => s.tables.blocks.push({ id: 'zz-photo-block', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'connection' }), (s) => { s.tables.doit_matches[0].status = 'closed'; }]) {
+    const { s, call } = await revealedPair();
+    duringPhotoRead(s, () => act(s));
+    const item = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+    noPartner(item); assert.equal(item.status, 'closed');
+  }
+});
+test('[PR98] 마지막 동의 다시 읽기가 실패하면 공개하지 않는다(오류를 공개로 바꾸지 않음) · 로그는 단계만', async () => {
+  const { s, call } = await revealedPair();
+  let n = 0; s.authFail = () => (++n >= 2); // 첫 목록 읽기는 성공, 사진 뒤 다시 읽기만 실패
+  const r = await call(ID.a, { action: 'my_matches' });
+  assert.equal(r.status, 200); noPartner(r.body.matches[0]);
+  assert.ok(s.logs.some((l) => l.includes('"reveal_recheck":"consent_read_failed"')));
+});
+test('[PR98] 동의가 유효하면 공개는 그대로(상대 정보 + 사진 주소)', async () => {
+  const { call } = await revealedPair();
+  const item = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+  assert.deepEqual([item.revealed, item.reveal_state, !!item.partner?.photo_url], [true, 'FULL_SAFE', true]);
+});
+test('[PR98] 조회 실패 ≠ 0개: my_matches · my_turns 연결 읽기 실패 = 500 · 결과 읽기 실패 = 500 · 정상 0개는 200 빈 목록', async () => {
+  const empty = await loadServer(world())(ID.a, { action: 'my_matches' });
+  assert.deepEqual([empty.status, empty.body.matches], [200, []]);
+  const s1 = world(); s1.failOn = (t) => (t === 'doit_matches' ? { code: '08006' } : null);
+  const call1 = loadServer(s1);
+  const mm = await call1(ID.a, { action: 'my_matches' });
+  assert.equal(mm.status, 500); assert.ok(!('matches' in mm.body));
+  assert.equal((await call1(ID.a, { action: 'my_turns' })).status, 500);
+  assert.ok(s1.logs.some((l) => l.includes('"evt_error":"connection_read_failed"')));
+  const { s: s2, call: call2 } = await revealedPair();
+  s2.failOn = (t) => (t === 'doit_match_outcomes' ? { code: '57014' } : null);
+  assert.equal((await call2(ID.a, { action: 'my_matches' })).status, 500);
+  s2.failOn = (t) => (t === 'doit_match_messages' ? { code: '57014' } : null);
+  assert.equal((await call2(ID.a, { action: 'my_matches' })).status, 500, '공개된 연결의 이야기 읽기 실패도 숨기지 않음');
 });
