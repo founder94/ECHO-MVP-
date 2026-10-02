@@ -18,16 +18,19 @@ const ID = {
 const NICK_B = '바다고양이';
 const BIO_B = '주말엔 산책을 해요';
 
+const fakeDbFor = (state) => fakeDb(state);
 function fakeDb(state) {
   const table = (name) => (state.tables[name] ??= []);
   const chain = (name) => {
+    for (const r of table(name)) if (r.id === undefined) r.id = globalThis.crypto.randomUUID(); // 실제 표는 모두 id 가 있다(id 순 커서)
     let rows = table(name).slice();
     let op = 'select', patch = null;
     const keys = []; let window = null;
     const sorted = () => { if (keys.length) rows.sort((x, y) => { for (const [col, dir] of keys) { if (x[col] === y[col]) continue; return (x[col] < y[col] ? -1 : 1) * dir; } return 0; }); return rows; };
     const c = {
       select: () => c, order: (col, o) => { keys.push([col, o?.ascending === false ? -1 : 1]); return c; },
-      limit: (n) => { rows = sorted().slice(0, n); keys.length = 0; return c; },
+      limit: (n) => { (state.ranges ??= []).push([name, 'limit', n]); rows = sorted().slice(0, Math.min(n, state.maxRows ?? Infinity)); keys.length = 0; return c; },
+      gt: (col, v) => { rows = rows.filter((r) => r[col] > v); return c; },
       range: (from, to) => { (state.ranges ??= []).push([name, from, to]); window = [from, Math.min(to, from + (state.maxRows ?? 1000) - 1)]; return c; },
       eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
       in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
@@ -950,7 +953,7 @@ test('규모 · 경계값: 0·1·99·100·101·449·460·5000명 — 묶음 ≤1
   assert.equal(IN_CHUNK, 100);
   for (const n of [0, 1, 99, 100, 101, 449, 460, 5000]) {
     const ids = many(n); const seen = [];
-    const r = await inChunks([...ids, ...ids.slice(0, 3)], (part, from) => { if (from === 0) seen.push(part.length); return Promise.resolve({ data: from === 0 ? part.map((id) => ({ id })) : [], error: null }); });
+    const r = await inChunks([...ids, ...ids.slice(0, 3)], (part, after) => { if (after === null) seen.push(part.length); return Promise.resolve({ data: after === null ? part.map((id) => ({ id })) : [], error: null }); });
     assert.equal(r.error, null);
     assert.equal(seen.length, Math.ceil(n / 100), `n=${n} 묶음 수`);
     assert.ok(seen.every((k) => k <= 100), `n=${n} 묶음 크기`);
@@ -1015,11 +1018,14 @@ test('규모 · 일부 묶음 실패 = 전체 실패(500 · 「후보 0명」으
 test('규모 · 동시 요청 ≤4 · 쪽 상한에 닿으면 실패(무한 반복 0)', async () => {
   const { inChunks, IN_CONCURRENCY, IN_MAX_PAGES } = server().exports;
   let live = 0, peak = 0;
-  const r = await inChunks(many(1000), async (part, from) => { live++; peak = Math.max(peak, live); await new Promise((ok) => setTimeout(ok, 2)); live--; return { data: from === 0 ? [{ id: part[0] }] : [], error: null }; });
+  const r = await inChunks(many(1000), async (part, after) => { live++; peak = Math.max(peak, live); await new Promise((ok) => setTimeout(ok, 2)); live--; return { data: after === null ? [{ id: part[0] }] : [], error: null }; });
   assert.equal(r.error, null); assert.equal(r.data.length, 10); assert.ok(peak <= IN_CONCURRENCY, `동시 ${peak}`);
   let calls = 0;
+  const endless = await inChunks(many(5), () => { calls++; return Promise.resolve({ data: [{ id: `x${String(calls).padStart(5, '0')}` }], error: null }); });
+  assert.equal(endless.error.code, 'PAGE_LIMIT'); assert.equal(calls, IN_MAX_PAGES); assert.equal(endless.data.length, 0, '일부만 읽은 자료를 돌려주지 않는다');
+  calls = 0;
   const stuck = await inChunks(many(5), () => { calls++; return Promise.resolve({ data: [{ id: 'x' }], error: null }); });
-  assert.equal(stuck.error.code, 'PAGE_LIMIT'); assert.equal(calls, IN_MAX_PAGES); assert.equal(stuck.data.length, 0, '일부만 읽은 자료를 돌려주지 않는다');
+  assert.equal(stuck.error.code, 'CURSOR_STALL'); assert.equal(calls, 2); assert.equal(stuck.data.length, 0);
 });
 
 test('오류 기록: 민감한 모양의 예외에서도 원문·URL·id·토큰·전화번호 0 · 단계·종류·코드·추적 id·시간은 남음', async () => {
@@ -1127,6 +1133,56 @@ test('쪽 읽기 정합성: 읽는 사이 갱신된 최신 정정 줄이 빠지�
   assert.equal(r.body.readiness.conversation.ready, true, '읽는 사이 갱신된 최신 줄 반영');
   const { inChunks } = loadServer(world()).exports;
   const pages = [[{ id: 'x1' }, { id: 'x2' }], [{ id: 'x2' }, { id: 'x3' }], []]; // 끼어든 새 줄로 경계 줄이 다음 쪽에 한 번 더 온 경우
-  const got = await inChunks(['u1'], (_p, from) => Promise.resolve({ data: pages[from === 0 ? 0 : from === 2 ? 1 : 2], error: null }));
+  const got = await inChunks(['u1'], (_p, after) => Promise.resolve({ data: pages[after === null ? 0 : after === 'x2' ? 1 : 2], error: null }));
   assert.equal(JSON.stringify([...got.data].map((x) => x.id)), JSON.stringify(['x1', 'x2', 'x3']));
+});
+
+// 2026-10-02: 운영 응답에 준비 상태(readiness) 칸이 없어 위 두 검사는 운영 코드를 판정하지 못한다 — 같은 상황을 「자격」으로 판정하는 운영 호환판.
+test('[운영 호환] 규모 · Agent 세션이 한 사람에게 여러 줄 · 최신 줄이 여러 쪽 뒤에 있어도 그 줄로 판정', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } }); s.maxRows = 200;
+  const notes = ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'];
+  s.tables.doit_request_events = [
+    ...Array.from({ length: 900 }, (_, i) => ({ ...agentRow(ID.d, notes, 'talk', `2026-09-30T00:${String(i % 60).padStart(2, '0')}:00Z`), id: `d${i}` })),
+    { ...agentRow(ID.a, notes, 'talk', '2026-09-20T00:00:00Z'), id: 'a-old' },
+    { ...agentRow(ID.a, notes, 'done', '2026-09-25T00:00:00Z'), id: 'a-new' },
+    { ...agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']), id: 'b1' },
+  ];
+  s.tables.doit_records = s.tables.doit_records.filter((r) => r.user_id !== ID.a); // 옛 답으로 대신 자격을 얻지 않게 — 자격이 Agent 최신 줄에만 달리게
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.eligible, true, 'A 의 최신(done) 줄이 900줄 뒤에 있어도 반영 (운영 응답에 준비 상태 칸이 없어 자격으로 판정)');
+  assert.equal(r.body.candidates.length, 1);
+});
+
+test('[운영 호환] 쪽 읽기 정합성: 읽는 사이 갱신된 최신 정정 줄이 빠지지 않음(id 순 쪽) · 겹친 쪽의 같은 줄은 한 번만', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } }); s.maxRows = 200;
+  const notes = ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'];
+  s.tables.doit_request_events = [
+    ...Array.from({ length: 900 }, (_, i) => ({ ...agentRow(ID.d, notes, 'talk', '2026-09-30T00:00:00Z'), id: `d${String(i).padStart(4, '0')}` })),
+    { ...agentRow(ID.a, notes, 'talk', '2026-09-20T00:00:00Z'), id: 'z-a' },
+    { ...agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']), id: 'b1' },
+  ];
+  let reads = 0;
+  // 첫 쪽을 읽은 직후 A 가 대화를 마쳐(정정 반영) 줄이 가장 최근으로 갱신된다 — 갱신 시각 순 쪽이면 앞쪽(이미 읽은 쪽)으로 옮겨 가 빠진다.
+  s.beforeRead = (name) => { if (name === 'doit_request_events' && ++reads === 2) Object.assign(s.tables.doit_request_events.find((r) => r.id === 'z-a'), { phase: 'done', updated_at: '2026-10-02T00:00:00Z' }); };
+  s.tables.doit_records = s.tables.doit_records.filter((r) => r.user_id !== ID.a); // 옛 답으로 대신 자격을 얻지 않게 — 자격이 Agent 최신 줄에만 달리게
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.eligible, true, '읽는 사이 갱신된 최신 줄 반영 (운영 응답에 준비 상태 칸이 없어 자격으로 판정)');
+  const { inChunks } = loadServer(world()).exports;
+  const pages = [[{ id: 'x1' }, { id: 'x2' }], [{ id: 'x2' }, { id: 'x3' }], []]; // 끼어든 새 줄로 경계 줄이 다음 쪽에 한 번 더 온 경우
+  const got = await inChunks(['u1'], (_p, after) => Promise.resolve({ data: pages[after === null ? 0 : after === 'x2' ? 1 : 2], error: null }));
+  assert.equal(JSON.stringify([...got.data].map((x) => x.id)), JSON.stringify(['x1', 'x2', 'x3']));
+});
+
+test('쪽 읽기 · id 커서: 첫 쪽을 읽은 뒤 앞쪽 줄 삭제·새 줄 삽입이 있어도 남은 줄 누락 0 · 중복 0', async () => {
+  const s = world(); s.maxRows = 1000;
+  s.tables.blocks = Array.from({ length: 2500 }, (_, i) => ({ id: `b${String(i).padStart(5, '0')}`, blocker_id: ID.d, blocked_user_id: uid(i) }));
+  const { inChunks, afterId } = loadServer(s).exports;
+  const db = (() => { let n = 0; return { from: (t) => { if (t === 'blocks' && ++n === 2) { s.tables.blocks.splice(0, 5); s.tables.blocks.push({ id: 'a-new', blocker_id: ID.d, blocked_user_id: uid(9999) }); } return fakeDbFor(s).from(t); } }; })();
+  const r = await inChunks([ID.d], (part, after, size) => afterId(db.from('blocks').select('id').in('blocker_id', part), after, size));
+  assert.equal(r.error, null);
+  const ids = r.data.map((x) => x.id);
+  assert.equal(new Set(ids).size, ids.length, '중복 0');
+  for (let i = 5; i < 2500; i++) assert.ok(ids.includes(`b${String(i).padStart(5, '0')}`), `b${i} 누락`);
 });

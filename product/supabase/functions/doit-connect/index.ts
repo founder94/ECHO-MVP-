@@ -383,9 +383,9 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
   const [photosR, insightsR, recordsR, auth] = await Promise.all([
-    inChunks<Json>(ids, (part, from, to) => admin.from("profile_photos").select("id, user_id, slot").in("user_id", part).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("doit_insights").select("id, user_id, text, created_at, updated_at").in("user_id", part).in("status", ["confirmed", "corrected"]).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("doit_records").select("id, user_id, text, status, created_at").in("user_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("profile_photos").select("id, user_id, slot").in("user_id", part), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_insights").select("id, user_id, text, created_at, updated_at").in("user_id", part).in("status", ["confirmed", "corrected"]), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_records").select("id, user_id, text, status, created_at").in("user_id", part), after, size)),
     authInfoOf(admin, new Set(ids)),
   ]);
   const photos = must(photosR, "photos_failed"), records = must(recordsR, "records_failed");
@@ -407,8 +407,8 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   // Matching Integration: Agent 확정 상태(있는 사용자만 · 이번 회차) — 대화 원문(turns)은 읽지 않고 profile·phase 만 고른다.
   const agentSrc = MATCH_SOURCE === "agent"
     ? await (async () => {
-      const sessions = await inChunks<Json>(ids, (part, from, to) => admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
-        .eq("action", "agent_session").eq("status", "applied").in("user_id", part).order("id").range(from, to));
+      const sessions = await inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", part), after, size));
       return agentSources(must(sessions, "agent_sessions_failed") as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
     })()
     : new Map();
@@ -462,7 +462,12 @@ export const IN_PAGE = 1000;
 export const IN_MAX_PAGES = 50;
 export const IN_CONCURRENCY = 4;
 type Page<T> = PromiseLike<{ data: T[] | null; error: { code?: unknown } | null }>;
-export async function inChunks<T>(ids: readonly string[], run: (part: string[], from: number, to: number) => Page<T>): Promise<{ data: T[]; error: { code?: unknown } | null; requests: number }> {
+// 다음 쪽 = 마지막으로 읽은 id 보다 큰 줄(id 순 커서). offset 이 아니라서 읽는 사이 앞쪽 줄이 지워지거나 새로 들어와도 남은 줄이 밀리거나 겹치지 않는다.
+// deno-lint-ignore no-explicit-any
+export function afterId(q: any, after: string | null, size: number): Page<Json> {
+  return (after === null ? q : q.gt("id", after)).order("id").limit(size);
+}
+export async function inChunks<T>(ids: readonly string[], run: (part: string[], after: string | null, size: number) => Page<T>): Promise<{ data: T[]; error: { code?: unknown } | null; requests: number }> {
   const unique = [...new Set(ids)];
   const parts: string[][] = [];
   for (let i = 0; i < unique.length; i += IN_CHUNK) parts.push(unique.slice(i, i + IN_CHUNK));
@@ -474,19 +479,22 @@ export async function inChunks<T>(ids: readonly string[], run: (part: string[], 
   const worker = async () => {
     while (!error && next < parts.length) {
       const index = next++;
-      for (let page = 0, from = 0; ; page++) {
+      for (let page = 0, after: string | null = null; ; page++) {
         if (page >= IN_MAX_PAGES) { error = { code: "PAGE_LIMIT" }; return; }
         requests++;
-        const r = await run(parts[index], from, from + IN_PAGE - 1);
+        const r = await run(parts[index], after, IN_PAGE);
         if (r.error) { error = r.error; return; }
         const rows = r.data ?? [];
         if (!rows.length) break;
+        const last = (rows[rows.length - 1] as { id?: unknown }).id;
+        // 커서가 앞으로 가지 않으면(id 없음·같은 id 반복) 끝없이 돌지 않고 전체 실패로 돌려준다.
+        if (typeof last !== "string" || (after !== null && last <= after)) { error = { code: "CURSOR_STALL" }; return; }
         for (const row of rows) {
           const id = (row as { id?: unknown }).id;
           if (typeof id === "string") { if (seen.has(id)) continue; seen.add(id); }
           results[index].push(row);
         }
-        from += rows.length;
+        after = last;
       }
     }
   };
@@ -518,8 +526,8 @@ async function blockedPairs(admin: Db, ids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (!ids.length) return out;
   const [byMe, byOther] = await Promise.all([
-    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocker_id", part).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocked_user_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocker_id", part), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocked_user_id", part), after, size)),
   ]);
   for (const r of [...must(byMe, "blocks_failed"), ...must(byOther, "blocks_failed")]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
   return out;
