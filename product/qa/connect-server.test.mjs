@@ -52,6 +52,8 @@ function fakeDb(state) {
     if (name === 'doit_match_outcomes' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'doit_match_answers' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'blocks' && t.some((r) => r.blocker_id === row.blocker_id && r.blocked_user_id === row.blocked_user_id)) return { error: null };
+    const failed = state.failOn?.(name); if (failed) return { error: failed };
+    if (row.id && t.some((r) => r.id === row.id)) return { error: { code: '23505' } }; // 기본키 충돌(실제 DB 와 같게)
     const made = { id: globalThis.crypto.randomUUID(), created_at: new Date(Date.now() + t.length).toISOString(), common: [], ...row };
     t.push(made);
     state.writes.push({ name, op: 'insert' });
@@ -62,7 +64,7 @@ function fakeDb(state) {
       getUser: async () => ({ data: { user: state.users[state.current] }, error: null }),
       admin: { listUsers: async () => ({ data: { users: Object.values(state.users) }, error: null }) },
     },
-    from: (name) => Object.assign(chain(name), {
+    from: (name) => Object.assign((state.beforeRead?.(name), chain(name)), {
       // insert(row) 은 바로 기다릴 수도, .select().maybeSingle() 로 만든 줄을 받을 수도 있다(실제 supabase-js 와 같은 모양).
       insert: (row) => { const p = (async () => { await null; return insert(name, row); })(); return { then: (ok, bad) => p.then(({ error }) => ({ data: null, error })).then(ok, bad), select: () => ({ maybeSingle: () => p.then(({ error, made }) => ({ data: error ? null : { id: made?.id }, error })) }) }; },
       upsert: async (row) => insert(name, row),
@@ -1068,7 +1070,7 @@ test('v2.1 안전 · 재시도: 같은 숨기기·신고를 다시 보내면 200
   assert.equal((await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'hide' })).status, 409, '상대가 끝낸 후보를 내가 다시 고르기 0');
 });
 
-test('v2.1 안전 · 두 탭 동시 같은 신고 = 1건(실서버에서 2건 재현 → 저장 뒤 늦게 들어온 줄 되돌림) · 다른 사유는 그대로', async () => {
+test('v2.1 안전 · 두 탭 동시 같은 신고 = 1건(2026-10-02: 사건 범위 고정 id + DB 기본키 · 지우기 보완 없음) · 다른 사유는 그대로', async () => {
   const s = world();
   const call = loadServer(s);
   await approveBoth(s, call, ID.a, ID.b);
@@ -1078,4 +1080,53 @@ test('v2.1 안전 · 두 탭 동시 같은 신고 = 1건(실서버에서 2건 �
   assert.equal(s.tables.user_reports.filter((r) => r.reason === 'connection:threat 위협·강요').length, 1, '동시 3번 = 1건');
   await call(ID.b, { action: 'leave', matchId, report: true, reason: 'scam' });
   assert.equal(s.tables.user_reports.length, 2, '다른 사유는 따로');
+});
+
+test('신고 고정 id: 같은 신고자·대상·사유·사건 = 같은 id(기본키가 중복 차단) · 다른 연결의 새 사건·다른 사유 = 다른 id · 삭제 동작 0', async () => {
+  const { reportIdOf } = loadServer(world()).exports;
+  const a = await reportIdOf(ID.a, ID.b, 'connection:threat 위협·강요', 'm1');
+  assert.equal(a, await reportIdOf(ID.a, ID.b, 'connection:threat 위협·강요', 'm1'));
+  assert.notEqual(a, await reportIdOf(ID.a, ID.b, 'connection:threat 위협·강요', 'm2'), '다른 연결에서 생긴 새 사건은 막지 않는다');
+  assert.notEqual(a, await reportIdOf(ID.a, ID.b, 'connection:scam 사기·금전 요구', 'm1'));
+  assert.notEqual(a, await reportIdOf(ID.b, ID.a, 'connection:threat 위협·강요', 'm1'));
+  assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  const src = readFileSync('supabase/functions/doit-connect/index.ts', 'utf8');
+  assert.doesNotMatch(src.slice(src.indexOf('async function recordSafety'), src.indexOf('const OUTCOME_FIELDS')), /\.delete\(/, '보완 삭제 0');
+});
+
+test('신고 · 같은 상대의 새 연결에서 같은 사유 = 새 신고로 저장 · 같은 연결 재시도·동시 = 1건 · 저장 실패면 reported=false', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m1 = s.tables.doit_matches[0].id;
+  await Promise.all([1, 2].map(() => call(ID.b, { action: 'leave', matchId: m1, report: true, reason: 'threat' })));
+  assert.equal(s.tables.user_reports.length, 1);
+  // 같은 두 사람의 다른 사건(새 연결 id)을 흉내 — 실제로는 차단 뒤 재연결이 없지만, 고정 id 가 사건 범위를 포함하는지 본다
+  s.tables.doit_matches.push({ ...s.tables.doit_matches[0], id: '99999999-0000-4000-8000-000000000099', status: 'approved' });
+  await call(ID.b, { action: 'leave', matchId: '99999999-0000-4000-8000-000000000099', report: true, reason: 'threat' });
+  assert.equal(s.tables.user_reports.length, 2, '새 사건은 막지 않는다');
+  const s2 = world(); const call2 = loadServer(s2); await approveBoth(s2, call2, ID.a, ID.b);
+  s2.failOn = (t) => (t === 'user_reports' ? { code: '08006' } : null);
+  const bad = await call2(ID.b, { action: 'leave', matchId: s2.tables.doit_matches[0].id, report: true, reason: 'spam' });
+  assert.equal(bad.body.reported, false, '저장 실패면 접수 아님');
+});
+
+test('쪽 읽기 정합성: 읽는 사이 갱신된 최신 정정 줄이 빠지지 않음(id 순 쪽) · 겹친 쪽의 같은 줄은 한 번만', async () => {
+  const s = world({ env: { MATCH_SOURCE: 'agent' } }); s.maxRows = 200;
+  const notes = ['천천히 알아가고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '약속을 잘 지키는 사람이 편해요'];
+  s.tables.doit_request_events = [
+    ...Array.from({ length: 900 }, (_, i) => ({ ...agentRow(ID.d, notes, 'talk', '2026-09-30T00:00:00Z'), id: `d${String(i).padStart(4, '0')}` })),
+    { ...agentRow(ID.a, notes, 'talk', '2026-09-20T00:00:00Z'), id: 'z-a' },
+    { ...agentRow(ID.b, ['친구부터 시작하고 싶어요', '조용한 곳에서 대화하는 걸 좋아해요', '거짓말 안 하는 사람이 좋아요']), id: 'b1' },
+  ];
+  let reads = 0;
+  // 첫 쪽을 읽은 직후 A 가 대화를 마쳐(정정 반영) 줄이 가장 최근으로 갱신된다 — 갱신 시각 순 쪽이면 앞쪽(이미 읽은 쪽)으로 옮겨 가 빠진다.
+  s.beforeRead = (name) => { if (name === 'doit_request_events' && ++reads === 2) Object.assign(s.tables.doit_request_events.find((r) => r.id === 'z-a'), { phase: 'done', updated_at: '2026-10-02T00:00:00Z' }); };
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.readiness.conversation.ready, true, '읽는 사이 갱신된 최신 줄 반영');
+  const { inChunks } = loadServer(world()).exports;
+  const pages = [[{ id: 'x1' }, { id: 'x2' }], [{ id: 'x2' }, { id: 'x3' }], []]; // 끼어든 새 줄로 경계 줄이 다음 쪽에 한 번 더 온 경우
+  const got = await inChunks(['u1'], (_p, from) => Promise.resolve({ data: pages[from === 0 ? 0 : from === 2 ? 1 : 2], error: null }));
+  assert.equal(JSON.stringify([...got.data].map((x) => x.id)), JSON.stringify(['x1', 'x2', 'x3']));
 });
