@@ -61,7 +61,8 @@ if (ADMIN_BASE) {
         const errs = []; const calls = [];
         p.on('pageerror', (e) => errs.push(String(e).slice(0, 120)));
         p.on('request', (r) => { if (r.url().includes('/functions/v1/')) calls.push(r.url()); });
-        const s = who === 'admin' ? admin : who === 'user' ? user : null;
+        // 관리자 화면은 매번 새 로그인: 끝에서 하는 로그아웃이 그 계정의 모든 세션을 서버에서 끊기 때문(다음 화면이 끊긴 세션을 쓰지 않게)
+        const s = who === 'admin' ? await login(ADMIN_EMAIL, pw(ADMIN_ACCT, 'admin')) : who === 'user' ? user : null;
         if (s) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${QA_REF}-auth-token`, session(s)]);
         const tag = `${bname} ${w} ${who}`;
         const settle = async () => { await p.waitForSelector('.aw-top h1, .aw-card', { timeout: 20000 }).catch(() => {}); await p.waitForFunction(() => !document.querySelector('.aw-loading'), null, { timeout: 30000 }).catch(() => {}); };
