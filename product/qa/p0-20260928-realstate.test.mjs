@@ -119,6 +119,8 @@ function cssSolidButtons() {
       const sel = m[1].trim(); if (!/button|-btn\b|-action|primary|-pill|cta|choice-confirm|reactions/i.test(sel) || sel.includes('glass-btn')) continue;
       // 2026-10-01 대표 승인 「Primary CTA 스타일 변경」: 연결 흐름(.doit-connect · .doit-match)의 주요 CTA 만 흰 단색(깊은 청록 글씨) 예외 — connect.css 의 이 범위 하나만.
       if (f.endsWith('/src/doit/components/feature/connect.css') && sel.startsWith('.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary)')) continue;
+      // 2026-10-01 대표 「FINAL DESIGN IMPLEMENTATION MASTER」 §9: 대화 화면의 주 행동 「답변 보내기」도 흰 판 + 짙은 청록 글자 — core-conversation.css 의 .echo-send-cta 하나만.
+      if (f.endsWith('/src/doit/components/feature/core-conversation.css') && /^\.echo-dialogue(\.echo-dialogue--pastel)? \.echo-send-cta(:not\(:disabled\):active)?$/.test(sel)) continue;
       for (const d of m[2].matchAll(/(?:^|;)\s*(background(?:-color|-image)?)\s*:\s*([^;]+)/g)) if (!/var\(--echo-glass|transparent|none/.test(d[2]) && OPAQUE.test(d[2])) hits.push(`${f.slice(ROOT.length)}: ${sel.slice(0, 60)} ${d[1]}: ${d[2].trim().slice(0, 40)}`);
     }
   }

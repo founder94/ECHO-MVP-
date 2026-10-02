@@ -107,7 +107,7 @@ test('v2.5.4 지시문: 「대화 주제」로 유도하던 예시를 빼고 한
   assert.ok(!s.includes('처음 만났을 때 무슨 얘기부터 하고 싶어요?'));
   assert.ok(!s.includes('대화 주제처럼 실제 장면으로'));
   assert.match(s, /한 걸음만 옆으로 묻는다/);
-  assert.match(s, /echo-agent-v2\.5\.7/);
+  assert.match(s, /echo-agent-v2\.5\.8/);
 });
 
 test('v2.5.5 QA 장면 B·C·E: 받아주기 속 숨은 질문은 빼고 · 모르겠다·정정 뒤의 새 질문도 같은 기준으로 다시 청한다', async () => {
@@ -184,22 +184,23 @@ test('09-30 v67: mid-sentence person pick and pasted 모르겠어요 are questio
   assert.equal(A.questionFlaw(start(), '편하게 얘기할 친구를 찾고 있어요', '친구와 처음 연락할 때 문자로 시작하면 좋나요?', false), '');
 });
 
-// 2026-09-30 마감 지시 §4 주관식 본체 + 객관식 구조대: 모르겠다 뒤에만 답 보기(형식 검사 · 서버가 「잘 모르겠어요」를 붙임), 보통 답 뒤에는 0.
-test('09-30 §4: choices only after unsure/skip, format-checked, server appends 잘 모르겠어요', async () => {
-  assert.deepEqual(A.cleanChoices(['카페에서 수다', '같이 산책', '취미 같이 하기', '넷째']), ['카페에서 수다', '같이 산책', '취미 같이 하기']);
-  assert.deepEqual(A.cleanChoices(['어디가 좋아요?', '아주아주아주아주아주 긴 보기 문장', '잘 모르겠어요']), [], '물음표·12자 초과·모르겠 보기는 버리고, 2개 미만이면 보기 없음');
+// 2026-09-30 마감 지시 §4 → 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」로 계약을 바꿨다(예전: 모르겠다 뒤에만 보기 + 서버가 「잘 모르겠어요」를 붙임).
+// 지금: 새 질문마다 서버가 거른 보기 2~4개를 들고 있고(구조대), 먼저 펼치는 것은 모르겠다·넘기기·도움·피로 뒤 또는 고르기 모양 질문뿐. 「잘 모르겠어요」는 보기에 섞지 않는다(화면의 별도 도움 버튼).
+test('10-01 contract: every question keeps server-screened rescue options (2–4); shown first only after unsure/skip; 잘 모르겠어요 never mixed in', async () => {
+  assert.deepEqual(A.cleanChoices(['카페에서 수다', '같이 산책', '취미 같이 하기', '저녁 먹기', '다섯째']), ['카페에서 수다', '같이 산책', '취미 같이 하기', '저녁 먹기'], '많아도 4개까지');
+  assert.deepEqual(A.cleanChoices(['어디가 좋아요?', '아주아주아주아주아주 긴 보기 문장이에요', '잘 모르겠어요']), [], '물음표·16자 초과·모르겠 보기는 버리고, 2개 미만이면 보기 없음');
   const st = start();
   const first = await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
     ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: { ...N('relationship_style', '친구랑 카페에서 만나면 편해요?'), choices: ['카페', '공원'] } }))
     : JSON.stringify({ reply: '좋죠.' }));
-  assert.equal(A.choicesFor(st), null, '보통 답 뒤에는 AI 가 보기를 내도 보이지 않는다');
+  assert.deepEqual(A.choicesFor(st), ['카페', '공원'], '보통 답 뒤에도 보기는 서버가 들고 있다(구조대)');
+  assert.equal(A.rescueView(st).show, false, '보통 답 뒤에는 먼저 펼치지 않는다(주관식 본체)');
   assert.ok(first.response.question);
   await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn'
     ? JSON.stringify(T({ kind: 'unsure', reply: '', next: { ...N('contact_rhythm', '처음엔 문자로 시작하면 편해요?'), choices: ['문자로 천천히', '바로 통화', '만나서 얘기'] } }))
     : JSON.stringify({ reply: '' }));
-  assert.deepEqual(A.choicesFor(st), ['문자로 천천히', '바로 통화', '만나서 얘기', '잘 모르겠어요']);
-  const src = readFileSync(here('../src/doit/components/feature/AgentConversation.tsx'), 'utf8');
-  assert.match(src, /session\.current_choices\.map\(choice => <button[^>]*onClick=\{\(\) => send\(choice\)\}/, '누르면 그 글자를 보통 답으로 보낸다(화면이 판단하지 않음)');
+  assert.deepEqual(A.choicesFor(st), ['문자로 천천히', '바로 통화', '만나서 얘기'], '「잘 모르겠어요」는 보기에 섞지 않는다');
+  assert.equal(A.rescueView(st).show, true, '모르겠다 뒤에는 서버가 보기를 먼저 펼친다');
 });
 
 // QA v69 사람 검토: 보기가 예/아니요뿐 · 모르겠다 뒤 「산책 좋죠!」(다음 질문을 미리 대답) · 정정 뒤 「그렇게 자주 만나면 좋겠네요」(고친 값과 반대) · 「그렇게 말씀하셨네요」.
@@ -235,7 +236,7 @@ test('09-30 v70: help that the server turns into unsure is checked like unsure (
   assert.equal(r.response.kind, 'unsure');
   assert.equal(r.response.question, '그럼 이런 느낌 중엔 뭐가 가까워요?');
   assert.ok(!A.analyticAck(r.response.reply) && !/빈도/.test(r.response.reply), r.response.reply);
-  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책', '잘 모르겠어요']);
+  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책']);
 });
 
 // QA v71 장면 C5·E6: 다시 쓴 질문이 세 번 다 떨어져 안내 한 줄로 갔다. 모르겠다 턴은 모인 보기로 대표 예 「그럼 이런 느낌 중엔 뭐가 가까워요?」를 묻고,
@@ -252,7 +253,7 @@ test('09-30 v71: unsure turn with rejected rewrites falls back to the choice que
     return JSON.stringify({ reply: '' });
   });
   assert.equal(r.response.question, A.choiceQuestionText('polite'));
-  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책', '잘 모르겠어요']);
+  assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책']);
   assert.ok(r.obs.retry.includes('question_choices'));
   assert.match(whys[1] ?? '', /「친구랑 카페에서 만나면 편해요\?」와 같은 틀/);
 });

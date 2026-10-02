@@ -13,7 +13,7 @@ export interface ReadinessInfo { phone_verified: boolean; intro_saved: boolean }
 export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
 export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; readiness?: ReadinessInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
 export interface CallRec { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
-export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number }
+export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number; fi?: string[] }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
 export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
@@ -66,6 +66,16 @@ export function dashboard(sessions: Session[], now: number = Date.now()) {
 }
 
 // version: 실패가 어느 판(에이전트·프롬프트·모델)에서 났는지(2026-09-26 FAILURE → VERSION). 예전 기록은 판 칸이 없어 「판 기록 없음」.
+const FI_NOTE: Record<string, string> = {
+  RESCUE_OPTIONS_MISSING: '보기를 만들지 못해 안전 안내만 보임(구조대 작동으로 세지 않음)',
+  RESCUE_OPTIONS_NOT_ANSWERING_QUESTION: 'AI 보기 가운데 질문의 답이 아닌 것(도움말·내부 말·막연함)을 서버가 뺌',
+  RESCUE_OPTIONS_DUPLICATE: 'AI 보기 가운데 겹치는 것을 서버가 뺌',
+  RESCUE_OPTIONS_REJECTED_REAPPEARANCE: '사용자가 아니라고 한 뜻이 보기로 다시 나와 서버가 뺌',
+  RESCUE_OPTIONS_ALREADY_ANSWERED: '이미 들은 것이 보기로 다시 나와 서버가 뺌',
+  HELP_ACTION_SAVED_AS_USER_FACT: '도움 행동(모르겠다·그만·답답해요)이 사실로 들어가려 해 서버가 뺌',
+  SKIP_SAVED_AS_USER_FACT: '넘기기가 사실로 들어가려 해 서버가 뺌',
+  REJECTION_REAPPEARANCE: '거절된 보기와 같은 뜻을 AI 가 다시 정리해 서버가 뺌',
+};
 export interface Candidate { type: string; session: string; turn: number | null; user: string | null; agent: string | null; evidence: 'ACTUAL' | 'HYPOTHESIS'; status: 'CANDIDATE'; note: string; version: string }
 export function candidates(s: Session): { failure: Candidate[]; success: Candidate[] } {
   const failure: Candidate[] = []; const success: Candidate[] = [];
@@ -81,6 +91,8 @@ export function candidates(s: Session): { failure: Candidate[]; success: Candida
     if (r?.tone_mismatch_observed) f('TONE_MISMATCH', t, 'HYPOTHESIS', '문장 끝으로 본 말투가 고른 말투와 다름(관측 추정)');
     if ((r?.retry ?? []).some(x => x.endsWith(':kept'))) f('CONTRACT_KEPT_AFTER_RETRY', t, 'ACTUAL', (r?.retry ?? []).join(','));
     if (r?.record_error) f('RECORD_SAVE_FAILED', t, 'ACTUAL', r.record_error);
+    // 2026-10-01 구조대·도움 행동 실패 코드(서버가 그 턴에 남긴 것 그대로 · 사용자 사실 아님): RESCUE_OPTIONS_* · HELP_ACTION_SAVED_AS_USER_FACT · SKIP_SAVED_AS_USER_FACT · REJECTION_REAPPEARANCE
+    for (const code of new Set(r?.fi ?? [])) f(code, t, 'ACTUAL', FI_NOTE[code] ?? '서버가 남긴 실패 코드');
     // 실제 외부 사용자 피드백(2026-09-25): 질문 뜻을 되물음(「예를 들면?」) = 질문이 모호했다는 실제 신호. 어느 질문이었는지 그 턴에 붙인다.
     if (t.flags.help) f('ANSWER_SCOPE_UNCLEAR', t, 'ACTUAL', '사용자가 질문 뜻·예시를 물음(질문 구체성 확인 필요)');
     if (t.flags.complaint || t.flags.fatigue) f(t.flags.fatigue ? 'QUESTION_FATIGUE' : 'USER_COMPLAINT', t, 'ACTUAL', '사용자가 항의·피로를 말함(원인 확인 전)');
