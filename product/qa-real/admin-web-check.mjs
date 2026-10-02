@@ -84,7 +84,7 @@ if (ADMIN_BASE) {
           const expectTask = d.decisions?.[0] ?? null;
           check(`화면 ${tag}: 먼저 할 일 = 서버가 준 첫 결정(없으면 「없음」)`, expectTask ? today.task === expectTask : /먼저 할 일 없음/.test(today.task ?? ''), `화면「${today.task}」 서버「${expectTask}」`);
           const cell = (label) => today.rows.find(([k]) => k === label)?.[1] ?? null;
-          const am = await fn('doit-connect', admin.access_token, { action: 'admin_matches' });
+          const am = await fn('doit-connect', s.access_token, { action: 'admin_matches' });
           const talking = (am.data?.matches ?? []).filter((m) => m.messages > 0).length;
           const open = (sf.data?.reports ?? []).filter((r) => r.status !== 'resolved' && r.status !== 'closed').length;
           check(`화면 ${tag}: 연결·안전 숫자 = 서버 원본`, cell('대화 시작') === String(talking) && cell('접수(전체)') === String(sf.data?.reports?.length) && cell('검토 대기') === String(open) && cell('영상으로 서로 확인') === '기능 없음', JSON.stringify({ 화면: today.rows, 서버: { talking, reports: sf.data?.reports?.length, open } }));
