@@ -648,9 +648,20 @@ async function recordSafety(admin: Db, userId: string, targetId: string, where: 
   }
   if (report !== null) {
     const reason = report === "legacy" ? where : `${where}:${report} ${REPORT_REASONS[report]}`;
-    const { data: had } = await admin.from("user_reports").select("id").eq("reporter_id", userId).eq("target_user_id", targetId).eq("reason", reason).limit(1).maybeSingle();
+    const same = () => admin.from("user_reports").select("id, created_at").eq("reporter_id", userId).eq("target_user_id", targetId).eq("reason", reason).order("created_at").order("id");
+    const { data: had } = await same().limit(1).maybeSingle();
     if (had) reported = true;
-    else { const { error } = await admin.from("user_reports").insert({ reporter_id: userId, target_user_id: targetId, reason, detail: null }); reported = !error; }
+    else {
+      const { data: mine, error } = await admin.from("user_reports").insert({ reporter_id: userId, target_user_id: targetId, reason, detail: null }).select("id").maybeSingle();
+      reported = !error;
+      // 두 탭·재시도가 동시에 들어오면 둘 다 「없음」을 보고 두 줄이 생길 수 있다(2026-10-02 실서버 검사에서 재현 · DB 고유 제약은 승인 대상).
+      // 저장 뒤 같은 신고가 둘 이상이면 가장 먼저 저장된 한 줄만 남기고 방금 내가 넣은 줄을 되돌린다(다른 사유·다른 사람 신고는 건드리지 않음).
+      if (!error && mine?.id) {
+        const { data: rows } = await same().limit(5);
+        const first = rows?.[0]?.id;
+        if (first && first !== mine.id) await admin.from("user_reports").delete().eq("id", mine.id).eq("reporter_id", userId);
+      }
+    }
   }
   return { blocked, reported };
 }

@@ -33,9 +33,11 @@ function fakeDb(state) {
       in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
       not: (col, _is, v) => { rows = rows.filter((r) => r[col] !== v && r[col] !== undefined); return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
+      delete: () => { op = 'delete'; return c; },
       maybeSingle: () => Promise.resolve({ data: sorted()[0] ?? null, error: null }),
       then: (ok, bad) => {
         if (op === 'update') { for (const r of rows) Object.assign(r, patch); state.writes.push({ name, op, patch }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
+        if (op === 'delete') { const t = table(name); for (const r of rows) t.splice(t.indexOf(r), 1); state.writes.push({ name, op: 'delete' }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
         const fail = state.failOn?.(name); if (fail) return Promise.resolve({ data: null, error: fail }).then(ok, bad);
         const out = sorted(); const sliced = window ? out.slice(window[0], window[1] + 1) : out.slice(0, state.maxRows ?? Infinity);
         return Promise.resolve({ data: sliced, error: null }).then(ok, bad);
@@ -50,9 +52,10 @@ function fakeDb(state) {
     if (name === 'doit_match_outcomes' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'doit_match_answers' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'blocks' && t.some((r) => r.blocker_id === row.blocker_id && r.blocked_user_id === row.blocked_user_id)) return { error: null };
-    t.push({ id: globalThis.crypto.randomUUID(), created_at: new Date(Date.now() + t.length).toISOString(), common: [], ...row });
+    const made = { id: globalThis.crypto.randomUUID(), created_at: new Date(Date.now() + t.length).toISOString(), common: [], ...row };
+    t.push(made);
     state.writes.push({ name, op: 'insert' });
-    return { error: null };
+    return { error: null, made };
   };
   return {
     auth: {
@@ -60,7 +63,8 @@ function fakeDb(state) {
       admin: { listUsers: async () => ({ data: { users: Object.values(state.users) }, error: null }) },
     },
     from: (name) => Object.assign(chain(name), {
-      insert: async (row) => insert(name, row),
+      // insert(row) 은 바로 기다릴 수도, .select().maybeSingle() 로 만든 줄을 받을 수도 있다(실제 supabase-js 와 같은 모양).
+      insert: (row) => { const p = (async () => { await null; return insert(name, row); })(); return { then: (ok, bad) => p.then(({ error }) => ({ data: null, error })).then(ok, bad), select: () => ({ maybeSingle: () => p.then(({ error, made }) => ({ data: error ? null : { id: made?.id }, error })) }) }; },
       upsert: async (row) => insert(name, row),
     }),
     storage: { from: () => ({ createSignedUrl: async (path) => ({ data: { signedUrl: `https://signed/${path}` }, error: null }) }) },
@@ -1062,4 +1066,16 @@ test('v2.1 안전 · 재시도: 같은 숨기기·신고를 다시 보내면 200
   assert.equal(s.tables.user_reports.length, 2, '다른 사유(추가 증거)는 버리지 않는다');
   assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' })).status, 409, '넘긴 뒤 이어지고 싶어요로 바꾸기 0');
   assert.equal((await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'hide' })).status, 409, '상대가 끝낸 후보를 내가 다시 고르기 0');
+});
+
+test('v2.1 안전 · 두 탭 동시 같은 신고 = 1건(실서버에서 2건 재현 → 저장 뒤 늦게 들어온 줄 되돌림) · 다른 사유는 그대로', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const matchId = s.tables.doit_matches[0].id;
+  const rs = await Promise.all([1, 2, 3].map(() => call(ID.b, { action: 'leave', matchId, block: true, report: true, reason: 'threat' })));
+  assert.ok(rs.every((r) => r.status === 200 && r.body.reported === true));
+  assert.equal(s.tables.user_reports.filter((r) => r.reason === 'connection:threat 위협·강요').length, 1, '동시 3번 = 1건');
+  await call(ID.b, { action: 'leave', matchId, report: true, reason: 'scam' });
+  assert.equal(s.tables.user_reports.length, 2, '다른 사유는 따로');
 });
