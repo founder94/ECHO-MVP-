@@ -1,4 +1,4 @@
-// doit-connect — 연결 서버 (v2.0 · 2026-09-28 · 후보 준비 · 상호선택 · 결과 기록 — 아래 v2.0 설명)
+// doit-connect — 연결 서버 (v2.1 · 2026-10-01 신고 사유 · 후보 차단·신고 / v2.0 · 2026-09-28 후보 준비 · 상호선택 · 결과 기록)
 //
 // v1.2(대표 2026-09-24 "최종완성하라고"): 막힌 곳 세 군데를 푼다.
 //  (a) 겹친 말이 없는 같은 목적 쌍도 후보 목록 맨 뒤에 "겹친 말 없음"으로 보여 준다(빠져나갈 문). 추천 순서는 그대로 겹친 말 우선이고,
@@ -26,6 +26,8 @@
 //    via_mutual: 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결이면 true(관리자가 연 연결은 false). 후보 표만으로 서버가 계산한다(2026-10-01).
 // ⑤ answer / message: 첫 답, 그 뒤 이야기. 저장 금지 입력(연락처·식별번호·링크·성적 표현)은 막고 안내한다.
 // ⑥ leave: 그만하기(차단·신고 선택). 끝난 연결은 상대 정보를 다시 내려 주지 않는다.
+//    v2.1(2026-10-01 대표 「SAFETY LAYER」): 신고 사유(reason: unpleasant·scam·fake·threat·spam·other)를 받는다. 같은 사람·같은 사유 신고는 한 번만 쌓인다.
+//    후보 단계(choose hide/no)에서도 block·reason 을 받아 차단·신고한다(새 표·칸 없음 · 기존 blocks·user_reports). 응답 blocked·reported 는 실제로 저장된 것만.
 // ⑦ admin_matches(관리자): 연결 목록과 진행(답 수·이야기 수). 이야기 내용은 내려 주지 않는다.
 //
 // v2.0(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§19 · QA 전용 표 doit_match_candidates·doit_match_outcomes):
@@ -50,6 +52,8 @@ import { agentSources, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } f
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
 
+import { firstRoom } from "./lifecycle.ts";
+
 type Json = Record<string, unknown>;
 type Db = SupabaseClient;
 
@@ -57,7 +61,7 @@ const ACTIONS = new Set([
   "phone_sync",
   "my_matches", "my_turns", "answer", "message", "leave",
   "admin_candidates", "admin_matches", "admin_decide", "admin_members",
-  "my_candidates", "choose", "outcome", "admin_run_matching",
+  "my_candidates", "choose", "outcome", "admin_run_matching", "zzarit_seen",
 ]);
 
 const LIMITS = {
@@ -128,7 +132,7 @@ const corsHeaders = (origin: string | null): Record<string, string> => {
   };
 };
 const json = (data: unknown, status = 200, origin: string | null = null) =>
-  new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json" } });
+  new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json", "Cache-Control": "private, no-store", "Vary": "Origin, Authorization" } });
 const fail = (code: string, error: string, status = 200, origin: string | null = null) =>
   json({ ok: false, code, error }, status, origin);
 
@@ -347,6 +351,8 @@ interface Member {
   purposeId: string | null;
   purposeLabel: string | null;
   bio: string;
+  region: string;
+  lifeRhythm: string;
   phoneVerified: boolean;
   confirmed: string[];
   answers: number;
@@ -361,7 +367,7 @@ interface MemberReadiness {
   purpose: boolean; intro: boolean; photos: number; photos_needed: number; phone_verified: boolean;
 }
 
-interface AuthInfo { phoneConfirmed: boolean; since: string | null }
+interface AuthInfo { phoneConfirmed: boolean; since: string | null; consented: boolean }
 
 // 로그인 정보(문자 인증 여부·회차 시작 시각)를 한 번에 읽는다. 사람이 많아지면 여러 쪽으로 나눠 읽는다.
 async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, AuthInfo>> {
@@ -372,7 +378,7 @@ async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, Auth
     const users = data?.users ?? [];
     for (const u of users) {
       if (!ids.has(u.id)) continue;
-      out.set(u.id, { phoneConfirmed: !!u.phone && !!u.phone_confirmed_at, since: roundStartOf(u) });
+      out.set(u.id, { phoneConfirmed: !!u.phone && !!u.phone_confirmed_at, since: roundStartOf(u), consented: consentedToConnect(u) });
     }
     if (users.length < 1000) break;
   }
@@ -381,19 +387,20 @@ async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, Auth
 
 // 연결 자격을 서버가 계산한다. 화면의 "준비 상태"(doit-understanding connection_preview)와 같은 기준이다.
 async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
-  let q = admin.from("profiles").select("id, nickname, display_name, purpose_id, purpose_label, bio, verification_status");
+  let q = admin.from("profiles").select("id, nickname, display_name, purpose_id, purpose_label, bio, verification_status, region, life_rhythm");
   q = onlyIds ? q.in("id", onlyIds) : q.not("purpose_id", "is", null);
   const { data: profiles, error } = await q.limit(LIMITS.POOL_MAX);
   if (error) throw new Error("profiles_failed");
   const rows = profiles ?? [];
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
-  const [{ data: photos }, { data: insights }, { data: records }, auth] = await Promise.all([
-    admin.from("profile_photos").select("user_id, slot").in("user_id", ids),
-    admin.from("doit_insights").select("user_id, text, created_at").in("user_id", ids).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
-    admin.from("doit_records").select("user_id, text, status, created_at").in("user_id", ids).order("created_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
+  const [{ data: photos, error: photoError }, { data: insights, error: insightError }, { data: records, error: recordError }, auth] = await Promise.all([
+    inChunks<Json>(ids, (part) => admin.from("profile_photos").select("user_id, slot").in("user_id", part)),
+    inChunks<Json>(ids, (part) => admin.from("doit_insights").select("user_id, text, created_at").in("user_id", part).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(part.length * LIMITS.CONFIRMED_PER_USER)),
+    inChunks<Json>(ids, (part) => admin.from("doit_records").select("user_id, text, status, created_at").in("user_id", part).order("created_at", { ascending: false }).limit(part.length * LIMITS.CONFIRMED_PER_USER)),
     authInfoOf(admin, new Set(ids)),
   ]);
+  if (photoError || insightError || recordError) throw new Error("eligibility_read_failed");
   // 이번 회차에 남긴 내 답 가운데 관계에 대한 정보가 담긴 답 수(아니라고 한 기록 제외).
   // v15.1 "모르겠어요"·지친 말·불만 등은 원문이 남아도 세지 않는다(대화 진행 칸과 다르다 · doit-understanding connection_preview 와 같은 기준).
   const answers = new Map<string, number>();
@@ -411,10 +418,10 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   // Matching Integration: Agent 확정 상태(있는 사용자만 · 이번 회차) — 대화 원문(turns)은 읽지 않고 profile·phase 만 고른다.
   const agentSrc = MATCH_SOURCE === "agent"
     ? await (async () => {
-      const { data, error: agentError } = await admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
-        .eq("action", "agent_session").eq("status", "applied").in("user_id", ids).order("updated_at", { ascending: false }).limit(ids.length * 5); // 최신 줄부터
+      const { data, error: agentError } = await inChunks<Json>(ids, (part) => admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", part).order("updated_at", { ascending: false }).limit(part.length * 5)); // 최신 줄부터
       if (agentError) throw new Error("agent_sessions_failed");
-      return agentSources((data ?? []) as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+      return agentSources((data ?? []) as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
     })()
     : new Map();
   const confirmed = new Map<string, string[]>();
@@ -449,7 +456,7 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     return {
       id, nickname: cleanText(p.nickname) || cleanText(p.display_name) || "이름 없음",
       purposeId: p.purpose_id ? String(p.purpose_id) : null, purposeLabel: p.purpose_label ? String(p.purpose_label) : null,
-      bio, phoneVerified, confirmed: mine, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
+      bio, region: cleanText(p.region), lifeRhythm: cleanText(p.life_rhythm), phoneVerified, confirmed: mine, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
       readiness: { conversation, purpose: !!p.purpose_id, intro: !!bio, photos: Math.min(requiredPhotos, LIMITS.CONNECT_PHOTOS_NEEDED), photos_needed: LIMITS.CONNECT_PHOTOS_NEEDED, phone_verified: phoneVerified },
     };
   });
@@ -460,14 +467,24 @@ function commonOf(a: Member, b: Member): { a: string[]; b: string[] } {
   return { a: pick(a.confirmed, b.confirmed), b: pick(b.confirmed, a.confirmed) };
 }
 
+export const IN_CHUNK = 100;
+export async function inChunks<T>(ids: readonly string[], run: (part: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<{ data: T[]; error: unknown }> {
+  const parts: string[][] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) parts.push(ids.slice(i, i + IN_CHUNK));
+  const results = await Promise.all(parts.map((part) => run(part)));
+  const failed = results.find((r) => r.error);
+  return { data: results.flatMap((r) => r.data ?? []), error: failed ? failed.error : null };
+}
+
 // 차단은 어느 한쪽만 해도 둘은 다시 이어지지 않는다.
 async function blockedPairs(admin: Db, ids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (!ids.length) return out;
-  const [{ data: byMe }, { data: byOther }] = await Promise.all([
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocker_id", ids),
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocked_user_id", ids),
+  const [{ data: byMe, error: e1 }, { data: byOther, error: e2 }] = await Promise.all([
+    inChunks<Json>(ids, (part) => admin.from("blocks").select("blocker_id, blocked_user_id").in("blocker_id", part)),
+    inChunks<Json>(ids, (part) => admin.from("blocks").select("blocker_id, blocked_user_id").in("blocked_user_id", part)),
   ]);
+  if (e1 || e2) throw new Error("safety_read_failed");
   for (const r of [...(byMe ?? []), ...(byOther ?? [])]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
   return out;
 }
@@ -530,17 +547,22 @@ async function firstQuestionFor(purpose: string | null, common: { a: string[]; b
 interface MatchRow { id: string; user_a: string; user_b: string; purpose_id: string | null; common: string[] | null; first_question: string | null; status: string; created_at: string }
 
 async function loadMatch(admin: Db, matchId: string, userId: string): Promise<{ match: MatchRow; partnerId: string } | null> {
-  const { data } = await admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("id", matchId).maybeSingle();
+  const { data, error } = await admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("id", matchId).maybeSingle();
+  if (error) throw new Error("connection_read_failed");
   if (!data) return null;
   const m = data as MatchRow;
   if (m.user_a !== userId && m.user_b !== userId) return null; // 남의 연결은 "없음"으로 답한다(있는지조차 알리지 않는다)
+  const { data: candidate, error: candidateError } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("user_a", m.user_a).eq("user_b", m.user_b).maybeSingle();
+  if (candidateError) throw new Error("connection_parent_read_failed");
+  if (candidate && (candidate.status !== "mutual" || candidate.a_choice !== "yes" || candidate.b_choice !== "yes" || candidate.match_id !== m.id)) return null;
   return { match: m, partnerId: m.user_a === userId ? m.user_b : m.user_a };
 }
 
 async function answersOf(admin: Db, matchIds: string[]): Promise<Map<string, Map<string, { answer: string; created_at: string }>>> {
   const out = new Map<string, Map<string, { answer: string; created_at: string }>>();
   if (!matchIds.length) return out;
-  const { data } = await admin.from("doit_match_answers").select("match_id, user_id, answer, created_at").in("match_id", matchIds);
+  const { data, error } = await admin.from("doit_match_answers").select("match_id, user_id, answer, created_at").in("match_id", matchIds);
+  if (error) throw new Error("answers_read_failed");
   for (const r of data ?? []) {
     const m = out.get(String(r.match_id)) ?? new Map();
     m.set(String(r.user_id), { answer: str(r.answer), created_at: str(r.created_at) });
@@ -565,6 +587,42 @@ interface CandidateRow {
 }
 const CANDIDATE_COLS = "id, user_a, user_b, purpose_id, common_a, common_b, a_choice, b_choice, status, match_id, source, created_at";
 const CHOICES = new Set(["yes", "no", "hide"]);
+// 신고 사유 — 화면 버튼과 같은 6개. 저장은 「어디서:코드 한국어」(관리자 화면의 중대 의심 글자 검사가 그대로 읽는다).
+export const REPORT_REASONS: Readonly<Record<string, string>> = {
+  unpleasant: "불쾌한 대화", scam: "사기·금전 요구", fake: "허위 정보", threat: "위협·강요", spam: "스팸", other: "기타",
+};
+type SafetyAsk = { block: boolean; reason: string | null; bad: boolean };
+function safetyAsk(body: Record<string, unknown>): SafetyAsk {
+  const raw = body.reason;
+  if (raw === undefined || raw === null) return { block: body.block === true, reason: null, bad: false };
+  const code = typeof raw === "string" ? raw : "";
+  return { block: body.block === true, reason: Object.hasOwn(REPORT_REASONS, code) ? code : null, bad: !Object.hasOwn(REPORT_REASONS, code) };
+}
+// 차단·신고를 실제로 저장하고, 저장된 것만 true 로 돌려준다. 같은 사람·같은 사유 신고는 한 번만.
+async function recordSafety(admin: Db, userId: string, targetId: string, where: "connection" | "candidate", block: boolean, report: string | null): Promise<{ blocked: boolean; reported: boolean }> {
+  let blocked = false, reported = false;
+  if (block) {
+    const { error } = await admin.from("blocks").upsert({ blocker_id: userId, blocked_user_id: targetId, reason: where }, { onConflict: "blocker_id,blocked_user_id", ignoreDuplicates: true });
+    if (error) throw new Error("block_write_failed");
+    blocked = true;
+  }
+  if (report !== null) {
+    const reason = report === "legacy" ? where : `${where}:${report} ${REPORT_REASONS[report]}`;
+    const { data: had, error: readError } = await admin.from("user_reports").select("id").eq("reporter_id", userId).eq("target_user_id", targetId).eq("reason", reason).limit(1).maybeSingle();
+    if (readError) throw new Error("report_read_failed");
+    if (had) reported = true;
+    else {
+      const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([userId, targetId, reason]))));
+      bytes[6] = (bytes[6] & 15) | 80; bytes[8] = (bytes[8] & 63) | 128;
+      const hex = [...bytes.slice(0, 16)].map(x => x.toString(16).padStart(2, "0")).join("");
+      const id = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+      const { error } = await admin.from("user_reports").insert({ id, reporter_id: userId, target_user_id: targetId, reason, detail: null });
+      if (error && (error as { code?: string }).code !== "23505") throw new Error("report_write_failed");
+      reported = true;
+    }
+  }
+  return { blocked, reported };
+}
 const OUTCOME_FIELDS: Record<string, readonly string[]> = {
   talked: ["yes", "no"], met: ["yes", "planned", "no"], again: ["yes", "unsure", "no"], helpful: ["yes", "unsure", "no"],
 };
@@ -603,8 +661,8 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
     if (need <= 0) continue;
     const ranked = eligible
       .filter((p) => p.id !== me.id && p.purposeId === me.purposeId && !blocked.has(pairKey(me.id, p.id)) && !taken.has(pairKey(me.id, p.id)) && (open.get(p.id) ?? 0) < LIMITS.CANDIDATES_PER_USER)
-      .map((p) => { const [a, b] = me.id < p.id ? [me, p] : [p, me]; const common = commonOf(a, b); return { a, b, common, score: common.a.length + common.b.length }; })
-      .sort((x, y) => y.score - x.score || (x.a.id + x.b.id < y.a.id + y.b.id ? -1 : 1));
+      .map((p) => { const [a, b] = me.id < p.id ? [me, p] : [p, me]; const common = commonOf(a, b); return { a, b, common, score: common.a.length + common.b.length, sameRegion: !!me.region && me.region === p.region, sameRhythm: !!me.lifeRhythm && me.lifeRhythm === p.lifeRhythm }; })
+      .sort((x, y) => y.score - x.score || Number(y.sameRegion) - Number(x.sameRegion) || Number(y.sameRhythm) - Number(x.sameRhythm) || (x.a.id + x.b.id < y.a.id + y.b.id ? -1 : 1));
     for (const pick of ranked) {
       if (need <= 0) break;
       const { error } = await admin.from("doit_match_candidates").insert({
@@ -612,7 +670,10 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
       });
       const key = pairKey(pick.a.id, pick.b.id);
       taken.add(key);
-      if (error) continue; // 23505 = 동시에 같은 쌍을 준비함 → 이미 있음
+      if (error) {
+        if ((error as { code?: string }).code === "23505") continue;
+        throw new Error("candidate_write_failed");
+      }
       made++; need--;
       for (const u of [pick.a.id, pick.b.id]) open.set(u, (open.get(u) ?? 0) + 1);
     }
@@ -632,19 +693,33 @@ function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null
 
 /** 둘 다 yes 인 후보로 연결을 연다. 같은 쌍 연결은 하나뿐(유일 키) — 동시에 눌러도 1개. 열기 전에 자격·목적·차단을 다시 확인한다. */
 async function openConnection(admin: Db, c: CandidateRow): Promise<{ ok: true; matchId: string; firstQuestion: string | null; questionSource: "ai" | "fixed" | null } | { ok: false; code: string; message: string }> {
+  const { data: latest, error: readError } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", c.id).maybeSingle();
+  if (readError) throw new Error("candidate_read_failed");
+  if (!latest || !["proposed", "mutual"].includes(latest.status) || latest.a_choice !== "yes" || latest.b_choice !== "yes") return { ok: false, code: CODES.INVALID_STATE, message: "이미 끝난 후보예요." };
+  if (latest.status === "proposed") {
+    const { data: claimed, error } = await admin.from("doit_match_candidates").update({ status: "mutual", updated_at: new Date().toISOString() }).eq("id", c.id).eq("status", "proposed").eq("a_choice", "yes").eq("b_choice", "yes").select(CANDIDATE_COLS).maybeSingle();
+    if (error) throw new Error("mutual_claim_failed");
+    if (!claimed) return openConnection(admin, c);
+  }
   const members = await loadMembers(admin, [c.user_a, c.user_b]);
   const a = members.find((m) => m.id === c.user_a), b = members.find((m) => m.id === c.user_b);
   const withdraw = async () => { await admin.from("doit_match_candidates").update({ status: "withdrawn", updated_at: new Date().toISOString() }).eq("id", c.id); };
   if ((await blockedPairs(admin, [c.user_a])).has(pairKey(c.user_a, c.user_b))) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "이 후보와는 이어질 수 없어요." }; }
   if (!a || !b || !a.eligible || !b.eligible || !a.purposeId || a.purposeId !== b.purposeId) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "두 사람 중 연결 준비가 바뀐 사람이 있어 이번 후보는 닫았어요." }; }
   const common = commonOf(a, b);
-  const first = await firstQuestionFor(a.purposeLabel, common);
+  const { data: existing, error: existingError } = await admin.from("doit_matches").select("id, status, first_question").eq("user_a", c.user_a).eq("user_b", c.user_b).maybeSingle();
+  if (existingError) throw new Error("connection_read_failed");
+  if (existing && existing.status !== "approved") return { ok: false, code: CODES.INVALID_STATE, message: "이 쌍은 이미 끝난 연결이에요." };
+  const first = existing ? { question: existing.first_question, source: "fixed" as const } : await firstQuestionFor(a.purposeLabel, common);
+  // Recheck safety after LLM latency. A block during generation must never open a connection.
+  if ((await blockedPairs(admin, [c.user_a])).has(pairKey(c.user_a, c.user_b))) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "이 후보와는 이어질 수 없어요." }; }
   const { error } = await admin.from("doit_matches").insert({ user_a: c.user_a, user_b: c.user_b, purpose_id: a.purposeId, common: common.a, first_question: first.question, status: "approved" });
   if (error && (error as { code?: string }).code !== "23505") return { ok: false, code: CODES.ERROR, message: "연결을 열지 못했어요. 잠시 뒤 다시 눌러 주세요." };
   const { data: m } = await admin.from("doit_matches").select("id, status").eq("user_a", c.user_a).eq("user_b", c.user_b).maybeSingle();
   if (!m || m.status !== "approved") return { ok: false, code: CODES.INVALID_STATE, message: "이 쌍은 이미 끝난 연결이에요." };
   const raced = !!error; // 상대가 같은 순간에 먼저 열었음 — 그쪽 첫 질문을 쓴다
-  await admin.from("doit_match_candidates").update({ status: "mutual", match_id: String(m.id), updated_at: new Date().toISOString() }).eq("id", c.id);
+  const { data: linked, error: linkError } = await admin.from("doit_match_candidates").update({ status: "mutual", match_id: String(m.id), updated_at: new Date().toISOString() }).eq("id", c.id).eq("status", "mutual").eq("a_choice", "yes").eq("b_choice", "yes").select("id").maybeSingle();
+  if (linkError || !linked) return { ok: false, code: CODES.ERROR, message: "연결을 확인하지 못했어요. 잠시 뒤 다시 눌러 주세요." };
   logDiag({ action: "mutual_open", question: first.source, no_common: common.a.length === 0, raced });
   return { ok: true, matchId: String(m.id), firstQuestion: raced ? null : first.question, questionSource: raced ? null : first.source };
 }
@@ -652,7 +727,8 @@ async function openConnection(admin: Db, c: CandidateRow): Promise<{ ok: true; m
 /** 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결만(관리자가 연 연결은 아님). 후보 표의 status=mutual · 양쪽 yes · match_id 로만 판단한다. */
 async function mutualMatchIds(admin: Db, matchIds: string[]): Promise<Set<string>> {
   if (!matchIds.length) return new Set();
-  const { data } = await admin.from("doit_match_candidates").select("match_id, a_choice, b_choice").in("match_id", matchIds).eq("status", "mutual");
+  const { data, error } = await admin.from("doit_match_candidates").select("match_id, a_choice, b_choice").in("match_id", matchIds).eq("status", "mutual");
+  if (error) throw new Error("mutual_read_failed");
   return new Set((data ?? []).filter((r) => r.a_choice === "yes" && r.b_choice === "yes" && r.match_id).map((r) => String(r.match_id)));
 }
 
@@ -662,6 +738,13 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
   if (userId) q = q.eq("user_id", userId);
   const { data } = await q;
   return (data ?? []) as Json[];
+}
+
+async function zzaritRequestId(userId: string, matchId: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(["connect_zzarit_seen", userId, matchId]))));
+  bytes[6] = (bytes[6] & 15) | 80; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes.slice(0, 16)].map(x => x.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -704,6 +787,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: true, verified }, 200, origin);
     }
 
+    if (action === "zzarit_seen") {
+      const matchId = str(body.matchId);
+      if (!UUID_RE.test(matchId)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const found = await loadMatch(admin, matchId, userId);
+      if (!found) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
+      if (found.match.status !== "approved" || !(await mutualMatchIds(admin, [matchId])).has(matchId) || (await blockedPairs(admin, [userId])).has(pairKey(userId, found.partnerId))) return fail(CODES.INVALID_STATE, "끝난 연결이에요.", 409, origin);
+      const room = firstRoom(found.match.created_at, [...((await answersOf(admin, [matchId])).get(matchId)?.values() ?? [])].map(a => a.created_at), Date.now());
+      if (["expired", "unavailable"].includes(room.status)) return fail(CODES.INVALID_STATE, "이 방은 자연스럽게 종료됐어요.", 409, origin);
+      const requestId = await zzaritRequestId(userId, matchId);
+      const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: "connect_zzarit_seen", target_id: matchId, status: "applied", response_payload: { event_id: requestId, connection_id: matchId } });
+      if (error && (error as { code?: string }).code !== "23505") throw new Error("zzarit_write_failed");
+      return json({ ok: true, zzarit_event: error ? null : { id: requestId, connection_id: matchId, type: "mutual" } }, 200, origin);
+    }
+
     if (action === "my_matches") {
       const [{ data: asA }, { data: asB }] = await Promise.all([
         admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("user_a", userId).in("status", ["approved", "closed"]).limit(LIMITS.MATCHES_MAX),
@@ -715,21 +812,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const answers = await answersOf(admin, rows.map((r) => r.id));
       const myOutcomes = new Map((await outcomesOf(admin, rows.map((r) => r.id), userId)).map((o) => [String(o.match_id), o]));
       const viaMutual = await mutualMatchIds(admin, rows.map((r) => r.id));
+      const consent = await authInfoOf(admin, new Set(rows.flatMap(r => [r.user_a, r.user_b])));
+      const { data: seenEvents, error: seenError } = rows.length ? await admin.from("doit_request_events").select("target_id").eq("user_id", userId).eq("action", "connect_zzarit_seen").eq("status", "applied").in("target_id", rows.map(r => r.id)) : { data: [], error: null };
+      if (seenError) throw new Error("zzarit_read_failed");
+      const seen = new Set((seenEvents ?? []).map(e => String(e.target_id)));
       const out = [];
       for (const m of rows) {
+        if (!(await loadMatch(admin, m.id, userId))) continue;
         const partnerId = m.user_a === userId ? m.user_b : m.user_a;
-        const open = m.status === "approved" && !blocked.has(pairKey(userId, partnerId));
+        let open = m.status === "approved" && !blocked.has(pairKey(userId, partnerId));
         const got = answers.get(m.id) ?? new Map();
         const mine = got.get(userId) ?? null;
         const theirs = got.get(partnerId) ?? null;
-        const revealed = open && !!mine && !!theirs;
+        const room = viaMutual.has(m.id) ? firstRoom(m.created_at, [...got.values()].map(a => a.created_at), Date.now()) : null;
+        if (room && ["expired", "unavailable"].includes(room.status)) open = false;
+        const revealed = open && !!mine && !!theirs && consent.get(userId)?.consented === true && consent.get(partnerId)?.consented === true;
         const item: Json = {
           id: m.id, status: open ? "open" : "closed", created_at: m.created_at,
           first_question: open ? m.first_question : null,
           my_answer: open ? mine?.answer ?? null : null,
           partner_answered: open ? !!theirs : false,
           revealed,
+          reveal_state: revealed ? "FULL_SAFE" : "CANDIDATE_SAFE",
           via_mutual: viaMutual.has(m.id),
+          room,
+          zzarit_eligible: open && viaMutual.has(m.id) && !seen.has(m.id),
           outcome: (() => { const o = myOutcomes.get(m.id); return o ? { talked: o.talked ?? null, met: o.met ?? null, again: o.again ?? null, helpful: o.helpful ?? null } : null; })(),
         };
         if (revealed) {
@@ -738,6 +845,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
             primaryPhotoUrl(admin, partnerId),
             admin.from("doit_match_messages").select("id, sender_id, body, created_at").eq("match_id", m.id).order("created_at", { ascending: false }).limit(LIMITS.MESSAGES_SHOWN),
           ]);
+          const current = await loadMatch(admin, m.id, userId);
+          if (!current || current.match.status !== "approved" || (await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
+            item.status = "closed"; item.revealed = false; item.reveal_state = "CANDIDATE_SAFE";
+            item.first_question = null; item.my_answer = null; item.partner_answered = false;
+            out.push(item); continue;
+          }
           item.partner = {
             nickname: cleanText(p?.nickname) || cleanText(p?.display_name) || "이름 없음",
             bio: cleanText(p?.bio), purpose: p?.purpose_label ?? null, answer: theirs?.answer ?? "", photo_url: photo,
@@ -753,13 +866,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // (c) 내 차례만 센다. 앱 홈 카드용 — 이름·질문·이야기 내용은 내려 주지 않는다.
     if (action === "my_turns") {
       const [{ data: asA }, { data: asB }] = await Promise.all([
-        admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_a", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
-        admin.from("doit_matches").select("id, user_a, user_b, status").eq("user_b", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
+        admin.from("doit_matches").select("id, user_a, user_b, status, created_at").eq("user_a", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
+        admin.from("doit_matches").select("id, user_a, user_b, status, created_at").eq("user_b", userId).eq("status", "approved").limit(LIMITS.MATCHES_MAX),
       ]);
       const blocked = await blockedPairs(admin, [userId]);
-      const rows = [...(asA ?? []), ...(asB ?? [])].map((m) => ({ id: String(m.id), partnerId: String(m.user_a) === userId ? String(m.user_b) : String(m.user_a) }))
+      const rows = [...(asA ?? []), ...(asB ?? [])].map((m) => ({ id: String(m.id), created_at: String(m.created_at), partnerId: String(m.user_a) === userId ? String(m.user_b) : String(m.user_a) }))
         .filter((m) => !blocked.has(pairKey(userId, m.partnerId)));
       const answers = await answersOf(admin, rows.map((r) => r.id));
+      const mutual = await mutualMatchIds(admin, rows.map(r => r.id));
+      const activeRows = [];
+      for (const m of rows) {
+        if (!(await loadMatch(admin, m.id, userId))) continue;
+        const room = mutual.has(m.id) ? firstRoom(m.created_at, [...(answers.get(m.id)?.values() ?? [])].map(a => a.created_at), Date.now()) : null;
+        if (room && ["expired", "unavailable"].includes(room.status)) continue;
+        activeRows.push(m);
+      }
       const turns = { answer: 0, reply: 0, opened: 0, choose: 0 };
       const [{ data: pa }, { data: pb }] = await Promise.all([
         admin.from("doit_match_candidates").select("user_a, user_b, a_choice, b_choice").eq("user_a", userId).eq("status", "proposed"),
@@ -770,7 +891,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (!blocked.has(pairKey(userId, partner)) && (String(c.user_a) === userId ? c.a_choice : c.b_choice) == null) turns.choose++;
       }
       const revealedIds: string[] = [];
-      for (const m of rows) {
+      for (const m of activeRows) {
         const got = answers.get(m.id) ?? new Map();
         if (!got.has(userId)) turns.answer++;
         else if (got.has(m.partnerId)) revealedIds.push(m.id);
@@ -785,8 +906,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
           else if (sender !== userId) turns.reply++; // 마지막 말이 상대 것
         }
       }
-      logDiag({ action, open: rows.length, ...turns });
-      return json({ ok: true, open: rows.length, turns }, 200, origin);
+      logDiag({ action, open: activeRows.length, ...turns });
+      return json({ ok: true, open: activeRows.length, turns }, 200, origin);
     }
 
     if (action === "answer" || action === "message") {
@@ -802,12 +923,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!found) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
       const blocked = await blockedPairs(admin, [userId]);
       if (found.match.status !== "approved" || blocked.has(pairKey(userId, found.partnerId))) return fail(CODES.INVALID_STATE, "끝난 연결이에요.", 409, origin);
+      const currentAnswers = (await answersOf(admin, [matchId])).get(matchId) ?? new Map();
+      if ((await mutualMatchIds(admin, [matchId])).has(matchId)) {
+        const room = firstRoom(found.match.created_at, [...currentAnswers.values()].map(a => a.created_at), Date.now());
+        if (["expired", "unavailable"].includes(room.status)) return fail(CODES.INVALID_STATE, "이 방은 자연스럽게 종료됐어요.", 409, origin);
+      }
       if (action === "answer") {
         // (b) 첫 답은 공개의 방아쇠다 — 동의가 없으면 저장하지 않는다(적은 글은 화면에 그대로 남는다).
         if (!consentedToConnect(user)) { logDiag({ action, consent: false }); return fail(CODES.CONSENT_REQUIRED, "첫 답을 보내기 전에 무엇이 상대에게 보이는지 확인해 주세요.", 409, origin); }
         const { error } = await admin.from("doit_match_answers").insert({ match_id: matchId, user_id: userId, answer: text });
         if (error) {
-          if ((error as { code?: string }).code === "23505") return fail(CODES.INVALID_STATE, "이미 답을 보냈어요.", 409, origin);
+          if ((error as { code?: string }).code === "23505") {
+            const prior = (await answersOf(admin, [matchId])).get(matchId)?.get(userId);
+            if (prior?.answer === text) return json({ ok: true, replayed: true }, 200, origin);
+            return fail(CODES.INVALID_STATE, "이미 답을 보냈어요.", 409, origin);
+          }
           return fail(CODES.ERROR, "답을 보내지 못했어요. 적은 내용은 그대로 있어요. 다시 눌러 주세요.", 500, origin);
         }
         logDiag({ action });
@@ -815,7 +945,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const answers = (await answersOf(admin, [matchId])).get(matchId) ?? new Map();
       if (!answers.has(userId) || !answers.has(found.partnerId)) return fail(CODES.INVALID_STATE, "두 사람이 모두 첫 질문에 답한 뒤에 이야기할 수 있어요.", 409, origin);
-      const { error } = await admin.from("doit_match_messages").insert({ match_id: matchId, sender_id: userId, body: text });
+      const messageId = body.requestId === undefined ? null : str(body.requestId);
+      if (messageId !== null && !UUID_RE.test(messageId)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const { error } = await admin.from("doit_match_messages").insert({ ...(messageId ? { id: messageId } : {}), match_id: matchId, sender_id: userId, body: text });
+      if (error && (error as { code?: string }).code === "23505" && messageId) {
+        const { data: prior, error: readError } = await admin.from("doit_match_messages").select("match_id, sender_id, body").eq("id", messageId).maybeSingle();
+        if (readError) throw new Error("message_retry_read_failed");
+        if (prior?.match_id === matchId && prior?.sender_id === userId && prior?.body === text) return json({ ok: true, replayed: true }, 200, origin);
+        return fail(CODES.INVALID_STATE, "같은 요청으로 다른 이야기를 보낼 수 없어요.", 409, origin);
+      }
       if (error) return fail(CODES.ERROR, "보내지 못했어요. 적은 내용은 그대로 있어요. 다시 눌러 주세요.", 500, origin);
       logDiag({ action });
       return json({ ok: true }, 200, origin);
@@ -826,16 +964,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!UUID_RE.test(matchId)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
       const found = await loadMatch(admin, matchId, userId);
       if (!found) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
-      const block = body.block === true;
-      const report = body.report === true;
+      const ask = safetyAsk(body);
+      if (ask.bad) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const block = ask.block;
+      const report = ask.reason ?? (body.report === true ? "legacy" : null); // 예전 화면(report:true · 사유 없음)은 그대로 "connection"
       if (found.match.status === "approved") {
         const { error } = await admin.from("doit_matches").update({ status: "closed", closed_by: userId, updated_at: new Date().toISOString() }).eq("id", matchId);
         if (error) return fail(CODES.ERROR, "지금은 끝내지 못했어요. 다시 눌러 주세요.", 500, origin);
       }
-      if (block) await admin.from("blocks").upsert({ blocker_id: userId, blocked_user_id: found.partnerId, reason: "connection" }, { onConflict: "blocker_id,blocked_user_id", ignoreDuplicates: true });
-      if (report) await admin.from("user_reports").insert({ reporter_id: userId, target_user_id: found.partnerId, reason: "connection", detail: null });
-      logDiag({ action, block, report });
-      return json({ ok: true }, 200, origin);
+      const saved = await recordSafety(admin, userId, found.partnerId, "connection", block, report);
+      logDiag({ action, block, report: report !== null, reason: ask.reason });
+      return json({ ok: true, ...saved }, 200, origin);
     }
 
     // ⑧ 당신이 잠든 사이 — 내 후보. 자격이 있으면 부족한 만큼 서버가 먼저 준비하고, 후보 단계에서는 상대 정보를 내려 주지 않는다.
@@ -853,10 +992,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const out: Json[] = [];
       for (const c of rows.sort((x, y) => (x.created_at < y.created_at ? -1 : 1))) {
         const partnerId = c.user_a === userId ? c.user_b : c.user_a;
-        if (blocked.has(pairKey(userId, partnerId))) continue;
+        if (!eligible || blocked.has(pairKey(userId, partnerId))) continue;
+        const partner = members.find(m => m.id === partnerId) ?? (await loadMembers(admin, [partnerId]))[0];
+        if (!partner?.eligible || !me?.purposeId || partner.purposeId !== me.purposeId) continue;
+        const [a, b] = userId < partnerId ? [me, partner] : [partner, me];
+        const currentCommon = commonOf(a, b);
+        const safeCandidate = { ...c, common_a: currentCommon.a, common_b: currentCommon.b };
         const mine = mySide(c, userId) === "a" ? c.a_choice : c.b_choice;
         if (mine !== null && mine !== "yes") continue;
-        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null), my_choice: mine, waiting: mine === "yes" });
+        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(safeCandidate, userId, me?.purposeLabel ?? null), my_choice: mine, waiting: mine === "yes", reveal_state: "CANDIDATE_SAFE" });
       }
       logDiag({ action, eligible, prepared, shown: out.length });
       return json({ ok: true, eligible, missing: me?.missing ?? ["purpose"], readiness: me?.readiness ?? null, prepared, candidates: out }, 200, origin);
@@ -867,34 +1011,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const id = str(body.candidateId);
       const choice = str(body.choice);
       if (!UUID_RE.test(id) || !CHOICES.has(choice)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const ask = safetyAsk(body);
+      const safety = ask.block || ask.reason !== null;
+      if (ask.bad || (safety && choice === "yes")) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
       const { data: row } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", id).maybeSingle();
       const c = row ? asCandidate(row) : null;
       if (!c || (c.user_a !== userId && c.user_b !== userId)) return fail(CODES.NOT_FOUND, "이 후보를 찾지 못했어요.", 404, origin);
       const side = mySide(c, userId);
       const col = side === "a" ? "a_choice" : "b_choice";
       const already = side === "a" ? c.a_choice : c.b_choice;
-      if (c.status === "mutual" && already === "yes" && choice === "yes") return json({ ok: true, status: "mutual", match_id: c.match_id }, 200, origin);
+      if (c.status === "mutual" && already === "yes" && choice === "yes") {
+        const opened = await openConnection(admin, c); // repair a crash between connection insert and candidate link
+        if (!opened.ok) return fail(opened.code, opened.message, 409, origin);
+        return json({ ok: true, status: "mutual", match_id: opened.matchId }, 200, origin);
+      }
       if (c.status !== "proposed") return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
-      if (already !== null && already !== choice) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
+      // 차단·신고는 「이어지고 싶어요」를 누른 뒤(기다리는 중)에도 할 수 있다 — 그 선택을 거두고 끝낸다.
+      if (already !== null && already !== choice && !safety) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
       const partnerId = side === "a" ? c.user_b : c.user_a;
       if ((await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
         await admin.from("doit_match_candidates").update({ status: "withdrawn", updated_at: new Date().toISOString() }).eq("id", id);
+        if (safety) { const saved = await recordSafety(admin, userId, partnerId, "candidate", ask.block, ask.reason); return json({ ok: true, status: "declined", ...saved }, 200, origin); }
         return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
       }
       const now = new Date().toISOString();
       if (choice !== "yes") {
-        const { error } = await admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id);
+        let change = admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id).eq("status", "proposed");
+        change = safety && already !== null ? change.eq(col, already) : change.is(col, null);
+        const { data: changed, error } = await change.select("id").maybeSingle();
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
-        logDiag({ action, choice });
-        return json({ ok: true, status: "declined" }, 200, origin);
+        if (!changed) return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
+        const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", ask.block, ask.reason) : { blocked: false, reported: false };
+        logDiag({ action, choice, block: saved.blocked, reason: ask.reason });
+        return json({ ok: true, status: "declined", ...saved }, 200, origin);
       }
       if (already !== "yes") {
-        const { error } = await admin.from("doit_match_candidates").update({ [col]: "yes", updated_at: now }).eq("id", id);
+        const { error } = await admin.from("doit_match_candidates").update({ [col]: "yes", updated_at: now }).eq("id", id).eq("status", "proposed").is(col, null);
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
       }
       const { data: fresh } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", id).maybeSingle();
       const f = fresh ? asCandidate(fresh) : null;
-      if (!f || f.status !== "proposed") return json({ ok: true, status: f?.status ?? "declined", match_id: f?.match_id ?? null }, 200, origin);
+      if (!f || !["proposed", "mutual"].includes(f.status)) return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
       if (f.a_choice === "yes" && f.b_choice === "yes") {
         const opened = await openConnection(admin, f);
         if (!opened.ok) return fail(opened.code, opened.message, 409, origin);
@@ -920,9 +1077,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!found || (found.match.status !== "approved" && found.match.status !== "closed")) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
       const now = new Date().toISOString();
       const { data: prev } = await admin.from("doit_match_outcomes").select("match_id").eq("match_id", matchId).eq("user_id", userId).maybeSingle();
-      const { error } = prev
+      let { error } = prev
         ? await admin.from("doit_match_outcomes").update({ ...patch, updated_at: now }).eq("match_id", matchId).eq("user_id", userId)
         : await admin.from("doit_match_outcomes").insert({ match_id: matchId, user_id: userId, ...patch });
+      if (error && (error as { code?: string }).code === "23505") {
+        ({ error } = await admin.from("doit_match_outcomes").update({ ...patch, updated_at: now }).eq("match_id", matchId).eq("user_id", userId));
+      }
       if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
       logDiag({ action, fields: Object.keys(patch) });
       return json({ ok: true }, 200, origin);
@@ -1048,7 +1208,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     return fail(CODES.BAD_REQUEST, "알 수 없는 요청이에요.", 400, origin);
-  } catch {
+  } catch (e) {
+    // 원인 추적용: 오류 종류와 짧은 설명만(따옴표 안 값은 지움 · 사용자 원문 0).
+    const err = e instanceof Error ? e : new Error(String(e));
+    logDiag({ evt_error: err.name, why: err.message.replace(/(["'`]).*?\1/g, "…").slice(0, 120), at: (err.stack ?? "").split("\n").slice(1, 3).map((l) => l.trim().replace(/\(?file:\/\/\S*\/functions\//, "")).join(" | ").slice(0, 200) });
     return fail(CODES.ERROR, "서버 오류가 발생했어요.", 500, origin);
   }
 });

@@ -18,46 +18,56 @@ const ID = {
 const NICK_B = '바다고양이';
 const BIO_B = '주말엔 산책을 해요';
 
-function fakeDb(state) {
+function fakeDb(state, who = state.current) {
   const table = (name) => (state.tables[name] ??= []);
   const chain = (name) => {
-    let rows = table(name).slice();
-    let op = 'select', patch = null;
+    let op = 'select', patch = null, single = false, predicates = [], sorting = null, max = null;
+    const run = async () => {
+      if (state.beforeDb) await state.beforeDb({ name, op, patch });
+      if (state.failDb?.({ name, op, patch })) return { data: null, error: { code: 'XX000' } };
+      let rows = table(name).filter(r => predicates.every(p => p(r)));
+      if (sorting) { const [col, o] = sorting; rows.sort((x, y) => (x[col] < y[col] ? -1 : 1) * (o?.ascending === false ? -1 : 1)); }
+      if (max !== null) rows = rows.slice(0, max);
+      if (op === 'update') { for (const r of rows) Object.assign(r, patch); state.writes.push({ name, op, patch }); }
+      return { data: single ? rows[0] ?? null : rows, error: null };
+    };
     const c = {
-      select: () => c, order: (col, o) => { rows.sort((x, y) => (x[col] < y[col] ? -1 : 1) * (o?.ascending === false ? -1 : 1)); return c; }, limit: (n) => { rows = rows.slice(0, n); return c; },
-      eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
-      in: (col, vals) => { rows = rows.filter((r) => vals.includes(r[col])); return c; },
-      not: (col, _is, v) => { rows = rows.filter((r) => r[col] !== v && r[col] !== undefined); return c; },
-      update: (p) => { op = 'update'; patch = p; return c; },
-      maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
-      then: (ok, bad) => {
-        if (op === 'update') { for (const r of rows) Object.assign(r, patch); state.writes.push({ name, op, patch }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
-        return Promise.resolve({ data: rows, error: null }).then(ok, bad);
-      },
+      select: () => c, order: (col, o) => { sorting = [col, o]; return c; }, limit: n => { max = n; return c; },
+      eq: (col, v) => { predicates.push(r => r[col] === v); return c; },
+      is: (col, v) => { predicates.push(r => (r[col] ?? null) === v); return c; },
+      in: (col, vals) => { (state.inSizes ??= []).push(vals.length); predicates.push(r => vals.includes(r[col])); return c; },
+      not: (col, _is, v) => { predicates.push(r => r[col] !== v && r[col] !== undefined); return c; },
+      update: p => { op = 'update'; patch = p; return c; },
+      maybeSingle: () => { single = true; return run(); },
+      then: (ok, bad) => run().then(ok, bad),
     };
     return c;
   };
   const insert = (name, row) => {
     const t = table(name);
+    if (state.failDb?.({ name, op: "insert", patch: row })) return { error: { code: "XX000" } };
+    if (name === "doit_request_events" && t.some(r => r.user_id === row.user_id && r.request_id === row.request_id)) return { error: { code: "23505" } };
+    if (name === "user_reports" && row.id && t.some(r => r.id === row.id)) return { error: { code: "23505" } };
+    if (name === "doit_match_messages" && row.id && t.some(r => r.id === row.id)) return { error: { code: "23505" } };
     if (name === 'doit_matches' && t.some((r) => r.user_a === row.user_a && r.user_b === row.user_b)) return { error: { code: '23505' } };
     if (name === 'doit_match_candidates' && t.some((r) => r.user_a === row.user_a && r.user_b === row.user_b)) return { error: { code: '23505' } };
     if (name === 'doit_match_outcomes' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'doit_match_answers' && t.some((r) => r.match_id === row.match_id && r.user_id === row.user_id)) return { error: { code: '23505' } };
     if (name === 'blocks' && t.some((r) => r.blocker_id === row.blocker_id && r.blocked_user_id === row.blocked_user_id)) return { error: null };
-    t.push({ id: globalThis.crypto.randomUUID(), created_at: new Date(Date.now() + t.length).toISOString(), common: [], ...row });
+    t.push({ id: globalThis.crypto.randomUUID(), created_at: new Date(Date.now() - 1000 + t.length).toISOString(), common: [], ...row });
     state.writes.push({ name, op: 'insert' });
     return { error: null };
   };
   return {
     auth: {
-      getUser: async () => ({ data: { user: state.users[state.current] }, error: null }),
+      getUser: async () => ({ data: { user: state.users[who] }, error: null }),
       admin: { listUsers: async () => ({ data: { users: Object.values(state.users) }, error: null }) },
     },
     from: (name) => Object.assign(chain(name), {
       insert: async (row) => insert(name, row),
       upsert: async (row) => insert(name, row),
     }),
-    storage: { from: () => ({ createSignedUrl: async (path) => ({ data: { signedUrl: `https://signed/${path}` }, error: null }) }) },
+    storage: { from: () => ({ createSignedUrl: async (path) => { state.signedPaths ??= []; state.signedPaths.push(path); if (state.onSign) await state.onSign(path); return { data: { signedUrl: `https://signed/${path}` }, error: null }; } }) },
   };
 }
 
@@ -69,7 +79,7 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...state.env })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name.startsWith('.')) return local(path.join('supabase/functions/doit-connect', name)); throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: (_url, _key, options) => fakeDb(state, options?.global?.headers?.Authorization?.slice(7) ?? state.current) }; if (name.startsWith('.')) return local(path.join('supabase/functions/doit-connect', name)); throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       state.aiCalls.push(JSON.parse(init.body));
       const answer = ai();
@@ -89,7 +99,7 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   return async (who, payload, { auth = true } = {}) => {
     state.current = who;
     const headers = { 'content-type': 'application/json' };
-    if (auth) headers.Authorization = 'Bearer t';
+    if (auth) headers.Authorization = `Bearer ${who}`;
     const res = await handler(new Request('http://fn/', { method: 'POST', headers, body: JSON.stringify(payload) }));
     return { status: res.status, body: await res.json() };
   };
@@ -106,7 +116,7 @@ const CONSENTED = { doit_connect_consent_version: 'connect-v1', doit_connect_con
 function world(over = {}) {
   const user = (id, phone = true, meta = CONSENTED) => ({ id, phone: phone ? '821000000000' : '', phone_confirmed_at: phone ? '2026-09-23T00:00:00Z' : null, user_metadata: { ...meta } });
   const state = {
-    current: ID.a, logs: [], writes: [], aiCalls: [],
+    current: ID.a, logs: [], writes: [], aiCalls: [], inSizes: [],
     users: { [ID.admin]: user(ID.admin), [ID.a]: user(ID.a), [ID.b]: user(ID.b), [ID.c]: user(ID.c), [ID.d]: user(ID.d) },
     tables: {
       profiles: [
@@ -826,7 +836,7 @@ test('via_mutual: 후보 상호선택 없이 열린 연결(예전 관리자 직�
   assert.equal(m.status, 'open');
   assert.equal(m.via_mutual, false, '관리자가 연 연결에 「상대도 당신이 궁금했대요」 근거를 주지 않는다');
   s.tables.doit_match_candidates.push({ id: 'c0000000-0000-4000-8000-000000000001', user_a: ID.a, user_b: ID.b, a_choice: 'yes', b_choice: null, status: 'mutual', match_id: m.id });
-  assert.equal((await call(ID.a, { action: 'my_matches' })).body.matches[0].via_mutual, false, '양쪽 yes 가 아니면 status 값만으로 true 로 만들지 않는다');
+  assert.equal((await call(ID.a, { action: 'my_matches' })).body.matches.length, 0, '불완전한 mutual parent 는 client 에 연결을 공개하지 않는다');
 });
 
 // ── FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): 연결 자격 = conversation_ready(Agent 공통 계약) AND 목적 AND 소개 AND 필수 사진.
@@ -869,4 +879,79 @@ test('FI-018 CASE 9(연결): QA 실패 모양 — 대화를 마쳤지만 사용�
   qaA.values_character.items.push(it('서로 말 끊지 않고 천천히 듣는 대화가 좋아요', 'USER_DIRECT', 3));
   const fixed = await loadServer(fi018([{ ...row, profile: qaA }, agentRow(ID.b, READY)]))(ID.a, { action: 'my_candidates' });
   assert.equal(fixed.body.eligible, true); assert.equal(fixed.body.candidates.length, 1);
+});
+
+export { ID, world, loadServer, approveBoth, candOf };
+
+// v2.1(2026-10-01 대표 「SAFETY LAYER」): 신고 사유 · 후보 단계 차단·신고 · 응답은 실제로 저장된 것만 · 같은 신고는 한 번만.
+test('v2.1 안전: 연결 신고 사유 6개만 · 저장값 「connection:코드 한국어」 · 같은 사유 다시 눌러도 1건 · 예전 report:true 는 그대로', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const matchId = s.tables.doit_matches[0].id;
+  assert.equal((await call(ID.b, { action: 'leave', matchId, block: true, reason: 'hack' })).status, 400, '모르는 사유는 거절');
+  assert.equal(s.tables.doit_matches[0].status, 'approved', '거절된 요청은 아무것도 바꾸지 않는다');
+  const r = await call(ID.b, { action: 'leave', matchId, block: true, reason: 'threat' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.blocked, r.body.reported], [true, true]);
+  assert.equal(s.tables.doit_matches[0].status, 'closed');
+  assert.equal(s.tables.user_reports.length, 1);
+  assert.equal(s.tables.user_reports[0].reason, 'connection:threat 위협·강요');
+  assert.equal(s.tables.user_reports[0].detail, null, '자유 글 저장 0');
+  assert.equal(s.tables.user_reports[0].target_user_id, ID.a);
+  const again = await call(ID.b, { action: 'leave', matchId, block: true, reason: 'threat' });
+  assert.equal(again.body.reported, true);
+  assert.equal(s.tables.user_reports.length, 1, '같은 사람·같은 사유 신고는 한 번만');
+  const legacy = await call(ID.b, { action: 'leave', matchId, block: false, report: true });
+  assert.equal(legacy.body.reported, true);
+  assert.equal(s.tables.user_reports[1].reason, 'connection', '예전 화면 호환');
+  const m = (await call(ID.a, { action: 'my_matches' })).body.matches[0];
+  assert.equal(m.status, 'closed'); assert.ok(!('partner' in m) && !('messages' in m), '끝난 연결은 상대 정보·이야기 0');
+  assert.equal((await call(ID.a, { action: 'message', matchId, text: '안녕하세요' })).status >= 400, true, '차단 뒤 새 메시지 0');
+  assert.ok(!s.logs.some((l) => l.includes(NICK_B) || l.includes('위협·강요')), '로그에 이름·한국어 사유 원문 0');
+});
+
+test('v2.1 안전: 후보 단계 차단·신고 — 숨김과 함께 저장 · 기다리는 중(yes)에도 가능 · yes+차단은 400 · 다시 추천 0', async () => {
+  const s = world();
+  const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes', block: true })).status, 400, '이어지고 싶어요 + 차단은 모순');
+  await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  const r = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', block: true, reason: 'spam' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.status, r.body.blocked, r.body.reported], ['declined', true, true]);
+  assert.equal(candOf(s, ID.a, ID.b).status, 'declined');
+  assert.equal(s.tables.user_reports[0].reason, 'candidate:spam 스팸');
+  assert.ok(s.tables.blocks.some((b) => b.blocker_id === ID.a && b.blocked_user_id === ID.b && b.reason === 'candidate'));
+  assert.equal((await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' })).status, 409, '상대가 뒤늦게 골라도 연결 0');
+  assert.equal(s.tables.doit_matches.length, 0);
+  assert.equal((await call(ID.a, { action: 'my_candidates' })).body.candidates.length, 0);
+  assert.equal((await call(ID.admin, { action: 'admin_run_matching' })).body.made, 0, '차단한 사이 다시 추천 0');
+  const hideOnly = world();
+  const call2 = loadServer(hideOnly);
+  await call2(ID.a, { action: 'my_candidates' });
+  const c2 = candOf(hideOnly, ID.a, ID.b);
+  const h = await call2(ID.a, { action: 'choose', candidateId: c2.id, choice: 'hide' });
+  assert.deepEqual([h.body.blocked, h.body.reported], [false, false], '숨기기만 하면 차단·신고 0');
+  assert.equal((hideOnly.tables.user_reports ?? []).length, 0);
+});
+
+// 2026-10-01 QA 실측(my_candidates 500 · agent_sessions_failed): 사람 449명의 id 를 in(…) 한 번에 넣어 요청 주소가 한도를 넘었다.
+test('규모: 사람 460명이어도 in(…) 목록은 한 번에 100명 이하 · 결과는 나누기 전과 같다(후보·자격)', async () => {
+  const s = world();
+  for (let i = 0; i < 455; i++) {
+    const id = `9${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`;
+    s.users[id] = { id, phone: '', phone_confirmed_at: null, user_metadata: {} };
+    s.tables.profiles.push({ id, role: 'user', nickname: `p${i}`, purpose_id: 'hobby', purpose_label: '취미', bio: '', verification_status: 'pending' });
+  }
+  const call = loadServer(s);
+  const r = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.eligible, true);
+  assert.equal(r.body.candidates.length, 1, '같은 목적(친구) B 한 명은 그대로 후보');
+  assert.ok(Math.max(...s.inSizes) <= 100, `가장 긴 in 목록 ${Math.max(...s.inSizes)}`);
+  const adm = await call(ID.admin, { action: 'admin_candidates' });
+  assert.equal(adm.status, 200);
+  assert.ok(Math.max(...s.inSizes) <= 100);
 });
