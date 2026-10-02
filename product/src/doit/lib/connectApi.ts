@@ -106,17 +106,22 @@ export async function sendMatchMessage(userId: string, matchId: string, text: st
 // sessionId = 이 연결의 영상 확인용 ECHO 내부 기록 번호(로그인·통화 입장권이 아님) — 화면에 보여 주지 않고, 확인·의사를 보낼 때 그대로 돌려줄 뿐이다.
 export type MeetState = 'allowed' | 'need_video' | 'need_my_check' | 'need_my_intent' | 'waiting_partner' | 'unavailable';
 export type MeetIntent = 'yes' | 'not_now' | 'no';
-export interface MeetStatus { state: MeetState; allowed: boolean; sessionId: string | null }
+// stateVersion = 서버가 판단 재료(동의·공개·단계)로 만든 불투명 값. 확인·의사를 보낼 때 그대로 돌려주고, 그사이 상태가 바뀌었으면 서버가 STATE_CHANGED(409)로 막는다.
+export interface MeetStatus { state: MeetState; allowed: boolean; sessionId: string | null; stateVersion: string | null }
 const MEET_STATES: readonly MeetState[] = ['allowed', 'need_video', 'need_my_check', 'need_my_intent', 'waiting_partner', 'unavailable'];
 const MEET_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** 서버 응답 → 화면 상태. 모르는 모양은 null(= 그리지 않음). allowed 는 서버가 state 와 같이 참이라고 할 때만 참. */
 export function parseMeetStatus(out: unknown): MeetStatus | null {
   if (!out || typeof out !== 'object') return null;
-  const o = out as { ok?: unknown; state?: unknown; allowed?: unknown; sessionId?: unknown };
+  const o = out as { ok?: unknown; state?: unknown; allowed?: unknown; sessionId?: unknown; stateVersion?: unknown };
   if (o.ok !== true || !MEET_STATES.includes(o.state as MeetState)) return null;
   const state = o.state as MeetState;
-  return { state, allowed: state === 'allowed' && o.allowed === true, sessionId: typeof o.sessionId === 'string' && MEET_UUID.test(o.sessionId) ? o.sessionId : null };
+  return {
+    state, allowed: state === 'allowed' && o.allowed === true,
+    sessionId: typeof o.sessionId === 'string' && MEET_UUID.test(o.sessionId) ? o.sessionId : null,
+    stateVersion: typeof o.stateVersion === 'string' && /^[a-f0-9]{64}$/.test(o.stateVersion) ? o.stateVersion : null,
+  };
 }
 
 /** 꺼짐(MEET_NOT_CONFIGURED)·실패·모르는 모양 = null → 화면은 이 구간을 그리지 않는다(가짜 상태·0 표시 없음). */
@@ -129,13 +134,13 @@ export async function fetchMeetStatus(userId: string, matchId: string): Promise<
 }
 
 /** 확인·의사를 보낸 뒤 서버가 다시 계산한 상태(쓰기 성공 ≠ 허용). */
-export async function confirmMeetCheck(userId: string, matchId: string, sessionId: string): Promise<MeetStatus | null> {
-  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_check', matchId, sessionId }, userId));
+export async function confirmMeetCheck(userId: string, matchId: string, sessionId: string, stateVersion: string): Promise<MeetStatus | null> {
+  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_check', matchId, sessionId, stateVersion }, userId));
 }
 
 /** requestId = 이 의사 한 번의 제출. 실패 뒤 같은 선택 재시도는 같은 id(서버가 한 번만 저장 · 다른 선택이면 409). */
-export async function sendMeetIntent(userId: string, matchId: string, sessionId: string, intent: MeetIntent, requestId: string): Promise<MeetStatus | null> {
-  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_intent', matchId, sessionId, intent, requestId }, userId));
+export async function sendMeetIntent(userId: string, matchId: string, sessionId: string, stateVersion: string, intent: MeetIntent, requestId: string): Promise<MeetStatus | null> {
+  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_intent', matchId, sessionId, intent, requestId, stateVersion }, userId));
 }
 
 // 2026-10-01 대표 「SAFETY LAYER」: 신고 사유 6개(서버 doit-connect REPORT_REASONS 와 같아야 한다 · 검사가 확인한다).

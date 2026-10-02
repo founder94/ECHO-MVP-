@@ -36,15 +36,17 @@ test('allowed 는 서버 state 가 allowed 이고 allowed:true 일 때만 · 다
 });
 test('sessionId: 지금 서버 응답(필드 없음) = null · 형식이 맞는 번호만 받음 · 가짜 번호를 만들지 않음', async () => {
   const { api } = loadApi(() => ({}));
-  assert.deepEqual(plain(api.parseMeetStatus({ ok: true, state: 'need_my_check', allowed: false })), { state: 'need_my_check', allowed: false, sessionId: null });
+  assert.deepEqual(plain(api.parseMeetStatus({ ok: true, state: 'need_my_check', allowed: false })), { state: 'need_my_check', allowed: false, sessionId: null, stateVersion: null });
   assert.equal(api.parseMeetStatus({ ok: true, state: 'need_my_check', allowed: false, sessionId: 'room-123' }).sessionId, null);
   assert.equal(api.parseMeetStatus({ ok: true, state: 'need_my_check', allowed: false, sessionId: SID }).sessionId, SID);
 });
 test('확인·의사 요청 모양: 서버 계약 이름 그대로 · 신원·allowed 를 보내지 않음', async () => {
-  const { api, sent } = loadApi(() => ({ ok: true, state: 'need_my_intent', allowed: false, sessionId: SID }));
-  await api.confirmMeetCheck('u', MID, SID);
-  await api.sendMeetIntent('u', MID, SID, 'yes', '60000000-0000-4000-8000-00000000000f');
-  assert.deepEqual(plain(sent), [{ action: 'meet_check', matchId: MID, sessionId: SID }, { action: 'meet_intent', matchId: MID, sessionId: SID, intent: 'yes', requestId: '60000000-0000-4000-8000-00000000000f' }]);
+  const V = 'abababababababababababababababababababababababababababababababab';
+  const { api, sent } = loadApi(() => ({ ok: true, state: 'need_my_intent', allowed: false, sessionId: SID, stateVersion: V }));
+  await api.confirmMeetCheck('u', MID, SID, V);
+  await api.sendMeetIntent('u', MID, SID, V, 'yes', '60000000-0000-4000-8000-00000000000f');
+  assert.deepEqual(plain(sent), [{ action: 'meet_check', matchId: MID, sessionId: SID, stateVersion: V }, { action: 'meet_intent', matchId: MID, sessionId: SID, intent: 'yes', requestId: '60000000-0000-4000-8000-00000000000f', stateVersion: V }]);
+  assert.equal(api.parseMeetStatus({ ok: true, state: 'need_my_check', allowed: false, stateVersion: 'short' }).stateVersion, null, '모양이 다른 버전 = 없음');
 });
 test('화면 원문: 기록 번호를 그리지 않음 · 보증 표현 0 · 상대 의사 노출 문구 0 · 버튼은 서버 상태 분기 안에만', () => {
   const src = readFileSync('src/doit/components/feature/MeetStep.tsx', 'utf8');
@@ -52,6 +54,7 @@ test('화면 원문: 기록 번호를 그리지 않음 · 보증 표현 0 · 상
   assert.ok(!/신원(이|을)? (확인|인증)(됐|되었|했)|안전(한|이)? (사람|상대)|보증(해요|합니다)|인증된/.test(src));
   assert.ok(!/상대가 (아니요|아직|거절)/.test(src));
   assert.ok(src.includes("if (!status || status.state === 'unavailable') return null;"));
-  assert.ok(/status\.state === 'need_my_check' && sid/.test(src) && /status\.state === 'need_my_intent' && sid/.test(src), '번호 없으면 버튼 0');
+  assert.ok(/status\.state === 'need_my_check' && sid && ver/.test(src) && /status\.state === 'need_my_intent' && sid && ver/.test(src), '번호·상태 버전 없으면 버튼 0');
+  assert.ok(src.includes("e.code === 'STATE_CHANGED'"), '바뀐 상태면 다시 읽기');
   assert.ok(/status\.state === 'allowed' && status\.allowed/.test(src));
 });

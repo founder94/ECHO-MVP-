@@ -364,3 +364,44 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 | B-3 기록 보존 | 참여·확인·의사 기록 | 보관 기간 · 탈퇴 시 삭제(지금 초안은 계정 삭제 시 함께 삭제) | 개인정보 처리방침 문구 | 정책 문서 |
 | B-4 QA 켜기 | QA doit-connect | `MEET_API_ENABLED=true`(QA 만) | QA 사용자에게 마지막 구간 보임 | 값 삭제 = 즉시 꺼짐 |
 - B-4 는 B-1·B-2·Codex 결과가 준비된 뒤에만. PROD·가격·보상·관계없는 설정 변경 0.
+
+## 17. PR #100 인수 — 실제 연결 조합(2026-10-02)
+### 17.1 인수
+- PR #100 head `82944033` 의 파일을 직접 읽고 그대로 합침(병합 커밋 2a6b7a7 · meetApi/meetRuntime/meetVideoEvidence 내용 수정 0). Codex 모의 35/35 같은 트리에서 그대로 통과.
+- 작업 기록: PR100-INT · 담당 Claude · 기준 f166474 + 8294403 · 파일 index.ts · connectApi.ts · MeetStep.tsx · admin Connect.tsx · PENDING/ROLLBACK SQL · qa-sql/ · workflow.
+
+### 17.2 연결 대응표(실제 이름만)
+| 단계 | 실제 코드·저장소 | 지금 |
+|---|---|---|
+| ① 라우트 | `doit-connect/index.ts` — meet_status · meet_check · meet_intent · **meet_plan** · **admin_meet_summary** | 연결됨 · 기본 꺼짐(QA 배포) |
+| ② 서비스 | Codex `meetRuntime.ts`(handle · authorizePlan · adminSummary) → `meetApi.ts` → `meetGate.ts` | 연결됨 · 신원 = 위에서 Auth 가 확인한 사람(두 번 묻지 않음) |
+| ③ 현재 상태 | `meetCurrentState`(index) — 자격 `loadMembers` · 열린 신고 `user_reports` · 첫 답 `doit_match_answers` · 연결 `doit_matches` · 사진 자리 `profile_photos` · 동의 `auth.admin.getUserById` → SHA-256 `stateVersion` | 연결됨(기존 자료 재사용 · 새 저장 0) · 실패 = 닫힘 |
+| ④ 차단·영상 동의 | meetRuntime 이 직접(`blocks` 양방향 · Auth 메타) | 연결됨 · **영상 동의 칸 충돌(17.4-1)** |
+| ⑤ 영상 기록 읽기 | meetApi → `doit_video_sessions`(+context_version) · `doit_video_participation` | 코드 연결 · 표는 B 초안(QA 없음) |
+| ⑥ 영상 방 만들기(방 번호 + 고정 판) | **없음** — 공급자 방 생성과 `doit_video_sessions` 첫 줄을 쓰는 서버 동작 | 빠진 구성요소(공급자 결정 뒤 · Codex 어댑터 + Claude 라우트) |
+| ⑦ 영상 근거 저장 | Codex `meetVideoEvidence.ts` → RPC `doit_finalize_video_evidence` | 모듈 있음 · RPC 초안(로컬 검사) · 라우트 0(서명 어댑터 없음) |
+| ⑧ 모습 확인·의사 저장 | meetApi → `doit_meet_checks` · `doit_meet_intents` insert | 코드 연결 · 표는 B 초안 |
+| ⑨ 약속 | index `meet_plan` → authorizePlan → RPC `doit_create_meet_plan`(연결 줄 잠금) · 표 `doit_meet_plans` | 코드 연결 · RPC·표 초안(로컬 경합 검사) |
+| ⑩ 화면 | `MeetStep.tsx` — 서버 state/allowed/sessionId/stateVersion 만 · STATE_CHANGED·MEET_UNAVAILABLE = 다시 읽기 | 연결됨 · 꺼짐 = 안 그림 |
+| ⑪ 관리자 | `Connect.tsx` 연결마다 「마지막 구간」 → admin_meet_summary | 연결됨 · 꺼짐 = 「연결 필요(꺼짐)」 · 오류 = 「실패」 |
+
+### 17.3 저장소 — 기존 자료로 되는 것 / 새로 필요한 것
+- 재사용(새 저장 0): 연결 `doit_matches` · 차단 `blocks` · 신고 `user_reports` · 마지막 구간(첫 답 `doit_match_answers` + 공개 동의) · 자격(profiles·사진·대화 기록).
+- 새로 필요: 영상 방·참여(`doit_video_sessions`·`doit_video_participation` — 기존에 영상 자료 0) · 각자 확인·의사(`doit_meet_checks`·`doit_meet_intents` — Codex 코드가 이 이름을 읽음) · 약속(`doit_meet_plans` — `doit_match_outcomes` 는 사용자 자기 기록이라 합의 근거로 못 씀).
+- 새 RPC 2개(근거 확정 · 약속 만들기) + 트리거 4개(영상 판 고정 · 차단/의사/종료 시 약속 취소). **기존 표(blocks·doit_matches)에 트리거가 붙는다** — 살아 있는 약속이 없으면 하는 일 0.
+- 로컬 Postgres 16(대용 스키마)에서 `qa-sql/meet-gate-B-local.sh` 27/27: 근거 6 · 권한 1 · 허용 조건 9 · 경합(두 세션 실제 잠금) 5 · 종료·신고 2 등. 이 검사로 초안 결함 1건 발견·수정(의사가 없는 사람을 yes 로 세던 `bool_and` null 처리).
+
+### 17.4 실제 활성화를 막는 것(정확히)
+1. **영상 동의 칸 충돌**: meetRuntime 은 영상 동의를 기존 공개 동의와 같은 칸(`doit_connect_consent_version`)에서 `connect-v1` 이 아닌 판으로 요구한다 → 영상 동의를 받으면 공개 동의(connect-v1 정확 일치)가 깨지고, 공개 동의만 있으면 영상 동의가 없음. 지금 구조로는 둘을 동시에 만족할 수 없어 **켜도 허용 0**(검사로 고정). 권장: 영상 동의를 별도 칸(예: `doit_video_consent_version`)으로 — meetRuntime(Codex) 수정 + 동의 화면(Claude) + 동의 문구·판(대표).
+2. 영상 공급자 · 서명 비밀값 · 방 만들기 서버 동작(⑥) — 없음.
+3. B 저장소 QA 적용 — 없음(초안 · 로컬 검사만).
+4. 동의 철회는 Auth 메타라 DB 잠금 밖: 철회 직후 요청은 서버가 다시 읽어 막지만, 이미 만든 약속의 취소 기록은 철회 서버 경로가 생길 때 추가.
+
+### 17.5 대표 승인 요청(16.4 를 대체 · 한 묶음)
+| 항목 | 대상 | 바뀌는 것 | 영향 | 복구 |
+|---|---|---|---|---|
+| B-1 QA 저장 | QA DB | 새 표 5 · RPC 2 · 트리거 4(기존 blocks·doit_matches 에 2) · 모두 service_role 만 | 기존 흐름 영향 0(약속 없으면 트리거 무동작) | 기능 끔 · ROLLBACK 초안(트리거 먼저 뗌) |
+| B-2 영상 공급자 | 공급자 1곳 · QA 비밀값 | 방 생성·서명 콜백 | 외부 비용 · 영상이 공급자를 거침(녹화 0) | 비밀값 삭제 · 해지 |
+| B-3 영상 동의·보존 | 동의 문구·판(별도 칸 권장) · 보관 기간 | 사용자 동의 화면 1개 · 개인정보 처리방침 | 동의 안 한 사람은 마지막 구간 안 보임 | 판 올림 |
+| B-4 QA 켜기 | QA 설정 2개(MEET_API_ENABLED · MEET_VIDEO_CONSENT_VERSION) | 마지막 구간 보임 | QA 사용자만 | 값 삭제 = 즉시 꺼짐 |
+- 순서: B-1 → Codex(동의 칸·공급자 어댑터) + Claude(방 만들기 라우트·동의 화면) → B-2 → B-3 → 실제 DB 검사(쓰기·다시 읽기·재로그인·권한·동시·재시도) → 두 계정·두 기기 영상 → B-4. PROD 별도.

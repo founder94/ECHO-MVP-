@@ -511,7 +511,7 @@ await run(41, 'Q15 넘침 0(320~430px) · 보기 4개 긴 글자 · 누름 높�
   return `넘침 0 · ${out.join('/')}px`;
 });
 // ── 2026-10-02 PR #99 마지막 구간(격리 미리보기 · 모의 서버 · 실제 영상·저장 PASS 아님) ──
-const MSID = '50000000-0000-4000-8000-00000000000e';
+const MSID = '50000000-0000-4000-8000-00000000000e', MVER = 'ab'.repeat(32);
 const talkMatch = () => [match({ my_answer: '주말 아침', partner_answered: true, revealed: true, partner: PARTNER, messages: [] })];
 await run(42, 'MEET 꺼짐(지금 실서버 503) = 구간 0 · 기존 이야기 화면 그대로', IPHONE, { matches: talkMatch() }, async (p, s) => {
   await go(p); await p.waitForTimeout(400);
@@ -528,28 +528,33 @@ for (const [n, state] of [[43, 'unavailable'], [44, 'need_video']]) {
 await run(45, 'MEET 번호 없는 지금 계약 = 확인 버튼 0', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false } }, async (p) => {
   await go(p); await p.waitForTimeout(400); expect(await p.locator('.doit-meet button').count() === 0, '번호 없이 버튼'); return '버튼 0';
 });
-await run(46, 'MEET 모습 확인 → 만남 의사 → 기다림(번호는 보내기만 · 화면 글자 0)', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID } }, async (p, s) => {
+await run(46, 'MEET 모습 확인 → 만남 의사 → 기다림(번호는 보내기만 · 화면 글자 0)', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p, s) => {
   await go(p); await p.waitForTimeout(400);
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/46a-meet-check.png' });
   await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).click(); await p.waitForTimeout(500);
-  const chk = s.st.calls.find(c => c.action === 'meet_check'); expect(chk && chk.sessionId === MSID && chk.matchId === MID && !('allowed' in chk) && !('user_id' in chk), `확인 요청 ${JSON.stringify(chk)}`);
+  const chk = s.st.calls.find(c => c.action === 'meet_check'); expect(chk && chk.sessionId === MSID && chk.stateVersion === MVER && chk.matchId === MID && !('allowed' in chk) && !('user_id' in chk), `확인 요청 ${JSON.stringify(chk)}`);
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/46b-meet-intent.png' });
   await p.getByRole('button', { name: '만나 보고 싶어요' }).click(); await p.waitForTimeout(500);
-  const it = s.st.calls.find(c => c.action === 'meet_intent'); expect(it && it.intent === 'yes' && it.sessionId === MSID && /^[0-9a-f-]{36}$/.test(it.requestId), `의사 요청 ${JSON.stringify(it)}`);
+  const it = s.st.calls.find(c => c.action === 'meet_intent'); expect(it && it.intent === 'yes' && it.sessionId === MSID && it.stateVersion === MVER && /^[0-9a-f-]{36}$/.test(it.requestId), `의사 요청 ${JSON.stringify(it)}`);
   const t = await text(p); expect(t.includes('상대의 선택을 기다리고 있어요'), '기다림'); expect(!t.includes(MSID), '번호가 화면에 보임');
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/46c-meet-wait.png' }); return '확인 → 의사 → 기다림';
 });
-await run(47, 'MEET 조금 더 생각할게요 = 저장 0 · 다시 보기', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID } }, async (p, s) => {
+await run(47, 'MEET 조금 더 생각할게요 = 저장 0 · 다시 보기', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p, s) => {
   await go(p); await p.waitForTimeout(400); await p.getByRole('button', { name: '조금 더 생각할게요' }).click(); await p.waitForTimeout(200);
   expect(!s.st.calls.some(c => c.action === 'meet_check'), '저장 요청이 감'); await p.getByRole('button', { name: '다시 보기' }).click();
   expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 1, '다시 보기'); return '저장 0';
 });
-await run(48, 'MEET 둘 다 원함(allowed) = 약속 안내 + 안전 안내 · 보증 표현 0', IPHONE, { matches: talkMatch(), meet: { state: 'allowed', allowed: true, sessionId: MSID } }, async (p) => {
+await run(48, 'MEET 둘 다 원함(allowed) = 약속 안내 + 안전 안내 · 보증 표현 0', IPHONE, { matches: talkMatch(), meet: { state: 'allowed', allowed: true, sessionId: MSID, stateVersion: MVER } }, async (p) => {
   await go(p); await p.waitForTimeout(400); const t = await p.locator('.doit-meet').innerText();
   expect(t.includes('두 분 모두 만나 보고 싶어 해요') && t.includes('사람이 많은 곳'), '약속·안전 안내'); expect(t.includes('보증하지 않아요') && !/인증된|안전한 사람/.test(t), '보증 표현');
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/48-meet-allowed.png' }); return '약속 안내 · 안전 안내';
 });
-await run(49, 'MEET 360px 넘침 0', W360, { matches: talkMatch(), meet: { state: 'need_my_intent', allowed: false, sessionId: MSID } }, async (p) => {
+await run(50, 'MEET 그사이 상태가 바뀜(STATE_CHANGED) → 다시 읽어 서버 상태대로 · 저장 0', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER }, fail: { meet_check: { times: 1, status: 409, code: 'STATE_CHANGED', message: '상태가 바뀌었어요' } } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400); s.st.meet = { state: 'unavailable', allowed: false };
+  await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).click(); await p.waitForTimeout(600);
+  expect(s.st.calls.filter(c => c.action === 'meet_status').length === 2, '다시 읽기 없음'); expect(await p.locator('.doit-meet').count() === 0, '바뀐 서버 상태(unavailable)대로 숨김'); return '다시 읽기 → 숨김';
+});
+await run(49, 'MEET 360px 넘침 0', W360, { matches: talkMatch(), meet: { state: 'need_my_intent', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p) => {
   await go(p); await p.waitForTimeout(400); expect(await overflow(p) <= 0, '가로 넘침');
   const low = await p.evaluate(() => [...document.querySelectorAll('.doit-meet button')].filter(b => b.getBoundingClientRect().height < 40).length); expect(low === 0, `작은 버튼 ${low}`);
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/49-meet-360.png' }); return '넘침 0';

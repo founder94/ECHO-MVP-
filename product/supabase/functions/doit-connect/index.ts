@@ -49,7 +49,7 @@
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { agentSources, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
-import { createMeetApi, type MeetPolicyReader } from "./meetApi.ts"; // 영상 → 각자 확인 → 만남(PR #99 · 기본 꺼짐 · 승인 묶음 B 전 표 0)
+import { createMeetRuntime, type CurrentMeetState } from "./meetRuntime.ts"; // 영상 → 각자 확인 → 만남(PR #99 meetApi + PR #100 실행 경계 · Codex 소유 · 기본 꺼짐)
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
 
@@ -61,7 +61,7 @@ const ACTIONS = new Set([
   "my_matches", "my_turns", "answer", "message", "leave",
   "admin_candidates", "admin_matches", "admin_decide", "admin_members",
   "my_candidates", "choose", "outcome", "admin_run_matching",
-  "meet_status", "meet_check", "meet_intent",
+  "meet_status", "meet_check", "meet_intent", "meet_plan", "admin_meet_summary",
 ]);
 
 const LIMITS = {
@@ -823,28 +823,64 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
 }
 
 /**
- * 만남 관문(meetGate)에 넣는 서버 쪽 현재 상태(PR #99 meetApi 의 MeetPolicyReader). 화면이 보낸 값은 하나도 쓰지 않는다.
- * - blocked: 둘 중 누구든 차단(blocks · 지금 읽음).
- * - safetyHold: 두 사람 사이에 아직 처리되지 않은 신고가 있으면 멈춤(user_reports · resolved/closed 가 아닌 것).
- * - consent: 두 사람의 현재 연결 공개 동의 판(Auth 메타데이터 · 지금 읽음).
- * - lastStepOpen: 2·4·6 의 마지막 구간(「2·결정」 = 영상 · 모습 확인 · 만남 의사)에 들어왔는지 — 지금 서버에 있는 실제 상태 전이로 판정:
- *   서로 선택 → 연결(approved) → 두 사람 모두 첫 답 저장 → 두 사람 모두 현재 공개 동의 = 공개(FULL_SAFE)된 연결.
- *   my_matches 의 공개 판정과 같은 조건이다(연결 열림·차단은 meetGate 가 따로 본다). 앞 구간(6·탐색 / 4·협동)이 서버에
- *   생기면 그 완료 기록을 여기에 더한다 — 스위치(MEET_API_ENABLED)로 이 값이 참이 되지는 않는다.
- * 읽기 실패는 meetApi 가 열지 않는 쪽(MEET_UNAVAILABLE)으로 처리한다.
+ * 만남 관문에 넣는 서버 쪽 현재 상태(PR #100 meetRuntime 의 readCurrentState). 화면·본문·AI 값은 하나도 쓰지 않는다.
+ * 차단(양방향)과 영상 동의 판은 meetRuntime 이 직접 읽는다 — 여기서는 그 밖의 서버 상태만.
+ * - eligibleA/B: 지금도 연결 자격(loadMembers · 후보·관리자 화면과 같은 계산).
+ * - safetyHold: 두 사람 사이에 아직 처리되지 않은 신고(resolved/closed 가 아닌 user_reports · admin-web 의 「열린 신고」와 같은 정의).
+ *   신고는 제재·가해 확정이 아니라 이 두 사람의 만남 단계만 보류한다. 응답은 「unavailable」 하나로만 보인다.
+ * - revealValid: 두 사람 모두 지금도 연결 공개 동의(connect-v1) + 연결 열림.
+ * - lastStepOpen: 2·4·6 의 마지막 구간(「2·결정」)에 들어왔는지 — 지금 서버에 있는 실제 상태 전이:
+ *   연결(approved) → 두 사람 모두 첫 답 저장 → 두 사람 모두 현재 공개 동의 = 공개된 연결(my_matches 공개 조건과 같음).
+ *   앞 구간(6·탐색 / 4·협동)이 서버에 생기면 그 완료 기록을 여기에 더한다. 스위치로 참이 되지 않는다.
+ * - stateVersion: 위 판단 재료(연결 상태 · 두 사람 동의 판·시각 · 첫 답 시각 · 열린 신고 id · 사진 자리 · 자격)의 SHA-256.
+ *   이 값이 바뀌면 옛 화면의 확인·의사는 STATE_CHANGED(409)로 막힌다. 원문은 담지 않는다(소개·답 글자 0).
+ * 읽기 실패는 던진다 → meetRuntime 이 열지 않는 쪽(503)으로 처리.
  */
-export function meetPolicy(admin: Db): MeetPolicyReader {
+export function meetCurrentState(admin: Db): (matchId: string, a: string, b: string) => Promise<CurrentMeetState> {
   return async (matchId, a, b) => {
-    const blocked = (await blockedPairs(admin, [a])).has(pairKey(a, b));
-    const { data: reports, error } = await admin.from("user_reports").select("reporter_id, target_user_id, status").in("reporter_id", [a, b]).in("target_user_id", [a, b]);
-    if (error) throw new StageError("blocks_failed", dbCodeOf(error));
-    const safetyHold = (reports ?? []).some((r) => r.reporter_id !== r.target_user_id && r.status !== "resolved" && r.status !== "closed");
-    const auth = await authInfoOf(admin, new Set([a, b]));
-    const version = (u: string) => (auth.get(u)?.consented ? CONNECT_CONSENT_VERSION : null);
-    const answered = (await answersOf(admin, [matchId])).get(matchId) ?? new Map();
-    const lastStepOpen = answered.has(a) && answered.has(b) && version(a) !== null && version(b) !== null;
-    return { blocked, safetyHold, consent: { required: CONNECT_CONSENT_VERSION, a: version(a), b: version(b) }, lastStepOpen };
+    const [members, reportsR, answers, matchR, photosR, ua, ub] = await Promise.all([
+      loadMembers(admin, [a, b]),
+      admin.from("user_reports").select("id, reporter_id, target_user_id, status").in("reporter_id", [a, b]).in("target_user_id", [a, b]),
+      answersOf(admin, [matchId]),
+      admin.from("doit_matches").select("id, user_a, user_b, status").eq("id", matchId).maybeSingle(),
+      admin.from("profile_photos").select("user_id, slot, storage_path").in("user_id", [a, b]),
+      admin.auth.admin.getUserById(a), admin.auth.admin.getUserById(b),
+    ]);
+    if (reportsR.error) throw new StageError("blocks_failed", dbCodeOf(reportsR.error));
+    if (matchR.error || !matchR.data) throw new StageError("connection_read_failed", dbCodeOf(matchR.error ?? {}));
+    if (photosR.error) throw new StageError("photos_failed", dbCodeOf(photosR.error));
+    if (ua.error || ub.error || ua.data?.user?.id !== a || ub.data?.user?.id !== b) throw new StageError("auth_list_failed", null);
+    const m = matchR.data as MatchRow;
+    if (!((m.user_a === a && m.user_b === b) || (m.user_a === b && m.user_b === a))) throw new StageError("connection_read_failed", null);
+    const member = (id: string) => members.find((x) => x.id === id);
+    const openReports = (reportsR.data ?? []).filter((r) => r.reporter_id !== r.target_user_id && r.status !== "resolved" && r.status !== "closed");
+    const consentOf = (u: { user_metadata?: Record<string, unknown> | null }) => ({ ok: consentedToConnect(u), v: str(u.user_metadata?.doit_connect_consent_version), at: str(u.user_metadata?.doit_connect_consent_at) });
+    const ca = consentOf(ua.data!.user!), cb = consentOf(ub.data!.user!);
+    const got = answers.get(matchId) ?? new Map();
+    const revealValid = m.status === "approved" && ca.ok && cb.ok;
+    const lastStepOpen = revealValid && got.has(a) && got.has(b);
+    const eligibleA = member(a)?.eligible === true, eligibleB = member(b)?.eligible === true;
+    const material = JSON.stringify({
+      v: 1, match: [m.id, m.status], consent: [[ca.v, ca.at], [cb.v, cb.at]],
+      answers: [got.get(a)?.created_at ?? null, got.get(b)?.created_at ?? null],
+      reports: openReports.map((r) => String(r.id)).sort(),
+      photos: (photosR.data ?? []).map((p) => `${p.user_id}/${p.slot}/${p.storage_path}`).sort(),
+      eligible: [eligibleA, eligibleB],
+    });
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(material));
+    const stateVersion = Array.from(new Uint8Array(digest), (x) => x.toString(16).padStart(2, "0")).join("");
+    return { eligibleA, eligibleB, safetyHold: openReports.length > 0, lastStepOpen, revealValid, stateVersion };
   };
+}
+
+// 만남 실행 경계(Codex meetRuntime) — 요청마다 만든다(설정·관리자 클라이언트는 요청과 같은 것). 기본 꺼짐:
+// MEET_API_ENABLED=true + 영상 동의 판(MEET_VIDEO_CONSENT_VERSION · connect-v1 아님)이 모두 있어야 켜진다. 둘 다 지금 설정 0.
+function meetRuntime(admin: Db) {
+  return createMeetRuntime(admin, {
+    enabled: Deno.env.get("MEET_API_ENABLED") === "true",
+    videoConsentVersion: Deno.env.get("MEET_VIDEO_CONSENT_VERSION") || undefined,
+    readCurrentState: meetCurrentState(admin),
+  });
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -869,6 +905,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (authError || !user) return fail(CODES.UNAUTHORIZED, "로그인이 필요해요.", 401, origin);
     const admin: Db = createClient(url, serviceKey, { auth: { persistSession: false } });
     const userId = user.id;
+    // 위에서 Auth 서버가 확인한 사람 그대로(다시 묻지 않음) — meetRuntime 은 이 값만 신원으로 쓴다(본문 user_id·role 무시).
+    const verifiedAuth = { getUser: async () => ({ data: { user }, error: null }) };
 
     if (rateLimited(userId)) return fail(CODES.RATE_LIMITED, "요청이 너무 잦아요. 잠시 뒤 다시 해 주세요.", 429, origin);
 
@@ -880,10 +918,44 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 영상 → 각자 모습 확인 → 각자 만남 의사(PR #99). 기본 꺼짐: MEET_API_ENABLED=true 가 아니면 표를 읽지 않고 MEET_NOT_CONFIGURED(503).
     // 신원은 위 getUser() 결과만 쓴다(본문의 user_id·allowed·lastStepOpen 은 무시).
     if (action === "meet_status" || action === "meet_check" || action === "meet_intent") {
-      const meet = createMeetApi(admin, meetPolicy(admin), { enabled: Deno.env.get("MEET_API_ENABLED") === "true" });
-      const r = await meet.handle(action, body, userId);
+      const r = await meetRuntime(admin).handle(verifiedAuth, action, body);
       logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
       return json(r.body, r.status, origin);
+    }
+    // 약속 조율 시작(둘 다 원할 때만): ① meetRuntime 이 지금 상태·버전으로 다시 판정 ② DB 함수(doit_create_meet_plan · 승인 묶음 B)가
+    // 연결 줄 잠금 아래에서 차단·신고·확인·의사를 다시 보고 한 줄만 만든다. 꺼짐·판정 실패 = 쓰기 0. 같은 요청 id 다시 = 그 줄(지금 허용은 따로).
+    if (action === "meet_plan") {
+      const matchId = typeof body.matchId === "string" ? body.matchId : "";
+      const requestId = typeof body.requestId === "string" && /^[0-9a-f-]{36}$/i.test(body.requestId) ? body.requestId : "";
+      let r: { status: number; body: Json };
+      try {
+        if (!requestId) throw Object.assign(new Error("BAD_REQUEST"), { code: "BAD_REQUEST", status: 400 });
+        const gate = await meetRuntime(admin).authorizePlan(verifiedAuth, matchId, typeof body.stateVersion === "string" ? body.stateVersion : "");
+        const { data, error } = await admin.rpc("doit_create_meet_plan", { p_match_id: gate.matchId, p_session_id: gate.sessionId, p_actor: userId, p_request_id: requestId });
+        if (error) {
+          const msg = String((error as { message?: unknown }).message ?? "");
+          r = /MEET_PLAN_UNAVAILABLE|MEET_PLAN_NOT_FOUND/.test(msg) ? { status: 409, body: { ok: false, code: "MEET_UNAVAILABLE" } }
+            : /REQUEST_CONFLICT/.test(msg) ? { status: 409, body: { ok: false, code: "REQUEST_CONFLICT" } }
+            : { status: 503, body: { ok: false, code: "MEET_PLAN_WRITE_FAILED" } };
+        } else {
+          const d = (data ?? {}) as Json;
+          r = { status: 200, body: { ok: true, plan: { status: d.status === "active" ? "active" : "cancelled", replayed: d.replayed === true, allowed_now: d.allowed_now === true } } };
+        }
+      } catch (e) {
+        const code = typeof (e as { code?: unknown }).code === "string" ? String((e as { code: string }).code) : "MEET_UNAVAILABLE";
+        const status = typeof (e as { status?: unknown }).status === "number" ? Number((e as { status: number }).status) : 503;
+        r = { status, body: { ok: false, code } };
+      }
+      logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
+      return json(r.body, r.status, origin);
+    }
+    // 관리자: 한 연결의 마지막 구간 집계(영상 · 양쪽 모습 확인 · 양쪽 만남 의사 · 약속 합의 따로). 역할 확인은 meetRuntime 이 먼저 한다.
+    // 꺼짐 = 503 MEET_NOT_CONFIGURED → 관리자 화면은 「연결 필요」(0 아님). 어느 서버의 값인지 project 를 함께 준다.
+    if (action === "admin_meet_summary") {
+      const r = await meetRuntime(admin).adminSummary(verifiedAuth, typeof body.matchId === "string" ? body.matchId : "");
+      logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
+      const project = (() => { try { return new URL(url).hostname.split(".")[0]; } catch { return null; } })();
+      return json({ ...r.body, project }, r.status, origin);
     }
 
     // ① 문자 인증 결과를 프로필에 맞춘다. Auth 서버가 확인한 값만 믿는다. 이미 verified 면 되돌리지 않는다.

@@ -70,7 +70,10 @@ function fakeDb(state) {
   return {
     auth: {
       getUser: async () => ({ data: { user: state.users[state.current] }, error: null }),
-      admin: { listUsers: async () => (state.authFail?.() ? { data: null, error: { code: 'AUTH_DOWN' } } : { data: { users: Object.values(state.users) }, error: null }) },
+      admin: {
+        listUsers: async () => (state.authFail?.() ? { data: null, error: { code: 'AUTH_DOWN' } } : { data: { users: Object.values(state.users) }, error: null }),
+        getUserById: async (id) => (state.authFail?.() ? { data: { user: null }, error: { code: 'AUTH_DOWN' } } : { data: { user: state.users[id] ?? null }, error: null }),
+      },
     },
     from: (name) => Object.assign((state.beforeRead?.(name), chain(name)), {
       // insert(row) 은 바로 기다릴 수도, .select().maybeSingle() 로 만든 줄을 받을 수도 있다(실제 supabase-js 와 같은 모양).
@@ -78,6 +81,7 @@ function fakeDb(state) {
       upsert: async (row) => insert(name, row),
     }),
     storage: { from: () => ({ createSignedUrl: async (path) => ({ data: { signedUrl: `https://signed/${path}` }, error: null }) }) },
+    rpc: async (name, args) => { (state.rpcCalls ??= []).push([name, args]); return state.rpc ? state.rpc(name, args) : { data: null, error: { message: 'function does not exist' } }; },
   };
 }
 
@@ -1418,151 +1422,102 @@ test('[PR98] 조회 실패 ≠ 0개: my_matches · my_turns 연결 읽기 실패
   assert.equal((await call2(ID.a, { action: 'my_matches' })).status, 500, '공개된 연결의 이야기 읽기 실패도 숨기지 않음');
 });
 
-// ── PR #99 연결: 영상 → 각자 모습 확인 → 각자 만남 의사 (meetApi 는 Codex 소유 · 여기서는 실제 index 길만 본다) ──
+// ── PR #99/#100 연결: 영상 → 각자 모습 확인 → 각자 만남 의사 (meetApi·meetRuntime 은 Codex 소유 · 여기서는 실제 index 길과 현재 상태 콜백만) ──
 const MEET_TABLES = ['doit_video_sessions', 'doit_video_participation', 'doit_meet_checks', 'doit_meet_intents'];
 const SID = '50000000-0000-4000-8000-00000000000e';
 const RID = '60000000-0000-4000-8000-00000000000f';
+const MEET_MID = '70000000-0000-4000-8000-000000000071';
+const ON = { MEET_API_ENABLED: 'true', MEET_VIDEO_CONSENT_VERSION: 'video-v1' };
+const answersFor = (mid, ...users) => users.map((user_id) => ({ match_id: mid, user_id, answer: '저는 조용한 카페요', created_at: '2026-10-01T01:00:00Z' }));
 function meetWorld(env = {}) {
   const s = world({ env });
-  const mid = '70000000-0000-4000-8000-000000000071';
-  s.tables.doit_matches.push({ id: mid, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
-  s.tables.doit_video_sessions = [{ id: SID, match_id: mid, ended_at: '2026-10-02T00:00:00Z', signature_verified: true }];
+  s.tables.doit_matches.push({ id: MEET_MID, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
+  s.tables.doit_video_sessions = [{ id: SID, match_id: MEET_MID, ended_at: '2026-10-02T00:00:00Z', signature_verified: true, context_version: null }];
   s.tables.doit_video_participation = [ID.a, ID.b].map((user_id) => ({ session_id: SID, user_id, joined_at: '2026-10-01T23:59:00Z', left_at: '2026-10-02T00:00:00Z', camera_on_seconds: 10 }));
   s.tables.doit_meet_checks = []; s.tables.doit_meet_intents = [];
   const touched = []; s.beforeRead = (t) => touched.push(t);
-  return { s, mid, touched, call: loadServer(s) };
+  return { s, mid: MEET_MID, touched, call: loadServer(s) };
 }
 
-test('[PR99] 기본 꺼짐: 세 동작 모두 503 MEET_NOT_CONFIGURED · 영상·확인·의사 표 읽기 0 · 쓰기 0', async () => {
-  const { s, mid, touched, call } = meetWorld();
-  for (const payload of [{ action: 'meet_status', matchId: mid }, { action: 'meet_check', matchId: mid, sessionId: SID }, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID }]) {
-    const r = await call(ID.a, payload);
-    assert.equal(r.status, 503); assert.deepEqual(r.body, { ok: false, code: 'MEET_NOT_CONFIGURED' });
+test('[PR100] 기본 꺼짐: 세 동작 503 MEET_NOT_CONFIGURED · 만남 표·연결·현재 상태 읽기 0 · 쓰기 0 · 스위치 하나만 켜도 꺼짐', async () => {
+  for (const env of [{}, { MEET_API_ENABLED: 'true' }, { MEET_API_ENABLED: 'true', MEET_VIDEO_CONSENT_VERSION: 'connect-v1' }, { MEET_API_ENABLED: '1', MEET_VIDEO_CONSENT_VERSION: 'video-v1' }]) {
+    const { s, mid, touched, call } = meetWorld(env);
+    for (const payload of [{ action: 'meet_status', matchId: mid }, { action: 'meet_check', matchId: mid, sessionId: SID, stateVersion: 'x' }, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID }]) {
+      const r = await call(ID.a, payload);
+      assert.equal(r.status, 503, JSON.stringify(env)); assert.deepEqual(r.body, { ok: false, code: 'MEET_NOT_CONFIGURED' });
+    }
+    assert.equal(touched.filter((t) => MEET_TABLES.includes(t) || ['doit_matches', 'profiles', 'user_reports', 'blocks'].includes(t)).length, 0, JSON.stringify(env));
+    assert.equal(s.writes.length, 0);
   }
-  assert.equal(touched.filter((t) => MEET_TABLES.includes(t) || t === 'doit_matches').length, 0);
-  assert.equal(s.writes.length, 0);
-  // 「true」 글자 그대로가 아니면 켜지지 않는다
-  const odd = meetWorld({ MEET_API_ENABLED: '1' });
-  assert.equal((await odd.call(ID.a, { action: 'meet_status', matchId: odd.mid })).body.code, 'MEET_NOT_CONFIGURED');
 });
 
-test('[PR99] 로그인 없이 401 · 본문의 user_id·allowed·lastStepOpen 은 무시(신원은 getUser 만)', async () => {
-  const { mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
+test('[PR100] 로그인 없이 401 · 신원은 서버가 확인한 사람만(본문 user_id·allowed·lastStepOpen 무시 · 남의 연결 404)', async () => {
+  const { mid, call } = meetWorld(ON);
   assert.equal((await call(ID.a, { action: 'meet_status', matchId: mid }, { auth: false })).status, 401);
   const r = await call(ID.c, { action: 'meet_status', matchId: mid, user_id: ID.a, userId: ID.a, allowed: true, lastStepOpen: true });
   assert.equal(r.status, 404); assert.deepEqual(r.body, { ok: false, code: 'NOT_FOUND' });
 });
 
-test('[PR99] 켜져도 첫 답을 둘 다 하기 전(마지막 구간 전)이면 허용 0 · 모습 확인·의사 쓰기 0 · 상대 정보 0', async () => {
-  const { s, mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
-  const st = await call(ID.a, { action: 'meet_status', matchId: mid });
-  assert.equal(st.status, 200); assert.deepEqual(st.body, { ok: true, state: 'unavailable', allowed: false });
-  assert.ok(!JSON.stringify(st.body).includes(ID.b));
-  assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID })).body.code, 'MEET_UNAVAILABLE');
-  assert.equal((await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID })).body.code, 'MEET_UNAVAILABLE');
-  assert.equal(s.tables.doit_meet_checks.length + s.tables.doit_meet_intents.length, 0);
-});
-
-test('[PR99] meetPolicy: 차단·미처리 신고·동의 철회를 지금 읽는다 · 처리된 신고는 멈추지 않음', async () => {
-  const s = world(); const call = loadServer(s); const policy = call.exports.meetPolicy(fakeDb(s));
-  assert.deepEqual(JSON.parse(JSON.stringify(await policy('m', ID.a, ID.b))), { blocked: false, safetyHold: false, consent: { required: 'connect-v1', a: 'connect-v1', b: 'connect-v1' }, lastStepOpen: false });
+test('[PR100] 현재 상태 콜백: 자격 · 열린 신고 · 공개 동의 · 마지막 구간 · 상태 버전(원문 0)', async () => {
+  const s = world(); const call = loadServer(s); const read = call.exports.meetCurrentState(fakeDb(s));
+  const mid = MEET_MID; s.tables.doit_matches.push({ id: mid, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
+  const st0 = JSON.parse(JSON.stringify(await read(mid, ID.a, ID.b)));
+  assert.deepEqual({ ...st0, stateVersion: 'h' }, { eligibleA: true, eligibleB: true, safetyHold: false, lastStepOpen: false, revealValid: true, stateVersion: 'h' });
+  assert.match(st0.stateVersion, /^[a-f0-9]{64}$/);
+  s.tables.doit_match_answers.push(...answersFor(mid, ID.a));
+  const st1 = await read(mid, ID.a, ID.b); assert.equal(st1.lastStepOpen, false, '한 사람만 답함'); assert.notEqual(st1.stateVersion, st0.stateVersion);
+  s.tables.doit_match_answers.push(...answersFor(mid, ID.b));
+  const st2 = await read(mid, ID.a, ID.b); assert.equal(st2.lastStepOpen, true);
+  assert.equal((await read(mid, ID.a, ID.b)).stateVersion, st2.stateVersion, '같은 상태 = 같은 버전');
   s.tables.user_reports.push({ id: 'r1', reporter_id: ID.b, target_user_id: ID.a, status: 'resolved' });
-  assert.equal((await policy('m', ID.a, ID.b)).safetyHold, false);
+  assert.equal((await read(mid, ID.a, ID.b)).safetyHold, false, '처리된 신고는 멈추지 않음');
   s.tables.user_reports.push({ id: 'r2', reporter_id: ID.b, target_user_id: ID.a, status: 'pending' });
-  assert.equal((await policy('m', ID.a, ID.b)).safetyHold, true);
-  s.tables.blocks.push({ id: 'b1', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'connection' });
-  assert.equal((await policy('m', ID.a, ID.b)).blocked, true);
-  s.users[ID.b].user_metadata = {};
-  assert.equal((await policy('m', ID.a, ID.b)).consent.b, null);
+  const st3 = await read(mid, ID.a, ID.b); assert.equal(st3.safetyHold, true); assert.notEqual(st3.stateVersion, st2.stateVersion);
+  s.users[ID.a].user_metadata = {};
+  const st4 = await read(mid, ID.a, ID.b); assert.equal(st4.revealValid, false); assert.equal(st4.lastStepOpen, false);
+  s.tables.profile_photos = s.tables.profile_photos.filter((p) => !(p.user_id === ID.b && p.slot === 3));
+  const st5 = await read(mid, ID.a, ID.b); assert.equal(st5.eligibleB, false, '사진이 빠지면 자격 없음'); assert.notEqual(st5.stateVersion, st4.stateVersion);
+  for (const v of [st0, st2, st3, st5]) assert.ok(!JSON.stringify(v).includes(BIO_B) && !JSON.stringify(v).includes('조용한 카페'), '원문 0');
 });
 
-test('[PR99] 읽기 실패는 열지 않는다: 신고·차단·동의 읽기 실패 → 503 MEET_UNAVAILABLE · 원인 문구·id 0', async () => {
-  for (const arm of [(s) => { s.failOn = (t) => (t === 'user_reports' ? { code: '08006', message: 'secret detail' } : null); }, (s) => { s.failOn = (t) => (t === 'blocks' ? { code: '08006' } : null); }, (s) => { s.authFail = () => true; }]) {
-    const { s, mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
-    arm(s);
-    const r = await call(ID.a, { action: 'meet_status', matchId: mid });
-    assert.equal(r.status, 503); assert.deepEqual(r.body, { ok: false, code: 'MEET_UNAVAILABLE' });
-    assert.ok(!s.logs.join('\n').includes('secret detail'));
+test('[PR100] 현재 상태 콜백은 실패를 열림으로 바꾸지 않는다(신고·연결·사진·Auth 읽기 실패 = 던짐) · 다른 쌍의 연결 번호 = 던짐', async () => {
+  for (const arm of [(s) => { s.failOn = (t) => (t === 'user_reports' ? { code: '08006' } : null); }, (s) => { s.failOn = (t) => (t === 'doit_matches' ? { code: '08006' } : null); }, (s) => { s.failOn = (t) => (t === 'profile_photos' ? { code: '08006' } : null); }, (s) => { s.authFail = () => true; }, (s) => { s.tables.doit_matches[0].user_b = ID.c; }]) {
+    const s = world(); s.tables.doit_matches.push({ id: MEET_MID, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
+    arm(s); const read = loadServer(s).exports.meetCurrentState(fakeDb(s));
+    await assert.rejects(read(MEET_MID, ID.a, ID.b));
   }
 });
 
-// ── PR99-B 준비: 마지막 구간 = 실제 상태 전이(연결 → 둘 다 첫 답 → 둘 다 현재 동의) · 켜진 상태 모의 흐름(실제 표·영상 아님) ──
-const answersFor = (mid, ...users) => users.map((user_id) => ({ match_id: mid, user_id, answer: '저는 조용한 카페요', created_at: '2026-10-01T01:00:00Z' }));
-test('[PR99-B] 마지막 구간: 한 사람만 답함 = 닫힘 · 둘 다 답함 + 둘 다 현재 동의 = 열림 · 동의 철회 = 다시 닫힘', async () => {
-  const s = world(); const call = loadServer(s); const policy = call.exports.meetPolicy(fakeDb(s));
-  const mid = '70000000-0000-4000-8000-000000000072';
-  assert.equal((await policy(mid, ID.a, ID.b)).lastStepOpen, false);
-  s.tables.doit_match_answers.push(...answersFor(mid, ID.a));
-  assert.equal((await policy(mid, ID.a, ID.b)).lastStepOpen, false);
-  s.tables.doit_match_answers.push(...answersFor(mid, ID.b));
-  assert.equal((await policy(mid, ID.a, ID.b)).lastStepOpen, true);
-  s.users[ID.a].user_metadata = {};
-  assert.equal((await policy(mid, ID.a, ID.b)).lastStepOpen, false);
-  s.failOn = (t) => (t === 'doit_match_answers' ? { code: '08006' } : null);
-  await assert.rejects(policy(mid, ID.a, ID.b));
-});
-
-function meetOn() { const w = meetWorld({ MEET_API_ENABLED: 'true' }); w.s.tables.doit_match_answers.push(...answersFor(w.mid, ID.a, ID.b)); return w; }
-const RID2 = '60000000-0000-4000-8000-0000000000f2';
-test('[PR99-B 모의] 영상 참여 · 각자 모습 확인 · 각자 만남 의사가 따로 기록되고 넷 다 있어야 허용', async () => {
-  const { s, mid, call } = meetOn();
-  const st = async (who) => (await call(who, { action: 'meet_status', matchId: mid })).body;
-  assert.equal((await st(ID.a)).state, 'need_my_check');
-  await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID });
-  assert.equal((await st(ID.a)).state, 'need_my_intent');
-  assert.equal((await st(ID.b)).state, 'need_my_check', 'A 의 확인이 B 의 확인을 대신하지 않음');
-  await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID });
-  assert.deepEqual(await st(ID.a), { ok: true, state: 'waiting_partner', allowed: false });
-  await call(ID.b, { action: 'meet_check', matchId: mid, sessionId: SID });
-  assert.equal((await st(ID.a)).allowed, false, 'B 의 의사 전에는 허용 0');
-  await call(ID.b, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID });
-  assert.deepEqual(await st(ID.a), { ok: true, state: 'allowed', allowed: true });
-  assert.equal(s.tables.doit_meet_checks.length, 2); assert.equal(s.tables.doit_meet_intents.length, 2);
-  // 허용 뒤 차단이 생기면 바로 닫힘(저장된 확인·의사가 있어도)
-  s.tables.blocks.push({ id: 'bm', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'connection' });
-  assert.deepEqual(await st(ID.a), { ok: true, state: 'unavailable', allowed: false });
-});
-test('[PR99-B 모의] 상대가 「아직」이어도 나에게는 「기다리는 중」만 · 상대 의사 글자 0', async () => {
-  const { mid, call } = meetOn();
-  for (const u of [ID.a, ID.b]) await call(u, { action: 'meet_check', matchId: mid, sessionId: SID });
-  await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID });
-  await call(ID.b, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'not_now', requestId: RID });
-  const r = (await call(ID.a, { action: 'meet_status', matchId: mid })).body;
-  assert.deepEqual(r, { ok: true, state: 'waiting_partner', allowed: false });
-  assert.ok(!/not_now|no\b/.test(JSON.stringify(r)));
-});
-test('[PR99-B 모의] 다른 연결의 영상 기록 · 없는 기록 · 서명 안 된 기록으로는 확인 0', async () => {
-  const other = '50000000-0000-4000-8000-0000000000e2';
-  for (const arm of [(s) => s.tables.doit_video_sessions.push({ id: other, match_id: '70000000-0000-4000-8000-000000000099', ended_at: '2026-10-02T00:00:00Z', signature_verified: true }), () => {}, (s) => { s.tables.doit_video_sessions[0].signature_verified = false; }]) {
-    const { s, mid, call } = meetOn(); arm(s);
-    const sid = s.tables.doit_video_sessions[0].signature_verified ? other : SID;
-    const r = await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: sid });
-    assert.equal(r.status, 409); assert.equal(r.body.code, 'MEET_UNAVAILABLE');
+test('[PR100] 켜도(설정 둘 다) 지금 동의 판 구조로는 허용 0 — 영상 동의 판이 연결 공개 동의와 같은 칸이라 둘을 동시에 만족할 수 없음(설계 결정 필요)', async () => {
+  // 사용자가 connect-v1(공개 동의)이면 영상 동의 불일치 · video-v1 로 바꾸면 공개 동의(connect-v1) 불일치 → 어느 쪽이든 unavailable
+  for (const version of ['connect-v1', 'video-v1']) {
+    const { s, mid, call } = meetWorld(ON);
+    s.tables.doit_match_answers.push(...answersFor(mid, ID.a, ID.b));
+    for (const u of [ID.a, ID.b]) s.users[u].user_metadata = { doit_connect_consent_version: version, doit_connect_consent_at: '2026-10-01T00:00:00Z' };
+    const r = await call(ID.a, { action: 'meet_status', matchId: mid });
+    assert.equal(r.status, 200); assert.equal(r.body.state, 'unavailable'); assert.equal(r.body.allowed, false); assert.ok(!('sessionId' in r.body), '번호 0');
+    assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID, stateVersion: r.body.stateVersion })).status, 409);
     assert.equal(s.tables.doit_meet_checks.length, 0);
   }
-  const { s, mid, call } = meetOn(); s.tables.doit_video_sessions = []; s.tables.doit_video_participation = [];
-  assert.equal((await call(ID.a, { action: 'meet_status', matchId: mid })).body.state, 'need_video', '기록 없음 = 영상 필요(가짜 번호 0)');
 });
-test('[PR99-B 모의] 동의 철회 · 미처리 신고 · 연결 종료 뒤에는 확인·의사 저장 0', async () => {
-  for (const arm of [(s) => { s.users[ID.b].user_metadata = {}; }, (s) => s.tables.user_reports.push({ id: 'rr', reporter_id: ID.b, target_user_id: ID.a, status: 'pending' }), (s) => { s.tables.doit_matches.find((m) => m.id === '70000000-0000-4000-8000-000000000071').status = 'closed'; }]) {
-    const { s, mid, call } = meetOn(); arm(s);
-    assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID })).body.code, 'MEET_UNAVAILABLE');
-    assert.equal((await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID })).body.code, 'MEET_UNAVAILABLE');
-    assert.equal(s.tables.doit_meet_checks.length + s.tables.doit_meet_intents.length, 0);
-    const st = (await call(ID.a, { action: 'meet_status', matchId: mid })).body;
-    assert.deepEqual(st, { ok: true, state: 'unavailable', allowed: false }, '신고·동의·종료 중 무엇인지 드러내지 않음');
-  }
+
+test('[PR100] 관리자 집계: 일반 사용자 403 · 관리자도 꺼짐이면 503(0 아님) · 어느 서버 값인지 project 표기', async () => {
+  const { mid, call } = meetWorld();
+  const user = await call(ID.a, { action: 'admin_meet_summary', matchId: mid });
+  assert.equal(user.status, 403); assert.equal(user.body.code, 'FORBIDDEN');
+  const off = await call(ID.admin, { action: 'admin_meet_summary', matchId: mid });
+  assert.equal(off.status, 503); assert.equal(off.body.code, 'MEET_NOT_CONFIGURED'); assert.equal(off.body.project, 'db');
+  assert.ok(!('video' in off.body) && !('planAgreement' in off.body), '꺼짐에 집계 숫자 0');
 });
-test('[PR99-B 모의] 같은 제출 다시 보내기 = 한 줄 · 같은 번호에 다른 의사 = 409 · 새 번호의 새 의사는 따로 저장', async () => {
-  const { s, mid, call } = meetOn();
-  for (const u of [ID.a, ID.b]) await call(u, { action: 'meet_check', matchId: mid, sessionId: SID });
-  assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID })).body.replayed, true);
-  assert.equal(s.tables.doit_meet_checks.length, 2);
-  await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID });
-  assert.equal((await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID })).body.replayed, true);
-  const conflict = await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'no', requestId: RID });
-  assert.equal(conflict.status, 409); assert.equal(conflict.body.code, 'REQUEST_CONFLICT');
-  assert.equal(s.tables.doit_meet_intents.length, 1);
-  await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'not_now', requestId: RID2 });
-  assert.equal(s.tables.doit_meet_intents.length, 2);
+
+test('[PR100] 약속 시작(meet_plan): 꺼짐 = 503 · DB 함수 호출 0 · 요청 id 없으면 400 · 남의 연결 404(호출 0)', async () => {
+  const { s, mid, call } = meetWorld();
+  const off = await call(ID.a, { action: 'meet_plan', matchId: mid, requestId: RID, stateVersion: 'x' });
+  assert.equal(off.status, 503); assert.equal(off.body.code, 'MEET_NOT_CONFIGURED');
+  assert.equal((await call(ID.a, { action: 'meet_plan', matchId: mid, stateVersion: 'x' })).status, 400);
+  const on = meetWorld(ON);
+  assert.equal((await on.call(ID.c, { action: 'meet_plan', matchId: on.mid, requestId: RID, stateVersion: 'x' })).status, 404);
+  // 켜져 있어도 지금 동의 판 구조(위 검사)로는 허용 0 → DB 함수까지 가지 않는다
+  const r = await on.call(ID.a, { action: 'meet_plan', matchId: on.mid, requestId: RID, stateVersion: 'x' });
+  assert.equal(r.status, 409); assert.equal((s.rpcCalls ?? []).length + (on.s.rpcCalls ?? []).length, 0);
 });

@@ -1,7 +1,7 @@
 // 연결/매칭 — 후보 계산·승인은 연결 서버(doit-connect)가 한다(관리자 역할을 서버가 다시 확인). 이 화면은 결과를 보이고, 사람이 승인·넘기기를 누른다.
 // v2.0(2026-09-28 §15–§19): 승인 = 두 사람에게 후보로 보내기. 둘 다 고를 때만 연결이 열린다. 「지금 후보 준비」는 서버가 모두 몫의 후보를 만든다(당신이 잠든 사이).
 import { useState } from 'react';
-import { adminCall, type ConnectCandidates, type ConnectMatch, type ConnectOutcome, type ConnectProposal } from '../api';
+import { AdminError, adminCall, type ConnectCandidates, type ConnectMatch, type ConnectOutcome, type ConnectProposal } from '../api';
 import { useLoad } from '../useLoad';
 import { Loading, Notice, Section, Stat, Tag } from '../ui';
 import { when } from '../format';
@@ -89,28 +89,45 @@ export default function Connect() {
           </table></div>
         )) : null}
       </Section>
-      {/* 2026-10-02 PR #99: 마지막 구간 네 기록은 서로 다른 기록이다. 저장 표·영상 서비스(승인 묶음 B) 전이라 서버 창구가 없다 → 0 이 아니라 「연결 필요」. */}
-      <Section title="마지막 구간(만나기 전)" sub="영상 참여 · 각자 모습 확인 · 각자 만남 의사 · 약속 합의는 각각 따로 셉니다(하나가 다른 하나를 대신하지 않음)">
-        <Notice kind="연결 필요">이 네 기록은 아직 저장되지 않아요(만남 기능 꺼짐 · 저장 표와 영상 서비스 연결 전). 서버가 기록을 시작하면 그 값만 보여 줘요.</Notice>
-        <div className="aw-grid">
-          <Stat label="영상 참여(두 사람 모두)" value={null} missing="연결 필요" />
-          <Stat label="모습 확인(각자)" value={null} missing="연결 필요" />
-          <Stat label="만남 의사(각자)" value={null} missing="연결 필요" />
-          <Stat label="약속 합의(두 사람 모두 원함)" value={null} missing="연결 필요" />
-        </div>
+      {/* 2026-10-02 PR #99·#100: 마지막 구간 네 기록은 서로 다른 기록이다. 연결마다 「마지막 구간」을 누르면 서버(admin_meet_summary)가 그 연결 값만 준다.
+          꺼짐 = 「연결 필요」 · 읽기 실패 = 「실패」 · 실제로 연결된 빈 값만 0 — 화면이 값을 만들지 않는다. */}
+      <Section title="마지막 구간(만나기 전)" sub="영상 참여 · 양쪽 모습 확인 · 양쪽 만남 의사 · 약속 합의는 각각 따로입니다(하나가 다른 하나를 대신하지 않음). 아래 연결 기록에서 연결마다 확인합니다">
+        <Notice kind="연결 필요">지금 만남 기능은 꺼져 있어요(저장 표·영상 서비스·영상 동의 판 결정 전). 켜지기 전에는 어느 연결이든 「연결 필요」로 보여요.</Notice>
       </Section>
       <Section title="연결 기록" sub="결과(대화·만남·다시 만나고 싶음)는 사용자가 직접 남긴 값입니다">
         {matches.kind === 'loading' ? <Loading /> : null}
         {matches.kind === 'error' ? <Notice kind="오류">{matches.message}</Notice> : null}
         {matches.kind === 'ready' ? (!matches.data.matches.length ? <p className="aw-empty">데이터 없음</p> : (
           <div className="aw-table-wrap"><table className="aw-table">
-            <thead><tr><th>날짜</th><th>두 사람</th><th>상태</th><th>첫 답</th><th>이야기</th><th>결과</th></tr></thead>
+            <thead><tr><th>날짜</th><th>두 사람</th><th>상태</th><th>첫 답</th><th>이야기</th><th>결과</th><th>마지막 구간</th></tr></thead>
             <tbody>{matches.data.matches.map((m) => (
-              <tr key={m.id}><td>{when(m.created_at)}</td><td>{m.a} · {m.b}</td><td><Tag tone={m.status === 'approved' ? 'ok' : 'muted'}>{STATUS_KO[m.status] ?? m.status}</Tag></td><td>{m.answered}/2</td><td>{m.messages}개</td><td>{outcomeText(m.outcomes)}</td></tr>
+              <tr key={m.id}><td>{when(m.created_at)}</td><td>{m.a} · {m.b}</td><td><Tag tone={m.status === 'approved' ? 'ok' : 'muted'}>{STATUS_KO[m.status] ?? m.status}</Tag></td><td>{m.answered}/2</td><td>{m.messages}개</td><td>{outcomeText(m.outcomes)}</td><td>{m.status === 'approved' ? <MeetCell matchId={m.id} /> : '—'}</td></tr>
             ))}</tbody>
           </table></div>
         )) : null}
       </Section>
     </div>
   );
+}
+
+// 한 연결의 마지막 구간 — 누를 때만 서버에 묻는다(목록 전체를 한꺼번에 부르지 않음).
+interface MeetSummary { video?: { sessions: number; jointSessions: number }; appearance?: { bothConfirmed: boolean }; meetingIntent?: { bothYes: boolean }; permission?: { allowed: boolean }; planAgreement?: { state: string }; project?: string | null; observedAt?: string }
+type MeetCellState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'off' } | { kind: 'failed'; code: string } | { kind: 'ready'; data: MeetSummary };
+function MeetCell({ matchId }: { matchId: string }) {
+  const [st, setSt] = useState<MeetCellState>({ kind: 'idle' });
+  const load = async () => {
+    setSt({ kind: 'loading' });
+    try { setSt({ kind: 'ready', data: await adminCall<MeetSummary>('doit-connect', { action: 'admin_meet_summary', matchId }) }); }
+    catch (e) { const code = e instanceof AdminError ? e.code : 'ERROR'; setSt(code === 'MEET_NOT_CONFIGURED' ? { kind: 'off' } : { kind: 'failed', code }); }
+  };
+  if (st.kind === 'idle') return <button type="button" className="aw-btn aw-btn--ghost" onClick={() => void load()}>마지막 구간</button>;
+  if (st.kind === 'loading') return <span>확인 중</span>;
+  if (st.kind === 'off') return <Tag tone="muted">연결 필요(꺼짐)</Tag>;
+  if (st.kind === 'failed') return <Tag tone="warn">{`실패 · ${st.code}`}</Tag>;
+  const d = st.data;
+  const yn = (v: boolean | undefined) => (v === undefined ? '실패' : v ? '예' : '아직');
+  return <span>
+    영상 {d.video ? `${d.video.jointSessions}/${d.video.sessions}회(공동/전체)` : '실패'} · 양쪽 모습 확인 {yn(d.appearance?.bothConfirmed)} · 양쪽 만남 의사 {yn(d.meetingIntent?.bothYes)} · 약속 합의 {d.planAgreement?.state === 'not_connected' ? '연결 필요' : '실패'}
+    {d.project ? ` · ${d.project}` : ''}
+  </span>;
 }

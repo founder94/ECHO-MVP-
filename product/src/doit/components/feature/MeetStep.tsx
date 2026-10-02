@@ -35,8 +35,8 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
     try {
       setStatus(await run());
     } catch (e) {
-      // 서버가 지금 상태로는 받을 수 없다고 하면(다른 기록·동의 철회·차단 등) 다시 읽어 서버 상태대로만 그린다.
-      if (e instanceof UnderstandingError && e.code === 'MEET_UNAVAILABLE') setStatus(await fetchMeetStatus(userId, matchId));
+      // 서버가 지금 상태로는 받을 수 없다고 하거나(다른 기록·동의 철회·차단 등) 그사이 상태가 바뀌었으면(STATE_CHANGED) 다시 읽어 서버 상태대로만 그린다.
+      if (e instanceof UnderstandingError && (e.code === 'MEET_UNAVAILABLE' || e.code === 'STATE_CHANGED')) setStatus(await fetchMeetStatus(userId, matchId));
       else setError('저장하지 못했어요. 다시 눌러 주세요.');
     } finally {
       setBusy(false);
@@ -44,23 +44,24 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
   };
 
   const sid = status.sessionId;
+  const ver = status.stateVersion;
   return <section className="doit-meet" data-meet={status.state} aria-label="만나기 전 마지막 단계">
     <p className="doit-match-kicker">만나기 전에</p>
 
     {status.state === 'need_video' && <p className="doit-connect-note">앱 안에서 짧게 영상으로 인사하면, 각자 상대 모습을 확인하고 만남을 정할 수 있어요.</p>}
 
-    {status.state === 'need_my_check' && sid && !later && <>
+    {status.state === 'need_my_check' && sid && ver && !later && <>
       <p className="doit-meet-title">영상에서 본 모습이 소개와 같았나요?</p>
       <p className="doit-connect-note">각자 따로 확인해요. 내 확인이 상대의 확인을 대신하지 않아요.</p>
-      <button type="button" className="doit-product-action" disabled={busy} onClick={() => void act(() => confirmMeetCheck(userId, matchId, sid))}>{busy ? '저장하는 중' : '상대 모습을 확인했어요'}<span aria-hidden="true">↗</span></button>
+      <button type="button" className="doit-product-action" disabled={busy} onClick={() => void act(() => confirmMeetCheck(userId, matchId, sid, ver))}>{busy ? '저장하는 중' : '상대 모습을 확인했어요'}<span aria-hidden="true">↗</span></button>
       <button type="button" className="doit-connect-link" disabled={busy} onClick={() => setLater(true)}>조금 더 생각할게요</button>
     </>}
 
-    {status.state === 'need_my_intent' && sid && !later && <>
+    {status.state === 'need_my_intent' && sid && ver && !later && <>
       <p className="doit-meet-title">직접 만나 볼까요?</p>
       <p className="doit-connect-note">내 선택은 상대에게 그대로 보이지 않아요. 두 분이 모두 원할 때만 약속을 정할 수 있어요.</p>
       <div className="doit-outcome-chips" role="group" aria-label="만남 의사">
-        {INTENTS.map(([intent, label]) => <button key={intent} type="button" disabled={busy} onClick={() => void act(() => sendMeetIntent(userId, matchId, sid, intent, submission.current.idFor(`${matchId}:${sid}:${intent}`)))}>{label}</button>)}
+        {INTENTS.map(([intent, label]) => <button key={intent} type="button" disabled={busy} onClick={() => void act(() => sendMeetIntent(userId, matchId, sid, ver, intent, submission.current.idFor(`${matchId}:${sid}:${intent}`)))}>{label}</button>)}
       </div>
     </>}
 
