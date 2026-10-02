@@ -172,6 +172,16 @@ let matchId, mx, my;
   const rest = await Promise.all(['user_reports', 'blocks', 'doit_matches', 'doit_match_messages', 'doit_match_answers', 'doit_match_candidates'].map(async (t) => [t, (await http(`/rest/v1/${t}?select=*&limit=5`, { jwt: X.jwt }))]));
   check('⑦ X: 표 직접 읽기(신고·차단·연결·이야기·답·후보) 0줄', rest.every(([, r]) => r.status !== 200 || (Array.isArray(r.data) && r.data.length === 0)), rest.map(([t, r]) => `${t}:${r.status}/${Array.isArray(r.data) ? r.data.length : '-'}`).join(' '));
   check('⑦ X: 관리자 동작 = 403', (await connect(X, { action: 'admin_matches' })).status === 403);
+  const aw = await fn('admin-web', X.jwt, { action: 'overview', period: 'today' });
+  check('⑦ X: 관리자 웹 자료 = 403 · 자료 0', aw.status === 403 && !aw.data?.users, `status=${aw.status}`);
+  const aws = await fn('admin-web', X.jwt, { action: 'safety' });
+  check('⑦ X: 관리자 신고 목록 = 403', aws.status === 403 && !aws.data?.reports, `status=${aws.status}`);
+  // 일반 사용자가 스스로 관리자가 되려 해도(자기 profiles.role 수정) 서버·DB 가 막는지 — 결과를 다시 읽어 확인
+  const up = await http(`/rest/v1/profiles?id=eq.${X.uid}`, { method: 'PATCH', jwt: X.jwt, body: { role: 'admin' }, headers: { Prefer: 'return=minimal' } });
+  const role = (await http(`/rest/v1/profiles?select=role&id=eq.${X.uid}`, { jwt: X.jwt })).data?.[0]?.role ?? null;
+  check('⑦ X: 자기 role 승격 시도 = 반영 0', role !== 'admin', `patch=${up.status} role=${role}`);
+  if (role === 'admin') { await http(`/rest/v1/profiles?id=eq.${X.uid}`, { method: 'PATCH', jwt: X.jwt, body: { role: 'user' }, headers: { Prefer: 'return=minimal' } }); console.log('SECURITY: role 승격 가능 — 즉시 되돌림 시도'); }
+  check('⑦ X: 승격 시도 뒤에도 관리자 웹 = 403', (await fn('admin-web', X.jwt, { action: 'overview', period: 'today' })).status === 403);
 }
 // 정리: 이번 실행 계정의 목적을 비워 다음 실행 후보 풀에서 뺀다(삭제 0 · 기록 보존).
 for (const p of people) await http(`/rest/v1/profiles?id=eq.${p.uid}`, { method: 'PATCH', jwt: p.jwt, body: { purpose_id: null, purpose_label: null }, headers: { Prefer: 'return=minimal' } });

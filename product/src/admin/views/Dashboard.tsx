@@ -7,6 +7,8 @@ import { LevelBadge, Loading, Notice, Section, Stat } from '../ui';
 import { when } from '../format';
 import { ADMIN_BUILD, RELEASE_RECORD } from '../releaseStatus';
 import { mergeDecisions, type Connect } from '../decide';
+import type { SafetyOut } from '../api';
+import Today from './Today';
 
 
 async function loadConnect(): Promise<Connect> {
@@ -26,6 +28,8 @@ export default function Dashboard({ go }: { go: (menu: string) => void }) {
   const [ov, reload] = useLoad(() => adminCall<Overview>('admin-web', { action: 'overview', period }), [period]);
   const [cn] = useLoad(loadConnect, []);
   const connect = cn.kind === 'ready' ? cn.data : null;
+  const [sf] = useLoad(() => adminCall<SafetyOut>('admin-web', { action: 'safety' }), []);
+  const safety = sf.kind === 'ready' ? sf.data : sf.kind === 'error' ? 'error' as const : null;
 
   return (
     <div className="aw-page">
@@ -38,6 +42,7 @@ export default function Dashboard({ go }: { go: (menu: string) => void }) {
         <button type="button" className="aw-btn" onClick={reload}>새로 고침</button>
       </div>
 
+      {ov.kind !== 'loading' && cn.kind !== 'loading' && sf.kind !== 'loading' ? <Today ov={ov.kind === 'ready' ? ov.data : null} connect={connect} safety={safety} go={go} /> : null}
       {ov.kind === 'loading' ? <Loading /> : null}
       {ov.kind === 'error' ? <Notice kind="오류">{ov.message} ({ov.code})</Notice> : null}
       {ov.kind === 'ready' ? (() => {
