@@ -60,7 +60,7 @@ if (ADMIN_BASE) {
         const b = await type.launch(); const ctx = await b.newContext({ viewport: { width: w, height: h } }); const p = await ctx.newPage();
         const errs = []; const calls = [];
         p.on('pageerror', (e) => errs.push(String(e).slice(0, 120)));
-        p.on('request', (r) => { if (r.url().includes('/functions/v1/admin-web')) calls.push(r.url()); });
+        p.on('request', (r) => { if (r.url().includes('/functions/v1/')) calls.push(r.url()); });
         const s = who === 'admin' ? admin : who === 'user' ? user : null;
         if (s) await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), [`sb-${QA_REF}-auth-token`, session(s)]);
         const tag = `${bname} ${w} ${who}`;
@@ -68,12 +68,27 @@ if (ADMIN_BASE) {
         await p.goto(`${ADMIN_BASE}/?m=users`); await settle(); await p.waitForTimeout(500);
         const txt = await p.evaluate(() => document.body.innerText);
         if (who === 'none') check(`화면 ${tag}: 로그인 없음 → 로그인 화면`, p.url().endsWith('/login') && txt.includes('관리자 계정만'), p.url());
-        if (who === 'user') check(`화면 ${tag}: 일반 사용자 직접 주소 → 거절 · 관리자 자료 호출 0`, txt.includes('관리자 권한이 없습니다') && calls.length === 0, `calls=${calls.length}`);
+        if (who === 'user') check(`화면 ${tag}: 일반 사용자 직접 주소 → 거절 · 관리자 자료 호출 0`, txt.includes('관리자 권한이 없습니다') && calls.filter((u) => u.includes('/admin-web')).length === 0, `calls=${calls.length}`);
         if (who === 'admin') {
           check(`화면 ${tag}: 사용자 목록(실제)`, txt.includes('사용자') && (await p.locator('.aw-table tbody tr').count()) > 0);
           await p.goto(`${ADMIN_BASE}/`); await settle(); await p.waitForSelector('.aw-level--big', { timeout: 30000 }).catch(() => {});
           const dash = await p.evaluate(() => ({ level: document.querySelector('.aw-level--big')?.textContent ?? null, stats: document.querySelectorAll('.aw-stat').length, overflow: document.documentElement.scrollWidth > innerWidth + 1, missing: [...document.querySelectorAll('.aw-missing')].map((e) => e.textContent) }));
           check(`화면 ${tag}: 대시보드 상태 글자 · 숫자 칸 · 가로 넘침 없음`, /정상|주의|오류/.test(dash.level ?? '') && dash.stats >= 20 && !dash.overflow, JSON.stringify(dash));
+          // 2026-10-02 「오늘 요약」: 화면 숫자 = 서버 원본(같은 관리자 토큰으로 따로 읽은 값) · 환경 표시 = 실제 호출 대상 · 상태·먼저 할 일 근거
+          await p.waitForSelector('.aw-today', { timeout: 30000 }).catch(() => {});
+          const today = await p.evaluate(() => ({ env: document.querySelector('.aw-env')?.textContent, state: document.querySelector('.aw-state')?.textContent, task: document.querySelector('.aw-task-what')?.textContent ?? document.querySelector('.aw-today-task .aw-muted')?.textContent ?? null, rows: [...document.querySelectorAll('.aw-funnel li')].map((l) => [l.querySelector('span')?.textContent, l.querySelector('strong')?.textContent]) }));
+          const hosts = [...new Set(calls.map((u) => new URL(u).host))];
+          check(`화면 ${tag}: 오늘 요약 환경 = 시험용 QA · 실제 호출 대상도 QA 프로젝트만`, today.env === '시험용 QA' && hosts.length > 0 && hosts.every((h) => h === `${QA_REF}.supabase.co`), `${today.env} · ${hosts.join(',')}`);
+          check(`화면 ${tag}: 상태 = 자료를 읽은 상태(확인 불가 아님)`, ['정상', '확인 필요', '일부 중단'].includes(today.state), today.state);
+          const expectTask = d.decisions?.[0] ?? null;
+          check(`화면 ${tag}: 먼저 할 일 = 서버가 준 첫 결정(없으면 「없음」)`, expectTask ? today.task === expectTask : /먼저 할 일 없음/.test(today.task ?? ''), `화면「${today.task}」 서버「${expectTask}」`);
+          const cell = (label) => today.rows.find(([k]) => k === label)?.[1] ?? null;
+          const am = await fn('doit-connect', admin.access_token, { action: 'admin_matches' });
+          const talking = (am.data?.matches ?? []).filter((m) => m.messages > 0).length;
+          const open = (sf.data?.reports ?? []).filter((r) => r.status !== 'resolved' && r.status !== 'closed').length;
+          check(`화면 ${tag}: 연결·안전 숫자 = 서버 원본`, cell('대화 시작') === String(talking) && cell('접수(전체)') === String(sf.data?.reports?.length) && cell('검토 대기') === String(open) && cell('영상으로 서로 확인') === '기능 없음', JSON.stringify({ 화면: today.rows, 서버: { talking, reports: sf.data?.reports?.length, open } }));
+          await p.goto(`${ADMIN_BASE}/?m=revenue`); await settle();
+          check(`화면 ${tag}: 수익 = 연결 필요(0 아님)`, (await p.evaluate(() => document.body.innerText)).includes('연결 필요'));
           await p.goto(`${ADMIN_BASE}/?m=conversations`); await settle(); await p.waitForSelector('.aw-row', { timeout: 20000 }).catch(() => {});
           const rows = await p.locator('.aw-row').count();
           if (rows) { await p.locator('.aw-row').first().click(); await p.getByRole('button', { name: '원문 보기' }).click({ timeout: 20000 }).catch(() => {}); await p.waitForTimeout(300); }
@@ -86,6 +101,12 @@ if (ADMIN_BASE) {
             if (!bad.h1 || bad.overflow || bad.err.length) menuFail.push(`${m}:${bad.err.join('/') || (bad.overflow ? 'overflow' : 'noh1')}`);
           }
           check(`화면 ${tag}: 나머지 메뉴 11개 오류 0 · 넘침 0`, menuFail.length === 0, menuFail.join(' | '));
+          // 로그아웃 뒤: 관리자 자료가 화면·저장소에 남지 않고 다시 열면 로그인 화면
+          await p.goto(`${ADMIN_BASE}/`); await settle();
+          await p.getByRole('button', { name: '로그아웃' }).first().click().catch(() => {}); await p.waitForTimeout(1500);
+          await p.goto(`${ADMIN_BASE}/?m=users`); await settle(); await p.waitForTimeout(500);
+          const after = await p.evaluate((k) => ({ url: location.pathname, token: localStorage.getItem(k), rows: document.querySelectorAll('.aw-table tbody tr, .aw-today').length }), `sb-${QA_REF}-auth-token`);
+          check(`화면 ${tag}: 로그아웃 뒤 자료 0 · 토큰 0 · 로그인 화면`, after.url.endsWith('/login') && !after.token && after.rows === 0, JSON.stringify(after));
         }
         check(`화면 ${tag}: 페이지 오류 0`, errs.length === 0, errs.join(' | '));
         await b.close();
