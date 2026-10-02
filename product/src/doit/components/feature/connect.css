@@ -115,3 +115,17 @@
 .doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary){background:#fff!important;border:1px solid #fff!important;color:#0f4a4a!important;-webkit-text-fill-color:#0f4a4a;box-shadow:0 1px 2px rgb(15 74 74/.08)!important;transition:transform .12s ease,background-color .12s ease}
 .doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary) span{color:inherit!important;-webkit-text-fill-color:#0f4a4a}
 .doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary):not(:disabled):active{background:#f2f6f6!important;transform:scale(.99)}
+
+/* 2026-10-01 SAFETY LAYER — 조용한 글자 버튼 줄(경찰 앱처럼 크지 않게). 후보 차단·신고 · 신고 사유 · 만나기 전 짧은 안내. */
+.doit-safety-open{display:inline-block;margin-top:10px;font-size:13px;opacity:.86}
+.doit-safety{margin-top:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
+.doit-safety .doit-connect-link{margin-right:16px}
+.doit-safety-reasons{display:flex;flex-wrap:wrap;gap:4px 16px;margin:4px 0 8px}
+.doit-safety-reasons .doit-connect-link{margin-right:0;min-height:44px}
+.doit-meet-safety{margin:4px 0 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
+.doit-meet-safety ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.7;word-break:keep-all}
+.doit-app-pastel :is(.doit-safety,.doit-meet-safety) :is(p,li,.doit-match-kicker){color:#fff}
+.doit-safety-also{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13px;color:inherit}
+.doit-safety-also input{width:18px;height:18px;accent-color:#0f4a4a}
+.doit-meet-safety--peek summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:600}
+.doit-app-pastel :is(.doit-safety-also,.doit-meet-safety--peek summary){color:#fff}

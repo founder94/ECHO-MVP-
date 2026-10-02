@@ -9,6 +9,7 @@ import Users from './views/Users';
 import Conversations from './views/Conversations';
 import Connect from './views/Connect';
 import Safety from './views/Safety';
+import Revenue from './views/Revenue';
 import { Alerts, Audit, DataCheck, Release, ServiceStatus, Settings } from './views/Ops';
 import { Loading } from './ui';
 import './admin-web.css';
@@ -23,6 +24,7 @@ export const MENUS = [
   { key: 'profiles', label: '프로필' },
   { key: 'connect', label: '연결/매칭' },
   { key: 'safety', label: '신고·차단' },
+  { key: 'revenue', label: '수익' },
   { key: 'status', label: '서비스 상태' },
   { key: 'release', label: '배포 관리' },
   { key: 'failures', label: '오류·실패' },
@@ -32,6 +34,15 @@ export const MENUS = [
   { key: 'data', label: '데이터 확인' },
 ] as const;
 export type MenuKey = (typeof MENUS)[number]['key'];
+// 2026-10-02 대표 「QA 마감 v1.1」 §13: 상위 묶음 다섯 개(오늘 · 연결 · 안전 · 수익 · 관리). 기존 상세 메뉴는 지우지 않고 묶음 아래로.
+const GROUPS: readonly { label: string; items: readonly MenuKey[] }[] = [
+  { label: '오늘', items: ['dashboard'] },
+  { label: '연결', items: ['connect', 'users', 'profiles', 'conversations', 'facts'] },
+  { label: '안전', items: ['safety'] },
+  { label: '수익', items: ['revenue'] },
+  { label: '관리', items: ['status', 'release', 'failures', 'alerts', 'settings', 'audit', 'data'] },
+];
+const labelOf = (k: MenuKey) => MENUS.find((m) => m.key === k)?.label ?? k;
 
 type Gate = { kind: 'checking' } | { kind: 'out' } | { kind: 'denied'; email: string | null } | { kind: 'admin'; email: string | null };
 
@@ -91,19 +102,22 @@ function Shell({ email, onSignOut }: { email: string | null; onSignOut: () => vo
   const [params, setParams] = useSearchParams();
   const key = (MENUS.find((m) => m.key === params.get('m'))?.key ?? 'dashboard') as MenuKey;
   const go = (m: string) => { setParams(m === 'dashboard' ? {} : { m }); window.scrollTo(0, 0); };
-  const label = MENUS.find((m) => m.key === key)?.label ?? '';
+  const label = key === 'dashboard' ? '오늘 요약' : MENUS.find((m) => m.key === key)?.label ?? '';
   return (
     <div className="aw">
       <aside className="aw-side" aria-label="관리자 메뉴">
         <div className="aw-brand">DO IT 관리자</div>
-        <nav>{MENUS.map((m) => <button key={m.key} type="button" className={m.key === key ? 'on' : ''} aria-current={m.key === key ? 'page' : undefined} onClick={() => go(m.key)}>{m.label}</button>)}</nav>
+        <nav>{GROUPS.map((g) => <div key={g.label} className="aw-group" role="group" aria-label={g.label}>
+          <div className="aw-group-label">{g.label}</div>
+          {g.items.map((k) => <button key={k} type="button" className={k === key ? 'on' : ''} aria-current={k === key ? 'page' : undefined} onClick={() => go(k)}>{k === 'dashboard' ? '오늘 요약' : labelOf(k)}</button>)}
+        </div>)}</nav>
       </aside>
       <div className="aw-main">
         <header className="aw-top">
           <h1>{label}</h1>
           <label className="aw-mobile-menu">
             <span className="aw-sr">메뉴</span>
-            <select value={key} onChange={(e) => go(e.target.value)} aria-label="메뉴">{MENUS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}</select>
+            <select value={key} onChange={(e) => go(e.target.value)} aria-label="메뉴">{GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((k) => <option key={k} value={k}>{k === 'dashboard' ? '오늘 요약' : labelOf(k)}</option>)}</optgroup>)}</select>
           </label>
           <div className="aw-me"><span>{email ?? ''}</span><button type="button" className="aw-btn aw-btn--ghost" onClick={onSignOut}>로그아웃</button></div>
         </header>
@@ -115,6 +129,7 @@ function Shell({ email, onSignOut }: { email: string | null; onSignOut: () => vo
           {key === 'profiles' ? <Users mode="profiles" /> : null}
           {key === 'connect' ? <Connect /> : null}
           {key === 'safety' ? <Safety /> : null}
+          {key === 'revenue' ? <Revenue /> : null}
           {key === 'status' ? <ServiceStatus /> : null}
           {key === 'release' ? <Release /> : null}
           {key === 'failures' ? <Conversations mode="failures" /> : null}

@@ -6,10 +6,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const adminFiles = ['src/admin/AdminApp.tsx', ...readdirSync(new URL('../src/admin/views/', import.meta.url)).map((f) => `src/admin/views/${f}`), 'src/admin/ui.tsx', 'src/admin/releaseStatus.ts'];
 
-test('메뉴 14개 · 모두 한국어(영어 메인 이름 0)', () => {
+test('메뉴 15개(2026-10-02 수익 추가 · 기존 14개 그대로) · 모두 한국어(영어 메인 이름 0)', () => {
   const src = read('src/admin/AdminApp.tsx');
   const labels = [...src.matchAll(/\{ key: '([a-z]+)', label: '([^']+)' \}/g)].map((m) => m[2]);
-  assert.deepEqual(labels, ['대시보드', '사용자', 'AI 대화', '사용자 확정 상태', '프로필', '연결/매칭', '신고·차단', '서비스 상태', '배포 관리', '오류·실패', '알림', '운영 설정', '감사 기록', '데이터 확인']);
+  assert.deepEqual(labels, ['대시보드', '사용자', 'AI 대화', '사용자 확정 상태', '프로필', '연결/매칭', '신고·차단', '수익', '서비스 상태', '배포 관리', '오류·실패', '알림', '운영 설정', '감사 기록', '데이터 확인']);
   for (const l of labels) assert.doesNotMatch(l.replace(/^AI /, ''), /[A-Za-z]/, l);
 });
 

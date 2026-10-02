@@ -28,21 +28,26 @@ test('거리·위치·점수·가짜 타이머 0 · 서버가 주지 않는 거�
 test('대기: 「내 선택은 전해졌어요」 · 상대가 관심 있다는 말 0 · 서로 골랐어요 보상은 서버 mutual 뒤에만', () => {
   assert.match(CAND, /내 선택은 전해졌어요/);
   assert.doesNotMatch(CAND.slice(0, CAND.indexOf('if (mutual) return')), /상대도 (당신이 )?궁금|상대도 관심/);
-  assert.match(CAND, /if \(out\.status === 'mutual'\) setMutual\(/);
-  assert.match(CAND, /상대도 당신이 궁금했대요\./);
-  assert.match(CAND, /두 사람 모두 조금 더 이야기해 보고 싶다고 했어요\./);
-  assert.match(CAND, /이야기 시작하기/);
-  assert.doesNotMatch(CAND, /축하|🎉|!!\s*<\/|요!!/);
+  // 2026-10-01 대표 「COMPLETE PRODUCT FLOW」: 보상 화면 = ZZARIT(문구 「텔레파시가 통했어요.」 · 「서로 같은 선택을 했어요.」 · 「첫 이야기 시작하기」).
+  const Z = read('src/doit/components/feature/ZzaritMoment.tsx');
+  assert.match(CAND, /if \(out\.status === 'mutual'\) \{/);
+  assert.match(CAND, /if \(typeof out\.match_id === 'string'\) \{ if \(claimZzarit\(out\.match_id\)\) setMutual\(\{ matchId: out\.match_id \}\); else onOpened\(out\.match_id\); \}/);
+  assert.match(Z, /텔레파시가 통했어요\./);
+  assert.match(Z, /서로 같은 선택을 했어요\./);
+  assert.match(Z, /첫 이야기 시작하기/);
+  assert.doesNotMatch(CAND + Z, /축하|🎉|!!\s*<\/|요!!/);
+  assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b/, 'ZZARIT 에도 상대 정보 0');
   assert.doesNotMatch(CAND, /nickname|photo_url|partner|\bbio\b/, '보상 화면에도 상대 정보 0');
 });
 
 test('연결: 서버가 준 match_id 로만 이동 · 첫 질문 안내 · blind-first(상대 정보는 revealed 뒤) · 차단/신고 따로', () => {
-  assert.match(CAND, /setMutual\(\{ matchId: typeof out\.match_id === 'string' \? out\.match_id : null \}\)/);
+  assert.match(CAND, /onStart=\{\(\) => \{ onOpened\(mutual\.matchId\); setMutual\(null\); \}\}/, '서버가 준 match_id 로만 이동');
   assert.match(MATCHES, /document\.getElementById\(`match-\$\{focusId\}`\)/);
   assert.match(MATCHES, /두 분 모두 편하게 시작할 수 있게<br \/>ECHO가 하나만 물어볼게요\./);
-  assert.match(MATCHES, /\{match\.revealed && match\.partner && <header/);
+  assert.match(MATCHES, /\{match\.revealed && match\.partner && <PartnerFrame /); // 2026-10-01 ECHO FRAME 으로 바뀜(공개 조건은 그대로)
   assert.match(MATCHES, /leave\(true, false\)\} disabled=\{busy\}>차단할게요/);
-  assert.match(MATCHES, /leave\(true, true\)\} disabled=\{busy\}>차단하고 신고할게요/);
+  assert.match(MATCHES, /setLeaving\('report'\)\} disabled=\{busy\}>신고할게요/); // 2026-10-02: 신고와 차단은 별도(차단은 체크로 고름)
+  assert.match(MATCHES, /onClick=\{\(\) => void leave\(alsoBlock, true, code\)\} disabled=\{busy\}>\{label\}/, '신고는 사유를 골라야 보낸다 · 차단은 따로 고름');
   assert.match(MATCHES, /onFocus=\{e => keepVisible\(e\.currentTarget\)\}/, '글자판이 입력칸을 가리지 않게');
 });
 

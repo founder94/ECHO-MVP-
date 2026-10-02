@@ -37,8 +37,22 @@ const VISIBILITY_RULES = [
 ];
 const HELP = [
   { q: '연결은 어떻게 열리나요?', a: 'ECHO가 내 이야기와 겹치는 사람을 후보로 보여 드려요. 두 사람이 모두 고를 때만 연결이 열리고, 첫 질문에 둘 다 답하면 서로를 볼 수 있어요.' },
-  { q: '불편한 상대가 있어요.', a: '연결 카드의 「이 연결 그만하기」에서 그만하기 · 차단 · 차단하고 신고하기를 고를 수 있어요. 차단한 사람과는 다시 이어지지 않아요.' },
+  { q: '불편한 상대가 있어요.', a: '후보 카드의 「불편해요 · 차단 · 신고」나 연결 카드의 「이 연결 그만하기」에서 차단하거나 사유를 골라 신고할 수 있어요. 차단하면 다시 추천되지 않아요.' },
   { q: '내 기록을 지우고 싶어요.', a: '이 화면의 「내 정보 관리」에서 탈퇴하면 계정과 기록, 사진이 함께 지워져요.' },
+];
+
+// 2026-10-01 대표 「FINAL PRODUCT IMPLEMENTATION MASTER」 ECHO 사용법 — 지금 실제로 있는 기능만, 항목마다 3~5문장.
+// 서버가 지원하지 않는 KEY·미션·72시간 방·보상·함께 나가기·쉬기는 쓰지 않는다(없는 기능을 약속하지 않음).
+const GUIDE: readonly { q: string; a: string }[] = [
+  { q: 'ECHO와 이야기하기', a: '생각나는 대로 편하게 답하면 돼요. 정답은 없고, 「잘 모르겠어요」도 괜찮아요. 답하기 어려우면 ECHO가 고를 수 있는 보기를 드려요. 이 질문을 넘어가거나 오늘은 그만해도 돼요.' },
+  { q: '나의 이해', a: 'ECHO가 들은 것 중 내가 맞다고 확인한 것만 모여요. ECHO의 해석이 다르면 대화에서 바로 말해 주세요. 바로잡은 내용은 다음 질문에 반영되고, 틀린 해석은 다시 쓰지 않아요.' },
+  { q: '당신이 잠든 사이 · 후보', a: '연결 준비가 끝나면 ECHO가 이어 볼 만한 사람을 조금만 찾아 둬요. 후보일 때는 이름·사진·소개가 보이지 않고, 이어 본 이유만 보여요. 「이어지고 싶어요」나 「이번에는 넘길게요」 중에서 골라요. 내가 고른 사실은 상대가 고르기 전에는 알려지지 않아요.' },
+  { q: '서로 같은 선택', a: '두 사람이 모두 「이어지고 싶어요」를 골라야 연결이 열려요. 서버가 확인하면 「텔레파시가 통했어요」가 떠요(같은 기기에서는 한 번). 한 사람만 고르면 아무 일도 일어나지 않아요.' },
+  { q: '첫 질문과 공개', a: '연결이 열리면 두 분께 같은 질문 하나가 가요. 두 사람이 모두 답해야 닉네임·대표 사진·소개·그 답이 서로 보여요. 그 전에는 아무것도 보이지 않아요. 전화번호·이메일·정확한 위치는 보이지 않아요.' },
+  { q: '이야기와 결과 기록', a: '공개된 뒤에는 이야기를 이어 갈 수 있어요. 연락처와 링크는 보낼 수 없어요. 이야기를 나눴는지, 만났는지는 나만 보이게 기록할 수 있고, 다음 후보를 준비하는 데만 써요.' },
+  { q: '안전하게 쓰기', a: '불편하면 언제든 나갈 수 있어요. 후보 카드의 「불편해요 · 차단 · 신고」, 연결 카드의 「이 연결 그만하기」에서 차단하거나, 사유를 골라 신고해요(차단은 따로 고를 수 있어요). 차단하면 다시 추천되지 않아요. 만나기로 했다면 사람 많은 곳에서 만나고, 믿는 사람에게 장소를 알려 두세요.' },
+  { q: '사주 · 타로', a: '재미로 가볍게 보는 무료 콘텐츠예요. 입력한 생년월일은 저장하지 않아요. 결과로 나나 상대를 단정하지 않아요.' },
+  { q: '그만두고 싶을 때', a: '연결은 카드의 「이 연결 그만하기」로 언제든 끝낼 수 있어요. 계정을 지우고 싶으면 이 화면의 「내 정보 관리」에서 언제든 탈퇴할 수 있어요. 탈퇴하면 계정·기록·사진이 함께 지워져요.' },
 ];
 
 export default function Settings() {
@@ -49,7 +63,7 @@ export default function Settings() {
   const signOutInFlight = useRef(false);
   const { hash } = useLocation();
   // 메뉴의 「앱 설치」(#install)·「약관 · 개인정보」(#policy)로 들어오면 그 항목으로 바로 내려 준다.
-  useEffect(() => { if (hash === "#install" || hash === "#policy") document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" }); }, [hash]);
+  useEffect(() => { if (hash === "#install" || hash === "#policy" || hash === "#guide") document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" }); }, [hash]);
 
   async function handleSignOut() {
     if (signOutInFlight.current || loading || !user) return;
@@ -164,6 +178,14 @@ export default function Settings() {
               title="개인정보 처리방침"
               description="내 정보를 어떻게 다루는지 적혀 있어요."
             />
+          </div>
+        </section>
+
+        {/* 2026-10-01 ECHO 사용법 — 메뉴의 「ECHO 사용법」(#guide)으로 바로 온다. */}
+        <section id="guide" className="doit-settings-section" aria-labelledby="settings-guide-heading">
+          <h3 id="settings-guide-heading" className="doit-settings-heading">ECHO 사용법</h3>
+          <div className="doit-settings-panel doit-settings-help">
+            {GUIDE.map(item => <details key={item.q}><summary>{item.q}</summary><p>{item.a}</p></details>)}
           </div>
         </section>
 
