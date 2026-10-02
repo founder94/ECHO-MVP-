@@ -6,27 +6,48 @@ import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import vm from 'node:vm';
 
-function loadApi(respond) {
-  const code = ts.transpileModule(readFileSync('src/doit/lib/connectApi.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const mod = { exports: {} }; const sent = [];
+function loadApi(respond, { env = {}, meta = {} } = {}) {
+  const src = readFileSync('src/doit/lib/connectApi.ts', 'utf8').replaceAll('import.meta.env', '__env');
+  const code = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const mod = { exports: {} }; const sent = []; const updates = [];
   class UnderstandingError extends Error { constructor(code, message) { super(message); this.code = code; } }
+  const supabase = { auth: {
+    getSession: async () => ({ data: { session: { user: { user_metadata: meta } } } }),
+    updateUser: async (u) => { updates.push(u); Object.assign(meta, u.data); return { error: null }; },
+  } };
   const require = (n) => {
-    if (n === '@/lib/supabase/client') return { supabase: {} };
+    if (n === '@/lib/supabase/client') return { supabase };
     if (n === '@/doit/lib/understandingApi') return { UnderstandingError, serverFunctionRequest: async (_fn, body) => { sent.push(body); return respond(body, UnderstandingError); } };
     throw new Error(n);
   };
-  vm.runInNewContext(code, { exports: mod.exports, module: mod, require, crypto: globalThis.crypto }, { filename: 'connectApi.ts' });
-  return { api: mod.exports, sent };
+  vm.runInNewContext(code, { exports: mod.exports, module: mod, require, crypto: globalThis.crypto, __env: env }, { filename: 'connectApi.ts' });
+  return { api: mod.exports, sent, updates, meta };
 }
 const SID = '50000000-0000-4000-8000-00000000000e';
 const MID = '70000000-0000-4000-8000-000000000071';
 const plain = (o) => JSON.parse(JSON.stringify(o));
 
-test('꺼짐(MEET_NOT_CONFIGURED) · 네트워크 실패 · 모르는 모양 = null(화면 없음)', async () => {
-  for (const respond of [(_b, E) => { throw new E('MEET_NOT_CONFIGURED', 'x'); }, () => { throw new Error('net'); }, () => ({ ok: true }), () => ({ ok: true, state: 'done', allowed: true }), () => ({ ok: false, state: 'allowed' })]) {
-    const { api } = loadApi(respond);
-    assert.equal(await api.fetchMeetStatus('u', MID), null);
-  }
+test('PR101 상태 읽기 3가지: 꺼짐(MEET_NOT_CONFIGURED) = off · 켜졌는데 실패·모르는 모양 = error(숨기지 않음) · 정상 = ready', async () => {
+  const kind = async (respond) => (await loadApi(respond).api.loadMeetStatus('u', MID)).kind;
+  assert.equal(await kind((_b, E) => { throw new E('MEET_NOT_CONFIGURED', 'x'); }), 'off');
+  for (const respond of [(_b, E) => { throw new E('MEET_READ_FAILED', 'x'); }, () => { throw new Error('net'); }, () => ({ ok: true }), () => ({ ok: true, state: 'done', allowed: true }), () => ({ ok: false, state: 'allowed' })])
+    assert.equal(await kind(respond), 'error');
+  assert.equal(await kind(() => ({ ok: true, state: 'need_video', allowed: false })), 'ready');
+});
+test('PR101 영상 이용 동의: 빌드 판이 없으면 동의 화면 0 · 공개 동의만으로는 영상 동의 아님 · 동의/거두기는 영상 칸만 바꿈', async () => {
+  const none = loadApi(() => ({}), { meta: { doit_connect_consent_version: 'connect-v1' } });
+  assert.equal(none.api.VIDEO_CONSENT_VERSION, null); assert.equal(await none.api.hasVideoConsent(), false);
+  const meta = { doit_connect_consent_version: 'connect-v1', doit_connect_consent_at: '2026-10-01T00:00:00Z' };
+  const on = loadApi(() => ({}), { env: { VITE_VIDEO_CONSENT_VERSION: 'video-v1' }, meta });
+  assert.equal(await on.api.hasVideoConsent(), false, '공개 동의가 영상 동의를 대신하지 않음');
+  assert.equal(await on.api.setVideoConsent(true), null);
+  assert.equal(await on.api.hasVideoConsent(), true);
+  assert.equal(meta.doit_connect_consent_version, 'connect-v1', '공개 동의 칸 그대로');
+  assert.deepEqual(Object.keys(on.updates[0].data).sort(), ['doit_video_consent_at', 'doit_video_consent_version']);
+  assert.equal(await on.api.setVideoConsent(false), null);
+  assert.equal(await on.api.hasVideoConsent(), false); assert.equal(meta.doit_connect_consent_version, 'connect-v1');
+  meta.doit_video_consent_version = 'video-v0'; meta.doit_video_consent_at = '2026-10-01T00:00:00Z';
+  assert.equal(await on.api.hasVideoConsent(), false, '옛 판 = 동의 아님');
 });
 test('allowed 는 서버 state 가 allowed 이고 allowed:true 일 때만 · 다른 state 의 allowed:true 는 무시', async () => {
   const { api } = loadApi(() => ({}));
@@ -53,7 +74,9 @@ test('화면 원문: 기록 번호를 그리지 않음 · 보증 표현 0 · 상
   assert.ok(!/(?<!\$)\{\s*(status\.)?(sessionId|sid)\s*\}/.test(src), 'sessionId 를 글자로 그리지 않음(요청 id 를 만드는 ${…} 만 허용)');
   assert.ok(!/신원(이|을)? (확인|인증)(됐|되었|했)|안전(한|이)? (사람|상대)|보증(해요|합니다)|인증된/.test(src));
   assert.ok(!/상대가 (아니요|아직|거절)/.test(src));
-  assert.ok(src.includes("if (!status || status.state === 'unavailable') return null;"));
+  assert.ok(src.includes("if (!load || load.kind === 'off') return null;"), '꺼짐만 숨김');
+  assert.ok(src.includes("load.kind === 'error'") && src.includes('다시 불러오기'), '켜진 상태의 실패는 안내 + 다시 불러오기');
+  assert.ok(!/act\([^)]*\)\s*;?\s*\n\s*setNote/.test(src) && !/reload\(\);\s*\n\s*await (confirmMeetCheck|sendMeetIntent|setVideoConsent)/.test(src), '바뀐 상태 뒤 저절로 다시 보내기 0');
   assert.ok(/status\.state === 'need_my_check' && sid && ver/.test(src) && /status\.state === 'need_my_intent' && sid && ver/.test(src), '번호·상태 버전 없으면 버튼 0');
   assert.ok(src.includes("e.code === 'STATE_CHANGED'"), '바뀐 상태면 다시 읽기');
   assert.ok(/status\.state === 'allowed' && status\.allowed/.test(src));

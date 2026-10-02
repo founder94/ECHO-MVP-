@@ -823,20 +823,22 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
 }
 
 /**
- * 만남 관문에 넣는 서버 쪽 현재 상태(PR #100 meetRuntime 의 readCurrentState). 화면·본문·AI 값은 하나도 쓰지 않는다.
- * 차단(양방향)과 영상 동의 판은 meetRuntime 이 직접 읽는다 — 여기서는 그 밖의 서버 상태만.
+ * 만남 관문에 넣는 서버 쪽 현재 상태(meetRuntime 의 readCurrentState). 화면·본문·AI 값은 하나도 쓰지 않는다.
+ * 차단(양방향)과 영상 이용 동의(doit_video_consent_version/_at · PR #101)는 meetRuntime 이 직접 판정한다 — 여기서는 그 밖의 서버 상태 + 버전.
  * - eligibleA/B: 지금도 연결 자격(loadMembers · 후보·관리자 화면과 같은 계산).
  * - safetyHold: 두 사람 사이에 아직 처리되지 않은 신고(resolved/closed 가 아닌 user_reports · admin-web 의 「열린 신고」와 같은 정의).
  *   신고는 제재·가해 확정이 아니라 이 두 사람의 만남 단계만 보류한다. 응답은 「unavailable」 하나로만 보인다.
- * - revealValid: 두 사람 모두 지금도 연결 공개 동의(connect-v1) + 연결 열림.
- * - lastStepOpen: 2·4·6 의 마지막 구간(「2·결정」)에 들어왔는지 — 지금 서버에 있는 실제 상태 전이:
- *   연결(approved) → 두 사람 모두 첫 답 저장 → 두 사람 모두 현재 공개 동의 = 공개된 연결(my_matches 공개 조건과 같음).
- *   앞 구간(6·탐색 / 4·협동)이 서버에 생기면 그 완료 기록을 여기에 더한다. 스위치로 참이 되지 않는다.
- * - stateVersion: 위 판단 재료(연결 상태 · 두 사람 동의 판·시각 · 첫 답 시각 · 열린 신고 id · 사진 자리 · 자격)의 SHA-256.
- *   이 값이 바뀌면 옛 화면의 확인·의사는 STATE_CHANGED(409)로 막힌다. 원문은 담지 않는다(소개·답 글자 0).
+ * - revealValid: 이름·사진 공개 조건 = 연결 열림 + 두 사람 첫 답 + 두 사람 현재 공개 동의(connect-v1 · my_matches 와 같음).
+ * - lastStepOpen: 2·4·6 의 마지막 구간에 실제로 도달했는지 — **공개 조건으로 대신하지 않는다**(2026-10-02 정정).
+ *   그 서버 근거(finalSegment)가 아직 없다 → 기본 출처는 「미연결 = 닫힘」. 근거가 생기면 finalSegment 하나만 바꾼다.
+ * - stateVersion: 위 재료 + 두 사람의 공개 동의 판·시각 + **영상 동의 판·시각** 의 SHA-256(원문 0).
+ *   동의(공개·영상) 변경·철회, 신고, 사진, 첫 답, 단계가 바뀌면 값이 바뀌고 옛 화면의 확인·의사는 STATE_CHANGED(409).
  * 읽기 실패는 던진다 → meetRuntime 이 열지 않는 쪽(503)으로 처리.
  */
-export function meetCurrentState(admin: Db): (matchId: string, a: string, b: string) => Promise<CurrentMeetState> {
+export type FinalSegmentSource = (admin: Db, matchId: string, a: string, b: string) => Promise<boolean>;
+/** 2·4·6 마지막 구간 도달의 서버 근거 — 아직 없음(미연결). true 를 돌려주는 출처를 임의로 만들지 않는다. */
+export const finalSegmentNotConnected: FinalSegmentSource = async () => false;
+export function meetCurrentState(admin: Db, finalSegment: FinalSegmentSource = finalSegmentNotConnected): (matchId: string, a: string, b: string) => Promise<CurrentMeetState> {
   return async (matchId, a, b) => {
     const [members, reportsR, answers, matchR, photosR, ua, ub] = await Promise.all([
       loadMembers(admin, [a, b]),
@@ -854,14 +856,19 @@ export function meetCurrentState(admin: Db): (matchId: string, a: string, b: str
     if (!((m.user_a === a && m.user_b === b) || (m.user_a === b && m.user_b === a))) throw new StageError("connection_read_failed", null);
     const member = (id: string) => members.find((x) => x.id === id);
     const openReports = (reportsR.data ?? []).filter((r) => r.reporter_id !== r.target_user_id && r.status !== "resolved" && r.status !== "closed");
-    const consentOf = (u: { user_metadata?: Record<string, unknown> | null }) => ({ ok: consentedToConnect(u), v: str(u.user_metadata?.doit_connect_consent_version), at: str(u.user_metadata?.doit_connect_consent_at) });
+    const consentOf = (u: { user_metadata?: Record<string, unknown> | null }) => ({
+      ok: consentedToConnect(u), v: str(u.user_metadata?.doit_connect_consent_version), at: str(u.user_metadata?.doit_connect_consent_at),
+      // 영상 이용 동의(별도 칸 · 판정은 meetRuntime) — 버전에만 넣어 바뀌면 옛 화면을 막는다. 공개 동의를 대신하지도, 덮어쓰지도 않는다.
+      video: [str(u.user_metadata?.doit_video_consent_version), str(u.user_metadata?.doit_video_consent_at)],
+    });
     const ca = consentOf(ua.data!.user!), cb = consentOf(ub.data!.user!);
     const got = answers.get(matchId) ?? new Map();
-    const revealValid = m.status === "approved" && ca.ok && cb.ok;
-    const lastStepOpen = revealValid && got.has(a) && got.has(b);
+    const revealValid = m.status === "approved" && ca.ok && cb.ok && got.has(a) && got.has(b);
+    const lastStep = (await finalSegment(admin, matchId, a, b)) === true;
+    const lastStepOpen = revealValid && lastStep;
     const eligibleA = member(a)?.eligible === true, eligibleB = member(b)?.eligible === true;
     const material = JSON.stringify({
-      v: 1, match: [m.id, m.status], consent: [[ca.v, ca.at], [cb.v, cb.at]],
+      v: 2, match: [m.id, m.status], consent: [[ca.v, ca.at], [cb.v, cb.at]], video: [ca.video, cb.video], lastStep,
       answers: [got.get(a)?.created_at ?? null, got.get(b)?.created_at ?? null],
       reports: openReports.map((r) => String(r.id)).sort(),
       photos: (photosR.data ?? []).map((p) => `${p.user_id}/${p.slot}/${p.storage_path}`).sort(),
@@ -871,6 +878,17 @@ export function meetCurrentState(admin: Db): (matchId: string, a: string, b: str
     const stateVersion = Array.from(new Uint8Array(digest), (x) => x.toString(16).padStart(2, "0")).join("");
     return { eligibleA, eligibleB, safetyHold: openReports.length > 0, lastStepOpen, revealValid, stateVersion };
   };
+}
+
+/**
+ * 약속 저장 영수증(doit_create_meet_plan 결과) 확인 — 오류가 없어도 null·빈 값·모양이 다르거나 다른 연결의 결과면 null(= 저장 성공 아님 · PR #101 검토 지적).
+ * 지난 요청의 기록이 있어도 지금 허용(allowed_now)이 아니면 「active」로 돌려주지 않는다(과거 성공이 현재 권한을 되살리지 않음).
+ */
+export function planReceiptOf(data: unknown, matchId: string): { status: "active" | "cancelled"; replayed: boolean; allowed_now: boolean } | null {
+  const d = (data && typeof data === "object" && !Array.isArray(data) ? data : null) as Json | null;
+  if (!d || typeof d.plan_id !== "string" || !/^[0-9a-f-]{36}$/i.test(d.plan_id) || d.match_id !== matchId) return null;
+  if ((d.status !== "active" && d.status !== "cancelled") || typeof d.replayed !== "boolean" || typeof d.allowed_now !== "boolean") return null;
+  return { status: d.status === "active" && d.allowed_now ? "active" : "cancelled", replayed: d.replayed, allowed_now: d.allowed_now };
 }
 
 // 만남 실행 경계(Codex meetRuntime) — 요청마다 만든다(설정·관리자 클라이언트는 요청과 같은 것). 기본 꺼짐:
@@ -938,8 +956,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             : /REQUEST_CONFLICT/.test(msg) ? { status: 409, body: { ok: false, code: "REQUEST_CONFLICT" } }
             : { status: 503, body: { ok: false, code: "MEET_PLAN_WRITE_FAILED" } };
         } else {
-          const d = (data ?? {}) as Json;
-          r = { status: 200, body: { ok: true, plan: { status: d.status === "active" ? "active" : "cancelled", replayed: d.replayed === true, allowed_now: d.allowed_now === true } } };
+          const plan = planReceiptOf(data, gate.matchId);
+          r = plan ? { status: 200, body: { ok: true, plan } } : { status: 503, body: { ok: false, code: "MEET_PLAN_WRITE_FAILED" } };
         }
       } catch (e) {
         const code = typeof (e as { code?: unknown }).code === "string" ? String((e as { code: string }).code) : "MEET_UNAVAILABLE";
@@ -952,10 +970,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 관리자: 한 연결의 마지막 구간 집계(영상 · 양쪽 모습 확인 · 양쪽 만남 의사 · 약속 합의 따로). 역할 확인은 meetRuntime 이 먼저 한다.
     // 꺼짐 = 503 MEET_NOT_CONFIGURED → 관리자 화면은 「연결 필요」(0 아님). 어느 서버의 값인지 project 를 함께 준다.
     if (action === "admin_meet_summary") {
-      const r = await meetRuntime(admin).adminSummary(verifiedAuth, typeof body.matchId === "string" ? body.matchId : "");
+      const matchId = typeof body.matchId === "string" ? body.matchId : "";
+      const r = await meetRuntime(admin).adminSummary(verifiedAuth, matchId);
+      // 영상 이용 동의(두 사람 모두 · 지금 판)를 따로 붙인다 — 집계가 성공했을 때만(역할 확인·꺼짐 판단은 adminSummary 가 먼저). 읽기 실패 = 「실패」(0 아님).
+      let videoConsent: Json = { state: "failed" };
+      if (r.status === 200) {
+        const want = Deno.env.get("MEET_VIDEO_CONSENT_VERSION") || "";
+        const { data: m } = await admin.from("doit_matches").select("user_a, user_b").eq("id", matchId).maybeSingle();
+        const users = m ? await Promise.all([admin.auth.admin.getUserById(String(m.user_a)), admin.auth.admin.getUserById(String(m.user_b))]) : [];
+        if (users.length === 2 && users.every((u) => !u.error && u.data?.user)) {
+          const ok = (u: { user_metadata?: Record<string, unknown> | null }) => !!want && u.user_metadata?.doit_video_consent_version === want && typeof u.user_metadata?.doit_video_consent_at === "string";
+          videoConsent = { state: "connected", bothConsented: users.every((u) => ok(u.data!.user!)) };
+        }
+      }
       logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
       const project = (() => { try { return new URL(url).hostname.split(".")[0]; } catch { return null; } })();
-      return json({ ...r.body, project }, r.status, origin);
+      return json(r.status === 200 ? { ...r.body, videoConsent, project } : { ...r.body, project }, r.status, origin);
     }
 
     // ① 문자 인증 결과를 프로필에 맞춘다. Auth 서버가 확인한 값만 믿는다. 이미 verified 면 되돌리지 않는다.

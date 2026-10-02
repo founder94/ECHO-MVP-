@@ -130,6 +130,7 @@ grant execute on function public.doit_finalize_video_evidence(jsonb) to service_
 
 -- ⑦ 약속(앱 안 약속 조율 시작) — 「둘 다 원함」의 결과 기록. 내용(시간·장소)은 저장하지 않는다(조율 범위 대표 결정 전 · 대화에서).
 --    한 연결에 살아 있는 약속 1개 · 같은 요청 id 다시 = 같은 줄(새로 만들지 않음).
+--    돌려주는 값에 match_id 를 넣는다 — 서버(edge)가 요청한 연결과 같은지 확인하고 아니면 저장 성공으로 보지 않는다(PR #101 검토).
 create table if not exists public.doit_meet_plans (
   id uuid primary key default gen_random_uuid(),
   match_id uuid not null references public.doit_matches(id) on delete cascade,
@@ -177,13 +178,13 @@ begin
   select * into prior from public.doit_meet_plans where created_by = p_actor and request_id = p_request_id;
   if found then
     if prior.match_id <> p_match_id or prior.session_id <> p_session_id then raise exception 'REQUEST_CONFLICT' using errcode = 'P0001'; end if;
-    return jsonb_build_object('plan_id', prior.id, 'status', prior.status, 'replayed', true, 'allowed_now', ok and prior.status = 'active');
+    return jsonb_build_object('plan_id', prior.id, 'match_id', prior.match_id, 'status', prior.status, 'replayed', true, 'allowed_now', ok and prior.status = 'active');
   end if;
   if not ok then raise exception 'MEET_PLAN_UNAVAILABLE' using errcode = 'P0001'; end if;
   select id into live from public.doit_meet_plans where match_id = m.id and status = 'active';
-  if found then return jsonb_build_object('plan_id', live, 'status', 'active', 'replayed', false, 'existing', true, 'allowed_now', true); end if;
+  if found then return jsonb_build_object('plan_id', live, 'match_id', m.id, 'status', 'active', 'replayed', false, 'existing', true, 'allowed_now', true); end if;
   insert into public.doit_meet_plans (match_id, session_id, created_by, request_id) values (m.id, p_session_id, p_actor, p_request_id) returning id into live;
-  return jsonb_build_object('plan_id', live, 'status', 'active', 'replayed', false, 'existing', false, 'allowed_now', true);
+  return jsonb_build_object('plan_id', live, 'match_id', m.id, 'status', 'active', 'replayed', false, 'existing', false, 'allowed_now', true);
 end $$;
 revoke all on function public.doit_create_meet_plan(uuid, uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.doit_create_meet_plan(uuid, uuid, uuid, uuid) to service_role;

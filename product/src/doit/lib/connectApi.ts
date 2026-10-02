@@ -1,7 +1,7 @@
 // 연결 서버(doit-connect v1.2) 화면 쪽 창구. 서버가 무엇을 내려 주는지가 곧 blind-first 약속이다:
 // 두 사람이 모두 첫 질문에 답하기 전에는 partner·messages 가 아예 오지 않는다(화면이 숨기는 게 아니라 서버가 안 보낸다).
 import { supabase } from '@/lib/supabase/client';
-import { serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { UnderstandingError, serverFunctionRequest } from '@/doit/lib/understandingApi';
 
 // 연결 동의 판 — 서버(supabase/functions/doit-connect) 의 CONNECT_CONSENT_VERSION 과 같아야 한다(검사가 확인한다).
 // 무엇이 보이는지 문구가 바뀌면 판을 올려 다시 묻는다.
@@ -124,13 +124,41 @@ export function parseMeetStatus(out: unknown): MeetStatus | null {
   };
 }
 
-/** 꺼짐(MEET_NOT_CONFIGURED)·실패·모르는 모양 = null → 화면은 이 구간을 그리지 않는다(가짜 상태·0 표시 없음). */
-export async function fetchMeetStatus(userId: string, matchId: string): Promise<MeetStatus | null> {
+/**
+ * 마지막 구간 상태 읽기 — 세 가지를 구분한다(2026-10-02 PR #101 정정):
+ *  off   = 서버가 꺼져 있음(MEET_NOT_CONFIGURED) → 화면은 이 구간을 그리지 않는다.
+ *  error = 켜져 있는데 읽지 못함(네트워크·서버 읽기 실패·모르는 모양) → 「불러오지 못했어요 · 다시 불러오기」(아무것도 없음으로 숨기지 않음).
+ *  ready = 서버가 준 상태 그대로.
+ */
+export type MeetLoad = { kind: 'off' } | { kind: 'error' } | { kind: 'ready'; status: MeetStatus };
+export async function loadMeetStatus(userId: string, matchId: string): Promise<MeetLoad> {
   try {
-    return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_status', matchId }, userId));
-  } catch {
-    return null;
+    const status = parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_status', matchId }, userId));
+    return status ? { kind: 'ready', status } : { kind: 'error' };
+  } catch (e) {
+    return e instanceof UnderstandingError && e.code === 'MEET_NOT_CONFIGURED' ? { kind: 'off' } : { kind: 'error' };
   }
+}
+
+// 영상 이용 동의(PR #101 · 이름·사진 공개 동의 doit_connect_consent_* 와 **다른 칸**). 판 이름은 서버 MEET_VIDEO_CONSENT_VERSION 과 같아야 하고
+// 문구·판은 대표 결정(승인 묶음 B-3) — 빌드 값(VITE_VIDEO_CONSENT_VERSION)이 없으면 동의 화면 자체를 띄우지 않는다(판을 지어내지 않음).
+export const VIDEO_CONSENT_VERSION: string | null = (import.meta.env.VITE_VIDEO_CONSENT_VERSION as string | undefined) || null;
+
+/** 지금 로그인한 사람이 현재 판의 영상 이용 동의를 했는지(본인 것만 · 로그인 정보에서). */
+export async function hasVideoConsent(): Promise<boolean> {
+  if (!VIDEO_CONSENT_VERSION) return false;
+  const { data } = await supabase.auth.getSession();
+  const m = (data.session?.user.user_metadata ?? {}) as Record<string, unknown>;
+  return m.doit_video_consent_version === VIDEO_CONSENT_VERSION && typeof m.doit_video_consent_at === 'string' && !Number.isNaN(Date.parse(m.doit_video_consent_at));
+}
+
+/** 영상 이용 동의 남기기 · 거두기 — 영상 칸만 바꾼다(공개 동의 칸은 건드리지 않음). 실패 문구를 돌려준다. */
+export async function setVideoConsent(agree: boolean): Promise<string | null> {
+  if (!VIDEO_CONSENT_VERSION) return '지금은 영상 이용을 준비하고 있어요.';
+  const { error } = await supabase.auth.updateUser({ data: agree
+    ? { doit_video_consent_version: VIDEO_CONSENT_VERSION, doit_video_consent_at: new Date().toISOString() }
+    : { doit_video_consent_version: null, doit_video_consent_at: null } });
+  return error ? '저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.' : null;
 }
 
 /** 확인·의사를 보낸 뒤 서버가 다시 계산한 상태(쓰기 성공 ≠ 허용). */

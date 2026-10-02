@@ -42,7 +42,7 @@ $Q -c "insert into public.doit_meet_intents (session_id,user_id,intent,request_i
 ok "한쪽만 yes = 약속 0" "$(plan)" "MEET_PLAN_UNAVAILABLE"
 $Q -c "insert into public.doit_meet_intents (session_id,user_id,intent,request_id) values ('$S','$B','yes',gen_random_uuid())" >/dev/null
 ok "남(C)의 연결로 약속 = 없음" "$(plan $C)" "MEET_PLAN_NOT_FOUND"
-ok "넷 다 있으면 약속 1개" "$($Q -c "select public.doit_create_meet_plan('$M','$S','$A','60000000-0000-4000-8000-00000000000f')->>'status'")" "active"
+ok "넷 다 있으면 약속 1개 · 영수증에 요청한 연결 번호(match_id)" "$($Q -c "select (r->>'status')||'/'||(r->>'match_id') from (select public.doit_create_meet_plan('$M','$S','$A','60000000-0000-4000-8000-00000000000f') r) x")" "active/$M"
 ok "같은 요청 다시 = 같은 줄(replayed)" "$($Q -c "select (r->>'replayed')||'/'||(select count(*) from public.doit_meet_plans) from (select public.doit_create_meet_plan('$M','$S','$A','60000000-0000-4000-8000-00000000000f') r) x")" "true/1"
 ok "상대가 따로 요청해도 살아 있는 약속은 1개" "$($Q -c "select (r->>'existing')||'/'||(select count(*) from public.doit_meet_plans) from (select public.doit_create_meet_plan('$M','$S','$B','60000000-0000-4000-8000-0000000000f2') r) x")" "true/1"
 ok "같은 요청 id 에 다른 세션 = 충돌" "$($Q -c "select public.doit_create_meet_plan('$M',gen_random_uuid(),'$A','60000000-0000-4000-8000-00000000000f')" 2>&1 | grep -o 'REQUEST_CONFLICT')" "REQUEST_CONFLICT"

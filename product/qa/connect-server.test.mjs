@@ -1458,25 +1458,36 @@ test('[PR100] 로그인 없이 401 · 신원은 서버가 확인한 사람만(�
   assert.equal(r.status, 404); assert.deepEqual(r.body, { ok: false, code: 'NOT_FOUND' });
 });
 
-test('[PR100] 현재 상태 콜백: 자격 · 열린 신고 · 공개 동의 · 마지막 구간 · 상태 버전(원문 0)', async () => {
-  const s = world(); const call = loadServer(s); const read = call.exports.meetCurrentState(fakeDb(s));
+test('[PR101] 현재 상태 콜백: 자격 · 열린 신고 · 공개 조건 · 마지막 구간(공개 조건으로 대신 0) · 상태 버전(영상 동의 포함 · 원문 0)', async () => {
+  const s = world(); const call = loadServer(s); const db = fakeDb(s);
+  const read = call.exports.meetCurrentState(db);
   const mid = MEET_MID; s.tables.doit_matches.push({ id: mid, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
   const st0 = JSON.parse(JSON.stringify(await read(mid, ID.a, ID.b)));
-  assert.deepEqual({ ...st0, stateVersion: 'h' }, { eligibleA: true, eligibleB: true, safetyHold: false, lastStepOpen: false, revealValid: true, stateVersion: 'h' });
+  assert.deepEqual({ ...st0, stateVersion: 'h' }, { eligibleA: true, eligibleB: true, safetyHold: false, lastStepOpen: false, revealValid: false, stateVersion: 'h' });
   assert.match(st0.stateVersion, /^[a-f0-9]{64}$/);
   s.tables.doit_match_answers.push(...answersFor(mid, ID.a));
-  const st1 = await read(mid, ID.a, ID.b); assert.equal(st1.lastStepOpen, false, '한 사람만 답함'); assert.notEqual(st1.stateVersion, st0.stateVersion);
+  const st1 = await read(mid, ID.a, ID.b); assert.equal(st1.revealValid, false, '한 사람만 답함'); assert.notEqual(st1.stateVersion, st0.stateVersion);
   s.tables.doit_match_answers.push(...answersFor(mid, ID.b));
-  const st2 = await read(mid, ID.a, ID.b); assert.equal(st2.lastStepOpen, true);
+  const st2 = await read(mid, ID.a, ID.b);
+  assert.equal(st2.revealValid, true, '공개 조건 충족');
+  assert.equal(st2.lastStepOpen, false, '공개 조건만으로 마지막 구간 아님 — 단계 근거 미연결');
   assert.equal((await read(mid, ID.a, ID.b)).stateVersion, st2.stateVersion, '같은 상태 = 같은 버전');
+  // 단계 근거 출처가 생기면(여기서는 격리 주입) 그때만 열림 · 버전도 바뀜
+  const withStep = await call.exports.meetCurrentState(db, async () => true)(mid, ID.a, ID.b);
+  assert.equal(withStep.lastStepOpen, true); assert.notEqual(withStep.stateVersion, st2.stateVersion);
+  // 영상 동의 추가·철회 → 버전 바뀜 · 공개 조건(revealValid)은 그대로
+  s.users[ID.b].user_metadata = { ...CONSENTED, doit_video_consent_version: 'video-v1', doit_video_consent_at: '2026-10-02T00:00:00Z' };
+  const stV = await read(mid, ID.a, ID.b); assert.notEqual(stV.stateVersion, st2.stateVersion); assert.equal(stV.revealValid, true);
+  s.users[ID.b].user_metadata = { ...CONSENTED };
+  const stW = await read(mid, ID.a, ID.b); assert.notEqual(stW.stateVersion, stV.stateVersion); assert.equal(stW.revealValid, true, '영상 동의 철회가 공개를 깨지 않음');
   s.tables.user_reports.push({ id: 'r1', reporter_id: ID.b, target_user_id: ID.a, status: 'resolved' });
   assert.equal((await read(mid, ID.a, ID.b)).safetyHold, false, '처리된 신고는 멈추지 않음');
   s.tables.user_reports.push({ id: 'r2', reporter_id: ID.b, target_user_id: ID.a, status: 'pending' });
-  const st3 = await read(mid, ID.a, ID.b); assert.equal(st3.safetyHold, true); assert.notEqual(st3.stateVersion, st2.stateVersion);
+  const st3 = await read(mid, ID.a, ID.b); assert.equal(st3.safetyHold, true); assert.notEqual(st3.stateVersion, stW.stateVersion);
   s.users[ID.a].user_metadata = {};
-  const st4 = await read(mid, ID.a, ID.b); assert.equal(st4.revealValid, false); assert.equal(st4.lastStepOpen, false);
+  assert.equal((await read(mid, ID.a, ID.b)).revealValid, false);
   s.tables.profile_photos = s.tables.profile_photos.filter((p) => !(p.user_id === ID.b && p.slot === 3));
-  const st5 = await read(mid, ID.a, ID.b); assert.equal(st5.eligibleB, false, '사진이 빠지면 자격 없음'); assert.notEqual(st5.stateVersion, st4.stateVersion);
+  const st5 = await read(mid, ID.a, ID.b); assert.equal(st5.eligibleB, false, '사진이 빠지면 자격 없음');
   for (const v of [st0, st2, st3, st5]) assert.ok(!JSON.stringify(v).includes(BIO_B) && !JSON.stringify(v).includes('조용한 카페'), '원문 0');
 });
 
@@ -1488,17 +1499,80 @@ test('[PR100] 현재 상태 콜백은 실패를 열림으로 바꾸지 않는다
   }
 });
 
-test('[PR100] 켜도(설정 둘 다) 지금 동의 판 구조로는 허용 0 — 영상 동의 판이 연결 공개 동의와 같은 칸이라 둘을 동시에 만족할 수 없음(설계 결정 필요)', async () => {
-  // 사용자가 connect-v1(공개 동의)이면 영상 동의 불일치 · video-v1 로 바꾸면 공개 동의(connect-v1) 불일치 → 어느 쪽이든 unavailable
-  for (const version of ['connect-v1', 'video-v1']) {
+const VIDEO = { doit_video_consent_version: 'video-v1', doit_video_consent_at: '2026-10-02T00:00:00Z' };
+test('[PR101] 동의 분리: 공개 동의만 = 공개 유지·만남 0 · 영상 동의만 = 공개 0·만남 0 · 둘 다여도 마지막 구간 근거 미연결이면 만남 0', async () => {
+  for (const [label, meta, revealed] of [['공개만', { ...CONSENTED }, true], ['영상만', { ...VIDEO }, false], ['둘 다', { ...CONSENTED, ...VIDEO }, true]]) {
     const { s, mid, call } = meetWorld(ON);
     s.tables.doit_match_answers.push(...answersFor(mid, ID.a, ID.b));
-    for (const u of [ID.a, ID.b]) s.users[u].user_metadata = { doit_connect_consent_version: version, doit_connect_consent_at: '2026-10-01T00:00:00Z' };
+    for (const u of [ID.a, ID.b]) s.users[u].user_metadata = { ...meta };
+    const mm = (await call(ID.a, { action: 'my_matches' })).body.matches.find((m) => m.id === mid);
+    assert.equal(mm.revealed, revealed, `${label}: 공개`);
     const r = await call(ID.a, { action: 'meet_status', matchId: mid });
-    assert.equal(r.status, 200); assert.equal(r.body.state, 'unavailable'); assert.equal(r.body.allowed, false); assert.ok(!('sessionId' in r.body), '번호 0');
-    assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID, stateVersion: r.body.stateVersion })).status, 409);
+    assert.equal(r.status, 200); assert.deepEqual([r.body.state, r.body.allowed, 'sessionId' in r.body], ['unavailable', false, false], label);
+    assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID, stateVersion: r.body.stateVersion })).status, 409, label);
     assert.equal(s.tables.doit_meet_checks.length, 0);
+    assert.equal(s.users[ID.a].user_metadata.doit_connect_consent_version ?? null, meta.doit_connect_consent_version ?? null, '동의 칸을 서버가 덮어쓰지 않음');
   }
+});
+
+// 격리 정상 경로: 실제 index 의 meetCurrentState + Codex meetRuntime/meetApi/meetGate 를 그대로 묶고, 마지막 구간 출처만 격리 주입(제품 기본값은 미연결).
+function runtimeHarness(final = async () => true) {
+  const { s, mid, call } = meetWorld(ON);
+  s.tables.doit_match_answers.push(...answersFor(mid, ID.a, ID.b));
+  for (const u of [ID.a, ID.b]) s.users[u].user_metadata = { ...CONSENTED, ...VIDEO };
+  const load = (file) => { const mod = { exports: {} }; const code = ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+    vm.runInNewContext(code, { exports: mod.exports, module: mod, require: (n) => load(path.join(path.dirname(file), n)) }, { filename: file }); return mod.exports; };
+  const { createMeetRuntime } = load('supabase/functions/doit-connect/meetRuntime.ts');
+  const db = fakeDb(s);
+  const rt = createMeetRuntime(db, { enabled: true, videoConsentVersion: 'video-v1', readCurrentState: call.exports.meetCurrentState(db, final) });
+  const auth = (id) => ({ getUser: async () => ({ data: { user: { id } }, error: null }) });
+  return { s, mid, rt, auth, db, call };
+}
+test('[PR101 격리] 두 동의 + 단계 근거 + 영상 기록 + 각자 확인 + 각자 yes = 허용 · 영상 동의 철회 = 바로 닫힘(공개 동의 유지)', async () => {
+  const { s, mid, rt, auth, call, db } = runtimeHarness();
+  const v0 = (await call.exports.meetCurrentState(db, async () => true)(mid, ID.a, ID.b)).stateVersion;
+  s.tables.doit_video_sessions[0].context_version = v0; // 방을 만들 때 고정한 판(서버 몫)
+  const st = async (who) => (await rt.handle(auth(who), 'meet_status', { matchId: mid })).body;
+  const a0 = await st(ID.a);
+  assert.deepEqual([a0.state, a0.allowed, a0.sessionId, a0.stateVersion], ['need_my_check', false, SID, v0]);
+  assert.equal((await rt.handle(auth(ID.a), 'meet_check', { matchId: mid, sessionId: SID, stateVersion: v0 })).status, 200);
+  assert.equal((await st(ID.b)).state, 'need_my_check', 'A 의 확인이 B 를 대신하지 않음');
+  await rt.handle(auth(ID.b), 'meet_check', { matchId: mid, sessionId: SID, stateVersion: v0 });
+  await rt.handle(auth(ID.a), 'meet_intent', { matchId: mid, sessionId: SID, intent: 'yes', requestId: RID, stateVersion: v0 });
+  assert.equal((await st(ID.a)).state, 'waiting_partner');
+  await rt.handle(auth(ID.b), 'meet_intent', { matchId: mid, sessionId: SID, intent: 'yes', requestId: RID, stateVersion: v0 });
+  assert.deepEqual([(await st(ID.a)).state, (await st(ID.a)).allowed], ['allowed', true]);
+  assert.deepEqual(JSON.parse(JSON.stringify(await rt.authorizePlan(auth(ID.a), mid, v0))), { matchId: mid, sessionId: SID });
+  // B 가 영상 동의만 거둠 → 버전이 바뀌고(옛 버전 요청 409) 허용 0 · 공개 동의 칸은 그대로
+  s.users[ID.b].user_metadata = { ...CONSENTED };
+  const after = await st(ID.a);
+  assert.deepEqual([after.state, after.allowed, 'sessionId' in after], ['unavailable', false, false]);
+  await assert.rejects(rt.authorizePlan(auth(ID.a), mid, v0), (e) => e.code === 'STATE_CHANGED');
+  assert.equal(s.users[ID.b].user_metadata.doit_connect_consent_version, 'connect-v1');
+});
+test('[PR101 격리] 같은 조건에서 마지막 구간 근거만 없으면(제품 기본값) 만남 0 · 한쪽 영상 동의 없음 · 옛 판 동의 · 동의 읽기 실패도 0', async () => {
+  for (const arm of ['no-step', 'one-missing', 'old-version', 'auth-fail']) {
+    const notConnected = loadServer(world()).exports.finalSegmentNotConnected; // 제품 기본 출처 그대로
+    const step = arm === 'no-step' ? notConnected : async () => true;
+    const { s, mid, rt, auth, call, db } = runtimeHarness(step);
+    if (arm === 'one-missing') s.users[ID.b].user_metadata = { ...CONSENTED };
+    if (arm === 'old-version') s.users[ID.b].user_metadata = { ...CONSENTED, doit_video_consent_version: 'video-v0', doit_video_consent_at: '2026-10-01T00:00:00Z' };
+    s.tables.doit_video_sessions[0].context_version = (await call.exports.meetCurrentState(db, step)(mid, ID.a, ID.b)).stateVersion;
+    if (arm === 'auth-fail') s.authFail = () => true;
+    const r = await rt.handle(auth(ID.a), 'meet_status', { matchId: mid });
+    if (arm === 'auth-fail') assert.equal(r.status, 503, arm);
+    else assert.deepEqual([r.status, r.body.state, r.body.allowed, 'sessionId' in r.body], [200, 'unavailable', false, false], `${arm} ${JSON.stringify(r)}`);
+  }
+});
+test('[PR101] 약속 저장 영수증: null · 빈 값 · 모양 다름 · 다른 연결 = 저장 성공 아님 · 지난 기록 + 지금 불허 = active 아님', () => {
+  const s = world(); const { planReceiptOf } = loadServer(s).exports;
+  const PID = '80000000-0000-4000-8000-000000000081';
+  for (const bad of [null, undefined, {}, [], 'ok', { plan_id: PID }, { plan_id: 'x', match_id: MEET_MID, status: 'active', replayed: false, allowed_now: true },
+    { plan_id: PID, match_id: '70000000-0000-4000-8000-000000000099', status: 'active', replayed: false, allowed_now: true },
+    { plan_id: PID, match_id: MEET_MID, status: 'done', replayed: false, allowed_now: true }, { plan_id: PID, match_id: MEET_MID, status: 'active', replayed: 'no', allowed_now: true }])
+    assert.equal(planReceiptOf(bad, MEET_MID), null, JSON.stringify(bad));
+  assert.deepEqual(JSON.parse(JSON.stringify(planReceiptOf({ plan_id: PID, match_id: MEET_MID, status: 'active', replayed: false, allowed_now: true }, MEET_MID))), { status: 'active', replayed: false, allowed_now: true });
+  assert.equal(planReceiptOf({ plan_id: PID, match_id: MEET_MID, status: 'active', replayed: true, allowed_now: false }, MEET_MID).status, 'cancelled', '과거 성공이 지금 권한을 되살리지 않음');
 });
 
 test('[PR100] 관리자 집계: 일반 사용자 403 · 관리자도 꺼짐이면 503(0 아님) · 어느 서버 값인지 project 표기', async () => {
