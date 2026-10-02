@@ -48,6 +48,14 @@ test('PR101 영상 이용 동의: 빌드 판이 없으면 동의 화면 0 · 공
   assert.equal(await on.api.hasVideoConsent(), false); assert.equal(meta.doit_connect_consent_version, 'connect-v1');
   meta.doit_video_consent_version = 'video-v0'; meta.doit_video_consent_at = '2026-10-01T00:00:00Z';
   assert.equal(await on.api.hasVideoConsent(), false, '옛 판 = 동의 아님');
+  assert.deepEqual(JSON.parse(JSON.stringify(await on.api.videoConsentState())), { current: false, any: true }, '옛 판이라도 거두기 대상');
+  // 빌드 판이 없어도(기능 꺼짐) 남아 있는 동의는 거둘 수 있다 · 영상 칸만
+  const offMeta = { doit_connect_consent_version: 'connect-v1', doit_video_consent_version: 'video-v1', doit_video_consent_at: '2026-10-02T00:00:00Z' };
+  const off = loadApi(() => ({}), { meta: offMeta });
+  assert.deepEqual(JSON.parse(JSON.stringify(await off.api.videoConsentState())), { current: false, any: true });
+  assert.equal(await off.api.setVideoConsent(false), null);
+  assert.equal(offMeta.doit_video_consent_version, null); assert.equal(offMeta.doit_connect_consent_version, 'connect-v1');
+  assert.notEqual(await off.api.setVideoConsent(true), null, '판 없이 새 동의는 받지 않음');
 });
 test('allowed 는 서버 state 가 allowed 이고 allowed:true 일 때만 · 다른 state 의 allowed:true 는 무시', async () => {
   const { api } = loadApi(() => ({}));
@@ -74,7 +82,8 @@ test('화면 원문: 기록 번호를 그리지 않음 · 보증 표현 0 · 상
   assert.ok(!/(?<!\$)\{\s*(status\.)?(sessionId|sid)\s*\}/.test(src), 'sessionId 를 글자로 그리지 않음(요청 id 를 만드는 ${…} 만 허용)');
   assert.ok(!/신원(이|을)? (확인|인증)(됐|되었|했)|안전(한|이)? (사람|상대)|보증(해요|합니다)|인증된/.test(src));
   assert.ok(!/상대가 (아니요|아직|거절)/.test(src));
-  assert.ok(src.includes("if (!load || load.kind === 'off') return null;"), '꺼짐만 숨김');
+  assert.ok(src.includes("if (load.kind === 'off') return withdrawable ?"), '꺼짐 = 거두기만(남은 동의가 있을 때) · 아니면 숨김');
+  assert.equal((src.match(/\{withdrawButton\}/g) ?? []).length, 3, '꺼짐·실패·정상(지금은 어려움 포함) 모두 거두기 자리');
   assert.ok(src.includes("load.kind === 'error'") && src.includes('다시 불러오기'), '켜진 상태의 실패는 안내 + 다시 불러오기');
   assert.ok(!/act\([^)]*\)\s*;?\s*\n\s*setNote/.test(src) && !/reload\(\);\s*\n\s*await (confirmMeetCheck|sendMeetIntent|setVideoConsent)/.test(src), '바뀐 상태 뒤 저절로 다시 보내기 0');
   assert.ok(/status\.state === 'need_my_check' && sid && ver/.test(src) && /status\.state === 'need_my_intent' && sid && ver/.test(src), '번호·상태 버전 없으면 버튼 0');

@@ -115,7 +115,7 @@ export default function Connect() {
 }
 
 // 한 연결의 마지막 구간 — 누를 때만 서버에 묻는다(목록 전체를 한꺼번에 부르지 않음).
-interface MeetSummary { videoConsent?: { state: string; bothConsented?: boolean }; video?: { sessions: number; jointSessions: number }; appearance?: { bothConfirmed: boolean }; meetingIntent?: { bothYes: boolean }; permission?: { allowed: boolean }; planAgreement?: { state: string }; project?: string | null; observedAt?: string }
+interface MeetSummary { finalSegment?: { state: string }; videoConsent?: { state: string; bothConsented?: boolean }; video?: { sessions: number; jointSessions: number }; appearance?: { bothConfirmed: boolean }; meetingIntent?: { bothYes: boolean }; permission?: { allowed: boolean }; planAgreement?: { state: string }; project?: string | null; observedAt?: string }
 type MeetCellState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'off' } | { kind: 'failed'; code: string } | { kind: 'ready'; data: MeetSummary };
 function MeetCell({ matchId }: { matchId: string }) {
   const [st, setSt] = useState<MeetCellState>({ kind: 'idle' });
@@ -131,7 +131,7 @@ function MeetCell({ matchId }: { matchId: string }) {
   const d = st.data;
   const yn = (v: boolean | undefined) => (v === undefined ? '실패' : v ? '예' : '아직');
   return <span>
-    영상 동의 {d.videoConsent?.state === 'connected' ? (d.videoConsent.bothConsented ? '두 사람 모두' : '아직') : '실패'} · 영상 {d.video ? `${d.video.jointSessions}/${d.video.sessions}회(공동/전체)` : '실패'} · 양쪽 모습 확인 {yn(d.appearance?.bothConfirmed)} · 양쪽 만남 의사 {yn(d.meetingIntent?.bothYes)} · 약속 합의 {d.planAgreement?.state === 'not_connected' ? '연결 필요' : '실패'}
+    마지막 구간 근거 {d.finalSegment?.state === 'connected' ? '연결됨' : d.finalSegment?.state === 'not_connected' ? '미연결' : '실패'} · 영상 동의 {d.videoConsent?.state === 'connected' ? (d.videoConsent.bothConsented ? '두 사람 모두' : '아직') : '실패'} · 영상 {d.video ? `${d.video.jointSessions}/${d.video.sessions}회(공동/전체)` : '실패'} · 양쪽 모습 확인 {yn(d.appearance?.bothConfirmed)} · 양쪽 만남 의사 {yn(d.meetingIntent?.bothYes)} · 약속 합의 {d.planAgreement?.state === 'not_connected' ? '연결 필요' : '실패'}
     {d.project ? ` · ${d.project}` : ''}
   </span>;
 }

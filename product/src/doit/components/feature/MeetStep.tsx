@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { VIDEO_CONSENT_VERSION, confirmMeetCheck, hasVideoConsent, loadMeetStatus, reportSubmission, sendMeetIntent, setVideoConsent, type MeetIntent, type MeetLoad, type MeetStatus } from '@/doit/lib/connectApi';
+import { VIDEO_CONSENT_VERSION, confirmMeetCheck, loadMeetStatus, videoConsentState, reportSubmission, sendMeetIntent, setVideoConsent, type MeetIntent, type MeetLoad, type MeetStatus } from '@/doit/lib/connectApi';
 
 // 2026-10-02 PR #99~#101 마지막 구간(2·결정): 영상 이용 동의 → 앱 안 영상 → 각자 상대 모습 확인 → 각자 만남 의사 → 둘 다 유효할 때만 약속 정하기.
 // 무엇을 보여 줄지는 서버 상태(meet_status)만 따른다:
@@ -17,7 +17,7 @@ const INTENTS: readonly (readonly [MeetIntent, string])[] = [
 
 export default function MeetStep({ userId, matchId, safety }: { userId: string; matchId: string; safety: ReactNode }) {
   const [load, setLoad] = useState<MeetLoad | null>(null);
-  const [videoOk, setVideoOk] = useState<boolean | null>(null);
+  const [video, setVideo] = useState<{ current: boolean; any: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -25,30 +25,46 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
   const submission = useRef(reportSubmission()); // 의사 한 번의 제출 = 요청 id 하나(같은 선택 재시도는 같은 id)
 
   const reload = useCallback(async () => {
-    const [next, consent] = await Promise.all([loadMeetStatus(userId, matchId), hasVideoConsent()]);
+    const [next, consent] = await Promise.all([loadMeetStatus(userId, matchId), videoConsentState()]);
     setLoad(next);
-    setVideoOk(consent);
+    setVideo(consent);
   }, [userId, matchId]);
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([loadMeetStatus(userId, matchId), hasVideoConsent()]).then(([next, consent]) => { if (alive) { setLoad(next); setVideoOk(consent); } });
+    void Promise.all([loadMeetStatus(userId, matchId), videoConsentState()]).then(([next, consent]) => { if (alive) { setLoad(next); setVideo(consent); } });
     return () => { alive = false; };
   }, [userId, matchId]);
 
-  if (!load || load.kind === 'off') return null;
+  // 영상 이용 동의 거두기 — 기능 꺼짐·불러오기 실패·「지금은 어려움」·정상 어디서든(남아 있는 동의가 있으면) 누를 수 있다.
+  const withdrawable = video?.any === true;
+  const withdraw = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const failed = await setVideoConsent(false);
+    setBusy(false);
+    if (failed) setError(failed);
+    else await reload();
+  };
+  const withdrawButton = withdrawable ? <button type="button" className="doit-connect-link" disabled={busy} onClick={() => void withdraw()}>영상 이용 동의 거두기</button> : null;
+
+  if (!load) return null;
+  if (load.kind === 'off') return withdrawable ? <section className="doit-meet" data-meet="off" aria-label="영상 이용 동의">{withdrawButton}{error && <p className="doit-product-error" role="alert">{error}</p>}</section> : null;
 
   if (load.kind === 'error') return <section className="doit-meet" data-meet="error" aria-label="만나기 전 마지막 단계">
     <p className="doit-match-kicker">만나기 전에</p>
     <p className="doit-product-error" role="alert">만나기 전 단계를 불러오지 못했어요.</p>
     <button type="button" className="doit-connect-link" onClick={() => void reload()}>다시 불러오기</button>
+    {withdrawButton}
+    {error && <p className="doit-product-error" role="alert">{error}</p>}
   </section>;
 
   const status = load.status;
-  const needConsent = !!VIDEO_CONSENT_VERSION && videoOk === false;
-  // 「지금은 어려움」: 이유는 말하지 않는다. 다만 이미 한 영상 이용 동의는 언제든 거둘 수 있게 그 버튼만 남긴다.
+  const needConsent = !!VIDEO_CONSENT_VERSION && video?.current === false;
+  // 「지금은 어려움」: 이유는 말하지 않는다. 남아 있는 영상 이용 동의가 있으면 거두기 버튼만 남긴다.
   const onlyWithdraw = status.state === 'unavailable' && !needConsent;
-  if (onlyWithdraw && !(VIDEO_CONSENT_VERSION && videoOk === true)) return null;
+  if (onlyWithdraw && !withdrawable) return null;
 
   const act = async (run: () => Promise<MeetStatus | null>) => {
     if (busy) return;
@@ -69,11 +85,11 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
     }
   };
 
-  const consent = async (agree: boolean) => {
+  const consent = async () => {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const failed = await setVideoConsent(agree);
+    const failed = await setVideoConsent(true);
     setBusy(false);
     if (failed) setError(failed);
     else await reload();
@@ -93,7 +109,7 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
         <li>언제든 거둘 수 있고, 거두면 만남 단계는 바로 멈춰요.</li>
         <li>영상 확인은 신원이나 안전을 보증하지 않아요.</li>
       </ul>
-      <button type="button" className="doit-product-action" disabled={busy} onClick={() => void consent(true)}>{busy ? '저장하는 중' : '영상 이용에 동의할게요'}<span aria-hidden="true">↗</span></button>
+      <button type="button" className="doit-product-action" disabled={busy} onClick={() => void consent()}>{busy ? '저장하는 중' : '영상 이용에 동의할게요'}<span aria-hidden="true">↗</span></button>
     </div>}
 
     {!needConsent && status.state === 'need_video' && <p className="doit-connect-note">앱 안에서 짧게 영상으로 인사하면, 각자 상대 모습을 확인하고 만남을 정할 수 있어요.</p>}
@@ -126,6 +142,6 @@ export default function MeetStep({ userId, matchId, safety }: { userId: string; 
     {note && !onlyWithdraw && <p className="doit-connect-note" role="status">{note}</p>}
     {error && <p className="doit-product-error" role="alert">{error}</p>}
 
-    {!!VIDEO_CONSENT_VERSION && videoOk === true && <button type="button" className="doit-connect-link" disabled={busy} onClick={() => void consent(false)}>영상 이용 동의 거두기</button>}
+    {withdrawButton}
   </section>;
 }

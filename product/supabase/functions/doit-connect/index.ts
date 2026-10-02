@@ -838,7 +838,13 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
 export type FinalSegmentSource = (admin: Db, matchId: string, a: string, b: string) => Promise<boolean>;
 /** 2·4·6 마지막 구간 도달의 서버 근거 — 아직 없음(미연결). true 를 돌려주는 출처를 임의로 만들지 않는다. */
 export const finalSegmentNotConnected: FinalSegmentSource = async () => false;
-export function meetCurrentState(admin: Db, finalSegment: FinalSegmentSource = finalSegmentNotConnected): (matchId: string, a: string, b: string) => Promise<CurrentMeetState> {
+/**
+ * 제품 경로가 쓰는 마지막 구간 출처(하나뿐). 2·4·6 대응(결정 문서 §1·§19): 6·탐색 = 후보·서로 선택(doit_match_candidates → doit_matches · 있음) ·
+ * 4·협동/음성 = 서버 기록 0(미션 표는 9/23 초안뿐 · QA DB 에 없음 · 「4 의 내용」 대표 결정 전) · 2·결정 = 영상·확인·의사(meetApi · B 표 대기).
+ * 「2 에 들어왔다」 = 4 가 끝났다는 서버 기록이 필요한데 그 기록이 없으므로 미연결. 관리자에게도 같은 상태를 그대로 보인다.
+ */
+export const FINAL_SEGMENT: { state: "not_connected" | "connected"; read: FinalSegmentSource } = { state: "not_connected", read: finalSegmentNotConnected };
+export function meetCurrentState(admin: Db, finalSegment: FinalSegmentSource = FINAL_SEGMENT.read): (matchId: string, a: string, b: string) => Promise<CurrentMeetState> {
   return async (matchId, a, b) => {
     const [members, reportsR, answers, matchR, photosR, ua, ub] = await Promise.all([
       loadMembers(admin, [a, b]),
@@ -979,13 +985,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const { data: m } = await admin.from("doit_matches").select("user_a, user_b").eq("id", matchId).maybeSingle();
         const users = m ? await Promise.all([admin.auth.admin.getUserById(String(m.user_a)), admin.auth.admin.getUserById(String(m.user_b))]) : [];
         if (users.length === 2 && users.every((u) => !u.error && u.data?.user)) {
-          const ok = (u: { user_metadata?: Record<string, unknown> | null }) => !!want && u.user_metadata?.doit_video_consent_version === want && typeof u.user_metadata?.doit_video_consent_at === "string";
+          // meetRuntime 과 같은 판정(판 일치 + 읽을 수 있는 시각) — 시각이 깨진 값은 동의가 아니다(Codex 독립 검증 5962668031).
+          const ok = (u: { user_metadata?: Record<string, unknown> | null }) => {
+            const at = u.user_metadata?.doit_video_consent_at;
+            return !!want && u.user_metadata?.doit_video_consent_version === want && typeof at === "string" && Number.isFinite(Date.parse(at));
+          };
           videoConsent = { state: "connected", bothConsented: users.every((u) => ok(u.data!.user!)) };
         }
       }
       logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
       const project = (() => { try { return new URL(url).hostname.split(".")[0]; } catch { return null; } })();
-      return json(r.status === 200 ? { ...r.body, videoConsent, project } : { ...r.body, project }, r.status, origin);
+      return json(r.status === 200 ? { ...r.body, videoConsent, finalSegment: { state: FINAL_SEGMENT.state }, project } : { ...r.body, project }, r.status, origin);
     }
 
     // ① 문자 인증 결과를 프로필에 맞춘다. Auth 서버가 확인한 값만 믿는다. 이미 verified 면 되돌리지 않는다.

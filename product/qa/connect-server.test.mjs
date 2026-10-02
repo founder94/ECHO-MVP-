@@ -1595,3 +1595,38 @@ test('[PR100] 약속 시작(meet_plan): 꺼짐 = 503 · DB 함수 호출 0 · �
   const r = await on.call(ID.a, { action: 'meet_plan', matchId: on.mid, requestId: RID, stateVersion: 'x' });
   assert.equal(r.status, 409); assert.equal((s.rpcCalls ?? []).length + (on.s.rpcCalls ?? []).length, 0);
 });
+
+// Codex 독립 검증(PR #101 댓글 5962668031)이 재현한 결함 — 본문 그대로: 관리자 영상 동의 판정이 Runtime 과 같은 시각 검사를 해야 한다.
+test('[Codex PR101 admin] invalid video consent timestamp is not valid consent',async()=>{
+ const {s,mid,call}=meetWorld(ON);
+ for(const u of [ID.a,ID.b])s.users[u].user_metadata={...CONSENTED,...VIDEO,doit_video_consent_at:'invalid-date'};
+ const r=await call(ID.admin,{action:'admin_meet_summary',matchId:mid});
+ assert.equal(r.status,200);
+ assert.equal(r.body.videoConsent.bothConsented,false);
+});
+
+test('[246] 마지막 구간 출처는 제품 경로에서 하나(미연결) · 관리자 집계도 같은 상태를 그대로 보임', async () => {
+  const { s, mid, call } = meetWorld(ON);
+  assert.equal(call.exports.FINAL_SEGMENT.state, 'not_connected');
+  assert.equal(await call.exports.FINAL_SEGMENT.read(fakeDb(s), mid, ID.a, ID.b), false);
+  const r = await call(ID.admin, { action: 'admin_meet_summary', matchId: mid });
+  assert.equal(r.status, 200); assert.deepEqual(r.body.finalSegment, { state: 'not_connected' });
+});
+test('[246 격리] 저장 직전에 차단이 생겨도: 그 의사 기록은 남을 수 있지만 허용·약속 권한은 생기지 않는다(권한은 매번 지금 상태로 다시 계산)', async () => {
+  const { s, mid, rt, auth, call, db } = runtimeHarness();
+  const v0 = (await call.exports.meetCurrentState(db, async () => true)(mid, ID.a, ID.b)).stateVersion;
+  s.tables.doit_video_sessions[0].context_version = v0;
+  for (const u of [ID.a, ID.b]) await rt.handle(auth(u), 'meet_check', { matchId: mid, sessionId: SID, stateVersion: v0 });
+  await rt.handle(auth(ID.a), 'meet_intent', { matchId: mid, sessionId: SID, intent: 'yes', requestId: RID, stateVersion: v0 });
+  // B 의 의사 저장 직전(같은 요청 id 확인 읽기 순간) A 가 B 를 차단
+  let armed = true; s.beforeRead = (t) => { if (armed && t === 'doit_meet_intents' && s.current !== 'x') { armed = false; s.tables.blocks.push({ id: 'race-1', blocker_id: ID.a, blocked_user_id: ID.b, reason: 'connection' }); } };
+  const r = await rt.handle(auth(ID.b), 'meet_intent', { matchId: mid, sessionId: SID, intent: 'yes', requestId: RID, stateVersion: v0 });
+  s.beforeRead = null;
+  assert.equal(armed, false, '차단이 실제로 저장 직전에 끼어들었음'); assert.ok(s.tables.blocks.some((b) => b.id === 'race-1'));
+  assert.ok(r.status === 200 || r.status === 409, JSON.stringify(r));
+  if (r.status === 200) assert.deepEqual([r.body.state, r.body.allowed], ['unavailable', false], '저장 뒤 다시 계산한 상태는 닫힘');
+  const st = (await rt.handle(auth(ID.a), 'meet_status', { matchId: mid })).body;
+  assert.deepEqual([st.state, st.allowed, 'sessionId' in st], ['unavailable', false, false]);
+  await assert.rejects(rt.authorizePlan(auth(ID.a), mid, v0));
+  await assert.rejects(rt.authorizePlan(auth(ID.b), mid, v0));
+});

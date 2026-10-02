@@ -146,15 +146,24 @@ export const VIDEO_CONSENT_VERSION: string | null = (import.meta.env.VITE_VIDEO_
 
 /** 지금 로그인한 사람이 현재 판의 영상 이용 동의를 했는지(본인 것만 · 로그인 정보에서). */
 export async function hasVideoConsent(): Promise<boolean> {
-  if (!VIDEO_CONSENT_VERSION) return false;
-  const { data } = await supabase.auth.getSession();
-  const m = (data.session?.user.user_metadata ?? {}) as Record<string, unknown>;
-  return m.doit_video_consent_version === VIDEO_CONSENT_VERSION && typeof m.doit_video_consent_at === 'string' && !Number.isNaN(Date.parse(m.doit_video_consent_at));
+  return (await videoConsentState()).current;
 }
 
-/** 영상 이용 동의 남기기 · 거두기 — 영상 칸만 바꾼다(공개 동의 칸은 건드리지 않음). 실패 문구를 돌려준다. */
+/**
+ * 내 영상 이용 동의 상태 — current = 지금 판으로 유효 · any = 판과 상관없이 남아 있는 동의 기록(거두기 버튼을 보일지).
+ * 기능이 꺼졌거나 판이 바뀌어도 이미 남긴 동의는 언제든 거둘 수 있어야 하므로 any 를 따로 본다.
+ */
+export async function videoConsentState(): Promise<{ current: boolean; any: boolean }> {
+  const { data } = await supabase.auth.getSession();
+  const m = (data.session?.user.user_metadata ?? {}) as Record<string, unknown>;
+  const any = typeof m.doit_video_consent_version === 'string' && m.doit_video_consent_version !== '';
+  const current = !!VIDEO_CONSENT_VERSION && m.doit_video_consent_version === VIDEO_CONSENT_VERSION && typeof m.doit_video_consent_at === 'string' && !Number.isNaN(Date.parse(m.doit_video_consent_at));
+  return { current, any };
+}
+
+/** 영상 이용 동의 남기기 · 거두기 — 영상 칸만 바꾼다(공개 동의 칸은 건드리지 않음). 거두기는 판·기능 켜짐과 상관없이 된다. 실패 문구를 돌려준다. */
 export async function setVideoConsent(agree: boolean): Promise<string | null> {
-  if (!VIDEO_CONSENT_VERSION) return '지금은 영상 이용을 준비하고 있어요.';
+  if (agree && !VIDEO_CONSENT_VERSION) return '지금은 영상 이용을 준비하고 있어요.';
   const { error } = await supabase.auth.updateUser({ data: agree
     ? { doit_video_consent_version: VIDEO_CONSENT_VERSION, doit_video_consent_at: new Date().toISOString() }
     : { doit_video_consent_version: null, doit_video_consent_at: null } });

@@ -519,7 +519,7 @@ await run(41, 'Q15 넘침 0(320~430px) · 보기 4개 긴 글자 · 누름 높�
 // ── 2026-10-02 PR #99 마지막 구간(격리 미리보기 · 모의 서버 · 실제 영상·저장 PASS 아님) ──
 const MSID = '50000000-0000-4000-8000-00000000000e', MVER = 'ab'.repeat(32);
 const talkMatch = () => [match({ my_answer: '주말 아침', partner_answered: true, revealed: true, partner: PARTNER, messages: [] })];
-await run(42, 'MEET 꺼짐(지금 실서버 503) = 구간 0 · 기존 이야기 화면 그대로', IPHONE, { matches: talkMatch() }, async (p, s) => {
+await run(42, 'MEET 꺼짐(지금 실서버 503) = 구간 0 · 기존 이야기 화면 그대로', IPHONE, { matches: talkMatch(), userMeta: { doit_connect_consent_version: 'connect-v1' } }, async (p, s) => {
   await go(p); await p.waitForTimeout(400);
   expect(await p.locator('.doit-meet').count() === 0, '꺼짐인데 구간이 보임'); expect(s.st.calls.filter(c => c.action === 'meet_status').length === 1, 'meet_status 한 번만');
   expect(await p.locator(`#message-${MID}`).count() === 1, '이야기 입력 사라짐'); return '그리지 않음 · 요청 1회';
@@ -560,6 +560,7 @@ await run(50, 'MEET 그사이 상태가 바뀜(STATE_CHANGED) → 다시 읽어 
   await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).click(); await p.waitForTimeout(600);
   expect(s.st.calls.filter(c => c.action === 'meet_status').length === 2, '다시 읽기 없음'); const left = await p.locator('.doit-meet').count() ? (await p.locator('.doit-meet').innerText()).trim() : ''; expect(left === '' || left === '영상 이용 동의 거두기', `바뀐 서버 상태(unavailable)대로 · 이유 0 · ${left}`); expect(s.st.calls.filter(c => c.action === 'meet_check').length === 1, '저절로 다시 보내기 0'); return '다시 읽기 → 이유 없이 닫힘';
 });
+const NO_VIDEO = { doit_connect_consent_version: 'connect-v1' };
 // ── PR #101: 켜졌는데 읽기 실패 = 안내 + 다시 불러오기(숨기지 않음) · 영상 이용 동의(공개 동의와 별도) ──
 await run(51, 'MEET 켜졌는데 읽기 실패 = 「불러오지 못했어요 · 다시 불러오기」 → 다시 읽으면 서버 상태대로', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER }, fail: { meet_status: { times: 1, status: 503, code: 'MEET_READ_FAILED', message: 'x' } } }, async (p, s) => {
   await go(p); await p.waitForTimeout(400);
@@ -568,7 +569,6 @@ await run(51, 'MEET 켜졌는데 읽기 실패 = 「불러오지 못했어요 ·
   await p.getByRole('button', { name: '다시 불러오기' }).click(); await p.waitForTimeout(500);
   expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 1, '다시 읽은 뒤 서버 상태'); return '안내 → 다시 불러오기 → 정상';
 });
-const NO_VIDEO = { doit_connect_consent_version: 'connect-v1' };
 await run(52, 'MEET 영상 이용 동의 없음 → 동의 안내만(버튼 0) · 동의는 영상 칸만 바꿈 · 공개 동의 그대로 · 저절로 확인·의사 보내기 0', IPHONE, { matches: talkMatch(), userMeta: NO_VIDEO, meet: { state: 'unavailable', allowed: false } }, async (p, s) => {
   await go(p); await p.waitForTimeout(400);
   const t = await p.locator('.doit-meet').innerText();
@@ -593,6 +593,17 @@ await run(53, 'MEET 영상 이용 동의 거두기 = 영상 칸만 지움 · 다
 await run(54, 'MEET 「지금은 어려움」 + 이미 동의 = 이유 0 · 거두기 버튼만', IPHONE, { matches: talkMatch(), meet: { state: 'unavailable', allowed: false } }, async (p) => {
   await go(p); await p.waitForTimeout(400);
   const t = (await p.locator('.doit-meet').innerText()).trim(); expect(t === '영상 이용 동의 거두기', `거두기만 ${t}`); return '거두기만';
+});
+await run(55, 'MEET 꺼짐인데 남은 영상 동의 있음 = 거두기 버튼만(다른 단계 0) → 거두면 영상 칸만 지움', IPHONE, { matches: talkMatch() }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  const t = (await p.locator('.doit-meet').innerText()).trim(); expect(t === '영상 이용 동의 거두기', `꺼짐 거두기만 ${t}`);
+  await p.getByRole('button', { name: '영상 이용 동의 거두기' }).click(); await p.waitForTimeout(600);
+  const upd = s.st.calls.find(c => c.fn === 'auth_update'); expect(upd && upd.data.doit_video_consent_version === null && !('doit_connect_consent_version' in upd.data), `거두기 ${JSON.stringify(upd)}`);
+  expect(await p.locator('.doit-meet').count() === 0, '거둔 뒤 꺼짐 = 숨김'); return '꺼짐에서도 거두기';
+});
+await run(56, 'MEET 불러오기 실패 + 남은 영상 동의 = 실패 안내 + 다시 불러오기 + 거두기', IPHONE, { matches: talkMatch(), fail: { meet_status: { times: 5, status: 503, code: 'MEET_READ_FAILED', message: 'x' } } }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await p.locator('.doit-meet').innerText();
+  expect(t.includes('불러오지 못했어요') && t.includes('다시 불러오기') && t.includes('영상 이용 동의 거두기'), `실패+거두기 ${t}`); return '실패에서도 거두기';
 });
 await run(49, 'MEET 360px 넘침 0', W360, { matches: talkMatch(), meet: { state: 'need_my_intent', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p) => {
   await go(p); await p.waitForTimeout(400); expect(await overflow(p) <= 0, '가로 넘침');
