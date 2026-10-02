@@ -35,8 +35,9 @@ export function createMeetRuntime(admin: Admin, config: Config = {}) {
       throw new MeetApiError("MEET_POLICY_NOT_CONNECTED", 503);
     const consent = (u: User) => {
       const m = u.user_metadata ?? {};
-      return m.doit_connect_consent_version === config.videoConsentVersion &&
-        typeof m.doit_connect_consent_at === "string" && Number.isFinite(Date.parse(m.doit_connect_consent_at))
+      // Video opt-in is independent of existing connect-v1 reveal consent.
+      return m.doit_video_consent_version === config.videoConsentVersion &&
+        typeof m.doit_video_consent_at === "string" && Number.isFinite(Date.parse(m.doit_video_consent_at))
         ? config.videoConsentVersion! : null;
     };
     return {

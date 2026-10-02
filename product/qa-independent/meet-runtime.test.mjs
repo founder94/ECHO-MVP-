@@ -26,7 +26,7 @@ const version='a'.repeat(64), newer='b'.repeat(64);
 function runtime() {
  const {s,db}=fixture();
  const state={eligibleA:true,eligibleB:true,safetyHold:false,lastStepOpen:true,revealValid:true,stateVersion:version};
- const users=Object.fromEntries([a,b].map(id=>[id,{id,user_metadata:{doit_connect_consent_version:'connect-v2',doit_connect_consent_at:'2026-10-02T00:00:00Z'}}]));
+ const users=Object.fromEntries([a,b].map(id=>[id,{id,user_metadata:{doit_connect_consent_version:'connect-v1',doit_connect_consent_at:'2026-10-02T00:00:00Z',doit_video_consent_version:'connect-v2',doit_video_consent_at:'2026-10-02T00:00:00Z'}}]));
  db.auth={admin:{getUserById:async id=>({data:{user:users[id]??null},error:s.authFail??null})}};
  s.t.blocks=[];
  s.t.doit_video_sessions[0].context_version=version;
@@ -34,6 +34,26 @@ function runtime() {
  const auth=id=>({getUser:async()=>({data:{user:{id}},error:null})});
  return {s,db,state,users,rt,auth};
 }
+test('connect-v1 reveal consent and independent video consent coexist',async()=>{
+ const {users,state,rt,auth}=runtime();
+ state.revealValid=[a,b].every(id=>users[id].user_metadata.doit_connect_consent_version==='connect-v1');
+ const r=await rt.handle(auth(a),'meet_check',{matchId:mid,sessionId:sid,stateVersion:version});
+ assert.equal(r.status,200);assert.equal(users[b].user_metadata.doit_connect_consent_version,'connect-v1');
+});
+test('connect consent cannot substitute for absent or invalid video consent',async()=>{
+ for(const patch of [{doit_video_consent_version:undefined},{doit_video_consent_at:'invalid'},{doit_video_consent_version:'old'}]){
+  const {users,s,rt,auth}=runtime();Object.assign(users[b].user_metadata,patch);
+  assert.equal((await rt.handle(auth(a),'meet_check',{matchId:mid,sessionId:sid,stateVersion:version})).status,409);
+  assert.equal(s.writes,0);assert.equal(users[b].user_metadata.doit_connect_consent_version,'connect-v1');
+ }
+});
+test('video withdrawal preserves connect consent and revokes meeting authorization',async()=>{
+ const {users,rt,auth}=runtime();
+ for(const id of [a,b]){await rt.handle(auth(id),'meet_check',{matchId:mid,sessionId:sid,stateVersion:version});await rt.handle(auth(id),'meet_intent',{matchId:mid,sessionId:sid,stateVersion:version,requestId:rid,intent:'yes'});}
+ users[b].user_metadata.doit_video_consent_version=undefined;
+ await assert.rejects(rt.authorizePlan(auth(a),mid,version),e=>e.code==='MEET_UNAVAILABLE');
+ assert.equal(users[b].user_metadata.doit_connect_consent_version,'connect-v1');
+});
 test('runtime verifies Auth; body identity cannot impersonate participant',async()=>{
  const {s,rt,auth}=runtime();
  const denied=await rt.handle(auth(c),'meet_check',{matchId:mid,sessionId:sid,user_id:a,stateVersion:version});
