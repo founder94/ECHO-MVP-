@@ -1630,3 +1630,38 @@ test('[246 격리] 저장 직전에 차단이 생겨도: 그 의사 기록은 �
   await assert.rejects(rt.authorizePlan(auth(ID.a), mid, v0));
   await assert.rejects(rt.authorizePlan(auth(ID.b), mid, v0));
 });
+
+test('[관리자 영상 동의] 판정 경우: 정상 · 시각 깨짐 · 시각 누락 · 빈 값 · 철회(null) · 판 다름 · 판 설정 없음 · 공개 동의만 · 읽기 실패 = failed(동의로 단정 0)', () => {
+  const { adminVideoConsentOf, videoConsentValid } = loadServer(world()).exports;
+  const W = 'video-v1', ok = { doit_video_consent_version: W, doit_video_consent_at: '2026-10-02T00:00:00Z' };
+  const cases = [
+    ['정상', ok, true], ['시각 깨짐', { ...ok, doit_video_consent_at: 'invalid-date' }, false], ['시각 누락', { doit_video_consent_version: W }, false],
+    ['빈 시각', { ...ok, doit_video_consent_at: '' }, false], ['빈 판', { ...ok, doit_video_consent_version: '' }, false],
+    ['철회', { doit_video_consent_version: null, doit_video_consent_at: null }, false], ['판 다름', { ...ok, doit_video_consent_version: 'video-v0' }, false],
+    ['시각이 숫자', { ...ok, doit_video_consent_at: 1727827200000 }, false], ['공개 동의만', { ...CONSENTED }, false], ['메타 없음', undefined, false],
+  ];
+  for (const [label, meta, want] of cases) assert.equal(videoConsentValid(meta, W), want, label);
+  assert.equal(videoConsentValid(ok, ''), false, '판 설정 없음');
+  const u = (meta) => ({ data: { user: { user_metadata: meta } }, error: null });
+  assert.deepEqual(JSON.parse(JSON.stringify(adminVideoConsentOf([u(ok), u(ok)], W))), { state: 'connected', bothConsented: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(adminVideoConsentOf([u(ok), u({ ...ok, doit_video_consent_at: 'invalid-date' })], W))), { state: 'connected', bothConsented: false });
+  for (const bad of [null, [], [u(ok)], [u(ok), { data: null, error: { code: 'AUTH_DOWN' } }], [u(ok), { data: { user: null }, error: null }]])
+    assert.deepEqual(JSON.parse(JSON.stringify(adminVideoConsentOf(bad, W))), { state: 'failed' }, JSON.stringify(bad));
+});
+test('[관리자 영상 동의] 관리자 판정과 Runtime 판정이 같은 사용자에 같은 답(정상·시각 깨짐·판 다름·철회)', async () => {
+  for (const [label, meta, both] of [['정상', VIDEO, true], ['시각 깨짐', { ...VIDEO, doit_video_consent_at: 'invalid-date' }, false], ['판 다름', { ...VIDEO, doit_video_consent_version: 'video-v0' }, false], ['철회', {}, false]]) {
+    const { s, mid, call } = meetWorld(ON);
+    s.tables.doit_match_answers.push(...answersFor(mid, ID.a, ID.b));
+    for (const u2 of [ID.a, ID.b]) s.users[u2].user_metadata = { ...CONSENTED, ...meta };
+    const adm = await call(ID.admin, { action: 'admin_meet_summary', matchId: mid });
+    assert.equal(adm.status, 200, label); assert.equal(adm.body.videoConsent.bothConsented, both, `관리자 ${label}`);
+    // Runtime 쪽: 동의 판정이 실패하면 consent_outdated → unavailable. 정상일 때는 마지막 구간 근거가 없어 unavailable 이지만 동의 때문은 아님 → 직접 판정 함수로 대조
+    const { createMeetRuntime } = (() => { const load = (file) => { const mod = { exports: {} }; vm.runInNewContext(ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: mod.exports, module: mod, require: (n) => load(path.join(path.dirname(file), n)) }); return mod.exports; }; return load('supabase/functions/doit-connect/meetRuntime.ts'); })();
+    const db = fakeDb(s);
+    const v0 = (await call.exports.meetCurrentState(db, async () => true)(mid, ID.a, ID.b)).stateVersion;
+    s.tables.doit_video_sessions[0].context_version = v0;
+    const rt = createMeetRuntime(db, { enabled: true, videoConsentVersion: 'video-v1', readCurrentState: call.exports.meetCurrentState(db, async () => true) });
+    const st = (await rt.handle({ getUser: async () => ({ data: { user: { id: ID.a } }, error: null }) }, 'meet_status', { matchId: mid })).body;
+    assert.equal(st.state !== 'unavailable', both, `Runtime ${label} ${JSON.stringify(st)}`);
+  }
+});

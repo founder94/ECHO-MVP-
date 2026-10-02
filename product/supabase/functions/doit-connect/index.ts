@@ -897,6 +897,19 @@ export function planReceiptOf(data: unknown, matchId: string): { status: "active
   return { status: d.status === "active" && d.allowed_now ? "active" : "cancelled", replayed: d.replayed, allowed_now: d.allowed_now };
 }
 
+/**
+ * 관리자에게 보이는 두 사람의 영상 이용 동의 — meetRuntime 의 판정과 **같은 규칙**(판 일치 + 읽을 수 있는 시각 · Codex 검증 5962668031).
+ * 읽기 실패(연결·사용자 조회 오류·사람 없음)는 동의/미동의로 단정하지 않고 「failed」. 판 설정이 없으면 누구도 동의 아님.
+ */
+export function videoConsentValid(meta: Record<string, unknown> | null | undefined, want: string): boolean {
+  const at = meta?.doit_video_consent_at;
+  return !!want && meta?.doit_video_consent_version === want && typeof at === "string" && Number.isFinite(Date.parse(at));
+}
+export function adminVideoConsentOf(users: { data?: { user?: { user_metadata?: Record<string, unknown> | null } | null } | null; error?: unknown }[] | null, want: string): Json {
+  if (!users || users.length !== 2 || users.some((u) => u.error || !u.data?.user)) return { state: "failed" };
+  return { state: "connected", bothConsented: users.every((u) => videoConsentValid(u.data!.user!.user_metadata, want)) };
+}
+
 // 만남 실행 경계(Codex meetRuntime) — 요청마다 만든다(설정·관리자 클라이언트는 요청과 같은 것). 기본 꺼짐:
 // MEET_API_ENABLED=true + 영상 동의 판(MEET_VIDEO_CONSENT_VERSION · connect-v1 아님)이 모두 있어야 켜진다. 둘 다 지금 설정 0.
 function meetRuntime(admin: Db) {
@@ -981,17 +994,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // 영상 이용 동의(두 사람 모두 · 지금 판)를 따로 붙인다 — 집계가 성공했을 때만(역할 확인·꺼짐 판단은 adminSummary 가 먼저). 읽기 실패 = 「실패」(0 아님).
       let videoConsent: Json = { state: "failed" };
       if (r.status === 200) {
-        const want = Deno.env.get("MEET_VIDEO_CONSENT_VERSION") || "";
-        const { data: m } = await admin.from("doit_matches").select("user_a, user_b").eq("id", matchId).maybeSingle();
-        const users = m ? await Promise.all([admin.auth.admin.getUserById(String(m.user_a)), admin.auth.admin.getUserById(String(m.user_b))]) : [];
-        if (users.length === 2 && users.every((u) => !u.error && u.data?.user)) {
-          // meetRuntime 과 같은 판정(판 일치 + 읽을 수 있는 시각) — 시각이 깨진 값은 동의가 아니다(Codex 독립 검증 5962668031).
-          const ok = (u: { user_metadata?: Record<string, unknown> | null }) => {
-            const at = u.user_metadata?.doit_video_consent_at;
-            return !!want && u.user_metadata?.doit_video_consent_version === want && typeof at === "string" && Number.isFinite(Date.parse(at));
-          };
-          videoConsent = { state: "connected", bothConsented: users.every((u) => ok(u.data!.user!)) };
-        }
+        const { data: m, error: mErr } = await admin.from("doit_matches").select("user_a, user_b").eq("id", matchId).maybeSingle();
+        const users = m && !mErr ? await Promise.all([admin.auth.admin.getUserById(String(m.user_a)), admin.auth.admin.getUserById(String(m.user_b))]) : null;
+        videoConsent = adminVideoConsentOf(users, Deno.env.get("MEET_VIDEO_CONSENT_VERSION") || "");
       }
       logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
       const project = (() => { try { return new URL(url).hostname.split(".")[0]; } catch { return null; } })();
