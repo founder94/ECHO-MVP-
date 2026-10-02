@@ -404,6 +404,7 @@ jobs:
     timeout-minutes: 20
     env:
       SRC_SHA: 3f0c591dc4c012145d2dd409820945b4e6932edd
+      PROD_PROBE_REF: zyyhhxyupizcqhxqnxuu
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -419,7 +420,7 @@ jobs:
           set -euo pipefail
           npm ci --silent
           C=${SRC_SHA::7}
-          env VITE_PUBLIC_SUPABASE_URL=https://zyyhhxyupizcqhxqnxuu.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn VITE_APP_ORIGIN=https://app.do-it.company VITE_BRAND_ORIGIN=https://do-it.company VITE_ADMIN_ORIGIN=https://admin.do-it.company VITE_BUILD_COMMIT=$C VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir > /dev/null
+          env VITE_PUBLIC_SUPABASE_URL=https://$PROD_PROBE_REF.supabase.co VITE_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn VITE_APP_ORIGIN=https://app.do-it.company VITE_BRAND_ORIGIN=https://do-it.company VITE_ADMIN_ORIGIN=https://admin.do-it.company VITE_BUILD_COMMIT=$C VITE_SITE_ROLE=app VITE_A_STRUCTURE_SERVER_ENABLED=true VITE_ECHO_FOLLOWUP_ENABLED=true VITE_ECHO_AGENT_ENABLED=true npx vite build --outDir ../dist/app --emptyOutDir > /dev/null
           echo "local app index sha16=$(sha256sum ../dist/app/index.html | cut -c1-16) files=$(find ../dist/app -type f | wc -l)"
       - name: 실사이트 대조(읽기 전용)
         run: node product/qa-real/prod-app-fingerprint.mjs src/dist/app
@@ -430,6 +431,8 @@ jobs:
     environment: ECHO-PROD
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      PROD_PROBE_REF: zyyhhxyupizcqhxqnxuu
     steps:
       - uses: actions/checkout@v4
       - name: 비밀값 존재 · Netlify 인증(GET 1회) · 운영 Auth 설정 읽기(GET 1회) — 상태 코드만
@@ -443,7 +446,7 @@ jobs:
           echo "SUPABASE_PROD_ACCESS_TOKEN present=$HAS_PROD_ACCESS · SUPABASE_ACCESS_TOKEN present=$HAS_ACCESS"
           if [ -n "$SUPABASE_PROD_AUTH_READ_TOKEN" ]; then
             echo "SUPABASE_PROD_AUTH_READ_TOKEN=PRESENT"
-            code=$(curl -s -o /tmp/authcfg.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN" https://api.supabase.com/v1/projects/zyyhhxyupizcqhxqnxuu/config/auth)
+            code=$(curl -s -o /tmp/authcfg.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_PROD_AUTH_READ_TOKEN" https://api.supabase.com/v1/projects/$PROD_PROBE_REF/config/auth)
             echo "SUPABASE_AUTH_CONFIG_READ_STATUS=$code"
             [ "$code" = 200 ] && node product/qa-real/auth-readback.mjs /tmp/authcfg.json
             rm -f /tmp/authcfg.json
