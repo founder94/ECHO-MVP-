@@ -108,6 +108,10 @@ if (ADMIN_BASE) {
           await p.goto(`${ADMIN_BASE}/?m=users`); await settle(); await p.waitForTimeout(500);
           const after = await p.evaluate((k) => ({ url: location.pathname, token: localStorage.getItem(k), rows: document.querySelectorAll('.aw-table tbody tr, .aw-today').length }), `sb-${QA_REF}-auth-token`);
           check(`화면 ${tag}: 로그아웃 뒤 자료 0 · 토큰 0 · 로그인 화면`, after.url.endsWith('/login') && !after.token && after.rows === 0, JSON.stringify(after));
+          // 참고(판정 아님): 로그아웃(전역) 직후, 이미 발급된 접근 토큰으로 관리자 자료를 부르면 서버가 어떻게 답하는지 — 「모든 기기 즉시 차단」을 검사 없이 말하지 않기 위해.
+          const stale = await fn('admin-web', s.access_token, { action: 'overview', period: '30d' });
+          const refresh = await fetch(`${URL0}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: QA_ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refresh_token }) });
+          console.log(`INFO 화면 ${tag}: 로그아웃 뒤 옛 접근 토큰 → admin-web HTTP ${stale.status} · 옛 갱신 토큰 → HTTP ${refresh.status}`);
         }
         check(`화면 ${tag}: 페이지 오류 0`, errs.length === 0, errs.join(' | '));
         await b.close();
