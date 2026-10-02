@@ -3,12 +3,11 @@
 import type { Level } from './api';
 
 export type Env = '시험용 QA' | '실제 운영' | '알 수 없음';
-const QA_REF = 'mutniujeiyujhkobadkd';
-const PROD_REF = 'zyyhhxyupizcqhxqnxuu';
-export function envOf(url: string | undefined): Env {
-  if (!url) return '알 수 없음';
-  if (url.includes(QA_REF)) return '시험용 QA';
-  if (url.includes(PROD_REF)) return '실제 운영';
+// 운영 빌드 주소 잠금(qa/*): 소스에 QA 주소·프로젝트 id 를 적지 않는다 — 지금 열린 관리자 사이트의 이름으로만 구분한다.
+export function envOf(hostname: string | undefined): Env {
+  if (!hostname) return '알 수 없음';
+  if (/(^|[-.])qa([-.]|$)/.test(hostname)) return '시험용 QA';
+  if (hostname === 'do-it.company' || hostname.endsWith('.do-it.company')) return '실제 운영';
   return '알 수 없음';
 }
 

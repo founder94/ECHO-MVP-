@@ -13,11 +13,13 @@ const out = path.join(dir, 'brief.mjs');
 writeFileSync(out, ts.transpileModule(read('src/admin/brief.ts'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText);
 const { envOf, stateOf, firstTask, oldestOpenHours } = await import(pathToFileURL(out).href);
 
-test('환경: QA·운영·알 수 없음을 주소로 크게 구분', () => {
-  assert.equal(envOf('https://mutniujeiyujhkobadkd.supabase.co'), '시험용 QA');
-  assert.equal(envOf('https://zyyhhxyupizcqhxqnxuu.supabase.co'), '실제 운영');
+test('환경: 지금 열린 관리자 사이트 이름으로 QA·운영·알 수 없음 구분(소스에 QA 주소 0)', () => {
+  assert.equal(envOf('echo-admin-qa.netlify.app'), '시험용 QA');
+  assert.equal(envOf('admin.do-it.company'), '실제 운영');
+  assert.equal(envOf('localhost'), '알 수 없음');
   assert.equal(envOf(undefined), '알 수 없음');
-  assert.equal(envOf('https://other.supabase.co'), '알 수 없음');
+  assert.equal(envOf('quality.example.com'), '알 수 없음', 'qa 가 단어 일부일 때는 아님');
+  assert.doesNotMatch(read('src/admin/brief.ts'), /supabase\.co|netlify\.app|[a-z]{20}/, 'QA·운영 주소·프로젝트 id 글자 0');
 });
 
 test('상태: 못 읽으면 확인 불가 · 안전·연결 자료를 못 읽었으면 「정상」 금지 · 오류=일부 중단', () => {

@@ -9,7 +9,7 @@ import { Num } from '../ui';
 const MENU_KO: Record<string, string> = { safety: '안전 → 신고·차단', status: '관리 → 서비스 상태', failures: '관리 → 오류·실패', conversations: '연결 → AI 대화', connect: '연결 → 연결/매칭', dashboard: '오늘' };
 
 export default function Today({ ov, connect, safety, go }: { ov: Overview | null; connect: Connect | null; safety: SafetyOut | null | 'error'; go: (m: string) => void }) {
-  const env = envOf(import.meta.env.VITE_PUBLIC_SUPABASE_URL as string | undefined);
+  const env = envOf(typeof window === 'undefined' ? undefined : window.location.hostname);
   const safetyOk = !!safety && safety !== 'error' && !safety.reports_error;
   const connectOk = !!connect && !connect.error;
   const { state, reasons } = stateOf({ overviewOk: !!ov, health: ov?.health.level ?? null, safetyOk, connectOk });
