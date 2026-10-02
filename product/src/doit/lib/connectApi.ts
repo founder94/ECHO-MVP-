@@ -1,7 +1,7 @@
 // 연결 서버(doit-connect v1.2) 화면 쪽 창구. 서버가 무엇을 내려 주는지가 곧 blind-first 약속이다:
 // 두 사람이 모두 첫 질문에 답하기 전에는 partner·messages 가 아예 오지 않는다(화면이 숨기는 게 아니라 서버가 안 보낸다).
 import { supabase } from '@/lib/supabase/client';
-import { serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { UnderstandingError, serverFunctionRequest } from '@/doit/lib/understandingApi';
 
 // 연결 동의 판 — 서버(supabase/functions/doit-connect) 의 CONNECT_CONSENT_VERSION 과 같아야 한다(검사가 확인한다).
 // 무엇이 보이는지 문구가 바뀌면 판을 올려 다시 묻는다.
@@ -97,8 +97,87 @@ export async function sendMatchAnswer(userId: string, matchId: string, text: str
   await serverFunctionRequest('doit-connect', { action: 'answer', matchId, text }, userId);
 }
 
-export async function sendMatchMessage(userId: string, matchId: string, text: string): Promise<void> {
-  await serverFunctionRequest('doit-connect', { action: 'message', matchId, text }, userId);
+/** requestId = 이 이야기 한 번의 보내기. 실패 뒤 같은 글을 다시 보내면 같은 id(서버가 한 번만 저장). */
+export async function sendMatchMessage(userId: string, matchId: string, text: string, requestId?: string): Promise<void> {
+  await serverFunctionRequest('doit-connect', { action: 'message', matchId, text, ...(requestId ? { requestId } : {}) }, userId);
+}
+
+// 2026-10-02 PR #99: 마지막 구간 — 앱 안 영상 → 각자 상대 모습 확인 → 각자 만남 의사. 상태·허용은 서버(meetGate)만 정한다.
+// sessionId = 이 연결의 영상 확인용 ECHO 내부 기록 번호(로그인·통화 입장권이 아님) — 화면에 보여 주지 않고, 확인·의사를 보낼 때 그대로 돌려줄 뿐이다.
+export type MeetState = 'allowed' | 'need_video' | 'need_my_check' | 'need_my_intent' | 'waiting_partner' | 'unavailable';
+export type MeetIntent = 'yes' | 'not_now' | 'no';
+// stateVersion = 서버가 판단 재료(동의·공개·단계)로 만든 불투명 값. 확인·의사를 보낼 때 그대로 돌려주고, 그사이 상태가 바뀌었으면 서버가 STATE_CHANGED(409)로 막는다.
+export interface MeetStatus { state: MeetState; allowed: boolean; sessionId: string | null; stateVersion: string | null }
+const MEET_STATES: readonly MeetState[] = ['allowed', 'need_video', 'need_my_check', 'need_my_intent', 'waiting_partner', 'unavailable'];
+const MEET_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** 서버 응답 → 화면 상태. 모르는 모양은 null(= 그리지 않음). allowed 는 서버가 state 와 같이 참이라고 할 때만 참. */
+export function parseMeetStatus(out: unknown): MeetStatus | null {
+  if (!out || typeof out !== 'object') return null;
+  const o = out as { ok?: unknown; state?: unknown; allowed?: unknown; sessionId?: unknown; stateVersion?: unknown };
+  if (o.ok !== true || !MEET_STATES.includes(o.state as MeetState)) return null;
+  const state = o.state as MeetState;
+  return {
+    state, allowed: state === 'allowed' && o.allowed === true,
+    sessionId: typeof o.sessionId === 'string' && MEET_UUID.test(o.sessionId) ? o.sessionId : null,
+    stateVersion: typeof o.stateVersion === 'string' && /^[a-f0-9]{64}$/.test(o.stateVersion) ? o.stateVersion : null,
+  };
+}
+
+/**
+ * 마지막 구간 상태 읽기 — 세 가지를 구분한다(2026-10-02 PR #101 정정):
+ *  off   = 서버가 꺼져 있음(MEET_NOT_CONFIGURED) → 화면은 이 구간을 그리지 않는다.
+ *  error = 켜져 있는데 읽지 못함(네트워크·서버 읽기 실패·모르는 모양) → 「불러오지 못했어요 · 다시 불러오기」(아무것도 없음으로 숨기지 않음).
+ *  ready = 서버가 준 상태 그대로.
+ */
+export type MeetLoad = { kind: 'off' } | { kind: 'error' } | { kind: 'ready'; status: MeetStatus };
+export async function loadMeetStatus(userId: string, matchId: string): Promise<MeetLoad> {
+  try {
+    const status = parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_status', matchId }, userId));
+    return status ? { kind: 'ready', status } : { kind: 'error' };
+  } catch (e) {
+    return e instanceof UnderstandingError && e.code === 'MEET_NOT_CONFIGURED' ? { kind: 'off' } : { kind: 'error' };
+  }
+}
+
+// 영상 이용 동의(PR #101 · 이름·사진 공개 동의 doit_connect_consent_* 와 **다른 칸**). 판 이름은 서버 MEET_VIDEO_CONSENT_VERSION 과 같아야 하고
+// 문구·판은 대표 결정(승인 묶음 B-3) — 빌드 값(VITE_VIDEO_CONSENT_VERSION)이 없으면 동의 화면 자체를 띄우지 않는다(판을 지어내지 않음).
+export const VIDEO_CONSENT_VERSION: string | null = (import.meta.env.VITE_VIDEO_CONSENT_VERSION as string | undefined) || null;
+
+/** 지금 로그인한 사람이 현재 판의 영상 이용 동의를 했는지(본인 것만 · 로그인 정보에서). */
+export async function hasVideoConsent(): Promise<boolean> {
+  return (await videoConsentState()).current;
+}
+
+/**
+ * 내 영상 이용 동의 상태 — current = 지금 판으로 유효 · any = 판과 상관없이 남아 있는 동의 기록(거두기 버튼을 보일지).
+ * 기능이 꺼졌거나 판이 바뀌어도 이미 남긴 동의는 언제든 거둘 수 있어야 하므로 any 를 따로 본다.
+ */
+export async function videoConsentState(): Promise<{ current: boolean; any: boolean }> {
+  const { data } = await supabase.auth.getSession();
+  const m = (data.session?.user.user_metadata ?? {}) as Record<string, unknown>;
+  const any = typeof m.doit_video_consent_version === 'string' && m.doit_video_consent_version !== '';
+  const current = !!VIDEO_CONSENT_VERSION && m.doit_video_consent_version === VIDEO_CONSENT_VERSION && typeof m.doit_video_consent_at === 'string' && !Number.isNaN(Date.parse(m.doit_video_consent_at));
+  return { current, any };
+}
+
+/** 영상 이용 동의 남기기 · 거두기 — 영상 칸만 바꾼다(공개 동의 칸은 건드리지 않음). 거두기는 판·기능 켜짐과 상관없이 된다. 실패 문구를 돌려준다. */
+export async function setVideoConsent(agree: boolean): Promise<string | null> {
+  if (agree && !VIDEO_CONSENT_VERSION) return '지금은 영상 이용을 준비하고 있어요.';
+  const { error } = await supabase.auth.updateUser({ data: agree
+    ? { doit_video_consent_version: VIDEO_CONSENT_VERSION, doit_video_consent_at: new Date().toISOString() }
+    : { doit_video_consent_version: null, doit_video_consent_at: null } });
+  return error ? '저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.' : null;
+}
+
+/** 확인·의사를 보낸 뒤 서버가 다시 계산한 상태(쓰기 성공 ≠ 허용). */
+export async function confirmMeetCheck(userId: string, matchId: string, sessionId: string, stateVersion: string): Promise<MeetStatus | null> {
+  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_check', matchId, sessionId, stateVersion }, userId));
+}
+
+/** requestId = 이 의사 한 번의 제출. 실패 뒤 같은 선택 재시도는 같은 id(서버가 한 번만 저장 · 다른 선택이면 409). */
+export async function sendMeetIntent(userId: string, matchId: string, sessionId: string, stateVersion: string, intent: MeetIntent, requestId: string): Promise<MeetStatus | null> {
+  return parseMeetStatus(await serverFunctionRequest<unknown>('doit-connect', { action: 'meet_intent', matchId, sessionId, intent, requestId, stateVersion }, userId));
 }
 
 // 2026-10-01 대표 「SAFETY LAYER」: 신고 사유 6개(서버 doit-connect REPORT_REASONS 와 같아야 한다 · 검사가 확인한다).
@@ -110,15 +189,27 @@ export const REPORT_REASONS: readonly (readonly [ReportReason, string])[] = [
 export interface SafetySaved { blocked: boolean; reported: boolean }
 const saved = (out: { blocked?: unknown; reported?: unknown }): SafetySaved => ({ blocked: out.blocked === true, reported: out.reported === true });
 
-export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean; reason?: ReportReason }): Promise<SafetySaved> {
-  const { reason, ...rest } = options;
-  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'leave', matchId, ...rest, ...(reason ? { reason } : {}) }, userId);
+/**
+ * 신고 한 번의 제출 = 요청 id 하나. 실패 뒤 같은 대상·같은 내용으로 다시 누르면 같은 id(서버가 한 건으로 본다),
+ * 성공했거나 내용(사유·차단)이 바뀌면 새 id. 새로 연 신고는 같은 상대·같은 사유여도 새 사건으로 남는다.
+ */
+export function reportSubmission(): { idFor: (key: string) => string; done: () => void } {
+  let current: { key: string; id: string } | null = null;
+  return {
+    idFor: (key) => { if (!current || current.key !== key) current = { key, id: crypto.randomUUID() }; return current.id; },
+    done: () => { current = null; },
+  };
+}
+
+export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean; reason?: ReportReason; requestId?: string }): Promise<SafetySaved> {
+  const { reason, requestId, ...rest } = options;
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'leave', matchId, ...rest, ...(reason ? { reason } : {}), ...(requestId && (reason || rest.report) ? { reportRequestId: requestId } : {}) }, userId);
   return saved(out ?? {});
 }
 
 /** 후보 단계 차단·신고(숨김과 함께). 서버가 저장한 것만 돌려준다. */
-export async function reportCandidate(userId: string, candidateId: string, options: { block: boolean; reason?: ReportReason }): Promise<SafetySaved> {
-  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'choose', candidateId, choice: 'hide', block: options.block, ...(options.reason ? { reason: options.reason } : {}) }, userId);
+export async function reportCandidate(userId: string, candidateId: string, options: { block: boolean; reason?: ReportReason; requestId?: string }): Promise<SafetySaved> {
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'choose', candidateId, choice: 'hide', block: options.block, ...(options.reason ? { reason: options.reason, ...(options.requestId ? { reportRequestId: options.requestId } : {}) } : {}) }, userId);
   return saved(out ?? {});
 }
 

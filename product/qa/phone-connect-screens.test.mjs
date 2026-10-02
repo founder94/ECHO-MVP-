@@ -115,7 +115,8 @@ test('새 화면 문구에 쓰지 않는 단어가 없다', () => {
 
 // ── v1.2 (대표 2026-09-24 "최종완성하라고"): 연결 동의 · 홈 「내 차례」 · 겹친 말 없는 후보 · 약관 초안 ──
 function loadConnectApi(calls = []) {
-  const out = ts.transpileModule(read('src/doit/lib/connectApi.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  // 2026-10-02 PR #101: connectApi 가 빌드 값(import.meta.env · 영상 동의 판)을 읽는다 — CommonJS 상자에서는 빈 값으로 바꿔 읽는다.
+  const out = ts.transpileModule(read('src/doit/lib/connectApi.ts').replaceAll('import.meta.env', '({})'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
   const supabase = { auth: { updateUser: async (x) => { calls.push(['updateUser', x]); return { error: null }; } } };
   const stubs = { '@/lib/supabase/client': { supabase }, '@/doit/lib/understandingApi': { serverFunctionRequest: async (fn, body) => { calls.push([fn, body]); return calls.reply ?? { ok: true }; } } };

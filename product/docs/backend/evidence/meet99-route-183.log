@@ -1,0 +1,13 @@
+✔ [PR99] 기본 꺼짐: 세 동작 모두 503 MEET_NOT_CONFIGURED · 영상·확인·의사 표 읽기 0 · 쓰기 0 (626.90156ms)
+✔ [PR99] 로그인 없이 401 · 본문의 user_id·allowed·lastStepOpen 은 무시(신원은 getUser 만) (180.956472ms)
+✔ [PR99] 켜져도 2·4·6 마지막 구간 출처가 없으면 허용 0 · 모습 확인·의사 쓰기 0 · 상대 정보 0 (164.703617ms)
+✔ [PR99] meetPolicy: 차단·미처리 신고·동의 철회를 지금 읽는다 · 처리된 신고는 멈추지 않음 (202.12455ms)
+✔ [PR99] 읽기 실패는 열지 않는다: 신고·차단·동의 읽기 실패 → 503 MEET_UNAVAILABLE · 원인 문구·id 0 (482.793842ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1891.687514

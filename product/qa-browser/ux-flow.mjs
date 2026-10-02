@@ -16,7 +16,8 @@ const UID = '11111111-2222-4333-8444-555555555555';
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const EXP = Math.floor(Date.now() / 1000) + 3600 * 24;
 const JWT = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, role: 'authenticated', exp: EXP, aud: 'authenticated' })}.sig`;
-const USER = { id: UID, aud: 'authenticated', role: 'authenticated', email: 'qa-ux@do-it.company', app_metadata: { provider: 'email' }, user_metadata: { doit_connect_consent_version: 'connect-v1' }, created_at: '2026-09-01T00:00:00Z' };
+// 2026-10-02 PR #101: 영상 이용 동의는 별도 칸 — 미리보기 빌드(VITE_VIDEO_CONSENT_VERSION=video-v1)에서 기본 시험 사용자는 동의한 상태, 동의 화면 검사는 st.userMeta 로 따로.
+const USER = { id: UID, aud: 'authenticated', role: 'authenticated', email: 'qa-ux@do-it.company', app_metadata: { provider: 'email' }, user_metadata: { doit_connect_consent_version: 'connect-v1', doit_video_consent_version: 'video-v1', doit_video_consent_at: '2026-10-02T00:00:00Z' }, created_at: '2026-09-01T00:00:00Z' };
 const SESSION = { access_token: JWT, token_type: 'bearer', expires_in: 86400, expires_at: EXP, refresh_token: 'r', user: USER };
 const PREVIEW = { purpose: '깊은 대화부터 시작하고 싶어요', readiness: { answers: 5, answers_needed: 5, turns: 5, uninformative: 0, confirmed: 4, photos: 3, photos_needed: 3, intro: true, phone_verified: false }, eligible: true, waiting: 3, candidates: 1, common: [], note: '' };
 const cand = (id, extra = {}) => ({ id, created_at: '2026-09-30T00:00:00Z', purpose: '깊은 대화부터 시작하고 싶어요', reasons: ['두 분 모두 「깊은 대화부터 시작하고 싶어요」 만남을 원한다고 직접 골랐어요.', '내가 직접 한 말 「천천히 알아가고 싶어요」 — 상대도 비슷한 이야기를 직접 했어요.'], my_choice: null, waiting: false, ...extra });
@@ -47,6 +48,10 @@ function makeServer(init) {
       case 'message': { const m = st.matches[0]; m.messages = [...(m.messages ?? []), { id: String(Date.now()), mine: true, body: body.text, created_at: new Date().toISOString() }]; return { json: { ok: true } }; }
       case 'leave': { st.matches[0].status = 'closed'; return { json: { ok: true, ...(st.oldServer ? {} : { blocked: body.block === true, reported: typeof body.reason === 'string' || body.report === true }) } }; }
       case 'outcome': return { json: { ok: true } };
+      // 2026-10-02 PR #99 마지막 구간: 기본은 지금 실서버와 같은 꺼짐(503). st.meet 가 있으면 그 상태를 계약 모양 그대로(sessionId 는 B 계약 반영 뒤 모양).
+      case 'meet_status': return st.meet ? { json: { ok: true, ...st.meet } } : { status: 503, json: { ok: false, code: 'MEET_NOT_CONFIGURED' } };
+      case 'meet_check': st.meet = { ...st.meet, state: 'need_my_intent', allowed: false }; return { json: { ok: true, ...st.meet, replayed: false } };
+      case 'meet_intent': st.meet = { ...st.meet, state: body.intent === 'yes' ? 'waiting_partner' : 'need_my_intent', allowed: false }; return { json: { ok: true, ...st.meet, replayed: false } };
       default: return { json: { ok: true } };
     }
   };
@@ -55,7 +60,8 @@ function makeServer(init) {
 
 async function newPage(browser, vp, server) {
   const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-  await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify(SESSION)]);
+  const user = { ...USER, user_metadata: { ...(server.st.userMeta ?? USER.user_metadata) } };
+  await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify({ ...SESSION, user })]);
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(); const u = new URL(req.url());
     // 2026-10-01 프로필 FRAME: 서명된 사진 주소(서버가 공개 뒤에만 주는 것)를 이 검사 안에서만 대신 준다 — 사람 사진이 아닌 무늬 그림(가짜 사람 0).
@@ -65,7 +71,11 @@ async function newPage(browser, vp, server) {
       if (server.st.photoFail) return route.fulfill({ status: 404, body: '' });
       return route.fulfill({ status: 200, contentType: 'image/svg+xml', body: QA_PHOTO });
     }
-    if (u.pathname.startsWith('/auth/v1/user')) return route.fulfill({ json: USER });
+    if (u.pathname.startsWith('/auth/v1/user')) {
+      // updateUser(PUT) = 받은 data 를 그대로 합친다(값이 null 이면 지움) · 보낸 본문은 calls 에 남겨 무엇을 바꿨는지 본다.
+      if (req.method() === 'PUT') { const b = JSON.parse(req.postData() ?? '{}'); server.st.calls.push({ fn: 'auth_update', data: b.data }); for (const [k, v] of Object.entries(b.data ?? {})) { if (v === null) delete user.user_metadata[k]; else user.user_metadata[k] = v; } }
+      return route.fulfill({ json: user });
+    }
     if (u.pathname.startsWith('/auth/v1/token')) return route.fulfill({ json: SESSION });
     if (u.pathname.startsWith('/rest/v1/profiles') && req.method() === 'GET') {
       const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
@@ -506,6 +516,101 @@ await run(41, 'Q15 넘침 0(320~430px) · 보기 4개 긴 글자 · 누름 높�
   }
   return `넘침 0 · ${out.join('/')}px`;
 });
+// ── 2026-10-02 PR #99 마지막 구간(격리 미리보기 · 모의 서버 · 실제 영상·저장 PASS 아님) ──
+const MSID = '50000000-0000-4000-8000-00000000000e', MVER = 'ab'.repeat(32);
+const talkMatch = () => [match({ my_answer: '주말 아침', partner_answered: true, revealed: true, partner: PARTNER, messages: [] })];
+await run(42, 'MEET 꺼짐(지금 실서버 503) = 구간 0 · 기존 이야기 화면 그대로', IPHONE, { matches: talkMatch(), userMeta: { doit_connect_consent_version: 'connect-v1' } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  expect(await p.locator('.doit-meet').count() === 0, '꺼짐인데 구간이 보임'); expect(s.st.calls.filter(c => c.action === 'meet_status').length === 1, 'meet_status 한 번만');
+  expect(await p.locator(`#message-${MID}`).count() === 1, '이야기 입력 사라짐'); return '그리지 않음 · 요청 1회';
+});
+for (const [n, state] of [[43, 'unavailable'], [44, 'need_video']]) {
+  await run(n, `MEET ${state}`, IPHONE, { matches: talkMatch(), meet: { state, allowed: false, sessionId: null } }, async (p) => {
+    await go(p); await p.waitForTimeout(400); const c = await p.locator('.doit-meet').count(); const btn = await p.locator('.doit-meet button').filter({ hasNotText: '영상 이용 동의 거두기' }).count();
+    if (state === 'unavailable') expect(c === 0 || (await p.locator('.doit-meet').innerText()).trim() === '영상 이용 동의 거두기', '「지금은 어려움」인데 이유·구간이 보임'); else { expect(c === 1 && btn === 0, `영상 안내만(버튼 ${btn})`); await p.locator('.doit-meet').screenshot({ path: 'uxshots/44-meet-video.png' }); }
+    return state === 'unavailable' ? '그리지 않음' : '안내 문장만 · 버튼 0(영상 연결 전)';
+  });
+}
+await run(45, 'MEET 번호 없는 지금 계약 = 확인 버튼 0', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false } }, async (p) => {
+  await go(p); await p.waitForTimeout(400); expect(await p.locator('.doit-meet button').filter({ hasNotText: '영상 이용 동의 거두기' }).count() === 0, '번호 없이 버튼'); return '버튼 0';
+});
+await run(46, 'MEET 모습 확인 → 만남 의사 → 기다림(번호는 보내기만 · 화면 글자 0)', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/46a-meet-check.png' });
+  await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).click(); await p.waitForTimeout(500);
+  const chk = s.st.calls.find(c => c.action === 'meet_check'); expect(chk && chk.sessionId === MSID && chk.stateVersion === MVER && chk.matchId === MID && !('allowed' in chk) && !('user_id' in chk), `확인 요청 ${JSON.stringify(chk)}`);
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/46b-meet-intent.png' });
+  await p.getByRole('button', { name: '만나 보고 싶어요' }).click(); await p.waitForTimeout(500);
+  const it = s.st.calls.find(c => c.action === 'meet_intent'); expect(it && it.intent === 'yes' && it.sessionId === MSID && it.stateVersion === MVER && /^[0-9a-f-]{36}$/.test(it.requestId), `의사 요청 ${JSON.stringify(it)}`);
+  const t = await text(p); expect(t.includes('상대의 선택을 기다리고 있어요'), '기다림'); expect(!t.includes(MSID), '번호가 화면에 보임');
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/46c-meet-wait.png' }); return '확인 → 의사 → 기다림';
+});
+await run(47, 'MEET 조금 더 생각할게요 = 저장 0 · 다시 보기', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400); await p.getByRole('button', { name: '조금 더 생각할게요' }).click(); await p.waitForTimeout(200);
+  expect(!s.st.calls.some(c => c.action === 'meet_check'), '저장 요청이 감'); await p.getByRole('button', { name: '다시 보기' }).click();
+  expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 1, '다시 보기'); return '저장 0';
+});
+await run(48, 'MEET 둘 다 원함(allowed) = 약속 안내 + 안전 안내 · 보증 표현 0', IPHONE, { matches: talkMatch(), meet: { state: 'allowed', allowed: true, sessionId: MSID, stateVersion: MVER } }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await p.locator('.doit-meet').innerText();
+  expect(t.includes('두 분 모두 만나 보고 싶어 해요') && t.includes('사람이 많은 곳'), '약속·안전 안내'); expect(t.includes('보증하지 않아요') && !/인증된|안전한 사람/.test(t), '보증 표현');
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/48-meet-allowed.png' }); return '약속 안내 · 안전 안내';
+});
+await run(50, 'MEET 그사이 상태가 바뀜(STATE_CHANGED) → 다시 읽어 서버 상태대로 · 저장 0', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER }, fail: { meet_check: { times: 1, status: 409, code: 'STATE_CHANGED', message: '상태가 바뀌었어요' } } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400); s.st.meet = { state: 'unavailable', allowed: false };
+  await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).click(); await p.waitForTimeout(600);
+  expect(s.st.calls.filter(c => c.action === 'meet_status').length === 2, '다시 읽기 없음'); const left = await p.locator('.doit-meet').count() ? (await p.locator('.doit-meet').innerText()).trim() : ''; expect(left === '' || left === '영상 이용 동의 거두기', `바뀐 서버 상태(unavailable)대로 · 이유 0 · ${left}`); expect(s.st.calls.filter(c => c.action === 'meet_check').length === 1, '저절로 다시 보내기 0'); return '다시 읽기 → 이유 없이 닫힘';
+});
+const NO_VIDEO = { doit_connect_consent_version: 'connect-v1' };
+// ── PR #101: 켜졌는데 읽기 실패 = 안내 + 다시 불러오기(숨기지 않음) · 영상 이용 동의(공개 동의와 별도) ──
+await run(51, 'MEET 켜졌는데 읽기 실패 = 「불러오지 못했어요 · 다시 불러오기」 → 다시 읽으면 서버 상태대로', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER }, fail: { meet_status: { times: 1, status: 503, code: 'MEET_READ_FAILED', message: 'x' } } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  const t = await p.locator('.doit-meet').innerText(); expect(t.includes('불러오지 못했어요') && !t.includes('상대 모습을 확인했어요'), `실패 안내 ${t}`);
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/51-meet-error.png' });
+  await p.getByRole('button', { name: '다시 불러오기' }).click(); await p.waitForTimeout(500);
+  expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 1, '다시 읽은 뒤 서버 상태'); return '안내 → 다시 불러오기 → 정상';
+});
+await run(52, 'MEET 영상 이용 동의 없음 → 동의 안내만(버튼 0) · 동의는 영상 칸만 바꿈 · 공개 동의 그대로 · 저절로 확인·의사 보내기 0', IPHONE, { matches: talkMatch(), userMeta: NO_VIDEO, meet: { state: 'unavailable', allowed: false } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  const t = await p.locator('.doit-meet').innerText();
+  expect(t.includes('영상으로 인사해 볼까요') && t.includes('이름·사진 공개 동의와 따로') && t.includes('보증하지 않아요'), `동의 안내 ${t}`);
+  expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 0, '동의 전 확인 버튼');
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/52-meet-consent.png' });
+  s.st.meet = { state: 'need_my_check', allowed: false, sessionId: MSID, stateVersion: MVER }; // 동의 뒤 서버 상태(판이 바뀜)
+  await p.getByRole('button', { name: /영상 이용에 동의할게요/ }).click(); await p.waitForTimeout(600);
+  const upd = s.st.calls.find(c => c.fn === 'auth_update');
+  expect(upd && Object.keys(upd.data).sort().join() === 'doit_video_consent_at,doit_video_consent_version' && upd.data.doit_video_consent_version === 'video-v1', `동의 저장 ${JSON.stringify(upd)}`);
+  expect(await p.getByRole('button', { name: /상대 모습을 확인했어요/ }).count() === 1, '동의 뒤 서버 상태대로');
+  expect(!s.st.calls.some(c => c.action === 'meet_check' || c.action === 'meet_intent'), '저절로 보내기');
+  return '동의 → 영상 칸만 → 다시 읽기';
+});
+await run(53, 'MEET 영상 이용 동의 거두기 = 영상 칸만 지움 · 다시 동의 안내', IPHONE, { matches: talkMatch(), meet: { state: 'need_my_intent', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400); s.st.meet = { state: 'unavailable', allowed: false };
+  await p.getByRole('button', { name: '영상 이용 동의 거두기' }).click(); await p.waitForTimeout(600);
+  const upd = s.st.calls.find(c => c.fn === 'auth_update');
+  expect(upd && upd.data.doit_video_consent_version === null && !('doit_connect_consent_version' in upd.data), `거두기 ${JSON.stringify(upd)}`);
+  const t = await p.locator('.doit-meet').innerText(); expect(t.includes('영상으로 인사해 볼까요'), '다시 동의 안내'); return '거두기 → 안내';
+});
+await run(54, 'MEET 「지금은 어려움」 + 이미 동의 = 이유 0 · 거두기 버튼만', IPHONE, { matches: talkMatch(), meet: { state: 'unavailable', allowed: false } }, async (p) => {
+  await go(p); await p.waitForTimeout(400);
+  const t = (await p.locator('.doit-meet').innerText()).trim(); expect(t === '영상 이용 동의 거두기', `거두기만 ${t}`); return '거두기만';
+});
+await run(55, 'MEET 꺼짐인데 남은 영상 동의 있음 = 거두기 버튼만(다른 단계 0) → 거두면 영상 칸만 지움', IPHONE, { matches: talkMatch() }, async (p, s) => {
+  await go(p); await p.waitForTimeout(400);
+  const t = (await p.locator('.doit-meet').innerText()).trim(); expect(t === '영상 이용 동의 거두기', `꺼짐 거두기만 ${t}`);
+  await p.getByRole('button', { name: '영상 이용 동의 거두기' }).click(); await p.waitForTimeout(600);
+  const upd = s.st.calls.find(c => c.fn === 'auth_update'); expect(upd && upd.data.doit_video_consent_version === null && !('doit_connect_consent_version' in upd.data), `거두기 ${JSON.stringify(upd)}`);
+  expect(await p.locator('.doit-meet').count() === 0, '거둔 뒤 꺼짐 = 숨김'); return '꺼짐에서도 거두기';
+});
+await run(56, 'MEET 불러오기 실패 + 남은 영상 동의 = 실패 안내 + 다시 불러오기 + 거두기', IPHONE, { matches: talkMatch(), fail: { meet_status: { times: 5, status: 503, code: 'MEET_READ_FAILED', message: 'x' } } }, async (p) => {
+  await go(p); await p.waitForTimeout(400); const t = await p.locator('.doit-meet').innerText();
+  expect(t.includes('불러오지 못했어요') && t.includes('다시 불러오기') && t.includes('영상 이용 동의 거두기'), `실패+거두기 ${t}`); return '실패에서도 거두기';
+});
+await run(49, 'MEET 360px 넘침 0', W360, { matches: talkMatch(), meet: { state: 'need_my_intent', allowed: false, sessionId: MSID, stateVersion: MVER } }, async (p) => {
+  await go(p); await p.waitForTimeout(400); expect(await overflow(p) <= 0, '가로 넘침');
+  const low = await p.evaluate(() => [...document.querySelectorAll('.doit-meet button')].filter(b => b.getBoundingClientRect().height < 40).length); expect(low === 0, `작은 버튼 ${low}`);
+  await p.locator('.doit-meet').screenshot({ path: 'uxshots/49-meet-360.png' }); return '넘침 0';
+});
+
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
   await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {});

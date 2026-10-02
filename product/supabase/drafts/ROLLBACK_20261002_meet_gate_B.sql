@@ -1,0 +1,16 @@
+-- ROLLBACK 초안 · 실행 금지 · PENDING_20261002_meet_gate_B.sql 짝
+-- 1단계(기본): MEET_API_ENABLED 값을 지운다 = meet_* 동작 즉시 꺼짐(코드 배포 0) — 표·기록·함수는 그대로.
+-- 1-b: 기존 blocks·doit_matches 에 붙인 트리거 3개는 기존 흐름에 영향이 없지만(살아 있는 약속이 없으면 아무 일 0), 되돌릴 때 먼저 뗀다(아래 첫 세 줄).
+-- 2단계(보존 정책 승인 뒤에만): 아래 삭제. 기록이 있으면 먼저 보존 사본 여부를 대표가 정한다.
+-- begin;
+-- drop trigger if exists doit_meet_plans_on_close on public.doit_matches;
+-- drop trigger if exists doit_meet_plans_on_block on public.blocks;
+-- drop trigger if exists doit_meet_plans_on_intent on public.doit_meet_intents;
+-- drop function if exists public.doit_meet_plans_on_close(), public.doit_meet_plans_on_block(), public.doit_meet_plans_on_intent();
+-- drop function if exists public.doit_create_meet_plan(uuid, uuid, uuid, uuid), public.doit_finalize_video_evidence(jsonb);
+-- drop table if exists public.doit_meet_plans;
+-- drop table if exists public.doit_meet_intents;
+-- drop table if exists public.doit_meet_checks;
+-- drop table if exists public.doit_video_participation;
+-- drop table if exists public.doit_video_sessions;
+-- commit;

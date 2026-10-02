@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
+import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, reportSubmission, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 import PartnerFrame from './PartnerFrame';
+import MeetStep from './MeetStep';
 
 // 내 연결 — 대표가 승인한 연결만 여기 온다(연결 원칙 2026-09-21).
 // 순서: 같은 첫 질문 → 둘 다 답하면 이름·사진·소개·서로의 답이 열림(blind-first) → 이야기.
@@ -87,6 +88,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const [alsoBlock, setAlsoBlock] = useState(true); // 신고와 차단은 별도 — 신고할 때 차단은 고를 수 있다(기본은 함께)
   // ZZARIT: 먼저 고르고 기다리던 사람도, 서버가 서로 골라 열린 연결(via_mutual)이라고 줄 때 이 연결에서 한 번만.
   const [zzarit, setZzarit] = useState(() => match.status === 'open' && match.via_mutual === true && !match.my_answer && claimZzarit(match.id));
+  const submission = useRef(reportSubmission()); // 신고 한 번의 제출 = 요청 id 하나(실패 뒤 같은 내용 재시도는 같은 id)
+  const sending = useRef(reportSubmission()); // 이야기 한 번의 보내기 = 요청 id 하나(같은 글 재시도는 같은 id)
 
   if (match.status === 'closed') {
     return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
@@ -100,7 +103,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
     setError(null);
     try {
       if (kind === 'answer') await sendMatchAnswer(userId, match.id, text);
-      else await sendMatchMessage(userId, match.id, text);
+      else { await sendMatchMessage(userId, match.id, text, sending.current.idFor(`${match.id}:${text}`)); sending.current.done(); }
       setDraft('');
       await onChanged();
     } catch (e) {
@@ -127,7 +130,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
     setBusy(true);
     setError(null);
     try {
-      const out = await leaveMatch(userId, match.id, { block, report, reason });
+      const out = await leaveMatch(userId, match.id, { block, report, reason, requestId: submission.current.idFor(`${match.id}:${block}:${report}:${reason ?? ''}`) });
+      submission.current.done();
       setLeaving(false);
       onSafety(out.reported ? '접수했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : out.blocked ? '차단했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : '그 연결을 끝냈어요. 서로의 이야기는 더 보이지 않아요.');
       await onChanged();
@@ -197,6 +201,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>
       <p className="doit-connect-note">불편하면 언제든 나갈 수 있어요. 아래 「이 연결 그만하기」에서 차단·신고도 할 수 있어요.</p>
+      <MeetStep userId={userId} matchId={match.id} safety={<MeetSafetyList />} />
       <details className="doit-meet-safety doit-meet-safety--peek"><summary>만나기 전 안전 안내</summary><MeetSafetyList /></details>
       <OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} />
     </>}

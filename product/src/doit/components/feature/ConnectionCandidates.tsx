@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
+import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, reportSubmission, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
@@ -67,6 +67,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
     }
   };
 
+  const submission = useRef(reportSubmission()); // 신고 한 번의 제출 = 요청 id 하나(실패 뒤 같은 내용 재시도는 같은 id)
   // 차단·신고(숨김과 함께). 서버가 저장했다고 답한 것만 말한다.
   const protect = async (candidate: MyCandidate, block: boolean, reason?: ReportReason) => {
     if (busy) return;
@@ -74,7 +75,8 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
     setError(null);
     setNotice(null);
     try {
-      const out = await reportCandidate(userId, candidate.id, { block, reason });
+      const out = await reportCandidate(userId, candidate.id, { block, reason, requestId: submission.current.idFor(`${candidate.id}:${block}:${reason ?? ''}`) });
+      submission.current.done();
       setSafety(null);
       setNotice(out.reported ? '접수했어요. 이 후보는 다시 보이지 않고, 다시 추천되지 않아요.'
         : out.blocked ? '차단했어요. 이 후보는 다시 보이지 않고, 다시 추천되지 않아요.'
