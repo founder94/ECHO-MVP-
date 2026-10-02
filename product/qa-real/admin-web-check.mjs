@@ -113,9 +113,10 @@ if (ADMIN_BASE) {
           check(`화면 ${tag}: 나머지 메뉴 11개 오류 0 · 넘침 0`, menuFail.length === 0, menuFail.join(' | '));
           // 로그아웃 뒤: 관리자 자료가 화면·저장소에 남지 않고 다시 열면 로그인 화면
           await p.goto(`${ADMIN_BASE}/`); await settle();
-          await p.getByRole('button', { name: '로그아웃' }).first().click().catch(() => {}); await p.waitForTimeout(1500);
+          const clicked = await p.getByRole('button', { name: '로그아웃' }).first().click({ timeout: 15000 }).then(() => 'ok', (e) => String(e?.name ?? 'error').slice(0, 40)); await p.waitForTimeout(1500);
           await p.goto(`${ADMIN_BASE}/?m=users`); await settle(); await p.waitForTimeout(500);
-          const after = await p.evaluate((k) => ({ url: location.pathname, token: localStorage.getItem(k), rows: document.querySelectorAll('.aw-table tbody tr, .aw-today').length }), `sb-${QA_REF}-auth-token`);
+          const after = await p.evaluate((k) => ({ url: location.pathname, token: localStorage.getItem(k) !== null, rows: document.querySelectorAll('.aw-table tbody tr, .aw-today').length }), `sb-${QA_REF}-auth-token`);
+          after.clicked = clicked; // 토큰은 페이지 안에서 「있다/없다」로만 바꿔 가져온다 — 값은 스크립트·로그에 오지 않는다
           check(`화면 ${tag}: 로그아웃 뒤 자료 0 · 토큰 0 · 로그인 화면`, after.url.endsWith('/login') && !after.token && after.rows === 0, JSON.stringify(after));
           // 참고(판정 아님): 로그아웃(전역) 직후, 이미 발급된 접근 토큰으로 관리자 자료를 부르면 서버가 어떻게 답하는지 — 「모든 기기 즉시 차단」을 검사 없이 말하지 않기 위해.
           const stale = await fn('admin-web', s.access_token, { action: 'overview', period: '30d' });
