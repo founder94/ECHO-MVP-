@@ -361,7 +361,7 @@ async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, Auth
   const out = new Map<string, AuthInfo>();
   for (let page = 1; page <= 20 && out.size < ids.size; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw new Error("auth_list_failed");
+    if (error) throw new StageError("auth_list_failed", dbCodeOf(error as { code?: unknown }));
     const users = data?.users ?? [];
     for (const u of users) {
       if (!ids.has(u.id)) continue;
@@ -376,17 +376,20 @@ async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, Auth
 async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   let q = admin.from("profiles").select("id, nickname, display_name, purpose_id, purpose_label, bio, verification_status");
   q = onlyIds ? q.in("id", onlyIds) : q.not("purpose_id", "is", null);
-  const { data: profiles, error } = await q.limit(LIMITS.POOL_MAX);
-  if (error) throw new Error("profiles_failed");
+  const { data: profiles, error } = await q.order("updated_at", { ascending: false }).order("id").limit(LIMITS.POOL_MAX);
+  if (error) throw new StageError("profiles_failed", dbCodeOf(error));
+  if (!onlyIds && (profiles?.length ?? 0) >= LIMITS.POOL_MAX) logDiag({ pool_capped: LIMITS.POOL_MAX });
   const rows = profiles ?? [];
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
-  const [{ data: photos }, { data: insights }, { data: records }, auth] = await Promise.all([
-    admin.from("profile_photos").select("user_id, slot").in("user_id", ids),
-    admin.from("doit_insights").select("user_id, text, created_at").in("user_id", ids).in("status", ["confirmed", "corrected"]).order("updated_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
-    admin.from("doit_records").select("user_id, text, status, created_at").in("user_id", ids).order("created_at", { ascending: false }).limit(ids.length * LIMITS.CONFIRMED_PER_USER),
+  const [photosR, insightsR, recordsR, auth] = await Promise.all([
+    inChunks<Json>(ids, (part, from, to) => admin.from("profile_photos").select("id, user_id, slot").in("user_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, from, to) => admin.from("doit_insights").select("id, user_id, text, created_at, updated_at").in("user_id", part).in("status", ["confirmed", "corrected"]).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, from, to) => admin.from("doit_records").select("id, user_id, text, status, created_at").in("user_id", part).order("id").range(from, to)),
     authInfoOf(admin, new Set(ids)),
   ]);
+  const photos = must(photosR, "photos_failed"), records = must(recordsR, "records_failed");
+  const insights = [...must(insightsR, "insights_failed")].sort((x, y) => (String(y.updated_at ?? y.created_at ?? "") < String(x.updated_at ?? x.created_at ?? "") ? -1 : String(y.updated_at ?? y.created_at ?? "") > String(x.updated_at ?? x.created_at ?? "") ? 1 : 0));
   // 이번 회차에 남긴 내 답 가운데 관계에 대한 정보가 담긴 답 수(아니라고 한 기록 제외).
   // v15.1 "모르겠어요"·지친 말·불만 등은 원문이 남아도 세지 않는다(대화 진행 칸과 다르다 · doit-understanding connection_preview 와 같은 기준).
   const answers = new Map<string, number>();
@@ -404,10 +407,9 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   // Matching Integration: Agent 확정 상태(있는 사용자만 · 이번 회차) — 대화 원문(turns)은 읽지 않고 profile·phase 만 고른다.
   const agentSrc = MATCH_SOURCE === "agent"
     ? await (async () => {
-      const { data, error: agentError } = await admin.from("doit_request_events").select("user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
-        .eq("action", "agent_session").eq("status", "applied").in("user_id", ids).order("updated_at", { ascending: false }).limit(ids.length * 5); // 최신 줄부터
-      if (agentError) throw new Error("agent_sessions_failed");
-      return agentSources((data ?? []) as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+      const sessions = await inChunks<Json>(ids, (part, from, to) => admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", part).order("id").range(from, to));
+      return agentSources(must(sessions, "agent_sessions_failed") as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
     })()
     : new Map();
   const confirmed = new Map<string, string[]>();
@@ -447,15 +449,79 @@ function commonOf(a: Member, b: Member): { a: string[]; b: string[] } {
   return { a: pick(a.confirmed, b.confirmed), b: pick(b.confirmed, a.confirmed) };
 }
 
+// 2026-10-01 QA 실측: 사람 449명의 id 를 in(…) 한 번에 넣으면 인코딩된 요청 주소가 약 17.5KB 가 되어 agent_session 읽기가 실패했다
+// (my_candidates 500 · 모든 사용자). 449명·17.5KB 는 그날의 재현 조건일 뿐 서비스 한도가 아니다.
+// 규칙: ① id 목록은 IN_CHUNK 명씩 나눈다(100개 UUID ≈ 4KB). ② 각 묶음은 행 수 제한 없이 끝까지 쪽(range)으로 읽는다 —
+//   묶음 전체에 limit 을 걸면 기록이 많은 한 사람이 같은 묶음의 다른 사람 기록을 밀어내고, 서버 max-rows 가 결과를 조용히 자른다.
+//   쪽 크기보다 서버 한도가 작아도 빠지지 않게, 빈 쪽이 올 때까지 읽는다. 쪽 순서는 바뀌지 않는 id 순(2026-10-02) — 갱신 시각 순으로 쪽을
+//   나누면 읽는 사이 갱신된 줄(최신 정정)이 앞쪽으로 옮겨 가 빠질 수 있다. 같은 id 가 두 쪽에 걸리면 한 번만 쓴다. 순서가 필요한 곳은 읽은 뒤 정렬한다.
+//   ③ 동시 요청은 IN_CONCURRENCY 개까지. ④ 한 묶음이라도 실패하거나
+//   쪽 상한(IN_MAX_PAGES)에 닿으면 전체를 실패로 돌려준다 — 일부만 읽은 자료로 추천·차단 판단을 하지 않는다(「후보 0명」으로 숨기지 않음).
+export const IN_CHUNK = 100;
+export const IN_PAGE = 1000;
+export const IN_MAX_PAGES = 50;
+export const IN_CONCURRENCY = 4;
+type Page<T> = PromiseLike<{ data: T[] | null; error: { code?: unknown } | null }>;
+export async function inChunks<T>(ids: readonly string[], run: (part: string[], from: number, to: number) => Page<T>): Promise<{ data: T[]; error: { code?: unknown } | null; requests: number }> {
+  const unique = [...new Set(ids)];
+  const parts: string[][] = [];
+  for (let i = 0; i < unique.length; i += IN_CHUNK) parts.push(unique.slice(i, i + IN_CHUNK));
+  const results: T[][] = parts.map(() => []);
+  let error: { code?: unknown } | null = null;
+  let requests = 0;
+  let next = 0;
+  const seen = new Set<string>();
+  const worker = async () => {
+    while (!error && next < parts.length) {
+      const index = next++;
+      for (let page = 0, from = 0; ; page++) {
+        if (page >= IN_MAX_PAGES) { error = { code: "PAGE_LIMIT" }; return; }
+        requests++;
+        const r = await run(parts[index], from, from + IN_PAGE - 1);
+        if (r.error) { error = r.error; return; }
+        const rows = r.data ?? [];
+        if (!rows.length) break;
+        for (const row of rows) {
+          const id = (row as { id?: unknown }).id;
+          if (typeof id === "string") { if (seen.has(id)) continue; seen.add(id); }
+          results[index].push(row);
+        }
+        from += rows.length;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(IN_CONCURRENCY, parts.length) }, worker));
+  return { data: error ? [] : results.flat(), error, requests };
+}
+
+// 실패 단계 이름(고정 목록)과 DB 오류 코드만 들고 다니는 오류. 원문·요청 주소·id 는 담지 않는다.
+const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "blocks_failed", "auth_list_failed"] as const;
+type Stage = (typeof STAGES)[number];
+class StageError extends Error {
+  constructor(readonly stage: Stage, readonly dbCode: string | null) { super(stage); this.name = "StageError"; }
+}
+const dbCodeOf = (e: { code?: unknown } | null): string | null => (e && typeof e.code === "string" && /^[A-Z0-9_]{2,16}$/.test(e.code) ? e.code : null);
+const must = <T>(r: { data: T[]; error: { code?: unknown } | null }, stage: Stage): T[] => { if (r.error) throw new StageError(stage, dbCodeOf(r.error)); return r.data; };
+const ERROR_TYPES = new Set(["Error", "TypeError", "RangeError", "SyntaxError", "ReferenceError", "AbortError", "TimeoutError", "StageError"]);
+/** 오류 기록 — 허용 목록만: 단계 · 오류 종류 · DB 코드 · 가명 추적 id · 걸린 시간 · 코드 위치(파일:줄). 메시지 원문·URL·id 목록·SQL·토큰 0. */
+export function errorDiag(e: unknown, startedAt: number): Record<string, unknown> {
+  // instanceof Error 대신 모양으로 본다(다른 실행 영역에서 만든 오류도 종류를 잃지 않게).
+  const err = e && typeof e === "object" && typeof (e as Error).name === "string" ? (e as Error) : null;
+  const stage = e instanceof StageError ? e.stage : "unexpected";
+  const type = err && ERROR_TYPES.has(err.name) ? err.name : "Other";
+  const frame = (err?.stack ?? "").match(/doit-connect\/(index|agentSource)\.ts:\d+:\d+/)?.[0]?.replace("doit-connect/", "") ?? null;
+  return { evt_error: stage, type, db_code: e instanceof StageError ? e.dbCode : null, trace: crypto.randomUUID().slice(0, 8), ms: Date.now() - startedAt, at: frame };
+}
+
 // 차단은 어느 한쪽만 해도 둘은 다시 이어지지 않는다.
 async function blockedPairs(admin: Db, ids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (!ids.length) return out;
-  const [{ data: byMe }, { data: byOther }] = await Promise.all([
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocker_id", ids),
-    admin.from("blocks").select("blocker_id, blocked_user_id").in("blocked_user_id", ids),
+  const [byMe, byOther] = await Promise.all([
+    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocker_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocked_user_id", part).order("id").range(from, to)),
   ]);
-  for (const r of [...(byMe ?? []), ...(byOther ?? [])]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
+  for (const r of [...must(byMe, "blocks_failed"), ...must(byOther, "blocks_failed")]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
   return out;
 }
 
@@ -645,6 +711,7 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const startedAt = Date.now();
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail(CODES.BAD_REQUEST, "잘못된 요청이에요.", 405, origin);
@@ -1026,7 +1093,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     return fail(CODES.BAD_REQUEST, "알 수 없는 요청이에요.", 400, origin);
-  } catch {
+  } catch (e) {
+    logDiag(errorDiag(e, startedAt));
     return fail(CODES.ERROR, "서버 오류가 발생했어요.", 500, origin);
   }
 });
