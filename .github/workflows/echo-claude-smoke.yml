@@ -312,13 +312,13 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      CONNECT_SHA: f166474ce9c76f9c13a12584a46beb1712fb3f27
+      CONNECT_SHA: 5bda00beef832ff0e5ee4d28504535ba812d7818
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: f166474ce9c76f9c13a12584a46beb1712fb3f27
+          ref: 5bda00beef832ff0e5ee4d28504535ba812d7818
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · 3파일만)
         env:
@@ -337,9 +337,14 @@ jobs:
           mkdir -p stage/supabase/functions/doit-connect stage/supabase/functions/doit-agent
           cp $F/doit-connect/index.ts $F/doit-connect/agentSource.ts stage/supabase/functions/doit-connect/
           # PR #99(2026-10-02): index.ts 가 만남 관문 모듈을 쓰면 그 두 파일도 함께 올린다(기본 꺼짐 · MEET_API_ENABLED 는 건드리지 않음).
-          if grep -q 'from "./meetApi.ts"' $F/doit-connect/index.ts; then
+          # PR #100: index.ts → meetRuntime.ts → meetApi.ts → meetGate.ts. 가져오는 파일만 함께(영상 콜백 meetVideoEvidence.ts 는 라우트 연결 전이라 제외).
+          if grep -qE 'from "\./(meetApi|meetRuntime)\.ts"' $F/doit-connect/index.ts; then
             grep -q 'MEET_NOT_CONFIGURED' $F/doit-connect/meetApi.ts || { echo "FAIL: 기본 꺼짐 표식 없음"; exit 1; }
             cp $F/doit-connect/meetApi.ts $F/doit-connect/meetGate.ts stage/supabase/functions/doit-connect/
+            if grep -q 'from "./meetRuntime.ts"' $F/doit-connect/index.ts; then cp $F/doit-connect/meetRuntime.ts stage/supabase/functions/doit-connect/; fi
+            for m in $(grep -ohE 'from "\./[A-Za-z]+\.ts"' stage/supabase/functions/doit-connect/*.ts | sed -E 's/from "\.\/(.*)"/\1/' | sort -u); do
+              [ -f stage/supabase/functions/doit-connect/$m ] || { echo "FAIL: 배포 묶음에 $m 빠짐"; exit 1; }
+            done
           fi
           cp $F/doit-agent/agent.ts stage/supabase/functions/doit-agent/
           printf 'project_id = "%s"\n\n[functions.doit-connect]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml

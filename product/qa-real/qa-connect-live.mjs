@@ -47,6 +47,11 @@ for (const p of [{ action: 'meet_status', matchId: MID }, { action: 'meet_check'
   const r = await call(jwt, p);
   check(`${p.action} 기본 꺼짐 = 503 MEET_NOT_CONFIGURED · 다른 값 0`, r.status === 503 && r.data?.code === 'MEET_NOT_CONFIGURED' && Object.keys(r.data ?? {}).sort().join() === 'code,ok', `status=${r.status} code=${r.data?.code}`);
 }
+// PR #100: 약속 시작도 꺼짐 = 503 · 관리자 집계는 일반 사용자 403(역할 확인이 먼저 · 집계 숫자 0)
+const plan = await call(jwt, { action: 'meet_plan', matchId: MID, requestId: RID, stateVersion: 'x' });
+check('meet_plan 기본 꺼짐 = 503 MEET_NOT_CONFIGURED', plan.status === 503 && plan.data?.code === 'MEET_NOT_CONFIGURED', `status=${plan.status} code=${plan.data?.code}`);
+const sum = await call(jwt, { action: 'admin_meet_summary', matchId: MID });
+check('admin_meet_summary 일반 사용자 = 403 · 집계 0', sum.status === 403 && !sum.data?.video && !sum.data?.planAgreement, `status=${sum.status} code=${sum.data?.code}`);
 const unk = await call(jwt, { action: 'nope' });
 check('알 수 없는 요청 = 400', unk.status === 400, `status=${unk.status}`);
 
