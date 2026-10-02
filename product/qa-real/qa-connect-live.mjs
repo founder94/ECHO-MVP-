@@ -39,6 +39,14 @@ check('outcome 없는 연결 = 404(쓰기 0)', oc.status === 404, `status=${oc.s
 const ocBad = await call(jwt, { action: 'outcome', matchId: randomUUID(), met: 'maybe' });
 check('outcome 허용 밖 값 = 400', ocBad.status === 400, `status=${ocBad.status}`);
 for (const a of ['admin_run_matching', 'admin_candidates', 'admin_members']) { const r = await call(jwt, { action: a }); check(`${a} 일반 사용자 = 403 · 데이터 0`, r.status === 403 && !r.data?.candidates && !r.data?.members, `status=${r.status}`); }
+// PR #99(2026-10-02): 영상 → 모습 확인 → 만남 의사 · 기본 꺼짐 — 표가 없는 지금은 503 MEET_NOT_CONFIGURED 여야 한다(켜진 채 배포되면 FAIL).
+const MID = '70000000-0000-4000-8000-000000000071', SID = '50000000-0000-4000-8000-00000000000e', RID = '60000000-0000-4000-8000-00000000000f';
+const meetAnon = await call(null, { action: 'meet_status', matchId: MID });
+check('meet_status 로그인 없음 = 401', meetAnon.status === 401, `status=${meetAnon.status}`);
+for (const p of [{ action: 'meet_status', matchId: MID }, { action: 'meet_check', matchId: MID, sessionId: SID }, { action: 'meet_intent', matchId: MID, sessionId: SID, intent: 'yes', requestId: RID }]) {
+  const r = await call(jwt, p);
+  check(`${p.action} 기본 꺼짐 = 503 MEET_NOT_CONFIGURED · 다른 값 0`, r.status === 503 && r.data?.code === 'MEET_NOT_CONFIGURED' && Object.keys(r.data ?? {}).sort().join() === 'code,ok', `status=${r.status} code=${r.data?.code}`);
+}
 const unk = await call(jwt, { action: 'nope' });
 check('알 수 없는 요청 = 400', unk.status === 400, `status=${unk.status}`);
 

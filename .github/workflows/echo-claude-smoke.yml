@@ -312,13 +312,13 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      CONNECT_SHA: 3388ec9f9917fcf02ab2deaa3c1ca32789df8b38
+      CONNECT_SHA: 183b2fb59fcd1c93da6fc8c4cade7ee7789160ce
       QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: 3388ec9f9917fcf02ab2deaa3c1ca32789df8b38
+          ref: 183b2fb59fcd1c93da6fc8c4cade7ee7789160ce
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · 3파일만)
         env:
@@ -336,6 +336,11 @@ jobs:
           grep -q 'from "../doit-agent/agent.ts"' $F/doit-connect/agentSource.ts || { echo "FAIL: 공통 계약 import 없음"; exit 1; }
           mkdir -p stage/supabase/functions/doit-connect stage/supabase/functions/doit-agent
           cp $F/doit-connect/index.ts $F/doit-connect/agentSource.ts stage/supabase/functions/doit-connect/
+          # PR #99(2026-10-02): index.ts 가 만남 관문 모듈을 쓰면 그 두 파일도 함께 올린다(기본 꺼짐 · MEET_API_ENABLED 는 건드리지 않음).
+          if grep -q 'from "./meetApi.ts"' $F/doit-connect/index.ts; then
+            grep -q 'MEET_NOT_CONFIGURED' $F/doit-connect/meetApi.ts || { echo "FAIL: 기본 꺼짐 표식 없음"; exit 1; }
+            cp $F/doit-connect/meetApi.ts $F/doit-connect/meetGate.ts stage/supabase/functions/doit-connect/
+          fi
           cp $F/doit-agent/agent.ts stage/supabase/functions/doit-agent/
           printf 'project_id = "%s"\n\n[functions.doit-connect]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
           ( cd stage && find supabase/functions -type f -exec sha256sum {} \; | sort -k2 )
