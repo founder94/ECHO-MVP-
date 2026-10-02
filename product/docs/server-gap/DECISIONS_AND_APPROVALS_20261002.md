@@ -300,3 +300,21 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 - PR #98 댓글 5950723423: 3388ec9 기준 원래 재현 2/2 PASS(종료 0) · 영향 검사 6/6 PASS(종료 0) · QA v54 포함 3모듈과 일치 · 22a9c59 는 문서만.
 - 판정: PR #98 두 결함 **CLOSED**(실제 수정 handler + 모의 DB 기준). 공유 서버 추가 수정·배포 0.
 - 별도 미검증으로 유지: 실계정 동의 철회 경쟁 상황 · 이미 전달된 사진/서명 주소·다운로드 회수 · 실제 C · 실제 제3자 자료.
+
+## 15. PR #99 연결(영상 → 각자 모습 확인 → 각자 만남 의사 · 2026-10-02)
+### 15.1 작업 기록
+| ID | 담당 | 기준 SHA | 파일 | 완료 조건 | 결과 | 다음 담당·행동 |
+|---|---|---|---|---|---|---|
+| PR99-API | Codex | 8f2a7c4 | doit-connect/meetApi.ts · qa-independent/meet-api.test.mjs | 기존 meetGate 재사용 · 기본 꺼짐 · 모의 14/14 | 받음(0427e31 로 그대로 합침 · 내용 수정 0) · 14/14 | Codex: 상태 응답에 공동 세션 id 추가 여부 결정(15.3) |
+| PR99-INT | Claude | 0427e31 | doit-connect/index.ts · qa/connect-server.test.mjs | 기존 서버 경로 연결 · 신원 = getUser 만 · 정책 읽기 실패 = 안 열림 · 기본 꺼짐 실서버 503 | 이 절의 커밋 · 아래 검사 | Codex: 통합 SHA 독립 검증 |
+| PR99-DEPLOY | Claude | p0dep 워크플로 | .github/workflows/echo-claude-smoke.yml · qa-real/qa-connect-live.mjs | QA 함수에 두 모듈 함께 올림 · 실서버 meet 3동작 503 MEET_NOT_CONFIGURED | 15.2 참조 | — |
+### 15.2 연결한 것
+- 경로: `doit-connect` 의 `meet_status` · `meet_check` · `meet_intent`(새 함수·평행 API 0). 신원은 `getUser()` 결과만 — 본문의 user_id·allowed·lastStepOpen 은 무시.
+- 켜는 조건: 서버 환경값 `MEET_API_ENABLED` 가 글자 그대로 `true` 일 때만. 지금 QA·PROD 모두 설정 0 → 표 읽기 0 · 503 MEET_NOT_CONFIGURED.
+- 서버 정책(meetPolicy · 지금 읽음): 차단(blocks 양방향) · 두 사람 사이 미처리 신고(resolved/closed 아닌 user_reports) = 멈춤 · 두 사람의 현재 연결 동의 판 · **2·4·6 마지막 구간 = 닫힘 고정**(서버 출처가 아직 없음). 읽기 실패 = 503 MEET_UNAVAILABLE(원인 문구·id 0).
+- 따라서 켜도 지금은 누구에게도 `allowed` 가 나오지 않는다(검사로 고정). 관리자·KEY·등급·화면 값으로 우회하는 길 0.
+### 15.3 아직 막힌 것(사실)
+- 표 4개(doit_video_sessions · doit_video_participation · doit_meet_checks · doit_meet_intents)는 승인 묶음 B 전 — 없음. 초안만(PENDING/ROLLBACK · 실행 0).
+- 2·4·6 마지막 구간의 서버 출처가 없음 → lastStepOpen 은 닫힘.
+- 계약 틈: `meet_status` 가 공동 세션 id 를 돌려주지 않아 화면이 `meet_check`·`meet_intent` 를 부를 수 없다(meetApi.ts 는 Codex 소유 → 전달 필요 작업 1건).
+- 사용자 화면: 지금 서버는 모두에게 503 이라 보여 줄 실제 상태가 없고 버튼은 위 계약 틈으로 못 만든다 → 화면은 넣지 않음(가짜 0 · 연결 안 된 기능 표시 0). 표·출처·계약이 생기면 연결 화면 안 한 줄 + 버튼 2개로 붙인다.

@@ -49,6 +49,7 @@
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { agentSources, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
+import { createMeetApi, type MeetPolicyReader } from "./meetApi.ts"; // 영상 → 각자 확인 → 만남(PR #99 · 기본 꺼짐 · 승인 묶음 B 전 표 0)
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
 
@@ -60,6 +61,7 @@ const ACTIONS = new Set([
   "my_matches", "my_turns", "answer", "message", "leave",
   "admin_candidates", "admin_matches", "admin_decide", "admin_members",
   "my_candidates", "choose", "outcome", "admin_run_matching",
+  "meet_status", "meet_check", "meet_intent",
 ]);
 
 const LIMITS = {
@@ -820,6 +822,26 @@ async function outcomesOf(admin: Db, matchIds: string[], userId?: string): Promi
   return (data ?? []) as Json[];
 }
 
+/**
+ * 만남 관문(meetGate)에 넣는 서버 쪽 현재 상태(PR #99 meetApi 의 MeetPolicyReader). 화면이 보낸 값은 하나도 쓰지 않는다.
+ * - blocked: 둘 중 누구든 차단(blocks · 지금 읽음).
+ * - safetyHold: 두 사람 사이에 아직 처리되지 않은 신고가 있으면 멈춤(user_reports · resolved/closed 가 아닌 것).
+ * - consent: 두 사람의 현재 연결 공개 동의 판(Auth 메타데이터 · 지금 읽음).
+ * - lastStepOpen: 2·4·6 의 마지막 확인 구간을 서버가 판정할 출처가 아직 없다 → 닫힘(안전 쪽). 출처가 정해지면 여기만 바꾼다.
+ * 읽기 실패는 meetApi 가 열지 않는 쪽(MEET_UNAVAILABLE)으로 처리한다.
+ */
+export function meetPolicy(admin: Db): MeetPolicyReader {
+  return async (_matchId, a, b) => {
+    const blocked = (await blockedPairs(admin, [a])).has(pairKey(a, b));
+    const { data: reports, error } = await admin.from("user_reports").select("reporter_id, target_user_id, status").in("reporter_id", [a, b]).in("target_user_id", [a, b]);
+    if (error) throw new StageError("blocks_failed", dbCodeOf(error));
+    const safetyHold = (reports ?? []).some((r) => r.reporter_id !== r.target_user_id && r.status !== "resolved" && r.status !== "closed");
+    const auth = await authInfoOf(admin, new Set([a, b]));
+    const version = (u: string) => (auth.get(u)?.consented ? CONNECT_CONSENT_VERSION : null);
+    return { blocked, safetyHold, consent: { required: CONNECT_CONSENT_VERSION, a: version(a), b: version(b) }, lastStepOpen: false };
+  };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   const startedAt = Date.now();
   const origin = req.headers.get("origin");
@@ -849,6 +871,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return fail(CODES.BAD_REQUEST, "알 수 없는 요청이에요.", 400, origin);
+
+    // 영상 → 각자 모습 확인 → 각자 만남 의사(PR #99). 기본 꺼짐: MEET_API_ENABLED=true 가 아니면 표를 읽지 않고 MEET_NOT_CONFIGURED(503).
+    // 신원은 위 getUser() 결과만 쓴다(본문의 user_id·allowed·lastStepOpen 은 무시).
+    if (action === "meet_status" || action === "meet_check" || action === "meet_intent") {
+      const meet = createMeetApi(admin, meetPolicy(admin), { enabled: Deno.env.get("MEET_API_ENABLED") === "true" });
+      const r = await meet.handle(action, body, userId);
+      logDiag({ action, status: r.status, code: (r.body as { code?: string }).code ?? null });
+      return json(r.body, r.status, origin);
+    }
 
     // ① 문자 인증 결과를 프로필에 맞춘다. Auth 서버가 확인한 값만 믿는다. 이미 verified 면 되돌리지 않는다.
     if (action === "phone_sync") {

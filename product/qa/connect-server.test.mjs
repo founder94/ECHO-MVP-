@@ -1417,3 +1417,71 @@ test('[PR98] 조회 실패 ≠ 0개: my_matches · my_turns 연결 읽기 실패
   s2.failOn = (t) => (t === 'doit_match_messages' ? { code: '57014' } : null);
   assert.equal((await call2(ID.a, { action: 'my_matches' })).status, 500, '공개된 연결의 이야기 읽기 실패도 숨기지 않음');
 });
+
+// ── PR #99 연결: 영상 → 각자 모습 확인 → 각자 만남 의사 (meetApi 는 Codex 소유 · 여기서는 실제 index 길만 본다) ──
+const MEET_TABLES = ['doit_video_sessions', 'doit_video_participation', 'doit_meet_checks', 'doit_meet_intents'];
+const SID = '50000000-0000-4000-8000-00000000000e';
+const RID = '60000000-0000-4000-8000-00000000000f';
+function meetWorld(env = {}) {
+  const s = world({ env });
+  const mid = '70000000-0000-4000-8000-000000000071';
+  s.tables.doit_matches.push({ id: mid, user_a: ID.a, user_b: ID.b, status: 'approved', created_at: '2026-10-01T00:00:00Z' });
+  s.tables.doit_video_sessions = [{ id: SID, match_id: mid, ended_at: '2026-10-02T00:00:00Z', signature_verified: true }];
+  s.tables.doit_video_participation = [ID.a, ID.b].map((user_id) => ({ session_id: SID, user_id, joined_at: '2026-10-01T23:59:00Z', left_at: '2026-10-02T00:00:00Z', camera_on_seconds: 10 }));
+  s.tables.doit_meet_checks = []; s.tables.doit_meet_intents = [];
+  const touched = []; s.beforeRead = (t) => touched.push(t);
+  return { s, mid, touched, call: loadServer(s) };
+}
+
+test('[PR99] 기본 꺼짐: 세 동작 모두 503 MEET_NOT_CONFIGURED · 영상·확인·의사 표 읽기 0 · 쓰기 0', async () => {
+  const { s, mid, touched, call } = meetWorld();
+  for (const payload of [{ action: 'meet_status', matchId: mid }, { action: 'meet_check', matchId: mid, sessionId: SID }, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID }]) {
+    const r = await call(ID.a, payload);
+    assert.equal(r.status, 503); assert.deepEqual(r.body, { ok: false, code: 'MEET_NOT_CONFIGURED' });
+  }
+  assert.equal(touched.filter((t) => MEET_TABLES.includes(t) || t === 'doit_matches').length, 0);
+  assert.equal(s.writes.length, 0);
+  // 「true」 글자 그대로가 아니면 켜지지 않는다
+  const odd = meetWorld({ MEET_API_ENABLED: '1' });
+  assert.equal((await odd.call(ID.a, { action: 'meet_status', matchId: odd.mid })).body.code, 'MEET_NOT_CONFIGURED');
+});
+
+test('[PR99] 로그인 없이 401 · 본문의 user_id·allowed·lastStepOpen 은 무시(신원은 getUser 만)', async () => {
+  const { mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
+  assert.equal((await call(ID.a, { action: 'meet_status', matchId: mid }, { auth: false })).status, 401);
+  const r = await call(ID.c, { action: 'meet_status', matchId: mid, user_id: ID.a, userId: ID.a, allowed: true, lastStepOpen: true });
+  assert.equal(r.status, 404); assert.deepEqual(r.body, { ok: false, code: 'NOT_FOUND' });
+});
+
+test('[PR99] 켜져도 2·4·6 마지막 구간 출처가 없으면 허용 0 · 모습 확인·의사 쓰기 0 · 상대 정보 0', async () => {
+  const { s, mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
+  const st = await call(ID.a, { action: 'meet_status', matchId: mid });
+  assert.equal(st.status, 200); assert.deepEqual(st.body, { ok: true, state: 'unavailable', allowed: false });
+  assert.ok(!JSON.stringify(st.body).includes(ID.b));
+  assert.equal((await call(ID.a, { action: 'meet_check', matchId: mid, sessionId: SID })).body.code, 'MEET_UNAVAILABLE');
+  assert.equal((await call(ID.a, { action: 'meet_intent', matchId: mid, sessionId: SID, intent: 'yes', requestId: RID })).body.code, 'MEET_UNAVAILABLE');
+  assert.equal(s.tables.doit_meet_checks.length + s.tables.doit_meet_intents.length, 0);
+});
+
+test('[PR99] meetPolicy: 차단·미처리 신고·동의 철회를 지금 읽는다 · 처리된 신고는 멈추지 않음', async () => {
+  const s = world(); const call = loadServer(s); const policy = call.exports.meetPolicy(fakeDb(s));
+  assert.deepEqual(JSON.parse(JSON.stringify(await policy('m', ID.a, ID.b))), { blocked: false, safetyHold: false, consent: { required: 'connect-v1', a: 'connect-v1', b: 'connect-v1' }, lastStepOpen: false });
+  s.tables.user_reports.push({ id: 'r1', reporter_id: ID.b, target_user_id: ID.a, status: 'resolved' });
+  assert.equal((await policy('m', ID.a, ID.b)).safetyHold, false);
+  s.tables.user_reports.push({ id: 'r2', reporter_id: ID.b, target_user_id: ID.a, status: 'pending' });
+  assert.equal((await policy('m', ID.a, ID.b)).safetyHold, true);
+  s.tables.blocks.push({ id: 'b1', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'connection' });
+  assert.equal((await policy('m', ID.a, ID.b)).blocked, true);
+  s.users[ID.b].user_metadata = {};
+  assert.equal((await policy('m', ID.a, ID.b)).consent.b, null);
+});
+
+test('[PR99] 읽기 실패는 열지 않는다: 신고·차단·동의 읽기 실패 → 503 MEET_UNAVAILABLE · 원인 문구·id 0', async () => {
+  for (const arm of [(s) => { s.failOn = (t) => (t === 'user_reports' ? { code: '08006', message: 'secret detail' } : null); }, (s) => { s.failOn = (t) => (t === 'blocks' ? { code: '08006' } : null); }, (s) => { s.authFail = () => true; }]) {
+    const { s, mid, call } = meetWorld({ MEET_API_ENABLED: 'true' });
+    arm(s);
+    const r = await call(ID.a, { action: 'meet_status', matchId: mid });
+    assert.equal(r.status, 503); assert.deepEqual(r.body, { ok: false, code: 'MEET_UNAVAILABLE' });
+    assert.ok(!s.logs.join('\n').includes('secret detail'));
+  }
+});
