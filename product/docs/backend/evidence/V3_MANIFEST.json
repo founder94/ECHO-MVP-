@@ -1,0 +1,51 @@
+{
+  "qa_project": "mutniujeiyujhkobadkd",
+  "function": "doit-connect-cto-qa",
+  "version": 3,
+  "verify_jwt": true,
+  "package_sha256": "c89ffc2b8062da59815c18975505496eb368e861faa74e1fa4417562429ed9c8",
+  "source_base_preservation": "ce8590e29ed9e82c65f26e428d27bd74a893d008",
+  "source_commit_with_overlay": "1e10dfb198b29b2b9b8f52a86c96a19bf3356fa0",
+  "submission_base": "1da42948348dc674e6863563351ec65d7598c52c",
+  "actual_start_utc": "2026-10-02T06:34:18Z",
+  "actual_end_utc": "2026-10-02T06:36:03Z",
+  "live_checks_passed": 47,
+  "live_exit_code": 0,
+  "files": [
+    {
+      "path": "functions/doit-connect/index.ts",
+      "sha256": "923849d4364a8ce61425ae44831271b7165455c968f2ee41e5a7ae30daadf55e"
+    },
+    {
+      "path": "functions/doit-connect/fixtureScope.ts",
+      "sha256": "1ee1b4dc242d0f1e467b88841e5e7d68cab25bd6169e1da17a21bd16ee7cfd57"
+    },
+    {
+      "path": "functions/doit-connect/agentSource.ts",
+      "sha256": "3c8bb7a1c59c215dd7f0ab070b601109d5b1e50d371c51c79c469ed21f598729"
+    },
+    {
+      "path": "functions/doit-connect/lifecycle.ts",
+      "sha256": "c3b1be50e5fa065490b15d853577b16a8116833c4554e320c793aa485b8c0ee4"
+    },
+    {
+      "path": "functions/doit-agent/agent.ts",
+      "sha256": "11ccc33ec737967db4af1803defdca727bd32bb437c28c2b44bb1bb526500880"
+    }
+  ],
+  "all_deployed_files_compared_exact": true,
+  "deployed_source_is_not_shared_qa_source": true,
+  "submission_differences": [
+    "dependency packaging follows only imported optional modules; no old lifecycle imported into shared code",
+    "mock query range support added for current Claude pagination"
+  ],
+  "submission_full_summary": {
+    "files": 87,
+    "pass": 87,
+    "fail": 0,
+    "exit_code": null
+  },
+  "actual_C": "APPROVAL_PENDING",
+  "actual_third_party_resources": "HOLD",
+  "shared_integration": "NOT_DEPLOYED"
+}

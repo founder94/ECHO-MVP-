@@ -1,0 +1,14 @@
+✔ isolated HTTP contract: C=403/non-ok/code, no IDs; A spoofed body does not authorize C (769.605392ms)
+✔ isolated admin requests always HTTP403 without global admin reads (147.257967ms)
+✔ allowed actor cannot fetch outside connection or write answer/message/outcome/report (158.281313ms)
+✔ allowed actor cannot choose outside candidate (153.400046ms)
+✔ fixture service client scopes records, pair reads and assets; global auth scan is replaced (0.932809ms)
+✔ isolation build fails closed when source markers change (0.223337ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1560.803991

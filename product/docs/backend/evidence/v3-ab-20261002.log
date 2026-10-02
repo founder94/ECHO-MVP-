@@ -1,0 +1,50 @@
+PASS a current login/subject
+PASS a verified session
+PASS b current login/subject
+PASS b verified session
+PASS unauthenticated denied
+{"account":"a","http":200,"code":null,"ok":true,"eligible":true,"missing":[]}
+PASS a confirmed eligibility
+{"account":"b","http":200,"code":null,"ok":true,"eligible":true,"missing":[]}
+PASS b confirmed eligibility
+PASS admin_matches denied
+PASS admin_members denied
+PASS admin_candidates denied
+PASS admin_decide denied
+PASS admin_run_matching denied
+PASS answer unknown target denied
+PASS message unknown target denied
+PASS outcome unknown target denied
+PASS leave unknown target denied
+PASS isolated candidates exactly 1
+PASS candidate privacy
+PASS A YES waits
+PASS one-sided connection 0
+PASS B YES mutual
+PASS duplicate YES same connection
+PASS same first question
+PASS server 72H room and blind-first
+PASS no-store response
+PASS server ZZARIT exactly once
+PASS refresh ZZARIT ineligible
+PASS early chat denied
+PASS a answer
+PASS a answer retry
+PASS b answer
+PASS b answer retry
+PASS full reveal after both answers/consent
+PASS a concurrent chat retry
+PASS a requestId content conflict
+PASS b concurrent chat retry
+PASS b requestId content conflict
+PASS requestId actor conflict
+PASS bidirectional chat count 2
+PASS concurrent outcome
+PASS new login session
+PASS refresh state restored
+PASS block/report saved
+PASS chat after block denied
+PASS closed no partner
+PASS duplicate YES cannot reopen
+PASS no blocked re-proposal
+QA LIVE 47 PASS / 0 FAIL
