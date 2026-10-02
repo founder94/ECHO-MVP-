@@ -318,3 +318,9 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 - 2·4·6 마지막 구간의 서버 출처가 없음 → lastStepOpen 은 닫힘.
 - 계약 틈: `meet_status` 가 공동 세션 id 를 돌려주지 않아 화면이 `meet_check`·`meet_intent` 를 부를 수 없다(meetApi.ts 는 Codex 소유 → 전달 필요 작업 1건).
 - 사용자 화면: 지금 서버는 모두에게 503 이라 보여 줄 실제 상태가 없고 버튼은 위 계약 틈으로 못 만든다 → 화면은 넣지 않음(가짜 0 · 연결 안 된 기능 표시 0). 표·출처·계약이 생기면 연결 화면 안 한 줄 + 버튼 2개로 붙인다.
+### 15.4 검사(실제 실행한 것만)
+- 로컬: 서버 96/96(새 [PR99] 5개 포함) · 전체 1000 통과/0 실패(981 + 5 + Codex meet-api 14) · type-check 0 · lint 0.
+- QA 배포: doit-connect 183b2fb(index + agentSource + meetApi + meetGate) · run 37001792641 성공 · QA ref 만 · MEET_API_ENABLED 설정 0.
+- 실서버 계약 19/19: meet 3동작 = 503 MEET_NOT_CONFIGURED(응답 키 ok·code 만) · 로그인 없음 401 · 기존 15개 그대로.
+- 두 계정 실제 안전 E2E 96/96(run muqw2tm4 · 새 버전) — 기존 연결 흐름 영향 0.
+- 하지 않은 것: 켜진 상태의 실서버 검사(표 없음 · 승인 묶음 B 전) · 실기기 · 영상 공급자.
