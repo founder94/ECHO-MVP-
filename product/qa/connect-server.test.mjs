@@ -18,16 +18,19 @@ const ID = {
 const NICK_B = '바다고양이';
 const BIO_B = '주말엔 산책을 해요';
 
+const fakeDbFor = (state) => fakeDb(state);
 function fakeDb(state) {
   const table = (name) => (state.tables[name] ??= []);
   const chain = (name) => {
+    for (const r of table(name)) if (r.id === undefined) r.id = globalThis.crypto.randomUUID(); // 실제 표는 모두 id 가 있다(id 순 커서)
     let rows = table(name).slice();
     let op = 'select', patch = null;
     const keys = []; let window = null;
     const sorted = () => { if (keys.length) rows.sort((x, y) => { for (const [col, dir] of keys) { if (x[col] === y[col]) continue; return (x[col] < y[col] ? -1 : 1) * dir; } return 0; }); return rows; };
     const c = {
       select: () => c, order: (col, o) => { keys.push([col, o?.ascending === false ? -1 : 1]); return c; },
-      limit: (n) => { rows = sorted().slice(0, n); keys.length = 0; return c; },
+      limit: (n) => { (state.ranges ??= []).push([name, 'limit', n]); rows = sorted().slice(0, Math.min(n, state.maxRows ?? Infinity)); keys.length = 0; return c; },
+      gt: (col, v) => { rows = rows.filter((r) => r[col] > v); return c; },
       range: (from, to) => { (state.ranges ??= []).push([name, from, to]); window = [from, Math.min(to, from + (state.maxRows ?? 1000) - 1)]; return c; },
       eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
       in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
@@ -950,7 +953,7 @@ test('규모 · 경계값: 0·1·99·100·101·449·460·5000명 — 묶음 ≤1
   assert.equal(IN_CHUNK, 100);
   for (const n of [0, 1, 99, 100, 101, 449, 460, 5000]) {
     const ids = many(n); const seen = [];
-    const r = await inChunks([...ids, ...ids.slice(0, 3)], (part, from) => { if (from === 0) seen.push(part.length); return Promise.resolve({ data: from === 0 ? part.map((id) => ({ id })) : [], error: null }); });
+    const r = await inChunks([...ids, ...ids.slice(0, 3)], (part, after) => { if (after === null) seen.push(part.length); return Promise.resolve({ data: after === null ? part.map((id) => ({ id })) : [], error: null }); });
     assert.equal(r.error, null);
     assert.equal(seen.length, Math.ceil(n / 100), `n=${n} 묶음 수`);
     assert.ok(seen.every((k) => k <= 100), `n=${n} 묶음 크기`);
@@ -1015,11 +1018,17 @@ test('규모 · 일부 묶음 실패 = 전체 실패(500 · 「후보 0명」으
 test('규모 · 동시 요청 ≤4 · 쪽 상한에 닿으면 실패(무한 반복 0)', async () => {
   const { inChunks, IN_CONCURRENCY, IN_MAX_PAGES } = server().exports;
   let live = 0, peak = 0;
-  const r = await inChunks(many(1000), async (part, from) => { live++; peak = Math.max(peak, live); await new Promise((ok) => setTimeout(ok, 2)); live--; return { data: from === 0 ? [{ id: part[0] }] : [], error: null }; });
+  const r = await inChunks(many(1000), async (part, after) => { live++; peak = Math.max(peak, live); await new Promise((ok) => setTimeout(ok, 2)); live--; return { data: after === null ? [{ id: part[0] }] : [], error: null }; });
   assert.equal(r.error, null); assert.equal(r.data.length, 10); assert.ok(peak <= IN_CONCURRENCY, `동시 ${peak}`);
   let calls = 0;
+  const endless = await inChunks(many(5), () => { calls++; return Promise.resolve({ data: [{ id: `x${String(calls).padStart(5, '0')}` }], error: null }); });
+  assert.equal(endless.error.code, 'PAGE_LIMIT'); assert.equal(calls, IN_MAX_PAGES); assert.equal(endless.data.length, 0, '일부만 읽은 자료를 돌려주지 않는다');
+  // 커서 정체: 같은 마지막 id 가 되풀이되면(서버가 gt 를 무시한 것과 같음) 두 번째 쪽에서 바로 실패 — 쪽 상한까지 돌지 않는다
+  calls = 0;
   const stuck = await inChunks(many(5), () => { calls++; return Promise.resolve({ data: [{ id: 'x' }], error: null }); });
-  assert.equal(stuck.error.code, 'PAGE_LIMIT'); assert.equal(calls, IN_MAX_PAGES); assert.equal(stuck.data.length, 0, '일부만 읽은 자료를 돌려주지 않는다');
+  assert.equal(stuck.error.code, 'CURSOR_STALL'); assert.equal(calls, 2); assert.equal(stuck.data.length, 0);
+  const noId = await inChunks(many(5), () => Promise.resolve({ data: [{ user_id: 'u' }], error: null }));
+  assert.equal(noId.error.code, 'CURSOR_STALL', 'id 없는 줄이면 커서를 만들 수 없다 → 실패');
 });
 
 test('오류 기록: 민감한 모양의 예외에서도 원문·URL·id·토큰·전화번호 0 · 단계·종류·코드·추적 id·시간은 남음', async () => {
@@ -1127,6 +1136,93 @@ test('쪽 읽기 정합성: 읽는 사이 갱신된 최신 정정 줄이 빠지�
   assert.equal(r.body.readiness.conversation.ready, true, '읽는 사이 갱신된 최신 줄 반영');
   const { inChunks } = loadServer(world()).exports;
   const pages = [[{ id: 'x1' }, { id: 'x2' }], [{ id: 'x2' }, { id: 'x3' }], []]; // 끼어든 새 줄로 경계 줄이 다음 쪽에 한 번 더 온 경우
-  const got = await inChunks(['u1'], (_p, from) => Promise.resolve({ data: pages[from === 0 ? 0 : from === 2 ? 1 : 2], error: null }));
+  const got = await inChunks(['u1'], (_p, after) => Promise.resolve({ data: pages[after === null ? 0 : after === 'x2' ? 1 : 2], error: null }));
   assert.equal(JSON.stringify([...got.data].map((x) => x.id)), JSON.stringify(['x1', 'x2', 'x3']));
+});
+
+// 2026-10-02 정정: offset 쪽 → 마지막 id 커서 쪽. 읽는 사이 이미 읽은 줄이 지워지거나 새 줄이 들어와도 남은 줄이 밀려 빠지지 않는다.
+test('쪽 읽기 · id 커서: 첫 쪽을 읽은 뒤 앞쪽 줄 삭제·새 줄 삽입이 있어도 남은 줄 누락 0 · 중복 0 · 요청은 gt(id) + limit', async () => {
+  const s = world(); s.maxRows = 1000;
+  s.tables.blocks = Array.from({ length: 2500 }, (_, i) => ({ id: `b${String(i).padStart(5, '0')}`, blocker_id: ID.d, blocked_user_id: uid(i) }));
+  const call = loadServer(s);
+  const { inChunks, afterId } = call.exports;
+  const db = (() => { let n = 0; return { from: (t) => { if (t === 'blocks' && ++n === 2) { s.tables.blocks.splice(0, 5); s.tables.blocks.push({ id: 'a-new', blocker_id: ID.d, blocked_user_id: uid(9999) }); } return fakeDbFor(s).from(t); } }; })();
+  const r = await inChunks([ID.d], (part, after, size) => afterId(db.from('blocks').select('id').in('blocker_id', part), after, size));
+  assert.equal(r.error, null);
+  const ids = r.data.map((x) => x.id);
+  assert.equal(new Set(ids).size, ids.length, '중복 0');
+  for (let i = 5; i < 2500; i++) assert.ok(ids.includes(`b${String(i).padStart(5, '0')}`), `b${i} 누락`);
+});
+
+test('추천 직전 재확인: 목록을 읽은 뒤 생긴 차단은 후보를 만들지 않는다', async () => {
+  const s = world(); let added = false;
+  s.beforeRead = (name) => { if (name === 'doit_match_candidates' && !added) { added = true; s.tables.blocks.push({ id: 'zz-late', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'candidate' }); } };
+  const r = await loadServer(s)(ID.a, { action: 'my_candidates' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.candidates.length, 0, '늦게 생긴 차단 → 후보 0');
+  assert.equal(s.tables.doit_match_candidates.length, 0, '저장도 0');
+});
+
+test('보여 주기 직전 재확인: 후보를 만든 뒤 내가 거절·정정한 말은 추천 이유에서 빠진다 · 상대가 자격을 잃으면 그 후보를 보여 주지 않는다', async () => {
+  const s = world(); const call = loadServer(s);
+  const first = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(first.body.candidates.length, 1);
+  assert.ok(first.body.candidates[0].reasons.some((t) => t.includes(COMMON[0])));
+  s.tables.doit_insights.find((r) => r.user_id === ID.a && r.text === COMMON[0]).status = 'rejected';
+  const again = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(again.body.candidates.length, 1);
+  assert.ok(again.body.candidates[0].reasons.every((t) => !t.includes(COMMON[0])), '거절한 말은 이유로 쓰지 않는다');
+  s.tables.profile_photos = s.tables.profile_photos.filter((p) => p.user_id !== ID.b);
+  const gone = await call(ID.a, { action: 'my_candidates' });
+  assert.equal(gone.body.candidates.length, 0, '상대가 지금 자격 없음 → 보여 주지 않음');
+});
+
+test('연결 직전 재확인: 한쪽이 「이어지고 싶어요」를 누른 뒤 상대가 자격을 잃으면 연결을 열지 않는다(409 · 연결 0)', async () => {
+  const s = world(); const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' })).body.status, 'waiting');
+  s.tables.profile_photos = s.tables.profile_photos.filter((p) => p.user_id !== ID.a);
+  const r = await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  assert.equal(r.status, 409);
+  assert.equal(s.tables.doit_matches.length, 0);
+});
+
+// 2026-10-02 정정: 신고 한 줄 = 「한 번의 제출」. 화면이 보낸 신고 요청 id 로 재시도와 새 사건을 가른다.
+test('신고 요청 id: 같은 제출 재시도·동시 = 1건 · 새 제출(새 id) = 같은 상대·사유여도 새 줄 · 같은 id 다른 내용 = 충돌(접수 아님·덮어쓰기 0) · 다른 사람의 같은 id = 별개', async () => {
+  const s = world(); const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  const r1 = 'aaaaaaaa-0000-4000-8000-000000000001', r2 = 'aaaaaaaa-0000-4000-8000-000000000002';
+  const first = await Promise.all([1, 2].map(() => call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'spam', reportRequestId: r1 })));
+  assert.ok(first.every((x) => x.status === 200 && x.body.reported === true));
+  assert.equal(s.tables.user_reports.length, 1, '같은 제출 = 1건');
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'spam', reportRequestId: r1 })).body.reported, true, '재시도 = 기존 결과');
+  assert.equal(s.tables.user_reports.length, 1);
+  const second = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'spam', reportRequestId: r2 });
+  assert.equal(second.body.reported, true);
+  assert.equal(s.tables.user_reports.length, 2, '새 제출은 같은 상대·사유여도 보존');
+  const before = JSON.stringify(s.tables.user_reports);
+  const clash = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'threat', reportRequestId: r1 });
+  assert.equal(clash.status, 200);
+  assert.deepEqual([clash.body.reported, clash.body.report_conflict], [false, true], '같은 id 에 다른 내용 → 접수로 숨기지 않음');
+  assert.equal(JSON.stringify(s.tables.user_reports), before, '기존 신고를 바꾸지 않음');
+  assert.ok(s.tables.user_reports.every((r) => r.reporter_id === ID.a && r.target_user_id === ID.b), '신고자·대상은 서버가 정함');
+  assert.equal((await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide', reason: 'spam', reportRequestId: 'not-a-uuid' })).status, 400);
+  const { reportIdOf } = call.exports;
+  assert.notEqual(await reportIdOf('request', ID.a, r1), await reportIdOf('request', ID.b, r1), '다른 사람의 같은 요청 id 는 다른 줄');
+  assert.notEqual(await reportIdOf('request', ID.a, r1), await reportIdOf(ID.a, ID.b, 'candidate:spam 스팸', c.id), '요청 id 방식과 예전 방식은 id 가 겹치지 않음');
+});
+
+test('신고 요청 id · 연결 그만하기: 재시도는 1건 · 남의 연결은 404(쓰기 0) · 기존 임의 id 신고 줄과 공존', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  s.tables.user_reports.push({ id: '0f0f0f0f-0000-4000-8000-000000000000', reporter_id: ID.c, target_user_id: ID.b, reason: 'connection', detail: null });
+  const m = s.tables.doit_matches[0].id, rid = 'bbbbbbbb-0000-4000-8000-000000000001';
+  for (let i = 0; i < 3; i++) assert.equal((await call(ID.b, { action: 'leave', matchId: m, reason: 'threat', reportRequestId: rid })).body.reported, true);
+  assert.equal(s.tables.user_reports.length, 2, '기존 줄 1 + 이번 제출 1');
+  assert.ok(s.tables.user_reports.some((r) => r.id === '0f0f0f0f-0000-4000-8000-000000000000'), '기존 신고 그대로');
+  const other = await call(ID.c, { action: 'leave', matchId: m, reason: 'threat', reportRequestId: 'bbbbbbbb-0000-4000-8000-000000000002' });
+  assert.equal(other.status, 404);
+  assert.equal(s.tables.user_reports.length, 2);
 });

@@ -23,7 +23,7 @@ const block = (src, start, end) => src.slice(src.indexOf(start), src.indexOf(end
 
 test('서버 계약: 후보(당신이 잠든 사이)에는 상대 정보가 하나도 없다(이름·사진·소개·id 0)', () => {
   const c = block(SERVER, 'if (action === "my_candidates")', 'if (action === "choose")');
-  assert.match(c, /out\.push\(\{ id: c\.id, created_at: c\.created_at, purpose: me\?\.purposeLabel \?\? null, reasons: reasonsFor\(c, userId, me\?\.purposeLabel \?\? null\), my_choice: mine, waiting: mine === "yes" \}\);/);
+  assert.match(c, /out\.push\(\{ id: c\.id, created_at: c\.created_at, purpose: me\?\.purposeLabel \?\? null, reasons: reasonsFor\(c, userId, me\?\.purposeLabel \?\? null, me\?\.confirmed \?\? \[\]\), my_choice: mine, waiting: mine === "yes" \}\);/);
   assert.doesNotMatch(c, /photo|nickname|bio|partnerId[,}]|createSignedUrl/, '후보 응답에 상대 정보·사진 주소 0');
 });
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
+import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, reportSubmission, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
@@ -87,6 +87,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const [alsoBlock, setAlsoBlock] = useState(true); // 신고와 차단은 별도 — 신고할 때 차단은 고를 수 있다(기본은 함께)
   // ZZARIT: 먼저 고르고 기다리던 사람도, 서버가 서로 골라 열린 연결(via_mutual)이라고 줄 때 이 연결에서 한 번만.
   const [zzarit, setZzarit] = useState(() => match.status === 'open' && match.via_mutual === true && !match.my_answer && claimZzarit(match.id));
+  const submission = useRef(reportSubmission()); // 신고 한 번의 제출 = 요청 id 하나(실패 뒤 같은 내용 재시도는 같은 id)
 
   if (match.status === 'closed') {
     return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
@@ -127,7 +128,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
     setBusy(true);
     setError(null);
     try {
-      const out = await leaveMatch(userId, match.id, { block, report, reason });
+      const out = await leaveMatch(userId, match.id, { block, report, reason, requestId: submission.current.idFor(`${match.id}:${block}:${report}:${reason ?? ''}`) });
+      submission.current.done();
       setLeaving(false);
       onSafety(out.reported ? '접수했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : out.blocked ? '차단했어요. 그 연결은 끝났고, 다시 추천되지 않아요.' : '그 연결을 끝냈어요. 서로의 이야기는 더 보이지 않아요.');
       await onChanged();

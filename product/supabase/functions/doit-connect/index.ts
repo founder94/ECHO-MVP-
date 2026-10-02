@@ -393,9 +393,9 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   if (!rows.length) return [];
   const ids = rows.map((p) => String(p.id));
   const [photosR, insightsR, recordsR, auth] = await Promise.all([
-    inChunks<Json>(ids, (part, from, to) => admin.from("profile_photos").select("id, user_id, slot").in("user_id", part).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("doit_insights").select("id, user_id, text, created_at, updated_at").in("user_id", part).in("status", ["confirmed", "corrected"]).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("doit_records").select("id, user_id, text, status, created_at").in("user_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("profile_photos").select("id, user_id, slot").in("user_id", part), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_insights").select("id, user_id, text, created_at, updated_at").in("user_id", part).in("status", ["confirmed", "corrected"]), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_records").select("id, user_id, text, status, created_at").in("user_id", part), after, size)),
     authInfoOf(admin, new Set(ids)),
   ]);
   const photos = must(photosR, "photos_failed"), records = must(recordsR, "records_failed");
@@ -419,8 +419,8 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
   const agentSrc = MATCH_SOURCE === "agent"
     ? await (async () => {
       // 한 사람에게 세션이 여러 줄이어도 전부 읽고 agentSources 가 사람마다 가장 최근 줄을 고른다(묶음 행 제한으로 최신 정정이 빠지지 않게).
-      const sessions = await inChunks<Json>(ids, (part, from, to) => admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
-        .eq("action", "agent_session").eq("status", "applied").in("user_id", part).order("id").range(from, to));
+      const sessions = await inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
+        .eq("action", "agent_session").eq("status", "applied").in("user_id", part), after, size));
       return agentSources(must(sessions, "agent_sessions_failed") as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
     })()
     : new Map();
@@ -480,7 +480,12 @@ export const IN_PAGE = 1000;
 export const IN_MAX_PAGES = 50;
 export const IN_CONCURRENCY = 4;
 type Page<T> = PromiseLike<{ data: T[] | null; error: { code?: unknown } | null }>;
-export async function inChunks<T>(ids: readonly string[], run: (part: string[], from: number, to: number) => Page<T>): Promise<{ data: T[]; error: { code?: unknown } | null; requests: number }> {
+// 다음 쪽 = 마지막으로 읽은 id 보다 큰 줄(id 순 커서). offset 이 아니라서 읽는 사이 앞쪽 줄이 지워지거나 새로 들어와도 남은 줄이 밀리거나 겹치지 않는다.
+// deno-lint-ignore no-explicit-any
+export function afterId(q: any, after: string | null, size: number): Page<Json> {
+  return (after === null ? q : q.gt("id", after)).order("id").limit(size);
+}
+export async function inChunks<T>(ids: readonly string[], run: (part: string[], after: string | null, size: number) => Page<T>): Promise<{ data: T[]; error: { code?: unknown } | null; requests: number }> {
   const unique = [...new Set(ids)];
   const parts: string[][] = [];
   for (let i = 0; i < unique.length; i += IN_CHUNK) parts.push(unique.slice(i, i + IN_CHUNK));
@@ -492,19 +497,22 @@ export async function inChunks<T>(ids: readonly string[], run: (part: string[], 
   const worker = async () => {
     while (!error && next < parts.length) {
       const index = next++;
-      for (let page = 0, from = 0; ; page++) {
+      for (let page = 0, after: string | null = null; ; page++) {
         if (page >= IN_MAX_PAGES) { error = { code: "PAGE_LIMIT" }; return; }
         requests++;
-        const r = await run(parts[index], from, from + IN_PAGE - 1);
+        const r = await run(parts[index], after, IN_PAGE);
         if (r.error) { error = r.error; return; }
         const rows = r.data ?? [];
         if (!rows.length) break;
+        const last = (rows[rows.length - 1] as { id?: unknown }).id;
+        // 커서가 앞으로 가지 않으면(id 없음·같은 id 반복) 끝없이 돌지 않고 전체 실패로 돌려준다.
+        if (typeof last !== "string" || (after !== null && last <= after)) { error = { code: "CURSOR_STALL" }; return; }
         for (const row of rows) {
           const id = (row as { id?: unknown }).id;
           if (typeof id === "string") { if (seen.has(id)) continue; seen.add(id); }
           results[index].push(row);
         }
-        from += rows.length;
+        after = last;
       }
     }
   };
@@ -536,8 +544,8 @@ async function blockedPairs(admin: Db, ids: string[]): Promise<Set<string>> {
   const out = new Set<string>();
   if (!ids.length) return out;
   const [byMe, byOther] = await Promise.all([
-    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocker_id", part).order("id").range(from, to)),
-    inChunks<Json>(ids, (part, from, to) => admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocked_user_id", part).order("id").range(from, to)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocker_id", part), after, size)),
+    inChunks<Json>(ids, (part, after, size) => afterId(admin.from("blocks").select("id, blocker_id, blocked_user_id").in("blocked_user_id", part), after, size)),
   ]);
   // 차단 자료를 다 읽지 못하면 추천·연결을 판단하지 않는다(일부만 읽고 「차단 없음」으로 보지 않음).
   for (const r of [...must(byMe, "blocks_failed"), ...must(byOther, "blocks_failed")]) out.add(pairKey(String(r.blocker_id), String(r.blocked_user_id)));
@@ -641,38 +649,49 @@ const CHOICES = new Set(["yes", "no", "hide"]);
 export const REPORT_REASONS: Readonly<Record<string, string>> = {
   unpleasant: "불쾌한 대화", scam: "사기·금전 요구", fake: "허위 정보", threat: "위협·강요", spam: "스팸", other: "기타",
 };
-type SafetyAsk = { block: boolean; reason: string | null; bad: boolean };
+type SafetyAsk = { block: boolean; reason: string | null; requestId: string | null; bad: boolean };
 function safetyAsk(body: Record<string, unknown>): SafetyAsk {
+  // 신고 요청 id(선택): 화면이 「신고 한 번 제출」마다 새로 만들고, 같은 제출의 재시도에는 같은 값을 보낸다. 없으면 예전 화면(사건 범위 고정 id).
+  const rid = body.reportRequestId;
+  const requestId = rid === undefined || rid === null ? null : typeof rid === "string" && UUID_RE.test(rid) ? rid.toLowerCase() : "";
   const raw = body.reason;
-  if (raw === undefined || raw === null) return { block: body.block === true, reason: null, bad: false };
+  if (raw === undefined || raw === null) return { block: body.block === true, reason: null, requestId: requestId || null, bad: requestId === "" };
   const code = typeof raw === "string" ? raw : "";
-  return { block: body.block === true, reason: Object.hasOwn(REPORT_REASONS, code) ? code : null, bad: !Object.hasOwn(REPORT_REASONS, code) };
+  return { block: body.block === true, reason: Object.hasOwn(REPORT_REASONS, code) ? code : null, requestId: requestId || null, bad: !Object.hasOwn(REPORT_REASONS, code) || requestId === "" };
 }
-// 차단·신고를 실제로 저장하고, 저장된 것만 true 로 돌려준다. 같은 사람·같은 사유 신고는 한 번만.
-// 신고 한 건 = (신고자 · 대상 · 사유 · 사건 범위). 사건 범위는 그 연결 id 또는 그 후보 id 다.
-// 이 넷으로 만든 고정 id 를 기존 기본키(user_reports.id)로 쓴다 — 같은 요청의 재시도·두 탭·서로 다른 서버 실행이 몇 번 와도
-// DB 기본키가 한 줄만 남긴다(새 제약·DB 변경 0). 같은 사람이라도 다른 연결·다른 후보에서 생긴 새 사건, 다른 사유(추가 증거)는 막지 않는다.
-// (2026-10-02 이전: 저장 뒤 같은 신고를 다시 읽어 늦게 들어온 줄을 지우는 보완 — 지우기 전에 실행이 끊기면 두 줄이 남을 수 있어 바꿨다.)
-export async function reportIdOf(reporter: string, target: string, reason: string, scope: string): Promise<string> {
-  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(["user_report", reporter, target, reason, scope]))));
+// 차단·신고를 실제로 저장하고, 저장된 것만 true 로 돌려준다. 신고자·대상은 언제나 서버가 정한다(로그인한 사람 · 그 연결/후보의 상대).
+// 신고 한 줄의 기본키(user_reports.id · 기존 기본키 · DB 변경 0)는 「한 번의 제출」을 뜻한다:
+//  ① 화면이 보낸 신고 요청 id 가 있으면 id = hash(신고자 · 요청 id). 같은 제출의 재시도·두 번 누름·서로 다른 서버 실행은 같은 id 라
+//     기본키가 한 줄만 남긴다. 새로 연 신고(새 요청 id)는 같은 상대·같은 사유여도 새 줄로 남는다(새 사건·추가 증거를 막지 않음).
+//  ② 요청 id 가 없는 예전 화면은 id = hash(신고자 · 대상 · 사유 · 사건 범위[연결 id/후보 id]) — 그 연결·후보 안의 같은 사유는 한 줄.
+//  기본키가 부딪히면 저장된 줄을 다시 읽어 같은 제출(신고자·대상·사유가 같음)일 때만 「접수됨」. 다르면 접수로 숨기지 않고 충돌로 돌려준다.
+//  덮어쓰기(upsert) 없음 — 이미 있는 신고는 바꾸지 않는다. 기존 임의 id 신고 줄과는 id 공간이 겹치지 않는다(해시 판 5 모양 vs 임의 판 4).
+export async function reportIdOf(...parts: string[]): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(["user_report", ...parts]))));
   bytes[6] = (bytes[6] & 0x0f) | 0x50; bytes[8] = (bytes[8] & 0x3f) | 0x80; // UUID 모양(판 5 · RFC 4122 변형)
   const hex = [...bytes.slice(0, 16)].map((x) => x.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
-async function recordSafety(admin: Db, userId: string, targetId: string, where: "connection" | "candidate", scope: string, block: boolean, report: string | null): Promise<{ blocked: boolean; reported: boolean }> {
-  let blocked = false, reported = false;
+type SafetySaved = { blocked: boolean; reported: boolean; report_conflict?: true };
+async function recordSafety(admin: Db, userId: string, targetId: string, where: "connection" | "candidate", scope: string, block: boolean, report: string | null, requestId: string | null): Promise<SafetySaved> {
+  let blocked = false, reported = false, conflict = false;
   if (block) {
     const { error } = await admin.from("blocks").upsert({ blocker_id: userId, blocked_user_id: targetId, reason: where }, { onConflict: "blocker_id,blocked_user_id", ignoreDuplicates: true });
     blocked = !error;
   }
   if (report !== null) {
     const reason = report === "legacy" ? where : `${where}:${report} ${REPORT_REASONS[report]}`;
-    const id = await reportIdOf(userId, targetId, reason, scope);
+    const id = requestId ? await reportIdOf("request", userId, requestId) : await reportIdOf(userId, targetId, reason, scope);
     const { error } = await admin.from("user_reports").insert({ id, reporter_id: userId, target_user_id: targetId, reason, detail: null });
-    // 23505 = 같은 사건의 신고가 이미 저장됨(재시도·두 탭) → 접수된 상태 그대로. 그 밖의 오류는 접수 아님.
-    reported = !error || (error as { code?: string }).code === "23505";
+    if (!error) reported = true;
+    else if ((error as { code?: string }).code === "23505") {
+      const { data: had, error: readError } = await admin.from("user_reports").select("reporter_id, target_user_id, reason").eq("id", id).maybeSingle();
+      const same = !readError && !!had && String(had.reporter_id) === userId && String(had.target_user_id) === targetId && String(had.reason) === reason;
+      reported = same;
+      conflict = !same; // 같은 요청 id 로 다른 내용(다른 대상·사유)이 왔거나 다시 읽지 못함 — 접수 완료로 보이지 않는다
+    }
   }
-  return { blocked, reported };
+  return conflict ? { blocked, reported, report_conflict: true } : { blocked, reported };
 }
 const OUTCOME_FIELDS: Record<string, readonly string[]> = {
   talked: ["yes", "no"], met: ["yes", "planned", "no"], again: ["yes", "unsure", "no"], helpful: ["yes", "unsure", "no"],
@@ -716,6 +735,8 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
       .sort((x, y) => y.score - x.score || (x.a.id + x.b.id < y.a.id + y.b.id ? -1 : 1));
     for (const pick of ranked) {
       if (need <= 0) break;
+      // 만들기 직전 그 두 사람의 차단을 지금 다시 읽는다 — 위의 목록은 여러 쪽을 읽는 동안의 모습이라 그 사이 생긴 차단이 빠질 수 있다.
+      if ((await blockedPairs(admin, [pick.a.id, pick.b.id])).has(pairKey(pick.a.id, pick.b.id))) { taken.add(pairKey(pick.a.id, pick.b.id)); continue; }
       const { error } = await admin.from("doit_match_candidates").insert({
         user_a: pick.a.id, user_b: pick.b.id, purpose_id: pick.a.purposeId, common_a: pick.common.a, common_b: pick.common.b, status: "proposed", source: "server",
       });
@@ -730,8 +751,9 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
 }
 
 /** 추천 이유 — 사용자가 직접 확인한 말과 직접 고른 목적만으로(§15). 상대의 말·이름은 쓰지 않는다. 퍼센트·점수 표현 0. */
-function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null): string[] {
-  const mine = (mySide(c, userId) === "a" ? c.common_a : c.common_b) ?? [];
+function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null, confirmedNow: string[]): string[] {
+  // 후보를 만들 때 저장한 겹친 말 중, 지금도 내가 확정해 둔 말만(그 사이 정정·거절한 말은 이유로 쓰지 않는다).
+  const mine = ((mySide(c, userId) === "a" ? c.common_a : c.common_b) ?? []).filter((t) => confirmedNow.includes(t));
   const out: string[] = [];
   if (purposeLabel) out.push(`두 분 모두 「${purposeLabel}」 만남을 원한다고 직접 골랐어요.`);
   for (const t of mine.slice(0, LIMITS.REASONS_MAX - out.length)) out.push(`내가 직접 한 말 「${t}」 — 상대도 비슷한 이야기를 직접 했어요.`); // 조사(와/과)를 붙이지 않는다(받침에 따라 틀림)
@@ -944,7 +966,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const { error } = await admin.from("doit_matches").update({ status: "closed", closed_by: userId, updated_at: new Date().toISOString() }).eq("id", matchId);
         if (error) return fail(CODES.ERROR, "지금은 끝내지 못했어요. 다시 눌러 주세요.", 500, origin);
       }
-      const saved = await recordSafety(admin, userId, found.partnerId, "connection", matchId, block, report);
+      const saved = await recordSafety(admin, userId, found.partnerId, "connection", matchId, block, report, ask.requestId);
       logDiag({ action, block, report: report !== null, reason: ask.reason });
       return json({ ok: true, ...saved }, 200, origin);
     }
@@ -965,9 +987,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       for (const c of rows.sort((x, y) => (x.created_at < y.created_at ? -1 : 1))) {
         const partnerId = c.user_a === userId ? c.user_b : c.user_a;
         if (blocked.has(pairKey(userId, partnerId))) continue;
+        // 보여 주기 직전: 상대가 지금도 자격이 있는지(이번 요청에서 새로 읽은 모습). 아니면 이번에는 보여 주지 않는다.
+        const partnerNow = members.find((m) => m.id === partnerId) ?? (await loadMembers(admin, [partnerId]))[0];
+        if (!partnerNow?.eligible) continue;
         const mine = mySide(c, userId) === "a" ? c.a_choice : c.b_choice;
         if (mine !== null && mine !== "yes") continue;
-        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null), my_choice: mine, waiting: mine === "yes" });
+        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null, me?.confirmed ?? []), my_choice: mine, waiting: mine === "yes" });
       }
       logDiag({ action, eligible, prepared, shown: out.length });
       return json({ ok: true, eligible, missing: me?.missing ?? ["purpose"], readiness: me?.readiness ?? null, prepared, candidates: out }, 200, origin);
@@ -991,7 +1016,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // 같은 넘기기·숨기기를 다시 보내면(네트워크 재시도·두 탭) 오류 대신 같은 결과. 신고·차단도 다시 기록하지 않고 저장된 상태를 돌려준다(중복 0).
       if (c.status === "declined" && already === choice && choice !== "yes") {
         const partner = side === "a" ? c.user_b : c.user_a;
-        const saved = safety ? await recordSafety(admin, userId, partner, "candidate", id, ask.block, ask.reason) : { blocked: false, reported: false };
+        const saved = safety ? await recordSafety(admin, userId, partner, "candidate", id, ask.block, ask.reason, ask.requestId) : { blocked: false, reported: false };
         return json({ ok: true, status: "declined", ...saved }, 200, origin);
       }
       if (c.status !== "proposed") return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
@@ -1000,14 +1025,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const partnerId = side === "a" ? c.user_b : c.user_a;
       if ((await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
         await admin.from("doit_match_candidates").update({ status: "withdrawn", updated_at: new Date().toISOString() }).eq("id", id);
-        if (safety) { const saved = await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason); return json({ ok: true, status: "declined", ...saved }, 200, origin); }
+        if (safety) { const saved = await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason, ask.requestId); return json({ ok: true, status: "declined", ...saved }, 200, origin); }
         return fail(CODES.INVALID_STATE, "이미 끝난 후보예요.", 409, origin);
       }
       const now = new Date().toISOString();
       if (choice !== "yes") {
         const { error } = await admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id);
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
-        const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason) : { blocked: false, reported: false };
+        const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason, ask.requestId) : { blocked: false, reported: false };
         logDiag({ action, choice, block: saved.blocked, reason: ask.reason });
         return json({ ok: true, status: "declined", ...saved }, 200, origin);
       }

@@ -110,15 +110,27 @@ export const REPORT_REASONS: readonly (readonly [ReportReason, string])[] = [
 export interface SafetySaved { blocked: boolean; reported: boolean }
 const saved = (out: { blocked?: unknown; reported?: unknown }): SafetySaved => ({ blocked: out.blocked === true, reported: out.reported === true });
 
-export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean; reason?: ReportReason }): Promise<SafetySaved> {
-  const { reason, ...rest } = options;
-  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'leave', matchId, ...rest, ...(reason ? { reason } : {}) }, userId);
+/**
+ * 신고 한 번의 제출 = 요청 id 하나. 실패 뒤 같은 대상·같은 내용으로 다시 누르면 같은 id(서버가 한 건으로 본다),
+ * 성공했거나 내용(사유·차단)이 바뀌면 새 id. 새로 연 신고는 같은 상대·같은 사유여도 새 사건으로 남는다.
+ */
+export function reportSubmission(): { idFor: (key: string) => string; done: () => void } {
+  let current: { key: string; id: string } | null = null;
+  return {
+    idFor: (key) => { if (!current || current.key !== key) current = { key, id: crypto.randomUUID() }; return current.id; },
+    done: () => { current = null; },
+  };
+}
+
+export async function leaveMatch(userId: string, matchId: string, options: { block: boolean; report: boolean; reason?: ReportReason; requestId?: string }): Promise<SafetySaved> {
+  const { reason, requestId, ...rest } = options;
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'leave', matchId, ...rest, ...(reason ? { reason } : {}), ...(requestId && (reason || rest.report) ? { reportRequestId: requestId } : {}) }, userId);
   return saved(out ?? {});
 }
 
 /** 후보 단계 차단·신고(숨김과 함께). 서버가 저장한 것만 돌려준다. */
-export async function reportCandidate(userId: string, candidateId: string, options: { block: boolean; reason?: ReportReason }): Promise<SafetySaved> {
-  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'choose', candidateId, choice: 'hide', block: options.block, ...(options.reason ? { reason: options.reason } : {}) }, userId);
+export async function reportCandidate(userId: string, candidateId: string, options: { block: boolean; reason?: ReportReason; requestId?: string }): Promise<SafetySaved> {
+  const out = await serverFunctionRequest<{ blocked?: unknown; reported?: unknown }>('doit-connect', { action: 'choose', candidateId, choice: 'hide', block: options.block, ...(options.reason ? { reason: options.reason, ...(options.requestId ? { reportRequestId: options.requestId } : {}) } : {}) }, userId);
   return saved(out ?? {});
 }
 
