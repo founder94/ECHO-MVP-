@@ -22,7 +22,7 @@ test('VOICE_MODE_FALSE_PROMISE: 「말로 시작하기」가 키보드 받아쓰
 test('Voice Lite: 네 가지 상태 · 마이크가 주 행동 · 들은 말은 같은 send(같은 서버·같은 기억)로', () => {
   for (const s of ["idle: ['대기'", "listening: ['듣는 중'", "thinking: ['이해하는 중'", "speaking: ['ECHO가 말하는 중'"]) assert.ok(ui.includes(s), s);
   assert.match(ui, /const onHeard = useCallback\(\(text: string\) => sendRef\.current\(text\.slice\(0, TEXT_MAX\), true\), \[\]\);/);
-  assert.match(ui, /agentTurn\(userId, session\.id, t\.slice\(0, TEXT_MAX\), correctionMode \? \{ purpose: null \} : undefined\)/, 'TEXT·VOICE·직전답수정이 같은 agentTurn 하나');
+  assert.match(ui, /agentTurn\(userId, session\.id, t\.slice\(0, TEXT_MAX\), correctionMode \? \{ purpose: null \} : undefined, correctionMode \? undefined : \{ \.\.\.\(choice \? \{ choice \} : \{\}\), rescueOpen \}\)/, 'TEXT·VOICE·직전답수정·고른 보기가 같은 agentTurn 하나(2026-10-01 구조대: 고른 보기·펼침 표시만 더함)');
   assert.equal((ui.match(/agentTurn\(/g) ?? []).length, 1, '말로 대화 전용 서버 호출 0');
   assert.match(ui, /voiceUi && !done && \(talk\.supported/, 'VOICE 모드 질문 화면에 늘 마이크(켜졌을 때)');
   assert.match(ui, /if \(speaking\) \{ stopSpeaking\(\); setSpeaking\(false\); return; \}/, '말하는 중 누르면 즉시 멈춤');

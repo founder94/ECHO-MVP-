@@ -89,7 +89,7 @@ check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repai
 const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
 const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
-check('서버 판 = echo-agent-v2.5.7', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.5.7' || s?.profile?.version === 'echo-agent-v2.5.7', `version=${s?.profile?.version ?? '-'}`);
+check('서버 판 = echo-agent-v2.5.8', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.5.8' || s?.profile?.version === 'echo-agent-v2.5.8', `version=${s?.profile?.version ?? '-'}`);
 
 // ── v2.5 실제 AI 대화 품질: 설문 문구 대신 방금 답에서 이어지는 질문
 const H = await account('human-v250');

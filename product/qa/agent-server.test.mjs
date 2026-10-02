@@ -70,6 +70,12 @@ function load(state) {
     require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
+      // 2026-10-01 구조대: 보기만 따로 청하는 호출(RESCUE_PROMPT)은 대화 출력 줄(state.ai)을 쓰지 않는다 — state.rescue 줄(없으면 빈 보기)로 답하고 따로 센다.
+      if (String(body.messages[0].content).startsWith('너는 대화 질문 하나에 붙일 「고르기 보기」')) {
+        (state.rescueCalls ??= []).push({ input: JSON.parse(body.messages[1].content) });
+        const out = state.rescue?.length ? state.rescue.shift() : { choices: [] };
+        return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 100, completion_tokens: 10 }, choices: [{ message: { content: JSON.stringify(out) } }] }), { status: 200 });
+      }
       state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
       // v2.4 not_anchored 재시도: 예전 테스트의 가짜 질문은 답과 글자가 안 겹치므로, 따로 줄 세우지 않았으면(strictAnchor 아님) 같은 출력을 다시 준다.
       const input = JSON.parse(body.messages[1].content);
@@ -851,4 +857,37 @@ test('FI-018 CASE 8: 같은 사용자가 다시 들어옴 → 같은 세션 · A
   assert.equal(again.body.session.id, sid); assert.equal(again.body.existing, true); assert.equal(s.aiCalls.length, calls);
   const now = again.body.session.messages.filter((m) => m.role === 'ai').map((m) => m.text);
   assert.deepEqual(now, asked, '다시 들어와도 같은 질문을 새로 덧붙이지 않는다');
+});
+
+// 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 서버 전 구간(가짜 AI) — 잘 모르겠어요(구조 요청 · 턴 0) → 보기 고름(사용자 직접 답) → 뒤로 복원(previous) → 고치기(옛 보기 밀림).
+test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 USER_DIRECT 로 기록 · previous 로 복원 · 고치면 옛 보기 0', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: false, fallback: false }, '보기는 들고 있되 먼저 펼치지 않음 · 「잘 모르겠어요」는 보기에서 빠짐');
+  assert.equal(start.body.session.current_choices, null);
+  const turnsBefore = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length; const callsBefore = s.aiCalls.length;
+  const rescue = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
+  assert.equal(rescue.status, 200); assert.equal(rescue.body.session.current_rescue.show, true);
+  assert.equal(s.aiCalls.length, callsBefore, '들고 있던 보기 → AI 호출 0');
+  assert.equal(s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length, turnsBefore, '구조 요청은 턴이 아니다');
+  const recordsBefore = (s.tables.doit_records ?? []).length;
+  s.ai.push(T({ reply: '좋아요.', extracted: [X('boundaries', '시끄러운 곳은 싫음', '조용한 카페')], ...Q('values_character', '조용한 카페면 약속 시간도 중요해요?') }));
+  const pick = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '조용한 카페', choice: '조용한 카페', rescueOpen: true });
+  assert.equal(pick.status, 200, JSON.stringify(pick.body) + JSON.stringify(s.aiCalls.slice(callsBefore).map((c) => [c.system.slice(0, 30), c.input.previous_attempt?.why ?? c.input.rejected?.why ?? ''])));
+  assert.equal(pick.body.turn.saved, true);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.flags.choice, true); assert.equal(rec.guard.rule, 'choice_pick');
+  assert.equal((s.tables.doit_records ?? []).length, recordsBefore + 1); assert.equal(s.tables.doit_records.at(-1).text, '조용한 카페');
+  const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  assert.equal(st.slots.relationship_style.items.find((i) => i.source === 'choice').source_type, 'USER_DIRECT');
+  assert.equal(st.slots.boundaries.items.length, 0, 'AI 정리를 얹지 않는다');
+  assert.deepEqual(pick.body.session.previous, { question: '친구 만나면 처음엔 어디가 편해요?', options: ['조용한 카페', '같이 걷기'], chosen: '조용한 카페' }, '뒤로 = 질문 · 보기 · 고른 것 복원');
+  for (let k = 0; k < 3; k++) s.ai.push(T({ kind: 'correction', reply: '아, 같이 걷기요.', extracted: [], ...Q('values_character', '같이 걸으면 약속 시간도 중요해요?') }));
+  const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '같이 걷기', correction: { purpose: null } });
+  assert.equal(fix.status, 200, JSON.stringify(fix.body));
+  const st2 = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
+  assert.equal(st2.slots.relationship_style.items.find((i) => i.source === 'choice').status, 'SUPERSEDED');
+  assert.ok(st2.slots.relationship_style.items.some((i) => i.status === 'CONFIRMED' && i.note === '같이 걷기'));
 });

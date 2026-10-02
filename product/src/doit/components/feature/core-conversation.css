@@ -118,6 +118,33 @@
 /* 2026-09-30 마감 지시 §4 모르겠다·넘기기 뒤 답 보기(대화 화면 안에서만 · 전역 영향 0 · 색은 아래 파스텔 판에서) */
 .echo-dialogue .echo-choice-row{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}
 .echo-dialogue .echo-choice{min-height:44px;padding:10px 16px;border-radius:999px;background:#171a20;color:#dbe0e7;border:1px solid #c3ccda38;font-size:13px;font-weight:500;word-break:keep-all}
+/* 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」 구조대: 질문 카드 안에서만(전역·배경 영향 0). 보기는 보내기 버튼보다 약하게(옅은 판 · 얇은 테) · 누름 높이 44~48px ·
+   고른 보기는 또렷하게(진한 흰 판 + 두꺼운 테 + ✓). 보기를 눌러도 넘어가지 않는다 — 고른 표시만. */
+.echo-dialogue .echo-rescue{display:grid;gap:6px;margin:10px 0 4px}
+.echo-dialogue .echo-rescue-lead{margin:0;font-size:13px;font-weight:600;line-height:1.6;word-break:keep-all}
+.echo-dialogue .echo-rescue .echo-choice-row{margin:2px 0 0}
+.echo-dialogue .echo-rescue .echo-choice{min-height:44px;max-width:100%;overflow-wrap:anywhere;text-align:left}
+.echo-dialogue .echo-choice.is-selected{font-weight:700}
+.echo-dialogue .echo-choice.is-selected::before{content:"✓ "}
+.echo-dialogue .echo-rescue-self{justify-self:start;min-height:44px}
+.echo-dialogue .echo-stop-link{display:block;margin:8px auto 0;min-height:44px}
+/* 2026-10-01 대표 「FINAL DESIGN」 §12·§13 A-PREMIUM 보기 카드: 생활형 심볼 1개(24px 고정 칸 · 19px) + 생활말. 높이 48px · 둥글기 18(주 버튼 24와 다르게).
+   열릴 때 효과는 하나 — 7px 아래에서 0.28초 내려앉음(차례로 30ms). 고르면 1% 미만 커짐 · 0.18초 · 튐 없음. */
+.echo-dialogue .echo-rescue-lead{display:flex;align-items:center;gap:8px}
+.echo-dialogue .echo-rescue-anchor{width:20px;height:20px;flex:none}
+.echo-dialogue .echo-rescue .echo-option-list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.echo-dialogue .echo-rescue .echo-option{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:center;gap:12px;min-height:48px;padding:11px 16px;border-radius:18px;font-size:15px;font-weight:600;line-height:1.45;text-align:left;transition:background-color .18s ease,border-color .18s ease,transform .18s ease;animation:echo-option-settle .28s cubic-bezier(.2,.7,.2,1) both}
+.echo-dialogue .echo-rescue .echo-option:nth-child(2){animation-delay:.03s}.echo-dialogue .echo-rescue .echo-option:nth-child(3){animation-delay:.06s}.echo-dialogue .echo-rescue .echo-option:nth-child(4){animation-delay:.09s}
+.echo-dialogue .echo-option-mark{font-size:19px;line-height:1;text-align:center;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;text-shadow:none}
+.echo-dialogue .echo-option.is-selected{transform:scale(1.008)}
+.echo-dialogue .echo-option.is-selected::before{content:none}
+.echo-dialogue .echo-option.is-selected .echo-option-text::after{content:"  ✓"}
+@keyframes echo-option-settle{from{opacity:0;transform:translateY(7px)}}
+/* 주 행동 「답변 보내기」: 흰 판 + 짙은 청록 글자 · 56px · 누르면 0.99만(빛·유리 0) */
+.echo-dialogue .echo-send-cta{display:block;width:100%;min-height:56px;margin-top:14px;padding:0 20px;border:0;border-radius:24px;background:#fff;color:#0f4a4a;-webkit-text-fill-color:#0f4a4a;font-size:16px;font-weight:700;text-shadow:none;cursor:pointer;transition:transform .16s ease,opacity .18s ease}
+.echo-dialogue .echo-send-cta:not(:disabled):active{transform:scale(.99)}
+.echo-dialogue .echo-send-cta:disabled{opacity:.45;cursor:default}
+@media(prefers-reduced-motion:reduce){.echo-dialogue .echo-rescue .echo-option{animation:none;transition:none}.echo-dialogue .echo-option.is-selected{transform:none}.echo-dialogue .echo-send-cta{transition:none}}
 /* ── 2026-09-24 대화 화면 파스텔 배경 (대표 「CONVERSATION BACKGROUND ONLY · FINAL LOCK」) ──
    우주인 히어로 → 「시작하기」 → 대화 화면부터만 배경이 파스텔로 바뀐다. 글꼴·버튼·입력창·카드·진행 표시·배치는 그대로다.
    - 대화 경로(/doit/conversation)의 루트에 붙인 .echo-dialogue--pastel 아래로만 적용한다. 시작 흐름·가입 동의·홈·홈페이지·전역(body/:root)은 0.
@@ -210,3 +237,8 @@
 @media(prefers-reduced-motion:reduce){.echo-dialogue.echo-dialogue--pastel .echo-opening-tile{transition:none}.echo-dialogue.echo-dialogue--pastel .echo-opening-tile:active{transform:none}}
 /* 2026-09-30 §4 답 보기: 파스텔 위에서는 다른 판처럼 옅은 흰 판 + 흰 글씨 */
 .echo-dialogue.echo-dialogue--pastel .echo-choice{background:rgb(255 255 255/.18);color:var(--conversation-text);border-color:rgb(255 255 255/.7)}
+/* 2026-10-01 구조대 색: 파스텔 판 위 옅은 흰 판(보내기 버튼보다 약하게). 고른 보기는 앱 공통 「고른 상태」(echo-ui.css: 진한 흰 막 + 흰 테두리)를 그대로 쓴다 */
+.echo-dialogue.echo-dialogue--pastel .echo-rescue-lead{color:var(--conversation-text)}
+.echo-dialogue.echo-dialogue--pastel .echo-choice{background:rgb(255 255 255/.12);border-color:rgb(255 255 255/.6)}
+/* 2026-10-01 주 행동은 파스텔 위에서도 흰 판 그대로(앱 공통 「누름 = 유리 막」 규칙보다 우선) */
+.echo-dialogue.echo-dialogue--pastel .echo-send-cta:not(:disabled):active{background-color:#fff!important}

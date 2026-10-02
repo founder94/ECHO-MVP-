@@ -15,7 +15,7 @@ type Json = Record<string, unknown>;
 
 const SESSION_ACTION = "agent_session";
 const TURN_ACTION = "agent_turn";
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_intro", "agent_intro_mark", "admin_sessions", "admin_session"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "admin_sessions", "admin_session"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
@@ -125,13 +125,23 @@ export function sessionView(id: string, stored: Stored) {
     id, agent: stored.agent, tone: st.tone, mode: st.mode, phase: done ? "done" : "talk",
     goal: A.isGoal(st.goal) ? st.goal : null, goal_label: st.goal_label ?? null, // v2.4 이 세션의 관계 목적(기기마다 다른 목적이면 다른 세션)
     progress: { asked: A.coreAsked(st).length, of: A.MAX_CORE_QUESTIONS },
-    // 2026-09-30 마감 지시 §4: current_choices = 모르겠다·넘기기 뒤에만 보이는 짧은 답 보기(없으면 null · 누르면 그 글자가 보통 답으로 간다)
-    current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, current_choices: done ? null : A.choicesFor(st), messages,
+    // 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 주관식 본체 + 객관식 구조대.
+    //   current_rescue = { options(서버가 거른 보기 2~4) · show(서버가 먼저 펼침: 모르겠다·넘기기·도움·피로 뒤 · 고르기 모양 질문) · fallback(보기를 못 만듦 → 안전 안내만) }.
+    //   current_choices = 예전 앱용(서버가 먼저 펼친 보기만 · 「잘 모르겠어요」는 섞지 않는다). previous = 직전 질문이 보기로 답한 질문이면 그 보기와 고른 것(뒤로·고치기 복원).
+    current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, current_choices: done || !st.current?.rescue_show ? null : A.choicesFor(st),
+    current_rescue: done ? null : A.rescueView(st), previous: done ? null : previousView(st), messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
     profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
     // v1.6 소개 초안: 문장과 상태만(근거 인용·버린 이유는 관리자 화면에서만).
     intro: done && st.intro ? { status: st.intro.status, text: A.introText(st.intro), lines: st.intro.lines.map((l) => l.text), tries_left: Math.max(0, A.INTRO_TRIES_MAX - st.intro.tries), used: st.intro.used } : null,
   };
+}
+
+function previousView(st: A.AgentState): { question: string; options: string[]; chosen: string } | null {
+  const t = st.turns.at(-1);
+  if (!t?.choice || !t.ai) return null;
+  const asked = [...st.asked].reverse().find((a) => a.text === t.ai);
+  return { question: t.ai, options: asked?.choices?.length ? [...asked.choices] : [t.choice], chosen: t.choice };
 }
 
 // v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 같은 계정이라도 관계 목적(goal)이 다르면 다른 세션이다.
@@ -161,11 +171,11 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
 }
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
-  const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정
+  const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
   if (response.error) {
     logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry });
     // v2.0 실패 관측: AI 가 답을 못 만든 턴도 기존 표(doit_request_events · status failed)에 코드·수치만 남긴다(원문 0 · 새 표 0). 관리자 TURN_ERROR 후보의 재료.
@@ -217,7 +227,9 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     question_purpose: lastTurn?.question_purpose ?? null, next_purpose: response.question_purpose ?? null,
     // v2.0: 서버 말 종류 가드(guard)가 바로잡은 턴은 규칙 이름을 남긴다(LLM 이 무엇이라 했는지 → 서버가 무엇으로 봤는지).
     guard: lastTurn?.guard ?? null, superseded: lastTurn?.superseded ?? 0,
-    flags: { ui_correction: !!ui, correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked" },
+    // 2026-10-01 Failure Intelligence 코드(보기 · 도움 행동) — 사용자 사실이 아니다(관리자 실패 후보의 재료).
+    fi: lastTurn?.fi ?? [], rescue: { shown: !!st.current?.rescue_show, options: st.current?.choices?.length ?? 0, fallback: !!st.current?.rescue_fallback },
+    flags: { ui_correction: !!ui, correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked", choice: !!lastTurn?.choice, choices_none: lastTurn?.guard?.rule === "choices_none" },
     provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
     ...A.versionTrace(), failure_intelligence_version: FAILURE_INTELLIGENCE_VERSION, // 2026-09-26 VERSION TRACE: 에이전트·프롬프트·서버 규칙·파이프라인 판(실패를 판과 묶는다)
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
@@ -366,6 +378,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: true, session: sessionView(sid, stored), limited }, 200, origin);
     }
 
+    // 2026-10-01 「잘 모르겠어요」 = 구조 요청(답 아님). 턴·답 기록 0 · 상태(보기 · 요청 수)만 판 번호로 저장.
+    if (action === "agent_rescue") {
+      const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
+      const { data: row } = await admin.from("doit_request_events").select("request_id, created_at, applied_revision, response_payload")
+        .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
+      if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
+      const stored = row.response_payload as unknown as Stored;
+      if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
+      if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      const rev = Number(row.applied_revision ?? 0);
+      const r = await A.requestRescue(stored.state, ctx.llm);
+      const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
+        .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
+      if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
+      logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry });
+      return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
+    }
+
     // agent_turn
     const sessionId = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
     // v2.2.1 P0-5: 화면 정정(body.correction · 예전 앱의 고정 머리 「「칸」 부분을 고칠게요.」)은 사용자 말만 떼어 정정으로 넘긴다.
@@ -388,7 +419,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
     if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui);
+    return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: typeof body.choice === "string" ? body.choice.slice(0, 40) : undefined, rescueOpen: body.rescueOpen === true });
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
     return fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
