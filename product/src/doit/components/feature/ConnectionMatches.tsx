@@ -88,6 +88,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   // ZZARIT: 먼저 고르고 기다리던 사람도, 서버가 서로 골라 열린 연결(via_mutual)이라고 줄 때 이 연결에서 한 번만.
   const [zzarit, setZzarit] = useState(() => match.status === 'open' && match.via_mutual === true && !match.my_answer && claimZzarit(match.id));
   const submission = useRef(reportSubmission()); // 신고 한 번의 제출 = 요청 id 하나(실패 뒤 같은 내용 재시도는 같은 id)
+  const sending = useRef(reportSubmission()); // 이야기 한 번의 보내기 = 요청 id 하나(같은 글 재시도는 같은 id)
 
   if (match.status === 'closed') {
     return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="closed"><p className="doit-connect-note">이 연결은 끝났어요. 서로의 이야기는 더 보이지 않아요.</p><OutcomeForm userId={userId} matchId={match.id} initial={match.outcome ?? null} /></article>;
@@ -101,7 +102,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
     setError(null);
     try {
       if (kind === 'answer') await sendMatchAnswer(userId, match.id, text);
-      else await sendMatchMessage(userId, match.id, text);
+      else { await sendMatchMessage(userId, match.id, text, sending.current.idFor(`${match.id}:${text}`)); sending.current.done(); }
       setDraft('');
       await onChanged();
     } catch (e) {

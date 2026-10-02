@@ -97,8 +97,9 @@ export async function sendMatchAnswer(userId: string, matchId: string, text: str
   await serverFunctionRequest('doit-connect', { action: 'answer', matchId, text }, userId);
 }
 
-export async function sendMatchMessage(userId: string, matchId: string, text: string): Promise<void> {
-  await serverFunctionRequest('doit-connect', { action: 'message', matchId, text }, userId);
+/** requestId = 이 이야기 한 번의 보내기. 실패 뒤 같은 글을 다시 보내면 같은 id(서버가 한 번만 저장). */
+export async function sendMatchMessage(userId: string, matchId: string, text: string, requestId?: string): Promise<void> {
+  await serverFunctionRequest('doit-connect', { action: 'message', matchId, text, ...(requestId ? { requestId } : {}) }, userId);
 }
 
 // 2026-10-01 대표 「SAFETY LAYER」: 신고 사유 6개(서버 doit-connect REPORT_REASONS 와 같아야 한다 · 검사가 확인한다).

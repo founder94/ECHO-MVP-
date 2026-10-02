@@ -31,13 +31,18 @@ function fakeDb(state) {
       select: () => c, order: (col, o) => { keys.push([col, o?.ascending === false ? -1 : 1]); return c; },
       limit: (n) => { (state.ranges ??= []).push([name, 'limit', n]); rows = sorted().slice(0, Math.min(n, state.maxRows ?? Infinity)); keys.length = 0; return c; },
       gt: (col, v) => { rows = rows.filter((r) => r[col] > v); return c; },
+      is: (col, v) => { rows = rows.filter((r) => (r[col] ?? null) === v); return c; },
       range: (from, to) => { (state.ranges ??= []).push([name, from, to]); window = [from, Math.min(to, from + (state.maxRows ?? 1000) - 1)]; return c; },
       eq: (col, v) => { rows = rows.filter((r) => r[col] === v); return c; },
       in: (col, vals) => { (state.inSizes ??= []).push(vals.length); rows = rows.filter((r) => vals.includes(r[col])); return c; },
       not: (col, _is, v) => { rows = rows.filter((r) => r[col] !== v && r[col] !== undefined); return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
       delete: () => { op = 'delete'; return c; },
-      maybeSingle: () => Promise.resolve({ data: sorted()[0] ?? null, error: null }),
+      maybeSingle: () => {
+        if (op === 'update') { const fail = state.failOn?.(name); if (fail) return Promise.resolve({ data: null, error: fail }); const hit = rows[0] ?? null; if (hit) { Object.assign(hit, patch); state.writes.push({ name, op, patch }); } return Promise.resolve({ data: hit, error: null }); }
+        const failRead = state.failOn?.(name); if (failRead) return Promise.resolve({ data: null, error: failRead });
+        return Promise.resolve({ data: sorted()[0] ?? null, error: null });
+      },
       then: (ok, bad) => {
         if (op === 'update') { for (const r of rows) Object.assign(r, patch); state.writes.push({ name, op, patch }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
         if (op === 'delete') { const t = table(name); for (const r of rows) t.splice(t.indexOf(r), 1); state.writes.push({ name, op: 'delete' }); return Promise.resolve({ data: null, error: null }).then(ok, bad); }
@@ -106,7 +111,7 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
     const headers = { 'content-type': 'application/json' };
     if (auth) headers.Authorization = 'Bearer t';
     const res = await handler(new Request('http://fn/', { method: 'POST', headers, body: JSON.stringify(payload) }));
-    return { status: res.status, body: await res.json() };
+    return { status: res.status, body: await res.json(), headers: Object.fromEntries(res.headers) };
   };
   call.exports = sandbox.exports;
   return call;
@@ -1225,4 +1230,132 @@ test('신고 요청 id · 연결 그만하기: 재시도는 1건 · 남의 연�
   const other = await call(ID.c, { action: 'leave', matchId: m, reason: 'threat', reportRequestId: 'bbbbbbbb-0000-4000-8000-000000000002' });
   assert.equal(other.status, 404);
   assert.equal(s.tables.user_reports.length, 2);
+});
+
+// 2026-10-02 Codex v3(PR #97) 서버 보완 — 최신 계약(id 커서 · StageError · 신고 요청 id · 직전 재확인) 위에 hunk 단위로 통합한 것.
+test('[v3 통합] 응답은 사람별이라 저장 금지(Cache-Control private, no-store · Vary Origin, Authorization)', async () => {
+  const r = await loadServer(world())(ID.a, { action: 'my_matches' });
+  assert.equal(r.headers['cache-control'], 'private, no-store');
+  assert.equal(r.headers.vary, 'Origin, Authorization');
+});
+
+test('[v3 통합] 열기가 중간에 끊긴 후보(mutual · 양쪽 yes · 연결 id 없음)는 같은 「이어지고 싶어요」 재시도로 마무리된다 · 연결 1개', async () => {
+  const s = world(); const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  const m = s.tables.doit_matches[0];
+  c.match_id = null; // 연결 저장 뒤 후보 연결 전에 끊긴 상태를 흉내
+  const r = await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  assert.deepEqual([r.status, r.body.status, r.body.match_id], [200, 'mutual', m.id]);
+  assert.equal(c.match_id, m.id, '후보가 그 연결을 가리키게 마무리');
+  assert.equal(s.tables.doit_matches.length, 1);
+});
+
+test('[v3 통합] AI 첫 질문을 기다리는 사이 생긴 차단 → 연결 0 · 후보 거둠', async () => {
+  const s = world();
+  const call = loadServer(s, () => { s.tables.blocks.push({ id: 'zz-during-ai', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'candidate' }); return { question: '둘이 같이 걷는다면 어디가 좋아요?' }; });
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  await call(ID.a, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  const r = await call(ID.b, { action: 'choose', candidateId: c.id, choice: 'yes' });
+  assert.equal(r.status, 409);
+  assert.equal(s.tables.doit_matches.length, 0);
+  assert.equal(c.status, 'withdrawn');
+});
+
+test('[v3 통합] 같은 후보에 다른 선택이 동시에 오면 하나만 저장(조건부 갱신) · 진 쪽은 409', async () => {
+  const s = world(); const call = loadServer(s);
+  await call(ID.a, { action: 'my_candidates' });
+  const c = candOf(s, ID.a, ID.b);
+  const [x, y] = await Promise.all([call(ID.a, { action: 'choose', candidateId: c.id, choice: 'no' }), call(ID.a, { action: 'choose', candidateId: c.id, choice: 'hide' })]);
+  assert.deepEqual([x.status, y.status].sort(), [200, 409]);
+  const winner = x.status === 200 ? 'no' : 'hide';
+  assert.equal(c.a_choice ?? c.b_choice, winner, '진 쪽이 덮어쓰지 않음');
+});
+
+test('[v3 통합] 첫 답 재시도: 같은 글 = replayed · 다른 글 = 409(덮어쓰기 0)', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  assert.equal((await call(ID.a, { action: 'answer', matchId: m, text: '천천히 알아가고 싶어요' })).body.ok, true);
+  const again = await call(ID.a, { action: 'answer', matchId: m, text: '천천히 알아가고 싶어요' });
+  assert.deepEqual([again.status, again.body.replayed], [200, true]);
+  assert.equal((await call(ID.a, { action: 'answer', matchId: m, text: '다른 답' })).status, 409);
+  assert.equal(s.tables.doit_match_answers.find((r) => r.user_id === ID.a).answer, '천천히 알아가고 싶어요');
+});
+
+test('[v3 통합] 이야기 요청 id: 같은 보내기 재시도·동시 = 1줄 · 같은 id 다른 내용/다른 사람 = 409 · 형식 틀림 400 · 요청 id 없는 예전 화면도 보냄', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  await call(ID.a, { action: 'answer', matchId: m, text: '답 A' }); await call(ID.b, { action: 'answer', matchId: m, text: '답 B' });
+  const rid = 'cccccccc-0000-4000-8000-000000000001';
+  const two = await Promise.all([1, 2].map(() => call(ID.a, { action: 'message', matchId: m, text: '안녕하세요', requestId: rid })));
+  assert.ok(two.every((x) => x.status === 200 && x.body.ok === true) && two.some((x) => x.body.replayed === true));
+  assert.equal(s.tables.doit_match_messages.length, 1);
+  assert.equal((await call(ID.a, { action: 'message', matchId: m, text: '다른 말', requestId: rid })).status, 409);
+  assert.equal((await call(ID.b, { action: 'message', matchId: m, text: '안녕하세요', requestId: rid })).status, 409, '다른 사람이 같은 id');
+  assert.equal((await call(ID.a, { action: 'message', matchId: m, text: '안녕하세요', requestId: 'nope' })).status, 400);
+  assert.equal((await call(ID.b, { action: 'message', matchId: m, text: '예전 화면' })).status, 200);
+  assert.equal(s.tables.doit_match_messages.length, 2);
+});
+
+test('[v3 통합] 결과 두 칸을 동시에 처음 저장해도 둘 다 남는다(23505 → 고치기)', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  const out = await Promise.all([call(ID.a, { action: 'outcome', matchId: m, talked: 'yes' }), call(ID.a, { action: 'outcome', matchId: m, met: 'planned' })]);
+  assert.ok(out.every((x) => x.status === 200 && x.body.ok === true));
+  const row = s.tables.doit_match_outcomes.filter((r) => r.match_id === m && r.user_id === ID.a);
+  assert.equal(row.length, 1);
+  assert.deepEqual([row[0].talked, row[0].met], ['yes', 'planned']);
+});
+
+test('[v3 통합] 공개 = 둘 다 답 + 둘 다 지금도 공개 동의 · 상대가 동의를 거두면 상대 정보 0 · reveal_state 표시', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  await call(ID.a, { action: 'answer', matchId: m, text: '답 A' }); await call(ID.b, { action: 'answer', matchId: m, text: '답 B' });
+  let r = await call(ID.a, { action: 'my_matches' });
+  assert.deepEqual([r.body.matches[0].revealed, r.body.matches[0].reveal_state, !!r.body.matches[0].partner], [true, 'FULL_SAFE', true]);
+  s.users[ID.b].user_metadata = {};
+  r = await call(ID.a, { action: 'my_matches' });
+  assert.deepEqual([r.body.matches[0].revealed, r.body.matches[0].reveal_state, 'partner' in r.body.matches[0]], [false, 'CANDIDATE_SAFE', false]);
+});
+
+test('[v3 통합] 상대 정보를 내려 주기 직전 차단을 다시 읽는다(목록을 읽은 뒤 생긴 차단 → 닫힘 · 상대 정보 0)', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  await call(ID.a, { action: 'answer', matchId: m, text: '답 A' }); await call(ID.b, { action: 'answer', matchId: m, text: '답 B' });
+  let armed = true;
+  s.beforeRead = (name) => { if (armed && name === 'doit_match_messages') { armed = false; s.tables.blocks.push({ id: 'zz-late2', blocker_id: ID.b, blocked_user_id: ID.a, reason: 'connection' }); } };
+  const r = await call(ID.a, { action: 'my_matches' });
+  assert.deepEqual([r.body.matches[0].status, r.body.matches[0].revealed, 'partner' in r.body.matches[0], r.body.matches[0].first_question], ['closed', false, false, null]);
+});
+
+test('[v3 통합] 읽기 실패를 「없음」으로 숨기지 않는다: 연결 읽기 실패 = 500(404 아님) · 후보 저장 실패(23505 외) = 500 · 로그는 단계 이름만', async () => {
+  const s = world(); const call = loadServer(s);
+  await approveBoth(s, call, ID.a, ID.b);
+  const m = s.tables.doit_matches[0].id;
+  s.failOn = (t) => (t === 'doit_matches' ? { code: '57014' } : null);
+  const r = await call(ID.a, { action: 'answer', matchId: m, text: '답' });
+  assert.equal(r.status, 500);
+  assert.ok(s.logs.some((l) => l.includes('"evt_error":"connection_read_failed"')));
+  const s2 = world(); s2.failOn = (t) => (t === 'doit_match_candidates' ? { code: '08006' } : null);
+  const r2 = await loadServer(s2)(ID.a, { action: 'my_candidates' });
+  assert.equal(r2.status, 500);
+});
+
+test('[v3 통합] 내가 자격을 잃으면 이미 만든 후보도 보여 주지 않는다 · 목적이 달라진 상대도', async () => {
+  const s = world(); const call = loadServer(s);
+  assert.equal((await call(ID.a, { action: 'my_candidates' })).body.candidates.length, 1);
+  s.tables.profiles.find((p) => p.id === ID.b).purpose_id = 'hobby';
+  assert.equal((await call(ID.a, { action: 'my_candidates' })).body.candidates.length, 0, '상대 목적 바뀜');
+  s.tables.profiles.find((p) => p.id === ID.b).purpose_id = 'friend';
+  s.tables.profile_photos = s.tables.profile_photos.filter((p) => p.user_id !== ID.a);
+  const mine = await call(ID.a, { action: 'my_candidates' });
+  assert.deepEqual([mine.body.eligible, mine.body.candidates.length], [false, 0]);
 });

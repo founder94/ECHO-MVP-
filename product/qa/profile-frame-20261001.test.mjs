@@ -29,7 +29,7 @@ test('서버 계약: 후보(당신이 잠든 사이)에는 상대 정보가 하�
 
 test('서버 계약: 연결은 둘 다 첫 질문에 답한 뒤(revealed)에만 상대 이름·사진·소개를 보낸다 · 사진은 10분 서명 주소', () => {
   const m = block(SERVER, 'if (action === "my_matches")', 'if (action === "my_turns")');
-  assert.match(m, /const revealed = open && !!mine && !!theirs;/);
+  assert.match(m, /let revealed = open && !!mine && !!theirs && consent\.get\(userId\)\?\.consented === true && consent\.get\(partnerId\)\?\.consented === true;/);
   assert.match(m, /if \(revealed\) \{[\s\S]*primaryPhotoUrl\(admin, partnerId\)[\s\S]*item\.partner = \{/, '상대 정보는 revealed 블록 안에서만 만든다');
   assert.doesNotMatch(m.slice(0, m.indexOf('if (revealed) {')), /partner\s*[:=]|photo_url|primaryPhotoUrl/, '공개 전 응답에는 partner·사진 주소 0');
   assert.match(SERVER, /SIGNED_URL_SECONDS: 600/);

@@ -130,7 +130,8 @@ const corsHeaders = (origin: string | null): Record<string, string> => {
   };
 };
 const json = (data: unknown, status = 200, origin: string | null = null) =>
-  new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json" } });
+  // 사람마다 다른 응답(상대 정보·이야기) — 중간 저장소·브라우저 캐시에 남기지 않는다(Codex v3 · 2026-10-02 통합).
+  new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json", "Cache-Control": "private, no-store", "Vary": "Origin, Authorization" } });
 const fail = (code: string, error: string, status = 200, origin: string | null = null) =>
   json({ ok: false, code, error }, status, origin);
 
@@ -363,7 +364,7 @@ interface MemberReadiness {
   purpose: boolean; intro: boolean; photos: number; photos_needed: number; phone_verified: boolean;
 }
 
-interface AuthInfo { phoneConfirmed: boolean; since: string | null }
+interface AuthInfo { phoneConfirmed: boolean; since: string | null; consented: boolean }
 
 // 로그인 정보(문자 인증 여부·회차 시작 시각)를 한 번에 읽는다. 사람이 많아지면 여러 쪽으로 나눠 읽는다.
 async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, AuthInfo>> {
@@ -374,7 +375,7 @@ async function authInfoOf(admin: Db, ids: Set<string>): Promise<Map<string, Auth
     const users = data?.users ?? [];
     for (const u of users) {
       if (!ids.has(u.id)) continue;
-      out.set(u.id, { phoneConfirmed: !!u.phone && !!u.phone_confirmed_at, since: roundStartOf(u) });
+      out.set(u.id, { phoneConfirmed: !!u.phone && !!u.phone_confirmed_at, since: roundStartOf(u), consented: consentedToConnect(u) });
     }
     if (users.length < 1000) break;
   }
@@ -521,7 +522,8 @@ export async function inChunks<T>(ids: readonly string[], run: (part: string[], 
 }
 
 // 실패 단계 이름(고정 목록)과 DB 오류 코드만 들고 다니는 오류. 원문·요청 주소·id 는 담지 않는다.
-const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "blocks_failed", "auth_list_failed"] as const;
+const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "blocks_failed", "auth_list_failed",
+  "connection_read_failed", "answers_read_failed", "mutual_read_failed", "candidate_read_failed", "candidate_write_failed", "mutual_claim_failed", "message_retry_read_failed"] as const;
 type Stage = (typeof STAGES)[number];
 class StageError extends Error {
   constructor(readonly stage: Stage, readonly dbCode: string | null) { super(stage); this.name = "StageError"; }
@@ -610,7 +612,8 @@ async function firstQuestionFor(purpose: string | null, common: { a: string[]; b
 interface MatchRow { id: string; user_a: string; user_b: string; purpose_id: string | null; common: string[] | null; first_question: string | null; status: string; created_at: string }
 
 async function loadMatch(admin: Db, matchId: string, userId: string): Promise<{ match: MatchRow; partnerId: string } | null> {
-  const { data } = await admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("id", matchId).maybeSingle();
+  const { data, error } = await admin.from("doit_matches").select("id, user_a, user_b, purpose_id, common, first_question, status, created_at").eq("id", matchId).maybeSingle();
+  if (error) throw new StageError("connection_read_failed", dbCodeOf(error)); // 읽기 실패를 「없음(404)」으로 숨기지 않는다
   if (!data) return null;
   const m = data as MatchRow;
   if (m.user_a !== userId && m.user_b !== userId) return null; // 남의 연결은 "없음"으로 답한다(있는지조차 알리지 않는다)
@@ -620,7 +623,8 @@ async function loadMatch(admin: Db, matchId: string, userId: string): Promise<{ 
 async function answersOf(admin: Db, matchIds: string[]): Promise<Map<string, Map<string, { answer: string; created_at: string }>>> {
   const out = new Map<string, Map<string, { answer: string; created_at: string }>>();
   if (!matchIds.length) return out;
-  const { data } = await admin.from("doit_match_answers").select("match_id, user_id, answer, created_at").in("match_id", matchIds);
+  const { data, error } = await admin.from("doit_match_answers").select("match_id, user_id, answer, created_at").in("match_id", matchIds);
+  if (error) throw new StageError("answers_read_failed", dbCodeOf(error));
   for (const r of data ?? []) {
     const m = out.get(String(r.match_id)) ?? new Map();
     m.set(String(r.user_id), { answer: str(r.answer), created_at: str(r.created_at) });
@@ -742,7 +746,10 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
       });
       const key = pairKey(pick.a.id, pick.b.id);
       taken.add(key);
-      if (error) continue; // 23505 = 동시에 같은 쌍을 준비함 → 이미 있음
+      if (error) {
+        if ((error as { code?: string }).code === "23505") continue; // 동시에 같은 쌍을 준비함 → 이미 있음
+        throw new StageError("candidate_write_failed", dbCodeOf(error)); // 그 밖의 저장 실패를 「후보 0명」으로 숨기지 않는다
+      }
       made++; need--;
       for (const u of [pick.a.id, pick.b.id]) open.set(u, (open.get(u) ?? 0) + 1);
     }
@@ -762,20 +769,36 @@ function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null
 }
 
 /** 둘 다 yes 인 후보로 연결을 연다. 같은 쌍 연결은 하나뿐(유일 키) — 동시에 눌러도 1개. 열기 전에 자격·목적·차단을 다시 확인한다. */
-async function openConnection(admin: Db, c: CandidateRow): Promise<{ ok: true; matchId: string; firstQuestion: string | null; questionSource: "ai" | "fixed" | null } | { ok: false; code: string; message: string }> {
+async function openConnection(admin: Db, c: CandidateRow, depth = 0): Promise<{ ok: true; matchId: string; firstQuestion: string | null; questionSource: "ai" | "fixed" | null } | { ok: false; code: string; message: string }> {
+  // (Codex v3 통합) 열기 전에 후보를 다시 읽고, 아직 proposed·양쪽 yes 일 때만 mutual 로 「차지」한다(조건부 갱신).
+  // 이미 mutual 이면(앞선 시도가 연결 저장과 후보 연결 사이에서 끊김) 같은 쌍의 연결을 이어서 마무리한다.
+  const { data: latest, error: readError } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", c.id).maybeSingle();
+  if (readError) throw new StageError("candidate_read_failed", dbCodeOf(readError));
+  if (!latest || !["proposed", "mutual"].includes(String(latest.status)) || latest.a_choice !== "yes" || latest.b_choice !== "yes") return { ok: false, code: CODES.INVALID_STATE, message: "이미 끝난 후보예요." };
+  if (latest.status === "proposed") {
+    const { data: claimed, error } = await admin.from("doit_match_candidates").update({ status: "mutual", updated_at: new Date().toISOString() }).eq("id", c.id).eq("status", "proposed").eq("a_choice", "yes").eq("b_choice", "yes").select(CANDIDATE_COLS).maybeSingle();
+    if (error) throw new StageError("mutual_claim_failed", dbCodeOf(error));
+    if (!claimed) return depth < 2 ? openConnection(admin, c, depth + 1) : { ok: false, code: CODES.INVALID_STATE, message: "이미 끝난 후보예요." };
+  }
   const members = await loadMembers(admin, [c.user_a, c.user_b]);
   const a = members.find((m) => m.id === c.user_a), b = members.find((m) => m.id === c.user_b);
   const withdraw = async () => { await admin.from("doit_match_candidates").update({ status: "withdrawn", updated_at: new Date().toISOString() }).eq("id", c.id); };
   if ((await blockedPairs(admin, [c.user_a])).has(pairKey(c.user_a, c.user_b))) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "이 후보와는 이어질 수 없어요." }; }
   if (!a || !b || !a.eligible || !b.eligible || !a.purposeId || a.purposeId !== b.purposeId) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "두 사람 중 연결 준비가 바뀐 사람이 있어 이번 후보는 닫았어요." }; }
   const common = commonOf(a, b);
-  const first = await firstQuestionFor(a.purposeLabel, common);
-  const { error } = await admin.from("doit_matches").insert({ user_a: c.user_a, user_b: c.user_b, purpose_id: a.purposeId, common: common.a, first_question: first.question, status: "approved" });
+  const { data: existing, error: existingError } = await admin.from("doit_matches").select("id, status, first_question").eq("user_a", c.user_a).eq("user_b", c.user_b).maybeSingle();
+  if (existingError) throw new StageError("connection_read_failed", dbCodeOf(existingError));
+  if (existing && existing.status !== "approved") return { ok: false, code: CODES.INVALID_STATE, message: "이 쌍은 이미 끝난 연결이에요." };
+  const first = existing ? { question: existing.first_question as string | null, source: "fixed" as const } : await firstQuestionFor(a.purposeLabel, common);
+  // AI 첫 질문을 기다리는 사이 생긴 차단도 연결을 열지 않는다.
+  if ((await blockedPairs(admin, [c.user_a])).has(pairKey(c.user_a, c.user_b))) { await withdraw(); return { ok: false, code: CODES.NOT_ELIGIBLE, message: "이 후보와는 이어질 수 없어요." }; }
+  const { error } = existing ? { error: { code: "23505" } } : await admin.from("doit_matches").insert({ user_a: c.user_a, user_b: c.user_b, purpose_id: a.purposeId, common: common.a, first_question: first.question, status: "approved" });
   if (error && (error as { code?: string }).code !== "23505") return { ok: false, code: CODES.ERROR, message: "연결을 열지 못했어요. 잠시 뒤 다시 눌러 주세요." };
   const { data: m } = await admin.from("doit_matches").select("id, status").eq("user_a", c.user_a).eq("user_b", c.user_b).maybeSingle();
   if (!m || m.status !== "approved") return { ok: false, code: CODES.INVALID_STATE, message: "이 쌍은 이미 끝난 연결이에요." };
   const raced = !!error; // 상대가 같은 순간에 먼저 열었음 — 그쪽 첫 질문을 쓴다
-  await admin.from("doit_match_candidates").update({ status: "mutual", match_id: String(m.id), updated_at: new Date().toISOString() }).eq("id", c.id);
+  const { data: linked, error: linkError } = await admin.from("doit_match_candidates").update({ status: "mutual", match_id: String(m.id), updated_at: new Date().toISOString() }).eq("id", c.id).eq("status", "mutual").eq("a_choice", "yes").eq("b_choice", "yes").select("id").maybeSingle();
+  if (linkError || !linked) return { ok: false, code: CODES.ERROR, message: "연결을 확인하지 못했어요. 잠시 뒤 다시 눌러 주세요." };
   logDiag({ action: "mutual_open", question: first.source, no_common: common.a.length === 0, raced });
   return { ok: true, matchId: String(m.id), firstQuestion: raced ? null : first.question, questionSource: raced ? null : first.source };
 }
@@ -783,7 +806,8 @@ async function openConnection(admin: Db, c: CandidateRow): Promise<{ ok: true; m
 /** 두 사람이 모두 「이어지고 싶어요」를 눌러 열린 연결만(관리자가 연 연결은 아님). 후보 표의 status=mutual · 양쪽 yes · match_id 로만 판단한다. */
 async function mutualMatchIds(admin: Db, matchIds: string[]): Promise<Set<string>> {
   if (!matchIds.length) return new Set();
-  const { data } = await admin.from("doit_match_candidates").select("match_id, a_choice, b_choice").in("match_id", matchIds).eq("status", "mutual");
+  const { data, error } = await admin.from("doit_match_candidates").select("match_id, a_choice, b_choice").in("match_id", matchIds).eq("status", "mutual");
+  if (error) throw new StageError("mutual_read_failed", dbCodeOf(error));
   return new Set((data ?? []).filter((r) => r.a_choice === "yes" && r.b_choice === "yes" && r.match_id).map((r) => String(r.match_id)));
 }
 
@@ -847,6 +871,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const answers = await answersOf(admin, rows.map((r) => r.id));
       const myOutcomes = new Map((await outcomesOf(admin, rows.map((r) => r.id), userId)).map((o) => [String(o.match_id), o]));
       const viaMutual = await mutualMatchIds(admin, rows.map((r) => r.id));
+      const consent = rows.length ? await authInfoOf(admin, new Set(rows.flatMap((r) => [r.user_a, r.user_b]))) : new Map<string, AuthInfo>();
       const out = [];
       for (const m of rows) {
         const partnerId = m.user_a === userId ? m.user_b : m.user_a;
@@ -854,13 +879,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const got = answers.get(m.id) ?? new Map();
         const mine = got.get(userId) ?? null;
         const theirs = got.get(partnerId) ?? null;
-        const revealed = open && !!mine && !!theirs;
+        // 공개 = 둘 다 첫 답 + 둘 다 지금도 연결 공개 동의(현재 동의 판) — 답할 때의 동의만 보지 않는다(Codex v3 통합).
+        let revealed = open && !!mine && !!theirs && consent.get(userId)?.consented === true && consent.get(partnerId)?.consented === true;
         const item: Json = {
           id: m.id, status: open ? "open" : "closed", created_at: m.created_at,
           first_question: open ? m.first_question : null,
           my_answer: open ? mine?.answer ?? null : null,
           partner_answered: open ? !!theirs : false,
           revealed,
+          reveal_state: revealed ? "FULL_SAFE" : "CANDIDATE_SAFE",
           via_mutual: viaMutual.has(m.id),
           outcome: (() => { const o = myOutcomes.get(m.id); return o ? { talked: o.talked ?? null, met: o.met ?? null, again: o.again ?? null, helpful: o.helpful ?? null } : null; })(),
         };
@@ -870,6 +897,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
             primaryPhotoUrl(admin, partnerId),
             admin.from("doit_match_messages").select("id, sender_id, body, created_at").eq("match_id", m.id).order("created_at", { ascending: false }).limit(LIMITS.MESSAGES_SHOWN),
           ]);
+          // 상대 정보를 내려 주기 직전 연결 상태·차단을 다시 읽는다 — 그 사이 끝났거나 차단됐으면 닫힌 모습으로.
+          const current = await loadMatch(admin, m.id, userId);
+          if (!current || current.match.status !== "approved" || (await blockedPairs(admin, [userId])).has(pairKey(userId, partnerId))) {
+            revealed = false;
+            Object.assign(item, { status: "closed", revealed: false, reveal_state: "CANDIDATE_SAFE", first_question: null, my_answer: null, partner_answered: false });
+            out.push(item); continue;
+          }
           item.partner = {
             nickname: cleanText(p?.nickname) || cleanText(p?.display_name) || "이름 없음",
             bio: cleanText(p?.bio), purpose: p?.purpose_label ?? null, answer: theirs?.answer ?? "", photo_url: photo,
@@ -939,7 +973,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (!consentedToConnect(user)) { logDiag({ action, consent: false }); return fail(CODES.CONSENT_REQUIRED, "첫 답을 보내기 전에 무엇이 상대에게 보이는지 확인해 주세요.", 409, origin); }
         const { error } = await admin.from("doit_match_answers").insert({ match_id: matchId, user_id: userId, answer: text });
         if (error) {
-          if ((error as { code?: string }).code === "23505") return fail(CODES.INVALID_STATE, "이미 답을 보냈어요.", 409, origin);
+          if ((error as { code?: string }).code === "23505") {
+            // 같은 답의 재시도(네트워크·두 번 누름)는 같은 결과로, 다른 내용이면 409(Codex v3 통합).
+            const prior = (await answersOf(admin, [matchId])).get(matchId)?.get(userId);
+            if (prior?.answer === text) return json({ ok: true, replayed: true }, 200, origin);
+            return fail(CODES.INVALID_STATE, "이미 답을 보냈어요.", 409, origin);
+          }
           return fail(CODES.ERROR, "답을 보내지 못했어요. 적은 내용은 그대로 있어요. 다시 눌러 주세요.", 500, origin);
         }
         logDiag({ action });
@@ -947,7 +986,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const answers = (await answersOf(admin, [matchId])).get(matchId) ?? new Map();
       if (!answers.has(userId) || !answers.has(found.partnerId)) return fail(CODES.INVALID_STATE, "두 사람이 모두 첫 질문에 답한 뒤에 이야기할 수 있어요.", 409, origin);
-      const { error } = await admin.from("doit_match_messages").insert({ match_id: matchId, sender_id: userId, body: text });
+      // 이야기 요청 id(선택) = 그 이야기의 id. 같은 보내기의 재시도는 한 번만 저장, 같은 id 로 다른 내용·다른 사람·다른 연결이면 409(Codex v3 통합).
+      // 요청 id 가 없는 예전 화면은 그대로(중복 방지 없음).
+      const messageId = body.requestId === undefined || body.requestId === null ? null : str(body.requestId).toLowerCase();
+      if (messageId !== null && !UUID_RE.test(messageId)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
+      const { error } = await admin.from("doit_match_messages").insert({ ...(messageId ? { id: messageId } : {}), match_id: matchId, sender_id: userId, body: text });
+      if (error && (error as { code?: string }).code === "23505" && messageId) {
+        const { data: prior, error: readError } = await admin.from("doit_match_messages").select("match_id, sender_id, body").eq("id", messageId).maybeSingle();
+        if (readError) throw new StageError("message_retry_read_failed", dbCodeOf(readError));
+        if (prior && String(prior.match_id) === matchId && String(prior.sender_id) === userId && prior.body === text) return json({ ok: true, replayed: true }, 200, origin);
+        return fail(CODES.INVALID_STATE, "같은 요청으로 다른 이야기를 보낼 수 없어요.", 409, origin);
+      }
       if (error) return fail(CODES.ERROR, "보내지 못했어요. 적은 내용은 그대로 있어요. 다시 눌러 주세요.", 500, origin);
       logDiag({ action });
       return json({ ok: true }, 200, origin);
@@ -989,7 +1038,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (blocked.has(pairKey(userId, partnerId))) continue;
         // 보여 주기 직전: 상대가 지금도 자격이 있는지(이번 요청에서 새로 읽은 모습). 아니면 이번에는 보여 주지 않는다.
         const partnerNow = members.find((m) => m.id === partnerId) ?? (await loadMembers(admin, [partnerId]))[0];
-        if (!partnerNow?.eligible) continue;
+        if (!eligible || !partnerNow?.eligible || partnerNow.purposeId !== me?.purposeId) continue; // 나·상대 모두 지금 자격 + 같은 목적일 때만(Codex v3 통합)
         const mine = mySide(c, userId) === "a" ? c.a_choice : c.b_choice;
         if (mine !== null && mine !== "yes") continue;
         out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null, me?.confirmed ?? []), my_choice: mine, waiting: mine === "yes" });
@@ -1012,7 +1061,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const side = mySide(c, userId);
       const col = side === "a" ? "a_choice" : "b_choice";
       const already = side === "a" ? c.a_choice : c.b_choice;
-      if (c.status === "mutual" && already === "yes" && choice === "yes") return json({ ok: true, status: "mutual", match_id: c.match_id }, 200, origin);
+      if (c.status === "mutual" && already === "yes" && choice === "yes") {
+        // 같은 「이어지고 싶어요」 재시도. 연결 id 가 비어 있으면(앞선 시도가 중간에 끊김) 열기를 마저 한다(Codex v3 통합).
+        if (c.match_id) return json({ ok: true, status: "mutual", match_id: c.match_id }, 200, origin);
+        const opened = await openConnection(admin, c);
+        if (!opened.ok) return fail(opened.code, opened.message, 409, origin);
+        return json({ ok: true, status: "mutual", match_id: opened.matchId }, 200, origin);
+      }
       // 같은 넘기기·숨기기를 다시 보내면(네트워크 재시도·두 탭) 오류 대신 같은 결과. 신고·차단도 다시 기록하지 않고 저장된 상태를 돌려준다(중복 0).
       if (c.status === "declined" && already === choice && choice !== "yes") {
         const partner = side === "a" ? c.user_b : c.user_a;
@@ -1030,14 +1085,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const now = new Date().toISOString();
       if (choice !== "yes") {
-        const { error } = await admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id);
+        // 읽은 뒤 바뀌지 않았을 때만 바꾼다(조건부 갱신 · Codex v3 통합): 아직 proposed 이고 내 선택이 읽은 그대로.
+        let change = admin.from("doit_match_candidates").update({ [col]: choice, status: "declined", updated_at: now }).eq("id", id).eq("status", "proposed");
+        change = already !== null ? change.eq(col, already) : change.is(col, null);
+        const { data: changed, error } = await change.select("id").maybeSingle();
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
+        if (!changed) {
+          // 졌다 = 그 사이 누군가 바꿈. 같은 선택(같은 숨기기·넘기기)이 먼저 저장된 것이면 재시도와 같은 결과로, 아니면 409.
+          const { data: nowRow } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", id).maybeSingle();
+          const n = nowRow ? asCandidate(nowRow) : null;
+          if (n && n.status === "declined" && (side === "a" ? n.a_choice : n.b_choice) === choice) {
+            const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason, ask.requestId) : { blocked: false, reported: false };
+            return json({ ok: true, status: "declined", ...saved }, 200, origin);
+          }
+          return fail(CODES.INVALID_STATE, "이미 고른 후보예요.", 409, origin);
+        }
         const saved = safety ? await recordSafety(admin, userId, partnerId, "candidate", id, ask.block, ask.reason, ask.requestId) : { blocked: false, reported: false };
         logDiag({ action, choice, block: saved.blocked, reason: ask.reason });
         return json({ ok: true, status: "declined", ...saved }, 200, origin);
       }
       if (already !== "yes") {
-        const { error } = await admin.from("doit_match_candidates").update({ [col]: "yes", updated_at: now }).eq("id", id);
+        const { error } = await admin.from("doit_match_candidates").update({ [col]: "yes", updated_at: now }).eq("id", id).eq("status", "proposed").is(col, null);
         if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
       }
       const { data: fresh } = await admin.from("doit_match_candidates").select(CANDIDATE_COLS).eq("id", id).maybeSingle();
@@ -1068,9 +1136,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!found || (found.match.status !== "approved" && found.match.status !== "closed")) return fail(CODES.NOT_FOUND, "이 연결을 찾지 못했어요.", 404, origin);
       const now = new Date().toISOString();
       const { data: prev } = await admin.from("doit_match_outcomes").select("match_id").eq("match_id", matchId).eq("user_id", userId).maybeSingle();
-      const { error } = prev
+      let { error } = prev
         ? await admin.from("doit_match_outcomes").update({ ...patch, updated_at: now }).eq("match_id", matchId).eq("user_id", userId)
         : await admin.from("doit_match_outcomes").insert({ match_id: matchId, user_id: userId, ...patch });
+      // 동시에 두 칸을 처음 저장하면 한쪽 insert 가 23505 — 그 줄에 고친다(Codex v3 통합).
+      if (error && (error as { code?: string }).code === "23505") ({ error } = await admin.from("doit_match_outcomes").update({ ...patch, updated_at: now }).eq("match_id", matchId).eq("user_id", userId));
       if (error) return fail(CODES.ERROR, "저장하지 못했어요. 다시 눌러 주세요.", 500, origin);
       logDiag({ action, fields: Object.keys(patch) });
       return json({ ok: true }, 200, origin);
