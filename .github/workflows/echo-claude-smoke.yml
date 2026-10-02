@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'secret_presence_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'smoke', 'compare43']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'secret_presence_qa', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'ai_key_restore_qa', 'smoke', 'compare43']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -353,6 +353,55 @@ jobs:
       - name: 배포 직후 실서버 계약(401 · 403 · 400 · 404 · 200)
         working-directory: product/qa-real
         run: node qa-connect-live.mjs
+
+  # 2026-10-02 QA doit-agent 상위 HTTP 401 복구 — 기존 연결(GitHub OPENAI_API_KEY_AB_TEST → QA OPENAI_API_KEY → QA 함수)만 · QA ref 만 · 값 출력 0.
+  # 다른 비밀값·모델·함수 배포는 건드리지 않는다. GitHub 키가 OpenAI 에서 200 이고 QA 등록값과 다를 때만 그 하나를 다시 등록한다.
+  ai_key_restore_qa:
+    if: inputs.mode == 'ai_key_restore_qa'
+    runs-on: ubuntu-latest
+    environment: ECHO-QA
+    env:
+      QA_PROJECT_ID: mutniujeiyujhkobadkd
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: 진단(키 값 출력 0) — GitHub 시험용 키의 OpenAI 응답 상태 · QA 등록값과 같은지(해시 비교만)
+        id: probe
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          QA_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+        run: |
+          set -euo pipefail
+          [ "$QA_PROJECT_ID" = "mutniujeiyujhkobadkd" ] || { echo "FAIL: QA ref 아님"; exit 1; }
+          if [ -z "$QA_OPENAI_KEY" ]; then echo "github_key=없음"; echo "github_status=missing" >> "$GITHUB_OUTPUT"; exit 0; fi
+          st=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $QA_OPENAI_KEY" https://api.openai.com/v1/models)
+          gd=$(printf '%s' "$QA_OPENAI_KEY" | sha256sum | cut -d' ' -f1)
+          qd=$(supabase secrets list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[] | select(.name=="OPENAI_API_KEY") | .value' | head -1)
+          present=false; [ -n "$qd" ] && present=true
+          same=false; [ "$gd" = "$qd" ] && same=true
+          echo "GitHub 시험용 키 → OpenAI GET /v1/models: HTTP $st · QA OPENAI_API_KEY 등록됨=$present · GitHub 값과 같음=$same"
+          echo "github_status=$st" >> "$GITHUB_OUTPUT"; echo "same=$same" >> "$GITHUB_OUTPUT"
+      - name: 복구(GitHub 키 200 · QA 값이 다를 때만) — QA OPENAI_API_KEY 하나만 다시 등록 · 값 출력 0 · 임시 파일 즉시 삭제
+        if: steps.probe.outputs.github_status == '200' && steps.probe.outputs.same != 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+          QA_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+        run: |
+          set -euo pipefail
+          umask 077; F=$(mktemp)
+          printf 'OPENAI_API_KEY=%s\n' "$QA_OPENAI_KEY" > "$F"
+          supabase secrets set --project-ref "$QA_PROJECT_ID" --env-file "$F" > /dev/null; rc=$?
+          rm -f "$F"; [ $rc = 0 ]
+          echo "QA OPENAI_API_KEY 를 GitHub 시험용 키로 다시 등록함(값 출력 0 · 다른 비밀값·모델·함수 변경 0)"
+      - name: 판정 요약
+        run: |
+          echo "github_status=${{ steps.probe.outputs.github_status }} · same=${{ steps.probe.outputs.same }}"
+          case "${{ steps.probe.outputs.github_status }}" in
+            200) echo "GitHub 키는 OpenAI 에서 유효";;
+            401) echo "GitHub 키 자체가 OpenAI 에서 거절됨 → 새 키를 GitHub Secret 에 넣는 대표 조치 필요(이 실행은 등록하지 않음)";;
+            *) echo "확인 불가(상태 ${{ steps.probe.outputs.github_status }})";;
+          esac
 
   secret_presence_qa:
     # 2026-10-01 대표 「QA OAuth 확인용 토큰 등록」: 어떤 이름의 비밀값이 이 워크플로에서 보이는지만 확인(값 출력 0 · 길이·일부도 출력 0 · 있으면 true/없으면 false).
