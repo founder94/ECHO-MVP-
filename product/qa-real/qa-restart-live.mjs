@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // QA 「처음부터 다시 시작하기」 실제 동작(2026-09-28 대표 「처음부터 다시 시작하기 UX 수정」) — QA 사이트·QA DB 전용.
 // 새 QA 시험 계정(가입) → 목적 저장 → 실제 대화 세션 1개 시작(QA doit-agent) → 로그인 상태로 「나의 이해」 → 「처음부터 다시 시작하기」 한 번 탭
 // → ECHO 첫 대화 화면(어떤 만남을 원하세요?)에 바로 도착하는지, 그리고 초기화가 진짜인지(새 회차 시각 · 서버가 옛 세션을 돌려주지 않음 · 목적·확정 정보 유지) 확인.
@@ -10,7 +11,7 @@ const APP = 'https://echo-app-qa.netlify.app';
 const ANON = process.env.QA_ANON;
 if (!ANON) { console.error('QA_ANON 없음'); process.exit(2); }
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const http = async (path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) => {
   const r = await fetch(`${SB}${path}`, { method, headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let data = null; try { data = t ? JSON.parse(t) : null; } catch { data = t.slice(0, 200); }

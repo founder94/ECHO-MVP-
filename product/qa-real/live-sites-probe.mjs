@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // 배포된 QA 사이트(앱·브랜드) 실사이트 확인 — 로그인 없음 · 읽기 전용(클릭·입력·저장 0) · Chrome·WebKit 390/1280.
 // 역할 분리(대표 「BRAND / APP / ADMIN / SERVER 분리」): 브랜드 = 브랜드 화면만(제품 경로는 앱 주소로), 앱 = 제품(관리자 경로는 관리자 주소로).
 import { chromium, webkit } from 'playwright';
@@ -5,7 +6,7 @@ const APP = 'https://echo-app-qa.netlify.app';
 const BRAND = 'https://echo-brand-qa.netlify.app';
 const ADMIN = 'https://echo-admin-qa.netlify.app';
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const PROD = /(^|\.)do-it\.company$/;
 
 for (const [bname, type] of [['chrome', chromium], ['webkit', webkit]]) {

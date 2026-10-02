@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // PROD UI E2E(2026-09-29 대표 GO · 7단계) — 게시본과 같은 파일(index 해시 577d3823732bd05e 로 확인한 3f0c591 PROD 빌드)을
 // 실제 주소 app.do-it.company 로 브라우저에 넣고, 서버는 진짜 PROD(Supabase·doit-agent·실제 AI). 시험 계정 a 만 · 비밀값 출력 0.
 import { chromium, webkit, devices } from 'playwright';
@@ -8,7 +9,7 @@ const DIST = resolve(process.env.LOCAL_DIST); const A = JSON.parse(readFileSync(
 const PROXY = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined;
 const MIXED = /thriving-melba|netlify\.app|mutniujeiyujhkobadkd|echo-(app|brand|admin)-qa/;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.txt': 'text/plain', '.jpg': 'image/jpeg', '.mp3': 'audio/mpeg' };
-const results = []; const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const results = []; const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const DEVICES = [
   ['chrome', chromium, 'galaxy', { viewport: { width: 412, height: 915 }, userAgent: devices['Galaxy S9+'].userAgent, isMobile: true, hasTouch: true, deviceScaleFactor: 3 }],
   ['webkit', webkit, 'iphone', { viewport: { width: 390, height: 844 }, userAgent: devices['iPhone 13'].userAgent, hasTouch: true, deviceScaleFactor: 3 }],

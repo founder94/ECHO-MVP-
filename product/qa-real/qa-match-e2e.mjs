@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // PROD 2계정 매칭 E2E(2026-09-29 대표 「PROD RELEASE CLOSING ORDER」 §4) — 시험 계정 a·b 만 · 목적 friend(실사용자 0 확인 뒤) · 비밀값 출력 0.
 // 앱과 같은 경로: 새 회차(user_metadata) · 목적·소개(profiles) · 사진 3장(Storage profile-photos + profile_photos) · 연결 동의(user_metadata) · 대화(doit-agent)
 // → my_candidates → A yes → (한쪽 yes 로 연결 0) → B yes → mutual → my_matches(열림 · 첫 답 전 상대 정보 0) → 같은 선택 재전송(중복 0) → outcome.
@@ -7,7 +8,7 @@ const SB = process.env.SB_URL ?? 'https://zyyhhxyupizcqhxqnxuu.supabase.co', KEY
 const PURPOSE = { id: process.env.PURPOSE_ID ?? 'friend', label: process.env.PURPOSE_LABEL ?? '친구를 만나고 싶어요', goal: process.env.GOAL ?? 'friend' };
 const ACCTS = process.env.SIGNUP ? {} : JSON.parse(readFileSync(process.env.ACCT_FILE, 'utf8'));
 const JPEG = readFileSync(process.env.JPEG_FILE);
-const results = []; const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); return !!ok; };
+const results = []; const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); return !!ok; };
 const http = async (path, { method = 'GET', jwt = null, body = null, headers = {}, raw = null } = {}) => {
   const r = await fetch(`${SB}${path}`, { method, headers: { apikey: KEY, Authorization: `Bearer ${jwt ?? KEY}`, ...(raw ? {} : { 'Content-Type': 'application/json' }), ...headers }, body: raw ?? (body ? JSON.stringify(body) : undefined) });
   const t = await r.text(); let data = null; try { data = t ? JSON.parse(t) : null; } catch { data = t.slice(0, 200); }

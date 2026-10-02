@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // 대표 실기기 P0 세 건 — 「대표가 실제로 도달한 상태」 재현 검사(QA 사이트·QA DB 전용 · 새 시험 계정 · 운영 0).
 //  ② 대화를 끝까지 마친 계정(phase=done)으로 start-journey 「오늘은 무엇부터 할까요?」(대표 화면: 사진과 소개 채우기 · 대화 다시 보기 · 홈으로)
 //     → 「처음부터 다시 시작하기」가 화면에 실제로 보이고(뷰포트 안 · 다른 요소에 가리지 않음) 한 번 탭 → 확인 창 0 → 첫 질문 · 목적·지난 대화 유지
@@ -27,7 +28,7 @@ const serveLocal = async (ctx) => {
   });
 };
 console.log(LOCAL_DIST ? `MODE CODE_PASS(로컬 빌드 주입 · ${LOCAL_DIST})` : 'MODE LIVE(게시된 QA 사이트)');
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const http = async (path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) => {
   const r = await fetch(`${SB}${path}`, { method, headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let data = null; try { data = t ? JSON.parse(t) : null; } catch { data = t.slice(0, 200); }

@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // PR #12 운영 배포 전 관통 QA(2026-09-27 대표 「FINAL PRE-DEPLOY VALIDATION」).
 // 실제 서버 코드(doit-agent index.ts+agent.ts · doit-connect index.ts+agentSource.ts)를 그대로 돌리고, DB 는 메모리(운영 DB·Auth 0),
 // AI 는 OPENAI_API_KEY 가 있으면 실제 OpenAI(없으면 구조 확인용 대본). 입력은 모두 합성 문장(실제 사용자 원문 0).
@@ -143,7 +144,7 @@ const agent = loadFn(path.join(FN, 'doit-agent'), {});
 
 // ── 결과
 const log = []; const checks = [];
-const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail }); };
+const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail: safeDetail(detail) }); };
 const rejections = []; const xslot = {};
 const say = async (who, sid, text, extra = {}) => {
   const r = await agent(who, { action: 'agent_turn', requestId: rid(), sessionId: sid, text, ...extra });

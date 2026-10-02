@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // CORE 실서버 검사(2026-09-29 대표 「AUTH + QA CLOSING」 §7-9·10) — QA 서버(doit-agent)·실제 AI · 새 시험 계정 · 운영 0 · 비밀값 0(QA 공개 키만).
 //  ① 정정: 사용자가 「아니 그런 뜻 아니야」로 고친 뒤 최신 정정이 이긴다 — 요약·프로필에 거절된 뜻(매일 연락) 0 · 정정한 뜻(주말) 반영
 //  ② 거절된 의미 재등장 0: 정정 뒤 AI 말(질문·반응)에 거절된 뜻이 사실처럼 다시 나오지 않는다
@@ -9,7 +10,7 @@ const SB = `https://${QA_REF}.supabase.co`;
 const ANON = process.env.QA_ANON;
 if (!ANON) { console.error('QA_ANON 없음'); process.exit(2); }
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const http = async (path, { method = 'GET', jwt = null, body = null, headers = {} } = {}) => {
   const r = await fetch(`${SB}${path}`, { method, headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let data = null; try { data = t ? JSON.parse(t) : null; } catch { data = t.slice(0, 200); }

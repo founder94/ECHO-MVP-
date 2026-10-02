@@ -1,10 +1,11 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // QA 서버 doit-connect 실서버 확인(2026-09-29 PROD PRE-FLIGHT) — 배포한 소스가 부팅되고 인증·권한·요청 검사가 그대로인지. 새 시험 계정 · 운영 0.
 // 전체 연결 루프(후보 → 서로 선택 → 연결 → 결과)는 run 72(45/45 · 같은 index.ts)에서 확인. 여기서는 배포 직후 서버 계약만 본다.
 import { randomUUID } from 'node:crypto';
 const SB = process.env.SB_URL ?? 'https://mutniujeiyujhkobadkd.supabase.co';
 const ANON = process.env.QA_ANON;
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const call = async (jwt, body) => { const r = await fetch(`${SB}/functions/v1/doit-connect`, { method: 'POST', headers: { apikey: ANON, 'Content-Type': 'application/json', ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}) }, body: JSON.stringify(body) }); let data = null; try { data = await r.json(); } catch { /* 빈 응답 */ } return { status: r.status, data }; };
 const post = (path, body, jwt) => fetch(`${SB}${path}`, { method: 'POST', headers: { apikey: ANON, Authorization: `Bearer ${jwt ?? ANON}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((x) => x.json());
 

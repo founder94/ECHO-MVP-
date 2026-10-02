@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // ECHO-QA 실환경 관통 검사(2026-09-27 대표 「ACTUAL DEPLOY + END-TO-END VALIDATION」) — QA 프로젝트 전용.
 // 실제 Supabase Auth(이메일 가입·로그인) · 실제 DB · 실제 RLS(사용자 JWT) · 실제 Edge Functions · 실제 OpenAI.
 // 서버 관리 키(service_role)는 쓰지 않는다(토큰 권한에 API 키 읽기 없음 · 대표 지시로 권한 확대 금지).
@@ -16,7 +17,7 @@ if (QA_REF !== 'mutniujeiyujhkobadkd' || QA_URL !== `https://${QA_REF}.supabase.
 if (!/^[a-z0-9]{1,12}$/.test(QA_RUN)) { console.error('QA_RUN 형식'); process.exit(2); }
 
 const checks = []; const log = []; const timings = []; const evidence = {};
-const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail: typeof detail === 'string' ? detail : JSON.stringify(detail) }); };
+const check = (id, ok, detail = '') => { checks.push({ id, result: ok === null ? 'INVALID' : ok ? 'PASS' : 'FAIL', detail: safeDetail(detail) }); };
 // 대표 지정 QA 주소(2026-09-27) · 이미 있으면 QA_RUN 에 새 suffix(base 가 아니면 붙임). 확인 메일 OFF 인 QA 에서만 쓰며 실제 메일은 가지 않는다.
 const BASE = { a: 'qa-agent-a-20260927', b: 'qa-agent-b-20260927', admin: 'qa-admin-20260927' };
 const emailOf = (tag) => `${BASE[tag]}${QA_RUN === 'base' ? '' : `-${QA_RUN}`}@do-it.company`;

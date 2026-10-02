@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // ADMIN WEB QA 검사(2026-09-28 대표 「ADMIN WEB FINAL BUILD ORDER」 §20) — QA 프로젝트 전용 · 비밀값 출력 0.
 // 1) 서버: 로그인 없음 401 · 일반 사용자 403(자료 0) · 관리자 200(실제 값) — admin-web 여섯 동작 + doit-connect admin_members.
 // 2) 화면(러너 안에서 띄운 관리자 빌드 · Chrome·WebKit · 390/1280): 관리자 로그인 → 대시보드·메뉴 14개 · 대화 원문 열기 / 일반 사용자 → 거절 화면·자료 호출 0 / 로그인 없음 → 로그인 화면.
@@ -6,7 +7,7 @@ const { QA_REF, QA_ANON, QA_PW_SEED, ADMIN_BASE, ADMIN_EMAIL, USER_EMAIL, USER_A
 if (QA_REF !== 'mutniujeiyujhkobadkd' || !QA_ANON || !QA_PW_SEED) { console.error('QA 환경값 없음/불일치'); process.exit(2); }
 const URL0 = `https://${QA_REF}.supabase.co`;
 const pw = (run, tag) => `Qa!${createHash('sha256').update(`${QA_PW_SEED}:${run}:${tag}`).digest('base64url').slice(0, 24)}`;
-const results = []; const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const results = []; const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 async function login(email, password) {
   const r = await fetch(`${URL0}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: QA_ANON, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
   return r.ok ? await r.json() : null;

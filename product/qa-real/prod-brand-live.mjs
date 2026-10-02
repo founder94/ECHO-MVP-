@@ -1,10 +1,11 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // 운영 BRAND 실사이트 확인(2026-09-28 대표 「BRAND → APP P0」) — 로그인 없음 · 읽기 전용(입력·저장 0).
 // 실제 사람처럼 https://do-it.company 첫 화면 → (온보딩) → 「ECHO 시작하기」 → 앱 도착까지 Galaxy·iPhone 크기 Chrome·WebKit 로 따라간다.
 import { chromium, webkit, devices } from 'playwright';
 const BRAND = 'https://do-it.company';
 const APP = 'https://app.do-it.company';
 const results = []; const appFindings = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const MIXED = /thriving-melba|netlify\.app|mutniujeiyujhkobadkd/; // 옛 QA 주소 · QA 사이트 주소 · QA Supabase
 
 const DEVICES = [

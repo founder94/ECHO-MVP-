@@ -1,3 +1,4 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // 운영 APP 실사이트 확인(2026-09-28 대표 GO 「운영 APP QA Supabase 혼입 수정」) — 로그인 없음 · 읽기 전용(입력·저장·가입 0).
 // app.do-it.company 를 Galaxy·iPhone 크기 Chrome·WebKit 로 열어 (1) 화면이 실제로 뜨는지 (2) 브라우저가 부르는 Supabase 가 운영 하나뿐인지 본다.
 import { chromium, webkit, devices } from 'playwright';
@@ -6,7 +7,7 @@ const BRAND = 'https://do-it.company';
 const PROD_SB = 'zyyhhxyupizcqhxqnxuu.supabase.co';
 const MIXED = /thriving-melba|netlify\.app|mutniujeiyujhkobadkd|echo-(app|brand|admin)-qa/;
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 
 const DEVICES = [
   ['galaxy', { viewport: { width: 412, height: 915 }, userAgent: devices['Galaxy S9+'].userAgent, isMobile: true, hasTouch: true, deviceScaleFactor: 3 }],

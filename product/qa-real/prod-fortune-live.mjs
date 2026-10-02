@@ -1,10 +1,11 @@
+import { safeDetail } from './safe-detail.mjs'; // 실패 출력에도 비밀값 0
 // 운영 사주·타로 실제 동작 확인(2026-09-28 대표 「사주·타로 상태 확인 · 수정 금지」) — 로그인 없음 · 저장 0.
 // app.do-it.company/doit/fortune 에서 사람처럼: 사주 = 생일 입력 → 계산 결과(명식) 표시 / 타로 = 목적 → 카드 뽑기 → 해석 표시.
 // 타로는 운영 openai-chat 을 실제로 부른다(기기마다 1회). 입력한 생일·카드는 저장하지 않는다(화면 상태만).
 import { chromium, webkit, devices } from 'playwright';
 const APP = 'https://app.do-it.company';
 const results = [];
-const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`); };
+const check = (name, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` · ${safeDetail(detail)}` : ''}`); };
 const DEVICES = [
   ['galaxy', { viewport: { width: 412, height: 915 }, userAgent: devices['Galaxy S9+'].userAgent, isMobile: true, hasTouch: true, deviceScaleFactor: 3 }],
   ['iphone', { viewport: { width: 390, height: 844 }, userAgent: devices['iPhone 13'].userAgent, hasTouch: true, deviceScaleFactor: 3 }],
