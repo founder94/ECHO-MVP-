@@ -1,0 +1,113 @@
+{
+  "target": "https://mutniujeiyujhkobadkd.supabase.co",
+  "function": "doit-connect-cto-qa",
+  "version": 2,
+  "rows": [
+    {
+      "account": "a",
+      "step": "existing_session",
+      "http": 403,
+      "code": "bad_jwt",
+      "subject_matches": false
+    },
+    {
+      "account": "a",
+      "step": "before_login_eligibility",
+      "http": 401,
+      "code": "UNAUTHORIZED_ASYMMETRIC_JWT",
+      "ok": null,
+      "eligible": null
+    },
+    {
+      "account": "a",
+      "step": "password_login",
+      "http": 200,
+      "code": null,
+      "subject_matches": true
+    },
+    {
+      "account": "a",
+      "step": "verified_subject",
+      "http": 200,
+      "code": null,
+      "subject_matches": true
+    },
+    {
+      "account": "a",
+      "step": "after_login_eligibility",
+      "http": 200,
+      "code": null,
+      "ok": true,
+      "eligible": true,
+      "missing": [],
+      "readiness": {
+        "conversation": {
+          "ready": true,
+          "source": "agent",
+          "finished": true,
+          "have": 3,
+          "need": 3
+        },
+        "purpose": true,
+        "intro": true,
+        "photos": 3,
+        "photos_needed": 3,
+        "phone_verified": false
+      },
+      "candidate_count": 1
+    },
+    {
+      "account": "b",
+      "step": "existing_session",
+      "http": 403,
+      "code": "bad_jwt",
+      "subject_matches": false
+    },
+    {
+      "account": "b",
+      "step": "before_login_eligibility",
+      "http": 401,
+      "code": "UNAUTHORIZED_ASYMMETRIC_JWT",
+      "ok": null,
+      "eligible": null
+    },
+    {
+      "account": "b",
+      "step": "password_login",
+      "http": 200,
+      "code": null,
+      "subject_matches": true
+    },
+    {
+      "account": "b",
+      "step": "verified_subject",
+      "http": 200,
+      "code": null,
+      "subject_matches": true
+    },
+    {
+      "account": "b",
+      "step": "after_login_eligibility",
+      "http": 200,
+      "code": null,
+      "ok": true,
+      "eligible": true,
+      "missing": [],
+      "readiness": {
+        "conversation": {
+          "ready": true,
+          "source": "agent",
+          "finished": true,
+          "have": 3,
+          "need": 3
+        },
+        "purpose": true,
+        "intro": true,
+        "photos": 3,
+        "photos_needed": 3,
+        "phone_verified": false
+      },
+      "candidate_count": 1
+    }
+  ]
+}
