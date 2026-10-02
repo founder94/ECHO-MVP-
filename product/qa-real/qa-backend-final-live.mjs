@@ -33,9 +33,26 @@ if(process.argv[2]==='provision'){
  }
 }else{
  const [a,b]=JSON.parse(readFileSync(file)),slug='doit-connect-cto-qa';const call=(u,body)=>fn(slug,u,body);
+ for(const u of [a,b]){
+  const login=await http('/auth/v1/token?grant_type=password',key,{email:u.email,password:u.password});
+  check(`${u.tag} current login/subject`,login.status===200&&login.data?.user?.id===u.uid&&!!login.data?.access_token);
+  u.jwt=login.data.access_token;u.refresh=login.data.refresh_token;
+  const me=await http('/auth/v1/user',u.jwt);check(`${u.tag} verified session`,me.status===200&&me.data?.id===u.uid);
+ }
+ writeFileSync(file,JSON.stringify([a,b]),{mode:0o600});
  check('unauthenticated denied',(await http('/functions/v1/'+slug,key,{action:'my_matches'})).status===401);
  const ca=await call(a,{action:'my_candidates'}),cb=await call(b,{action:'my_candidates'});
- check('A/B confirmed eligibility',ca.data?.eligible===true&&cb.data?.eligible===true);
+ for(const [u,r] of [[a,ca],[b,cb]]){
+  console.log(JSON.stringify({account:u.tag,http:r.status,code:r.data?.code??null,ok:r.data?.ok??null,eligible:r.data?.eligible??null,missing:r.data?.missing??null}));
+  check(`${u.tag} confirmed eligibility`,r.status===200&&r.data?.ok===true&&r.data?.eligible===true);
+ }
+ for(const action of ['admin_matches','admin_members','admin_candidates','admin_decide','admin_run_matching']){
+  const r=await call(a,{action});check(`${action} denied`,r.status===403&&r.data?.ok===false&&r.data?.code==='QA_ADMIN_DISABLED');
+ }
+ for(const action of ['answer','message','outcome','leave']){
+  const r=await call(a,{action,matchId:randomUUID(),text:'QA synthetic permission probe',met:'yes',block:true,reason:'spam'});
+  check(`${action} unknown target denied`,r.status===404&&r.data?.ok===false);
+ }
  check('isolated candidates exactly 1',ca.data.candidates.length===1&&cb.data.candidates.length===1);
  const cid=ca.data.candidates[0].id;check('candidate privacy',! /photo_url|storage_path|partner|nickname|bio/.test(JSON.stringify(ca.data.candidates))&&cb.data.candidates[0].id===cid);
  check('A YES waits',(await call(a,{action:'choose',candidateId:cid,choice:'yes'})).data?.status==='waiting');
@@ -50,7 +67,11 @@ if(process.argv[2]==='provision'){
  check('early chat denied',(await call(a,{action:'message',matchId:mid,text:'반가워요',requestId:randomUUID()})).status===409);
  for(const u of [a,b]){const body={action:'answer',matchId:mid,text:'천천히 서로의 이야기를 나누고 싶어요.'};check(`${u.tag} answer`,(await call(u,body)).data?.ok===true);check(`${u.tag} answer retry`,(await call(u,body)).data?.replayed===true);}
  ma=await call(a,{action:'my_matches'});mb=await call(b,{action:'my_matches'});check('full reveal after both answers/consent',ma.data.matches[0].reveal_state==='FULL_SAFE'&&mb.data.matches[0].reveal_state==='FULL_SAFE'&&!!ma.data.matches[0].partner.photo_url);
- for(const u of [a,b]){const body={action:'message',matchId:mid,text:'오늘은 어떤 이야기를 나누고 싶어요?',requestId:randomUUID()};const r=await Promise.all([call(u,body),call(u,body)]);check(`${u.tag} concurrent chat retry`,r.every(x=>x.data?.ok===true)&&r.some(x=>x.data?.replayed===true));}
+ const sent=[];
+ for(const u of [a,b]){const body={action:'message',matchId:mid,text:'오늘은 어떤 이야기를 나누고 싶어요?',requestId:randomUUID()};sent.push(body);const r=await Promise.all([call(u,body),call(u,body)]);check(`${u.tag} concurrent chat retry`,r.every(x=>x.status===200&&x.data?.ok===true)&&r.some(x=>x.data?.replayed===true));
+  const conflict=await call(u,{...body,text:'다른 논리적 전송은 새 아이디가 필요해요.'});check(`${u.tag} requestId content conflict`,conflict.status===409&&conflict.data?.ok===false);
+ }
+ const cross=await call(b,sent[0]);check('requestId actor conflict',cross.status===409&&cross.data?.ok===false);
  ma=await call(a,{action:'my_matches'});check('bidirectional chat count 2',ma.data.matches[0].messages.length===2&&ma.data.matches[0].messages.some(m=>m.mine)&&ma.data.matches[0].messages.some(m=>!m.mine));
  const outs=await Promise.all([call(a,{action:'outcome',matchId:mid,talked:'yes'}),call(a,{action:'outcome',matchId:mid,met:'planned'})]);check('concurrent outcome',outs.every(x=>x.data?.ok===true));
  const login=await http('/auth/v1/token?grant_type=password',key,{email:a.email,password:a.password});check('new login session',!!login.data?.access_token);a.jwt=login.data.access_token;
