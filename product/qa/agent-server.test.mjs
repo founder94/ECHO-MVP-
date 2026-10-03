@@ -239,7 +239,7 @@ test('외국인등록번호 형식은 모델 호출 전에 차단되고 저장�
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
-  for (const id of ['900101-5123456', '9001016123456', '900101 7123456', '900101-8123456', '900101-1234567', '9001014234567']) {
+  for (const id of ['900101-5123456', '9001016123456', '900101 7123456', '900101-8123456', '900101-1234567', '9001014234567', '900101 - 5123456', '９００１０１－６１２３４５６']) {
     const before = s.aiCalls.length;
     const b = await say(`제 번호는 ${id} 예요`);
     assert.equal(b.body.turn.kind, 'blocked', id); assert.equal(s.aiCalls.length, before, `${id} AI 호출 0`);

@@ -152,13 +152,15 @@ const MASKS: [string, RegExp, ((m: string) => string | null)?][] = [
   // 이메일(리뷰 4175265583): 영문뿐 아니라 유니코드(한글·국제화 도메인 · 퓨니코드) · 전각 ＠ · 마침표 꼴(. 。 ． ｡)까지. 점으로 나뉜 도메인 2칸 이상만(「5@3개」 · @멘션은 그대로).
   // 반복 길이를 묶어 긴 글에서도 선형 시간(무한 되돌림 0)
   ["email", /[\p{L}\p{N}\p{M}._%+-]{1,64}[@＠][\p{L}\p{N}\p{M}-]{1,63}(?:[.。．｡][\p{L}\p{N}\p{M}-]{1,63}){1,8}/gu],
-  ["rrn", /(?<!\d)\d{6}[-\s]?[1-8]\d{6}(?!\d)/g], // 주민등록번호(뒷자리 1~4) + 외국인등록번호(5~8) · 앞뒤 숫자 경계(더 긴 숫자의 일부 0 · 명세 5974645036) · 붙여 쓴 13자리가 우연히 Luhn 에 맞으면 앞의 카드 규칙이 먼저 전체를 가림(card 로 셈)
+  ["rrn", /(?<!\d)\d{6}[\s\u00a0]{0,3}-?[\s\u00a0]{0,3}[1-8]\d{6}(?!\d)/g], // 주민등록번호(뒷자리 1~4) + 외국인등록번호(5~8) · 하이픈 앞뒤 띄어쓰기 0~3칸(리뷰 4175444139) · 앞뒤 숫자 경계(더 긴 숫자의 일부 0 · 명세 5974645036) · 붙여 쓴 13자리가 우연히 Luhn 에 맞으면 앞의 카드 규칙이 먼저 전체를 가림(card 로 셈)
   ["birth", /(19|20)\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?/g],
 ];
+// 가리기 전 모양 맞춤(리뷰 4175444139): 전각 숫자 → 보통 숫자 · 여러 하이픈·대시 꼴 → "-" · 전각 공백 → 공백. 모든 가림 규칙(카드·전화·식별번호)이 같은 기준으로 본다(모델에 보내는 글만 · 저장 원문 영향 0).
+const normalizeForMask = (t: string): string => t.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[‐‑‒–—―−－]/g, "-").replace(/\u3000/g, " ");
 export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
   const counts: Record<string, number> = {};
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") { let t = v; for (const [name, re, mask] of MASKS) t = t.replace(re, (m) => { const out = mask ? mask(m) : "[가림]"; if (out == null) return m; counts[name] = (counts[name] ?? 0) + (out.match(/\[가림\]/g)?.length ?? 1); return out; }); return t; }
+    if (typeof v === "string") { let t = normalizeForMask(v); for (const [name, re, mask] of MASKS) t = t.replace(re, (m) => { const out = mask ? mask(m) : "[가림]"; if (out == null) return m; counts[name] = (counts[name] ?? 0) + (out.match(/\[가림\]/g)?.length ?? 1); return out; }); return t; }
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
     return v;

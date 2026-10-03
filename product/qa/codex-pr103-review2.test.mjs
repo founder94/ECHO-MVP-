@@ -407,3 +407,10 @@ test('외국인등록번호 5~8 형식은 재시도와 제공사 전환에서도
   assert.ok(!JSON.stringify(router.log).includes('900101'), '기록에 원문 0');
   const t0 = Date.now(); maskPii('1'.repeat(200_000)); maskPii('900101-'.repeat(30_000)); assert.ok(Date.now() - t0 < 2000, '긴 글도 빠름');
 });
+test('Codex P1(리뷰 4175444139) 하이픈 앞뒤 띄어쓰기 · 여러 하이픈 꼴 · 전각 숫자 식별번호도 가림(합성 값) · 멀리 떨어진 숫자는 안 묶음', () => {
+  for (const id of ['900101 - 5123456', '900101  -  6123456', '900101 -7123456', '900101– 8123456', '900101—1234567', '900101−2234567', '９００１０１－５１２３４５６', '９００１０１-５１２３４５６']) {
+    const { value } = maskPii(`번호 ${id} 입니다`);
+    assert.equal(value, '번호 [가림] 입니다', id);
+  }
+  for (const s of ['900101     -     5123456 끝', '주문 900101 - 9123456 번']) assert.equal(maskPii(s).value, s, s);
+});
