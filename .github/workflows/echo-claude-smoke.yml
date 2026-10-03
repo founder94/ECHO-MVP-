@@ -467,12 +467,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      AGENT_SHA: f5d1206fafb82c19635820e4dde4dd7e25baee30
+      AGENT_SHA: ad6e259e264d9429fd9d87b4adbb8652041ba223
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: f5d1206fafb82c19635820e4dde4dd7e25baee30
+          ref: ad6e259e264d9429fd9d87b4adbb8652041ba223
           path: src
       - name: 고정 commit 확인
         run: '[ "$(git -C src rev-parse HEAD)" = "$AGENT_SHA" ] || { echo "FAIL: 고정 commit 아님"; exit 1; }'
@@ -487,8 +487,9 @@ jobs:
         env:
           AGENT_SRC: ${{ github.workspace }}/src/product/supabase/functions/doit-agent
           OUT_DIR: ${{ github.workspace }}/ai3-out
-          SPEND_CAP_USD: '3' # 누적: 앞선 두 번 ≈ 0.22달러(추정) → 승인 5달러 안
-          ONLY: anthropic
+          SPEND_CAP_USD: '2' # 누적: 앞선 검사 ≈ 0.29달러(추정) → 승인 5달러 안
+          ONLY: gemini
+          GEMINI_MODEL: gemini-3.5-flash-lite
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}

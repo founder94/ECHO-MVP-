@@ -15,7 +15,8 @@ const SPEND_CAP_USD = Number(process.env.SPEND_CAP_USD ?? '4');
 const PROVIDERS = [
   { id: 'openai', model: 'gpt-4o-mini', key: 'OPENAI_API_KEY', price: { in_usd_per_1m: 0.15, out_usd_per_1m: 0.60 } },
   { id: 'anthropic', model: 'claude-haiku-4-5', key: 'ANTHROPIC_API_KEY', price: { in_usd_per_1m: 1.0, out_usd_per_1m: 5.0 } },
-  { id: 'gemini', model: 'gemini-2.5-flash', key: 'GEMINI_API_KEY', price: { in_usd_per_1m: 0.30, out_usd_per_1m: 2.50 } },
+  // gemini-2.5-flash 는 새 사용자 404(run 37121277472) → 예전 승인된 비교 검사(run 35·36)에서 쓴 gemini-3.5-flash-lite 를 GEMINI_MODEL 로 지정(가격 0.30/2.50 · 공식 페이지 미확인 → 2배 안전계수)
+  { id: 'gemini', model: process.env.GEMINI_MODEL || 'gemini-2.5-flash', key: 'GEMINI_API_KEY', price: { in_usd_per_1m: 0.30, out_usd_per_1m: 2.50 } },
 ];
 const SAFETY = 2; // 단가 2배로 최악 비용을 잡는다(공식 페이지를 이 환경에서 직접 못 연 값 포함)
 const HOSTS = { 'api.openai.com': 'openai', 'api.anthropic.com': 'anthropic', 'generativelanguage.googleapis.com': 'gemini' };
