@@ -93,7 +93,9 @@ function load(env) {
 // 합성 시나리오(사람 정보 0): 시작 → 답 → 「그게 아니에요」식 정정 → 답 → 마침 시도 → 실행 단계
 const TURNS = ['주말에 같이 산책하거나 카페에서 이야기할 친구면 좋겠어요', '아니 그게 아니라, 매일 연락하는 건 부담스럽고 주말에만 보는 게 좋아요', '솔직하고 약속을 잘 지키는 사람이요', '거짓말하는 사람은 싫어요'];
 const results = [];
-for (const p of PROVIDERS) {
+// ONLY=anthropic,openai 처럼 주면 그 업체만(재검사 비용 줄이기)
+const ONLY = (process.env.ONLY ?? '').split(',').filter(Boolean);
+for (const p of PROVIDERS.filter((x) => !ONLY.length || ONLY.includes(x.id))) {
   const key = process.env[p.key];
   if (!key) { results.push({ provider: p.id, model: p.model, status: 'NO_KEY(미검증)' }); continue; }
   const policy = { version: `synthetic-${p.id}-20261003`, providers: { [p.id]: { model: p.model, allow_user_text: true, enabled: true, price: p.price } }, tasks: { default: [p.id] }, switch_on_invalid: false, limits: { max_cost_usd_per_request: 0.25, same_provider_retries: 1 } };
@@ -111,6 +113,11 @@ for (const p of PROVIDERS) {
       const t = await h.call({ action: 'agent_turn', sessionId: sid, text });
       const q = t.body.session?.current_question ?? null;
       r.turns.push({ user: text, status: t.status, ms: t.ms, kind: t.body.turn?.kind ?? t.body.code, reply: t.body.turn?.reply ?? null, question: q, question_changed: q !== before, phase: t.body.session?.phase });
+      if (t.status !== 200) { // 실패 원인: 그 요청의 AI 호출 기록(오류 종류·까닭·토큰 수만 · 글 없음)
+        const f = h.state.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1)?.response_payload?.record;
+        r.failed_calls = (f?.ai_calls ?? []).map((c) => ({ kind: c.kind, provider: c.provider, error: c.error, reason: c.reason, in: c.input_tokens, out: c.output_tokens, usage: c.usage }));
+        r.failed_summary = f?.ai_usage ?? null;
+      }
       before = q; if (t.status !== 200 || t.body.session?.phase === 'done') break;
     }
     const sess = h.state.tables.doit_request_events.find((x) => x.action === 'agent_session')?.response_payload;
@@ -131,5 +138,5 @@ const summary = { spend_cap_usd: SPEND_CAP_USD, estimated_spend_usd: Number(spen
   per_provider: Object.fromEntries(Object.entries(byProv).map(([k, v]) => [k, { calls: v.length, ok: v.filter((x) => x.ok).length, tokens_in: v.reduce((n, x) => n + (x.tin ?? 0), 0), tokens_out: v.reduce((n, x) => n + (x.tout ?? 0), 0), usd_confirmed: Number(v.reduce((n, x) => n + (x.usd ?? 0), 0).toFixed(5)), usd_unconfirmed_reserved: Number(v.reduce((n, x) => n + (x.reserved ?? 0), 0).toFixed(5)), p50_ms: v.map((x) => x.ms).sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? null, statuses: [...new Set(v.map((x) => x.status))], errors: [...new Set(v.map((x) => x.err).filter(Boolean))] }])) };
 writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ summary, results }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
-for (const r of results) console.log(`\n## ${r.provider} (${r.model}) connect=${JSON.stringify(r.connect ?? r.status)} correction=${r.correction_applied} rejected_absent=${r.rejected_daily_contact_absent} daily_mentions=${JSON.stringify(r.daily_mentions ?? [])} run=${JSON.stringify(r.run)} errors=${JSON.stringify(r.errors)}\n` + (r.turns ?? []).map((t) => `- ${t.user ? `사용자: ${t.user}\n  ` : ''}[${t.kind ?? 'start'} ${t.status ?? ''} ${t.ms ?? ''}ms] 받아주기: ${t.reply ?? '-'} / 질문: ${t.question ?? t.ai ?? '-'}`).join('\n'));
+for (const r of results) console.log(`\n## ${r.provider} (${r.model}) connect=${JSON.stringify(r.connect ?? r.status)} correction=${r.correction_applied} rejected_absent=${r.rejected_daily_contact_absent} daily_mentions=${JSON.stringify(r.daily_mentions ?? [])} run=${JSON.stringify(r.run)} errors=${JSON.stringify(r.errors)} failed_calls=${JSON.stringify(r.failed_calls ?? null)} failed_summary=${JSON.stringify(r.failed_summary ?? null)}\n` + (r.turns ?? []).map((t) => `- ${t.user ? `사용자: ${t.user}\n  ` : ''}[${t.kind ?? 'start'} ${t.status ?? ''} ${t.ms ?? ''}ms] 받아주기: ${t.reply ?? '-'} / 질문: ${t.question ?? t.ai ?? '-'}`).join('\n'));
 if (spent > SPEND_CAP_USD) process.exit(2);

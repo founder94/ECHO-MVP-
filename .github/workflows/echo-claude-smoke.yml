@@ -469,7 +469,8 @@ jobs:
         env:
           AGENT_SRC: ${{ github.workspace }}/src/product/supabase/functions/doit-agent
           OUT_DIR: ${{ github.workspace }}/ai3-out
-          SPEND_CAP_USD: '4'
+          SPEND_CAP_USD: '3' # 누적: 앞선 두 번 ≈ 0.22달러(추정) → 승인 5달러 안
+          ONLY: anthropic
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_AB_TEST }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_AB_TEST }}
