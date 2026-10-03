@@ -18,7 +18,7 @@ function fakeDb(state) {
     const rows = () => { let r = table(name).filter((row) => filters.every((f) => f(row))); if (order) r = r.slice().sort((a, b) => (a[order.col] < b[order.col] ? -1 : a[order.col] > b[order.col] ? 1 : 0) * (order.asc ? 1 : -1)); if (lim != null) r = r.slice(0, lim); return r; };
     const run = () => {
       if (op === 'update') { const hit = rows(); for (const r of hit) Object.assign(r, structuredClone(patch)); return { data: returning ? hit.map((r) => ({ ...r })) : null, error: null }; }
-      return { data: rows().map((r) => structuredClone(r)), error: null };
+      const all = rows(); return { data: all.map((r) => structuredClone(r)), error: null, count: all.length };
     };
     const c = {
       select: () => { if (op !== 'select') returning = true; return c; },
@@ -62,21 +62,56 @@ function load(state) {
   vm.runInNewContext(compile('agent.ts'), { module: agentMod, exports: agentMod.exports, console }, { filename: 'agent.ts' });
   const failureMod = { exports: {} };
   vm.runInNewContext(compile('failure-intelligence.ts'), { module: failureMod, exports: failureMod.exports, console }, { filename: 'failure-intelligence.ts' });
+  // 2026-10-03 3개 제공사 통합: 모델 호출은 providers.ts(연결부) → modelRouter.ts(서버 선택 규칙). 환경 = OpenAI 키만 → 기본 정책(지금 운영 그대로).
+  const provMod = { exports: {} };
+  const g = { console, setTimeout, clearTimeout, AbortController, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, TextEncoder };
+  vm.runInNewContext(compile('providers.ts'), { ...g, module: provMod, exports: provMod.exports }, { filename: 'providers.ts' });
+  const routerMod = { exports: {} };
+  vm.runInNewContext(compile('modelRouter.ts'), { ...g, module: routerMod, exports: routerMod.exports, require: (n) => { if (n === './providers.ts') return provMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'modelRouter.ts' });
+  // 2026-10-03 실행 기록(run.ts · 순수 함수 · agent.ts 만 씀)
+  const runMod = { exports: {} };
+  vm.runInNewContext(compile('run.ts'), { ...g, structuredClone, module: runMod, exports: runMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'run.ts' });
   let handler = null;
   const logs = [];
   const sandbox = {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
-    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; throw new Error(`Unexpected dependency ${name}`); },
-    fetch: async (_url, init) => {
-      const body = JSON.parse(init.body);
+    // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
+    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    fetch: async (url, init) => {
+      // 2026-10-03 실행 단계의 도구(연결 서버 my_candidates) — state.connect 가 정한 응답(없으면 연결 실패)
+      if (String(url).endsWith('/functions/v1/doit-connect')) {
+        (state.connectCalls ??= []).push({ body: JSON.parse(init.body), auth: init.headers.Authorization });
+        const plan = state.connect?.length ? state.connect.shift() : 'NETWORK';
+        if (plan === 'NETWORK') throw new TypeError('fetch failed');
+        if (plan?.gate) await plan.gate;
+        return new Response(JSON.stringify(plan.body ?? plan), { status: plan.status ?? 200 });
+      }
+      // 2026-10-03 3개 제공사: 주소로 제공사를 가리고, 요청 모양(system · 사용자 입력)을 한 모양으로 읽은 뒤, 응답은 그 제공사 모양으로 돌려준다.
+      const prov = String(url).includes('api.anthropic.com') ? 'anthropic' : String(url).includes('generativelanguage.googleapis.com') ? 'gemini' : 'openai';
+      const raw = JSON.parse(init.body);
+      const body = prov === 'openai' ? raw : { model: raw.model ?? String(url).match(/models\/([^:]+):/)?.[1], temperature: raw.temperature ?? raw.generationConfig?.temperature, top_p: raw.generationConfig?.topP, max_tokens: raw.max_tokens ?? raw.generationConfig?.maxOutputTokens,
+        messages: prov === 'anthropic' ? [{ content: raw.system }, { content: raw.messages[0].content }] : [{ content: raw.systemInstruction.parts[0].text }, { content: raw.contents[0].parts[0].text }] };
+      (state.providerCalls ??= []).push(prov);
+      const plan = state.fail?.[prov]?.length ? state.fail[prov].shift() : null; // 제공사별 가짜 사고: 'HTTP500' · 'REFUSE' · { delay } · { gate: Promise }
+      if (plan?.abort) { plan.abort.abort(); throw Object.assign(new Error('aborted'), { name: 'AbortError' }); } // 사용자가 끊음(바깥 요청 신호)
+      if (plan === 'HTTP500') return new Response('{}', { status: 500 });
+      if (plan === 'HTTP429') return new Response('{}', { status: 429 });
+      if (plan?.truncValid) { (state.aiCalls ??= []).push({ provider: prov, truncated: true }); return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 768 }, choices: [{ message: { content: JSON.stringify(plan.truncValid) }, finish_reason: 'length' }] }), { status: 200 }); }
+      if (plan === 'EMPTY_USAGE') return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 2000, completion_tokens: 10 }, choices: [{ message: { content: '' }, finish_reason: 'stop' }] }), { status: 200 });
+      if (plan === 'REFUSE') return new Response(JSON.stringify(prov === 'anthropic' ? { model: 'm', stop_reason: 'refusal', content: [] } : prov === 'gemini' ? { promptFeedback: { blockReason: 'SAFETY' } } : { model: 'm', choices: [{ message: { content: null, refusal: 'no' }, finish_reason: 'stop' }] }), { status: 200 });
+      if (plan?.gate) await plan.gate;
+      const wrap = (text, usage) => new Response(JSON.stringify(prov === 'anthropic' ? { model: `${body.model}-served`, stop_reason: 'end_turn', content: [{ type: 'text', text }], usage: { input_tokens: usage[0], output_tokens: usage[1] } }
+        : prov === 'gemini' ? { modelVersion: `${body.model}-served`, candidates: [{ content: { parts: [{ text }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: usage[0], candidatesTokenCount: usage[1] } }
+        : { model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: usage[0], completion_tokens: usage[1] }, choices: [{ message: { content: text } }] }), { status: 200 });
+      if (plan === 'BADJSON') return wrap('{"kind": "answer", "reply": "잘', [1000, 50]); // 깨진 JSON(형식 오류) — wrap 정의 뒤
       // 2026-10-01 구조대: 보기만 따로 청하는 호출(RESCUE_PROMPT)은 대화 출력 줄(state.ai)을 쓰지 않는다 — state.rescue 줄(없으면 빈 보기)로 답하고 따로 센다.
       if (String(body.messages[0].content).startsWith('너는 대화 질문 하나에 붙일 「고르기 보기」')) {
         (state.rescueCalls ??= []).push({ input: JSON.parse(body.messages[1].content) });
         const out = state.rescue?.length ? state.rescue.shift() : { choices: [] };
-        return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 100, completion_tokens: 10 }, choices: [{ message: { content: JSON.stringify(out) } }] }), { status: 200 });
+        return wrap(JSON.stringify(out), [100, 10]);
       }
-      state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
+      state.aiCalls.push({ provider: prov, system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
       // v2.4 not_anchored 재시도: 예전 테스트의 가짜 질문은 답과 글자가 안 겹치므로, 따로 줄 세우지 않았으면(strictAnchor 아님) 같은 출력을 다시 준다.
       const input = JSON.parse(body.messages[1].content);
       const why = input.previous_attempt?.why ?? '';
@@ -95,14 +130,23 @@ function load(state) {
       state.lastAi = next;
       if (next === undefined) throw new Error('no fake AI output left');
       if (next === 'HTTP500') return new Response('{}', { status: 500 });
-      return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 100 }, choices: [{ message: { content: JSON.stringify(next) } }] }), { status: 200 });
+      return wrap(JSON.stringify(next), [1000, 100]);
     },
-    crypto: globalThis.crypto, TextEncoder, Response, AbortController, setTimeout, clearTimeout, Date, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, URL,
+    crypto: globalThis.crypto, TextEncoder, Response, AbortController, setTimeout, clearTimeout, structuredClone, Date, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, URL,
   };
   vm.runInNewContext(compile('index.ts'), sandbox, { filename: 'index.ts' });
-  return { call: async (body, { auth = true } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
+  return { call: async (body, { auth = true, signal } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body), ...(signal ? { signal } : {}) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
 }
 
+// 2026-10-03 Codex 리뷰 P1: 실패한 턴도 시도 수·사용량을 대화 예산(run.budget)에 남긴다 → 「상태 그대로」 = 예산 밖의 모든 것(대화 상태·프로필) 그대로 + 예산은 늘기만.
+// 2026-10-03 Codex 리뷰 P1(5400366786): 예산만 접는 저장도 판 번호를 올려 비교 저장 → 판 번호는 같거나 커질 뿐(되돌아가지 않음).
+function sameButBudget(after, before, msg) {
+  const strip = (row) => { const c = structuredClone(row); const p = c.response_payload ?? c; delete p.run; if (c.response_payload) delete c.applied_revision; return c; };
+  if (after.response_payload && before.response_payload) assert.ok(after.applied_revision >= before.applied_revision, `${msg ?? ''} · 판 번호는 줄지 않음`);
+  assert.deepEqual(strip(after), strip(before), msg);
+  const ba = (after.response_payload ?? after).run?.budget, bb = (before.response_payload ?? before).run?.budget;
+  assert.ok(ba && (!bb || ba.calls > bb.calls), `${msg ?? ''} · 실패한 시도도 예산에 누적`);
+}
 const T = (o) => ({ kind: 'answer', understood: '', reply: '알겠어요.', // v2.4: 「그렇군요」는 상담 말투라 서버가 다시 청한다(대표 §8)
    extracted: [], inferred: [], declared: null, wrong: [], next: { type: 'none', purpose: '', question: '' }, ...o });
 const Q = (purpose, question) => ({ next: { type: 'core', purpose, question } });
@@ -190,6 +234,18 @@ test('먼저 답하기·정정·항의: 저장 0 · 틀린 기억 거둠 · 문�
   assert.equal(s.tables.doit_records.length, 1, '항의·질문은 기록 0(첫 답만)');
 });
 
+test('외국인등록번호 형식은 모델 호출 전에 차단되고 저장되지 않는다 · 기존 주민등록번호 1~4 형식 보호 유지(합성 값)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  for (const id of ['900101-5123456', '9001016123456', '900101 7123456', '900101-8123456', '900101-1234567', '9001014234567', '900101 - 5123456', '９００１０１－６１２３４５６']) {
+    const before = s.aiCalls.length;
+    const b = await say(`제 번호는 ${id} 예요`);
+    assert.equal(b.body.turn.kind, 'blocked', id); assert.equal(s.aiCalls.length, before, `${id} AI 호출 0`);
+    assert.ok(!JSON.stringify(s.tables).includes(id), `${id} 저장 0`);
+  }
+});
 test('지침(stop): 들은 만큼 정리하고 마침 · 저장 금지 입력: 고정 안내·원문 저장 0', async () => {
   const s = newState(); const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') })); // v2.5.4: 「어떤 사람이 편해요?」는 v2.5.1 부터 사람 유형 재정의 질문(서버가 다시 청함)
@@ -268,12 +324,21 @@ test('관리자: 일반 사용자 403 · 관리자는 실제 저장된 세션·�
   assert.equal(JSON.stringify(s.tables), before, '관리자 읽기는 쓰기 0');
 });
 
-test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel · 새 Secret 이름 0 · 원문 로그 0', () => {
+test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel(정책 없을 때) · 환경 이름은 정해진 것만 · 원문 로그 0', () => {
   const src = readFileSync(new URL('index.ts', DIR), 'utf8');
-  assert.match(src, /const OPENAI_URL = "https:\/\/api\.openai\.com\/v1\/chat\/completions";/);
-  assert.ok(!/Deno\.env\.get\("OPENAI_URL/.test(src));
+  // 2026-10-03: 호출 주소는 providers.ts 안에 글자로 고정(환경변수로 못 바꿈) · 환경 이름은 index(서버 설정) + modelRouter(키 있는지 · 정책)만
+  const prov = readFileSync(new URL('providers.ts', DIR), 'utf8');
+  const router = readFileSync(new URL('modelRouter.ts', DIR), 'utf8');
+  assert.match(prov, /"https:\/\/api\.openai\.com\/v1\/chat\/completions"/);
+  assert.match(prov, /"https:\/\/api\.anthropic\.com\/v1\/messages"/);
+  assert.match(prov, /`https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/\$\{encodeURIComponent\(req\.model\)\}:generateContent`/);
+  assert.ok(!/Deno\.env|_URL"\)/.test(prov), '연결부는 환경을 읽지 않는다');
+  assert.ok(!/Deno\.env/.test(router), '라우터는 넘겨받은 get 으로만 읽는다');
+  assert.deepEqual([...new Set([...router.matchAll(/get\("([A-Z_]+)"\)/g)].map((m) => m[1]))].sort(), ['AI_POLICY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'OPENAI_MODEL']);
+  assert.match(src, /routerFromEnv\(\(k\) => Deno\.env\.get\(k\), A\.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal\)/);
+  assert.match(src, /routerForRequest\(req\.signal\)/, '사용자 요청이 끊기면 모델 호출도 끊음');
   const envs = [...src.matchAll(/Deno\.env\.get\("([A-Z_]+)"\)/g)].map((m) => m[1]).sort();
-  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'OPENAI_API_KEY', 'OPENAI_MODEL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
+  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
   for (const m of src.matchAll(/logDiag\(\{([^}]*)\}/g)) assert.ok(!/\btext\b(?!4)|user_raw|original/.test(m[1].replace(/text4/g, '')), `로그에 원문 칸 없음: ${m[1]}`);
 });
 
@@ -845,7 +910,7 @@ test('FI-018 CASE 7: Agent 완료 뒤 서버 오류(AI 실패) → 저장된 상
   s.ai.push('HTTP500');
   const bad = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그리고 연락은 이틀에 한 번이 좋아요' });
   assert.equal(bad.status, 502);
-  assert.deepEqual(stored(), before, '실패한 턴은 정상 상태를 덮어쓰지 않는다');
+  sameButBudget(stored(), before, '실패한 턴은 정상 상태를 덮어쓰지 않는다');
   assert.equal(before.profile.readiness.conversation_ready, true);
 });
 test('FI-018 CASE 8: 같은 사용자가 다시 들어옴 → 같은 세션 · AI 다시 안 부름 · 이미 확정한 질문 다시 묻기 0', async () => {
@@ -890,4 +955,823 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   const st2 = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   assert.equal(st2.slots.relationship_style.items.find((i) => i.source === 'choice').status, 'SUPERSEDED');
   assert.ok(st2.slots.relationship_style.items.some((i) => i.status === 'CONFIRMED' && i.note === '같이 걷기'));
+});
+
+// ── 2026-10-03 대표 「3개 AI 제공사 통합」: 서버 선택 규칙(modelRouter)을 실제 doit-agent 흐름으로 — 가짜 DB · 가짜 제공사 응답(실제 AI 호출 0 · 실제 AI 품질 판정 아님).
+// 정책·모델 이름은 시험용 가짜 이름이다(실제 승인 모델 아님).
+const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true, enabled: true }, ...(o.providers ?? {}) },
+  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) } });
+const ENV3 = (o) => ({ AI_POLICY: POLICY(o), ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' });
+const sessionRow = (s) => s.tables.doit_request_events.find((x) => x.action === 'agent_session');
+const startWith = async (s, h, first = '연애') => {
+  s.ai.push(T({ extracted: [X('relationship_intent', first, first)], ...Q('attraction_comfort', '어떤 사람한테 끌려요?') }));
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', firstAnswer: first });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); return r.body.session.id;
+};
+
+test('AI3 기본 정책(AI_POLICY 없음) = 지금 운영 그대로: OpenAI 하나 · 다른 제공사 호출 0 · 기록에 정책판·제공사 · 원문 0', async () => {
+  const s = newState(); s.env = { ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' }; // 키가 있어도 정책이 없으면 쓰지 않는다
+  const h = load(s);
+  const sid = await startWith(s, h, '편한 친구를 만나고 싶어요');
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' })).status, 200);
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai']);
+  assert.ok(s.aiCalls.every((c) => c.model === 'gpt-4o-mini'));
+  const rec = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.provider, 'openai'); assert.equal(rec.ai_policy_version, 'ai-policy-default-openai'); assert.equal(rec.fallback, 0);
+  assert.ok(rec.ai_calls.length >= 1 && rec.ai_calls.every((c) => c.provider === 'openai' && c.policy_version === 'ai-policy-default-openai'));
+  assert.ok(!JSON.stringify(rec.ai_calls).includes('잘 웃는') && !h.logs.join('\n').includes('잘 웃는'), '호출 기록·로그에 사용자 원문 0');
+});
+
+test('AI3 전환: 첫 후보 5xx → 다음 후보(다른 제공사)로 한 번 · 결과 하나만 반영 · 기록에 fallback 이유 · 한 호출에 세 제공사 0', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  assert.deepEqual([...new Set(s.providerCalls)], ['anthropic'], '실패가 없으면 정책 첫 후보만 불림(호출 여러 번이어도 같은 곳)');
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(s.providerCalls.slice(0, 2), ['anthropic', 'openai']);
+  assert.ok(!s.providerCalls.includes('gemini'), '정책에 없는 제공사는 부르지 않는다');
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.provider, 'openai'); assert.ok(rec.fallback >= 1);
+  assert.deepEqual(rec.ai_calls.slice(0, 2).map((c) => [c.provider, c.ok, c.error, c.reason]), [['anthropic', false, 'http_5xx', 'policy_order'], ['openai', true, null, 'fallback_from:anthropic:http_5xx']]);
+  assert.equal(s.tables.doit_records.length, 2, '같은 턴 기록은 한 번만(첫 답 + 이번 답)');
+  assert.equal(sessionRow(s).applied_revision, 2, '저장은 한 번(판 번호 +1)');
+});
+
+test('AI3 모두 실패 → 502 · 기존 상태·판 번호·기록 그대로 · 실패 기록은 코드만 · 다시 보내면 이어짐', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  const before = structuredClone(sessionRow(s)); const recs = s.tables.doit_records.length;
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람이 좋아요' });
+  assert.equal(r.status, 502); assert.equal(r.body.code, 'AI_ERROR');
+  sameButBudget(sessionRow(s), before, '상태·판 번호 그대로');
+  assert.equal(s.tables.doit_records.length, recs, '답 기록 0');
+  const failed = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'failed').at(-1).response_payload.record;
+  assert.deepEqual(failed.ai_calls.map((c) => [c.provider, c.error]), [['anthropic', 'http_5xx'], ['openai', 'http_5xx']]);
+  assert.ok(!JSON.stringify(failed).includes('잘 웃는'), '실패 기록에 원문 0');
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람이 좋아요')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람이 좋아요' })).status, 200);
+});
+
+test('AI3 안전상 거절(refusal) → 다른 제공사로 돌리지 않음 · 502 · 상태 그대로', async () => {
+  for (const first of ['anthropic', 'gemini', 'openai']) {
+    const s = newState(); s.env = ENV3({ tasks: { default: [first, ...['anthropic', 'gemini', 'openai'].filter((x) => x !== first)] } }); const h = load(s);
+    const sid = await startWith(s, h);
+    const before = structuredClone(sessionRow(s));
+    s.providerCalls = []; s.fail = { [first]: ['REFUSE'] };
+    const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '아무 말' });
+    assert.equal(r.status, 502, first);
+    assert.deepEqual(s.providerCalls, [first], `${first} 거절 뒤 다른 제공사 호출 0`);
+    sameButBudget(sessionRow(s), before);
+    const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+    assert.equal(failed.ai_calls[0].error, 'refused');
+  }
+});
+
+test('AI3 전달 허용(allow_user_text) 없는 제공사 · 키 없는 제공사는 부르지 않음 · 쓸 수 있는 곳이 없으면 AI_NOT_CONFIGURED(호출 0)', async () => {
+  const s = newState(); s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic', 'gemini', 'openai'] } }), GEMINI_API_KEY: '' };
+  const h = load(s);
+  await startWith(s, h);
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai'], '허용 없는 anthropic · 키 없는 gemini 건너뜀');
+  const s2 = newState(); s2.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'] } }) };
+  const h2 = load(s2);
+  const r = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', firstAnswer: '연애' });
+  assert.equal(r.status, 500); assert.equal(r.body.code, 'AI_NOT_CONFIGURED');
+  assert.equal((s2.providerCalls ?? []).length, 0);
+  assert.ok(!s2.tables.doit_request_events?.length, '세션 저장 0');
+});
+
+test('AI3 정정은 제공사가 바뀌어도 이어진다: 거절한 뜻은 다음 제공사 입력의 heard 에서 빠지고 · 정정 기록은 서버 상태에 남음', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h, '연애'); // anthropic 이 「연애」로 정리
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  s.fail = { anthropic: ['HTTP500'] }; // 이번 턴은 openai 가 받음
+  s.ai.push(T({ kind: 'repair', reply: '제가 잘못 짚었네요.', wrong: ['연애'], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  assert.equal((await say('그게 아니에요')).status, 200);
+  assert.equal(sessionRow(s).response_payload.state.slots.relationship_intent.items[0].status, 'RETRACTED');
+  s.aiCalls = [];
+  s.ai.push(T({ extracted: [X('values_character', '솔직함', '솔직한 사람')], ...Q('relationship_style', '천천히 알아가는 게 편해요?') }));
+  assert.equal((await say('솔직한 사람')).status, 200);
+  const next = s.aiCalls.find((c) => c.provider === 'anthropic');
+  assert.ok(next, '다음 턴은 다시 정책 첫 후보(anthropic)');
+  assert.ok(!next.input.heard.some((x) => x.note === '연애'), '거절한 뜻은 다른 제공사에도 확인된 정보로 넘어가지 않음');
+  assert.ok(next.input.disputed.length >= 1, '문제 삼은 질문 기록이 다음 제공사 입력에도 있음');
+});
+
+test('AI3 늦게 온 응답은 더 새로운 정정을 덮지 못함(판 번호 비교 저장) — 느린 제공사 응답 → 409 · 정정 상태 유지', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h, '연애');
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { anthropic: [{ gate }] }; // 첫 요청의 anthropic 응답이 늦게 온다
+  const slow = h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '연애도 괜찮고요' });
+  await new Promise((ok) => setTimeout(ok, 20));
+  s.ai.push(T({ kind: 'repair', reply: '제가 잘못 짚었네요.', wrong: ['연애'], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그게 아니에요' });
+  assert.equal(fix.status, 200);
+  const afterFix = structuredClone(sessionRow(s));
+  s.ai.push(T({ extracted: [X('relationship_intent', '연애', '연애도 괜찮고요')], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  release();
+  const late = await slow;
+  assert.equal(late.status, 409); assert.equal(late.body.code, 'REQUEST_CONFLICT');
+  sameButBudget(sessionRow(s), afterFix, '늦은 응답은 상태 저장 0 · 다만 부른 모델 사용량은 대화 예산에(2026-10-03 자체 점검 P1)');
+  assert.equal(sessionRow(s).response_payload.state.slots.relationship_intent.items[0].status, 'RETRACTED');
+});
+
+test('AI3 요청당 호출 상한: 상한에 닿으면 더 부르지 않고 502 · 상태 그대로(무한 재시도·순환 0)', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  s.env = ENV3({ limits: { max_calls_per_request: 1 } }); // 이번 요청부터 상한 1(정책은 요청마다 읽음)
+  const before = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'] };
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' });
+  assert.equal(r.status, 502);
+  assert.deepEqual(s.providerCalls, ['anthropic'], '상한 1 → 전환 호출도 하지 않음');
+  sameButBudget(sessionRow(s), before);
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
+});
+
+// ── 2026-10-03 대표 「당일 구현 마감」 대표 시나리오: 목표 → 계획 → 도구 실행 → 결과 확인 → 재계획/종료 (가짜 AI · 가짜 연결 서버 · 실제 index.ts)
+const RUNSEQ = async (s, h) => {
+  // 다섯 질문 흐름과 같은 순서(답이 말 전체를 인용 → 사용자 출처 확정) — 목표(romantic)부터
+  s.ai.push(T({ extracted: [X('relationship_intent', '진지한 연애', '연애로 이어질 만남을 원해요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애로 이어질 만남을 원해요', firstAnswer: '연애로 이어질 만남을 원해요' });
+  assert.equal(start.status, 200, JSON.stringify(start.body));
+  return start.body.session.id;
+};
+const lastRun = (s) => sessionRow(s).response_payload.run;
+const say3 = (h, sid, text, extra = {}) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text, ...extra });
+
+test('RUN 대표 시나리오: 목표 → 아는 칸 다시 안 물음 → 「그게 아니에요」 → 계획·다음 질문 변경 → 마침 → 도구(후보 조회) → 없음=보류 · 정정 후 재계획 → 찾음=완료(고르는 건 사용자)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  let run = lastRun(s);
+  assert.equal(run.goal, 'romantic'); assert.equal(run.outcome, 'needs_user'); assert.equal(run.waiting, 'answer_question');
+  assert.equal(run.steps.find((x) => x.id === 'understand:relationship_intent').status, 'done', '목표에서 들은 칸 = 끝남(근거 턴)');
+  assert.ok(run.steps.find((x) => x.id === 'understand:relationship_intent').basis.length >= 1);
+  // 둘째 답
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  assert.equal((await say3(h, sid, '잘 웃는 사람')).status, 200);
+  assert.ok(!s.aiCalls.at(-1).input.open_purposes.some((p) => p.purpose === 'relationship_intent'), '이미 아는 칸은 다시 묻는 대상에 없음');
+  const revBefore = lastRun(s).plan_rev;
+  // 「그게 아니에요」: 방금 정리한 뜻을 거둠 → 그 칸 단계 무효 · 계획 판 올라감 · 다음 AI 입력에서 그 칸이 다시 물을 대상
+  s.ai.push(T({ kind: 'repair', reply: '제가 잘못 짚었네요.', wrong: ['잘 웃는 사람'], ...Q('relationship_style', '천천히 알아가는 게 편해요?') }));
+  const fix = await say3(h, sid, '그게 아니에요');
+  assert.equal(fix.status, 200); assert.equal(fix.body.turn.saved, false);
+  run = lastRun(s);
+  assert.equal(run.steps.find((x) => x.id === 'understand:attraction_comfort').status, 'invalid', '정정 → 그 칸 단계 무효');
+  assert.ok(run.plan_rev > revBefore); assert.ok(run.changes.some((c) => c.includes('understand:attraction_comfort:done>invalid')));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '조용히 들어주는 사람', '조용히 들어주는 사람')], ...Q('boundaries', '피하고 싶은 게 있어요?') }));
+  assert.equal((await say3(h, sid, '조용히 들어주는 사람')).status, 200);
+  const inp = s.aiCalls.filter((c) => c.input?.latest === '조용히 들어주는 사람')[0].input;
+  assert.ok(inp.disputed.length >= 1, '다음 AI 입력에 문제 삼은 질문이 실림(같은 해석을 다시 내지 않게)');
+  // (기존 규칙: 거둔 칸은 정보가 모자랄 때만 채우기 질문으로 다시 묻는다 — 이번 변경으로 바꾸지 않음)
+  assert.ok(!inp.heard.some((x) => x.note === '잘 웃는 사람'), '거절한 뜻은 확인 정보로 넘어가지 않음');
+  // 다른 질문 자리에서 AI 가 정리한 말(AI_EXTRACTED)만으로는 그 칸을 다시 「끝남」으로 치지 않는다(모델 응답 하나로 확정 0) → 무효 유지 · 계획에 남음
+  assert.equal(lastRun(s).steps.find((x) => x.id === 'understand:attraction_comfort').status, 'invalid');
+  // 남은 칸 → 마침
+  // 다섯 번째 답 → 사용자 출처 확정 칸 3(목적·관계 방식·피하고 싶은 것)으로 준비됨 → 마침. 거둔 칸은 무효로 남고 매칭 재료에서 빠진다.
+  s.ai.push(T({ extracted: [X('boundaries', '거짓말 싫음', '거짓말하는 사람은 싫어요')], ...Q('attraction_comfort', '같이 있을 때 편했던 사람은 어떤 사람이었어요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  const end = await say3(h, sid, '거짓말하는 사람은 싫어요');
+  assert.equal(end.body.session.phase, 'done');
+  assert.equal(lastRun(s).steps.find((x) => x.id === 'understand:attraction_comfort').status, 'invalid', '거둔 칸 = 끝까지 무효(다른 자리 AI 정리로 되살리지 않음)');
+  const prof = sessionRow(s).response_payload.profile;
+  assert.ok(!prof.confirmed_preferences.includes('잘 웃는 사람'), '거절한 뜻은 프로필 확정 정보에 없음');
+  assert.ok(prof.rejected_meanings.includes('잘 웃는 사람'));
+  assert.ok(!h.agent.conversationReadiness(prof, 'done').confirmed.includes('잘 웃는 사람'), '연결 서버가 쓰는 같은 판정(conversationReadiness)의 확정 목록에도 없음');
+  run = lastRun(s);
+  assert.equal(run.steps.find((x) => x.id === 'tool:readiness').status, 'done', JSON.stringify(run.steps));
+  assert.equal(run.outcome, 'in_progress'); assert.equal(end.body.session.run.next, 'run');
+  // 도구 실행 ①: 후보 없음 → 보류(조회 실패와 구분) · 같은 요청 재전송 = 저장된 결과(도구 다시 안 부름)
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [] }];
+  const rq = rid(); const aiBefore = s.aiCalls.length;
+  const r1 = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(r1.status, 200); assert.equal(r1.body.tool.outcome, 'none'); assert.equal(r1.body.run.outcome, 'on_hold'); assert.equal(r1.body.run.waiting, 'no_candidates_yet');
+  assert.equal(s.aiCalls.length, aiBefore, '실행 단계는 모델 호출 0');
+  assert.deepEqual(s.connectCalls.map((c) => [c.body.action, c.auth]), [['my_candidates', 'Bearer t']], '허용 도구 하나 · 사용자 본인 토큰');
+  const dup = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(dup.body.duplicate, true); assert.equal(s.connectCalls.length, 1, '같은 요청 = 도구 다시 실행 0');
+  const again = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(again.body.tool, null, '결과가 그대로 유효하면(확정 정보 같음) 다시 조회하지 않음'); assert.equal(s.connectCalls.length, 1);
+  // 끝난 뒤 정정 → 확정 정보 바뀜 → 도구 결과 무효 → 재계획 → 다시 조회 → 찾음 = 완료(후보 id·이유는 상태에 없음)
+  s.ai.push(T({ kind: 'correction', reply: '고친 뜻으로 둘게요.', extracted: [X('boundaries', '약속 어기는 것', '약속 어기는 게 더 싫어요')] }));
+  await say3(h, sid, '거짓말보다 약속 어기는 게 더 싫어요');
+  run = lastRun(s);
+  assert.equal(run.steps.find((x) => x.id === 'tool:candidates').status, 'invalid'); assert.equal(run.outcome, 'in_progress');
+  s.connect = [{ ok: true, eligible: true, candidates: [{ id: 'cand-secret-1', reasons: ['비밀 이유'] }, { id: 'cand-secret-2' }] }];
+  const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(r2.body.tool.outcome, 'found'); assert.equal(r2.body.tool.count, 2);
+  assert.equal(r2.body.run.outcome, 'done'); assert.equal(r2.body.run.next, 'open_candidates', '다음 = 사용자가 직접 후보를 봄');
+  const blob = JSON.stringify(sessionRow(s)) + JSON.stringify(s.tables.doit_request_events.filter((x) => x.action === 'agent_run'));
+  assert.ok(!blob.includes('cand-secret') && !blob.includes('비밀 이유'), '후보 id·이유 글을 Agent 기록에 넣지 않음');
+  assert.ok(!h.logs.join('\n').includes('cand-secret'));
+});
+
+test('RUN 결과 구분: 준비 부족(사진 등) = 질문 · 조회 실패 = 보류(성공 주장 0) · 실패 직후 재시도 간격 · 늦은 도구 결과는 정정에 밀려 버림', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  for (const [p, np, q, a] of [['attraction_comfort', 'values_character', '사람 볼 때 뭘 먼저 봐요?', '잘 웃는 사람'], ['values_character', 'relationship_style', '천천히 알아가는 게 편해요?', '솔직한 사람'], ['relationship_style', 'boundaries', '피하고 싶은 게 있어요?', '네 천천히요']]) {
+    s.ai.push(T({ extracted: [X(p, a, a)], ...Q(np, q) })); assert.equal((await say3(h, sid, a)).status, 200);
+  }
+  s.ai.push(T({ extracted: [X('boundaries', '거짓말', '거짓말은 싫어요')] }), { summary: [], closing: '고마워요.' });
+  assert.equal((await say3(h, sid, '거짓말은 싫어요')).body.session.phase, 'done');
+  // 조회 실패(연결 끊김) → 보류 · lookup_failed · 바로 다시 → 쉬는 중(도구 호출 0)
+  s.connect = ['NETWORK'];
+  const f = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(f.body.tool.outcome, 'failed'); assert.equal(f.body.tool.code, 'network'); assert.equal(f.body.run.outcome, 'on_hold'); assert.equal(f.body.run.waiting, 'lookup_failed');
+  const cool = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(cool.body.tool, null); assert.equal(s.connectCalls.length, 1, '실패 직후 재시도 간격');
+  // 서버 오류(500) 도 실패 · 준비 부족은 질문(무엇이 부족한지 코드만)
+  const row = sessionRow(s); row.response_payload.run.tools.at(-1).at = new Date(Date.now() - 60_000).toISOString(); // 간격이 지났다고 둠
+  s.connect = [{ status: 500, body: { ok: false, code: 'ERROR' } }];
+  const e = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(e.body.tool.outcome, 'failed'); assert.equal(e.body.tool.code, 'http_500:ERROR');
+  sessionRow(s).response_payload.run.tools.at(-1).at = new Date(Date.now() - 60_000).toISOString();
+  s.connect = [{ ok: true, eligible: false, missing: ['photo', 'intro_confirmed'], candidates: [] }];
+  const nr = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(nr.body.tool.outcome, 'not_ready'); assert.equal(nr.body.run.outcome, 'needs_user'); assert.equal(nr.body.run.waiting, 'profile_incomplete');
+  assert.deepEqual(nr.body.run.missing, ['photo', 'intro_confirmed']); assert.equal(nr.body.run.next, 'complete_profile');
+  // 늦은 도구 결과: 조회가 도는 사이 사용자가 정정 → 판 번호가 바뀜 → 그 결과는 저장 0(409)
+  s.ai.push(T({ kind: 'correction', reply: '고친 뜻으로 둘게요.', extracted: [X('boundaries', '약속 어기는 것', '약속 어기는 게 더 싫어요')] }));
+  await say3(h, sid, '약속 어기는 게 더 싫어요'); // 확정 정보가 바뀌어 다시 조회할 차례
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.connect = [{ gate, body: { ok: true, eligible: true, candidates: [{ id: 'x' }] } }];
+  const slow = h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  await new Promise((ok) => setTimeout(ok, 20));
+  s.ai.push(T({ kind: 'correction', reply: '그렇게 둘게요.', extracted: [X('relationship_style', '빨리 만나기', '아니 빨리 만나고 싶어요')] }));
+  assert.equal((await say3(h, sid, '아니 빨리 만나고 싶어요')).status, 200);
+  const afterFix = structuredClone(sessionRow(s));
+  release();
+  const late = await slow;
+  assert.equal(late.status, 409); assert.equal(late.body.code, 'STATE_CHANGED');
+  assert.deepEqual(sessionRow(s), afterFix, '늦은 도구 결과는 정정 뒤 상태를 덮지 않음');
+  assert.notEqual(lastRun(s).outcome, 'done');
+});
+
+test('RUN 중단·재개 · 사용자 몫 행동 0 · 대화 단위 비용 상한', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  s.ai.push(T({ kind: 'stop', reply: '여기까지 할게요.' }), { summary: [], closing: '들은 만큼 정리해 둘게요.' });
+  const st = await say3(h, sid, '질문이 너무 많아 그만할래');
+  assert.equal(st.body.session.phase, 'done');
+  assert.equal(st.body.session.run.outcome, 'stopped'); assert.equal(st.body.session.run.waiting, 'user_stopped');
+  const r = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(r.body.tool, null); assert.equal((s.connectCalls ?? []).length, 0, '사용자가 멈추면 도구 실행 0');
+  // 재개는 사용자가 직접 누른 것만 · 정보가 모자라면 질문으로(도구 0)
+  const rs = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
+  assert.equal(rs.body.run.outcome, 'needs_user'); assert.equal(rs.body.run.waiting, 'more_info'); assert.ok(rs.body.run.missing.length >= 1);
+  assert.equal((s.connectCalls ?? []).length, 0);
+  // 소스 규칙: 연결 서버로 보내는 동작은 my_candidates 하나(상호 선택·동의·약속·관리자 동작 0)
+  const src = readFileSync(new URL('index.ts', DIR), 'utf8');
+  assert.deepEqual([...src.matchAll(/const CONNECT_ACTION = "([a-z_]+)"/g)].map((m) => m[1]), ['my_candidates']);
+  assert.equal(src.split('/functions/v1/doit-connect').length - 1, 1, '연결 서버 호출 자리 하나');
+  assert.match(src, /body: JSON\.stringify\(\{ action: CONNECT_ACTION \}\)/);
+  // 대화 단위 누적 상한: 넘으면 모델 호출 0 · 429
+  const s2 = newState(); const h2 = load(s2);
+  const sid2 = await RUNSEQ(s2, h2);
+  sessionRow(s2).response_payload.run.budget.calls = 150;
+  const before = s2.aiCalls.length;
+  const b = await say3(h2, sid2, '잘 웃는 사람');
+  assert.equal(b.status, 429); assert.equal(b.body.code, 'AI_BUDGET'); assert.equal(s2.aiCalls.length, before);
+});
+
+test('사용자 하루 한도: 24시간 턴 기록 200개면 모델 호출 0 · 429 AI_DAILY_LIMIT · 실행 단계(agent_run)는 모델을 안 써서 막지 않음', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const now = new Date().toISOString();
+  for (let i = 0; i < 199; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } });
+  const before = s.aiCalls.length;
+  const b = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(b.status, 429); assert.equal(b.body.code, 'AI_DAILY_LIMIT'); assert.equal(s.aiCalls.length, before);
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).status, 200);
+});
+
+test('PR103 Codex 결함 2건 — 실제 index.ts 경로: 실패 응답(빈 답)의 사용량이 턴 기록에 확인된 사용량으로 · 같은 곳 재시도 포함 한 번씩만 · 상태 그대로', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const before = structuredClone(sessionRow(s));
+  s.fail = { openai: ['EMPTY_USAGE', 'EMPTY_USAGE', 'EMPTY_USAGE'] }; // 빈 답은 같은 곳 재시도 대상 아님 → 후보 하나(기본 정책) → 실패
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 502);
+  sameButBudget(sessionRow(s), before, '상태 그대로');
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls[0].usage, 'confirmed'); assert.equal(failed.ai_calls[0].error, 'empty');
+  assert.equal(failed.ai_usage.tokens_in, 2000 * failed.ai_usage.attempts, '실패 시도마다 업체가 알려 준 사용량이 한 번씩');
+  assert.equal(failed.ai_usage.unconfirmed_attempts, 0);
+});
+
+test('PR103 Codex 결함 — 실제 index.ts 경로: 사용량 모르는 실패(500)는 미확인으로 남고 0원으로 기록되지 않음', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  assert.equal((await say3(h, sid, '잘 웃는 사람')).status, 502);
+  const u = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record.ai_usage;
+  assert.deepEqual([u.attempts, u.unconfirmed_attempts, u.tokens_in, u.cost_usd, u.cost_complete], [2, 2, 0, null, false]);
+  assert.ok(u.tokens_reserved_unconfirmed > 0, '예약(추정)은 따로 · 청구액 아님');
+});
+
+test('RUN 실행 단계: 모델 호출 0 표시 · 기록한 결과 = 실제 도구 응답 · 멈춤→재개는 도구 한 번만(다시 재개해도 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  for (const [p, np, q, a] of [['attraction_comfort', 'values_character', '사람 볼 때 뭘 먼저 봐요?', '잘 웃는 사람'], ['values_character', 'relationship_style', '천천히 알아가는 게 편해요?', '솔직한 사람']]) {
+    s.ai.push(T({ extracted: [X(p, a, a)], ...Q(np, q) })); assert.equal((await say3(h, sid, a)).status, 200);
+  }
+  s.ai.push(T({ kind: 'stop', reply: '여기까지 할게요.' }), { summary: [], closing: '들은 만큼 정리해 둘게요.' });
+  const st = await say3(h, sid, '이제 그만할래');
+  assert.equal(st.body.session.run.outcome, 'stopped');
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).body.tool, null);
+  s.connect = [{ ok: true, eligible: true, candidates: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }] }];
+  const aiBefore = s.aiCalls.length;
+  const r1 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
+  assert.equal(r1.body.model_calls, 0, '실행 단계 자체의 모델 호출 0'); assert.equal(s.aiCalls.length, aiBefore);
+  assert.deepEqual([r1.body.tool.outcome, r1.body.tool.count], ['found', 3]);
+  const stored = sessionRow(s).response_payload.run;
+  assert.deepEqual([stored.tools.at(-1).outcome, stored.tools.at(-1).count, stored.outcome], ['found', 3, 'done'], '저장된 실행 상태 = 실제 도구 응답');
+  const runRec = s.tables.doit_request_events.filter((x) => x.action === 'agent_run').at(-1).response_payload;
+  assert.deepEqual([runRec.tool.outcome, runRec.tool.count, runRec.run.outcome], ['found', 3, 'done']);
+  const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
+  assert.equal(r2.body.tool, null); assert.equal(s.connectCalls.length, 1, '재개를 다시 눌러도 같은 작업 재실행 0');
+});
+
+test('PR103 경계 — 잘렸지만 JSON 모양은 맞는 응답(실제 index.ts): 채택·저장 0 · Agent 가 다시 청한 정상 답만 저장 · 사용량은 둘 다 집계', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const recs = s.tables.doit_records.length;
+  s.fail = { openai: [{ truncValid: T({ extracted: [X('attraction_comfort', '잘린 해석', '잘린')], ...Q('values_character', '잘린 질문이에요?') }) }] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 200);
+  const st = sessionRow(s).response_payload.state;
+  assert.ok(!JSON.stringify(st).includes('잘린 해석') && !JSON.stringify(st).includes('잘린 질문'), '잘린 응답 내용 저장 0');
+  assert.equal(st.slots.attraction_comfort.items.find((i) => i.status === 'CONFIRMED').note, '잘 웃는 사람');
+  assert.equal(s.tables.doit_records.length, recs + 1);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'applied').at(-1).response_payload.record;
+  assert.equal(rec.ai_calls[0].error, 'truncated_discarded'); assert.ok(rec.retry.includes('format'), 'Agent 형식 재요청 경로');
+  assert.ok(rec.ai_usage.tokens_out >= 768 + 100, '잘린 호출 사용량도 집계');
+});
+
+test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청에서 같이 일어나도 하나의 예산 · 시도 수 = 실제 업체 호출 수 · 상한에서 멈추고 상태 그대로', async () => {
+  // 요청 토큰 상한은 보장된 상한(입력 바이트 + 출력 상한)으로 본다(Codex 리뷰 5400556217 P1) → 사용량 없는 실패 2번이 각각 ~1.5만을 붙잡으므로
+  // 이 검사의 1)·2)는 시도 수·전환을 보려고 토큰 상한을 6만으로 둔다. 기본 3만에서의 동작은 3)에서 따로 확인.
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  // 1) anthropic 500 → openai 깨진 JSON(형식) → Agent 가 previous_attempt 로 다시 청함 → anthropic 500 → openai 정상
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const ok = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(ok.status, 200);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'applied').at(-1).response_payload.record;
+  assert.deepEqual(s.providerCalls.slice(0, 4), ['anthropic', 'openai', 'anthropic', 'openai']);
+  assert.equal(rec.ai_usage.attempts, s.providerCalls.length, '형식 재요청·전환 모두 같은 예산의 시도로 셈');
+  assert.ok(rec.retry.includes('format'));
+  // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
+  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
+  const before = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  const capped = await say3(h, sid, '솔직한 사람');
+  assert.equal(capped.status, 502); assert.equal(s.providerCalls.length, 3, '상한 3 = 실제 업체 호출 3');
+  sameButBudget(sessionRow(s), before);
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
+  // 3) 기본 요청 토큰 상한(3만): 사용량 없는 실패가 붙잡은 보장 상한 + 다음 시도 상한이 3만을 넘으면 보내지 않고 멈춤(request_budget) · 상태 그대로
+  s.env = ENV3({ limits: { same_provider_retries: 0 } });
+  const before3 = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  const tight = await say3(h, sid, '솔직한 사람');
+  assert.equal(tight.status, 502);
+  sameButBudget(sessionRow(s), before3);
+  const f3 = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(f3.ai_calls.at(-1).error, 'budget_exceeded'); assert.equal(f3.ai_calls.at(-1).reason, 'request_budget');
+  const sentTokens = f3.ai_calls.filter((c) => c.usage === 'confirmed').reduce((n, c) => n + c.input_tokens + c.output_tokens, 0);
+  assert.ok(sentTokens <= 30_000, '확인된 사용량도 요청 상한 안');
+});
+
+// ── PR #103 Codex Code Review(리뷰 5399862208 · 4e04d36) 재현 3건 — 실제 index.ts 경로
+test('Codex P1 실패한 턴의 사용량도 대화 예산(stored.run)에 남는다 — 실패를 되풀이해 60회/15만 토큰 상한을 우회 0 · 대화 내용(턴)은 그대로', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const before = structuredClone(sessionRow(s).response_payload);
+  s.fail = { openai: ['EMPTY_USAGE', 'EMPTY_USAGE', 'EMPTY_USAGE'] };
+  assert.equal((await say3(h, sid, '잘 웃는 사람')).status, 502);
+  const after = sessionRow(s).response_payload;
+  assert.deepEqual(after.state, before.state, '대화 상태(턴·칸)는 그대로');
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(after.run.budget.calls, before.run.budget.calls + failed.ai_usage.attempts, '실패한 시도 수가 누적');
+  assert.equal(after.run.budget.tokens_in, before.run.budget.tokens_in + failed.ai_usage.tokens_in, '확인된 사용량이 누적');
+});
+test('Codex P2 하루 한도 경계에서 같은 요청 재전송 = 저장된 결과(429 아님)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const now = new Date().toISOString();
+  const already = s.tables.doit_request_events.filter((r) => r.user_id === ID.user && r.action === 'agent_turn').length;
+  for (let i = 0; i < 199 - already; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } });
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const requestId = rid();
+  const first = await h.call({ action: 'agent_turn', requestId, sessionId: sid, text: '잘 웃는 사람' });
+  assert.equal(first.status, 200, '199 → 200번째 턴은 성공');
+  const calls = s.aiCalls.length;
+  const again = await h.call({ action: 'agent_turn', requestId, sessionId: sid, text: '잘 웃는 사람' }); // 응답을 잃어 같은 요청 재전송
+  assert.equal(again.status, 200, JSON.stringify(again.body)); assert.equal(again.body.duplicate, true); assert.equal(s.aiCalls.length, calls, '재전송은 모델 호출 0');
+  const fresh = await say3(h, sid, '새 말');
+  assert.equal(fresh.status, 429); assert.equal(fresh.body.code, 'AI_DAILY_LIMIT', '새 요청은 여전히 막힘');
+});
+test('Codex P2 소개 다시 쓰기·구조대 보기의 모델 호출도 대화 예산에 누적', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  // 구조대: 들고 있는 보기가 없으면 보기를 청하는 모델 호출 1
+  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
+  const b0 = structuredClone(sessionRow(s).response_payload.run.budget);
+  assert.equal((await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid })).status, 200);
+  const b1 = sessionRow(s).response_payload.run.budget;
+  assert.equal((s.rescueCalls ?? []).length, 1, '보기 모델 호출 1');
+  assert.equal(b1.calls, b0.calls + 1, '구조대 호출이 예산에'); assert.equal(b1.tokens_in, b0.tokens_in + 100);
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' })).status, 200);
+  const b2 = structuredClone(sessionRow(s).response_payload.run.budget);
+  s.ai.push({ intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  assert.equal((await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid })).status, 200);
+  const b3 = sessionRow(s).response_payload.run.budget;
+  assert.equal(b3.calls, b2.calls + 1, '소개 호출이 예산에'); assert.equal(b3.tokens_in, b2.tokens_in + 1000);
+});
+// ── PR #103 Codex Code Review(리뷰 5399945942 · d68c3cf) 재현 2건
+const seedDaily = (s, n) => { s.tables.doit_request_events ??= []; const now = new Date().toISOString(); const have = s.tables.doit_request_events.filter((r) => r.user_id === ID.user && r.action === 'agent_turn').length; for (let i = 0; i < n - have; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } }); };
+test('Codex P2(리뷰 5401213108) 하루 한도는 모델을 실제로 부른 턴만 셈 — 모델 0 턴 200개 뒤에도 모델 턴 가능 · 모델 턴 200개면 막힘', async () => {
+  const seed = (s, attempts) => { s.tables.doit_request_events ??= []; const now = new Date().toISOString(); for (let i = 0; i < 200; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `z-${attempts}-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts } } } }); };
+  const s = newState(); const h = load(s); seed(s, 0);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const ok = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(ok.status, 200, '모델 0 턴은 하루 한도에 세지 않음');
+  const s2 = newState(); const h2 = load(s2); seed(s2, 1);
+  const no = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(no.status, 429, '모델 턴 200 = 막힘');
+});
+test('Codex P2(리뷰 5401309056) 첫 질문 만들기 중 사용자가 끊으면 499 CANCELLED(502 AI_ERROR 아님) · 세션 저장 0', async () => {
+  const s = newState(); const h = load(s); const ctrl = new AbortController();
+  s.fail = { openai: [{ abort: ctrl }] };
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' }, { signal: ctrl.signal });
+  assert.equal(r.status, 499, JSON.stringify(r.body)); assert.equal(r.body.code, 'CANCELLED');
+  assert.ok(!(s.tables.doit_request_events ?? []).some((x) => x.action === 'agent_session'), '세션 저장 0');
+});
+test('Codex P2(리뷰 5401266902) 모델 0 턴이 읽기 상한(1,000줄)을 넘게 쌓여도 모델 턴이 빠져 한도를 우회 0(넘으면 전부 셈)', async () => {
+  const s = newState(); const h = load(s); s.tables.doit_request_events ??= []; const now = new Date().toISOString();
+  for (let i = 0; i < 1100; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `g-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts: 0 } } } });
+  for (let i = 0; i < 200; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `m-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts: 1 } } } });
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(r.status, 429, '모델 턴 200 이 읽기 상한 밖에 있어도 막힘');
+});
+test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불러도 한도 우회 0(재생 안 하는 동작)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const used = rid();
+  const start = await h.call({ action: 'agent_start', requestId: used, tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  seedDaily(s, 200);
+  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
+  const r = await h.call({ action: 'agent_rescue', requestId: used, sessionId: sid });
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length, 0, '보기 모델 호출 0');
+});
+test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 요청 id 로 시작해도 그 세션을 돌려줌(모델 0 · 429 아님)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  seedDaily(s, 200);
+  const calls = s.aiCalls.length;
+  const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애로 이어질 만남을 원해요', firstAnswer: '연애로 이어질 만남을 원해요' });
+  assert.equal(again.status, 200, JSON.stringify(again.body)); assert.equal(again.body.existing, true); assert.equal(again.body.session.id, sid); assert.equal(s.aiCalls.length, calls);
+  const fresh = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(fresh.status, 429, '새로 만들어야 하는 시작은 여전히 막힘'); assert.equal(fresh.body.code, 'AI_DAILY_LIMIT');
+});
+// ── PR #103 Codex Code Review(리뷰 5400022834 · 9a531dd) 재현 2건
+test('Codex P2 하루 한도에서도 모델이 필요 없는 소개(상한 도달)·구조대(들고 있던 보기)는 막지 않음 · 모델이 필요하면 막음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  seedDaily(s, 200);
+  const r = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.session.current_rescue.show, true, '들고 있던 보기는 모델 0 → 한도와 무관');
+  sessionRow(s).response_payload.state.phase = 'done'; sessionRow(s).response_payload.state.intro = { status: 'failed', lines: [], dropped: {}, tries: 3, error: 'limit', used: null, used_at: null };
+  const i = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(i.status, 200, JSON.stringify(i.body)); assert.equal(i.body.limited, true, '소개 상한 도달 = 모델 0 → limited');
+});
+test('Codex P2 첫 질문 만들기가 실패해도 시도가 하루 한도에 셈(새 요청 id 로 되풀이해 우회 0) · 같은 요청 재전송은 409 아님', async () => {
+  const s = newState(); const h = load(s);
+  seedDaily(s, 199);
+  s.ai.push('HTTP500', 'HTTP500');
+  const requestId = rid();
+  const bad = await h.call({ action: 'agent_start', requestId, tone: 'polite', mode: 'TEXT' });
+  assert.equal(bad.status, 502);
+  const failed = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'failed').at(-1);
+  assert.ok(failed, '실패한 첫 질문 시도가 기록됨'); assert.ok(failed.response_payload.record.ai_usage.attempts >= 1);
+  const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(again.status, 429, '199 + 실패 1 = 200 → 새 시작은 막힘'); assert.equal(again.body.code, 'AI_DAILY_LIMIT');
+});
+test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·대화 예산 소진에서도 평소 결과(설정·예산 확인은 모델을 부를 때만)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
+  const r = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.session.current_rescue.show, true);
+  sessionRow(s).response_payload.state.phase = 'done'; sessionRow(s).response_payload.state.intro = { status: 'failed', lines: [], dropped: {}, tries: 3, error: 'limit', used: null, used_at: null };
+  const i = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(i.status, 200, JSON.stringify(i.body)); assert.equal(i.body.limited, true);
+  s.env = { OPENAI_API_KEY: '' }; // AI 설정 없음
+  const i2 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(i2.status, 200, JSON.stringify(i2.body)); assert.equal(i2.body.limited, true);
+});
+test('Codex P2 대화 차례: 모델이 필요 없는 입력(개인정보 안내 · 보기 모두 아님)은 대화 예산·하루 한도에서도 평소 응답 · 모델이 필요하면 막음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
+  seedDaily(s, 200);                                    // 하루 한도 도달
+  const calls = s.aiCalls.length;
+  const priv = await say3(h, sid, '제 번호는 010-1234-5678 이에요');
+  assert.equal(priv.status, 200, JSON.stringify(priv.body)); assert.equal(s.aiCalls.length, calls, '개인정보 안내 = 모델 0');
+  assert.equal((await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid })).status, 200);
+  const none = await say3(h, sid, '둘 다 아니에요', { rescueOpen: true });
+  assert.equal(none.status, 200, JSON.stringify(none.body)); assert.equal(s.aiCalls.length, calls, '보기 모두 아님 = 모델 0');
+  const normal = await say3(h, sid, '조용한 데가 좋아요');
+  assert.equal(normal.status, 429, '모델이 필요한 말은 여전히 막힘');
+});
+// ── PR #103 Codex Code Review(리뷰 5400199738 · f52cea1) 재현 2건
+test('Codex P1 대화 예산이 거의 찼으면 이번 요청도 남은 만큼만(재시도·전환 포함) — 대화 상한(60회)을 넘지 않음', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  sessionRow(s).response_payload.run.budget.calls = 59; // 남은 호출 1
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 429, '대화 예산을 다 쓰면 「다시 보내 주세요」(502)가 아니라 AI_BUDGET(자체 점검 P2)'); assert.equal(r.body.code, 'AI_BUDGET');
+  assert.equal(s.providerCalls.length, 1, '남은 1회만 보냄(전환 0)');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls <= 60, `대화 누적 ${sessionRow(s).response_payload.run.budget.calls} ≤ 60`);
+});
+test('Codex P2 첫 답과 함께 시작: 모델이 필요 없는 첫 답(개인정보 안내)은 AI 설정 없음·하루 한도에서도 평소 응답', async () => {
+  const s = newState(); s.env = { OPENAI_API_KEY: '' }; const h = load(s);
+  seedDaily(s, 200);
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '제 번호는 010-1234-5678 이에요' });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal((s.aiCalls ?? []).length, 0);
+  s.env = {};
+  const n = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(n.status, 429, '모델이 필요한 첫 답은 여전히 막힘');
+});
+// ── 2026-10-03 자체 점검(Codex 넘기기 전) 재현
+test('자체 P1 저장 경쟁에서 진 요청이 부른 모델도 하루 한도·대화 예산에 남음', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { openai: [{ gate }] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const a = say3(h, sid, '잘 웃는 사람');
+  await new Promise((r) => setTimeout(r, 5));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '솔직한 사람', '솔직한 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const before = sessionRow(s).response_payload.run.budget.calls;
+  assert.equal((await say3(h, sid, '솔직한 사람')).status, 200);
+  release(); const ra = await a;
+  assert.equal(ra.status, 409);
+  const usageRows = s.tables.doit_request_events.filter((x) => x.action === 'agent_usage');
+  assert.ok(usageRows.length >= 1, '진 요청의 사용 기록(하루 한도용)');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls >= before + 2, '이긴 쪽 + 진 쪽 호출 모두 대화 예산에');
+});
+test('자체 P1 첫 질문 만들기(성공)·소개·보기 호출도 하루 한도에 셈', async () => {
+  const s = newState(); const h = load(s);
+  seedDaily(s, 199);
+  s.ai.push({ reply: '반가워요', question: '어떤 만남을 찾아요?' });
+  const st = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.equal(s.tables.doit_request_events.filter((x) => x.action === 'agent_usage').length, 1, '첫 질문 사용 기록');
+  const n = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(n.status, 429, '199 + 첫 질문 1 = 200 → 막힘');
+});
+test('자체 P2 사용자가 끊은 소개 다시 쓰기는 쓰던 소개를 「실패」로 덮지 않음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' });
+  const before = structuredClone(sessionRow(s).response_payload.state.intro);
+  { const b = sessionRow(s).response_payload.run.budget; b.tokens_in = 149_000 - b.tokens_out - (b.tokens_unconfirmed ?? 0); } // 대화 예산 안(modelAllowed=true)이지만 남은 1,000토큰 < 이번 호출 상한 → 보내기 전에 멈춤
+  const r = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_BUDGET');
+  assert.deepEqual(sessionRow(s).response_payload.state.intro, before, '쓰던 소개 그대로');
+});
+// ── PR #103 Codex Code Review(리뷰 5400366786 · effcc97) 재현
+test('Codex P1 예산만 접는 저장도 판 번호를 올림 — 그 사이 시작된 정상 저장이 실패 요청의 사용량을 지우지 못함', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { anthropic: [{ gate }] }; // A: 느린 정상 턴
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const a = say3(h, sid, '잘 웃는 사람');
+  await new Promise((r) => setTimeout(r, 5));
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] }; // B: 같은 판에서 실패(사용량만 접음)
+  assert.equal((await say3(h, sid, '솔직한 사람')).status, 502);
+  const afterB = sessionRow(s).response_payload.run.budget.calls;
+  release(); const ra = await a;
+  assert.equal(ra.status, 409, 'B 가 판을 올렸으므로 늦은 A 는 저장 0');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls >= afterB, 'B 의 사용량이 지워지지 않음');
+});
+test('Codex P2 실행 재생 기록(agent_run 행)이 남지 않아도 같은 요청 재전송은 도구 재실행 0', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [] }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const rq = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(r1.status, 200, JSON.stringify(r1.body)); assert.equal(r1.body.tool.outcome, 'none');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === rq)); // 재생 기록 저장 실패를 흉내
+  const calls = s.connectCalls.length;
+  const r2 = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(r2.status, 200); assert.equal(r2.body.duplicate, true); assert.equal(r2.body.tool.outcome, 'none');
+  assert.equal(s.connectCalls.length, calls, '도구 다시 안 부름');
+});
+test('Codex P2(리뷰 5400441424) 재생 기록이 빠진 실행 요청 A 는 그 사이 다른 실행 B 가 있어도 재전송 = 저장된 결과(도구 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = ['NETWORK', { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.body.tool.outcome, 'failed');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === A)); // A 의 재생 기록 저장 실패
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).status, 200); // B: 쉬는 시간이라 도구 0 · 기록만
+  const calls = s.connectCalls.length;
+  sessionRow(s).response_payload.run.tools.at(-1).at = '2000-01-01T00:00:00.000Z'; // 쉬는 시간이 지난 뒤 A 재전송
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.body.duplicate, true); assert.equal(again.body.tool.outcome, 'failed');
+  assert.equal(s.connectCalls.length, calls, 'A 재전송 = 도구 다시 안 부름');
+});
+test('Codex P2(리뷰 5400588319) 같은 새 요청 id 로 실행 두 개가 겹쳐 들어와도 후보 조회 도구는 한 번만(나중 것 = 409)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const n = () => (s.connectCalls ?? []).length; const calls = n(); const A = rid();
+  const [r1, r2] = await Promise.all([h.call({ action: 'agent_run', requestId: A, sessionId: sid }), h.call({ action: 'agent_run', requestId: A, sessionId: sid })]);
+  assert.equal(n() - calls, 1, '도구(my_candidates) 실행 1번');
+  assert.deepEqual([r1.status, r2.status].sort(), [200, 409]);
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.equal(n() - calls, 1, '끝난 뒤 재전송 = 저장된 결과');
+});
+test('Codex P1(리뷰 5400766764 · 4175329388) 대화가 바뀌어 실패(STATE_CHANGED)한 실행: 같은 요청 id 는 도구 재실행 0 · 새 요청이면 다시 실행(영구 409 아님)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  let release; const gate = new Promise((r) => { release = r; });
+  s.connect = [{ gate, body: { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] } }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const first = h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
+  sessionRow(s).applied_revision = Number(sessionRow(s).applied_revision ?? 0) + 1; // 도구가 도는 사이 다른 저장
+  release();
+  const r1 = await first;
+  assert.equal(r1.status, 409); assert.equal(r1.body.code, 'STATE_CHANGED');
+  // Codex P1(리뷰 4175329388): 도구가 이미 돈 뒤의 STATE_CHANGED 는 같은 요청 id 로 다시 잡지 않음(후보 준비 쓰기 재실행 0) — 앱은 STATE_CHANGED 에서 요청 id 를 내려놓는다
+  const calls = (s.connectCalls ?? []).length;
+  const same = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(same.status, 409); assert.equal(same.body.code, 'RUN_UNCERTAIN'); assert.equal((s.connectCalls ?? []).length, calls, '같은 요청 id = 도구 다시 실행 0');
+  const B = rid(); // 다음 누름 = 새 요청(영구 409 아님)
+  const r2 = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(r2.status, 200, JSON.stringify(r2.body)); assert.equal(r2.body.duplicate, undefined);
+  assert.equal(r2.body.tool.outcome, 'found');
+  const r3 = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(r3.body.duplicate, true, '성공한 뒤 재전송 = 저장된 결과');
+});
+test('Codex P2(리뷰 5400904667) 함수가 끊겨 오래 남은 pending 실행 요청 id = 임대 시간 뒤 다시 잡아 실행 · 임대 안이면 409(도구 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const user = sessionRow(s).user_id; const n = () => (s.connectCalls ?? []).length; const before = n();
+  const A = rid(); const B = rid();
+  const old = new Date(Date.now() - 10 * 60_000).toISOString(); const fresh = new Date().toISOString();
+  s.tables.doit_request_events.push({ user_id: user, request_id: A, action: 'agent_run', target_id: sid, status: 'pending', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.tables.doit_request_events.push({ user_id: user, request_id: B, action: 'agent_run', target_id: sid, status: 'pending', payload_hash: 'x', response_payload: null, created_at: fresh, updated_at: fresh });
+  const rb = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(rb.status, 409, '임대 안의 pending = 아직 처리 중'); assert.equal(n(), before, '도구 0');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const ra = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(ra.status, 200, JSON.stringify(ra.body)); assert.equal(ra.body.tool.outcome, 'found'); assert.equal(n(), before + 1, '도구 1번');
+  assert.equal(s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run').status, 'applied');
+});
+test('Codex 5969458619 P2 대조 — 도구 실행·세션 저장 뒤 함수가 끊겨 pending 이 남아도, 임대가 지나 다시 보내면 저장된 그 결과(도구 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length;
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.status, 200); const after = n();
+  // 세션 저장까지 끝난 뒤 결과 기록(applied) 전에 끊긴 것처럼: 행을 오래된 pending 으로 되돌림
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  const old = new Date(Date.now() - 10 * 60_000).toISOString();
+  Object.assign(row, { status: 'pending', response_payload: null, applied_revision: null, updated_at: old });
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true, '세션에 남은 그 요청의 결과');
+  assert.deepEqual(again.body.run, r1.body.run); assert.equal(n(), after, '도구 다시 실행 0');
+});
+test('Codex P1 중단된 agent_run은 임대 만료 뒤 후보 준비 쓰기를 다시 실행하지 않는다', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length; const before = n();
+  // 첫 실행: 도구(my_candidates · 후보 준비 쓰기 포함)가 불린 뒤 응답이 오지 않음 = 세션 저장 전에 함수가 끊긴 것과 같음
+  s.connect = [{ gate: new Promise(() => {}), body: { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] } }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  void h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  for (let i = 0; i < 20 && n() === before; i++) await new Promise((r) => setTimeout(r, 0));
+  assert.equal(n(), before + 1, '첫 실행에서 도구 1번');
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  assert.equal(row.status, 'pending');
+  row.updated_at = new Date(Date.now() - 10 * 60_000).toISOString(); // 임대(7분) 만료
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid }); // 앱은 같은 id 를 다시 보낸다
+  assert.equal(n(), before + 1, '임대 만료 뒤 같은 요청 = 도구(후보 준비 쓰기) 다시 실행 0');
+  assert.equal(again.status, 409, JSON.stringify(again.body)); assert.equal(again.body.code, 'RUN_UNCERTAIN', '성공처럼 처리하지 않고 복구 가능한 409');
+  const third = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(third.status, 409); assert.equal(third.body.code, 'RUN_UNCERTAIN'); assert.equal(n(), before + 1, '몇 번을 다시 보내도 도구 0');
+  assert.ok(s.tables.doit_request_events.some((x) => x.request_id === A && x.action === 'agent_run'), '실행 기록 행 삭제 0');
+  // 앱이 이 요청 id 를 내려놓고 새로 누르면(새 요청 id) 기존처럼 도구 1번
+  const fresh = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body)); assert.equal(fresh.body.tool.outcome, 'found'); assert.equal(n(), before + 2, '새 요청 = 도구 1번');
+});
+test('결과 없는 오래된 예약은 도구 재실행 대신 복구 가능한 409를 반환한다', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const user = sessionRow(s).user_id; const n = () => (s.connectCalls ?? []).length; const before = n();
+  const old = new Date(Date.now() - 10 * 60_000).toISOString();
+  const A = rid(); const B = rid();
+  s.tables.doit_request_events.push({ user_id: user, request_id: A, action: 'agent_run', target_id: sid, status: 'pending', error_code: 'TOOL_STARTED', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.tables.doit_request_events.push({ user_id: user, request_id: B, action: 'agent_run', target_id: sid, status: 'failed', error_code: 'TOOL_UNCERTAIN', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const ra = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(ra.status, 409); assert.equal(ra.body.code, 'RUN_UNCERTAIN');
+  const rb = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(rb.status, 409); assert.equal(rb.body.code, 'RUN_UNCERTAIN', '확인 못 한 실패는 다시 잡지 않음');
+  assert.equal(n(), before, '도구 0');
+  assert.equal(s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run').error_code, 'TOOL_UNCERTAIN');
+});
+test('저장된 동일 요청 결과가 있으면 도구 없이 duplicate로 재생한다 — 도구 시작 표시가 남은 행이어도', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length;
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.status, 200); const after = n();
+  // 세션 저장 뒤 결과 기록(applied) 전에 끊긴 것처럼: 도구 시작 표시가 남은 오래된 pending
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  Object.assign(row, { status: 'pending', error_code: 'TOOL_STARTED', response_payload: null, applied_revision: null, updated_at: new Date(Date.now() - 10 * 60_000).toISOString() });
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.deepEqual(again.body.run, r1.body.run); assert.equal(n(), after, '도구 0');
+});
+test('Codex P2(리뷰 5400766764) 첫 답 없는 시작은 첫 질문 만들기(opening) 경로로 확인 — 작업별 정책 존중', async () => {
+  const s = newState();
+  s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'], opening: ['openai'] } }) };
+  const h = load(s);
+  s.ai.push({ reply: '반가워요', question: '어떤 만남을 찾아요?' });
+  const st = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai'], 'opening 경로(openai)로 첫 질문');
+  const s2 = newState();
+  s2.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['openai'], opening: ['anthropic'] } }) };
+  const h2 = load(s2);
+  const st2 = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st2.status, 500); assert.equal(st2.body.code, 'AI_NOT_CONFIGURED', 'opening 경로가 못 쓰면 시작 전에 설정 필요');
+  assert.equal((s2.providerCalls ?? []).length, 0);
+});
+test('Codex P2(리뷰 5400556217) 재생 기록이 빠진 실행 요청 A 를 다시 보내면, 그 사이 B 가 실행 기록을 바꿨어도 A 당시의 결과(outcome·next)를 돌려줌', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = ['NETWORK', { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.body.run.outcome, 'on_hold'); assert.equal(r1.body.run.next, 'retry_later');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === A)); // A 의 재생 기록 저장 실패
+  sessionRow(s).response_payload.run.tools.at(-1).at = '2000-01-01T00:00:00.000Z'; // 쉬는 시간이 지나 B 가 도구를 다시 실행 → 후보 있음
+  const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(r2.body.run.next, 'open_candidates', 'B 가 실행 기록을 바꿈');
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.body.duplicate, true);
+  assert.deepEqual(again.body.run, r1.body.run, 'A 재전송 = A 당시 실행 기록(최신 B 기록이 아님)');
+  assert.deepEqual(again.body.tool, r1.body.tool);
 });

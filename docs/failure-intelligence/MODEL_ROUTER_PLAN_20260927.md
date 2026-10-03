@@ -40,3 +40,8 @@ provider · model · role · stage · action · retry · fallback(chain_index>0)
 - 시험 도구 변경: `harness-lib.mjs` 의 OpenAI 전용 호출을 Router(`router/router.ts`)로 바꾸고 업체별 집계 추가 · 워크플로가 새 키를 시험 환경에 넘김.
 - Anthropic·Gemini 실제 부품은 아직 없다(가짜·미연결 자리만) — 공식 문서로 요청 형식을 확인한 뒤 만든다.
 - 개인정보: 대화 원문이 Google·Anthropic 으로도 간다 — 처리방침(처리위탁·국외이전) 법무 확인.
+
+## 8. 운영 Agent 연결(2026-10-03 · 대표 「3개 AI 제공사 통합」)
+- 스파이크 Router 의 생각을 운영 `doit-agent` 로 옮김: `product/supabase/functions/doit-agent/providers.ts`(세 제공사 연결부) · `modelRouter.ts`(서버 선택 규칙 · 정책 `AI_POLICY`).
+- §6 역할은 아직 정하지 않았다 — 코드에 순위 0 · 정책이 없으면 OpenAI 하나(지금 운영 그대로).
+- 상태 · 검사 · 승인 대상: `product/docs/server-gap/DECISIONS_AND_APPROVALS_20261002.md` §21.
