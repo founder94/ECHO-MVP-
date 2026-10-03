@@ -317,3 +317,14 @@ test('Codex P1(리뷰 4173711387) 인터넷 전화 070(띄어 쓴·붙여 쓴)�
   }
   for (const keep of ['70번 버스', '주문번호 2070123456789', '0701234567890123 번']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
 });
+
+test('Codex P1/P2(리뷰 5402355939) 전화 번호 일반화: 괄호·국가번호(+82) 꼴도 가림 · 유선 번호는 띄어 쓴 꼴도 숫자 경계(더 긴 숫자 일부는 그대로)', () => {
+  for (const [n, kind] of [['(070) 1234-5678', 'landline'], ['(02) 1234-5678', 'landline'], ['(031)123-4567', 'landline'], ['+82 2-1234-5678', 'landline'], ['+82-70-1234-5678', 'landline'],
+    ['(010) 1234-5678', 'phone'], ['+82 10-1234-5678', 'phone'], ['+821012345678', 'phone'], ['+82 (0)10 1234 5678', 'phone']]) {
+    const r = maskPii({ latest: `연락처 ${n} 입니다` });
+    assert.ok(!/\d{3,4}[-\s.]?\d{4}/.test(JSON.stringify(r.value)), `${n} → ${JSON.stringify(r.value)}`); assert.equal(r.counts[kind], 1, n);
+  }
+  for (const keep of ['1070-1234-56789', '9902-345-67890', '주문 1031-123-45678']) { const r = maskPii({ latest: keep }); assert.equal(r.counts.landline, undefined, keep); assert.equal(r.value.latest, keep, keep); }
+  assert.equal(maskPii({ latest: '회사 02-345-6789, 집 031-123-4567' }).counts.landline, 2, '기존 띄어 쓴 꼴 그대로');
+  assert.equal(maskPii({ latest: '제 번호 010-1234-5678' }).counts.phone, 1, '기존 휴대폰 꼴 그대로');
+});
