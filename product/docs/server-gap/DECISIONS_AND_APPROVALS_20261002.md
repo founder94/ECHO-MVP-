@@ -871,3 +871,9 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 
 - 재현 검사 4건(수정 전 실패 확인 → 수정 후 통과) · 내 앞선 검사 1건(취소 분류)의 기대값을 `cancelled` 로 바꾸고 「호출 자체 시간 제한 = timeout」 확인을 더함.
 - 전체 1131 중 1126 통과 / 0 실패(TODO 5 = 기존) · type-check · lint 통과 · deno check = 확인 불가.
+
+## 26. 앱 연결부(실행 단계) — Codex 명세 20261003-1 요약 기준 1단계(2026-10-03)
+Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에만 있고 GitHub에 없다 → 요약(PR 댓글 5968428589)에서 분명한 부분만 먼저 구현. 화면 연결·문구·자동 실행 여부는 명세 원문과 「대표 확인 필요」 항목 확인 뒤.
+- `src/doit/lib/agentApi.ts`: `AgentRun` · `AgentRunTool` 형식 · `validRun`(모양 검사 · 서버 `next` 값 목록 밖이면 거부) · `AgentSession.run`(틀리면 대화는 쓰고 실행 기록만 null) · `agentRun(userId, sessionId, { resume })`(재개는 명시했을 때만 · 같은 요청 재전송은 서버 저장 결과 `duplicate`).
+- 화면은 아직 이것을 부르지 않는다(화면 PASS 아님). 앱 연결부는 다음 할 일·완료를 스스로 만들지 않고 · 상호 선택·후보 고르기 호출 0(소스 규칙 검사).
+- 검사: `qa/agent-run-client.test.mjs` 4 · 전체 1135 중 1130 통과 / 0 실패(TODO 5 = 기존) · type-check · lint · build(공개 주소 자리값 · 실제 키 0) 통과 · 소스맵 0.

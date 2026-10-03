@@ -34,6 +34,25 @@ export interface AgentSession {
   profile: AgentProfile | null; handoff: { status: string } | null;
   intro?: AgentIntro | null; // 서버 v1.6 · 대화가 끝났을 때만
   goal?: string | null; goal_label?: string | null; // 서버 v2.4 · 이 세션의 관계 목적(예전 세션은 null)
+  run?: AgentRun | null; // 2026-10-03 서버 실행 기록(코드·수치만) — 다음 할 일(next)은 서버가 정한다. 화면은 그대로 보여 줄 뿐 바꾸지 않는다.
+}
+// 서버 실행 기록 모습(doit-agent run.ts runView). 화면이 계획·완료를 스스로 정하지 않는다 — next 를 그대로 따른다.
+export type AgentRunOutcome = 'needs_user' | 'in_progress' | 'done' | 'on_hold' | 'stopped';
+export type AgentRunNext = 'answer' | 'complete_profile' | 'tell_more' | 'open_candidates' | 'run' | 'retry_later' | 'wait' | 'resume_if_wanted';
+export interface AgentRun {
+  version: string; goal: string; plan_rev: number; outcome: AgentRunOutcome; waiting: string | null; next: AgentRunNext; missing: string[];
+  steps: { id: string; status: string; why: string | null }[];
+  candidates: { outcome: 'found' | 'none' | 'not_ready' | 'failed' | 'skipped'; count: number | null; at: string; fresh: boolean } | null;
+}
+export interface AgentRunTool { tool: 'readiness' | 'candidates'; outcome: 'found' | 'none' | 'not_ready' | 'failed' | 'skipped'; count: number | null; code: string | null }
+const RUN_OUTCOMES = new Set<string>(['needs_user', 'in_progress', 'done', 'on_hold', 'stopped']);
+const RUN_NEXT = new Set<string>(['answer', 'complete_profile', 'tell_more', 'open_candidates', 'run', 'retry_later', 'wait', 'resume_if_wanted']);
+// 모양이 틀린 실행 기록은 쓰지 않는다(null 로 취급 · 화면이 임의로 채우지 않음)
+export function validRun(r: unknown): r is AgentRun {
+  const x = r as AgentRun | null;
+  return !!x && typeof x.version === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome) && RUN_NEXT.has(x.next)
+    && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string') && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && typeof st.status === 'string')
+    && (x.candidates === null || (!!x.candidates && typeof x.candidates.outcome === 'string'));
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
@@ -47,8 +66,10 @@ export const AGENT_PURPOSE_LABELS: Record<string, string> = {
 
 function validSession(s: unknown): s is AgentSession {
   const x = s as AgentSession | null;
-  return !!x && typeof x.id === 'string' && (x.phase === 'talk' || x.phase === 'done') && !!x.progress && Number.isInteger(x.progress.asked)
+  const ok = !!x && typeof x.id === 'string' && (x.phase === 'talk' || x.phase === 'done') && !!x.progress && Number.isInteger(x.progress.asked)
     && Array.isArray(x.messages) && x.messages.every(m => (m.role === 'ai' || m.role === 'user') && typeof m.text === 'string');
+  if (ok && x!.run != null && !validRun(x!.run)) x!.run = null; // 실행 기록만 틀리면 대화는 그대로 쓰고 실행 기록은 버린다
+  return ok;
 }
 
 // v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 이 기기가 이어 가는 대화 세션 id 를 기기(브라우저)에만 기억한다.
@@ -113,4 +134,12 @@ export async function agentIntroMark(userId: string, sessionId: string, how: 'as
   const r = await write<{ session: AgentSession }>(userId, { action: 'agent_intro_mark', sessionId, how });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r.session;
+}
+
+// 2026-10-03 실행 단계(agent_run · 모델 호출 0): 서버가 정한 도구 하나만 실행하고 결과·다음 할 일을 돌려준다.
+// resume = 사용자가 직접 누른 「다시 이어서」일 때만 true(화면이 스스로 재개하지 않음). 같은 요청 id 재전송 = 서버가 저장된 결과를 돌려준다(duplicate).
+export async function agentRun(userId: string, sessionId: string, opts: { resume?: boolean } = {}): Promise<{ session: AgentSession; run: AgentRun; tool: AgentRunTool | null; duplicate: boolean }> {
+  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) });
+  if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
+  return { session: r.session, run: r.run, tool: r.tool ?? null, duplicate: r.duplicate === true };
 }
