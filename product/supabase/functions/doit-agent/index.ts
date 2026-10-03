@@ -170,6 +170,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
+  ctx.router.limitTo(R.remainingBudget(stored.run)); // 이번 요청(재시도·전환 포함)도 대화에 남은 예산 안에서만
   const pre = fresh ? null : structuredClone(stored); // 실패하면 대화 상태는 이 판 그대로 두고 사용량만 남긴다
   const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
   if (response.error) {
@@ -359,15 +360,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const existing = await currentSession(admin, userId, since, goal);
       if (existing) return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
-      if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-      { const capped = await dailyCapped(); if (capped) return capped; } // 이미 있는 세션은 위에서 돌려줌(모델 0) — 새로 만들 때만
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
       const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
       const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
+      if (first) A.seedFirstQuestion(stored.state);
+      // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
+      if (!first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }))) {
+        if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        const capped = await dailyCapped(); if (capped) return capped;
+      }
       if (first) {
         // 앱의 첫 질문(목적 타일 화면)에 한 답 = 첫 턴. 세션 id 는 요청 id 에서 만들고, 턴 기록은 요청 id 로 남긴다.
-        A.seedFirstQuestion(stored.state);
         return await runAndSave(ctx, await derivedUuid(`${requestId}:session`), stored, 0, first, requestId, true);
       }
       const obs: A.Obs = { calls: [], retry: [] };
@@ -413,6 +417,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
           const capped = await dailyCapped(); if (capped) return capped;
         }
+        router.limitTo(R.remainingBudget(stored.run));
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
         if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
@@ -443,6 +448,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const capped = await dailyCapped(); if (capped) return capped;
       }
       const rev = Number(row.applied_revision ?? 0);
+      router.limitTo(R.remainingBudget(stored.run));
       const r = await A.requestRescue(stored.state, ctx.llm);
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })

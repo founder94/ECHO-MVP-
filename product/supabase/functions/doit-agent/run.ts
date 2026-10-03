@@ -130,6 +130,9 @@ function decide(run: Run, st: AgentState, missingAreas: string[]) {
 export const overBudget = (run: Run) => run.budget.calls >= RUN_LIMITS.max_calls || run.budget.tokens_in + run.budget.tokens_out + (run.budget.tokens_unconfirmed ?? 0) >= RUN_LIMITS.max_tokens;
 /** 모델을 더 불러도 되나(대화 단위 누적 상한). */
 export const modelAllowed = (run: Run | null | undefined) => !run || !overBudget(run);
+/** 대화 단위로 남은 호출·토큰(이번 요청의 라우터 한도로 넘김 · 미확인 예약 포함). */
+export const remainingBudget = (run: Run | null | undefined) => !run ? { calls: RUN_LIMITS.max_calls, tokens: RUN_LIMITS.max_tokens }
+  : { calls: RUN_LIMITS.max_calls - run.budget.calls, tokens: RUN_LIMITS.max_tokens - (run.budget.tokens_in + run.budget.tokens_out + (run.budget.tokens_unconfirmed ?? 0)) };
 
 /** 지금 실행할 도구(없으면 null) — 서버가 정한다. 조회 실패 직후에는 잠깐 쉬고, 도구 실행 상한을 넘지 않는다. */
 export function dueTool(run: Run, nowMs: number): { tool: ToolId | null; why: WaitReason } {

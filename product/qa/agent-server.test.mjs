@@ -1449,3 +1449,23 @@ test('Codex P2 대화 차례: 모델이 필요 없는 입력(개인정보 안내
   const normal = await say3(h, sid, '조용한 데가 좋아요');
   assert.equal(normal.status, 429, '모델이 필요한 말은 여전히 막힘');
 });
+// ── PR #103 Codex Code Review(리뷰 5400199738 · f52cea1) 재현 2건
+test('Codex P1 대화 예산이 거의 찼으면 이번 요청도 남은 만큼만(재시도·전환 포함) — 대화 상한(60회)을 넘지 않음', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  sessionRow(s).response_payload.run.budget.calls = 59; // 남은 호출 1
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 502);
+  assert.equal(s.providerCalls.length, 1, '남은 1회만 보냄(전환 0)');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls <= 60, `대화 누적 ${sessionRow(s).response_payload.run.budget.calls} ≤ 60`);
+});
+test('Codex P2 첫 답과 함께 시작: 모델이 필요 없는 첫 답(개인정보 안내)은 AI 설정 없음·하루 한도에서도 평소 응답', async () => {
+  const s = newState(); s.env = { OPENAI_API_KEY: '' }; const h = load(s);
+  seedDaily(s, 200);
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '제 번호는 010-1234-5678 이에요' });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal((s.aiCalls ?? []).length, 0);
+  s.env = {};
+  const n = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(n.status, 429, '모델이 필요한 첫 답은 여전히 막힘');
+});

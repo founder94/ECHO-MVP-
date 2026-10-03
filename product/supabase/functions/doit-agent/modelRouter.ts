@@ -134,7 +134,7 @@ export interface RouterDeps {
 export type SkipWhy = "not_in_policy" | "data_not_allowed" | "disabled" | "not_verified_for_task" | "no_key" | "price_unknown" | "cost_cap";
 // 예산 표시 세 가지를 섞지 않는다: tokens_in/out = 업체가 알려 준 확인된 사용량 · tokens_reserved_unconfirmed = 보냈지만 사용량을 모르는 시도의 예약량(추정 · 청구액 아님) · cost_usd = 확인된 사용량 × 정책 단가(단가 모르면 null) · cost_complete = 미확인 시도가 없을 때만 true
 export interface RouterSummary { provider: ProviderId | null; providers: ProviderId[]; model: string | null; fallback: number; calls: number; errors: number; tokens_in: number; tokens_out: number; tokens_reserved_unconfirmed: number; unconfirmed_attempts: number; cost_usd: number | null; cost_complete: boolean }
-export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; usable(kind?: TaskKind): ProviderId[]; explain(kind?: TaskKind): { order: ProviderId[]; skipped: { provider: ProviderId; why: SkipWhy }[] }; summary(): RouterSummary }
+export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; limitTo(rem: { calls: number; tokens: number }): void; usable(kind?: TaskKind): ProviderId[]; explain(kind?: TaskKind): { order: ProviderId[]; skipped: { provider: ProviderId; why: SkipWhy }[] }; summary(): RouterSummary }
 
 // 제공사가 아니라 요청 자체 문제라 다른 모델로 돌려도 안 되는 오류: 거절(안전). 다음 후보로 넘기는 오류: 일시 오류 · 형식 · 4xx(모델 이름·설정 문제) · 빈 답 · 잘림.
 const NO_SWITCH: ProviderErrorCode[] = ["refused"];
@@ -156,6 +156,9 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   //   started = 시작한 시도 수(진행 중 포함) · held = 진행 중이거나 사용량을 모르는 시도의 예약 토큰(추정) · 확인된 사용량은 기록(log)에서.
   // 보호 범위: 이 라우터 하나(= Edge 실행 하나의 요청 하나). 여러 요청·여러 서버 실행 사이는 여기서 막지 않는다(대화·사용자 한도 = index.ts · DB 원자 예약 없음 → 문서 §24).
   let started_attempts = 0;
+  // 대화 단위 남은 예산(index.ts 가 저장된 대화 예산에서 계산해 넘김) — 요청 한도와 둘 중 작은 쪽을 쓴다(대화 상한을 요청 하나가 넘지 않게)
+  let sessionLeft = { calls: Infinity, tokens: Infinity };
+  const limitTo = (rem: { calls: number; tokens: number }) => { sessionLeft = { calls: Math.max(0, rem.calls), tokens: Math.max(0, rem.tokens) }; };
   // 예약 = 토큰 수 + 그 토큰의 추정 금액(단가 있는 제공사만 · 없으면 0). 진행 중이거나 사용량을 모르는 시도는 예약을 유지 → 토큰·금액 상한 모두에 보수적으로 들어간다.
   const held = new Map<number, { tokens: number; usd: number }>();
   let holdSeq = 0;
@@ -223,7 +226,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       for (let attempt = 1; attempt <= 1 + L.same_provider_retries; attempt++) {
         // 토큰 상한: 이미 쓴(확인 + 예약) 양에 「이번 시도의 예약」까지 더해 본다 → 재시도·전환·동시 호출이 합쳐 상한을 넘지 않게
         const reserve = Math.ceil(estChars / 1.5) + d.params.max_tokens;
-        if (started_attempts >= L.max_calls_per_request || spent() + reserve > L.max_tokens_per_request) {
+        if (started_attempts >= Math.min(L.max_calls_per_request, sessionLeft.calls) || spent() + reserve > Math.min(L.max_tokens_per_request, sessionLeft.tokens)) {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("budget_exceeded");
         }
@@ -293,7 +296,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       cost_usd: spentUsd(), cost_complete: !log.some((r) => r.usage === "unknown") && spentUsd() != null,
     };
   };
-  return { llm, log, policy, usable, explain: (kind?: TaskKind) => explain(kind), summary };
+  return { llm, log, policy, limitTo, usable, explain: (kind?: TaskKind) => explain(kind), summary };
 }
 
 /** Edge 함수에서: 환경 → 정책 · 제공사 부품. 키는 있는지만 본다(값을 로그·응답에 넣지 않음). */
