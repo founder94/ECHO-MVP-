@@ -2,6 +2,9 @@
 // save() pushes a child commit of the expected rev with a plain (non-force) git push: a stale/concurrent writer is a non-fast-forward and is rejected (false = conflict).
 // Needs only git; the remote and credentials are supplied by the caller's environment. Not wired into any workflow.
 const { execFileSync } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
+// Every save attempt carries a unique attempt id in the commit message, so two writers saving identical content on the same parent
+// (same tree/author/time) still produce different commits: the second push is a non-fast-forward and loses (no silent up-to-date success).
 
 function gitStore({ cwd = process.cwd(), remote = 'origin', ref = 'refs/heads/echo-automation-state', initial = { tasks: [] } } = {}) {
   const git = (args, input) => execFileSync('git', args, { cwd, input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -18,7 +21,7 @@ function gitStore({ cwd = process.cwd(), remote = 'origin', ref = 'refs/heads/ec
     save(expected, state) {
       const blob = git(['hash-object', '-w', '--stdin'], JSON.stringify(state));
       const tree = git(['mktree'], `100644 blob ${blob}\tstate.json\n`);
-      const args = ['-c', 'user.name=echo-queue', '-c', 'user.email=echo-queue@users.noreply.github.com', 'commit-tree', tree, '-m', 'queue state'];
+      const args = ['-c', 'user.name=echo-queue', '-c', 'user.email=echo-queue@users.noreply.github.com', 'commit-tree', tree, '-m', `queue state\n\nattempt=${randomUUID()}`];
       const commit = git(expected ? [...args, '-p', expected] : args);
       try { git(['push', '--quiet', remote, `${commit}:${ref}`]); return true; } catch { return false; }
     },

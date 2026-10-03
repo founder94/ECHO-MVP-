@@ -1,0 +1,43 @@
+# PROPOSAL ONLY (not under .github/workflows, not active, no live workflow changed).
+# Worker receiver for workflow_dispatch from the queue adapter (drain -> ghWorkflowDispatcher). Replaces the comment trigger:
+# comments posted with GITHUB_TOKEN do not start other workflows, but `gh workflow run` (workflow_dispatch) with GITHUB_TOKEN is supported. No new Secret.
+# Pairs with proposed/queue-adapter.workflow.yml.txt (needs repository variable QUEUE_WORKER_WORKFLOW = this file's name, and `actions: write` there).
+#
+# Receiver contract (typed inputs only, no free text):  key, action (START|FIX), task_id, ref (pr:N), sha (FIX only, 40 hex).
+# Validation happens BEFORE any model step: reject unless input formats match, then check against the CAS state branch that the outbox entry
+#   <key> exists, status DISPATCHING, and the task is still RUNNING/FIX at the same head (CLI `verify-dispatch`: NOT IMPLEMENTED YET -> listed below).
+# Model/Claude invocation itself is the existing claude.yml bridge logic and is NOT included here (model step = separate approval).
+name: queue-worker-receiver
+on:
+  workflow_dispatch:
+    inputs:
+      key:     { required: true, type: string }
+      action:  { required: true, type: choice, options: [START, FIX] }
+      task_id: { required: true, type: string }
+      ref:     { required: true, type: string }
+      sha:     { required: false, type: string }
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: queue-worker
+  cancel-in-progress: false
+jobs:
+  receive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # only the GitHub-verified dispatcher identity may start this; actor is github.actor, never an input
+    if: github.actor == 'founder94' || github.triggering_actor == 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - name: validate typed inputs
+        env: { KEY: '${{ inputs.key }}', ACTION: '${{ inputs.action }}', TASK: '${{ inputs.task_id }}', REF: '${{ inputs.ref }}', SHA: '${{ inputs.sha }}' }
+        run: |
+          [[ "$REF" =~ ^pr:[0-9]+$ ]] && [[ "$KEY" =~ ^[A-Za-z0-9_.:-]{1,80}$ ]] && [[ "$TASK" =~ ^[A-Za-z0-9_.-]{1,80}$ ]] || exit 1
+          [ -z "$SHA" ] || [[ "$SHA" =~ ^[a-f0-9]{40}$ ]] || exit 1
+      # TODO(approval) next steps, intentionally not faked here:
+      #  - verify-dispatch against state branch (claim exists, head current)
+      #  - run the worker (claude.yml logic) on the PR branch; worker handoff comment ends with the Codex review request
+# Unproven: real workflow_dispatch from drain, `actions: write` permission on the adapter, the `if:` actor condition on real runs.
+# Typed Codex verdict: still no supported automatic source. Native app "no findings" is never PASS; PASS only via explicit echo-review marker.

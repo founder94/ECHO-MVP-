@@ -113,4 +113,21 @@ function ghDispatcher(env, exec = execFileSync, { requestReview = false } = {}) 
   };
 }
 
-module.exports = { APPROVER, isApprover, initQueue, validateApproved, withOutbox, drain, ghDispatcher, MAX_ATTEMPTS };
+// workflow_dispatch dispatcher (supported by GITHUB_TOKEN, unlike comment triggers; no new secret). Calls the worker receiver workflow
+// (env.QUEUE_WORKER_WORKFLOW = file name, repository variable) with typed inputs only; no free text from comments.
+// At-most-once comes from the CAS claim in drain(), not from a remote lookup: a crash after the call but before DONE is stored
+// leaves DISPATCHING (human needed). UNPROVEN against real GitHub (mock exec only).
+function ghWorkflowDispatcher(env, exec = execFileSync) {
+  return entry => {
+    const wf = env.QUEUE_WORKER_WORKFLOW;
+    if (!wf || !/^[A-Za-z0-9._-]+\.ya?ml$/.test(wf)) throw new Error('no_worker_workflow');
+    if (!['START', 'FIX'].includes(entry.action)) return; // REVIEW is requested by the worker's own handoff comment
+    if (!/^pr:\d+$/.test(entry.ref || '') || !/^[A-Za-z0-9_.:-]{1,80}$/.test(entry.key || '') || !/^[A-Za-z0-9_.-]{1,80}$/.test(entry.taskId || '')) throw new Error('bad_entry');
+    if (entry.sha && !/^[a-f0-9]{40}$/.test(entry.sha)) throw new Error('bad_entry');
+    const args = ['workflow', 'run', wf, '--repo', env.GITHUB_REPOSITORY, '--ref', 'main', '-f', `key=${entry.key}`, '-f', `action=${entry.action}`, '-f', `task_id=${entry.taskId}`, '-f', `ref=${entry.ref}`];
+    if (entry.sha) args.push('-f', `sha=${entry.sha}`);
+    try { exec('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 }); } catch { throw new Error('dispatch_failed'); }
+  };
+}
+
+module.exports = { ghWorkflowDispatcher, APPROVER, isApprover, initQueue, validateApproved, withOutbox, drain, ghDispatcher, MAX_ATTEMPTS };
