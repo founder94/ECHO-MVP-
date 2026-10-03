@@ -248,3 +248,11 @@ test('띄어 쓴 13~15자리 카드(4-4-4-1~3 묶음 · Luhn)도 가림 · Luhn 
   const no = maskPii({ latest: '번호 1234 5678 9012 3 이에요' });
   assert.equal(no.counts.card, undefined, 'Luhn 아닌 4-4-4-1 은 카드로 세지 않음');
 });
+
+// 리뷰 5400987645(fcf786d) P2 재현 — 띄어 쓴 16자리 카드 뒤 짧은 숫자는 합친 값이 Luhn 에 맞아도 그대로
+test('16자리 카드 뒤 띄어 쓴 1~3자리는 합친 값이 Luhn 이어도 보존', () => {
+  for (const [t, want] of [['카드 4111 1111 1111 1111 3번', '카드 [가림] 3번'], ['카드 4111111111111111 3번', '카드 [가림] 3번'], ['카드 4111-1111-1111-1111 12개', '카드 [가림] 12개']]) {
+    const r = maskPii({ latest: t });
+    assert.equal(r.counts.card, 1, t); assert.equal(r.value.latest, want, t);
+  }
+});

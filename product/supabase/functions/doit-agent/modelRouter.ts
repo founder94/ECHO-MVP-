@@ -108,7 +108,11 @@ function luhnOk(digits: string): boolean {
 const isCard = (m: string) => { const d = m.replace(/[-\s]/g, ""); return FOUR_BY_FOUR.test(m) || (d.length >= 13 && d.length <= 19 && luhnOk(d)); };
 // 4묶음 뒤의 1~3자리는 다음 일반 숫자(「… 1111 2번」)일 수도 있다 → 전체가 카드가 아니면 앞 4묶음만 카드로 보고 꼬리는 그대로 둔다
 const HEAD16 = /^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/;
+const SEP_TAIL = /^(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})([-\s]\d{1,3})$/;
 const cardMask = (m: string): string | null => {
+  // 16자리 카드 뒤에 띄어 쓴 1~3자리는 카드가 아니라 다음 말(「… 1111 3번」) — 합친 숫자가 우연히 Luhn 에 맞아도 꼬리는 그대로 둔다
+  const sep = m.match(SEP_TAIL);
+  if (sep && FOUR_BY_FOUR.test(sep[1])) return `[가림]${sep[2]}`;
   if (isCard(m)) return "[가림]";
   const h = m.match(HEAD16)?.[0];
   return h && h.length < m.length ? `[가림]${m.slice(h.length)}` : null;
