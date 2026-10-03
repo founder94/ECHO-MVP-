@@ -908,4 +908,4 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 26.7 Codex 지적 2건(리뷰 5400659793 · f5d1206):
   - P1 사용량을 모르는 시도를 다음 요청에 넘길 때(`tokens_reserved_unconfirmed` → `run.budget.tokens_unconfirmed`)도 어림이 아니라 보장 상한(`heldMax`)으로 → 요청을 나눠 보내도 대화 상한 15만을 넘지 못함. 재현 1(실패 → 통과).
   - P2 앱: 실행 예산을 다 쓴 끝 상태(on_hold · waiting=budget)면 「후보 확인하기」를 닫고 끝 상태 문구(임시 · 대표 확인 필요) 표시 · 「기다리면 준비」 문구 안 씀. 재현 `qa/agent-run-button.test.mjs`(실패 → 통과 · 다른 대기 상태는 그대로 열림).
-- 26.8 QA 키(대표 저장 · 2026-10-03): run 37122213432 이름만 확인 — QA `mutniujeiyujhkobadkd` 에 OPENAI_API_KEY·ANTHROPIC_API_KEY·GEMINI_API_KEY = 있음 · AI_POLICY·OPENAI_MODEL = 없음. doit-agent 는 `ANTHROPIC_API_KEY`·`GEMINI_API_KEY` 이름을 읽는다(`modelRouter.ts` routerFromEnv). 단 AI_POLICY 가 없으면 서버는 OpenAI 하나만 쓰므로 QA 서버에서 Claude·Gemini 실제 호출은 아직 0(키 저장 ≠ 연결 성공).
+- 26.8 QA 키(대표 저장 · 2026-10-03): 확인은 이름만 · 결과는 공개 PR·문서에 적지 않고 대표 보고로만(대표 지시 5969088439). 키 저장 ≠ 실제 연결 성공.
