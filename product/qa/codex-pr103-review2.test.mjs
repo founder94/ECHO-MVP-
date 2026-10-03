@@ -328,3 +328,11 @@ test('Codex P1/P2(리뷰 5402355939) 전화 번호 일반화: 괄호·국가번�
   assert.equal(maskPii({ latest: '회사 02-345-6789, 집 031-123-4567' }).counts.landline, 2, '기존 띄어 쓴 꼴 그대로');
   assert.equal(maskPii({ latest: '제 번호 010-1234-5678' }).counts.phone, 1, '기존 휴대폰 꼴 그대로');
 });
+
+test('Codex P1(리뷰 4174560203) 한국 전화 대역 전부: 050x 안심·가상 · 080 수신자 부담 · 060 · 030 · 15xx/16xx/18xx 대표번호도 가림 · 숫자 경계 그대로', () => {
+  for (const n of ['0507-1234-5678', '050712345678', '0505 123 4567', '080-123-4567', '0801234567', '060-700-1234', '030-1234-5678', '(080) 123-4567', '+82 80-123-4567', '1588-1234', '1644 5678', '1800-1234']) {
+    const r = maskPii({ latest: `연락처 ${n} 입니다` });
+    assert.ok(!JSON.stringify(r.value).includes(n), `${n} → ${JSON.stringify(r.value)}`); assert.equal(r.counts.landline, 1, n);
+  }
+  for (const keep of ['2080-123-45678', '91588-12345', '주문 15881234567', '2023년 15명', '1588']) { const r = maskPii({ latest: keep }); assert.equal(r.counts.landline, undefined, keep); assert.equal(r.value.latest, keep, keep); }
+});
