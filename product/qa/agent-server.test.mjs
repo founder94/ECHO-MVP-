@@ -1586,6 +1586,41 @@ test('Codex P2(리뷰 5400588319) 같은 새 요청 id 로 실행 두 개가 겹
   const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
   assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.equal(n() - calls, 1, '끝난 뒤 재전송 = 저장된 결과');
 });
+test('Codex P1(리뷰 5400766764) 대화가 바뀌어 실패(STATE_CHANGED)한 실행 요청 id 를 다시 보내면 다시 실행됨(영구 409 아님)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  let release; const gate = new Promise((r) => { release = r; });
+  s.connect = [{ gate, body: { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] } }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const first = h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
+  sessionRow(s).applied_revision = Number(sessionRow(s).applied_revision ?? 0) + 1; // 도구가 도는 사이 다른 저장
+  release();
+  const r1 = await first;
+  assert.equal(r1.status, 409); assert.equal(r1.body.code, 'STATE_CHANGED');
+  const r2 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid }); // 앱은 실패 뒤 같은 id 를 다시 보낸다
+  assert.equal(r2.status, 200, JSON.stringify(r2.body)); assert.equal(r2.body.duplicate, undefined);
+  assert.equal(r2.body.tool.outcome, 'found');
+  const r3 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r3.body.duplicate, true, '성공한 뒤 재전송 = 저장된 결과');
+});
+test('Codex P2(리뷰 5400766764) 첫 답 없는 시작은 첫 질문 만들기(opening) 경로로 확인 — 작업별 정책 존중', async () => {
+  const s = newState();
+  s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'], opening: ['openai'] } }) };
+  const h = load(s);
+  s.ai.push({ reply: '반가워요', question: '어떤 만남을 찾아요?' });
+  const st = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai'], 'opening 경로(openai)로 첫 질문');
+  const s2 = newState();
+  s2.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['openai'], opening: ['anthropic'] } }) };
+  const h2 = load(s2);
+  const st2 = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st2.status, 500); assert.equal(st2.body.code, 'AI_NOT_CONFIGURED', 'opening 경로가 못 쓰면 시작 전에 설정 필요');
+  assert.equal((s2.providerCalls ?? []).length, 0);
+});
 test('Codex P2(리뷰 5400556217) 재생 기록이 빠진 실행 요청 A 를 다시 보내면, 그 사이 B 가 실행 기록을 바꿨어도 A 당시의 결과(outcome·next)를 돌려줌', async () => {
   const s = newState(); const h = load(s);
   const { sid, say } = await fi018Done(h, s);

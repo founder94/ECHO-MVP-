@@ -178,6 +178,8 @@ export function createAgentRunTrigger(deps: {
     try {
       const session = await deps.getSession();
       if (!session) { deps.onError(new Error('NO_SESSION')); return; }
+      // 저장된 실행 기록이 이미 예산을 다 쓴 끝 상태면 다시 실행하지 않고 그 상태를 그대로 보여 준다(새로고침·다시 열기 뒤에도 · 실행 기록 추가 0)
+      if (session.run && session.run.waiting === 'budget') { deps.onResult(session.run, null); return; }
       const out = await deps.run(session.id);
       deps.onResult(out.run, out.tool);
     } catch (e) {

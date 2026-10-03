@@ -402,7 +402,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (first) A.seedFirstQuestion(stored.state);
       // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
       if (!first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }))) {
-        if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        // 첫 답이 없으면 다음 호출은 첫 질문 만들기(opening) 하나 → 그 작업의 경로로 확인(작업별 정책 존중)
+        if (!aiReady(first ? "turn" : "opening")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         const capped = await dailyCapped(); if (capped) return capped;
       }
       if (first) {
@@ -505,6 +506,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (action === "agent_run") {
       const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
+      let reclaim = false; // 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id = 다시 잡아서 실행(앱은 실패 뒤 같은 id 를 다시 보낸다)
       if (prior) {
         const p = prior.response_payload as Json | null;
         if (prior.action === RUN_ACTION && prior.target_id === sid) {
@@ -514,8 +516,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const kept = again ? (again.response_payload as unknown as Stored).run?.recent_requests?.find((x) => x.id === requestId) : undefined;
           if (again && kept?.run) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin);
           if (!p?.run && prior.status === "pending") return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
+          if (!p?.run && prior.status === "failed") reclaim = true;
         }
-        return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+        if (!reclaim) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       }
       const { data: row } = await admin.from("doit_request_events").select("request_id, created_at, applied_revision, response_payload")
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
@@ -530,8 +533,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const rev = Number(row.applied_revision ?? 0);
       // 도구를 부르기 전에 요청 id 를 먼저 잡는다(사용자·요청 id 고유 제약) → 같은 id 가 겹쳐 들어와도 도구는 한 번만(나중 것 = 409)
       const runHash = await sha256(`${sid}:run:${rev}`);
-      const { error: reserveError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "pending", payload_hash: runHash });
-      if (reserveError) return reserveError.code === "23505" ? fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin) : fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
+      if (reclaim) {
+        // 실패 행을 pending 으로 되돌리는 것도 한 번만 성공(상태가 failed 인 행만 · 겹친 요청은 0행 → 409)
+        const { data: claimed, error: claimError } = await admin.from("doit_request_events").update({ status: "pending", error_code: null, payload_hash: runHash })
+          .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", "failed").select("request_id");
+        if (claimError || !claimed || !claimed.length) return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
+      } else {
+        const { error: reserveError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "pending", payload_hash: runHash });
+        if (reserveError) return reserveError.code === "23505" ? fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin) : fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
+      }
       const t0 = Date.now();
       let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
       if (body.resume === true && run.user_stopped) run = R.resumeRun(run, stored.state, new Date().toISOString()); // 사용자가 직접 누른 「다시 이어서」만

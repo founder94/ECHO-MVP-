@@ -124,3 +124,19 @@ test('Codex P2(리뷰 5400588319) 모르는 waiting · 단계 status 면 실행 
   await assert.rejects(A.agentRun('u1', 's'), /INVALID_RESPONSE/);
   for (const w of [null, 'answer_question', 'lookup_failed', 'user_stopped', 'tool_cooldown']) assert.equal(A.validRun(run({ waiting: w })), true, String(w));
 });
+
+// PR #103 Codex Code Review(리뷰 5400827787 · b4531d4) P2 재현 — 저장된 실행 기록이 예산 소진 끝 상태면 다시 실행하지 않음(새로고침·다시 열기 뒤)
+test('Codex P2(리뷰 5400827787) 저장된 run 이 waiting=budget 이면 agent_run 0 · 그 상태를 결과로', async () => {
+  let runs = 0; let got = null;
+  const t = A.createAgentRunTrigger({
+    getSession: async () => session(run({ outcome: 'on_hold', waiting: 'budget', next: 'wait', candidates: null })),
+    run: async () => { runs++; return { run: run(), tool: null }; },
+    onResult: (r) => { got = r; }, onError: (e) => { throw e; },
+  });
+  await t();
+  assert.equal(runs, 0, '예산 소진 끝 상태 = 실행 기록 추가 0');
+  assert.equal(got?.waiting, 'budget');
+  let runs2 = 0;
+  const t2 = A.createAgentRunTrigger({ getSession: async () => session(run()), run: async () => { runs2++; return { run: run(), tool: null }; }, onResult() {}, onError: (e) => { throw e; } });
+  await t2(); assert.equal(runs2, 1, '다른 상태는 지금처럼 실행');
+});

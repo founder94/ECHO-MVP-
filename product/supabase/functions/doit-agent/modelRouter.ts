@@ -173,7 +173,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   const heldTokens = () => [...held.values()].reduce((n, x) => n + x.tokens, 0);
   const heldMax = () => [...held.values()].reduce((n, x) => n + x.max, 0);
   const heldUsd = () => [...held.values()].reduce((n, x) => n + x.usd, 0);
-  // 금액: 단가가 적힌 제공사만 계산(모르면 null). 입력 토큰 추정 = 보내는 글자 수 ÷ 1.5(한국어·JSON 기준 보수적) + 출력 상한.
+  // 금액: 단가가 적힌 제공사만 계산(모르면 null). 상한 판단·미확인 예약 금액은 입력 보장 상한(inputMax · 바이트 + 덧붙임) + 출력 상한으로.
   const costOf = (id: ProviderId, tin: number, tout: number) => { const pr = policy.providers[id]?.price; return pr ? (tin * pr.in_usd_per_1m + tout * pr.out_usd_per_1m) / 1e6 : null; };
   // 확인된 사용량 × 단가의 합. 시도한 제공사 중 하나라도 단가를 모르면 null(0원으로 치지 않음). 사용량을 모르는 시도는 금액에 넣지 않고 cost_complete=false 로 따로 알린다.
   const spentUsd = () => log.reduce<number | null>((n, r) => {
@@ -248,7 +248,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           throw new RouterError("budget_exceeded");
         }
         // 금액 상한은 시작 때 한 번만이 아니라 시도(재시도·전환)마다 다시 본다: 확인된 금액 + 이번 호출 추정 > 상한 → 보내지 않고 다음 후보로(더 싼 후보만 남을 수 있음)
-        if (L.max_cost_usd_per_request != null && (committedUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request) {
+        if (L.max_cost_usd_per_request != null && (committedUsd() ?? Infinity) + (costOf(id, inputMax, d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request) { // 금액도 입력 보장 상한(inputMax)으로
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "cost_cap", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           break;
         }
@@ -263,7 +263,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         const p = policy.providers[id]!;
         // 보내기 전에 같은 동기 구간에서 시도 1과 추정 토큰(입력 글자 ÷ 1.5 + 출력 상한)을 예약 → 동시 호출도 같은 예산을 두 번 쓰지 못함
         started_attempts++;
-        const hk = ++holdSeq; held.set(hk, { tokens: reserve, max: reserveMax, usd: costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? 0 });
+        const hk = ++holdSeq; held.set(hk, { tokens: reserve, max: reserveMax, usd: costOf(id, inputMax, d.params.max_tokens) ?? 0 });
         const settle = (usage: ProviderUsage | null, sent: boolean) => { if (usage || !sent) held.delete(hk); return usage ? "confirmed" as const : sent ? "unknown" as const : "none" as const; };
         try {
           const r = await d.providers[id]!.call({ model: p.model, system, input: sendInput, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))), signal: d.signal });

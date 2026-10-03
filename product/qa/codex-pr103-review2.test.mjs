@@ -6,38 +6,40 @@ import { openAIProvider } from '../supabase/functions/doit-agent/providers.ts';
 const result = { text: '{}', provider: 'gemini', model_requested: 'fixture', model_served: 'fixture', input_tokens: 1, output_tokens: 1, cached_tokens: 0, latency_ms: 1, truncated: false };
 // 빈 답 + 사용량 2/1 토큰을 알려 주는 실패(확인된 사용량)
 const emptyWithUsage = () => openAIProvider('synthetic-not-a-key', async () => new Response(JSON.stringify({ choices: [{ message: { content: '' } }], usage: { prompt_tokens: 2, completion_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
-// 단가 = 토큰당 0.001달러 · 다음 호출 추정 = (입력 11자 ÷ 1.5 → 8 + 출력 상한 10) × 0.001 = 0.018
+// 단가 = 토큰당 0.001달러 · 다음 호출 금액 상한 = (입력 보장 상한 11바이트 + 덧붙임 64 = 75 + 출력 상한 10) × 0.001 = 0.085
+// (리뷰 5400827787 P1 뒤: 금액도 입력 보장 상한으로 · 예전 어림(11자 ÷ 1.5 → 8 · 0.018) 기준 숫자를 같은 뜻으로 다시 맞춤)
 const PRICE = { in_usd_per_1m: 1000, out_usd_per_1m: 1000 };
 test('P1 전환 전 금액 상한 재확인: 첫 실패의 확인된 금액 + 다음 호출 추정이 상한을 넘으면 전환 0', async () => {
   const policy = defaultPolicy('fixture');
   policy.providers.openai.price = PRICE;
   policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true, price: PRICE };
   policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0;
-  policy.limits.max_cost_usd_per_request = 0.02; // 처음엔 둘 다 0.018 ≤ 0.02 로 통과 → 첫 실패 0.003 뒤 0.021 > 0.02
+  policy.limits.max_cost_usd_per_request = 0.087; // 처음엔 둘 다 0.085 ≤ 0.087 로 통과 → 첫 실패 0.003 뒤 0.088 > 0.087
   let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
   const router = createModelRouter({ policy, providers: { openai: emptyWithUsage(), gemini: g }, params: { temperature: 0, max_tokens: 10 } });
   assert.deepEqual(router.explain('turn', 11).order, ['openai', 'gemini'], '시작 때는 둘 다 상한 안');
   await assert.rejects(router.llm('turn', 'synthetic', {}));
   assert.equal(fallback, 0, '상한을 넘기는 전환 호출 0');
+  assert.ok(router.log.some((r) => r.provider === 'openai' && r.attempt > 0), '첫 후보는 실제로 보냄(처음부터 막힌 것이 아님)');
   assert.ok(router.log.some((r) => r.provider === 'gemini' && r.error === 'cost_cap' && r.attempt === 0), '건너뛴 까닭 = cost_cap(보내지 않음)');
-  const s = router.summary(); assert.ok(s.cost_usd <= 0.02, `확인된 금액 ${s.cost_usd} ≤ 상한`);
+  const s = router.summary(); assert.ok(s.cost_usd <= 0.087, `확인된 금액 ${s.cost_usd} ≤ 상한`);
 });
 test('P1 같은 곳 재시도 전에도 금액 상한 재확인', async () => {
   const policy = defaultPolicy('fixture');
   policy.providers.openai.price = PRICE; policy.limits.same_provider_retries = 1; policy.limits.retry_wait_ms = 0;
-  policy.limits.max_cost_usd_per_request = 0.02;
+  policy.limits.max_cost_usd_per_request = 0.087;
   let calls = 0;
   // 429(같은 곳 재시도 대상) + 사용량 없음 → 확인 금액 0 · 이 경우는 재시도 허용 / 사용량 있는 실패로 상한 근처면 재시도 0
   const p = { id: 'openai', call: async () => { calls++; const { ProviderError } = await import('../supabase/functions/doit-agent/providers.ts'); throw new ProviderError('openai', 'http_429', 1, { status: 429 }, { input_tokens: 2, output_tokens: 1, cached_tokens: 0, model_served: 'fixture' }); } };
   const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
   await assert.rejects(router.llm('turn', 'synthetic', {}));
-  assert.equal(calls, 1, '첫 실패 금액 0.003 + 재시도 추정 0.018 = 0.021 > 0.02 → 재시도 0');
+  assert.equal(calls, 1, '첫 실패 금액 0.003 + 재시도 상한 0.085 = 0.088 > 0.087 → 재시도 0');
 });
 test('P1 상한 안이면 지금처럼 전환한다(과차단 0)', async () => {
   const policy = defaultPolicy('fixture');
   policy.providers.openai.price = PRICE;
   policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true, price: PRICE };
-  policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0; policy.limits.max_cost_usd_per_request = 0.05;
+  policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0; policy.limits.max_cost_usd_per_request = 0.2; // 0.085 + (0.003 + 0.085) 안
   let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
   const router = createModelRouter({ policy, providers: { openai: emptyWithUsage(), gemini: g }, params: { temperature: 0, max_tokens: 10 } });
   await router.llm('turn', 'synthetic', {});
@@ -50,7 +52,7 @@ test('P1 사용량 모르는 실패도 금액 상한에 예약 금액으로 들�
   policy.providers.openai.price = PRICE;
   policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true, price: PRICE };
   policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0;
-  policy.limits.max_cost_usd_per_request = 0.03; // 한 번 추정 0.018 · 미확인 실패 1번(예약 0.018) + 다음 0.018 = 0.036 > 0.03
+  policy.limits.max_cost_usd_per_request = 0.1; // 한 번 상한 0.085 · 미확인 실패 1번(예약 0.085) + 다음 0.085 = 0.17 > 0.1
   let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
   const p = openAIProvider('synthetic-not-a-key', async () => new Response('{}', { status: 500 })); // 사용량 없는 실패 = 미확인
   const router = createModelRouter({ policy, providers: { openai: p, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
@@ -198,4 +200,16 @@ test('P1 사용량을 모르는 시도의 예약(tokens_reserved_unconfirmed)은
   await router.llm('turn', 's', input);
   const bytes = new TextEncoder().encode(JSON.stringify(input) + 's').length;
   assert.ok(router.summary().tokens_reserved_unconfirmed >= bytes + 10, `넘기는 예약 ${router.summary().tokens_reserved_unconfirmed} ≥ 보장 상한 ${bytes + 10}(어림 ≈ ${Math.ceil(JSON.stringify(input).length / 1.5) + 10})`);
+});
+
+// PR #103 Codex Code Review(리뷰 5400827787 · b4531d4) P1 재현 — 금액 상한도 입력 보장 상한으로(글자 수 어림보다 토큰이 많은 글)
+test('P1 금액 상한: 어림(글자÷1.5)으로는 상한 안이어도 보장 상한 금액이 넘으면 보내지 않음(cost_cap)', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 0;
+  policy.providers.openai.price = PRICE; // 토큰당 0.001
+  policy.limits.max_cost_usd_per_request = 1.5; // 어림 ≈ (1,2xx ÷ 1.5 ≈ 810 + 10) × 0.001 ≈ 0.82 ≤ 1.5 · 보장 상한 ≈ (3,6xx + 64 + 10) × 0.001 ≈ 3.7 > 1.5
+  let calls = 0; const p = { id: 'openai', call: async () => { calls++; return { ...result, provider: 'openai', input_tokens: 2000, output_tokens: 10 }; } };
+  const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  await assert.rejects(router.llm('turn', 's', { latest: '가'.repeat(1200) }));
+  assert.equal(calls, 0, '보장 상한 금액이 상한을 넘으면 보내지 않음');
+  assert.ok(router.log.some((r) => r.error === 'cost_cap'));
 });
