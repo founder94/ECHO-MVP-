@@ -37,7 +37,11 @@ function step(queue, event, config = {}) {
     if (!t) return ignore(queue, 'unknown_task');
     if (!['RUNNING', 'FIX'].includes(t.state)) return ignore(queue, 'bad_state');
     if (!/^[a-f0-9]{40}$/.test(event.sha || '')) return ignore(queue, 'bad_sha');
-    return { action: 'REVIEW', reason: 'submitted', taskId: t.id, queue: withTask(queue, t.id, { state: 'REVIEW', headSha: event.sha }) };
+    if (event.id !== undefined && (queue.seenEvents || []).includes(event.id)) return ignore(queue, 'duplicate_event'); // replayed handoff
+    // handoff cap: initial submit is handoff 1, each FAIL (rounds) consumed one; never schedule beyond max
+    if ((t.rounds || 0) >= max) return stop(withTask(queue, t.id, { state: 'BLOCKED' }), 'round_limit');
+    const q = event.id === undefined ? queue : { ...queue, seenEvents: [...(queue.seenEvents || []), event.id] };
+    return { action: 'REVIEW', reason: 'submitted', taskId: t.id, queue: withTask(q, t.id, { state: 'REVIEW', headSha: event.sha }) };
   }
   if (event?.type !== 'review') return ignore(queue, 'unknown_event');
   if (event.actor?.login !== CODEX || event.actor.type !== 'Bot') return ignore(queue, 'unauthorized_actor');
@@ -54,7 +58,7 @@ function step(queue, event, config = {}) {
   }
   if (event.verdict === 'FAIL') {
     const rounds = (t.rounds || 0) + 1;
-    if (rounds > max) return stop(withTask(q, t.id, { state: 'BLOCKED', rounds }), 'round_limit');
+    if (rounds >= max) return stop(withTask(q, t.id, { state: 'BLOCKED', rounds }), 'round_limit');
     return { action: 'FIX', reason: 'fail_fix', taskId: t.id, round: rounds, queue: withTask(q, t.id, { state: 'FIX', rounds }) };
   }
   return ignore(queue, 'bad_verdict');

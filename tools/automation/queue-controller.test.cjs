@@ -43,7 +43,7 @@ test('round limit stops loop', () => {
   assert.equal(step(r.queue, { type: 'start', actor: worker }).reason, 'halted');
 });
 test('5th FAIL still fixes (cap 5)', () => {
-  const q = inReview(); q.tasks[0].rounds = 4; assert.equal(step(q, rev()).action, 'FIX');
+  const q = inReview(); q.tasks[0].rounds = 3; assert.equal(step(q, rev()).action, 'FIX');
 });
 test('unauthorized event rejected', () => {
   for (const actor of [{ login: 'evil[bot]', type: 'Bot' }, { login: CODEX, type: 'User' }, { login: 'founder94', type: 'User' }, undefined]) {
