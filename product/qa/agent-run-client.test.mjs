@@ -48,6 +48,9 @@ test('agentRun: 서버가 RUN_UNCERTAIN(지난 실행 결과 확인 불가 · �
   globalThis.__agentStub.set({ __throw: 'RUN_UNCERTAIN' });
   await assert.rejects(A.agentRun('u1', 's'), (e) => e.code === 'RUN_UNCERTAIN');
   assert.equal(globalThis.__agentStub.completed, c0 + 1, '확인 불가 = 요청 id 내려놓음(다음 누름 = 새 요청 · 자동 재시도 0)');
+  globalThis.__agentStub.set({ __throw: 'STATE_CHANGED' });
+  await assert.rejects(A.agentRun('u1', 's'), (e) => e.code === 'STATE_CHANGED');
+  assert.equal(globalThis.__agentStub.completed, c0 + 2, '대화가 바뀌어 버린 실행도 요청 id 내려놓음(리뷰 4175329388)');
 });
 test('세션의 실행 기록: 맞으면 그대로 · 틀리면 대화는 쓰고 실행 기록만 버림(null)', async () => {
   globalThis.__agentStub.set({ session: session(run()) });

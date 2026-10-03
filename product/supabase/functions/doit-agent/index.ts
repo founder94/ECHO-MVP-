@@ -530,7 +530,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (action === "agent_run") {
       const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
-      // 다시 잡기: ① 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id ② 함수가 중간에 끊겨 오래 남은 pending(임대 시간 RUN_LEASE_MS 지남)
+      // 다시 잡기: ① 도구를 부르기 전에 실패(failed · STATE_CHANGED/MARK_FAILED)로 끝난 같은 요청 id ② 도구 시작 표시 없이 끊겨 오래 남은 pending(임대 시간 RUN_LEASE_MS 지남)
       //   — 앱은 성공 전까지 같은 id 를 다시 보낸다. 다시 잡기도 상태(+ pending 이면 마지막 갱신 시각) 조건 update 라 동시에 다시 잡는 요청 중 하나만 실행한다.
       //   도구를 부르기 직전에 실행 행에 「도구 시작(TOOL_STARTED)」을 적는다. 이 표시가 있는 오래된 pending 은 도구(my_candidates — 조회 전에 후보 준비 쓰기 포함)가
       //   이미 돌았을 수 있으므로 같은 요청 id 로는 다시 잡지 않는다: 세션에 그 요청 결과가 있으면 재생, 없으면 복구 가능한 409(RUN_UNCERTAIN · 행은 failed/TOOL_UNCERTAIN 로 남김).
@@ -605,7 +605,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (saveError || !saved || !saved.length) {
         logDiag({ step: "run", code: "stale", tool: tool?.outcome ?? null });
-        await admin.from("doit_request_events").update({ status: "failed", error_code: "STATE_CHANGED" }).eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION);
+        // 도구가 이미 돌았으면(후보 준비 쓰기 포함) 같은 요청 id 로 다시 잡지 않도록 불확실 표시(리뷰 4175329388) · 도구 없이 끝난 실행만 STATE_CHANGED(다시 잡기 가능)
+        await admin.from("doit_request_events").update({ status: "failed", error_code: tool ? RUN_TOOL_UNCERTAIN : "STATE_CHANGED" }).eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION);
         return fail("STATE_CHANGED", "그사이 대화가 바뀌어 이 결과는 쓰지 않았어요. 다시 불러올게요.", 409, origin);
       }
       const { error: runLogError } = await admin.from("doit_request_events").update({ status: "applied", applied_revision: rev + 1, response_payload: { run: view, tool } })

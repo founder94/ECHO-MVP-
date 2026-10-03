@@ -1611,7 +1611,7 @@ test('Codex P2(리뷰 5400588319) 같은 새 요청 id 로 실행 두 개가 겹
   const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
   assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.equal(n() - calls, 1, '끝난 뒤 재전송 = 저장된 결과');
 });
-test('Codex P1(리뷰 5400766764) 대화가 바뀌어 실패(STATE_CHANGED)한 실행 요청 id 를 다시 보내면 다시 실행됨(영구 409 아님)', async () => {
+test('Codex P1(리뷰 5400766764 · 4175329388) 대화가 바뀌어 실패(STATE_CHANGED)한 실행: 같은 요청 id 는 도구 재실행 0 · 새 요청이면 다시 실행(영구 409 아님)', async () => {
   const s = newState(); const h = load(s);
   const { sid, say } = await fi018Done(h, s);
   s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
@@ -1625,10 +1625,15 @@ test('Codex P1(리뷰 5400766764) 대화가 바뀌어 실패(STATE_CHANGED)한 �
   release();
   const r1 = await first;
   assert.equal(r1.status, 409); assert.equal(r1.body.code, 'STATE_CHANGED');
-  const r2 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid }); // 앱은 실패 뒤 같은 id 를 다시 보낸다
+  // Codex P1(리뷰 4175329388): 도구가 이미 돈 뒤의 STATE_CHANGED 는 같은 요청 id 로 다시 잡지 않음(후보 준비 쓰기 재실행 0) — 앱은 STATE_CHANGED 에서 요청 id 를 내려놓는다
+  const calls = (s.connectCalls ?? []).length;
+  const same = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(same.status, 409); assert.equal(same.body.code, 'RUN_UNCERTAIN'); assert.equal((s.connectCalls ?? []).length, calls, '같은 요청 id = 도구 다시 실행 0');
+  const B = rid(); // 다음 누름 = 새 요청(영구 409 아님)
+  const r2 = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
   assert.equal(r2.status, 200, JSON.stringify(r2.body)); assert.equal(r2.body.duplicate, undefined);
   assert.equal(r2.body.tool.outcome, 'found');
-  const r3 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  const r3 = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
   assert.equal(r3.body.duplicate, true, '성공한 뒤 재전송 = 저장된 결과');
 });
 test('Codex P2(리뷰 5400904667) 함수가 끊겨 오래 남은 pending 실행 요청 id = 임대 시간 뒤 다시 잡아 실행 · 임대 안이면 409(도구 0)', async () => {

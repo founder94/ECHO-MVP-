@@ -162,8 +162,9 @@ export async function agentIntroMark(userId: string, sessionId: string, how: 'as
 // 2026-10-03 실행 단계(agent_run · 모델 호출 0): 서버가 정한 도구 하나만 실행하고 결과·다음 할 일을 돌려준다.
 // resume = 사용자가 직접 누른 「다시 이어서」일 때만 true(화면이 스스로 재개하지 않음). 같은 요청 id 재전송 = 서버가 저장된 결과를 돌려준다(duplicate).
 export async function agentRun(userId: string, sessionId: string, opts: { resume?: boolean } = {}): Promise<{ session: AgentSession; run: AgentRun; tool: AgentRunTool | null; duplicate: boolean }> {
-  // RUN_UNCERTAIN = 지난 실행이 도구를 부른 뒤 결과 저장 전에 끊김(서버는 같은 요청 id 로 도구를 다시 부르지 않음) → 다음 누름은 새 요청
-  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) }, ['RUN_UNCERTAIN']);
+  // RUN_UNCERTAIN = 지난 실행이 도구를 부른 뒤 결과 저장 전에 끊김 · STATE_CHANGED = 도구가 도는 사이 대화가 바뀌어 결과를 버림
+  //   — 둘 다 서버는 같은 요청 id 로 도구를 다시 부르지 않음 → 요청 id 를 내려놓아 다음 누름은 새 요청(지금 상태로 새로 실행)
+  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) }, ['RUN_UNCERTAIN', 'STATE_CHANGED']);
   if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
   return { session: r.session, run: r.run, tool: validRunTool(r.tool) ? r.tool : null, duplicate: r.duplicate === true };
 }
