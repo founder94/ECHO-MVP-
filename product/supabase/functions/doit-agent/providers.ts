@@ -7,7 +7,7 @@
 
 export type ProviderId = "openai" | "anthropic" | "gemini";
 export const PROVIDER_IDS: readonly ProviderId[] = ["openai", "anthropic", "gemini"];
-export type ProviderErrorCode = "timeout" | "http_4xx" | "http_5xx" | "http_429" | "empty" | "network" | "no_key" | "refused" | "truncated";
+export type ProviderErrorCode = "timeout" | "http_4xx" | "http_5xx" | "http_429" | "empty" | "network" | "no_key" | "refused" | "truncated" | "cancelled";
 
 export interface ProviderRequest {
   model: string; system: string; input: unknown;
@@ -56,7 +56,7 @@ async function post(provider: ProviderId, f: Fetch, url: string, headers: Record
   const onOuter = () => ctrl.abort();
   req.signal?.addEventListener("abort", onOuter, { once: true });
   try {
-    if (req.signal?.aborted) throw new ProviderError(provider, "timeout", 0);
+    if (req.signal?.aborted) throw new ProviderError(provider, "cancelled", 0);
     const res = await f(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: ctrl.signal });
     if (!res.ok) {
       let b: unknown = null; try { b = await res.json(); } catch { /* 본문 없음 */ }
@@ -65,7 +65,8 @@ async function post(provider: ProviderId, f: Fetch, url: string, headers: Record
     return await res.json() as Record<string, unknown>;
   } catch (e) {
     if (e instanceof ProviderError) throw e;
-    throw new ProviderError(provider, ctrl.signal.aborted ? "timeout" : "network", Date.now() - t0);
+    // 사용자가 끊음(바깥 signal) = cancelled · 이 호출의 시간 제한 = timeout · 그 밖 = network
+    throw new ProviderError(provider, req.signal?.aborted ? "cancelled" : ctrl.signal.aborted ? "timeout" : "network", Date.now() - t0);
   } finally { clearTimeout(timer); req.signal?.removeEventListener("abort", onOuter); }
 }
 

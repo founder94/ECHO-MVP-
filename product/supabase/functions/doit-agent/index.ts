@@ -175,17 +175,18 @@ async function logUsage(c: UsageCtx, sessionId: string | null, why: string) {
     payload_hash: await sha256(`usage:${why}:${crypto.randomUUID()}`), applied_revision: 0, response_payload: { usage: { why, ...aiTrace(c.router) } } });
   if (error) logDiag({ step: "usage_log", error: true });
 }
-// ② 지금 저장된 대화에 예산만 접어 넣기(대화 상태·판 번호 그대로 · 그 사이 다른 저장이 끼면 한 번 다시)
+// ② 지금 저장된 대화에 예산만 접어 넣기(대화 상태 그대로 · 판 번호를 올리는 비교 저장 = 동시에 접거나 저장하는 쪽이 서로 덮지 못함 · 끼면 다시 읽어 최대 3번)
 async function foldIntoSaved(c: UsageCtx, sessionId: string) {
   if (c.router.summary().calls <= 0) return;
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     const { data: row } = await c.admin.from("doit_request_events").select("request_id, applied_revision, response_payload")
       .eq("user_id", c.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
     if (!row || !row.response_payload) return;
     const cur = structuredClone(row.response_payload) as unknown as Stored;
     foldUsage(cur, c.router);
-    const { data, error } = await c.admin.from("doit_request_events").update({ response_payload: cur })
-      .eq("user_id", c.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", Number(row.applied_revision ?? 0)).select("request_id");
+    const rv = Number(row.applied_revision ?? 0);
+    const { data, error } = await c.admin.from("doit_request_events").update({ response_payload: cur, applied_revision: rv + 1 })
+      .eq("user_id", c.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", rv).select("request_id");
     if (!error && data && data.length) return;
   }
   logDiag({ step: "usage_fold", code: "stale" });
@@ -517,6 +518,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
       const stored = row.response_payload as unknown as Stored;
       if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
+      // 재생 기록(agent_run 행)이 남지 않았어도, 세션에 함께 저장된 마지막 실행 요청이면 그 결과를 돌려준다(도구 재실행 0)
+      if (stored.run?.last_request?.id === requestId) return json({ ok: true, session: sessionView(sid, stored), run: R.runView(stored.run), tool: stored.run.last_request.tool, duplicate: true }, 200, origin);
       const rev = Number(row.applied_revision ?? 0);
       const t0 = Date.now();
       let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
@@ -528,6 +531,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         run = R.recordTool(run, stored.state, { tool: "candidates", ...r, at: new Date().toISOString() }, new Date().toISOString());
         tool = { tool: "candidates", outcome: r.outcome, count: r.count, code: r.code };
       }
+      run.last_request = { id: requestId, tool };
       stored.run = run;
       const { data: saved, error: saveError } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");

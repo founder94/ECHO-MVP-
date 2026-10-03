@@ -137,9 +137,11 @@ function load(state) {
   return { call: async (body, { auth = true } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
 }
 
-// 2026-10-03 Codex 리뷰 P1: 실패한 턴도 시도 수·사용량을 대화 예산(run.budget)에 남긴다 → 「상태 그대로」 = 예산 밖의 모든 것(대화 상태·프로필·판 번호) 그대로 + 예산은 늘기만.
+// 2026-10-03 Codex 리뷰 P1: 실패한 턴도 시도 수·사용량을 대화 예산(run.budget)에 남긴다 → 「상태 그대로」 = 예산 밖의 모든 것(대화 상태·프로필) 그대로 + 예산은 늘기만.
+// 2026-10-03 Codex 리뷰 P1(5400366786): 예산만 접는 저장도 판 번호를 올려 비교 저장 → 판 번호는 같거나 커질 뿐(되돌아가지 않음).
 function sameButBudget(after, before, msg) {
-  const strip = (row) => { const c = structuredClone(row); const p = c.response_payload ?? c; delete p.run; return c; };
+  const strip = (row) => { const c = structuredClone(row); const p = c.response_payload ?? c; delete p.run; if (c.response_payload) delete c.applied_revision; return c; };
+  if (after.response_payload && before.response_payload) assert.ok(after.applied_revision >= before.applied_revision, `${msg ?? ''} · 판 번호는 줄지 않음`);
   assert.deepEqual(strip(after), strip(before), msg);
   const ba = (after.response_payload ?? after).run?.budget, bb = (before.response_payload ?? before).run?.budget;
   assert.ok(ba && (!bb || ba.calls > bb.calls), `${msg ?? ''} · 실패한 시도도 예산에 누적`);
@@ -1509,4 +1511,35 @@ test('자체 P2 사용자가 끊은 소개 다시 쓰기는 쓰던 소개를 「
   const r = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
   assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_BUDGET');
   assert.deepEqual(sessionRow(s).response_payload.state.intro, before, '쓰던 소개 그대로');
+});
+// ── PR #103 Codex Code Review(리뷰 5400366786 · effcc97) 재현
+test('Codex P1 예산만 접는 저장도 판 번호를 올림 — 그 사이 시작된 정상 저장이 실패 요청의 사용량을 지우지 못함', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { anthropic: [{ gate }] }; // A: 느린 정상 턴
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const a = say3(h, sid, '잘 웃는 사람');
+  await new Promise((r) => setTimeout(r, 5));
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] }; // B: 같은 판에서 실패(사용량만 접음)
+  assert.equal((await say3(h, sid, '솔직한 사람')).status, 502);
+  const afterB = sessionRow(s).response_payload.run.budget.calls;
+  release(); const ra = await a;
+  assert.equal(ra.status, 409, 'B 가 판을 올렸으므로 늦은 A 는 저장 0');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls >= afterB, 'B 의 사용량이 지워지지 않음');
+});
+test('Codex P2 실행 재생 기록(agent_run 행)이 남지 않아도 같은 요청 재전송은 도구 재실행 0', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [] }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const rq = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(r1.status, 200, JSON.stringify(r1.body)); assert.equal(r1.body.tool.outcome, 'none');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === rq)); // 재생 기록 저장 실패를 흉내
+  const calls = s.connectCalls.length;
+  const r2 = await h.call({ action: 'agent_run', requestId: rq, sessionId: sid });
+  assert.equal(r2.status, 200); assert.equal(r2.body.duplicate, true); assert.equal(r2.body.tool.outcome, 'none');
+  assert.equal(s.connectCalls.length, calls, '도구 다시 안 부름');
 });

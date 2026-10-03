@@ -317,10 +317,13 @@ test('취소: 사용자 요청이 끊기면 진행 중 호출에 같은 신호�
   ctrl.abort();
   await assert.rejects(r.llm('turn', 'S', {}), (e) => e.code === 'cancelled');
   assert.equal(seen.length, 1);
-  // 실제 연결부: 바깥 신호가 끊기면 fetch 도 끊긴다(timeout 코드)
+  // 실제 연결부: 바깥 신호가 끊기면 fetch 도 끊긴다 — 2026-10-03 Codex P2: 사용자가 끊은 것은 timeout 이 아니라 cancelled(소개·보기 상태 저장 0 으로 이어짐)
   const outer = new AbortController();
   const hang = (_u, init) => new Promise((_ok, bad) => init.signal.addEventListener('abort', () => bad(new Error('aborted'))));
   const pending = P.openAIProvider('k', hang).call({ ...REQ, timeoutMs: 60_000, signal: outer.signal });
   outer.abort();
-  await assert.rejects(pending, (e) => e.code === 'timeout');
+  await assert.rejects(pending, (e) => e.code === 'cancelled');
+  // 이 호출 자체의 시간 제한은 그대로 timeout
+  const own = P.openAIProvider('k', hang).call({ ...REQ, timeoutMs: 5, signal: new AbortController().signal });
+  await assert.rejects(own, (e) => e.code === 'timeout');
 });

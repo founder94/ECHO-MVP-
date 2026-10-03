@@ -287,10 +287,15 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
             input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;
           lastUsed.set(kind, id);
+          if (pe.code === "cancelled") throw new RouterError("cancelled"); // 사용자가 끊음 → 재시도·전환 0(기록은 위에 error=cancelled)
           if (NO_SWITCH.includes(pe.code)) { refusedInRequest = true; throw pe; } // 안전상 거절 → 다른 모델로 우회하지 않음 · 이 요청의 뒤 호출도 0
           // 사용자가 끊은 요청(abort)은 업체 건강 문제가 아니다 → 연속 오류(차단기)에 넣지 않음
           if (pe.code !== "no_key" && !d.signal?.aborted && ++h.consecutive_errors >= policy.circuit.open_after) h.open_until = now() + policy.circuit.cooldown_ms;
-          if (SAME_RETRY.includes(pe.code) && attempt <= L.same_provider_retries && (!skipOpen || !isOpen(id))) { await sleep(Math.min(L.retry_wait_ms, pe.detail.retry_after_ms ?? L.retry_wait_ms)); continue; }
+          if (SAME_RETRY.includes(pe.code) && attempt <= L.same_provider_retries && (!skipOpen || !isOpen(id))) {
+            // 기다림도 요청 전체 기한 안에서만: 기다린 뒤 기한을 넘기면 같은 곳 재시도는 하지 않는다(다음 후보 → 기한 확인)
+            const wait = Math.min(L.retry_wait_ms, pe.detail.retry_after_ms ?? L.retry_wait_ms);
+            if (now() - started + wait < L.deadline_ms) { await sleep(wait); continue; }
+          }
           break; // 다음 후보로
         }
       }

@@ -154,3 +154,14 @@ test('자체 P2 한쪽만 있는 사용량(입력만)은 확인된 사용량이 
   const out = await g.call({ model: 'g', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 });
   assert.equal(out.output_tokens, 305, '출력 = 답 5 + 생각 300');
 });
+
+// PR #103 Codex Code Review(리뷰 5400366786 · effcc97) P2 재현 — 같은 곳 재시도 기다림도 요청 기한 안에서만
+test('P2 기한 직전의 재시도 대기는 기한을 넘기지 않음(재시도 0 · 기한 안에 끝남)', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 1; policy.limits.retry_wait_ms = 10_000; policy.limits.deadline_ms = 200;
+  const { ProviderError } = await import('../supabase/functions/doit-agent/providers.ts');
+  let calls = 0; const p = { id: 'openai', call: async () => { calls++; throw new ProviderError('openai', 'http_429', 1, { status: 429 }); } };
+  const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  const t0 = Date.now();
+  await assert.rejects(router.llm('turn', 's', {}));
+  assert.ok(Date.now() - t0 < 1000, `기한 200ms 인데 ${Date.now() - t0}ms`); assert.equal(calls, 1);
+});
