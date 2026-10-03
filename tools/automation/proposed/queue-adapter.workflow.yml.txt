@@ -22,5 +22,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           DELIVERY: ${{ github.run_id }}-${{ github.run_attempt }}
         run: node tools/automation/queue-adapter-cli.cjs "$EVENT_NAME" "$GITHUB_EVENT_PATH" "$DELIVERY"
-# TODO (BLOCKED): queue-adapter-cli.cjs (reads GITHUB_EVENT_PATH, loads/saves state via the CAS store) and the state-write
-# permission (e.g. contents:write on a dedicated ref) need separate approval. Recovery: delete this workflow file.
+# UPDATE (PR #118): queue-adapter-cli.cjs + queue-store-git.cjs now exist. Still BLOCKED, needs 대표 approval before activation:
+#  - permissions contents:write (push refs/echo/queue-state only), env GITHUB_REPOSITORY, QUEUE_STORE_DIR=workspace.
+#  - Codex native review without marker is NOT a verdict (ignored); a supported verdict path must be approved separately.
+# Recovery: delete this workflow file and the ref refs/echo/queue-state.
