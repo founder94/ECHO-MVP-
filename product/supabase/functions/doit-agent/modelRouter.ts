@@ -106,8 +106,15 @@ function luhnOk(digits: string): boolean {
   return sum % 10 === 0;
 }
 const isCard = (m: string) => { const d = m.replace(/[-\s]/g, ""); return FOUR_BY_FOUR.test(m) || (d.length >= 13 && d.length <= 19 && luhnOk(d)); };
-const MASKS: [string, RegExp, ((m: string) => boolean)?][] = [
-  ["card", CARD, isCard],
+// 4묶음 뒤의 1~3자리는 다음 일반 숫자(「… 1111 2번」)일 수도 있다 → 전체가 카드가 아니면 앞 4묶음만 카드로 보고 꼬리는 그대로 둔다
+const HEAD16 = /^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/;
+const cardMask = (m: string): string | null => {
+  if (isCard(m)) return "[가림]";
+  const h = m.match(HEAD16)?.[0];
+  return h && h.length < m.length ? `[가림]${m.slice(h.length)}` : null;
+};
+const MASKS: [string, RegExp, ((m: string) => string | null)?][] = [
+  ["card", CARD, cardMask],
   ["phone", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g],
   ["landline", /0(2|[3-6][1-5])[-\s.]\d{3,4}[-\s.]\d{4}/g],
   ["email", /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,63}/g], // 반복 길이를 묶어 긴 글에서도 선형 시간(무한 되돌림 0)
@@ -117,7 +124,7 @@ const MASKS: [string, RegExp, ((m: string) => boolean)?][] = [
 export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
   const counts: Record<string, number> = {};
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") { let t = v; for (const [name, re, ok] of MASKS) t = t.replace(re, (m) => { if (ok && !ok(m)) return m; counts[name] = (counts[name] ?? 0) + 1; return "[가림]"; }); return t; }
+    if (typeof v === "string") { let t = v; for (const [name, re, mask] of MASKS) t = t.replace(re, (m) => { const out = mask ? mask(m) : "[가림]"; if (out == null) return m; counts[name] = (counts[name] ?? 0) + 1; return out; }); return t; }
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
     return v;

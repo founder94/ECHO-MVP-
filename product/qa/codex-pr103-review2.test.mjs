@@ -224,3 +224,17 @@ test('P1 카드 번호 13~19자리(Amex 15 · 4-6-5 묶음 · 13 · 19)는 Luhn 
   assert.deepEqual(plain.counts, {}, 'Luhn 아닌 15자리 = 그대로(과차단 0)');
   assert.match(JSON.stringify(plain.value), /123456789012345/);
 });
+
+// Codex 5969506600(f523de5) 재현 — 카드 뒤 일반 숫자(「2번」)를 카드로 빨아들여 카드 전체가 새던 회귀 · 13~19자리 길이별 합성 유효 카드
+test('카드 뒤 일반 숫자는 그대로 두고 카드만 가림(4묶음 · 붙여 쓴 16자리)', () => {
+  for (const t of ['카드 4111 1111 1111 1111 2번', '카드 4111111111111111 2번']) {
+    const r = maskPii({ latest: t });
+    assert.equal(r.counts.card, 1, t); assert.equal(r.value.latest, '카드 [가림] 2번', t);
+  }
+});
+test('13~19자리 길이별 합성 유효(Luhn) 카드는 모두 가림', () => {
+  for (const c of ['4111111111119', '41111111111114', '411111111111116', '4111111111111111', '41111111111111113', '411111111111111118', '4111111111111111110']) {
+    const r = maskPii({ latest: `카드 ${c} 예요` });
+    assert.equal(r.counts.card, 1, `${c.length}자리`); assert.equal(r.value.latest, '카드 [가림] 예요', `${c.length}자리`);
+  }
+});

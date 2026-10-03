@@ -509,7 +509,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
       // 다시 잡기: ① 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id ② 함수가 중간에 끊겨 오래 남은 pending(임대 시간 RUN_LEASE_MS 지남)
-      //   — 앱은 성공 전까지 같은 id 를 다시 보낸다. 다시 잡기도 상태(+ pending 이면 마지막 갱신 시각) 조건 update 라 한 요청만 성공(도구 1번 보장 유지).
+      //   — 앱은 성공 전까지 같은 id 를 다시 보낸다. 다시 잡기도 상태(+ pending 이면 마지막 갱신 시각) 조건 update 라 동시에 다시 잡는 요청 중 하나만 실행한다.
+      //   보장 범위: 겹친 실행 0(동시 다시 잡기 한정). 도구 호출 뒤 저장 전에 함수가 끊기면 다시 잡을 때 조회(my_candidates · 읽기 전용)를 한 번 더 할 수 있다 — 장애 포함 정확히 1번은 아님.
       let reclaim: { status: "failed" | "pending"; updatedAt: string | null } | null = null;
       if (prior) {
         const p = prior.response_payload as Json | null;
