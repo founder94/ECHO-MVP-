@@ -131,3 +131,13 @@ test('Codex P2 도구 실행 상한에 닿으면 저장·응답 상태도 「예
   f.budget.tool_runs = R.RUN_LIMITS.max_tool_runs; f = R.syncRun(f, st, at(60_000));
   assert.deepEqual([f.outcome, f.waiting, R.runView(f).next], ['on_hold', 'budget', 'wait'], '조회 실패 뒤에도 「다시 시도」 대신 예산 보류');
 });
+
+// 리뷰 5401173116(7255265) P2 재현 — eligible 이 참/거짓이 아닌 200 응답은 not_ready 가 아니라 failed(다시 시도할 조회 실패)
+test('Codex P2(리뷰 5401173116) eligible 칸이 없거나 참/거짓이 아니면 failed · false 일 때만 not_ready', () => {
+  for (const body of [{ ok: true }, { ok: true, eligible: 'no' }, { ok: true, eligible: null, candidates: [] }]) {
+    const r = R.candidatesOutcome(200, body);
+    assert.equal(r.outcome, 'failed', JSON.stringify(body)); assert.equal(r.code, 'bad_shape');
+  }
+  assert.equal(R.candidatesOutcome(200, { ok: true, eligible: false, missing: ['photo'] }).outcome, 'not_ready');
+  assert.equal(R.candidatesOutcome(200, { ok: true, eligible: true, candidates: [] }).outcome, 'none');
+});

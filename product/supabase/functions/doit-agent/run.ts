@@ -176,7 +176,9 @@ export function runView(run: Run | null | undefined) {
 export function candidatesOutcome(status: number, body: unknown): { outcome: ToolOutcome; count: number | null; missing: string[]; code: string | null } {
   const b = body && typeof body === "object" ? body as Record<string, unknown> : null;
   if (status !== 200 || !b || b.ok !== true) return { outcome: "failed", count: null, missing: [], code: `http_${status}${typeof b?.code === "string" ? `:${String(b.code).slice(0, 30)}` : ""}` };
-  if (b.eligible !== true) return { outcome: "not_ready", count: null, missing: Array.isArray(b.missing) ? (b.missing as unknown[]).filter((x) => typeof x === "string").map((x) => String(x).slice(0, 40)).slice(0, 8) : [], code: null };
+  // 자격 칸이 참/거짓이 아니면(빠짐·다른 모양) 「준비 안 됨」이 아니라 조회 실패로 — 사용자를 잘못 프로필 채우기로 보내지 않게
+  if (typeof b.eligible !== "boolean") return { outcome: "failed", count: null, missing: [], code: "bad_shape" };
+  if (b.eligible === false) return { outcome: "not_ready", count: null, missing: Array.isArray(b.missing) ? (b.missing as unknown[]).filter((x) => typeof x === "string").map((x) => String(x).slice(0, 40)).slice(0, 8) : [], code: null };
   if (!Array.isArray(b.candidates)) return { outcome: "failed", count: null, missing: [], code: "bad_shape" };
   return { outcome: b.candidates.length ? "found" : "none", count: b.candidates.length, missing: [], code: null };
 }
