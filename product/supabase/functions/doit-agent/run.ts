@@ -25,7 +25,8 @@ export interface Run {
   outcome: RunOutcome; waiting: WaitReason; missing: string[]; user_stopped: boolean; stop_ack: number | null; budget: RunBudget; changes: string[]; updated_at: string;
   // 최근 실행 요청(agent_run) id 와 그 도구 결과(최근 RUN_LIMITS.requests_kept 개) — 세션 저장과 한 번에 남아, 따로 남기는 재생 기록이 실패해도
   // 그 사이 다른 실행 요청이 있었어도 같은 요청 재전송은 재실행 0
-  recent_requests?: { id: string; tool: { tool: ToolId; outcome: ToolOutcome; count: number | null; code: string | null } | null }[];
+  // run = 그 요청이 돌려준 실행 기록 그대로(runView) — 같은 요청 재전송은 최신 기록이 아니라 이 값을 돌려준다
+  recent_requests?: { id: string; tool: { tool: ToolId; outcome: ToolOutcome; count: number | null; code: string | null } | null; run: Record<string, unknown> }[];
 }
 
 // 대화 하나의 누적 상한(요청 하나의 상한은 modelRouter). 2026-10-03 QA 실측(마친 대화 1,439개 · 턴 기록만): 호출 p50 8 · p99 22 · 최대 26 · 토큰 p99 56,263 · 최대 67,721.

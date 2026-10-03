@@ -1301,7 +1301,9 @@ test('PR103 경계 — 잘렸지만 JSON 모양은 맞는 응답(실제 index.ts
 });
 
 test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청에서 같이 일어나도 하나의 예산 · 시도 수 = 실제 업체 호출 수 · 상한에서 멈추고 상태 그대로', async () => {
-  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  // 요청 토큰 상한은 보장된 상한(입력 바이트 + 출력 상한)으로 본다(Codex 리뷰 5400556217 P1) → 사용량 없는 실패 2번이 각각 ~1.5만을 붙잡으므로
+  // 이 검사의 1)·2)는 시도 수·전환을 보려고 토큰 상한을 6만으로 둔다. 기본 3만에서의 동작은 3)에서 따로 확인.
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
   const sid = await RUNSEQ(s, h);
   // 1) anthropic 500 → openai 깨진 JSON(형식) → Agent 가 previous_attempt 로 다시 청함 → anthropic 500 → openai 정상
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
@@ -1313,7 +1315,7 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   assert.equal(rec.ai_usage.attempts, s.providerCalls.length, '형식 재요청·전환 모두 같은 예산의 시도로 셈');
   assert.ok(rec.retry.includes('format'));
   // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
-  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3 } });
+  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
   const before = structuredClone(sessionRow(s));
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
   const capped = await say3(h, sid, '솔직한 사람');
@@ -1321,6 +1323,17 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   sameButBudget(sessionRow(s), before);
   const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
   assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
+  // 3) 기본 요청 토큰 상한(3만): 사용량 없는 실패가 붙잡은 보장 상한 + 다음 시도 상한이 3만을 넘으면 보내지 않고 멈춤(request_budget) · 상태 그대로
+  s.env = ENV3({ limits: { same_provider_retries: 0 } });
+  const before3 = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  const tight = await say3(h, sid, '솔직한 사람');
+  assert.equal(tight.status, 502);
+  sameButBudget(sessionRow(s), before3);
+  const f3 = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(f3.ai_calls.at(-1).error, 'budget_exceeded'); assert.equal(f3.ai_calls.at(-1).reason, 'request_budget');
+  const sentTokens = f3.ai_calls.filter((c) => c.usage === 'confirmed').reduce((n, c) => n + c.input_tokens + c.output_tokens, 0);
+  assert.ok(sentTokens <= 30_000, '확인된 사용량도 요청 상한 안');
 });
 
 // ── PR #103 Codex Code Review(리뷰 5399862208 · 4e04d36) 재현 3건 — 실제 index.ts 경로
@@ -1559,4 +1572,22 @@ test('Codex P2(리뷰 5400441424) 재생 기록이 빠진 실행 요청 A 는 �
   const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
   assert.equal(again.body.duplicate, true); assert.equal(again.body.tool.outcome, 'failed');
   assert.equal(s.connectCalls.length, calls, 'A 재전송 = 도구 다시 안 부름');
+});
+test('Codex P2(리뷰 5400556217) 재생 기록이 빠진 실행 요청 A 를 다시 보내면, 그 사이 B 가 실행 기록을 바꿨어도 A 당시의 결과(outcome·next)를 돌려줌', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = ['NETWORK', { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.body.run.outcome, 'on_hold'); assert.equal(r1.body.run.next, 'retry_later');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === A)); // A 의 재생 기록 저장 실패
+  sessionRow(s).response_payload.run.tools.at(-1).at = '2000-01-01T00:00:00.000Z'; // 쉬는 시간이 지나 B 가 도구를 다시 실행 → 후보 있음
+  const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(r2.body.run.next, 'open_candidates', 'B 가 실행 기록을 바꿈');
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.body.duplicate, true);
+  assert.deepEqual(again.body.run, r1.body.run, 'A 재전송 = A 당시 실행 기록(최신 B 기록이 아님)');
+  assert.deepEqual(again.body.tool, r1.body.tool);
 });

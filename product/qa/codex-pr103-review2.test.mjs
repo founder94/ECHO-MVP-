@@ -121,6 +121,20 @@ test('P1 대화에 남은 토큰이 적으면, 실제 사용량이 어림보다 
   assert.equal(calls, 1, '상한 안이면 보냄(과차단 0)');
 });
 
+// PR #103 Codex Code Review(리뷰 5400556217 · 287a57b) P1 재현 — 요청 상한도 어림이 아니라 보장된 상한으로
+test('P1 요청 토큰 상한: 어림(글자÷1.5)은 상한 안이어도 보장된 상한이 넘으면 보내지 않음(까닭 request_budget)', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 0; policy.limits.max_tokens_per_request = 1000;
+  let calls = 0; const p = { id: 'openai', call: async () => { calls++; return { ...result, provider: 'openai', input_tokens: 1100, output_tokens: 10 }; } };
+  const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  const input = { latest: '가'.repeat(1200) }; // 어림 ≈ 820(≤ 1000) · 바이트 상한 ≈ 3,6xx > 1000 → 실제 1,110토큰이면 요청 상한 초과였음
+  await assert.rejects(router.llm('turn', 's', input), (e) => e.code === 'budget_exceeded');
+  assert.equal(calls, 0, '보장된 상한이 요청 상한을 넘으면 보내지 않음');
+  assert.equal(router.log.at(-1).reason, 'request_budget', '대화 예산이 아니라 이번 요청 한도');
+  const small = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  await small.llm('turn', 's', { latest: '안녕' });
+  assert.equal(calls, 1, '상한 안이면 보냄(과차단 0)');
+});
+
 // ── 2026-10-03 자체 점검(Codex 넘기기 전) 재현 — 라우터·연결부
 test('자체 P2 한 요청에서 거절이 나오면 같은 요청의 뒤 호출(다른 작업·다른 제공사)도 보내지 않음', async () => {
   const policy = defaultPolicy('fixture'); policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true };

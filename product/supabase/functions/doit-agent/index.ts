@@ -520,7 +520,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
       // 재생 기록(agent_run 행)이 남지 않았어도, 세션에 함께 저장된 마지막 실행 요청이면 그 결과를 돌려준다(도구 재실행 0)
       const kept = stored.run?.recent_requests?.find((x) => x.id === requestId);
-      if (kept && stored.run) return json({ ok: true, session: sessionView(sid, stored), run: R.runView(stored.run), tool: kept.tool, duplicate: true }, 200, origin);
+      // 돌려주는 실행 기록은 그 요청 당시의 것(kept.run) — 그 뒤 다른 요청이 실행 기록을 바꿔도 같은 요청의 결과(outcome·next)는 그대로
+      if (kept) return kept.run ? json({ ok: true, session: sessionView(sid, stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin)
+        : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       const rev = Number(row.applied_revision ?? 0);
       const t0 = Date.now();
       let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
@@ -532,12 +534,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         run = R.recordTool(run, stored.state, { tool: "candidates", ...r, at: new Date().toISOString() }, new Date().toISOString());
         tool = { tool: "candidates", outcome: r.outcome, count: r.count, code: r.code };
       }
-      run.recent_requests = [...(run.recent_requests ?? []), { id: requestId, tool }].slice(-R.RUN_LIMITS.requests_kept);
+      const view = R.runView(run)!; // 실행 기록 보기는 recent_requests 를 담지 않는다 → 저장 전에 만들어 요청별로 함께 남긴다
+      run.recent_requests = [...(run.recent_requests ?? []), { id: requestId, tool, run: view }].slice(-R.RUN_LIMITS.requests_kept);
       stored.run = run;
       const { data: saved, error: saveError } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (saveError || !saved || !saved.length) { logDiag({ step: "run", code: "stale", tool: tool?.outcome ?? null }); return fail("STATE_CHANGED", "그사이 대화가 바뀌어 이 결과는 쓰지 않았어요. 다시 불러올게요.", 409, origin); }
-      const view = R.runView(run);
       const { error: runLogError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "applied",
         payload_hash: await sha256(`${sid}:run:${rev}`), applied_revision: rev + 1, response_payload: { run: view, tool } });
       logDiag({ step: "run", outcome: run.outcome, waiting: run.waiting, plan_rev: run.plan_rev, tool: tool?.outcome ?? null, tool_code: tool?.code ?? null, count: tool?.count ?? null, skipped: due.tool ? null : due.why, run_log_error: !!runLogError, ms: Date.now() - t0 });

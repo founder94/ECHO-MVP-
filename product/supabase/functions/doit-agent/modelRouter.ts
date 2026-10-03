@@ -168,7 +168,6 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   const heldTokens = () => [...held.values()].reduce((n, x) => n + x.tokens, 0);
   const heldMax = () => [...held.values()].reduce((n, x) => n + x.max, 0);
   const heldUsd = () => [...held.values()].reduce((n, x) => n + x.usd, 0);
-  const spent = () => confirmedTokens() + heldTokens();
   // 금액: 단가가 적힌 제공사만 계산(모르면 null). 입력 토큰 추정 = 보내는 글자 수 ÷ 1.5(한국어·JSON 기준 보수적) + 출력 상한.
   const costOf = (id: ProviderId, tin: number, tout: number) => { const pr = policy.providers[id]?.price; return pr ? (tin * pr.in_usd_per_1m + tout * pr.out_usd_per_1m) / 1e6 : null; };
   // 확인된 사용량 × 단가의 합. 시도한 제공사 중 하나라도 단가를 모르면 null(0원으로 치지 않음). 사용량을 모르는 시도는 금액에 넣지 않고 cost_complete=false 로 따로 알린다.
@@ -235,7 +234,8 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         const reserve = Math.ceil(estChars / 1.5) + d.params.max_tokens;
         // 대화에 남은 토큰: 어림값이 아니라 보장된 상한으로(확인된 사용량 + 진행 중·미확인 시도의 상한 + 이번 시도의 상한) → 실제 사용량이 어림보다 많아도 대화 상한을 넘지 않음
         const reserveMax = inputMax + d.params.max_tokens;
-        const overRequest = started_attempts >= L.max_calls_per_request || spent() + reserve > L.max_tokens_per_request;
+        // 요청 상한도 같은 보장된 상한으로 본다 → 글자 수 어림보다 실제 토큰이 많은 글(한글·기호 등)도 요청 상한을 넘겨 들어가지 못함
+        const overRequest = started_attempts >= L.max_calls_per_request || confirmedTokens() + heldMax() + reserveMax > L.max_tokens_per_request;
         const overSession = started_attempts >= sessionLeft.calls || (Number.isFinite(sessionLeft.tokens) && confirmedTokens() + heldMax() + reserveMax > sessionLeft.tokens);
         if (overRequest || overSession) {
           // 까닭을 남긴다: 대화 예산(session_budget · 다시 보내도 안 됨) / 이번 요청 한도(request_budget · 다시 보내면 됨)

@@ -50,8 +50,10 @@ const RUN_NEXT = new Set<string>(['answer', 'complete_profile', 'tell_more', 'op
 // 모양이 틀린 실행 기록은 쓰지 않는다(null 로 취급 · 화면이 임의로 채우지 않음)
 export function validRun(r: unknown): r is AgentRun {
   const x = r as AgentRun | null;
-  return !!x && typeof x.version === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome) && RUN_NEXT.has(x.next)
-    && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string') && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && typeof st.status === 'string')
+  return !!x && typeof x.version === 'string' && typeof x.goal === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome)
+    && (x.waiting === null || typeof x.waiting === 'string') && RUN_NEXT.has(x.next)
+    && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string')
+    && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && typeof st.status === 'string' && (st.why === null || typeof st.why === 'string'))
     && (x.candidates === null || validRunCandidates(x.candidates));
 }
 // 후보 조회 요약: 결과 종류(서버 목록) · 개수(정수 또는 null) · 시각(글자) · 지금 기준과 일치(참/거짓)만 — 그 밖의 모양은 받지 않는다
@@ -59,6 +61,12 @@ const RUN_TOOL_OUTCOMES = new Set<string>(['found', 'none', 'not_ready', 'failed
 function validRunCandidates(c: unknown): boolean {
   const x = c as AgentRun['candidates'];
   return !!x && RUN_TOOL_OUTCOMES.has(x.outcome) && (x.count === null || (Number.isInteger(x.count) && x.count >= 0)) && typeof x.at === 'string' && typeof x.fresh === 'boolean';
+}
+// 이번 실행 도구 결과: 도구 이름 · 결과 종류 · 개수 · 코드(글자 또는 null)만 — 모양이 틀리면 없는 것(null)으로 본다
+function validRunTool(t: unknown): t is AgentRunTool {
+  const x = t as AgentRunTool | null;
+  return !!x && (x.tool === 'readiness' || x.tool === 'candidates') && RUN_TOOL_OUTCOMES.has(x.outcome)
+    && (x.count === null || (Number.isInteger(x.count) && x.count >= 0)) && (x.code === null || typeof x.code === 'string');
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
@@ -147,7 +155,7 @@ export async function agentIntroMark(userId: string, sessionId: string, how: 'as
 export async function agentRun(userId: string, sessionId: string, opts: { resume?: boolean } = {}): Promise<{ session: AgentSession; run: AgentRun; tool: AgentRunTool | null; duplicate: boolean }> {
   const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) });
   if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
-  return { session: r.session, run: r.run, tool: r.tool ?? null, duplicate: r.duplicate === true };
+  return { session: r.session, run: r.run, tool: validRunTool(r.tool) ? r.tool : null, duplicate: r.duplicate === true };
 }
 
 // 2026-10-03 연결 화면의 실행 단계 버튼(Codex 명세 20261003-1 항목 B). 사용자가 누른 그 한 번만 실행한다:

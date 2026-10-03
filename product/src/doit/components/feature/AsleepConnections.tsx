@@ -4,7 +4,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import MobileLayout from './MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } from '@/doit/lib/understandingApi';
-import { ECHO_AGENT_ENABLED, agentGet, agentRun, createAgentRunTrigger, type AgentRun } from '@/doit/lib/agentApi';
+import { ECHO_AGENT_ENABLED, agentGet, agentRun, createAgentRunTrigger, type AgentRun, type AgentRunNext } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
 import ConnectionCandidates from './ConnectionCandidates';
 import type { MyCandidates } from '@/doit/lib/connectApi';
@@ -145,6 +145,18 @@ function Ready({ preview, server, userId, onOpenCandidates }: { preview: Preview
 // 2026-10-03 실행 단계(서버 agent_run · 모델 호출 0) — 연결 준비를 마친 사용자가 직접 누를 때만. 화면 진입·자동 재시도·자동 재개·후보 자동 선택 0.
 // 다음 할 일은 서버의 next 그대로: 「후보 열기」면 기존 후보 화면(doit-connect)을 다시 읽을 뿐 · 후보 상세는 실행 결과에서 만들지 않는다.
 // 버튼 이름과 상태 문구는 임시(대표 확인 필요 · Codex 명세 20261003-1 §4-1) — 빌드 스위치(VITE_ECHO_AGENT_ENABLED)가 켜진 앱에서만 보인다.
+// 서버 next 별 상태 문구(서버 값을 그대로 보여 줄 뿐 · 화면이 다음 할 일을 정하지 않음). open_candidates 는 기존 후보 화면이 보여 주므로 문구 없음.
+// 조회 실패(retry_later)는 「없음」·「완료」로 보이지 않게 하고, 멈춤(resume_if_wanted)은 상태만 보인다 — 재개 화면·문구가 승인되기 전에는 resume 호출 0(명세 5968514323 · 자동 재개 0).
+const RUN_STATUS: Record<AgentRunNext, string | null> = {
+  wait: 'ECHO가 같은 만남을 원하는 사람 중 후보를 준비하면 위에 보여 드려요.',
+  retry_later: '후보를 불러오지 못했어요. 후보가 없다는 뜻은 아니에요. 잠시 뒤 「후보 확인하기」를 다시 눌러 주세요.',
+  resume_if_wanted: '후보 찾기를 멈춰 두었어요. 저절로 다시 시작하지 않아요.',
+  run: '아직 확인하고 있어요. 잠시 뒤 「후보 확인하기」를 다시 눌러 주세요.',
+  answer: 'ECHO와 이야기를 조금 더 나누면 후보를 확인할 수 있어요.',
+  tell_more: 'ECHO와 이야기를 조금 더 나누면 후보를 확인할 수 있어요.',
+  complete_profile: '연결까지 남은 것을 채우면 후보를 확인할 수 있어요.',
+  open_candidates: null,
+};
 function AgentRunButton({ userId, onOpenCandidates }: { userId: string; onOpenCandidates: () => void }) {
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<AgentRun | null>(null); // 마지막으로 성공한 실행 결과(실패해도 지우지 않음)
@@ -156,9 +168,10 @@ function AgentRunButton({ userId, onOpenCandidates }: { userId: string; onOpenCa
     onError: (e) => setError(e instanceof UnderstandingError && e.message ? e.message : '불러오지 못했어요. 다시 확인해 볼게요.'),
     onBusy: setBusy,
   }), [userId, onOpenCandidates]);
+  const status = last ? RUN_STATUS[last.next] : null;
   return <div className="doit-asleep-card">
     <button type="button" className="doit-product-action" disabled={busy} aria-busy={busy} onClick={() => void trigger()}>후보 확인하기<span aria-hidden="true">↗</span></button>
-    {last && last.next === 'wait' && <p className="doit-asleep-status" role="status">ECHO가 같은 만남을 원하는 사람 중 후보를 준비하면 위에 보여 드려요.</p>}
+    {status && <p className="doit-asleep-status" role="status">{status}</p>}
     {error && <p className="doit-product-error" role="alert">{error}</p>}
   </div>;
 }
