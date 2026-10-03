@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "max_reviews": 3,
+  "timeout_ms": 45000,
+  "base_ref": "echo-qa"
+}
