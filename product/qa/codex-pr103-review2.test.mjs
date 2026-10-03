@@ -238,3 +238,13 @@ test('13~19자리 길이별 합성 유효(Luhn) 카드는 모두 가림', () => 
     assert.equal(r.counts.card, 1, `${c.length}자리`); assert.equal(r.value.latest, '카드 [가림] 예요', `${c.length}자리`);
   }
 });
+
+// 리뷰 5400963953(07c2d9f) P1 재현 — 띄어 쓴 13자리 카드(4-4-4-1)
+test('띄어 쓴 13~15자리 카드(4-4-4-1~3 묶음 · Luhn)도 가림 · Luhn 아닌 같은 모양은 그대로', () => {
+  for (const t of ['4222 2222 2222 2', '4111-1111-1111-9', '4111 1111 1111 14', '4111 1111 1111 116']) {
+    const r = maskPii({ latest: `카드 ${t} 예요` });
+    assert.equal(r.counts.card, 1, t); assert.equal(r.value.latest, '카드 [가림] 예요', t);
+  }
+  const no = maskPii({ latest: '번호 1234 5678 9012 3 이에요' });
+  assert.equal(no.counts.card, undefined, 'Luhn 아닌 4-4-4-1 은 카드로 세지 않음');
+});
