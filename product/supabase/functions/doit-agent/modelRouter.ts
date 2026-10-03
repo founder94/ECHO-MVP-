@@ -96,26 +96,40 @@ export function piiKeys(input: unknown, path = ""): string[] {
 // Agent 는 이미 전화·이메일·주소(URL)·주민번호가 든 말을 모델에 보내지 않고 저장도 하지 않는다(PRIVATE_DATA) — 여기서는 그 밖의 경로와 생년월일·카드 번호까지 가린 뒤 보낸다.
 // 다른 사람의 이름·사정 같은 「제3자 정보」는 글자 규칙으로 가려낼 수 없다 → 가리지 못함(남은 한계 · 문서 §23).
 // 카드 번호를 맨 앞에: 붙여 쓴 번호를 전화·주민번호 규칙이 먼저 일부만 가리면 나머지 숫자가 그대로 나가므로
-// 카드 = ① 네 자리씩 네 묶음(16자리 · 띄어 쓰기/붙여 쓰기 · 예전 규칙 그대로) ② 그 밖의 13~19자리(붙여 쓰기 · 4-6-5/4-6-4 묶음 · 4자리 묶음 3~4개 + 끝 1~3자리)는
-//   카드 검증 숫자(Luhn)가 맞을 때만 — 아무 긴 숫자(주문 번호 등)를 가리지 않게. 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않는다.
-const CARD = /(?<!\d)(?:\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{1,3})?|\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{1,3}|\d{4}[-\s]\d{6}[-\s]\d{4,5}|\d{13,19})(?!\d)/g; // 4-4-4-1~3 = 13~15자리 묶음(Luhn 필요)
-const FOUR_BY_FOUR = /^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}$/;
+// 카드 판정(일반화 · 2026-10-03 Codex 리뷰 5400904667·5400963953·5400987645·5401133896): 형태별 규칙을 덧붙이지 않고
+//   ① 숫자와 구분자(공백·탭·하이픈 · 여러 번 이어져도)로 된 13자리 이상 덩어리를 찾고 ② 앞에서부터 카드가 되는 부분만 가리고 나머지는 그대로(다음 덩어리도 다시 본다)
+//   카드 = (가) 정확히 16자리이면서 한 덩어리 또는 4자리 묶음 4개(예전 규칙 · Luhn 없이) (나) 그 밖의 13~19자리 중 Luhn 이 맞는 가장 긴 앞부분.
+//   16자리 카드 뒤의 짧은 숫자(「… 1111 3번」)는 합친 값이 Luhn 이어도 (가)가 먼저라 보존. 아무 긴 숫자(주문 번호 등)는 Luhn 이 안 맞으면 그대로.
+//   남은 한계: 띄어 쓴 19자리 카드(4-4-4-4-3)는 앞 16자리만 가려짐 · 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않음.
+const CARD_SEP = "[ \\t\\u00a0-]";
+const CARD = new RegExp(`(?<!\\d)\\d(?:${CARD_SEP}*\\d){12,40}(?!\\d)`, "g");
 function luhnOk(digits: string): boolean {
   let sum = 0;
   for (let i = 0; i < digits.length; i++) { let d = digits.charCodeAt(digits.length - 1 - i) - 48; if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; } sum += d; }
   return sum % 10 === 0;
 }
-const isCard = (m: string) => { const d = m.replace(/[-\s]/g, ""); return FOUR_BY_FOUR.test(m) || (d.length >= 13 && d.length <= 19 && luhnOk(d)); };
-// 4묶음 뒤의 1~3자리는 다음 일반 숫자(「… 1111 2번」)일 수도 있다 → 전체가 카드가 아니면 앞 4묶음만 카드로 보고 꼬리는 그대로 둔다
-const HEAD16 = /^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/;
-const SEP_TAIL = /^(\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4})([-\s]\d{1,3})$/;
 const cardMask = (m: string): string | null => {
-  // 16자리 카드 뒤에 띄어 쓴 1~3자리는 카드가 아니라 다음 말(「… 1111 3번」) — 합친 숫자가 우연히 Luhn 에 맞아도 꼬리는 그대로 둔다
-  const sep = m.match(SEP_TAIL);
-  if (sep && FOUR_BY_FOUR.test(sep[1])) return `[가림]${sep[2]}`;
-  if (isCard(m)) return "[가림]";
-  const h = m.match(HEAD16)?.[0];
-  return h && h.length < m.length ? `[가림]${m.slice(h.length)}` : null;
+  const groups = [...m.matchAll(/\d+/g)].map((g) => ({ end: g.index! + g[0].length, len: g[0].length }));
+  let cut = -1; let digits = 0;
+  for (let k = 0; k < groups.length; k++) { // (가) 16자리 = 한 덩어리 또는 4자리 묶음 4개
+    digits += groups[k].len;
+    if (digits === 16 && (k === 0 || groups.slice(0, k + 1).every((g) => g.len === 4))) { cut = groups[k].end; break; }
+    if (digits >= 16) break;
+  }
+  if (cut < 0) { // (나) Luhn 이 맞는 가장 긴 13~19자리 앞부분
+    const all = m.replace(/\D/g, "");
+    let acc = 0;
+    for (let k = groups.length - 1; k >= 0; k--) {
+      acc = groups.slice(0, k + 1).reduce((n, g) => n + g.len, 0);
+      if (acc >= 13 && acc <= 19 && luhnOk(all.slice(0, acc))) { cut = groups[k].end; break; }
+    }
+  }
+  if (cut < 0) return null;
+  const rest = m.slice(cut);
+  const lead = rest.match(new RegExp(`^${CARD_SEP}*`))![0];
+  const body = rest.slice(lead.length);
+  const restOut = body && /^\d/.test(body) && body.replace(/\D/g, "").length >= 13 ? (cardMask(body) ?? body) : body;
+  return `[가림]${lead}${restOut}`;
 };
 const MASKS: [string, RegExp, ((m: string) => string | null)?][] = [
   ["card", CARD, cardMask],
@@ -128,7 +142,7 @@ const MASKS: [string, RegExp, ((m: string) => string | null)?][] = [
 export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
   const counts: Record<string, number> = {};
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") { let t = v; for (const [name, re, mask] of MASKS) t = t.replace(re, (m) => { const out = mask ? mask(m) : "[가림]"; if (out == null) return m; counts[name] = (counts[name] ?? 0) + 1; return out; }); return t; }
+    if (typeof v === "string") { let t = v; for (const [name, re, mask] of MASKS) t = t.replace(re, (m) => { const out = mask ? mask(m) : "[가림]"; if (out == null) return m; counts[name] = (counts[name] ?? 0) + (out.match(/\[가림\]/g)?.length ?? 1); return out; }); return t; }
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
     return v;
