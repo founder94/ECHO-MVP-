@@ -62,21 +62,41 @@ function load(state) {
   vm.runInNewContext(compile('agent.ts'), { module: agentMod, exports: agentMod.exports, console }, { filename: 'agent.ts' });
   const failureMod = { exports: {} };
   vm.runInNewContext(compile('failure-intelligence.ts'), { module: failureMod, exports: failureMod.exports, console }, { filename: 'failure-intelligence.ts' });
+  // 2026-10-03 3개 제공사 통합: 모델 호출은 providers.ts(연결부) → modelRouter.ts(서버 선택 규칙). 환경 = OpenAI 키만 → 기본 정책(지금 운영 그대로).
+  const provMod = { exports: {} };
+  const g = { console, setTimeout, clearTimeout, AbortController, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp };
+  vm.runInNewContext(compile('providers.ts'), { ...g, module: provMod, exports: provMod.exports }, { filename: 'providers.ts' });
+  const routerMod = { exports: {} };
+  vm.runInNewContext(compile('modelRouter.ts'), { ...g, module: routerMod, exports: routerMod.exports, require: (n) => { if (n === './providers.ts') return provMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'modelRouter.ts' });
   let handler = null;
   const logs = [];
   const sandbox = {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
-    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; throw new Error(`Unexpected dependency ${name}`); },
-    fetch: async (_url, init) => {
-      const body = JSON.parse(init.body);
+    // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
+    Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    fetch: async (url, init) => {
+      // 2026-10-03 3개 제공사: 주소로 제공사를 가리고, 요청 모양(system · 사용자 입력)을 한 모양으로 읽은 뒤, 응답은 그 제공사 모양으로 돌려준다.
+      const prov = String(url).includes('api.anthropic.com') ? 'anthropic' : String(url).includes('generativelanguage.googleapis.com') ? 'gemini' : 'openai';
+      const raw = JSON.parse(init.body);
+      const body = prov === 'openai' ? raw : { model: raw.model ?? String(url).match(/models\/([^:]+):/)?.[1], temperature: raw.temperature ?? raw.generationConfig?.temperature, top_p: raw.generationConfig?.topP, max_tokens: raw.max_tokens ?? raw.generationConfig?.maxOutputTokens,
+        messages: prov === 'anthropic' ? [{ content: raw.system }, { content: raw.messages[0].content }] : [{ content: raw.systemInstruction.parts[0].text }, { content: raw.contents[0].parts[0].text }] };
+      (state.providerCalls ??= []).push(prov);
+      const plan = state.fail?.[prov]?.length ? state.fail[prov].shift() : null; // 제공사별 가짜 사고: 'HTTP500' · 'REFUSE' · { delay } · { gate: Promise }
+      if (plan === 'HTTP500') return new Response('{}', { status: 500 });
+      if (plan === 'HTTP429') return new Response('{}', { status: 429 });
+      if (plan === 'REFUSE') return new Response(JSON.stringify(prov === 'anthropic' ? { model: 'm', stop_reason: 'refusal', content: [] } : prov === 'gemini' ? { promptFeedback: { blockReason: 'SAFETY' } } : { model: 'm', choices: [{ message: { content: null, refusal: 'no' }, finish_reason: 'stop' }] }), { status: 200 });
+      if (plan?.gate) await plan.gate;
+      const wrap = (text, usage) => new Response(JSON.stringify(prov === 'anthropic' ? { model: `${body.model}-served`, stop_reason: 'end_turn', content: [{ type: 'text', text }], usage: { input_tokens: usage[0], output_tokens: usage[1] } }
+        : prov === 'gemini' ? { modelVersion: `${body.model}-served`, candidates: [{ content: { parts: [{ text }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: usage[0], candidatesTokenCount: usage[1] } }
+        : { model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: usage[0], completion_tokens: usage[1] }, choices: [{ message: { content: text } }] }), { status: 200 });
       // 2026-10-01 구조대: 보기만 따로 청하는 호출(RESCUE_PROMPT)은 대화 출력 줄(state.ai)을 쓰지 않는다 — state.rescue 줄(없으면 빈 보기)로 답하고 따로 센다.
       if (String(body.messages[0].content).startsWith('너는 대화 질문 하나에 붙일 「고르기 보기」')) {
         (state.rescueCalls ??= []).push({ input: JSON.parse(body.messages[1].content) });
         const out = state.rescue?.length ? state.rescue.shift() : { choices: [] };
-        return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 100, completion_tokens: 10 }, choices: [{ message: { content: JSON.stringify(out) } }] }), { status: 200 });
+        return wrap(JSON.stringify(out), [100, 10]);
       }
-      state.aiCalls.push({ system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
+      state.aiCalls.push({ provider: prov, system: body.messages[0].content, input: JSON.parse(body.messages[1].content), model: body.model, params: { t: body.temperature, p: body.top_p, m: body.max_tokens } });
       // v2.4 not_anchored 재시도: 예전 테스트의 가짜 질문은 답과 글자가 안 겹치므로, 따로 줄 세우지 않았으면(strictAnchor 아님) 같은 출력을 다시 준다.
       const input = JSON.parse(body.messages[1].content);
       const why = input.previous_attempt?.why ?? '';
@@ -95,7 +115,7 @@ function load(state) {
       state.lastAi = next;
       if (next === undefined) throw new Error('no fake AI output left');
       if (next === 'HTTP500') return new Response('{}', { status: 500 });
-      return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 100 }, choices: [{ message: { content: JSON.stringify(next) } }] }), { status: 200 });
+      return wrap(JSON.stringify(next), [1000, 100]);
     },
     crypto: globalThis.crypto, TextEncoder, Response, AbortController, setTimeout, clearTimeout, Date, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, URL,
   };
@@ -268,12 +288,20 @@ test('관리자: 일반 사용자 403 · 관리자는 실제 저장된 세션·�
   assert.equal(JSON.stringify(s.tables), before, '관리자 읽기는 쓰기 0');
 });
 
-test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel · 새 Secret 이름 0 · 원문 로그 0', () => {
+test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel(정책 없을 때) · 환경 이름은 정해진 것만 · 원문 로그 0', () => {
   const src = readFileSync(new URL('index.ts', DIR), 'utf8');
-  assert.match(src, /const OPENAI_URL = "https:\/\/api\.openai\.com\/v1\/chat\/completions";/);
-  assert.ok(!/Deno\.env\.get\("OPENAI_URL/.test(src));
+  // 2026-10-03: 호출 주소는 providers.ts 안에 글자로 고정(환경변수로 못 바꿈) · 환경 이름은 index(서버 설정) + modelRouter(키 있는지 · 정책)만
+  const prov = readFileSync(new URL('providers.ts', DIR), 'utf8');
+  const router = readFileSync(new URL('modelRouter.ts', DIR), 'utf8');
+  assert.match(prov, /"https:\/\/api\.openai\.com\/v1\/chat\/completions"/);
+  assert.match(prov, /"https:\/\/api\.anthropic\.com\/v1\/messages"/);
+  assert.match(prov, /`https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/\$\{encodeURIComponent\(req\.model\)\}:generateContent`/);
+  assert.ok(!/Deno\.env|_URL"\)/.test(prov), '연결부는 환경을 읽지 않는다');
+  assert.ok(!/Deno\.env/.test(router), '라우터는 넘겨받은 get 으로만 읽는다');
+  assert.deepEqual([...new Set([...router.matchAll(/get\("([A-Z_]+)"\)/g)].map((m) => m[1]))].sort(), ['AI_POLICY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'OPENAI_MODEL']);
+  assert.match(src, /routerFromEnv\(\(k\) => Deno\.env\.get\(k\), A\.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel\)/);
   const envs = [...src.matchAll(/Deno\.env\.get\("([A-Z_]+)"\)/g)].map((m) => m[1]).sort();
-  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'OPENAI_API_KEY', 'OPENAI_MODEL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
+  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
   for (const m of src.matchAll(/logDiag\(\{([^}]*)\}/g)) assert.ok(!/\btext\b(?!4)|user_raw|original/.test(m[1].replace(/text4/g, '')), `로그에 원문 칸 없음: ${m[1]}`);
 });
 
@@ -890,4 +918,141 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   const st2 = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   assert.equal(st2.slots.relationship_style.items.find((i) => i.source === 'choice').status, 'SUPERSEDED');
   assert.ok(st2.slots.relationship_style.items.some((i) => i.status === 'CONFIRMED' && i.note === '같이 걷기'));
+});
+
+// ── 2026-10-03 대표 「3개 AI 제공사 통합」: 서버 선택 규칙(modelRouter)을 실제 doit-agent 흐름으로 — 가짜 DB · 가짜 제공사 응답(실제 AI 호출 0 · 실제 AI 품질 판정 아님).
+// 정책·모델 이름은 시험용 가짜 이름이다(실제 승인 모델 아님).
+const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true }, ...(o.providers ?? {}) },
+  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) } });
+const ENV3 = (o) => ({ AI_POLICY: POLICY(o), ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' });
+const sessionRow = (s) => s.tables.doit_request_events.find((x) => x.action === 'agent_session');
+const startWith = async (s, h, first = '연애') => {
+  s.ai.push(T({ extracted: [X('relationship_intent', first, first)], ...Q('attraction_comfort', '어떤 사람한테 끌려요?') }));
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', firstAnswer: first });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); return r.body.session.id;
+};
+
+test('AI3 기본 정책(AI_POLICY 없음) = 지금 운영 그대로: OpenAI 하나 · 다른 제공사 호출 0 · 기록에 정책판·제공사 · 원문 0', async () => {
+  const s = newState(); s.env = { ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' }; // 키가 있어도 정책이 없으면 쓰지 않는다
+  const h = load(s);
+  const sid = await startWith(s, h, '편한 친구를 만나고 싶어요');
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' })).status, 200);
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai']);
+  assert.ok(s.aiCalls.every((c) => c.model === 'gpt-4o-mini'));
+  const rec = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.provider, 'openai'); assert.equal(rec.ai_policy_version, 'ai-policy-default-openai'); assert.equal(rec.fallback, 0);
+  assert.ok(rec.ai_calls.length >= 1 && rec.ai_calls.every((c) => c.provider === 'openai' && c.policy_version === 'ai-policy-default-openai'));
+  assert.ok(!JSON.stringify(rec.ai_calls).includes('잘 웃는') && !h.logs.join('\n').includes('잘 웃는'), '호출 기록·로그에 사용자 원문 0');
+});
+
+test('AI3 전환: 첫 후보 5xx → 다음 후보(다른 제공사)로 한 번 · 결과 하나만 반영 · 기록에 fallback 이유 · 한 호출에 세 제공사 0', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  assert.deepEqual([...new Set(s.providerCalls)], ['anthropic'], '실패가 없으면 정책 첫 후보만 불림(호출 여러 번이어도 같은 곳)');
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(s.providerCalls.slice(0, 2), ['anthropic', 'openai']);
+  assert.ok(!s.providerCalls.includes('gemini'), '정책에 없는 제공사는 부르지 않는다');
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn').at(-1).response_payload.record;
+  assert.equal(rec.provider, 'openai'); assert.ok(rec.fallback >= 1);
+  assert.deepEqual(rec.ai_calls.slice(0, 2).map((c) => [c.provider, c.ok, c.error, c.reason]), [['anthropic', false, 'http_5xx', 'policy_order'], ['openai', true, null, 'fallback_from:anthropic:http_5xx']]);
+  assert.equal(s.tables.doit_records.length, 2, '같은 턴 기록은 한 번만(첫 답 + 이번 답)');
+  assert.equal(sessionRow(s).applied_revision, 2, '저장은 한 번(판 번호 +1)');
+});
+
+test('AI3 모두 실패 → 502 · 기존 상태·판 번호·기록 그대로 · 실패 기록은 코드만 · 다시 보내면 이어짐', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  const before = structuredClone(sessionRow(s)); const recs = s.tables.doit_records.length;
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람이 좋아요' });
+  assert.equal(r.status, 502); assert.equal(r.body.code, 'AI_ERROR');
+  assert.deepEqual(sessionRow(s), before, '상태·판 번호 그대로');
+  assert.equal(s.tables.doit_records.length, recs, '답 기록 0');
+  const failed = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'failed').at(-1).response_payload.record;
+  assert.deepEqual(failed.ai_calls.map((c) => [c.provider, c.error]), [['anthropic', 'http_5xx'], ['openai', 'http_5xx']]);
+  assert.ok(!JSON.stringify(failed).includes('잘 웃는'), '실패 기록에 원문 0');
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람이 좋아요')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람이 좋아요' })).status, 200);
+});
+
+test('AI3 안전상 거절(refusal) → 다른 제공사로 돌리지 않음 · 502 · 상태 그대로', async () => {
+  for (const first of ['anthropic', 'gemini', 'openai']) {
+    const s = newState(); s.env = ENV3({ tasks: { default: [first, ...['anthropic', 'gemini', 'openai'].filter((x) => x !== first)] } }); const h = load(s);
+    const sid = await startWith(s, h);
+    const before = structuredClone(sessionRow(s));
+    s.providerCalls = []; s.fail = { [first]: ['REFUSE'] };
+    const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '아무 말' });
+    assert.equal(r.status, 502, first);
+    assert.deepEqual(s.providerCalls, [first], `${first} 거절 뒤 다른 제공사 호출 0`);
+    assert.deepEqual(sessionRow(s), before);
+    const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+    assert.equal(failed.ai_calls[0].error, 'refused');
+  }
+});
+
+test('AI3 전달 허용(allow_user_text) 없는 제공사 · 키 없는 제공사는 부르지 않음 · 쓸 수 있는 곳이 없으면 AI_NOT_CONFIGURED(호출 0)', async () => {
+  const s = newState(); s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic', 'gemini', 'openai'] } }), GEMINI_API_KEY: '' };
+  const h = load(s);
+  await startWith(s, h);
+  assert.deepEqual([...new Set(s.providerCalls)], ['openai'], '허용 없는 anthropic · 키 없는 gemini 건너뜀');
+  const s2 = newState(); s2.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'] } }) };
+  const h2 = load(s2);
+  const r = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', firstAnswer: '연애' });
+  assert.equal(r.status, 500); assert.equal(r.body.code, 'AI_NOT_CONFIGURED');
+  assert.equal((s2.providerCalls ?? []).length, 0);
+  assert.ok(!s2.tables.doit_request_events?.length, '세션 저장 0');
+});
+
+test('AI3 정정은 제공사가 바뀌어도 이어진다: 거절한 뜻은 다음 제공사 입력의 heard 에서 빠지고 · 정정 기록은 서버 상태에 남음', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h, '연애'); // anthropic 이 「연애」로 정리
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  s.fail = { anthropic: ['HTTP500'] }; // 이번 턴은 openai 가 받음
+  s.ai.push(T({ kind: 'repair', reply: '제가 잘못 짚었네요.', wrong: ['연애'], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  assert.equal((await say('그게 아니에요')).status, 200);
+  assert.equal(sessionRow(s).response_payload.state.slots.relationship_intent.items[0].status, 'RETRACTED');
+  s.aiCalls = [];
+  s.ai.push(T({ extracted: [X('values_character', '솔직함', '솔직한 사람')], ...Q('relationship_style', '천천히 알아가는 게 편해요?') }));
+  assert.equal((await say('솔직한 사람')).status, 200);
+  const next = s.aiCalls.find((c) => c.provider === 'anthropic');
+  assert.ok(next, '다음 턴은 다시 정책 첫 후보(anthropic)');
+  assert.ok(!next.input.heard.some((x) => x.note === '연애'), '거절한 뜻은 다른 제공사에도 확인된 정보로 넘어가지 않음');
+  assert.ok(next.input.disputed.length >= 1, '문제 삼은 질문 기록이 다음 제공사 입력에도 있음');
+});
+
+test('AI3 늦게 온 응답은 더 새로운 정정을 덮지 못함(판 번호 비교 저장) — 느린 제공사 응답 → 409 · 정정 상태 유지', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h, '연애');
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { anthropic: [{ gate }] }; // 첫 요청의 anthropic 응답이 늦게 온다
+  const slow = h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '연애도 괜찮고요' });
+  await new Promise((ok) => setTimeout(ok, 20));
+  s.ai.push(T({ kind: 'repair', reply: '제가 잘못 짚었네요.', wrong: ['연애'], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그게 아니에요' });
+  assert.equal(fix.status, 200);
+  const afterFix = structuredClone(sessionRow(s));
+  s.ai.push(T({ extracted: [X('relationship_intent', '연애', '연애도 괜찮고요')], ...Q('values_character', '사람 볼 때 뭘 봐요?') }));
+  release();
+  const late = await slow;
+  assert.equal(late.status, 409); assert.equal(late.body.code, 'REQUEST_CONFLICT');
+  assert.deepEqual(sessionRow(s), afterFix, '늦은 응답은 저장 0');
+  assert.equal(sessionRow(s).response_payload.state.slots.relationship_intent.items[0].status, 'RETRACTED');
+});
+
+test('AI3 요청당 호출 상한: 상한에 닿으면 더 부르지 않고 502 · 상태 그대로(무한 재시도·순환 0)', async () => {
+  const s = newState(); s.env = ENV3(); const h = load(s);
+  const sid = await startWith(s, h);
+  s.env = ENV3({ limits: { max_calls_per_request: 1 } }); // 이번 요청부터 상한 1(정책은 요청마다 읽음)
+  const before = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500'] };
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' });
+  assert.equal(r.status, 502);
+  assert.deepEqual(s.providerCalls, ['anthropic'], '상한 1 → 전환 호출도 하지 않음');
+  assert.deepEqual(sessionRow(s), before);
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
 });

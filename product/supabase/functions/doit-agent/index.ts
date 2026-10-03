@@ -4,11 +4,12 @@
 //   · 대화 상태 = doit_request_events 한 줄(action "agent_session", request_id = 세션 id, response_payload = 상태, applied_revision = 판 번호 — 동시 쓰기 막기)
 //   · 턴 기록 = doit_request_events 한 줄(action "agent_turn", request_id = 화면이 만든 요청 id → 같은 요청 재전송은 저장된 결과를 돌려준다, target_id = 세션 id)
 //   · 매칭에 쓰는 답 = 기존 RPC doit_apply_record_create 로 doit_records 에(소개 초안·연결 화면이 그대로 읽는다)
-// - 모델 = 기존 승인 모델(resolveModel(OPENAI_MODEL) · 운영 Secret 그대로 · 새 키 0). 호출 주소는 환경변수로 바꿀 수 없다.
+// - 모델 = 서버 선택 규칙(modelRouter.ts · AI_POLICY). 정책이 없으면 기존 승인 모델(resolveModel(OPENAI_MODEL) · 운영 Secret 그대로 · 새 키 0). 호출 주소는 환경변수로 바꿀 수 없다(providers.ts 고정).
 // - 로그에는 코드·개수·시간만 남긴다(사용자 원문·토큰·키 0).
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
+import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
 
 type Db = SupabaseClient;
 type Json = Record<string, unknown>;
@@ -22,9 +23,7 @@ const TEXT_MAX = 1000;
 const BODY_MAX_BYTES = 32 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 30;
-const CALL_TIMEOUT_MS = 18_000;
 const ADMIN_LIST_MAX = 50;
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 function resolveModel(raw: string | undefined): string {
   const model = (raw ?? "").trim();
@@ -66,44 +65,12 @@ function roundStartOf(user: { user_metadata?: Record<string, unknown> | null }):
   return new Date(raw).toISOString();
 }
 
-class ProviderError extends Error { code: string; constructor(code: string) { super(code); this.code = code; } }
-// OpenAI 한 번 부르기. 응답의 실제 모델 이름·토큰 수(usage)를 함께 돌려준다(관리자 관측).
-function openAI(apiKey: string, model: string): A.Llm {
-  // v2.4.1: 속도 제한(429)·일시 오류(5xx)·연결 끊김은 1.5초 뒤 한 번만 다시(실제 AI run gi: AI_ERROR 5/80). 시간 초과는 다시 하지 않는다(기다림 상한 유지).
-  const once = openAIOnce(apiKey, model);
-  return async (kind, system, input) => {
-    try { return await once(kind, system, input); } catch (e) {
-      const code = (e as ProviderError)?.code ?? "";
-      if (!/^http_(429|5\d\d)$|^network$/.test(code)) throw e;
-      await new Promise((ok) => setTimeout(ok, 1500));
-      return await once(kind, system, input);
-    }
-  };
-}
-function openAIOnce(apiKey: string, model: string): A.Llm {
-  return async (_kind, system, input) => {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), CALL_TIMEOUT_MS);
-    try {
-      const res = await fetch(OPENAI_URL, {
-        method: "POST", signal: ctrl.signal,
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model, ...A.AGENT_PARAMS, response_format: { type: "json_object" },
-          messages: [{ role: "system", content: system }, { role: "user", content: JSON.stringify(input) }] }),
-      });
-      if (!res.ok) throw new ProviderError(`http_${res.status}`);
-      const data = await res.json();
-      const text = String(data?.choices?.[0]?.message?.content ?? "").trim();
-      if (!text) throw new ProviderError("empty");
-      const usage = data?.usage ?? {};
-      return { text, model: typeof data?.model === "string" ? data.model : null,
-        input_tokens: Number.isFinite(usage.prompt_tokens) ? usage.prompt_tokens : null, output_tokens: Number.isFinite(usage.completion_tokens) ? usage.completion_tokens : null };
-    } catch (e) {
-      if (ctrl.signal.aborted) throw new ProviderError("timeout");
-      throw e instanceof ProviderError ? e : new ProviderError("network");
-    } finally { clearTimeout(timer); }
-  };
-}
+// 2026-10-03 대표 「3개 AI 제공사 통합」: 모델 호출은 modelRouter(서버 선택 규칙) 한 곳으로. 요청 하나 = 라우터 하나(한도·전환·기록) · 연속 오류 차단 상태는 함수 인스턴스 단위로 공유.
+// AI_POLICY 가 없으면 지금 승인 그대로(OpenAI · OPENAI_MODEL · 다른 제공사 0).
+const AI_HEALTH: RouterHealth = {};
+const routerForRequest = (): ModelRouter => routerFromEnv((k) => Deno.env.get(k), A.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel);
+// 관리자 관측용 호출 기록(코드·수치만 · 사용자 원문 0).
+const aiTrace = (r: ModelRouter) => { const m = r.summary(); return { provider: m.provider ?? "none", providers: m.providers, model_requested: r.policy.providers[m.provider ?? "openai"]?.model ?? null, fallback: m.fallback, ai_policy_version: r.policy.version, ai_calls: r.log.map((x) => ({ ...x })) }; };
 
 interface SessionRow { request_id: string; user_id: string; created_at: string; updated_at: string; applied_revision: number | null; response_payload: Json | null }
 interface Stored { agent: string; state: A.AgentState; round_since: string | null; profile?: A.MatchingProfile | null; handoff?: Json | null }
@@ -171,17 +138,18 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
 }
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: string; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
   const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
   if (response.error) {
-    logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry });
+    const ai = ctx.router.summary();
+    logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry, provider: ai.provider, fallback: ai.fallback, ai_errors: ctx.router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: ctx.router.policy.version });
     // v2.0 실패 관측: AI 가 답을 못 만든 턴도 기존 표(doit_request_events · status failed)에 코드·수치만 남긴다(원문 0 · 새 표 0). 관리자 TURN_ERROR 후보의 재료.
     // request_id 는 새로 만든다 — 사용자가 같은 요청을 다시 보냈을 때 성공 기록과 부딪히지 않게.
     const failed = { turn_index: null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind: "error", error: String(response.error), saved: false, decision: "error",
-      question_index: A.coreAsked(st).length, question_purpose: st.current?.purpose ?? null, flags: {}, provider: "openai", model_requested: ctx.model, ...A.versionTrace(), calls: obs.calls, retry: obs.retry, fallback: 0,
+      question_index: A.coreAsked(st).length, question_purpose: st.current?.purpose ?? null, flags: {}, ...aiTrace(ctx.router), ...A.versionTrace(), calls: obs.calls, retry: obs.retry,
       tone_mismatch_observed: false, id_leak: false, record_error: null, total_ms: Date.now() - t0 };
     const { error: failLogError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: sessionId, status: "failed",
       payload_hash: await sha256(`${sessionId}:error:${requestId}`), applied_revision: rev, response_payload: { record: failed } });
@@ -230,7 +198,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     // 2026-10-01 Failure Intelligence 코드(보기 · 도움 행동) — 사용자 사실이 아니다(관리자 실패 후보의 재료).
     fi: lastTurn?.fi ?? [], rescue: { shown: !!st.current?.rescue_show, options: st.current?.choices?.length ?? 0, fallback: !!st.current?.rescue_fallback },
     flags: { ui_correction: !!ui, correction: kind === "correction", rejection: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", complaint: kind === "repair" && lastTurn?.guard?.rule !== "fatigue", skip: kind === "skip", fatigue: kind === "stop" || lastTurn?.guard?.rule === "fatigue", unsure: kind === "unsure", ask: kind === "ask", help: kind === "help", blocked: kind === "blocked", choice: !!lastTurn?.choice, choices_none: lastTurn?.guard?.rule === "choices_none" },
-    provider: "openai", model_requested: ctx.model, calls: obs.calls, retry: obs.retry, fallback: 0,
+    ...aiTrace(ctx.router), calls: obs.calls, retry: obs.retry,
     ...A.versionTrace(), failure_intelligence_version: FAILURE_INTELLIGENCE_VERSION, // 2026-09-26 VERSION TRACE: 에이전트·프롬프트·서버 규칙·파이프라인 판(실패를 판과 묶는다)
     tone_mismatch_observed: text4 ? A.toneMismatch(st.tone, text4) : false, id_leak: A.leaksId(text4),
     record_id: recordId, record_error: recordError, total_ms: Date.now() - t0,
@@ -240,7 +208,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; model: s
     payload_hash: await sha256(`${sessionId}:${text}`), applied_revision: rev + 1, response_payload: { turn: turnOut, record } });
   logDiag({ step: "turn", kind, saved: record.saved, decision: record.decision, q: record.question_index, calls: obs.calls.length, retry: obs.retry,
     tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0),
-    model: obs.calls.find((c) => c.model)?.model ?? null, record_error: recordError, turn_log_error: !!turnError, ms: record.total_ms,
+    model: obs.calls.find((c) => c.model)?.model ?? null, provider: record.provider, fallback: record.fallback, policy: record.ai_policy_version, record_error: recordError, turn_log_error: !!turnError, ms: record.total_ms,
     ...(response.finish ? { intro: st.intro?.status ?? null, intro_lines: st.intro?.lines.length ?? 0, intro_dropped: st.intro?.dropped ?? {}, intro_error: st.intro?.error ?? null } : {}) });
   return json({ ok: true, session: view, turn: turnOut }, 200, ctx.origin);
 }
@@ -315,9 +283,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const requestId = typeof body.requestId === "string" && UUID.test(body.requestId) ? body.requestId : "";
     if (!requestId) return fail("BAD_REQUEST", "요청 식별값이 없어요.", 400, origin);
     const { data: prior } = await admin.from("doit_request_events").select("action, status, target_id, response_payload").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
-    const apiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-    const model = resolveModel(Deno.env.get("OPENAI_MODEL"));
-    const ctx = { admin, userId, llm: openAI(apiKey, model), model, origin };
+    const router = routerForRequest();
+    const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
+    const ctx = { admin, userId, llm: router.llm, router, origin };
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).
@@ -328,7 +296,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const existing = await currentSession(admin, userId, since, goal);
       if (existing) return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
-      if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
       const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
@@ -340,10 +308,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const obs: A.Obs = { calls: [], retry: [] };
       const opened = await A.runOpening(stored.state, ctx.llm, obs).catch(() => null);
-      if (!opened) { logDiag({ step: "opening", code: "failed", calls: obs.calls.length }); return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin); }
+      if (!opened) { logDiag({ step: "opening", code: "failed", calls: obs.calls.length, ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version }); return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin); }
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
       if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
-      logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null });
+      logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
     }
 
@@ -364,7 +332,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const base = stored.state.intro ?? { status: "none" as const, lines: [], dropped: {}, tries: 0, error: null, used: null, used_at: null };
         stored.state.intro = { ...base, used: how, used_at: new Date().toISOString() };
       } else {
-        if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
       }
       if (!limited) {
@@ -374,7 +342,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const intro = stored.state.intro;
       logDiag({ step: action, intro: intro?.status ?? null, lines: intro?.lines.length ?? 0, dropped: intro?.dropped ?? {}, error: intro?.error ?? null, used: intro?.used ?? null, limited,
-        calls: obs.calls.length, tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0), model: obs.calls.find((c) => c.model)?.model ?? null });
+        calls: obs.calls.length, tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0), model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored), limited }, 200, origin);
     }
 
@@ -387,13 +355,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
       const stored = row.response_payload as unknown as Stored;
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
-      if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
-      logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry });
+      logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
     }
 
@@ -418,7 +386,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
-    if (!apiKey) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+    if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
     return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: typeof body.choice === "string" ? body.choice.slice(0, 40) : undefined, rescueOpen: body.rescueOpen === true });
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
