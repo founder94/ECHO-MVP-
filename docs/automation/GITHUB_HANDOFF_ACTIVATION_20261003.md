@@ -1,5 +1,5 @@
 # ECHO GitHub handoff: activation boundary
-Version: 2026-10-03 revision 2. PR104 is a draft, not live automation.
+Version: 2026-10-03 revision 3. PR104 is a draft, not live automation.
 
 ## Confirmed
 - Codex can read/write this repository through the connected GitHub MCP.
@@ -26,24 +26,44 @@ Implementation is a distinct capability and is not secretly re-enabled by a revi
 - Action-generated token rights and all MCP deny-list enforcement.
 - Action internal checkout preserving the requested SHA throughout execution.
 - New workflow actual execution and handling interrupted jobs.
-- Codex background executor/authentication/account entitlement.
+- Actual local Codex worker startup and Claude Stop-hook execution.
 - An event-based wake-up for this ChatGPT/Codex conversation.
 - Durable per-PR queue and atomic execution/cost reservations.
 Do not merge and advertise a complete unattended company from this draft.
 
-## Minimum decision for the full loop
-Recommended: separate GitHub review executor for Codex, distinct from this chat.
-Use an approved existing authentication mechanism if one is actually available.
-If API authentication is chosen, a dedicated review-only key must be registered
-through the service settings, never chat/PR/logs. Do not reuse the product/AB-test key
-without explicit approval for the new purpose.
-No new secret, model or paid run has been authorized by this draft.
+## Bounded local fix/review loop (implemented, OFF)
+Files: .claude/hooks/echo-review-gate.mjs, its test file,
+.claude/echo-review-gate.json and .claude/settings.json.
+This is distinct from the review-only GitHub workflow.
+Claude's Stop hook asks the existing Codex CLI to review the preserved source.
+FAIL blocks completion and asks Claude to fix findings in its authorized owned files.
+PASS approves only the reviewed source fingerprint. HOLD stops the task.
+At most three reviews per Claude session, 45 seconds per worker; attempts are reserved
+before sending. Changed source invalidates approval. Duplicate approved source does
+not call again. Unknown usage is not a zero monetary cost.
+Do not enable the stock plugin's unbounded Stop gate alongside this bounded gate.
 
-The representative must decide the approved authentication route, exact model,
-per-run and daily monetary ceiling before paid activation. Money unknown is null,
-not zero. Stop on unknown rates or budget exhaustion. Use at most three fix/review
-rounds per source lineage, one active implementation per PR, bounded request time.
-A source change invalidates a queued review; a duplicate event must not call a model.
+Mock verification: node --test --test-isolation=none echo-review-gate.test.mjs,
+11/11 PASS, exit 0. An independent reviewer reproduced two issues (nested working
+directory scope and corrupt attempt counts); both were fixed and rechecked.
+These are mocked worker tests, not actual Claude/Codex model execution.
+
+## Actual execution obstacle
+Existing Codex login status reports authenticated using ChatGPT. No keys or auth
+files were read, copied or changed. A missing key is not the diagnosed obstacle.
+Actual Codex exec exits 1: failed to initialize in-process app-server client:
+Read-only file system (os error 30).
+The runtime CODEX_HOME is read-only and its installation_id is absent.
+The upstream startup implementation creates this metadata before starting.
+A narrowly scoped filesystem write grant was attempted; exec still failed with
+the same error. A grant does not make the backing runtime filesystem writable.
+No model worker is running. The local gate is OFF and is not installed in the
+representative's separate Claude Code session by this draft.
+Required next step: use a supported writable Codex runtime with the existing
+approved login, then execute one bounded Claude Stop-hook integration test.
+Do not modify authentication, copy credentials, bypass protection or claim activation.
+GitHub comments can start a separate Claude Action; they do not control the
+representative's already-open Claude Code session or wake this chat automatically.
 
 ## Recovery
 Before activation retain the previous main workflow commit and disable the new
