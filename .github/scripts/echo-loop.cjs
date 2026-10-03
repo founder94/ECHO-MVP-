@@ -4,7 +4,8 @@
 //   작업 PR = 브랜치 echo/task-<이슈 번호> · 라벨 echo-auto(라벨은 쓰기 권한자만 붙일 수 있음)
 // Codex 결과 판정(설치된 Codex 앱이 실제로 남기는 신호만):
 //   FAIL = 현재 head SHA 에 대한 Codex 리뷰 + P0~P2 배지 지적 → 수정은 claude.yml 이 맡음(여기서는 대기)
-//   PASS = 현재 head 이후 Codex 의 👍 반응(지적 없음 신호) 이고 그 SHA 에 지적 리뷰가 없음
+//   PASS = Codex 의 「Didn't find any major issues」 댓글이 현재 head SHA 를 「Reviewed commit」으로 적었고 그 SHA 에 지적이 없음
+//          (👍 반응은 어느 SHA 인지 모르므로 PASS 근거로 쓰지 않음 · Codex 검수 지적)
 //   리뷰 없음 ≠ PASS. 오래 조용하면 그 SHA 에 한 번만 다시 검수를 요청한다.
 'use strict';
 
@@ -29,7 +30,7 @@ function pickNextTask(issues) {
  * 진행 중 작업 하나의 다음 행동.
  * @returns {{action:'wait'|'pass'|'poke'|'block', reason:string, sha?:string}}
  */
-function judgeRunning({ now, issue, pr, headCommittedAt, reviews, reviewComments, reactions, issueComments }) {
+function judgeRunning({ now, issue, pr, headCommittedAt, reviews, reviewComments, issueComments }) {
   if (!pr) {
     return minutes(now, issue.runningSince ?? issue.updated_at) > LIMITS.startTimeoutMin
       ? { action: 'block', reason: 'no_pr_after_start' } : { action: 'wait', reason: 'implementing' };
@@ -41,8 +42,10 @@ function judgeRunning({ now, issue, pr, headCommittedAt, reviews, reviewComments
   const codexReviews = reviews.filter((r) => r.user?.login === CODEX && r.commit_id === sha);
   const findings = reviewComments.filter((c) => c.user?.login === CODEX && c.commit_id === sha && FINDING.test(c.body || ''));
   if (codexReviews.length && findings.length) return { action: 'wait', reason: 'fail_fix_by_claude_yml', sha };
-  const thumbs = reactions.filter((r) => r.user?.login === CODEX && r.content === '+1' && Date.parse(r.created_at) >= Date.parse(headCommittedAt));
-  if (thumbs.length && !findings.length) return { action: 'pass', reason: 'codex_thumbs_up_no_findings', sha };
+  const reviewedSha = (c) => ((c.body || '').match(/Reviewed commit:\*{0,2}\s*`([0-9a-f]{7,40})`/) || [])[1];
+  const passed = issueComments.some((c) => c.user?.login === CODEX && /Didn.t find any major issues/.test(c.body || '')
+    && Boolean(reviewedSha(c)) && sha.startsWith(reviewedSha(c)));
+  if (passed && !findings.length) return { action: 'pass', reason: 'codex_no_findings_for_head_sha', sha };
   const pokes = issueComments.filter((c) => (c.body || '').startsWith(`<!-- echo-poke sha=${sha} -->`)).length;
   if (pokes >= LIMITS.maxPokesPerSha) {
     return minutes(now, headCommittedAt) > LIMITS.pokeAfterMin * 4 ? { action: 'block', reason: 'no_codex_review', sha } : { action: 'wait', reason: 'poked_waiting', sha };
