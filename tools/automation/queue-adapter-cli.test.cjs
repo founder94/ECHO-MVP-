@@ -19,8 +19,10 @@ function repos() {
 }
 const ev = o => { const f = path.join(tmp(), 'e.json'); fs.writeFileSync(f, JSON.stringify(o)); return f; };
 const review = (over = {}) => ({ action: 'submitted', repository: { full_name: REPO }, pull_request: { number: 7, head: { sha: SHA } },
-  review: { id: 1, commit_id: SHA, body: `<!-- echo-review from=codex sha=${SHA} verdict=PASS -->\nok`, user: { login: CODEX, type: 'Bot' }, ...over } });
-const seed = () => memoryStore({ tasks: [{ id: 't', ref: 'pr:7', state: 'REVIEW', headSha: SHA }] });
+  review: { id: 1, commit_id: SHA, submitted_at: '2026-10-03T20:00:00Z', body: `<!-- echo-review from=codex sha=${SHA} verdict=PASS -->\nok`, user: { login: CODEX, type: 'Bot' }, ...over } });
+const OWNER = { login: 'founder94', type: 'User' };
+const APPR = { by: OWNER, owner: OWNER, ref: 'pr:7' };
+const seed = () => memoryStore({ tasks: [{ id: 't', ref: 'pr:7', state: 'REVIEW', headSha: SHA, approval: APPR }] });
 const ENV = { GITHUB_REPOSITORY: REPO };
 const HEAD = () => SHA; // injected current-head lookup (mock; no network)
 const comment = body => ({ action: 'created', repository: { full_name: REPO }, issue: { number: 7, pull_request: {} },
@@ -40,8 +42,8 @@ test('valid Codex marker review is handled via CLI', () => {
   assert.strictEqual(r.code, 0); assert.strictEqual(r.out.action, 'IDLE');
 });
 test('standard Codex review without marker never passes', () => {
-  const r = run(['pull_request_review', ev(review({ body: 'no findings' })), 'd1'], ENV, seed(), HEAD);
-  assert.strictEqual(r.out.reason, 'no_verdict_marker');
+  const r = run(['pull_request_review', ev(review({ body: 'no findings' })), 'd1'], ENV, seed(), HEAD, { getFindings: () => [] });
+  assert.notStrictEqual(r.out.action, 'IDLE'); assert.strictEqual(r.out.reason, 'blocked'); // no trusted verdict: BLOCKED, never PASS/DONE
 });
 test('BLOCKED exits 2; missing args / bad file exit 1', () => {
   const p = review({ body: `<!-- echo-review from=codex sha=${SHA} verdict=BLOCKED -->` });
@@ -66,7 +68,7 @@ test('git store fails closed on unreachable remote', () => {
 });
 test('end-to-end: CLI with git store handles a review and persists the log', () => {
   const { a, b } = repos();
-  gitStore({ cwd: a }).save(null, { tasks: [{ id: 't', ref: 'pr:7', state: 'REVIEW', headSha: SHA }] });
+  gitStore({ cwd: a }).save(null, { tasks: [{ id: 't', ref: 'pr:7', state: 'REVIEW', headSha: SHA, approval: APPR }] });
   const r = run(['pull_request_review', ev(review()), 'd1'], { ...ENV, QUEUE_STORE_DIR: b }, undefined, HEAD);
   assert.strictEqual(r.code, 0);
   const s = gitStore({ cwd: a }).load().state;

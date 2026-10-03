@@ -4,7 +4,8 @@
 // Exit: 0 handled/ignored, 2 halted (STOP), 1 error (fail closed). Prints one JSON result line (no payload text).
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
-const { handle, REVIEW_MARKER, HANDOFF_MARKER } = require('./queue-adapter.cjs');
+const { handle, REVIEW_MARKER, HANDOFF_MARKER, CODEX } = require('./queue-adapter.cjs');
+const { initQueue, drain, ghDispatcher } = require('./queue-exec.cjs');
 const { gitStore } = require('./queue-store-git.cjs');
 
 // Default live lookup of the PR's current head via the runner's existing gh auth (GH_TOKEN/GITHUB_TOKEN from env; never printed).
@@ -42,7 +43,22 @@ function verifyMetadata(name, p, repo) {
   return null;
 }
 
-function run(argv, env, store, getHead = ghHead) {
+// Native Codex review (no echo-review marker): count the findings (inline review comments) that belong to THIS review,
+// were written by the Codex bot and sit on the review's exact commit. Fixed error message only (no stderr/token output).
+function ghFindings(repo, number, reviewId) {
+  let out;
+  try { out = JSON.parse(execFileSync('gh', ['api', `repos/${repo}/pulls/${number}/reviews/${reviewId}/comments`, '--paginate', '--jq', '[.[]|{u:.user.login,t:.user.type,c:.commit_id,r:.pull_request_review_id}]'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20000 }).replace(/\]\s*\[/g, ',')); }
+  catch { throw new Error('findings_lookup_failed'); }
+  if (!Array.isArray(out)) throw new Error('findings_lookup_failed');
+  return out.map(c => ({ user: { login: c.u, type: c.t }, commit_id: c.c, pull_request_review_id: c.r }));
+}
+const countFindings = (list, review) => list.filter(c => c && c.user?.login === CODEX && c.user.type === 'Bot' && c.commit_id === review.commit_id && c.pull_request_review_id === review.id).length;
+
+// deps (all injectable, default = real gh with the runner's existing auth): getFindings, dispatch.
+function run(argv, env, store, getHead = ghHead, deps = {}) {
+  const st = () => store || gitStore({ cwd: env.QUEUE_STORE_DIR || process.cwd() });
+  if (argv[0] === 'init') return runInit(argv, env, st);
+  if (argv[0] === 'drain') return runDrain(env, st, getHead, deps);
   const [name, path, delivery] = argv;
   if (!name || !path || !delivery || !env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
   let payload; try { payload = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return { code: 1, out: { error: 'bad_event_file' } }; }
@@ -50,13 +66,41 @@ function run(argv, env, store, getHead = ghHead) {
   if (bad) return { code: 0, out: { action: 'IGNORE', reason: bad } };
   try { const stale = verifyCurrentHead(name, payload, getHead, env.GITHUB_REPOSITORY); if (stale) return { code: 0, out: { action: 'IGNORE', reason: stale } }; }
   catch { return { code: 1, out: { error: 'head_lookup_failed' } }; } // no verdict, no save, no dispatch
-  const config = env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {};
-  const r = handle(store || gitStore({ cwd: env.QUEUE_STORE_DIR || process.cwd() }), name, payload, delivery, config);
+  const ctx = {};
+  if (name === 'pull_request_review' && payload.action === 'submitted' && !REVIEW_MARKER.exec(payload.review?.body || '') && payload.review?.user?.login === CODEX) {
+    try { ctx.nativeFindings = countFindings((deps.getFindings || ghFindings)(env.GITHUB_REPOSITORY, payload.pull_request.number, payload.review.id), payload.review); }
+    catch { return { code: 1, out: { error: 'findings_lookup_failed' } }; } // no verdict without verified findings
+  }
+  const config = { strict: true, ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}) };
+  const r = handle(st(), name, payload, delivery, config, 3, ctx);
   return { code: r.action === 'STOP' ? 2 : 0, out: { action: r.action, reason: r.reason, taskId: r.taskId } };
+}
+
+// init <event_json> <delivery>: workflow_dispatch input `tasks` (JSON). Creates the queue only when none exists (CAS create); sender must be the owner User.
+function runInit(argv, env, st) {
+  const [, path, delivery] = argv;
+  if (!path || !delivery || !env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
+  let p; try { p = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return { code: 1, out: { error: 'bad_event_file' } }; }
+  if (p?.repository?.full_name !== env.GITHUB_REPOSITORY) return { code: 0, out: { action: 'IGNORE', reason: 'repo_mismatch' } };
+  let input; try { input = { tasks: JSON.parse(p.inputs?.tasks) }; } catch { return { code: 1, out: { error: 'bad_tasks' } }; }
+  const r = initQueue(input, p.sender && { login: p.sender.login, type: p.sender.type });
+  if (r.error) return { code: 1, out: { error: r.error } };
+  const store = st(); const cur = store.load();
+  if (cur.rev !== null && cur.rev !== 0) return { code: 0, out: { action: 'IGNORE', reason: 'already_initialized' } }; // never overwrite a running queue
+  if (!store.save(cur.rev, r.state)) return { code: 0, out: { action: 'IGNORE', reason: 'store_conflict' } };
+  return { code: 0, out: { action: 'INIT', tasks: r.state.tasks.length } };
+}
+
+// drain: run pending outbox entries through the dispatcher. Exit 0 ok, 3 dispatch failed/uncertain/lookup failed (needs attention).
+function runDrain(env, st, getHead, deps) {
+  if (!env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
+  const dispatch = deps.dispatch || ghDispatcher(env);
+  const r = drain(st(), dispatch, { getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
+  return { code: r.stopped && r.stopped !== 'halted' ? 3 : 0, out: { action: 'DRAIN', dispatched: r.dispatched.length, stopped: r.stopped } };
 }
 
 if (require.main === module) {
   try { const { code, out } = run(process.argv.slice(2), process.env); console.log(JSON.stringify(out)); process.exit(code); }
   catch (e) { console.log(JSON.stringify({ error: 'exception', message: String(e.message).slice(0, 200) })); process.exit(1); }
 }
-module.exports = { run, verifyMetadata, verifyCurrentHead, ghHead };
+module.exports = { run, verifyMetadata, verifyCurrentHead, ghHead, ghFindings, countFindings };

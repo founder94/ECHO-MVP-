@@ -1,29 +1,78 @@
-# PROPOSAL ONLY (not under .github/workflows, not active). Install as .github/workflows/queue-adapter.yml after review + 대표 approval.
-# Permission/cost impact: contents:read only; NO secrets, NO model calls, NO paid API. Queue state must live in a store with real
-# compare-and-swap (e.g. git ref update with expected old value); issue comments are NOT atomic and must not be the lock.
+# PROPOSAL ONLY (not under .github/workflows, not active, no live workflow changed).
+# Install as .github/workflows/queue-adapter.yml only after review + 대표 approval of the items listed at the bottom.
+#
+# What it does (all code is in tools/automation, run from main, never from PR head):
+#   init   (workflow_dispatch mode=init, inputs.tasks = JSON [{id,ref:"pr:N",owner:{login:"founder94",type:"User"}}])
+#            -> CLI `init`: sender must be the real founder94 User; creates the approved READY queue once (never overwrites).
+#   start  (workflow_dispatch mode=start, sender founder94 User) -> START for the first approved READY task (worker identity = github-actions[bot], separate field).
+#   events (pull_request_review submitted, issue_comment created) -> CLI verifies repo + CURRENT PR head (gh api, right before) +
+#            actor + marker/native findings, then CAS-saves state and outbox entries in one commit.
+#   drain  -> CLI `drain` dispatches outbox entries (START/FIX/REVIEW) one at a time, claim-by-CAS, result recorded DONE/FAILED.
+# State lives only on the non-protected branch refs/heads/echo-automation-state (plain fast-forward push, no force; stale writer is rejected).
 name: queue-adapter
 on:
+  workflow_dispatch:
+    inputs:
+      mode: { description: 'init | start', required: true, type: choice, options: [init, start] }
+      tasks: { description: 'init only: JSON array of approved tasks', required: false, type: string }
   pull_request_review: { types: [submitted] }
   issue_comment: { types: [created] }
-  workflow_dispatch:
 permissions:
-  contents: read
+  contents: write        # ONLY to push refs/heads/echo-automation-state (needs approval)
+  pull-requests: write   # `gh pr comment` for dispatch + `gh api pulls/..` reads (needs approval)
+  issues: read
 concurrency:
-  group: queue-adapter   # serializes runs; the store CAS is the actual lock
+  group: queue-adapter   # serializes runs; the store's fast-forward push is the actual lock
   cancel-in-progress: false
 jobs:
   adapter:
     runs-on: ubuntu-latest
+    timeout-minutes: 10      # cost cap: no model call, no paid API, only node + gh
     steps:
       - uses: actions/checkout@v4
-        with: { ref: main }   # run reviewed code from main, never PR head
-      - name: handle verified event
+        with: { ref: main, persist-credentials: true }   # reviewed code from main only
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: handle event
+        id: handle
         env:
           EVENT_NAME: ${{ github.event_name }}
+          MODE: ${{ github.event.inputs.mode }}
           DELIVERY: ${{ github.run_id }}-${{ github.run_attempt }}
-        run: node tools/automation/queue-adapter-cli.cjs "$EVENT_NAME" "$GITHUB_EVENT_PATH" "$DELIVERY"
-# UPDATE (PR #118): queue-adapter-cli.cjs + queue-store-git.cjs now exist. Still BLOCKED, needs 대표 approval before activation:
-#  - permissions contents:write + pull-requests:read (state branch refs/heads/echo-automation-state, plain fast-forward push, no force), env GITHUB_REPOSITORY, GH_TOKEN (existing github.token), QUEUE_STORE_DIR=workspace.
-#  - CLI looks up the PR's current head via `gh api` right before verdict/handoff; lookup failure => exit 1, nothing saved.
-#  - Codex native review without marker is NOT a verdict (ignored); a supported verdict path must be approved separately.
-# Recovery: delete this workflow file and the branch echo-automation-state.
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}              # existing token only; never printed
+          QUEUE_STORE_DIR: ${{ github.workspace }}
+          QUEUE_MAX_ROUNDS: '5'                      # approved cap, controller refuses anything above 5
+          QUEUE_WORKER_TRIGGER: ${{ vars.QUEUE_WORKER_TRIGGER }}   # approved trigger text (repository variable, not a secret); empty => dispatch fails closed
+        run: |
+          set +e
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$MODE" = "init" ]; then
+            node tools/automation/queue-adapter-cli.cjs init "$GITHUB_EVENT_PATH" "$DELIVERY"; code=$?
+          else
+            node tools/automation/queue-adapter-cli.cjs "$EVENT_NAME" "$GITHUB_EVENT_PATH" "$DELIVERY"; code=$?
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          # exit 2 = queue halted (STOP): recorded, not a crash. exit 1 = fail closed: job fails, nothing dispatched.
+          [ "$code" = "0" ] || [ "$code" = "2" ]
+      - name: drain outbox (dispatch START/FIX/REVIEW)
+        if: steps.handle.outputs.code == '0' && github.event.inputs.mode != 'init'
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          QUEUE_STORE_DIR: ${{ github.workspace }}
+          QUEUE_WORKER_TRIGGER: ${{ vars.QUEUE_WORKER_TRIGGER }}
+        run: node tools/automation/queue-adapter-cli.cjs drain   # exit 3 = dispatch failed/uncertain: job fails visibly
+# ---------------------------------------------------------------------------------------------------------------------
+# Needs 대표 approval BEFORE activation (this PR changes none of it):
+#  1. permissions contents:write (state branch only) + pull-requests:write; repository variable QUEUE_WORKER_TRIGGER.
+#  2. UNPROVEN: comments posted with the default GITHUB_TOKEN do NOT trigger other workflows, so START/FIX/@codex review dispatch comments may
+#     not start claude.yml / Codex. Fixing that needs a different token (secret) = separate approval. Not tried, not assumed.
+#  3. Real GitHub behaviour of the state branch push, gh api head/findings lookups and gh pr comment is NOT verified (only mock + local bare git).
+# Boundaries (documented, tested with mocks): at-most-once claim per outbox key via CAS; a crash after claim leaves DISPATCHING and drain
+#  refuses to continue (needs a human); dispatch failure is stored FAILED (max 3 attempts), never DONE. REVIEW is not posted by default
+#  (the worker's handoff already ends with the Codex review request) so there is no second paid review.
+# Native Codex review: author must be chatgpt-codex-connector[bot] (Bot), commit = current head, submitted_at set; findings = inline comments by
+#  that bot on that review+commit. findings>0 => FAIL; none => BLOCKED. PASS only via explicit echo-review marker. Not decided: whether Codex
+#  can emit that marker automatically (needs Codex-side change/approval).
+# Limits unchanged: 5 handoffs, single owner, late-SHA rejection, actor allowlist. Cost: no model/paid API call, 10 min job cap.
+# Recovery: delete this workflow file and the branch echo-automation-state; nothing else is touched.
