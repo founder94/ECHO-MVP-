@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/echo-guard-bash.sh",
+            "timeout": 10,
+            "statusMessage": "ECHO 안전 잠금 확인"
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/echo-prepush.sh",
+            "timeout": 600,
+            "statusMessage": "ECHO push 전 검사"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__github__merge_pull_request|mcp__github__enable_pr_auto_merge|mcp__github__actions_run_trigger|mcp__Supabase__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/echo-guard-mcp.sh",
+            "timeout": 10,
+            "statusMessage": "ECHO 안전 잠금 확인"
+          }
+        ]
+      }
+    ]
+  }
+}
