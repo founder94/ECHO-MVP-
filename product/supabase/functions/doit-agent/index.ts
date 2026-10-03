@@ -151,11 +151,18 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
   return !!data && String(data.role) === "admin";
 }
 
+// 이번 요청의 라우터 사용량(시도 수 · 확인된 토큰 · 미확인 예약)을 대화 예산(stored.run)에 접는다. 모델을 부른 모든 저장 경로(턴 · 실패한 턴 · 소개 · 구조대)가 쓴다.
+const foldUsage = (stored: Stored, router: ModelRouter) => {
+  const u = router.summary();
+  stored.run = R.syncRun(stored.run, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed });
+};
+
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
 async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
+  const pre = fresh ? null : structuredClone(stored); // 실패하면 대화 상태는 이 판 그대로 두고 사용량만 남긴다
   const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
   if (response.error) {
     const ai = ctx.router.summary();
@@ -168,11 +175,19 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
     const { error: failLogError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: sessionId, status: "failed",
       payload_hash: await sha256(`${sessionId}:error:${requestId}`), applied_revision: rev, response_payload: { record: failed } });
     if (failLogError) logDiag({ step: "turn_fail_log", error: true });
+    // 실패한 시도도 대화 예산에 넣는다(실패 되풀이로 대화 상한 우회 0). 대화 상태(턴·칸)·판 번호는 그대로 두고 예산만 저장(같은 판 번호일 때만 · 상태는 이 판 그대로라 덮어쓸 것 없음).
+    // 다른 창이 먼저 저장했으면 이번 사용량은 남기지 못한다(기록만 · 여러 요청 사이 원자 예산 = DB 필요 → 문서 §24).
+    if (pre && ctx.router.summary().calls > 0) {
+      foldUsage(pre, ctx.router);
+      const { data, error } = await ctx.admin.from("doit_request_events").update({ response_payload: pre })
+        .eq("user_id", ctx.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
+      if (error || !data || !data.length) logDiag({ step: "turn_fail_budget", code: "stale" });
+    }
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
   const lastTurn = st.turns.length > before ? st.turns.at(-1) : undefined; // 저장 금지 입력·대화 상한은 턴을 만들지 않는다
   if (response.finish || response.after) { stored.profile = A.matchingProfile(st); stored.handoff = A.matchingHandoff(stored.profile); }
-  { const u = ctx.router.summary(); stored.run = R.syncRun(stored.run, st, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); } // 같은 판 번호 저장에 함께(정정 → 계획·도구 결과 무효화)
+  foldUsage(stored, ctx.router); // 같은 판 번호 저장에 함께(정정 → 계획·도구 결과 무효화)
   // 1) 상태 저장(판 번호 확인) — 이긴 쪽만 아래 기록을 남긴다.
   if (fresh) {
     const { error } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: sessionId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: rev + 1, response_payload: stored });
@@ -320,7 +335,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
     const ctx = { admin, userId, llm: router.llm, router, origin };
     // 모델을 부를 수 있는 동작만 사용자 하루 한도를 본다(세기 실패 = 막지 않음 · 기록만). agent_run · agent_intro_mark 는 모델 호출 0.
-    if (action === "agent_start" || action === "agent_turn" || action === "agent_rescue" || action === "agent_intro") {
+    // 같은 요청 id 가 이미 쓰였으면(prior) 새 모델 호출 없이 저장된 결과를 돌려주거나 409 → 한도 경계에서 재전송이 429 로 바뀌지 않게 한도를 보지 않는다.
+    if (!prior && (action === "agent_start" || action === "agent_turn" || action === "agent_rescue" || action === "agent_intro")) {
       const used = await userDailyTurns(admin, userId);
       if (used == null) logDiag({ step: "daily_count", error: true });
       else if (used >= USER_DAILY_TURNS) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
@@ -375,6 +391,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
+        if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
       if (!limited) {
         const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
@@ -400,6 +417,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
+      if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);

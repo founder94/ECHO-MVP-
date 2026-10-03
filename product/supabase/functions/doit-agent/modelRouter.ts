@@ -221,6 +221,11 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("budget_exceeded");
         }
+        // 금액 상한은 시작 때 한 번만이 아니라 시도(재시도·전환)마다 다시 본다: 확인된 금액 + 이번 호출 추정 > 상한 → 보내지 않고 다음 후보로(더 싼 후보만 남을 수 있음)
+        if (L.max_cost_usd_per_request != null && (spentUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request) {
+          push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "cost_cap", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
+          break;
+        }
         if (d.signal?.aborted) {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "cancelled", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("cancelled");
