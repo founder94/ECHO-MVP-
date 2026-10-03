@@ -7,6 +7,7 @@ const { execFileSync } = require('node:child_process');
 const { handle, REVIEW_MARKER, HANDOFF_MARKER, CODEX } = require('./queue-adapter.cjs');
 const { initQueue, drain, ghWorkflowDispatcher, verifyDispatch } = require('./queue-exec.cjs');
 const { gitStore } = require('./queue-store-git.cjs');
+const { receipt, ghRun, ghComments } = require('./queue-receipt.cjs');
 
 // Default live lookup of the PR's current head via the runner's existing gh auth (GH_TOKEN/GITHUB_TOKEN from env; never printed).
 // Throws a fixed message on any failure so stderr (which could echo request details) never reaches output.
@@ -60,6 +61,7 @@ function run(argv, env, store, getHead = ghHead, deps = {}) {
   if (argv[0] === 'init') return runInit(argv, env, st);
   if (argv[0] === 'drain') return runDrain(env, st, getHead, deps);
   if (argv[0] === 'verify-dispatch') return runVerifyDispatch(env, st, deps);
+  if (argv[0] === 'receipt') return runReceipt(argv, env, st, deps);
   const [name, path, delivery] = argv;
   if (!name || !path || !delivery || !env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
   let payload; try { payload = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return { code: 1, out: { error: 'bad_event_file' } }; }
@@ -119,6 +121,16 @@ function runVerifyDispatch(env, st, deps) {
       { getPr, actor: env.ACTOR, triggeringActor: env.TRIGGERING_ACTOR, claimId: env.CLAIM_ID, repo: env.GITHUB_REPOSITORY, maxRounds: env.QUEUE_MAX_ROUNDS ? Number(env.QUEUE_MAX_ROUNDS) : 5 });
   } catch { return { code: 1, out: { error: 'verify_lookup_failed' } }; }
   return r.ok ? { code: 0, out: r } : { code: 4, out: { ok: false, reason: r.reason } };
+}
+
+// receipt <workflow_run_event_json>: worker run completed -> verified handoff -> REVIEW (see queue-receipt.cjs). Exit 0 ok/ignored, 2 halted, 3 needs attention, 1 lookup/store error.
+function runReceipt(argv, env, st, deps) {
+  if (!argv[1] || !env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
+  let p; try { p = JSON.parse(fs.readFileSync(argv[1], 'utf8')); } catch { return { code: 1, out: { error: 'bad_event_file' } }; }
+  try {
+    return receipt(st(), p, env.GITHUB_REPOSITORY, { getRun: deps.getRun || ghRun, getPr: deps.getPr || (n => ghPrInfo(env.GITHUB_REPOSITORY, n)), listComments: deps.listComments || ghComments,
+      config: { strict: true, ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}) } });
+  } catch { return { code: 1, out: { error: 'receipt_store_failed' } }; }
 }
 
 if (require.main === module) {

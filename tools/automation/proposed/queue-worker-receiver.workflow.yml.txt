@@ -146,9 +146,9 @@ jobs:
 #  (the `if:` accepts github-actions[bot] or founder94; if real runs show another value this gate refuses = fail closed), claude-code-action under workflow_dispatch,
 #  push of the claim to the state branch, the PR branch push by the worker.
 # KNOWN BLOCKERS (not solved, not faked):
-#  - The worker's handoff comment is posted with GITHUB_TOKEN, so it does NOT trigger queue-adapter (issue_comment) nor necessarily Codex.
-#    Without a trusted way to feed the real handoff/Codex review back, the queue stalls in REVIEW. Needs a separate approved design
-#    (e.g. adapter step that re-reads the real comment/review through the API, or an approved non-default token = new Secret).
+#  - The worker's handoff comment is posted with GITHUB_TOKEN, so it does NOT trigger queue-adapter (issue_comment). Addressed in the adapter
+#    proposal: `workflow_run: completed` of THIS workflow runs `receipt` (queue-receipt.cjs), which re-reads run/PR/handoff from the API and only then
+#    enters REVIEW (mock-tested; real GitHub behaviour unproven). Whether Codex reacts to an `@codex review` written with GITHUB_TOKEN is also unproven.
 #  - Automatic trusted PASS: no supported source. Native Codex app "no findings" stays BLOCKED, never PASS; PASS only via explicit echo-review marker.
 #  - Crash after claim but before DONE leaves DISPATCHING (drain stops, human needed). Receiver claim stops duplicate worker runs for one key, not exactly-once.
 # Cost: one claude-code-action run per START/FIX dispatch (45 min cap, 60 turns), at most 5 handoffs per PR. Recovery: delete this file; delete branch echo-automation-state.
