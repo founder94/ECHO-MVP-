@@ -277,9 +277,10 @@ jobs:
         run: |
           set -uo pipefail
           setpol() { umask 077; F=$(mktemp); printf 'AI_POLICY=%s\n' "$1" > "$F"; supabase secrets set --project-ref "$QA_PROJECT_ID" --env-file "$F" > /dev/null; rc=$?; rm -f "$F"; return $rc; }
-          A='{"version":"qa-ai3-anthropic-20261003","providers":{"anthropic":{"model":"claude-haiku-4-5","allow_user_text":true,"enabled":true,"price":{"in_usd_per_1m":1,"out_usd_per_1m":5}}},"tasks":{"default":["anthropic"]},"switch_on_invalid":false,"limits":{"max_cost_usd_per_request":0.25,"same_provider_retries":1}}'
+          # 2026-10-03 대표 승인: Claude 정책의 요청 1번 토큰 한도 60,000(보장 상한 계산과 맞춤 · 30,000 에서 정상 턴 502 4건 확인 뒤)
+          A='{"version":"qa-ai3-anthropic-20261003b","providers":{"anthropic":{"model":"claude-haiku-4-5","allow_user_text":true,"enabled":true,"price":{"in_usd_per_1m":1,"out_usd_per_1m":5}}},"tasks":{"default":["anthropic"]},"switch_on_invalid":false,"limits":{"max_cost_usd_per_request":0.25,"same_provider_retries":1,"max_tokens_per_request":60000}}'
           G='{"version":"qa-ai3-gemini-20261003","providers":{"gemini":{"model":"gemini-3.5-flash-lite","allow_user_text":true,"enabled":true,"price":{"in_usd_per_1m":0.3,"out_usd_per_1m":2.5}}},"tasks":{"default":["gemini"]},"switch_on_invalid":false,"limits":{"max_cost_usd_per_request":0.25,"same_provider_retries":1}}'
-          for p in anthropic gemini; do
+          for p in ${AI3_PROVIDERS:-anthropic}; do # Gemini 는 할당량(결제 미연결) 때문에 기본 제외
             pol=$A; [ "$p" = gemini ] && pol=$G
             setpol "$pol" || { echo "FAIL: $p 정책 등록 실패"; continue; }
             echo "== $p 정책 등록(QA 만) · $(date -u +%H:%M:%SZ)"; sleep 20
