@@ -43,3 +43,29 @@ test('P1 상한 안이면 지금처럼 전환한다(과차단 0)', async () => {
   await router.llm('turn', 'synthetic', {});
   assert.equal(fallback, 1);
 });
+
+// PR #103 Codex Code Review(리뷰 5400022834 · 9a531dd) P1 2건 재현
+test('P1 사용량 모르는 실패도 금액 상한에 예약 금액으로 들어감 → 미확인 실패 뒤 재시도·전환이 상한을 겹쳐 쓰지 않음', async () => {
+  const policy = defaultPolicy('fixture');
+  policy.providers.openai.price = PRICE;
+  policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true, price: PRICE };
+  policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0;
+  policy.limits.max_cost_usd_per_request = 0.03; // 한 번 추정 0.018 · 미확인 실패 1번(예약 0.018) + 다음 0.018 = 0.036 > 0.03
+  let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
+  const p = openAIProvider('synthetic-not-a-key', async () => new Response('{}', { status: 500 })); // 사용량 없는 실패 = 미확인
+  const router = createModelRouter({ policy, providers: { openai: p, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
+  await assert.rejects(router.llm('turn', 'synthetic', {}));
+  assert.equal(fallback, 0, '미확인 실패의 예약 금액까지 치면 상한 초과 → 전환 0');
+  assert.ok(router.log.some((r) => r.provider === 'gemini' && r.error === 'cost_cap'));
+  assert.equal(router.summary().cost_usd, 0, '보고용 금액은 확인된 것만(미확인은 cost_complete=false 로 따로)'); assert.equal(router.summary().cost_complete, false);
+});
+test('P1 토큰 상한은 이번 시도의 예약까지 더해 비교 — 동시 두 호출(각 예약 608)이 상한 1000 을 함께 넘지 못함', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.max_tokens_per_request = 1000; policy.limits.same_provider_retries = 0;
+  let calls = 0; let release; const gate = new Promise((ok) => { release = ok; });
+  const p = { id: 'openai', call: async () => { calls++; await gate; return { ...result, provider: 'openai', input_tokens: 50, output_tokens: 5 }; } };
+  const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 600 } }); // 예약 = 8 + 600 = 608
+  const a = router.llm('turn', 'synthetic', {}); const b = router.llm('turn', 'synthetic', {});
+  await assert.rejects(b, (e) => e.code === 'budget_exceeded');
+  release(); await a;
+  assert.equal(calls, 1, '608 + 608 = 1216 > 1000 → 두 번째는 보내지 않음');
+});

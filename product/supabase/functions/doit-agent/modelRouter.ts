@@ -156,10 +156,12 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   //   started = 시작한 시도 수(진행 중 포함) · held = 진행 중이거나 사용량을 모르는 시도의 예약 토큰(추정) · 확인된 사용량은 기록(log)에서.
   // 보호 범위: 이 라우터 하나(= Edge 실행 하나의 요청 하나). 여러 요청·여러 서버 실행 사이는 여기서 막지 않는다(대화·사용자 한도 = index.ts · DB 원자 예약 없음 → 문서 §24).
   let started_attempts = 0;
-  const held = new Map<number, number>();
+  // 예약 = 토큰 수 + 그 토큰의 추정 금액(단가 있는 제공사만 · 없으면 0). 진행 중이거나 사용량을 모르는 시도는 예약을 유지 → 토큰·금액 상한 모두에 보수적으로 들어간다.
+  const held = new Map<number, { tokens: number; usd: number }>();
   let holdSeq = 0;
   const confirmedTokens = () => log.reduce((n, r) => n + (r.usage === "confirmed" ? (r.input_tokens ?? 0) + (r.output_tokens ?? 0) : 0), 0);
-  const heldTokens = () => [...held.values()].reduce((n, x) => n + x, 0);
+  const heldTokens = () => [...held.values()].reduce((n, x) => n + x.tokens, 0);
+  const heldUsd = () => [...held.values()].reduce((n, x) => n + x.usd, 0);
   const spent = () => confirmedTokens() + heldTokens();
   // 금액: 단가가 적힌 제공사만 계산(모르면 null). 입력 토큰 추정 = 보내는 글자 수 ÷ 1.5(한국어·JSON 기준 보수적) + 출력 상한.
   const costOf = (id: ProviderId, tin: number, tout: number) => { const pr = policy.providers[id]?.price; return pr ? (tin * pr.in_usd_per_1m + tout * pr.out_usd_per_1m) / 1e6 : null; };
@@ -169,6 +171,8 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
     if (!policy.providers[r.provider]?.price) return null;
     return r.usage === "confirmed" ? n + costOf(r.provider, r.input_tokens ?? 0, r.output_tokens ?? 0)! : n;
   }, 0);
+  // 금액 상한 판단에 쓰는 값: 확인된 금액 + 진행 중·미확인 시도의 예약 금액(미확인 실패를 0원으로 치지 않음). 보고용 cost_usd(확인된 것만)와 따로.
+  const committedUsd = () => { const c = spentUsd(); return c == null ? null : c + heldUsd(); };
   /** 작업 종류 → 데이터 전달 허용 → 켜짐 → 품질 조건 → 사용 가능(키) → 금액 한도 → 정책 순서. 연속 오류(건강)는 호출 때 본다. */
   const explain = (kind: TaskKind = "turn", estChars = 0) => {
     const order = policy.tasks[kind] ?? policy.tasks.default ?? [];
@@ -181,7 +185,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         : !d.providers[id] ? "no_key"
         : L.max_cost_usd_per_request == null ? null
         : !p.price ? "price_unknown"
-        : (spentUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request ? "cost_cap" : null;
+        : (committedUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request ? "cost_cap" : null;
       if (why) skipped.push({ provider: id, why }); else out.push(id);
     }
     return { order: out, skipped };
@@ -217,12 +221,14 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       if (skipOpen && isOpen(id)) { push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason: "circuit_open", attempt: 0, ok: false, error: "skipped_unhealthy", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); continue; }
       const reason = idx++ === 0 ? reasonBase : `fallback_from:${lastErr?.provider}:${lastErr?.code}`;
       for (let attempt = 1; attempt <= 1 + L.same_provider_retries; attempt++) {
-        if (started_attempts >= L.max_calls_per_request || spent() >= L.max_tokens_per_request) {
+        // 토큰 상한: 이미 쓴(확인 + 예약) 양에 「이번 시도의 예약」까지 더해 본다 → 재시도·전환·동시 호출이 합쳐 상한을 넘지 않게
+        const reserve = Math.ceil(estChars / 1.5) + d.params.max_tokens;
+        if (started_attempts >= L.max_calls_per_request || spent() + reserve > L.max_tokens_per_request) {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("budget_exceeded");
         }
         // 금액 상한은 시작 때 한 번만이 아니라 시도(재시도·전환)마다 다시 본다: 확인된 금액 + 이번 호출 추정 > 상한 → 보내지 않고 다음 후보로(더 싼 후보만 남을 수 있음)
-        if (L.max_cost_usd_per_request != null && (spentUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request) {
+        if (L.max_cost_usd_per_request != null && (committedUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request) {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "cost_cap", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           break;
         }
@@ -237,7 +243,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         const p = policy.providers[id]!;
         // 보내기 전에 같은 동기 구간에서 시도 1과 추정 토큰(입력 글자 ÷ 1.5 + 출력 상한)을 예약 → 동시 호출도 같은 예산을 두 번 쓰지 못함
         started_attempts++;
-        const hk = ++holdSeq; held.set(hk, Math.ceil(estChars / 1.5) + d.params.max_tokens);
+        const hk = ++holdSeq; held.set(hk, { tokens: reserve, usd: costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? 0 });
         const settle = (usage: ProviderUsage | null, sent: boolean) => { if (usage || !sent) held.delete(hk); return usage ? "confirmed" as const : sent ? "unknown" as const : "none" as const; };
         try {
           const r = await d.providers[id]!.call({ model: p.model, system, input: sendInput, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))), signal: d.signal });
@@ -247,13 +253,13 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           const usageOk = r.input_tokens != null || r.output_tokens != null;
           const u1 = settle(usageOk ? r : null, true);
           if (r.truncated && hasNext) {
-            push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: false, error: "truncated", status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk) ?? 0 });
+            push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: false, error: "truncated", status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk)?.tokens ?? 0 });
             lastErr = new ProviderError(id, "truncated", r.latency_ms);
             break;
           }
           h.consecutive_errors = 0;
           // 마지막 후보의 잘린 답: 글은 넘기지 않는다(빈 글) — JSON 모양이 우연히 맞아도 잘린 내용을 Agent 가 채택·저장하지 않게. Agent 의 기존 형식 재요청이 다시 청한다(사용량은 위에서 이미 집계).
-          push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: true, error: r.truncated ? "truncated_discarded" : null, status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk) ?? 0 });
+          push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: true, error: r.truncated ? "truncated_discarded" : null, status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           const out: LlmResult = { text: r.truncated ? "" : r.text, model: r.model_served ?? r.model_requested, input_tokens: r.input_tokens, output_tokens: r.output_tokens };
           return out;
         } catch (e) {
@@ -261,7 +267,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           // 실패여도 업체가 사용량을 알려 줬으면 확인된 사용량으로 센다(전환 전에 예산에 반영). 키 없음 = 보내지 않음. 그 밖에 사용량 없는 실패 = 미확인(예약 유지 · 0원으로 치지 않음).
           const u2 = settle(pe.usage, pe.code !== "no_key");
           push({ kind, provider: id, model_requested: p.model, model_served: pe.usage?.model_served ?? null, reason, attempt, ok: false, error: pe.code, status: pe.detail.status, latency_ms: pe.latency_ms,
-            input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk) ?? 0 });
+            input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;
           lastUsed.set(kind, id);
           if (NO_SWITCH.includes(pe.code)) throw pe; // 안전상 거절 → 다른 모델로 우회하지 않음

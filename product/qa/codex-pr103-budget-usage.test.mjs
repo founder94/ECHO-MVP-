@@ -57,7 +57,7 @@ test('[보강] 동시 호출 토큰 예약: 첫 호출이 진행 중이면 그 �
   const policy = dp('fixture'); policy.limits.max_tokens_per_request = 1000; policy.limits.same_provider_retries = 0;
   let calls = 0; let release; const gate = new Promise((ok) => { release = ok; });
   const p = { id: 'openai', call: async () => { calls++; await gate; return { ...result, input_tokens: 50, output_tokens: 5 }; } };
-  const router = mk({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 995 } }); // 예약 = 입력 추정(11자 ÷ 1.5 → 8) + 995 = 1003 ≥ 1000
+  const router = mk({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 500 } }); // 예약 = 입력 추정(11자 ÷ 1.5 → 8) + 500 = 508 · 하나는 들어가고(508 ≤ 1000) 둘이면 1016 > 1000(2026-10-03 Codex P1: 이번 시도 예약까지 더해 비교)
   const a = router.llm('turn', 'synthetic', {}); const b = router.llm('turn', 'synthetic', {});
   await assert.rejects(b, (e) => e.code === 'budget_exceeded');
   release(); await a;

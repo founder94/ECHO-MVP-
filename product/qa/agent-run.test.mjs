@@ -120,3 +120,14 @@ test('Codex P1 아직 없음·준비 부족은 확정 정보가 그대로여도 
   run = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'found', count: 2, missing: [], code: null, at: NOW, ms: 5 }, NOW);
   assert.equal(R.dueTool(R.syncRun(run, st, at(86_400_000)), Date.parse(at(86_400_000))).tool, null, '찾음은 다시 조회 0(사용자가 고를 차례)');
 });
+test('Codex P2 도구 실행 상한에 닿으면 저장·응답 상태도 「예산으로 보류」(다시 조회·재시도를 보여 주지 않음)', () => {
+  const st = readyState();
+  const at = (ms) => new Date(Date.parse(NOW) + ms).toISOString();
+  let run = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'none', count: 0, missing: [], code: null, at: NOW, ms: 5 }, NOW);
+  run.budget.tool_runs = R.RUN_LIMITS.max_tool_runs;
+  const later = R.syncRun(run, st, at(R.RUN_LIMITS.none_refresh_after_ms));
+  assert.deepEqual([later.outcome, later.waiting, R.runView(later).next], ['on_hold', 'budget', 'wait']);
+  let f = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'failed', count: null, missing: [], code: 'timeout', at: NOW, ms: 5 }, NOW);
+  f.budget.tool_runs = R.RUN_LIMITS.max_tool_runs; f = R.syncRun(f, st, at(60_000));
+  assert.deepEqual([f.outcome, f.waiting, R.runView(f).next], ['on_hold', 'budget', 'wait'], '조회 실패 뒤에도 「다시 시도」 대신 예산 보류');
+});

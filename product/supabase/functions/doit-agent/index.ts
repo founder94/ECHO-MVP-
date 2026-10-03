@@ -151,6 +151,14 @@ async function isAdmin(admin: Db, userId: string): Promise<boolean> {
   return !!data && String(data.role) === "admin";
 }
 
+// 이 도우미가 모델을 부르게 되나: 상태 사본에 「첫 호출에서 바로 멈추는」 가짜 llm 을 넣어 돌려 본다(네트워크·저장 0). 하루 한도를 「모델을 실제로 부를 때」에만 걸기 위함.
+const PROBE = new Error("probe");
+async function callsModel(stored: Stored, run: (st: A.AgentState, llm: A.Llm) => Promise<unknown>): Promise<boolean> {
+  let called = false;
+  await run(structuredClone(stored.state), async () => { called = true; throw PROBE; }).catch(() => undefined);
+  return called;
+}
+
 // 이번 요청의 라우터 사용량(시도 수 · 확인된 토큰 · 미확인 예약)을 대화 예산(stored.run)에 접는다. 모델을 부른 모든 저장 경로(턴 · 실패한 턴 · 소개 · 구조대)가 쓴다.
 const foldUsage = (stored: Stored, router: ModelRouter) => {
   const u = router.summary();
@@ -364,7 +372,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       const obs: A.Obs = { calls: [], retry: [] };
       const opened = await A.runOpening(stored.state, ctx.llm, obs).catch(() => null);
-      if (!opened) { logDiag({ step: "opening", code: "failed", calls: obs.calls.length, ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version }); return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin); }
+      if (!opened) {
+        logDiag({ step: "opening", code: "failed", calls: obs.calls.length, ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version });
+        // 세션이 아직 없어 대화 예산에는 못 넣는다 → 실패 턴 기록(status failed)으로 남겨 하루 한도에 센다(새 요청 id 로 되풀이해 한도 우회 0 · 원문 0).
+        if (router.summary().calls > 0) {
+          const failed = { turn_index: null, session_id: null, agent: A.AGENT_VERSION, kind: "error", error: "OPENING", saved: false, decision: "error", ...aiTrace(router), ...A.versionTrace(), calls: obs.calls, retry: obs.retry };
+          const { error: failLogError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: null, status: "failed", // 새 id — 같은 요청을 다시 보내도 409 가 아니게
+            payload_hash: await sha256(`opening:error:${requestId}`), applied_revision: 0, response_payload: { record: failed } });
+          if (failLogError) logDiag({ step: "opening_fail_log", error: true });
+        }
+        return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin);
+      }
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
       if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
@@ -391,7 +409,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       } else {
         if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-        { const capped = await dailyCapped(); if (capped) return capped; }
+        if (await callsModel(stored, (st, llm) => A.draftIntro(st, llm))) { const capped = await dailyCapped(); if (capped) return capped; } // 상한 도달·들은 말 없음 = 모델 0 → 한도와 무관
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
         if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
@@ -417,7 +435,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
       if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-      { const capped = await dailyCapped(); if (capped) return capped; }
+      if (await callsModel(stored, (st, llm) => A.requestRescue(st, llm))) { const capped = await dailyCapped(); if (capped) return capped; } // 들고 있던 보기·대체 보기 = 모델 0 → 한도와 무관
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)

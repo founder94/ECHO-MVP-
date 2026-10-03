@@ -115,6 +115,8 @@ function decide(run: Run, st: AgentState, missingAreas: string[]) {
   const c = step("tool:candidates");
   if (c.status === "todo" || c.status === "invalid") {
     const last = lastTool(run, "candidates");
+    // 도구 실행 상한(대화당)에 닿으면 다시 조회·재시도를 보여 주지 않는다 → 저장·응답 모두 「예산으로 보류」
+    if (run.budget.tool_runs >= RUN_LIMITS.max_tool_runs) { run.outcome = "on_hold"; run.waiting = "budget"; return; }
     if (last?.outcome === "failed" && c.status === "todo") { run.outcome = "on_hold"; run.waiting = "lookup_failed"; return; }
     run.outcome = "in_progress"; run.waiting = null; return;
   }
