@@ -350,3 +350,12 @@ test('Codex P1(리뷰 4174593786) 카드가 여러 개 이어진 긴 덩어리: 
   assert.equal(mixed.counts.card, 2); assert.ok(!mixed.value.latest.includes('4000 0000'), mixed.value.latest);
   const t0 = Date.now(); maskPii({ big: Array(20000).fill('1234').join(' ') }); assert.ok(Date.now() - t0 < 3000, '아주 긴 숫자 덩어리도 빠름');
 });
+
+test('Codex P1(리뷰 4174667694) 줄바꿈으로 나뉜 카드(\\n · \\r\\n · 줄바꿈+공백)도 가림 · 여러 줄 일반 숫자는 그대로', () => {
+  for (const sep of ['\n', '\r\n', ' \n ', '\n\n']) {
+    const t = ['4111', '1111', '1111', '1111'].join(sep);
+    const r = maskPii({ latest: `카드\n${t}\n입니다` });
+    assert.ok(!/\d{4}/.test(r.value.latest), JSON.stringify(r.value.latest)); assert.equal(r.counts.card, 1, JSON.stringify(sep));
+  }
+  const keep = '주문\n2023\n10\n04'; assert.equal(maskPii({ latest: keep }).value.latest, keep);
+});
