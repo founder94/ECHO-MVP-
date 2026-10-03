@@ -168,9 +168,11 @@ function AgentRunButton({ userId, onOpenCandidates }: { userId: string; onOpenCa
     onError: (e) => setError(e instanceof UnderstandingError && e.message ? e.message : '불러오지 못했어요. 다시 확인해 볼게요.'),
     onBusy: setBusy,
   }), [userId, onOpenCandidates]);
-  const status = last ? RUN_STATUS[last.next] : null;
+  // 이 대화에서 쓸 수 있는 실행 예산을 다 씀(서버 on_hold · waiting=budget) = 끝난 상태 → 버튼을 닫고 「기다리면 준비」처럼 보이지 않게
+  const spent = last?.waiting === 'budget';
+  const status = spent ? '이 대화에서 확인할 수 있는 횟수를 다 썼어요. 지금은 더 확인하지 않아요.' : last ? RUN_STATUS[last.next] : null;
   return <div className="doit-asleep-card">
-    <button type="button" className="doit-product-action" disabled={busy} aria-busy={busy} onClick={() => void trigger()}>후보 확인하기<span aria-hidden="true">↗</span></button>
+    <button type="button" className="doit-product-action" disabled={busy || spent} aria-busy={busy} onClick={() => void trigger()}>후보 확인하기<span aria-hidden="true">↗</span></button>
     {status && <p className="doit-asleep-status" role="status">{status}</p>}
     {error && <p className="doit-product-error" role="alert">{error}</p>}
   </div>;

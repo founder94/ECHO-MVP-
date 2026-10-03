@@ -189,3 +189,13 @@ test('P1 붙여 쓴 카드 번호(16자리)도 가림 · 띄어 쓴 형태도 �
   const c = maskPii({ latest: '주말에 2번, 3시간 정도 만나요' });
   assert.deepEqual(c.counts, {}, '일반 숫자는 가리지 않음(과차단 0)');
 });
+
+// PR #103 Codex Code Review(리뷰 5400659793 · f5d1206) P1 재현 — 사용량 모르는 시도는 다음 요청에도 보장 상한으로 넘김
+test('P1 사용량을 모르는 시도의 예약(tokens_reserved_unconfirmed)은 어림이 아니라 보장 상한(입력 바이트 + 출력 상한)', async () => {
+  const p = openAIProvider('synthetic-not-a-key', jsonRes({ model: 'm', choices: [{ message: { content: '{}' } }], usage: { prompt_tokens: 100 } })); // 입력만 = 미확인
+  const router = createModelRouter({ policy: defaultPolicy('fixture'), providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  const input = { latest: '가'.repeat(1200) };
+  await router.llm('turn', 's', input);
+  const bytes = new TextEncoder().encode(JSON.stringify(input) + 's').length;
+  assert.ok(router.summary().tokens_reserved_unconfirmed >= bytes + 10, `넘기는 예약 ${router.summary().tokens_reserved_unconfirmed} ≥ 보장 상한 ${bytes + 10}(어림 ≈ ${Math.ceil(JSON.stringify(input).length / 1.5) + 10})`);
+});

@@ -137,7 +137,7 @@ export interface RouterDeps {
   signal?: AbortSignal; // 사용자 요청이 끊기면(창 닫힘 등) 진행 중 호출을 끊고 더 부르지 않는다
 }
 export type SkipWhy = "not_in_policy" | "data_not_allowed" | "disabled" | "not_verified_for_task" | "no_key" | "price_unknown" | "cost_cap";
-// 예산 표시 세 가지를 섞지 않는다: tokens_in/out = 업체가 알려 준 확인된 사용량 · tokens_reserved_unconfirmed = 보냈지만 사용량을 모르는 시도의 예약량(추정 · 청구액 아님) · cost_usd = 확인된 사용량 × 정책 단가(단가 모르면 null) · cost_complete = 미확인 시도가 없을 때만 true
+// 예산 표시 세 가지를 섞지 않는다: tokens_in/out = 업체가 알려 준 확인된 사용량 · tokens_reserved_unconfirmed = 보냈지만 사용량을 모르는 시도의 보장 상한(입력 바이트 + 출력 상한 · 다음 요청의 대화 예산에 그대로 넘김 · 청구액 아님) · cost_usd = 확인된 사용량 × 정책 단가(단가 모르면 null) · cost_complete = 미확인 시도가 없을 때만 true
 export interface RouterSummary { provider: ProviderId | null; providers: ProviderId[]; model: string | null; fallback: number; calls: number; errors: number; tokens_in: number; tokens_out: number; tokens_reserved_unconfirmed: number; unconfirmed_attempts: number; cost_usd: number | null; cost_complete: boolean }
 export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; limitTo(rem: { calls: number; tokens: number }): void; usable(kind?: TaskKind): ProviderId[]; explain(kind?: TaskKind): { order: ProviderId[]; skipped: { provider: ProviderId; why: SkipWhy }[] }; summary(): RouterSummary }
 
@@ -315,7 +315,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       fallback: log.filter((r) => r.reason.startsWith("fallback_from") || r.reason.startsWith("switch_on_invalid")).length,
       calls: started_attempts, errors: log.filter((r) => !r.ok).length,
       tokens_in: log.reduce((n, r) => n + (r.usage === "confirmed" ? r.input_tokens ?? 0 : 0), 0), tokens_out: log.reduce((n, r) => n + (r.usage === "confirmed" ? r.output_tokens ?? 0 : 0), 0),
-      tokens_reserved_unconfirmed: heldTokens(), unconfirmed_attempts: log.filter((r) => r.usage === "unknown").length,
+      tokens_reserved_unconfirmed: heldMax(), unconfirmed_attempts: log.filter((r) => r.usage === "unknown").length,
       cost_usd: spentUsd(), cost_complete: !log.some((r) => r.usage === "unknown") && spentUsd() != null,
     };
   };
