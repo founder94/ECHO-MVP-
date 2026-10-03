@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 10      # cost cap: no model call, no paid API, only node + gh
     steps:
       - uses: actions/checkout@v4
-        with: { ref: main, persist-credentials: true }   # reviewed code from main only
+        with: { ref: 27d7e156828b3259c691824061f159be265a12be, persist-credentials: true }   # PIN: automation modules = reviewed SHA (not main); changing it requires re-review
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: handle event
@@ -111,4 +111,12 @@ jobs:
 #  that bot on that review+commit. findings>0 => FAIL; none => BLOCKED. PASS only via explicit echo-review marker. Not decided: whether Codex
 #  can emit that marker automatically (needs Codex-side change/approval).
 # Limits unchanged: 5 handoffs, single owner, late-SHA rejection, actor allowlist. Cost: no model/paid API call, 10 min job cap.
-# Recovery: delete this workflow file and the branch echo-automation-state; nothing else is touched.
+# Source pin: the checkout above runs tools/automation from commit 27d7e156828b3259c691824061f159be265a12be (the reviewed SHA), not from main.
+#  Any change of the pin (or of the modules) requires a new review. The commit must stay fetchable in the repo (do not let it be garbage-collected;
+#  if the PR is squash-merged, re-pin to the merge commit AFTER re-review, because the pinned SHA is then only reachable via the PR ref).
+# Recovery (state is PRESERVED, nothing is deleted): 1) disable the workflow (Actions UI "Disable workflow" or revert the added file);
+#  2) revert the legacy routing patch (git apply -R proposed/claude-legacy-queue-routing.patch.txt) so claude.yml behaves as before;
+#  3) leave the branch echo-automation-state untouched as the audit record. Deleting that branch is NOT part of recovery (no deletion approval).
+#  Applying/re-enabling later resumes from the preserved state.
+# Who can apply: only a person/identity with write access to .github/workflows (repo admin/owner founder94, or a PAT/App with `workflows` scope).
+#  Claude (GitHub App token) is refused by GitHub for workflow files, so Claude cannot apply it; this is a permission block, not a completed activation.

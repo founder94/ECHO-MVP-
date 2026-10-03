@@ -5,10 +5,10 @@ diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
        id-token: write
        actions: read
      steps:
-+      - name: Checkout main for queue ownership routing
++      - name: Checkout pinned automation modules for queue ownership routing
 +        uses: actions/checkout@v6
 +        with:
-+          ref: main
++          ref: 27d7e156828b3259c691824061f159be265a12be
 +          fetch-depth: 1
 +      - name: Queue ownership routing (queue-managed PRs are handled only by queue-worker-receiver)
 +        id: route
