@@ -20,10 +20,12 @@ export interface ProviderResult {
   truncated: boolean; // 길이 상한에서 잘림 — 글은 그대로 돌려주고, 쓸지·다른 곳으로 돌릴지는 라우터·Agent(형식 검사)가 정한다
 }
 export interface ProviderErrorDetail { status: number | null; provider_code: string | null; provider_type: string | null; retry_after_ms: number | null }
+// 응답 본문을 받은 실패(거절·빈 답)에 업체가 적어 보낸 사용량 — 실패여도 쓴 만큼은 쓴 것(2026-10-03 Codex 재현). 응답이 없으면 null(= 미확인).
+export interface ProviderUsage { input_tokens: number | null; cached_tokens: number | null; output_tokens: number | null; model_served: string | null }
 export class ProviderError extends Error {
-  code: ProviderErrorCode; provider: ProviderId; latency_ms: number; detail: ProviderErrorDetail;
-  constructor(provider: ProviderId, code: ProviderErrorCode, latency_ms: number, detail: Partial<ProviderErrorDetail> = {}) {
-    super(`${provider}:${code}`); this.provider = provider; this.code = code; this.latency_ms = latency_ms;
+  code: ProviderErrorCode; provider: ProviderId; latency_ms: number; detail: ProviderErrorDetail; usage: ProviderUsage | null;
+  constructor(provider: ProviderId, code: ProviderErrorCode, latency_ms: number, detail: Partial<ProviderErrorDetail> = {}, usage: ProviderUsage | null = null) {
+    super(`${provider}:${code}`); this.provider = provider; this.code = code; this.latency_ms = latency_ms; this.usage = usage;
     this.detail = { status: detail.status ?? null, provider_code: detail.provider_code ?? null, provider_type: detail.provider_type ?? null, retry_after_ms: detail.retry_after_ms ?? null };
   }
 }
@@ -76,12 +78,13 @@ export function openAIProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
       model: req.model, temperature: req.temperature, top_p: req.topP, max_tokens: req.maxTokens, response_format: { type: "json_object" },
       messages: [{ role: "system", content: req.system }, { role: "user", content: JSON.stringify(req.input) }] }, req, t0);
     const choice = (d.choices as { message?: { content?: string; refusal?: string | null }; finish_reason?: string }[] | undefined)?.[0];
-    if (choice?.message?.refusal) throw new ProviderError("openai", "refused", Date.now() - t0);
-    const text = String(choice?.message?.content ?? "").trim();
-    if (!text) throw new ProviderError("openai", "empty", Date.now() - t0);
     const u = (d.usage ?? {}) as Record<string, unknown>;
-    return { text, provider: "openai", model_requested: req.model, model_served: typeof d.model === "string" ? d.model : null,
-      input_tokens: num(u.prompt_tokens), output_tokens: num(u.completion_tokens), cached_tokens: num((u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens), latency_ms: Date.now() - t0, truncated: choice?.finish_reason === "length" };
+    const usage: ProviderUsage = { input_tokens: num(u.prompt_tokens), output_tokens: num(u.completion_tokens), cached_tokens: num((u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens), model_served: typeof d.model === "string" ? d.model : null };
+    if (choice?.message?.refusal) throw new ProviderError("openai", "refused", Date.now() - t0, {}, usage);
+    const text = String(choice?.message?.content ?? "").trim();
+    if (!text) throw new ProviderError("openai", "empty", Date.now() - t0, {}, usage);
+    return { text, provider: "openai", model_requested: req.model, model_served: usage.model_served,
+      input_tokens: usage.input_tokens, output_tokens: usage.output_tokens, cached_tokens: usage.cached_tokens, latency_ms: Date.now() - t0, truncated: choice?.finish_reason === "length" };
   } };
 }
 
@@ -94,15 +97,16 @@ export function anthropicProvider(apiKey: string, opt: AnthropicOptions = {}, f:
     const body: Record<string, unknown> = { model: req.model, max_tokens: req.maxTokens, system: req.system, messages: [{ role: "user", content: JSON.stringify(req.input) }] };
     if ((opt.sampling ?? "temperature") === "temperature") body.temperature = req.temperature;
     const d = await post("anthropic", f, "https://api.anthropic.com/v1/messages", { "x-api-key": apiKey, "anthropic-version": "2023-06-01" }, body, req, t0);
-    if (d.stop_reason === "refusal") throw new ProviderError("anthropic", "refused", Date.now() - t0);
+    const u = (d.usage ?? {}) as Record<string, unknown>;
+    // input_tokens 는 캐시 몫을 뺀 값 → 다른 업체와 같게(입력 전체 · 그중 캐시) 맞춘다.
+    const usage: ProviderUsage = { input_tokens: num(u.input_tokens) == null ? null : num(u.input_tokens)! + (num(u.cache_read_input_tokens) ?? 0) + (num(u.cache_creation_input_tokens) ?? 0),
+      cached_tokens: num(u.cache_read_input_tokens), output_tokens: num(u.output_tokens), model_served: typeof d.model === "string" ? d.model : null };
+    if (d.stop_reason === "refusal") throw new ProviderError("anthropic", "refused", Date.now() - t0, {}, usage);
     const blocks = Array.isArray(d.content) ? d.content as { type?: string; text?: string }[] : [];
     const text = unfence(blocks.filter((b) => b.type === "text").map((b) => String(b.text ?? "")).join(""));
-    if (!text) throw new ProviderError("anthropic", "empty", Date.now() - t0);
-    const u = (d.usage ?? {}) as Record<string, unknown>;
-    return { text, provider: "anthropic", model_requested: req.model, model_served: typeof d.model === "string" ? d.model : null,
-      // input_tokens 는 캐시 몫을 뺀 값 → 다른 업체와 같게(입력 전체 · 그중 캐시) 맞춘다.
-      input_tokens: num(u.input_tokens) == null ? null : num(u.input_tokens)! + (num(u.cache_read_input_tokens) ?? 0) + (num(u.cache_creation_input_tokens) ?? 0),
-      cached_tokens: num(u.cache_read_input_tokens), output_tokens: num(u.output_tokens), latency_ms: Date.now() - t0, truncated: d.stop_reason === "max_tokens" };
+    if (!text) throw new ProviderError("anthropic", "empty", Date.now() - t0, {}, usage);
+    return { text, provider: "anthropic", model_requested: req.model, model_served: usage.model_served,
+      input_tokens: usage.input_tokens, cached_tokens: usage.cached_tokens, output_tokens: usage.output_tokens, latency_ms: Date.now() - t0, truncated: d.stop_reason === "max_tokens" };
   } };
 }
 
@@ -115,11 +119,12 @@ export function geminiProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
       systemInstruction: { parts: [{ text: req.system }] }, contents: [{ role: "user", parts: [{ text: JSON.stringify(req.input) }] }],
       generationConfig: { temperature: req.temperature, ...(req.topP != null ? { topP: req.topP } : {}), maxOutputTokens: req.maxTokens, responseMimeType: "application/json" } }, req, t0);
     const cand = (Array.isArray(d.candidates) ? d.candidates[0] : null) as { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string } | null;
-    if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || cand?.finishReason === "SAFETY" || cand?.finishReason === "PROHIBITED_CONTENT") throw new ProviderError("gemini", "refused", Date.now() - t0);
-    const text = unfence((cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => String(p.text ?? "")).join(""));
-    if (!text) throw new ProviderError("gemini", "empty", Date.now() - t0);
     const u = (d.usageMetadata ?? {}) as Record<string, unknown>;
-    return { text, provider: "gemini", model_requested: req.model, model_served: typeof d.modelVersion === "string" ? d.modelVersion : null,
-      input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: num(u.candidatesTokenCount), latency_ms: Date.now() - t0, truncated: cand?.finishReason === "MAX_TOKENS" };
+    const usage: ProviderUsage = { input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: num(u.candidatesTokenCount), model_served: typeof d.modelVersion === "string" ? d.modelVersion : null };
+    if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || cand?.finishReason === "SAFETY" || cand?.finishReason === "PROHIBITED_CONTENT") throw new ProviderError("gemini", "refused", Date.now() - t0, {}, usage);
+    const text = unfence((cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => String(p.text ?? "")).join(""));
+    if (!text) throw new ProviderError("gemini", "empty", Date.now() - t0, {}, usage);
+    return { text, provider: "gemini", model_requested: req.model, model_served: usage.model_served,
+      input_tokens: usage.input_tokens, cached_tokens: usage.cached_tokens, output_tokens: usage.output_tokens, latency_ms: Date.now() - t0, truncated: cand?.finishReason === "MAX_TOKENS" };
   } };
 }

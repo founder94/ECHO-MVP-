@@ -96,6 +96,7 @@ function load(state) {
       const plan = state.fail?.[prov]?.length ? state.fail[prov].shift() : null; // 제공사별 가짜 사고: 'HTTP500' · 'REFUSE' · { delay } · { gate: Promise }
       if (plan === 'HTTP500') return new Response('{}', { status: 500 });
       if (plan === 'HTTP429') return new Response('{}', { status: 429 });
+      if (plan === 'EMPTY_USAGE') return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 2000, completion_tokens: 10 }, choices: [{ message: { content: '' }, finish_reason: 'stop' }] }), { status: 200 });
       if (plan === 'REFUSE') return new Response(JSON.stringify(prov === 'anthropic' ? { model: 'm', stop_reason: 'refusal', content: [] } : prov === 'gemini' ? { promptFeedback: { blockReason: 'SAFETY' } } : { model: 'm', choices: [{ message: { content: null, refusal: 'no' }, finish_reason: 'stop' }] }), { status: 200 });
       if (plan?.gate) await plan.gate;
       const wrap = (text, usage) => new Response(JSON.stringify(prov === 'anthropic' ? { model: `${body.model}-served`, stop_reason: 'end_turn', content: [{ type: 'text', text }], usage: { input_tokens: usage[0], output_tokens: usage[1] } }
@@ -1222,4 +1223,51 @@ test('사용자 하루 한도: 24시간 턴 기록 200개면 모델 호출 0 · 
   const b = await say3(h, sid, '잘 웃는 사람');
   assert.equal(b.status, 429); assert.equal(b.body.code, 'AI_DAILY_LIMIT'); assert.equal(s.aiCalls.length, before);
   assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).status, 200);
+});
+
+test('PR103 Codex 결함 2건 — 실제 index.ts 경로: 실패 응답(빈 답)의 사용량이 턴 기록에 확인된 사용량으로 · 같은 곳 재시도 포함 한 번씩만 · 상태 그대로', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const before = structuredClone(sessionRow(s));
+  s.fail = { openai: ['EMPTY_USAGE', 'EMPTY_USAGE', 'EMPTY_USAGE'] }; // 빈 답은 같은 곳 재시도 대상 아님 → 후보 하나(기본 정책) → 실패
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 502);
+  assert.deepEqual(sessionRow(s), before, '상태 그대로');
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls[0].usage, 'confirmed'); assert.equal(failed.ai_calls[0].error, 'empty');
+  assert.equal(failed.ai_usage.tokens_in, 2000 * failed.ai_usage.attempts, '실패 시도마다 업체가 알려 준 사용량이 한 번씩');
+  assert.equal(failed.ai_usage.unconfirmed_attempts, 0);
+});
+
+test('PR103 Codex 결함 — 실제 index.ts 경로: 사용량 모르는 실패(500)는 미확인으로 남고 0원으로 기록되지 않음', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
+  assert.equal((await say3(h, sid, '잘 웃는 사람')).status, 502);
+  const u = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record.ai_usage;
+  assert.deepEqual([u.attempts, u.unconfirmed_attempts, u.tokens_in, u.cost_usd, u.cost_complete], [2, 2, 0, null, false]);
+  assert.ok(u.tokens_reserved_unconfirmed > 0, '예약(추정)은 따로 · 청구액 아님');
+});
+
+test('RUN 실행 단계: 모델 호출 0 표시 · 기록한 결과 = 실제 도구 응답 · 멈춤→재개는 도구 한 번만(다시 재개해도 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  for (const [p, np, q, a] of [['attraction_comfort', 'values_character', '사람 볼 때 뭘 먼저 봐요?', '잘 웃는 사람'], ['values_character', 'relationship_style', '천천히 알아가는 게 편해요?', '솔직한 사람']]) {
+    s.ai.push(T({ extracted: [X(p, a, a)], ...Q(np, q) })); assert.equal((await say3(h, sid, a)).status, 200);
+  }
+  s.ai.push(T({ kind: 'stop', reply: '여기까지 할게요.' }), { summary: [], closing: '들은 만큼 정리해 둘게요.' });
+  const st = await say3(h, sid, '이제 그만할래');
+  assert.equal(st.body.session.run.outcome, 'stopped');
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).body.tool, null);
+  s.connect = [{ ok: true, eligible: true, candidates: [{ id: 'c1' }, { id: 'c2' }, { id: 'c3' }] }];
+  const aiBefore = s.aiCalls.length;
+  const r1 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
+  assert.equal(r1.body.model_calls, 0, '실행 단계 자체의 모델 호출 0'); assert.equal(s.aiCalls.length, aiBefore);
+  assert.deepEqual([r1.body.tool.outcome, r1.body.tool.count], ['found', 3]);
+  const stored = sessionRow(s).response_payload.run;
+  assert.deepEqual([stored.tools.at(-1).outcome, stored.tools.at(-1).count, stored.outcome], ['found', 3, 'done'], '저장된 실행 상태 = 실제 도구 응답');
+  const runRec = s.tables.doit_request_events.filter((x) => x.action === 'agent_run').at(-1).response_payload;
+  assert.deepEqual([runRec.tool.outcome, runRec.tool.count, runRec.run.outcome], ['found', 3, 'done']);
+  const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
+  assert.equal(r2.body.tool, null); assert.equal(s.connectCalls.length, 1, '재개를 다시 눌러도 같은 작업 재실행 0');
 });

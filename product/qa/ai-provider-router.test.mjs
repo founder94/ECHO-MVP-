@@ -232,7 +232,7 @@ test('기록: 제공사·모델·이유·정책판·성공/오류 코드·지연
   await r.llm('turn', '시스템 지시문', { latest: '아주 개인적인 사용자 원문' });
   const s = JSON.stringify(r.log);
   for (const leak of ['아주 개인적인', '시스템 지시문', '사용자에게 할 말']) assert.ok(!s.includes(leak), leak);
-  assert.deepEqual(Object.keys(r.log[0]).sort(), ['attempt', 'cached_tokens', 'error', 'input_tokens', 'kind', 'latency_ms', 'model_requested', 'model_served', 'ok', 'output_tokens', 'policy_version', 'provider', 'reason', 'seq', 'status'].sort());
+  assert.deepEqual(Object.keys(r.log[0]).sort(), ['attempt', 'cached_tokens', 'error', 'input_tokens', 'kind', 'latency_ms', 'model_requested', 'model_served', 'ok', 'output_tokens', 'policy_version', 'provider', 'reason', 'reserved_tokens', 'seq', 'status', 'usage'].sort());
   assert.equal(r.log[0].status, 503);
 });
 

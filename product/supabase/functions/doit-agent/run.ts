@@ -18,7 +18,8 @@ export type WaitReason = "answer_question" | "more_info" | "profile_incomplete" 
 
 export interface RunStep { id: string; status: StepStatus; basis: number[]; why: string | null; rev: number }
 export interface ToolRun { tool: ToolId; outcome: ToolOutcome; count: number | null; missing: string[]; code: string | null; basis_key: string; at: string; ms: number }
-export interface RunBudget { calls: number; tokens_in: number; tokens_out: number; tool_runs: number }
+// tokens_in/out = 업체가 알려 준 확인된 사용량 · tokens_unconfirmed = 보냈지만 사용량을 모르는 시도의 예약 추정치(청구액 아님 · 예산에는 보수적으로 포함)
+export interface RunBudget { calls: number; tokens_in: number; tokens_out: number; tokens_unconfirmed?: number; tool_runs: number }
 export interface Run {
   version: string; goal: string; plan_rev: number; basis_key: string; steps: RunStep[]; tools: ToolRun[];
   outcome: RunOutcome; waiting: WaitReason; missing: string[]; user_stopped: boolean; stop_ack: number | null; budget: RunBudget; changes: string[]; updated_at: string;
@@ -45,9 +46,10 @@ export function emptyRun(st: AgentState, now: string): Run {
 const lastTool = (run: Run, tool: ToolId) => [...run.tools].reverse().find((t) => t.tool === tool) ?? null;
 
 /** 지금 대화 상태로 계획을 맞춘다. 바뀐 단계만 판을 올린다. usage = 이번 요청의 모델 사용량(누적). */
-export function syncRun(prev: Run | null | undefined, st: AgentState, now: string, usage: { calls?: number; tokens_in?: number; tokens_out?: number } = {}): Run {
+export function syncRun(prev: Run | null | undefined, st: AgentState, now: string, usage: { calls?: number; tokens_in?: number; tokens_out?: number; tokens_unconfirmed?: number } = {}): Run {
   const run: Run = prev && prev.version === RUN_VERSION ? structuredClone(prev) : emptyRun(st, now);
   run.budget.calls += usage.calls ?? 0; run.budget.tokens_in += usage.tokens_in ?? 0; run.budget.tokens_out += usage.tokens_out ?? 0;
+  if (usage.tokens_unconfirmed) run.budget.tokens_unconfirmed = (run.budget.tokens_unconfirmed ?? 0) + usage.tokens_unconfirmed;
   const rd = stateReadiness(st);
   const key = basisKeyOf(st);
   const changed: string[] = [];
@@ -116,7 +118,7 @@ function decide(run: Run, st: AgentState, missingAreas: string[]) {
   run.outcome = "on_hold"; run.waiting = "lookup_failed";
 }
 
-export const overBudget = (run: Run) => run.budget.calls >= RUN_LIMITS.max_calls || run.budget.tokens_in + run.budget.tokens_out >= RUN_LIMITS.max_tokens;
+export const overBudget = (run: Run) => run.budget.calls >= RUN_LIMITS.max_calls || run.budget.tokens_in + run.budget.tokens_out + (run.budget.tokens_unconfirmed ?? 0) >= RUN_LIMITS.max_tokens;
 /** 모델을 더 불러도 되나(대화 단위 누적 상한). */
 export const modelAllowed = (run: Run | null | undefined) => !run || !overBudget(run);
 
