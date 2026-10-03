@@ -77,15 +77,21 @@ const AI_HEALTH: RouterHealth = {};
 const routerForRequest = (signal?: AbortSignal): ModelRouter => routerFromEnv((k) => Deno.env.get(k), A.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal);
 // 사용자 단위 하루 한도(24시간 · 기존 턴 기록 수로 셈 · 새 표 0). QA 실측: 사용자·하루 최대 64턴(호출 125) → 200턴.
 const USER_DAILY_TURNS = 200;
+const DAILY_SCAN_ROWS = 1000; // 하루 턴 기록을 한 번에 읽는 최대 줄 수(넘으면 전부 셈)
 // 셈 = 모델을 실제로 부른 턴(기록의 ai_usage.attempts > 0) + 턴 밖 모델 사용 기록(agent_usage · 호출 있을 때만 남음).
 // 모델을 부르지 않은 턴(개인정보 안내 · 마친 대화 답 · 보기 모두 아님 등)은 세지 않는다(리뷰 5401213108).
 async function userDailyTurns(admin: Db, userId: string): Promise<number | null> {
   const since = new Date(Date.now() - 86_400_000).toISOString();
   const { count: usage, error: e1 } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
     .eq("user_id", userId).eq("action", USAGE_ACTION).gte("created_at", since);
+  // 읽는 줄 수에 상한이 있으므로 먼저 전체 턴 수를 센다 → 상한을 넘으면 모델 사용 여부와 상관없이 전부 셈(빠진 줄로 한도를 우회 0 · 리뷰 5401266902)
+  const { count: allTurns, error: e0 } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
+    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", since);
+  if (e1 || e0) return null;
+  if ((allTurns ?? 0) > DAILY_SCAN_ROWS) return (usage ?? 0) + (allTurns ?? 0);
   const { data: turns, error: e2 } = await admin.from("doit_request_events").select("request_id, attempts:response_payload->record->ai_usage->attempts")
-    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", since).limit(USER_DAILY_TURNS * 5);
-  if (e1 || e2) return null;
+    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", since).limit(DAILY_SCAN_ROWS);
+  if (e2) return null;
   const modelTurns = (turns ?? []).filter((r) => {
     const x = r as { attempts?: unknown; response_payload?: { record?: { ai_usage?: { attempts?: unknown } } } };
     const a = x.attempts ?? x.response_payload?.record?.ai_usage?.attempts; // 실제 DB = 경로 선택 값 · 시험용 가짜 DB = 행 전체

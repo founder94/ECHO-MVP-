@@ -1397,6 +1397,13 @@ test('Codex P2(리뷰 5401213108) 하루 한도는 모델을 실제로 부른 �
   const no = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
   assert.equal(no.status, 429, '모델 턴 200 = 막힘');
 });
+test('Codex P2(리뷰 5401266902) 모델 0 턴이 읽기 상한(1,000줄)을 넘게 쌓여도 모델 턴이 빠져 한도를 우회 0(넘으면 전부 셈)', async () => {
+  const s = newState(); const h = load(s); s.tables.doit_request_events ??= []; const now = new Date().toISOString();
+  for (let i = 0; i < 1100; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `g-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts: 0 } } } });
+  for (let i = 0; i < 200; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `m-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts: 1 } } } });
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(r.status, 429, '모델 턴 200 이 읽기 상한 밖에 있어도 막힘');
+});
 test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불러도 한도 우회 0(재생 안 하는 동작)', async () => {
   const s = newState(); const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
