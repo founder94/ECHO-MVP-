@@ -309,3 +309,11 @@ test('Codex P1(리뷰 5401366691) 붙여 쓴 유선 전화(0212345678 · 0311234
   assert.equal(maskPii({ latest: '회사 02-345-6789' }).counts.landline, 1, '기존 띄어 쓴 꼴 그대로');
   for (const keep of ['주문번호 20231012345678', '코드 9021234567890', '0212345678901234 번']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
 });
+
+test('Codex P1(리뷰 4173711387) 인터넷 전화 070(띄어 쓴·붙여 쓴)도 가림 · 일반 숫자·더 긴 숫자는 그대로', () => {
+  for (const n of ['070-1234-5678', '07012345678', '070 1234 5678', '070-123-4567']) {
+    const r = maskPii({ latest: `연락처 ${n}` });
+    assert.ok(!JSON.stringify(r.value).includes(n), n); assert.equal(r.counts.landline, 1, n);
+  }
+  for (const keep of ['70번 버스', '주문번호 2070123456789', '0701234567890123 번']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
+});

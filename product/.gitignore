@@ -6,3 +6,7 @@ dist
 !.env.example
 *.tsbuildinfo
 auto-imports.d.ts
+# 빌드 결과물(검사용 빌드가 커밋에 섞이지 않게)
+out-app/
+out-brand/
+out-admin/

@@ -1,1 +1,0 @@
-var e=12e3,t=class extends Error{constructor(e){super(`${e} timed out`),this.name=`TimeoutError`}};function n(e,n,r){let i,a=new Promise((e,a)=>{i=setTimeout(()=>a(new t(r)),n)});return Promise.race([e,a]).finally(()=>{i!==void 0&&clearTimeout(i)})}export{t as n,n as r,e as t};
