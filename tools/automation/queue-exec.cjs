@@ -130,4 +130,40 @@ function ghWorkflowDispatcher(env, exec = execFileSync) {
   };
 }
 
-module.exports = { ghWorkflowDispatcher, APPROVER, isApprover, initQueue, validateApproved, withOutbox, drain, ghDispatcher, MAX_ATTEMPTS };
+// Receiver-side check, called BEFORE any model step. Everything is compared with the remote CAS state, never trusted from inputs:
+// outbox key/action/task/ref/sha, task state + worker Bot + owner approval, current PR (open, not draft, same repo, head = sha).
+// actor/triggeringActor must come from the workflow's github context (not from dispatch inputs).
+// Race: the dispatcher may already have stored DONE when the receiver starts, so DISPATCHING and DONE are both "accepted"; PENDING/FAILED/
+// OBSOLETE/STALE are not. The receiver then claims the entry once (workerClaim, CAS): a second receiver for the same key is refused.
+// This proves "dispatch accepted", not "worker finished": the entry never becomes DONE because of the worker.
+const DISPATCH_ACTORS = ['github-actions[bot]', 'founder94'];
+const BRANCH = /^[A-Za-z0-9._\/-]{1,200}$/;
+function verifyDispatch(store, inp, { getPr, actor, triggeringActor, claimId, repo, maxRounds = 5, retries = 3 } = {}) {
+  const bad = reason => ({ ok: false, reason });
+  if (!DISPATCH_ACTORS.includes(actor) || actor !== triggeringActor) return bad('untrusted_actor');
+  if (!/^[A-Za-z0-9_.-]{1,80}$/.test(claimId || '')) return bad('bad_claim_id');
+  if (!['START', 'FIX'].includes(inp.action) || !/^[A-Za-z0-9_.:-]{1,80}$/.test(inp.key || '') || !/^[A-Za-z0-9_.-]{1,80}$/.test(inp.taskId || '') || !/^pr:[1-9][0-9]{0,9}$/.test(inp.ref || '')) return bad('bad_input');
+  if (inp.sha && !SHA.test(inp.sha)) return bad('bad_input');
+  if (inp.action === 'FIX' && !inp.sha) return bad('bad_input');
+  for (let i = 0; i <= retries; i++) {
+    const { rev, state } = store.load(); // throws on remote failure: caller fails closed
+    const unapproved = validateApproved(state); if (unapproved) return bad(unapproved);
+    if (state.halted) return bad('halted');
+    const e = (state.outbox || []).find(x => x.key === inp.key);
+    if (!e) return bad('no_outbox_entry');
+    if (e.action !== inp.action || e.taskId !== inp.taskId || e.ref !== inp.ref || (e.sha || '') !== (inp.sha || '')) return bad('entry_mismatch');
+    if (!['DISPATCHING', 'DONE'].includes(e.status)) return bad('not_dispatched');
+    if (e.workerClaim) return bad('already_claimed');
+    const t = state.tasks.find(x => x.id === e.taskId);
+    if (!t || t.state !== EXPECT_STATE[e.action]) return bad('task_state');
+    if (!t.worker || t.worker.login !== 'github-actions[bot]' || t.worker.type !== 'Bot') return bad('worker_mismatch');
+    if (e.action === 'FIX' && (t.headSha !== e.sha || (t.rounds || 0) >= maxRounds)) return bad('fix_not_current');
+    const pr = getPr(Number(e.ref.split(':')[1])); // throws on lookup failure: nothing claimed
+    if (!pr || pr.state !== 'open' || pr.draft || !['main', 'echo-qa'].includes(pr.base) || pr.headRepo !== repo || !SHA.test(pr.headSha || '') || !BRANCH.test(pr.branch || '') || pr.branch.startsWith('-')) return bad('pr_not_eligible');
+    if (e.sha && pr.headSha !== e.sha) return bad('stale_head');
+    if (store.save(rev, setEntry(state, e.key, { workerClaim: { id: claimId, actor } }))) return { ok: true, action: e.action, taskId: e.taskId, ref: e.ref, branch: pr.branch, sha: pr.headSha, round: e.round };
+  }
+  return bad('store_conflict');
+}
+
+module.exports = { verifyDispatch, DISPATCH_ACTORS, ghWorkflowDispatcher, APPROVER, isApprover, initQueue, validateApproved, withOutbox, drain, ghDispatcher, MAX_ATTEMPTS };

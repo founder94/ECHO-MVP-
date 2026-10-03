@@ -22,6 +22,9 @@ function promote(queue, owner) {
 // review is accepted only from CODEX. The adapter must pass the actor taken from the verified GitHub event,
 // never from comment text. A missing/unknown actor is refused (fail closed).
 const isWorker = a => !!a && WORKERS.some(w => w.login === a.login && w.type === a.type);
+// Start by the real owner: actor (verified payload sender, a User) is the approver; the Bot that runs the work is the separate event.worker field.
+const OWNER = { login: 'founder94', type: 'User' };
+const isOwnerStart = e => !!e.actor && e.actor.login === OWNER.login && e.actor.type === OWNER.type && !!e.approver && e.approver.login === e.actor.login && e.approver.type === e.actor.type && isWorker(e.worker);
 const validMax = m => Number.isInteger(m) && m >= 1 && m <= DEFAULT_MAX_ROUNDS; // finite, positive, never above approved 5
 
 function step(queue, event, config = {}) {
@@ -29,7 +32,8 @@ function step(queue, event, config = {}) {
   if (!config || typeof config !== 'object' || (config.maxRounds !== undefined && !validMax(config.maxRounds))) return stop(queue, 'invalid_config');
   const max = config.maxRounds ?? DEFAULT_MAX_ROUNDS;
   if (queue.halted) return ignore(queue, 'halted');
-  if ((event?.type === 'start' || event?.type === 'submit') && !isWorker(event.actor)) return ignore(queue, 'unauthorized_actor');
+  if (event?.type === 'submit' && !isWorker(event.actor)) return ignore(queue, 'unauthorized_actor');
+  if (event?.type === 'start' && !isWorker(event.actor) && !isOwnerStart(event)) return ignore(queue, 'unauthorized_actor');
   if (event?.type === 'start') return promote(queue, event.owner);
   if (event?.type === 'submit') {
     // worker pushed a new head: RUNNING|FIX -> REVIEW

@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { handle, REVIEW_MARKER, HANDOFF_MARKER, CODEX } = require('./queue-adapter.cjs');
-const { initQueue, drain, ghDispatcher } = require('./queue-exec.cjs');
+const { initQueue, drain, ghWorkflowDispatcher, verifyDispatch } = require('./queue-exec.cjs');
 const { gitStore } = require('./queue-store-git.cjs');
 
 // Default live lookup of the PR's current head via the runner's existing gh auth (GH_TOKEN/GITHUB_TOKEN from env; never printed).
@@ -59,6 +59,7 @@ function run(argv, env, store, getHead = ghHead, deps = {}) {
   const st = () => store || gitStore({ cwd: env.QUEUE_STORE_DIR || process.cwd() });
   if (argv[0] === 'init') return runInit(argv, env, st);
   if (argv[0] === 'drain') return runDrain(env, st, getHead, deps);
+  if (argv[0] === 'verify-dispatch') return runVerifyDispatch(env, st, deps);
   const [name, path, delivery] = argv;
   if (!name || !path || !delivery || !env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
   let payload; try { payload = JSON.parse(fs.readFileSync(path, 'utf8')); } catch { return { code: 1, out: { error: 'bad_event_file' } }; }
@@ -94,13 +95,34 @@ function runInit(argv, env, st) {
 // drain: run pending outbox entries through the dispatcher. Exit 0 ok, 3 dispatch failed/uncertain/lookup failed (needs attention).
 function runDrain(env, st, getHead, deps) {
   if (!env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
-  const dispatch = deps.dispatch || ghDispatcher(env);
+  const dispatch = deps.dispatch || ghWorkflowDispatcher(env); // workflow_dispatch (GITHUB_TOKEN-supported), typed inputs only
   const r = drain(st(), dispatch, { getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
   return { code: r.stopped && r.stopped !== 'halted' ? 3 : 0, out: { action: 'DRAIN', dispatched: r.dispatched.length, stopped: r.stopped } };
+}
+
+// Current PR facts for the receiver (existing gh auth only; fixed error message, no stderr).
+function ghPrInfo(repo, number) {
+  let o;
+  try { o = JSON.parse(execFileSync('gh', ['api', `repos/${repo}/pulls/${number}`, '--jq', '{headSha:.head.sha,branch:.head.ref,state:.state,draft:.draft,base:.base.ref,headRepo:.head.repo.full_name}'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20000 })); }
+  catch { throw new Error('pr_lookup_failed'); }
+  return o;
+}
+
+// verify-dispatch: receiver gate before any model step. Dispatch inputs come in env (DQ_*); the actors come from the workflow's github context
+// (ACTOR/TRIGGERING_ACTOR), never from dispatch inputs. Exit 0 accepted (prints branch+sha), 4 rejected, 1 lookup/store error (fail closed).
+function runVerifyDispatch(env, st, deps) {
+  if (!env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
+  const getPr = deps.getPr || (n => ghPrInfo(env.GITHUB_REPOSITORY, n));
+  let r;
+  try {
+    r = verifyDispatch(st(), { key: env.DQ_KEY, action: env.DQ_ACTION, taskId: env.DQ_TASK_ID, ref: env.DQ_REF, sha: env.DQ_SHA || '' },
+      { getPr, actor: env.ACTOR, triggeringActor: env.TRIGGERING_ACTOR, claimId: env.CLAIM_ID, repo: env.GITHUB_REPOSITORY, maxRounds: env.QUEUE_MAX_ROUNDS ? Number(env.QUEUE_MAX_ROUNDS) : 5 });
+  } catch { return { code: 1, out: { error: 'verify_lookup_failed' } }; }
+  return r.ok ? { code: 0, out: r } : { code: 4, out: { ok: false, reason: r.reason } };
 }
 
 if (require.main === module) {
   try { const { code, out } = run(process.argv.slice(2), process.env); console.log(JSON.stringify(out)); process.exit(code); }
   catch (e) { console.log(JSON.stringify({ error: 'exception', message: String(e.message).slice(0, 200) })); process.exit(1); }
 }
-module.exports = { run, verifyMetadata, verifyCurrentHead, ghHead, ghFindings, countFindings };
+module.exports = { run, ghPrInfo, verifyMetadata, verifyCurrentHead, ghHead, ghFindings, countFindings };

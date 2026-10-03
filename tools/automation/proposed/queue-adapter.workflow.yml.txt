@@ -21,6 +21,7 @@ permissions:
   contents: write        # ONLY to push refs/heads/echo-automation-state (needs approval)
   pull-requests: write   # `gh pr comment` for dispatch + `gh api pulls/..` reads (needs approval)
   issues: read
+  actions: write         # `gh workflow run` of the receiver (needs approval)
 concurrency:
   group: queue-adapter   # serializes runs; the store's fast-forward push is the actual lock
   cancel-in-progress: false
@@ -43,7 +44,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}              # existing token only; never printed
           QUEUE_STORE_DIR: ${{ github.workspace }}
           QUEUE_MAX_ROUNDS: '5'                      # approved cap, controller refuses anything above 5
-          QUEUE_WORKER_TRIGGER: ${{ vars.QUEUE_WORKER_TRIGGER }}   # approved trigger text (repository variable, not a secret); empty => dispatch fails closed
         run: |
           set +e
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$MODE" = "init" ]; then
@@ -60,14 +60,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           QUEUE_STORE_DIR: ${{ github.workspace }}
-          QUEUE_WORKER_TRIGGER: ${{ vars.QUEUE_WORKER_TRIGGER }}
+          QUEUE_MAX_ROUNDS: '5'
+          QUEUE_WORKER_WORKFLOW: ${{ vars.QUEUE_WORKER_WORKFLOW }}   # receiver file name (repository variable, not a secret); empty => dispatch fails closed
         run: node tools/automation/queue-adapter-cli.cjs drain   # exit 3 = dispatch failed/uncertain: job fails visibly
 # ---------------------------------------------------------------------------------------------------------------------
 # Needs 대표 approval BEFORE activation (this PR changes none of it):
-#  1. permissions contents:write (state branch only) + pull-requests:write; repository variable QUEUE_WORKER_TRIGGER.
-#  2. UNPROVEN: comments posted with the default GITHUB_TOKEN do NOT trigger other workflows, so START/FIX/@codex review dispatch comments may
-#     not start claude.yml / Codex. Fixing that needs a different token (secret) = separate approval. Not tried, not assumed.
-#  3. Real GitHub behaviour of the state branch push, gh api head/findings lookups and gh pr comment is NOT verified (only mock + local bare git).
+#  1. permissions contents:write (state branch only) + pull-requests:write + actions:write (workflow_dispatch of the receiver);
+#     repository variable QUEUE_WORKER_WORKFLOW = queue-worker-receiver.yml (see proposed/queue-worker-receiver.workflow.yml.txt).
+#  2. Dispatch is `gh workflow run` (supported with GITHUB_TOKEN), not a comment. drain's default dispatcher is ghWorkflowDispatcher (wired + tested with a fake gh).
+#     The receiver verifies the claim against this state branch (verify-dispatch) before any model step.
+#  3. Real GitHub behaviour of the state branch push, gh api head/findings lookups and workflow_dispatch is NOT verified (only mock + local bare git).
+#  4. KNOWN BLOCKER: the worker's handoff comment is posted with GITHUB_TOKEN and does not trigger this workflow's issue_comment event, so
+#     handoff -> REVIEW is not fed back automatically yet (see receiver file). Not solved here.
 # Boundaries (documented, tested with mocks): at-most-once claim per outbox key via CAS; a crash after claim leaves DISPATCHING and drain
 #  refuses to continue (needs a human); dispatch failure is stored FAILED (max 3 attempts), never DONE. REVIEW is not posted by default
 #  (the worker's handoff already ends with the Codex review request) so there is no second paid review.

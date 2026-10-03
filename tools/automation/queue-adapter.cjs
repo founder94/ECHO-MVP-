@@ -47,7 +47,7 @@ function normalize(name, p, queue, ctx = {}) {
     // start: approval by the real owner (payload sender, a User) is kept apart from the worker Bot identity that runs it.
     if (name !== 'workflow_dispatch') return { skip: 'unsupported_event' };
     if (!isApprover(actorOf(p.sender))) return { skip: 'start_not_by_owner' };
-    return { type: 'start', actor: WORKERS[1], approver: actorOf(p.sender) };
+    return { type: 'start', actor: actorOf(p.sender), approver: actorOf(p.sender), worker: WORKERS[1] }; // sender stays the real User; worker Bot is a separate field
   }
   if (name === 'workflow_dispatch' || name === 'workflow_run') return { type: 'start', actor: actorOf(p.sender) };
   return { skip: 'unsupported_event' };
