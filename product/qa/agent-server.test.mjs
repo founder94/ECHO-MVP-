@@ -1623,6 +1623,24 @@ test('Codex P2(리뷰 5400904667) 함수가 끊겨 오래 남은 pending 실행 
   assert.equal(ra.status, 200, JSON.stringify(ra.body)); assert.equal(ra.body.tool.outcome, 'found'); assert.equal(n(), before + 1, '도구 1번');
   assert.equal(s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run').status, 'applied');
 });
+test('Codex 5969458619 P2 대조 — 도구 실행·세션 저장 뒤 함수가 끊겨 pending 이 남아도, 임대가 지나 다시 보내면 저장된 그 결과(도구 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length;
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.status, 200); const after = n();
+  // 세션 저장까지 끝난 뒤 결과 기록(applied) 전에 끊긴 것처럼: 행을 오래된 pending 으로 되돌림
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  const old = new Date(Date.now() - 10 * 60_000).toISOString();
+  Object.assign(row, { status: 'pending', response_payload: null, applied_revision: null, updated_at: old });
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true, '세션에 남은 그 요청의 결과');
+  assert.deepEqual(again.body.run, r1.body.run); assert.equal(n(), after, '도구 다시 실행 0');
+});
 test('Codex P2(리뷰 5400766764) 첫 답 없는 시작은 첫 질문 만들기(opening) 경로로 확인 — 작업별 정책 존중', async () => {
   const s = newState();
   s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'], opening: ['openai'] } }) };
