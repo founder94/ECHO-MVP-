@@ -1,8 +1,10 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {check}=require('./review-gate.cjs');
+const {check,makeTask}=require('./review-gate.cjs');
 const sha='a'.repeat(40), bot={login:'chatgpt-codex-connector[bot]',type:'Bot'};
 function fixture(){return {eventName:'pull_request_review',repository:'founder94/ECHO-MVP-',event:{action:'submitted',review:{id:9,user:bot,commit_id:sha}},pr:{state:'open',draft:false,base:{ref:'echo-qa'},head:{sha,repo:{full_name:'founder94/ECHO-MVP-'}}},reviews:[{id:9,user:bot,commit_id:sha}],comments:[{pull_request_review_id:9,user:bot,commit_id:sha,path:'product/x.ts',line:1,body:'[P1] actual finding'}],issueComments:[{user:{login:'founder94',type:'User'},body:'[ECHO-AUTO-OWNER:actions]'}]};}
+test('task carries verified review PR SHA branch findings and round',()=>{const x=fixture();x.pr.head.ref='codex/probe';const t=JSON.parse(makeTask(check(x),x.pr,110));assert.equal(t.pull_request,110);assert.equal(t.source_sha,sha);assert.equal(t.source_branch,'codex/probe');assert.equal(t.findings[0].path,'product/x.ts');assert.equal(t.round,1)});
+test('rejected review cannot produce executable task',()=>assert.throws(()=>makeTask({run:false},{},110),/unvalidated_review/));
 test('actual trusted Codex review does not require mention or invented marker',()=>assert.equal(check(fixture()).run,true));
 test('actual native priority badge is actionable',()=>{const x=fixture();x.comments[0].body='**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Check combined usage**';assert.equal(check(x).run,true)});
 test('untrusted bot rejected',()=>{const x=fixture();x.event.review.user={login:'evil[bot]',type:'Bot'};assert.equal(check(x).run,false)});
