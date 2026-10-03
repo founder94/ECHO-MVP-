@@ -130,6 +130,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: 'chatgpt-codex-connector[bot]'
           prompt: ${{ github.event_name == 'pull_request_review' && github.event.review.user.login == 'chatgpt-codex-connector[bot]' && 'Handle the validated current Codex review for this PR as its Actions implementation owner. Read the actual inline findings for this review; minimally fix authorized product files, test, push only the PR branch, and return the handoff. Verify the reviewed SHA before editing. Follow all existing STOP rules. Do not modify workflows or create parallel tasks. If exact review context is unavailable, stop and report it.' || '' }}
           claude_args: |
             --max-turns 60
