@@ -359,3 +359,11 @@ test('Codex P1(리뷰 4174667694) 줄바꿈으로 나뉜 카드(\\n · \\r\\n ·
   }
   const keep = '주문\n2023\n10\n04'; assert.equal(maskPii({ latest: keep }).value.latest, keep);
 });
+
+test('Codex P1(리뷰 4174714917) 구분자가 여러 글자인 전화(「010 - 1234 - 5678」 · 두 칸 띄움 · 섞인 구분자)도 가림 · 멀리 떨어진 숫자는 안 묶음', () => {
+  for (const [n, kind] of [['010 - 1234 - 5678', 'phone'], ['010  1234  5678', 'phone'], ['010 -1234- 5678', 'phone'], ['02 - 345 - 6789', 'landline'], ['070 . 1234 . 5678', 'landline'], ['+82 - 10 - 1234 - 5678', 'phone']]) {
+    const r = maskPii({ latest: `연락처 ${n} 입니다` });
+    assert.ok(!r.value.latest.includes('5678') && !r.value.latest.includes('6789'), `${n} → ${r.value.latest}`); assert.equal(r.counts[kind], 1, n);
+  }
+  const far = '02년에 345명이 왔고           6789원을 냈다'; assert.equal(maskPii({ latest: far }).counts.landline, undefined);
+});
