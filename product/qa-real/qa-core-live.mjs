@@ -89,7 +89,9 @@ check('질문 피로 = 항의(repair) · 저장 0', fa.status === 200 && ['repai
 const fget = await agent(C.jwt, { action: 'agent_get', sessionId: fid });
 const fmsgs = (fget.data?.session?.messages ?? []).map((m) => m.text);
 check('목적 격리: 친구 세션에 취미 세션 말(등산) 0', !fmsgs.some((t) => /등산/.test(t)), `msgs=${fmsgs.length}`);
-check('서버 판 = echo-agent-v2.4.3', (fget.data?.session?.profile?.version ?? s?.profile?.version) === 'echo-agent-v2.4.3' || s?.profile?.version === 'echo-agent-v2.4.3', `version=${s?.profile?.version ?? '-'}`);
+// 기대 판은 배포 작업(agent_deploy_qa)의 AGENT_VERSION 과 같게(2026-10-03 · 배포 판 v2.5.8) — EXPECT_AGENT_VERSION 으로 바꿀 수 있음
+const EXPECT_VER = process.env.EXPECT_AGENT_VERSION || 'echo-agent-v2.5.8';
+check(`서버 판 = ${EXPECT_VER}`, (fget.data?.session?.profile?.version ?? s?.profile?.version) === EXPECT_VER || s?.profile?.version === EXPECT_VER, `version=${s?.profile?.version ?? '-'}`);
 
 // ── F(2026-09-29 대표 「FINAL RELEASE CLOSING」): 같은 계정 친구 ↔ 연애 세션 격리
 const ro = await agent(C.jwt, { action: 'agent_start', requestId: randomUUID(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애', firstAnswer: '진지한 연애를 하고 싶어요' });
