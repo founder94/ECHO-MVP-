@@ -10,14 +10,16 @@ const blocked = why => ({decision:'block',reason:`ECHO Codex 검수: ${why}. 승
 export function reviewGate(input, deps={}) {
   const cwd=input.cwd;
   if(typeof cwd!=='string'||!input.session_id)return hold('작업 폴더 또는 session_id 없음');
+  let gitCwd=cwd;
   const git=args=>{
-    const r=spawnSync('git',args,{cwd,encoding:'utf8',timeout:5000});
+    const r=spawnSync('git',args,{cwd:gitCwd,encoding:'utf8',timeout:5000});
     if(r.status!==0)throw Error('git 대상 조회 실패');
     return r.stdout;
   };
   let directory, lock, resultPath, ownsLock=false;
   try {
     const root=git(['rev-parse','--show-toplevel']).trim();
+    gitCwd=root;
     const configPath=path.join(root,'.claude','echo-review-gate.json');
     if(!fs.existsSync(configPath))return {};
     const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
@@ -32,6 +34,7 @@ export function reviewGate(input, deps={}) {
     try{fs.writeFileSync(lock,'claimed',{flag:'wx'});ownsLock=true;}catch{return hold('같은 세션 검토가 이미 실행 중이거나 중단됨');}
     const statePath=path.join(directory,`${session}.json`);
     const state=fs.existsSync(statePath)?JSON.parse(fs.readFileSync(statePath,'utf8')):{attempts:0,base};
+    if(!Number.isInteger(state.attempts)||state.attempts<0||state.attempts>3)return hold('저장된 검수 횟수 형식 오류');
     if(state.base!==base)return hold('작업 중 기준 커밋 변경');
     const source=()=>{
       const head=git(['rev-parse','HEAD']).trim();
