@@ -95,9 +95,19 @@ export function piiKeys(input: unknown, path = ""): string[] {
 // 자유 문장 속 개인정보 가리기(마지막 안전망). 칸 이름 차단(piiKeys)만으로는 문장 속 번호를 막지 못한다.
 // Agent 는 이미 전화·이메일·주소(URL)·주민번호가 든 말을 모델에 보내지 않고 저장도 하지 않는다(PRIVATE_DATA) — 여기서는 그 밖의 경로와 생년월일·카드 번호까지 가린 뒤 보낸다.
 // 다른 사람의 이름·사정 같은 「제3자 정보」는 글자 규칙으로 가려낼 수 없다 → 가리지 못함(남은 한계 · 문서 §23).
-// 카드 번호를 맨 앞에: 붙여 쓴 16자리를 전화·주민번호 규칙이 먼저 일부만 가리면 나머지 숫자가 그대로 나가므로
-const MASKS: [string, RegExp][] = [
-  ["card", /\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/g], // 띄어 쓴 형태와 붙여 쓴 16자리 모두
+// 카드 번호를 맨 앞에: 붙여 쓴 번호를 전화·주민번호 규칙이 먼저 일부만 가리면 나머지 숫자가 그대로 나가므로
+// 카드 = ① 네 자리씩 네 묶음(16자리 · 띄어 쓰기/붙여 쓰기 · 예전 규칙 그대로) ② 그 밖의 13~19자리(붙여 쓰기 · 4-6-5/4-6-4 묶음 · 4자리 묶음 + 끝 1~3자리)는
+//   카드 검증 숫자(Luhn)가 맞을 때만 — 아무 긴 숫자(주문 번호 등)를 가리지 않게. 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않는다.
+const CARD = /(?<!\d)(?:\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}(?:[-\s]?\d{1,3})?|\d{4}[-\s]\d{6}[-\s]\d{4,5}|\d{13,19})(?!\d)/g;
+const FOUR_BY_FOUR = /^\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}$/;
+function luhnOk(digits: string): boolean {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) { let d = digits.charCodeAt(digits.length - 1 - i) - 48; if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; } sum += d; }
+  return sum % 10 === 0;
+}
+const isCard = (m: string) => { const d = m.replace(/[-\s]/g, ""); return FOUR_BY_FOUR.test(m) || (d.length >= 13 && d.length <= 19 && luhnOk(d)); };
+const MASKS: [string, RegExp, ((m: string) => boolean)?][] = [
+  ["card", CARD, isCard],
   ["phone", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g],
   ["landline", /0(2|[3-6][1-5])[-\s.]\d{3,4}[-\s.]\d{4}/g],
   ["email", /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,63}/g], // 반복 길이를 묶어 긴 글에서도 선형 시간(무한 되돌림 0)
@@ -107,7 +117,7 @@ const MASKS: [string, RegExp][] = [
 export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
   const counts: Record<string, number> = {};
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") { let t = v; for (const [name, re] of MASKS) t = t.replace(re, () => { counts[name] = (counts[name] ?? 0) + 1; return "[가림]"; }); return t; }
+    if (typeof v === "string") { let t = v; for (const [name, re, ok] of MASKS) t = t.replace(re, (m) => { if (ok && !ok(m)) return m; counts[name] = (counts[name] ?? 0) + 1; return "[가림]"; }); return t; }
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
     return v;

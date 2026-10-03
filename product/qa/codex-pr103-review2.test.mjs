@@ -213,3 +213,14 @@ test('P1 금액 상한: 어림(글자÷1.5)으로는 상한 안이어도 보장 
   assert.equal(calls, 0, '보장 상한 금액이 상한을 넘으면 보내지 않음');
   assert.ok(router.log.some((r) => r.error === 'cost_cap'));
 });
+
+// PR #103 Codex Code Review(리뷰 5400904667 · 732a4f0) P1 재현 — 16자리 4묶음이 아닌 카드 번호(13~19자리)도 가림 · 검증 숫자(Luhn)로 아무 긴 숫자는 그대로
+test('P1 카드 번호 13~19자리(Amex 15 · 4-6-5 묶음 · 13 · 19)는 Luhn 맞을 때 가림 · Luhn 아닌 긴 숫자는 그대로', () => {
+  for (const t of ['카드 378282246310005 예요', '3782 822463 10005', '3782-822463-10005', '4222222222222', '6011111111111117', '4111 1111 1111 1111 003'.replace(' 003', ''), '6011000990139424']) {
+    const r = maskPii({ latest: t });
+    assert.equal(r.counts.card, 1, t); assert.doesNotMatch(JSON.stringify(r.value), /\d{4}/, t);
+  }
+  const plain = maskPii({ latest: '주문번호 123456789012345 로 보냈어요' });
+  assert.deepEqual(plain.counts, {}, 'Luhn 아닌 15자리 = 그대로(과차단 0)');
+  assert.match(JSON.stringify(plain.value), /123456789012345/);
+});

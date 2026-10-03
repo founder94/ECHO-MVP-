@@ -19,6 +19,8 @@ const SESSION_ACTION = "agent_session";
 const TURN_ACTION = "agent_turn";
 const USAGE_ACTION = "agent_usage"; // 턴 기록 밖의 모델 사용(시작 인사 · 소개 · 보기 · 저장에 진 요청) — 하루 한도에 함께 센다 · 코드·수치만(원문 0)
 const RUN_ACTION = "agent_run";
+// 실행 요청 임대 시간: Edge 함수 한 번의 최대 실행 시간(무료 150초 · 유료 400초)보다 길게 → 이 시간이 지난 pending 은 끊긴 요청으로 보고 다시 잡을 수 있다
+const RUN_LEASE_MS = 420_000;
 const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -374,7 +376,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // ── 대화(agent_start · agent_turn)
     const requestId = typeof body.requestId === "string" && UUID.test(body.requestId) ? body.requestId : "";
     if (!requestId) return fail("BAD_REQUEST", "요청 식별값이 없어요.", 400, origin);
-    const { data: prior } = await admin.from("doit_request_events").select("action, status, target_id, response_payload").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
+    const { data: prior } = await admin.from("doit_request_events").select("action, status, target_id, response_payload, updated_at").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
     const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
     const ctx = { admin, userId, llm: router.llm, router, origin };
@@ -506,7 +508,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (action === "agent_run") {
       const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
-      let reclaim = false; // 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id = 다시 잡아서 실행(앱은 실패 뒤 같은 id 를 다시 보낸다)
+      // 다시 잡기: ① 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id ② 함수가 중간에 끊겨 오래 남은 pending(임대 시간 RUN_LEASE_MS 지남)
+      //   — 앱은 성공 전까지 같은 id 를 다시 보낸다. 다시 잡기도 상태(+ pending 이면 마지막 갱신 시각) 조건 update 라 한 요청만 성공(도구 1번 보장 유지).
+      let reclaim: { status: "failed" | "pending"; updatedAt: string | null } | null = null;
       if (prior) {
         const p = prior.response_payload as Json | null;
         if (prior.action === RUN_ACTION && prior.target_id === sid) {
@@ -515,8 +519,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           // 먼저 잡아 둔 요청(pending)인데 결과 기록이 비었으면: 세션에 함께 저장된 그 요청의 결과로(도구 재실행 0) · 아직 처리 중이면 409
           const kept = again ? (again.response_payload as unknown as Stored).run?.recent_requests?.find((x) => x.id === requestId) : undefined;
           if (again && kept?.run) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin);
-          if (!p?.run && prior.status === "pending") return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
-          if (!p?.run && prior.status === "failed") reclaim = true;
+          const stale = prior.status === "pending" && typeof prior.updated_at === "string" && Date.now() - Date.parse(prior.updated_at) > RUN_LEASE_MS;
+          if (!p?.run && prior.status === "pending" && !stale) return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
+          if (!p?.run && (prior.status === "failed" || stale)) reclaim = { status: prior.status as "failed" | "pending", updatedAt: (prior.updated_at as string | null) ?? null };
         }
         if (!reclaim) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       }
@@ -535,8 +540,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const runHash = await sha256(`${sid}:run:${rev}`);
       if (reclaim) {
         // 실패 행을 pending 으로 되돌리는 것도 한 번만 성공(상태가 failed 인 행만 · 겹친 요청은 0행 → 409)
-        const { data: claimed, error: claimError } = await admin.from("doit_request_events").update({ status: "pending", error_code: null, payload_hash: runHash })
-          .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", "failed").select("request_id");
+        let q = admin.from("doit_request_events").update({ status: "pending", error_code: null, payload_hash: runHash, updated_at: new Date().toISOString() })
+          .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", reclaim.status);
+        if (reclaim.status === "pending") q = q.eq("updated_at", reclaim.updatedAt); // 오래 남은 pending 은 본 그 시각 그대로일 때만(겹친 다시 잡기 = 0행 → 409)
+        const { data: claimed, error: claimError } = await q.select("request_id");
         if (claimError || !claimed || !claimed.length) return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
       } else {
         const { error: reserveError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "pending", payload_hash: runHash });

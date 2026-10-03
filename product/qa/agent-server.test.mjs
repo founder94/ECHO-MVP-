@@ -1606,6 +1606,23 @@ test('Codex P1(리뷰 5400766764) 대화가 바뀌어 실패(STATE_CHANGED)한 �
   const r3 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
   assert.equal(r3.body.duplicate, true, '성공한 뒤 재전송 = 저장된 결과');
 });
+test('Codex P2(리뷰 5400904667) 함수가 끊겨 오래 남은 pending 실행 요청 id = 임대 시간 뒤 다시 잡아 실행 · 임대 안이면 409(도구 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const user = sessionRow(s).user_id; const n = () => (s.connectCalls ?? []).length; const before = n();
+  const A = rid(); const B = rid();
+  const old = new Date(Date.now() - 10 * 60_000).toISOString(); const fresh = new Date().toISOString();
+  s.tables.doit_request_events.push({ user_id: user, request_id: A, action: 'agent_run', target_id: sid, status: 'pending', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.tables.doit_request_events.push({ user_id: user, request_id: B, action: 'agent_run', target_id: sid, status: 'pending', payload_hash: 'x', response_payload: null, created_at: fresh, updated_at: fresh });
+  const rb = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(rb.status, 409, '임대 안의 pending = 아직 처리 중'); assert.equal(n(), before, '도구 0');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const ra = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(ra.status, 200, JSON.stringify(ra.body)); assert.equal(ra.body.tool.outcome, 'found'); assert.equal(n(), before + 1, '도구 1번');
+  assert.equal(s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run').status, 'applied');
+});
 test('Codex P2(리뷰 5400766764) 첫 답 없는 시작은 첫 질문 만들기(opening) 경로로 확인 — 작업별 정책 존중', async () => {
   const s = newState();
   s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'], opening: ['openai'] } }) };
