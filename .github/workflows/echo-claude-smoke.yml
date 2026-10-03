@@ -321,12 +321,12 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      AGENT_SHA: ba8f7f23da89d7a9fa9e4a70387b3e15802abc0b
+      AGENT_SHA: 32a9f513071ad2b725b5dd7bea0d920885d6cd58
       AGENT_VERSION: echo-agent-v2.5.8
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ba8f7f23da89d7a9fa9e4a70387b3e15802abc0b
+          ref: 32a9f513071ad2b725b5dd7bea0d920885d6cd58
           path: src
       - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 6파일만)
         env:
@@ -369,7 +369,7 @@ jobs:
           done
           supabase functions list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[] | select(.slug=="doit-agent") | "deployed version=\(.version) updated_at=\(.updated_at)"'
           [ "$bad" = 0 ] || { echo "FAIL: 배포 파일이 검수 commit 과 다름"; exit 1; }
-          echo "SOURCE_MATCH=ba8f7f2 6/6"
+          echo "SOURCE_MATCH=32a9f51 6/6"
 
   connect_deploy_qa:
     # QA 서버 doit-connect 1개만 배포(2026-09-29 PROD PRE-FLIGHT · QA 전용 · 운영 0 · 비용 0): 고정 commit 의 3파일(index · agentSource · doit-agent/matching)만 · 비밀값 변경 0 → 배포 직후 실서버 계약 확인.
