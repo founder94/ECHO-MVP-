@@ -61,7 +61,8 @@ jobs:
               if (!pr || pr.state !== 'open' || pr.draft || !['main','echo-qa'].includes(pr.base?.ref) || pr.head?.repo?.full_name !== repository) return no('unsupported_pr');
               if (review.commit_id !== pr.head.sha || !/^[a-f0-9]{40}$/.test(review.commit_id || '')) return no('stale_source');
               const owned = issueComments.filter(c=>c.user?.login==='founder94' && c.user.type==='User' && /^\[ECHO-AUTO-OWNER:(actions|session)\]$/.test((c.body||'').trim()));
-              if (!owned.length || owned.at(-1).body.trim() !== '[ECHO-AUTO-OWNER:actions]') return no('implementation_owner_not_actions');
+              const autoPr = (pr.labels||[]).some(l=>l.name==='echo-auto') && /^echo\/task-\d+$/.test(pr.head?.ref||'');
+              if (!autoPr && (!owned.length || owned.at(-1).body.trim() !== '[ECHO-AUTO-OWNER:actions]')) return no('implementation_owner_not_actions');
               const marker = `<!-- echo-review-claim id=${review.id} sha=${review.commit_id} -->`;
               if (issueComments.some(c=>c.user?.login==='github-actions[bot]' && (c.body||'').startsWith(marker))) return no('duplicate_review');
               const rounds=issueComments.filter(c=>['github-actions[bot]','claude[bot]','founder94'].includes(c.user?.login) && /^<!-- echo-handoff to=codex sha=[a-f0-9]{40} round=\d+ -->/.test(c.body||'')).length;
