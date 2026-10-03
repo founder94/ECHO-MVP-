@@ -1,0 +1,1 @@
+import{$ as e,G as t}from"./index-DtuY9zhp.js";import{t as n}from"./LegalDocument-BoWNJCIU.js";var r=e();function i(){return(0,r.jsx)(n,{document:t})}export{i as default};

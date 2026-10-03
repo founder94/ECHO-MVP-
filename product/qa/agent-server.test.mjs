@@ -94,6 +94,7 @@ function load(state) {
         messages: prov === 'anthropic' ? [{ content: raw.system }, { content: raw.messages[0].content }] : [{ content: raw.systemInstruction.parts[0].text }, { content: raw.contents[0].parts[0].text }] };
       (state.providerCalls ??= []).push(prov);
       const plan = state.fail?.[prov]?.length ? state.fail[prov].shift() : null; // 제공사별 가짜 사고: 'HTTP500' · 'REFUSE' · { delay } · { gate: Promise }
+      if (plan?.abort) { plan.abort.abort(); throw Object.assign(new Error('aborted'), { name: 'AbortError' }); } // 사용자가 끊음(바깥 요청 신호)
       if (plan === 'HTTP500') return new Response('{}', { status: 500 });
       if (plan === 'HTTP429') return new Response('{}', { status: 429 });
       if (plan?.truncValid) { (state.aiCalls ??= []).push({ provider: prov, truncated: true }); return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 768 }, choices: [{ message: { content: JSON.stringify(plan.truncValid) }, finish_reason: 'length' }] }), { status: 200 }); }
@@ -134,7 +135,7 @@ function load(state) {
     crypto: globalThis.crypto, TextEncoder, Response, AbortController, setTimeout, clearTimeout, structuredClone, Date, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, URL,
   };
   vm.runInNewContext(compile('index.ts'), sandbox, { filename: 'index.ts' });
-  return { call: async (body, { auth = true } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
+  return { call: async (body, { auth = true, signal } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body), ...(signal ? { signal } : {}) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
 }
 
 // 2026-10-03 Codex 리뷰 P1: 실패한 턴도 시도 수·사용량을 대화 예산(run.budget)에 남긴다 → 「상태 그대로」 = 예산 밖의 모든 것(대화 상태·프로필) 그대로 + 예산은 늘기만.
@@ -1396,6 +1397,13 @@ test('Codex P2(리뷰 5401213108) 하루 한도는 모델을 실제로 부른 �
   const s2 = newState(); const h2 = load(s2); seed(s2, 1);
   const no = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
   assert.equal(no.status, 429, '모델 턴 200 = 막힘');
+});
+test('Codex P2(리뷰 5401309056) 첫 질문 만들기 중 사용자가 끊으면 499 CANCELLED(502 AI_ERROR 아님) · 세션 저장 0', async () => {
+  const s = newState(); const h = load(s); const ctrl = new AbortController();
+  s.fail = { openai: [{ abort: ctrl }] };
+  const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' }, { signal: ctrl.signal });
+  assert.equal(r.status, 499, JSON.stringify(r.body)); assert.equal(r.body.code, 'CANCELLED');
+  assert.ok(!(s.tables.doit_request_events ?? []).some((x) => x.action === 'agent_session'), '세션 저장 0');
 });
 test('Codex P2(리뷰 5401266902) 모델 0 턴이 읽기 상한(1,000줄)을 넘게 쌓여도 모델 턴이 빠져 한도를 우회 0(넘으면 전부 셈)', async () => {
   const s = newState(); const h = load(s); s.tables.doit_request_events ??= []; const now = new Date().toISOString();

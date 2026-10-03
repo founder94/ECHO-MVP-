@@ -440,6 +440,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
             payload_hash: await sha256(`opening:error:${requestId}`), applied_revision: 0, response_payload: { record: failed } });
           if (failLogError) logDiag({ step: "opening_fail_log", error: true });
         }
+        // 사용자가 끊은 경우는 다른 모델 경로처럼 499(CANCELLED) — 사용 기록은 위에서 남겼다(리뷰 5401309056)
+        if (haltedBy(router) === "cancelled") return haltFail("cancelled", origin);
         return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin);
       }
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
