@@ -149,15 +149,15 @@ test('전환: 같은 곳 재시도(429·5xx·연결)는 정해진 횟수만 · �
   }
 });
 
-test('잘린 답: 다음 후보가 있으면 그쪽으로(잘린 글은 쓰지 않음) · 마지막 후보면 글을 넘김(Agent 형식 검사가 다시 청함 · 지금 운영과 같음)', async () => {
+test('잘린 답: 다음 후보가 있으면 그쪽으로(잘린 글은 쓰지 않음) · 마지막 후보면 빈 글(JSON 모양이 맞아도 채택 0 · Agent 형식 재요청)', async () => {
   const a = fakeProvider('anthropic', [{ cut: '{"half"' }]); const o = fakeProvider('openai', ['{"full":1}']);
   const r = R.createModelRouter({ policy: policy({ tasks: { default: ['anthropic', 'openai'] } }), providers: { anthropic: a.p, openai: o.p }, params: PARAMS, health: {} });
   assert.equal((await r.llm('turn', 'S', {})).text, '{"full":1}');
   assert.deepEqual(r.log.map((x) => [x.provider, x.ok, x.error]), [['anthropic', false, 'truncated'], ['openai', true, null]]);
   const one = fakeProvider('openai', [{ cut: '{"half"' }]);
   const r1 = R.createModelRouter({ policy: R.defaultPolicy('default-model'), providers: { openai: one.p }, params: PARAMS, health: {} });
-  assert.equal((await r1.llm('turn', 'S', {})).text, '{"half"');
-  assert.deepEqual(r1.log.map((x) => [x.ok, x.error]), [[true, 'truncated_passed']]);
+  assert.equal((await r1.llm('turn', 'S', {})).text, '', '잘린 글은 넘기지 않음');
+  assert.deepEqual(r1.log.map((x) => [x.ok, x.error, x.usage]), [[true, 'truncated_discarded', 'confirmed']], '사용량은 집계');
 });
 
 test('전환 금지: 안전상 거절(refused)은 다른 모델로 돌리지 않고 바로 실패 · 연속 오류 수에도 넣지 않음', async () => {

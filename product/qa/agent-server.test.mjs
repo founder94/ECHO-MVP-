@@ -96,12 +96,14 @@ function load(state) {
       const plan = state.fail?.[prov]?.length ? state.fail[prov].shift() : null; // 제공사별 가짜 사고: 'HTTP500' · 'REFUSE' · { delay } · { gate: Promise }
       if (plan === 'HTTP500') return new Response('{}', { status: 500 });
       if (plan === 'HTTP429') return new Response('{}', { status: 429 });
+      if (plan?.truncValid) { (state.aiCalls ??= []).push({ provider: prov, truncated: true }); return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 1000, completion_tokens: 768 }, choices: [{ message: { content: JSON.stringify(plan.truncValid) }, finish_reason: 'length' }] }), { status: 200 }); }
       if (plan === 'EMPTY_USAGE') return new Response(JSON.stringify({ model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: 2000, completion_tokens: 10 }, choices: [{ message: { content: '' }, finish_reason: 'stop' }] }), { status: 200 });
       if (plan === 'REFUSE') return new Response(JSON.stringify(prov === 'anthropic' ? { model: 'm', stop_reason: 'refusal', content: [] } : prov === 'gemini' ? { promptFeedback: { blockReason: 'SAFETY' } } : { model: 'm', choices: [{ message: { content: null, refusal: 'no' }, finish_reason: 'stop' }] }), { status: 200 });
       if (plan?.gate) await plan.gate;
       const wrap = (text, usage) => new Response(JSON.stringify(prov === 'anthropic' ? { model: `${body.model}-served`, stop_reason: 'end_turn', content: [{ type: 'text', text }], usage: { input_tokens: usage[0], output_tokens: usage[1] } }
         : prov === 'gemini' ? { modelVersion: `${body.model}-served`, candidates: [{ content: { parts: [{ text }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: usage[0], candidatesTokenCount: usage[1] } }
         : { model: 'gpt-4o-mini-2024-07-18', usage: { prompt_tokens: usage[0], completion_tokens: usage[1] }, choices: [{ message: { content: text } }] }), { status: 200 });
+      if (plan === 'BADJSON') return wrap('{"kind": "answer", "reply": "잘', [1000, 50]); // 깨진 JSON(형식 오류) — wrap 정의 뒤
       // 2026-10-01 구조대: 보기만 따로 청하는 호출(RESCUE_PROMPT)은 대화 출력 줄(state.ai)을 쓰지 않는다 — state.rescue 줄(없으면 빈 보기)로 답하고 따로 센다.
       if (String(body.messages[0].content).startsWith('너는 대화 질문 하나에 붙일 「고르기 보기」')) {
         (state.rescueCalls ??= []).push({ input: JSON.parse(body.messages[1].content) });
@@ -1270,4 +1272,44 @@ test('RUN 실행 단계: 모델 호출 0 표시 · 기록한 결과 = 실제 도
   assert.deepEqual([runRec.tool.outcome, runRec.tool.count, runRec.run.outcome], ['found', 3, 'done']);
   const r2 = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid, resume: true });
   assert.equal(r2.body.tool, null); assert.equal(s.connectCalls.length, 1, '재개를 다시 눌러도 같은 작업 재실행 0');
+});
+
+test('PR103 경계 — 잘렸지만 JSON 모양은 맞는 응답(실제 index.ts): 채택·저장 0 · Agent 가 다시 청한 정상 답만 저장 · 사용량은 둘 다 집계', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const recs = s.tables.doit_records.length;
+  s.fail = { openai: [{ truncValid: T({ extracted: [X('attraction_comfort', '잘린 해석', '잘린')], ...Q('values_character', '잘린 질문이에요?') }) }] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const r = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(r.status, 200);
+  const st = sessionRow(s).response_payload.state;
+  assert.ok(!JSON.stringify(st).includes('잘린 해석') && !JSON.stringify(st).includes('잘린 질문'), '잘린 응답 내용 저장 0');
+  assert.equal(st.slots.attraction_comfort.items.find((i) => i.status === 'CONFIRMED').note, '잘 웃는 사람');
+  assert.equal(s.tables.doit_records.length, recs + 1);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'applied').at(-1).response_payload.record;
+  assert.equal(rec.ai_calls[0].error, 'truncated_discarded'); assert.ok(rec.retry.includes('format'), 'Agent 형식 재요청 경로');
+  assert.ok(rec.ai_usage.tokens_out >= 768 + 100, '잘린 호출 사용량도 집계');
+});
+
+test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청에서 같이 일어나도 하나의 예산 · 시도 수 = 실제 업체 호출 수 · 상한에서 멈추고 상태 그대로', async () => {
+  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0 } }); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  // 1) anthropic 500 → openai 깨진 JSON(형식) → Agent 가 previous_attempt 로 다시 청함 → anthropic 500 → openai 정상
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const ok = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(ok.status, 200);
+  const rec = s.tables.doit_request_events.filter((x) => x.action === 'agent_turn' && x.status === 'applied').at(-1).response_payload.record;
+  assert.deepEqual(s.providerCalls.slice(0, 4), ['anthropic', 'openai', 'anthropic', 'openai']);
+  assert.equal(rec.ai_usage.attempts, s.providerCalls.length, '형식 재요청·전환 모두 같은 예산의 시도로 셈');
+  assert.ok(rec.retry.includes('format'));
+  // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
+  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3 } });
+  const before = structuredClone(sessionRow(s));
+  s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
+  const capped = await say3(h, sid, '솔직한 사람');
+  assert.equal(capped.status, 502); assert.equal(s.providerCalls.length, 3, '상한 3 = 실제 업체 호출 3');
+  assert.deepEqual(sessionRow(s), before);
+  const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
+  assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
 });

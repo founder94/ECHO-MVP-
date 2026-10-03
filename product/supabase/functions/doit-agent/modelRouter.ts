@@ -237,7 +237,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         try {
           const r = await d.providers[id]!.call({ model: p.model, system, input: sendInput, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))), signal: d.signal });
           lastUsed.set(kind, id);
-          // 길이 상한에서 잘린 답: 다음 후보가 있으면 그쪽으로(이 글은 쓰지 않음) · 마지막 후보면 지금 운영처럼 글을 넘기고 Agent 형식 검사가 다시 청한다.
+          // 길이 상한에서 잘린 답: 다음 후보가 있으면 그쪽으로(이 글은 쓰지 않음) · 마지막 후보면 빈 글을 넘겨 Agent 형식 재요청으로(잘린 글 채택 0).
           const hasNext = order.slice(order.indexOf(id) + 1).some((x) => !(skipOpen && isOpen(x)));
           const usageOk = r.input_tokens != null || r.output_tokens != null;
           const u1 = settle(usageOk ? r : null, true);
@@ -247,8 +247,9 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
             break;
           }
           h.consecutive_errors = 0;
-          push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: true, error: r.truncated ? "truncated_passed" : null, status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk) ?? 0 });
-          const out: LlmResult = { text: r.text, model: r.model_served ?? r.model_requested, input_tokens: r.input_tokens, output_tokens: r.output_tokens };
+          // 마지막 후보의 잘린 답: 글은 넘기지 않는다(빈 글) — JSON 모양이 우연히 맞아도 잘린 내용을 Agent 가 채택·저장하지 않게. Agent 의 기존 형식 재요청이 다시 청한다(사용량은 위에서 이미 집계).
+          push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: true, error: r.truncated ? "truncated_discarded" : null, status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk) ?? 0 });
+          const out: LlmResult = { text: r.truncated ? "" : r.text, model: r.model_served ?? r.model_requested, input_tokens: r.input_tokens, output_tokens: r.output_tokens };
           return out;
         } catch (e) {
           const pe = e instanceof ProviderError ? e : new ProviderError(id, "network", 0);
