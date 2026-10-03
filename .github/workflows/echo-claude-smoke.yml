@@ -18,7 +18,7 @@ on:
         required: false
         default: 'qa12'
         type: choice
-        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'secret_presence_qa', 'qa_ai_key_presence', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'ai_key_restore_qa', 'smoke', 'compare43', 'ai3_synthetic']
+        options: ['qa12', 'qa_preflight', 'qa_deploy_and_signup', 'qa_deploy_only', 'qa_full_test', 'qa_site_probe', 'qa_rc_check', 'qa_goal_runs', 'qa_admin_check', 'qa_admin_live', 'prod_brand_live', 'prod_app_live', 'prod_fortune_live', 'restart_live_qa', 'realstate_p0_qa', 'realstate_p0_localbuild', 'core_live_qa', 'agent_deploy_qa', 'prod_domain_probe', 'webkit_diag', 'connect_deploy_qa', 'connect_live_qa', 'secret_presence_qa', 'qa_ai_key_presence', 'prod_app_fingerprint', 'prod_secrets_preflight', 'webkit_purposes_diag', 'ai_key_restore_qa', 'smoke', 'compare43', 'ai3_synthetic', 'ai3_live_qa']
       qa_run:
         description: 'QA 테스트 계정 묶음 이름(영문 소문자·숫자 12자 이하)'
         required: false
@@ -245,6 +245,54 @@ jobs:
           set -euo pipefail
           npm i --no-save --silent playwright@1.55.0 >/dev/null 2>&1 && npx playwright install --with-deps chromium webkit >/dev/null 2>&1
           node qa-realstate-p0.mjs
+
+  ai3_live_qa:
+    # 2026-10-03 대표 승인(AskUserQuestion 「이 범위로 진행」): QA 에만 임시 AI_POLICY(제공사 하나씩 · Claude → Gemini) → CORE 실서버 검사(새 시험 계정 · 합성 문장)
+    # → 끝나면 AI_POLICY 삭제(항상 · OpenAI 하나로 복구). 운영 0 · 키 등록·교체 0 · 값 출력 0 · 주 제공사 결정 0(정책을 남기지 않음).
+    if: inputs.mode == 'ai3_live_qa'
+    environment: ECHO-QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      QA_PROJECT_ID: mutniujeiyujhkobadkd
+      PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
+      QA_ANON: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11dG5pdWplaXl1amhrb2JhZGtkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA0NzQzNDksImV4cCI6MjEwNjA1MDM0OX0.914o6-qbGNldjADojI_O-ENi608O0ompYpkJD8hobyw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행)
+        run: |
+          set -euo pipefail
+          [ "$QA_PROJECT_ID" = "mutniujeiyujhkobadkd" ] || { echo "FAIL: QA ref 불일치"; exit 1; }
+          [ "$(printf '%s' "$QA_PROJECT_ID" | sha256sum | cut -d' ' -f1)" != "$PROD_REF_SHA256" ] || { echo "FAIL: 운영 ref 가 대상"; exit 1; }
+          [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || { echo "FAIL: 수동 실행만"; exit 1; }
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: 제공사별 QA 실서버 검사(정책 → 검사 → 다음 제공사)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          set -uo pipefail
+          setpol() { umask 077; F=$(mktemp); printf 'AI_POLICY=%s\n' "$1" > "$F"; supabase secrets set --project-ref "$QA_PROJECT_ID" --env-file "$F" > /dev/null; rc=$?; rm -f "$F"; return $rc; }
+          A='{"version":"qa-ai3-anthropic-20261003","providers":{"anthropic":{"model":"claude-haiku-4-5","allow_user_text":true,"enabled":true,"price":{"in_usd_per_1m":1,"out_usd_per_1m":5}}},"tasks":{"default":["anthropic"]},"switch_on_invalid":false,"limits":{"max_cost_usd_per_request":0.25,"same_provider_retries":1}}'
+          G='{"version":"qa-ai3-gemini-20261003","providers":{"gemini":{"model":"gemini-3.5-flash-lite","allow_user_text":true,"enabled":true,"price":{"in_usd_per_1m":0.3,"out_usd_per_1m":2.5}}},"tasks":{"default":["gemini"]},"switch_on_invalid":false,"limits":{"max_cost_usd_per_request":0.25,"same_provider_retries":1}}'
+          for p in anthropic gemini; do
+            pol=$A; [ "$p" = gemini ] && pol=$G
+            setpol "$pol" || { echo "FAIL: $p 정책 등록 실패"; continue; }
+            echo "== $p 정책 등록(QA 만) · $(date -u +%H:%M:%SZ)"; sleep 20
+            ( cd product/qa-real && EXPECT_AGENT_VERSION=echo-agent-v2.5.8 timeout 900 node qa-core-live.mjs ); echo "== $p 검사 종료 코드=$? · $(date -u +%H:%M:%SZ)"
+          done
+      - name: 정리 — QA AI_POLICY 삭제(항상 · 지금처럼 OpenAI 하나로)
+        if: always()
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN }}
+        run: |
+          supabase secrets unset AI_POLICY --project-ref "$QA_PROJECT_ID" --yes > /dev/null 2>&1 || supabase secrets unset AI_POLICY --project-ref "$QA_PROJECT_ID" > /dev/null 2>&1 || true
+          names="$(supabase secrets list --project-ref "$QA_PROJECT_ID" -o json | jq -r '.[].name')"
+          if printf '%s\n' "$names" | grep -qx AI_POLICY; then echo "FAIL: AI_POLICY 남아 있음"; exit 1; else echo "AI_POLICY 삭제 확인(QA = OpenAI 하나)"; fi
 
   core_live_qa:
     # CORE 실서버 검사(QA 서버 doit-agent · 실제 AI · 새 시험 계정): 정정 · 거절된 의미 재등장 · 원문 보존 · 세션 격리. 배포 0 · 운영 0.
