@@ -367,3 +367,11 @@ test('Codex P1(리뷰 4174714917) 구분자가 여러 글자인 전화(「010 - 
   }
   const far = '02년에 345명이 왔고           6789원을 냈다'; assert.equal(maskPii({ latest: far }).counts.landline, undefined);
 });
+
+test('Codex P1(리뷰 4174752170) 국내 전화 일반화: 0303 등 4자리 서비스 앞자리·12자리도 가림 · 짧은 0 시작 숫자·날짜·더 긴 숫자는 그대로', () => {
+  for (const n of ['0303-1234-5678', '030312345678', '0303 1234 5678', '0505-1234-5678', '0130-123-4567', '(0303) 1234-5678']) {
+    const r = maskPii({ latest: `연락처 ${n} 입니다` });
+    assert.ok(!r.value.latest.includes('5678') && !r.value.latest.includes('4567'), `${n} → ${r.value.latest}`); assert.equal(r.counts.landline, 1, n);
+  }
+  for (const keep of ['02.10.2026', '오전 06:30', '0123', '01234567', '0303-1234-5678-9012-3456', '번호 0000000000000']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
+});
