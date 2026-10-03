@@ -21,6 +21,9 @@ const USAGE_ACTION = "agent_usage"; // 턴 기록 밖의 모델 사용(시작 �
 const RUN_ACTION = "agent_run";
 // 실행 요청 임대 시간: Edge 함수 한 번의 최대 실행 시간(무료 150초 · 유료 400초)보다 길게 → 이 시간이 지난 pending 은 끊긴 요청으로 보고 다시 잡을 수 있다
 const RUN_LEASE_MS = 420_000;
+// 실행 행의 도구 상태 표시(error_code 칸 · 표 구조 변경 0): 도구를 부르기 직전 = 시작 · 시작 뒤 결과를 확인하지 못한 채 다시 온 요청 = 불확실(다시 실행 안 함)
+const RUN_TOOL_STARTED = "TOOL_STARTED";
+const RUN_TOOL_UNCERTAIN = "TOOL_UNCERTAIN";
 const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -393,7 +396,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // ── 대화(agent_start · agent_turn)
     const requestId = typeof body.requestId === "string" && UUID.test(body.requestId) ? body.requestId : "";
     if (!requestId) return fail("BAD_REQUEST", "요청 식별값이 없어요.", 400, origin);
-    const { data: prior } = await admin.from("doit_request_events").select("action, status, target_id, response_payload, updated_at").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
+    const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, response_payload, updated_at").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
     const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
     const ctx = { admin, userId, llm: router.llm, router, origin };
@@ -529,7 +532,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
       // 다시 잡기: ① 대화가 바뀌어 실패(failed)로 끝난 같은 요청 id ② 함수가 중간에 끊겨 오래 남은 pending(임대 시간 RUN_LEASE_MS 지남)
       //   — 앱은 성공 전까지 같은 id 를 다시 보낸다. 다시 잡기도 상태(+ pending 이면 마지막 갱신 시각) 조건 update 라 동시에 다시 잡는 요청 중 하나만 실행한다.
-      //   보장 범위: 겹친 실행 0(동시 다시 잡기 한정). 도구 호출 뒤 저장 전에 함수가 끊기면 다시 잡을 때 도구(my_candidates — 조회 전에 후보 준비 쓰기 포함)를 한 번 더 부를 수 있다 — 장애 포함 정확히 1번은 아님 · 그 쓰기의 중복 안전성은 doit-connect 쪽 보장에 따름(미확인).
+      //   도구를 부르기 직전에 실행 행에 「도구 시작(TOOL_STARTED)」을 적는다. 이 표시가 있는 오래된 pending 은 도구(my_candidates — 조회 전에 후보 준비 쓰기 포함)가
+      //   이미 돌았을 수 있으므로 같은 요청 id 로는 다시 잡지 않는다: 세션에 그 요청 결과가 있으면 재생, 없으면 복구 가능한 409(RUN_UNCERTAIN · 행은 failed/TOOL_UNCERTAIN 로 남김).
+      //   앱은 RUN_UNCERTAIN 을 받으면 그 요청 id 를 내려놓는다 → 사용자가 다시 누르면 새 요청(새 실행). 같은 요청 id 의 도구 실행 = 최대 1번(장애 포함 · 표시 저장이 실패하면 도구를 부르지 않음).
       let reclaim: { status: "failed" | "pending"; updatedAt: string | null } | null = null;
       if (prior) {
         const p = prior.response_payload as Json | null;
@@ -541,6 +546,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
           if (again && kept?.run) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin);
           const stale = prior.status === "pending" && typeof prior.updated_at === "string" && Date.now() - Date.parse(prior.updated_at) > RUN_LEASE_MS;
           if (!p?.run && prior.status === "pending" && !stale) return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
+          if (!p?.run && (prior.error_code === RUN_TOOL_STARTED || prior.error_code === RUN_TOOL_UNCERTAIN)) {
+            // 도구가 돌았는지 확인할 수 없는 요청: 다시 실행하지 않는다(성공처럼 처리 0 · 행 삭제 0)
+            if (prior.status === "pending") await admin.from("doit_request_events").update({ status: "failed", error_code: RUN_TOOL_UNCERTAIN, updated_at: new Date().toISOString() })
+              .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", "pending").eq("updated_at", prior.updated_at);
+            logDiag({ step: "run", code: "uncertain" });
+            return fail("RUN_UNCERTAIN", "지난 확인 결과를 불러오지 못했어요. 다시 눌러 새로 확인해 주세요.", 409, origin);
+          }
           if (!p?.run && (prior.status === "failed" || stale)) reclaim = { status: prior.status as "failed" | "pending", updatedAt: (prior.updated_at as string | null) ?? null };
         }
         if (!reclaim) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
@@ -575,6 +587,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const due = R.dueTool(run, Date.now());
       let tool: { tool: R.ToolId; outcome: R.ToolOutcome; count: number | null; code: string | null } | null = null;
       if (due.tool === "candidates") {
+        // 도구 시작 표시(같은 요청 id 로 다시 잡혀 후보 준비 쓰기가 또 도는 것 방지) — 표시를 못 남기면 도구를 부르지 않는다
+        const { data: marked, error: markError } = await admin.from("doit_request_events").update({ error_code: RUN_TOOL_STARTED, updated_at: new Date().toISOString() })
+          .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", "pending").select("request_id");
+        if (markError || !marked || !marked.length) {
+          await admin.from("doit_request_events").update({ status: "failed", error_code: "MARK_FAILED" }).eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION).eq("status", "pending");
+          return fail("ERROR", "서버 오류가 발생했어요. 다시 시도해 주세요.", 500, origin);
+        }
         const r = await candidatesTool(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", authHeader);
         run = R.recordTool(run, stored.state, { tool: "candidates", ...r, at: new Date().toISOString() }, new Date().toISOString());
         tool = { tool: "candidates", outcome: r.outcome, count: r.count, code: r.code };

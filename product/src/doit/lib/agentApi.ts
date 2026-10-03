@@ -1,4 +1,4 @@
-import { prepareUnderstandingRequest, serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { prepareUnderstandingRequest, serverFunctionRequest, UnderstandingError } from '@/doit/lib/understandingApi';
 import type { ContentSeed } from './contentSeed';
 
 // ECHO Conversation Agent(서버 doit-agent). 이 파일은 질문·진행·저장을 만들지 않는다 — 서버가 준 모습을 그대로 쓴다.
@@ -109,11 +109,17 @@ export async function agentGet(userId: string): Promise<AgentSession | null> {
   return r.session;
 }
 
-async function write<T>(userId: string, body: Record<string, unknown>): Promise<T> {
+// releaseOn = 서버가 「이 요청 id 로는 다시 하지 않음」이라고 답한 오류 코드 → 요청 id 를 내려놓아 다음 누름은 새 요청이 된다(자동 재시도 0)
+async function write<T>(userId: string, body: Record<string, unknown>, releaseOn: readonly string[] = []): Promise<T> {
   const request = await prepareUnderstandingRequest(userId, body);
-  const result = await serverFunctionRequest<T>('doit-agent', request.body, userId);
-  request.complete();
-  return result;
+  try {
+    const result = await serverFunctionRequest<T>('doit-agent', request.body, userId);
+    request.complete();
+    return result;
+  } catch (e) {
+    if (e instanceof UnderstandingError && releaseOn.includes(e.code)) request.complete();
+    throw e;
+  }
 }
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
@@ -156,7 +162,8 @@ export async function agentIntroMark(userId: string, sessionId: string, how: 'as
 // 2026-10-03 실행 단계(agent_run · 모델 호출 0): 서버가 정한 도구 하나만 실행하고 결과·다음 할 일을 돌려준다.
 // resume = 사용자가 직접 누른 「다시 이어서」일 때만 true(화면이 스스로 재개하지 않음). 같은 요청 id 재전송 = 서버가 저장된 결과를 돌려준다(duplicate).
 export async function agentRun(userId: string, sessionId: string, opts: { resume?: boolean } = {}): Promise<{ session: AgentSession; run: AgentRun; tool: AgentRunTool | null; duplicate: boolean }> {
-  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) });
+  // RUN_UNCERTAIN = 지난 실행이 도구를 부른 뒤 결과 저장 전에 끊김(서버는 같은 요청 id 로 도구를 다시 부르지 않음) → 다음 누름은 새 요청
+  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) }, ['RUN_UNCERTAIN']);
   if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
   return { session: r.session, run: r.run, tool: validRunTool(r.tool) ? r.tool : null, duplicate: r.duplicate === true };
 }

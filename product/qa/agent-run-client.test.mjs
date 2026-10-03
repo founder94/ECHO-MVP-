@@ -11,8 +11,9 @@ const dir = mkdtempSync(path.join(tmpdir(), 'agentapi-'));
 const calls = []; let reply = null;
 globalThis.__agentStub = { calls, set: (r) => { reply = r; }, get: () => reply };
 writeFileSync(path.join(dir, 'understandingApi.mjs'), `
-export async function prepareUnderstandingRequest(userId, body) { return { body: { ...body, requestId: 'req-1' }, complete() {} }; }
-export async function serverFunctionRequest(fn, body) { globalThis.__agentStub.calls.push({ fn, body }); return structuredClone(globalThis.__agentStub.get()); }`);
+export class UnderstandingError extends Error { constructor(code, message) { super(message); this.code = code; } }
+export async function prepareUnderstandingRequest(userId, body) { return { body: { ...body, requestId: 'req-1' }, complete() { globalThis.__agentStub.completed = (globalThis.__agentStub.completed ?? 0) + 1; } }; }
+export async function serverFunctionRequest(fn, body) { globalThis.__agentStub.calls.push({ fn, body }); const r = globalThis.__agentStub.get(); if (r && r.__throw) throw new UnderstandingError(r.__throw, 'x'); return structuredClone(r); }`);
 const js = ts.transpileModule(readFileSync(new URL('../src/doit/lib/agentApi.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
   .replace("'@/doit/lib/understandingApi'", "'./understandingApi.mjs'").replace('import.meta.env.VITE_ECHO_AGENT_ENABLED', "'false'");
 writeFileSync(path.join(dir, 'agentApi.mjs'), js);
@@ -38,6 +39,15 @@ test('agentRun: 같은 요청 재전송 표시(duplicate) 전달 · 모양이 �
     globalThis.__agentStub.set({ session: session(run()), run: bad, tool: null });
     await assert.rejects(A.agentRun('u1', 's'), /INVALID_RESPONSE/);
   }
+});
+test('agentRun: 서버가 RUN_UNCERTAIN(지난 실행 결과 확인 불가 · 같은 요청 id 로 도구 다시 안 부름)이면 요청 id 를 내려놓음 · 다른 실패는 유지(같은 id 재전송)', async () => {
+  const c0 = globalThis.__agentStub.completed ?? 0;
+  globalThis.__agentStub.set({ __throw: 'REQUEST_CONFLICT' });
+  await assert.rejects(A.agentRun('u1', 's'), (e) => e.code === 'REQUEST_CONFLICT');
+  assert.equal(globalThis.__agentStub.completed ?? 0, c0, '처리 중 409 = 같은 요청 id 유지');
+  globalThis.__agentStub.set({ __throw: 'RUN_UNCERTAIN' });
+  await assert.rejects(A.agentRun('u1', 's'), (e) => e.code === 'RUN_UNCERTAIN');
+  assert.equal(globalThis.__agentStub.completed, c0 + 1, '확인 불가 = 요청 id 내려놓음(다음 누름 = 새 요청 · 자동 재시도 0)');
 });
 test('세션의 실행 기록: 맞으면 그대로 · 틀리면 대화는 쓰고 실행 기록만 버림(null)', async () => {
   globalThis.__agentStub.set({ session: session(run()) });

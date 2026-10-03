@@ -1666,6 +1666,65 @@ test('Codex 5969458619 P2 대조 — 도구 실행·세션 저장 뒤 함수가 
   assert.equal(again.status, 200); assert.equal(again.body.duplicate, true, '세션에 남은 그 요청의 결과');
   assert.deepEqual(again.body.run, r1.body.run); assert.equal(n(), after, '도구 다시 실행 0');
 });
+test('Codex P1 중단된 agent_run은 임대 만료 뒤 후보 준비 쓰기를 다시 실행하지 않는다', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length; const before = n();
+  // 첫 실행: 도구(my_candidates · 후보 준비 쓰기 포함)가 불린 뒤 응답이 오지 않음 = 세션 저장 전에 함수가 끊긴 것과 같음
+  s.connect = [{ gate: new Promise(() => {}), body: { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] } }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  void h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  for (let i = 0; i < 20 && n() === before; i++) await new Promise((r) => setTimeout(r, 0));
+  assert.equal(n(), before + 1, '첫 실행에서 도구 1번');
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  assert.equal(row.status, 'pending');
+  row.updated_at = new Date(Date.now() - 10 * 60_000).toISOString(); // 임대(7분) 만료
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid }); // 앱은 같은 id 를 다시 보낸다
+  assert.equal(n(), before + 1, '임대 만료 뒤 같은 요청 = 도구(후보 준비 쓰기) 다시 실행 0');
+  assert.equal(again.status, 409, JSON.stringify(again.body)); assert.equal(again.body.code, 'RUN_UNCERTAIN', '성공처럼 처리하지 않고 복구 가능한 409');
+  const third = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(third.status, 409); assert.equal(third.body.code, 'RUN_UNCERTAIN'); assert.equal(n(), before + 1, '몇 번을 다시 보내도 도구 0');
+  assert.ok(s.tables.doit_request_events.some((x) => x.request_id === A && x.action === 'agent_run'), '실행 기록 행 삭제 0');
+  // 앱이 이 요청 id 를 내려놓고 새로 누르면(새 요청 id) 기존처럼 도구 1번
+  const fresh = await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid });
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body)); assert.equal(fresh.body.tool.outcome, 'found'); assert.equal(n(), before + 2, '새 요청 = 도구 1번');
+});
+test('결과 없는 오래된 예약은 도구 재실행 대신 복구 가능한 409를 반환한다', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const user = sessionRow(s).user_id; const n = () => (s.connectCalls ?? []).length; const before = n();
+  const old = new Date(Date.now() - 10 * 60_000).toISOString();
+  const A = rid(); const B = rid();
+  s.tables.doit_request_events.push({ user_id: user, request_id: A, action: 'agent_run', target_id: sid, status: 'pending', error_code: 'TOOL_STARTED', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.tables.doit_request_events.push({ user_id: user, request_id: B, action: 'agent_run', target_id: sid, status: 'failed', error_code: 'TOOL_UNCERTAIN', payload_hash: 'x', response_payload: null, created_at: old, updated_at: old });
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const ra = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(ra.status, 409); assert.equal(ra.body.code, 'RUN_UNCERTAIN');
+  const rb = await h.call({ action: 'agent_run', requestId: B, sessionId: sid });
+  assert.equal(rb.status, 409); assert.equal(rb.body.code, 'RUN_UNCERTAIN', '확인 못 한 실패는 다시 잡지 않음');
+  assert.equal(n(), before, '도구 0');
+  assert.equal(s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run').error_code, 'TOOL_UNCERTAIN');
+});
+test('저장된 동일 요청 결과가 있으면 도구 없이 duplicate로 재생한다 — 도구 시작 표시가 남은 행이어도', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  const n = () => (s.connectCalls ?? []).length;
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.status, 200); const after = n();
+  // 세션 저장 뒤 결과 기록(applied) 전에 끊긴 것처럼: 도구 시작 표시가 남은 오래된 pending
+  const row = s.tables.doit_request_events.find((x) => x.request_id === A && x.action === 'agent_run');
+  Object.assign(row, { status: 'pending', error_code: 'TOOL_STARTED', response_payload: null, applied_revision: null, updated_at: new Date(Date.now() - 10 * 60_000).toISOString() });
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.deepEqual(again.body.run, r1.body.run); assert.equal(n(), after, '도구 0');
+});
 test('Codex P2(리뷰 5400766764) 첫 답 없는 시작은 첫 질문 만들기(opening) 경로로 확인 — 작업별 정책 존중', async () => {
   const s = newState();
   s.env = { ...ENV3({ providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: false } }, tasks: { default: ['anthropic'], opening: ['openai'] } }) };
