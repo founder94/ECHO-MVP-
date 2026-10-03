@@ -886,3 +886,4 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
   - `next === "open_candidates"` → 기존 후보 화면(`ConnectionCandidates` · doit-connect `my_candidates`)을 다시 읽을 뿐 · 실행 결과로 후보 상세를 만들지 않음.
   - 버튼 이름 「후보 확인하기」와 대기 문구(기존 안내문 재사용)는 **임시 — 대표 확인 필요**(명세 §4-1 · §4-4). 빌드 스위치가 꺼진 앱(기본)에서는 보이지 않는다.
 - 항목 C: `qa/agent-run-client.test.mjs` 9(계약 4 + 버튼 5). 결과는 인계 댓글에.
+- 26.2 Codex P2(리뷰 5400441424 · d5a5e05): 실행 재전송 기록을 하나(`last_request`)만 두면 그 사이 다른 실행이 덮어 재실행됨 → 최근 10개(`run.recent_requests` · `RUN_LIMITS.requests_kept`)로. 재현 검사 1건(수정 전 실패 확인 → 통과) · 전체 1141 중 1136 통과 / 0 실패(TODO 5).

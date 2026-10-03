@@ -1543,3 +1543,20 @@ test('Codex P2 실행 재생 기록(agent_run 행)이 남지 않아도 같은 �
   assert.equal(r2.status, 200); assert.equal(r2.body.duplicate, true); assert.equal(r2.body.tool.outcome, 'none');
   assert.equal(s.connectCalls.length, calls, '도구 다시 안 부름');
 });
+test('Codex P2(리뷰 5400441424) 재생 기록이 빠진 실행 요청 A 는 그 사이 다른 실행 B 가 있어도 재전송 = 저장된 결과(도구 재실행 0)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = ['NETWORK', { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const A = rid();
+  const r1 = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(r1.body.tool.outcome, 'failed');
+  s.tables.doit_request_events = s.tables.doit_request_events.filter((x) => !(x.action === 'agent_run' && x.request_id === A)); // A 의 재생 기록 저장 실패
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).status, 200); // B: 쉬는 시간이라 도구 0 · 기록만
+  const calls = s.connectCalls.length;
+  sessionRow(s).response_payload.run.tools.at(-1).at = '2000-01-01T00:00:00.000Z'; // 쉬는 시간이 지난 뒤 A 재전송
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.body.duplicate, true); assert.equal(again.body.tool.outcome, 'failed');
+  assert.equal(s.connectCalls.length, calls, 'A 재전송 = 도구 다시 안 부름');
+});

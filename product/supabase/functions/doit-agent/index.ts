@@ -519,7 +519,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const stored = row.response_payload as unknown as Stored;
       if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
       // 재생 기록(agent_run 행)이 남지 않았어도, 세션에 함께 저장된 마지막 실행 요청이면 그 결과를 돌려준다(도구 재실행 0)
-      if (stored.run?.last_request?.id === requestId) return json({ ok: true, session: sessionView(sid, stored), run: R.runView(stored.run), tool: stored.run.last_request.tool, duplicate: true }, 200, origin);
+      const kept = stored.run?.recent_requests?.find((x) => x.id === requestId);
+      if (kept && stored.run) return json({ ok: true, session: sessionView(sid, stored), run: R.runView(stored.run), tool: kept.tool, duplicate: true }, 200, origin);
       const rev = Number(row.applied_revision ?? 0);
       const t0 = Date.now();
       let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
@@ -531,7 +532,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         run = R.recordTool(run, stored.state, { tool: "candidates", ...r, at: new Date().toISOString() }, new Date().toISOString());
         tool = { tool: "candidates", outcome: r.outcome, count: r.count, code: r.code };
       }
-      run.last_request = { id: requestId, tool };
+      run.recent_requests = [...(run.recent_requests ?? []), { id: requestId, tool }].slice(-R.RUN_LIMITS.requests_kept);
       stored.run = run;
       const { data: saved, error: saveError } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");

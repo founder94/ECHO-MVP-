@@ -23,14 +23,15 @@ export interface RunBudget { calls: number; tokens_in: number; tokens_out: numbe
 export interface Run {
   version: string; goal: string; plan_rev: number; basis_key: string; steps: RunStep[]; tools: ToolRun[];
   outcome: RunOutcome; waiting: WaitReason; missing: string[]; user_stopped: boolean; stop_ack: number | null; budget: RunBudget; changes: string[]; updated_at: string;
-  // 마지막 실행 요청(agent_run) id 와 그 도구 결과 — 세션 저장과 한 번에 남아, 따로 남기는 재생 기록이 실패해도 같은 요청 재전송은 재실행 0
-  last_request?: { id: string; tool: { tool: ToolId; outcome: ToolOutcome; count: number | null; code: string | null } | null } | null;
+  // 최근 실행 요청(agent_run) id 와 그 도구 결과(최근 RUN_LIMITS.requests_kept 개) — 세션 저장과 한 번에 남아, 따로 남기는 재생 기록이 실패해도
+  // 그 사이 다른 실행 요청이 있었어도 같은 요청 재전송은 재실행 0
+  recent_requests?: { id: string; tool: { tool: ToolId; outcome: ToolOutcome; count: number | null; code: string | null } | null }[];
 }
 
 // 대화 하나의 누적 상한(요청 하나의 상한은 modelRouter). 2026-10-03 QA 실측(마친 대화 1,439개 · 턴 기록만): 호출 p50 8 · p99 22 · 최대 26 · 토큰 p99 56,263 · 최대 67,721.
 // 턴 기록 밖 호출(시작 인사 · 소개 다시 쓰기 2 · 보기 요청)을 더해 → 60번 · 150,000토큰(관측 최대의 약 2.3배). 넘으면 모델 호출 0(429 AI_BUDGET).
 // 「아직 없음(none)」·「준비 부족(not_ready)」은 대화 밖 사정(새 후보 · 사진 · 프로필 채움)으로 바뀌므로 확정 정보가 그대로여도 시간이 지나면 다시 조회한다(조회 실패 쉬는 시간과 따로).
-export const RUN_LIMITS = Object.freeze({ max_calls: 60, max_tokens: 150_000, max_tool_runs: 20, tool_retry_after_ms: 30_000, none_refresh_after_ms: 600_000, not_ready_refresh_after_ms: 30_000, tool_timeout_ms: 10_000, tools_kept: 10, changes_kept: 12 });
+export const RUN_LIMITS = Object.freeze({ max_calls: 60, max_tokens: 150_000, max_tool_runs: 20, requests_kept: 10, tool_retry_after_ms: 30_000, none_refresh_after_ms: 600_000, not_ready_refresh_after_ms: 30_000, tool_timeout_ms: 10_000, tools_kept: 10, changes_kept: 12 });
 
 const STOP_TURN = (st: AgentState) => { const t = st.turns.at(-1); return !!t && (t.kind === "stop" || t.guard?.rule === "fatigue"); };
 // 확정 정보 열쇠(FNV-1a): 도구 결과가 어떤 확정 정보로 나왔는지 묶는다(원문을 따로 저장하지 않음 — 상태에 이미 있는 확정 메모의 지문만).
