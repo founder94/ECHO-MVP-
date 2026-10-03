@@ -3,7 +3,7 @@ name: Claude Code
 # ECHO 자동 왕복(AGENTS.md · .claude/skills/steward/SKILL.md)
 #   Codex FAIL 댓글 끝 `@claude` → 이 워크플로가 PR head 에서 Claude 실행
 #   → 수정 · 검사 · push(작업 브랜치만) → 인계 댓글(마지막 줄 `@codex review`) → Codex 재검수
-# 안전: 저장소 주인/구성원만 · 봇 댓글 무시 · PR 당 한 번에 하나 · 인계 5회 넘으면 스스로 멈춤
+# 안전: 저장소 주인/구성원 및 검증된 Codex 리뷰만 · 나머지 봇 거부 · PR 당 한 번에 하나 · 인계 5회 넘으면 스스로 멈춤
 #       병합 · 배포 · Secret · DB · Supabase 명령 없음(허용 도구에서 제외 + 저장소 훅이 한 번 더 막음)
 
 on:
@@ -30,6 +30,7 @@ jobs:
         (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') &&
           github.event.comment.user.type != 'Bot' &&
           contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+        (github.event_name == 'pull_request_review' && github.event.action == 'submitted' && github.event.review.user.login == 'chatgpt-codex-connector[bot]' && github.event.review.user.type == 'Bot') ||
         (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') &&
           github.event.review.user.type != 'Bot' &&
           contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
@@ -45,7 +46,48 @@ jobs:
       id-token: write
       actions: read
     steps:
+      - name: Validate trusted Codex review and implementation owner
+        id: preflight
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Trusted GitHub event metadata is input; review text is never executable code.
+            const CODEX = 'chatgpt-codex-connector[bot]';
+            function check({eventName, event, pr, reviews, comments, issueComments, repository}) {
+              const no = reason => ({run:false,reason});
+              if (eventName !== 'pull_request_review') return no('not_codex_review');
+              const review = event.review;
+              if (event.action !== 'submitted' || review?.user?.login !== CODEX || review.user.type !== 'Bot') return no('untrusted_review');
+              if (!pr || pr.state !== 'open' || pr.draft || !['main','echo-qa'].includes(pr.base?.ref) || pr.head?.repo?.full_name !== repository) return no('unsupported_pr');
+              if (review.commit_id !== pr.head.sha || !/^[a-f0-9]{40}$/.test(review.commit_id || '')) return no('stale_source');
+              const owned = issueComments.filter(c=>c.user?.login==='founder94' && c.user.type==='User' && /^\[ECHO-AUTO-OWNER:(actions|session)\]$/.test((c.body||'').trim()));
+              if (!owned.length || owned.at(-1).body.trim() !== '[ECHO-AUTO-OWNER:actions]') return no('implementation_owner_not_actions');
+              const marker = `<!-- echo-review-claim id=${review.id} sha=${review.commit_id} -->`;
+              if (issueComments.some(c=>c.user?.login==='github-actions[bot]' && (c.body||'').startsWith(marker))) return no('duplicate_review');
+              const rounds=issueComments.filter(c=>['github-actions[bot]','claude[bot]','founder94'].includes(c.user?.login) && /^<!-- echo-handoff to=codex sha=[a-f0-9]{40} round=\d+ -->/.test(c.body||'')).length;
+              if (rounds>=5) return no('round_limit');
+              const findings=comments.filter(c=>c.pull_request_review_id===review.id && c.user?.login===CODEX && c.user.type==='Bot' && c.commit_id===review.commit_id && /\[P[012]\]/.test(c.body||''));
+              if (!findings.length) return no('no_actionable_findings');
+              // Review existence and author are checked from API, not from a copied comment.
+              if (!reviews.some(r=>r.id===review.id && r.user?.login===CODEX && r.commit_id===review.commit_id)) return no('review_not_confirmed');
+              return {run:true,reason:'trusted_current_findings',sha:review.commit_id,reviewId:review.id,marker,round:rounds+1,findings:findings.map(c=>({path:c.path,line:c.line,body:c.body}))};
+            }
+            
+            
+            if(context.eventName!=='pull_request_review'||context.payload.review?.user?.login!==CODEX){core.setOutput('go','true');return;}
+            const {owner,repo}=context.repo;
+            const pull_number=context.payload.pull_request.number;
+            const pr=(await github.rest.pulls.get({owner,repo,pull_number})).data;
+            const reviews=await github.paginate(github.rest.pulls.listReviews,{owner,repo,pull_number,per_page:100});
+            const comments=await github.paginate(github.rest.pulls.listReviewComments,{owner,repo,pull_number,per_page:100});
+            const issueComments=await github.paginate(github.rest.issues.listComments,{owner,repo,issue_number:pull_number,per_page:100});
+            const result=check({eventName:context.eventName,event:context.payload,pr,reviews,comments,issueComments,repository:owner+'/'+repo});
+            core.info('Codex review gate: '+result.reason);
+            core.setOutput('go',String(result.run));
+            if(result.run){await github.rest.issues.createComment({owner,repo,issue_number:pull_number,body:result.marker+'\nActions Claude received this exact review; ownership=actions. Source '+result.sha+'. This is receipt, not completion.'});}
+            
       - name: Round gate (handoff ≤ 5 per PR)
+        if: steps.preflight.outputs.go == 'true'
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,7 +120,7 @@ jobs:
         if: steps.gate.outputs.go == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Run Claude Code
         if: steps.gate.outputs.go == 'true'
@@ -88,11 +130,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: 'chatgpt-codex-connector[bot]'
+          prompt: ${{ github.event_name == 'pull_request_review' && github.event.review.user.login == 'chatgpt-codex-connector[bot]' && 'Handle the validated current Codex review for this PR as its Actions implementation owner. Read the actual inline findings for this review; minimally fix authorized product files, test, push only the PR branch, and return the handoff. Verify the reviewed SHA before editing. Follow all existing STOP rules. Do not modify workflows or create parallel tasks. If exact review context is unavailable, stop and report it.' || '' }}
           claude_args: |
             --max-turns 60
             --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(node:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git rev-parse:*),Bash(git branch:*),Bash(git fetch:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(cd:*),Bash(ls:*),Bash(cat:*),Bash(grep:*),Bash(find:*),Bash(mkdir:*),Bash(cp:*),Bash(zip:*),Bash(sha256sum:*)"
             --disallowedTools "Bash(supabase:*),Bash(npx supabase:*),Bash(gh pr merge:*),Bash(gh api:*),Bash(gh workflow:*),Bash(gh run:*),Bash(gh secret:*),Bash(git push --force:*),Bash(git push -f:*),Bash(git push origin main:*),Bash(git push origin echo-qa:*),Bash(git reset --hard:*),Bash(rm:*)"
-            --append-system-prompt "ECHO rules: Follow AGENTS.md and .claude/skills/steward/SKILL.md if present on this branch. You are the implementer for this PR; Codex is the independent reviewer. When the triggering comment is a Codex review (first line <!-- echo-review from=codex ... verdict=FAIL -->): (1) check the reviewed SHA vs current PR head; (2) put Codex's reproduction into a test verbatim and confirm it fails; (3) make the minimal fix in real product code, never weaken tests; (4) run checks: cd product && npm ci && npm run -s type-check && npm run -s lint && the affected node --test files (and the full qa suite when feasible); (5) commit and git push to the current PR branch only (never main/echo-qa/prod, never force); (6) post exactly one new PR comment with gh pr comment whose first line is <!-- echo-handoff to=codex sha=<full 40-char new head SHA> round=<n> -->, listing changed files, before/after reproduction results, exact commands with exit codes and remaining limits, ending with the footer line '_Generated by [Claude Code](https://claude.ai/code)_' and then a final line '@codex review'. Never write @claude anywhere. If the request is a design-level change (multi-file restructure, API/schema change) or needs approval, do not change code; explain and stop. Never modify or deploy DB, RLS, migrations, secrets, API keys, models, payment, pricing, production data, Supabase Edge Functions, workflows; never merge; never make paid real API calls; never print secrets. Do not claim PASS for tests not actually run; separate mock / real / QA / production results. LLMs generate candidates only; final product decisions belong to the server state machine. Do not introduce hardcoded question arrays. Write PR comments in simple Korean."
+            --append-system-prompt "ECHO rules: Follow AGENTS.md and .claude/skills/steward/SKILL.md if present on this branch. You are the implementer for this PR; Codex is the independent reviewer. When the event is a validated Codex review submitted by chatgpt-codex-connector[bot], or the triggering comment is a Codex review (first line <!-- echo-review from=codex ... verdict=FAIL -->): (1) check the reviewed SHA vs current PR head; (2) put Codex's reproduction into a test verbatim and confirm it fails; (3) make the minimal fix in real product code, never weaken tests; (4) run checks: cd product && npm ci && npm run -s type-check && npm run -s lint && the affected node --test files (and the full qa suite when feasible); (5) commit and git push to the current PR branch only (never main/echo-qa/prod, never force); (6) post exactly one new PR comment with gh pr comment whose first line is <!-- echo-handoff to=codex sha=<full 40-char new head SHA> round=<n> -->, listing changed files, before/after reproduction results, exact commands with exit codes and remaining limits, ending with the footer line '_Generated by [Claude Code](https://claude.ai/code)_' and then a final line '@codex review'. Never write @claude anywhere. If the request is a design-level change (multi-file restructure, API/schema change) or needs approval, do not change code; explain and stop. Never modify or deploy DB, RLS, migrations, secrets, API keys, models, payment, pricing, production data, Supabase Edge Functions, workflows; never merge; never make paid real API calls; never print secrets. Do not claim PASS for tests not actually run; separate mock / real / QA / production results. LLMs generate candidates only; final product decisions belong to the server state machine. Do not introduce hardcoded question arrays. Write PR comments in simple Korean."
 
       - name: Upload deployment ZIP
         if: always() && steps.gate.outputs.go == 'true'
