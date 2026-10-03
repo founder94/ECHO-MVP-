@@ -40,14 +40,16 @@ async function cappedFetch(url, init) {
   spent += worst; // 보내기 전에 최악값으로 잡아 두고, 실제 사용량이 오면 바꾼다
   const t0 = Date.now(); let res;
   try { res = await realFetch(url, init); } catch (e) { ledger.push({ prov, ok: false, status: 'network', ms: Date.now() - t0, reserved: worst }); throw e; }
-  const clone = res.clone(); let usage = null;
+  const clone = res.clone(); let usage = null; let err = null;
   try { const d = await clone.json(); const u = d.usage ?? d.usageMetadata ?? {};
+    // 실패 원인 구분용: 업체 오류 종류·짧은 설명만(키·요청 본문은 남기지 않음)
+    if (!res.ok) err = `${d.error?.status ?? d.error?.type ?? d.error?.code ?? ''}:${String(d.error?.message ?? '').replace(/key=[^&\s]+/gi, 'key=***').slice(0, 160)}`;
     const tin = u.prompt_tokens ?? u.input_tokens ?? u.promptTokenCount; const tout = u.completion_tokens ?? u.output_tokens ?? ((u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0) || undefined);
     if (Number.isFinite(tin) && Number.isFinite(tout)) usage = { tin, tout };
   } catch { /* 본문 없음 */ }
   const actual = usage ? (usage.tin * pr.in_usd_per_1m + usage.tout * pr.out_usd_per_1m) / 1e6 : null;
   if (actual != null) spent += actual - worst; // 확인된 사용량이면 실제값으로(아니면 최악값 유지)
-  ledger.push({ prov, ok: res.ok, status: res.status, ms: Date.now() - t0, tin: usage?.tin ?? null, tout: usage?.tout ?? null, usd: actual, reserved: actual == null ? worst : 0 });
+  ledger.push({ prov, ok: res.ok, status: res.status, ms: Date.now() - t0, tin: usage?.tin ?? null, tout: usage?.tout ?? null, usd: actual, reserved: actual == null ? worst : 0, ...(err ? { err } : {}) });
   return res;
 }
 
@@ -115,6 +117,8 @@ for (const p of PROVIDERS) {
     const turnRecs = h.state.tables.doit_request_events.filter((x) => x.action === 'agent_turn').map((x) => x.response_payload.record);
     r.correction_applied = turnRecs.some((x) => x.kind === 'correction' || x.flags?.correction === true);
     r.rejected_daily_contact_absent = !JSON.stringify(sess?.profile?.confirmed_preferences ?? []).includes('매일');
+    // '매일'이 「매일 연락은 부담」처럼 정정된 뜻으로 남았을 수도 있어 사람이 판단하도록 해당 항목(합성 문장)만 그대로 남긴다
+    r.daily_mentions = (sess?.profile?.confirmed_preferences ?? []).map((x) => JSON.stringify(x)).filter((x) => x.includes('매일')).map((x) => x.slice(0, 160));
     r.run = sess?.run ? { outcome: sess.run.outcome, waiting: sess.run.waiting, plan_rev: sess.run.plan_rev, budget: sess.run.budget } : null;
     r.served = [...new Set(turnRecs.flatMap((x) => (x.ai_calls ?? []).map((c) => `${c.provider}:${c.model_served ?? c.model_requested}`)))];
     r.refusals = turnRecs.flatMap((x) => (x.ai_calls ?? []).filter((c) => c.error === 'refused')).length;
@@ -124,8 +128,8 @@ for (const p of PROVIDERS) {
 mkdirSync(OUT, { recursive: true });
 const byProv = Object.fromEntries(PROVIDERS.map((p) => [p.id, ledger.filter((x) => x.prov === p.id)]));
 const summary = { spend_cap_usd: SPEND_CAP_USD, estimated_spend_usd: Number(spent.toFixed(4)), blocked_by_cap: blocked,
-  per_provider: Object.fromEntries(Object.entries(byProv).map(([k, v]) => [k, { calls: v.length, ok: v.filter((x) => x.ok).length, tokens_in: v.reduce((n, x) => n + (x.tin ?? 0), 0), tokens_out: v.reduce((n, x) => n + (x.tout ?? 0), 0), usd_confirmed: Number(v.reduce((n, x) => n + (x.usd ?? 0), 0).toFixed(5)), usd_unconfirmed_reserved: Number(v.reduce((n, x) => n + (x.reserved ?? 0), 0).toFixed(5)), p50_ms: v.map((x) => x.ms).sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? null, statuses: [...new Set(v.map((x) => x.status))] }])) };
+  per_provider: Object.fromEntries(Object.entries(byProv).map(([k, v]) => [k, { calls: v.length, ok: v.filter((x) => x.ok).length, tokens_in: v.reduce((n, x) => n + (x.tin ?? 0), 0), tokens_out: v.reduce((n, x) => n + (x.tout ?? 0), 0), usd_confirmed: Number(v.reduce((n, x) => n + (x.usd ?? 0), 0).toFixed(5)), usd_unconfirmed_reserved: Number(v.reduce((n, x) => n + (x.reserved ?? 0), 0).toFixed(5)), p50_ms: v.map((x) => x.ms).sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? null, statuses: [...new Set(v.map((x) => x.status))], errors: [...new Set(v.map((x) => x.err).filter(Boolean))] }])) };
 writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ summary, results }, null, 2));
 console.log(JSON.stringify(summary, null, 2));
-for (const r of results) console.log(`\n## ${r.provider} (${r.model}) connect=${JSON.stringify(r.connect ?? r.status)} correction=${r.correction_applied} rejected_absent=${r.rejected_daily_contact_absent} run=${JSON.stringify(r.run)} errors=${JSON.stringify(r.errors)}\n` + (r.turns ?? []).map((t) => `- ${t.user ? `사용자: ${t.user}\n  ` : ''}[${t.kind ?? 'start'} ${t.status ?? ''} ${t.ms ?? ''}ms] 받아주기: ${t.reply ?? '-'} / 질문: ${t.question ?? t.ai ?? '-'}`).join('\n'));
+for (const r of results) console.log(`\n## ${r.provider} (${r.model}) connect=${JSON.stringify(r.connect ?? r.status)} correction=${r.correction_applied} rejected_absent=${r.rejected_daily_contact_absent} daily_mentions=${JSON.stringify(r.daily_mentions ?? [])} run=${JSON.stringify(r.run)} errors=${JSON.stringify(r.errors)}\n` + (r.turns ?? []).map((t) => `- ${t.user ? `사용자: ${t.user}\n  ` : ''}[${t.kind ?? 'start'} ${t.status ?? ''} ${t.ms ?? ''}ms] 받아주기: ${t.reply ?? '-'} / 질문: ${t.question ?? t.ai ?? '-'}`).join('\n'));
 if (spent > SPEND_CAP_USD) process.exit(2);

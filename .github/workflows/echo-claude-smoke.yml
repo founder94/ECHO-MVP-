@@ -449,12 +449,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      AGENT_SHA: c2e2358b9aea7c412c30b7b61f7c362820dc67b9
+      AGENT_SHA: f5d1206fafb82c19635820e4dde4dd7e25baee30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          ref: c2e2358b9aea7c412c30b7b61f7c362820dc67b9
+          ref: f5d1206fafb82c19635820e4dde4dd7e25baee30
           path: src
       - name: 고정 commit 확인
         run: '[ "$(git -C src rev-parse HEAD)" = "$AGENT_SHA" ] || { echo "FAIL: 고정 commit 아님"; exit 1; }'
