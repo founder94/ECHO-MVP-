@@ -336,3 +336,17 @@ test('Codex P1(리뷰 4174560203) 한국 전화 대역 전부: 050x 안심·가�
   }
   for (const keep of ['2080-123-45678', '91588-12345', '주문 15881234567', '2023년 15명', '1588']) { const r = maskPii({ latest: keep }); assert.equal(r.counts.landline, undefined, keep); assert.equal(r.value.latest, keep, keep); }
 });
+
+test('Codex P1(리뷰 4174593786) 카드가 여러 개 이어진 긴 덩어리: 3·4번째 카드도 모두 가림 · 길이 제한 없음 · 긴 글도 빠름', () => {
+  const c = '4111 1111 1111 1111';
+  for (const sep of [' ', ' - ', '-']) {
+    for (const n of [3, 4, 6]) {
+      const t = Array(n).fill(c).join(sep);
+      const r = maskPii({ latest: `카드들 ${t} 입니다` });
+      assert.ok(!/\d{4}/.test(r.value.latest), `${n}개 · 「${sep}」 → ${r.value.latest}`); assert.equal(r.counts.card, n, `${n}개`);
+    }
+  }
+  const mixed = maskPii({ latest: '주문 2023 1012 5555 카드 4111-1111-1111-1111 4000 0000 0000 0002' });
+  assert.equal(mixed.counts.card, 2); assert.ok(!mixed.value.latest.includes('4000 0000'), mixed.value.latest);
+  const t0 = Date.now(); maskPii({ big: Array(20000).fill('1234').join(' ') }); assert.ok(Date.now() - t0 < 3000, '아주 긴 숫자 덩어리도 빠름');
+});

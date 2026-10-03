@@ -102,41 +102,45 @@ export function piiKeys(input: unknown, path = ""): string[] {
 //   16자리 카드 뒤의 짧은 숫자(「… 1111 3번」)는 합친 값이 Luhn 이어도 (가)가 먼저라 보존. 아무 긴 숫자(주문 번호 등)는 Luhn 이 안 맞으면 그대로.
 //   4-4-4-4-3(19자리)은 Luhn 이면 전체 가림 · 남은 한계: 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않음.
 const CARD_SEP = "[ \\t\\u00a0-]";
-const CARD = new RegExp(`(?<!\\d)\\d(?:${CARD_SEP}*\\d){12,40}(?!\\d)`, "g");
+// 덩어리 길이 제한 없음(리뷰 4174593786): 카드가 여러 개 이어진 긴 덩어리도 끝까지 본다(구분자와 숫자가 겹치지 않아 선형 시간).
+const CARD = new RegExp(`(?<!\\d)\\d(?:${CARD_SEP}*\\d){12,}(?!\\d)`, "g");
 function luhnOk(digits: string): boolean {
   let sum = 0;
   for (let i = 0; i < digits.length; i++) { let d = digits.charCodeAt(digits.length - 1 - i) - 48; if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; } sum += d; }
   return sum % 10 === 0;
 }
-const cardMask = (m: string): string | null => {
-  const groups = [...m.matchAll(/\d+/g)].map((g) => ({ end: g.index! + g[0].length, len: g[0].length }));
-  let cut = -1; let digits = 0;
-  for (let k = 0; k < groups.length; k++) { // (가) 16자리 = 한 덩어리 또는 4자리 묶음 4개
-    digits += groups[k].len;
-    if (digits === 16 && (k === 0 || groups.slice(0, k + 1).every((g) => g.len === 4))) {
-      cut = groups[k].end;
+type DigitGroup = { start: number; end: number; text: string };
+// groups[i] 에서 시작하는 카드가 끝나는 묶음 번호(없으면 -1) — (가) 16자리 → (나) Luhn 13~19자리
+function cardEndAt(groups: DigitGroup[], i: number): number {
+  let digits = 0;
+  for (let k = i; k < groups.length; k++) { // (가) 16자리 = 한 덩어리 또는 4자리 묶음 4개
+    digits += groups[k].text.length;
+    if (digits === 16 && (k === i || groups.slice(i, k + 1).every((g) => g.text.length === 4))) {
       // 4-4-4-4-3 = 19자리 카드 모양: 끝이 정확히 3자리이고 19자리 전체가 Luhn 이면 전체를 가림(애매하면 가리는 쪽 · 민감 숫자 밖으로 0).
       // 끝이 1~2자리(17·18자리)면 카드 묶음 모양이 아니므로 다음 말(「… 1111 3번」)로 보고 그대로 둔다.
       const next = groups[k + 1];
-      if (next && next.len === 3 && luhnOk(m.replace(/\D/g, "").slice(0, 19))) cut = next.end;
-      break;
+      if (next && next.text.length === 3 && luhnOk(groups.slice(i, k + 2).map((g) => g.text).join(""))) return k + 1;
+      return k;
     }
     if (digits >= 16) break;
   }
-  if (cut < 0) { // (나) Luhn 이 맞는 가장 긴 13~19자리 앞부분
-    const all = m.replace(/\D/g, "");
-    let acc = 0;
-    for (let k = groups.length - 1; k >= 0; k--) {
-      acc = groups.slice(0, k + 1).reduce((n, g) => n + g.len, 0);
-      if (acc >= 13 && acc <= 19 && luhnOk(all.slice(0, acc))) { cut = groups[k].end; break; }
-    }
+  let acc = ""; let last = -1; // (나) Luhn 이 맞는 가장 긴 13~19자리
+  for (let k = i; k < groups.length && acc.length + groups[k].text.length <= 19; k++) {
+    acc += groups[k].text;
+    if (acc.length >= 13 && luhnOk(acc)) last = k;
   }
-  if (cut < 0) return null;
-  const rest = m.slice(cut);
-  const lead = rest.match(new RegExp(`^${CARD_SEP}*`))![0];
-  const body = rest.slice(lead.length);
-  const restOut = body && /^\d/.test(body) && body.replace(/\D/g, "").length >= 13 ? (cardMask(body) ?? body) : body;
-  return `[가림]${lead}${restOut}`;
+  return last;
+}
+// 덩어리를 앞에서부터 묶음 단위로 훑어 카드인 부분만 가리고 나머지는 그대로(카드가 몇 개 이어져도 각각 · 반복으로 처리해 길이 무관).
+const cardMask = (m: string): string | null => {
+  const groups: DigitGroup[] = [...m.matchAll(/\d+/g)].map((g) => ({ start: g.index!, end: g.index! + g[0].length, text: g[0] }));
+  let out = ""; let pos = 0; let hit = false;
+  for (let i = 0; i < groups.length;) {
+    const end = cardEndAt(groups, i);
+    if (end < 0) { i++; continue; }
+    out += m.slice(pos, groups[i].start) + "[가림]"; pos = groups[end].end; i = end + 1; hit = true;
+  }
+  return hit ? out + m.slice(pos) : null;
 };
 const MASKS: [string, RegExp, ((m: string) => string | null)?][] = [
   ["card", CARD, cardMask],
