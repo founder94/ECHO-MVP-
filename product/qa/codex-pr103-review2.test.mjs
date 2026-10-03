@@ -273,3 +273,30 @@ test('구분자가 여러 번(공백 2칸·탭·하이픈 섞임)이어도 카�
   }
   assert.deepEqual(maskPii({ latest: '번호 1234  5678  9012  345 이에요' }).counts, {}, 'Luhn 아닌 15자리는 그대로');
 });
+
+// Codex 5970062370(5d9cbbc) — 19자리 4-4-4-4-3 전체 가림 + 「… 1111 2번/3번」 일반 숫자 보존 + 주문 번호 정상 + 재시도·전환에도 가린 값
+test('19자리 4-4-4-4-3(Luhn)은 전체 가림 · 16자리 뒤 1~2자리는 보존 · 주문 번호 그대로', () => {
+  for (const [t, want, n] of [
+    ['카드 4000 0000 0000 0000 006 예요', '카드 [가림] 예요', 1],
+    ['카드 4111 1111 1111 1111 110 예요', '카드 [가림] 예요', 1],
+    ['카드 4111 1111 1111 1111 2번', '카드 [가림] 2번', 1],
+    ['카드 4111 1111 1111 1111 3번', '카드 [가림] 3번', 1],
+    ['카드 4111 1111 1111 1111 12개', '카드 [가림] 12개', 1],
+  ]) {
+    const r = maskPii({ latest: t });
+    assert.equal(r.counts.card, n, t); assert.equal(r.value.latest, want, t);
+  }
+  const order = maskPii({ latest: '주문번호 2026 1003 1234 5 이고 3번 문의' });
+  assert.equal(order.counts.card, undefined); assert.equal(order.value.latest, '주문번호 2026 1003 1234 5 이고 3번 문의');
+});
+test('재시도·제공사 전환에도 같은 가린 글만 보냄(19자리 카드)', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 1; policy.limits.retry_wait_ms = 0;
+  policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true, price: null }; policy.tasks.default = ['openai', 'gemini'];
+  const sent = []; const { ProviderError } = await import('../supabase/functions/doit-agent/providers.ts');
+  const o = { id: 'openai', call: async (r) => { sent.push(JSON.stringify(r.input)); throw new ProviderError('openai', 'http_5xx', 1, { status: 500 }); } };
+  const g = { id: 'gemini', call: async (r) => { sent.push(JSON.stringify(r.input)); return { ...result, provider: 'gemini' }; } };
+  const router = createModelRouter({ policy, providers: { openai: o, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
+  await router.llm('turn', 's', { latest: '카드 4000 0000 0000 0000 006 예요' });
+  assert.ok(sent.length >= 2, '재시도·전환 발생');
+  for (const x of sent) { assert.doesNotMatch(x, /\d{3}/, '숫자 조각 0'); assert.match(x, /\[가림\]/); }
+});

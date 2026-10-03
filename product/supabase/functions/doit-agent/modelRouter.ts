@@ -100,7 +100,7 @@ export function piiKeys(input: unknown, path = ""): string[] {
 //   ① 숫자와 구분자(공백·탭·하이픈 · 여러 번 이어져도)로 된 13자리 이상 덩어리를 찾고 ② 앞에서부터 카드가 되는 부분만 가리고 나머지는 그대로(다음 덩어리도 다시 본다)
 //   카드 = (가) 정확히 16자리이면서 한 덩어리 또는 4자리 묶음 4개(예전 규칙 · Luhn 없이) (나) 그 밖의 13~19자리 중 Luhn 이 맞는 가장 긴 앞부분.
 //   16자리 카드 뒤의 짧은 숫자(「… 1111 3번」)는 합친 값이 Luhn 이어도 (가)가 먼저라 보존. 아무 긴 숫자(주문 번호 등)는 Luhn 이 안 맞으면 그대로.
-//   남은 한계: 띄어 쓴 19자리 카드(4-4-4-4-3)는 앞 16자리만 가려짐 · 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않음.
+//   4-4-4-4-3(19자리)은 Luhn 이면 전체 가림 · 남은 한계: 앞뒤가 숫자인 더 긴 수의 일부는 잡지 않음.
 const CARD_SEP = "[ \\t\\u00a0-]";
 const CARD = new RegExp(`(?<!\\d)\\d(?:${CARD_SEP}*\\d){12,40}(?!\\d)`, "g");
 function luhnOk(digits: string): boolean {
@@ -113,7 +113,14 @@ const cardMask = (m: string): string | null => {
   let cut = -1; let digits = 0;
   for (let k = 0; k < groups.length; k++) { // (가) 16자리 = 한 덩어리 또는 4자리 묶음 4개
     digits += groups[k].len;
-    if (digits === 16 && (k === 0 || groups.slice(0, k + 1).every((g) => g.len === 4))) { cut = groups[k].end; break; }
+    if (digits === 16 && (k === 0 || groups.slice(0, k + 1).every((g) => g.len === 4))) {
+      cut = groups[k].end;
+      // 4-4-4-4-3 = 19자리 카드 모양: 끝이 정확히 3자리이고 19자리 전체가 Luhn 이면 전체를 가림(애매하면 가리는 쪽 · 민감 숫자 밖으로 0).
+      // 끝이 1~2자리(17·18자리)면 카드 묶음 모양이 아니므로 다음 말(「… 1111 3번」)로 보고 그대로 둔다.
+      const next = groups[k + 1];
+      if (next && next.len === 3 && luhnOk(m.replace(/\D/g, "").slice(0, 19))) cut = next.end;
+      break;
+    }
     if (digits >= 16) break;
   }
   if (cut < 0) { // (나) Luhn 이 맞는 가장 긴 13~19자리 앞부분
