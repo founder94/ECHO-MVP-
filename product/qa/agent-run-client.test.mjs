@@ -103,3 +103,14 @@ test('연결 화면 소스 규칙: 빌드 스위치·로그인·자격 갖춤일
   assert.doesNotMatch(src, /resume:\s*true|chooseCandidate|useEffect\([^)]*agentRun/, '자동 재개·후보 선택·진입 시 실행 0');
   assert.match(src, /disabled=\{busy\} aria-busy=\{busy\}/, '진행 중 버튼 비활성');
 });
+test('Codex P2(리뷰 5400474027) 후보 조회 요약 모양 검사: 결과 종류·개수·시각·fresh 가 틀리면 실행 기록 거부', async () => {
+  for (const c of [{ outcome: 'auto_pick', count: 1, at: 'x', fresh: true }, { outcome: 'found', count: -1, at: 'x', fresh: true }, { outcome: 'found', count: 1.5, at: 'x', fresh: true }, { outcome: 'found', count: 1, at: 3, fresh: true }, { outcome: 'found', count: 1, at: 'x', fresh: 'yes' }, { outcome: 'found' }]) {
+    assert.equal(A.validRun(run({ candidates: c })), false, JSON.stringify(c));
+    globalThis.__agentStub.set({ session: session(run()), run: run({ candidates: c }), tool: null });
+    await assert.rejects(A.agentRun('u1', 's'), /INVALID_RESPONSE/);
+    globalThis.__agentStub.set({ session: session(run({ candidates: c })) });
+    assert.equal((await A.agentRescue('u1', 's')).run, null, '대화는 쓰고 실행 기록만 버림');
+  }
+  assert.equal(A.validRun(run({ candidates: { outcome: 'none', count: 0, at: '2026-10-03T00:00:00Z', fresh: false } })), true);
+  assert.equal(A.validRun(run({ candidates: { outcome: 'not_ready', count: null, at: '2026-10-03T00:00:00Z', fresh: true } })), true);
+});

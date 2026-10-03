@@ -52,7 +52,13 @@ export function validRun(r: unknown): r is AgentRun {
   const x = r as AgentRun | null;
   return !!x && typeof x.version === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome) && RUN_NEXT.has(x.next)
     && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string') && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && typeof st.status === 'string')
-    && (x.candidates === null || (!!x.candidates && typeof x.candidates.outcome === 'string'));
+    && (x.candidates === null || validRunCandidates(x.candidates));
+}
+// 후보 조회 요약: 결과 종류(서버 목록) · 개수(정수 또는 null) · 시각(글자) · 지금 기준과 일치(참/거짓)만 — 그 밖의 모양은 받지 않는다
+const RUN_TOOL_OUTCOMES = new Set<string>(['found', 'none', 'not_ready', 'failed', 'skipped']);
+function validRunCandidates(c: unknown): boolean {
+  const x = c as AgentRun['candidates'];
+  return !!x && RUN_TOOL_OUTCOMES.has(x.outcome) && (x.count === null || (Number.isInteger(x.count) && x.count >= 0)) && typeof x.at === 'string' && typeof x.fresh === 'boolean';
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
