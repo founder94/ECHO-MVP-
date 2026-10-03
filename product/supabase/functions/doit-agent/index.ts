@@ -77,10 +77,21 @@ const AI_HEALTH: RouterHealth = {};
 const routerForRequest = (signal?: AbortSignal): ModelRouter => routerFromEnv((k) => Deno.env.get(k), A.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal);
 // 사용자 단위 하루 한도(24시간 · 기존 턴 기록 수로 셈 · 새 표 0). QA 실측: 사용자·하루 최대 64턴(호출 125) → 200턴.
 const USER_DAILY_TURNS = 200;
+// 셈 = 모델을 실제로 부른 턴(기록의 ai_usage.attempts > 0) + 턴 밖 모델 사용 기록(agent_usage · 호출 있을 때만 남음).
+// 모델을 부르지 않은 턴(개인정보 안내 · 마친 대화 답 · 보기 모두 아님 등)은 세지 않는다(리뷰 5401213108).
 async function userDailyTurns(admin: Db, userId: string): Promise<number | null> {
-  const { count, error } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
-    .eq("user_id", userId).in("action", [TURN_ACTION, USAGE_ACTION]).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
-  return error ? null : count ?? 0;
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const { count: usage, error: e1 } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
+    .eq("user_id", userId).eq("action", USAGE_ACTION).gte("created_at", since);
+  const { data: turns, error: e2 } = await admin.from("doit_request_events").select("request_id, attempts:response_payload->record->ai_usage->attempts")
+    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", since).limit(USER_DAILY_TURNS * 5);
+  if (e1 || e2) return null;
+  const modelTurns = (turns ?? []).filter((r) => {
+    const x = r as { attempts?: unknown; response_payload?: { record?: { ai_usage?: { attempts?: unknown } } } };
+    const a = x.attempts ?? x.response_payload?.record?.ai_usage?.attempts; // 실제 DB = 경로 선택 값 · 시험용 가짜 DB = 행 전체
+    return typeof a === "number" ? a > 0 : true; // 기록이 없거나 모양이 다르면 세는 쪽(한도를 느슨하게 만들지 않음)
+  }).length;
+  return (usage ?? 0) + modelTurns;
 }
 // 관리자 관측용 호출 기록(코드·수치만 · 사용자 원문 0).
 const aiTrace = (r: ModelRouter) => { const m = r.summary(); return { provider: m.provider ?? "none", providers: m.providers, model_requested: r.policy.providers[m.provider ?? "openai"]?.model ?? null, fallback: m.fallback, ai_policy_version: r.policy.version, ai_calls: r.log.map((x) => ({ ...x })),

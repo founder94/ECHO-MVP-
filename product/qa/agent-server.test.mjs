@@ -1387,6 +1387,16 @@ test('Codex P2 소개 다시 쓰기·구조대 보기의 모델 호출도 대화
 });
 // ── PR #103 Codex Code Review(리뷰 5399945942 · d68c3cf) 재현 2건
 const seedDaily = (s, n) => { s.tables.doit_request_events ??= []; const now = new Date().toISOString(); const have = s.tables.doit_request_events.filter((r) => r.user_id === ID.user && r.action === 'agent_turn').length; for (let i = 0; i < n - have; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } }); };
+test('Codex P2(리뷰 5401213108) 하루 한도는 모델을 실제로 부른 턴만 셈 — 모델 0 턴 200개 뒤에도 모델 턴 가능 · 모델 턴 200개면 막힘', async () => {
+  const seed = (s, attempts) => { s.tables.doit_request_events ??= []; const now = new Date().toISOString(); for (let i = 0; i < 200; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `z-${attempts}-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: { ai_usage: { attempts } } } }); };
+  const s = newState(); const h = load(s); seed(s, 0);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const ok = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(ok.status, 200, '모델 0 턴은 하루 한도에 세지 않음');
+  const s2 = newState(); const h2 = load(s2); seed(s2, 1);
+  const no = await h2.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(no.status, 429, '모델 턴 200 = 막힘');
+});
 test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불러도 한도 우회 0(재생 안 하는 동작)', async () => {
   const s = newState(); const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
