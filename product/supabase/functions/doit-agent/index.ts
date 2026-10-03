@@ -10,13 +10,15 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.5
 import * as A from "./agent.ts";
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
 import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
+import * as R from "./run.ts";
 
 type Db = SupabaseClient;
 type Json = Record<string, unknown>;
 
 const SESSION_ACTION = "agent_session";
 const TURN_ACTION = "agent_turn";
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "admin_sessions", "admin_session"]);
+const RUN_ACTION = "agent_run";
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
@@ -73,7 +75,7 @@ const routerForRequest = (): ModelRouter => routerFromEnv((k) => Deno.env.get(k)
 const aiTrace = (r: ModelRouter) => { const m = r.summary(); return { provider: m.provider ?? "none", providers: m.providers, model_requested: r.policy.providers[m.provider ?? "openai"]?.model ?? null, fallback: m.fallback, ai_policy_version: r.policy.version, ai_calls: r.log.map((x) => ({ ...x })) }; };
 
 interface SessionRow { request_id: string; user_id: string; created_at: string; updated_at: string; applied_revision: number | null; response_payload: Json | null }
-interface Stored { agent: string; state: A.AgentState; round_since: string | null; profile?: A.MatchingProfile | null; handoff?: Json | null }
+interface Stored { agent: string; state: A.AgentState; round_since: string | null; profile?: A.MatchingProfile | null; handoff?: Json | null; run?: R.Run | null }
 
 // 화면에 줄 모습. 내부 상태(추측·되묻기 수 등)는 주지 않는다.
 export function sessionView(id: string, stored: Stored) {
@@ -101,6 +103,8 @@ export function sessionView(id: string, stored: Stored) {
     profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
     // v1.6 소개 초안: 문장과 상태만(근거 인용·버린 이유는 관리자 화면에서만).
     intro: done && st.intro ? { status: st.intro.status, text: A.introText(st.intro), lines: st.intro.lines.map((l) => l.text), tries_left: Math.max(0, A.INTRO_TRIES_MAX - st.intro.tries), used: st.intro.used } : null,
+    // 2026-10-03 실행 기록(목표 · 계획 단계 · 도구 결과 · 대기 이유 · 예산) — 코드·수치만. 예전 대화는 지금 상태로 계산해 보여 준다(저장 0).
+    run: R.runView(stored.run ?? R.syncRun(null, st, new Date().toISOString())),
   };
 }
 
@@ -158,6 +162,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
   }
   const lastTurn = st.turns.length > before ? st.turns.at(-1) : undefined; // 저장 금지 입력·대화 상한은 턴을 만들지 않는다
   if (response.finish || response.after) { stored.profile = A.matchingProfile(st); stored.handoff = A.matchingHandoff(stored.profile); }
+  { const u = ctx.router.summary(); stored.run = R.syncRun(stored.run, st, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out }); } // 같은 판 번호 저장에 함께(정정 → 계획·도구 결과 무효화)
   // 1) 상태 저장(판 번호 확인) — 이긴 쪽만 아래 기록을 남긴다.
   if (fresh) {
     const { error } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: sessionId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: rev + 1, response_payload: stored });
@@ -211,6 +216,24 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
     model: obs.calls.find((c) => c.model)?.model ?? null, provider: record.provider, fallback: record.fallback, policy: record.ai_policy_version, record_error: recordError, turn_log_error: !!turnError, ms: record.total_ms,
     ...(response.finish ? { intro: st.intro?.status ?? null, intro_lines: st.intro?.lines.length ?? 0, intro_dropped: st.intro?.dropped ?? {}, intro_error: st.intro?.error ?? null } : {}) });
   return json({ ok: true, session: view, turn: turnOut }, 200, ctx.origin);
+}
+
+// 도구: 후보 조회 = 기존 연결 서버 doit-connect 의 사용자 본인 동작(my_candidates) 하나 — 그 사용자의 로그인 토큰으로(권한 그대로 · 새 키 0).
+// 결과에서 개수·준비 부족 이유 코드만 읽는다(후보 id·이유 글은 Agent 상태에 넣지 않음). 시간 초과·오류 = failed(성공이라 하지 않음).
+const CONNECT_ACTION = "my_candidates";
+async function candidatesTool(baseUrl: string, anonKey: string, authHeader: string): Promise<{ outcome: R.ToolOutcome; count: number | null; missing: string[]; code: string | null; ms: number }> {
+  const t0 = Date.now();
+  if (!baseUrl) return { outcome: "failed", count: null, missing: [], code: "not_configured", ms: 0 };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), R.RUN_LIMITS.tool_timeout_ms);
+  try {
+    const res = await fetch(`${baseUrl}/functions/v1/doit-connect`, { method: "POST", signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Authorization: authHeader, apikey: anonKey }, body: JSON.stringify({ action: CONNECT_ACTION }) });
+    const data = await res.json().catch(() => null);
+    return { ...R.candidatesOutcome(res.status, data), ms: Date.now() - t0 };
+  } catch {
+    return { outcome: "failed", count: null, missing: [], code: ctrl.signal.aborted ? "timeout" : "network", ms: Date.now() - t0 };
+  } finally { clearTimeout(timer); }
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -309,6 +332,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const obs: A.Obs = { calls: [], retry: [] };
       const opened = await A.runOpening(stored.state, ctx.llm, obs).catch(() => null);
       if (!opened) { logDiag({ step: "opening", code: "failed", calls: obs.calls.length, ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version }); return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin); }
+      { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out }); }
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
       if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
@@ -333,6 +357,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         stored.state.intro = { ...base, used: how, used_at: new Date().toISOString() };
       } else {
         if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
       }
       if (!limited) {
@@ -356,6 +381,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const stored = row.response_payload as unknown as Stored;
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
       if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
@@ -363,6 +389,46 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
       logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
+    }
+
+    // 2026-10-03 실행 단계(agent_run): 지금 상태로 계획을 맞추고, 서버가 정한 도구 하나만 실행 → 결과 기록 → 완료·질문·보류·중단. 모델 호출 0.
+    // 도구 = 허용 목록(R.TOOLS)뿐 · 사용자 몫 행동(상호 선택·동의·약속) 실행 0. 같은 요청 id = 저장된 결과 · 도구가 도는 사이 정정되면(판 번호) 결과를 버린다.
+    if (action === "agent_run") {
+      const sid = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
+      if (prior) {
+        const p = prior.response_payload as Json | null;
+        if (prior.action === RUN_ACTION && prior.target_id === sid && p?.run) {
+          const { data: again } = await admin.from("doit_request_events").select("request_id, response_payload").eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
+          if (again) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: p.run, tool: p.tool ?? null, duplicate: true }, 200, origin);
+        }
+        return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      const { data: row } = await admin.from("doit_request_events").select("request_id, created_at, applied_revision, response_payload")
+        .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
+      if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
+      const stored = row.response_payload as unknown as Stored;
+      if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
+      const rev = Number(row.applied_revision ?? 0);
+      const t0 = Date.now();
+      let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
+      if (body.resume === true && run.user_stopped) run = R.resumeRun(run, stored.state, new Date().toISOString()); // 사용자가 직접 누른 「다시 이어서」만
+      const due = R.dueTool(run, Date.now());
+      let tool: { tool: R.ToolId; outcome: R.ToolOutcome; count: number | null; code: string | null } | null = null;
+      if (due.tool === "candidates") {
+        const r = await candidatesTool(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", authHeader);
+        run = R.recordTool(run, stored.state, { tool: "candidates", ...r, at: new Date().toISOString() }, new Date().toISOString());
+        tool = { tool: "candidates", outcome: r.outcome, count: r.count, code: r.code };
+      }
+      stored.run = run;
+      const { data: saved, error: saveError } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
+        .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
+      if (saveError || !saved || !saved.length) { logDiag({ step: "run", code: "stale", tool: tool?.outcome ?? null }); return fail("STATE_CHANGED", "그사이 대화가 바뀌어 이 결과는 쓰지 않았어요. 다시 불러올게요.", 409, origin); }
+      const view = R.runView(run);
+      const { error: runLogError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "applied",
+        payload_hash: await sha256(`${sid}:run:${rev}`), applied_revision: rev + 1, response_payload: { run: view, tool } });
+      logDiag({ step: "run", outcome: run.outcome, waiting: run.waiting, plan_rev: run.plan_rev, tool: tool?.outcome ?? null, tool_code: tool?.code ?? null, count: tool?.count ?? null, skipped: due.tool ? null : due.why, run_log_error: !!runLogError, ms: Date.now() - t0 });
+      return json({ ok: true, session: sessionView(sid, stored), run: view, tool }, 200, origin);
     }
 
     // agent_turn
@@ -387,6 +453,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
     if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+    if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
     return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: typeof body.choice === "string" ? body.choice.slice(0, 40) : undefined, rescueOpen: body.rescueOpen === true });
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
