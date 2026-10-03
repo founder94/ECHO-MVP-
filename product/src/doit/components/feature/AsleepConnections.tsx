@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import MobileLayout from './MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, understandingRequest } from '@/doit/lib/understandingApi';
-import { ECHO_AGENT_ENABLED } from '@/doit/lib/agentApi';
+import { ECHO_AGENT_ENABLED, agentGet, agentRun, createAgentRunTrigger, type AgentRun } from '@/doit/lib/agentApi';
 import ConnectionMatches from './ConnectionMatches';
 import ConnectionCandidates from './ConnectionCandidates';
 import type { MyCandidates } from '@/doit/lib/connectApi';
@@ -42,6 +42,7 @@ export default function AsleepConnections() {
   const [opened, setOpened] = useState(0); // v2.0 상호선택으로 연결이 열리면 「내 연결」을 다시 읽는다
   const [focusMatch, setFocusMatch] = useState<string | null>(null); // 2026-09-30: 「이야기 시작하기」 → 서버가 준 그 연결로
   const [server, setServer] = useState<MyCandidates | null>(null); // FI-018: 연결 서버(doit-connect)가 계산한 자격 · 준비 칸
+  const [candidatesKey, setCandidatesKey] = useState(0); // 실행 단계가 「후보 열기」라고 하면 기존 후보 화면(doit-connect)을 다시 읽는다
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId || !A_STRUCTURE_SERVER_ENABLED) return;
@@ -63,14 +64,14 @@ export default function AsleepConnections() {
       {user && !A_STRUCTURE_SERVER_ENABLED && <p className="doit-asleep-status">연결 준비 화면은 서버 연결 뒤에 열려요.</p>}
       {user && A_STRUCTURE_SERVER_ENABLED && state.kind === 'loading' && <div className="doit-asleep-wait" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>내가 확인한 말로 준비 상태를 살피고 있어요.</p></div>}
       {state.kind === 'error' && <p className="doit-product-error" role="alert">{state.message}</p>}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates userId={user.id} onServerState={setServer} onOpened={matchId => { setFocusMatch(matchId); setOpened(n => n + 1); }} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates key={candidatesKey} userId={user.id} onServerState={setServer} onOpened={matchId => { setFocusMatch(matchId); setOpened(n => n + 1); }} />}
       {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} focusId={focusMatch} />}
-      {state.kind === 'ready' && <Ready preview={state.preview} server={server} userId={userId} />}
+      {state.kind === 'ready' && <Ready preview={state.preview} server={server} userId={userId} onOpenCandidates={() => setCandidatesKey(n => n + 1)} />}
     </section>
   </MobileLayout>;
 }
 
-function Ready({ preview, server, userId }: { preview: Preview; server: MyCandidates | null; userId: string | null }) {
+function Ready({ preview, server, userId, onOpenCandidates }: { preview: Preview; server: MyCandidates | null; userId: string | null; onOpenCandidates: () => void }) {
   // 「처음부터 다시 답하기」는 앱 공통 동작 하나(useRestartConversation) — 누르면 새 회차를 열고 곧바로 ECHO 첫 대화 화면.
   const { restart, busy: restarting, error: restartError } = useRestartConversation(userId);
 
@@ -112,6 +113,7 @@ function Ready({ preview, server, userId }: { preview: Preview; server: MyCandid
     ? { to: '/doit/start-journey', title: '원하는 만남을 골라요', action: '만남 고르기' }
     : firstLeft ? { to: firstLeft.to, ...(firstLeft === rows[0] && turnsUsedUp ? { title: '다섯 가지를 처음부터 다시 답해요', action: '처음부터 다시 답하기' } : ACTIONS[firstLeft.label] ?? { title: firstLeft.label, action: firstLeft.label }) } : null;
   return <>
+    {ECHO_AGENT_ENABLED && userId && eligible && !next && <AgentRunButton userId={userId} onOpenCandidates={onOpenCandidates} />}
     <div className="doit-asleep-card doit-asleep-next">
       <p className="doit-asleep-label">다음 할 일</p>
       <p className="doit-asleep-next-title">{next ? next.title : eligible ? '연결 준비를 모두 마쳤어요' : 'ECHO가 연결 준비를 확인하고 있어요'}</p>
@@ -138,4 +140,25 @@ function Ready({ preview, server, userId }: { preview: Preview; server: MyCandid
         남은 것 중 첫 번째는 맨 위 「다음 할 일」 큰 버튼으로(2026-09-25), 다 답했으면 「처음부터 다시 답하기」를 작은 버튼으로 둔다. */}
     {answersDone && <button type="button" className="doit-product-action doit-product-action--secondary" disabled={restarting} onClick={() => void restart()}>처음부터 다시 답하기<span aria-hidden="true">↗</span></button>}
   </>;
+}
+
+// 2026-10-03 실행 단계(서버 agent_run · 모델 호출 0) — 연결 준비를 마친 사용자가 직접 누를 때만. 화면 진입·자동 재시도·자동 재개·후보 자동 선택 0.
+// 다음 할 일은 서버의 next 그대로: 「후보 열기」면 기존 후보 화면(doit-connect)을 다시 읽을 뿐 · 후보 상세는 실행 결과에서 만들지 않는다.
+// 버튼 이름과 상태 문구는 임시(대표 확인 필요 · Codex 명세 20261003-1 §4-1) — 빌드 스위치(VITE_ECHO_AGENT_ENABLED)가 켜진 앱에서만 보인다.
+function AgentRunButton({ userId, onOpenCandidates }: { userId: string; onOpenCandidates: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState<AgentRun | null>(null); // 마지막으로 성공한 실행 결과(실패해도 지우지 않음)
+  const [error, setError] = useState<string | null>(null);
+  const trigger = useMemo(() => createAgentRunTrigger({
+    getSession: () => agentGet(userId),
+    run: (sessionId) => agentRun(userId, sessionId),
+    onResult: (run) => { setError(null); setLast(run); if (run.next === 'open_candidates') onOpenCandidates(); },
+    onError: (e) => setError(e instanceof UnderstandingError && e.message ? e.message : '불러오지 못했어요. 다시 확인해 볼게요.'),
+    onBusy: setBusy,
+  }), [userId, onOpenCandidates]);
+  return <div className="doit-asleep-card">
+    <button type="button" className="doit-product-action" disabled={busy} aria-busy={busy} onClick={() => void trigger()}>후보 확인하기<span aria-hidden="true">↗</span></button>
+    {last && last.next === 'wait' && <p className="doit-asleep-status" role="status">ECHO가 같은 만남을 원하는 사람 중 후보를 준비하면 위에 보여 드려요.</p>}
+    {error && <p className="doit-product-error" role="alert">{error}</p>}
+  </div>;
 }

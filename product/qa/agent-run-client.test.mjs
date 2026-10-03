@@ -53,3 +53,53 @@ test('소스 규칙: 앱 연결부는 다음 할 일·완료를 스스로 정하
   assert.doesNotMatch(src, /next\s*=\s*['"]/, '화면 코드가 next 를 만들지 않음');
   assert.doesNotMatch(src, /mutual|select_candidate|choose_candidate|my_choice/, '상호 선택·후보 고르기 호출 0');
 });
+
+// ── Codex 명세 20261003-1 항목 B: 연결 화면의 실행 버튼(createAgentRunTrigger + AsleepConnections 소스 규칙)
+const okRun = run({ outcome: 'done', waiting: null, next: 'open_candidates', candidates: { outcome: 'found', count: 2, at: '2026-10-03T00:00:00Z', fresh: true } });
+const mkTrigger = (o = {}) => {
+  const log = { get: 0, run: 0, results: [], errors: [], busy: [] };
+  let release; const gate = o.gate ? new Promise((ok) => { release = ok; }) : null;
+  const t = A.createAgentRunTrigger({
+    getSession: async () => { log.get++; return o.noSession ? null : session(undefined); },
+    run: async () => { log.run++; if (gate) await gate; if (o.fail) throw Object.assign(new Error('x'), { status: o.fail }); return { run: o.run ?? okRun, tool: null }; },
+    onResult: (r) => log.results.push(r), onError: (e) => log.errors.push(e), onBusy: (b) => log.busy.push(b),
+  });
+  return { t, log, release: () => release?.() };
+};
+test('연결 화면 진입만으로 agent_run을 호출하지 않는다 · 사용자가 누르면 한 번 호출한다', async () => {
+  const { t, log } = mkTrigger();
+  assert.equal(log.run, 0, '만들기만 하면 호출 0');
+  await t();
+  assert.equal(log.run, 1); assert.equal(log.results[0].next, 'open_candidates'); assert.deepEqual(log.busy, [true, false]);
+});
+test('실행 중 연속 클릭은 두 번째 agent_run을 보내지 않는다', async () => {
+  const { t, log, release } = mkTrigger({ gate: true });
+  const a = t(); await new Promise((r) => setTimeout(r, 0)); await t(); await t();
+  release(); await a;
+  assert.equal(log.run, 1); assert.equal(log.get, 1);
+});
+test('agent_run 실패는 결과로 넘기지 않음(마지막 성공 유지) · 409 429 499 502 뒤 자동 재호출 0 · 세션 없으면 만들지 않음', async () => {
+  for (const status of [409, 429, 499, 502]) {
+    const { t, log } = mkTrigger({ fail: status });
+    await t();
+    assert.equal(log.results.length, 0); assert.equal(log.errors.length, 1); assert.equal(log.run, 1, `${status} 뒤 자동 재호출 0`);
+  }
+  const { t, log } = mkTrigger({ noSession: true });
+  await t();
+  assert.equal(log.run, 0); assert.equal(log.errors[0].message, 'NO_SESSION');
+});
+test('on_hold·stopped·wait·retry_later·resume_if_wanted 결과도 자동 후속 호출 0', async () => {
+  for (const r of [run({ outcome: 'on_hold', next: 'wait' }), run({ outcome: 'on_hold', waiting: 'lookup_failed', next: 'retry_later' }), run({ outcome: 'stopped', waiting: 'user_stopped', next: 'resume_if_wanted' }), run({ outcome: 'in_progress', waiting: null, next: 'run' })]) {
+    const { t, log } = mkTrigger({ run: r });
+    await t(); await new Promise((x) => setTimeout(x, 5));
+    assert.equal(log.run, 1, `${r.next} 뒤 자동 호출 0`);
+  }
+});
+test('연결 화면 소스 규칙: 빌드 스위치·로그인·자격 갖춤일 때만 버튼 · open_candidates = 기존 후보 화면 다시 읽기 · resume·choose 0', () => {
+  const src = readFileSync(new URL('../src/doit/components/feature/AsleepConnections.tsx', import.meta.url), 'utf8');
+  assert.match(src, /\{ECHO_AGENT_ENABLED && userId && eligible && !next && <AgentRunButton/);
+  assert.match(src, /if \(run\.next === 'open_candidates'\) onOpenCandidates\(\)/);
+  assert.match(src, /<ConnectionCandidates key=\{candidatesKey\}/, '후보 상세는 기존 doit-connect 화면에서만');
+  assert.doesNotMatch(src, /resume:\s*true|chooseCandidate|useEffect\([^)]*agentRun/, '자동 재개·후보 선택·진입 시 실행 0');
+  assert.match(src, /disabled=\{busy\} aria-busy=\{busy\}/, '진행 중 버튼 비활성');
+});

@@ -143,3 +143,30 @@ export async function agentRun(userId: string, sessionId: string, opts: { resume
   if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
   return { session: r.session, run: r.run, tool: r.tool ?? null, duplicate: r.duplicate === true };
 }
+
+// 2026-10-03 연결 화면의 실행 단계 버튼(Codex 명세 20261003-1 항목 B). 사용자가 누른 그 한 번만 실행한다:
+//   · 진행 중이면 다시 누른 것은 무시(네트워크 1번) · 세션은 읽기만(agent_get · 없으면 새로 만들지 않음) · 재개(resume)는 보내지 않음
+//   · 성공한 응답만 결과로 넘김(실패 = 마지막 성공 상태 유지 · 자동 재시도·재개·후보 선택 0) · next 는 서버 값 그대로
+export function createAgentRunTrigger(deps: {
+  getSession: () => Promise<AgentSession | null>;
+  run: (sessionId: string) => Promise<{ run: AgentRun; tool: AgentRunTool | null }>;
+  onResult: (run: AgentRun, tool: AgentRunTool | null) => void;
+  onError: (e: unknown) => void;
+  onBusy?: (busy: boolean) => void;
+}): () => Promise<void> {
+  let inFlight = false;
+  return async () => {
+    if (inFlight) return;
+    inFlight = true; deps.onBusy?.(true);
+    try {
+      const session = await deps.getSession();
+      if (!session) { deps.onError(new Error('NO_SESSION')); return; }
+      const out = await deps.run(session.id);
+      deps.onResult(out.run, out.tool);
+    } catch (e) {
+      deps.onError(e);
+    } finally {
+      inFlight = false; deps.onBusy?.(false);
+    }
+  };
+}
