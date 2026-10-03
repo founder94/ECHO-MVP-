@@ -334,13 +334,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
     const ctx = { admin, userId, llm: router.llm, router, origin };
-    // 모델을 부를 수 있는 동작만 사용자 하루 한도를 본다(세기 실패 = 막지 않음 · 기록만). agent_run · agent_intro_mark 는 모델 호출 0.
-    // 같은 요청 id 가 이미 쓰였으면(prior) 새 모델 호출 없이 저장된 결과를 돌려주거나 409 → 한도 경계에서 재전송이 429 로 바뀌지 않게 한도를 보지 않는다.
-    if (!prior && (action === "agent_start" || action === "agent_turn" || action === "agent_rescue" || action === "agent_intro")) {
+    // 사용자 하루 한도: 모델을 「실제로 부르기 직전」에만 본다(세기 실패 = 막지 않음 · 기록만). 같은 요청 재전송 재생 · 이미 있는 세션 돌려주기 · agent_run · agent_intro_mark 처럼 모델 호출이 없는 길은 막지 않는다.
+    const dailyCapped = async (): Promise<Response | null> => {
       const used = await userDailyTurns(admin, userId);
-      if (used == null) logDiag({ step: "daily_count", error: true });
-      else if (used >= USER_DAILY_TURNS) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
-    }
+      if (used == null) { logDiag({ step: "daily_count", error: true }); return null; }
+      if (used >= USER_DAILY_TURNS) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
+      return null;
+    };
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).
@@ -352,6 +352,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (existing) return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      { const capped = await dailyCapped(); if (capped) return capped; } // 이미 있는 세션은 위에서 돌려줌(모델 0) — 새로 만들 때만
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
       const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
@@ -390,6 +391,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       } else {
         if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
+        { const capped = await dailyCapped(); if (capped) return capped; }
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
         if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
@@ -415,6 +417,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
       if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
+      { const capped = await dailyCapped(); if (capped) return capped; }
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)
@@ -488,6 +491,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
     if (!aiReady("turn")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
     if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
+    { const capped = await dailyCapped(); if (capped) return capped; } // 같은 요청 재전송은 위에서 저장된 결과로(모델 0)
     return await runAndSave(ctx, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: typeof body.choice === "string" ? body.choice.slice(0, 40) : undefined, rescueOpen: body.rescueOpen === true });
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });

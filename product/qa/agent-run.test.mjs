@@ -105,3 +105,18 @@ test('대화 단위 비용 상한 · 실행 기록에 원문·후보 정보 0 ·
   assert.deepEqual([...R.TOOLS], ['readiness', 'candidates']);
   assert.ok(!/fetch\(|Deno\.|createClient|llm\(/.test(SRC), 'run.ts 는 네트워크·DB·모델을 부르지 않음');
 });
+
+// PR #103 Codex Code Review(리뷰 5399945942 · d68c3cf) P1 「Re-query nonterminal candidate outcomes」 재현
+test('Codex P1 아직 없음·준비 부족은 확정 정보가 그대로여도 시간이 지나면 다시 조회(대화 밖 사정이 바뀜) · 찾음은 그대로', () => {
+  const st = readyState();
+  const at = (ms) => new Date(Date.parse(NOW) + ms).toISOString();
+  let run = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'none', count: 0, missing: [], code: null, at: NOW, ms: 5 }, NOW);
+  assert.equal(R.dueTool(R.syncRun(run, st, at(60_000)), Date.parse(at(60_000))).tool, null, '바로는 다시 안 부름');
+  const later = R.syncRun(run, st, at(R.RUN_LIMITS.none_refresh_after_ms));
+  assert.deepEqual([later.outcome, R.dueTool(later, Date.parse(at(R.RUN_LIMITS.none_refresh_after_ms))).tool], ['in_progress', 'candidates'], '아직 없음 → 시간이 지나면 다시 조회');
+  run = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'not_ready', count: null, missing: ['photo'], code: null, at: NOW, ms: 5 }, NOW);
+  const fixed = R.syncRun(run, st, at(R.RUN_LIMITS.not_ready_refresh_after_ms));
+  assert.equal(R.dueTool(fixed, Date.parse(at(R.RUN_LIMITS.not_ready_refresh_after_ms))).tool, 'candidates', '사진을 채운 뒤 → 다시 조회');
+  run = R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'found', count: 2, missing: [], code: null, at: NOW, ms: 5 }, NOW);
+  assert.equal(R.dueTool(R.syncRun(run, st, at(86_400_000)), Date.parse(at(86_400_000))).tool, null, '찾음은 다시 조회 0(사용자가 고를 차례)');
+});

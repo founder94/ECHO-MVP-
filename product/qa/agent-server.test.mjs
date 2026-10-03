@@ -1370,3 +1370,26 @@ test('Codex P2 소개 다시 쓰기·구조대 보기의 모델 호출도 대화
   const b3 = sessionRow(s).response_payload.run.budget;
   assert.equal(b3.calls, b2.calls + 1, '소개 호출이 예산에'); assert.equal(b3.tokens_in, b2.tokens_in + 1000);
 });
+// ── PR #103 Codex Code Review(리뷰 5399945942 · d68c3cf) 재현 2건
+const seedDaily = (s, n) => { const now = new Date().toISOString(); const have = s.tables.doit_request_events.filter((r) => r.user_id === ID.user && r.action === 'agent_turn').length; for (let i = 0; i < n - have; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } }); };
+test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불러도 한도 우회 0(재생 안 하는 동작)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const used = rid();
+  const start = await h.call({ action: 'agent_start', requestId: used, tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  seedDaily(s, 200);
+  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
+  const r = await h.call({ action: 'agent_rescue', requestId: used, sessionId: sid });
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length, 0, '보기 모델 호출 0');
+});
+test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 요청 id 로 시작해도 그 세션을 돌려줌(모델 0 · 429 아님)', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  seedDaily(s, 200);
+  const calls = s.aiCalls.length;
+  const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'romantic', goalLabel: '연애로 이어질 만남을 원해요', firstAnswer: '연애로 이어질 만남을 원해요' });
+  assert.equal(again.status, 200, JSON.stringify(again.body)); assert.equal(again.body.existing, true); assert.equal(again.body.session.id, sid); assert.equal(s.aiCalls.length, calls);
+  const fresh = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(fresh.status, 429, '새로 만들어야 하는 시작은 여전히 막힘'); assert.equal(fresh.body.code, 'AI_DAILY_LIMIT');
+});
