@@ -263,7 +263,8 @@ jobs:
         run: node qa-core-live.mjs
 
   agent_deploy_qa:
-    # QA 서버 doit-agent 1개만 배포(2026-09-29 AUTO · QA 전용 · 운영 0 · 비용 0): 고정 commit 의 3파일(index · agent · failure-intelligence)만 · 비밀값 변경 0.
+    # QA 서버 doit-agent 1개만 배포(QA 전용 · 운영 0 · 비용 0): 고정 commit 의 6파일(index · agent · failure-intelligence · providers · modelRouter · run)만 · 비밀값·정책 값 변경 0.
+    # 2026-10-03 고정값: 3개 제공사 연결부 + 실행 기록(PR #103). AI_POLICY 가 없으면 지금과 같은 OpenAI 하나. 복구 = AGENT_SHA 652a30fa9df3fa3a53373affb80c4ee0b81b8298(3파일)로 되돌려 다시 배포.
     if: inputs.mode == 'agent_deploy_qa'
     environment: ECHO-QA
     runs-on: ubuntu-latest
@@ -271,14 +272,14 @@ jobs:
     env:
       QA_PROJECT_ID: mutniujeiyujhkobadkd
       PROD_REF_SHA256: 6b82b104206244c98d388bf7e31831832f46d495a69745eed9f94c4b0671834c
-      AGENT_SHA: 652a30fa9df3fa3a53373affb80c4ee0b81b8298
+      AGENT_SHA: 1c09910254b690d390439b2322b6a0cfb0f76c51
       AGENT_VERSION: echo-agent-v2.5.8
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 652a30fa9df3fa3a53373affb80c4ee0b81b8298
+          ref: 1c09910254b690d390439b2322b6a0cfb0f76c51
           path: src
-      - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 3파일만)
+      - name: 안전 잠금(QA ref · 운영 ref 차단 · 수동 실행 · 고정 commit · Agent 판 · 6파일만)
         env:
           HAS_TOKEN: ${{ secrets.SUPABASE_QA_ACCESS_TOKEN != '' }}
         run: |
@@ -291,7 +292,7 @@ jobs:
           F=src/product/supabase/functions/doit-agent
           grep -q "export const AGENT_VERSION = \"$AGENT_VERSION\"" $F/agent.ts || { echo "FAIL: Agent 판 불일치"; exit 1; }
           mkdir -p stage/supabase/functions/doit-agent
-          cp $F/index.ts $F/agent.ts $F/failure-intelligence.ts stage/supabase/functions/doit-agent/
+          cp $F/index.ts $F/agent.ts $F/failure-intelligence.ts $F/providers.ts $F/modelRouter.ts $F/run.ts stage/supabase/functions/doit-agent/
           printf 'project_id = "%s"\n\n[functions.doit-agent]\nverify_jwt = true\n' "$QA_PROJECT_ID" > stage/supabase/config.toml
           ( cd stage && find supabase/functions -type f -exec sha256sum {} \; | sort -k2 )
       - uses: supabase/setup-cli@v1
