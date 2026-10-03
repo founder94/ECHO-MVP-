@@ -265,7 +265,9 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         } catch (e) {
           const pe = e instanceof ProviderError ? e : new ProviderError(id, "network", 0);
           // 실패여도 업체가 사용량을 알려 줬으면 확인된 사용량으로 센다(전환 전에 예산에 반영). 키 없음 = 보내지 않음. 그 밖에 사용량 없는 실패 = 미확인(예약 유지 · 0원으로 치지 않음).
-          const u2 = settle(pe.usage, pe.code !== "no_key");
+          // 사용량 칸이 있어도 숫자가 하나도 없으면(거절·빈 답의 메타만) 확인된 사용량이 아니다 → 미확인(예약 유지)
+          const peUsage = pe.usage && (pe.usage.input_tokens != null || pe.usage.output_tokens != null) ? pe.usage : null;
+          const u2 = settle(peUsage, pe.code !== "no_key");
           push({ kind, provider: id, model_requested: p.model, model_served: pe.usage?.model_served ?? null, reason, attempt, ok: false, error: pe.code, status: pe.detail.status, latency_ms: pe.latency_ms,
             input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;

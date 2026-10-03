@@ -69,3 +69,17 @@ test('P1 토큰 상한은 이번 시도의 예약까지 더해 비교 — 동시
   release(); await a;
   assert.equal(calls, 1, '608 + 608 = 1216 > 1000 → 두 번째는 보내지 않음');
 });
+
+// PR #103 Codex Code Review(리뷰 5400091798 · 28f2430) P1 재현
+test('P1 사용량 숫자 없는 빈 답(메타만)은 확인된 사용량이 아님 → 예약 유지 · 토큰 상한이 전환을 막음', async () => {
+  const policy = defaultPolicy('fixture');
+  policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true };
+  policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0;
+  policy.limits.max_tokens_per_request = 1000; // 예약 = 8 + 600 = 608 · 미확인 608 + 다음 608 > 1000
+  let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
+  const p = openAIProvider('synthetic-not-a-key', async () => new Response(JSON.stringify({ model: 'm', choices: [{ message: { content: '' } }] }), { status: 200, headers: { 'content-type': 'application/json' } })); // usage 칸 없음
+  const router = createModelRouter({ policy, providers: { openai: p, gemini: g }, params: { temperature: 0, max_tokens: 600 } });
+  await assert.rejects(router.llm('turn', 'synthetic', {}), (e) => e.code === 'budget_exceeded');
+  assert.equal(router.log[0].usage, 'unknown', '숫자 없는 사용량 = 미확인'); assert.equal(fallback, 0);
+  assert.equal(router.summary().cost_complete, false);
+});

@@ -407,9 +407,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const base = stored.state.intro ?? { status: "none" as const, lines: [], dropped: {}, tries: 0, error: null, used: null, used_at: null };
         stored.state.intro = { ...base, used: how, used_at: new Date().toISOString() };
       } else {
-        if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-        if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-        if (await callsModel(stored, (st, llm) => A.draftIntro(st, llm))) { const capped = await dailyCapped(); if (capped) return capped; } // 상한 도달·들은 말 없음 = 모델 0 → 한도와 무관
+        // 모델을 부를 때만 AI 사전 확인(설정 · 대화 예산 · 하루 한도). 상한 도달·들은 말 없음 = 모델 0 → 평소 결과(limited · 빈 소개)
+        if (await callsModel(stored, (st, llm) => A.draftIntro(st, llm))) {
+          if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+          if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
+          const capped = await dailyCapped(); if (capped) return capped;
+        }
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
         if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
@@ -433,9 +436,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
       const stored = row.response_payload as unknown as Stored;
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
-      if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-      if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-      if (await callsModel(stored, (st, llm) => A.requestRescue(st, llm))) { const capped = await dailyCapped(); if (capped) return capped; } // 들고 있던 보기·대체 보기 = 모델 0 → 한도와 무관
+      // 모델을 부를 때만 AI 사전 확인. 들고 있던 보기·대체 보기 = 모델 0 → 설정·예산·한도와 무관하게 보여 준다
+      if (await callsModel(stored, (st, llm) => A.requestRescue(st, llm))) {
+        if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+        if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
+        const capped = await dailyCapped(); if (capped) return capped;
+      }
       const rev = Number(row.applied_revision ?? 0);
       const r = await A.requestRescue(stored.state, ctx.llm);
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)

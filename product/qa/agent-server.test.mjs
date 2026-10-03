@@ -1418,3 +1418,18 @@ test('Codex P2 첫 질문 만들기가 실패해도 시도가 하루 한도에 �
   const again = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
   assert.equal(again.status, 429, '199 + 실패 1 = 200 → 새 시작은 막힘'); assert.equal(again.body.code, 'AI_DAILY_LIMIT');
 });
+test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·대화 예산 소진에서도 평소 결과(설정·예산 확인은 모델을 부를 때만)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
+  const r = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.session.current_rescue.show, true);
+  sessionRow(s).response_payload.state.phase = 'done'; sessionRow(s).response_payload.state.intro = { status: 'failed', lines: [], dropped: {}, tries: 3, error: 'limit', used: null, used_at: null };
+  const i = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(i.status, 200, JSON.stringify(i.body)); assert.equal(i.body.limited, true);
+  s.env = { OPENAI_API_KEY: '' }; // AI 설정 없음
+  const i2 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(i2.status, 200, JSON.stringify(i2.body)); assert.equal(i2.body.limited, true);
+});
