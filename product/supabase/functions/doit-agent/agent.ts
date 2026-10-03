@@ -353,7 +353,7 @@ export function decideKind(st: AgentState, text: string, out: { kind: Kind; extr
 }
 export const BANNED_WORDS = /데이팅|소개팅|궁합|점술|심리치료|성격검사/;
 // 저장 금지 입력(연락처·식별번호·링크) — 기존 결정(2026-09-21). 이 경우와 대화 상한만 고정 안내를 쓴다.
-export const PRIVATE_DATA = /(01[016789][-\s.]?\d{3,4}[-\s.]?\d{4})|([\w.+-]+@[\w-]+\.[\w.]+)|(https?:\/\/|www\.)|(\d{6}[-\s]?[1-4]\d{6})/;
+export const PRIVATE_DATA = /(01[016789][-\s.]?\d{3,4}[-\s.]?\d{4})|([\w.+-]+@[\w-]+\.[\w.]+)|(https?:\/\/|www\.)|((?<!\d)\d{6}[-\s]?[1-8]\d{6}(?!\d))/; // 13자리 식별번호: 주민등록번호(뒷자리 1~4) + 외국인등록번호(5~8) · 더 긴 숫자의 일부는 아님(Codex 명세 5974645036)
 const PRIVATE_GUIDE: Record<Tone, string> = { formal: "연락처·번호·링크는 여기에 적지 않습니다. 그 부분만 빼고 다시 말씀해 주세요.", polite: "연락처·번호·링크는 여기에 적지 않아요. 그 부분만 빼고 다시 적어 주세요.", casual: "연락처·번호·링크는 여기에 적지 않아. 그 부분만 빼고 다시 적어 줘." };
 const CLOSED_GUIDE: Record<Tone, string> = { formal: "이번 대화는 여기까지 정리했습니다. 다시 하시려면 「처음부터 시작하기」를 눌러 주세요.", polite: "이번 대화는 여기까지 정리했어요. 다시 하려면 「처음부터 시작하기」를 눌러 주세요.", casual: "이번 대화는 여기까지 정리했어. 다시 하려면 「처음부터 시작하기」를 눌러 줘." };
 const MBTI = /^[EI][NS][TF][JP]$/i;

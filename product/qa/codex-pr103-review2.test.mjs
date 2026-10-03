@@ -384,3 +384,26 @@ test('Codex P1(리뷰 4175265583) 국제화 이메일(한글·유니코드 도�
   for (const s of ['@친구 안녕', '가격은 5@3개', '오후 3시@카페', '이메일은 없어요']) assert.equal(maskPii(s).value, s, s);
   const long = 'a'.repeat(5000) + '@' + 'b'.repeat(5000); const t0 = Date.now(); maskPii(long); assert.ok(Date.now() - t0 < 500, '긴 글도 빠름');
 });
+test('외국인등록번호 5~8 형식은 재시도와 제공사 전환에서도 전체가 가려진다 · 식별번호 주변의 일반 숫자와 더 긴 주문번호를 부분 가림하지 않는다(합성 값)', async () => {
+  for (const id of ['900101-5123456', '9001016123456', '900101 7123456', '900101-8123456', '900101-1234567', '900101 2234567']) {
+    const { value, counts } = maskPii(`번호 ${id} 입니다`);
+    assert.equal(value, '번호 [가림] 입니다', id); assert.equal((counts.rrn ?? 0) + (counts.card ?? 0), 1, id); // 붙여 쓴 13자리가 Luhn 에 맞으면 카드로 셈(전체 가림은 같음)
+    if (/[-\s]/.test(id)) assert.equal(counts.rrn, 1, id);
+  }
+  for (const s of ['주문 900101-9123456 번', '주문 900101-0123456 번', '긴 번호 1900101-51234567 끝', '12345678901234 개', '123456789012 개', '오후 3시 · 5번 · 10월 4일']) {
+    const { value, counts } = maskPii(s); assert.equal(value, s, s); assert.equal(counts.rrn, undefined, s);
+  }
+  // 재시도·전환: 모든 제공사가 같은 가린 값만 받음 · 기록에 원문 0
+  const policy = defaultPolicy('fixture');
+  policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true };
+  policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 1; policy.limits.retry_wait_ms = 0;
+  const seen = []; let n = 0;
+  const failing = { id: 'openai', call: async (req) => { seen.push(JSON.stringify(req.input)); n++; const e = new Error('x'); e.code = 'http_5xx'; e.provider = 'openai'; e.retryable = true; throw e; } };
+  const g = { id: 'gemini', call: async (req) => { seen.push(JSON.stringify(req.input)); return { ...result, provider: 'gemini' }; } };
+  const router = createModelRouter({ policy, providers: { openai: failing, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
+  await router.llm('turn', 'S', { latest: '제 번호는 900101-5123456 예요' }).catch(() => {});
+  assert.ok(seen.length >= 2, `보낸 횟수 ${seen.length}`);
+  for (const t of seen) { assert.ok(!t.includes('900101') && !t.includes('5123456'), t); assert.ok(t.includes('[가림]'), t); }
+  assert.ok(!JSON.stringify(router.log).includes('900101'), '기록에 원문 0');
+  const t0 = Date.now(); maskPii('1'.repeat(200_000)); maskPii('900101-'.repeat(30_000)); assert.ok(Date.now() - t0 < 2000, '긴 글도 빠름');
+});

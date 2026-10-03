@@ -234,6 +234,18 @@ test('먼저 답하기·정정·항의: 저장 0 · 틀린 기억 거둠 · 문�
   assert.equal(s.tables.doit_records.length, 1, '항의·질문은 기록 0(첫 답만)');
 });
 
+test('외국인등록번호 형식은 모델 호출 전에 차단되고 저장되지 않는다 · 기존 주민등록번호 1~4 형식 보호 유지(합성 값)', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') }));
+  const sid = (await h.call({ action: 'agent_start', requestId: rid(), firstAnswer: '친구' })).body.session.id;
+  const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
+  for (const id of ['900101-5123456', '9001016123456', '900101 7123456', '900101-8123456', '900101-1234567', '9001014234567']) {
+    const before = s.aiCalls.length;
+    const b = await say(`제 번호는 ${id} 예요`);
+    assert.equal(b.body.turn.kind, 'blocked', id); assert.equal(s.aiCalls.length, before, `${id} AI 호출 0`);
+    assert.ok(!JSON.stringify(s.tables).includes(id), `${id} 저장 0`);
+  }
+});
 test('지침(stop): 들은 만큼 정리하고 마침 · 저장 금지 입력: 고정 안내·원문 저장 0', async () => {
   const s = newState(); const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '친구', '친구')], ...Q('attraction_comfort', '친구랑은 주로 뭐 하면서 놀아요?') })); // v2.5.4: 「어떤 사람이 편해요?」는 v2.5.1 부터 사람 유형 재정의 질문(서버가 다시 청함)
