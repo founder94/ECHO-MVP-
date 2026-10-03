@@ -4,6 +4,7 @@ const {check}=require('./review-gate.cjs');
 const sha='a'.repeat(40), bot={login:'chatgpt-codex-connector[bot]',type:'Bot'};
 function fixture(){return {eventName:'pull_request_review',repository:'founder94/ECHO-MVP-',event:{action:'submitted',review:{id:9,user:bot,commit_id:sha}},pr:{state:'open',draft:false,base:{ref:'echo-qa'},head:{sha,repo:{full_name:'founder94/ECHO-MVP-'}}},reviews:[{id:9,user:bot,commit_id:sha}],comments:[{pull_request_review_id:9,user:bot,commit_id:sha,path:'product/x.ts',line:1,body:'[P1] actual finding'}],issueComments:[{user:{login:'founder94',type:'User'},body:'[ECHO-AUTO-OWNER:actions]'}]};}
 test('actual trusted Codex review does not require mention or invented marker',()=>assert.equal(check(fixture()).run,true));
+test('actual native priority badge is actionable',()=>{const x=fixture();x.comments[0].body='**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub> Check combined usage**';assert.equal(check(x).run,true)});
 test('untrusted bot rejected',()=>{const x=fixture();x.event.review.user={login:'evil[bot]',type:'Bot'};assert.equal(check(x).run,false)});
 test('stale SHA rejected',()=>{const x=fixture();x.pr.head.sha='b'.repeat(40);assert.equal(check(x).reason,'stale_source')});
 test('foreign fork rejected',()=>{const x=fixture();x.pr.head.repo.full_name='evil/repo';assert.equal(check(x).run,false)});

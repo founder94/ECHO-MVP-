@@ -13,7 +13,7 @@ function check({eventName, event, pr, reviews, comments, issueComments, reposito
   if (issueComments.some(c=>c.user?.login==='github-actions[bot]' && (c.body||'').startsWith(marker))) return no('duplicate_review');
   const rounds=issueComments.filter(c=>['github-actions[bot]','claude[bot]','founder94'].includes(c.user?.login) && /^<!-- echo-handoff to=codex sha=[a-f0-9]{40} round=\d+ -->/.test(c.body||'')).length;
   if (rounds>=5) return no('round_limit');
-  const findings=comments.filter(c=>c.pull_request_review_id===review.id && c.user?.login===CODEX && c.user.type==='Bot' && c.commit_id===review.commit_id && /\[P[012]\]/.test(c.body||''));
+  const findings=comments.filter(c=>c.pull_request_review_id===review.id && c.user?.login===CODEX && c.user.type==='Bot' && c.commit_id===review.commit_id && /\[P[012]\]|!\[P[012] Badge\]/.test(c.body||''));
   if (!findings.length) return no('no_actionable_findings');
   // Review existence and author are checked from API, not from a copied comment.
   if (!reviews.some(r=>r.id===review.id && r.user?.login===CODEX && r.commit_id===review.commit_id)) return no('review_not_confirmed');
