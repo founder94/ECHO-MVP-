@@ -375,3 +375,12 @@ test('Codex P1(리뷰 4174752170) 국내 전화 일반화: 0303 등 4자리 서�
   }
   for (const keep of ['02.10.2026', '오전 06:30', '0123', '01234567', '0303-1234-5678-9012-3456', '번호 0000000000000']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
 });
+test('Codex P1(리뷰 4175265583) 국제화 이메일(한글·유니코드 도메인 · 전각 ＠ · 한자 마침표)도 가림 · 일반 문장·@멘션은 그대로', () => {
+  for (const s of ['user@예시.한국', '홍길동@회사.kr', 'me@münchen.de', 'ユーザー@例え.jp', 'a.b+c@sub.예시.한국', 'user＠example.com', 'user@예시。한국', 'test@xn--9n2bp8q.xn--3e0b707e']) {
+    const { value, counts } = maskPii(`연락 ${s} 로 주세요`);
+    assert.equal(value, '연락 [가림] 로 주세요', s); assert.equal(counts.email, 1, s);
+  }
+  assert.equal(maskPii('기존 user@example.com 도').value, '기존 [가림] 도');
+  for (const s of ['@친구 안녕', '가격은 5@3개', '오후 3시@카페', '이메일은 없어요']) assert.equal(maskPii(s).value, s, s);
+  const long = 'a'.repeat(5000) + '@' + 'b'.repeat(5000); const t0 = Date.now(); maskPii(long); assert.ok(Date.now() - t0 < 500, '긴 글도 빠름');
+});

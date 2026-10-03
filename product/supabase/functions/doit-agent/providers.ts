@@ -112,8 +112,8 @@ export function anthropicProvider(apiKey: string, opt: AnthropicOptions = {}, f:
   } };
 }
 
-// Gemini finishReason 중 정책·필터로 멈춘 것(공식 GenerateContent 참고 · STOP·MAX_TOKENS·OTHER·LANGUAGE·MALFORMED_FUNCTION_CALL 은 아님)
-const GEMINI_POLICY_STOPS = new Set(["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION"]);
+// Gemini finishReason 중 정책·필터로 멈춘 것(공식 GenerateContent 참고 · STOP·MAX_TOKENS·OTHER·LANGUAGE·MALFORMED_FUNCTION_CALL 은 아님 · ESCALATION = 상위 규칙 필터 · 리뷰 4175265586)
+const GEMINI_POLICY_STOPS = new Set(["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION", "ESCALATION"]);
 /** Gemini — REST generateContent · JSON 응답 요청(responseMimeType). 안전 차단(promptFeedback.blockReason · finishReason SAFETY)은 refused · MAX_TOKENS 는 truncated 표시. */
 export function geminiProvider(apiKey: string, f: Fetch = fetch): ModelProvider {
   return { id: "gemini", call: async (req) => {

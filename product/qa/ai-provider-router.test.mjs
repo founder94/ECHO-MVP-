@@ -67,6 +67,9 @@ test('연결부 Gemini: generateContent 요청 모양 · JSON 응답 요청 · �
   assert.deepEqual([r.text, r.model_served, r.input_tokens, r.cached_tokens, r.output_tokens], ['{"a":1}', 'served-g', 6, 1, 2]);
   await assert.rejects(P.geminiProvider('k', async () => ok({ promptFeedback: { blockReason: 'SAFETY' } })).call(REQ), (e) => e.code === 'refused');
   await assert.rejects(P.geminiProvider('k', async () => ok({ candidates: [{ finishReason: 'SAFETY' }] })).call(REQ), (e) => e.code === 'refused');
+  // Codex P2(리뷰 4175265586) ESCALATION(상위 규칙 필터)도 정책 차단 = refused(다른 제공사로 우회 0) — 글이 있어도
+  await assert.rejects(P.geminiProvider('k', async () => ok({ candidates: [{ finishReason: 'ESCALATION' }] })).call(REQ), (e) => e.code === 'refused');
+  await assert.rejects(P.geminiProvider('k', async () => ok({ candidates: [{ finishReason: 'ESCALATION', content: { parts: [{ text: '{}' }] } }] })).call(REQ), (e) => e.code === 'refused');
   assert.equal((await P.geminiProvider('k', async () => ok({ candidates: [{ content: { parts: [{ text: '{' }] }, finishReason: 'MAX_TOKENS' }] })).call(REQ)).truncated, true);
 });
 
