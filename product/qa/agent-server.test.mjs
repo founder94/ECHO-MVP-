@@ -1573,6 +1573,19 @@ test('Codex P2(리뷰 5400441424) 재생 기록이 빠진 실행 요청 A 는 �
   assert.equal(again.body.duplicate, true); assert.equal(again.body.tool.outcome, 'failed');
   assert.equal(s.connectCalls.length, calls, 'A 재전송 = 도구 다시 안 부름');
 });
+test('Codex P2(리뷰 5400588319) 같은 새 요청 id 로 실행 두 개가 겹쳐 들어와도 후보 조회 도구는 한 번만(나중 것 = 409)', async () => {
+  const s = newState(); const h = load(s);
+  const { sid, say } = await fi018Done(h, s);
+  s.ai.push(T({ extracted: [X('values_character', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요', '서로 말 끊지 않고 천천히 듣는 대화가 좋아요')], ...Q('boundaries', '천천히 듣는 대화에서 싫은 건 뭐예요?') }), { summary: [], closing: '이제 조금 알 것 같아요.' });
+  assert.equal((await say('서로 말 끊지 않고 천천히 듣는 대화가 좋아요')).body.session.phase, 'done');
+  s.connect = [{ ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }, { ok: true, eligible: true, missing: [], candidates: [{ id: 'x' }] }];
+  const n = () => (s.connectCalls ?? []).length; const calls = n(); const A = rid();
+  const [r1, r2] = await Promise.all([h.call({ action: 'agent_run', requestId: A, sessionId: sid }), h.call({ action: 'agent_run', requestId: A, sessionId: sid })]);
+  assert.equal(n() - calls, 1, '도구(my_candidates) 실행 1번');
+  assert.deepEqual([r1.status, r2.status].sort(), [200, 409]);
+  const again = await h.call({ action: 'agent_run', requestId: A, sessionId: sid });
+  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.equal(n() - calls, 1, '끝난 뒤 재전송 = 저장된 결과');
+});
 test('Codex P2(리뷰 5400556217) 재생 기록이 빠진 실행 요청 A 를 다시 보내면, 그 사이 B 가 실행 기록을 바꿨어도 A 당시의 결과(outcome·next)를 돌려줌', async () => {
   const s = newState(); const h = load(s);
   const { sid, say } = await fi018Done(h, s);

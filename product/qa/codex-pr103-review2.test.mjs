@@ -1,7 +1,7 @@
 // PR #103 Codex Code Review(리뷰 5399862208 · 4e04d36) P1 「Recheck the cost cap before retries and fallbacks」 재현.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createModelRouter, defaultPolicy } from '../supabase/functions/doit-agent/modelRouter.ts';
+import { createModelRouter, defaultPolicy, maskPii } from '../supabase/functions/doit-agent/modelRouter.ts';
 import { openAIProvider } from '../supabase/functions/doit-agent/providers.ts';
 const result = { text: '{}', provider: 'gemini', model_requested: 'fixture', model_served: 'fixture', input_tokens: 1, output_tokens: 1, cached_tokens: 0, latency_ms: 1, truncated: false };
 // 빈 답 + 사용량 2/1 토큰을 알려 주는 실패(확인된 사용량)
@@ -178,4 +178,14 @@ test('P2 기한 직전의 재시도 대기는 기한을 넘기지 않음(재시�
   const t0 = Date.now();
   await assert.rejects(router.llm('turn', 's', {}));
   assert.ok(Date.now() - t0 < 1000, `기한 200ms 인데 ${Date.now() - t0}ms`); assert.equal(calls, 1);
+});
+
+// PR #103 Codex Code Review(리뷰 5400588319 · c2e2358) P1 재현 — 붙여 쓴 16자리 카드 번호도 업체로 보내기 전에 가림
+test('P1 붙여 쓴 카드 번호(16자리)도 가림 · 띄어 쓴 형태도 그대로 가림 · 일반 숫자는 그대로', () => {
+  const a = maskPii({ latest: '카드 1234567812345678 로 결제했어요' });
+  assert.equal(a.counts.card, 1); assert.doesNotMatch(JSON.stringify(a.value), /\d{5,}/, '숫자 조각도 남지 않음');
+  const b = maskPii({ latest: '1234-5678-1234-5678 / 1234 5678 1234 5678' });
+  assert.equal(b.counts.card, 2); assert.doesNotMatch(JSON.stringify(b.value), /\d{4}/);
+  const c = maskPii({ latest: '주말에 2번, 3시간 정도 만나요' });
+  assert.deepEqual(c.counts, {}, '일반 숫자는 가리지 않음(과차단 0)');
 });

@@ -507,9 +507,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!sid) return fail("BAD_REQUEST", "대화를 찾지 못했어요.", 400, origin);
       if (prior) {
         const p = prior.response_payload as Json | null;
-        if (prior.action === RUN_ACTION && prior.target_id === sid && p?.run) {
+        if (prior.action === RUN_ACTION && prior.target_id === sid) {
           const { data: again } = await admin.from("doit_request_events").select("request_id, response_payload").eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).maybeSingle();
-          if (again) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: p.run, tool: p.tool ?? null, duplicate: true }, 200, origin);
+          if (again && p?.run) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: p.run, tool: p.tool ?? null, duplicate: true }, 200, origin);
+          // 먼저 잡아 둔 요청(pending)인데 결과 기록이 비었으면: 세션에 함께 저장된 그 요청의 결과로(도구 재실행 0) · 아직 처리 중이면 409
+          const kept = again ? (again.response_payload as unknown as Stored).run?.recent_requests?.find((x) => x.id === requestId) : undefined;
+          if (again && kept?.run) return json({ ok: true, session: sessionView(sid, again.response_payload as unknown as Stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin);
+          if (!p?.run && prior.status === "pending") return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
         }
         return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       }
@@ -524,6 +528,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (kept) return kept.run ? json({ ok: true, session: sessionView(sid, stored), run: kept.run, tool: kept.tool, duplicate: true }, 200, origin)
         : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       const rev = Number(row.applied_revision ?? 0);
+      // 도구를 부르기 전에 요청 id 를 먼저 잡는다(사용자·요청 id 고유 제약) → 같은 id 가 겹쳐 들어와도 도구는 한 번만(나중 것 = 409)
+      const runHash = await sha256(`${sid}:run:${rev}`);
+      const { error: reserveError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "pending", payload_hash: runHash });
+      if (reserveError) return reserveError.code === "23505" ? fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin) : fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
       const t0 = Date.now();
       let run = R.syncRun(stored.run, stored.state, new Date().toISOString());
       if (body.resume === true && run.user_stopped) run = R.resumeRun(run, stored.state, new Date().toISOString()); // 사용자가 직접 누른 「다시 이어서」만
@@ -539,9 +547,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       stored.run = run;
       const { data: saved, error: saveError } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-      if (saveError || !saved || !saved.length) { logDiag({ step: "run", code: "stale", tool: tool?.outcome ?? null }); return fail("STATE_CHANGED", "그사이 대화가 바뀌어 이 결과는 쓰지 않았어요. 다시 불러올게요.", 409, origin); }
-      const { error: runLogError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: RUN_ACTION, target_id: sid, status: "applied",
-        payload_hash: await sha256(`${sid}:run:${rev}`), applied_revision: rev + 1, response_payload: { run: view, tool } });
+      if (saveError || !saved || !saved.length) {
+        logDiag({ step: "run", code: "stale", tool: tool?.outcome ?? null });
+        await admin.from("doit_request_events").update({ status: "failed", error_code: "STATE_CHANGED" }).eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION);
+        return fail("STATE_CHANGED", "그사이 대화가 바뀌어 이 결과는 쓰지 않았어요. 다시 불러올게요.", 409, origin);
+      }
+      const { error: runLogError } = await admin.from("doit_request_events").update({ status: "applied", applied_revision: rev + 1, response_payload: { run: view, tool } })
+        .eq("user_id", userId).eq("request_id", requestId).eq("action", RUN_ACTION);
       logDiag({ step: "run", outcome: run.outcome, waiting: run.waiting, plan_rev: run.plan_rev, tool: tool?.outcome ?? null, tool_code: tool?.code ?? null, count: tool?.count ?? null, skipped: due.tool ? null : due.why, run_log_error: !!runLogError, ms: Date.now() - t0 });
       return json({ ok: true, session: sessionView(sid, stored), run: view, tool, model_calls: router.summary().calls }, 200, origin); // 실행 단계 자체의 모델 호출 = 0(라우터를 쓰지 않음)
     }

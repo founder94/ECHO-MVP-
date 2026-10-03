@@ -47,13 +47,16 @@ export interface AgentRun {
 export interface AgentRunTool { tool: 'readiness' | 'candidates'; outcome: 'found' | 'none' | 'not_ready' | 'failed' | 'skipped'; count: number | null; code: string | null }
 const RUN_OUTCOMES = new Set<string>(['needs_user', 'in_progress', 'done', 'on_hold', 'stopped']);
 const RUN_NEXT = new Set<string>(['answer', 'complete_profile', 'tell_more', 'open_candidates', 'run', 'retry_later', 'wait', 'resume_if_wanted']);
+// 서버 run.ts 의 WaitReason · StepStatus 와 같은 목록(모르는 값 = 실행 기록 버림)
+const RUN_WAITING = new Set<string>(['answer_question', 'more_info', 'profile_incomplete', 'no_candidates_yet', 'lookup_failed', 'user_stopped', 'budget', 'tool_cooldown']);
+const RUN_STEP_STATUS = new Set<string>(['todo', 'done', 'skipped', 'invalid', 'waiting', 'blocked']);
 // 모양이 틀린 실행 기록은 쓰지 않는다(null 로 취급 · 화면이 임의로 채우지 않음)
 export function validRun(r: unknown): r is AgentRun {
   const x = r as AgentRun | null;
   return !!x && typeof x.version === 'string' && typeof x.goal === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome)
-    && (x.waiting === null || typeof x.waiting === 'string') && RUN_NEXT.has(x.next)
+    && (x.waiting === null || RUN_WAITING.has(x.waiting)) && RUN_NEXT.has(x.next)
     && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string')
-    && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && typeof st.status === 'string' && (st.why === null || typeof st.why === 'string'))
+    && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && RUN_STEP_STATUS.has(st.status) && (st.why === null || typeof st.why === 'string'))
     && (x.candidates === null || validRunCandidates(x.candidates));
 }
 // 후보 조회 요약: 결과 종류(서버 목록) · 개수(정수 또는 null) · 시각(글자) · 지금 기준과 일치(참/거짓)만 — 그 밖의 모양은 받지 않는다

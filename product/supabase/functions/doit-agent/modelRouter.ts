@@ -95,12 +95,13 @@ export function piiKeys(input: unknown, path = ""): string[] {
 // 자유 문장 속 개인정보 가리기(마지막 안전망). 칸 이름 차단(piiKeys)만으로는 문장 속 번호를 막지 못한다.
 // Agent 는 이미 전화·이메일·주소(URL)·주민번호가 든 말을 모델에 보내지 않고 저장도 하지 않는다(PRIVATE_DATA) — 여기서는 그 밖의 경로와 생년월일·카드 번호까지 가린 뒤 보낸다.
 // 다른 사람의 이름·사정 같은 「제3자 정보」는 글자 규칙으로 가려낼 수 없다 → 가리지 못함(남은 한계 · 문서 §23).
+// 카드 번호를 맨 앞에: 붙여 쓴 16자리를 전화·주민번호 규칙이 먼저 일부만 가리면 나머지 숫자가 그대로 나가므로
 const MASKS: [string, RegExp][] = [
+  ["card", /\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/g], // 띄어 쓴 형태와 붙여 쓴 16자리 모두
   ["phone", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g],
   ["landline", /0(2|[3-6][1-5])[-\s.]\d{3,4}[-\s.]\d{4}/g],
   ["email", /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,63}/g], // 반복 길이를 묶어 긴 글에서도 선형 시간(무한 되돌림 0)
   ["rrn", /\d{6}[-\s]?[1-4]\d{6}/g],
-  ["card", /\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}/g],
   ["birth", /(19|20)\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?/g],
 ];
 export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
@@ -111,7 +112,11 @@ export function maskPii(input: unknown): { value: unknown; counts: Record<string
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
     return v;
   };
-  return { value: walk(input), counts };
+  const value = walk(input);
+  // 기록 순서는 예전 그대로(전화·유선·이메일·주민번호·카드·생년월일) — 가리는 순서(카드 먼저)와 따로
+  const ordered: Record<string, number> = {};
+  for (const k of ["phone", "landline", "email", "rrn", "card", "birth"]) if (counts[k]) ordered[k] = counts[k];
+  return { value, counts: ordered };
 }
 
 // 라우터가 스스로 멈춘 이유(제공사 오류가 아님). Agent 는 e.code 만 읽는다.

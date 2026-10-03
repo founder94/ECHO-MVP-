@@ -114,3 +114,13 @@ test('Codex P2(리뷰 5400474027) 후보 조회 요약 모양 검사: 결과 종
   assert.equal(A.validRun(run({ candidates: { outcome: 'none', count: 0, at: '2026-10-03T00:00:00Z', fresh: false } })), true);
   assert.equal(A.validRun(run({ candidates: { outcome: 'not_ready', count: null, at: '2026-10-03T00:00:00Z', fresh: true } })), true);
 });
+
+// PR #103 Codex Code Review(리뷰 5400588319 · c2e2358) P2 재현 — 서버 목록에 없는 waiting · 단계 status 는 실행 기록 거부
+test('Codex P2(리뷰 5400588319) 모르는 waiting · 단계 status 면 실행 기록 거부 · 정상 값은 통과', async () => {
+  assert.equal(A.validRun(run({ waiting: 'auto_matched' })), false, 'waiting 은 서버 목록만');
+  assert.equal(A.validRun(run({ steps: [{ id: 'tool:candidates', status: 'approved', why: null }] })), false, '단계 status 는 서버 목록만');
+  assert.equal(A.validRun(run({ steps: [{ id: 'tool:candidates', status: 'done', why: 3 }] })), false, 'why 는 글자 또는 null');
+  globalThis.__agentStub.set({ session: session(run()), run: run({ waiting: 'auto_matched' }), tool: null });
+  await assert.rejects(A.agentRun('u1', 's'), /INVALID_RESPONSE/);
+  for (const w of [null, 'answer_question', 'lookup_failed', 'user_stopped', 'tool_cooldown']) assert.equal(A.validRun(run({ waiting: w })), true, String(w));
+});
