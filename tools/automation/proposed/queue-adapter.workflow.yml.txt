@@ -1,0 +1,26 @@
+# PROPOSAL ONLY (not under .github/workflows, not active). Install as .github/workflows/queue-adapter.yml after review + 대표 approval.
+# Permission/cost impact: contents:read only; NO secrets, NO model calls, NO paid API. Queue state must live in a store with real
+# compare-and-swap (e.g. git ref update with expected old value); issue comments are NOT atomic and must not be the lock.
+name: queue-adapter
+on:
+  pull_request_review: { types: [submitted] }
+  issue_comment: { types: [created] }
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: queue-adapter   # serializes runs; the store CAS is the actual lock
+  cancel-in-progress: false
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }   # run reviewed code from main, never PR head
+      - name: handle verified event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DELIVERY: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: node tools/automation/queue-adapter-cli.cjs "$EVENT_NAME" "$GITHUB_EVENT_PATH" "$DELIVERY"
+# TODO (BLOCKED): queue-adapter-cli.cjs (reads GITHUB_EVENT_PATH, loads/saves state via the CAS store) and the state-write
+# permission (e.g. contents:write on a dedicated ref) need separate approval. Recovery: delete this workflow file.
