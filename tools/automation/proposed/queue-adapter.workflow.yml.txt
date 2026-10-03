@@ -47,6 +47,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}              # existing token only; never printed
           QUEUE_STORE_DIR: ${{ github.workspace }}
           QUEUE_MAX_ROUNDS: '5'                      # approved cap, controller refuses anything above 5
+          # OPTIONAL, default unset = OFF. Opt-in reviewer principal (a real User login approved by the owner, e.g. the account Codex MCP posts as):
+          # may submit FAIL/BLOCKED verdicts only; its PASS is stored as BLOCKED (reviewer_pass_unproven). Not the Codex Bot; Codex origin is unprovable from author alone.
+          # QUEUE_REVIEWER_PRINCIPAL: ${{ vars.QUEUE_REVIEWER_PRINCIPAL }}
         run: |
           set +e
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$MODE" = "init" ]; then

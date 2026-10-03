@@ -1,0 +1,24 @@
+diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
+--- a/.github/workflows/claude.yml
++++ b/.github/workflows/claude.yml
+@@ -46,6 +46,20 @@
+       id-token: write
+       actions: read
+     steps:
++      - name: Checkout main for queue ownership routing
++        uses: actions/checkout@v6
++        with:
++          ref: main
++          fetch-depth: 1
++      - name: Queue ownership routing (queue-managed PRs are handled only by queue-worker-receiver)
++        id: route
++        env:
++          GH_TOKEN: ${{ github.token }}
++          GITHUB_REPOSITORY: ${{ github.repository }}
++          NUM: ${{ github.event.issue.number || github.event.pull_request.number }}
++          IS_PR: ${{ github.event.issue.pull_request != null || github.event.pull_request != null }}
++        run: node tools/automation/queue-managed.cjs "$IS_PR" "$NUM"
+       - name: Validate trusted Codex review and implementation owner
+         id: preflight
++        if: steps.route.outputs.managed != 'true'
+         uses: actions/github-script@v7

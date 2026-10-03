@@ -48,14 +48,21 @@ function step(queue, event, config = {}) {
     return { action: 'REVIEW', reason: 'submitted', taskId: t.id, queue: withTask(q, t.id, { state: 'REVIEW', headSha: event.sha }) };
   }
   if (event?.type !== 'review') return ignore(queue, 'unknown_event');
-  if (event.actor?.login !== CODEX || event.actor.type !== 'Bot') return ignore(queue, 'unauthorized_actor');
+  // Opt-in (default OFF) reviewer principal: a real User explicitly approved in config.reviewerPrincipal (never from event/comment text).
+  // It is a separate role, not the Codex Bot: GitHub author alone cannot prove Codex origin, and the account may equal the owner.
+  // So it may only stop work (FAIL/BLOCKED); its PASS is never promoted to DONE and halts as BLOCKED.
+  const rp = config.reviewerPrincipal;
+  const isPrincipal = !!rp && rp.type === 'User' && typeof rp.login === 'string' && event.actor?.type === 'User' && event.actor.login === rp.login;
+  const isCodex = event.actor?.login === CODEX && event.actor.type === 'Bot';
+  if (!isCodex && !isPrincipal) return ignore(queue, 'unauthorized_actor');
+  if (!isCodex && event.verdict === 'PASS') event = { ...event, verdict: 'BLOCKED', principalPass: true };
   if ((queue.seenEvents || []).includes(event.id)) return ignore(queue, 'duplicate_event');
   const t = queue.tasks.find(x => x.id === event.taskId);
   if (!t) return ignore(queue, 'unknown_task');
   if (t.state !== 'REVIEW') return ignore(queue, 'bad_state');
   if (event.sha !== t.headSha) return ignore(queue, 'stale_sha'); // stale event is not recorded as seen
   const q = { ...queue, seenEvents: [...(queue.seenEvents || []), event.id] };
-  if (event.verdict === 'BLOCKED') return stop(withTask(q, t.id, { state: 'BLOCKED' }), 'blocked');
+  if (event.verdict === 'BLOCKED') return stop(withTask(q, t.id, { state: 'BLOCKED' }), event.principalPass ? 'reviewer_pass_unproven' : 'blocked');
   if (event.verdict === 'PASS') {
     const r = promote(withTask(q, t.id, { state: 'DONE' }), t.owner);
     return r.action === 'IDLE' ? { ...r, reason: 'pass_no_more_tasks' } : r;

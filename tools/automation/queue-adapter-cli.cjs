@@ -74,7 +74,9 @@ function run(argv, env, store, getHead = ghHead, deps = {}) {
     try { ctx.nativeFindings = countFindings((deps.getFindings || ghFindings)(env.GITHUB_REPOSITORY, payload.pull_request.number, payload.review.id), payload.review); }
     catch { return { code: 1, out: { error: 'findings_lookup_failed' } }; } // no verdict without verified findings
   }
-  const config = { strict: true, ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}) };
+  // QUEUE_REVIEWER_PRINCIPAL (opt-in, default unset = OFF): login of an explicitly approved real User allowed to submit FAIL/BLOCKED verdicts; its PASS never completes a task.
+  const config = { strict: true, ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}),
+    ...(env.QUEUE_REVIEWER_PRINCIPAL ? { reviewerPrincipal: { login: env.QUEUE_REVIEWER_PRINCIPAL, type: 'User' } } : {}) };
   const r = handle(st(), name, payload, delivery, config, 3, ctx);
   return { code: r.action === 'STOP' ? 2 : 0, out: { action: r.action, reason: r.reason, taskId: r.taskId } };
 }
