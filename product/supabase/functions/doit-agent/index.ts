@@ -17,6 +17,7 @@ type Json = Record<string, unknown>;
 
 const SESSION_ACTION = "agent_session";
 const TURN_ACTION = "agent_turn";
+const USAGE_ACTION = "agent_usage"; // 턴 기록 밖의 모델 사용(시작 인사 · 소개 · 보기 · 저장에 진 요청) — 하루 한도에 함께 센다 · 코드·수치만(원문 0)
 const RUN_ACTION = "agent_run";
 const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
@@ -76,7 +77,7 @@ const routerForRequest = (signal?: AbortSignal): ModelRouter => routerFromEnv((k
 const USER_DAILY_TURNS = 200;
 async function userDailyTurns(admin: Db, userId: string): Promise<number | null> {
   const { count, error } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
-    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+    .eq("user_id", userId).in("action", [TURN_ACTION, USAGE_ACTION]).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
   return error ? null : count ?? 0;
 }
 // 관리자 관측용 호출 기록(코드·수치만 · 사용자 원문 0).
@@ -165,14 +166,47 @@ const foldUsage = (stored: Stored, router: ModelRouter) => {
   stored.run = R.syncRun(stored.run, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed });
 };
 
+// 상태를 저장하지 못한(저장 경쟁에 짐 · 취소 · 예산 멈춤) 요청도 실제로 부른 모델 사용량은 남긴다.
+type UsageCtx = { admin: Db; userId: string; router: ModelRouter };
+// ① 하루 한도용 사용 기록 한 줄(모델 호출이 있었을 때만)
+async function logUsage(c: UsageCtx, sessionId: string | null, why: string) {
+  if (c.router.summary().calls <= 0) return;
+  const { error } = await c.admin.from("doit_request_events").insert({ user_id: c.userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: sessionId, status: "applied",
+    payload_hash: await sha256(`usage:${why}:${crypto.randomUUID()}`), applied_revision: 0, response_payload: { usage: { why, ...aiTrace(c.router) } } });
+  if (error) logDiag({ step: "usage_log", error: true });
+}
+// ② 지금 저장된 대화에 예산만 접어 넣기(대화 상태·판 번호 그대로 · 그 사이 다른 저장이 끼면 한 번 다시)
+async function foldIntoSaved(c: UsageCtx, sessionId: string) {
+  if (c.router.summary().calls <= 0) return;
+  for (let i = 0; i < 2; i++) {
+    const { data: row } = await c.admin.from("doit_request_events").select("request_id, applied_revision, response_payload")
+      .eq("user_id", c.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
+    if (!row || !row.response_payload) return;
+    const cur = structuredClone(row.response_payload) as unknown as Stored;
+    foldUsage(cur, c.router);
+    const { data, error } = await c.admin.from("doit_request_events").update({ response_payload: cur })
+      .eq("user_id", c.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", Number(row.applied_revision ?? 0)).select("request_id");
+    if (!error && data && data.length) return;
+  }
+  logDiag({ step: "usage_fold", code: "stale" });
+}
+const keepUsage = async (c: UsageCtx, sessionId: string | null, why: string) => { await logUsage(c, sessionId, why); if (sessionId) await foldIntoSaved(c, sessionId); };
+// 라우터가 「보내기 전에」 멈춘 까닭: 사용자가 끊음(cancelled) · 예산(budget_exceeded). 이때 도우미가 만든 상태(실패한 소개 · 빈 정리 · 대체 보기)는 저장하지 않는다.
+type Halt = "cancelled" | "session" | "request";
+const haltedBy = (r: ModelRouter): Halt | null => r.log.some((x) => x.error === "cancelled") ? "cancelled"
+  : r.log.some((x) => x.error === "budget_exceeded" && x.reason === "session_budget") ? "session" : r.log.some((x) => x.error === "budget_exceeded") ? "request" : null;
+// 대화 예산 = 429(다시 보내도 안 됨) · 이번 요청 한도 = 502(다시 보내면 됨) · 사용자가 끊음 = 499
+const haltFail = (why: Halt, origin: string | null) => why === "session" ? fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin)
+  : why === "request" ? fail("AI_ERROR", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, origin) : fail("CANCELLED", "요청이 취소됐어요. 다시 보내 주세요.", 499, origin);
+
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
 async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
   ctx.router.limitTo(R.remainingBudget(stored.run)); // 이번 요청(재시도·전환 포함)도 대화에 남은 예산 안에서만
-  const pre = fresh ? null : structuredClone(stored); // 실패하면 대화 상태는 이 판 그대로 두고 사용량만 남긴다
   const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
+  const halt = haltedBy(ctx.router);
   if (response.error) {
     const ai = ctx.router.summary();
     logDiag({ step: "turn", code: response.error, calls: obs.calls.length, retry: obs.retry, provider: ai.provider, fallback: ai.fallback, ai_errors: ctx.router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: ctx.router.policy.version });
@@ -181,30 +215,30 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
     const failed = { turn_index: null, session_id: sessionId, agent: A.AGENT_VERSION, input_mode: st.mode, tone: st.tone, kind: "error", error: String(response.error), saved: false, decision: "error",
       question_index: A.coreAsked(st).length, question_purpose: st.current?.purpose ?? null, flags: {}, ...aiTrace(ctx.router), ...A.versionTrace(), calls: obs.calls, retry: obs.retry,
       tone_mismatch_observed: false, id_leak: false, record_error: null, total_ms: Date.now() - t0 };
-    const { error: failLogError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: sessionId, status: "failed",
-      payload_hash: await sha256(`${sessionId}:error:${requestId}`), applied_revision: rev, response_payload: { record: failed } });
-    if (failLogError) logDiag({ step: "turn_fail_log", error: true });
-    // 실패한 시도도 대화 예산에 넣는다(실패 되풀이로 대화 상한 우회 0). 대화 상태(턴·칸)·판 번호는 그대로 두고 예산만 저장(같은 판 번호일 때만 · 상태는 이 판 그대로라 덮어쓸 것 없음).
-    // 다른 창이 먼저 저장했으면 이번 사용량은 남기지 못한다(기록만 · 여러 요청 사이 원자 예산 = DB 필요 → 문서 §24).
-    if (pre && ctx.router.summary().calls > 0) {
-      foldUsage(pre, ctx.router);
-      const { data, error } = await ctx.admin.from("doit_request_events").update({ response_payload: pre })
-        .eq("user_id", ctx.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-      if (error || !data || !data.length) logDiag({ step: "turn_fail_budget", code: "stale" });
+    // 모델을 한 번도 안 불렀으면(보내기 전 예산 멈춤 등) 실패 턴 기록·하루 한도 차감 0
+    if (ai.calls > 0) {
+      const { error: failLogError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: crypto.randomUUID(), action: TURN_ACTION, target_id: sessionId, status: "failed",
+        payload_hash: await sha256(`${sessionId}:error:${requestId}`), applied_revision: rev, response_payload: { record: failed } });
+      if (failLogError) logDiag({ step: "turn_fail_log", error: true });
+      // 실패한 시도도 지금 저장된 대화의 예산에 넣는다(대화 상태·판 번호 그대로 · 실패 되풀이로 대화 상한 우회 0)
+      if (!fresh) await foldIntoSaved(ctx, sessionId);
     }
+    if (halt === "session" || halt === "cancelled") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 요청 한도 = 아래 기존 502
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
+  // 도중에 끊기거나 예산으로 멈췄으면, 도우미가 빈 값으로 채운 상태(빈 정리 등)를 저장하지 않는다 — 사용량만 남김
+  if (halt) { await keepUsage(ctx, fresh ? null : sessionId, `turn_${halt}`); return haltFail(halt, ctx.origin); }
   const lastTurn = st.turns.length > before ? st.turns.at(-1) : undefined; // 저장 금지 입력·대화 상한은 턴을 만들지 않는다
   if (response.finish || response.after) { stored.profile = A.matchingProfile(st); stored.handoff = A.matchingHandoff(stored.profile); }
   foldUsage(stored, ctx.router); // 같은 판 번호 저장에 함께(정정 → 계획·도구 결과 무효화)
   // 1) 상태 저장(판 번호 확인) — 이긴 쪽만 아래 기록을 남긴다.
   if (fresh) {
     const { error } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: sessionId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: rev + 1, response_payload: stored });
-    if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, ctx.origin);
+    if (error) { await keepUsage(ctx, sessionId, "turn_lost_race"); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, ctx.origin); }
   } else {
     const { data, error } = await ctx.admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
       .eq("user_id", ctx.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-    if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 이어졌어요. 새로 불러올게요.", 409, ctx.origin);
+    if (error || !data || !data.length) { await keepUsage(ctx, sessionId, "turn_lost_race"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 이어졌어요. 새로 불러올게요.", 409, ctx.origin); } // 진 쪽이 부른 모델도 하루 한도·대화 예산에
   }
   // 2) 매칭에 쓰는 답이면 기록으로도 남긴다(기존 RPC · 같은 턴은 같은 기록).
   let recordId: string | null = null; let recordError: string | null = null;
@@ -389,6 +423,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
+      await logUsage(ctx, error ? null : requestId, "opening"); // 첫 질문 만들기도 하루 한도에 셈(성공·저장 실패 모두)
       if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
@@ -419,12 +454,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
         router.limitTo(R.remainingBudget(stored.run));
         const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
+        const halt = haltedBy(router);
+        if (halt) { await keepUsage(ctx, sid, `intro_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 쓰던 소개를 「실패」로 덮지 않음
         if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
       }
       if (!limited) {
         const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
           .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-        if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
+        if (error || !data || !data.length) { await keepUsage(ctx, sid, "intro_lost_race"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
+        await logUsage(ctx, sid, "intro"); // 하루 한도에 셈(예산은 위 저장에 들어감)
       }
       const intro = stored.state.intro;
       logDiag({ step: action, intro: intro?.status ?? null, lines: intro?.lines.length ?? 0, dropped: intro?.dropped ?? {}, error: intro?.error ?? null, used: intro?.used ?? null, limited,
@@ -450,10 +488,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const rev = Number(row.applied_revision ?? 0);
       router.limitTo(R.remainingBudget(stored.run));
       const r = await A.requestRescue(stored.state, ctx.llm);
+      const halt = haltedBy(router);
+      if (halt) { await keepUsage(ctx, sid, `rescue_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 대체 보기를 굳히지 않음
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-      if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
+      if (error || !data || !data.length) { await keepUsage(ctx, sid, "rescue_lost_race"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
+      await logUsage(ctx, sid, "rescue"); // 하루 한도에 셈
       logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
     }

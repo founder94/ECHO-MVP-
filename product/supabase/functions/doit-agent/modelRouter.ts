@@ -115,7 +115,7 @@ export function maskPii(input: unknown): { value: unknown; counts: Record<string
 }
 
 // 라우터가 스스로 멈춘 이유(제공사 오류가 아님). Agent 는 e.code 만 읽는다.
-export type RouterStopCode = "pii_blocked" | "not_configured" | "budget_exceeded" | "deadline_exceeded" | "all_unavailable" | "cancelled";
+export type RouterStopCode = "pii_blocked" | "not_configured" | "budget_exceeded" | "deadline_exceeded" | "all_unavailable" | "cancelled" | "refused";
 export class RouterError extends Error { code: RouterStopCode; constructor(code: RouterStopCode) { super(`router:${code}`); this.code = code; } }
 
 export interface AiCallLog {
@@ -138,6 +138,7 @@ export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; lim
 
 // 제공사가 아니라 요청 자체 문제라 다른 모델로 돌려도 안 되는 오류: 거절(안전). 다음 후보로 넘기는 오류: 일시 오류 · 형식 · 4xx(모델 이름·설정 문제) · 빈 답 · 잘림.
 const NO_SWITCH: ProviderErrorCode[] = ["refused"];
+const MSG_OVERHEAD_TOKENS = 64; // 역할·메시지 구분 등 업체가 덧붙이는 토큰(넉넉히)
 const SAME_RETRY: ProviderErrorCode[] = ["http_429", "http_5xx", "network"]; // 지금 운영과 같음 — 시간 초과는 같은 곳에 다시 안 함(기다림 상한)
 
 /** 요청 하나(Agent 행동 하나)에 라우터 하나 — 한도·전환·기록은 요청 단위, 건강 상태(연속 오류 차단)는 함수 인스턴스 단위로 공유. */
@@ -160,10 +161,12 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   let sessionLeft = { calls: Infinity, tokens: Infinity };
   const limitTo = (rem: { calls: number; tokens: number }) => { sessionLeft = { calls: Math.max(0, rem.calls), tokens: Math.max(0, rem.tokens) }; };
   // 예약 = 토큰 수 + 그 토큰의 추정 금액(단가 있는 제공사만 · 없으면 0). 진행 중이거나 사용량을 모르는 시도는 예약을 유지 → 토큰·금액 상한 모두에 보수적으로 들어간다.
-  const held = new Map<number, { tokens: number; usd: number }>();
+  // max = 보장된 상한(입력 UTF-8 바이트 수 + 메시지 덧붙임 + 출력 상한) — 대화 예산 경계에서는 어림값이 아니라 이 값으로 본다(바이트 단위 토크나이저는 토큰 수 ≤ 바이트 수).
+  const held = new Map<number, { tokens: number; max: number; usd: number }>();
   let holdSeq = 0;
   const confirmedTokens = () => log.reduce((n, r) => n + (r.usage === "confirmed" ? (r.input_tokens ?? 0) + (r.output_tokens ?? 0) : 0), 0);
   const heldTokens = () => [...held.values()].reduce((n, x) => n + x.tokens, 0);
+  const heldMax = () => [...held.values()].reduce((n, x) => n + x.max, 0);
   const heldUsd = () => [...held.values()].reduce((n, x) => n + x.usd, 0);
   const spent = () => confirmedTokens() + heldTokens();
   // 금액: 단가가 적힌 제공사만 계산(모르면 null). 입력 토큰 추정 = 보내는 글자 수 ÷ 1.5(한국어·JSON 기준 보수적) + 출력 상한.
@@ -196,7 +199,10 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   const usable = (kind: TaskKind = "turn") => explain(kind).order;
   const push = (r: Omit<AiCallLog, "seq" | "policy_version">) => { log.push({ seq: ++seq, policy_version: policy.version, ...r }); };
 
+  // 한 요청에서 한 번이라도 안전상 거절이 나오면, 같은 요청의 뒤따르는 호출(다시 쓰기·받아주기·정리·보기 등)도 보내지 않는다 → 거절된 글을 다른 작업·다른 제공사로 다시 보내지 않음
+  let refusedInRequest = false;
   const llm: Llm = async (kind, system, input) => {
+    if (refusedInRequest) { push({ kind, provider: null, model_requested: null, model_served: null, reason: "refused_earlier_in_request", attempt: 0, ok: false, error: "refused", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); throw new RouterError("refused"); }
     const leak = piiKeys(input);
     if (leak.length) { push({ kind, provider: null, model_requested: null, model_served: null, reason: `pii_keys:${leak.slice(0, 5).join(",")}`, attempt: 0, ok: false, error: "pii_blocked", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); throw new RouterError("pii_blocked"); }
     // 문장 속 개인정보는 가리고 보낸다(모든 후보·재시도·전환에 같은 가린 글) · 기록에는 종류별 개수만
@@ -204,6 +210,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
     const sendInput = masked.value;
     const maskNote = Object.keys(masked.counts).length ? `|masked:${Object.entries(masked.counts).map(([k, n]) => `${k}=${n}`).join(",")}` : "";
     const estChars = JSON.stringify(sendInput ?? "").length + system.length;
+    const inputMax = new TextEncoder().encode(JSON.stringify(sendInput ?? "") + system).length + MSG_OVERHEAD_TOKENS; // 입력 토큰의 보장된 상한
     const sel = explain(kind, estChars);
     let order = sel.order;
     // Agent 가 받은 글을 서버 검사에서 거절하고 다시 청함(previous_attempt) → 정책이 허용하면 직전에 쓴 제공사 다음 후보부터
@@ -226,8 +233,13 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       for (let attempt = 1; attempt <= 1 + L.same_provider_retries; attempt++) {
         // 토큰 상한: 이미 쓴(확인 + 예약) 양에 「이번 시도의 예약」까지 더해 본다 → 재시도·전환·동시 호출이 합쳐 상한을 넘지 않게
         const reserve = Math.ceil(estChars / 1.5) + d.params.max_tokens;
-        if (started_attempts >= Math.min(L.max_calls_per_request, sessionLeft.calls) || spent() + reserve > Math.min(L.max_tokens_per_request, sessionLeft.tokens)) {
-          push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
+        // 대화에 남은 토큰: 어림값이 아니라 보장된 상한으로(확인된 사용량 + 진행 중·미확인 시도의 상한 + 이번 시도의 상한) → 실제 사용량이 어림보다 많아도 대화 상한을 넘지 않음
+        const reserveMax = inputMax + d.params.max_tokens;
+        const overRequest = started_attempts >= L.max_calls_per_request || spent() + reserve > L.max_tokens_per_request;
+        const overSession = started_attempts >= sessionLeft.calls || (Number.isFinite(sessionLeft.tokens) && confirmedTokens() + heldMax() + reserveMax > sessionLeft.tokens);
+        if (overRequest || overSession) {
+          // 까닭을 남긴다: 대화 예산(session_budget · 다시 보내도 안 됨) / 이번 요청 한도(request_budget · 다시 보내면 됨)
+          push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason: overSession && !overRequest ? "session_budget" : "request_budget", attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("budget_exceeded");
         }
         // 금액 상한은 시작 때 한 번만이 아니라 시도(재시도·전환)마다 다시 본다: 확인된 금액 + 이번 호출 추정 > 상한 → 보내지 않고 다음 후보로(더 싼 후보만 남을 수 있음)
@@ -246,14 +258,14 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
         const p = policy.providers[id]!;
         // 보내기 전에 같은 동기 구간에서 시도 1과 추정 토큰(입력 글자 ÷ 1.5 + 출력 상한)을 예약 → 동시 호출도 같은 예산을 두 번 쓰지 못함
         started_attempts++;
-        const hk = ++holdSeq; held.set(hk, { tokens: reserve, usd: costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? 0 });
+        const hk = ++holdSeq; held.set(hk, { tokens: reserve, max: reserveMax, usd: costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? 0 });
         const settle = (usage: ProviderUsage | null, sent: boolean) => { if (usage || !sent) held.delete(hk); return usage ? "confirmed" as const : sent ? "unknown" as const : "none" as const; };
         try {
           const r = await d.providers[id]!.call({ model: p.model, system, input: sendInput, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))), signal: d.signal });
           lastUsed.set(kind, id);
           // 길이 상한에서 잘린 답: 다음 후보가 있으면 그쪽으로(이 글은 쓰지 않음) · 마지막 후보면 빈 글을 넘겨 Agent 형식 재요청으로(잘린 글 채택 0).
           const hasNext = order.slice(order.indexOf(id) + 1).some((x) => !(skipOpen && isOpen(x)));
-          const usageOk = r.input_tokens != null || r.output_tokens != null;
+          const usageOk = r.input_tokens != null && r.output_tokens != null; // 입력·출력 둘 다 있어야 확인된 사용량(한쪽만 = 미확인 · 예약 유지)
           const u1 = settle(usageOk ? r : null, true);
           if (r.truncated && hasNext) {
             push({ kind, provider: id, model_requested: p.model, model_served: r.model_served, reason, attempt, ok: false, error: "truncated", status: null, latency_ms: r.latency_ms, input_tokens: r.input_tokens, output_tokens: r.output_tokens, cached_tokens: r.cached_tokens, usage: u1, reserved_tokens: held.get(hk)?.tokens ?? 0 });
@@ -269,14 +281,15 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           const pe = e instanceof ProviderError ? e : new ProviderError(id, "network", 0);
           // 실패여도 업체가 사용량을 알려 줬으면 확인된 사용량으로 센다(전환 전에 예산에 반영). 키 없음 = 보내지 않음. 그 밖에 사용량 없는 실패 = 미확인(예약 유지 · 0원으로 치지 않음).
           // 사용량 칸이 있어도 숫자가 하나도 없으면(거절·빈 답의 메타만) 확인된 사용량이 아니다 → 미확인(예약 유지)
-          const peUsage = pe.usage && (pe.usage.input_tokens != null || pe.usage.output_tokens != null) ? pe.usage : null;
+          const peUsage = pe.usage && pe.usage.input_tokens != null && pe.usage.output_tokens != null ? pe.usage : null;
           const u2 = settle(peUsage, pe.code !== "no_key");
           push({ kind, provider: id, model_requested: p.model, model_served: pe.usage?.model_served ?? null, reason, attempt, ok: false, error: pe.code, status: pe.detail.status, latency_ms: pe.latency_ms,
             input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;
           lastUsed.set(kind, id);
-          if (NO_SWITCH.includes(pe.code)) throw pe; // 안전상 거절 → 다른 모델로 우회하지 않음
-          if (pe.code !== "no_key" && ++h.consecutive_errors >= policy.circuit.open_after) h.open_until = now() + policy.circuit.cooldown_ms;
+          if (NO_SWITCH.includes(pe.code)) { refusedInRequest = true; throw pe; } // 안전상 거절 → 다른 모델로 우회하지 않음 · 이 요청의 뒤 호출도 0
+          // 사용자가 끊은 요청(abort)은 업체 건강 문제가 아니다 → 연속 오류(차단기)에 넣지 않음
+          if (pe.code !== "no_key" && !d.signal?.aborted && ++h.consecutive_errors >= policy.circuit.open_after) h.open_until = now() + policy.circuit.cooldown_ms;
           if (SAME_RETRY.includes(pe.code) && attempt <= L.same_provider_retries && (!skipOpen || !isOpen(id))) { await sleep(Math.min(L.retry_wait_ms, pe.detail.retry_after_ms ?? L.retry_wait_ms)); continue; }
           break; // 다음 후보로
         }

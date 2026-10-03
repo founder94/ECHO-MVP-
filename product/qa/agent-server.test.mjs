@@ -64,7 +64,7 @@ function load(state) {
   vm.runInNewContext(compile('failure-intelligence.ts'), { module: failureMod, exports: failureMod.exports, console }, { filename: 'failure-intelligence.ts' });
   // 2026-10-03 3개 제공사 통합: 모델 호출은 providers.ts(연결부) → modelRouter.ts(서버 선택 규칙). 환경 = OpenAI 키만 → 기본 정책(지금 운영 그대로).
   const provMod = { exports: {} };
-  const g = { console, setTimeout, clearTimeout, AbortController, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp };
+  const g = { console, setTimeout, clearTimeout, AbortController, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, TextEncoder };
   vm.runInNewContext(compile('providers.ts'), { ...g, module: provMod, exports: provMod.exports }, { filename: 'providers.ts' });
   const routerMod = { exports: {} };
   vm.runInNewContext(compile('modelRouter.ts'), { ...g, module: routerMod, exports: routerMod.exports, require: (n) => { if (n === './providers.ts') return provMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'modelRouter.ts' });
@@ -1061,7 +1061,7 @@ test('AI3 늦게 온 응답은 더 새로운 정정을 덮지 못함(판 번호 
   release();
   const late = await slow;
   assert.equal(late.status, 409); assert.equal(late.body.code, 'REQUEST_CONFLICT');
-  assert.deepEqual(sessionRow(s), afterFix, '늦은 응답은 저장 0');
+  sameButBudget(sessionRow(s), afterFix, '늦은 응답은 상태 저장 0 · 다만 부른 모델 사용량은 대화 예산에(2026-10-03 자체 점검 P1)');
   assert.equal(sessionRow(s).response_payload.state.slots.relationship_intent.items[0].status, 'RETRACTED');
 });
 
@@ -1456,7 +1456,7 @@ test('Codex P1 대화 예산이 거의 찼으면 이번 요청도 남은 만큼�
   sessionRow(s).response_payload.run.budget.calls = 59; // 남은 호출 1
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] };
   const r = await say3(h, sid, '잘 웃는 사람');
-  assert.equal(r.status, 502);
+  assert.equal(r.status, 429, '대화 예산을 다 쓰면 「다시 보내 주세요」(502)가 아니라 AI_BUDGET(자체 점검 P2)'); assert.equal(r.body.code, 'AI_BUDGET');
   assert.equal(s.providerCalls.length, 1, '남은 1회만 보냄(전환 0)');
   assert.ok(sessionRow(s).response_payload.run.budget.calls <= 60, `대화 누적 ${sessionRow(s).response_payload.run.budget.calls} ≤ 60`);
 });
@@ -1468,4 +1468,45 @@ test('Codex P2 첫 답과 함께 시작: 모델이 필요 없는 첫 답(개인�
   s.env = {};
   const n = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
   assert.equal(n.status, 429, '모델이 필요한 첫 답은 여전히 막힘');
+});
+// ── 2026-10-03 자체 점검(Codex 넘기기 전) 재현
+test('자체 P1 저장 경쟁에서 진 요청이 부른 모델도 하루 한도·대화 예산에 남음', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  let release; const gate = new Promise((ok) => { release = ok; });
+  s.fail = { openai: [{ gate }] };
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const a = say3(h, sid, '잘 웃는 사람');
+  await new Promise((r) => setTimeout(r, 5));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '솔직한 사람', '솔직한 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const before = sessionRow(s).response_payload.run.budget.calls;
+  assert.equal((await say3(h, sid, '솔직한 사람')).status, 200);
+  release(); const ra = await a;
+  assert.equal(ra.status, 409);
+  const usageRows = s.tables.doit_request_events.filter((x) => x.action === 'agent_usage');
+  assert.ok(usageRows.length >= 1, '진 요청의 사용 기록(하루 한도용)');
+  assert.ok(sessionRow(s).response_payload.run.budget.calls >= before + 2, '이긴 쪽 + 진 쪽 호출 모두 대화 예산에');
+});
+test('자체 P1 첫 질문 만들기(성공)·소개·보기 호출도 하루 한도에 셈', async () => {
+  const s = newState(); const h = load(s);
+  seedDaily(s, 199);
+  s.ai.push({ reply: '반가워요', question: '어떤 만남을 찾아요?' });
+  const st = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT' });
+  assert.equal(st.status, 200, JSON.stringify(st.body));
+  assert.equal(s.tables.doit_request_events.filter((x) => x.action === 'agent_usage').length, 1, '첫 질문 사용 기록');
+  const n = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'friend', firstAnswer: '친구 만나고 싶어요' });
+  assert.equal(n.status, 429, '199 + 첫 질문 1 = 200 → 막힘');
+});
+test('자체 P2 사용자가 끊은 소개 다시 쓰기는 쓰던 소개를 「실패」로 덮지 않음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  const sid = start.body.session.id;
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' });
+  const before = structuredClone(sessionRow(s).response_payload.state.intro);
+  { const b = sessionRow(s).response_payload.run.budget; b.tokens_in = 149_000 - b.tokens_out - (b.tokens_unconfirmed ?? 0); } // 대화 예산 안(modelAllowed=true)이지만 남은 1,000토큰 < 이번 호출 상한 → 보내기 전에 멈춤
+  const r = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_BUDGET');
+  assert.deepEqual(sessionRow(s).response_payload.state.intro, before, '쓰던 소개 그대로');
 });

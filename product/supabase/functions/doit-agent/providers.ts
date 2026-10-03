@@ -123,7 +123,9 @@ export function geminiProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
       generationConfig: { temperature: req.temperature, ...(req.topP != null ? { topP: req.topP } : {}), maxOutputTokens: req.maxTokens, responseMimeType: "application/json" } }, req, t0);
     const cand = (Array.isArray(d.candidates) ? d.candidates[0] : null) as { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string } | null;
     const u = (d.usageMetadata ?? {}) as Record<string, unknown>;
-    const usage: ProviderUsage = { input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: num(u.candidatesTokenCount), model_served: typeof d.modelVersion === "string" ? d.modelVersion : null };
+    // 생각(thinking) 토큰도 출력으로 청구된다 → 출력 = 답 토큰 + 생각 토큰
+    const outTok = num(u.candidatesTokenCount) == null && num(u.thoughtsTokenCount) == null ? null : (num(u.candidatesTokenCount) ?? 0) + (num(u.thoughtsTokenCount) ?? 0);
+    const usage: ProviderUsage = { input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: outTok, model_served: typeof d.modelVersion === "string" ? d.modelVersion : null };
     // 입력 차단(promptFeedback.blockReason) 또는 정책·필터로 멈춘 답(GEMINI_POLICY_STOPS) = 거절. 일부 글이 있어도 성공으로 넘기지 않는다.
     if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || GEMINI_POLICY_STOPS.has(String(cand?.finishReason ?? ""))) throw new ProviderError("gemini", "refused", Date.now() - t0, {}, usage);
     const text = unfence((cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => String(p.text ?? "")).join(""));

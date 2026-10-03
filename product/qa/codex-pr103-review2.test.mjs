@@ -105,3 +105,52 @@ test('P1 Gemini 정책 멈춤(BLOCKLIST·SPII·IMAGE_SAFETY·RECITATION 등) = r
   const ok = geminiProvider('synthetic-not-a-key', jsonRes({ modelVersion: 'g', candidates: [{ content: { parts: [{ text: '{}' }] }, finishReason: 'STOP' }] }));
   assert.equal((await ok.call({ model: 'g', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 })).text, '{}', '정상 STOP 은 그대로(과차단 0)');
 });
+
+// PR #103 Codex Code Review(리뷰 5400264424 · 6a310b7) P1 재현 — 대화 예산 경계는 어림(글자÷1.5)이 아니라 보장된 상한으로
+test('P1 대화에 남은 토큰이 적으면, 실제 사용량이 어림보다 많을 수 있는 호출(한글 등 바이트가 큰 입력)은 보내지 않음', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 0;
+  let calls = 0; const p = { id: 'openai', call: async () => { calls++; return { ...result, provider: 'openai', input_tokens: 1100, output_tokens: 10 }; } };
+  const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  router.limitTo({ calls: 10, tokens: 1000 });
+  const input = { latest: '가'.repeat(1200) }; // 어림 ≈ 1,2xx자 ÷ 1.5 ≈ 810 + 10 = 820(≤ 1000) · 바이트 상한 ≈ 3,6xx > 1000
+  await assert.rejects(router.llm('turn', 's', input), (e) => e.code === 'budget_exceeded');
+  assert.equal(calls, 0, '보장된 상한이 남은 예산을 넘으면 보내지 않음(실제 1,110토큰이면 대화 상한 초과였음)');
+  const small = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  small.limitTo({ calls: 10, tokens: 1000 });
+  await small.llm('turn', 's', { latest: '안녕' });
+  assert.equal(calls, 1, '상한 안이면 보냄(과차단 0)');
+});
+
+// ── 2026-10-03 자체 점검(Codex 넘기기 전) 재현 — 라우터·연결부
+test('자체 P2 한 요청에서 거절이 나오면 같은 요청의 뒤 호출(다른 작업·다른 제공사)도 보내지 않음', async () => {
+  const policy = defaultPolicy('fixture'); policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true };
+  policy.tasks = { default: ['openai'], ack: ['gemini'] }; policy.limits.same_provider_retries = 0;
+  const p = openAIProvider('synthetic-not-a-key', jsonRes({ model: 'm', choices: [{ message: { content: null, refusal: 'no' }, finish_reason: 'stop' }], usage: { prompt_tokens: 5, completion_tokens: 0 } }));
+  let gem = 0; const g = { id: 'gemini', call: async () => { gem++; return result; } };
+  const router = createModelRouter({ policy, providers: { openai: p, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
+  await assert.rejects(router.llm('turn', 's', { latest: '거절될 글' }), (e) => e.code === 'refused');
+  await assert.rejects(router.llm('ack', 's', { latest: '거절될 글' }), (e) => e.code === 'refused');
+  assert.equal(gem, 0, '거절된 글이 다른 제공사로 가지 않음');
+});
+test('자체 P2 사용자가 끊은 요청(abort)은 업체 연속 오류(차단기)에 들어가지 않음', async () => {
+  const policy = defaultPolicy('fixture'); policy.limits.same_provider_retries = 0;
+  const health = {};
+  const { ProviderError } = await import('../supabase/functions/doit-agent/providers.ts');
+  for (let i = 0; i < 3; i++) {
+    // 보내기 직전엔 살아 있다가 호출 중 사용자가 끊음 → 업체는 timeout 으로 보이지만 예외 처리 시점에 aborted
+    const sig = { aborted: false };
+    const p = { id: 'openai', call: async () => { sig.aborted = true; throw new ProviderError('openai', 'timeout', 1); } };
+    const router = createModelRouter({ policy, providers: { openai: p }, params: { temperature: 0, max_tokens: 10 }, health, signal: sig });
+    await assert.rejects(router.llm('turn', 's', {}));
+  }
+  assert.equal(health.openai?.consecutive_errors ?? 0, 0, '끊긴 요청 3번 = 차단기 0');
+});
+test('자체 P2 한쪽만 있는 사용량(입력만)은 확인된 사용량이 아님 · Gemini 생각 토큰은 출력에 포함', async () => {
+  const p = openAIProvider('synthetic-not-a-key', jsonRes({ model: 'm', choices: [{ message: { content: '{}' } }], usage: { prompt_tokens: 100 } }));
+  const router = createModelRouter({ policy: defaultPolicy('fixture'), providers: { openai: p }, params: { temperature: 0, max_tokens: 10 } });
+  await router.llm('turn', 's', {});
+  assert.equal(router.log[0].usage, 'unknown'); assert.ok(router.summary().tokens_reserved_unconfirmed > 0);
+  const g = geminiProvider('synthetic-not-a-key', jsonRes({ modelVersion: 'g', candidates: [{ content: { parts: [{ text: '{}' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, thoughtsTokenCount: 300 } }));
+  const out = await g.call({ model: 'g', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 });
+  assert.equal(out.output_tokens, 305, '출력 = 답 5 + 생각 300');
+});
