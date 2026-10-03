@@ -23,6 +23,7 @@ jobs:
           DELIVERY: ${{ github.run_id }}-${{ github.run_attempt }}
         run: node tools/automation/queue-adapter-cli.cjs "$EVENT_NAME" "$GITHUB_EVENT_PATH" "$DELIVERY"
 # UPDATE (PR #118): queue-adapter-cli.cjs + queue-store-git.cjs now exist. Still BLOCKED, needs 대표 approval before activation:
-#  - permissions contents:write (push refs/echo/queue-state only), env GITHUB_REPOSITORY, QUEUE_STORE_DIR=workspace.
+#  - permissions contents:write + pull-requests:read (state branch refs/heads/echo-automation-state, plain fast-forward push, no force), env GITHUB_REPOSITORY, GH_TOKEN (existing github.token), QUEUE_STORE_DIR=workspace.
+#  - CLI looks up the PR's current head via `gh api` right before verdict/handoff; lookup failure => exit 1, nothing saved.
 #  - Codex native review without marker is NOT a verdict (ignored); a supported verdict path must be approved separately.
-# Recovery: delete this workflow file and the ref refs/echo/queue-state.
+# Recovery: delete this workflow file and the branch echo-automation-state.

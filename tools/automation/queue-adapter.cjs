@@ -76,4 +76,4 @@ function handle(store, name, payload, deliveryId, config, retries = 3) {
   }
   return ignored('store_conflict', store.load().state); // fail closed: nothing applied
 }
-module.exports = { normalize, handle, memoryStore, fileStore, REVIEW_MARKER, CODEX };
+module.exports = { normalize, handle, memoryStore, fileStore, REVIEW_MARKER, HANDOFF_MARKER, CODEX };

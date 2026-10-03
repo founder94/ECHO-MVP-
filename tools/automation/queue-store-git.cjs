@@ -1,9 +1,9 @@
-// Runner-to-runner persistent CAS store: queue state is a JSON blob in a commit on a dedicated ref (default refs/echo/queue-state).
-// save() pushes a child commit with --force-with-lease=<ref>:<expected old sha>, so a concurrent writer makes the push fail (false = conflict).
+// Runner-to-runner persistent CAS store: queue state is a JSON blob in a commit on a dedicated non-protected branch (default refs/heads/echo-automation-state).
+// save() pushes a child commit of the expected rev with a plain (non-force) git push: a stale/concurrent writer is a non-fast-forward and is rejected (false = conflict).
 // Needs only git; the remote and credentials are supplied by the caller's environment. Not wired into any workflow.
 const { execFileSync } = require('node:child_process');
 
-function gitStore({ cwd = process.cwd(), remote = 'origin', ref = 'refs/echo/queue-state', initial = { tasks: [] } } = {}) {
+function gitStore({ cwd = process.cwd(), remote = 'origin', ref = 'refs/heads/echo-automation-state', initial = { tasks: [] } } = {}) {
   const git = (args, input) => execFileSync('git', args, { cwd, input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   const local = ref.replace('refs/', 'refs/remote-echo/');
   return {
@@ -20,7 +20,7 @@ function gitStore({ cwd = process.cwd(), remote = 'origin', ref = 'refs/echo/que
       const tree = git(['mktree'], `100644 blob ${blob}\tstate.json\n`);
       const args = ['-c', 'user.name=echo-queue', '-c', 'user.email=echo-queue@users.noreply.github.com', 'commit-tree', tree, '-m', 'queue state'];
       const commit = git(expected ? [...args, '-p', expected] : args);
-      try { git(['push', '--quiet', `--force-with-lease=${ref}:${expected || ''}`, remote, `${commit}:${ref}`]); return true; } catch { return false; }
+      try { git(['push', '--quiet', remote, `${commit}:${ref}`]); return true; } catch { return false; }
     },
   };
 }
