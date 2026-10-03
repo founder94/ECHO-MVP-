@@ -300,3 +300,12 @@ test('재시도·제공사 전환에도 같은 가린 글만 보냄(19자리 카
   assert.ok(sent.length >= 2, '재시도·전환 발생');
   for (const x of sent) { assert.doesNotMatch(x, /\d{3}/, '숫자 조각 0'); assert.match(x, /\[가림\]/); }
 });
+
+test('Codex P1(리뷰 5401366691) 붙여 쓴 유선 전화(0212345678 · 0311234567 · 02-12345678)도 가림 · 더 긴 숫자의 일부는 그대로', () => {
+  for (const n of ['0212345678', '021234567', '0311234567', '03112345678', '02-12345678', '021234-5678', '064 7123456']) {
+    const r = maskPii({ latest: `회사 ${n} 로 연락` });
+    assert.ok(!JSON.stringify(r.value).includes(n), n); assert.equal(r.counts.landline, 1, n);
+  }
+  assert.equal(maskPii({ latest: '회사 02-345-6789' }).counts.landline, 1, '기존 띄어 쓴 꼴 그대로');
+  for (const keep of ['주문번호 20231012345678', '코드 9021234567890', '0212345678901234 번']) assert.equal(maskPii({ latest: keep }).counts.landline, undefined, keep);
+});
