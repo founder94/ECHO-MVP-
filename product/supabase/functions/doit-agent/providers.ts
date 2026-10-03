@@ -80,7 +80,8 @@ export function openAIProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
     const choice = (d.choices as { message?: { content?: string; refusal?: string | null }; finish_reason?: string }[] | undefined)?.[0];
     const u = (d.usage ?? {}) as Record<string, unknown>;
     const usage: ProviderUsage = { input_tokens: num(u.prompt_tokens), output_tokens: num(u.completion_tokens), cached_tokens: num((u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens), model_served: typeof d.model === "string" ? d.model : null };
-    if (choice?.message?.refusal) throw new ProviderError("openai", "refused", Date.now() - t0, {}, usage);
+    // 거절 = 거절 칸(refusal) 또는 내용 필터로 멈춤(finish_reason content_filter · 글이 빠짐) → 다른 AI 로 우회하지 않는다
+    if (choice?.message?.refusal || choice?.finish_reason === "content_filter") throw new ProviderError("openai", "refused", Date.now() - t0, {}, usage);
     const text = String(choice?.message?.content ?? "").trim();
     if (!text) throw new ProviderError("openai", "empty", Date.now() - t0, {}, usage);
     return { text, provider: "openai", model_requested: req.model, model_served: usage.model_served,
@@ -110,6 +111,8 @@ export function anthropicProvider(apiKey: string, opt: AnthropicOptions = {}, f:
   } };
 }
 
+// Gemini finishReason 중 정책·필터로 멈춘 것(공식 GenerateContent 참고 · STOP·MAX_TOKENS·OTHER·LANGUAGE·MALFORMED_FUNCTION_CALL 은 아님)
+const GEMINI_POLICY_STOPS = new Set(["SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY", "IMAGE_PROHIBITED_CONTENT", "IMAGE_RECITATION"]);
 /** Gemini — REST generateContent · JSON 응답 요청(responseMimeType). 안전 차단(promptFeedback.blockReason · finishReason SAFETY)은 refused · MAX_TOKENS 는 truncated 표시. */
 export function geminiProvider(apiKey: string, f: Fetch = fetch): ModelProvider {
   return { id: "gemini", call: async (req) => {
@@ -121,7 +124,8 @@ export function geminiProvider(apiKey: string, f: Fetch = fetch): ModelProvider 
     const cand = (Array.isArray(d.candidates) ? d.candidates[0] : null) as { content?: { parts?: { text?: string; thought?: boolean }[] }; finishReason?: string } | null;
     const u = (d.usageMetadata ?? {}) as Record<string, unknown>;
     const usage: ProviderUsage = { input_tokens: num(u.promptTokenCount), cached_tokens: num(u.cachedContentTokenCount), output_tokens: num(u.candidatesTokenCount), model_served: typeof d.modelVersion === "string" ? d.modelVersion : null };
-    if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || cand?.finishReason === "SAFETY" || cand?.finishReason === "PROHIBITED_CONTENT") throw new ProviderError("gemini", "refused", Date.now() - t0, {}, usage);
+    // 입력 차단(promptFeedback.blockReason) 또는 정책·필터로 멈춘 답(GEMINI_POLICY_STOPS) = 거절. 일부 글이 있어도 성공으로 넘기지 않는다.
+    if ((d.promptFeedback as { blockReason?: string } | undefined)?.blockReason || GEMINI_POLICY_STOPS.has(String(cand?.finishReason ?? ""))) throw new ProviderError("gemini", "refused", Date.now() - t0, {}, usage);
     const text = unfence((cand?.content?.parts ?? []).filter((p) => !p.thought).map((p) => String(p.text ?? "")).join(""));
     if (!text) throw new ProviderError("gemini", "empty", Date.now() - t0, {}, usage);
     return { text, provider: "gemini", model_requested: req.model, model_served: usage.model_served,

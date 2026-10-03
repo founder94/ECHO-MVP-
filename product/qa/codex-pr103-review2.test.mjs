@@ -83,3 +83,25 @@ test('P1 사용량 숫자 없는 빈 답(메타만)은 확인된 사용량이 �
   assert.equal(router.log[0].usage, 'unknown', '숫자 없는 사용량 = 미확인'); assert.equal(fallback, 0);
   assert.equal(router.summary().cost_complete, false);
 });
+
+// PR #103 Codex Code Review(리뷰 5400121290 · 439626a) P1 2건 재현 — 내용 필터·정책 멈춤 = 거절(다른 AI 로 넘기지 않음)
+import { geminiProvider } from '../supabase/functions/doit-agent/providers.ts';
+const jsonRes = (o) => async () => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+test('P1 OpenAI finish_reason content_filter(거절 칸 없음) = refused · 전환 0', async () => {
+  const p = openAIProvider('synthetic-not-a-key', jsonRes({ model: 'm', choices: [{ message: { content: null }, finish_reason: 'content_filter' }], usage: { prompt_tokens: 5, completion_tokens: 0 } }));
+  await assert.rejects(p.call({ model: 'm', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 }), (e) => e.code === 'refused');
+  const policy = defaultPolicy('fixture'); policy.providers.gemini = { model: 'fixture', allow_user_text: true, enabled: true }; policy.tasks.default = ['openai', 'gemini']; policy.limits.same_provider_retries = 0;
+  let fallback = 0; const g = { id: 'gemini', call: async () => { fallback++; return result; } };
+  const router = createModelRouter({ policy, providers: { openai: p, gemini: g }, params: { temperature: 0, max_tokens: 10 } });
+  await assert.rejects(router.llm('turn', 'synthetic', {}), (e) => e.code === 'refused'); assert.equal(fallback, 0);
+});
+test('P1 Gemini 정책 멈춤(BLOCKLIST·SPII·IMAGE_SAFETY·RECITATION 등) = refused · 일부 글이 있어도 성공으로 넘기지 않음', async () => {
+  for (const reason of ['BLOCKLIST', 'SPII', 'IMAGE_SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'SAFETY', 'IMAGE_PROHIBITED_CONTENT', 'IMAGE_RECITATION']) {
+    for (const parts of [[], [{ text: '{"reply":"부분"}' }]]) {
+      const p = geminiProvider('synthetic-not-a-key', jsonRes({ modelVersion: 'g', candidates: [{ content: { parts }, finishReason: reason }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 1 } }));
+      await assert.rejects(p.call({ model: 'g', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 }), (e) => e.code === 'refused', `${reason} parts=${parts.length}`);
+    }
+  }
+  const ok = geminiProvider('synthetic-not-a-key', jsonRes({ modelVersion: 'g', candidates: [{ content: { parts: [{ text: '{}' }] }, finishReason: 'STOP' }] }));
+  assert.equal((await ok.call({ model: 'g', system: 's', input: {}, maxTokens: 10, temperature: 0, timeoutMs: 1000 })).text, '{}', '정상 STOP 은 그대로(과차단 0)');
+});

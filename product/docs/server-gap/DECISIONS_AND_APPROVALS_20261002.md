@@ -822,3 +822,13 @@ DB 고유 제약은 이제 필수가 아니다(기본키로 충분). 추가로 �
 - 재현 검사 2건(수정 전 `28f2430` 코드에서 실패 확인 → 수정 후 통과).
 - 전체 1116 중 1111 통과 / 0 실패(TODO 5 = 기존) · type-check · lint 통과 · deno check = 확인 불가.
 - 자동 왕복 수정 인계가 이번으로 5회다. 다음 검수에서 또 지적이 나오면 더 고치지 않고 대표 판단으로 넘긴다(무한 왕복 방지).
+
+### 25.4 5회 한도 뒤 남은 지적 3건 — 대표 「진행」 지시로 수정(리뷰 5400121290 · 검수 SHA 439626a)
+| 등급 | 지적 | 수정 |
+|---|---|---|
+| P1 | OpenAI `finish_reason: "content_filter"`(거절 칸 없음)가 빈 답으로 처리돼 다른 AI로 넘어갈 수 있음 | `providers.ts`: content_filter = `refused`(다른 AI로 우회 0) |
+| P1 | Gemini 정책 멈춤 중 SAFETY·PROHIBITED_CONTENT만 거절로 처리 | `GEMINI_POLICY_STOPS`(SAFETY·RECITATION·BLOCKLIST·PROHIBITED_CONTENT·SPII·IMAGE_SAFETY·IMAGE_PROHIBITED_CONTENT·IMAGE_RECITATION) = `refused` · 일부 글이 있어도 성공으로 처리 0 · 정상 STOP은 그대로 |
+| P2 | 대화 차례의 AI 사전 확인(설정·대화 예산·하루 한도)이 모델이 필요 없는 입력까지 막음 | 소개·구조대와 같게 `callsModel`로 먼저 확인 → 모델을 부를 때만 사전 확인 |
+
+- 재현 검사 3건(수정 전 실패 확인 → 수정 후 통과).
+- 전체 1119 중 1114 통과 / 0 실패(TODO 5 = 기존) · type-check · lint 통과 · deno check = 확인 불가.

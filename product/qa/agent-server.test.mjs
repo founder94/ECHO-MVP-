@@ -1433,3 +1433,19 @@ test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·�
   const i2 = await h.call({ action: 'agent_intro', requestId: rid(), sessionId: sid });
   assert.equal(i2.status, 200, JSON.stringify(i2.body)); assert.equal(i2.body.limited, true);
 });
+test('Codex P2 대화 차례: 모델이 필요 없는 입력(개인정보 안내 · 보기 모두 아님)은 대화 예산·하루 한도에서도 평소 응답 · 모델이 필요하면 막음', async () => {
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
+  const sid = start.body.session.id;
+  sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
+  seedDaily(s, 200);                                    // 하루 한도 도달
+  const calls = s.aiCalls.length;
+  const priv = await say3(h, sid, '제 번호는 010-1234-5678 이에요');
+  assert.equal(priv.status, 200, JSON.stringify(priv.body)); assert.equal(s.aiCalls.length, calls, '개인정보 안내 = 모델 0');
+  assert.equal((await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid })).status, 200);
+  const none = await say3(h, sid, '둘 다 아니에요', { rescueOpen: true });
+  assert.equal(none.status, 200, JSON.stringify(none.body)); assert.equal(s.aiCalls.length, calls, '보기 모두 아님 = 모델 0');
+  const normal = await say3(h, sid, '조용한 데가 좋아요');
+  assert.equal(normal.status, 429, '모델이 필요한 말은 여전히 막힘');
+});
