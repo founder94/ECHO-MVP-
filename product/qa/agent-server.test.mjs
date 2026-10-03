@@ -18,7 +18,7 @@ function fakeDb(state) {
     const rows = () => { let r = table(name).filter((row) => filters.every((f) => f(row))); if (order) r = r.slice().sort((a, b) => (a[order.col] < b[order.col] ? -1 : a[order.col] > b[order.col] ? 1 : 0) * (order.asc ? 1 : -1)); if (lim != null) r = r.slice(0, lim); return r; };
     const run = () => {
       if (op === 'update') { const hit = rows(); for (const r of hit) Object.assign(r, structuredClone(patch)); return { data: returning ? hit.map((r) => ({ ...r })) : null, error: null }; }
-      return { data: rows().map((r) => structuredClone(r)), error: null };
+      const all = rows(); return { data: all.map((r) => structuredClone(r)), error: null, count: all.length };
     };
     const c = {
       select: () => { if (op !== 'select') returning = true; return c; },
@@ -310,7 +310,8 @@ test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel(정�
   assert.ok(!/Deno\.env|_URL"\)/.test(prov), '연결부는 환경을 읽지 않는다');
   assert.ok(!/Deno\.env/.test(router), '라우터는 넘겨받은 get 으로만 읽는다');
   assert.deepEqual([...new Set([...router.matchAll(/get\("([A-Z_]+)"\)/g)].map((m) => m[1]))].sort(), ['AI_POLICY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'OPENAI_API_KEY', 'OPENAI_MODEL']);
-  assert.match(src, /routerFromEnv\(\(k\) => Deno\.env\.get\(k\), A\.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel\)/);
+  assert.match(src, /routerFromEnv\(\(k\) => Deno\.env\.get\(k\), A\.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal\)/);
+  assert.match(src, /routerForRequest\(req\.signal\)/, '사용자 요청이 끊기면 모델 호출도 끊음');
   const envs = [...src.matchAll(/Deno\.env\.get\("([A-Z_]+)"\)/g)].map((m) => m[1]).sort();
   assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
   for (const m of src.matchAll(/logDiag\(\{([^}]*)\}/g)) assert.ok(!/\btext\b(?!4)|user_raw|original/.test(m[1].replace(/text4/g, '')), `로그에 원문 칸 없음: ${m[1]}`);
@@ -933,7 +934,7 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
 
 // ── 2026-10-03 대표 「3개 AI 제공사 통합」: 서버 선택 규칙(modelRouter)을 실제 doit-agent 흐름으로 — 가짜 DB · 가짜 제공사 응답(실제 AI 호출 0 · 실제 AI 품질 판정 아님).
 // 정책·모델 이름은 시험용 가짜 이름이다(실제 승인 모델 아님).
-const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true }, ...(o.providers ?? {}) },
+const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true, enabled: true }, ...(o.providers ?? {}) },
   tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) } });
 const ENV3 = (o) => ({ AI_POLICY: POLICY(o), ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' });
 const sessionRow = (s) => s.tables.doit_request_events.find((x) => x.action === 'agent_session');
@@ -1210,4 +1211,15 @@ test('RUN 중단·재개 · 사용자 몫 행동 0 · 대화 단위 비용 상�
   const before = s2.aiCalls.length;
   const b = await say3(h2, sid2, '잘 웃는 사람');
   assert.equal(b.status, 429); assert.equal(b.body.code, 'AI_BUDGET'); assert.equal(s2.aiCalls.length, before);
+});
+
+test('사용자 하루 한도: 24시간 턴 기록 200개면 모델 호출 0 · 429 AI_DAILY_LIMIT · 실행 단계(agent_run)는 모델을 안 써서 막지 않음', async () => {
+  const s = newState(); const h = load(s);
+  const sid = await RUNSEQ(s, h);
+  const now = new Date().toISOString();
+  for (let i = 0; i < 199; i++) s.tables.doit_request_events.push({ user_id: ID.user, request_id: `seed-${i}`, action: 'agent_turn', status: 'applied', created_at: now, updated_at: now, response_payload: { record: {} } });
+  const before = s.aiCalls.length;
+  const b = await say3(h, sid, '잘 웃는 사람');
+  assert.equal(b.status, 429); assert.equal(b.body.code, 'AI_DAILY_LIMIT'); assert.equal(s.aiCalls.length, before);
+  assert.equal((await h.call({ action: 'agent_run', requestId: rid(), sessionId: sid })).status, 200);
 });

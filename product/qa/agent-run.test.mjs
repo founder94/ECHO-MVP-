@@ -94,11 +94,12 @@ test('중단·재개: 「그만」으로 끝나면 도구 0 · 사용자 재개 
 
 test('대화 단위 비용 상한 · 실행 기록에 원문·후보 정보 0 · 허용 도구 목록 고정', () => {
   const st = readyState();
-  const run = R.syncRun(null, st, NOW, { calls: 149, tokens_in: 10, tokens_out: 10 });
+  assert.deepEqual([R.RUN_LIMITS.max_calls, R.RUN_LIMITS.max_tokens], [60, 150_000], 'QA 실측 근거 값(문서 §23)');
+  const run = R.syncRun(null, st, NOW, { calls: R.RUN_LIMITS.max_calls - 1, tokens_in: 10, tokens_out: 10 });
   assert.equal(R.modelAllowed(run), true);
   const over = R.syncRun(run, st, NOW, { calls: 1 });
   assert.equal(R.modelAllowed(over), false); assert.deepEqual([over.outcome, over.waiting], ['on_hold', 'budget']);
-  assert.equal(R.modelAllowed(R.syncRun(null, st, NOW, { tokens_in: 600_000 })), false);
+  assert.equal(R.modelAllowed(R.syncRun(null, st, NOW, { tokens_in: R.RUN_LIMITS.max_tokens })), false);
   const view = JSON.stringify(R.runView(R.recordTool(R.syncRun(null, st, NOW), st, { tool: 'candidates', outcome: 'found', count: 1, missing: [], code: null, at: NOW, ms: 1 }, NOW)));
   for (const raw of ['진지한 연애', '천천히', '거짓말 싫음']) assert.ok(!view.includes(raw), raw);
   assert.deepEqual([...R.TOOLS], ['readiness', 'candidates']);

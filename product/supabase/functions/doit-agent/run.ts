@@ -24,8 +24,9 @@ export interface Run {
   outcome: RunOutcome; waiting: WaitReason; missing: string[]; user_stopped: boolean; stop_ack: number | null; budget: RunBudget; changes: string[]; updated_at: string;
 }
 
-// 대화 하나의 누적 상한(요청 하나의 상한은 modelRouter). 보통 대화 = 모델 호출 30~60번 · 도구 몇 번.
-export const RUN_LIMITS = Object.freeze({ max_calls: 150, max_tokens: 600_000, max_tool_runs: 20, tool_retry_after_ms: 30_000, tool_timeout_ms: 10_000, tools_kept: 10, changes_kept: 12 });
+// 대화 하나의 누적 상한(요청 하나의 상한은 modelRouter). 2026-10-03 QA 실측(마친 대화 1,439개 · 턴 기록만): 호출 p50 8 · p99 22 · 최대 26 · 토큰 p99 56,263 · 최대 67,721.
+// 턴 기록 밖 호출(시작 인사 · 소개 다시 쓰기 2 · 보기 요청)을 더해 → 60번 · 150,000토큰(관측 최대의 약 2.3배). 넘으면 모델 호출 0(429 AI_BUDGET).
+export const RUN_LIMITS = Object.freeze({ max_calls: 60, max_tokens: 150_000, max_tool_runs: 20, tool_retry_after_ms: 30_000, tool_timeout_ms: 10_000, tools_kept: 10, changes_kept: 12 });
 
 const STOP_TURN = (st: AgentState) => { const t = st.turns.at(-1); return !!t && (t.kind === "stop" || t.guard?.rule === "fatigue"); };
 // 확정 정보 열쇠(FNV-1a): 도구 결과가 어떤 확정 정보로 나왔는지 묶는다(원문을 따로 저장하지 않음 — 상태에 이미 있는 확정 메모의 지문만).

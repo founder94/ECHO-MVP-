@@ -24,7 +24,7 @@ const REQ = { model: 'fake-model', system: 'SYS', input: { latest: '사용자 �
 const PARAMS = { temperature: 0.2, top_p: 0.9, max_tokens: 768 };
 const fakeProvider = (id, plan) => { const calls = []; return { calls, p: { id, call: async (req) => { calls.push(req); const step = plan.shift(); if (step instanceof Error) throw step; if (typeof step === 'function') return step(req); const cut = typeof step === 'object' && step?.cut; return { text: cut ? step.cut : step ?? '{}', provider: id, model_requested: req.model, model_served: `${req.model}-served`, input_tokens: 10, cached_tokens: null, output_tokens: 5, latency_ms: 1, truncated: !!cut }; } } }; };
 const perr = (id, code, detail) => new P.ProviderError(id, code, 1, detail);
-const policy = (o = {}) => R.parsePolicy(JSON.stringify({ version: 'p-unit', providers: { openai: { model: 'm-o', allow_user_text: true }, anthropic: { model: 'm-a', allow_user_text: true }, gemini: { model: 'm-g', allow_user_text: true }, ...(o.providers ?? {}) }, tasks: o.tasks ?? { default: ['anthropic', 'openai', 'gemini'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, ...(o.limits ?? {}) }, circuit: o.circuit }));
+const policy = (o = {}) => R.parsePolicy(JSON.stringify({ version: 'p-unit', providers: { openai: { model: 'm-o', allow_user_text: true }, anthropic: { model: 'm-a', allow_user_text: true }, gemini: { model: 'm-g', allow_user_text: true, enabled: true }, ...(o.providers ?? {}) }, tasks: o.tasks ?? { default: ['anthropic', 'openai', 'gemini'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, ...(o.limits ?? {}) }, circuit: o.circuit }));
 
 // ── 연결부(제공사별 응답 → 한 모양)
 test('연결부 OpenAI: 요청 모양(지금 운영과 같음) · 응답·사용량 정리 · 거절 → refused · 길이 잘림 = 글은 그대로 + truncated 표시(지금 운영과 같음) · 빈 답 → empty', async () => {
@@ -248,4 +248,79 @@ test('routerFromEnv: AI_POLICY 없음 → 기본(OpenAI · OPENAI_MODEL) · 키�
   await p.llm('turn', 'S', {});
   const sent = calls.at(-1); assert.ok(sent.url.includes('anthropic')); assert.ok(!('temperature' in sent.body));
   assert.deepEqual(R.routerFromEnv(env({ AI_POLICY: JSON.stringify({ version: 'v', providers: { anthropic: { model: 'm', allow_user_text: true } }, tasks: { default: ['anthropic'] } }) }), PARAMS, {}, f).usable(), [], '키 없으면 후보 0');
+});
+
+// ── 2026-10-03 후속: 선택 순서(데이터 → 켜짐 → 품질 → 사용 가능 → 금액) · Gemini 기본 꺼짐 · 문장 속 개인정보 가림 · 취소 · 실측 기본 한도
+test('기본 한도 = QA 실측 근거 값(요청 하나가 모든 호출과 같이 쓰는 예산)', () => {
+  assert.deepEqual(R.DEFAULT_LIMITS, { max_calls_per_request: 14, max_tokens_per_request: 30_000, deadline_ms: 60_000, call_timeout_ms: 18_000, same_provider_retries: 1, retry_wait_ms: 1500, max_cost_usd_per_request: null });
+});
+
+test('선택 순서: 데이터 전달 허용 → 켜짐 → 그 작업에서 검증됨 → 키 → 금액 한도 → 정책 순서 · 빠진 이유가 남음 · Gemini 는 명시적으로 켜야만', () => {
+  const pol = R.parsePolicy(JSON.stringify({ version: 'v-sel', require_verified: true,
+    providers: { openai: { model: 'm-o', allow_user_text: true, verified_tasks: ['turn'] }, anthropic: { model: 'm-a', allow_user_text: false, verified_tasks: ['*'] }, gemini: { model: 'm-g', allow_user_text: true, verified_tasks: ['*'] } },
+    tasks: { default: ['anthropic', 'gemini', 'openai'] } }));
+  assert.equal(pol.providers.gemini.enabled, false, 'Gemini 기본 꺼짐(지원 코드는 유지)');
+  const r = R.createModelRouter({ policy: pol, providers: { openai: fakeProvider('openai', []).p, anthropic: fakeProvider('anthropic', []).p, gemini: fakeProvider('gemini', []).p }, params: PARAMS, health: {} });
+  assert.deepEqual(r.explain('turn'), { order: ['openai'], skipped: [{ provider: 'anthropic', why: 'data_not_allowed' }, { provider: 'gemini', why: 'disabled' }] });
+  assert.deepEqual(r.explain('closing'), { order: [], skipped: [{ provider: 'anthropic', why: 'data_not_allowed' }, { provider: 'gemini', why: 'disabled' }, { provider: 'openai', why: 'not_verified_for_task' }] }, '검증 안 된 작업에는 쓰지 않음');
+  const pol2 = R.parsePolicy(JSON.stringify({ version: 'v', providers: { anthropic: { model: 'm-a', allow_user_text: true }, openai: { model: 'm-o', allow_user_text: true } }, tasks: { default: ['anthropic', 'openai'] } }));
+  assert.deepEqual(R.createModelRouter({ policy: pol2, providers: { openai: fakeProvider('openai', []).p }, params: PARAMS, health: {} }).explain('turn').skipped, [{ provider: 'anthropic', why: 'no_key' }]);
+});
+
+test('금액 상한(토큰 상한과 별개): 단가 모르는 제공사는 금액 상한이 있으면 쓰지 않음 · 쓴 금액 + 이번 추정이 넘으면 건너뜀 · 사용 금액 집계', async () => {
+  const pol = R.parsePolicy(JSON.stringify({ version: 'v-cost', limits: { max_cost_usd_per_request: 0.001 },
+    providers: { openai: { model: 'm-o', allow_user_text: true, price: { in_usd_per_1m: 0.15, out_usd_per_1m: 0.6 } }, anthropic: { model: 'm-a', allow_user_text: true } }, tasks: { default: ['anthropic', 'openai'] } }));
+  const o = fakeProvider('openai', [() => ({ text: '{}', provider: 'openai', model_requested: 'm-o', model_served: null, input_tokens: 3000, cached_tokens: null, output_tokens: 150, latency_ms: 1, truncated: false }), '{}', '{}']);
+  const r = R.createModelRouter({ policy: pol, providers: { openai: o.p, anthropic: fakeProvider('anthropic', []).p }, params: PARAMS, health: {} });
+  assert.deepEqual(r.explain('turn').skipped, [{ provider: 'anthropic', why: 'price_unknown' }]);
+  await r.llm('turn', 'S', {});
+  assert.ok(Math.abs(r.summary().cost_usd - (3000 * 0.15 + 150 * 0.6) / 1e6) < 1e-12);
+  // 0.00054 쓴 뒤 입력 4,500자(추정 3,000토큰 · 0.00045) + 출력 상한 768(0.00046) → 합 0.00145 > 0.001 → 건너뜀 → 쓸 곳 없음
+  await assert.rejects(r.llm('turn', 'S', { big: 'x'.repeat(4500) }), (e) => e.code === 'not_configured');
+  assert.match(r.log.at(-1).reason, /openai=cost_cap/);
+  const noPrice = R.createModelRouter({ policy: R.defaultPolicy('default-model'), providers: { openai: fakeProvider('openai', ['{}']).p }, params: PARAMS, health: {} });
+  await noPrice.llm('turn', 'S', {}); assert.equal(noPrice.summary().cost_usd, null, '단가를 모르면 금액은 「확인 불가」(0 이라 하지 않음)');
+});
+
+test('문장 속 개인정보: 전화·유선·이메일·주민번호·카드·생년월일을 가리고 보냄 · 전환된 다른 제공사도 가린 글만 · 기록에는 종류별 개수만', async () => {
+  const a = fakeProvider('anthropic', [perr('anthropic', 'http_5xx')]); const o = fakeProvider('openai', ['{}']);
+  const r = R.createModelRouter({ policy: policy({ tasks: { default: ['anthropic', 'openai'] }, limits: { same_provider_retries: 0 } }), providers: { anthropic: a.p, openai: o.p }, params: PARAMS, health: {} });
+  const raw = { latest: '제 번호 010-1234-5678, 회사 02-345-6789, 메일 me@ex.com, 1990년 3월 5일생, 900305-1234567, 카드 1234-5678-9012-3456', recent: [{ user: '1990.03.05 에 태어났어요' }] };
+  await r.llm('turn', 'S', raw);
+  for (const sent of [a.calls[0].input, o.calls[0].input]) {
+    const t = JSON.stringify(sent);
+    for (const leak of ['010-1234-5678', '02-345-6789', 'me@ex.com', '1990년 3월 5일', '900305-1234567', '1234-5678-9012-3456', '1990.03.05']) assert.ok(!t.includes(leak), leak);
+    assert.ok(t.includes('[가림]'));
+  }
+  assert.match(r.log[0].reason, /masked:phone=1,landline=1,email=1,rrn=1,card=1,birth=2/);
+  assert.ok(!JSON.stringify(r.log).includes('010-1234'), '기록에 원문 0');
+  assert.equal(raw.latest.includes('010-1234-5678'), true, 'Agent 상태(원본 입력)는 바꾸지 않음');
+  assert.deepEqual(R.maskPii({ latest: '2020년에 이사했어요 · 3월 5일 약속' }).counts, {}, '연도만·월일만은 가리지 않음(생년월일 꼴만)');
+  const t0 = Date.now(); R.maskPii({ big: 'a'.repeat(200_000) + '@' + '-'.repeat(200_000) }); assert.ok(Date.now() - t0 < 2000, '긴 글에서도 빠름(되돌림 폭주 0)');
+});
+
+test('전달 허용은 재시도·전환에서도 유지: 실패한 허용 제공사 다음 후보가 허용 없으면 건너뛰고 다음 허용 제공사로', async () => {
+  const pol = policy({ providers: { gemini: { model: 'm-g', allow_user_text: false, enabled: true } }, tasks: { default: ['anthropic', 'gemini', 'openai'] }, limits: { same_provider_retries: 1, retry_wait_ms: 0 } });
+  const a = fakeProvider('anthropic', [perr('anthropic', 'http_5xx'), perr('anthropic', 'http_5xx')]); const g = fakeProvider('gemini', ['{}']); const o = fakeProvider('openai', ['{}']);
+  const r = R.createModelRouter({ policy: pol, providers: { anthropic: a.p, gemini: g.p, openai: o.p }, params: PARAMS, health: {}, sleep: async () => {} });
+  await r.llm('turn', 'S', {});
+  assert.deepEqual([a.calls.length, g.calls.length, o.calls.length], [2, 0, 1]);
+});
+
+test('취소: 사용자 요청이 끊기면 진행 중 호출에 같은 신호가 가고 · 그 뒤 호출 0(cancelled)', async () => {
+  const ctrl = new AbortController();
+  const seen = [];
+  const p = { id: 'openai', call: async (req) => { seen.push(req.signal); return { text: '{}', provider: 'openai', model_requested: req.model, model_served: null, input_tokens: 1, cached_tokens: null, output_tokens: 1, latency_ms: 1, truncated: false }; } };
+  const r = R.createModelRouter({ policy: R.defaultPolicy('default-model'), providers: { openai: p }, params: PARAMS, health: {}, signal: ctrl.signal });
+  await r.llm('turn', 'S', {});
+  assert.equal(seen[0], ctrl.signal, '제공사 호출에 같은 신호');
+  ctrl.abort();
+  await assert.rejects(r.llm('turn', 'S', {}), (e) => e.code === 'cancelled');
+  assert.equal(seen.length, 1);
+  // 실제 연결부: 바깥 신호가 끊기면 fetch 도 끊긴다(timeout 코드)
+  const outer = new AbortController();
+  const hang = (_u, init) => new Promise((_ok, bad) => init.signal.addEventListener('abort', () => bad(new Error('aborted'))));
+  const pending = P.openAIProvider('k', hang).call({ ...REQ, timeoutMs: 60_000, signal: outer.signal });
+  outer.abort();
+  await assert.rejects(pending, (e) => e.code === 'timeout');
 });

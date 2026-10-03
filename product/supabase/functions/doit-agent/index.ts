@@ -70,7 +70,15 @@ function roundStartOf(user: { user_metadata?: Record<string, unknown> | null }):
 // 2026-10-03 대표 「3개 AI 제공사 통합」: 모델 호출은 modelRouter(서버 선택 규칙) 한 곳으로. 요청 하나 = 라우터 하나(한도·전환·기록) · 연속 오류 차단 상태는 함수 인스턴스 단위로 공유.
 // AI_POLICY 가 없으면 지금 승인 그대로(OpenAI · OPENAI_MODEL · 다른 제공사 0).
 const AI_HEALTH: RouterHealth = {};
-const routerForRequest = (): ModelRouter => routerFromEnv((k) => Deno.env.get(k), A.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel);
+// 사용자 요청이 끊기면(req.signal) 진행 중인 모델 호출도 끊고 더 부르지 않는다.
+const routerForRequest = (signal?: AbortSignal): ModelRouter => routerFromEnv((k) => Deno.env.get(k), A.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal);
+// 사용자 단위 하루 한도(24시간 · 기존 턴 기록 수로 셈 · 새 표 0). QA 실측: 사용자·하루 최대 64턴(호출 125) → 200턴.
+const USER_DAILY_TURNS = 200;
+async function userDailyTurns(admin: Db, userId: string): Promise<number | null> {
+  const { count, error } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
+    .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+  return error ? null : count ?? 0;
+}
 // 관리자 관측용 호출 기록(코드·수치만 · 사용자 원문 0).
 const aiTrace = (r: ModelRouter) => { const m = r.summary(); return { provider: m.provider ?? "none", providers: m.providers, model_requested: r.policy.providers[m.provider ?? "openai"]?.model ?? null, fallback: m.fallback, ai_policy_version: r.policy.version, ai_calls: r.log.map((x) => ({ ...x })) }; };
 
@@ -306,9 +314,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const requestId = typeof body.requestId === "string" && UUID.test(body.requestId) ? body.requestId : "";
     if (!requestId) return fail("BAD_REQUEST", "요청 식별값이 없어요.", 400, origin);
     const { data: prior } = await admin.from("doit_request_events").select("action, status, target_id, response_payload").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
-    const router = routerForRequest();
+    const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
     const ctx = { admin, userId, llm: router.llm, router, origin };
+    // 모델을 부를 수 있는 동작만 사용자 하루 한도를 본다(세기 실패 = 막지 않음 · 기록만). agent_run · agent_intro_mark 는 모델 호출 0.
+    if (action === "agent_start" || action === "agent_turn" || action === "agent_rescue" || action === "agent_intro") {
+      const used = await userDailyTurns(admin, userId);
+      if (used == null) logDiag({ step: "daily_count", error: true });
+      else if (used >= USER_DAILY_TURNS) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
+    }
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).

@@ -13,22 +13,31 @@ import { anthropicProvider, geminiProvider, openAIProvider, ProviderError, PROVI
 import type { Llm, LlmResult } from "./agent.ts";
 
 export type TaskKind = Parameters<Llm>[0];
-export interface ProviderPolicy { model: string; allow_user_text: boolean; sampling?: "temperature" | "none" }
+// 제공사 하나의 조건. 선택 순서 = 작업 종류 → 데이터 전달 허용 → 켜짐 → 품질 조건(그 작업에서 검증됨) → 사용 가능(키·연속 오류) → 비용·시간 한도 → 정책 순서의 첫 후보.
+//   enabled: Gemini 는 명시적으로 켤 때만(검증 전 기본 꺼짐) · verified_tasks: 실제 비교로 통과한 작업(require_verified 일 때만 걸러냄)
+//   price: 1백만 토큰당 달러(공식 단가 확인 뒤 정책에 적음 · 없으면 금액 계산 「확인 불가」)
+export interface ProviderPolicy { model: string; allow_user_text: boolean; sampling?: "temperature" | "none"; enabled: boolean; verified_tasks: string[] | null; price: { in_usd_per_1m: number; out_usd_per_1m: number } | null }
 export interface AiPolicy {
   version: string;
   providers: Partial<Record<ProviderId, ProviderPolicy>>;
   tasks: Partial<Record<TaskKind | "default", ProviderId[]>>; // 작업별 후보 순서(앞이 먼저)
   switch_on_invalid: boolean; // Agent 가 형식·규칙 검사에서 거절하고 다시 청할 때(previous_attempt) 다음 후보로
-  limits: { max_calls_per_request: number; max_tokens_per_request: number; deadline_ms: number; call_timeout_ms: number; same_provider_retries: number; retry_wait_ms: number };
+  require_verified: boolean; // true = 그 작업을 verified_tasks 에 적은 제공사만(품질 조건)
+  // 토큰 상한과 금액 상한은 다르다: max_tokens_per_request = 토큰 수 · max_cost_usd_per_request = 금액(단가가 적힌 제공사만 계산 · null = 금액 상한 없음)
+  limits: { max_calls_per_request: number; max_tokens_per_request: number; deadline_ms: number; call_timeout_ms: number; same_provider_retries: number; retry_wait_ms: number; max_cost_usd_per_request: number | null };
   circuit: { open_after: number; cooldown_ms: number };
 }
-export const DEFAULT_LIMITS: AiPolicy["limits"] = { max_calls_per_request: 20, max_tokens_per_request: 200_000, deadline_ms: 120_000, call_timeout_ms: 18_000, same_provider_retries: 1, retry_wait_ms: 1500 };
+// 요청 하나(모든 호출이 같이 쓰는 예산)의 기본 한도 — 2026-10-03 QA 실측(최근 14일 agent_turn 6,800건 · 호출 17,196번 · OpenAI 기본 모델) 근거:
+//   턴 하나의 호출 p50 2 · p99 6~7 · 최대 8(코드상 최대 11 = turn 3 + 겹침 전환 1 + 고르기 1 + 질문 다시 쓰기 2 + 받아주기 1 + 마침 1 + 소개 1 + 보기 1)
+//   → 14 = 코드상 최대 11 + 재시도·전환 3. 토큰: 턴 최대 17,459 · 코드상 재시도 없는 최대 약 25,000 → 30,000.
+//   시간: 턴 p99 11.3초 · p99.9 16.3초 · 최대 54.2초(60초 넘은 턴 0) → 60초. 호출 하나 18초(지금 운영 그대로).
+export const DEFAULT_LIMITS: AiPolicy["limits"] = { max_calls_per_request: 14, max_tokens_per_request: 30_000, deadline_ms: 60_000, call_timeout_ms: 18_000, same_provider_retries: 1, retry_wait_ms: 1500, max_cost_usd_per_request: null };
 const DEFAULT_CIRCUIT: AiPolicy["circuit"] = { open_after: 3, cooldown_ms: 60_000 };
 const MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9._:\-/]{1,79}$/;
 
 /** 정책이 없을 때 = 지금 운영 승인 그대로(OpenAI · OPENAI_MODEL · 다른 제공사 0). */
 export function defaultPolicy(openaiModel: string): AiPolicy {
-  return { version: "ai-policy-default-openai", providers: { openai: { model: openaiModel, allow_user_text: true } }, tasks: { default: ["openai"] }, switch_on_invalid: false, limits: { ...DEFAULT_LIMITS }, circuit: { ...DEFAULT_CIRCUIT } };
+  return { version: "ai-policy-default-openai", providers: { openai: { model: openaiModel, allow_user_text: true, enabled: true, verified_tasks: null, price: null } }, tasks: { default: ["openai"] }, switch_on_invalid: false, require_verified: false, limits: { ...DEFAULT_LIMITS }, circuit: { ...DEFAULT_CIRCUIT } };
 }
 
 /** AI_POLICY(JSON) 읽기 — 모양이 틀리면 null(→ 기본 정책). 모델 이름은 비어 있거나 추정 모양이면 그 제공사를 빼고, 한도는 안전 범위로 자른다. */
@@ -41,7 +50,13 @@ export function parsePolicy(raw: string | undefined | null): AiPolicy | null {
   for (const id of PROVIDER_IDS) {
     const p = (o.providers as Record<string, Record<string, unknown>> | undefined)?.[id];
     if (!p || typeof p.model !== "string" || !MODEL_ID.test(p.model)) continue;
-    providers[id] = { model: p.model, allow_user_text: p.allow_user_text === true, ...(p.sampling === "none" ? { sampling: "none" as const } : {}) };
+    const price = p.price && typeof p.price === "object" ? p.price as Record<string, unknown> : null;
+    const usd = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 && v < 1000 ? v : null);
+    providers[id] = { model: p.model, allow_user_text: p.allow_user_text === true, ...(p.sampling === "none" ? { sampling: "none" as const } : {}),
+      // Gemini 는 할당량·응답 모양이 실제 호출로 확인되기 전에는 명시적으로 켜야만 쓴다(지원 코드는 유지)
+      enabled: id === "gemini" ? p.enabled === true : p.enabled !== false,
+      verified_tasks: Array.isArray(p.verified_tasks) ? (p.verified_tasks as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 12) : null,
+      price: price && usd(price.in_usd_per_1m) != null && usd(price.out_usd_per_1m) != null ? { in_usd_per_1m: usd(price.in_usd_per_1m)!, out_usd_per_1m: usd(price.out_usd_per_1m)! } : null };
   }
   const tasks: AiPolicy["tasks"] = {};
   for (const [k, v] of Object.entries((o.tasks ?? {}) as Record<string, unknown>)) {
@@ -54,7 +69,7 @@ export function parsePolicy(raw: string | undefined | null): AiPolicy | null {
   const clamp = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : d);
   const c = (o.circuit ?? {}) as Record<string, unknown>;
   return {
-    version: o.version.trim().slice(0, 60), providers, tasks, switch_on_invalid: o.switch_on_invalid === true,
+    version: o.version.trim().slice(0, 60), providers, tasks, switch_on_invalid: o.switch_on_invalid === true, require_verified: o.require_verified === true,
     limits: {
       max_calls_per_request: clamp(l.max_calls_per_request, 1, 40, DEFAULT_LIMITS.max_calls_per_request),
       max_tokens_per_request: clamp(l.max_tokens_per_request, 1000, 1_000_000, DEFAULT_LIMITS.max_tokens_per_request),
@@ -62,6 +77,7 @@ export function parsePolicy(raw: string | undefined | null): AiPolicy | null {
       call_timeout_ms: clamp(l.call_timeout_ms, 2000, 60_000, DEFAULT_LIMITS.call_timeout_ms),
       same_provider_retries: clamp(l.same_provider_retries, 0, 2, DEFAULT_LIMITS.same_provider_retries),
       retry_wait_ms: clamp(l.retry_wait_ms, 0, 10_000, DEFAULT_LIMITS.retry_wait_ms),
+      max_cost_usd_per_request: typeof l.max_cost_usd_per_request === "number" && Number.isFinite(l.max_cost_usd_per_request) && l.max_cost_usd_per_request > 0 ? Math.min(10, l.max_cost_usd_per_request) : null,
     },
     circuit: { open_after: clamp(c.open_after, 1, 20, DEFAULT_CIRCUIT.open_after), cooldown_ms: clamp(c.cooldown_ms, 1000, 600_000, DEFAULT_CIRCUIT.cooldown_ms) },
   };
@@ -76,8 +92,30 @@ export function piiKeys(input: unknown, path = ""): string[] {
   return Object.entries(input as Record<string, unknown>).flatMap(([k, v]) => [...(PII_KEYS.test(k) ? [at(k)] : []), ...piiKeys(v, at(k))]);
 }
 
+// 자유 문장 속 개인정보 가리기(마지막 안전망). 칸 이름 차단(piiKeys)만으로는 문장 속 번호를 막지 못한다.
+// Agent 는 이미 전화·이메일·주소(URL)·주민번호가 든 말을 모델에 보내지 않고 저장도 하지 않는다(PRIVATE_DATA) — 여기서는 그 밖의 경로와 생년월일·카드 번호까지 가린 뒤 보낸다.
+// 다른 사람의 이름·사정 같은 「제3자 정보」는 글자 규칙으로 가려낼 수 없다 → 가리지 못함(남은 한계 · 문서 §23).
+const MASKS: [string, RegExp][] = [
+  ["phone", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g],
+  ["landline", /0(2|[3-6][1-5])[-\s.]\d{3,4}[-\s.]\d{4}/g],
+  ["email", /[\w.+-]{1,64}@[\w-]{1,63}\.[\w.]{1,63}/g], // 반복 길이를 묶어 긴 글에서도 선형 시간(무한 되돌림 0)
+  ["rrn", /\d{6}[-\s]?[1-4]\d{6}/g],
+  ["card", /\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}/g],
+  ["birth", /(19|20)\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?/g],
+];
+export function maskPii(input: unknown): { value: unknown; counts: Record<string, number> } {
+  const counts: Record<string, number> = {};
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") { let t = v; for (const [name, re] of MASKS) t = t.replace(re, () => { counts[name] = (counts[name] ?? 0) + 1; return "[가림]"; }); return t; }
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)]));
+    return v;
+  };
+  return { value: walk(input), counts };
+}
+
 // 라우터가 스스로 멈춘 이유(제공사 오류가 아님). Agent 는 e.code 만 읽는다.
-export type RouterStopCode = "pii_blocked" | "not_configured" | "budget_exceeded" | "deadline_exceeded" | "all_unavailable";
+export type RouterStopCode = "pii_blocked" | "not_configured" | "budget_exceeded" | "deadline_exceeded" | "all_unavailable" | "cancelled";
 export class RouterError extends Error { code: RouterStopCode; constructor(code: RouterStopCode) { super(`router:${code}`); this.code = code; } }
 
 export interface AiCallLog {
@@ -89,8 +127,10 @@ export type RouterHealth = Partial<Record<ProviderId, { consecutive_errors: numb
 export interface RouterDeps {
   policy: AiPolicy; providers: Partial<Record<ProviderId, ModelProvider>>; params: { temperature: number; top_p?: number; max_tokens: number };
   health?: RouterHealth; now?: () => number; sleep?: (ms: number) => Promise<void>;
+  signal?: AbortSignal; // 사용자 요청이 끊기면(창 닫힘 등) 진행 중 호출을 끊고 더 부르지 않는다
 }
-export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; usable(kind?: TaskKind): ProviderId[]; summary(): { provider: ProviderId | null; providers: ProviderId[]; model: string | null; fallback: number; calls: number; errors: number; tokens_in: number; tokens_out: number } }
+export type SkipWhy = "not_in_policy" | "data_not_allowed" | "disabled" | "not_verified_for_task" | "no_key" | "price_unknown" | "cost_cap";
+export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; usable(kind?: TaskKind): ProviderId[]; explain(kind?: TaskKind): { order: ProviderId[]; skipped: { provider: ProviderId; why: SkipWhy }[] }; summary(): { provider: ProviderId | null; providers: ProviderId[]; model: string | null; fallback: number; calls: number; errors: number; tokens_in: number; tokens_out: number; cost_usd: number | null } }
 
 // 제공사가 아니라 요청 자체 문제라 다른 모델로 돌려도 안 되는 오류: 거절(안전). 다음 후보로 넘기는 오류: 일시 오류 · 형식 · 4xx(모델 이름·설정 문제) · 빈 답 · 잘림.
 const NO_SWITCH: ProviderErrorCode[] = ["refused"];
@@ -109,26 +149,46 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
   let seq = 0;
   const lastUsed = new Map<TaskKind, ProviderId>();
   const spent = () => log.reduce((n, r) => n + (r.input_tokens ?? 0) + (r.output_tokens ?? 0), 0);
-  const configured = (id: ProviderId) => !!policy.providers[id] && !!d.providers[id];
-  const usable = (kind: TaskKind = "turn") => {
+  // 금액: 단가가 적힌 제공사만 계산(모르면 null). 입력 토큰 추정 = 보내는 글자 수 ÷ 1.5(한국어·JSON 기준 보수적) + 출력 상한.
+  const costOf = (id: ProviderId, tin: number, tout: number) => { const pr = policy.providers[id]?.price; return pr ? (tin * pr.in_usd_per_1m + tout * pr.out_usd_per_1m) / 1e6 : null; };
+  const spentUsd = () => log.reduce<number | null>((n, r) => { if (n == null || r.attempt === 0 || !r.provider) return n; const c = costOf(r.provider, r.input_tokens ?? 0, r.output_tokens ?? 0); return c == null ? null : n + c; }, 0);
+  /** 작업 종류 → 데이터 전달 허용 → 켜짐 → 품질 조건 → 사용 가능(키) → 금액 한도 → 정책 순서. 연속 오류(건강)는 호출 때 본다. */
+  const explain = (kind: TaskKind = "turn", estChars = 0) => {
     const order = policy.tasks[kind] ?? policy.tasks.default ?? [];
-    return order.filter((id) => configured(id) && policy.providers[id]!.allow_user_text);
+    const out: ProviderId[] = []; const skipped: { provider: ProviderId; why: SkipWhy }[] = [];
+    for (const id of order) {
+      const p = policy.providers[id];
+      const why: SkipWhy | null = !p ? "not_in_policy" : !p.allow_user_text ? "data_not_allowed" : !p.enabled ? "disabled"
+        : policy.require_verified && !(p.verified_tasks ?? []).some((t) => t === kind || t === "*") ? "not_verified_for_task"
+        : !d.providers[id] ? "no_key"
+        : L.max_cost_usd_per_request == null ? null
+        : !p.price ? "price_unknown"
+        : (spentUsd() ?? Infinity) + (costOf(id, Math.ceil(estChars / 1.5), d.params.max_tokens) ?? Infinity) > L.max_cost_usd_per_request ? "cost_cap" : null;
+      if (why) skipped.push({ provider: id, why }); else out.push(id);
+    }
+    return { order: out, skipped };
   };
+  const usable = (kind: TaskKind = "turn") => explain(kind).order;
   const push = (r: Omit<AiCallLog, "seq" | "policy_version">) => { log.push({ seq: ++seq, policy_version: policy.version, ...r }); };
 
   const llm: Llm = async (kind, system, input) => {
     const leak = piiKeys(input);
     if (leak.length) { push({ kind, provider: null, model_requested: null, model_served: null, reason: `pii_keys:${leak.slice(0, 5).join(",")}`, attempt: 0, ok: false, error: "pii_blocked", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); throw new RouterError("pii_blocked"); }
-    let order = usable(kind);
+    // 문장 속 개인정보는 가리고 보낸다(모든 후보·재시도·전환에 같은 가린 글) · 기록에는 종류별 개수만
+    const masked = maskPii(input);
+    const sendInput = masked.value;
+    const maskNote = Object.keys(masked.counts).length ? `|masked:${Object.entries(masked.counts).map(([k, n]) => `${k}=${n}`).join(",")}` : "";
+    const sel = explain(kind, JSON.stringify(sendInput ?? "").length + system.length);
+    let order = sel.order;
     // Agent 가 받은 글을 서버 검사에서 거절하고 다시 청함(previous_attempt) → 정책이 허용하면 직전에 쓴 제공사 다음 후보부터
     const retryAfterInvalid = !!(input && typeof input === "object" && (input as Record<string, unknown>).previous_attempt != null);
-    let reasonBase = "policy_order";
+    let reasonBase = `policy_order${maskNote}`;
     if (retryAfterInvalid && policy.switch_on_invalid && order.length > 1) {
       const prev = lastUsed.get(kind);
       const i = prev ? order.indexOf(prev) : -1;
-      if (i >= 0) { order = [...order.slice(i + 1), ...order.slice(0, i + 1)]; reasonBase = `switch_on_invalid_from:${prev}`; }
+      if (i >= 0) { order = [...order.slice(i + 1), ...order.slice(0, i + 1)]; reasonBase = `switch_on_invalid_from:${prev}${maskNote}`; }
     }
-    if (!order.length) { push({ kind, provider: null, model_requested: null, model_served: null, reason: "no_usable_provider", attempt: 0, ok: false, error: "not_configured", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); throw new RouterError("not_configured"); }
+    if (!order.length) { push({ kind, provider: null, model_requested: null, model_served: null, reason: `no_usable_provider:${sel.skipped.map((x) => `${x.provider}=${x.why}`).join(",") || "empty_policy"}`, attempt: 0, ok: false, error: "not_configured", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null }); throw new RouterError("not_configured"); }
     // 연속 오류 차단은 「건너뛸 다른 후보」가 있을 때만 — 후보가 모두 막혔거나 하나뿐이면(기본 정책) 지금 운영처럼 그대로 부른다(차단 때문에 모든 요청이 실패하지 않게).
     const isOpen = (id: ProviderId) => (health[id]?.open_until ?? 0) > now();
     const skipOpen = order.some((id) => !isOpen(id)) && order.length > 1;
@@ -142,13 +202,17 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "budget_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("budget_exceeded");
         }
+        if (d.signal?.aborted) {
+          push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "cancelled", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
+          throw new RouterError("cancelled");
+        }
         if (now() - started >= L.deadline_ms) {
           push({ kind, provider: id, model_requested: policy.providers[id]!.model, model_served: null, reason, attempt: 0, ok: false, error: "deadline_exceeded", status: null, latency_ms: 0, input_tokens: null, output_tokens: null, cached_tokens: null });
           throw new RouterError("deadline_exceeded");
         }
         const p = policy.providers[id]!;
         try {
-          const r = await d.providers[id]!.call({ model: p.model, system, input, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))) });
+          const r = await d.providers[id]!.call({ model: p.model, system, input: sendInput, maxTokens: d.params.max_tokens, temperature: d.params.temperature, topP: d.params.top_p, timeoutMs: Math.min(L.call_timeout_ms, Math.max(1, L.deadline_ms - (now() - started))), signal: d.signal });
           lastUsed.set(kind, id);
           // 길이 상한에서 잘린 답: 다음 후보가 있으면 그쪽으로(이 글은 쓰지 않음) · 마지막 후보면 지금 운영처럼 글을 넘기고 Agent 형식 검사가 다시 청한다.
           const hasNext = order.slice(order.indexOf(id) + 1).some((x) => !(skipOpen && isOpen(x)));
@@ -183,18 +247,19 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
       fallback: log.filter((r) => r.reason.startsWith("fallback_from") || r.reason.startsWith("switch_on_invalid")).length,
       calls: log.filter((r) => r.attempt > 0).length, errors: log.filter((r) => !r.ok).length,
       tokens_in: log.reduce((n, r) => n + (r.input_tokens ?? 0), 0), tokens_out: log.reduce((n, r) => n + (r.output_tokens ?? 0), 0),
+      cost_usd: spentUsd(),
     };
   };
-  return { llm, log, policy, usable, summary };
+  return { llm, log, policy, usable, explain: (kind?: TaskKind) => explain(kind), summary };
 }
 
 /** Edge 함수에서: 환경 → 정책 · 제공사 부품. 키는 있는지만 본다(값을 로그·응답에 넣지 않음). */
-export function routerFromEnv(get: (k: string) => string | undefined, params: RouterDeps["params"], health: RouterHealth, f: typeof fetch = fetch, resolveOpenAiModel: (raw: string | undefined) => string = (r) => (r ?? "").trim()): ModelRouter {
+export function routerFromEnv(get: (k: string) => string | undefined, params: RouterDeps["params"], health: RouterHealth, f: typeof fetch = fetch, resolveOpenAiModel: (raw: string | undefined) => string = (r) => (r ?? "").trim(), signal?: AbortSignal): ModelRouter {
   const policy = parsePolicy(get("AI_POLICY")) ?? defaultPolicy(resolveOpenAiModel(get("OPENAI_MODEL")));
   const keys: Record<ProviderId, string> = { openai: get("OPENAI_API_KEY") ?? "", anthropic: get("ANTHROPIC_API_KEY") ?? "", gemini: get("GEMINI_API_KEY") ?? "" };
   const providers: Partial<Record<ProviderId, ModelProvider>> = {};
   if (keys.openai) providers.openai = openAIProvider(keys.openai, f);
   if (keys.anthropic) providers.anthropic = anthropicProvider(keys.anthropic, { sampling: policy.providers.anthropic?.sampling }, f);
   if (keys.gemini) providers.gemini = geminiProvider(keys.gemini, f);
-  return createModelRouter({ policy, providers, params, health });
+  return createModelRouter({ policy, providers, params, health, signal });
 }
