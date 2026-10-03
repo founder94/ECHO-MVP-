@@ -54,3 +54,12 @@ test('예산이 아닌 대기(no_candidates_yet · wait)는 지금처럼 버튼 
   await new Promise(r => setTimeout(r, 0));
   assert.equal(kids(render())[0].props.disabled, false);
 });
+test('Codex P2(리뷰 4174523875) 사용자가 멈춘 끝 상태(user_stopped · resume_if_wanted): 버튼 비활성 · 멈춤 문구 · 다시 눌러도 실행 0(다시 시작 화면 승인 전)', async () => {
+  let runs = 0; const render = mount(run({ outcome: 'stopped', waiting: 'user_stopped', next: 'resume_if_wanted' }), () => { runs++; });
+  await render().props.children[0].props.onClick();
+  await new Promise(r => setTimeout(r, 0));
+  const el = render();
+  assert.equal(kids(el)[0].props.disabled, true, '멈춘 상태면 버튼 닫음');
+  assert.match(kids(el).filter(x => x.type === 'p').map(text).join(''), /멈춰 두었어요/);
+  assert.equal(runs, 1, '첫 결과를 받은 뒤 더 부르지 않음');
+});

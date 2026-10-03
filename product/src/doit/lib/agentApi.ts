@@ -164,6 +164,9 @@ export async function agentRun(userId: string, sessionId: string, opts: { resume
 // 2026-10-03 연결 화면의 실행 단계 버튼(Codex 명세 20261003-1 항목 B). 사용자가 누른 그 한 번만 실행한다:
 //   · 진행 중이면 다시 누른 것은 무시(네트워크 1번) · 세션은 읽기만(agent_get · 없으면 새로 만들지 않음) · 재개(resume)는 보내지 않음
 //   · 성공한 응답만 결과로 넘김(실패 = 마지막 성공 상태 유지 · 자동 재시도·재개·후보 선택 0) · next 는 서버 값 그대로
+// 버튼으로 다시 실행해도 나아가지 않는 끝 상태: 예산 소진(budget) · 사용자가 멈춤(user_stopped · resume_if_wanted).
+// 멈춤에서 다시 시작하는 화면·문구는 아직 승인 전 → 실행 호출 0(요청 기록만 쌓이는 것 방지 · 리뷰 4174523875).
+export const runEnded = (run: Pick<AgentRun, 'waiting' | 'next'>): boolean => run.waiting === 'budget' || run.waiting === 'user_stopped' || run.next === 'resume_if_wanted';
 export function createAgentRunTrigger(deps: {
   getSession: () => Promise<AgentSession | null>;
   run: (sessionId: string) => Promise<{ run: AgentRun; tool: AgentRunTool | null }>;
@@ -179,7 +182,7 @@ export function createAgentRunTrigger(deps: {
       const session = await deps.getSession();
       if (!session) { deps.onError(new Error('NO_SESSION')); return; }
       // 저장된 실행 기록이 이미 예산을 다 쓴 끝 상태면 다시 실행하지 않고 그 상태를 그대로 보여 준다(새로고침·다시 열기 뒤에도 · 실행 기록 추가 0)
-      if (session.run && session.run.waiting === 'budget') { deps.onResult(session.run, null); return; }
+      if (session.run && runEnded(session.run)) { deps.onResult(session.run, null); return; }
       const out = await deps.run(session.id);
       deps.onResult(out.run, out.tool);
     } catch (e) {

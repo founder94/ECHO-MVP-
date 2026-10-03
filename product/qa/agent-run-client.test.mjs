@@ -101,7 +101,7 @@ test('연결 화면 소스 규칙: 빌드 스위치·로그인·자격 갖춤일
   assert.match(src, /if \(run\.next === 'open_candidates'\) onOpenCandidates\(\)/);
   assert.match(src, /<ConnectionCandidates key=\{candidatesKey\}/, '후보 상세는 기존 doit-connect 화면에서만');
   assert.doesNotMatch(src, /resume:\s*true|chooseCandidate|useEffect\([^)]*agentRun/, '자동 재개·후보 선택·진입 시 실행 0');
-  assert.match(src, /disabled=\{busy \|\| spent\} aria-busy=\{busy\}/, '진행 중 버튼 비활성(예산을 다 쓴 끝 상태도 비활성)');
+  assert.match(src, /disabled=\{busy \|\| ended\} aria-busy=\{busy\}/, '진행 중 버튼 비활성(예산 소진·사용자 멈춤 끝 상태도 비활성)');
 });
 test('Codex P2(리뷰 5400474027) 후보 조회 요약 모양 검사: 결과 종류·개수·시각·fresh 가 틀리면 실행 기록 거부', async () => {
   for (const c of [{ outcome: 'auto_pick', count: 1, at: 'x', fresh: true }, { outcome: 'found', count: -1, at: 'x', fresh: true }, { outcome: 'found', count: 1.5, at: 'x', fresh: true }, { outcome: 'found', count: 1, at: 3, fresh: true }, { outcome: 'found', count: 1, at: 'x', fresh: 'yes' }, { outcome: 'found' }]) {
@@ -139,4 +139,14 @@ test('Codex P2(리뷰 5400827787) 저장된 run 이 waiting=budget 이면 agent_
   let runs2 = 0;
   const t2 = A.createAgentRunTrigger({ getSession: async () => session(run()), run: async () => { runs2++; return { run: run(), tool: null }; }, onResult() {}, onError: (e) => { throw e; } });
   await t2(); assert.equal(runs2, 1, '다른 상태는 지금처럼 실행');
+});
+
+test('Codex P2(리뷰 4174523875) 저장된 run 이 사용자가 멈춘 상태(user_stopped · resume_if_wanted)면 agent_run 0 · 그 상태를 결과로', async () => {
+  for (const r of [run({ outcome: 'stopped', waiting: 'user_stopped', next: 'resume_if_wanted' }), run({ outcome: 'stopped', waiting: null, next: 'resume_if_wanted' })]) {
+    let runs = 0; let got = null;
+    const t = A.createAgentRunTrigger({ getSession: async () => session(r), run: async () => { runs++; return { run: run(), tool: null }; }, onResult: (x) => { got = x; }, onError: (e) => { throw e; } });
+    await t();
+    assert.equal(runs, 0, '멈춘 상태 = 실행 기록 추가 0'); assert.equal(got?.next, 'resume_if_wanted');
+  }
+  for (const w of ['no_candidates_yet', 'lookup_failed', 'tool_cooldown']) assert.equal(A.runEnded(run({ waiting: w })), false, `${w} = 과차단 0`);
 });
