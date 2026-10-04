@@ -6,6 +6,7 @@ import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { DEFAULT_AGENT_TONE, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
+import './mobile-layout-v2.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
 import InstallAppCard from './InstallAppCard';

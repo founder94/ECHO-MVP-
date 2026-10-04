@@ -51,6 +51,18 @@
 
 OFF/숨김 라우트(활성화하지 않음): KEY, 그 밖에 `src/doit/lib/releaseScope.ts` 의 숨김 목록 — 이번 라운드에서 목록을 전수 대조하지 못함.
 
+## 모바일 3차 라운드 — 배치 교체 + 파일별 대응 (정정: 「색·배치 변경 0」은 과거 유지 지시, 현재는 전체 교체 승인)
+새 앱 전용 파일 `src/doit/components/feature/mobile-layout-v2.css`(파스텔 루트 아래만 · 전역 0 · 홈페이지 번들 제외). 팔레트는 유지, 아래 구조를 교체: ① 대화 머리말 = 둥근 유리 띠 ② ECHO 말풍선(짙은 청록 유리) / 내 말풍선(밝은 막) 면 구분 ③ **아래 고정 입력 판**(sticky, 안전 영역·키보드에 안 가림, 보내기 버튼 전폭) ④ 오류·불러오는 중·알림·끝 화면 = 같은 24px 판 ⑤ 후보·서로 선택·연결 카드 = 같은 판, 제목 22~24px. 이 CSS 를 import 하는 앱 컴포넌트: AgentConversation · CoreConversation · ConversationOpening · ConnectionCandidates · ConnectionMatches · ConnectionTurnsCard.
+| 파일/화면 | 이번 라운드 구현 | 상태(정직) |
+|---|---|---|
+| AgentConversation / CoreConversation / ConversationOpening (대화·입력·오류·로딩·끝) | mobile-layout-v2.css 배치 교체(위 ①~④) | 소스·빌드 확인 · **브라우저 미확인** |
+| ConnectionCandidates / ConnectionMatches / ConnectionTurnsCard / ZzaritMoment (후보·선택·상호·첫 답·채팅) | 판·제목 크기 교체(위 ⑤), 문구는 2차 | 소스·빌드 확인 · **브라우저 미확인** |
+| home/page.tsx · start-journey · signup · login · ConsentGate · auth callback | 문구(2차) + 공통 토큰. 배치 교체 CSS **미적용** | 구현 미완 |
+| profile · photo · verify · purpose · settings · 프로필 수정 · 신고/차단/종료(SafetyRow) | 공통 토큰만. 배치 교체 CSS **미적용** | 구현 미완 |
+| AgentProfileCheck · ErrorBoundary · RouteFallback · AppBackButton · AppCornerMenu · InstallIntentSheet | 변경 0 | 구현 미완 |
+| KEY (KeyIcon · useKeyWallet) | 변경 0 — DEMO ONLY · releaseScope OFF · 실제 원장 없음 | OFF 유지 |
+홈페이지: 카드 패널 450ms→320ms, 배경 확대 1400ms→800ms(대표 240~360 / 600~900ms 범위). 브라우저·실기기·성능·녹화는 이번에도 **미실행**.
+
 ## 안전 경계(변경 0)
 서버·Edge Function·DB/RLS·Secret·결제·모델·workflow·PROD·OFF 기능 활성화 0.
 

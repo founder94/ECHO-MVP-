@@ -9,6 +9,7 @@ import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreIn
 import { draftToIntro } from '@/doit/lib/introDraft';
 import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer } from '@/doit/lib/conversationRules';
 import './core-conversation.css';
+import './mobile-layout-v2.css';
 
 interface Props {
   userId: string;

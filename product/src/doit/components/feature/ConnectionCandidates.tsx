@@ -4,6 +4,7 @@ import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, re
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment, { WaitingMark } from './ZzaritMoment';
 import './connect.css';
+import './mobile-layout-v2.css';
 
 // 당신이 잠든 사이 — 서버(doit-connect v2.0)가 준비한 소수 후보(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§17).
 // 후보 단계에서는 서버가 상대의 이름·사진·소개·말을 보내지 않는다. 화면은 받은 이유(내가 직접 한 말 · 직접 고른 목적)만 그린다.

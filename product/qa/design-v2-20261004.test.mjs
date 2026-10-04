@@ -146,3 +146,12 @@ test('홈페이지 메뉴·패널: 초점 이동·복귀, Escape, 뒤로가기, 
   assert.doesNotMatch(s, /apps\.apple\.com|play\.google\.com|App Store/i);
   assert.match(HCSS, /prefers-reduced-motion: reduce/);
 });
+
+test('모바일 배치 교체 CSS: 앱 전용 · 파스텔 루트 아래만 · 전역 0 · 고정 입력 판 · 홈페이지 시간 범위', () => {
+  const css = noComments(read('src/doit/components/feature/mobile-layout-v2.css'));
+  assert.doesNotMatch(css, /(^|\})\s*(body|html|:root)\b/, '전역 규칙 0');
+  assert.match(css, /\.echo-composer\{position:sticky;bottom:max\(8px,env\(safe-area-inset-bottom/, '입력 판이 키보드·안전 영역에 안 가림');
+  for (const f of ['ConnectionCandidates', 'ConnectionMatches', 'AgentConversation', 'CoreConversation']) assert.match(read(`src/doit/components/feature/${f}.tsx`), /mobile-layout-v2\.css/, f);
+  assert.doesNotMatch(HOME, /mobile-layout-v2/);
+  assert.doesNotMatch(noComments(HCSS), /\b(450|1400)ms/, '홈페이지 패널 240~360ms · 배경 600~900ms 밖 값 0');
+});

@@ -114,6 +114,7 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
       clearPendingSelf: () => { store.pending = null; },
     },
     './core-conversation.css': {},
+    './mobile-layout-v2.css': {},
   };
   const compiled = ts.transpileModule(source.replaceAll('import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED', JSON.stringify(String(followup))), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },

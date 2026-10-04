@@ -1,7 +1,7 @@
 /* ECHO UI 한 벌 — 2026-09-26 대표 「FINAL HUMAN UX / DESIGN」 §1~§5 · §18~§24.
    적용 범위: 파스텔 사용자 화면 루트(.doit-app-pastel · .echo-dialogue--pastel)의 안쪽만. 히어로(우주)·관리자·전역(body/:root) 0.
    - 글꼴: Pretendard 하나(index.css 가 이미 불러오는 글꼴 · 새 외부 글꼴 0). 아이콘 글꼴(ri-·fa)은 그대로.
-   - 글자 단계 4개(굵기만 · 크기·배치는 각 화면 그대로): ① 화면 제목 800 ② 질문·핵심 문장 700 ③ 중요한 내용·버튼 700 ④ 보조 글 600.
+   - 글자 단계 4개(굵기 기준 · 배치는 mobile-layout-v2.css 가 담당): ① 화면 제목 800 ② 질문·핵심 문장 700 ③ 중요한 내용·버튼 700 ④ 보조 글 600.
      300/400 의 가는 글자 0. 예전 가짜 굵기(-webkit-text-stroke)는 진짜 굵기로 바꿨으니 뺀다.
    - 글자색: 파스텔 위 사용자 글은 흰색(보조 글도 흰색 · 흐린 은색·회색 0).
    - 판·버튼: 검정·짙은 회색 채움 0. 투명 유리(흰 6%) + 얇은 흰 테두리. 누른 상태도 흰 막을 조금 더 진하게(검정으로 바뀌지 않음).
@@ -75,7 +75,7 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-understanding-refresh{color:#fff;border-color:var(--echo-line)}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-understanding-area-title{font-size:16px;opacity:1}
 
-/* 2026-10-04 대표 디자인 교체: 글자 크기 기준(제목 22~24px · 본문 16px · 보조 13~14px) — 화면별 배치는 그대로, 크기만 맞춘다 */
+/* 2026-10-04 대표 디자인 교체: 글자 크기 기준(제목 22~24px · 본문 16px · 보조 13~14px) — 배치는 mobile-layout-v2.css(2026-10-04 전체 교체)가 맡고 여기는 크기 기준만 */
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,.doit-product-title,.echo-done-title){font-size:clamp(22px,6.2vw,24px)!important;line-height:1.34!important;letter-spacing:-.01em}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-question,.echo-lead,.echo-context,.echo-done-lead,.echo-profile-item,.doit-candidates-title,.doit-mutual-body,textarea,input:not([type="checkbox"]):not([type="radio"])){font-size:16px!important;line-height:1.6}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-fine{font-size:14px!important;line-height:1.55}
@@ -83,7 +83,7 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"]):where(.echo-primary,.echo-secondary,.doit-product-action){min-height:48px}
 
 
-/* 2026-10-04 공통 토큰 보강(대표 「모바일 전체 흐름 + 공통토큰」): 보조 버튼·글자 링크도 터치 44px 이상 · 키보드 초점 고리 · 아래 안전 영역. 색·배치는 그대로. */
+/* 2026-10-04 공통 토큰 보강(대표 「모바일 전체 흐름 + 공통토큰」): 보조 버튼·글자 링크도 터치 44px 이상 · 키보드 초점 고리 · 아래 안전 영역. 색은 그대로. */
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"]):where(.echo-text-button,.echo-restart-pill,.doit-restart-pill){min-height:44px;display:inline-flex;align-items:center}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"],textarea,input,summary):focus-visible{outline:2px solid #fff;outline-offset:3px}
 .echo-dialogue.echo-dialogue--pastel{padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))}

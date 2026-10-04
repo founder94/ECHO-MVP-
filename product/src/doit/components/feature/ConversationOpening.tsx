@@ -4,6 +4,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import { fetchActivePurposes, type ActivePurpose } from '@/doit/lib/purposes';
 import { savePurpose } from '@/doit/lib/profileSave';
 import './core-conversation.css';
+import './mobile-layout-v2.css';
 
 interface Props {
   userId: string;

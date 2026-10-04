@@ -89,7 +89,7 @@
 .bh-sign { margin: 0; font-size: 16px; }
 .bh-sign strong { margin-left: 6px; font-weight: 700; }
 
-/* ECHO 카드: 누르면 앞으로 커지며 열린다(450ms) */
+/* ECHO 카드: 누르면 앞으로 커지며 열린다(320ms) */
 .bh-cards { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 10px; }
 .bh-card { width: 100%; min-height: 56px; display: flex; align-items: center; gap: 14px; padding: 12px 16px; font: inherit; color: inherit; text-align: left; background: rgba(0, 0, 0, 0.42); border: 1px solid var(--bh-line); border-radius: 14px; backdrop-filter: blur(6px); cursor: pointer; transition: transform 140ms var(--bh-ease), background-color 200ms ease; }
 .bh-card:active { transform: scale(0.98); }
@@ -97,7 +97,7 @@
 .bh-card-no { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--bh-line); border-radius: 50%; font-size: 13px; }
 .bh-card-title { font-size: 16px; font-weight: 600; }
 .bh-tag { margin-left: 8px; padding: 2px 8px; font-style: normal; font-size: 12px; font-weight: 500; color: var(--bh-silver); border: 1px solid var(--bh-line); border-radius: 999px; }
-.bh-card-body { margin: 6px 4px 4px; padding: 14px 16px; font-size: 16px; line-height: 1.65; background: rgba(0, 0, 0, 0.5); border-radius: 12px; transform-origin: top center; animation: bh-open 450ms var(--bh-ease); }
+.bh-card-body { margin: 6px 4px 4px; padding: 14px 16px; font-size: 16px; line-height: 1.65; background: rgba(0, 0, 0, 0.5); border-radius: 12px; transform-origin: top center; animation: bh-open 320ms var(--bh-ease); }
 
 /* 컴퓨터에서만 QR(휴대폰으로 시작) */
 .bh-qr { display: none; margin-top: 28px; padding: 18px; gap: 18px; align-items: center; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--bh-line); border-radius: 16px; }
@@ -132,7 +132,7 @@
 .bh-logo-band img { animation: bh-earth 1100ms ease-out both; }
 .bh-logo { animation: bh-forward 900ms var(--bh-ease) 350ms both; }
 .bh-justtry, .bh-hero-copy { animation: bh-forward 700ms var(--bh-ease) 900ms both; }
-[data-depth] .bh-bg { transform: scale(1.12); filter: brightness(0.6); transition: transform 1400ms var(--bh-ease), filter 1400ms ease; }
+[data-depth] .bh-bg { transform: scale(1.12); filter: brightness(0.6); transition: transform 800ms var(--bh-ease), filter 800ms ease; }
 [data-depth] .bh-content { opacity: 0; transform: translateY(18px); transition: opacity 700ms ease, transform 700ms var(--bh-ease); }
 [data-depth][data-in] .bh-bg { transform: scale(1.02); filter: none; }
 [data-depth][data-in] .bh-content { opacity: 1; transform: none; }
