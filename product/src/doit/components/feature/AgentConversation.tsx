@@ -358,7 +358,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {done && (profileOk || !profile) && <AgentIntroCard userId={userId} session={session} onSession={setSession} onSaved={() => setIntroSaved(true)} />}
     {done && (profileOk || !profile) && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
     {/* 홈 화면에 두기 제안(2026-09-26): 소개를 고른 뒤 한 번만. 소개 카드와 겹쳐 권하지 않는다. 설치 안 해도 그대로 쓴다. */}
-    {done && introChosen && <InstallAppCard />}
+    {done && introChosen && (profileOk || !profile) && <InstallAppCard />}
     {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP, 보기가 펼쳐졌을 때). 입력줄 바로 위 작은 칩. */}
     {!done && !editingPrevious && <div className="echo-reactions echo-chat-chips">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
     {/* 「+」 안: 화면에서 덜 쓰는 행동을 한곳에. 열려 있는 동안만 보인다. */}
