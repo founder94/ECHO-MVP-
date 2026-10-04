@@ -59,7 +59,8 @@ function makeServer(init) {
 }
 
 async function newPage(browser, vp, server) {
-  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  // UX_VIDEO=<폴더>: 장면을 영상으로도 남긴다(대표 보고용 녹화 · 검사 판정과 무관).
+  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ...(process.env.UX_VIDEO ? { recordVideo: { dir: process.env.UX_VIDEO, size: vp } } : {}) });
   const user = { ...USER, user_metadata: { ...(server.st.userMeta ?? USER.user_metadata) } };
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify({ ...SESSION, user })]);
   // UX_OFFLINE=1: 바깥 인터넷이 막힌 검사 환경 — 바깥 글꼴·아이콘 요청을 바로 끊는다(기다리다 networkidle 시간 초과 방지 · 화면 동작 영향 0).
@@ -415,11 +416,11 @@ await run(59, '만나기 전 안내: 「약속했어요」 고른 뒤에만', IP
   await p.getByRole('button', { name: '약속했어요' }).click(); await p.waitForTimeout(300);
   const t = await p.locator('.doit-meet-safety:not(.doit-meet-safety--peek)').innerText(); expect(t.includes('사람이 많은 곳') && t.includes('신고'), t); return '선택 뒤 4줄';
 });
-await run(60, 'ECHO 사용법: 메뉴 → 설정 #guide · 9항목 · 320px 넘침 0', { width: 320, height: 640 }, {}, async (p) => {
+await run(60, '이용 안내(설정 #guide · 새 탭·주소용): 9항목 · 320px 넘침 0', { width: 320, height: 640 }, {}, async (p) => {
   await p.goto(`${BASE}/doit/settings#guide`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
   const m = await p.evaluate(() => ({ n: document.querySelectorAll('#guide details').length, top: Math.round(document.getElementById('guide').getBoundingClientRect().top), sw: document.scrollingElement.scrollWidth, iw: innerWidth }));
   expect(m.n === 9 && m.top < 200 && m.sw <= m.iw, JSON.stringify(m));
-  await p.locator('#guide summary', { hasText: '안전하게 쓰기' }).click(); expect((await p.locator('#guide').innerText()).includes('차단하면 다시 추천되지 않아요'), '안전 안내');
+  await p.locator('#guide summary', { hasText: '안전하게 이용하기' }).click(); expect((await p.locator('#guide').innerText()).includes('차단하면 다시 추천되지 않아요'), '안전 안내');
   await p.screenshot({ path: 'uxshots/60-guide-320.png' }); return `9항목 · 바로 그 자리(top ${m.top})`;
 });
 for (const [n, w] of [[61, 320], [62, 430]]) await run(n, `SAFETY ${w}px: 신고 사유 줄 넘침 0 · 버튼 44px`, { width: w, height: 760 }, { candidates: [cand('c1')] }, async (p) => {
@@ -624,6 +625,58 @@ await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHON
   await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {});
   await p.goto(`${BASE}/login`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
   const n = await p.locator('button', { hasText: 'Google로 시작하기' }).locator('[data-google-g] svg path').count(); expect(n === 4, `G 조각 ${n}`); return '4색 G';
+});
+
+
+// 2026-10-04 대표 「이용 안내 통합」: 메뉴 → 이용 안내(그 자리에 열림) → 항목 → 닫기 / 폰 뒤로 / Esc → 적던 글·주소 그대로
+const GUIDE_DONE = { ...AGENT_SESSION, phase: 'done', current_question: null, progress: { asked: 5, of: 5 }, closing: '이야기 고마워요.', summary: [],
+  profile: Object.fromEntries([['relationship_intent', '천천히 알아가는 만남'], ['attraction_comfort', '이야기를 잘 들어 주는 사람'], ['values_character', '약속을 잘 지키는 편'], ['relationship_style', '전시 보고 천천히 걷기'], ['boundaries', '처음엔 낮에 만나기']].map(([k, v]) => [k, { status: 'CONFIRMED', items: [{ note: v, quote: v }] }]).concat([['mbti', { value: null, status: 'UNKNOWN' }], ['blood_type', { value: null, status: 'UNKNOWN' }], ['core_questions', 5], ['user_corrections', []]])) };
+await run(70, '이용 안내: 메뉴 → 그 자리에 열림 → 항목 펼침 → 폰 뒤로·닫기·Esc → 적던 글·주소 그대로', IPHONE, { agent: { session: AGENT_SESSION } }, async (p) => {
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
+  const box = p.locator('.echo-composer textarea, .echo-composer input').first();
+  await box.fill('주말마다 전시 보러 가요'); const url = p.url();
+  await p.locator('.echo-corner-button').click(); await p.locator('.echo-corner-item', { hasText: '이용 안내' }).click();
+  const dlg = p.getByRole('dialog', { name: '이용 안내' }); await dlg.waitFor({ timeout: 5000 });
+  expect(p.url() === url, `주소 바뀜 ${p.url()}`);
+  await dlg.locator('summary', { hasText: '추천과 서로의 선택' }).click();
+  expect((await dlg.innerText()).includes('추천을 받았다고 바로 연결되는 것은 아니에요.'), '항목 본문');
+  await p.screenshot({ path: 'uxshots/70a-guide-open.png' });
+  await p.goBack(); await p.waitForTimeout(400);
+  expect(await dlg.count() === 0, '뒤로 = 창만 닫기'); expect(p.url() === url, `뒤로가 화면을 떠남 ${p.url()}`);
+  expect((await box.inputValue()) === '주말마다 전시 보러 가요', `글 사라짐(뒤로) ${await box.inputValue()}`);
+  await p.locator('.echo-corner-button').click(); await p.locator('.echo-corner-item', { hasText: '이용 안내' }).click(); await dlg.waitFor();
+  await dlg.getByRole('button', { name: '닫고 이어서 하기' }).click(); await p.waitForTimeout(400);
+  expect(await dlg.count() === 0 && p.url() === url, '닫기'); expect((await box.inputValue()) === '주말마다 전시 보러 가요', '글 사라짐(닫기)');
+  await p.locator('.echo-corner-button').click(); await p.locator('.echo-corner-item', { hasText: '이용 안내' }).click(); await dlg.waitFor();
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  expect(await dlg.count() === 0 && p.url() === url, 'Esc'); expect((await box.inputValue()) === '주말마다 전시 보러 가요', '글 사라짐(Esc)');
+  await box.focus(); await p.keyboard.type(' 그리고 산책도요');
+  expect((await box.inputValue()) === '주말마다 전시 보러 가요 그리고 산책도요', '이어 쓰기');
+  return '그 자리 열림 · 뒤로/닫기/Esc 모두 창만 닫힘 · 글 그대로 · 이어 쓰기';
+});
+await run(71, '기능 옆 도움말: 확인 단계 처음 한 번 → 닫기 → 「이 기능이 궁금해요」 → 「확인하기」 항목이 펼쳐진 채 열림', IPHONE, { agent: { session: GUIDE_DONE } }, async (p) => {
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  const hint = p.locator('.echo-guide-hint'); await hint.waitFor({ timeout: 8000 });
+  expect((await hint.innerText()).includes('다르게 이해했다면 아래 버튼으로 바로 고칠 수 있어요.'), '도움말 한 줄');
+  await p.screenshot({ path: 'uxshots/71a-hint.png' });
+  await hint.getByRole('button', { name: '닫기' }).click();
+  expect(await p.locator('.echo-guide-hint').count() === 0, '닫으면 사라짐');
+  await p.getByRole('button', { name: '이 기능이 궁금해요' }).first().click();
+  const dlg = p.getByRole('dialog', { name: '이용 안내' }); await dlg.waitFor();
+  expect(await dlg.locator('#echo-guide-check[open]').count() === 1, '확인 항목이 펼쳐짐');
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  expect(await p.locator('.echo-guide-hint').count() === 0, '다시 열어도 도움말 다시 안 뜸(이 기기)');
+  return '처음 한 번 · 닫은 뒤 링크 · 해당 항목으로 열림';
+});
+for (const [n, w] of [[72, 320], [73, 430]]) await run(n, `이용 안내 ${w}px: 넘침 0 · 닫기 44px · 움직임 줄이기면 애니메이션 0`, { width: w, height: 640 }, {}, async (p) => {
+  await p.emulateMedia({ reducedMotion: 'reduce' });
+  await p.goto(`${BASE}/doit/settings`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+  await p.locator('.echo-corner-button').click(); await p.locator('.echo-corner-item', { hasText: '이용 안내' }).click();
+  const dlg = p.getByRole('dialog', { name: '이용 안내' }); await dlg.waitFor();
+  for (const sum of await dlg.locator('summary').all()) await sum.click();
+  const m = await p.evaluate(() => { const panel = document.querySelector('.echo-guide-panel'); const close = document.querySelector('.echo-guide-close').getBoundingClientRect(); return { over: panel.scrollWidth - panel.clientWidth, close: Math.round(close.height), anim: panel.getAnimations().length, sw: document.documentElement.scrollWidth - innerWidth }; });
+  expect(m.over <= 0 && m.sw <= 0 && m.close >= 44 && m.anim === 0, JSON.stringify(m));
+  await p.screenshot({ path: `uxshots/72-guide-${w}.png` }); return JSON.stringify(m);
 });
 
 const pass = results.filter(r => r.ok).length;

@@ -86,16 +86,24 @@ test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서�
   assert.doesNotMatch(tips, /술|집으로|숙소|밤늦게|차에 타|확인된 사람|안전한 상대|인증/);
 });
 
-test('ECHO 사용법: 메뉴에서 바로 · 실제 기능만(KEY·미션·72시간·보상·가격 0) · 항목마다 3~5문장', () => {
-  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide' \}/);
+test('이용 안내(옛 ECHO 사용법 · 2026-10-04 통합): 메뉴에서 그 자리에 열기 · 실제 기능만(미션·72시간·보상·가격 0) · KEY 는 「준비 중」만 · 항목마다 3~5문장', () => {
+  assert.match(MENU, /\{ label: '이용 안내', desc: '처음 쓰는 법 · 궁금한 기능', to: '\/doit\/settings#guide', guide: true \}/);
+  assert.match(MENU, /if \('guide' in item && item\.guide && !e\.metaKey && !e\.ctrlKey\) \{ e\.preventDefault\(\); openGuide\(\); \}/, '화면 이동 없이 안내 창');
   assert.match(SET, /hash === "#guide"/);
-  const guide = SET.slice(SET.indexOf('const GUIDE'), SET.indexOf('];', SET.indexOf('const GUIDE')));
-  assert.doesNotMatch(guide, /KEY|키 |미션|72|보상|리워드|\d[\d,]*\s*원|결제|함께 나가기|궁합|%/);
-  for (const m of guide.matchAll(/a: '([^']+)'/g)) {
-    const n = m[1].split(/(?<=[.요])\s+/).filter(Boolean).length;
-    assert.ok(n >= 3 && n <= 5, `${n}문장: ${m[1].slice(0, 20)}`);
+  assert.match(SET, /GUIDE_SECTIONS\.map\(item =>/, '설정 #guide 도 같은 내용 한 벌');
+  const content = read('src/lib/guide/content.ts');
+  const guide = content.slice(content.indexOf('export const GUIDE_SECTIONS'), content.indexOf('];', content.indexOf('export const GUIDE_SECTIONS')));
+  const sections = guide.split(/\n  \{\n/).slice(1);
+  assert.equal(sections.length, 9);
+  for (const sec of sections) {
+    const isKey = /id: 'key'/.test(sec);
+    assert.doesNotMatch(sec, isKey ? /미션|72|보상|리워드|\d[\d,]*\s*원|\d+\s*개|결제|함께 나가기|궁합|%/ : /KEY|키 |미션|72|보상|리워드|\d[\d,]*\s*원|결제|함께 나가기|궁합|%/, sec.slice(0, 40));
+    if (isKey) { assert.match(sec, /soon: true/); assert.match(sec, /준비 중/); }
+    const body = sec.match(/body: '([^']+)'/)[1];
+    const n = body.split(/(?<=[.요])\s+/).filter(Boolean).length;
+    assert.ok(n >= 3 && n <= 5, `${n}문장: ${body.slice(0, 20)}`);
   }
-  assert.ok(guide.includes('안전하게 쓰기'));
+  assert.ok(guide.includes("label: '안전하게 이용하기'"));
 });
 
 test('zzarit.ts 동작: 처음 true · 두 번째 false · 저장이 막혀도 한 번은 true', async () => {

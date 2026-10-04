@@ -1,3 +1,4 @@
+import GuideHint from '@/components/guide/GuideHint';
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
@@ -85,6 +86,8 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>
 
     {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
+    {/* 2026-10-04 이용 안내: 처음 한 번 짧은 도움말 → 그 뒤 「이 기능이 궁금해요」 (확인 단계에서만) */}
+    {view.kind === 'review' && !ok && <GuideHint id="check" />}
     {ok && view.kind === 'review' ? <>
       {list(ORDER)}
       <p className="echo-done-lead"><Check size={16} aria-hidden="true" /> 맞다고 확인했어요.</p>

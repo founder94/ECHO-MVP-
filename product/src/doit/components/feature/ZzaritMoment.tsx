@@ -1,3 +1,4 @@
+import GuideHint from '@/components/guide/GuideHint';
 import { useEffect, useRef } from 'react';
 import './zzarit.css';
 
@@ -41,5 +42,6 @@ export default function ZzaritMoment({ onStart, note }: { onStart: () => void; n
     <p className="doit-mutual-body echo-zzarit-body">{ZZARIT_COPY.body}</p>
     <button ref={startRef} type="button" className="doit-product-action echo-zzarit-cta" onClick={onStart}>{ZZARIT_COPY.next}</button>
     <p className="doit-connect-note echo-zzarit-note">{note ?? '먼저 ECHO가 두 분께 같은 질문 하나를 드려요. 둘 다 답하면 서로의 이름과 사진이 열려요.'}</p>
+    <GuideHint id="zzarit" linkLabel="‘찌릿!’이 뭐예요?" />
   </section>;
 }

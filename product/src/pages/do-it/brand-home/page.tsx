@@ -4,6 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
+import GuideHost from '@/components/guide/GuideHost';
+import { openGuide } from '@/lib/guide/bus';
 import './brand-home.css';
 
 // 2026-10-04 대표 「홈페이지·모바일 디자인 교체」(홈페이지 검수안 4화면): 회사 홈페이지(do-it.company) 전용.
@@ -60,11 +62,18 @@ const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
   qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
 };
 
+const openInstallGuide = (event: MouseEvent<HTMLAnchorElement>) => {
+  if (event.metaKey || event.ctrlKey) return; // 새 탭이면 앱 설치 화면 그대로
+  event.preventDefault();
+  openGuide('install');
+};
+
 function StartActions({ id }: { id?: string }) {
   return (
     <div className="bh-actions" id={id}>
       <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
-      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
+      {/* 2026-10-04 이용 안내 통합: 「앱 설치 안내」 = 이용 안내의 설치 항목(이 자리에서 열림). 새 탭·주소로는 앱 설치 화면 그대로. */}
+      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)} onClick={openInstallGuide}>{BRAND_HOME_COPY.install}</a>
     </div>
   );
 }
@@ -97,6 +106,7 @@ export default function BrandHomePage() {
             <a href="#bh-echo" onClick={close}>ECHO</a>
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
+            <button type="button" onClick={() => { close(); openGuide(); }}>이용 안내</button>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
               : <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>}
@@ -189,9 +199,11 @@ export default function BrandHomePage() {
 
       <footer className="bh-legal">
         <details><summary>DO IT COMPANY · 사업자 정보</summary><p>두잇(DO IT) · 대표 박진욱</p><p>사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호</p><p>경기도 남양주시 강변북로632번길 41-7, 102동 101호(수석동)</p></details>
-        <p><a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
+        <p><button type="button" className="bh-legal-link" onClick={() => openGuide()}>이용 안내</button> · <a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
         <p>© 2026 DO IT COMPANY</p>
       </footer>
+      {/* 이용 안내 창(검정·흰색·은색). 설치는 앱 주소에서만 — 이 회사 홈페이지를 설치하게 하지 않는다. */}
+      <GuideHost theme="brand" extra={{ install: <p className="bh-guide-install">설치는 앱 주소({APP_ORIGIN.replace('https://', '')})에서 해요. 이 회사 홈페이지는 설치하지 않아도 돼요. <a href={appUrl(INSTALL_PATH)}>앱 주소에서 설치하기<span aria-hidden="true">↗</span></a></p> }} />
     </main>
   );
 }

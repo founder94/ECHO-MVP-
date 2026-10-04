@@ -1,3 +1,4 @@
+import GuideHint from '@/components/guide/GuideHint';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, Mic, RotateCcw, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -189,6 +190,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const mark = () => window.history.pushState({ ...(window.history.state ?? {}), echoBackGuard: true }, '');
     if (!(window.history.state as { echoBackGuard?: boolean } | null)?.echoBackGuard) mark();
     const onPop = () => {
+      // 아직 이 화면의 기록 칸 위라면, 그 위에 쌓인 것(이용 안내 창 등)이 닫힌 뒤로다 — 직전 답 고치기가 아니다(적던 글 그대로 · 2026-10-04).
+      if ((window.history.state as { echoBackGuard?: boolean } | null)?.echoBackGuard) return;
       mark();
       if (editingRef.current) { setEditingPrevious(false); setDraft(''); return; }
       setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null); setPick(null);
@@ -274,6 +277,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         그 위 고정 제목 「잘 들었어요. 다음 질문이에요.」가 대신 서 있었다. → 받아주기 말이 있으면 그 말이 제목 자리에 선다(문장은 서버가 준 그대로 · 화면이 만들지 않는다). */}
     {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : ack ? <h1 className="echo-ack-heading">{ack}</h1> : <h1>{myAnswers.length ? <>잘 들었어요.<br />다음 질문이에요.</> : '첫 질문이에요.'}</h1>}
     {!done && <p className="echo-lead">{voiceUi ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
+    {/* 2026-10-04 이용 안내: 첫 질문에서만 짧은 도움말(입력칸을 가리지 않는 제자리 한 줄) */}
+    {!done && myAnswers.length === 0 && <GuideHint id="talk" />}
     {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
     {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 고친 답 기준으로 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
     {editingPrevious && !done && previousQuestion && <div className="echo-question-card"><p className="echo-question">{previousQuestion}</p>
