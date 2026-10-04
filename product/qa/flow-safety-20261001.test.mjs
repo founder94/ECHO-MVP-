@@ -42,7 +42,7 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
 });
 
 test('찌릿 연출(2026-10-04 대표): 문구 3개 · 두 익명 노드 사이 청록·흰색 전류 0.6~0.9초 한 번 · 반복·번쩍임 0 · 하트·폭죽·네온 0 · 움직임 줄이기 = 정적 연결선 · 상대 정보 0', () => {
-  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '서로 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
+  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '두 분 모두 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
   assert.doesNotMatch(ZCSS, /infinite/, '반복 0');
   const cur = ZCSS.match(/\.echo-zzarit-current\{[^}]*animation:echo-zz-current ([.\d]+)s [^ ]+ ([.\d]+)s both\}/);
