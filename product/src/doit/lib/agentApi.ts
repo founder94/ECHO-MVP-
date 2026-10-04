@@ -1,4 +1,4 @@
-import { prepareUnderstandingRequest, serverFunctionRequest } from '@/doit/lib/understandingApi';
+import { prepareUnderstandingRequest, serverFunctionRequest, UnderstandingError } from '@/doit/lib/understandingApi';
 import type { ContentSeed } from './contentSeed';
 
 // ECHO Conversation Agent(서버 doit-agent). 이 파일은 질문·진행·저장을 만들지 않는다 — 서버가 준 모습을 그대로 쓴다.
@@ -34,6 +34,42 @@ export interface AgentSession {
   profile: AgentProfile | null; handoff: { status: string } | null;
   intro?: AgentIntro | null; // 서버 v1.6 · 대화가 끝났을 때만
   goal?: string | null; goal_label?: string | null; // 서버 v2.4 · 이 세션의 관계 목적(예전 세션은 null)
+  run?: AgentRun | null; // 2026-10-03 서버 실행 기록(코드·수치만) — 다음 할 일(next)은 서버가 정한다. 화면은 그대로 보여 줄 뿐 바꾸지 않는다.
+}
+// 서버 실행 기록 모습(doit-agent run.ts runView). 화면이 계획·완료를 스스로 정하지 않는다 — next 를 그대로 따른다.
+export type AgentRunOutcome = 'needs_user' | 'in_progress' | 'done' | 'on_hold' | 'stopped';
+export type AgentRunNext = 'answer' | 'complete_profile' | 'tell_more' | 'open_candidates' | 'run' | 'retry_later' | 'wait' | 'resume_if_wanted';
+export interface AgentRun {
+  version: string; goal: string; plan_rev: number; outcome: AgentRunOutcome; waiting: string | null; next: AgentRunNext; missing: string[];
+  steps: { id: string; status: string; why: string | null }[];
+  candidates: { outcome: 'found' | 'none' | 'not_ready' | 'failed' | 'skipped'; count: number | null; at: string; fresh: boolean } | null;
+}
+export interface AgentRunTool { tool: 'readiness' | 'candidates'; outcome: 'found' | 'none' | 'not_ready' | 'failed' | 'skipped'; count: number | null; code: string | null }
+const RUN_OUTCOMES = new Set<string>(['needs_user', 'in_progress', 'done', 'on_hold', 'stopped']);
+const RUN_NEXT = new Set<string>(['answer', 'complete_profile', 'tell_more', 'open_candidates', 'run', 'retry_later', 'wait', 'resume_if_wanted']);
+// 서버 run.ts 의 WaitReason · StepStatus 와 같은 목록(모르는 값 = 실행 기록 버림)
+const RUN_WAITING = new Set<string>(['answer_question', 'more_info', 'profile_incomplete', 'no_candidates_yet', 'lookup_failed', 'user_stopped', 'budget', 'tool_cooldown']);
+const RUN_STEP_STATUS = new Set<string>(['todo', 'done', 'skipped', 'invalid', 'waiting', 'blocked']);
+// 모양이 틀린 실행 기록은 쓰지 않는다(null 로 취급 · 화면이 임의로 채우지 않음)
+export function validRun(r: unknown): r is AgentRun {
+  const x = r as AgentRun | null;
+  return !!x && typeof x.version === 'string' && typeof x.goal === 'string' && Number.isInteger(x.plan_rev) && RUN_OUTCOMES.has(x.outcome)
+    && (x.waiting === null || RUN_WAITING.has(x.waiting)) && RUN_NEXT.has(x.next)
+    && Array.isArray(x.missing) && x.missing.every((m) => typeof m === 'string')
+    && Array.isArray(x.steps) && x.steps.every((st) => !!st && typeof st.id === 'string' && RUN_STEP_STATUS.has(st.status) && (st.why === null || typeof st.why === 'string'))
+    && (x.candidates === null || validRunCandidates(x.candidates));
+}
+// 후보 조회 요약: 결과 종류(서버 목록) · 개수(정수 또는 null) · 시각(글자) · 지금 기준과 일치(참/거짓)만 — 그 밖의 모양은 받지 않는다
+const RUN_TOOL_OUTCOMES = new Set<string>(['found', 'none', 'not_ready', 'failed', 'skipped']);
+function validRunCandidates(c: unknown): boolean {
+  const x = c as AgentRun['candidates'];
+  return !!x && RUN_TOOL_OUTCOMES.has(x.outcome) && (x.count === null || (Number.isInteger(x.count) && x.count >= 0)) && typeof x.at === 'string' && typeof x.fresh === 'boolean';
+}
+// 이번 실행 도구 결과: 도구 이름 · 결과 종류 · 개수 · 코드(글자 또는 null)만 — 모양이 틀리면 없는 것(null)으로 본다
+function validRunTool(t: unknown): t is AgentRunTool {
+  const x = t as AgentRunTool | null;
+  return !!x && (x.tool === 'readiness' || x.tool === 'candidates') && RUN_TOOL_OUTCOMES.has(x.outcome)
+    && (x.count === null || (Number.isInteger(x.count) && x.count >= 0)) && (x.code === null || typeof x.code === 'string');
 }
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
@@ -47,8 +83,10 @@ export const AGENT_PURPOSE_LABELS: Record<string, string> = {
 
 function validSession(s: unknown): s is AgentSession {
   const x = s as AgentSession | null;
-  return !!x && typeof x.id === 'string' && (x.phase === 'talk' || x.phase === 'done') && !!x.progress && Number.isInteger(x.progress.asked)
+  const ok = !!x && typeof x.id === 'string' && (x.phase === 'talk' || x.phase === 'done') && !!x.progress && Number.isInteger(x.progress.asked)
     && Array.isArray(x.messages) && x.messages.every(m => (m.role === 'ai' || m.role === 'user') && typeof m.text === 'string');
+  if (ok && x!.run != null && !validRun(x!.run)) x!.run = null; // 실행 기록만 틀리면 대화는 그대로 쓰고 실행 기록은 버린다
+  return ok;
 }
 
 // v2.4 세션 격리(2026-09-28 대표 「SESSION SAFETY」): 이 기기가 이어 가는 대화 세션 id 를 기기(브라우저)에만 기억한다.
@@ -71,11 +109,17 @@ export async function agentGet(userId: string): Promise<AgentSession | null> {
   return r.session;
 }
 
-async function write<T>(userId: string, body: Record<string, unknown>): Promise<T> {
+// releaseOn = 서버가 「이 요청 id 로는 다시 하지 않음」이라고 답한 오류 코드 → 요청 id 를 내려놓아 다음 누름은 새 요청이 된다(자동 재시도 0)
+async function write<T>(userId: string, body: Record<string, unknown>, releaseOn: readonly string[] = []): Promise<T> {
   const request = await prepareUnderstandingRequest(userId, body);
-  const result = await serverFunctionRequest<T>('doit-agent', request.body, userId);
-  request.complete();
-  return result;
+  try {
+    const result = await serverFunctionRequest<T>('doit-agent', request.body, userId);
+    request.complete();
+    return result;
+  } catch (e) {
+    if (e instanceof UnderstandingError && releaseOn.includes(e.code)) request.complete();
+    throw e;
+  }
 }
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
@@ -113,4 +157,46 @@ export async function agentIntroMark(userId: string, sessionId: string, how: 'as
   const r = await write<{ session: AgentSession }>(userId, { action: 'agent_intro_mark', sessionId, how });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r.session;
+}
+
+// 2026-10-03 실행 단계(agent_run · 모델 호출 0): 서버가 정한 도구 하나만 실행하고 결과·다음 할 일을 돌려준다.
+// resume = 사용자가 직접 누른 「다시 이어서」일 때만 true(화면이 스스로 재개하지 않음). 같은 요청 id 재전송 = 서버가 저장된 결과를 돌려준다(duplicate).
+export async function agentRun(userId: string, sessionId: string, opts: { resume?: boolean } = {}): Promise<{ session: AgentSession; run: AgentRun; tool: AgentRunTool | null; duplicate: boolean }> {
+  // RUN_UNCERTAIN = 지난 실행이 도구를 부른 뒤 결과 저장 전에 끊김 · STATE_CHANGED = 도구가 도는 사이 대화가 바뀌어 결과를 버림
+  //   — 둘 다 서버는 같은 요청 id 로 도구를 다시 부르지 않음 → 요청 id 를 내려놓아 다음 누름은 새 요청(지금 상태로 새로 실행)
+  const r = await write<{ session: AgentSession; run: AgentRun; tool?: AgentRunTool | null; duplicate?: boolean }>(userId, { action: 'agent_run', sessionId, ...(opts.resume === true ? { resume: true } : {}) }, ['RUN_UNCERTAIN', 'STATE_CHANGED']);
+  if (!validSession(r.session) || !validRun(r.run)) throw new Error('INVALID_RESPONSE');
+  return { session: r.session, run: r.run, tool: validRunTool(r.tool) ? r.tool : null, duplicate: r.duplicate === true };
+}
+
+// 2026-10-03 연결 화면의 실행 단계 버튼(Codex 명세 20261003-1 항목 B). 사용자가 누른 그 한 번만 실행한다:
+//   · 진행 중이면 다시 누른 것은 무시(네트워크 1번) · 세션은 읽기만(agent_get · 없으면 새로 만들지 않음) · 재개(resume)는 보내지 않음
+//   · 성공한 응답만 결과로 넘김(실패 = 마지막 성공 상태 유지 · 자동 재시도·재개·후보 선택 0) · next 는 서버 값 그대로
+// 버튼으로 다시 실행해도 나아가지 않는 끝 상태: 예산 소진(budget) · 사용자가 멈춤(user_stopped · resume_if_wanted).
+// 멈춤에서 다시 시작하는 화면·문구는 아직 승인 전 → 실행 호출 0(요청 기록만 쌓이는 것 방지 · 리뷰 4174523875).
+export const runEnded = (run: Pick<AgentRun, 'waiting' | 'next'>): boolean => run.waiting === 'budget' || run.waiting === 'user_stopped' || run.next === 'resume_if_wanted';
+export function createAgentRunTrigger(deps: {
+  getSession: () => Promise<AgentSession | null>;
+  run: (sessionId: string) => Promise<{ run: AgentRun; tool: AgentRunTool | null }>;
+  onResult: (run: AgentRun, tool: AgentRunTool | null) => void;
+  onError: (e: unknown) => void;
+  onBusy?: (busy: boolean) => void;
+}): () => Promise<void> {
+  let inFlight = false;
+  return async () => {
+    if (inFlight) return;
+    inFlight = true; deps.onBusy?.(true);
+    try {
+      const session = await deps.getSession();
+      if (!session) { deps.onError(new Error('NO_SESSION')); return; }
+      // 저장된 실행 기록이 이미 예산을 다 쓴 끝 상태면 다시 실행하지 않고 그 상태를 그대로 보여 준다(새로고침·다시 열기 뒤에도 · 실행 기록 추가 0)
+      if (session.run && runEnded(session.run)) { deps.onResult(session.run, null); return; }
+      const out = await deps.run(session.id);
+      deps.onResult(out.run, out.tool);
+    } catch (e) {
+      deps.onError(e);
+    } finally {
+      inFlight = false; deps.onBusy?.(false);
+    }
+  };
 }
