@@ -43,6 +43,7 @@
 .echo-chat .echo-chat-tools .echo-text-button{justify-self:start;min-height:44px}
 .echo-chat .echo-chat-tools .echo-fine{margin:0}
 .echo-chat .echo-chat-tools .echo-history{padding:0}
+.echo-chat .echo-chat-tools .echo-history li:not(:has(button)){padding:10px 0;color:#c3c8d0;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
 
 /* 아래 입력줄 */
 .echo-chat .echo-composer.echo-chat-bar{position:sticky;bottom:0;z-index:5;display:flex;align-items:flex-end;flex-wrap:wrap;gap:8px;margin:0 -4px;padding:8px 8px calc(10px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:rgb(8 70 78/.46);border:1px solid rgb(255 255 255/.55);border-bottom:0;-webkit-backdrop-filter:blur(22px) saturate(1.1);backdrop-filter:blur(22px) saturate(1.1)}

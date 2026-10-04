@@ -68,6 +68,8 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   const chatRef = src('src/doit/components/feature/chat-ref.css').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const sel of chatRef.match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@') && !/^(\d+%|from|to)/.test(x))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-(dialogue\.echo-)?chat( |$)/, `대화 화면 밖 규칙: ${part}`);
   assert.ok(!/body|:root|html/.test(chatRef), '전역 규칙 0');
+  // 끝난 뒤에는 입력칸이 없다 → 「이번에 한 말」은 읽기만(입력칸에 넣는 버튼은 진행 중에만 · Codex 4179170288).
+  assert.match(ui, /<li key=\{k\}>\{done \? text : <button type="button"[^>]*onClick=\{\(\) => \{ setDraft\(text\);/);
   // 새 CSS 는 선택창 하나(.echo-choice-*)뿐이고, 대화 화면 루트 아래로만 적용된다.
   const choice = src('src/doit/components/feature/agent-choice.css');
   for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-choice-layer( |$)/, `선택창 밖 규칙: ${part}`);

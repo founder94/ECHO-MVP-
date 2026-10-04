@@ -366,7 +366,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {((toolsOpen && !done) || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
       {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
       {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
-      {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button></li>)}</ol></details>}
+      {/* 끝난 뒤에는 입력칸이 없으니 지난 말은 읽기만(누르면 입력칸에 넣는 버튼은 진행 중에만 · Codex 4179170288). */}
+      {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}>{done ? text : <button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button>}</li>)}</ol></details>}
       <button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>
       <Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>
       {restartPill()}
