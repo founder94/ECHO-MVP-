@@ -36,7 +36,7 @@ jobs:
     if: (github.actor == 'github-actions[bot]' || github.actor == 'founder94') && github.actor == github.triggering_actor
     steps:
       - uses: actions/checkout@v4
-        with: { ref: 27d7e156828b3259c691824061f159be265a12be, fetch-depth: 0 }   # PIN: automation modules = reviewed SHA (not main); changing it requires re-review. The PR-branch checkout below stays dynamic.
+        with: { ref: a3567a3e32aa820697ad90ea79fab21249a3d9e1, fetch-depth: 0 }   # PIN: automation modules = reviewed SHA (not main); changing it requires re-review. The PR-branch checkout below stays dynamic.
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: verify dispatch against remote state (before any model step)
@@ -151,4 +151,4 @@ jobs:
 #    enters REVIEW (mock-tested; real GitHub behaviour unproven). Whether Codex reacts to an `@codex review` written with GITHUB_TOKEN is also unproven.
 #  - Automatic trusted PASS: no supported source. Native Codex app "no findings" stays BLOCKED, never PASS; PASS only via explicit echo-review marker.
 #  - Crash after claim but before DONE leaves DISPATCHING (drain stops, human needed). Receiver claim stops duplicate worker runs for one key, not exactly-once.
-# Cost: one claude-code-action run per START/FIX dispatch (45 min cap, 60 turns), at most 5 handoffs per PR. Recovery: disable this workflow (or revert the added file); keep branch echo-automation-state as the preserved record (no deletion). Source pin: see queue-adapter proposal (27d7e15...).
+# Cost: one claude-code-action run per START/FIX dispatch (45 min cap, 60 turns), at most 5 handoffs per PR. Recovery: disable this workflow (or revert the added file); keep branch echo-automation-state as the preserved record (no deletion). Source pin: see queue-adapter proposal (a3567a3...).

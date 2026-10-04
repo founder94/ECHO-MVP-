@@ -118,6 +118,23 @@ test('claude-task-budget patch applies after the routing patch; both gates read 
   assert.match(out, /REVIEW_SHA="\$\{EVENT_REVIEW_SHA:-\$HEAD_SHA\}"/);
 });
 
+test('proposed source pin: every module the gates import exists at the pinned SHA, identical to the reviewed tree', () => {
+  const pins = new Set();
+  for (const f of fs.readdirSync(path.join(__dirname, 'proposed'))) for (const m of fs.readFileSync(path.join(__dirname, 'proposed', f), 'utf8').matchAll(/\b[a-f0-9]{40}\b/g)) pins.add(m[0]);
+  assert.ok(pins.size >= 1);
+  const roots = ['queue-budget-cli.cjs', 'queue-managed.cjs', 'queue-adapter-cli.cjs', 'queue-store-git.cjs'];
+  const need = new Set(); const walk = f => { if (need.has(f)) return; need.add(f); for (const m of fs.readFileSync(path.join(__dirname, f), 'utf8').matchAll(/require\('\.\/([\w.-]+\.cjs)'\)/g)) walk(m[1]); };
+  roots.forEach(walk);
+  for (const pin of pins) {
+    if (!/^[a-f0-9]{40}$/.test(pin)) continue;
+    try { execFileSync('git', ['cat-file', '-e', `${pin}^{commit}`], { cwd: __dirname, stdio: 'ignore' }); } catch { continue; } // non-commit 40-hex strings (none expected)
+    for (const f of need) {
+      const atPin = execFileSync('git', ['show', `${pin}:tools/automation/${f}`], { cwd: __dirname }).toString();
+      assert.equal(atPin, fs.readFileSync(path.join(__dirname, f), 'utf8'), `${f} differs from pin ${pin.slice(0, 7)}`);
+    }
+  }
+});
+
 // Codex independent FAIL 8e89998: malformed stored rounds, CLI binding.
 const T0 = { taskId: 'T1', sourcePR: 103, baseSha: 'a'.repeat(40), owner: { login: 'founder94', type: 'User' }, approval: { login: 'founder94', type: 'User' }, branch: 'claude/task-1', acceptance: 'test', registeredAt: '2026-10-04T10:00:00Z', state: 'RUNNING' };
 test('malformed stored task.rounds is rejected; undefined/0 allowed', () => {

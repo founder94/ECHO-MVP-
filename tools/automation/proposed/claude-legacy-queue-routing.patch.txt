@@ -8,7 +8,7 @@ diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
 +      - name: Checkout pinned automation modules for queue ownership routing
 +        uses: actions/checkout@v6
 +        with:
-+          ref: 27d7e156828b3259c691824061f159be265a12be
++          ref: a3567a3e32aa820697ad90ea79fab21249a3d9e1
 +          fetch-depth: 1
 +      - name: Queue ownership routing (queue-managed PRs are handled only by queue-worker-receiver)
 +        id: route
