@@ -365,14 +365,14 @@ await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·
   expect(await p.locator('.echo-zzarit').count() === 0, '새로고침에 다시 뜸'); expect((await text(p)).includes('ECHO가 하나만 물어볼게요.'), '연결로 이어지지 않음');
   return '1회 · 새로고침 0';
 });
-await run(51, 'ZZARIT 연출 ≈1.2초 뒤 정지 · 밝기 4% · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+await run(51, 'ZZARIT 전류 0.6~0.9초 한 번 → 정지 · 연결선 은은하게 남음(.45) · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await go(p); await p.waitForTimeout(100);
   const during = await p.evaluate(() => document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length);
   await p.waitForTimeout(1400);
-  const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, lift: getComputedStyle(document.querySelector('.echo-zzarit-lift')).opacity, focus: document.activeElement?.textContent }));
-  expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(Number(after.lift) >= .03 && Number(after.lift) <= .05, `밝기 ${after.lift}`);
+  const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, line: getComputedStyle(document.querySelector('.echo-zzarit-current')).opacity, ms: document.querySelector('.echo-zzarit-current').getAnimations()[0]?.effect?.getTiming().duration ?? null, focus: document.activeElement?.textContent }));
+  expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(after.ms >= 600 && after.ms <= 900, `전류 길이 ${after.ms}ms`); expect(Math.abs(Number(after.line) - .45) < .02, `연결선 ${after.line}`);
   expect(/다음 단계 보기/.test(after.focus ?? ''), '버튼 포커스');
-  await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `실행 중 ${during} → 1.5초 뒤 0 · 막 ${after.lift}`;
+  await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `실행 중 ${during} → 1.5초 뒤 0 · 연결선 ${after.line}`;
 });
 await run(52, 'ZZARIT 움직임 줄이기: 처음부터 정지 화면 · 진동 0', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await p.emulateMedia({ reducedMotion: 'reduce' }); await p.addInitScript(() => { window.__vib = 0; navigator.vibrate = () => { window.__vib++; return true; }; });
