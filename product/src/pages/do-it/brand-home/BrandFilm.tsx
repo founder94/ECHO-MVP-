@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GUIDE_OPEN_EVENT } from '@/lib/guide/bus';
 
 // DO IT 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」). ECHO 소개 다음 · 회사 소개 앞.
@@ -26,16 +26,32 @@ export default function BrandFilm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const film = portrait ? FILM.portrait : FILM.landscape;
 
-  // 휴대폰을 돌리면 세로/가로 영상을 다시 고른다. 재생 중에는 끊지 않고, 멈춤·실패 화면에서만 바꾼다.
+  // 휴대폰을 돌리면 세로/가로 영상을 다시 고른다.
+  // - 재생 중(또는 전체화면)이면 끊지 않고 기억만 해 두었다가, 멈추거나 끝나면 바꾼다.
+  // - 영상이 떠 있을 때 바꾸면 대표 이미지 + 「영상 보기」로 돌아간다(돌린 뒤 저절로 재생 0).
+  const portraitRef = useRef(portrait);
+  const pendingRef = useRef<boolean | null>(null);
+  const applyOrient = useCallback((next: boolean) => {
+    pendingRef.current = null;
+    if (next === portraitRef.current) return;
+    portraitRef.current = next;
+    setPortrait(next);
+    if (videoRef.current) setState('idle');
+  }, []);
+  const isActive = (v: HTMLVideoElement | null) => !!v && ((!v.paused && !v.ended) || document.fullscreenElement === v);
+
   useEffect(() => {
-    if (state === 'playing' || typeof window.matchMedia !== 'function') return;
+    if (typeof window.matchMedia !== 'function') return;
     let mq: MediaQueryList;
     try { mq = window.matchMedia(PORTRAIT_QUERY); } catch { return; }
-    setPortrait(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setPortrait(e.matches);
+    const onChange = (e: MediaQueryListEvent) => {
+      if (isActive(videoRef.current)) { pendingRef.current = e.matches; return; }
+      applyOrient(e.matches);
+    };
+    applyOrient(mq.matches);
     mq.addEventListener?.('change', onChange);
     return () => mq.removeEventListener?.('change', onChange);
-  }, [state]);
+  }, [applyOrient]);
 
   // 누른 뒤에만 재생(사용자 동작) · 화면 밖이면 멈춤
   useEffect(() => {
@@ -48,14 +64,22 @@ export default function BrandFilm() {
     // 이용 안내 창을 열면 영상도 멈춘다(읽는 동안 뒤 화면 움직임 0 — CSS 애니메이션 정지로는 <video> 가 멈추지 않는다).
     const onGuide = () => { if (!v.paused) v.pause(); };
     window.addEventListener(GUIDE_OPEN_EVENT, onGuide);
+    // 재생 중에 돌려 두었던 방향은 멈추거나 끝나거나 전체화면을 나올 때 반영한다.
+    const onStop = () => { if (pendingRef.current !== null && !isActive(v)) applyOrient(pendingRef.current); };
+    v.addEventListener('pause', onStop);
+    v.addEventListener('ended', onStop);
+    document.addEventListener('fullscreenchange', onStop);
     v.play()?.catch(() => { /* 브라우저가 막으면 조작 막대의 재생 버튼으로 이어서 */ });
     const box = boxRef.current;
     const io = box && typeof IntersectionObserver !== 'undefined'
       ? new IntersectionObserver(([e]) => { if (e && e.intersectionRatio < 0.25 && !v.paused) v.pause(); }, { threshold: [0, 0.25, 0.5] })
       : null;
     if (box) io?.observe(box);
-    return () => { v.removeEventListener('error', fail); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
-  }, [state, attempt]);
+    return () => {
+      v.removeEventListener('error', fail); v.removeEventListener('pause', onStop); v.removeEventListener('ended', onStop);
+      document.removeEventListener('fullscreenchange', onStop); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect();
+    };
+  }, [state, attempt, applyOrient]);
 
   return <div ref={boxRef} className="bh-film" data-state={state} data-orient={portrait ? 'portrait' : 'landscape'}>
     {state === 'playing'

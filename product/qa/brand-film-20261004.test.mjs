@@ -49,10 +49,13 @@ test('파일: 가로·세로 mp4/webm · 대표 이미지 · 자막 6개 · 합�
   assert.match(FILM, /서비스 이용 예시 · 합성 화면/);
 });
 
-test('휴대폰을 돌리면(멈춤·실패 화면에서) 세로/가로 영상을 다시 고름 · 재생 중에는 끊지 않음', () => {
-  assert.match(FILM, /if \(state === 'playing' \|\| typeof window\.matchMedia !== 'function'\) return;/);
+test('휴대폰을 돌리면 세로/가로 영상을 다시 고름 · 재생 중·전체화면이면 기억했다가 멈추거나 끝날 때 반영', () => {
+  assert.match(FILM, /if \(isActive\(videoRef\.current\)\) \{ pendingRef\.current = e\.matches; return; \}/);
+  assert.match(FILM, /const isActive = \(v: HTMLVideoElement \| null\) => !!v && \(\(!v\.paused && !v\.ended\) \|\| document\.fullscreenElement === v\);/);
+  assert.match(FILM, /v\.addEventListener\('pause', onStop\);\n\s*v\.addEventListener\('ended', onStop\);/);
+  assert.match(FILM, /if \(videoRef\.current\) setState\('idle'\);/, '바꾸면 대표 이미지로 — 저절로 재생 0');
   assert.match(FILM, /mq\.addEventListener\?\.\('change', onChange\)/);
-  assert.match(FILM, /return \(\) => mq\.removeEventListener\?\.\('change', onChange\);/);
+  assert.doesNotMatch(FILM, /if \(state === 'playing' \|\| typeof window\.matchMedia/, '재생 뒤에도 구독 유지');
 });
 
 test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내를 닫으면 초점은 메뉴 버튼으로', () => {
