@@ -62,3 +62,11 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.match(cand, /if \(typeof out\.match_id === 'string'\) \{ if \(claimZzarit\(out\.match_id\)\) setMutual/);
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
+
+test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 같은 처리(컴퓨터 = QR 구간 · 휴대폰 = 앱) · Codex PR #123', () => {
+  const starts = HOME.match(/<a [^>]*href=\{appUrl\(START_PATH\)\}[^>]*>\{BRAND_HOME_COPY\.start\}/g) ?? [];
+  assert.ok(starts.length >= 2, `시작 링크 ${starts.length}`);
+  for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
+  assert.match(HOME, /id="bh-start-qr"/, 'QR 구간');
+  assert.match(HOME, /<a className="bh-btn bh-btn--text" href=\{appUrl\(START_PATH\)\}>이 컴퓨터에서 열기<\/a>/, '「이 컴퓨터에서 열기」는 앱으로 바로(빠져나갈 길)');
+});

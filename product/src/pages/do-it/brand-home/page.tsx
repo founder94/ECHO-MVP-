@@ -50,15 +50,17 @@ function useDepthReveal() {
   return rootRef;
 }
 
+// 「모바일 시작하기」 전부(첫 화면 포함): 컴퓨터에서는 앱으로 바로 넘기지 않고 QR 구간으로(휴대폰으로 시작) — 기존 홈페이지와 같은 규칙.
+// 「이 컴퓨터에서 열기」는 QR 구간 안에 그대로 남는다.
+const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
+  if (!matches(DESKTOP_QUERY)) return;
+  const qr = document.getElementById('bh-start-qr');
+  if (!qr) return;
+  event.preventDefault();
+  qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
+};
+
 function StartActions({ id }: { id?: string }) {
-  const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
-    // 컴퓨터에서는 앱으로 바로 넘기지 않고 QR 구간으로(휴대폰으로 시작) — 기존 홈페이지와 같은 규칙.
-    if (!matches(DESKTOP_QUERY)) return;
-    const qr = document.getElementById('bh-start-qr');
-    if (!qr) return;
-    event.preventDefault();
-    qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
-  };
   return (
     <div className="bh-actions" id={id}>
       <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
@@ -116,7 +118,7 @@ export default function BrandHomePage() {
           <span className="bh-rule" aria-hidden="true" />
           <div className="bh-actions">
             <a className="bh-btn bh-btn--outline" href="#bh-echo">{BRAND_HOME_COPY.learn}<span aria-hidden="true">→</span></a>
-            <a className="bh-btn bh-btn--text" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}</a>
+            <a className="bh-btn bh-btn--text" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}</a>
           </div>
         </div>
       </section>
