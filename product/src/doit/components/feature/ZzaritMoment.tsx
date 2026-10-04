@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { openGuide } from '@/lib/guide/guideContent';
 import './zzarit.css';
 
 // 찌릿(2026-10-04 대표 「홈페이지·모바일 디자인 교체」 · 최신 KEY·찌릿 지시). 서버가 mutual + match_id 를 준 뒤에만 부모가 이 화면을 연다
@@ -41,5 +42,7 @@ export default function ZzaritMoment({ onStart, note }: { onStart: () => void; n
     <p className="doit-mutual-body echo-zzarit-body">{ZZARIT_COPY.body}</p>
     <button ref={startRef} type="button" className="doit-product-action echo-zzarit-cta" onClick={onStart}>{ZZARIT_COPY.next}</button>
     <p className="doit-connect-note echo-zzarit-note">{note ?? '먼저 ECHO가 두 분께 같은 질문 하나를 드려요. 둘 다 답하면 서로의 이름과 사진이 열려요.'}</p>
+    {/* 정적 도움말 입구: 눌러야만 열리고, 연출·서버 상태를 만들지 않는다. */}
+    <button type="button" className="doit-connect-link" onClick={() => openGuide('zzarit', 'short')}>‘찌릿’이 궁금해요</button>
   </section>;
 }

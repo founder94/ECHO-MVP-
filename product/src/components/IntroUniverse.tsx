@@ -133,6 +133,8 @@ export default function IntroUniverse({ progress, leaving, symbolSrc = SYMBOL_DI
     let travel = 0; // 별 워프 누적 이동량
     const frame = (now: number) => {
       if (!alive) return;
+      // 이용 안내가 열려 있는 동안 그림만 멈춘다(진행률·시간 흐름은 그대로 — 닫으면 이어서 그린다). 동작 줄이기와는 별개.
+      if (document.documentElement.hasAttribute('data-guide-open')) { last = now; raf = requestAnimationFrame(frame); return; }
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const p = clamp01((progressRef.current - 1) / 99);

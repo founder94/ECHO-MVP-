@@ -13,7 +13,7 @@ export interface GuideSection {
   points?: readonly string[];
   note?: string;
   /** 설치·KEY 처럼 상태에 따라 달라지는 항목 */
-  kind?: 'install' | 'key';
+  kind?: 'install' | 'key' | 'start';
 }
 
 export const GUIDE_TITLE = '이용 안내';
@@ -30,7 +30,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       '추천을 살펴보고 직접 선택해요',
       '서로 선택하면 화면 안내에 따라 다음 단계로 가요',
     ],
-    note: '추천과 연결은 준비가 끝난 뒤에 열려요. 지금은 대화와 프로필 준비까지 쓸 수 있어요.',
+    kind: 'start',
   },
   {
     id: 'talk', title: '잘 정리해서 말하지 않아도 괜찮아요.',
@@ -79,17 +79,20 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   },
 ];
 
+// 시작 항목 끝 문장: 실제 출시 범위(연결 화면이 열려 있는지)에서 읽는다. 열려 있어도 내 준비 상태(전화 인증·사진·소개 등)는 연결 화면이 보여 준다.
+export const START_NOTE_READY = '추천과 연결은 내 준비가 끝나면 열려요. 내 준비 상태는 연결 화면에서 확인할 수 있어요.';
+export const START_NOTE_PENDING = '추천과 연결은 아직 준비 중이에요. 지금은 대화와 프로필 준비까지 쓸 수 있어요.';
 export const KEY_READY_TEXT = '필요한 KEY와 이용할 기능은 해당 화면에서 확인해 주세요.';
 export const KEY_PENDING_TEXT = '현재 KEY 사용 기능은 준비 중이에요.';
 
 // 설치 항목 — 기기별 문구(실제 PWA 지원 기준 · 가짜 스토어 배지/링크 0).
 export const INSTALL_STEPS: Record<InstallContext, string> = {
   installed: '이미 앱으로 열려 있어요.',
-  'in-app': '지금 열린 앱 안 브라우저에서는 설치할 수 없어요. 크롬이나 사파리로 열어 주세요.',
-  'ios-safari': 'iPhone: 앱을 연 뒤 아래 공유 버튼 → 「홈 화면에 추가」를 눌러 주세요.',
-  'ios-other': 'iPhone: 사파리로 열어야 설치할 수 있어요. 주소를 사파리에 붙여 넣어 주세요.',
-  android: 'Android: 앱을 연 뒤 브라우저 메뉴(⋮) → 「앱 설치」 또는 「홈 화면에 추가」를 눌러 주세요.',
-  desktop: '컴퓨터에서는 휴대폰으로 열어야 설치할 수 있어요. 아래에서 기기를 골라 주세요.',
+  'in-app': '지금 열린 앱 안 브라우저에서는 설치할 수 없어요. 사파리나 크롬 같은 브라우저로 열어 주세요.',
+  'ios-safari': 'iPhone 사파리: 앱 주소를 연 뒤 공유 버튼 → 「홈 화면에 추가」를 눌러 주세요. 공유 버튼 위치는 iOS 버전에 따라 달라요.',
+  'ios-other': 'iPhone: 사파리에서는 공유 → 「홈 화면에 추가」로 설치할 수 있어요. 지금 쓰는 브라우저 메뉴에 공유나 홈 화면 추가가 있으면 그걸 써도 돼요. 메뉴 위치는 버전에 따라 달라요.',
+  android: 'Android 크롬: 앱 주소를 연 뒤 더보기(⋮) → 「설치 및 바로가기 만들기」 → 「설치」를 눌러 주세요(「앱 설치」·「홈 화면에 추가」로 보일 수도 있어요).',
+  desktop: '컴퓨터에서는 휴대폰으로 앱 주소를 열어 설치해요. 아래에서 기기를 골라 주세요.',
 };
 export const INSTALL_IPHONE = INSTALL_STEPS['ios-safari'];
 export const INSTALL_ANDROID = INSTALL_STEPS.android;
@@ -109,6 +112,8 @@ export function installNeedsPicker(ctx: InstallContext): boolean { return ctx ==
 
 // 화면 어디서든 안내를 열 수 있는 작은 신호(창 이벤트). 안내 호스트 하나만 듣는다.
 export const GUIDE_OPEN_EVENT = 'echo:open-guide';
-export function openGuide(topic?: GuideTopic): void {
-  try { window.dispatchEvent(new CustomEvent(GUIDE_OPEN_EVENT, { detail: { topic } })); } catch { /* 안내를 못 열어도 이용은 계속된다 */ }
+// mode: 'short' = 기능 곁 작은 도움말(그 항목 하나만 아래 시트) · 'full'(기본) = 메뉴·푸터에서 여는 전체 이용 안내.
+export type GuideMode = 'short' | 'full';
+export function openGuide(topic?: GuideTopic, mode: GuideMode = 'full'): void {
+  try { window.dispatchEvent(new CustomEvent(GUIDE_OPEN_EVENT, { detail: { topic, mode } })); } catch { /* 안내를 못 열어도 이용은 계속된다 */ }
 }

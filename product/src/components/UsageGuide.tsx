@@ -4,7 +4,7 @@ import KeyIcon from '@/doit/components/feature/KeyIcon';
 import { visibleInRelease } from '@/doit/lib/releaseScope';
 import {
   GUIDE_CONTACT, GUIDE_OPEN_EVENT, GUIDE_SECTIONS, GUIDE_TITLE, INSTALL_ANDROID, INSTALL_CONTINUE_WEB, INSTALL_IPHONE, INSTALL_STEPS,
-  KEY_PENDING_TEXT, KEY_READY_TEXT, currentInstallContext, installNeedsPicker, type GuideSection, type GuideTopic,
+  KEY_PENDING_TEXT, KEY_READY_TEXT, START_NOTE_PENDING, START_NOTE_READY, currentInstallContext, type GuideMode, installNeedsPicker, type GuideSection, type GuideTopic,
 } from '@/lib/guide/guideContent';
 import './usage-guide.css';
 
@@ -29,6 +29,7 @@ const FOCUSABLE = 'a[href],button:not([disabled]),summary,input,select,textarea,
 export default function UsageGuideHost({ variant, startHref, startLabel }: Props) {
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState<GuideTopic | undefined>(undefined);
+  const [mode, setMode] = useState<GuideMode>('full');
   const opener = useRef<HTMLElement | null>(null);
   const ownsHistory = useRef(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -36,7 +37,8 @@ export default function UsageGuideHost({ variant, startHref, startLabel }: Props
 
   useEffect(() => {
     const onOpen = (event: Event) => {
-      const detail = (event as CustomEvent<{ topic?: GuideTopic }>).detail;
+      const detail = (event as CustomEvent<{ topic?: GuideTopic; mode?: GuideMode }>).detail;
+      setMode(detail?.topic && detail.mode === 'short' ? 'short' : 'full');
       opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setTopic(detail?.topic);
       setOpen(true);
@@ -48,7 +50,11 @@ export default function UsageGuideHost({ variant, startHref, startLabel }: Props
   const finish = useCallback(() => {
     setOpen(false);
     const target = opener.current;
-    requestAnimationFrame(() => { if (target && document.contains(target)) target.focus(); });
+    // 메뉴 안 버튼은 안내가 열릴 때 사라지므로, 그 경우엔 살아 있는 원래 메뉴 버튼으로 초점을 돌린다.
+    requestAnimationFrame(() => {
+      const live = target && document.contains(target) ? target : document.querySelector<HTMLElement>('.echo-corner-button, .bh-menu-btn');
+      live?.focus();
+    });
   }, []);
 
   // 닫기·Escape: 내가 쌓은 기록 한 칸이 있으면 걷고(popstate 가 finish), 없으면 바로 닫는다.
@@ -106,23 +112,28 @@ export default function UsageGuideHost({ variant, startHref, startLabel }: Props
 
   if (!open) return null;
   const keyReady = visibleInRelease('/doit/key');
+  const connectReady = visibleInRelease('/doit/connections');
+  const short = mode === 'short' && topic !== undefined;
+  const shown = short ? GUIDE_SECTIONS.filter((s) => s.id === topic) : GUIDE_SECTIONS;
   return createPortal(
     <div className={`ug-root ug-root--${variant}`} ref={rootRef}>
       <div className="ug-backdrop" onClick={requestClose} aria-hidden="true" />
-      <section className="ug-panel" role="dialog" aria-modal="true" aria-labelledby="ug-title">
+      <section className={`ug-panel ug-panel--${short ? 'short' : 'full'}`} role="dialog" aria-modal="true" aria-labelledby="ug-title">
         <header className="ug-head">
           <h2 id="ug-title">{GUIDE_TITLE}</h2>
           <button ref={closeRef} type="button" className="ug-close" onClick={requestClose}>닫기</button>
         </header>
         <div className="ug-body">
-          {GUIDE_SECTIONS.map((section) => (
-            <SectionView key={section.id} section={section} open={topic === section.id || (topic === undefined && section.id === 'start')} keyReady={keyReady} />
+          {shown.map((section) => (
+            <SectionView key={section.id} section={section} open={short || topic === section.id || (topic === undefined && section.id === 'start')} keyReady={keyReady} connectReady={connectReady} />
           ))}
         </div>
         <footer className="ug-foot">
-          {startHref
-            ? <a className="ug-primary" href={startHref}>{startLabel ?? '모바일 시작하기'}</a>
-            : <button type="button" className="ug-primary" onClick={requestClose}>{INSTALL_CONTINUE_WEB}</button>}
+          {short
+            ? <button type="button" className="ug-primary" onClick={() => setMode('full')}>전체 이용 안내 보기</button>
+            : startHref
+              ? <a className="ug-primary" href={startHref}>{startLabel ?? '모바일 시작하기'}</a>
+              : <button type="button" className="ug-primary" onClick={requestClose}>{INSTALL_CONTINUE_WEB}</button>}
           <a className="ug-mail" href={'mailto:' + GUIDE_CONTACT}>문의 · {GUIDE_CONTACT}</a>
         </footer>
       </section>
@@ -131,7 +142,7 @@ export default function UsageGuideHost({ variant, startHref, startLabel }: Props
   );
 }
 
-function SectionView({ section, open, keyReady }: { section: GuideSection; open: boolean; keyReady: boolean }) {
+function SectionView({ section, open, keyReady, connectReady }: { section: GuideSection; open: boolean; keyReady: boolean; connectReady: boolean }) {
   return (
     <details className="ug-item" name="ug-accordion" open={open} data-topic={section.id}>
       <summary>{section.kind === 'key' && <KeyIcon size={22} />}<span>{section.title}</span></summary>
@@ -139,6 +150,7 @@ function SectionView({ section, open, keyReady }: { section: GuideSection; open:
         {section.intro && <p className="ug-intro">{section.intro}</p>}
         {section.points && <ol className="ug-points">{section.points.map((p) => <li key={p}>{p}</li>)}</ol>}
         {section.kind === 'key' && <p className="ug-note" data-state={keyReady ? 'ready' : 'pending'}>{keyReady ? KEY_READY_TEXT : KEY_PENDING_TEXT}</p>}
+        {section.kind === 'start' && <p className="ug-note" data-state={connectReady ? 'ready' : 'pending'}>{connectReady ? START_NOTE_READY : START_NOTE_PENDING}</p>}
         {section.kind === 'install' && <InstallBody />}
         {section.note && <p className="ug-note">{section.note}</p>}
       </div>

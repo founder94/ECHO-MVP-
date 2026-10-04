@@ -16,6 +16,10 @@
 .echo-welcome-lead{margin:12px 0 0;font-size:16px;line-height:1.7;font-weight:500;color:#fff;word-break:keep-all}
 .echo-welcome-cta{margin-top:24px;display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;color:#053a44;font:inherit;font-size:16px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:scale .15s ease,filter .15s ease}
 .echo-welcome-guide{margin-top:8px;display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;border:0;background:none;color:#fff;font:inherit;font-size:16px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.echo-welcome-hint{margin-top:8px}
+.echo-welcome-hint p{margin:0;font-size:16px;line-height:1.6;color:#fff;text-align:center}
+.echo-welcome-hint div{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px}
+.echo-welcome-hint .echo-welcome-guide{width:auto;padding:0 8px}
 .echo-welcome-guide:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .echo-welcome-cta:active{scale:.97;filter:brightness(.94)}
 .echo-welcome-cta:focus-visible{outline:3px solid #fff;outline-offset:3px;box-shadow:0 0 0 6px rgb(5 52 62/.9)}

@@ -172,7 +172,7 @@ export default function Settings() {
 
         {/* 2026-10-01 ECHO 사용법 — 메뉴의 「ECHO 사용법」(#guide)으로 바로 온다. */}
         <section id="guide" className="doit-settings-section" aria-labelledby="settings-guide-heading">
-          <h3 id="settings-guide-heading" className="doit-settings-heading">ECHO 사용법</h3>
+          <h3 id="settings-guide-heading" className="doit-settings-heading">이용 안내</h3>
           <div className="doit-settings-panel doit-settings-help">
             <p>처음 쓰는 방법, 이해 확인, 추천과 선택, KEY, 설치, 안전을 한곳에 모아 두었어요.</p>
             <button type="button" className="doit-settings-mail" onClick={() => openGuide()}>이용 안내 열기</button>

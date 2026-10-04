@@ -3,6 +3,21 @@
 **5차(마지막) 변경 요약**: 앱 첫 화면 신설 · 인트로 뒤 이동 · `/auth/callback` · 404 · 뒤로/메뉴 버튼 대비 · 후보 버튼 문구 · 약관 CSS 역할 분리. 아래 표의 해당 행에 5차 표기. 브라우저·실기기·성능·녹화는 이 환경(Chromium 없음)에서 실행하지 않았다 — Codex 검수 대상.
 남은 한계: 앱 첫 화면·404·약관의 앱 CSS 는 동적 import 라 느린 회선에서 스타일이 잠깐 늦게 붙을 수 있다(미측정). 가입 체크박스는 표시 20px 유지, 라벨 터치 영역 44px 는 실제 렌더로 미확인.
 
+## 현재 상태 — 이용 안내 묶음 2/5 (시작 HEAD `65d734c7cad844d82e7f4102e2a71c9ab3835d4d`)
+Codex 독립 재현 4건 + 보완 7개를 소스에서 고쳤다. **브라우저(Chromium) 검사는 이 환경에서 실행하지 못했다 — 아래는 소스·타입·모의 검사이며 화면 PASS 가 아니다.**
+
+| # | 결함 | 원인(코드 확인) | 수정 | 검사 |
+|---|---|---|---|---|
+| 1 | 안내 닫기·Back 뒤 쓰던 글·고른 보기 손실 | `AgentConversation` onPop 이 안내가 쌓은 기록 칸(`ugOpen`)이 걷히는 popstate 까지 「직전 답 고치기」로 처리(mark·setEditingPrevious·setDraft·setPick) | 안내가 열려 있는 동안(`html[data-guide-open]`)의 popstate 는 대화가 소비하지 않음. 안내를 닫은 뒤의 기존 Back→직전 답 고치기 코드는 그대로 | 소스 계약 검사(순서 확인) · 실제 재현은 Codex |
+| 2 | 닫은 뒤 초점이 body 에 남음 | 메뉴 안 버튼은 안내가 열릴 때 사라져 `document.contains` 가 false | 살아 있는 `.echo-corner-button` / `.bh-menu-btn` 로 대체. 직접 열었던 버튼(푸터·기능 곁)은 그대로 | 소스 계약 검사 |
+| 3 | 기능 곁 짧은 설명 없음 | 진입점이 첫 화면·메뉴·설정·홈페이지뿐 | 정정 확인 카드 「버튼이 궁금해요」(correct) · 후보 「선택이 어떻게 이어지는지 궁금해요」(choose) · 찌릿 화면 「‘찌릿’이 궁금해요」(zzarit), 모두 눌러야만 열리는 정적 버튼. 첫 화면 「처음이라면…」+「나중에 보기」(이 기기 localStorage, try/catch, 다른 기기와 동기화 주장 0, 자동 열림 0). KEY 사용 화면·버튼 추가 0(OFF) | 소스 계약 검사 |
+| 4 | 시작 항목 준비 문구 고정 | `start.note` 가 「지금은 대화와 프로필 준비까지만」 고정 | 고정 문장 삭제. `visibleInRelease('/doit/connections')` 로 `START_NOTE_READY` / `START_NOTE_PENDING` 선택. 서버 비공개 값·수량·가격 0 | 모듈 실행 검사 |
+| 5 | 모든 항목이 같은 88dvh 시트 | 모드 구분 없음 | `openGuide(topic, 'short')` = 그 항목 하나만 아래 시트(70dvh) + 「전체 이용 안내 보기」. 메뉴·푸터·설정 = 전체: 모바일 전체 높이 읽기 화면(접히는 8항목, 안에서 스크롤), 900px+ 옆 패널. 앱 메뉴 이름 = 「이용 안내」 | 이벤트 detail 실행 검사 · CSS 계약 |
+| 6 | 설치 문구 | 「아래 공유 버튼」 위치 고정 · 「사파리로 열어야 설치」 절대 제한 | iPhone 사파리: 공유→「홈 화면에 추가」(위치는 버전에 따라 다름) · 다른 iOS 브라우저는 설치 불가로 단정하지 않음 · Android 크롬: 더보기→「설치 및 바로가기 만들기」→「설치」(표시는 버전별). 근거 = Apple/Google 공식 안내(댓글 5982729455, 문서 대조일 뿐 실기기 설치 PASS 아님). 스토어 배지 0 · 웹 계속 유지 | 모듈 실행 검사 |
+| 7 | 안내 중 캔버스 계속 움직임 | CSS 일시정지는 `IntroUniverse` 의 requestAnimationFrame 그림에 안 닿음 | 프레임이 `data-guide-open` 이면 그리지 않고 다음 프레임만 예약(진행률·시간·인증 조건 변경 0), 닫으면 이어서 그림. reduced-motion 정적은 기존 그대로 | 소스 계약 검사 |
+
+변경 파일(2차 묶음): `src/lib/guide/guideContent.ts` · `src/components/UsageGuide.tsx` · `usage-guide.css` · `AppCornerMenu.tsx` · `IntroUniverse.tsx` · `AgentConversation.tsx` · `AgentProfileCheck.tsx` · `ConnectionCandidates.tsx` · `ZzaritMoment.tsx` · `settings/page.tsx`(제목 「이용 안내」) · `welcome/page.tsx`·`welcome.css` · 검사 `qa/usage-guide-20261004.test.mjs`(+7) · `qa/flow-safety-20261001.test.mjs`(메뉴 이름 기대값만 승인 변경).
+**한계**: 앱 서버 Back 과 안내 닫기의 실제 이벤트 순서는 소스 순서로만 확인(popstate 리스너 등록 순서 + 속성 유지 시점). 실제 브라우저 재현은 Codex 몫. KEY OFF · 원장 미연결 · 서버·DB·Secret·workflow·PROD 변경 0.
 
 근거: 대표 직접 지시(PR #127 댓글) · Codex 명세 `echo-spec id=20261004-full-ui`.
 작업 기준: PR #127 · branch `claude/full-ui-replacement-20261004` · 변경 전 SHA `9ca08c99410efe48cf725918d3ede6674f5cbe10`(echo-qa) · 담당 Claude Code 단독 · 독립 검수 Codex.

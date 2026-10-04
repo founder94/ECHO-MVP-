@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
+import { openGuide } from '@/lib/guide/guideContent';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { AGENT_PURPOSE_LABELS, agentTurn, type AgentSession, type AgentSlot } from '@/doit/lib/agentApi';
 
@@ -85,6 +86,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>
 
     {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
+    {view.kind === 'review' && !ok && <button type="button" className="echo-text-button" onClick={() => openGuide('correct', 'short')}>버튼이 궁금해요</button>}
     {ok && view.kind === 'review' ? <>
       {list(ORDER)}
       <p className="echo-done-lead"><Check size={16} aria-hidden="true" /> 맞다고 확인했어요.</p>

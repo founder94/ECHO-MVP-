@@ -3,6 +3,7 @@ import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, reportSubmission, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment, { WaitingMark } from './ZzaritMoment';
+import { openGuide } from '@/lib/guide/guideContent';
 import './connect.css';
 import './mobile-layout-v2.css';
 
@@ -111,6 +112,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
     {title
       ? <p className="doit-candidates-title">{title}</p>
       : <p className="doit-candidates-title doit-candidates-title--wait">아직 보여 드릴 사람은 없어요.</p>}
+    <button type="button" className="doit-connect-link" onClick={() => openGuide('choose', 'short')}>선택이 어떻게 이어지는지 궁금해요</button>
     {load.candidates.length === 0 && <p className="doit-connect-note">조건에 맞는 연결이 생기면 여기에서 먼저 보여 드릴게요. 내 이야기는 그 전까지 아무에게도 보이지 않아요.</p>}
     {load.candidates.map((c, i) => {
       const open = c.waiting || !!opened[c.id];

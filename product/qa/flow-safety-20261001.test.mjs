@@ -88,7 +88,7 @@ test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서�
 
 // 2026-10-04 대표 「이용 안내 통합」: 옛 설정 화면 GUIDE(사주·타로 등)는 공통 모듈로 대체. 메뉴·설정 모두 같은 안내를 연다(내용 복사 0).
 test('ECHO 사용법: 메뉴·설정이 공통 이용 안내를 연다 · 옛 사본(GUIDE) 0 · 미션·72시간·보상·가격·결제 0', () => {
-  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide', guide: true \}/);
+  assert.match(MENU, /\{ label: '이용 안내', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide', guide: true \}/);
   assert.match(MENU, /openGuide\(\)/);
   assert.match(SET, /hash === "#guide"/);
   assert.match(SET, /openGuide\(\)/);

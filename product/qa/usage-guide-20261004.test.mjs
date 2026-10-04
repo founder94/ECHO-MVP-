@@ -129,4 +129,57 @@ test('안내 CSS: .ug-root 범위 · 불투명 버튼 0 · 글자 16px 이상 ·
   assert.match(css, /@media\(prefers-reduced-motion:no-preference\)/);
   assert.match(css, /html\[data-guide-open\] #root \*/);
   assert.match(css, /min-width:900px/, '넓은 화면 옆 패널');
+  assert.match(css, /\.ug-panel--short/);
+  assert.match(css, /\.ug-panel--full/);
+});
+
+// ── 2차 묶음(2026-10-04): Codex 독립 재현 4건 + 보완. 소스 계약 + 실행 가능한 공통 모듈 검사이며 브라우저 PASS 가 아니다.
+test('Back 경계: 안내가 열려 있는 동안의 popstate 는 대화의 직전 답 고치기로 읽지 않는다', () => {
+  const c = noComments(read('src/doit/components/feature/AgentConversation.tsx'));
+  const body = c.slice(c.indexOf('const onPop = () => {'), c.indexOf("window.addEventListener('popstate', onPop)"));
+  assert.match(body, /hasAttribute\('data-guide-open'\)\) return;/);
+  assert.ok(body.indexOf('data-guide-open') < body.indexOf('mark()'), '가드는 mark·setEditingPrevious·setDraft 보다 먼저');
+  assert.ok(body.includes('setEditingPrevious(true)') && body.includes('setDraft(lastAnswerRef.current)'), '안내가 닫힌 뒤의 기존 Back 계약은 그대로');
+  assert.ok(noComments(read('src/components/UsageGuide.tsx')).includes("setAttribute('data-guide-open'"), '표시는 안내가 건다');
+});
+
+test('초점 복귀: 사라진 메뉴 안 버튼이면 살아 있는 원래 메뉴 버튼으로', () => {
+  const c = noComments(read('src/components/UsageGuide.tsx'));
+  assert.match(c, /document\.contains\(target\) \? target : document\.querySelector<HTMLElement>\('\.echo-corner-button, \.bh-menu-btn'\)/);
+});
+
+test('짧은 도움말/전체 안내 구분 + 기능 곁 입구(정정·선택·찌릿) + 시작 준비 문구는 출시 범위에서', () => {
+  emitted.length = 0; fakeWindow.dispatchEvent = (e) => { emitted.push(e); return true; };
+  guide.openGuide('correct', 'short'); guide.openGuide(); guide.openGuide('install');
+  assert.deepEqual(emitted.map((e) => [e.detail.topic, e.detail.mode]), [['correct', 'short'], [undefined, 'full'], ['install', 'full']]);
+  const c = noComments(read('src/components/UsageGuide.tsx'));
+  assert.ok(c.includes("ug-panel--${short ? 'short' : 'full'}") && c.includes('전체 이용 안내 보기'));
+  assert.match(c, /visibleInRelease\('\/doit\/connections'\)/);
+  assert.equal(guide.GUIDE_SECTIONS[0].note, undefined, '고정된 지금은 대화까지만 문장 삭제');
+  assert.notEqual(guide.START_NOTE_READY, guide.START_NOTE_PENDING);
+  const f = 'src/doit/components/feature/';
+  assert.ok(read(f + 'AgentProfileCheck.tsx').includes("openGuide('correct', 'short')"));
+  assert.ok(read(f + 'ConnectionCandidates.tsx').includes("openGuide('choose', 'short')"));
+  assert.ok(read(f + 'ZzaritMoment.tsx').includes("openGuide('zzarit', 'short')"));
+  assert.match(read('src/components/AppCornerMenu.tsx'), /label: '이용 안내'/);
+});
+
+test('설치 문구: 위치 고정·절대 제한 표현 0, 공식 경로, 스토어 0', () => {
+  assert.doesNotMatch(JSON.stringify(guide.INSTALL_STEPS), /아래 공유 버튼|사파리로 열어야 설치할 수 있어요/);
+  const ios = guide.INSTALL_STEPS['ios-safari'];
+  assert.ok(ios.includes('공유') && ios.includes('홈 화면에 추가') && ios.includes('버전에 따라'));
+  assert.ok(guide.INSTALL_STEPS.android.includes('설치 및 바로가기 만들기'));
+  assert.doesNotMatch(guide.INSTALL_STEPS['ios-other'], /설치할 수 없/, '다른 iOS 브라우저를 설치 불가로 단정하지 않는다');
+});
+
+test('안내 중 캔버스: IntroUniverse 그리기 프레임도 안내가 열려 있으면 멈춘다', () => {
+  const c = noComments(read('src/components/IntroUniverse.tsx'));
+  assert.ok(c.includes("hasAttribute('data-guide-open')) { last = now; raf = requestAnimationFrame(frame); return; }"));
+});
+
+test('처음 도움말: 비강제 · 나중에 보기 · 저장 실패해도 이용 방해 0 · 시작 CTA 그대로', () => {
+  const w = noComments(read('src/doit/pages/do-it/welcome/page.tsx'));
+  assert.ok(w.includes('나중에 보기') && w.includes('window.localStorage.setItem') && w.includes('catch'));
+  assert.ok(w.includes('navigate(PRODUCT_ENTRY_PATH)'));
+  assert.doesNotMatch(w, /useEffect/, '자동으로 열지 않는다');
 });

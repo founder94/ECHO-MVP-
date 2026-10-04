@@ -190,6 +190,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const mark = () => window.history.pushState({ ...(window.history.state ?? {}), echoBackGuard: true }, '');
     if (!(window.history.state as { echoBackGuard?: boolean } | null)?.echoBackGuard) mark();
     const onPop = () => {
+      // 이용 안내가 쌓은 기록 칸이 걷히는 Back 은 안내의 것이다 — 대화의 「직전 답 고치기」로 읽지 않는다(쓰던 글·고른 보기 보존).
+      if (document.documentElement.hasAttribute('data-guide-open')) return;
       mark();
       if (editingRef.current) { setEditingPrevious(false); setDraft(''); return; }
       setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null); setPick(null);
