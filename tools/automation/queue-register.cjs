@@ -99,7 +99,8 @@ function ghIo(repository, cwd = process.cwd(), exec = execFileSync) {
   return {
     measure: t => {
       const head = lsHead(t);
-      const commit = out('gh', ['api', `repos/${repository}/commits/${t.baseSha}`, '--jq', '.sha']);
+      // actual current main HEAD (not the registered base): if main moved past the approved base, planBootstrap sees a mismatch -> STATE_CHANGED
+      const commit = out('gh', ['api', `repos/${repository}/commits/main`, '--jq', '.sha']);
       return { repository, canPush: out('gh', ['api', `repos/${repository}`, '--jq', '.permissions.push']) === 'true', actualBaseSha: commit, remote: { exists: !!head, head } };
     },
     run: argv => { out(argv[0], argv.slice(1)); },
