@@ -24,5 +24,10 @@
 .doit-app-pastel .doit-matches .doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:6px 18px 18px 18px;background:rgb(255 255 255/.18);border:1px solid rgb(255 255 255/.5)}
 .doit-app-pastel .doit-matches .doit-match-messages li[data-mine=true]{align-self:flex-end;border-radius:18px 18px 6px 18px;background:rgb(8 70 78/.45)}
 /* 7번 대기: 「선택을 보냈어요」 줄 — 숨 쉬는 점을 글 바로 앞에(가운데 정렬) */
-.doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting{display:flex;align-items:center;justify-content:center;gap:10px;text-align:center}
-.doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting .echo-signal-pulse{position:static;flex:none;margin:0}
+.doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting{display:block;text-align:center}
+.doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting .echo-signal-pulse{display:inline-block;margin:0 8px 2px 0}
+
+/* 대표 디자인 그림 교체(2026-10-04): 후보 카드 = 「모바일 최종 디자인 기준」 5번 전시장 그림 위에 서버가 준 목적 한 줄(사람 사진 아님 · 분위기 그림)
+   · 후보 없음 = 「모션 디자인 시안」 02 서로 가까워지다 리본 */
+.doit-app-pastel .doit-candidates .doit-candidate-quote{position:relative;align-content:end;justify-items:start;min-height:170px;padding:16px;text-align:left;background:linear-gradient(180deg,rgb(8 40 46/0) 35%,rgb(8 40 46/.72)),url(/doit/art/candidate-gallery.webp) center/cover no-repeat;border:1px solid rgb(255 255 255/.6);overflow:hidden}
+.doit-app-pastel .doit-candidates .doit-candidates-title--wait::before{content:"";display:block;width:100%;max-width:320px;margin:0 auto 12px;aspect-ratio:468/205;background:url(/doit/art/ribbon-02.webp) center/cover no-repeat;border-radius:18px;-webkit-mask-image:radial-gradient(closest-side,#000 70%,transparent);mask-image:radial-gradient(closest-side,#000 70%,transparent)}

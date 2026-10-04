@@ -69,3 +69,6 @@
 .echo-chat .echo-check>.echo-done-mark{order:7;justify-content:center;margin:6px 0 0;font-size:13px}
 .echo-chat .echo-check>.echo-context{order:8;margin:0;font-size:13px!important;line-height:1.55}
 .echo-chat .echo-check>.echo-fine,.echo-chat .echo-check>.echo-error{order:9}
+
+/* 대표 디자인 그림 교체(2026-10-04): 대화 시작 전 = 「모션 디자인 시안」 01 빛이 모이다 · 대화 정리(확인 뒤) = 03 대화가 시작되다 */
+.echo-chat .echo-chat-art{display:block;width:100%;max-width:360px;margin:6px auto 14px;aspect-ratio:470/205;object-fit:cover;border-radius:20px;-webkit-mask-image:radial-gradient(closest-side,#000 72%,transparent);mask-image:radial-gradient(closest-side,#000 72%,transparent)}

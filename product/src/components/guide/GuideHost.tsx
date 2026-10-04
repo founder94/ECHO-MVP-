@@ -87,7 +87,7 @@ export default function GuideHost({ theme, extra }: Props) {
           {GUIDE_SECTIONS.map((s) => (
             <details key={s.id} id={`echo-guide-${s.id}`} className="echo-guide-item" open={state.section === s.id || undefined}>
               <summary>
-                {s.id === 'key' && <KeyIcon size={22} />}
+                {s.id === 'key' && <img className="echo-guide-key-art" src="/doit/art/key-glass.webp" alt="" aria-hidden="true" width="352" height="192" decoding="async" />}
                 <span>{s.label}</span>
                 {s.soon && <span className="echo-guide-soon">준비 중</span>}
               </summary>

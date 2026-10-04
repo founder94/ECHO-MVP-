@@ -55,3 +55,4 @@ html.echo-guide-open body{overflow:hidden}
 .echo-guide-hint p{margin:0;font-size:15px;line-height:1.6}
 .echo-guide-hint-actions{display:flex;gap:16px;margin-top:6px}
 .echo-guide-link{min-height:44px;padding:0;border:0;background:transparent;color:inherit;font-size:14px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.echo-guide-key-art{width:46px;height:auto;aspect-ratio:176/96;object-fit:cover;border-radius:8px}
