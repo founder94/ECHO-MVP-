@@ -283,7 +283,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         </div>
       </div>}
     </div>}
-    {question && !editingPrevious && <div className="echo-question-card">
+    {/* 2026-10-04 디자인 교체(시안 3 「ECHO와 이야기」): 직전 내 답 = 오른쪽 말풍선, 지금 질문 = ECHO 말풍선. 글은 서버가 준 그대로(화면이 만들지 않음). */}
+    {question && !editingPrevious && myAnswers.length > 0 && <p className="echo-bubble echo-bubble--me"><span className="echo-sr">내가 한 말: </span>{myAnswers.at(-1)}</p>}
+    {question && !editingPrevious && <div className="echo-question-card echo-bubble--echo">
       <p className="echo-question">{question}</p>
       {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
       {session.current_hint && (hintFor === question

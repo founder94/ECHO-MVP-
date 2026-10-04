@@ -61,9 +61,11 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-desc{font-size:12px}
 
 /* 윗줄(고정 머리): 스크롤할 때 아래 글이 비쳐 겹쳐 보이지 않게 유리 막을 조금 더 */
-:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(255 255 255/.14)!important;-webkit-backdrop-filter:blur(22px) saturate(1.2);backdrop-filter:blur(22px) saturate(1.2)}
-/* 시작 흐름 공통 버튼(PrimaryButton · 글자·색이 인라인이라 !important): 주요 = 흰 막 + 흰 테두리, 보조 = 투명 + 테두리 */
-:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-primary-button{background:var(--echo-glass-strong)!important;border:1px solid #fff!important;color:#fff!important;box-shadow:none!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(43 179 173/.82)!important;-webkit-backdrop-filter:blur(26px) saturate(1.2);backdrop-filter:blur(26px) saturate(1.2)} /* 2026-10-04: 흰 막 .14 로는 스크롤한 글이 머리 뒤로 또렷이 비쳤다 → 청록 유리 막(파스텔 계열) */
+/* 시작 흐름 공통 버튼(PrimaryButton · 글자·색이 인라인이라 !important): 주요 = 흰 바탕 + 깊은 청록 글자(2026-10-04 디자인 교체 · 위 「버튼 3단계」 주요와 같음), 보조 = 투명 + 테두리 */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-primary-button{background:#fff!important;border:1px solid #fff!important;color:var(--echo-cta-ink)!important;-webkit-text-fill-color:var(--echo-cta-ink);box-shadow:none!important}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-primary-button *{color:var(--echo-cta-ink)!important;-webkit-text-fill-color:var(--echo-cta-ink)}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-primary-button:not(:disabled):active{background:#e3f3f1!important}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-secondary-button{background:transparent!important;border:1px solid var(--echo-line)!important;color:#fff!important}
 /* 예전 글자색이 인라인·토큰으로 박혀 흐린 곳(연결 준비 줄 · 시작 흐름 안내 · 로그인 제목) — 파스텔 위 흰색 */
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-asleep-check li,.doit-asleep-check span,.doit-asleep-check strong,h1,h2,h3,label){color:#fff!important}
@@ -79,3 +81,4 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-fine,.doit-connect-note){font-size:14px!important;line-height:1.55}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-done-title{margin:6px 0 12px;font-weight:800!important;color:#fff}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"]):where(.echo-primary,.echo-secondary,.doit-product-action){min-height:48px}
+

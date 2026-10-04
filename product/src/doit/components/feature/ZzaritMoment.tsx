@@ -13,12 +13,23 @@ function AnonNode() {
   </span>;
 }
 
+// 선택 대기(시안 7): 같은 익명 노드 둘 + 점선(아직 이어지지 않음). 움직임 0 · 상대 정보 0 · 상대가 골랐는지 추정해 보여 주지 않는다.
+export function WaitingMark() {
+  return <div className="echo-zzarit-mark echo-wait-mark" aria-hidden="true">
+    <AnonNode />
+    <span className="echo-wait-link" />
+    <AnonNode />
+  </div>;
+}
+
 export default function ZzaritMoment({ onStart, note }: { onStart: () => void; note?: string }) {
   const startRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!reduce) { try { navigator.vibrate?.(12); } catch { /* 진동이 없어도 그만 */ } }
     startRef.current?.focus({ preventScroll: true });
+    // 휴대폰에서 아래 메뉴에 「다음 단계 보기」가 가리지 않게(버튼의 scroll-margin 만큼 띄워) 화면 안으로 — 연출을 기다리지 않고 바로 넘길 수 있게.
+    startRef.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }, []);
   return <section className="doit-connect doit-mutual echo-zzarit" aria-label="서로 같은 선택" role="status">
     <div className="echo-zzarit-mark" aria-hidden="true">

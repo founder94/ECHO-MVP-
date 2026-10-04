@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, reportSubmission, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
-import ZzaritMoment from './ZzaritMoment';
+import ZzaritMoment, { WaitingMark } from './ZzaritMoment';
 import './connect.css';
 
 // 당신이 잠든 사이 — 서버(doit-connect v2.0)가 준비한 소수 후보(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§17).
@@ -124,7 +124,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>
           <ul className="doit-candidate-reasons">{c.reasons.map(r => <li key={r}>{r}</li>)}</ul>
           {c.waiting
-            ? <p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />선택을 보냈어요. 상대도 선택하면 알려드릴게요.</p>
+            ? <><WaitingMark /><p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />선택을 보냈어요. 상대도 선택하면 알려드릴게요.</p></>
             : <div className="doit-candidate-actions" role="group" aria-label={`후보 ${i + 1} 고르기`}>
                 <button type="button" className="doit-product-action" disabled={!!busy} onClick={() => void choose(c, 'yes')}>{busy === c.id ? '저장하는 중' : CHOICE_LABEL.yes}<span aria-hidden="true">↗</span></button>
                 <button type="button" className="doit-connect-link" disabled={!!busy} onClick={() => void choose(c, 'no')}>{CHOICE_LABEL.no}</button>
