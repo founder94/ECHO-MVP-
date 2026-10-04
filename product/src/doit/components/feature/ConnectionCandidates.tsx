@@ -5,6 +5,7 @@ import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, re
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment, { WaitingMark } from './ZzaritMoment';
 import './connect.css';
+import './connect-ref.css';
 
 // 당신이 잠든 사이 — 서버(doit-connect v2.0)가 준비한 소수 후보(2026-09-28 대표 「FINAL MVP IMPLEMENTATION MASTER」 §15–§17).
 // 후보 단계에서는 서버가 상대의 이름·사진·소개·말을 보내지 않는다. 화면은 받은 이유(내가 직접 한 말 · 직접 고른 목적)만 그린다.
@@ -118,6 +119,8 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
       return <article key={c.id} className="doit-candidate" data-state={c.waiting ? 'waiting' : open ? 'choose' : 'closed'}>
         <p className="doit-match-kicker">후보 {i + 1}{c.purpose ? ` · ${c.purpose}` : ''}</p>
         <p className="doit-candidate-found">한 사람을 발견했어요.</p>
+        {/* 2026-10-04 모바일 기준 디자인 5번(후보 추천): 카드 가운데 큰 따옴표 한 줄 = 서버가 준 이 후보의 만남 목적 그대로(상대 이름·사진 0 · 화면이 문장을 만들지 않음). */}
+        {c.purpose && <p className="doit-candidate-quote"><span><span aria-hidden="true">“</span>{c.purpose}<span aria-hidden="true">”</span></span></p>}
         {!open && <>
           <p className="doit-candidate-teaser">왜 이 사람인지, ECHO가 본 이유가 있어요.</p>
           <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">왜 이 사람인지 보기<span aria-hidden="true">↗</span></button>
