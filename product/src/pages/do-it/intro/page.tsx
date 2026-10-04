@@ -191,6 +191,12 @@ export default function DoItIntroPage() {
     // 프레임마다 일정량을 더하지 않고 실제 경과 시간(delta)만 누적한다. 숫자·픽셀·페이드가 같은 dt를 공유한다.
     const tick = (now: number) => {
       if (navigatedRef.current) return;
+      // 이용 안내 창이 열려 있으면 시간을 멈춘다(창 뒤에서 다음 화면으로 넘어가지 않게 — 닫으면 그 자리에서 이어서).
+      if (document.documentElement.classList.contains('echo-guide-open')) {
+        lastNowRef.current = now;
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       const delta = now - lastNowRef.current;
       lastNowRef.current = now;
       elapsedRef.current += delta;

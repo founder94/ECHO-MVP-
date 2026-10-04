@@ -4,6 +4,9 @@ import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
+import GuideHost from '@/components/guide/GuideHost';
+import BrandFilm, { BRAND_FILM_COPY } from './BrandFilm';
+import { openGuide } from '@/lib/guide/bus';
 import './brand-home.css';
 
 // 2026-10-04 대표 「홈페이지·모바일 디자인 교체」(홈페이지 검수안 4화면): 회사 홈페이지(do-it.company) 전용.
@@ -60,11 +63,18 @@ const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
   qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
 };
 
+const openInstallGuide = (event: MouseEvent<HTMLAnchorElement>) => {
+  if (event.metaKey || event.ctrlKey) return; // 새 탭이면 앱 설치 화면 그대로
+  event.preventDefault();
+  openGuide('install');
+};
+
 function StartActions({ id }: { id?: string }) {
   return (
     <div className="bh-actions" id={id}>
       <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
-      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
+      {/* 2026-10-04 이용 안내 통합: 「앱 설치 안내」 = 이용 안내의 설치 항목(이 자리에서 열림). 새 탭·주소로는 앱 설치 화면 그대로. */}
+      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)} onClick={openInstallGuide}>{BRAND_HOME_COPY.install}</a>
     </div>
   );
 }
@@ -73,6 +83,7 @@ export default function BrandHomePage() {
   const rootRef = useDepthReveal();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
   const [openStep, setOpenStep] = useState<number | null>(null);
   const productionApp = APP_ORIGIN === 'https://app.do-it.company';
 
@@ -89,7 +100,7 @@ export default function BrandHomePage() {
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>
       <header className="bh-nav">
         <span className="bh-brand"><DoItSymbol decorative />DO IT <small>COMPANY</small></span>
-        <button type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
+        <button ref={menuBtnRef} type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
           <span className="bh-sr">{menuOpen ? '메뉴 닫기' : '메뉴 열기'}</span><i aria-hidden="true" /><i aria-hidden="true" />
         </button>
         {menuOpen && (
@@ -97,6 +108,7 @@ export default function BrandHomePage() {
             <a href="#bh-echo" onClick={close}>ECHO</a>
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
+            <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
               : <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>}
@@ -155,6 +167,17 @@ export default function BrandHomePage() {
         </div>
       </section>
 
+      {/* 2-1. 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
+      <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
+        <div className="bh-stars" aria-hidden="true" />
+        <div className="bh-content">
+          <p className="bh-kicker">BRAND FILM</p>
+          <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
+          <BrandFilm />
+          <StartActions />
+        </div>
+      </section>
+
       {/* 3. 회사 정보 */}
       <section className="bh-sec bh-company" id="bh-company" aria-labelledby="bh-company-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
@@ -189,9 +212,11 @@ export default function BrandHomePage() {
 
       <footer className="bh-legal">
         <details><summary>DO IT COMPANY · 사업자 정보</summary><p>두잇(DO IT) · 대표 박진욱</p><p>사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호</p><p>경기도 남양주시 강변북로632번길 41-7, 102동 101호(수석동)</p></details>
-        <p><a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
+        <p><button type="button" className="bh-legal-link" onClick={() => openGuide()}>이용 안내</button> · <a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
         <p>© 2026 DO IT COMPANY</p>
       </footer>
+      {/* 이용 안내 창(검정·흰색·은색). 설치는 앱 주소에서만 — 이 회사 홈페이지를 설치하게 하지 않는다. */}
+      <GuideHost theme="brand" extra={{ install: <p className="bh-guide-install">설치는 앱 주소({APP_ORIGIN.replace('https://', '')})에서 해요. 이 회사 홈페이지는 설치하지 않아도 돼요. <a href={appUrl(INSTALL_PATH)}>앱 주소에서 설치하기<span aria-hidden="true">↗</span></a></p> }} />
     </main>
   );
 }

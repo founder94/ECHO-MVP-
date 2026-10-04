@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Pretendard','Noto Sans KR','Noto Sans CJK KR',sans-serif;-webkit-font-smoothing:antialiased}
+  #stage{position:absolute;inset:0;overflow:hidden;background:#000;perspective:1400px}
+  .layer{position:absolute;inset:0;opacity:0;will-change:transform,opacity}
+  .stars{position:absolute;inset:-10%;background-image:radial-gradient(1px 1px at 10% 20%,#fff9,transparent),radial-gradient(1px 1px at 30% 70%,#fff8,transparent),radial-gradient(1.5px 1.5px at 55% 35%,#fffb,transparent),radial-gradient(1px 1px at 80% 15%,#fff7,transparent),radial-gradient(1px 1px at 70% 80%,#fff8,transparent),radial-gradient(1px 1px at 90% 55%,#fff6,transparent),radial-gradient(1.5px 1.5px at 15% 90%,#fff9,transparent),radial-gradient(1px 1px at 45% 10%,#fff7,transparent);background-size:420px 420px}
+  .glow{position:absolute;left:50%;bottom:-60%;width:160%;aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,#1d6fd855,#0b2c6a22 55%,transparent 72%)}
+  #logo{position:absolute;left:50%;top:50%;width:min(92vw,1100px);transform:translate(-50%,-50%)}
+  #logo img{width:100%;display:block;-webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 52%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 62% 58% at 50% 52%,#000 62%,transparent 100%)}
+  .just{position:absolute;left:50%;transform:translateX(-50%);letter-spacing:.42em;font-size:clamp(14px,1.6vmin + 6px,22px);font-weight:600;color:#e9eef5}
+  /* 휴대폰 판(실제 앱 화면 · 기기 상태 줄 0) */
+  .phone{position:absolute;width:var(--pw);aspect-ratio:390/844;border-radius:calc(var(--pw)*.11);padding:calc(var(--pw)*.028);background:linear-gradient(145deg,#f4f6f9,#9aa6b3 40%,#e8edf2 70%,#7d8893);box-shadow:0 30px 80px #0009,0 0 0 1px #ffffff40 inset;transform-style:preserve-3d}
+  .phone .scr{width:100%;height:100%;border-radius:calc(var(--pw)*.09);overflow:hidden;background:#000;position:relative}
+  .phone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;opacity:0}
+  .cap{position:absolute;max-width:var(--capw)}
+  .cap .k{font-size:var(--k);letter-spacing:.32em;font-weight:600;color:#9fe9df;margin-bottom:.9em}
+  .cap .t{font-size:var(--t);font-weight:700;line-height:1.32;letter-spacing:-.01em}
+  .cap .s{font-size:var(--s);line-height:1.55;color:#dfe7ee;margin-top:.7em}
+  .tag{position:absolute;font-size:var(--tag);color:#e6edf3;border:1px solid #ffffff66;border-radius:999px;padding:.35em .9em;background:#ffffff14;letter-spacing:.02em}
+  .node{position:absolute;width:var(--nd);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#ffffff66,#ffffff14 60%),rgb(12 74 82/.55);border:2px solid #ffffffb3;box-shadow:0 0 0 calc(var(--nd)*.08) #ffffff14,0 10px 30px #0008;transform:translate(-50%,-50%)}
+  .node svg{width:52%;height:52%;color:#fff}
+  .pick{position:absolute;left:50%;top:calc(100% + .7em);transform:translateX(-50%);white-space:nowrap;font-size:var(--s);color:#bff5ee;opacity:0}
+  #dash{position:absolute;height:0;border-top:2px dashed #ffffff88;transform-origin:left center}
+  #cur{position:absolute;height:8px;border-radius:6px;transform-origin:left center;background:linear-gradient(90deg,transparent,#7ff3e6 25%,#fff 50%,#7ff3e6 75%,transparent);filter:drop-shadow(0 0 10px #9ff7ee)}
+  .center{position:absolute;left:50%;transform:translateX(-50%);text-align:center;width:90%}
+  .soon{display:inline-block;font-size:var(--tag);border:1px solid #ffffff99;border-radius:999px;padding:.3em .9em;color:#eef3f7}
+  #bgEarth{position:absolute;inset:0;background:#000 center/cover no-repeat}
+  .veil{position:absolute;inset:0;background:linear-gradient(180deg,#000a,#0004 40%,#000c)}
+  #brandEnd{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.6em;font-weight:800;letter-spacing:.06em}
+  #brandEnd img{width:1.6em;height:1.6em;object-fit:contain}
+  #fade{position:absolute;inset:0;background:#000;opacity:1;pointer-events:none}
+</style></head>
+<body><div id="stage">
+  <!-- 1 시작 -->
+  <div class="layer" id="L1"><div class="stars"></div><div class="glow"></div><div id="logo"><img src="a/logo-band.png" alt=""></div><div class="just" id="just">JUST TRY.</div></div>
+  <!-- 2·3 이야기·확인 (실제 앱 화면) -->
+  <div class="layer" id="L2"><div class="stars"></div><div class="glow" style="opacity:.6"></div>
+    <div class="phone" id="phone"><div class="scr" id="scr"></div></div>
+    <div class="cap" id="cap2"><p class="k">STORY</p><p class="t">잘 정리해서<br>말하지 않아도 괜찮아요.</p><p class="s">떠오르는 대로 한 줄이면 돼요.</p></div>
+    <div class="cap" id="cap3" style="opacity:0"><p class="k">CHECK</p><p class="t">이렇게 이해했는데,<br>맞나요?</p><p class="s">다르면 바로 고쳐요.<br>고친 뜻으로 다음 질문이 이어져요.</p></div>
+    <div class="tag" id="tag2">서비스 이용 예시 · 합성 화면</div>
+  </div>
+  <!-- 4·5 선택·찌릿 -->
+  <div class="layer" id="L4"><div class="stars"></div><div class="glow" style="opacity:.5"></div>
+    <div id="dash"></div><div id="cur"></div>
+    <div class="node" id="nA"><svg viewBox="0 0 48 48" fill="currentColor"><circle cx="24" cy="18" r="8"/><path d="M9 41c1.8-8 8-12.5 15-12.5S37.2 33 39 41"/></svg><span class="pick" id="pA">선택했어요</span></div>
+    <div class="node" id="nB"><svg viewBox="0 0 48 48" fill="currentColor"><circle cx="24" cy="18" r="8"/><path d="M9 41c1.8-8 8-12.5 15-12.5S37.2 33 39 41"/></svg><span class="pick" id="pB">선택했어요</span></div>
+    <div class="center" id="cap4"><p class="cap-t" style="font-size:var(--t);font-weight:700">각자 마음이 가는 사람을 선택해요.</p></div>
+    <div class="center" id="cap5" style="opacity:0"><p style="font-size:calc(var(--t)*1.12);font-weight:800">찌릿! 텔레파시가 통했어요</p><p id="cap5b" style="font-size:var(--s);margin-top:.6em;color:#e6f6f4;opacity:0">서로 대화를 원했어요.</p></div>
+    <div class="tag" id="tag4">서비스 이용 예시</div>
+  </div>
+  <!-- 6 마무리 -->
+  <div class="layer" id="L6"><div id="bgEarth" style="background-image:url(a/earth-astro.png)"></div><div class="veil"></div>
+    <div class="center" id="cap6"><p style="font-size:calc(var(--t)*1.05);font-weight:700;line-height:1.35">당신이 잠든 사이,<br>AI가 먼저 만나봅니다.</p><p style="margin-top:1em"><span class="soon" id="soon">관련 기능 준비 중</span></p></div>
+    <div id="brandEnd"><img src="a/symbol.png" alt=""><span>DO IT</span></div>
+  </div>
+  <div id="fade"></div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const ease = (x) => { x = cl(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const outE = (x) => 1 - Math.pow(1 - cl(x), 3);
+const seg = (t, a, b) => cl((t - a) / (b - a));
+const TYPE_N = 21;
+const imgs = {};
+function preload() {
+  const scr = $('scr'); const names = [];
+  for (let i = 0; i <= TYPE_N; i++) names.push(`type-${String(i).padStart(2, '0')}`);
+  names.push('check-0', 'check-1', 'check-2');
+  return Promise.all(names.map((n) => new Promise((res) => { const im = new Image(); im.onload = res; im.onerror = res; im.src = `a/${n}.png`; im.alt = ''; scr.appendChild(im); imgs[n] = im; })));
+}
+function show(name) { for (const [k, im] of Object.entries(imgs)) im.style.opacity = k === name ? 1 : 0; }
+let W = 0, H = 0, portrait = false;
+function layout() {
+  W = innerWidth; H = innerHeight; portrait = H > W; const r = document.documentElement.style; const m = Math.min(W, H);
+  r.setProperty('--pw', (portrait ? H * .5 : H * .88) / (844 / 390) + 'px');
+  r.setProperty('--k', m * .022 + 'px'); r.setProperty('--t', m * (portrait ? .052 : .058) + 'px'); r.setProperty('--s', m * (portrait ? .03 : .032) + 'px');
+  r.setProperty('--tag', m * .022 + 'px'); r.setProperty('--nd', m * (portrait ? .2 : .19) + 'px'); r.setProperty('--capw', (portrait ? W * .86 : W * .4) + 'px');
+  const ph = $('phone'); const pw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pw')); const phH = pw * 844 / 390;
+  if (portrait) { ph.style.left = (W - pw) / 2 + 'px'; ph.style.top = H * .33 + 'px'; for (const c of ['cap2', 'cap3']) { $(c).style.left = W * .07 + 'px'; $(c).style.top = H * .08 + 'px'; } }
+  else { ph.style.left = W * .6 - pw / 2 + 'px'; ph.style.top = (H - phH) / 2 + 'px'; for (const c of ['cap2', 'cap3']) { $(c).style.left = W * .08 + 'px'; $(c).style.top = H * .32 + 'px'; } }
+  for (const tg of ['tag2', 'tag4']) { $(tg).style.left = m * .04 + 'px'; $(tg).style.bottom = m * .04 + 'px'; }
+  $('just').style.top = (portrait ? H * .62 : H * .74) + 'px';
+  $('cap4').style.top = (portrait ? H * .2 : H * .16) + 'px'; $('cap5').style.top = (portrait ? H * .66 : H * .7) + 'px';
+  $('cap6').style.top = (portrait ? H * .3 : H * .28) + 'px'; $('brandEnd').style.bottom = (portrait ? H * .12 : H * .12) + 'px'; $('brandEnd').style.fontSize = m * .05 + 'px';
+}
+// 장면 시각(초): 1 시작 0–3.8 · 2 이야기 3.8–9.4 · 3 확인 9.4–14 · 4 선택 14–17.2 · 5 찌릿 17.2–20.6 · 6 마무리 20.6–25
+const T = 25;
+function renderAt(t) {
+  // 1 시작: 푸른 빛이 차오르고 로고가 앞으로 나와 멈춤 → 안으로 들어가며 다음 장면
+  const a1 = outE(seg(t, 0, 1.2)) * (1 - ease(seg(t, 3.2, 3.9)));
+  $('L1').style.opacity = a1;
+  $('logo').style.transform = `translate(-50%,-50%) scale(${(1.12 - .12 * outE(seg(t, 0, 2.2))) * (1 + .5 * ease(seg(t, 3.1, 3.9)))})`;
+  $('L1').querySelector('.glow').style.opacity = .3 + .7 * outE(seg(t, 0, 1.8));
+  $('just').style.opacity = outE(seg(t, 1.5, 2.3)) * (1 - seg(t, 3.0, 3.4));
+  // 2·3 휴대폰
+  const a2 = outE(seg(t, 3.7, 4.4)) * (1 - ease(seg(t, 13.6, 14.2)));
+  $('L2').style.opacity = a2;
+  const rise = outE(seg(t, 3.8, 4.9)); const swap = ease(seg(t, 9.2, 9.9)); const out = ease(seg(t, 13.5, 14.2));
+  const lift = Math.sin(Math.PI * cl((t - 9.2) / .7)) * 30;
+  $('phone').style.transform = `translateY(${(1 - rise) * 90 - lift}px) rotateX(${(1 - rise) * 18}deg) rotateY(${portrait ? 0 : -8 + 8 * rise}deg) scale(${(0.9 + .1 * rise) * (1 + .25 * out)})`;
+  if (t < 9.55) { const k = Math.round(TYPE_N * seg(t, 5.3, 8.2)); show(`type-${String(k).padStart(2, '0')}`); }
+  else show(t < 11.4 ? 'check-0' : t < 12.0 ? 'check-1' : 'check-2');
+  $('cap2').style.opacity = outE(seg(t, 4.2, 4.9)) * (1 - seg(t, 9.0, 9.4));
+  $('cap2').style.transform = `translateY(${(1 - outE(seg(t, 4.2, 4.9))) * 16}px)`;
+  $('cap3').style.opacity = outE(seg(t, 9.6, 10.2)) * (1 - seg(t, 13.4, 13.8));
+  $('cap3').style.transform = `translateY(${(1 - outE(seg(t, 9.6, 10.2))) * 16}px)`;
+  $('tag2').style.opacity = outE(seg(t, 4.4, 5));
+  // 4·5 선택 → 찌릿
+  const a4 = outE(seg(t, 13.9, 14.5)) * (1 - ease(seg(t, 20.3, 20.9)));
+  $('L4').style.opacity = a4;
+  const cy = portrait ? H * .46 : H * .47;
+  const gap0 = portrait ? W * .36 : W * .32, gap1 = portrait ? W * .24 : W * .17;
+  const g = gap0 - (gap0 - gap1) * ease(seg(t, 15.6, 16.9));
+  const ax = W / 2 - g, bx = W / 2 + g;
+  for (const [id, x] of [['nA', ax], ['nB', bx]]) { const n = $(id); n.style.left = x + 'px'; n.style.top = cy + 'px'; }
+  const nd = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nd'));
+  const pickA = outE(seg(t, 14.6, 15.0)), pickB = outE(seg(t, 15.2, 15.6));
+  $('pA').style.opacity = pickA * (1 - seg(t, 17.0, 17.3)); $('pB').style.opacity = pickB * (1 - seg(t, 17.0, 17.3));
+  $('nA').style.transform = `translate(-50%,-50%) scale(${1 + .06 * Math.sin(Math.PI * seg(t, 14.6, 15.0))})`;
+  $('nB').style.transform = `translate(-50%,-50%) scale(${1 + .06 * Math.sin(Math.PI * seg(t, 15.2, 15.6))})`;
+  const x0 = ax + nd / 2 + 6, x1 = bx - nd / 2 - 6;
+  const dash = $('dash'); dash.style.left = x0 + 'px'; dash.style.top = cy + 'px'; dash.style.width = (x1 - x0) + 'px'; dash.style.opacity = outE(seg(t, 14.4, 15)) * (1 - seg(t, 17.3, 17.6));
+  // 찌릿 전류: 0.75초 한 번 → 은은하게 남음
+  const cur = $('cur'); const c = seg(t, 17.35, 18.1);
+  cur.style.left = x0 + 'px'; cur.style.top = cy - 4 + 'px'; cur.style.width = (x1 - x0) + 'px';
+  cur.style.transform = `scaleX(${outE(c * 1.4)})`; cur.style.opacity = t < 17.35 ? 0 : (c < 1 ? 1 : .55);
+  const glowN = t >= 17.35 ? Math.max(.25, 1 - seg(t, 18.1, 19)) : 0;
+  for (const id of ['nA', 'nB']) $(id).style.boxShadow = `0 0 0 ${nd * .08}px #ffffff14, 0 0 ${40 * glowN}px #7ff3e6, 0 10px 30px #0008`;
+  $('cap4').style.opacity = outE(seg(t, 14.4, 15)) * (1 - seg(t, 17.0, 17.4));
+  $('cap5').style.opacity = outE(seg(t, 18.0, 18.5)); $('cap5b').style.opacity = outE(seg(t, 18.7, 19.2));
+  $('tag4').style.opacity = outE(seg(t, 14.4, 15));
+  // 6 마무리: 지구 안으로 천천히 → 문장 → 로고
+  const a6 = outE(seg(t, 20.5, 21.3));
+  $('L6').style.opacity = a6;
+  $('bgEarth').style.transform = `scale(${1.15 - .1 * outE(seg(t, 20.5, 25))})`;
+  $('cap6').style.opacity = outE(seg(t, 21.2, 21.9)); $('soon').style.opacity = outE(seg(t, 22.0, 22.5));
+  $('brandEnd').style.opacity = outE(seg(t, 22.8, 23.4));
+  $('fade').style.opacity = Math.max(1 - seg(t, 0, .5), ease(seg(t, 24.4, 25)));
+}
+window.__ready = preload().then(() => { layout(); renderAt(0); });
+window.renderAt = renderAt; window.FILM_T = T;
+</script></body></html>
