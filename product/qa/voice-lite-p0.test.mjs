@@ -27,7 +27,7 @@ test('Voice Lite: 네 가지 상태 · 마이크가 주 행동 · 들은 말은 
   assert.match(ui, /voiceUi && !done && \(talk\.supported/, 'VOICE 모드 질문 화면에 늘 마이크(켜졌을 때)');
   assert.match(ui, /if \(speaking\) \{ stopSpeaking\(\); setSpeaking\(false\); return; \}/, '말하는 중 누르면 즉시 멈춤');
   assert.match(ui, /if \(talk\.listening\) \{ talk\.stop\(\); return; \}/);
-  assert.match(ui, /\{!done && <>[\s\S]*?\{VOICE_CONVERSATION_ENABLED && voice\.supported && !voiceUi && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
+  assert.match(ui, /\{!done && <form[\s\S]*?\{VOICE_CONVERSATION_ENABLED && voice\.supported && !voiceUi && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
   assert.match(input, /r\.continuous = false;/, '말을 멈추면 스스로 끝(키보드·보내기 없이)');
   assert.doesNotMatch(input + out, /fetch\(|supabase|getUserMedia|MediaRecorder|localStorage/, '목소리 저장·전송·새 API 0');
 });

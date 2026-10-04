@@ -276,10 +276,11 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     <header className="echo-chat-head">
       <Link to="/doit/home" className="echo-chat-back" aria-label="홈으로"><ChevronLeft size={24} aria-hidden="true" /></Link>
       <h1 className="echo-chat-title">{done ? '다 들었어요.' : 'ECHO와 이야기'}</h1>
+      {/* 다 들은 뒤: 제목 옆 짧은 말(2026-09 승인 문구 「다 들었어요. 이제 나를 보여 줄 차례예요.」 그대로 · 확인 화면이 주인공) */}
+      {done && <span className="echo-sr">이제 나를 보여 줄 차례예요.</span>}
       {/* 2026-09-26 통합 검수(P0-B): 「2 / 5」 같은 고정 개수 표시는 설문처럼 느껴진다(대표 실기기). 들은 개수만 보이고, 끝은 서버가 정한다. */}
       {!done && <span className="echo-steps" role="status" aria-label={`지금까지 ${answered}가지 들었어요`}><span className="echo-steps-count">{answered}가지 들었어요</span></span>}
     </header>
-    {done && <p className="echo-chat-done-lead">이제 나를 보여 줄 차례예요.</p>}
     {/* 2026-10-04 이용 안내: 첫 질문에서만 짧은 도움말(입력칸을 가리지 않는 제자리 한 줄) */}
     {!done && myAnswers.length === 0 && <GuideHint id="talk" />}
     <div className="echo-chat-log">
@@ -337,7 +338,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         </div>
       : <p className="echo-notice" role="status">이 브라우저는 말 듣기를 지원하지 않아요. 아래 칸에 글로 적어 주세요.</p>)}
     {voiceUi && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
-    {done && <section className="echo-done">
+    {/* 2026-10-04 모바일 기준 디자인 4번(정정·확인): 다 들은 뒤 첫 화면은 「이렇게 이해했는데, 맞나요?」 하나. 정리·다음 행동은 확인한 뒤에. */}
+    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
+    {done && (profileOk || !profile) && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
       <p className="echo-done-lead">{session.closing ?? '말해 준 내용을 정리해 뒀어요.'}</p>
       <p className="echo-context">지금은 이 정리로 바로 누군가와 연결되지는 않아요.</p>
@@ -349,7 +352,6 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       </div>
     </section>}
     {/* 2026-09-26 MVP FINAL PATCH: 다섯 문답 뒤 「ECHO가 이해한 나」(AI 초안) → [맞아요] / [조금 달라요] / [다시 말할게요]. 확인 뒤에 DO IT MUSIC 카드와 소개·사진 단계. */}
-    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
     {done && (profileOk || !profile) && <MusicMoment />}
     {done && (profileOk || !profile) && <AgentIntroCard userId={userId} session={session} onSession={setSession} onSaved={() => setIntroSaved(true)} />}
     {done && (profileOk || !profile) && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
@@ -358,7 +360,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP, 보기가 펼쳐졌을 때). 입력줄 바로 위 작은 칩. */}
     {!done && !editingPrevious && <div className="echo-reactions echo-chat-chips">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
     {/* 「+」 안: 화면에서 덜 쓰는 행동을 한곳에. 열려 있는 동안만 보인다. */}
-    {toolsOpen && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
+    {(toolsOpen || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
       {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
       {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
       {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button></li>)}</ol></details>}
@@ -369,16 +371,16 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p>
     </div>}
     {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). 끝난 뒤에도 「+」로 다른 행동은 연다. */}
-    <form className="echo-composer echo-chat-bar" onSubmit={event => { event.preventDefault(); if (busy || done) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
+    {!done && <form className="echo-composer echo-chat-bar" onSubmit={event => { event.preventDefault(); if (busy) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
       <button type="button" className="echo-chat-plus" aria-label={toolsOpen ? '더 보기 닫기' : '더 보기'} aria-expanded={toolsOpen} aria-controls="echo-chat-tools" onClick={() => setToolsOpen(v => !v)}><Plus size={22} aria-hidden="true" /></button>
-      {!done && <>
+      <>
         <label htmlFor="echo-message" className="echo-sr">{editingPrevious ? '직전 답 고치기' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
         <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '편하게 적어주세요.'} maxLength={TEXT_MAX} rows={1} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
         {VOICE_CONVERSATION_ENABLED && voice.supported && !voiceUi && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}
         {/* 2026-10-01 대표 「FINAL DESIGN」 §9·§11: 한 화면 하나의 주 행동 = 보내기(흰 판) — 이제 입력줄 오른쪽 둥근 버튼(이름은 그대로 「답변 보내기」) */}
         <button type="submit" className="echo-send-cta" aria-label={editingPrevious ? '고친 답 보내기' : '답변 보내기'} disabled={!!busy || (!draft.trim() && !(picked && !editingPrevious))}><Send size={20} aria-hidden="true" /></button>
-      </>}
+      </>
       {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
-    </form>
+    </form>}
   </section>;
 }

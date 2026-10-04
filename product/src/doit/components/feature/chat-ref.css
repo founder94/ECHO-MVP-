@@ -56,3 +56,16 @@
 .echo-chat .echo-chat-bar .echo-send-cta svg{color:#0f4a4a}
 .echo-chat .echo-chat-bar .echo-notice{flex-basis:100%;margin:0 6px}
 @media(prefers-reduced-motion:reduce){.echo-chat .echo-typing-dots i{animation:none;opacity:.8}.echo-chat .echo-chat-bar .echo-chat-plus svg{transition:none}}
+
+/* 4번 정정·확인(「이렇게 이해했는데, 맞나요?」): 판 없이 화면 한 장 — 제목(가운데) → 이해한 내용 유리 카드 → 네 버튼 세로(맞아요 = 흰 판) → 작은 설명 */
+.echo-chat .echo-done.echo-check{display:flex;flex-direction:column;gap:12px;margin:8px 0 20px;padding:0;background:transparent;border:0;box-shadow:none;text-align:center}
+.echo-chat .echo-check>.echo-done-title{order:1;margin:0 0 6px;font-size:24px!important;line-height:1.35!important}
+.echo-chat .echo-check>.echo-guide-hint,.echo-chat .echo-check>.echo-guide-link{order:2;text-align:left}
+.echo-chat .echo-check>.echo-profile-list{order:3;margin:0;padding:14px 16px;border-radius:18px;background:rgb(8 70 78/.38);border:1px solid rgb(255 255 255/.6);text-align:left}
+.echo-chat .echo-check>.echo-done-lead,.echo-chat .echo-check>label,.echo-chat .echo-check>textarea{order:4;text-align:left}
+.echo-chat .echo-check>.echo-done-actions{order:5;display:grid;gap:10px;margin:4px 0 0}
+.echo-chat .echo-check>.echo-done-actions .echo-primary,.echo-chat .echo-check>.echo-done-actions .echo-secondary{justify-content:center;min-height:52px;border-radius:14px;font-size:16px;text-align:center}
+.echo-chat .echo-check>.echo-text-button{order:6;align-self:center}
+.echo-chat .echo-check>.echo-done-mark{order:7;justify-content:center;margin:6px 0 0;font-size:13px}
+.echo-chat .echo-check>.echo-context{order:8;margin:0;font-size:13px!important;line-height:1.55}
+.echo-chat .echo-check>.echo-fine,.echo-chat .echo-check>.echo-error{order:9}

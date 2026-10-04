@@ -26,7 +26,7 @@ test('v14.3·2026-09-28 처음부터 다시 — 대화 화면 위·끝 화면·�
     const c = await read(f);
     // 2026-10-04 모바일 기준 디자인: Agent 대화는 위 알약을 「+」 더 보기 안으로 옮겼다(같은 이름 · 같은 한 번 탭).
     if (f.includes('CoreConversation')) assert.match(c, /className="echo-restart-top"/, f);
-    else assert.match(c, /\{toolsOpen && <div className="echo-chat-tools"[\s\S]*\{restartPill\(\)\}/, f);
+    else assert.match(c, /<div className="echo-chat-tools" id="echo-chat-tools"[\s\S]*\{restartPill\(\)\}/, f);
     // 2026-09-24 "있는데 못 찾겠어": 테두리 있는 알약 버튼 + 되돌리기 그림.
     assert.match(c, /className="echo-restart-pill" disabled=\{[^}]*\} onClick=\{[^}]*\}><RotateCcw size=\{14\} aria-hidden="true" \/>처음부터 다시 시작하기</, f);
     // 2026-09-28 대표 「한 번의 탭」: 확인 창·「계속할게요」·예전 이름 「처음부터 시작하기」 0.
