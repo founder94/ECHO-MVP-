@@ -110,3 +110,11 @@ test('zzarit.ts 동작: 처음 true · 두 번째 false · 저장이 막혀도 �
   assert.equal(claimZzarit('m3'), true);
   delete globalThis.localStorage;
 });
+
+test('연결 화면: 후보 화면을 key 로 다시 만들지 않는다(끝없이 다시 조회하던 결함 2026-10-04) · 「후보 열기」 뒤 다시 읽기는 reload 값으로', () => {
+  const A = read('src/doit/components/feature/AsleepConnections.tsx');
+  assert.match(A, /<ConnectionCandidates reload=\{candidatesKey\} userId=\{user\.id\}/);
+  assert.doesNotMatch(A, /<ConnectionCandidates key=/);
+  const C = read('src/doit/components/feature/ConnectionCandidates.tsx');
+  assert.match(C, /useEffect\(\(\) => \{ void refresh\(\); \}, \[refresh, reload\]\);/);
+});

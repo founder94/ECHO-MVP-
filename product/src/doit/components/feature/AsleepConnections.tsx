@@ -42,7 +42,9 @@ export default function AsleepConnections() {
   const [opened, setOpened] = useState(0); // v2.0 상호선택으로 연결이 열리면 「내 연결」을 다시 읽는다
   const [focusMatch, setFocusMatch] = useState<string | null>(null); // 2026-09-30: 「이야기 시작하기」 → 서버가 준 그 연결로
   const [server, setServer] = useState<MyCandidates | null>(null); // FI-018: 연결 서버(doit-connect)가 계산한 자격 · 준비 칸
-  const [candidatesKey, setCandidatesKey] = useState(0); // 실행 단계가 「후보 열기」라고 하면 기존 후보 화면(doit-connect)을 다시 읽는다
+  // 실행 단계가 「후보 열기」라고 하면 기존 후보 화면(doit-connect)을 다시 읽는다. 다시 읽기는 reload 값으로만(2026-10-04: key 로 다시 만들던 방식은
+  // 브라우저 검사에서 후보 화면이 끝없이 다시 만들어지며 my_candidates 를 8초에 900번 넘게 불렀다 — key 를 빼면 1번)
+  const [candidatesKey, setCandidatesKey] = useState(0);
   const userId = user?.id ?? null;
   useEffect(() => {
     if (!userId || !A_STRUCTURE_SERVER_ENABLED) return;
@@ -64,7 +66,7 @@ export default function AsleepConnections() {
       {user && !A_STRUCTURE_SERVER_ENABLED && <p className="doit-asleep-status">연결 준비 화면은 서버 연결 뒤에 열려요.</p>}
       {user && A_STRUCTURE_SERVER_ENABLED && state.kind === 'loading' && <div className="doit-asleep-wait" role="status"><span className="echo-thinking-orbit" aria-hidden="true"><DoItSymbol decorative /></span><p>내가 확인한 말로 준비 상태를 살피고 있어요.</p></div>}
       {state.kind === 'error' && <p className="doit-product-error" role="alert">{state.message}</p>}
-      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates key={candidatesKey} userId={user.id} onServerState={setServer} onOpened={matchId => { setFocusMatch(matchId); setOpened(n => n + 1); }} />}
+      {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionCandidates reload={candidatesKey} userId={user.id} onServerState={setServer} onOpened={matchId => { setFocusMatch(matchId); setOpened(n => n + 1); }} />}
       {user && A_STRUCTURE_SERVER_ENABLED && <ConnectionMatches key={opened} userId={user.id} focusId={focusMatch} />}
       {state.kind === 'ready' && <Ready preview={state.preview} server={server} userId={userId} onOpenCandidates={() => setCandidatesKey(n => n + 1)} />}
     </section>

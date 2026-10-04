@@ -135,8 +135,12 @@ async function run(n, name, vp, init, fn) {
 }
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
-await run(1, 'candidate 0', IPHONE, { candidates: [] }, async (p) => {
+await run(1, 'candidate 0', IPHONE, { candidates: [] }, async (p, server) => {
   await go(p); const t = await text(p);
+  // 2026-10-04: 연결 화면이 후보 조회를 끝없이 다시 부르던 결함(PR #103 의 key 다시 만들기) — 들어온 뒤 3초 동안 조회는 1~2번이어야 한다
+  await p.waitForTimeout(3000);
+  const polls = server.st.calls.filter((c) => c.action === 'my_candidates').length;
+  expect(polls >= 1 && polls <= 2, `후보 조회 반복 ${polls}번`);
   expect(t.includes('아직 보여 드릴 사람은 없어요.'), '빈 상태 문구 없음'); expect(!/곧 나타|기다리고 있어요/.test(t), '과장 문구');
   await p.screenshot({ path: 'uxshots/01-empty.png' }); return '빈 상태 문구';
 });
