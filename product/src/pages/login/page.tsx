@@ -8,6 +8,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import { PASSKEY_ERROR_TEXT, PASSKEY_LOGIN_ENABLED, currentPasskeySupport, signInWithFace } from '@/lib/auth/passkey';
 import { authErrorText } from '@/lib/auth/authErrorText';
 import '@/doit/components/feature/app-pastel.css';
+import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
 
 export default function Login() {
   const navigate = useNavigate();

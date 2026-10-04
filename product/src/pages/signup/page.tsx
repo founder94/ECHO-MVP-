@@ -9,6 +9,7 @@ import ConsentChecklist from '@/components/legal/ConsentChecklist';
 import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
 import { authErrorText } from '@/lib/auth/authErrorText';
 import '@/doit/components/feature/app-pastel.css';
+import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
 
 export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth();
