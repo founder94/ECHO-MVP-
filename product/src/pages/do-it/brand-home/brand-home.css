@@ -137,6 +137,8 @@
 [data-depth][data-in] .bh-content { opacity: 1; transform: none; }
 [data-depth][data-in] .bh-figure img { transform: scale(1.04); }
 @media (prefers-reduced-motion: reduce) {
+  /* index.css 의 html{scroll-behavior:smooth} 를 이 홈페이지가 열려 있을 때만 끈다(전역 파일은 그대로 · Codex PR #123) */
+  html:has(main.bh) { scroll-behavior: auto; }
   .bh *, .bh *::before, .bh *::after { animation: none !important; transition: none !important; }
   [data-depth] .bh-bg, [data-depth] .bh-content, [data-depth] .bh-figure img { opacity: 1; transform: none; filter: none; }
 }

@@ -77,3 +77,8 @@ test('홈페이지 첫 화면: 주 행동 = 「모바일 시작하기」(테두�
   assert.match(hero, /<a className="bh-btn bh-btn--text" href="#bh-echo">\{BRAND_HOME_COPY\.learn\}<\/a>/);
   assert.ok(hero.indexOf('BRAND_HOME_COPY.start') < hero.indexOf('BRAND_HOME_COPY.learn'), '모바일 시작하기가 먼저');
 });
+
+test('홈페이지 움직임 줄이기: 화면 부드러운 굴림(html smooth)도 이 홈페이지에서만 끔 · 전역 index.css 수정 0 · Codex PR #123', () => {
+  assert.match(HCSS, /@media \(prefers-reduced-motion: reduce\) \{[^@]*html:has\(main\.bh\) \{ scroll-behavior: auto; \}/);
+  assert.match(HOME, /<main ref=\{rootRef\} className="bh">/);
+});
