@@ -27,7 +27,7 @@ test('Voice Lite: 네 가지 상태 · 마이크가 주 행동 · 들은 말은 
   assert.match(ui, /voiceUi && !done && \(talk\.supported/, 'VOICE 모드 질문 화면에 늘 마이크(켜졌을 때)');
   assert.match(ui, /if \(speaking\) \{ stopSpeaking\(\); setSpeaking\(false\); return; \}/, '말하는 중 누르면 즉시 멈춤');
   assert.match(ui, /if \(talk\.listening\) \{ talk\.stop\(\); return; \}/);
-  assert.match(ui, /\{VOICE_CONVERSATION_ENABLED && voice\.supported && !\(voiceUi && !done\) && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
+  assert.match(ui, /\{!done && <>[\s\S]*?\{VOICE_CONVERSATION_ENABLED && voice\.supported && !voiceUi && <button/, 'VOICE 모드에서는 받아쓰기 버튼 대신 큰 마이크');
   assert.match(input, /r\.continuous = false;/, '말을 멈추면 스스로 끝(키보드·보내기 없이)');
   assert.doesNotMatch(input + out, /fetch\(|supabase|getUserMedia|MediaRecorder|localStorage/, '목소리 저장·전송·새 API 0');
 });
@@ -49,7 +49,8 @@ test('speakNew: 마지막 사용자 말 뒤의 AI 말(받아주기 + 다음 질�
 });
 
 test('USER_CONTEXT_NOT_ACKNOWLEDGED: 서버 받아주기 말이 제목 자리에 선다 · 화면이 문장을 만들지 않는다', () => {
-  assert.match(ui, /ack \? <h1 className="echo-ack-heading">\{ack\}<\/h1>/);
+  // 2026-10-04 모바일 기준 디자인: 제목 자리 대신 또렷한 ECHO 말풍선(질문 바로 위) — 서버 문장 그대로.
+  assert.match(ui, /\{question && !editingPrevious && ack && <p className="echo-bubble echo-bubble--echo echo-ack-bubble"><span className="echo-sr">ECHO: <\/span>\{ack\}<\/p>\}/);
   assert.match(ui, /const ack = qIndex > 0 && msgs\[qIndex - 1\]\.role === 'ai' \? msgs\[qIndex - 1\]\.text : '';/);
   assert.doesNotMatch(ui, /원하시는군요/, '받아주기 문장 하드코딩 0');
 });

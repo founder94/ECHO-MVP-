@@ -34,7 +34,7 @@ test('Q1 질문 본체는 늘 주관식: 보통 답 뒤 보기는 서버가 들�
   const st = await afterFirst();
   assert.equal(st.current.text, '처음 만나면 어디가 편해요?');
   assert.deepEqual(A.rescueView(st), { options: ['조용한 카페', '같이 걷기', '밥 먹으면서'], symbols: ['☕', '🚶', '🍽️'], show: false, fallback: false });
-  assert.match(UI, /\{!done && <form className="echo-composer"/, '대화 중에는 주관식 입력칸이 늘 있다');
+  assert.match(UI, /<form className="echo-composer echo-chat-bar"[\s\S]*?\{!done && <>\n\s*<label htmlFor="echo-message"[^\n]*\n\s*<textarea id="echo-message"/, '대화 중에는 주관식 입력칸이 늘 있다');
   assert.match(UI, /\{rescueOpen && <div className="echo-rescue"/, '보기는 펼쳤을 때만');
   assert.match(UI, /const rescueOpen = !!question && !editingPrevious && \(rescueFor\?\.q === question \? rescueFor\.open : !!rescue\?\.show\);/, '펼침 = 내가 누름(A·B) 또는 서버가 먼저 펼침(C·D)');
   assert.ok(!/current_choices\.map/.test(UI), '예전처럼 보기를 늘 바로 그리지 않는다');
