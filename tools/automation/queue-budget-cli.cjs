@@ -1,6 +1,7 @@
 // Single budget gate for claude.yml (both the trusted-review preflight and the shell round gate read its outputs).
 // node queue-budget-cli.cjs <pr number> <issue-comments file (JSON array or one JSON value per line)>
-// Env (from workflow context, not comment text): QUEUE_STORE_DIR (checkout with git access), REVIEW_ACTOR_LOGIN/REVIEW_ACTOR_TYPE (optional).
+// Env (from workflow context, not comment text): QUEUE_STORE_DIR (checkout with git access), REVIEW_ACTOR_LOGIN/REVIEW_ACTOR_TYPE (optional),
+// HEAD_REF/HEAD_SHA (PR head from the API) and REVIEW_SHA (review commit, or the head for non-review events): required for registered tasks (missing => denied); legacy PRs ignore them.
 // Writes allowed/used/limit/round/branch/reason to $GITHUB_OUTPUT. Exit 0 allowed, 4 denied, 1 error (fail closed: allowed=false). Read-only.
 const fs = require('node:fs');
 const { gitStore } = require('./queue-store-git.cjs');
@@ -17,7 +18,7 @@ function run(store, pr, commentsText, env = {}) {
     const { rev, state } = store.load();
     const registry = rev === null ? [] : state.legacyTasks;
     const actor = env.REVIEW_ACTOR_LOGIN ? { login: env.REVIEW_ACTOR_LOGIN, type: env.REVIEW_ACTOR_TYPE } : undefined;
-    const d = budgetDecision({ registry, pr, comments, opts: { actor } });
+    const d = budgetDecision({ registry, pr, comments, opts: { actor, headRef: env.HEAD_REF || undefined, headSha: env.HEAD_SHA || undefined, reviewSha: env.REVIEW_SHA || undefined, requireBinding: true } });
     return { code: d.allowed ? 0 : 4, d };
   } catch { return { code: 1, d: { allowed: false, reason: 'budget_lookup_failed' } }; } // fixed text: no token/err output
 }

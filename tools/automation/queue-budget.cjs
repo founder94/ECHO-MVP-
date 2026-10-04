@@ -29,6 +29,7 @@ function taskProblem(t) {
   if (!validBranch(t.branch)) return 'bad_branch';
   if (typeof t.acceptance !== 'string' || !t.acceptance.trim()) return 'no_acceptance';
   if (!Number.isFinite(Date.parse(t.registeredAt))) return 'bad_registered_at';
+  if (t.rounds !== undefined && !(Number.isInteger(t.rounds) && t.rounds >= 0 && t.rounds <= MAX)) return 'bad_rounds'; // malformed stored counter is an error, never silently 0
   return null;
 }
 
@@ -60,12 +61,13 @@ function budgetDecision({ registry, pr, comments, opts = {} }) {
   if (!live.length) return deny('task_blocked', { mode: 'task' }); // an already blocked task needs an explicitly approved new registration
   if (live.length > 1) return deny('ambiguous_task', { mode: 'task' });
   const t = live[0];
+  if (opts.requireBinding && (!opts.headRef || !SHA.test(opts.headSha || '') || !SHA.test(opts.reviewSha || ''))) return deny('binding_missing', { mode: 'task' }); // CLI mode: measured branch/head/review SHA are mandatory
   if (opts.headRef !== undefined && opts.headRef !== t.branch) return deny('branch_mismatch', { mode: 'task' });
   if (opts.reviewSha !== undefined && opts.reviewSha !== opts.headSha) return deny('stale_sha', { mode: 'task' });
   const since = Date.parse(t.registeredAt);
   const ids = new Set((Array.isArray(t.handoffIds) ? t.handoffIds : []).filter(Number.isInteger));
   for (const c of handoffs) if (Date.parse(c.created_at) > since) ids.add(c.id);
-  const used = Math.max(ids.size, Number.isInteger(t.rounds) && t.rounds > 0 ? t.rounds : 0);
+  const used = Math.max(ids.size, t.rounds ?? 0);
   if (used >= limit) return deny('round_limit', { mode: 'task', taskId: t.taskId, used, limit });
   return { allowed: true, mode: 'task', taskId: t.taskId, branch: t.branch, used, limit, round: used + 1, historical: handoffs.length };
 }

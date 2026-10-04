@@ -1,7 +1,7 @@
 diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
 --- a/.github/workflows/claude.yml
 +++ b/.github/workflows/claude.yml
-@@ -60,5 +60,26 @@
+@@ -60,5 +60,31 @@
          run: node tools/automation/queue-managed.cjs "$IS_PR" "$NUM"
 +      - name: Task budget (single source for the preflight and the round gate; registered tasks only, legacy cap 5 otherwise)
 +        id: budget
@@ -11,8 +11,13 @@ diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
 +          GITHUB_REPOSITORY: ${{ github.repository }}
 +          NUM: ${{ github.event.issue.number || github.event.pull_request.number }}
 +          IS_PR: ${{ github.event.issue.pull_request != null || github.event.pull_request != null }}
++          ACTOR_LOGIN: ${{ github.event.sender.login }}
++          ACTOR_TYPE: ${{ github.event.sender.type }}
++          EVENT_REVIEW_SHA: ${{ github.event.review.commit_id }}
 +        run: |
 +          if [ "$IS_PR" != "true" ]; then echo "allowed=true" >> "$GITHUB_OUTPUT"; exit 0; fi
++          read -r HEAD_REF HEAD_SHA < <(gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUM}" --jq '[.head.ref,.head.sha]|@tsv')
++          export HEAD_REF HEAD_SHA REVIEW_SHA="${EVENT_REVIEW_SHA:-$HEAD_SHA}" REVIEW_ACTOR_LOGIN="$ACTOR_LOGIN" REVIEW_ACTOR_TYPE="$ACTOR_TYPE"
 +          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${NUM}/comments?per_page=100" --jq '.[]' > "$RUNNER_TEMP/comments.ndjson"
 +          set +e
 +          node tools/automation/queue-budget-cli.cjs "$NUM" "$RUNNER_TEMP/comments.ndjson"
@@ -28,7 +33,7 @@ diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
 +          BUDGET_USED: ${{ steps.budget.outputs.used }}
 +          BUDGET_ROUND: ${{ steps.budget.outputs.round }}
          uses: actions/github-script@v7
-@@ -88,4 +110,5 @@
+@@ -88,4 +115,5 @@
                if (issueComments.some(c=>c.user?.login==='github-actions[bot]' && (c.body||'').startsWith(marker))) return no('duplicate_review');
 -              const rounds=issueComments.filter(c=>['github-actions[bot]','claude[bot]','founder94'].includes(c.user?.login) && /^<!-- echo-handoff to=codex sha=[a-f0-9]{40} round=\d+ -->/.test(c.body||'')).length;
 -              if (rounds>=5) return no('round_limit');
@@ -36,7 +41,7 @@ diff --git a/.github/workflows/claude.yml b/.github/workflows/claude.yml
 +              if (process.env.BUDGET_ALLOWED!=='true') return no('round_limit');
 +              const rounds=Number(process.env.BUDGET_USED);
                const findings=comments.filter(c=>c.pull_request_review_id===review.id && c.user?.login===CODEX && c.user.type==='Bot' && c.commit_id===review.commit_id && /\[P[012]\]|!\[P[012] Badge\]/.test(c.body||''));
-@@ -130,12 +152,13 @@
+@@ -130,12 +157,13 @@
          id: gate
          env:
            GH_TOKEN: ${{ github.token }}

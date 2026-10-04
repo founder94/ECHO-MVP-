@@ -67,7 +67,7 @@ test('invalid limit/tasks/binding/actor/stale are rejected', () => {
 test('two gates agree: the CLI that feeds the preflight and the round gate returns one decision; lookup failure denies', () => {
   const store = state => ({ load: () => ({ rev: 'r1', state }) });
   const text = [...old(45), ...fresh(4)].map(c => JSON.stringify(c)).join('\n');
-  const a = run(store({ tasks: [], legacyTasks: [task()] }), 103, text);
+  const a = run(store({ tasks: [], legacyTasks: [task()] }), 103, text, { HEAD_REF: 'claude/task-1', HEAD_SHA: SHA, REVIEW_SHA: SHA }); // binding is mandatory for registered tasks
   assert.equal(a.code, 0); assert.equal(a.d.used, 4);
   assert.equal(run(store({ tasks: [] }), 103, text).code, 4); // no registered task => legacy 49 >= 5
   assert.equal(run({ load: () => { throw new Error('token ghp_SECRET'); } }, 103, text).d.reason, 'budget_lookup_failed');
@@ -114,4 +114,25 @@ test('claude-task-budget patch applies after the routing patch; both gates read 
   assert.equal(/git switch|git checkout -b/.test(out), false); // model gets no branch creation
   const wf = fs.readFileSync(path.join(__dirname, '../../.github/workflows/claude.yml'), 'utf8');
   assert.equal(wf.includes('queue-budget'), false); // live file untouched by this test
+  assert.match(out, /HEAD_REF HEAD_SHA < <\(gh api .*pulls\/\$\{NUM\}/); // budget step measures branch/head from the API
+  assert.match(out, /REVIEW_SHA="\$\{EVENT_REVIEW_SHA:-\$HEAD_SHA\}"/);
+});
+
+// Codex independent FAIL 8e89998: malformed stored rounds, CLI binding.
+const T0 = { taskId: 'T1', sourcePR: 103, baseSha: 'a'.repeat(40), owner: { login: 'founder94', type: 'User' }, approval: { login: 'founder94', type: 'User' }, branch: 'claude/task-1', acceptance: 'test', registeredAt: '2026-10-04T10:00:00Z', state: 'RUNNING' };
+test('malformed stored task.rounds is rejected; undefined/0 allowed', () => {
+  for (const rounds of [Infinity, NaN, -1, '5', 2.5, 6, null]) assert.equal(budgetDecision({ registry: [{ ...T0, rounds }], pr: 103, comments: [] }).allowed, false, String(rounds));
+  assert.equal(budgetDecision({ registry: [T0], pr: 103, comments: [] }).allowed, true);
+  assert.equal(budgetDecision({ registry: [{ ...T0, rounds: 0 }], pr: 103, comments: [] }).allowed, true);
+});
+test('CLI requires and enforces branch/head/review binding for registered tasks; legacy unaffected', () => {
+  const a = 'a'.repeat(40), b = 'b'.repeat(40);
+  const store = { load: () => ({ rev: 'r', state: { legacyTasks: [T0] } }) };
+  const actor = { REVIEW_ACTOR_LOGIN: 'founder94', REVIEW_ACTOR_TYPE: 'User' };
+  assert.notEqual(run(store, 103, '[]', { ...actor, HEAD_REF: 'claude/other', HEAD_SHA: b, REVIEW_SHA: a }).code, 0);
+  assert.notEqual(run(store, 103, '[]', { ...actor, HEAD_REF: 'claude/task-1', HEAD_SHA: b, REVIEW_SHA: a }).code, 0);
+  assert.notEqual(run(store, 103, '[]', actor).code, 0);
+  assert.notEqual(run(store, 103, '[]', { ...actor, HEAD_REF: 'claude/task-1', HEAD_SHA: b }).code, 0);
+  assert.equal(run(store, 103, '[]', { ...actor, HEAD_REF: 'claude/task-1', HEAD_SHA: b, REVIEW_SHA: b }).code, 0);
+  assert.equal(run({ load: () => ({ rev: null }) }, 7, '[]', {}).code, 0);
 });
