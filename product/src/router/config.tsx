@@ -24,7 +24,8 @@ const ComingSoonPage = lazy(() => import('@/pages/coming-soon/page'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 // 2026-10-04 대표 「홈페이지·모바일 디자인 교체」: 회사 홈페이지(brand 빌드)의 첫 화면(/ · 온보딩 뒤 /do-it/landing) = 새 홈페이지(브랜드 → ECHO → 회사 → 대표 인사말).
 // 통합 빌드(검사 환경)는 예전 랜딩 그대로 — 예전 화면 파일은 지우지 않는다.
-const BrandHomePage = lazy(() => import('@/pages/do-it/brand-home/page'));
+// brand 빌드에서만 만든다(app·admin·통합 빌드에는 이 화면 조각이 들어가지 않음 · Codex PR #123).
+const BrandHomePage = import.meta.env.VITE_SITE_ROLE === 'brand' ? lazy(() => import('@/pages/do-it/brand-home/page')) : null;
 
 // 브랜드 사이트로 들어온 제품 경로는 같은 경로의 앱 주소로 보낸다(화면 없이 이동).
 const PRODUCT_PATHS_ON_BRAND = [
@@ -43,7 +44,7 @@ function brandRouteTable(): RouteObject[] {
   const DoItHeroPage = lazy(() => import('@/pages/do-it/hero/page'));
   return [
     { path: '/do-it/hero', element: <DoItHeroPage /> },
-    { path: '/do-it/landing', element: ROLE === 'brand' ? <BrandHomePage /> : <DoItLandingPage /> },
+    { path: '/do-it/landing', element: BrandHomePage ? <BrandHomePage /> : <DoItLandingPage /> },
   ];
 }
 
@@ -135,7 +136,7 @@ function productRouteTable(): RouteObject[] {
 // 히어로 문구·디자인은 그대로 같은 화면을 쓴다(변경 0).
 // 2026-09-27 대표 「QA FINAL FIX」: 앱 주소(app 빌드)는 모바일 제품이다. 첫 화면에 브랜드 히어로를 두지 않는다.
 // 앱의 / 는 (온보딩을 본 뒤) 제품 입구로 간다. 브랜드·통합 빌드는 그대로 랜딩(히어로).
-const entryLanding = ROLE === 'app' ? <Navigate to={PRODUCT_ENTRY_PATH} replace /> : ROLE === 'brand' ? <BrandHomePage /> : <DoItLandingPage />;
+const entryLanding = ROLE === 'app' ? <Navigate to={PRODUCT_ENTRY_PATH} replace /> : BrandHomePage ? <BrandHomePage /> : <DoItLandingPage />;
 // 앱에는 랜딩·히어로가 없다. 예전 링크는 시작 흐름으로.
 const brandRoutes: RouteObject[] = BRAND ? brandRouteTable() : [
   { path: '/do-it/hero', element: <Navigate to="/" replace /> },

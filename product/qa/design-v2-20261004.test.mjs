@@ -37,8 +37,8 @@ test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움�
 
 test('라우터: 새 홈페이지는 brand 빌드에서만(앱·통합 빌드 영향 0)', () => {
   const r = read('src/router/config.tsx');
-  assert.match(r, /ROLE === 'brand' \? <BrandHomePage \/> : <DoItLandingPage \/>/);
-  assert.match(r, /const BrandHomePage = lazy\(\(\) => import\('@\/pages\/do-it\/brand-home\/page'\)\);/);
+  assert.match(r, /BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/>/);
+  assert.match(r, /const BrandHomePage = import\.meta\.env\.VITE_SITE_ROLE === 'brand' \? lazy\(\(\) => import\('@\/pages\/do-it\/brand-home\/page'\)\) : null;/, 'brand 빌드에서만 홈페이지 조각(app 빌드 0 · Codex PR #123)');
 });
 
 test('모바일: 정정 네 버튼 · 「이렇게 이해했는데, 맞나요?」 · 시작 문구 · 대기 문구', () => {

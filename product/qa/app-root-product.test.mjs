@@ -6,7 +6,7 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 test('라우터: app 빌드의 / 는 제품 입구로 · 브랜드·통합 빌드는 랜딩(히어로) 그대로', () => {
   const s = read('src/router/config.tsx');
-  assert.match(s, /const entryLanding = ROLE === 'app' \? <Navigate to=\{PRODUCT_ENTRY_PATH\} replace \/> : ROLE === 'brand' \? <BrandHomePage \/> : <DoItLandingPage \/>;/);
+  assert.match(s, /const entryLanding = ROLE === 'app' \? <Navigate to=\{PRODUCT_ENTRY_PATH\} replace \/> : BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/>;/);
   assert.match(s, /\{ path: '\/', element: <DoItEntry landing=\{entryLanding\} \/> \}/);
 });
 test('인트로: app 빌드이거나 next=app 이면 제품 입구 · 그 밖은 기존(랜딩)', () => {
