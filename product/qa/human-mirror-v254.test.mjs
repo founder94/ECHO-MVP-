@@ -52,11 +52,11 @@ test('v2.5.4 세 번 청해도 설문형이면 그대로 내보내지 않고 질
   const llm = async (kind, _system, input) => {
     seen.push(kind);
     if (kind === 'turn') return turnOut(STIFF);
-    if (kind === 'question') { assert.equal(input.latest, PHRASE); assert.ok(input.bad_tries.includes(STIFF), '실패한 질문을 알려 준다'); return JSON.stringify({ question: '천천히 가려면 처음엔 연락부터가 편해요?' }); }
+    if (kind === 'question') { assert.equal(input.latest, PHRASE); assert.ok(input.bad_tries.includes(STIFF), '실패한 질문을 알려 준다'); return JSON.stringify({ question: '천천히 가려면 처음엔 가벼운 얘기부터가 편해요?' }); }
     return JSON.stringify({ reply: '오, 좋죠.' });
   };
   const r = await A.runTurn(st, PHRASE, llm);
-  assert.equal(r.response.question, '천천히 가려면 처음엔 연락부터가 편해요?');
+  assert.equal(r.response.question, '천천히 가려면 처음엔 가벼운 얘기부터가 편해요?');
   assert.ok(r.obs.retry.includes('question_rewrite'));
   assert.equal(seen.filter((k) => k === 'turn').length, 3, '대화 청하기 횟수(MAX_CALLS_PER_TURN)는 그대로');
   assert.ok(!st.asked.some((a) => a.text === STIFF), '설문형 질문은 물은 질문으로 남지 않음');
@@ -75,7 +75,7 @@ test('v2.5.5 다시 청한 질문도 설문형이면 거절 이유와 함께 한
   assert.equal(purposes.length, 3, 'v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) + 다른 목적 한 번');
   assert.equal(purposes[0], purposes[1]); assert.notEqual(purposes[1], purposes[2]);
   assert.equal(whys[0], null); assert.ok(whys[1], '두 번째 다시 쓰기에 거절 이유를 알린다');
-  assert.equal(r.response.question, A.fillFallbackText('polite'));
+  assert.equal(r.response.question, A.talkFallbackText('polite')); // 2026-10-05 canon: 처음 세 질문엔 곳 안내 대신 이야기 쪽 안내
   assert.ok(!A.infoKindQuestion(r.response.question, PHRASE) && !A.surveyQuestion(PHRASE, r.response.question));
   assert.ok(r.obs.retry.includes('question_fallback'));
 });
@@ -84,21 +84,21 @@ test('v2.5.4 앞선 시도 중 규칙을 지킨 질문이 있으면 서버 안�
   const st = start();
   let n = 0;
   const llm = async (kind) => {
-    if (kind === 'turn') { n++; return n === 1 ? JSON.stringify(T({ reply: '그렇군요.', extracted: [X('relationship_intent', '천천히 스며드는 친구를 원함', '천천히 대화하면서 스며드는 친구')], next: N('relationship_style', '처음엔 가볍게 연락부터 해 볼까요?') })) : turnOut(STIFF); }
+    if (kind === 'turn') { n++; return n === 1 ? JSON.stringify(T({ reply: '그렇군요.', extracted: [X('relationship_intent', '천천히 스며드는 친구를 원함', '천천히 대화하면서 스며드는 친구')], next: N('relationship_style', '처음엔 가볍게 인사부터 나눠 볼까요?') })) : turnOut(STIFF); }
     if (kind === 'question') return JSON.stringify({ question: '' });
     return JSON.stringify({ reply: '오, 좋죠.' });
   };
   const r = await A.runTurn(st, PHRASE, llm);
-  assert.equal(r.response.question, '처음엔 가볍게 연락부터 해 볼까요?');
+  assert.equal(r.response.question, '처음엔 가볍게 인사부터 나눠 볼까요?');
   assert.ok(r.obs.retry.includes('question_from_try'));
 });
 
 test('v2.5.4 첫 청하기에서 사람 말이면 추가 호출 0', async () => {
   const st = start();
   const seen = [];
-  const llm = async (kind) => { seen.push(kind); return kind === 'turn' ? turnOut('천천히면 처음엔 연락부터가 편해요?') : JSON.stringify({ reply: '오, 좋죠.' }); };
+  const llm = async (kind) => { seen.push(kind); return kind === 'turn' ? JSON.stringify({ ...JSON.parse(turnOut('천천히면 처음엔 가벼운 얘기부터가 편해요?')), next: { ...N('relationship_style', '천천히면 처음엔 가벼운 얘기부터가 편해요?'), choices: ['요즘 지내는 얘기', '좋아하는 음식 얘기', '쉬는 날 얘기'] } }) : JSON.stringify({ reply: '오, 좋죠.' }); }; // 2026-10-05 canon: 처음 세 질문은 보기 3~4개(모델이 내면 추가 호출 0)
   const r = await A.runTurn(st, PHRASE, llm);
-  assert.equal(r.response.question, '천천히면 처음엔 연락부터가 편해요?');
+  assert.equal(r.response.question, '천천히면 처음엔 가벼운 얘기부터가 편해요?');
   assert.deepEqual(seen, ['turn']);
 });
 
@@ -181,7 +181,7 @@ test('09-30 v67: mid-sentence person pick and pasted 모르겠어요 are questio
   assert.equal(A.genericPersonQuestion('고양이와 함께할 때 어떤 친구가 좋을까요?'), true);
   assert.equal(A.genericPersonQuestion('천천히 알아갈 때 어떤 사람이면 말이 잘 이어질 것 같아요?'), false);
   assert.equal(A.questionFlaw(start(), '잘 모르겠어요', '모르겠어요면 처음 연락은 문자로 해요?', false), 'unsure_paste');
-  assert.equal(A.questionFlaw(start(), '편하게 얘기할 친구를 찾고 있어요', '친구와 처음 연락할 때 문자로 시작하면 좋나요?', false), '');
+  assert.equal(A.questionFlaw(start(), '편하게 얘기할 친구를 찾고 있어요', '친구와 처음 만나면 무슨 얘기부터 해요?', false), '');
 });
 
 // 2026-09-30 마감 지시 §4 → 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」로 계약을 바꿨다(예전: 모르겠다 뒤에만 보기 + 서버가 「잘 모르겠어요」를 붙임).
@@ -191,13 +191,13 @@ test('10-01 contract: every question keeps server-screened rescue options (2–4
   assert.deepEqual(A.cleanChoices(['어디가 좋아요?', '아주아주아주아주아주 긴 보기 문장이에요', '잘 모르겠어요']), [], '물음표·16자 초과·모르겠 보기는 버리고, 2개 미만이면 보기 없음');
   const st = start();
   const first = await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
-    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: { ...N('relationship_style', '친구랑 카페에서 만나면 편해요?'), choices: ['카페', '공원'] } }))
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: { ...N('relationship_style', '편하게 얘기할 친구랑 수다 떨면 편해요?'), choices: ['카페', '공원'] } }))
     : JSON.stringify({ reply: '좋죠.' }));
   assert.deepEqual(A.choicesFor(st), ['카페', '공원'], '보통 답 뒤에도 보기는 서버가 들고 있다(구조대)');
-  assert.equal(A.rescueView(st).show, false, '보통 답 뒤에는 먼저 펼치지 않는다(주관식 본체)');
+  assert.equal(A.rescueView(st).show, true, '2026-10-05 canon: 처음 세 질문은 보통 답 뒤에도 보기를 먼저 펼친다(자유 입력칸은 그대로)');
   assert.ok(first.response.question);
   await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn'
-    ? JSON.stringify(T({ kind: 'unsure', reply: '', next: { ...N('contact_rhythm', '처음엔 문자로 시작하면 편해요?'), choices: ['문자로 천천히', '바로 통화', '만나서 얘기'] } }))
+    ? JSON.stringify(T({ kind: 'unsure', reply: '', next: { ...N('contact_rhythm', '처음엔 어떻게 알아가는 게 편해요?'), choices: ['문자로 천천히', '바로 통화', '만나서 얘기'] } }))
     : JSON.stringify({ reply: '' }));
   assert.deepEqual(A.choicesFor(st), ['문자로 천천히', '바로 통화', '만나서 얘기'], '「잘 모르겠어요」는 보기에 섞지 않는다');
   assert.equal(A.rescueView(st).show, true, '모르겠다 뒤에는 서버가 보기를 먼저 펼친다');
@@ -244,18 +244,18 @@ test('09-30 v70: help that the server turns into unsure is checked like unsure (
 test('09-30 v71: unsure turn with rejected rewrites falls back to the choice question; blocked why names the similar question', async () => {
   const st = start();
   await A.runTurn(st, '편하게 얘기할 친구를 찾고 있어요', async (kind) => kind === 'turn'
-    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '친구랑 카페에서 만나면 편해요?') }))
+    ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: N('relationship_style', '편하게 얘기할 친구랑 수다 떨면 편해요?') }))
     : JSON.stringify({ reply: '좋죠.' }));
   const whys = [];
   const r = await A.runTurn(st, '잘 모르겠어요', async (kind, _s, input) => {
     if (kind === 'turn') return JSON.stringify(T({ kind: 'unsure', next: N('contact_rhythm', '친구와 만나면 어떤 활동이 좋을까요?') }));
-    if (kind === 'question') { whys.push(input.rejected?.why ?? null); return JSON.stringify({ question: '친구랑 카페에서 만나면 편해요?', choices: ['카페에서 수다', '같이 산책', '네, 좋아요'] }); }
+    if (kind === 'question') { whys.push(input.rejected?.why ?? null); return JSON.stringify({ question: '편하게 얘기할 친구랑 수다 떨면 편해요?', choices: ['카페에서 수다', '같이 산책', '네, 좋아요'] }); }
     return JSON.stringify({ reply: '' });
   });
   assert.equal(r.response.question, A.choiceQuestionText('polite'));
   assert.deepEqual(A.choicesFor(st), ['카페에서 수다', '같이 산책']);
   assert.ok(r.obs.retry.includes('question_choices'));
-  assert.match(whys[1] ?? '', /「친구랑 카페에서 만나면 편해요\?」와 같은 틀/);
+  assert.match(whys[1] ?? '', /「편하게 얘기할 친구랑 수다 떨면 편해요\?」와 같은 틀/);
 });
 
 // 2026-09-30 §7 + QA v71·v72 장면 E: 정정 뒤 「고친 값으로 다시 정한 다음 질문」은 고치기 전 답에서 나온(답을 받지 못한) 질문과 비슷해도 쓴다. 글자까지 같은 재사용은 막는다.
@@ -264,12 +264,12 @@ test('09-30 §7: after a correction the recomputed next question may resemble th
   await A.runTurn(st, '편하게 자주 볼 수 있는 동네 친구를 찾고 있어요', async (kind) => kind === 'turn'
     ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '동네 친구', '동네 친구')], next: N('relationship_style', '자주 보면 좋을 것 같아요?') }))
     : JSON.stringify({ reply: '좋죠.' }));
-  const OLD_Q3 = '일주일에 세 번 만나는 날에 가고 싶은 장소가 있나요?';
+  const OLD_Q3 = '일주일에 세 번 만나는 날에 같이 하고 싶은 게 있나요?';
   await A.runTurn(st, '일주일에 세 번 만나는 게 좋아요', async (kind) => kind === 'turn'
     ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_style', '일주일에 세 번 만나는 게 좋아요', '일주일에 세 번 만나는 게 좋아요')], next: N('values_character', OLD_Q3) }))
     : JSON.stringify({ reply: '좋죠.' }));
   assert.equal(st.current.text, OLD_Q3);
-  const NEW_Q3 = '한 달에 한두 번 만나는 날에 가고 싶은 카페가 있나요?';
+  const NEW_Q3 = '한 달에 한두 번 만나는 날에 같이 하고 싶은 게 있나요?';
   assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', NEW_Q3), 'blocked', '보통 턴에서는 여전히 비슷한 질문으로 막힌다');
   assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', NEW_Q3, true, OLD_Q3), '', '정정 턴에서는 고친 값으로 다시 정한 질문을 쓴다');
   assert.equal(A.questionFlaw(st, '한 달에 한두 번 만나는 게 좋아요', OLD_Q3, true, OLD_Q3), 'blocked', '옛 질문 글자 그대로 재사용은 막는다');

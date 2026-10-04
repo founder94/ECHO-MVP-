@@ -547,7 +547,7 @@ test('v1.9 대표 실기기 재현(2026-09-25): AI 가 놓친 답은 원문으�
   s.ai.push(T({ extracted: [], ...Q('values_character', '사람을 만날 때 가장 먼저 어떤 점을 보나요?') }));
   assert.equal((await say('능력이좀 있는사람')).body.turn.saved, true);
   assert.deepEqual(state().slots.attraction_comfort.items.map((i) => i.quote), ['능력이좀 있는사람']);
-  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람 내가 지금 능력이 없었기 때문에')], ...Q('relationship_style', '연락은 자주 하는 편인가요?') }));
+  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람 내가 지금 능력이 없었기 때문에')], ...Q('relationship_style', '능력 있는 사람이면 어떤 점이 제일 끌려요?') }));
   await say('능력이 있는 사람 내가 지금 능력이 없었기 때문에');
   // ② 항의 + 새 이야기: 새 이야기(이번 말에 실제로 있는 글자)는 저장 · 항의 문장 원문 저장 0
   s.ai.push(T({ kind: 'repair', reply: '네, 아까 말씀하셨죠.', extracted: [X('relationship_style', '연락 자주', '연락은 자주하는 편')], ...Q('boundaries', '이건 좋고 이건 싫다 싶은 게 있나요?') }));
@@ -619,7 +619,7 @@ test('v2.4 세션 격리: 같은 계정 · 기기 A(친구)와 기기 B(연애)�
   // 두 세션에 동시에 말해도 서로의 턴·질문이 섞이지 않는다
   s.ai.push(T({ extracted: [X('attraction_comfort', '카페에서 얘기', '카페에서 얘기하는')], ...Q('relationship_style', '카페에서 보면 오래 얘기하는 편이에요?') })); // v2.5.4: 「얼마나 자주」는 정보 종류 질문(대표 HUMAN MIRROR)
   const ta = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: a.body.session.id, text: '카페에서 얘기하는 게 좋아' });
-  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '다정한 사람이면 연락도 자주 오면 좋아요?') }));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '다정한 사람이면 어떤 말에 마음이 가요?') }));
   const tb = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: b.body.session.id, text: '다정한 사람이 좋아요' });
   const aUsers = ta.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
   const bUsers = tb.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
@@ -863,7 +863,7 @@ test('v2.5: 이미 충분히 들은 상태면 중복 후보를 더 생성하지 
 // ── FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): Agent 완료 판단 = 연결 서버 대화 자격과 같은 함수(conversationReadiness).
 // QA 실서버(run 36841364057 · 재현 2026-10-01): A 는 대화를 마쳤는데 사용자 출처 칸이 2개라 연결 자격 0(candidate 0) — 같은 모양을 서버 흐름으로 다시 만든다.
 const fi018Done = async (h, s) => {
-  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화부터 시작하고 싶어요', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '깊은 대화는 처음에 어디서 하면 편해요?') }));
+  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화부터 시작하고 싶어요', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '깊은 대화는 어떤 순간에 제일 잘 통해요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'conversation', goalLabel: '깊은 대화부터 시작하고 싶어요', firstAnswer: '깊은 대화부터 시작하고 싶어요' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   // 두 번째 답: AI 가 물은 칸(attraction)에 원문을 넣지 않고 다른 칸(style)에 정리 → 물은 칸에는 사용자 원문
@@ -927,11 +927,11 @@ test('FI-018 CASE 8: 같은 사용자가 다시 들어옴 → 같은 세션 · A
 // 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 서버 전 구간(가짜 AI) — 잘 모르겠어요(구조 요청 · 턴 0) → 보기 고름(사용자 직접 답) → 뒤로 복원(previous) → 고치기(옛 보기 밀림).
 test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 USER_DIRECT 로 기록 · previous 로 복원 · 고치면 옛 보기 0', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
-  assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: false, fallback: false }, '보기는 들고 있되 먼저 펼치지 않음 · 「잘 모르겠어요」는 보기에서 빠짐');
-  assert.equal(start.body.session.current_choices, null);
+  assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: true, fallback: false }, '「잘 모르겠어요」는 보기에서 빠짐 · 2026-10-05 canon: 처음 세 질문은 보기를 먼저 펼친다');
+  assert.deepEqual(start.body.session.current_choices, ['조용한 카페', '같이 걷기']); // 2026-10-05 canon: 처음 세 질문은 펼친 보기를 함께 보낸다
   const turnsBefore = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length; const callsBefore = s.aiCalls.length;
   const rescue = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
   assert.equal(rescue.status, 200); assert.equal(rescue.body.session.current_rescue.show, true);
@@ -948,7 +948,7 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   assert.equal(st.slots.relationship_style.items.find((i) => i.source === 'choice').source_type, 'USER_DIRECT');
   assert.equal(st.slots.boundaries.items.length, 0, 'AI 정리를 얹지 않는다');
-  assert.deepEqual(pick.body.session.previous, { question: '친구 만나면 처음엔 어디가 편해요?', options: ['조용한 카페', '같이 걷기'], chosen: '조용한 카페' }, '뒤로 = 질문 · 보기 · 고른 것 복원');
+  assert.deepEqual(pick.body.session.previous, { question: '친구 만나면 처음엔 뭐 하는 게 편해요?', options: ['조용한 카페', '같이 걷기'], chosen: '조용한 카페' }, '뒤로 = 질문 · 보기 · 고른 것 복원');
   for (let k = 0; k < 3; k++) s.ai.push(T({ kind: 'correction', reply: '아, 같이 걷기요.', extracted: [], ...Q('values_character', '같이 걸으면 약속 시간도 중요해요?') }));
   const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '같이 걷기', correction: { purpose: null } });
   assert.equal(fix.status, 200, JSON.stringify(fix.body));
@@ -1385,10 +1385,10 @@ test('Codex P2 소개 다시 쓰기·구조대 보기의 모델 호출도 대화
   const sid = start.body.session.id;
   // 구조대: 들고 있는 보기가 없으면 보기를 청하는 모델 호출 1
   s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
-  const b0 = structuredClone(sessionRow(s).response_payload.run.budget);
+  const b0 = structuredClone(sessionRow(s).response_payload.run.budget); const rc0 = (s.rescueCalls ?? []).length; // 2026-10-05 canon: 처음 질문의 보기 만들기(시작 때 1번)는 따로 셈
   assert.equal((await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid })).status, 200);
   const b1 = sessionRow(s).response_payload.run.budget;
-  assert.equal((s.rescueCalls ?? []).length, 1, '보기 모델 호출 1');
+  assert.equal((s.rescueCalls ?? []).length - rc0, 1, '보기 모델 호출 1');
   assert.equal(b1.calls, b0.calls + 1, '구조대 호출이 예산에'); assert.equal(b1.tokens_in, b0.tokens_in + 100);
   s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
   assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' })).status, 200);
@@ -1431,9 +1431,9 @@ test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불�
   const start = await h.call({ action: 'agent_start', requestId: used, tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
   const sid = start.body.session.id;
   seedDaily(s, 200);
-  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
+  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }]; const rc0 = (s.rescueCalls ?? []).length; // 2026-10-05 canon: 시작 때 처음 질문의 보기 만들기는 한도 전(따로 셈)
   const r = await h.call({ action: 'agent_rescue', requestId: used, sessionId: sid });
-  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length, 0, '보기 모델 호출 0');
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length - rc0, 0, '보기 모델 호출 0');
 });
 test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 요청 id 로 시작해도 그 세션을 돌려줌(모델 0 · 429 아님)', async () => {
   const s = newState(); const h = load(s);
@@ -1448,7 +1448,7 @@ test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 �
 // ── PR #103 Codex Code Review(리뷰 5400022834 · 9a531dd) 재현 2건
 test('Codex P2 하루 한도에서도 모델이 필요 없는 소개(상한 도달)·구조대(들고 있던 보기)는 막지 않음 · 모델이 필요하면 막음', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   seedDaily(s, 200);
@@ -1472,7 +1472,7 @@ test('Codex P2 첫 질문 만들기가 실패해도 시도가 하루 한도에 �
 });
 test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·대화 예산 소진에서도 평소 결과(설정·예산 확인은 모델을 부를 때만)', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
@@ -1487,7 +1487,7 @@ test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·�
 });
 test('Codex P2 대화 차례: 모델이 필요 없는 입력(개인정보 안내 · 보기 모두 아님)은 대화 예산·하루 한도에서도 평소 응답 · 모델이 필요하면 막음', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
