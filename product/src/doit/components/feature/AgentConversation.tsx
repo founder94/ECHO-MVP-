@@ -362,7 +362,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP, 보기가 펼쳐졌을 때). 입력줄 바로 위 작은 칩. */}
     {!done && !editingPrevious && <div className="echo-reactions echo-chat-chips">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
     {/* 「+」 안: 화면에서 덜 쓰는 행동을 한곳에. 열려 있는 동안만 보인다. */}
-    {(toolsOpen || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
+    {/* 다 들은 뒤에는 「맞나요?」 확인이 끝나기 전까지 다음 행동(사진·연결)을 열지 않는다 — 「+」를 열어 둔 채 끝나도 마찬가지(Codex 4179032624). */}
+    {((toolsOpen && !done) || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
       {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
       {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
       {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button></li>)}</ol></details>}

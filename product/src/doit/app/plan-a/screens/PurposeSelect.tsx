@@ -12,6 +12,7 @@ import { colors, serif , surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { ActivePurpose } from "@/doit/lib/purposes";
 import "@/doit/components/feature/start-ref.css";
+import DoItSymbol3D from "@/components/DoItSymbol3D";
 
 // Purpose 정본 = 운영 DB public.purposes 의 is_active=true 행.
 // 2026-09-20 대표 확정: 이 화면은 목적 목록을 스스로 갖지 않는다.
@@ -84,7 +85,7 @@ export function PurposeSelect({
       <div className="flex-1 overflow-y-auto">
         <div className="px-6 pt-8 pb-4">
           {/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작): ECHO 글자 + 유리 리본(대표가 보낸 모션 디자인 시안의 리본을 잘라 씀) */}
-          <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" fetchPriority="high" /></div>
+          <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" fetchPriority="high" /><DoItSymbol3D size={112} className="echo-ref-symbol" /></div>
           <motion.div
             initial={{
               opacity: 0,
