@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DoItSymbol from '@/components/DoItSymbol';
 import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
-import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
+import { INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
 import './brand-home.css';
 
@@ -13,11 +13,12 @@ import './brand-home.css';
 
 const START_PATH = '/doit/start-journey';
 export const BRAND_HOME_COPY = {
-  heroTitle: '대화로 시작하는 만남.',
-  heroLine: '말이 통하는 사람을 만나는 일.',
+  heroTitle: '말이 통하는 사람을 만나는 일.',
+  heroLine: '그 시작을 ECHO가 함께합니다.',
   echoTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.'],
+  echoLead: ['어떤 사람과 무엇을 함께하고 싶은지,', 'ECHO에게 들려주세요.'],
   echoSoon: '관련 기능 준비 중',
-  companyLead: ['대화로 시작하는 만남을', '만듭니다.'],
+  companyLead: ['사람과 사람이 만나는', '서비스를 만듭니다.'],
   start: '모바일 시작하기',
   install: '앱 설치 안내',
   learn: 'ECHO 알아보기',
@@ -50,20 +51,11 @@ function useDepthReveal() {
   return rootRef;
 }
 
-// 「모바일 시작하기」 전부(첫 화면 포함): 컴퓨터에서는 앱으로 바로 넘기지 않고 QR 구간으로(휴대폰으로 시작) — 기존 홈페이지와 같은 규칙.
-// 「이 컴퓨터에서 열기」는 QR 구간 안에 그대로 남는다.
-const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
-  if (!matches(DESKTOP_QUERY)) return;
-  const qr = document.getElementById('bh-start-qr');
-  if (!qr) return;
-  event.preventDefault();
-  qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
-};
-
+// 「모바일 시작하기」는 컴퓨터에서도 막지 않고 곧바로 앱 주소로 이동한다(2026-10-04 대표 지시 · 예전 QR 강제 분기 폐지). QR 은 보조 안내로만 남는다.
 function StartActions({ id }: { id?: string }) {
   return (
     <div className="bh-actions" id={id}>
-      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
       <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
     </div>
   );
@@ -118,7 +110,7 @@ export default function BrandHomePage() {
           <span className="bh-rule" aria-hidden="true" />
           <div className="bh-actions">
             {/* 명세: 시안에서는 「ECHO 알아보기」가 주 버튼처럼 보여도 「모바일 시작하기」가 주 행동 · ECHO 알아보기는 보조 */}
-            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
             <a className="bh-btn bh-btn--text" href="#bh-echo">{BRAND_HOME_COPY.learn}</a>
           </div>
         </div>
@@ -131,6 +123,7 @@ export default function BrandHomePage() {
           <p className="bh-kicker">ECHO</p>
           <h2 id="bh-echo-title" className="bh-title">{BRAND_HOME_COPY.echoTitle[0]}<br />{BRAND_HOME_COPY.echoTitle[1]}</h2>
           <span className="bh-rule" aria-hidden="true" />
+          <p className="bh-lead">{BRAND_HOME_COPY.echoLead[0]}<br />{BRAND_HOME_COPY.echoLead[1]}</p>
           <p className="bh-soon">{BRAND_HOME_COPY.echoSoon}</p>
           <ol className="bh-cards">
             {ECHO_STEPS.map((step, i) => (

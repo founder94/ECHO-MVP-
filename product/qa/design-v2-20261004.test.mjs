@@ -15,8 +15,8 @@ test('홈페이지: 순서 = 브랜드 → ECHO → 회사 정보 → 대표 인
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
 });
 
-test('홈페이지 문구: 첫 화면 「대화로 시작하는 만남.」 · ECHO 원래 문구 + 「관련 기능 준비 중」 · 모바일 시작하기 · 앱 설치 안내', () => {
-  for (const t of ["heroTitle: '대화로 시작하는 만남.'", "heroLine: '말이 통하는 사람을 만나는 일.'", "echoTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "echoSoon: '관련 기능 준비 중'", "start: '모바일 시작하기'", "install: '앱 설치 안내'"]) assert.ok(HOME.includes(t), t);
+test('홈페이지 문구(2026-10-04 최신 대표 지시): 첫 화면 「말이 통하는 사람을 만나는 일.」 · ECHO 슬로건·설명 + 「관련 기능 준비 중」 · 회사 소개 · 모바일 시작하기 · 앱 설치 안내', () => {
+  for (const t of ["heroTitle: '말이 통하는 사람을 만나는 일.'", "heroLine: '그 시작을 ECHO가 함께합니다.'", "echoLead: ['어떤 사람과 무엇을 함께하고 싶은지,', 'ECHO에게 들려주세요.']", "companyLead: ['사람과 사람이 만나는', '서비스를 만듭니다.']", "echoTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "echoSoon: '관련 기능 준비 중'", "start: '모바일 시작하기'", "install: '앱 설치 안내'"]) assert.ok(HOME.includes(t), t);
   assert.match(HOME, /\{BRAND_HOME_COPY\.echoSoon\}/, '준비 중을 문구 바로 옆에 표시');
   assert.doesNotMatch(noComments(HOME), /AI가 (대신|최종) (선택|고르)/, 'AI가 대신 고른다는 설명 0');
 });
@@ -63,17 +63,18 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 같은 처리(컴퓨터 = QR 구간 · 휴대폰 = 앱) · Codex PR #123', () => {
+test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 앱 주소로 바로 이동(컴퓨터 QR 강제 분기 폐지 · 2026-10-04 대표 지시)', () => {
   const starts = HOME.match(/<a [^>]*href=\{appUrl\(START_PATH\)\}[^>]*>\{BRAND_HOME_COPY\.start\}/g) ?? [];
   assert.ok(starts.length >= 2, `시작 링크 ${starts.length}`);
-  for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
-  assert.match(HOME, /id="bh-start-qr"/, 'QR 구간');
+  for (const a of starts) assert.doesNotMatch(a, /onClick/, a);
+  assert.doesNotMatch(noComments(HOME), /goStart|preventDefault|DESKTOP_QUERY/, '컴퓨터 강제 분기 0');
+  assert.match(HOME, /id="bh-start-qr"/, 'QR 은 보조 안내로 남음');
   assert.match(HOME, /<a className="bh-btn bh-btn--text" href=\{appUrl\(START_PATH\)\}>이 컴퓨터에서 열기<\/a>/, '「이 컴퓨터에서 열기」는 앱으로 바로(빠져나갈 길)');
 });
 
 test('홈페이지 첫 화면: 주 행동 = 「모바일 시작하기」(테두리 버튼) · 「ECHO 알아보기」 = 보조(글자 링크) · 명세 「홈페이지」', () => {
   const hero = HOME.slice(HOME.indexOf('className="bh-sec bh-hero"'), HOME.indexOf('id="bh-echo"'));
-  assert.match(hero, /<a className="bh-btn bh-btn--outline" href=\{appUrl\(START_PATH\)\} onClick=\{goStart\}>\{BRAND_HOME_COPY\.start\}/);
+  assert.match(hero, /<a className="bh-btn bh-btn--outline" href=\{appUrl\(START_PATH\)\}>\{BRAND_HOME_COPY\.start\}/);
   assert.match(hero, /<a className="bh-btn bh-btn--text" href="#bh-echo">\{BRAND_HOME_COPY\.learn\}<\/a>/);
   assert.ok(hero.indexOf('BRAND_HOME_COPY.start') < hero.indexOf('BRAND_HOME_COPY.learn'), '모바일 시작하기가 먼저');
 });
