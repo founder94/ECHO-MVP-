@@ -127,6 +127,7 @@ const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: p
 const go = async (page) => { await page.goto(`${BASE}/doit/connections`, { waitUntil: 'networkidle' }); await page.waitForTimeout(600); };
 
 async function run(n, name, vp, init, fn) {
+  if (process.env.UX_ONLY && !process.env.UX_ONLY.split(",").includes(String(n))) return;
   const server = makeServer(init);
   const { ctx, page, errors } = await newPage(browser, vp, server);
   try { const detail = await fn(page, server); record(n, name, errors.length === 0, [detail, errors.length ? `JS오류 ${errors[0]}` : ''].filter(Boolean).join(' · ')); }
@@ -367,7 +368,8 @@ await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·
 });
 await run(51, 'ZZARIT 전류 0.6~0.9초 한 번 → 정지 · 연결선 은은하게 남음(.45) · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await go(p); await p.waitForTimeout(100);
-  const during = await p.evaluate(() => document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length);
+  // 전류는 0.9초 안에 끝나 화면 준비(networkidle + 0.6초) 뒤에는 이미 멈춰 있을 수 있다 — 실행 중 여부 대신 애니메이션이 있었는지(fill: both 로 남음)를 센다
+  const during = await p.evaluate(() => document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).length);
   await p.waitForTimeout(1400);
   const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, line: getComputedStyle(document.querySelector('.echo-zzarit-current')).opacity, ms: document.querySelector('.echo-zzarit-current').getAnimations()[0]?.effect?.getTiming().duration ?? null, focus: document.activeElement?.textContent }));
   expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(after.ms >= 600 && after.ms <= 900, `전류 길이 ${after.ms}ms`); expect(Math.abs(Number(after.line) - .45) < .02, `연결선 ${after.line}`);
