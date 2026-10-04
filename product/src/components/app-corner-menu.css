@@ -8,6 +8,7 @@
 .echo-corner-panel *{color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
 .echo-corner-caption{margin:0;padding:14px 18px 8px;font-size:12px;letter-spacing:.12em;opacity:.9}
 .echo-corner-item{display:block;padding:12px 18px;border-top:1px solid rgb(255 255 255/.35);text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s ease}
+.echo-corner-item--button{width:100%;box-sizing:border-box;border-left:0;border-right:0;border-bottom:0;background:none;font:inherit;text-align:left;cursor:pointer;min-height:44px}
 .echo-corner-item:active{background:rgb(255 255 255/.18)}
 .echo-corner-item:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 .echo-corner-label{display:block;font-size:15px;font-weight:600}

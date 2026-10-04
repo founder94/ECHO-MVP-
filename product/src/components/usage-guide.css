@@ -1,0 +1,43 @@
+/* 이용 안내 오버레이(.ug-root 아래만 — 전역 0). 홈페이지(brand) = 검정·흰색·은색, 앱(app) = 짙은 청록 유리 + 흰 글자.
+   모바일 = 아래에서 올라오는 시트(최대 88dvh, 긴 내용은 안에서 스크롤), 넓은 화면(900px+) = 오른쪽 옆 패널.
+   패널 280ms · 움직임 줄이기면 정지. 글자 16px 이상(제목 24px), 버튼 44px 이상. */
+.ug-root{position:fixed;inset:0;z-index:200;font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
+.ug-backdrop{position:absolute;inset:0;background:rgb(0 0 0/.55)}
+.ug-panel{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;box-sizing:border-box;max-height:min(88vh,88dvh);padding:0 20px env(safe-area-inset-bottom);border-radius:24px 24px 0 0;background:#0b0c0e;border:1px solid rgb(255 255 255/.22);border-bottom:0;box-shadow:0 -12px 40px rgb(0 0 0/.5)}
+.ug-root--app .ug-panel{background:linear-gradient(180deg,rgb(8 70 80/.97),rgb(5 52 62/.98));border-color:rgb(255 255 255/.5);box-shadow:inset 0 1px 0 rgb(255 255 255/.3),0 -12px 40px rgb(4 40 48/.4)}
+.ug-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0 10px}
+.ug-head h2{margin:0;font-size:24px;line-height:1.3;font-weight:800;color:#fff}
+.ug-close{min-width:44px;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgb(255 255 255/.6);background:rgb(255 255 255/.1);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.ug-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ug-item{border-top:1px solid rgb(255 255 255/.22)}
+.ug-item summary{display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 0;font-size:18px;line-height:1.45;font-weight:700;color:#fff;cursor:pointer;list-style:none;word-break:keep-all}
+.ug-item summary::-webkit-details-marker{display:none}
+.ug-item summary::after{content:'+';margin-left:auto;font-size:22px;font-weight:500}
+.ug-item[open] summary::after{content:'−'}
+.ug-item-body{padding:0 0 16px}
+.ug-item-body p,.ug-item-body li{font-size:16px;line-height:1.7;color:#fff;word-break:keep-all}
+.ug-intro{margin:0 0 10px;white-space:pre-line}
+.ug-points{margin:0 0 10px;padding-left:22px}
+.ug-note{margin:8px 0 0;padding:10px 12px;border-radius:12px;background:rgb(255 255 255/.1);font-size:16px}
+.ug-pick{display:flex;gap:8px;margin:0 0 8px}
+.ug-pick button{min-height:44px;min-width:96px;padding:0 16px;border-radius:999px;border:1px solid rgb(255 255 255/.6);background:transparent;color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.ug-pick button[aria-pressed="true"]{background:rgb(255 255 255/.28);border-width:2px}
+.ug-foot{display:grid;gap:8px;padding:12px 0 16px;border-top:1px solid rgb(255 255 255/.22)}
+.ug-primary{display:flex;align-items:center;justify-content:center;min-height:52px;border:2px solid #fff;border-radius:999px;background:rgb(255 255 255/.16);color:#fff;font:inherit;font-size:16px;font-weight:800;text-decoration:none;cursor:pointer}
+.ug-mail{display:flex;align-items:center;justify-content:center;min-height:44px;font-size:16px;color:#fff;text-decoration:underline;text-underline-offset:3px}
+.ug-root :focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 5px rgb(0 0 0/.6)}
+@media(min-width:900px){
+  .ug-panel{left:auto;top:0;width:420px;max-height:none;border-radius:24px 0 0 24px;border:1px solid rgb(255 255 255/.22);border-right:0;padding-top:env(safe-area-inset-top)}
+}
+@media(prefers-reduced-motion:no-preference){
+  .ug-backdrop{animation:ug-fade 240ms ease both}
+  .ug-panel{animation:ug-up 280ms cubic-bezier(.2,0,0,1) both}
+}
+@media(prefers-reduced-motion:no-preference) and (min-width:900px){
+  .ug-panel{animation-name:ug-side}
+}
+@keyframes ug-fade{from{opacity:0}to{opacity:1}}
+@keyframes ug-up{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes ug-side{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+/* 안내가 열려 있는 동안 아래 화면(#root)의 배경 움직임·전류·카드 애니메이션을 멈춘다(안내는 #root 밖 포털이라 제외). */
+html[data-guide-open] #root *,html[data-guide-open] #root *::before,html[data-guide-open] #root *::after{animation-play-state:paused!important}

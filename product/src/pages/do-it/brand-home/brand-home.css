@@ -123,6 +123,7 @@
 .bh-legal summary { cursor: pointer; min-height: 32px; }
 .bh-legal p { margin: 6px 0; }
 .bh-legal a { text-decoration: underline; text-underline-offset: 3px; }
+.bh-foot-guide { background: none; border: 0; padding: 0; min-height: 44px; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 /* ── 움직임: 입장(지구가 밝아짐 → 로고가 앞으로) · 구간은 중심 방향 깊이로 등장 ── */
 @keyframes bh-earth { from { filter: brightness(0.35) saturate(0.8); } to { filter: brightness(1) saturate(1); } }
@@ -132,9 +133,9 @@
 .bh-logo-band img { animation: bh-earth 1100ms ease-out both; }
 .bh-logo { animation: bh-forward 900ms var(--bh-ease) 350ms both; }
 .bh-justtry, .bh-hero-copy { animation: bh-forward 700ms var(--bh-ease) 900ms both; }
-[data-depth] .bh-bg { transform: scale(1.12); filter: brightness(0.6); transition: transform 800ms var(--bh-ease), filter 800ms ease; }
+[data-depth] .bh-bg { transform: scale(1.02); filter: brightness(0.6); transition: transform 800ms var(--bh-ease), filter 800ms ease; }
 [data-depth] .bh-content { opacity: 0; transform: translateY(18px); transition: opacity 700ms ease, transform 700ms var(--bh-ease); }
-[data-depth][data-in] .bh-bg { transform: scale(1.02); filter: none; }
+[data-depth][data-in] .bh-bg { transform: scale(1.12); filter: none; }
 [data-depth][data-in] .bh-content { opacity: 1; transform: none; }
 [data-depth][data-in] .bh-figure img { transform: scale(1.04); }
 @media (prefers-reduced-motion: reduce) {

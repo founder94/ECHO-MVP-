@@ -86,16 +86,16 @@ test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서�
   assert.doesNotMatch(tips, /술|집으로|숙소|밤늦게|차에 타|확인된 사람|안전한 상대|인증/);
 });
 
-test('ECHO 사용법: 메뉴에서 바로 · 실제 기능만(KEY·미션·72시간·보상·가격 0) · 항목마다 3~5문장', () => {
-  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide' \}/);
+// 2026-10-04 대표 「이용 안내 통합」: 옛 설정 화면 GUIDE(사주·타로 등)는 공통 모듈로 대체. 메뉴·설정 모두 같은 안내를 연다(내용 복사 0).
+test('ECHO 사용법: 메뉴·설정이 공통 이용 안내를 연다 · 옛 사본(GUIDE) 0 · 미션·72시간·보상·가격·결제 0', () => {
+  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide', guide: true \}/);
+  assert.match(MENU, /openGuide\(\)/);
   assert.match(SET, /hash === "#guide"/);
-  const guide = SET.slice(SET.indexOf('const GUIDE'), SET.indexOf('];', SET.indexOf('const GUIDE')));
-  assert.doesNotMatch(guide, /KEY|키 |미션|72|보상|리워드|\d[\d,]*\s*원|결제|함께 나가기|궁합|%/);
-  for (const m of guide.matchAll(/a: '([^']+)'/g)) {
-    const n = m[1].split(/(?<=[.요])\s+/).filter(Boolean).length;
-    assert.ok(n >= 3 && n <= 5, `${n}문장: ${m[1].slice(0, 20)}`);
-  }
-  assert.ok(guide.includes('안전하게 쓰기'));
+  assert.match(SET, /openGuide\(\)/);
+  assert.ok(!SET.includes('const GUIDE'), '설정 화면에 안내 사본을 두지 않는다');
+  const shared = read('src/lib/guide/guideContent.ts').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(shared, /미션|72시간|보상|리워드|\d[\d,]*\s*원|결제|가격|함께 나가기|궁합|\d+\s*%|사주|타로/);
+  assert.ok(shared.includes('불편한 일이 있으면 알려주세요.'));
 });
 
 test('zzarit.ts 동작: 처음 true · 두 번째 false · 저장이 막혀도 한 번은 true', async () => {

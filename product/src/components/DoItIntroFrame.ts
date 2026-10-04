@@ -1,6 +1,12 @@
 import { createElement as h, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react';
 import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from '@/components/symbolAssets';
 import { METAL_TEXT_GRADIENT } from '@/components/metalSilver';
+import { IS_APP_SITE } from '@/lib/siteRole';
+
+// 2026-10-04 대표 「전체 디자인 교체」: 앱(app.do-it.company)의 첫 화면(심볼 온보딩)은 민트·청록 바탕 + 노랑·코랄 빛 + 짙은 청록 유리 판으로 그린다.
+// 홈페이지(brand)·통합 빌드는 예전 검정 우주 그대로(원본 DO IT 심볼 형태 불변). 진행 단계·시간·건너뛰기 없음 규칙은 건드리지 않는다.
+const APP_BG = 'radial-gradient(60% 40% at 88% 4%, rgba(255,232,130,0.7) 0%, rgba(255,232,130,0) 70%), radial-gradient(70% 45% at 6% 96%, rgba(255,150,128,0.65) 0%, rgba(255,150,128,0) 70%), linear-gradient(180deg, #3fdcb3 0%, #5fe0c4 40%, #a9e4cf 100%)';
+const APP_GLASS = 'linear-gradient(180deg, rgba(8,70,80,0.9), rgba(5,52,62,0.94))';
 
 // 최초 HTML·실제 온보딩·전환 대기 화면이 같은 시각 구성 요소를 사용한다.
 // 모든 크기·색은 inline style이라 앱 CSS/JS를 기다리지 않고 첫 프레임을 그릴 수 있다.
@@ -89,9 +95,15 @@ export default function DoItIntroFrame({
       position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden',
       boxSizing: 'border-box', lineHeight: 1.5,
       fontFamily: 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
-      background: 'radial-gradient(120% 120% at 50% 45%, #08070C 0%, #060509 58%, #040308 100%)',
+      background: IS_APP_SITE ? APP_BG : 'radial-gradient(120% 120% at 50% 45%, #08070C 0%, #060509 58%, #040308 100%)',
     },
   },
+  // 앱: 심볼과 점들이 놓이는 짙은 청록 유리 원(밝은 바탕 위에서 은색 심볼이 또렷하게 읽히도록).
+  IS_APP_SITE ? h('div', { 'aria-hidden': true, 'data-doit-intro-disc': '', style: {
+    position: 'absolute', left: '50%', top: '47%', width: 'min(86vw, 380px)', aspectRatio: '1', borderRadius: '50%',
+    transform: 'translate(-50%, -50%)', background: APP_GLASS, border: '1px solid rgba(255,255,255,0.5)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 14px 38px rgba(4,40,48,0.28)', opacity: leaving ? 0 : 1, transition: 'opacity 250ms ease',
+  } }) : null,
   h('div', { 'aria-hidden': true, style: { ...layer, pointerEvents: 'none' } },
     STARS.map((st, i) => h('span', {
       key: i, 'data-doit-star': '',
@@ -130,6 +142,10 @@ export default function DoItIntroFrame({
     paddingLeft: '7vw', paddingRight: '7vw',
     paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
     opacity: leaving ? 0 : 1, transition: 'opacity 250ms ease',
+    ...(IS_APP_SITE ? {
+      left: 16, right: 16, bottom: 'calc(env(safe-area-inset-bottom) + 16px)', padding: '18px 20px 16px', borderRadius: 24,
+      background: APP_GLASS, border: '1px solid rgba(255,255,255,0.5)', boxSizing: 'border-box' as const,
+    } : null),
   } },
     h('div', {
       role: 'progressbar', 'aria-label': 'DO IT 시작 화면',
@@ -140,21 +156,23 @@ export default function DoItIntroFrame({
         fontSize: 'clamp(52px, 14vw, 110px)', letterSpacing: '-0.03em',
         // 메탈 실버 글자: 금속 반사 띠를 글자에 입히고, 진행될수록 빛이 옆으로 흐르며 밝아진다.
         // (글자 오려 내기를 못 하는 브라우저는 위 color 로 그대로 보인다.)
-        backgroundImage: METAL_TEXT_GRADIENT, backgroundSize: '220% 100%',
-        backgroundPosition: `${Math.round(progress)}% 50%`,
-        WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
-        filter: `brightness(${(0.72 + 0.28 * (progress / 100)).toFixed(3)})`,
+        ...(IS_APP_SITE ? { color: '#ffffff', fontSize: 'clamp(40px, 12vw, 64px)' } : {
+          backgroundImage: METAL_TEXT_GRADIENT, backgroundSize: '220% 100%',
+          backgroundPosition: `${Math.round(progress)}% 50%`,
+          WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          filter: `brightness(${(0.72 + 0.28 * (progress / 100)).toFixed(3)})`,
+        }),
       },
     }, h('span', null, shown), h('span', null, '%')),
     h('div', { style: { marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
       h('span', { style: {
-        fontSize: 11, letterSpacing: '0.18em', whiteSpace: 'nowrap', color: 'rgba(244,243,239,0.4)',
+        fontSize: 11, letterSpacing: '0.18em', whiteSpace: 'nowrap', color: IS_APP_SITE ? '#ffffff' : 'rgba(244,243,239,0.4)',
       } }, '© 2026 DO IT COMPANY'),
       h('span', { style: {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 9999, border: '1px solid rgba(244,243,239,0.28)', padding: '0 12px',
         height: 28, boxSizing: 'border-box', fontSize: 10, letterSpacing: '0.22em',
-        whiteSpace: 'nowrap', color: 'rgba(244,243,239,0.55)',
+        whiteSpace: 'nowrap', color: IS_APP_SITE ? '#ffffff' : 'rgba(244,243,239,0.55)',
       } }, 'JUST TRY'),
     ),
   ),

@@ -141,9 +141,11 @@ test('개별 선택(waiting)에는 찌릿 전류 0 — mutual 분기에서만 ZZ
 
 test('홈페이지 메뉴·패널: 초점 이동·복귀, Escape, 뒤로가기, 기기별 설치 안내(가짜 스토어 배지 0)', () => {
   const s = noComments(HOME);
-  for (const t of ['menuBtnRef', 'cardRefs', 'closePanel', "e.key !== 'Escape'", 'popstate', 'detectInstallContext']) assert.ok(s.includes(t), t);
-  for (const k of ['ios-safari', 'ios-other', 'android', 'in-app', 'desktop', 'installed']) assert.ok(s.includes(k), k);
-  assert.doesNotMatch(s, /apps\.apple\.com|play\.google\.com|App Store/i);
+  // 2026-10-04 이용 안내 통합: 설치 문구는 공통 모듈(guideContent.ts) 한 곳 — 홈페이지는 그 모듈을 읽는다.
+  for (const t of ['menuBtnRef', 'cardRefs', 'closePanel', "e.key !== 'Escape'", 'popstate', 'currentInstallContext', 'INSTALL_STEPS']) assert.ok(s.includes(t), t);
+  const guide = noComments(read('src/lib/guide/guideContent.ts'));
+  for (const t of ['detectInstallContext', "'ios-safari'", "'ios-other'", 'android', "'in-app'", 'desktop', 'installed']) assert.ok(guide.includes(t), t);
+  assert.doesNotMatch(s + guide, /apps\.apple\.com|play\.google\.com|App Store/i);
   assert.match(HCSS, /prefers-reduced-motion: reduce/);
 });
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { PRODUCT_ENTRY_PATH } from '@/lib/echo/appMode';
+import { openGuide } from '@/lib/guide/guideContent';
 import './welcome.css';
 
 // 2026-10-04 대표 「모바일 전체 디자인 교체」: 앱(app.do-it.company)의 첫 실제 화면.
@@ -24,6 +25,8 @@ export default function AppWelcomePage() {
         <h1 id="echo-welcome-title">같이 하고 싶은 일이 있나요?</h1>
         <p className="echo-welcome-lead">어떤 만남을 원하는지 들려주세요.</p>
         <button type="button" className="echo-welcome-cta" onClick={() => navigate(PRODUCT_ENTRY_PATH)}>시작하기</button>
+        {/* 짧은 기본 안내: 눌러야만 열린다(자동으로 띄우지 않음 · 시작 흐름·동의·인증 순서는 그대로). */}
+        <button type="button" className="echo-welcome-guide" onClick={() => openGuide('start')}>처음이라면, 여기부터 보세요.</button>
       </section>
     </main>
   );

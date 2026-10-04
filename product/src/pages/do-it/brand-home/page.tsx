@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import DoItSymbol from '@/components/DoItSymbol';
 import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
-import { INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
-import { detectInstallContext, type InstallContext } from '@/doit/lib/installContext';
+import UsageGuideHost from '@/components/UsageGuide';
+import { GUIDE_TITLE, INSTALL_STEPS, currentInstallContext, openGuide } from '@/lib/guide/guideContent';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
 import './brand-home.css';
 
@@ -12,7 +12,8 @@ import './brand-home.css';
 // 사진은 기존 승인 자산(public/brand) 그대로 · 로고는 공식 원본(DO IT 지구 그림의 로고 띠만 잘라 보여 줌 · 다시 그리지 않음).
 // 앱(app.do-it.company)은 이 화면을 쓰지 않는다(라우터가 brand 역할에서만 연결).
 
-const START_PATH = '/doit/start-journey';
+// 2026-10-04: 모바일 시작하기는 앱 루트(운영 app.do-it.company · QA 는 QA 앱)로 간다. 앱의 첫 화면이 기존 진입·인증·준비 순서를 그대로 이어 간다.
+const START_PATH = '/';
 export const BRAND_HOME_COPY = {
   heroTitle: '말이 통하는 사람을 만나는 일.',
   heroLine: '그 시작을 ECHO가 함께합니다.',
@@ -36,19 +37,10 @@ const matches = (query: string) => { try { return typeof window.matchMedia === '
 const reduced = () => matches('(prefers-reduced-motion: reduce)');
 
 // 기기별 설치 안내(실제 PWA 지원 기준 · 가짜 앱스토어 배지/링크 없음). 순수 함수 detectInstallContext 재사용.
-const INSTALL_HINT: Record<InstallContext, string> = {
-  installed: '이미 앱으로 열려 있어요.',
-  'in-app': '지금 열린 앱 안 브라우저에서는 설치할 수 없어요. 크롬이나 사파리로 열어 주세요.',
-  'ios-safari': 'iPhone: 앱을 연 뒤 아래 공유 버튼 → 「홈 화면에 추가」를 눌러 주세요.',
-  'ios-other': 'iPhone: 사파리로 열어야 설치할 수 있어요. 주소를 사파리에 붙여 넣어 주세요.',
-  android: 'Android: 앱을 연 뒤 브라우저 메뉴(⋮) → 「앱 설치」 또는 「홈 화면에 추가」를 눌러 주세요.',
-  desktop: '컴퓨터에서는 휴대폰으로 열어야 설치할 수 있어요. 아래 QR 이나 주소를 휴대폰에서 열어 주세요.',
-};
+// 문구는 이용 안내 공통 모듈(INSTALL_STEPS) 하나만 쓴다. 홈페이지 자체에서는 설치 창을 띄우지 않고, 컴퓨터일 때만 이 화면의 QR 을 가리킨다.
 const installHint = (): string => {
-  try {
-    const standalone = matches('(display-mode: standalone)') || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    return INSTALL_HINT[detectInstallContext({ ua: navigator.userAgent, standalone, maxTouchPoints: navigator.maxTouchPoints || 0 })];
-  } catch { return INSTALL_HINT.desktop; }
+  const ctx = currentInstallContext();
+  return ctx === 'desktop' ? '컴퓨터에서는 휴대폰으로 열어야 설치할 수 있어요. 아래 QR 이나 주소를 휴대폰에서 열어 주세요.' : INSTALL_STEPS[ctx];
 };
 
 // 화면에 들어온 구간에 표시만 붙인다(움직임은 CSS · 움직임 줄이기면 CSS 가 끈다). 화면 밖은 관찰을 멈춘다.
@@ -74,7 +66,7 @@ function StartActions({ id }: { id?: string }) {
   return (
     <div className="bh-actions" id={id}>
       <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
-      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
+      <button type="button" className="bh-btn bh-btn--text" onClick={() => openGuide('install')}>{BRAND_HOME_COPY.install}</button>
       <p className="bh-install-hint">{hint}</p>
     </div>
   );
@@ -133,6 +125,7 @@ export default function BrandHomePage() {
   const close = () => { releaseMenuHistory(); setMenuOpen(false); };
   return (
     <main ref={rootRef} className="bh">
+      <UsageGuideHost variant="brand" startHref={appUrl(START_PATH)} startLabel={BRAND_HOME_COPY.start} />
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>
       <header className="bh-nav">
         <span className="bh-brand"><DoItSymbol decorative />DO IT <small>COMPANY</small></span>
@@ -142,6 +135,7 @@ export default function BrandHomePage() {
         {menuOpen && (
           <nav id="bh-menu" className="bh-menu" aria-label="홈페이지 메뉴">
             <a href="#bh-echo" onClick={close}>ECHO</a>
+            <button type="button" onClick={() => { close(); openGuide(); }}>{GUIDE_TITLE}</button>
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
             {!loading && user
@@ -237,7 +231,7 @@ export default function BrandHomePage() {
 
       <footer className="bh-legal">
         <details><summary>DO IT COMPANY · 사업자 정보</summary><p>두잇(DO IT) · 대표 박진욱</p><p>사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호</p><p>경기도 남양주시 강변북로632번길 41-7, 102동 101호(수석동)</p></details>
-        <p><a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
+        <p><button type="button" className="bh-foot-guide" onClick={() => openGuide()}>{GUIDE_TITLE}</button> · <a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
         <p>© 2026 DO IT COMPANY</p>
       </footer>
     </main>
