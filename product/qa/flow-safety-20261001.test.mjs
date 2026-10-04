@@ -41,19 +41,20 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
   assert.match(z, /if \(localStorage\.getItem\(ZZARIT_KEY\(matchId\)\)\) return false;\s*localStorage\.setItem\(ZZARIT_KEY\(matchId\), '1'\);/);
 });
 
-test('ZZARIT 연출: 문구 3개 · 은빛 테두리 · 파스텔 블루 전류 · 은청색 파동 한 번 · 밝기 4% · 약 1.2초 · 하트·폭죽·네온 0 · 움직임 줄이기', () => {
-  for (const t of ['텔레파시가 통했어요.', '서로 같은 선택을 했어요.', '첫 이야기 시작하기']) assert.ok(Z.includes(t), t);
+test('찌릿 연출(2026-10-04 대표): 문구 3개 · 두 익명 노드 사이 청록·흰색 전류 0.6~0.9초 한 번 · 반복·번쩍임 0 · 하트·폭죽·네온 0 · 움직임 줄이기 = 정적 연결선 · 상대 정보 0', () => {
+  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '서로 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
-  assert.match(ZCSS, /\.echo-zzarit-wave\{[^}]*animation:echo-zz-wave \.4s ease-out \.72s both\}/, '파동은 한 번(반복 0)');
-  assert.doesNotMatch(ZCSS, /infinite/);
-  // 마지막 움직임이 끝나는 시각 ≈ 1.2초
-  const ends = [...ZCSS.matchAll(/animation:[\w-]+ ([.\d]+)s [^ ]+(?: [^ ]+)?? ([.\d]+)s/g)].map((m) => Number(m[1]) + Number(m[2]));
-  assert.ok(Math.max(...ends) <= 1.25 && Math.max(...ends) >= 1.1, `끝 시각 ${Math.max(...ends)}`);
-  assert.match(ZCSS, /\.echo-zzarit-lift\{[^}]*opacity:\.04/, '밝기 3~5%(흰 막 4%)');
+  assert.doesNotMatch(ZCSS, /infinite/, '반복 0');
+  const cur = ZCSS.match(/\.echo-zzarit-current\{[^}]*animation:echo-zz-current ([.\d]+)s [^ ]+ ([.\d]+)s both\}/);
+  assert.ok(cur, '전류 한 번');
+  assert.ok(Number(cur[1]) >= 0.6 && Number(cur[1]) <= 0.9, `전류 길이 ${cur[1]}s`);
+  assert.match(ZCSS, /#7ff3e6/, '청록'); assert.match(ZCSS, /#ffffff/, '흰색');
   for (const k of ZCSS.matchAll(/@keyframes [\w-]+\{([^@]*?)\}\}/g)) assert.doesNotMatch(k[1], /width|height|top|left:|margin|filter/, '움직임은 opacity·transform 만');
   assert.match(ZCSS, /@media\(prefers-reduced-motion:reduce\)\{[^@]*animation:none/);
   assert.match(Z, /if \(!reduce\) \{ try \{ navigator\.vibrate\?\.\(12\); \}/, '진동은 짧게 · 줄이기 설정이면 0');
   assert.doesNotMatch(Z, /Audio|\.play\(/, '소리 0');
+  assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b|<img/, '익명 노드(상대 사진·이름 0)');
+  assert.doesNotMatch(Z, /setTimeout\([^)]*focus/, '다음 버튼은 연출을 기다리지 않음');
   assert.doesNotMatch(Z, /nickname|photo|partner|bio/, '상대 정보 0');
 });
 
@@ -108,4 +109,15 @@ test('zzarit.ts 동작: 처음 true · 두 번째 false · 저장이 막혀도 �
   globalThis.localStorage = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
   assert.equal(claimZzarit('m3'), true);
   delete globalThis.localStorage;
+});
+
+test('연결 화면: 후보 화면을 key 로 다시 만들지 않는다(끝없이 다시 조회하던 결함 2026-10-04) · 「후보 열기」 뒤 다시 읽기는 reload 값으로', () => {
+  const A = read('src/doit/components/feature/AsleepConnections.tsx');
+  assert.match(A, /<ConnectionCandidates reload=\{candidatesKey\} userId=\{user\.id\}/);
+  assert.doesNotMatch(A, /<ConnectionCandidates key=/);
+  const C = read('src/doit/components/feature/ConnectionCandidates.tsx');
+  assert.match(C, /useEffect\(\(\) => \{ void refresh\(reload > 0\); \}, \[refresh, reload\]\);/);
+  // 다시 읽기 실패 = 지난 목록 유지 + 실패 알림 + 다시 확인(Codex PR #122)
+  assert.match(C, /if \(!shown\.current\) setLoad\(\{ kind: 'error'[^\n]*\n\s*else if \(explicit\) setStale\(true\);/);
+  assert.match(C, /\{stale && <div className="doit-connect-stale"><p className="doit-product-error" role="alert">새 후보를 불러오지 못했어요\./);
 });

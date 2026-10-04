@@ -138,7 +138,7 @@ test('대표 인사말 — 홈페이지 맨 마지막(바닥글 바로 위), 이
   assert.ok(landing.indexOf('<BrandAbout />') < landing.indexOf('<BrandGreeting />'));
   assert.ok(landing.indexOf('<BrandGreeting />') < landing.indexOf('<footer className="doit-brand-legal">'));
   const s = read(SECTIONS);
-  const g = s.slice(s.indexOf('const GREETING'));
+  const g = read('src/pages/do-it/landing/components/brandGreeting.ts') + s.slice(s.indexOf('export function BrandGreeting')); // 2026-10-04 원문은 brandGreeting.ts 로 옮김(글자 변경 0)
   assert.match(g, /대표<\/span> <strong>박진욱<\/strong>/);
   // 뼈대는 대표가 예전에 직접 쓴 인사말 문장 그대로다(지어낸 일화 없음)
   const original = read('src/pages/home/components/FounderMessageSection.tsx').replace(/&ldquo;|&rdquo;/g, '"').replace(/\s+/g, ' ');

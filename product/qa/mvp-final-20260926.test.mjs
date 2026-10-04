@@ -33,9 +33,12 @@ test('AI 고지: 대화 시작 전 · 프로필 초안', () => {
   assert.match(read('src/doit/components/feature/AgentProfileCheck.tsx'), /ECHO가 대화를 바탕으로 작성한 초안이에요\./);
 });
 
-test('ECHO가 이해한 나: 다섯 칸 · [맞아요]/[조금 달라요]/[다시 말할게요] · 한 칸만 고침 · 재확인 · 뜻을 화면이 만들지 않음', () => {
+test('ECHO가 이해한 나: 다섯 칸 · [맞아요]/[조금 달라요]/[그게 아니에요]/[직접 설명할게요](2026-10-04) · 한 칸만 고침 · 재확인 · 뜻을 화면이 만들지 않음', () => {
   const c = read('src/doit/components/feature/AgentProfileCheck.tsx');
-  for (const t of ['>맞아요<', '>조금 달라요<', '>다시 말할게요<', '어느 부분이 다른가요?', '이렇게 이해하면 맞을까요?', '>다시 고칠게요<']) assert.ok(c.includes(t), t);
+  for (const t of ['>맞아요<', '>조금 달라요<', '>그게 아니에요<', '>직접 설명할게요<', '어느 부분이 다른가요?', '어느 부분이 아닌가요?', "CHECK_TITLE = '이렇게 이해했는데, 맞나요?'", '>다시 고칠게요<']) assert.ok(c.includes(t), t);
+  assert.ok(!c.includes('>다시 말할게요<'), '예전 이름 0');
+  // 「그게 아니에요」도 같은 정정 턴(고른 칸 · 서버가 옛 뜻을 거둠) — 화면이 뜻을 지우거나 만들지 않는다
+  assert.match(c, /setView\(\{ kind: 'edit', purpose: id, text: '', reject: view\.reject \}\)/);
   assert.match(c, /const ORDER = Object\.keys\(AGENT_PURPOSE_LABELS\);/);
   assert.match(c, /agentTurn\(userId, session\.id, t, \{ purpose \}\)/, '고친 말은 같은 대화 서버(정정 엔진)로 · 정정 표시와 함께(2026-09-27 P0-5)');
   assert.match(c, /sendFix\(view\.text\.trim\(\), view\.purpose\)/, '고른 칸은 문장 머리가 아니라 정정 표시로');

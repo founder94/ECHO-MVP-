@@ -120,6 +120,10 @@ function cssSolidButtons() {
       // 2026-10-01 대표 승인 「Primary CTA 스타일 변경」: 연결 흐름(.doit-connect · .doit-match)의 주요 CTA 만 흰 단색(깊은 청록 글씨) 예외 — connect.css 의 이 범위 하나만.
       if (f.endsWith('/src/doit/components/feature/connect.css') && sel.startsWith('.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary)')) continue;
       // 2026-10-01 대표 「FINAL DESIGN IMPLEMENTATION MASTER」 §9: 대화 화면의 주 행동 「답변 보내기」도 흰 판 + 짙은 청록 글자 — core-conversation.css 의 .echo-send-cta 하나만.
+      // 2026-10-04 대표 「홈페이지·모바일 디자인 교체」: 앱 공통 주요 버튼 = 흰 바탕 + 깊은 청록 글자(echo-ui.css 의 주요 버튼 규칙 둘만).
+      if (f.endsWith('/src/doit/components/feature/echo-ui.css') && /^:is\(\.doit-app-pastel,\.echo-dialogue\.echo-dialogue--pastel\) :is\(\.echo-primary,\.doit-product-action:not\(\.doit-product-action--secondary\),\.echo-choice-confirm:not\(\.is-secondary\),\.legal-page-primary\)(:not\(:disabled\):active)?$/.test(sel)) continue;
+      // 같은 결정 · Codex PR #123: 시작 흐름 공통 주요 버튼(PrimaryButton = .echo-primary-button)도 같은 흰 바탕 — echo-ui.css 의 이 규칙 둘만.
+      if (f.endsWith('/src/doit/components/feature/echo-ui.css') && /^:is\(\.doit-app-pastel,\.echo-dialogue\.echo-dialogue--pastel\) \.echo-primary-button(:not\(:disabled\):active)?$/.test(sel)) continue;
       if (f.endsWith('/src/doit/components/feature/core-conversation.css') && /^\.echo-dialogue(\.echo-dialogue--pastel)? \.echo-send-cta(:not\(:disabled\):active)?$/.test(sel)) continue;
       for (const d of m[2].matchAll(/(?:^|;)\s*(background(?:-color|-image)?)\s*:\s*([^;]+)/g)) if (!/var\(--echo-glass|transparent|none/.test(d[2]) && OPAQUE.test(d[2])) hits.push(`${f.slice(ROOT.length)}: ${sel.slice(0, 60)} ${d[1]}: ${d[2].trim().slice(0, 40)}`);
     }
