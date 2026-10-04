@@ -70,3 +70,10 @@ test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 같
   assert.match(HOME, /id="bh-start-qr"/, 'QR 구간');
   assert.match(HOME, /<a className="bh-btn bh-btn--text" href=\{appUrl\(START_PATH\)\}>이 컴퓨터에서 열기<\/a>/, '「이 컴퓨터에서 열기」는 앱으로 바로(빠져나갈 길)');
 });
+
+test('홈페이지 첫 화면: 주 행동 = 「모바일 시작하기」(테두리 버튼) · 「ECHO 알아보기」 = 보조(글자 링크) · 명세 「홈페이지」', () => {
+  const hero = HOME.slice(HOME.indexOf('className="bh-sec bh-hero"'), HOME.indexOf('id="bh-echo"'));
+  assert.match(hero, /<a className="bh-btn bh-btn--outline" href=\{appUrl\(START_PATH\)\} onClick=\{goStart\}>\{BRAND_HOME_COPY\.start\}/);
+  assert.match(hero, /<a className="bh-btn bh-btn--text" href="#bh-echo">\{BRAND_HOME_COPY\.learn\}<\/a>/);
+  assert.ok(hero.indexOf('BRAND_HOME_COPY.start') < hero.indexOf('BRAND_HOME_COPY.learn'), '모바일 시작하기가 먼저');
+});

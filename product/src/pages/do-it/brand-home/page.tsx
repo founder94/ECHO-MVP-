@@ -117,8 +117,9 @@ export default function BrandHomePage() {
           <p className="bh-hero-line">{BRAND_HOME_COPY.heroLine}</p>
           <span className="bh-rule" aria-hidden="true" />
           <div className="bh-actions">
-            <a className="bh-btn bh-btn--outline" href="#bh-echo">{BRAND_HOME_COPY.learn}<span aria-hidden="true">→</span></a>
-            <a className="bh-btn bh-btn--text" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}</a>
+            {/* 명세: 시안에서는 「ECHO 알아보기」가 주 버튼처럼 보여도 「모바일 시작하기」가 주 행동 · ECHO 알아보기는 보조 */}
+            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+            <a className="bh-btn bh-btn--text" href="#bh-echo">{BRAND_HOME_COPY.learn}</a>
           </div>
         </div>
       </section>
