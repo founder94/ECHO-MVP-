@@ -9,6 +9,9 @@ interface Props { landing: ReactElement }
 // 전역 CSS 를 건드리지 않는 최소 대기 화면(검은 배경 위 한 줄).
 const WAIT_STYLE: CSSProperties = { minHeight: '100svh', margin: 0, display: 'grid', placeItems: 'center', background: '#000', color: '#c4c4c4', fontSize: 13 };
 
+// 앱(app.do-it.company)의 같은 대기 화면: 검정 대신 파스텔 + 밝은 파스텔 위라 어두운 청록 글자 16px(대비 7:1 이상).
+const APP_WAIT_STYLE: CSSProperties = { ...WAIT_STYLE, background: 'linear-gradient(180deg,#3fdcb3,#7be5ca 50%,#e0927d)', color: '#053a44', fontSize: 16, padding: 24, textAlign: 'center' };
+
 // 로그인 복귀 토큰이 주소 # 뒤에 실려 온 경우. Supabase 가 허용 목록에 없는 복귀 주소를 받으면 Site URL(이 사이트 루트)로 떨어뜨린다.
 const OAUTH_TOKEN_HASH = /(^|[#&])access_token=/;
 function landedWithOAuthTokens(): boolean {
@@ -34,6 +37,6 @@ function OAuthLanding({ landing }: Props) {
     if (IS_BRAND_SITE) window.location.replace(appUrl('/doit/start-journey'));
     else navigate('/doit/start-journey', { replace: true });
   }, [user, loading, navigate]);
-  if (loading || user) return <p role="status" style={WAIT_STYLE}>로그인 상태를 확인하고 있어요.</p>;
+  if (loading || user) return <p role="status" style={IS_BRAND_SITE ? WAIT_STYLE : APP_WAIT_STYLE}>로그인 상태를 확인하고 있어요.</p>;
   return landing;
 }

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DoItSymbol from '@/components/DoItSymbol';
 import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
-import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
+import UsageGuideHost from '@/components/UsageGuide';
+import { GUIDE_TITLE, INSTALL_STEPS, currentInstallContext, openGuide } from '@/lib/guide/guideContent';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
 import './brand-home.css';
 
@@ -11,13 +12,15 @@ import './brand-home.css';
 // 사진은 기존 승인 자산(public/brand) 그대로 · 로고는 공식 원본(DO IT 지구 그림의 로고 띠만 잘라 보여 줌 · 다시 그리지 않음).
 // 앱(app.do-it.company)은 이 화면을 쓰지 않는다(라우터가 brand 역할에서만 연결).
 
-const START_PATH = '/doit/start-journey';
+// 2026-10-04: 모바일 시작하기는 앱 루트(운영 app.do-it.company · QA 는 QA 앱)로 간다. 앱의 첫 화면이 기존 진입·인증·준비 순서를 그대로 이어 간다.
+const START_PATH = '/';
 export const BRAND_HOME_COPY = {
-  heroTitle: '대화로 시작하는 만남.',
-  heroLine: '말이 통하는 사람을 만나는 일.',
+  heroTitle: '말이 통하는 사람을 만나는 일.',
+  heroLine: '그 시작을 ECHO가 함께합니다.',
   echoTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.'],
+  echoLead: ['어떤 사람과 무엇을 함께하고 싶은지,', 'ECHO에게 들려주세요.'],
   echoSoon: '관련 기능 준비 중',
-  companyLead: ['대화로 시작하는 만남을', '만듭니다.'],
+  companyLead: ['사람과 사람이 만나는', '서비스를 만듭니다.'],
   start: '모바일 시작하기',
   install: '앱 설치 안내',
   learn: 'ECHO 알아보기',
@@ -32,6 +35,13 @@ const ECHO_STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
 
 const matches = (query: string) => { try { return typeof window.matchMedia === 'function' && window.matchMedia(query).matches; } catch { return false; } };
 const reduced = () => matches('(prefers-reduced-motion: reduce)');
+
+// 기기별 설치 안내(실제 PWA 지원 기준 · 가짜 앱스토어 배지/링크 없음). 순수 함수 detectInstallContext 재사용.
+// 문구는 이용 안내 공통 모듈(INSTALL_STEPS) 하나만 쓴다. 홈페이지 자체에서는 설치 창을 띄우지 않고, 컴퓨터일 때만 이 화면의 QR 을 가리킨다.
+const installHint = (): string => {
+  const ctx = currentInstallContext();
+  return ctx === 'desktop' ? '컴퓨터에서는 휴대폰으로 열어야 설치할 수 있어요. 아래 QR 이나 주소를 휴대폰에서 열어 주세요.' : INSTALL_STEPS[ctx];
+};
 
 // 화면에 들어온 구간에 표시만 붙인다(움직임은 CSS · 움직임 줄이기면 CSS 가 끈다). 화면 밖은 관찰을 멈춘다.
 function useDepthReveal() {
@@ -50,21 +60,14 @@ function useDepthReveal() {
   return rootRef;
 }
 
-// 「모바일 시작하기」 전부(첫 화면 포함): 컴퓨터에서는 앱으로 바로 넘기지 않고 QR 구간으로(휴대폰으로 시작) — 기존 홈페이지와 같은 규칙.
-// 「이 컴퓨터에서 열기」는 QR 구간 안에 그대로 남는다.
-const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
-  if (!matches(DESKTOP_QUERY)) return;
-  const qr = document.getElementById('bh-start-qr');
-  if (!qr) return;
-  event.preventDefault();
-  qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
-};
-
+// 「모바일 시작하기」는 컴퓨터에서도 막지 않고 곧바로 앱 주소로 이동한다(2026-10-04 대표 지시 · 예전 QR 강제 분기 폐지). QR 은 보조 안내로만 남는다.
 function StartActions({ id }: { id?: string }) {
+  const [hint] = useState(installHint);
   return (
     <div className="bh-actions" id={id}>
-      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
-      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
+      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+      <button type="button" className="bh-btn bh-btn--text" onClick={() => openGuide('install')}>{BRAND_HOME_COPY.install}</button>
+      <p className="bh-install-hint">{hint}</p>
     </div>
   );
 }
@@ -76,25 +79,63 @@ export default function BrandHomePage() {
   const [openStep, setOpenStep] = useState<number | null>(null);
   const productionApp = APP_ORIGIN === 'https://app.do-it.company';
 
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const lastStep = useRef<number | null>(null);
+
+  // 닫는 길은 모두 같은 곳으로: 메뉴는 메뉴 버튼, 카드 패널은 눌렀던 카드로 초점이 돌아온다.
+  const closeMenu = (restoreFocus = true) => { setMenuOpen(false); if (restoreFocus) requestAnimationFrame(() => menuBtnRef.current?.focus()); };
+  const closePanel = () => { const i = lastStep.current; setOpenStep(null); if (i !== null) requestAnimationFrame(() => cardRefs.current[i]?.focus()); };
+
   useEffect(() => {
     if (!menuOpen && openStep === null) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenuOpen(false); setOpenStep(null); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (menuOpen) closeMenu(); else closePanel();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [menuOpen, openStep]);
 
-  const close = () => setMenuOpen(false);
+  // 메뉴가 열리면 첫 항목으로 초점, 휴대폰 뒤로가기는 페이지를 떠나지 않고 메뉴만 닫는다.
+  // 이력 소유권: 메뉴가 쌓은 기록 한 칸(bhMenu)은 「닫기·Escape·Back」으로 닫을 때만 history.back() 으로 걷는다.
+  // 메뉴 안 링크(#bh-company 등)를 누를 때는 그 칸을 일반 기록으로 바꿔 두고 걷지 않는다 — 걷으면 앵커 이동이 되돌려진다.
+  const menuOwnsHistory = useRef(false);
+  const releaseMenuHistory = () => {
+    if (!menuOwnsHistory.current) return;
+    menuOwnsHistory.current = false;
+    const kept: Record<string, unknown> = { ...((window.history.state ?? {}) as Record<string, unknown>) };
+    delete kept.bhMenu;
+    window.history.replaceState(kept, '');
+  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    document.querySelector<HTMLElement>('#bh-menu a, #bh-menu button')?.focus();
+    window.history.pushState({ ...((window.history.state ?? {}) as Record<string, unknown>), bhMenu: true }, '');
+    menuOwnsHistory.current = true;
+    const onPop = () => { menuOwnsHistory.current = false; setMenuOpen(false); requestAnimationFrame(() => menuBtnRef.current?.focus()); };
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      if (menuOwnsHistory.current && (window.history.state as { bhMenu?: boolean } | null)?.bhMenu) window.history.back();
+      menuOwnsHistory.current = false;
+    };
+  }, [menuOpen]);
+
+  const close = () => { releaseMenuHistory(); setMenuOpen(false); };
   return (
     <main ref={rootRef} className="bh">
+      <UsageGuideHost variant="brand" startHref={appUrl(START_PATH)} startLabel={BRAND_HOME_COPY.start} />
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>
       <header className="bh-nav">
         <span className="bh-brand"><DoItSymbol decorative />DO IT <small>COMPANY</small></span>
-        <button type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
+        <button ref={menuBtnRef} type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => (menuOpen ? closeMenu(false) : setMenuOpen(true))}>
           <span className="bh-sr">{menuOpen ? '메뉴 닫기' : '메뉴 열기'}</span><i aria-hidden="true" /><i aria-hidden="true" />
         </button>
         {menuOpen && (
           <nav id="bh-menu" className="bh-menu" aria-label="홈페이지 메뉴">
             <a href="#bh-echo" onClick={close}>ECHO</a>
+            <button type="button" onClick={() => { close(); openGuide(); }}>{GUIDE_TITLE}</button>
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
             {!loading && user
@@ -118,7 +159,7 @@ export default function BrandHomePage() {
           <span className="bh-rule" aria-hidden="true" />
           <div className="bh-actions">
             {/* 명세: 시안에서는 「ECHO 알아보기」가 주 버튼처럼 보여도 「모바일 시작하기」가 주 행동 · ECHO 알아보기는 보조 */}
-            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
             <a className="bh-btn bh-btn--text" href="#bh-echo">{BRAND_HOME_COPY.learn}</a>
           </div>
         </div>
@@ -131,11 +172,12 @@ export default function BrandHomePage() {
           <p className="bh-kicker">ECHO</p>
           <h2 id="bh-echo-title" className="bh-title">{BRAND_HOME_COPY.echoTitle[0]}<br />{BRAND_HOME_COPY.echoTitle[1]}</h2>
           <span className="bh-rule" aria-hidden="true" />
+          <p className="bh-lead">{BRAND_HOME_COPY.echoLead[0]}<br />{BRAND_HOME_COPY.echoLead[1]}</p>
           <p className="bh-soon">{BRAND_HOME_COPY.echoSoon}</p>
           <ol className="bh-cards">
             {ECHO_STEPS.map((step, i) => (
               <li key={step.title}>
-                <button type="button" className="bh-card" aria-expanded={openStep === i} onClick={() => setOpenStep(openStep === i ? null : i)}>
+                <button ref={(el) => { cardRefs.current[i] = el; }} type="button" className="bh-card" aria-expanded={openStep === i} onClick={() => { lastStep.current = i; if (openStep === i) closePanel(); else setOpenStep(i); }}>
                   <span className="bh-card-no" aria-hidden="true">{i + 1}</span>
                   <span className="bh-card-title">{step.title}{step.soon && <em className="bh-tag">준비 중</em>}</span>
                 </button>
@@ -189,7 +231,7 @@ export default function BrandHomePage() {
 
       <footer className="bh-legal">
         <details><summary>DO IT COMPANY · 사업자 정보</summary><p>두잇(DO IT) · 대표 박진욱</p><p>사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호</p><p>경기도 남양주시 강변북로632번길 41-7, 102동 101호(수석동)</p></details>
-        <p><a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
+        <p><button type="button" className="bh-foot-guide" onClick={() => openGuide()}>{GUIDE_TITLE}</button> · <a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
         <p>© 2026 DO IT COMPANY</p>
       </footer>
     </main>

@@ -136,7 +136,9 @@ function productRouteTable(): RouteObject[] {
 // 히어로 문구·디자인은 그대로 같은 화면을 쓴다(변경 0).
 // 2026-09-27 대표 「QA FINAL FIX」: 앱 주소(app 빌드)는 모바일 제품이다. 첫 화면에 브랜드 히어로를 두지 않는다.
 // 앱의 / 는 (온보딩을 본 뒤) 제품 입구로 간다. 브랜드·통합 빌드는 그대로 랜딩(히어로).
-const entryLanding = ROLE === 'app' ? <Navigate to={PRODUCT_ENTRY_PATH} replace /> : BrandHomePage ? <BrandHomePage /> : <DoItLandingPage />;
+// 2026-10-04: 앱의 / 는 새 ECHO 첫 화면(앱 역할 빌드에만 조각이 만들어진다).
+const AppWelcomePage = import.meta.env.VITE_SITE_ROLE === 'app' ? lazy(() => import('@/doit/pages/do-it/welcome/page')) : null;
+const entryLanding = ROLE === 'app' ? (AppWelcomePage ? <AppWelcomePage /> : <Navigate to={PRODUCT_ENTRY_PATH} replace />) : BrandHomePage ? <BrandHomePage /> : <DoItLandingPage />;
 // 앱에는 랜딩·히어로가 없다. 예전 링크는 시작 흐름으로.
 const brandRoutes: RouteObject[] = BRAND ? brandRouteTable() : [
   { path: '/do-it/hero', element: <Navigate to="/" replace /> },

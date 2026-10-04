@@ -11,7 +11,7 @@ const MATCHES = code('src/doit/components/feature/ConnectionMatches.tsx');
 test('후보는 한 번에 펼치지 않는다: 한 사람 → 이유가 있다는 것 → 「왜 이 사람인지 보기」 → 이유 → 선택', () => {
   assert.match(CAND, /한 사람을 발견했어요\./);
   assert.match(CAND, /왜 이 사람인지, ECHO가 본 이유가 있어요\./);
-  assert.match(CAND, /왜 이 사람인지 보기/);
+  assert.match(CAND, />더 알아보기<span/, '눈에 보이는 버튼 문구는 정확히 「더 알아보기」(이유 펼침 기능 유지)');
   const closed = CAND.indexOf('{!open && <>'), reasons = CAND.indexOf('c.reasons.map'), actions = CAND.indexOf("choose(c, 'yes')");
   assert.ok(closed > 0 && closed < reasons && reasons < actions, '이유와 선택은 연 뒤에만');
   assert.match(CAND, /const open = c\.waiting \|\| !!opened\[c\.id\];/, '이미 고른 후보는 열린 채');
@@ -35,7 +35,7 @@ test('대기: 「선택을 보냈어요」(2026-10-04) · 상대가 관심 있�
   assert.match(CAND, /if \(typeof out\.match_id === 'string'\) \{ if \(claimZzarit\(out\.match_id\)\) setMutual\(\{ matchId: out\.match_id \}\); else onOpened\(out\.match_id\); \}/);
   // 2026-10-04 대표 「찌릿」: 문구 = 「찌릿! 텔레파시가 통했어요」 · 「서로 대화를 원했어요.」 · 다음 = 「다음 단계 보기」(실제 다음 단계 = 첫 질문)
   assert.match(Z, /title: '찌릿! 텔레파시가 통했어요'/);
-  assert.match(Z, /body: '서로 대화를 원했어요\.'/);
+  assert.match(Z, /body: '두 분 모두 대화를 원했어요\.'/);
   assert.match(Z, /next: '다음 단계 보기'/);
   assert.doesNotMatch(CAND + Z, /축하|🎉|!!\s*<\/|요!!/);
   assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b/, 'ZZARIT 에도 상대 정보 0');

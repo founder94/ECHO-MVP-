@@ -93,7 +93,7 @@ export default function Login() {
               로그인
             </h1>
             <p className="text-sm text-foreground-400 leading-relaxed">
-              다시 돌아오신 걸 환영합니다
+              다시 오셨네요. 하던 이야기부터 이어가요.
             </p>
           </div>
 

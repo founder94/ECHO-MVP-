@@ -1,0 +1,12 @@
+/* 인증 확인(/auth/callback)·없는 주소(404) 앱 화면 — .echo-state 아래에만 적용(전역 0).
+   앱 역할: 민트·청록 바탕 + 짙은 청록 유리 판 + 흰 글자(7:1 이상 계산값). 제목 22~24px · 본문 16px · 버튼 48px.
+   인증 로직과 무관(보이는 모양만). */
+.echo-state{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px);box-sizing:border-box;background:linear-gradient(180deg,#3fdcb3,#7be5ca 55%,#e8a590);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+.echo-state-panel{width:100%;max-width:360px;box-sizing:border-box;padding:28px 24px;border:1px solid rgb(255 255 255/.5);border-radius:24px;background:linear-gradient(180deg,rgb(8 70 80/.86),rgb(5 52 62/.9));box-shadow:inset 0 1px 0 rgb(255 255 255/.32),0 14px 38px rgb(4 40 48/.28);color:#fff;text-align:center}
+.echo-state-panel h1{margin:0;font-size:22px;line-height:1.4;font-weight:800;color:#fff;word-break:keep-all}
+.echo-state-panel p{margin:12px 0 0;font-size:16px;line-height:1.7;color:#fff;word-break:keep-all}
+.echo-state-spinner{display:inline-block;width:32px;height:32px;margin-bottom:16px;border:3px solid rgb(255 255 255/.35);border-top-color:#fff;border-radius:50%}
+.echo-state-action{margin-top:22px;display:inline-flex;align-items:center;justify-content:center;min-height:48px;min-width:48px;padding:0 24px;border-radius:999px;background:#fff;color:#053a44;font-size:16px;font-weight:800;text-decoration:none;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+.echo-state-action:focus-visible{outline:3px solid #fff;outline-offset:3px;box-shadow:0 0 0 6px rgb(5 52 62/.9)}
+@media (prefers-reduced-motion:no-preference){.echo-state-spinner{animation:echo-state-spin .9s linear infinite}}
+@keyframes echo-state-spin{to{transform:rotate(360deg)}}

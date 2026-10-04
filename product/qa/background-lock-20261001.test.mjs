@@ -82,7 +82,9 @@ test('상태 변화 = 밝기·채도·움직임 토큰만(색·바탕 교체 0)'
 });
 
 test('화면별 새 바탕 0: 다른 파일은 전체 화면 그라데이션 바탕을 새로 만들지 않는다', () => {
-  const allowed = new Set([BG, 'src/components/route-fallback.css', 'src/doit/doit.css', 'src/doit/pages/do-it/fortune/fortune-space.css']);
+  const allowed = new Set([BG, 'src/components/route-fallback.css', 'src/doit/doit.css', 'src/doit/pages/do-it/fortune/fortune-space.css',
+    // 2026-10-04 대표 「5차」: 앱 첫 화면(노랑·코랄 빛 + 유리 링)과 인증 대기·404 상태 화면은 자기 화면 바탕을 가진다(둘 다 민트·청록 팔레트 그대로, 앱 역할 전용).
+    'src/doit/pages/do-it/welcome/welcome.css', 'src/components/state-screens.css']);
   const walk = (d) => readdirSync(d).flatMap((n) => { const p = path.join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
   for (const f of walk('src').filter((f) => f.endsWith('.css'))) {
     if (allowed.has(f)) continue;

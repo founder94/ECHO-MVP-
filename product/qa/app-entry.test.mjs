@@ -12,7 +12,7 @@ const read = (p) => readFile(resolve(root, p), 'utf8');
 // 2026-09-27 대표 「QA FINAL FIX」가 v14.3(앱도 히어로)을 대체: 앱(app 빌드) 첫 화면 = 모바일 제품. 브랜드·통합 빌드는 히어로 그대로.
 test('앱(app 빌드)은 온보딩 뒤 제품 입구로 · 브랜드·통합 빌드는 히어로 그대로', async () => {
   const routes = await read('src/router/config.tsx');
-  assert.match(routes, /const entryLanding = ROLE === 'app' \? <Navigate to=\{PRODUCT_ENTRY_PATH\} replace \/> : BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/>;/); // 2026-10-04 대표 디자인 교체: 회사 홈페이지(brand)는 새 홈페이지 · 통합 빌드는 예전 랜딩
+  assert.match(routes, /const entryLanding = ROLE === 'app' \? \(AppWelcomePage \? <AppWelcomePage \/> : <Navigate to=\{PRODUCT_ENTRY_PATH\} replace \/>\) : BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/>;/); // 2026-10-04 대표 디자인 교체: 회사 홈페이지(brand)는 새 홈페이지 · 통합 빌드는 예전 랜딩
   assert.match(routes, /\{ path: '\/do-it\/landing', element: BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/> \}/);
   // 로그인했다는 이유만으로 시작 흐름·대화로 건너뛰지 않는다.
   assert.doesNotMatch(routes, /entryLanding = [^;]*conversation/);
@@ -71,7 +71,7 @@ test('막다른 길을 만들지 않는다 — 어디서든 홈으로 나갈 수
 
 test('앱 홈이 지금 어디까지 왔는지와 다음 할 일을 보여 준다', async () => {
   const home = await read('src/doit/pages/do-it/home/page.tsx');
-  assert.match(home, /편하게 몇 가지만<br \/>물어볼게요/);
+  assert.match(home, /같이 하고 싶은 일이<br \/>있나요/);
   assert.doesNotMatch(home, /다섯 가지/, 'ECHO 대화는 질문 개수를 약속하지 않는다(P0-B)');
   assert.match(home, /시작하기 </);
   assert.match(home, /이어서 답하기 </);

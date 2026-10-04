@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { IS_BRAND_SITE } from '@/lib/siteRole';
 import { visibleInRelease } from '@/doit/lib/releaseScope';
+import UsageGuideHost from '@/components/UsageGuide';
+import { openGuide } from '@/lib/guide/guideContent';
 import './app-corner-menu.css';
 
 // 2026-09-28 대표 「FINAL MASTER」 §13·§14: 햄버거(메뉴·설정)는 처음 시작부터 모든 제품 화면의 오른쪽 맨 위, 한 자리에 하나.
@@ -17,7 +19,8 @@ const ITEMS = [
   { label: '나의 이해', desc: '맞다고 한 것만 모아 뒀어요', to: '/doit/understanding' },
   { label: '오늘의 나 · 사주·타로', desc: '재미로 가볍게 보는 무료 콘텐츠', to: '/doit/fortune' },
   { label: '앱 설치', desc: '홈 화면에서 바로 열어요', to: '/doit/settings#install' },
-  { label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '/doit/settings#guide' },
+  // 이용 안내(공통 내용 한 곳) — 화면을 옮기지 않고 그 자리에서 안내가 열린다(입력 중인 글이 남는다).
+  { label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '/doit/settings#guide', guide: true },
   { label: '설정', desc: '소개·사진·계정', to: '/doit/settings' },
   { label: '약관 · 개인정보', desc: '서비스 규칙과 내 정보', to: '/doit/settings#policy' },
 ].filter((item) => visibleInRelease(item.to.split('#')[0]));
@@ -78,6 +81,7 @@ export default function AppCornerMenu() {
 
   return (
     <>
+      <UsageGuideHost variant="app" />
       <button type="button" className="echo-corner-button" aria-label={open ? '메뉴 닫기' : '메뉴'} aria-expanded={open} aria-controls="echo-corner-panel" onClick={() => setOpen((v) => !v)}>
         <MenuIcon open={open} />
       </button>
@@ -86,7 +90,12 @@ export default function AppCornerMenu() {
           <div className="echo-corner-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
           <nav id="echo-corner-panel" className="echo-corner-panel" aria-label="메뉴">
             <p className="echo-corner-caption">메뉴</p>
-            {ITEMS.map((item, index) => (
+            {ITEMS.map((item, index) => 'guide' in item && item.guide ? (
+              <button key={item.to} type="button" className="echo-corner-item echo-corner-item--button" onClick={() => { setOpen(false); openGuide(); }}>
+                <span className="echo-corner-label">{item.label}</span>
+                <span className="echo-corner-desc">{item.desc}</span>
+              </button>
+            ) : (
               <Link key={item.to} ref={index === 0 ? firstItem : undefined} to={item.to} className="echo-corner-item" onClick={() => setOpen(false)}>
                 <span className="echo-corner-label">{item.label}</span>
                 <span className="echo-corner-desc">{item.desc}</span>

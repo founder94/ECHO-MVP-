@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchMyTurns, turnsMessage, type MyTurns } from '@/doit/lib/connectApi';
 import './connect.css';
+import './mobile-layout-v2.css';
 
 // 앱 홈의 "내 차례" 카드(v1.2, 대표 2026-09-24 "최종완성하라고"). 문자·푸시 알림이 아직 없어서,
 // 앱을 열면 여기서 먼저 알려 준다. 서버는 개수만 준다(이름·질문·이야기 내용 없음).

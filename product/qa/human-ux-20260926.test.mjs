@@ -66,7 +66,7 @@ test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 �
   const menu = read('src/components/AppCornerMenu.tsx');
   const css = read('src/components/app-corner-menu.css');
   assert.match(menu, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
-  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\)/);
+  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(180deg,rgb\(8 70 80\/\.95\),rgb\(5 52 62\/\.97\)\)/); // 2026-10-04 전체 디자인 교체: 흰 글자 대비를 위해 파스텔 → 짙은 청록 유리(대표 승인)
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
   for (const t of ['ECHO와 이야기하기', '나의 이해', '앱 설치', '설정']) assert.ok(menu.includes(`label: '${t}'`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');

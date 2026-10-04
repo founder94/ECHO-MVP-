@@ -63,7 +63,8 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   assert.ok(!/setTimeout/.test(ui), '가짜 진행 타이머 0');
   // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」): 기존 대화 화면 CSS 만 쓰고 새 CSS 파일·새 클래스를 만들지 않는다.
   const imports = [...ui.matchAll(/import '\.\/([^']+\.css)'/g)].map((m) => m[1]);
-  assert.deepEqual(imports, ['core-conversation.css', 'agent-choice.css']);
+  // 2026-10-04 대표 전체 디자인 교체 승인: 앱 전용 mobile-layout-v2.css 추가(옛 「새 CSS 파일 금지」 대체)
+  assert.deepEqual(imports, ['core-conversation.css', 'mobile-layout-v2.css', 'agent-choice.css']);
   // 새 CSS 는 선택창 하나(.echo-choice-*)뿐이고, 대화 화면 루트 아래로만 적용된다.
   const choice = src('src/doit/components/feature/agent-choice.css');
   for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-choice-layer( |$)/, `선택창 밖 규칙: ${part}`);

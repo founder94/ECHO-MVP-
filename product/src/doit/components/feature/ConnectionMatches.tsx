@@ -4,6 +4,7 @@ import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectCon
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
+import './mobile-layout-v2.css';
 import PartnerFrame from './PartnerFrame';
 import MeetStep from './MeetStep';
 

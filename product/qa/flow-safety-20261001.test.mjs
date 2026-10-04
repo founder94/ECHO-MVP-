@@ -42,7 +42,7 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
 });
 
 test('찌릿 연출(2026-10-04 대표): 문구 3개 · 두 익명 노드 사이 청록·흰색 전류 0.6~0.9초 한 번 · 반복·번쩍임 0 · 하트·폭죽·네온 0 · 움직임 줄이기 = 정적 연결선 · 상대 정보 0', () => {
-  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '서로 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
+  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '두 분 모두 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
   assert.doesNotMatch(ZCSS, /infinite/, '반복 0');
   const cur = ZCSS.match(/\.echo-zzarit-current\{[^}]*animation:echo-zz-current ([.\d]+)s [^ ]+ ([.\d]+)s both\}/);
@@ -75,7 +75,7 @@ test('2~3번 안에: 후보 숨기기 1 · 차단 2 · 신고 3(불편해요 →
   assert.doesNotMatch(CAND + MATCH, /신고하면 차단도 함께 돼요|차단도 함께 돼요/, '신고가 차단을 강제하지 않는다');
   assert.match(MATCH, /setLeaving\('menu'\)\} disabled=\{busy\}>이 연결 그만하기/);
   assert.match(MATCH, /void leave\(alsoBlock, true, code\)\} disabled=\{busy\}>\{label\}/);
-  assert.match(CAND, /CHOICE_LABEL\.yes/); assert.match(CAND, /yes: '이어지고 싶어요', no: '이번에는 넘길게요'/);
+  assert.match(CAND, /CHOICE_LABEL\.yes/); assert.match(CAND, /yes: '이어지고 싶어요', no: '다음에 볼게요'/);
 });
 
 test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서도 언제든 · 짧고 실용적 · 위험한 행동 권유 0', () => {
@@ -86,16 +86,16 @@ test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서�
   assert.doesNotMatch(tips, /술|집으로|숙소|밤늦게|차에 타|확인된 사람|안전한 상대|인증/);
 });
 
-test('ECHO 사용법: 메뉴에서 바로 · 실제 기능만(KEY·미션·72시간·보상·가격 0) · 항목마다 3~5문장', () => {
-  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide' \}/);
+// 2026-10-04 대표 「이용 안내 통합」: 옛 설정 화면 GUIDE(사주·타로 등)는 공통 모듈로 대체. 메뉴·설정 모두 같은 안내를 연다(내용 복사 0).
+test('ECHO 사용법: 메뉴·설정이 공통 이용 안내를 연다 · 옛 사본(GUIDE) 0 · 미션·72시간·보상·가격·결제 0', () => {
+  assert.match(MENU, /\{ label: 'ECHO 사용법', desc: '기능과 안전, 짧게', to: '\/doit\/settings#guide', guide: true \}/);
+  assert.match(MENU, /openGuide\(\)/);
   assert.match(SET, /hash === "#guide"/);
-  const guide = SET.slice(SET.indexOf('const GUIDE'), SET.indexOf('];', SET.indexOf('const GUIDE')));
-  assert.doesNotMatch(guide, /KEY|키 |미션|72|보상|리워드|\d[\d,]*\s*원|결제|함께 나가기|궁합|%/);
-  for (const m of guide.matchAll(/a: '([^']+)'/g)) {
-    const n = m[1].split(/(?<=[.요])\s+/).filter(Boolean).length;
-    assert.ok(n >= 3 && n <= 5, `${n}문장: ${m[1].slice(0, 20)}`);
-  }
-  assert.ok(guide.includes('안전하게 쓰기'));
+  assert.match(SET, /openGuide\(\)/);
+  assert.ok(!SET.includes('const GUIDE'), '설정 화면에 안내 사본을 두지 않는다');
+  const shared = read('src/lib/guide/guideContent.ts').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(shared, /미션|72시간|보상|리워드|\d[\d,]*\s*원|결제|가격|함께 나가기|궁합|\d+\s*%|사주|타로/);
+  assert.ok(shared.includes('불편한 일이 있으면 알려주세요.'));
 });
 
 test('zzarit.ts 동작: 처음 true · 두 번째 false · 저장이 막혀도 한 번은 true', async () => {

@@ -66,6 +66,7 @@ export default function DoItIntroPage() {
       void import('@/doit/DoitApp').catch(() => {}); // /doit 틀(지연 조각)
       void import('@/doit/pages/do-it/start-journey/page').catch(() => {});
     }
+    if (import.meta.env.VITE_SITE_ROLE === 'app') void import('@/doit/pages/do-it/welcome/page').catch(() => {}); // 새 첫 화면 조각(앱 역할만)
   }, [toProduct]);
   const [symbolStatus, setSymbolStatus] = useState<SymbolStatus | null>(null);
   const [finalCheck, setFinalCheck] = useState<{ imgShown: boolean; reveal: 'canvas' | 'img' } | null>(null);
@@ -213,7 +214,9 @@ export default function DoItIntroPage() {
       if (dt >= navAt) {
         navigatedRef.current = true;
         markIntroSeen();
-        navigate(toProduct ? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, { replace: true });
+        // 앱(app 역할)은 인트로 뒤 / 의 새 ECHO 첫 화면(「같이 하고 싶은 일이 있나요?」 + 시작하기)으로 간다 — 동작 줄이기도 같다.
+        // 설치 앱(next=app)·통합 빌드는 예전처럼 제품 입구로(첫 화면 요청 없음).
+        navigate(IS_APP_SITE ? '/' : toProduct ? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, { replace: true });
         return;
       }
       rafRef.current = requestAnimationFrame(tick);

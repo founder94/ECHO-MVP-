@@ -108,10 +108,10 @@ export default function Signup() {
           {/* Heading */}
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-              가입하기
+              반가워요. ECHO를 시작해 볼까요?
             </h1>
             <p className="text-sm text-foreground-400 leading-relaxed">
-              ECHO와 함께 진짜 나를 발견하는 여정을 시작하세요
+              계속하려면 약관을 확인해 주세요.
             </p>
           </div>
 
