@@ -29,8 +29,10 @@ test('첫 화면에서 영상을 받지 않음: 누르기 전 <video> 0 · 대�
 test('재생: 앞 원본 실패는 뒤 원본으로 · 마지막 원본/영상 오류만 실패 안내 · 화면 밖 25% 미만이면 멈춤', () => {
   assert.doesNotMatch(FILM, /<video[^>]*onError=/, '<video> React onError 는 <source> 오류까지 받아 대체 재생을 막는다');
   assert.match(FILM, /<source src=\{film\.mp4\} type="video\/mp4" onError=\{\(e\) => e\.stopPropagation\(\)\} \/>/);
-  assert.match(FILM, /<source src=\{film\.webm\} type="video\/webm" onError=\{\(e\) => \{ e\.stopPropagation\(\); setState\('error'\); \}\} \/>/);
+  assert.match(FILM, /<source src=\{film\.webm\} type="video\/webm" onError=\{\(e\) => \{ e\.stopPropagation\(\); goError\(\); \}\} \/>/);
+  assert.match(FILM, /const fail = goError;/);
   assert.match(FILM, /v\.addEventListener\('error', fail\)/);
+  assert.match(FILM, /if \(next !== null && next !== portraitRef\.current\) \{ portraitRef\.current = next; setPortrait\(next\); \}\n\s*setState\('error'\);/, '실패할 때도 돌려 둔 방향 반영');
   assert.match(FILM, /e\.intersectionRatio < 0\.25 && !v\.paused\) v\.pause\(\)/);
   assert.match(FILM, /<track kind="captions" srcLang="ko"/);
 });

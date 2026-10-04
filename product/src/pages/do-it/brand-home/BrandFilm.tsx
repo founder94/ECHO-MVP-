@@ -38,6 +38,13 @@ export default function BrandFilm() {
     setPortrait(next);
     if (videoRef.current) setState('idle');
   }, []);
+  // 실패로 넘어갈 때도 재생 중에 돌려 둔 방향을 반영한다(실패 화면의 대표 이미지·「다시 시도」가 맞는 방향으로).
+  const goError = useCallback(() => {
+    const next = pendingRef.current;
+    pendingRef.current = null;
+    if (next !== null && next !== portraitRef.current) { portraitRef.current = next; setPortrait(next); }
+    setState('error');
+  }, []);
   const isActive = (v: HTMLVideoElement | null) => !!v && ((!v.paused && !v.ended) || document.fullscreenElement === v);
 
   useEffect(() => {
@@ -59,7 +66,7 @@ export default function BrandFilm() {
     const v = videoRef.current; if (!v) return;
     // 영상 자체 오류(받은 뒤 깨짐 등)는 브라우저 이벤트로 직접 받는다. React onError 를 <video> 에 달면
     // 앞 원본(mp4)을 못 트는 브라우저에서 <source> 오류가 부모로 전달돼, 뒤 원본(webm)으로 넘어가기 전에 실패로 바뀐다.
-    const fail = () => setState('error');
+    const fail = goError;
     v.addEventListener('error', fail);
     // 이용 안내 창을 열면 영상도 멈춘다(읽는 동안 뒤 화면 움직임 0 — CSS 애니메이션 정지로는 <video> 가 멈추지 않는다).
     const onGuide = () => { if (!v.paused) v.pause(); };
@@ -79,7 +86,7 @@ export default function BrandFilm() {
       v.removeEventListener('error', fail); v.removeEventListener('pause', onStop); v.removeEventListener('ended', onStop);
       document.removeEventListener('fullscreenchange', onStop); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect();
     };
-  }, [state, attempt, applyOrient]);
+  }, [state, attempt, applyOrient, goError]);
 
   return <div ref={boxRef} className="bh-film" data-state={state} data-orient={portrait ? 'portrait' : 'landscape'}>
     {state === 'playing'
@@ -87,7 +94,7 @@ export default function BrandFilm() {
           aria-label={`${BRAND_FILM_COPY.title} — 서비스 이용 예시 영상`}>
           {/* H.264(사파리·크롬) 먼저, 못 틀면 VP9. 마지막 원본까지 실패할 때만 실패 안내. */}
           <source src={film.mp4} type="video/mp4" onError={(e) => e.stopPropagation()} />
-          <source src={film.webm} type="video/webm" onError={(e) => { e.stopPropagation(); setState('error'); }} />
+          <source src={film.webm} type="video/webm" onError={(e) => { e.stopPropagation(); goError(); }} />
           <track kind="captions" srcLang="ko" label="한국어" src={FILM.captions} default />
         </video>
       : <div className="bh-film-poster">
