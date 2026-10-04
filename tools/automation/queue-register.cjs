@@ -6,7 +6,7 @@
 const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 const { randomUUID } = require('node:crypto');
-const { taskProblem, planBootstrap, MAX } = require('./queue-budget.cjs');
+const { taskProblem, planBootstrap, trustedHandoffs, MAX } = require('./queue-budget.cjs');
 
 const OWNER = { login: 'founder94', type: 'User' };
 const MAX_TASKS = 20;
@@ -33,6 +33,8 @@ function registerDecision(state, req, ctx) {
   if (!task.repository || task.repository !== ctx.repository) return no('external_repo');
   if (!ctx.pr || ctx.pr.number !== sourcePR || ctx.pr.state !== 'open' || ctx.pr.repository !== ctx.repository) return no('pr_not_verified');
   if (!SHA.test(ctx.actualBaseSha || '') || ctx.actualBaseSha !== task.baseSha || ctx.baseReachable !== true) return no('base_not_verified', { status: 'STATE_CHANGED' });
+  // legacy block measured from the real PR comments (workflow); unknown/unmeasured/blocked -> refuse (no resume policy exists, a new id is not a resume)
+  if (ctx.legacyBlocked !== false || !Number.isInteger(ctx.legacyHandoffs) || ctx.legacyHandoffs < 0 || ctx.legacyHandoffs >= MAX) return no('legacy_blocked_resume_policy_missing');
   const reg = state.legacyTasks || [];
   if (reg.length >= MAX_TASKS) return no('registry_full');
   if (reg.some(t => t && t.taskId === task.taskId)) return no('duplicate_task_id'); // immutable: no re-registration, no counter reset
@@ -79,7 +81,9 @@ function bootstrap(store, taskId, io, opts = {}) {
   try { plan = planBootstrap(t, io.measure(t)); } catch { finish('FAILED', { reason: 'measure_failed' }); return no('measure_failed'); }
   if (!plan.ok) { finish('FAILED', { reason: plan.reason }); return no(plan.reason, { status: plan.status }); }
   try {
-    for (const argv of plan.commands) io.run(argv);
+    // atomic create-if-absent: the Git refs API answers 422 when the ref exists, so a branch created by another writer after measurement is never overwritten (no force, no fast-forward overwrite)
+    const cmds = plan.status === 'CREATE' ? [['gh', 'api', '-X', 'POST', `repos/${t.repository}/git/refs`, '-f', `ref=refs/heads/${t.branch}`, '-f', `sha=${t.baseSha}`]] : plan.commands;
+    for (const argv of cmds) io.run(argv);
     const head = io.head(t);
     const expected = plan.status === 'CREATE' ? t.baseSha : undefined;
     if (expected && head !== expected) { finish('FAILED', { reason: 'head_mismatch_after_push' }); return no('head_mismatch_after_push', { status: 'STATE_CHANGED' }); }
@@ -105,9 +109,16 @@ function ghIo(repository, cwd = process.cwd(), exec = execFileSync) {
 function ghContext(repository, req, event, now, cwd = process.cwd(), exec = execFileSync) {
   const out = (args) => String(exec('gh', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })).trim();
   const pr = JSON.parse(out(['api', `repos/${repository}/pulls/${Number(req.sourcePR)}`, '--jq', '{number:.number,state:.state,repository:.base.repo.full_name}']));
-  const sha = out(['api', `repos/${repository}/commits/${req.baseSha}`, '--jq', '.sha']);
-  const st = out(['api', `repos/${repository}/compare/${req.baseSha}...main`, '--jq', '.status']);
-  return { eventName: event.eventName, sender: event.sender, repository, pr, actualBaseSha: sha, baseReachable: st === 'identical' || st === 'ahead', now };
+  const exists = out(['api', `repos/${repository}/commits/${req.baseSha}`, '--jq', '.sha']);
+  const mainHead = out(['api', `repos/${repository}/commits/main`, '--jq', '.sha']); // current main HEAD: an old ancestor is not evidence of the current head
+  let legacyHandoffs = 0, legacyBlocked = true; // fail closed unless the comments were read and parsed
+  try {
+    const raw = out(['api', '--paginate', `repos/${repository}/issues/${Number(req.sourcePR)}/comments`, '--jq', '.[]|{id:.id,body:.body,created_at:.created_at,user:{login:.user.login,type:.user.type}}']);
+    const comments = raw ? raw.split('\n').map(l => JSON.parse(l)) : [];
+    legacyHandoffs = trustedHandoffs(comments).length;
+    legacyBlocked = legacyHandoffs >= MAX;
+  } catch { legacyBlocked = true; }
+  return { eventName: event.eventName, sender: event.sender, repository, pr, actualBaseSha: mainHead, baseReachable: exists === req.baseSha && mainHead === req.baseSha, now, legacyHandoffs, legacyBlocked };
 }
 
 if (require.main === module) {

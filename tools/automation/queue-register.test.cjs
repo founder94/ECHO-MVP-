@@ -2,7 +2,7 @@
 const test = require('node:test'); const assert = require('node:assert/strict'); const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { gitStore } = require('./queue-store-git.cjs');
-const { registerDecision, register, bootstrap, ghIo } = require('./queue-register.cjs');
+const { registerDecision, register, bootstrap, ghIo, ghContext } = require('./queue-register.cjs');
 const { budgetDecision } = require('./queue-budget.cjs');
 
 const g = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8' }).trim();
@@ -14,7 +14,7 @@ function pair() {
 const A = 'a'.repeat(40);
 const REPO = 'founder94/ECHO-MVP-';
 const req = (o = {}) => ({ taskId: 'T1', sourcePR: 200, baseSha: A, repository: REPO, branch: 'claude/task-1', acceptance: 'tests pass', ...o });
-const ctx = (o = {}) => ({ eventName: 'workflow_dispatch', sender: { login: 'founder94', type: 'User' }, repository: REPO, pr: { number: 200, state: 'open', repository: REPO }, actualBaseSha: A, baseReachable: true, now: '2026-10-04T14:00:00Z', ...o });
+const ctx = (o = {}) => ({ eventName: 'workflow_dispatch', sender: { login: 'founder94', type: 'User' }, repository: REPO, pr: { number: 200, state: 'open', repository: REPO }, actualBaseSha: A, baseReachable: true, now: '2026-10-04T14:00:00Z', legacyBlocked: false, legacyHandoffs: 0, ...o });
 
 test('registers only for the real founder94 User dispatch; actor/typed input/comment text cannot substitute', () => {
   assert.equal(registerDecision({}, req(), ctx()).ok, true);
@@ -92,8 +92,8 @@ function seeded() { const { a, b } = pair(); register(a, req(), ctx()); return {
 test('bootstrap: leased, fixed argv plain push, final head re-check, receipt stored; second run is refused', () => {
   const { a, b } = seeded(); const i = io();
   const r = bootstrap(a, 'T1', i); assert.equal(r.ok, true); assert.equal(r.status, 'CREATE');
-  assert.deepEqual(i.calls, [['git', 'push', 'origin', `${A}:refs/heads/claude/task-1`]]);
-  assert.ok(!i.calls[0].some(x => /force|-f$|\+/.test(x)));
+  assert.deepEqual(i.calls, [['gh', 'api', '-X', 'POST', `repos/${REPO}/git/refs`, '-f', 'ref=refs/heads/claude/task-1', '-f', `sha=${A}`]]); // atomic create-if-absent (refs API), never a push
+  assert.ok(!i.calls[0].some(x => /force|^\+|push/.test(x)));
   const t = a.load().state.legacyTasks[0]; assert.equal(t.bootstrap.status, 'DONE'); assert.equal(t.bootstrap.receiptSha, A);
   assert.equal(bootstrap(b, 'T1', io()).reason, 'already_bootstrapped');
 });
@@ -149,4 +149,33 @@ test('proposed register/bootstrap workflow: pinned source, owner-only dispatch, 
   assert.doesNotMatch(y, /secrets\.(?!GITHUB_TOKEN)/); assert.doesNotMatch(y, /--force|push -f/);
   assert.match(y, /queue-register\.cjs "\$MODE"/); assert.match(y, /register\|bootstrap/);
   assert.ok(!fs.existsSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'queue-task-register.yml')));
+});
+
+test('legacy round-blocked PR cannot get a fresh budget (no resume policy); unmeasured legacy state fails closed', () => {
+  const { a } = pair();
+  assert.equal(register(a, req({ sourcePR: 103 }), ctx({ pr: { number: 103, state: 'open', repository: REPO }, legacyBlocked: true, legacyHandoffs: 45 })).reason, 'legacy_blocked_resume_policy_missing');
+  assert.equal(registerDecision({}, req(), ctx({ legacyBlocked: undefined })).ok, false);
+  assert.equal(registerDecision({}, req(), ctx({ legacyHandoffs: undefined })).ok, false);
+  assert.equal(registerDecision({}, req(), ctx({ legacyHandoffs: 5 })).ok, false);
+  assert.equal(a.load().state.legacyTasks, undefined);
+});
+
+test('ghContext measures current main HEAD and legacy handoffs; advanced main or unreadable comments refuse', () => {
+  const B = 'b'.repeat(40), now = '2026-10-04T14:00:00Z', ev = { eventName: 'workflow_dispatch', sender: { login: 'founder94', type: 'User' } };
+  const mk = (main, comments) => (cmd, args) => args.some(x => x.includes('/pulls/')) ? JSON.stringify({ number: 200, state: 'open', repository: REPO })
+    : args.some(x => x.includes('/compare/')) ? 'ahead' : args.some(x => x.includes('/commits/' + A)) ? A : args.some(x => x.includes('/commits/main')) ? main : comments;
+  assert.equal(registerDecision({}, req(), ghContext(REPO, req(), ev, now, process.cwd(), mk(B, ''))).ok, false); // main advanced to B, old base A
+  assert.equal(registerDecision({}, req(), ghContext(REPO, req(), ev, now, process.cwd(), mk(A, 'not json'))).ok, false); // unreadable comments
+  assert.equal(registerDecision({}, req(), ghContext(REPO, req(), ev, now, process.cwd(), mk(A, ''))).ok, true);
+  const h = id => JSON.stringify({ id, body: '<!-- echo-handoff to=codex sha=' + A + ' round=1 -->', created_at: now, user: { login: 'claude[bot]', type: 'Bot' } });
+  const blocked = ghContext(REPO, req(), ev, now, process.cwd(), mk(A, [1, 2, 3, 4, 5].map(h).join('\n')));
+  assert.equal(blocked.legacyBlocked, true); assert.equal(registerDecision({}, req(), blocked).ok, false);
+});
+
+test('bootstrap: branch created by another writer after measurement is not overwritten (refs API conflict -> FAILED, existing branch kept)', () => {
+  const { a } = seeded(); const remote = { 'claude/task-1': 'b'.repeat(40) };
+  const run = argv => { const ref = argv.find(x => x.startsWith('ref=refs/heads/')).slice(15); if (remote[ref]) throw new Error('422 Reference already exists tok_secret'); remote[ref] = A; };
+  const r = bootstrap(a, 'T1', io({ run, head: () => remote['claude/task-1'] }));
+  assert.equal(r.ok, false); assert.equal(r.reason, 'exec_failed'); assert.equal(remote['claude/task-1'], 'b'.repeat(40));
+  assert.equal(a.load().state.legacyTasks[0].bootstrap.status, 'FAILED'); assert.ok(!JSON.stringify(r).includes('tok_secret'));
 });
