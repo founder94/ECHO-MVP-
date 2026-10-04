@@ -76,3 +76,12 @@ test('대화 화면의 「뒤로 = 직전 답 고치기」는 이용 안내 창�
   const A = read('src/doit/components/feature/AgentConversation.tsx');
   assert.match(A, /const onPop = \(\) => \{\n\s*\/\/[^\n]*\n\s*if \(\(window\.history\.state as \{ echoBackGuard\?: boolean \} \| null\)\?\.echoBackGuard\) return;\n\s*mark\(\);/);
 });
+
+test('Codex 리뷰 반영: 인트로 시간 정지 · 찌릿 이 기기 한정 · 설정 #guide 제목 · 메뉴로 연 뒤 초점은 메뉴 버튼으로', () => {
+  const INTRO = read('src/pages/do-it/intro/page.tsx');
+  assert.match(INTRO, /if \(document\.documentElement\.classList\.contains\('echo-guide-open'\)\) \{\n\s*lastNowRef\.current = now;\n\s*rafRef\.current = requestAnimationFrame\(tick\);\n\s*return;/);
+  assert.ok(CONTENT.includes('같은 연결에서는 이 기기에서 한 번만 보여요.'));
+  assert.match(read('src/doit/pages/do-it/settings/page.tsx'), /<p><strong>\{item\.title\}<\/strong><\/p><p>\{item\.body\}<\/p>/);
+  assert.match(read('src/components/AppCornerMenu.tsx'), /openGuide\(undefined, cornerButton\.current\)/);
+  assert.match(HOST, /openerRef\.current = detail\?\.opener \?\? \(document\.activeElement instanceof HTMLElement/);
+});

@@ -43,6 +43,7 @@ export default function AppCornerMenu() {
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef(false);
   const firstItem = useRef<HTMLAnchorElement>(null);
+  const cornerButton = useRef<HTMLButtonElement>(null);
 
   // iOS 사파리는 문서에 터치 듣기가 하나라도 있어야 :active(눌림 표시)를 그린다.
   useEffect(() => {
@@ -80,7 +81,7 @@ export default function AppCornerMenu() {
 
   return (
     <>
-      <button type="button" className="echo-corner-button" aria-label={open ? '메뉴 닫기' : '메뉴'} aria-expanded={open} aria-controls="echo-corner-panel" onClick={() => setOpen((v) => !v)}>
+      <button ref={cornerButton} type="button" className="echo-corner-button" aria-label={open ? '메뉴 닫기' : '메뉴'} aria-expanded={open} aria-controls="echo-corner-panel" onClick={() => setOpen((v) => !v)}>
         <MenuIcon open={open} />
       </button>
       {open && createPortal(
@@ -89,7 +90,7 @@ export default function AppCornerMenu() {
           <nav id="echo-corner-panel" className="echo-corner-panel" aria-label="메뉴">
             <p className="echo-corner-caption">메뉴</p>
             {ITEMS.map((item, index) => (
-              <Link key={item.to} ref={index === 0 ? firstItem : undefined} to={item.to} className="echo-corner-item" onClick={(e) => { setOpen(false); if ('guide' in item && item.guide && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openGuide(); } }}>
+              <Link key={item.to} ref={index === 0 ? firstItem : undefined} to={item.to} className="echo-corner-item" onClick={(e) => { setOpen(false); if ('guide' in item && item.guide && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openGuide(undefined, cornerButton.current); } }}>
                 <span className="echo-corner-label">{item.label}</span>
                 <span className="echo-corner-desc">{item.desc}</span>
               </Link>

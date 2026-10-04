@@ -88,7 +88,7 @@ test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서�
 
 test('이용 안내(옛 ECHO 사용법 · 2026-10-04 통합): 메뉴에서 그 자리에 열기 · 실제 기능만(미션·72시간·보상·가격 0) · KEY 는 「준비 중」만 · 항목마다 3~5문장', () => {
   assert.match(MENU, /\{ label: '이용 안내', desc: '처음 쓰는 법 · 궁금한 기능', to: '\/doit\/settings#guide', guide: true \}/);
-  assert.match(MENU, /if \('guide' in item && item\.guide && !e\.metaKey && !e\.ctrlKey\) \{ e\.preventDefault\(\); openGuide\(\); \}/, '화면 이동 없이 안내 창');
+  assert.match(MENU, /if \('guide' in item && item\.guide && !e\.metaKey && !e\.ctrlKey\) \{ e\.preventDefault\(\); openGuide\(undefined, cornerButton\.current\); \}/, '화면 이동 없이 안내 창(닫으면 메뉴 버튼으로 초점)');
   assert.match(SET, /hash === "#guide"/);
   assert.match(SET, /GUIDE_SECTIONS\.map\(item =>/, '설정 #guide 도 같은 내용 한 벌');
   const content = read('src/lib/guide/content.ts');

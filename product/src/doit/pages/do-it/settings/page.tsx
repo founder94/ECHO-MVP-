@@ -175,7 +175,7 @@ export default function Settings() {
         <section id="guide" className="doit-settings-section" aria-labelledby="settings-guide-heading">
           <h3 id="settings-guide-heading" className="doit-settings-heading">{GUIDE_TITLE}</h3>
           <div className="doit-settings-panel doit-settings-help">
-            {GUIDE_SECTIONS.map(item => <details key={item.id}><summary>{item.label}{item.soon ? ' · 준비 중' : ''}</summary><p>{item.body}</p>{item.points && <ul>{item.points.map(line => <li key={line}>{line}</li>)}</ul>}</details>)}
+            {GUIDE_SECTIONS.map(item => <details key={item.id}><summary>{item.label}{item.soon ? ' · 준비 중' : ''}</summary><p><strong>{item.title}</strong></p><p>{item.body}</p>{item.points && <ul>{item.points.map(line => <li key={line}>{line}</li>)}</ul>}</details>)}
           </div>
         </section>
 

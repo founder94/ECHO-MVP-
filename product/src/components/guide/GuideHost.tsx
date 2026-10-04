@@ -35,8 +35,9 @@ export default function GuideHost({ theme, extra }: Props) {
 
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const section = (e as CustomEvent<{ section: GuideSectionId | null }>).detail?.section ?? null;
-      if (!openerRef.current) openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const detail = (e as CustomEvent<{ section: GuideSectionId | null; opener?: HTMLElement | null }>).detail;
+      const section = detail?.section ?? null;
+      if (!openerRef.current) openerRef.current = detail?.opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
       seqRef.current += 1;
       setState({ seq: seqRef.current, section });
       if (!pushedRef.current) {
