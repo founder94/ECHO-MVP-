@@ -54,7 +54,7 @@ test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기�
 });
 
 test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「앱 설치 안내」 = 설치 항목 · 검정 테마 · 설치는 앱 주소에서만', () => {
-  assert.match(HOME, /<button type="button" onClick=\{\(\) => \{ close\(\); openGuide\(\); \}\}>이용 안내<\/button>/);
+  assert.match(HOME, /<button type="button" onClick=\{\(\) => \{ close\(\); openGuide\(undefined, menuBtnRef\.current\); \}\}>이용 안내<\/button>/);
   assert.match(HOME, /<button type="button" className="bh-legal-link" onClick=\{\(\) => openGuide\(\)\}>이용 안내<\/button>/);
   assert.match(HOME, /href=\{appUrl\(INSTALL_PATH\)\} onClick=\{openInstallGuide\}>\{BRAND_HOME_COPY\.install\}/);
   assert.match(HOME, /openGuide\('install'\)/);

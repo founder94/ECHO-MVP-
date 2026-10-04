@@ -83,6 +83,7 @@ export default function BrandHomePage() {
   const rootRef = useDepthReveal();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
   const [openStep, setOpenStep] = useState<number | null>(null);
   const productionApp = APP_ORIGIN === 'https://app.do-it.company';
 
@@ -99,7 +100,7 @@ export default function BrandHomePage() {
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>
       <header className="bh-nav">
         <span className="bh-brand"><DoItSymbol decorative />DO IT <small>COMPANY</small></span>
-        <button type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
+        <button ref={menuBtnRef} type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
           <span className="bh-sr">{menuOpen ? '메뉴 닫기' : '메뉴 열기'}</span><i aria-hidden="true" /><i aria-hidden="true" />
         </button>
         {menuOpen && (
@@ -107,7 +108,7 @@ export default function BrandHomePage() {
             <a href="#bh-echo" onClick={close}>ECHO</a>
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
-            <button type="button" onClick={() => { close(); openGuide(); }}>이용 안내</button>
+            <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
               : <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>}

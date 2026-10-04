@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { GUIDE_OPEN_EVENT } from '@/lib/guide/bus';
 
 // DO IT 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」). ECHO 소개 다음 · 회사 소개 앞.
 // - 처음에는 대표 이미지 + 「영상 보기」만. 누르기 전에는 영상 파일을 받지 않는다(첫 화면 로딩과 분리).
@@ -44,13 +45,16 @@ export default function BrandFilm() {
     // 앞 원본(mp4)을 못 트는 브라우저에서 <source> 오류가 부모로 전달돼, 뒤 원본(webm)으로 넘어가기 전에 실패로 바뀐다.
     const fail = () => setState('error');
     v.addEventListener('error', fail);
+    // 이용 안내 창을 열면 영상도 멈춘다(읽는 동안 뒤 화면 움직임 0 — CSS 애니메이션 정지로는 <video> 가 멈추지 않는다).
+    const onGuide = () => { if (!v.paused) v.pause(); };
+    window.addEventListener(GUIDE_OPEN_EVENT, onGuide);
     v.play()?.catch(() => { /* 브라우저가 막으면 조작 막대의 재생 버튼으로 이어서 */ });
     const box = boxRef.current;
     const io = box && typeof IntersectionObserver !== 'undefined'
       ? new IntersectionObserver(([e]) => { if (e && e.intersectionRatio < 0.25 && !v.paused) v.pause(); }, { threshold: [0, 0.25, 0.5] })
       : null;
     if (box) io?.observe(box);
-    return () => { v.removeEventListener('error', fail); io?.disconnect(); };
+    return () => { v.removeEventListener('error', fail); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
   }, [state, attempt]);
 
   return <div ref={boxRef} className="bh-film" data-state={state} data-orient={portrait ? 'portrait' : 'landscape'}>

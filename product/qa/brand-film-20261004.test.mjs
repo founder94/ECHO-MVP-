@@ -54,3 +54,10 @@ test('휴대폰을 돌리면(멈춤·실패 화면에서) 세로/가로 영상�
   assert.match(FILM, /mq\.addEventListener\?\.\('change', onChange\)/);
   assert.match(FILM, /return \(\) => mq\.removeEventListener\?\.\('change', onChange\);/);
 });
+
+test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내를 닫으면 초점은 메뉴 버튼으로', () => {
+  assert.match(FILM, /const onGuide = \(\) => \{ if \(!v\.paused\) v\.pause\(\); \};\n\s*window\.addEventListener\(GUIDE_OPEN_EVENT, onGuide\);/);
+  assert.match(FILM, /window\.removeEventListener\(GUIDE_OPEN_EVENT, onGuide\)/);
+  assert.match(HOME, /<button ref=\{menuBtnRef\} type="button" className="bh-menu-btn"/);
+  assert.match(HOME, /openGuide\(undefined, menuBtnRef\.current\)/);
+});
