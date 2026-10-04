@@ -63,21 +63,13 @@ const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
   qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
 };
 
-const openInstallGuide = (event: MouseEvent<HTMLAnchorElement>) => {
-  if (event.metaKey || event.ctrlKey) return; // 새 탭이면 앱 설치 화면 그대로
+// 「앱 설치 안내」 = 이용 안내의 설치 항목(이 자리에서 열림). 새 탭이면 앱 설치 화면 그대로.
+// 2026-10-04 대표 「모바일로 시작하기가 너무 많아 하나면 돼」: 시작 버튼은 히어로 하나만. 설치 안내는 메뉴로 옮겼다.
+const openInstallGuide = (event: MouseEvent<HTMLAnchorElement>, opener?: HTMLElement | null) => {
+  if (event.metaKey || event.ctrlKey) return;
   event.preventDefault();
-  openGuide('install');
+  openGuide('install', opener);
 };
-
-function StartActions({ id }: { id?: string }) {
-  return (
-    <div className="bh-actions" id={id}>
-      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
-      {/* 2026-10-04 이용 안내 통합: 「앱 설치 안내」 = 이용 안내의 설치 항목(이 자리에서 열림). 새 탭·주소로는 앱 설치 화면 그대로. */}
-      <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)} onClick={openInstallGuide}>{BRAND_HOME_COPY.install}</a>
-    </div>
-  );
-}
 
 export default function BrandHomePage() {
   const rootRef = useDepthReveal();
@@ -109,6 +101,7 @@ export default function BrandHomePage() {
             <a href="#bh-company" onClick={close}>회사 소개</a>
             <a href="#bh-greeting" onClick={close}>대표 인사말</a>
             <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
+            <a href={appUrl(INSTALL_PATH)} onClick={(e) => { close(); openInstallGuide(e, menuBtnRef.current); }}>{BRAND_HOME_COPY.install}</a>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
               : <a href={appUrl('/login')}>로그인 <span aria-hidden="true">↗</span></a>}
@@ -130,7 +123,7 @@ export default function BrandHomePage() {
           <span className="bh-rule" aria-hidden="true" />
           <div className="bh-actions">
             {/* 명세: 시안에서는 「ECHO 알아보기」가 주 버튼처럼 보여도 「모바일 시작하기」가 주 행동 · ECHO 알아보기는 보조 */}
-            <a className="bh-btn bh-btn--outline" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+            <a className="bh-btn bh-btn--outline bh-btn--start" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
             <a className="bh-btn bh-btn--text" href="#bh-echo">{BRAND_HOME_COPY.learn}</a>
           </div>
         </div>
@@ -155,7 +148,6 @@ export default function BrandHomePage() {
               </li>
             ))}
           </ol>
-          <StartActions />
           <div className="bh-qr" id="bh-start-qr">
             {productionApp && <img src="/brand/app-qr.svg" width="132" height="132" alt="app.do-it.company 로 가는 QR 코드" />}
             <div>
@@ -167,14 +159,13 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 2-1. 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
+      {/* 2-1. 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 시작 버튼은 히어로 하나만(같은 날 대표 지시). */}
       <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
         <div className="bh-content">
           <p className="bh-kicker">BRAND FILM</p>
           <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
           <BrandFilm />
-          <StartActions />
         </div>
       </section>
 
@@ -191,7 +182,6 @@ export default function BrandHomePage() {
             <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
             <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
           </dl>
-          <StartActions />
         </div>
       </section>
 

@@ -8,13 +8,14 @@ const FILM = read('src/pages/do-it/brand-home/BrandFilm.tsx');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const VTT = read('public/brand/film/captions.ko.vtt');
 
-test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 진짜 「모바일 시작하기」는 영상 아래', () => {
+test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 영상 아래 시작 버튼 0(히어로 하나만)', () => {
   const at = (s) => HOME.indexOf(s);
   const order = ['id="bh-echo"', 'id="bh-film"', 'id="bh-company"', 'id="bh-greeting"'].map(at);
   assert.ok(order.every((x) => x > 0), String(order));
   assert.ok(order.every((x, i) => i === 0 || x > order[i - 1]), '순서 hero → ECHO → 영상 → 회사 → 인사');
   const sec = HOME.slice(at('id="bh-film"'), at('id="bh-company"'));
-  assert.ok(sec.indexOf('<BrandFilm />') < sec.indexOf('<StartActions />'), '시작 버튼은 영상 아래');
+  assert.ok(sec.includes('<BrandFilm />'));
+  assert.doesNotMatch(sec, /BRAND_HOME_COPY\.start|StartActions/, '시작 버튼은 히어로 하나만(2026-10-04 대표)');
   assert.match(FILM, /title: '이야기가 연결이 되기까지', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
 

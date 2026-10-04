@@ -63,9 +63,10 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 같은 처리(컴퓨터 = QR 구간 · 휴대폰 = 앱) · Codex PR #123', () => {
+test('홈페이지: 「모바일 시작하기」는 히어로 하나만(2026-10-04 대표 「하나면 돼」) · 컴퓨터 = QR 구간 · 휴대폰 = 앱 · Codex PR #123', () => {
   const starts = HOME.match(/<a [^>]*href=\{appUrl\(START_PATH\)\}[^>]*>\{BRAND_HOME_COPY\.start\}/g) ?? [];
-  assert.ok(starts.length >= 2, `시작 링크 ${starts.length}`);
+  assert.equal(starts.length, 1, `시작 링크 ${starts.length}`);
+  assert.doesNotMatch(HOME, /StartActions/, '섹션마다 붙던 시작 버튼 묶음 0');
   for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
   assert.match(HOME, /id="bh-start-qr"/, 'QR 구간');
   assert.match(HOME, /<a className="bh-btn bh-btn--text" href=\{appUrl\(START_PATH\)\}>이 컴퓨터에서 열기<\/a>/, '「이 컴퓨터에서 열기」는 앱으로 바로(빠져나갈 길)');
@@ -73,7 +74,8 @@ test('홈페이지: 「모바일 시작하기」는 첫 화면 포함 전부 같
 
 test('홈페이지 첫 화면: 주 행동 = 「모바일 시작하기」(테두리 버튼) · 「ECHO 알아보기」 = 보조(글자 링크) · 명세 「홈페이지」', () => {
   const hero = HOME.slice(HOME.indexOf('className="bh-sec bh-hero"'), HOME.indexOf('id="bh-echo"'));
-  assert.match(hero, /<a className="bh-btn bh-btn--outline" href=\{appUrl\(START_PATH\)\} onClick=\{goStart\}>\{BRAND_HOME_COPY\.start\}/);
+  assert.match(hero, /<a className="bh-btn bh-btn--outline bh-btn--start" href=\{appUrl\(START_PATH\)\} onClick=\{goStart\}>\{BRAND_HOME_COPY\.start\}/);
+  assert.match(HCSS, /\.bh-hero \.bh-btn--start \{ width: auto; min-width: 232px; max-width: 100%; padding: 0 28px; align-self: center; \}/, '제목 폭에 맞춘 좁은 네모');
   assert.match(hero, /<a className="bh-btn bh-btn--text" href="#bh-echo">\{BRAND_HOME_COPY\.learn\}<\/a>/);
   assert.ok(hero.indexOf('BRAND_HOME_COPY.start') < hero.indexOf('BRAND_HOME_COPY.learn'), '모바일 시작하기가 먼저');
 });
