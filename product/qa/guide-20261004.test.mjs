@@ -48,7 +48,8 @@ test('안내 창: 화면 이동 0(포털) · 뒤로 = 창만 닫기 · Esc · �
 
 test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기에만 저장 · 동의 값 0', () => {
   assert.match(HINT, /const \[seen, setSeen\] = useState\(\(\) => hintSeen\(id\) \|\| !section\.hint\)/);
-  assert.match(HINT, /<button type="button" className="echo-guide-link" onClick=\{\(\) => openGuide\(id\)\}>\{linkLabel\}<\/button>/);
+  assert.match(HINT, /<button ref=\{linkRef\} type="button" className="echo-guide-link" onClick=\{\(\) => openGuide\(id\)\}>\{linkLabel\}<\/button>/);
+  assert.match(HINT, /if \(after === 'open'\) openGuide\(id, link\); else link\?\.focus\(\{ preventScroll: true \}\);/, '「자세히 보기」 뒤 초점은 남아 있는 링크로');
   assert.match(BUS, /localStorage\.setItem\(HINT_KEY\(id\), '1'\)/);
   assert.doesNotMatch(noComments(BUS + HINT), /consent|agree|동의/i);
 });

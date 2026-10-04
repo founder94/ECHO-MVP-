@@ -668,6 +668,22 @@ await run(71, '기능 옆 도움말: 확인 단계 처음 한 번 → 닫기 →
   expect(await p.locator('.echo-guide-hint').count() === 0, '다시 열어도 도움말 다시 안 뜸(이 기기)');
   return '처음 한 번 · 닫은 뒤 링크 · 해당 항목으로 열림';
 });
+await run(74, '기능 옆 도움말 초점: 「자세히 보기」 → 안내 → Esc 뒤 초점은 남은 「이 기능이 궁금해요」 · 「닫기」 뒤에도 같은 링크', IPHONE, { agent: { session: GUIDE_DONE } }, async (p) => {
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  const hint = p.locator('.echo-guide-hint'); await hint.waitFor({ timeout: 8000 });
+  await hint.getByRole('button', { name: '자세히 보기' }).click();
+  const dlg = p.getByRole('dialog', { name: '이용 안내' }); await dlg.waitFor();
+  expect(await dlg.locator('#echo-guide-check[open]').count() === 1, '확인 항목이 펼쳐짐');
+  await p.keyboard.press('Escape'); await dlg.waitFor({ state: 'detached' });
+  const f1 = await p.evaluate(() => document.activeElement?.textContent ?? '');
+  expect(f1 === '이 기능이 궁금해요', `닫은 뒤 초점=${f1}`);
+  await p.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('echo:guide-hint-seen:')) localStorage.removeItem(k); });
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  await p.locator('.echo-guide-hint').getByRole('button', { name: '닫기' }).click(); await p.waitForTimeout(100);
+  const f2 = await p.evaluate(() => document.activeElement?.textContent ?? '');
+  expect(f2 === '이 기능이 궁금해요', `「닫기」 뒤 초점=${f2}`);
+  return '자세히 보기·닫기 모두 초점이 남은 링크로';
+});
 for (const [n, w] of [[72, 320], [73, 430]]) await run(n, `이용 안내 ${w}px: 넘침 0 · 닫기 44px · 움직임 줄이기면 애니메이션 0`, { width: w, height: 640 }, {}, async (p) => {
   await p.emulateMedia({ reducedMotion: 'reduce' });
   await p.goto(`${BASE}/doit/settings`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
