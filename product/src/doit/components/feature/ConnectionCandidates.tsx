@@ -20,7 +20,7 @@ type Safety = { id: string; step: 'menu' | 'report' };
 
 const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '이번에는 넘길게요', hide: '숨기기' };
 
-export default function ConnectionCandidates({ userId, onOpened, onServerState }: { userId: string; onOpened: (matchId: string | null) => void; onServerState?: (state: MyCandidates) => void }) {
+export default function ConnectionCandidates({ userId, onOpened, onServerState, reload = 0 }: { userId: string; onOpened: (matchId: string | null) => void; onServerState?: (state: MyCandidates) => void; reload?: number }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
     }
   }, [userId, onServerState]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh, reload]); // reload = 실행 단계 「후보 열기」 뒤 다시 읽기(같은 화면 · 다시 만들지 않음)
 
   const choose = async (candidate: MyCandidate, choice: CandidateChoice) => {
     if (busy) return;

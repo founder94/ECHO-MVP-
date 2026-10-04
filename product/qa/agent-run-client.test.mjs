@@ -112,7 +112,7 @@ test('연결 화면 소스 규칙: 빌드 스위치·로그인·자격 갖춤일
   const src = readFileSync(new URL('../src/doit/components/feature/AsleepConnections.tsx', import.meta.url), 'utf8');
   assert.match(src, /\{ECHO_AGENT_ENABLED && userId && eligible && !next && <AgentRunButton/);
   assert.match(src, /if \(run\.next === 'open_candidates'\) onOpenCandidates\(\)/);
-  assert.match(src, /<ConnectionCandidates key=\{candidatesKey\}/, '후보 상세는 기존 doit-connect 화면에서만');
+  assert.match(src, /<ConnectionCandidates reload=\{candidatesKey\}/, '후보 상세는 기존 doit-connect 화면에서만(다시 읽기는 reload · key 로 다시 만들지 않음 2026-10-04)');
   assert.doesNotMatch(src, /resume:\s*true|chooseCandidate|useEffect\([^)]*agentRun/, '자동 재개·후보 선택·진입 시 실행 0');
   assert.match(src, /disabled=\{busy \|\| ended\} aria-busy=\{busy\}/, '진행 중 버튼 비활성(예산 소진·사용자 멈춤 끝 상태도 비활성)');
 });
