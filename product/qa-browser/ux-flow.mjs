@@ -62,6 +62,8 @@ async function newPage(browser, vp, server) {
   const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const user = { ...USER, user_metadata: { ...(server.st.userMeta ?? USER.user_metadata) } };
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify({ ...SESSION, user })]);
+  // UX_OFFLINE=1: 바깥 인터넷이 막힌 검사 환경 — 바깥 글꼴·아이콘 요청을 바로 끊는다(기다리다 networkidle 시간 초과 방지 · 화면 동작 영향 0).
+  if (process.env.UX_OFFLINE === '1') await ctx.route(/^https?:\/\/(?!localhost|127\.0\.0\.1|mutniujeiyujhkobadkd\.supabase\.co)/, (route) => route.abort());
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(); const u = new URL(req.url());
     // 2026-10-01 프로필 FRAME: 서명된 사진 주소(서버가 공개 뒤에만 주는 것)를 이 검사 안에서만 대신 준다 — 사람 사진이 아닌 무늬 그림(가짜 사람 0).
