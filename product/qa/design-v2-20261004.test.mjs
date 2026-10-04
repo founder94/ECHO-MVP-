@@ -121,3 +121,28 @@ test('역할 분리: 홈페이지 빌드에도 들어가는 echo-ui.css 에 앱�
   for (const k of ['doit-connect', 'DoitApp', 'admin-web']) assert.ok(!ui.includes(k), k);
   assert.match(read('src/doit/components/feature/connect.css'), /\.doit-app-pastel \.doit-connect-note\{font-size:14px!important;line-height:1\.55\}/, '연결 안내 14px 는 앱 전용 connect.css 로');
 });
+
+test('모바일 상태 문구(2026-10-04 2차): 찌릿 본문·후보 문구·시작 화면·입력창·가입 안내가 대표 지시 그대로', () => {
+  assert.ok(read('src/doit/components/feature/ZzaritMoment.tsx').includes("body: '두 분 모두 대화를 원했어요.'"));
+  const cand = read('src/doit/components/feature/ConnectionCandidates.tsx');
+  for (const t of ['이분의 이야기를 들어볼까요?', '더 알아보기', "no: '다음에 볼게요'", '선택을 보냈어요. 상대도 선택하면 알려드릴게요.']) assert.ok(cand.includes(t), t);
+  const home = read('src/doit/pages/do-it/home/page.tsx');
+  assert.match(home, /같이 하고 싶은 일이<br \/>있나요/); assert.match(home, /어떤 만남을 원하는지 들려주세요/);
+  assert.ok(read('src/doit/components/feature/AgentConversation.tsx').includes("'편하게 적어주세요.'"));
+  assert.match(read('src/pages/signup/page.tsx'), /반가워요\. ECHO를 시작해 볼까요\?[\s\S]*계속하려면 약관을 확인해 주세요\./);
+});
+
+test('개별 선택(waiting)에는 찌릿 전류 0 — mutual 분기에서만 ZZARIT', () => {
+  const cand = read('src/doit/components/feature/ConnectionCandidates.tsx');
+  const at = cand.indexOf("out.status === 'waiting'");
+  assert.ok(at > 0);
+  assert.doesNotMatch(cand.slice(at, at + 230), /setMutual|Zzarit/);
+});
+
+test('홈페이지 메뉴·패널: 초점 이동·복귀, Escape, 뒤로가기, 기기별 설치 안내(가짜 스토어 배지 0)', () => {
+  const s = noComments(HOME);
+  for (const t of ['menuBtnRef', 'cardRefs', 'closePanel', "e.key !== 'Escape'", 'popstate', 'detectInstallContext']) assert.ok(s.includes(t), t);
+  for (const k of ['ios-safari', 'ios-other', 'android', 'in-app', 'desktop', 'installed']) assert.ok(s.includes(k), k);
+  assert.doesNotMatch(s, /apps\.apple\.com|play\.google\.com|App Store/i);
+  assert.match(HCSS, /prefers-reduced-motion: reduce/);
+});

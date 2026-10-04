@@ -3,6 +3,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import { INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
+import { detectInstallContext, type InstallContext } from '@/doit/lib/installContext';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
 import './brand-home.css';
 
@@ -34,6 +35,22 @@ const ECHO_STEPS: Array<{ title: string; body: string; soon?: boolean }> = [
 const matches = (query: string) => { try { return typeof window.matchMedia === 'function' && window.matchMedia(query).matches; } catch { return false; } };
 const reduced = () => matches('(prefers-reduced-motion: reduce)');
 
+// 기기별 설치 안내(실제 PWA 지원 기준 · 가짜 앱스토어 배지/링크 없음). 순수 함수 detectInstallContext 재사용.
+const INSTALL_HINT: Record<InstallContext, string> = {
+  installed: '이미 앱으로 열려 있어요.',
+  'in-app': '지금 열린 앱 안 브라우저에서는 설치할 수 없어요. 크롬이나 사파리로 열어 주세요.',
+  'ios-safari': 'iPhone: 앱을 연 뒤 아래 공유 버튼 → 「홈 화면에 추가」를 눌러 주세요.',
+  'ios-other': 'iPhone: 사파리로 열어야 설치할 수 있어요. 주소를 사파리에 붙여 넣어 주세요.',
+  android: 'Android: 앱을 연 뒤 브라우저 메뉴(⋮) → 「앱 설치」 또는 「홈 화면에 추가」를 눌러 주세요.',
+  desktop: '컴퓨터에서는 휴대폰으로 열어야 설치할 수 있어요. 아래 QR 이나 주소를 휴대폰에서 열어 주세요.',
+};
+const installHint = (): string => {
+  try {
+    const standalone = matches('(display-mode: standalone)') || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    return INSTALL_HINT[detectInstallContext({ ua: navigator.userAgent, standalone, maxTouchPoints: navigator.maxTouchPoints || 0 })];
+  } catch { return INSTALL_HINT.desktop; }
+};
+
 // 화면에 들어온 구간에 표시만 붙인다(움직임은 CSS · 움직임 줄이기면 CSS 가 끈다). 화면 밖은 관찰을 멈춘다.
 function useDepthReveal() {
   const rootRef = useRef<HTMLElement | null>(null);
@@ -53,10 +70,12 @@ function useDepthReveal() {
 
 // 「모바일 시작하기」는 컴퓨터에서도 막지 않고 곧바로 앱 주소로 이동한다(2026-10-04 대표 지시 · 예전 QR 강제 분기 폐지). QR 은 보조 안내로만 남는다.
 function StartActions({ id }: { id?: string }) {
+  const [hint] = useState(installHint);
   return (
     <div className="bh-actions" id={id}>
       <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
       <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)}>{BRAND_HOME_COPY.install}</a>
+      <p className="bh-install-hint">{hint}</p>
     </div>
   );
 }
@@ -68,12 +87,36 @@ export default function BrandHomePage() {
   const [openStep, setOpenStep] = useState<number | null>(null);
   const productionApp = APP_ORIGIN === 'https://app.do-it.company';
 
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const lastStep = useRef<number | null>(null);
+
+  // 닫는 길은 모두 같은 곳으로: 메뉴는 메뉴 버튼, 카드 패널은 눌렀던 카드로 초점이 돌아온다.
+  const closeMenu = (restoreFocus = true) => { setMenuOpen(false); if (restoreFocus) requestAnimationFrame(() => menuBtnRef.current?.focus()); };
+  const closePanel = () => { const i = lastStep.current; setOpenStep(null); if (i !== null) requestAnimationFrame(() => cardRefs.current[i]?.focus()); };
+
   useEffect(() => {
     if (!menuOpen && openStep === null) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenuOpen(false); setOpenStep(null); } };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (menuOpen) closeMenu(); else closePanel();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [menuOpen, openStep]);
+
+  // 메뉴가 열리면 첫 항목으로 초점, 휴대폰 뒤로가기는 페이지를 떠나지 않고 메뉴만 닫는다.
+  useEffect(() => {
+    if (!menuOpen) return;
+    document.querySelector<HTMLElement>('#bh-menu a, #bh-menu button')?.focus();
+    window.history.pushState({ bhMenu: true }, '');
+    const onPop = () => setMenuOpen(false);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      if ((window.history.state as { bhMenu?: boolean } | null)?.bhMenu) window.history.back();
+    };
+  }, [menuOpen]);
 
   const close = () => setMenuOpen(false);
   return (
@@ -81,7 +124,7 @@ export default function BrandHomePage() {
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>
       <header className="bh-nav">
         <span className="bh-brand"><DoItSymbol decorative />DO IT <small>COMPANY</small></span>
-        <button type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
+        <button ref={menuBtnRef} type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => (menuOpen ? closeMenu(false) : setMenuOpen(true))}>
           <span className="bh-sr">{menuOpen ? '메뉴 닫기' : '메뉴 열기'}</span><i aria-hidden="true" /><i aria-hidden="true" />
         </button>
         {menuOpen && (
@@ -128,7 +171,7 @@ export default function BrandHomePage() {
           <ol className="bh-cards">
             {ECHO_STEPS.map((step, i) => (
               <li key={step.title}>
-                <button type="button" className="bh-card" aria-expanded={openStep === i} onClick={() => setOpenStep(openStep === i ? null : i)}>
+                <button ref={(el) => { cardRefs.current[i] = el; }} type="button" className="bh-card" aria-expanded={openStep === i} onClick={() => { lastStep.current = i; if (openStep === i) closePanel(); else setOpenStep(i); }}>
                   <span className="bh-card-no" aria-hidden="true">{i + 1}</span>
                   <span className="bh-card-title">{step.title}{step.soon && <em className="bh-tag">준비 중</em>}</span>
                 </button>

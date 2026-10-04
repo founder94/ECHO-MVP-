@@ -171,7 +171,7 @@ await run(6, 'YES → 대기', IPHONE, { candidates: [cand('c1')] }, async (p, s
   await p.screenshot({ path: 'uxshots/06-waiting.png' }); return 'choose=yes 전송 · 대기 표시';
 });
 await run(7, 'NO', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: '이번에는 넘길게요' }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: '다음에 볼게요' }).click(); await p.waitForTimeout(500);
   expect((await text(p)).includes('넘겼어요'), '넘김 문구'); expect(s.st.calls.some(c => c.choice === 'no'), 'no 요청'); return 'choose=no';
 });
 await run(8, 'HIDE', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
@@ -183,7 +183,7 @@ await run(9, '선택 후 대기(다시 열어도 유지)', IPHONE, { candidates:
 });
 await run(10, 'mutual (서버가 mutual 이라고 답할 때만)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
-  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('서로 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
+  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('두 분 모두 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
   await p.waitForTimeout(900); await p.screenshot({ path: 'uxshots/10-mutual.png' }); return 'ZZARIT · 상대 정보 0';
 });
 await run(11, 'connection (서버 match_id 로 이동)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {

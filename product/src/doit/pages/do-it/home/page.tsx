@@ -78,8 +78,8 @@ export default function Home() {
                   <Link className="doit-product-action" to="/doit/conversation">이어서 답하기 <span aria-hidden="true">↗</span></Link>
                 </>
               : <>
-                  <h1 id="echo-home-title" className="doit-product-title">편하게 몇 가지만<br />물어볼게요.</h1>
-                  <p className="doit-product-description">편하게 말하면 돼요.<br />찾는 건 ECHO가 할게요.</p>
+                  <h1 id="echo-home-title" className="doit-product-title">같이 하고 싶은 일이<br />있나요?</h1>
+                  <p className="doit-product-description">어떤 만남을 원하는지 들려주세요.<br />찾는 건 ECHO가 할게요.</p>
                   <Link className="doit-product-action" to="/doit/start-journey">시작하기 <span aria-hidden="true">↗</span></Link>
                 </>}
           <p className="doit-product-footnote">잘못 알아들었으면 바로 고쳐 주세요.</p>

@@ -137,3 +137,5 @@
 .doit-meet .doit-outcome-chips{margin-top:10px}
 /* 2026-10-04 디자인 교체: 연결 안내 글 14px — 앱 전용 파일에만(echo-ui.css 는 홈페이지 빌드에도 들어가 연결 코드 이름이 섞이면 역할 분리 검사가 막는다) */
 .doit-app-pastel .doit-connect-note{font-size:14px!important;line-height:1.55}
+/* 2026-10-04 공통 토큰: 연결 화면 글자 링크도 터치 44px 이상(앱 전용 파일) */
+.doit-app-pastel :is(button,a).doit-connect-link{min-height:44px;display:inline-flex;align-items:center}

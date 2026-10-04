@@ -232,8 +232,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {header}
     <p className="echo-eyebrow">만나기 전에</p>
     {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
-    {(session?.goal_label ?? purposeLabel) ? <h1>{session?.goal_label ?? purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
-    <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
+    {(session?.goal_label ?? purposeLabel) ? <h1>{session?.goal_label ?? purposeLabel}<br />같이 하고 싶은 일이 있나요?</h1> : <h1>같이 하고 싶은 일이<br />있나요?</h1>}
+    <p className="echo-lead">어떤 만남을 원하는지 들려주세요. 짧아도 괜찮아요.</p>
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
     {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { if (choice.mode === 'VOICE') unlockSpeech(); setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
@@ -348,7 +348,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). */}
     {!done && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (busy) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
       <label htmlFor="echo-message">{editingPrevious ? '직전 답 고치기' : done ? '고칠 게 있으면 적어 주세요' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
-      <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '생각나는 대로 한 줄'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
+      <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '편하게 적어주세요.'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
       {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
       <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}</div></div>
       {/* 2026-10-01 대표 「FINAL DESIGN」 §9·§11: 한 화면 하나의 주 행동 = 흰 판 + 짙은 청록 글자 「답변 보내기」 */}

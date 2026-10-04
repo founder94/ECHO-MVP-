@@ -18,7 +18,7 @@ type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: '
 type Mutual = { matchId: string };
 type Safety = { id: string; step: 'menu' | 'report' };
 
-const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '이번에는 넘길게요', hide: '숨기기' };
+const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '다음에 볼게요', hide: '숨기기' };
 
 export default function ConnectionCandidates({ userId, onOpened, onServerState, reload = 0 }: { userId: string; onOpened: (matchId: string | null) => void; onServerState?: (state: MyCandidates) => void; reload?: number }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
@@ -115,10 +115,10 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
       const open = c.waiting || !!opened[c.id];
       return <article key={c.id} className="doit-candidate" data-state={c.waiting ? 'waiting' : open ? 'choose' : 'closed'}>
         <p className="doit-match-kicker">후보 {i + 1}{c.purpose ? ` · ${c.purpose}` : ''}</p>
-        <p className="doit-candidate-found">한 사람을 발견했어요.</p>
+        <p className="doit-candidate-found">이분의 이야기를 들어볼까요?</p>
         {!open && <>
           <p className="doit-candidate-teaser">왜 이 사람인지, ECHO가 본 이유가 있어요.</p>
-          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">왜 이 사람인지 보기<span aria-hidden="true">↗</span></button>
+          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">더 알아보기 · 왜 이 사람인지 보기<span aria-hidden="true">↗</span></button>
         </>}
         {open && <>
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>

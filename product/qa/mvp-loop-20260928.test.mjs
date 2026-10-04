@@ -20,7 +20,7 @@ test('후보 화면: 서버가 준 이유만 그림 · 상대 이름·사진·�
   assert.match(CAND, /당신이 잠든 사이,<br \/>ECHO가 한 사람을 발견했어요\./);
   assert.match(CAND, /아직 보여 드릴 사람은 없어요\./);
   assert.match(CAND, /이어지고 싶어요/);
-  assert.match(CAND, /이번에는 넘길게요/);
+  assert.match(CAND, /다음에 볼게요/);
   assert.match(CAND, /숨기기/);
   assert.match(CAND, /최종 선택은 언제나 내가 해요/);
 });

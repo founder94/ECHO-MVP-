@@ -82,3 +82,8 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-done-title{margin:6px 0 12px;font-weight:800!important;color:#fff}
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"]):where(.echo-primary,.echo-secondary,.doit-product-action){min-height:48px}
 
+
+/* 2026-10-04 공통 토큰 보강(대표 「모바일 전체 흐름 + 공통토큰」): 보조 버튼·글자 링크도 터치 44px 이상 · 키보드 초점 고리 · 아래 안전 영역. 색·배치는 그대로. */
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"]):where(.echo-text-button,.echo-restart-pill,.doit-restart-pill){min-height:44px;display:inline-flex;align-items:center}
+:is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"],textarea,input,summary):focus-visible{outline:2px solid #fff;outline-offset:3px}
+.echo-dialogue.echo-dialogue--pastel{padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))}

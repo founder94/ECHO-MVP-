@@ -71,7 +71,7 @@ test('막다른 길을 만들지 않는다 — 어디서든 홈으로 나갈 수
 
 test('앱 홈이 지금 어디까지 왔는지와 다음 할 일을 보여 준다', async () => {
   const home = await read('src/doit/pages/do-it/home/page.tsx');
-  assert.match(home, /편하게 몇 가지만<br \/>물어볼게요/);
+  assert.match(home, /같이 하고 싶은 일이<br \/>있나요/);
   assert.doesNotMatch(home, /다섯 가지/, 'ECHO 대화는 질문 개수를 약속하지 않는다(P0-B)');
   assert.match(home, /시작하기 </);
   assert.match(home, /이어서 답하기 </);

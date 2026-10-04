@@ -42,7 +42,7 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
 });
 
 test('찌릿 연출(2026-10-04 대표): 문구 3개 · 두 익명 노드 사이 청록·흰색 전류 0.6~0.9초 한 번 · 반복·번쩍임 0 · 하트·폭죽·네온 0 · 움직임 줄이기 = 정적 연결선 · 상대 정보 0', () => {
-  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '서로 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
+  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '두 분 모두 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
   assert.doesNotMatch(ZCSS, /infinite/, '반복 0');
   const cur = ZCSS.match(/\.echo-zzarit-current\{[^}]*animation:echo-zz-current ([.\d]+)s [^ ]+ ([.\d]+)s both\}/);
@@ -75,7 +75,7 @@ test('2~3번 안에: 후보 숨기기 1 · 차단 2 · 신고 3(불편해요 →
   assert.doesNotMatch(CAND + MATCH, /신고하면 차단도 함께 돼요|차단도 함께 돼요/, '신고가 차단을 강제하지 않는다');
   assert.match(MATCH, /setLeaving\('menu'\)\} disabled=\{busy\}>이 연결 그만하기/);
   assert.match(MATCH, /void leave\(alsoBlock, true, code\)\} disabled=\{busy\}>\{label\}/);
-  assert.match(CAND, /CHOICE_LABEL\.yes/); assert.match(CAND, /yes: '이어지고 싶어요', no: '이번에는 넘길게요'/);
+  assert.match(CAND, /CHOICE_LABEL\.yes/); assert.match(CAND, /yes: '이어지고 싶어요', no: '다음에 볼게요'/);
 });
 
 test('만나기 전 안내: 「약속했어요」 뒤 + 이야기 화면에서도 언제든 · 짧고 실용적 · 위험한 행동 권유 0', () => {

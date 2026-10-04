@@ -25,20 +25,29 @@
 
 미확인(대표 확인 필요): 승인된 홈페이지 영상 자산 존재 여부 — 확인하지 못해 영상 UI를 넣지 않음.
 
-## 모바일 (app) — 다음 단계
-| 화면 | 현재 구현 파일(확인 위치) | 새 문구/디자인 요점 | 유지할 기능 | 담당 | 상태 |
-|---|---|---|---|---|---|
-| M1 시작 | doit/components/feature/ConversationOpening.tsx | 「같이 하고 싶은 일이 있나요?」(이미 반영 확인) | — | Claude | 문구 확인만 · 디자인 대기 |
-| M2 가입·로그인·약관 | pages/signup · pages/login · ConsentGate | 「반가워요. ECHO를 시작해 볼까요?」 | 미리 체크 0 · 필수/선택 동의 | Claude | 다음 |
-| M3 목적·프로필·사진 | doit/pages/do-it/purpose · profile · photo | 공통 토큰 | 승인 필드·순서 | Claude | 다음 |
-| M4 ECHO 대화 | doit/pages/do-it/conversation | 입력 「편하게 적어주세요.」 | 서버 질문 동적 | Claude | 다음(Codex 관찰: app home은 아직 구 문구) |
-| M5 이해·정정 | AgentProfileCheck.tsx | 정정 4버튼(이미 존재) | 기존 정정 계약 | Claude | 문구 확인 · 디자인 대기 |
-| M6 후보 | ConnectionCandidates.tsx | 「이분의 이야기를 들어볼까요?」 | 서버 공개 정보만 | Claude | 다음 |
-| M7 KEY | KeyIcon.tsx · useKeyWallet.tsx | 열쇠 SVG 이미 존재 | **DEMO ONLY · releaseScope OFF — 활성화 금지** | Claude | OFF 유지 |
-| M8~M9 선택·찌릿 | ConnectionCandidates.tsx · ZzaritMoment | 서버 mutual+match_id 뒤에만 | 한 번만 재생 | Claude | 계약 보존 확인 |
-| M10 첫 답·공개·채팅 | doit/pages/do-it/room 등 | 동의 분리 유지 | 서버 선행 조건 | Claude | 다음 |
-| M11 신고·설정·로그아웃 등 | settings · profile · notifications 등 | 공통 토큰 | 기존 동작 | Claude | 다음 |
-| M12 상태 화면(로딩/오류/로그인 만료/빈 상태 등) | ErrorBoundary · RouteFallback · AppBackButton · AppCornerMenu · InstallIntentSheet | 공통 토큰 | — | Claude | 다음 |
+## 모바일 (app) — 2차 라운드 상태 (코드 확인 기준 · 브라우저/실기기 확인 아님)
+공통 토큰은 이미 `echo-ui.css`(제목 22~24px · 본문·입력 16px · 주요 버튼 48px · `.doit-app-pastel`/`.echo-dialogue--pastel` 아래만)에 있었다. 이번 라운드는 그 위에 **터치 44px(보조 버튼·글자 링크) · 키보드 초점 고리 · 아래 안전 영역**만 덧붙였다(색·배치 변경 0). 화면별로 직접 열어 보지 못한 곳은 「미검증」으로 둔다 — 공통 CSS를 얹었다고 완료로 세지 않는다.
+| 화면 | 현재 구현 파일 | 이번 라운드에서 한 것 | 유지할 기능 | 상태(정직) |
+|---|---|---|---|---|
+| M1 시작(앱 홈) | doit/pages/do-it/home/page.tsx · AgentConversation.tsx(시작 전) | 「같이 하고 싶은 일이 있나요?」 + 「어떤 만남을 원하는지 들려주세요.」 · 버튼 시작하기 | 진행 중/끝남 3단 | 문구 반영 · 소스 검사 통과 · 화면 미확인 |
+| M2 가입·로그인·약관 | pages/signup/page.tsx · login · ConsentGate | 가입 제목 「반가워요. ECHO를 시작해 볼까요?」 + 「계속하려면 약관을 확인해 주세요.」 | 필수 동의 3개 미리 체크 0 | 가입 문구만 반영 · 로그인·약관 화면 디자인 미교체 |
+| M3 목적·프로필·사진 | purpose · profile · photo 페이지 | 공통 토큰(44px·초점·안전 영역)만 | 승인 필드·순서 | 개별 화면 미검증 |
+| M4 ECHO 대화 | AgentConversation.tsx · CoreConversation.tsx | 입력 안내 「편하게 적어주세요.」 · 시작 전 문구 · 안전 영역 | 서버 질문 동적 | 문구 반영 · 화면 미확인 |
+| M5 이해·정정 | AgentProfileCheck.tsx | 변경 없음(「이렇게 이해했는데, 맞나요?」 + 정정 4버튼 이미 존재) | 기존 정정 계약 | 기존 반영 확인 · 이번 라운드 미변경 |
+| M6 후보 | ConnectionCandidates.tsx | 「이분의 이야기를 들어볼까요?」 · 「더 알아보기 · 왜 이 사람인지 보기」 · 「다음에 볼게요」 | 서버가 준 이유만 · 점수 0 | 문구 반영 · 소스 검사 통과 |
+| M7 KEY | KeyIcon.tsx · useKeyWallet.tsx | 변경 0 | **DEMO ONLY · releaseScope OFF — 활성화 금지**, 인메모리 값을 실제 잔액으로 표시 0 | OFF 유지 · 원장 미연결 = 준비 중 |
+| M8 선택 보냄 | ConnectionCandidates.tsx | 「선택을 보냈어요.」 + 「상대도 선택하면 알려드릴게요.」(이미 존재), 전류 0 | waiting 에는 찌릿 0 | 계약 검사 통과 |
+| M9 상호 선택 | ZzaritMoment.tsx | 본문 「두 분 모두 대화를 원했어요.」로 정확히 교체 | 서버 mutual + match_id 뒤에만 · 한 번만 | 문구 반영 · 소스 검사 통과 |
+| M10 첫 답·공개·채팅 | ConnectionMatches.tsx · room 페이지 | 변경 0(공통 토큰만) | 서버 선행 조건 · 공개/영상 동의 분리 | 개별 화면 미검증 |
+| M11 신고·설정·로그아웃 | SafetyRow · settings · profile | 변경 0(공통 토큰만) | 기존 동작 | 개별 화면 미검증 |
+| M12 상태 화면 | ErrorBoundary · RouteFallback · AppBackButton · AppCornerMenu · InstallIntentSheet | 변경 0 | — | 개별 화면 미검증 |
+
+### 홈페이지 2차 보완 (실제 동작 · 소스 검사로만 확인)
+- 메뉴: 열면 첫 항목으로 초점, 닫으면 메뉴 버튼으로 초점 복귀, Escape 닫기, 휴대폰 뒤로가기는 페이지를 떠나지 않고 메뉴만 닫음.
+- 카드 패널: Escape·같은 카드 다시 누르기로 닫으면 누른 카드로 초점 복귀.
+- 설치 안내: 기존 `detectInstallContext`(순수 함수) 재사용 — iPhone 사파리/iPhone 다른 브라우저/Android/앱 안 브라우저/이미 설치/컴퓨터를 구분해 한 줄 안내. 앱스토어·플레이스토어 배지·링크 0.
+- 움직임 줄이기: 기존 `@media (prefers-reduced-motion: reduce)` 유지(검사로 확인).
+- 영상: 승인된 홈페이지 영상 자산을 저장소에서 확인하지 못함 → **미연결**. 가짜 재생 UI 0. 이 한 건이 나머지 구현을 막지 않는다.
 
 OFF/숨김 라우트(활성화하지 않음): KEY, 그 밖에 `src/doit/lib/releaseScope.ts` 의 숨김 목록 — 이번 라운드에서 목록을 전수 대조하지 못함.
 
@@ -48,10 +57,15 @@ OFF/숨김 라우트(활성화하지 않음): KEY, 그 밖에 `src/doit/lib/rele
 ## 검사 기록(이번 라운드, product 기준 · 모의/로컬)
 | 명령 | 결과 |
 |---|---|
+빌드 준비: 저장소 무시 파일 `product/.env.local` 에 **합성 자리값**(`https://placeholder-check.invalid` / `placeholder-anon-not-real`, 실제 키 아님·조회 0)을 두고 빌드했다. 번들·타입 검사용이며 **QA 실제 연결 PASS 가 아니다**. 실제 배포에는 쓰지 않는다. Node v22.23.3 에서 Vite 8 빌드 동작 확인.
+| 명령 | 결과 |
+|---|---|
 | npm ci | 성공 (376 packages) |
-| node --test qa/design-v2-20261004.test.mjs | 16/16 통과 |
+| node --test qa/design-v2-20261004.test.mjs | 19/19 통과(새 3개 포함) |
+| node --test qa/*.test.mjs (전체) | 1150개 중 1145 통과 / 0 실패 / 5 todo(기존 휴리스틱·LEGACY-01 미확정 5건 그대로) |
 | npm run type-check | 종료 0 |
-| npm run lint | 종료 0 |
-| npm run build:brand | **실행 못 함**: `VITE_PUBLIC_SUPABASE_URL/ANON_KEY` 필요(Secret 사용 금지라 넣지 않음) |
-| npm run build:app | 위와 같은 이유로 실행 안 함 |
-| 브라우저 360/390/430/태블릿/1280 · 실기기 · 성능 · 녹화 | 미실행 |
+| npm run lint | 종료 0 (경고 0) |
+| npm run build:brand | 종료 0 (합성 자리값) |
+| npm run build:app | 종료 0 (합성 자리값) |
+| 브라우저 360/390/430/태블릿/1280 · 실기기 · 성능 · 녹화 · 미리보기 URL | **미실행** — 이 작업 환경에서 격리 브라우저 검사를 돌리지 않았다. PASS 아님 |
+| qa-browser/ux-flow.mjs | 문구만 갱신(실행 안 함) |
