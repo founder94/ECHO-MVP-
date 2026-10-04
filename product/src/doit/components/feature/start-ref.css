@@ -11,3 +11,5 @@
 .echo-dialogue.echo-dialogue--pastel.echo-opening .echo-opening-tile.is-selected{background:rgb(255 255 255/.26)!important;border:1.5px solid #fff!important}
 .echo-dialogue.echo-opening .echo-opening-tile::after{content:"›";position:absolute;right:18px;top:50%;transform:translateY(-52%);font-size:24px;line-height:1;color:#fff;opacity:.9}
 .echo-dialogue.echo-opening .echo-opening-tile.is-selected::after{content:"✓";font-size:18px}
+/* 리본 가운데 공식 D 심볼 3D — 리본 고리 안에 떠 있다 */
+.echo-ref-hero .echo-ref-symbol{position:absolute;left:50%;top:50%;z-index:1;margin:calc(var(--sym-size) / -2) 0 0 calc(var(--sym-size) / -2)}

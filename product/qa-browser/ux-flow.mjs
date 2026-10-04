@@ -632,7 +632,7 @@ await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHON
 // 2026-10-04 모바일 기준 디자인 1·2번 화면 캡처(시작 · 가입): 로그인 전 시작 흐름 / 로그인 화면 / 로그인 뒤 시작 흐름
 for (const [n, path, out] of [[80, '/doit/start-journey', true], [81, '/login', true], [82, '/doit/start-journey', false]]) await run(n, `모바일 기준 디자인 캡처 ${path}${out ? ' (로그인 전)' : ' (목적 없음)'}`, IPHONE, { noPurpose: true }, async (p) => {
   if (out) { await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {}); }
-  await p.goto(`${BASE}${path}`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  await p.goto(`${BASE}${path}`, { waitUntil: 'networkidle' }); await p.waitForTimeout(process.env.UX_VIDEO ? 7000 : 1500);
   const ov = await overflow(p); expect(ov <= 0, `가로 넘침 ${ov}px`);
   await p.screenshot({ path: `uxshots/${n}-start.png`, fullPage: true }); return `넘침 0 · ${p.url().replace(BASE, '')}`;
 });

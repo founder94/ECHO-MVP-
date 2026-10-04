@@ -76,11 +76,16 @@ export default function DoItIntroFrame({
   // - 동작 줄이기면 움직임 없이 처음부터 보여 준다(0.6초로 짧다).
   const lateReveal = clamp01((progress - LATE_REVEAL_FROM) / (100 - LATE_REVEAL_FROM));
   const symbolReveal = reducedMotion ? 1 : scene && symbolReady ? 0 : lateReveal;
+  // 2026-10-04 대표 「로고심볼 · 온보딩 살려 · 3D 효과」: 점이 모여 심볼이 완성되는 끝(70%→100%) 동안 장면 전체가 비스듬히 돌아 있다가
+  // 정면으로 돌아와 멈춘다(입체로 놓이는 느낌). 순서·시간·문구는 그대로 · 움직임 줄이기면 0.
+  const settle = reducedMotion ? 1 : 1 - Math.pow(1 - clamp01((progress - 70) / 30), 3);
+  const turn = 1 - settle;
+  const turn3d = `perspective(900px) rotateY(${(-24 * turn).toFixed(2)}deg) rotateX(${(10 * turn).toFixed(2)}deg)`;
   const sceneLayer: CSSProperties = {
     position: 'absolute', inset: 0,
     opacity: leaving ? 0 : 1,
-    transform: leaving ? 'scale(1.12)' : 'scale(1)',
-    transition: 'opacity 250ms ease, transform 300ms ease-in',
+    transform: leaving ? `${turn3d} scale(1.12)` : `${turn3d} scale(1)`,
+    transition: leaving ? 'opacity 250ms ease, transform 300ms ease-in' : 'opacity 250ms ease',
     transformOrigin: '50% 47%',
   };
   return h('div', {
@@ -119,7 +124,8 @@ export default function DoItIntroFrame({
         // 3D 연출이 심볼을 맡은 뒤에는 캔버스(IntroUniverse)가 직접 그린다. 그 전까지는 이 <img> 가 심볼을 보여 준다.
         opacity: symbolReveal,
         // 끝 무렵에 나타날 때는 살짝 작고 흐린 상태에서 또렷하게 완성된다.
-        filter: symbolReveal > 0 && symbolReveal < 1 ? `blur(${((1 - symbolReveal) * 8).toFixed(2)}px)` : 'none',
+        // 다 나타난 뒤 = 아래로 깊은 그림자 + 은은한 빛 테두리(2026-10-04 3D 입체감)
+        filter: symbolReveal > 0 && symbolReveal < 1 ? `blur(${((1 - symbolReveal) * 8).toFixed(2)}px)` : 'drop-shadow(0 18px 22px rgba(0,0,0,0.55)) drop-shadow(0 0 14px rgba(244,243,239,0.18))',
         transform: `translateY(-3%) scale(${(0.86 + symbolReveal * 0.1 + f * 0.04).toFixed(4)})`,
       },
     }),
