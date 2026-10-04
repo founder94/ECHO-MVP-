@@ -20,11 +20,33 @@ export default function AppWelcomePage() {
       <div className="echo-welcome-lights" aria-hidden="true">
         <span className="echo-welcome-light echo-welcome-light--yellow" />
         <span className="echo-welcome-light echo-welcome-light--coral" />
-        <svg className="echo-welcome-rings" viewBox="0 0 320 320" focusable="false">
-          <circle cx="160" cy="160" r="118" />
-          <circle cx="160" cy="160" r="86" />
-          <ellipse cx="160" cy="160" rx="140" ry="52" transform="rotate(-24 160 160)" />
+        <svg className="echo-welcome-rings" viewBox="0 0 400 400" focusable="false">
+          <defs>
+            <linearGradient id="ew-teal" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stopColor="#7fe9d6" stopOpacity=".55" />
+              <stop offset=".55" stopColor="#2fb7c4" stopOpacity=".5" />
+              <stop offset="1" stopColor="#b8f3ff" stopOpacity=".6" />
+            </linearGradient>
+            <linearGradient id="ew-gold" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#ffe08a" stopOpacity=".6" />
+              <stop offset=".6" stopColor="#ffb08a" stopOpacity=".55" />
+              <stop offset="1" stopColor="#ff8f86" stopOpacity=".5" />
+            </linearGradient>
+          </defs>
+          <g transform="rotate(-28 200 200)">
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--body" cx="200" cy="200" rx="150" ry="104" stroke="url(#ew-teal)" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--inner" cx="200" cy="200" rx="150" ry="104" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--edge" cx="200" cy="200" rx="165" ry="119" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--edge" cx="200" cy="200" rx="135" ry="89" />
+          </g>
+          <g transform="rotate(24 200 232)">
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--body" cx="200" cy="232" rx="138" ry="92" stroke="url(#ew-gold)" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--inner" cx="200" cy="232" rx="138" ry="92" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--edge" cx="200" cy="232" rx="153" ry="107" />
+            <ellipse className="echo-welcome-ribbon echo-welcome-ribbon--edge" cx="200" cy="232" rx="123" ry="77" />
+          </g>
         </svg>
+        <span className="echo-welcome-floor" />
       </div>
       <section className="echo-welcome-panel">
         <p className="echo-welcome-brand">ECHO <span>by DO IT</span></p>
