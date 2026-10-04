@@ -5,6 +5,7 @@ import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
 import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landing/components/brandGreeting';
 import GuideHost from '@/components/guide/GuideHost';
+import BrandFilm, { BRAND_FILM_COPY } from './BrandFilm';
 import { openGuide } from '@/lib/guide/bus';
 import './brand-home.css';
 
@@ -162,6 +163,17 @@ export default function BrandHomePage() {
               <a className="bh-btn bh-btn--text" href={appUrl(START_PATH)}>이 컴퓨터에서 열기</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 2-1. 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
+      <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
+        <div className="bh-stars" aria-hidden="true" />
+        <div className="bh-content">
+          <p className="bh-kicker">BRAND FILM</p>
+          <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
+          <BrandFilm />
+          <StartActions />
         </div>
       </section>
 
