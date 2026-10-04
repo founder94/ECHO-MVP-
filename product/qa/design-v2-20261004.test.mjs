@@ -150,8 +150,43 @@ test('홈페이지 메뉴·패널: 초점 이동·복귀, Escape, 뒤로가기, 
 test('모바일 배치 교체 CSS: 앱 전용 · 파스텔 루트 아래만 · 전역 0 · 고정 입력 판 · 홈페이지 시간 범위', () => {
   const css = noComments(read('src/doit/components/feature/mobile-layout-v2.css'));
   assert.doesNotMatch(css, /(^|\})\s*(body|html|:root)\b/, '전역 규칙 0');
-  assert.match(css, /\.echo-composer\{position:sticky;bottom:max\(8px,env\(safe-area-inset-bottom/, '입력 판이 키보드·안전 영역에 안 가림');
+  assert.match(css, /\.echo-dialogue\.echo-dialogue--pastel \.echo-composer\{position:sticky;bottom:max\(8px,env\(safe-area-inset-bottom/, '입력 판이 키보드·안전 영역에 안 가림(자손 선택자)');
   for (const f of ['ConnectionCandidates', 'ConnectionMatches', 'AgentConversation', 'CoreConversation']) assert.match(read(`src/doit/components/feature/${f}.tsx`), /mobile-layout-v2\.css/, f);
   assert.doesNotMatch(HOME, /mobile-layout-v2/);
   assert.doesNotMatch(noComments(HCSS), /\b(450|1400)ms/, '홈페이지 패널 240~360ms · 배경 600~900ms 밖 값 0');
+});
+
+// 4차(P1 결함): 루트(section.echo-dialogue.echo-dialogue--pastel) 한 요소에 자손 클래스를 붙여 쓰면 어떤 요소에도 맞지 않는다. 자손 결합자가 있어야 한다.
+test('선택자가 실제 DOM 과 맞다: 루트 클래스 뒤에 자손 클래스를 같은 요소로 붙이지 않는다', () => {
+  const css = noComments(read('src/doit/components/feature/mobile-layout-v2.css'));
+  assert.doesNotMatch(css, /\.echo-dialogue--pastel\.echo-(?!dialogue--)/, '.echo-dialogue--pastel.echo-xxx (같은 요소 결합) 금지');
+  const tsx = ['CoreConversation', 'AgentConversation', 'ConversationOpening'].map((f) => read(`src/doit/components/feature/${f}.tsx`)).join('\n');
+  assert.match(tsx, /<section className="echo-dialogue echo-dialogue--pastel"/, '루트는 section 한 요소');
+  for (const cls of ['echo-dialogue-header', 'echo-steps', 'echo-composer', 'echo-question-card', 'echo-bubble--me', 'echo-error', 'echo-done']) {
+    assert.ok(tsx.includes(cls), `${cls} 은 실제 컴포넌트에 존재`);
+    assert.ok(css.includes(`.echo-dialogue.echo-dialogue--pastel .${cls}`) || css.includes(`.echo-bubble.${cls}`) || new RegExp(`:is\\([^)]*\\.${cls}`).test(css), `${cls} 규칙은 루트의 자손`);
+  }
+});
+
+test('앱 공통 틀(app-glass-v2.css): 앱 모든 화면이 app-pastel.css 로 받고 · 홈페이지 번들 0 · 전역 0 · 44px · 16px', () => {
+  const g = noComments(read('src/doit/components/feature/app-glass-v2.css'));
+  assert.match(read('src/doit/components/feature/app-pastel.css'), /@import "\.\/app-glass-v2\.css";/);
+  assert.doesNotMatch(g, /(^|\})\s*(body|html|:root)\b/);
+  assert.match(g, /rgb\(8 70 80\/\.82\)/, '짙은 청록 유리(흰 글자 대비 7:1 이상 계산값)');
+  assert.match(g, /min-height:44px/);
+  assert.match(g, /font-size:16px/);
+  for (const f of ['pages/login/page.tsx', 'pages/signup/page.tsx', 'pages/legal/LegalDocument.tsx', 'doit/components/feature/MobileLayout.tsx']) {
+    assert.match(read(`src/${f}`), /app-pastel\.css|product-brand\.css/, f);
+  }
+  assert.doesNotMatch(HOME, /app-glass-v2|app-pastel/);
+  assert.match(read('src/components/app-back-button.css'), /min-height:44px;min-width:44px/, '뒤로 알약 44px');
+  assert.doesNotMatch(read('src/components/app-back-button.css'), /height:32px/);
+});
+
+test('홈페이지 메뉴 이력 소유권: 안 링크는 앵커 이동을 되돌리지 않고 · 닫기/Back 은 걷고 · Back 뒤 초점 복귀', () => {
+  const s = noComments(HOME);
+  assert.match(s, /menuOwnsHistory/);
+  assert.match(s, /releaseMenuHistory\(\); setMenuOpen\(false\)/, '안 링크 누르면 기록 칸을 일반 기록으로 바꾸고 history.back 안 부름');
+  assert.match(s, /if \(menuOwnsHistory\.current && /, '걷기는 소유권이 있을 때만');
+  assert.match(s, /menuBtnRef\.current\?\.focus\(\)/, 'Back 으로 닫힌 뒤 메뉴 버튼으로 초점');
 });

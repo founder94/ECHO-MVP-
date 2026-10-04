@@ -1,83 +1,74 @@
-# 전체 디자인 교체 명세 (2026-10-04)
+# 전체 디자인 교체 명세 (2026-10-04) — 현재 최종 상태 (4차 라운드 기준)
 
 근거: 대표 직접 지시(PR #127 댓글) · Codex 명세 `echo-spec id=20261004-full-ui`.
 작업 기준: PR #127 · branch `claude/full-ui-replacement-20261004` · 변경 전 SHA `9ca08c99410efe48cf725918d3ede6674f5cbe10`(echo-qa) · 담당 Claude Code 단독 · 독립 검수 Codex.
 복구 기준: 변경 전 SHA `9ca08c9`. QA 배포 기준(Codex 확인): brand `6ac2646008ef3600ad3c07ae`, app `6ac2635358aa228f28cc822c`. 이 문서 작성자는 배포 ID를 직접 확인하지 못했다(Codex 기록을 인용).
 
-상태 4분리: 디자인 구현 = 부분 진행 · 독립 검수 = 대기 · 미리보기 배포 = 미실행 · 실제 사이트 반영 = 미실행.
+**상태 4분리: 디자인 구현 = 소스 구현 완료(브라우저 미확인) · 독립 검수 = Codex 대기 · 미리보기 배포 = 미실행 · 실제 사이트 반영 = 미실행.**
+이 문서의 「구현」은 소스·타입·빌드·소스 검사로 확인한 것이다. 이 작업 환경에는 Chromium 이 없어 computedStyle·스크린샷·키보드·실기기 검사를 **실행하지 못했다**(PASS 아님, Codex 독립 Chromium 검수 대상).
 
-## 이번 라운드에서 한 것 / 하지 않은 것
-- 한 것: 홈페이지(brand) 문구·이동 규칙을 최신 지시에 맞춤(아래 표 H1~H6) · 관련 기존 검사 갱신.
-- 하지 않은 것: 모바일(app) 전체 흐름 디자인 교체(표 M1~M12는 「다음」) · 시각 검증(360/390/430/태블릿/1280) · 실제 기기 · 성능 측정 · 영상/녹화.
-- 이유: 모바일 흐름은 화면 수가 많아 같은 라운드에 안전하게 끝낼 수 없음. 홈페이지만 먼저 검수 가능한 크기로 끊음.
+## A. 앱(app.do-it.company) 공통 틀 — 모든 활성 화면이 같은 CSS 를 받는 구조
+| 계층 | 파일 | 하는 일 | 적용 범위 |
+|---|---|---|---|
+| 공통 판·토큰 | `src/doit/components/feature/app-glass-v2.css` | 짙은 청록 유리 판(`rgb(8 70 80/.82)`~`rgb(5 52 62/.86)`, 흰 글자 대비 7:1 이상 계산값) · 제목 22~24px · 본문·입력 16px · 터치 44px · 키보드 초점 고리 | `.doit-app-pastel` 아래(앱 전 화면) |
+| 공통 로드 경로 | `app-pastel.css` 가 import → `MobileLayout`·`ProfileReview`(product-brand.css 경유)·start-journey·login·signup·legal·consent·fortune 가 모두 로드 | 화면별 중복 코드 없이 전 화면에 적용 | 앱 |
+| 대화 배치 | `mobile-layout-v2.css` (AgentConversation·CoreConversation·ConversationOpening·Connection* 가 import) | 머리말 유리 띠 · ECHO/내 말풍선 면 구분 · 아래 고정 입력 판(sticky) · 오류·로딩·끝 판 | `section.echo-dialogue.echo-dialogue--pastel` **의 자손** |
+| 홈페이지 번들 | brand 빌드는 app 컴포넌트를 import 하지 않음(검사로 확인). 약관 열람(LegalDocument)만 기존대로 app-pastel 을 쓴다 | 오염 0 | — |
 
-## 홈페이지 (brand · `product/src/pages/do-it/brand-home/`)
-| 현재 URL/화면 | 현재 구현 파일 | 새 디자인 | 유지할 기능 | 필요한 상태 화면 | 구현 담당 | 검수 결과 |
+**4차에서 고친 P1 결함**: 3차 `mobile-layout-v2.css` 는 `.echo-dialogue.echo-dialogue--pastel.echo-composer` 처럼 루트 클래스와 자손 클래스를 한 요소에 붙여 써서 **어느 요소에도 맞지 않았다**(실제 DOM = `section.echo-dialogue.echo-dialogue--pastel` 안의 `form.echo-composer` 등). 모두 자손 결합자(공백)로 바꿨고, 같은 요소 결합을 막는 검사를 추가했다(`qa/design-v2-20261004.test.mjs`). computedStyle 확인은 브라우저가 없어 미실행.
+
+## B. 앱 화면별 대응표 (실제 파일 · 새 디자인 · 상태)
+| # | 화면/URL | 구현 파일 | 새 디자인 적용 | 유지할 기능 | 상태 화면 | 상태 |
 |---|---|---|---|---|---|---|
-| H1 `/` 헤더·메뉴 | brand-home/page.tsx | 원본 로고 + 메뉴(ECHO/회사 소개/대표 인사말/로그인) | 열기·닫기·Escape | 로그인 상태면 로그아웃 | Claude | 대기 |
-| H2 첫 화면 | 〃 | 제목 「말이 통하는 사람을 만나는 일.」 · 설명 「그 시작을 ECHO가 함께합니다.」 · 주 CTA 모바일 시작하기 · 보조 ECHO 알아보기 | 지구 로고 레이어 | — | Claude(이번 반영) | 대기 |
-| H3 ECHO 소개 | 〃 | 슬로건 + 설명 「어떤 사람과 무엇을 함께하고 싶은지, ECHO에게 들려주세요.」 + 「관련 기능 준비 중」 + 3단계 카드 | 카드 열기/닫기 | 준비 중 표시 | Claude(이번 반영) | 대기 |
-| H4 모바일 시작하기 | 〃 StartActions | 컴퓨터에서도 곧바로 `app.do-it.company`(appUrl) 이동. 앱 설치 안내 링크 유지 | QR은 보조 안내(`#bh-start-qr`) | — | Claude(이번 반영: 강제 QR 분기 `goStart` 제거) | 대기 |
-| H5 회사 소개 | 〃 | 「사람과 사람이 만나는 서비스를 만듭니다.」 · 문의/약관/개인정보 링크 보존 | 0423doit@gmail.com · /legal/terms · /legal/privacy | — | Claude(이번 반영) | 대기 |
-| H6 대표 인사말 | 〃 + landing/components/brandGreeting.ts | 맨 마지막 콘텐츠, 승인 원문·이름(박진욱)·직함 그대로 | 원문 글자 변경 0 | — | Claude(변경 없음) | 대기 |
-| H7 법적 정보 푸터 | 〃 | 변경 없음 | 사업자 정보 | — | Claude | 대기 |
-| H8 설치 안내 | `/do-it/intro?next=app&install=1` (BrandSections `INSTALL_PATH`) | iPhone/Android/불가 구분은 기존 구현 사용 — 이번 라운드 재검증 안 함 | 기존 PWA | — | Claude(다음) | 미검증 |
+| M1 | `/` → 온보딩 `/do-it/intro` → 앱 입구 · PWA `/do-it/intro?next=app` | router/config.tsx · DoItEntry.tsx · intro/page.tsx | 앱 `/` 는 온보딩 뒤 제품 입구(시작 흐름)로. 로그인 확인 대기 화면은 검정 → 파스텔 + 어두운 청록 글자 | 온보딩 1회 재생 · next=app 임의 주소 이동 0 | 로그인 확인 중 | 소스 구현 |
+| M1 | `/doit/home` | doit/pages/do-it/home/page.tsx | 인트로·최근 이야기·요약·알림·하단 안내 = 같은 짙은 청록 판, 제목 22~24px | 시작 전/진행 중/끝남 3단 | 로딩·로그인 필요·오류·빈 상태 | 소스 구현 |
+| M1 | `/doit/start-journey` | start-journey/page.tsx (+ConversationOpening·PurposeSelect·PhotoCapture·ProfileReview) | 대화 배치 + 공통 판 | 목적→사진→프로필 순서 · 12초 불러오기 상한 | 불러오는 중·오류·다시 시도 | 소스 구현 |
+| M2 | `/login` | pages/login/page.tsx | 가운데 상자 = 판, 입력 16px·48px, 안내 「다시 오셨네요. 하던 이야기부터 이어가요.」 | 인증 로직 그대로 | 오류 문구 | 소스 구현 |
+| M2 | `/signup` | pages/signup/page.tsx | 판 + 「반가워요. ECHO를 시작해 볼까요?」 | 필수 동의 미리 체크 0 | 가입 완료·오류 | 소스 구현 |
+| M2 | `/legal/terms` `/legal/privacy` `/legal/consent` · ConsentGate | pages/legal/** · consent-checklist | 본문 상자 = 판, 본문 16px, 제목 22~24px, 버튼 44px | 필수/선택 동의 구조·버전 | 오류·저장 중 | 소스 구현 |
+| M2 | `/auth/callback` | pages/auth/callback/page.tsx | 변경 0(기능 화면, 대기 문구 한 줄) | 로그인 복귀 | 실패 | 변경 없음 |
+| M3 | 목적·사진·프로필·인증 `/doit/photos`·`/doit/profile`·`/doit/verify` | 각 page · MobileLayout | 카드·섹션 = 판 · 사진 빈 칸 · 설명 글자 흰색 | 승인 필드·순서·필수 단계 | 저장 중·실패·재시도 | 소스 구현 |
+| M4 | ECHO 대화 `/doit/conversation` | AgentConversation · CoreConversation | 머리말 띠 · 질문/내 말풍선 구분 · 아래 고정 입력 판 · 안내 「편하게 적어주세요.」 | 서버 질문 동적 · 5문항 상한 | 오류·불러오는 중·끝 | 소스 구현(computedStyle 미확인) |
+| M5 | 이해·정정 | AgentProfileCheck · 정정 4버튼 | 기존 문구 「이렇게 이해했는데, 맞나요?」 + 판 | 기존 정정 계약 | 저장 중·충돌 | 소스 구현 |
+| M6 | 후보 `/doit/connections` | ConnectionCandidates | 판 · 「이분의 이야기를 들어볼까요?」 · 「더 알아보기」/「다음에 볼게요」 | 서버가 준 이유만 | 후보 없음·오류 | 소스 구현 |
+| M7 | KEY | KeyIcon · useKeyWallet | **변경 0 — DEMO ONLY · releaseScope OFF** | 실제 원장 미연결 = 준비 중 | — | OFF 유지 |
+| M8 | 한쪽 선택 | ConnectionCandidates | 「선택을 보냈어요.」 + 「상대도 선택하면 알려드릴게요.」 · 전류 0 | waiting 에는 찌릿 0 | — | 소스 구현 |
+| M9 | 상호 선택 | ZzaritMoment | 「찌릿! 텔레파시가 통했어요」 + 「두 분 모두 대화를 원했어요.」 | 서버 mutual + match_id 뒤에만 · 1회 | — | 소스 구현 |
+| M10 | 첫 답·공개·채팅 | ConnectionMatches · ConnectionTurnsCard | 판 | 서버 선행 조건 · 공개/영상 동의 분리 | 오류·종료 | 소스 구현 |
+| M11 | 설정·프로필 수정·신고/차단/종료·탈퇴 | settings · SafetyRow · FaceLoginSettings | 설정 판·알림·세션 = 같은 판, 글자 흰색 | 기존 동작 · 탈퇴 확인 단계 | 확인 창·오류 | 소스 구현 |
+| M12 | 오류·로딩·권한·로그인 만료 | ErrorBoundary(앱=파스텔+청록 판, 홈페이지=기존) · RouteFallback(문장 = 청록 알약) · AppBackButton(44px) · AppCornerMenu(청록 판) · InstallIntentSheet(기존 어두운 판) | 위와 같음 | 12초 상한·다시 시도·홈으로 | 각 상태 | 소스 구현 |
+OFF/숨김(활성화 금지): KEY, 공간·월드·사주 등 `src/doit/lib/releaseScope.ts` 목록. 표에 구분만 했고 활성화하지 않았다.
+이 표 밖의 옛 화면(`/do-it/1~4`·`/home` 등 연결이 끊긴 화면)은 이번 범위 밖이다.
 
-미확인(대표 확인 필요): 승인된 홈페이지 영상 자산 존재 여부 — 확인하지 못해 영상 UI를 넣지 않음.
+## C. 홈페이지 (brand · `src/pages/do-it/brand-home/`)
+| 화면 | 새 디자인 | 유지할 기능 | 상태 |
+|---|---|---|---|
+| H1 헤더·메뉴 | 원본 로고 + 메뉴 | 열기·닫기·Escape·첫 항목 초점 | 소스 구현 |
+| H2 첫 화면 | 「말이 통하는 사람을 만나는 일.」 · 「그 시작을 ECHO가 함께합니다.」 · 주 CTA 모바일 시작하기 | 지구·로고 레이어 | 소스 구현 |
+| H3 ECHO 소개 | 슬로건 + 「관련 기능 준비 중」 + 3단계 카드 | 카드 열기/닫기 · 닫으면 눌렀던 카드로 초점 | 소스 구현 |
+| H4 모바일 시작하기 | 컴퓨터에서도 곧바로 앱 주소 · QR 은 보조 | 기기별 설치 안내(스토어 배지 0) | 소스 구현 |
+| H5 회사 소개·H6 대표 인사말·H7 법적 정보 | 승인 원문·연락처 그대로 | 변경 0 | 변경 없음 |
+| 모션 | 패널 320ms · 배경 확대 800ms · reduced-motion 정적 | — | 소스 구현 |
+| 영상 | 승인된 영상 자산을 저장소에서 확인하지 못함 → **미연결**, 가짜 재생 UI 0 | — | 미연결 |
 
-## 모바일 (app) — 2차 라운드 상태 (코드 확인 기준 · 브라우저/실기기 확인 아님)
-공통 토큰은 이미 `echo-ui.css`(제목 22~24px · 본문·입력 16px · 주요 버튼 48px · `.doit-app-pastel`/`.echo-dialogue--pastel` 아래만)에 있었다. 이번 라운드는 그 위에 **터치 44px(보조 버튼·글자 링크) · 키보드 초점 고리 · 아래 안전 영역**만 덧붙였다(색·배치 변경 0). 화면별로 직접 열어 보지 못한 곳은 「미검증」으로 둔다 — 공통 CSS를 얹었다고 완료로 세지 않는다.
-| 화면 | 현재 구현 파일 | 이번 라운드에서 한 것 | 유지할 기능 | 상태(정직) |
-|---|---|---|---|---|
-| M1 시작(앱 홈) | doit/pages/do-it/home/page.tsx · AgentConversation.tsx(시작 전) | 「같이 하고 싶은 일이 있나요?」 + 「어떤 만남을 원하는지 들려주세요.」 · 버튼 시작하기 | 진행 중/끝남 3단 | 문구 반영 · 소스 검사 통과 · 화면 미확인 |
-| M2 가입·로그인·약관 | pages/signup/page.tsx · login · ConsentGate | 가입 제목 「반가워요. ECHO를 시작해 볼까요?」 + 「계속하려면 약관을 확인해 주세요.」 | 필수 동의 3개 미리 체크 0 | 가입 문구만 반영 · 로그인·약관 화면 디자인 미교체 |
-| M3 목적·프로필·사진 | purpose · profile · photo 페이지 | 공통 토큰(44px·초점·안전 영역)만 | 승인 필드·순서 | 개별 화면 미검증 |
-| M4 ECHO 대화 | AgentConversation.tsx · CoreConversation.tsx | 입력 안내 「편하게 적어주세요.」 · 시작 전 문구 · 안전 영역 | 서버 질문 동적 | 문구 반영 · 화면 미확인 |
-| M5 이해·정정 | AgentProfileCheck.tsx | 변경 없음(「이렇게 이해했는데, 맞나요?」 + 정정 4버튼 이미 존재) | 기존 정정 계약 | 기존 반영 확인 · 이번 라운드 미변경 |
-| M6 후보 | ConnectionCandidates.tsx | 「이분의 이야기를 들어볼까요?」 · 「더 알아보기 · 왜 이 사람인지 보기」 · 「다음에 볼게요」 | 서버가 준 이유만 · 점수 0 | 문구 반영 · 소스 검사 통과 |
-| M7 KEY | KeyIcon.tsx · useKeyWallet.tsx | 변경 0 | **DEMO ONLY · releaseScope OFF — 활성화 금지**, 인메모리 값을 실제 잔액으로 표시 0 | OFF 유지 · 원장 미연결 = 준비 중 |
-| M8 선택 보냄 | ConnectionCandidates.tsx | 「선택을 보냈어요.」 + 「상대도 선택하면 알려드릴게요.」(이미 존재), 전류 0 | waiting 에는 찌릿 0 | 계약 검사 통과 |
-| M9 상호 선택 | ZzaritMoment.tsx | 본문 「두 분 모두 대화를 원했어요.」로 정확히 교체 | 서버 mutual + match_id 뒤에만 · 한 번만 | 문구 반영 · 소스 검사 통과 |
-| M10 첫 답·공개·채팅 | ConnectionMatches.tsx · room 페이지 | 변경 0(공통 토큰만) | 서버 선행 조건 · 공개/영상 동의 분리 | 개별 화면 미검증 |
-| M11 신고·설정·로그아웃 | SafetyRow · settings · profile | 변경 0(공통 토큰만) | 기존 동작 | 개별 화면 미검증 |
-| M12 상태 화면 | ErrorBoundary · RouteFallback · AppBackButton · AppCornerMenu · InstallIntentSheet | 변경 0 | — | 개별 화면 미검증 |
+**4차에서 고친 메뉴 결함(Codex 재현)**: 메뉴 안 링크(예: 「회사 소개」)를 누르면 메뉴 닫힘 정리 코드의 `history.back()` 이 앵커 이동을 되돌려 `#bh-company` 로 가지 못했다. → 메뉴가 쌓은 기록 한 칸의 **소유권**을 ref 로 추적한다. 링크를 누르면 그 칸을 일반 기록으로 바꾸고(`releaseMenuHistory`) 걷지 않으며, 닫기·Escape 는 걷고, 휴대폰 Back 으로 닫히면 메뉴 버튼으로 초점이 돌아온다. 소스 검사만 통과 — **실제 클릭 재현은 브라우저가 없어 미실행**.
 
-### 홈페이지 2차 보완 (실제 동작 · 소스 검사로만 확인)
-- 메뉴: 열면 첫 항목으로 초점, 닫으면 메뉴 버튼으로 초점 복귀, Escape 닫기, 휴대폰 뒤로가기는 페이지를 떠나지 않고 메뉴만 닫음.
-- 카드 패널: Escape·같은 카드 다시 누르기로 닫으면 누른 카드로 초점 복귀.
-- 설치 안내: 기존 `detectInstallContext`(순수 함수) 재사용 — iPhone 사파리/iPhone 다른 브라우저/Android/앱 안 브라우저/이미 설치/컴퓨터를 구분해 한 줄 안내. 앱스토어·플레이스토어 배지·링크 0.
-- 움직임 줄이기: 기존 `@media (prefers-reduced-motion: reduce)` 유지(검사로 확인).
-- 영상: 승인된 홈페이지 영상 자산을 저장소에서 확인하지 못함 → **미연결**. 가짜 재생 UI 0. 이 한 건이 나머지 구현을 막지 않는다.
+## D. 고친 접근성·가독성 결함 (Codex 독립 검수 지적 → 4차)
+- 로그인·가입·약관 뒤로 알약 32px → 44px.
+- 앱 홈 흰 글자가 밝은 민트 위에서 대비 1.5:1 → 글자가 놓이는 영역을 짙은 청록 유리 판으로(계산상 7:1 이상). **실제 렌더 측정은 미실행**.
+- 햄버거 패널 파스텔 위 흰 글자 → 짙은 청록 판. 기존 검사의 기대값(파스텔 그라데이션)을 새 승인 디자인으로 교체했다(검사 약화 아님).
+- 입력 안내·가입 개별 동의 체크박스 터치 영역(라벨 전체 44px)은 소스 확인만 — 브라우저 미확인.
 
-OFF/숨김 라우트(활성화하지 않음): KEY, 그 밖에 `src/doit/lib/releaseScope.ts` 의 숨김 목록 — 이번 라운드에서 목록을 전수 대조하지 못함.
+## E. 안전 경계(변경 0)
+서버·Edge Function·DB/RLS·Secret·결제·모델·workflow·PROD·OFF 기능 활성화·가격 0. 검사용 합성 자리값(`product/.env.local`, git 무시)은 배포에 쓰지 않는다.
 
-## 모바일 3차 라운드 — 배치 교체 + 파일별 대응 (정정: 「색·배치 변경 0」은 과거 유지 지시, 현재는 전체 교체 승인)
-새 앱 전용 파일 `src/doit/components/feature/mobile-layout-v2.css`(파스텔 루트 아래만 · 전역 0 · 홈페이지 번들 제외). 팔레트는 유지, 아래 구조를 교체: ① 대화 머리말 = 둥근 유리 띠 ② ECHO 말풍선(짙은 청록 유리) / 내 말풍선(밝은 막) 면 구분 ③ **아래 고정 입력 판**(sticky, 안전 영역·키보드에 안 가림, 보내기 버튼 전폭) ④ 오류·불러오는 중·알림·끝 화면 = 같은 24px 판 ⑤ 후보·서로 선택·연결 카드 = 같은 판, 제목 22~24px. 이 CSS 를 import 하는 앱 컴포넌트: AgentConversation · CoreConversation · ConversationOpening · ConnectionCandidates · ConnectionMatches · ConnectionTurnsCard.
-| 파일/화면 | 이번 라운드 구현 | 상태(정직) |
-|---|---|---|
-| AgentConversation / CoreConversation / ConversationOpening (대화·입력·오류·로딩·끝) | mobile-layout-v2.css 배치 교체(위 ①~④) | 소스·빌드 확인 · **브라우저 미확인** |
-| ConnectionCandidates / ConnectionMatches / ConnectionTurnsCard / ZzaritMoment (후보·선택·상호·첫 답·채팅) | 판·제목 크기 교체(위 ⑤), 문구는 2차 | 소스·빌드 확인 · **브라우저 미확인** |
-| home/page.tsx · start-journey · signup · login · ConsentGate · auth callback | 문구(2차) + 공통 토큰. 배치 교체 CSS **미적용** | 구현 미완 |
-| profile · photo · verify · purpose · settings · 프로필 수정 · 신고/차단/종료(SafetyRow) | 공통 토큰만. 배치 교체 CSS **미적용** | 구현 미완 |
-| AgentProfileCheck · ErrorBoundary · RouteFallback · AppBackButton · AppCornerMenu · InstallIntentSheet | 변경 0 | 구현 미완 |
-| KEY (KeyIcon · useKeyWallet) | 변경 0 — DEMO ONLY · releaseScope OFF · 실제 원장 없음 | OFF 유지 |
-홈페이지: 카드 패널 450ms→320ms, 배경 확대 1400ms→800ms(대표 240~360 / 600~900ms 범위). 브라우저·실기기·성능·녹화는 이번에도 **미실행**.
-
-## 안전 경계(변경 0)
-서버·Edge Function·DB/RLS·Secret·결제·모델·workflow·PROD·OFF 기능 활성화 0.
-
-## 검사 기록(이번 라운드, product 기준 · 모의/로컬)
-| 명령 | 결과 |
-|---|---|
-빌드 준비: 저장소 무시 파일 `product/.env.local` 에 **합성 자리값**(`https://placeholder-check.invalid` / `placeholder-anon-not-real`, 실제 키 아님·조회 0)을 두고 빌드했다. 번들·타입 검사용이며 **QA 실제 연결 PASS 가 아니다**. 실제 배포에는 쓰지 않는다. Node v22.23.3 에서 Vite 8 빌드 동작 확인.
+## F. 검사 기록 (4차, product 기준 · 모의/로컬 · 합성 자리값)
 | 명령 | 결과 |
 |---|---|
 | npm ci | 성공 (376 packages) |
-| node --test qa/design-v2-20261004.test.mjs | 19/19 통과(새 3개 포함) |
-| node --test qa/*.test.mjs (전체) | 1150개 중 1145 통과 / 0 실패 / 5 todo(기존 휴리스틱·LEGACY-01 미확정 5건 그대로) |
 | npm run type-check | 종료 0 |
 | npm run lint | 종료 0 (경고 0) |
-| npm run build:brand | 종료 0 (합성 자리값) |
-| npm run build:app | 종료 0 (합성 자리값) |
-| 브라우저 360/390/430/태블릿/1280 · 실기기 · 성능 · 녹화 · 미리보기 URL | **미실행** — 이 작업 환경에서 격리 브라우저 검사를 돌리지 않았다. PASS 아님 |
-| qa-browser/ux-flow.mjs | 문구만 갱신(실행 안 함) |
+| npm run build:brand | 종료 0 |
+| npm run build:app | 종료 0 |
+| node --test qa/*.test.mjs (전체) | 1156개 중 1151 통과 / 0 실패 / 5 todo(기존 휴리스틱·LEGACY-01 미확정 5건 그대로, 통과로 세지 않음) |
+| Chromium 360/390/430/태블릿/1280 · computedStyle · 대비 측정 · 키보드 · 실기기 · 성능 · 녹화 · 미리보기 URL | **미실행** — 이 작업 환경에 브라우저가 없다. 소스 정규식 검사는 적용 증거가 아니다 |

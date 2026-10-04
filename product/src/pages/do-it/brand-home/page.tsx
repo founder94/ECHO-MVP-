@@ -106,19 +106,31 @@ export default function BrandHomePage() {
   }, [menuOpen, openStep]);
 
   // 메뉴가 열리면 첫 항목으로 초점, 휴대폰 뒤로가기는 페이지를 떠나지 않고 메뉴만 닫는다.
+  // 이력 소유권: 메뉴가 쌓은 기록 한 칸(bhMenu)은 「닫기·Escape·Back」으로 닫을 때만 history.back() 으로 걷는다.
+  // 메뉴 안 링크(#bh-company 등)를 누를 때는 그 칸을 일반 기록으로 바꿔 두고 걷지 않는다 — 걷으면 앵커 이동이 되돌려진다.
+  const menuOwnsHistory = useRef(false);
+  const releaseMenuHistory = () => {
+    if (!menuOwnsHistory.current) return;
+    menuOwnsHistory.current = false;
+    const kept: Record<string, unknown> = { ...((window.history.state ?? {}) as Record<string, unknown>) };
+    delete kept.bhMenu;
+    window.history.replaceState(kept, '');
+  };
   useEffect(() => {
     if (!menuOpen) return;
     document.querySelector<HTMLElement>('#bh-menu a, #bh-menu button')?.focus();
-    window.history.pushState({ bhMenu: true }, '');
-    const onPop = () => setMenuOpen(false);
+    window.history.pushState({ ...((window.history.state ?? {}) as Record<string, unknown>), bhMenu: true }, '');
+    menuOwnsHistory.current = true;
+    const onPop = () => { menuOwnsHistory.current = false; setMenuOpen(false); requestAnimationFrame(() => menuBtnRef.current?.focus()); };
     window.addEventListener('popstate', onPop);
     return () => {
       window.removeEventListener('popstate', onPop);
-      if ((window.history.state as { bhMenu?: boolean } | null)?.bhMenu) window.history.back();
+      if (menuOwnsHistory.current && (window.history.state as { bhMenu?: boolean } | null)?.bhMenu) window.history.back();
+      menuOwnsHistory.current = false;
     };
   }, [menuOpen]);
 
-  const close = () => setMenuOpen(false);
+  const close = () => { releaseMenuHistory(); setMenuOpen(false); };
   return (
     <main ref={rootRef} className="bh">
       <a className="bh-skip" href="#bh-echo">소개로 바로가기</a>

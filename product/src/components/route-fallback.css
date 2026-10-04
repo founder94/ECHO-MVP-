@@ -8,7 +8,8 @@
 .echo-route-fallback-orbit::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid #c3ccda2e;border-top-color:#e6ebf3;animation:echo-route-orbit 1.6s linear infinite}
 .echo-route-fallback-orbit::after{content:"";position:absolute;inset:9px;border-radius:50%;background:radial-gradient(circle,#dfe6f233,transparent 68%);animation:echo-route-breathe 2.4s ease-in-out infinite}
 .echo-route-fallback-orbit .doit-official-symbol{width:40px;height:40px;animation:echo-route-spin 6s linear infinite}
-.echo-route-fallback p{margin:0;font-size:13px;line-height:1.9;letter-spacing:.01em}
+.echo-route-fallback p{margin:0;font-size:14px;line-height:1.9;letter-spacing:.01em}
+.echo-route-fallback--pastel p{padding:10px 18px;border:1px solid rgb(255 255 255/.5);border-radius:999px;background:linear-gradient(180deg,rgb(8 70 80/.86),rgb(5 52 62/.9));color:#fff}
 @keyframes echo-route-orbit{to{transform:rotate(360deg)}}
 @keyframes echo-route-spin{to{transform:rotate(-360deg)}}
 @keyframes echo-route-breathe{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
