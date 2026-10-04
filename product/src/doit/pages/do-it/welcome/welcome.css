@@ -1,0 +1,25 @@
+/* 앱 첫 화면(.echo-welcome) — 이 클래스 아래에만 적용(전역·홈페이지 0). 앱 역할 빌드에만 들어간다.
+   바탕 = 민트·청록 + 부드러운 노랑·코랄 빛, 글자는 짙은 청록 유리 판 안에서 흰색(rgb 8 70 80/.86 위 7:1 이상 계산값).
+   제목 24px · 본문 16px · 버튼 52px(44px 이상). 움직임은 prefers-reduced-motion 이 아닐 때만. */
+.echo-welcome{position:relative;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(env(safe-area-inset-top) + 72px) 20px calc(env(safe-area-inset-bottom) + 32px);overflow:hidden;isolation:isolate;box-sizing:border-box;background:linear-gradient(180deg,#3fdcb3 0%,#5fe0c4 38%,#7be5ca 62%,#a9e4cf 100%);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+.echo-welcome-lights{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.echo-welcome-light{position:absolute;border-radius:50%;filter:blur(36px)}
+.echo-welcome-light--yellow{width:260px;height:260px;top:-40px;right:-60px;background:radial-gradient(circle,rgb(255 232 130/.85),rgb(255 232 130/0) 70%)}
+.echo-welcome-light--coral{width:300px;height:300px;bottom:-70px;left:-80px;background:radial-gradient(circle,rgb(255 150 128/.8),rgb(255 150 128/0) 70%)}
+.echo-welcome-rings{position:absolute;left:50%;top:46%;width:min(120vw,520px);height:auto;transform:translate(-50%,-50%);fill:none;stroke:rgb(255 255 255/.7);stroke-width:1.5}
+.echo-welcome-rings circle:nth-child(2){stroke:rgb(255 255 255/.45)}
+.echo-welcome-rings ellipse{stroke:rgb(255 244 190/.8);stroke-width:2}
+.echo-welcome-panel{width:100%;max-width:380px;box-sizing:border-box;padding:28px 24px 26px;border:1px solid rgb(255 255 255/.5);border-radius:24px;background:linear-gradient(180deg,rgb(8 70 80/.86),rgb(5 52 62/.9));box-shadow:inset 0 1px 0 rgb(255 255 255/.32),0 14px 38px rgb(4 40 48/.28);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:#fff;text-align:left}
+.echo-welcome-brand{margin:0 0 16px;font-size:14px;font-weight:800;letter-spacing:.14em;color:#fff}
+.echo-welcome-brand span{margin-left:6px;font-size:12px;font-weight:500;letter-spacing:.04em;color:#fff}
+.echo-welcome-panel h1{margin:0;font-size:24px;line-height:1.4;font-weight:800;color:#fff;word-break:keep-all}
+.echo-welcome-lead{margin:12px 0 0;font-size:16px;line-height:1.7;font-weight:500;color:#fff;word-break:keep-all}
+.echo-welcome-cta{margin-top:24px;display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;border:0;border-radius:999px;background:#fff;color:#053a44;font:inherit;font-size:16px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:scale .15s ease,filter .15s ease}
+.echo-welcome-cta:active{scale:.97;filter:brightness(.94)}
+.echo-welcome-cta:focus-visible{outline:3px solid #fff;outline-offset:3px;box-shadow:0 0 0 6px rgb(5 52 62/.9)}
+@media (prefers-reduced-motion:no-preference){
+  .echo-welcome-rings{animation:echo-welcome-drift 14s ease-in-out infinite alternate}
+  .echo-welcome-panel{animation:echo-welcome-rise .5s cubic-bezier(.2,0,0,1) both}
+}
+@keyframes echo-welcome-drift{from{transform:translate(-50%,-50%) rotate(-3deg)}to{transform:translate(-50%,-50%) rotate(3deg)}}
+@keyframes echo-welcome-rise{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}

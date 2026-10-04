@@ -119,7 +119,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
         <p className="doit-candidate-found">이분의 이야기를 들어볼까요?</p>
         {!open && <>
           <p className="doit-candidate-teaser">왜 이 사람인지, ECHO가 본 이유가 있어요.</p>
-          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">더 알아보기 · 왜 이 사람인지 보기<span aria-hidden="true">↗</span></button>
+          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">더 알아보기<span aria-hidden="true">↗</span></button>
         </>}
         {open && <>
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>

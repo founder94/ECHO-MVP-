@@ -10,4 +10,6 @@
 .doit-back-pill.doit-back-pill--on-pastel:hover{background:transparent}
 /* 2026-09-26 ECHO UI: 뒤로 알약도 같은 글꼴·굵기(Pretendard 600), 파스텔 위에서는 얇은 흰 테두리 유리. */
 .doit-back-pill{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;font-weight:600}
-.doit-back-pill.doit-back-pill--on-pastel{border-color:rgb(255 255 255/.7);background:rgb(255 255 255/.08);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.doit-back-pill.doit-back-pill--on-pastel{border-color:rgb(255 255 255/.7);background:rgb(8 70 80/.86);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+/* 2026-10-04: 밝은 민트 위에서도 흰 글자·화살표가 4.5:1 이상 — 짙은 청록 유리(rgb 8 70 80/.86)가 바탕. */
+.doit-back-pill.doit-back-pill--on-pastel:hover{background:rgb(5 52 62/.92)}

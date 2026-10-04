@@ -39,5 +39,5 @@ test('온보딩은 시작 그림이 걷힌 뒤부터 센다(그림 아래에서 
   const s = read('src/pages/do-it/intro/page.tsx');
   assert.match(s, /if \(reducedMotion === null \|\| !launchDone\) return;/);
   assert.match(s, /new MutationObserver\(check\)/);
-  assert.match(s, /navigate\(toProduct \? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, \{ replace: true \}\)/, '목적지 그대로');
+  assert.match(s, /navigate\(IS_APP_SITE \? '\/' : toProduct \? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, \{ replace: true \}\)/, '목적지: 앱은 새 첫 화면(/) · 그 밖은 그대로(2026-10-04 승인)');
 });

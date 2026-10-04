@@ -14,7 +14,7 @@ test('인트로: next=app(또는 app 빌드)이면 제품 입구(/doit/start-jou
   const s = read('src/pages/do-it/intro/page.tsx'); const mode = read('src/lib/echo/appMode.ts');
   assert.match(mode, /export const PRODUCT_ENTRY_PATH = '\/doit\/start-journey';/);
   assert.match(s, /search\.get\('next'\) === 'app'/);
-  assert.match(s, /navigate\(toProduct \? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, \{ replace: true \}\)/);
+  assert.match(s, /navigate\(IS_APP_SITE \? '\/' : toProduct \? PRODUCT_ENTRY_PATH : MAIN_ENTRY_PATH, \{ replace: true \}\)/); // 2026-10-04: 앱 역할은 새 첫 화면(/), 설치 앱(next=app)·통합은 제품 입구 그대로
 });
 test('Google 버튼: 기본 켜짐(운영 그대로) · VITE_AUTH_GOOGLE_ENABLED=false 일 때만 로그인·가입에서 숨김 · 관리자 로그인 변경 0', () => {
   assert.match(read('src/lib/authProviders.ts'), /import\.meta\.env\.VITE_AUTH_GOOGLE_ENABLED !== 'false'/);

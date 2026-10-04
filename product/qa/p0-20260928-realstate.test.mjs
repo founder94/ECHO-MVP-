@@ -124,6 +124,9 @@ function cssSolidButtons() {
       if (f.endsWith('/src/doit/components/feature/echo-ui.css') && /^:is\(\.doit-app-pastel,\.echo-dialogue\.echo-dialogue--pastel\) :is\(\.echo-primary,\.doit-product-action:not\(\.doit-product-action--secondary\),\.echo-choice-confirm:not\(\.is-secondary\),\.legal-page-primary\)(:not\(:disabled\):active)?$/.test(sel)) continue;
       // 같은 결정 · Codex PR #123: 시작 흐름 공통 주요 버튼(PrimaryButton = .echo-primary-button)도 같은 흰 바탕 — echo-ui.css 의 이 규칙 둘만.
       if (f.endsWith('/src/doit/components/feature/echo-ui.css') && /^:is\(\.doit-app-pastel,\.echo-dialogue\.echo-dialogue--pastel\) \.echo-primary-button(:not\(:disabled\):active)?$/.test(sel)) continue;
+      // 2026-10-04 대표 「5차」: 앱 첫 화면 시작 CTA·인증 대기/404 화면 이동 버튼 = 흰 바탕 + 깊은 청록 글자(대표 시안의 흰 CTA). 이 두 규칙만 예외.
+      if (f.endsWith('/src/doit/pages/do-it/welcome/welcome.css') && sel === '.echo-welcome-cta') continue;
+      if (f.endsWith('/src/components/state-screens.css') && sel === '.echo-state-action') continue;
       if (f.endsWith('/src/doit/components/feature/core-conversation.css') && /^\.echo-dialogue(\.echo-dialogue--pastel)? \.echo-send-cta(:not\(:disabled\):active)?$/.test(sel)) continue;
       for (const d of m[2].matchAll(/(?:^|;)\s*(background(?:-color|-image)?)\s*:\s*([^;]+)/g)) if (!/var\(--echo-glass|transparent|none/.test(d[2]) && OPAQUE.test(d[2])) hits.push(`${f.slice(ROOT.length)}: ${sel.slice(0, 60)} ${d[1]}: ${d[2].trim().slice(0, 40)}`);
     }

@@ -1,4 +1,8 @@
-# 전체 디자인 교체 명세 (2026-10-04) — 현재 최종 상태 (4차 라운드 기준)
+# 전체 디자인 교체 명세 (2026-10-04) — 현재 최종 상태 (5차 라운드 기준)
+
+**5차(마지막) 변경 요약**: 앱 첫 화면 신설 · 인트로 뒤 이동 · `/auth/callback` · 404 · 뒤로/메뉴 버튼 대비 · 후보 버튼 문구 · 약관 CSS 역할 분리. 아래 표의 해당 행에 5차 표기. 브라우저·실기기·성능·녹화는 이 환경(Chromium 없음)에서 실행하지 않았다 — Codex 검수 대상.
+남은 한계: 앱 첫 화면·404·약관의 앱 CSS 는 동적 import 라 느린 회선에서 스타일이 잠깐 늦게 붙을 수 있다(미측정). 가입 체크박스는 표시 20px 유지, 라벨 터치 영역 44px 는 실제 렌더로 미확인.
+
 
 근거: 대표 직접 지시(PR #127 댓글) · Codex 명세 `echo-spec id=20261004-full-ui`.
 작업 기준: PR #127 · branch `claude/full-ui-replacement-20261004` · 변경 전 SHA `9ca08c99410efe48cf725918d3ede6674f5cbe10`(echo-qa) · 담당 Claude Code 단독 · 독립 검수 Codex.
@@ -13,20 +17,23 @@
 | 공통 판·토큰 | `src/doit/components/feature/app-glass-v2.css` | 짙은 청록 유리 판(`rgb(8 70 80/.82)`~`rgb(5 52 62/.86)`, 흰 글자 대비 7:1 이상 계산값) · 제목 22~24px · 본문·입력 16px · 터치 44px · 키보드 초점 고리 | `.doit-app-pastel` 아래(앱 전 화면) |
 | 공통 로드 경로 | `app-pastel.css` 가 import → `MobileLayout`·`ProfileReview`(product-brand.css 경유)·start-journey·login·signup·legal·consent·fortune 가 모두 로드 | 화면별 중복 코드 없이 전 화면에 적용 | 앱 |
 | 대화 배치 | `mobile-layout-v2.css` (AgentConversation·CoreConversation·ConversationOpening·Connection* 가 import) | 머리말 유리 띠 · ECHO/내 말풍선 면 구분 · 아래 고정 입력 판(sticky) · 오류·로딩·끝 판 | `section.echo-dialogue.echo-dialogue--pastel` **의 자손** |
-| 홈페이지 번들 | brand 빌드는 app 컴포넌트를 import 하지 않음(검사로 확인). 약관 열람(LegalDocument)만 기존대로 app-pastel 을 쓴다 | 오염 0 | — |
+| 홈페이지 번들 | brand 빌드는 app 컴포넌트를 import 하지 않음. **5차 정정**: 4차 문장은 틀렸다 — `LegalDocument` 가 `app-pastel.css`(→ `app-glass-v2.css`)를 정적으로 import 해 brand 약관 CSS 에 들어갔다. 이제 역할 조건(`VITE_SITE_ROLE !== 'brand'`) 안의 동적 import 라 brand 빌드에서 빠진다(brand 산출물 `out-brand/assets` 에서 `app-glass`·`mobile-layout`·`echo-welcome`·`echo-state` 0건 확인). 홈페이지 약관은 회사 흑백(`legal.css`), 앱 약관은 유리. 문구·법적 본문 변경 0 | 오염 0 | — |
 
 **4차에서 고친 P1 결함**: 3차 `mobile-layout-v2.css` 는 `.echo-dialogue.echo-dialogue--pastel.echo-composer` 처럼 루트 클래스와 자손 클래스를 한 요소에 붙여 써서 **어느 요소에도 맞지 않았다**(실제 DOM = `section.echo-dialogue.echo-dialogue--pastel` 안의 `form.echo-composer` 등). 모두 자손 결합자(공백)로 바꿨고, 같은 요소 결합을 막는 검사를 추가했다(`qa/design-v2-20261004.test.mjs`). computedStyle 확인은 브라우저가 없어 미실행.
 
 ## B. 앱 화면별 대응표 (실제 파일 · 새 디자인 · 상태)
 | # | 화면/URL | 구현 파일 | 새 디자인 적용 | 유지할 기능 | 상태 화면 | 상태 |
 |---|---|---|---|---|---|---|
-| M1 | `/` → 온보딩 `/do-it/intro` → 앱 입구 · PWA `/do-it/intro?next=app` | router/config.tsx · DoItEntry.tsx · intro/page.tsx | 앱 `/` 는 온보딩 뒤 제품 입구(시작 흐름)로. 로그인 확인 대기 화면은 검정 → 파스텔 + 어두운 청록 글자 | 온보딩 1회 재생 · next=app 임의 주소 이동 0 | 로그인 확인 중 | 소스 구현 |
+| M1 | `/` → 온보딩 `/do-it/intro` → 앱 입구 · PWA `/do-it/intro?next=app` | router/config.tsx · DoItEntry.tsx · intro/page.tsx | **5차**: 앱 `/` = 새 ECHO 첫 화면 `src/doit/pages/do-it/welcome/page.tsx`(민트·청록 + 노랑·코랄 빛 + CSS/SVG 유리 링 + 짙은 청록 유리 판 · 「같이 하고 싶은 일이 있나요?」 / 「어떤 만남을 원하는지 들려주세요.」 / 흰 CTA 「시작하기」 → 기존 `/doit/start-journey`). 인트로 뒤 앱 역할은 `/` 로(동작 줄이기 포함 같은 경로, 예전엔 곧바로 시작 흐름이라 새 문구가 안 보였다). 설치 앱 `next=app`·통합 빌드는 기존 이동 그대로. 로그인 확인 대기 화면은 파스텔 + 어두운 청록 글자 | 온보딩 1회 재생 · next=app 화이트리스트·install=1·introSeen·Google 복귀 토큰 처리 변경 0 · 시작 흐름의 동의·필드·세션 선행 조건 그대로 | 로그인 확인 중 | 소스 구현 · 빌드 산출물 확인 (브라우저 미확인) |
 | M1 | `/doit/home` | doit/pages/do-it/home/page.tsx | 인트로·최근 이야기·요약·알림·하단 안내 = 같은 짙은 청록 판, 제목 22~24px | 시작 전/진행 중/끝남 3단 | 로딩·로그인 필요·오류·빈 상태 | 소스 구현 |
 | M1 | `/doit/start-journey` | start-journey/page.tsx (+ConversationOpening·PurposeSelect·PhotoCapture·ProfileReview) | 대화 배치 + 공통 판 | 목적→사진→프로필 순서 · 12초 불러오기 상한 | 불러오는 중·오류·다시 시도 | 소스 구현 |
 | M2 | `/login` | pages/login/page.tsx | 가운데 상자 = 판, 입력 16px·48px, 안내 「다시 오셨네요. 하던 이야기부터 이어가요.」 | 인증 로직 그대로 | 오류 문구 | 소스 구현 |
 | M2 | `/signup` | pages/signup/page.tsx | 판 + 「반가워요. ECHO를 시작해 볼까요?」 | 필수 동의 미리 체크 0 | 가입 완료·오류 | 소스 구현 |
 | M2 | `/legal/terms` `/legal/privacy` `/legal/consent` · ConsentGate | pages/legal/** · consent-checklist | 본문 상자 = 판, 본문 16px, 제목 22~24px, 버튼 44px | 필수/선택 동의 구조·버전 | 오류·저장 중 | 소스 구현 |
-| M2 | `/auth/callback` | pages/auth/callback/page.tsx | 변경 0(기능 화면, 대기 문구 한 줄) | 로그인 복귀 | 실패 | 변경 없음 |
+| M2 | `/auth/callback` | pages/auth/callback/page.tsx | **5차**: 대기·실패 화면만 앱 유리(`src/components/state-screens.css` `.echo-state`) — 민트 바탕 + 청록 판 + 흰 글자, 실패 시 「로그인 화면으로」 흰 버튼 48px. 인증·이동 로직 줄 변경 0 | 로그인 복귀(consumeReturnPath) · 8초 상한 | 대기·실패 | 소스 구현 (브라우저 미확인) |
+| M12 | 없는 주소 `*` (NotFound) | src/pages/NotFound.tsx | **5차**: 영어 개발 도구 안내 삭제 → 「페이지를 찾을 수 없어요.」 + 「홈으로 돌아가기」. 앱 = 같은 유리 틀, 홈페이지 = 회사 흑백(인라인, 앱 CSS 미의존) | 홈 이동 | — | 소스 구현 (브라우저 미확인) |
+| 공통 | 뒤로 알약 · 오른쪽 위 메뉴 버튼 | app-back-button.css · app-corner-menu.css | **5차**: 밝은 민트 위 흰 라벨 대비 부족(바탕 흰 .14) → 짙은 청록 유리 `rgb(8 70 80/.86)` + 흰 글자·아이콘 | 44px 유지 | — | 소스 구현 (대비는 계산값) |
+| M6 | 후보 버튼 | ConnectionCandidates.tsx | **5차**: 눈에 보이는 문구 「더 알아보기」(이유 펼침 기능 그대로, 기존 검사 locator 만 승인 변경으로 정렬) | 선택·이유 펼침 | — | 소스 구현 |
 | M3 | 목적·사진·프로필·인증 `/doit/photos`·`/doit/profile`·`/doit/verify` | 각 page · MobileLayout | 카드·섹션 = 판 · 사진 빈 칸 · 설명 글자 흰색 | 승인 필드·순서·필수 단계 | 저장 중·실패·재시도 | 소스 구현 |
 | M4 | ECHO 대화 `/doit/conversation` | AgentConversation · CoreConversation | 머리말 띠 · 질문/내 말풍선 구분 · 아래 고정 입력 판 · 안내 「편하게 적어주세요.」 | 서버 질문 동적 · 5문항 상한 | 오류·불러오는 중·끝 | 소스 구현(computedStyle 미확인) |
 | M5 | 이해·정정 | AgentProfileCheck · 정정 4버튼 | 기존 문구 「이렇게 이해했는데, 맞나요?」 + 판 | 기존 정정 계약 | 저장 중·충돌 | 소스 구현 |

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { consumeReturnPath } from '@/lib/auth/returnPath';
+import '@/components/state-screens.css';
 
 // Google OAuth 콜백: Supabase 클라이언트(detectSessionInUrl)가 주소의 세션 정보를 복원한다.
 // 이 화면은 세션이 생기면 안전한 내부 경로로 돌려보내고, 취소·실패면 명시적으로 알린다.
@@ -65,26 +66,23 @@ export default function AuthCallbackPage() {
     // loading이 끝났는데 user가 없으면 세션이 아직 없음 → 전체 제한시간이 실패로 처리한다.
   }, [user, loading, navigate]);
 
+  // 2026-10-04: 인증 대기·실패 화면만 앱 틀(민트 + 짙은 청록 유리)로. 위의 인증·이동 로직은 그대로.
   return (
-    <div className="min-h-screen bg-background-50 flex items-center justify-center px-6">
-      <div className="w-full max-w-sm text-center">
+    <main className="echo-state">
+      <section className="echo-state-panel" role={phase === 'waiting' ? 'status' : 'alert'}>
         {phase === 'waiting' ? (
           <>
-            <span className="inline-block w-8 h-8 border-2 border-foreground-700 border-t-foreground-50 rounded-full animate-spin mb-4" />
-            <p className="text-sm text-foreground-400">로그인 상태를 확인하고 있어요...</p>
+            <span className="echo-state-spinner" aria-hidden="true" />
+            <p style={{ margin: 0 }}>로그인 상태를 확인하고 있어요.</p>
           </>
         ) : (
           <>
-            <p className="text-sm text-foreground-300 mb-6">{message}</p>
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-primary-500 text-background-50 text-sm font-semibold hover:bg-primary-600 transition-colors duration-300 whitespace-nowrap"
-            >
-              로그인 화면으로
-            </Link>
+            <h1>로그인을 마치지 못했어요.</h1>
+            <p>{message}</p>
+            <Link to="/login" className="echo-state-action">로그인 화면으로</Link>
           </>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

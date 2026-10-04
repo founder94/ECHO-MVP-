@@ -11,7 +11,7 @@ const MATCHES = code('src/doit/components/feature/ConnectionMatches.tsx');
 test('후보는 한 번에 펼치지 않는다: 한 사람 → 이유가 있다는 것 → 「왜 이 사람인지 보기」 → 이유 → 선택', () => {
   assert.match(CAND, /한 사람을 발견했어요\./);
   assert.match(CAND, /왜 이 사람인지, ECHO가 본 이유가 있어요\./);
-  assert.match(CAND, /왜 이 사람인지 보기/);
+  assert.match(CAND, />더 알아보기<span/, '눈에 보이는 버튼 문구는 정확히 「더 알아보기」(이유 펼침 기능 유지)');
   const closed = CAND.indexOf('{!open && <>'), reasons = CAND.indexOf('c.reasons.map'), actions = CAND.indexOf("choose(c, 'yes')");
   assert.ok(closed > 0 && closed < reasons && reasons < actions, '이유와 선택은 연 뒤에만');
   assert.match(CAND, /const open = c\.waiting \|\| !!opened\[c\.id\];/, '이미 고른 후보는 열린 채');
