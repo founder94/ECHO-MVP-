@@ -34,7 +34,7 @@ jobs:
     if: github.actor == 'founder94' && github.triggering_actor == 'founder94'
     steps:
       - uses: actions/checkout@v4
-        with: { ref: 3cacbedeba5ce6c559db32779b35efd9cbe6715b, fetch-depth: 0, persist-credentials: true }   # PIN: automation modules = reviewed module commit (not main); changing it requires re-review
+        with: { ref: 7d030fb68947a9fc82bf3fa231be69f206594049, fetch-depth: 0, persist-credentials: true }   # PIN: automation modules = reviewed module commit (not main); changing it requires re-review
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: register or bootstrap
