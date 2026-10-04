@@ -115,5 +115,8 @@ test('연결 화면: 후보 화면을 key 로 다시 만들지 않는다(끝없�
   assert.match(A, /<ConnectionCandidates reload=\{candidatesKey\} userId=\{user\.id\}/);
   assert.doesNotMatch(A, /<ConnectionCandidates key=/);
   const C = read('src/doit/components/feature/ConnectionCandidates.tsx');
-  assert.match(C, /useEffect\(\(\) => \{ void refresh\(\); \}, \[refresh, reload\]\);/);
+  assert.match(C, /useEffect\(\(\) => \{ void refresh\(reload > 0\); \}, \[refresh, reload\]\);/);
+  // 다시 읽기 실패 = 지난 목록 유지 + 실패 알림 + 다시 확인(Codex PR #122)
+  assert.match(C, /if \(!shown\.current\) setLoad\(\{ kind: 'error'[^\n]*\n\s*else if \(explicit\) setStale\(true\);/);
+  assert.match(C, /\{stale && <div className="doit-connect-stale"><p className="doit-product-error" role="alert">새 후보를 불러오지 못했어요\./);
 });
