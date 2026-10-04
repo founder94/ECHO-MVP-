@@ -4,6 +4,7 @@ import DoItSymbol from '@/components/DoItSymbol';
 import { fetchActivePurposes, type ActivePurpose } from '@/doit/lib/purposes';
 import { savePurpose } from '@/doit/lib/profileSave';
 import './core-conversation.css';
+import './start-ref.css';
 
 interface Props {
   userId: string;
@@ -60,11 +61,13 @@ export default function ConversationOpening({ userId, onDone }: Props) {
   };
 
   return <section className="echo-dialogue echo-dialogue--pastel echo-opening" aria-busy={saving}>
-    <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span></header>
-    <p className="echo-eyebrow">첫 질문</p>
+    {/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작): 위 = ECHO 글자 + 유리 리본(대표가 보낸 모션 디자인 시안의 리본) */}
+    <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" fetchPriority="high" /></div>
+    <p className="echo-eyebrow echo-sr">첫 질문</p>
     {/* 2026-10-04 대표 디자인 교체: 모바일 시작 문구. 서버가 기록하는 첫 질문(doit-agent FIRST_QUESTION 「어떤 만남을 원하세요?」)은 그대로 — 바꾸려면 서버 배포(대표 결정). */}
     <h1>같이 하고 싶은 일이<br />있나요?</h1>
-    <p className="echo-lead">하나만 골라 주세요. 한 줄 덧붙이면 거기서부터 이야기를 시작할게요.</p>
+    {/* 「문구·서체 검수안」 1번: 어떤 만남을 원하는지 들려주세요. + 기존 안내(하나 고르기 · 한 줄 덧붙이기) */}
+    <p className="echo-lead">어떤 만남을 원하는지 들려주세요. 하나만 고르고, 한 줄 덧붙이면 거기서부터 이야기를 시작할게요.</p>
 
     {loadError && <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void loadPurposes()}>다시 불러오기</button></div>}
     {!loadError && purposes === null && <p className="echo-busy" role="status"><Loader2 size={16} className="animate-spin" />만남의 종류를 불러오고 있어요</p>}

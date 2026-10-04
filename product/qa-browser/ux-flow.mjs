@@ -82,9 +82,11 @@ async function newPage(browser, vp, server) {
     if (u.pathname.startsWith('/auth/v1/token')) return route.fulfill({ json: SESSION });
     if (u.pathname.startsWith('/rest/v1/profiles') && req.method() === 'GET') {
       const one = (req.headers()['accept'] ?? '').includes('vnd.pgrst.object');
-      const row = { consent_version: 'v1.0', purpose_id: 'conversation', purpose_label: '깊은 대화부터 시작하고 싶어요', nickname: '나' };
+      const row = server.st.noPurpose ? { consent_version: 'v1.0', purpose_id: null, purpose_label: null, nickname: null } : { consent_version: 'v1.0', purpose_id: 'conversation', purpose_label: '깊은 대화부터 시작하고 싶어요', nickname: '나' };
       return route.fulfill({ json: one ? row : [row] });
     }
+    // 검사용 목적 목록(가짜 서버 · 운영 목록과 다를 수 있음) — 시작 화면 캡처(80·82)에서 타일이 보이게.
+    if (u.pathname.startsWith('/rest/v1/purposes') && req.method() === 'GET') return route.fulfill({ json: [{ id: 'conversation', label: '깊은 대화부터 시작하고 싶어요', description: '천천히 이야기 나누기', sort_order: 1 }, { id: 'hobby', label: '함께 취미를 즐기고 싶어요', description: '같이 할 일부터', sort_order: 2 }, { id: 'friend', label: '편하게 이야기할 친구', description: null, sort_order: 3 }] });
     if (u.pathname.startsWith('/rest/v1/')) return route.fulfill({ status: req.method() === 'GET' ? 200 : 201, json: [] });
     if (u.pathname === '/functions/v1/doit-understanding') return route.fulfill({ json: { ok: true, ...PREVIEW } });
     if (u.pathname === '/functions/v1/doit-agent') {
@@ -627,6 +629,13 @@ await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHON
   const n = await p.locator('button', { hasText: 'Google로 시작하기' }).locator('[data-google-g] svg path').count(); expect(n === 4, `G 조각 ${n}`); return '4색 G';
 });
 
+// 2026-10-04 모바일 기준 디자인 1·2번 화면 캡처(시작 · 가입): 로그인 전 시작 흐름 / 로그인 화면 / 로그인 뒤 시작 흐름
+for (const [n, path, out] of [[80, '/doit/start-journey', true], [81, '/login', true], [82, '/doit/start-journey', false]]) await run(n, `모바일 기준 디자인 캡처 ${path}${out ? ' (로그인 전)' : ' (목적 없음)'}`, IPHONE, { noPurpose: true }, async (p) => {
+  if (out) { await p.context().clearCookies(); await p.evaluate(() => localStorage.clear()).catch(() => {}); }
+  await p.goto(`${BASE}${path}`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1500);
+  const ov = await overflow(p); expect(ov <= 0, `가로 넘침 ${ov}px`);
+  await p.screenshot({ path: `uxshots/${n}-start.png`, fullPage: true }); return `넘침 0 · ${p.url().replace(BASE, '')}`;
+});
 
 // 2026-10-04 대표 「이용 안내 통합」: 메뉴 → 이용 안내(그 자리에 열림) → 항목 → 닫기 / 폰 뒤로 / Esc → 적던 글·주소 그대로
 const GUIDE_DONE = { ...AGENT_SESSION, phase: 'done', current_question: null, progress: { asked: 5, of: 5 }, closing: '이야기 고마워요.', summary: [],

@@ -11,6 +11,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import { colors, serif , surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { ActivePurpose } from "@/doit/lib/purposes";
+import "@/doit/components/feature/start-ref.css";
 
 // Purpose 정본 = 운영 DB public.purposes 의 is_active=true 행.
 // 2026-09-20 대표 확정: 이 화면은 목적 목록을 스스로 갖지 않는다.
@@ -82,7 +83,8 @@ export function PurposeSelect({
     >
       <div className="flex-1 overflow-y-auto">
         <div className="px-6 pt-8 pb-4">
-          <div className="flex items-center gap-3 mb-6" style={{color: surfaces.onPage, fontSize: 10, letterSpacing: "0.18em"}}><DoItSymbol decorative />DO IT COMPANY</div>
+          {/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작): ECHO 글자 + 유리 리본(대표가 보낸 모션 디자인 시안의 리본을 잘라 씀) */}
+          <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" fetchPriority="high" /></div>
           <motion.div
             initial={{
               opacity: 0,
@@ -96,16 +98,7 @@ export function PurposeSelect({
               duration: 0.5,
             }}
           >
-            <p
-              style={{
-                color: surfaces.onPageFaint,
-                fontSize: 11,
-                letterSpacing: "0.2em",
-                marginBottom: 10,
-              }}
-            >
-연결 목적 선택
-            </p>
+            <p className="echo-sr">연결 목적 선택</p>
 
             <h1
               style={{
@@ -116,9 +109,9 @@ export function PurposeSelect({
                 marginBottom: 12,
               }}
             >
-              이번에는 어떤 관계를
+              같이 하고 싶은
               <br />
-              만나고 싶나요?
+              일이 있나요?
             </h1>
 
             <p
@@ -128,8 +121,8 @@ export function PurposeSelect({
                 lineHeight: 1.65,
               }}
             >
-              지금 원하는 관계 하나를 골라주세요.
-              선택한 목적은 프로필에 반영돼요. 같은 만남을 고른 사람끼리만 연결돼요.
+              어떤 만남을 원하는지 들려주세요.
+              하나를 고르면 프로필에 반영되고, 같은 만남을 고른 사람끼리만 연결돼요.
             </p>
           </motion.div>
         </div>
