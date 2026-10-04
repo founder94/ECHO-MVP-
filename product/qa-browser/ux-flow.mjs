@@ -159,7 +159,7 @@ await run(4, 'nearby 있음(서버가 모르는 거리 필드를 보내도 화�
 await run(5, 'nearby 없음', IPHONE, { candidates: [cand('c1')] }, async (p) => { await go(p); expect(!FORBIDDEN_NEAR.test(await text(p)), '거리 문구'); return '거리 문구 0'; });
 await run(6, 'YES → 대기', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
-  const t = await text(p); expect(t.includes('내 선택은 전해졌어요'), '대기 문구'); expect(!/상대도 (당신이 )?궁금|상대도 관심/.test(t), '상대 관심 추측');
+  const t = await text(p); expect(t.includes('선택을 보냈어요'), '대기 문구'); expect(!/상대도 (당신이 )?궁금|상대도 관심/.test(t), '상대 관심 추측');
   expect(s.st.calls.some(c => c.action === 'choose' && c.choice === 'yes'), 'choose yes 요청');
   await p.screenshot({ path: 'uxshots/06-waiting.png' }); return 'choose=yes 전송 · 대기 표시';
 });
@@ -172,16 +172,16 @@ await run(8, 'HIDE', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
   expect((await text(p)).includes('숨겼어요'), '숨김 문구'); expect(s.st.calls.some(c => c.choice === 'hide'), 'hide 요청'); return 'choose=hide';
 });
 await run(9, '선택 후 대기(다시 열어도 유지)', IPHONE, { candidates: [cand('c1', { my_choice: 'yes', waiting: true })] }, async (p) => {
-  await go(p); const t = await text(p); expect(t.includes('내 선택은 전해졌어요.'), '대기 제목'); expect(t.includes('내가 직접 한 말'), '고른 후보는 열린 채'); return '서버 waiting 그대로';
+  await go(p); const t = await text(p); expect(t.includes('선택을 보냈어요.'), '대기 제목'); expect(t.includes('내가 직접 한 말'), '고른 후보는 열린 채'); return '서버 waiting 그대로';
 });
 await run(10, 'mutual (서버가 mutual 이라고 답할 때만)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
-  const t = await text(p); expect(t.includes('텔레파시가 통했어요.') && t.includes('서로 같은 선택을 했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
+  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('서로 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
   await p.waitForTimeout(900); await p.screenshot({ path: 'uxshots/10-mutual.png' }); return 'ZZARIT · 상대 정보 0';
 });
 await run(11, 'connection (서버 match_id 로 이동)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
-  await p.getByRole('button', { name: /첫 이야기 시작하기/ }).click(); await p.waitForTimeout(1200);
+  await p.getByRole('button', { name: /다음 단계 보기/ }).click(); await p.waitForTimeout(1200);
   const focused = await p.evaluate((id) => document.activeElement?.id === `match-${id}`, MID);
   expect(focused, '그 연결로 이동 안 됨'); return `#match-${MID.slice(0, 8)} 포커스`;
 });
@@ -230,7 +230,7 @@ await run(22, 'network slow(3초)', IPHONE, { candidates: [cand('c1')], delay: 3
 });
 await run(23, 'reload', IPHONE, { candidates: [cand('c1')] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
-  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(600); expect((await text(p)).includes('내 선택은 전해졌어요.'), '새로고침 뒤 대기 유지'); return '서버 상태로 복원';
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(600); expect((await text(p)).includes('선택을 보냈어요.'), '새로고침 뒤 대기 유지'); return '서버 상태로 복원';
 });
 await run(24, 'browser back', IPHONE, { candidates: [cand('c1')] }, async (p) => {
   await p.goto(`${BASE}/doit/home`, { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
@@ -272,8 +272,8 @@ await run(30, 'back guard: 폰 뒤로 → 직전 답 고치기 → 서버 재계
 });
 // 31·32 via_mutual(2026-10-01): 먼저 고른 사람도 서버가 via_mutual=true 를 줄 때만 「상대도 당신이 궁금했대요」.
 await run(31, 'via_mutual=true: 먼저 고른 사람도 ZZARIT 한 번 → 서로 골랐다는 문구', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
-  await go(p); expect((await text(p)).includes('텔레파시가 통했어요.'), '기다리던 사람 ZZARIT 없음');
-  await p.getByRole('button', { name: /첫 이야기 시작하기/ }).click(); await p.waitForTimeout(300); const t = await text(p);
+  await go(p); expect((await text(p)).includes('찌릿! 텔레파시가 통했어요'), '기다리던 사람 ZZARIT 없음');
+  await p.getByRole('button', { name: /다음 단계 보기/ }).click(); await p.waitForTimeout(300); const t = await text(p);
   expect(t.includes('상대도 당신이 궁금했대요.'), 'via_mutual 문구 없음'); expect(t.includes('ECHO가 하나만 물어볼게요.'), '첫 질문 안내');
   await p.screenshot({ path: 'uxshots/31-via-mutual.png' }); return '서버 via_mutual=true → 문구 1';
 });
@@ -365,7 +365,7 @@ await run(51, 'ZZARIT 연출 ≈1.2초 뒤 정지 · 밝기 4% · 버튼 포커�
   await p.waitForTimeout(1400);
   const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, lift: getComputedStyle(document.querySelector('.echo-zzarit-lift')).opacity, focus: document.activeElement?.textContent }));
   expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(Number(after.lift) >= .03 && Number(after.lift) <= .05, `밝기 ${after.lift}`);
-  expect(/첫 이야기 시작하기/.test(after.focus ?? ''), '버튼 포커스');
+  expect(/다음 단계 보기/.test(after.focus ?? ''), '버튼 포커스');
   await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `실행 중 ${during} → 1.5초 뒤 0 · 막 ${after.lift}`;
 });
 await run(52, 'ZZARIT 움직임 줄이기: 처음부터 정지 화면 · 진동 0', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {

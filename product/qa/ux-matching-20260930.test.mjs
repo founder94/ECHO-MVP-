@@ -25,16 +25,18 @@ test('거리·위치·점수·가짜 타이머 0 · 서버가 주지 않는 거�
   }
 });
 
-test('대기: 「내 선택은 전해졌어요」 · 상대가 관심 있다는 말 0 · 서로 골랐어요 보상은 서버 mutual 뒤에만', () => {
-  assert.match(CAND, /내 선택은 전해졌어요/);
+test('대기: 「선택을 보냈어요」(2026-10-04) · 상대가 관심 있다는 말 0 · 서로 골랐어요 보상은 서버 mutual 뒤에만', () => {
+  assert.match(CAND, /선택을 보냈어요\. 상대도 선택하면 알려드릴게요/);
+  assert.ok(!CAND.includes('내 선택은 전해졌어요'), '예전 문구 0');
   assert.doesNotMatch(CAND.slice(0, CAND.indexOf('if (mutual) return')), /상대도 (당신이 )?궁금|상대도 관심/);
   // 2026-10-01 대표 「COMPLETE PRODUCT FLOW」: 보상 화면 = ZZARIT(문구 「텔레파시가 통했어요.」 · 「서로 같은 선택을 했어요.」 · 「첫 이야기 시작하기」).
   const Z = read('src/doit/components/feature/ZzaritMoment.tsx');
   assert.match(CAND, /if \(out\.status === 'mutual'\) \{/);
   assert.match(CAND, /if \(typeof out\.match_id === 'string'\) \{ if \(claimZzarit\(out\.match_id\)\) setMutual\(\{ matchId: out\.match_id \}\); else onOpened\(out\.match_id\); \}/);
-  assert.match(Z, /텔레파시가 통했어요\./);
-  assert.match(Z, /서로 같은 선택을 했어요\./);
-  assert.match(Z, /첫 이야기 시작하기/);
+  // 2026-10-04 대표 「찌릿」: 문구 = 「찌릿! 텔레파시가 통했어요」 · 「서로 대화를 원했어요.」 · 다음 = 「다음 단계 보기」(실제 다음 단계 = 첫 질문)
+  assert.match(Z, /title: '찌릿! 텔레파시가 통했어요'/);
+  assert.match(Z, /body: '서로 대화를 원했어요\.'/);
+  assert.match(Z, /next: '다음 단계 보기'/);
   assert.doesNotMatch(CAND + Z, /축하|🎉|!!\s*<\/|요!!/);
   assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b/, 'ZZARIT 에도 상대 정보 0');
   assert.doesNotMatch(CAND, /nickname|photo_url|partner|\bbio\b/, '보상 화면에도 상대 정보 0');

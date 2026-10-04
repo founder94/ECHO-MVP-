@@ -342,6 +342,6 @@ test('[구조] v15 다음 질문 경로(이어 묻기·구제·다른 질문 받
   assert.match(client, /api\.turn\(\{ text, answeredQuestion: shownBody \|\| null, recordId: active && !finished \? active\.id : null, asAnswer, correction: correctionTarget\(\), pendingCorrection, recent: recentTurns\.current \}\)/, '화면이 직전 질문(과 정정 대상)·최근 대화를 함께 보낸다');
   assert.ok(!/api\.(classify|rephrase)\(/.test(client), 'v16 화면은 옛 분류·되묻기 요청을 부르지 않는다');
   assert.match(client, /sendText\(initialMessage, OPENING_QUESTION\)/, '첫 화면에서 적은 한 줄은 「어떤 만남을 원하세요?」의 답');
-  assert.match(readFileSync('src/doit/components/feature/ConversationOpening.tsx', 'utf8'), /어떤 만남을<br \/>원하세요\?/);
+  assert.match(readFileSync('src/doit/components/feature/ConversationOpening.tsx', 'utf8'), /같이 하고 싶은 일이<br \/>있나요\?/);
 });
 

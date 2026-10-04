@@ -62,7 +62,8 @@ export default function ConversationOpening({ userId, onDone }: Props) {
   return <section className="echo-dialogue echo-dialogue--pastel echo-opening" aria-busy={saving}>
     <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span></header>
     <p className="echo-eyebrow">첫 질문</p>
-    <h1>어떤 만남을<br />원하세요?</h1>
+    {/* 2026-10-04 대표 디자인 교체: 모바일 시작 문구. 서버가 기록하는 첫 질문(doit-agent FIRST_QUESTION 「어떤 만남을 원하세요?」)은 그대로 — 바꾸려면 서버 배포(대표 결정). */}
+    <h1>같이 하고 싶은 일이<br />있나요?</h1>
     <p className="echo-lead">하나만 골라 주세요. 한 줄 덧붙이면 거기서부터 이야기를 시작할게요.</p>
 
     {loadError && <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void loadPurposes()}>다시 불러오기</button></div>}

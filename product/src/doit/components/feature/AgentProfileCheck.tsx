@@ -6,7 +6,8 @@ import { AGENT_PURPOSE_LABELS, agentTurn, type AgentSession, type AgentSlot } fr
 // 「ECHO가 이해한 나」 확인·정정(2026-09-26 대표 「MVP FINAL PATCH」 §12~§18).
 // - 보이는 뜻(note)은 서버(doit-agent)가 사용자 말에서 정리한 것이다. 이 화면은 뜻을 만들거나 고치지 않는다.
 // - [조금 달라요] → 다섯 칸 중 하나 → 그 칸만 직접 고친 말을 서버에 보낸다(대화가 끝난 뒤의 정정 턴 · 서버 정정 엔진이 같은 칸의 옛 뜻을 SUPERSEDED 로 거둔다).
-// - [다시 말할게요] → 짧게 다시 설명한 말을 그대로 보낸다(최신 사용자 원문으로 남는다).
+// - [그게 아니에요](2026-10-04 대표 디자인 교체 · 네 버튼) → 아닌 칸 하나 → 맞는 내용을 내 말로 → [조금 달라요]와 같은 정정 턴(서버가 그 칸의 옛 뜻을 SUPERSEDED 로 거둬 다시 쓰지 않음 · 원문은 서버가 보존).
+// - [직접 설명할게요](예전 「다시 말할게요」) → 짧게 다시 설명한 말을 그대로 보낸다(최신 사용자 원문으로 남는다).
 // - 고친 뒤에는 바뀐 부분만 다시 보여 주고 [맞아요] / [다시 고칠게요]. 정정 때문에 다섯 질문을 다시 시작하지 않는다.
 // - [맞아요] 는 지금 이 화면(이 기기)에만 기억한다: 운영 서버 v2.2 에는 「사용자 확인」 기록 동작이 없다(서버 변경은 대표 승인 뒤).
 
@@ -14,11 +15,12 @@ const ORDER = Object.keys(AGENT_PURPOSE_LABELS);
 const SEND_ERROR = '보내지 못했어요. 적은 말은 그대로 있으니 다시 눌러 주세요.';
 const NOT_CHANGED = 'ECHO가 이 부분을 아직 바꾸지 못했어요. 조금 다르게 한 번 더 적어 주세요.';
 const TEXT_MAX = 300;
+export const CHECK_TITLE = '이렇게 이해했는데, 맞나요?'; // 2026-10-04 대표 디자인 교체 문구
 
 type View =
   | { kind: 'review' }
-  | { kind: 'pick' }
-  | { kind: 'edit'; purpose: string; text: string }
+  | { kind: 'pick'; reject?: boolean }
+  | { kind: 'edit'; purpose: string; text: string; reject?: boolean }
   | { kind: 'retell'; text: string }
   | { kind: 'recheck'; purpose: string | null; changed: boolean };
 
@@ -82,6 +84,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     <p className="echo-done-mark">ECHO가 이해한 나</p>
     <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>
 
+    {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
     {ok && view.kind === 'review' ? <>
       {list(ORDER)}
       <p className="echo-done-lead"><Check size={16} aria-hidden="true" /> 맞다고 확인했어요.</p>
@@ -91,22 +94,25 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       <div className="echo-done-actions">
         <button type="button" className="echo-primary" disabled={busy} onClick={confirm}>맞아요</button>
         <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'pick' })}>조금 달라요</button>
-        <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'retell', text: '' })}>다시 말할게요</button>
+        <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'pick', reject: true })}>그게 아니에요</button>
+        <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'retell', text: '' })}>직접 설명할게요</button>
       </div>
     </> : view.kind === 'pick' ? <>
-      <p className="echo-done-lead">어느 부분이 다른가요?</p>
+      <p className="echo-done-lead">{view.reject ? '어느 부분이 아닌가요?' : '어느 부분이 다른가요?'}</p>
       <div className="echo-done-actions">
-        {ORDER.map(id => <button key={id} type="button" className="echo-secondary" onClick={() => setView({ kind: 'edit', purpose: id, text: '' })}>{AGENT_PURPOSE_LABELS[id]}</button>)}
+        {ORDER.map(id => <button key={id} type="button" className="echo-secondary" onClick={() => setView({ kind: 'edit', purpose: id, text: '', reject: view.reject })}>{AGENT_PURPOSE_LABELS[id]}</button>)}
         <button type="button" className="echo-text-button" onClick={() => setView({ kind: 'review' })}>돌아가기</button>
       </div>
     </> : view.kind === 'edit' ? <>
       {list([view.purpose])}
-      <label className="echo-context" htmlFor="echo-profile-fix">「{AGENT_PURPOSE_LABELS[view.purpose]}」를 내 말로 고쳐 주세요. 내가 고친 말이 가장 먼저예요.</label>
+      <label className="echo-context" htmlFor="echo-profile-fix">{view.reject
+        ? <>「{AGENT_PURPOSE_LABELS[view.purpose]}」는 그렇게 이해하지 않을게요. 맞는 내용을 내 말로 적어 주세요.</>
+        : <>「{AGENT_PURPOSE_LABELS[view.purpose]}」를 내 말로 고쳐 주세요. 내가 고친 말이 가장 먼저예요.</>}</label>
       <textarea id="echo-profile-fix" value={view.text} maxLength={TEXT_MAX} rows={3} disabled={busy} onChange={e => setView({ ...view, text: e.target.value.slice(0, TEXT_MAX) })} />
       <div className="echo-done-actions">
         {/* 사용자가 고른 칸은 정정 표시(correction.purpose)로 따로 보낸다 · 문장은 사용자 것 그대로(2026-09-27 P0-5). */}
         <button type="button" className="echo-primary" disabled={busy || !view.text.trim()} onClick={() => void sendFix(view.text.trim(), view.purpose)}>이렇게 고칠게요</button>
-        <button type="button" className="echo-text-button" disabled={busy} onClick={() => setView({ kind: 'pick' })}>다른 부분 고르기</button>
+        <button type="button" className="echo-text-button" disabled={busy} onClick={() => setView({ kind: 'pick', reject: view.reject })}>다른 부분 고르기</button>
       </div>
     </> : view.kind === 'retell' ? <>
       <label className="echo-context" htmlFor="echo-profile-retell">원하는 걸 짧게 다시 말해 주세요. 새로 말한 것이 가장 먼저예요.</label>
@@ -119,7 +125,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       {reply && <p className="echo-done-lead">{reply}</p>}
       {view.changed ? <>
         {list(view.purpose ? [view.purpose] : ORDER)}
-        <p className="echo-done-lead">이렇게 이해하면 맞을까요?</p>
+        <p className="echo-done-lead">{CHECK_TITLE}</p>
         <div className="echo-done-actions">
           <button type="button" className="echo-primary" disabled={busy} onClick={confirm}>맞아요</button>
           <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView(view.purpose ? { kind: 'edit', purpose: view.purpose, text: '' } : { kind: 'retell', text: '' })}>다시 고칠게요</button>

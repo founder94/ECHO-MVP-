@@ -38,7 +38,7 @@ test('화면에 쓰지 않는 단어가 없다', () => {
 
 test('대표가 정한 문장·버튼은 그대로다', () => {
   const opening = read('src/doit/components/feature/ConversationOpening.tsx');
-  assert.match(opening, /어떤 만남을<br \/>원하세요\?/);
+  assert.match(opening, /같이 하고 싶은 일이<br \/>있나요\?/); // 2026-10-04 대표 디자인 교체 문구(서버 첫 질문 기록은 그대로)
   assert.match(opening, /한 줄 더 적기/);
   assert.match(read('src/doit/components/feature/AsleepConnections.tsx'), /당신이 잠든 사이/);
   const conv = read('src/doit/components/feature/CoreConversation.tsx');

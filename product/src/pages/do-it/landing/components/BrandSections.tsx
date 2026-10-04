@@ -1,5 +1,6 @@
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import './brand-sections.css';
+import { GREETING, GREETING_CLOSING, GREETING_TITLE } from './brandGreeting';
 
 // 회사 홈페이지(do-it.company) 전용 브랜딩 구간 (대표 2026-09-23 "모바일 말고는 회사 홈페이지 브랜딩용이야.
 // 우리 핵심 차별점과 브랜딩, 모바일로 연결해서 모바일로 시작할 수 있게. 지금 둘 다 똑같잖아").
@@ -198,15 +199,7 @@ export function BrandAbout() {
 // 지어낸 일화는 넣지 않는다. 뼈대는 대표가 예전에 직접 쓴 인사말(src/pages/home/components/FounderMessageSection.tsx, ECHO 시절)의
 // 문장 그대로다. 바꾼 것은 서비스 이름(ECHO → DO IT)과, 지금 DO IT 에 없는 기능(마음 날씨·노래 기록) 문단을 뺀 것,
 // 그리고 지금 실제로 되는 것(고친 말은 다시 묻지 않음 · 맞다고 한 말로만 소개)과 히어로 문구 한 줄을 이어 붙인 것뿐이다.
-const GREETING_TITLE = 'DO IT은 제가 직접 겪은 경험에서 시작됐습니다.';
-const GREETING: string[] = [
-  '생각은 많은데 정작 제 마음이 왜 이런지 설명하기 어려웠고, AI를 오랫동안 사용하면서도 같은 이야기를 다시 설명하거나, 제가 「그게 아니에요」라고 정정한 내용이 제대로 반영되지 않는 경험을 반복했습니다.',
-  '그때 생각했습니다. AI가 나를 대신 판단하는 게 아니라, 내가 나를 이해할 수 있게 도와주면 어떨까.',
-  '그래서 DO IT에서는 AI가 잘못 이해하면 내가 직접 고칩니다. 고친 말은 다시 묻지 않고, 내가 맞다고 한 말로만 나를 소개합니다.',
-  '사람은 프로필보다, 함께한 행동에서 더 많이 보인다고 믿습니다. 그래서 만남도 프로필이 아니라 대화에서 시작하려 합니다.',
-  'DO IT이 사람을 정의하거나 정답을 내려주는 AI가 되기를 원하지 않습니다.',
-];
-const GREETING_CLOSING = ['나를 판단하는 AI가 아니라,', '내가 나를 알아가게 하는 AI.'];
+// 인사말 원문은 brandGreeting.ts 한 곳(2026-10-04 새 홈페이지도 같은 원문을 쓴다).
 
 export function BrandGreeting() {
   return (

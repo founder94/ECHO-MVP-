@@ -83,7 +83,9 @@ test('ECHO UI 한 벌: 글꼴 Pretendard 하나 · 굵기 4단계(800/700/700/60
   assert.doesNotMatch(ui, /font-weight:(300|400)/);
   assert.match(ui, /\[class\*=" bg-background-"\][^{]*\{background-color:var\(--echo-glass\)!important/);
   assert.match(ui, /:not\(:disabled\):active\{background-color:var\(--echo-glass-press\)!important\}/);
-  assert.doesNotMatch(ui, /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정·짙은 색 0');
+  // 2026-10-04 대표 디자인 교체: 짙은 청록 유리 판(--echo-glass)과 흰 주요 버튼의 청록 글자(--echo-cta-ink)만 예외 — 검정·회색 0
+  assert.doesNotMatch(ui.replace('--echo-glass:rgb(8 70 78/.34)', '').replace('--echo-cta-ink:#0f4a4a', ''), /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정·짙은 색 0');
+  assert.match(ui, /--echo-glass:rgb\(8 70 78\/\.34\)/, '판 = 짙은 청록 유리(파스텔이 비침)');
   for (const f of ['src/doit/components/feature/core-conversation.css', 'src/doit/components/feature/app-pastel.css']) assert.match(read(f), /@import "\.\/echo-ui\.css";/, f);
   for (const f of ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx', 'src/pages/legal/LegalDocument.tsx', 'src/pages/legal/consent/page.tsx']) assert.match(read(f), /doit-app-pastel/, `${f} 파스텔`);
   assert.doesNotMatch(read('src/doit/app/plan-a/screens/PhotoCapture.tsx'), /#242832|#11141a|rgba\(0,0,0,\.78\)|bg-black\/65|#090b10/, '사진 창 검정 0');

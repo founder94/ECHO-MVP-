@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import KeyIcon from '@/doit/components/feature/KeyIcon';
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import Card from "@/doit/components/base/Card";
 import Badge from "@/doit/components/base/Badge";
@@ -31,6 +32,7 @@ export default function Key() {
         )}
         {/* Balance */}
         <Card padding="lg" className="mb-4 border-primary-200 bg-primary-50 text-center">
+          <span className="mb-2 inline-flex justify-center"><KeyIcon size={40} /></span>
           <p className="text-xs text-primary-700">내 KEY 잔액 (데모)</p>
           <p className="mt-1 font-heading text-3xl font-semibold text-foreground-950">
             {total}

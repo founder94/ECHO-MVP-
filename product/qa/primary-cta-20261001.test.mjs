@@ -27,5 +27,7 @@ test('주요 CTA: 그라데이션·유리(흐림·반투명 판) 0 · 그림자 
 test('범위: 연결 흐름(.doit-connect · .doit-match)만 — 보조 버튼·다른 화면 버튼 규칙은 그대로', () => {
   for (const [, sel] of rules) assert.match(sel, /:is\(\.doit-connect,\.doit-match\)/);
   const ui = readFileSync('src/doit/components/feature/echo-ui.css', 'utf8');
-  assert.match(ui, /\.doit-product-action:not\(\.doit-product-action--secondary\)[^{]*\{background:var\(--echo-glass-strong\)!important;border:1px solid #fff!important;color:#fff!important/, '앱 전체 버튼 3단계는 그대로');
+  // 2026-10-04 대표 디자인 교체: 앱 전체 주요 버튼도 같은 흰 바탕 + 깊은 청록 글자(토큰) — 연결 흐름 규칙과 같은 모양
+  assert.match(ui, /\.doit-product-action:not\(\.doit-product-action--secondary\)[^{]*\{background:#fff!important;border:1px solid #fff!important;color:var\(--echo-cta-ink\)!important/, '앱 전체 주요 버튼 = 흰 바탕 + 청록 글자');
+  assert.match(ui, /--echo-cta-ink:#0f4a4a;/);
 });

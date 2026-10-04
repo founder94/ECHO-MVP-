@@ -56,7 +56,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
         if (typeof out.match_id === 'string') { if (claimZzarit(out.match_id)) setMutual({ matchId: out.match_id }); else onOpened(out.match_id); }
         else setNotice('서로 같은 선택을 했어요. 아래 내 연결에서 이어 볼게요.');
       }
-      else if (out.status === 'waiting') setNotice('내 선택은 전해졌어요. 상대가 고르기 전에는 내가 고른 사실이 상대에게 보이지 않아요.');
+      else if (out.status === 'waiting') setNotice('선택을 보냈어요. 상대도 선택하면 알려드릴게요. 상대가 고르기 전에는 내가 고른 사실이 상대에게 보이지 않아요.');
       else setNotice(choice === 'hide' ? '숨겼어요. 이 후보는 다시 보이지 않아요.' : '넘겼어요. 이 후보는 다시 보이지 않아요.');
       await refresh();
     } catch (e) {
@@ -100,7 +100,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
   const fresh = load.candidates.filter(c => !c.waiting).length;
   const title = fresh === 1 ? <>당신이 잠든 사이,<br />ECHO가 한 사람을 발견했어요.</>
     : fresh > 1 ? <>당신이 잠든 사이,<br />ECHO가 {fresh}명을 발견했어요.</>
-    : load.candidates.length ? <>내 선택은 전해졌어요.</> : null;
+    : load.candidates.length ? <>선택을 보냈어요.</> : null;
 
   return <section className="doit-connect doit-candidates" aria-label="ECHO가 준비한 후보">
     {title
@@ -120,7 +120,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState }
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>
           <ul className="doit-candidate-reasons">{c.reasons.map(r => <li key={r}>{r}</li>)}</ul>
           {c.waiting
-            ? <p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />내 선택은 전해졌어요. 상대도 고르면 연결이 열려요.</p>
+            ? <p className="doit-connect-note echo-waiting"><span className="echo-signal-pulse" aria-hidden="true" />선택을 보냈어요. 상대도 선택하면 알려드릴게요.</p>
             : <div className="doit-candidate-actions" role="group" aria-label={`후보 ${i + 1} 고르기`}>
                 <button type="button" className="doit-product-action" disabled={!!busy} onClick={() => void choose(c, 'yes')}>{busy === c.id ? '저장하는 중' : CHOICE_LABEL.yes}<span aria-hidden="true">↗</span></button>
                 <button type="button" className="doit-connect-link" disabled={!!busy} onClick={() => void choose(c, 'no')}>{CHOICE_LABEL.no}</button>
