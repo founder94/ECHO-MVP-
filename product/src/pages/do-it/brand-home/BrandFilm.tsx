@@ -20,10 +20,21 @@ type State = 'idle' | 'playing' | 'error';
 export default function BrandFilm() {
   const [state, setState] = useState<State>('idle');
   const [attempt, setAttempt] = useState(0);
-  const [portrait] = useState(isPortrait);
+  const [portrait, setPortrait] = useState(isPortrait);
   const boxRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const film = portrait ? FILM.portrait : FILM.landscape;
+
+  // 휴대폰을 돌리면 세로/가로 영상을 다시 고른다. 재생 중에는 끊지 않고, 멈춤·실패 화면에서만 바꾼다.
+  useEffect(() => {
+    if (state === 'playing' || typeof window.matchMedia !== 'function') return;
+    let mq: MediaQueryList;
+    try { mq = window.matchMedia(PORTRAIT_QUERY); } catch { return; }
+    setPortrait(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setPortrait(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, [state]);
 
   // 누른 뒤에만 재생(사용자 동작) · 화면 밖이면 멈춤
   useEffect(() => {

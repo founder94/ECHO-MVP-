@@ -48,3 +48,9 @@ test('파일: 가로·세로 mp4/webm · 대표 이미지 · 자막 6개 · 합�
   for (const t of ['서비스 이용 예시', '이렇게 이해했는데, 맞나요?', '찌릿! 텔레파시가 통했어요', '당신이 잠든 사이, AI가 먼저 만나봅니다.', '관련 기능 준비 중']) assert.ok(VTT.includes(t), t);
   assert.match(FILM, /서비스 이용 예시 · 합성 화면/);
 });
+
+test('휴대폰을 돌리면(멈춤·실패 화면에서) 세로/가로 영상을 다시 고름 · 재생 중에는 끊지 않음', () => {
+  assert.match(FILM, /if \(state === 'playing' \|\| typeof window\.matchMedia !== 'function'\) return;/);
+  assert.match(FILM, /mq\.addEventListener\?\.\('change', onChange\)/);
+  assert.match(FILM, /return \(\) => mq\.removeEventListener\?\.\('change', onChange\);/);
+});
