@@ -75,7 +75,7 @@ test('참고 이야기 ③ 「질문 하나 해줘」 = 그 요청에만 질문 
   const c = await ref(h, { text: '물어봐 줘' });
   assert.equal(c.body.question, null);
   // Codex P2(4187055577): 누가 물었다는 이야기는 청한 것이 아님 → 질문 0
-  for (const t of ['친구가 질문을 하나 해줘서 고마웠어', '그 사람이 물어봐서 당황했어']) {
+  for (const t of ['친구가 질문을 하나 해줘서 고마웠어', '그 사람이 물어봐서 당황했어', '친구는 만날 때마다 질문을 하나 해', '동생은 늘 질문을 해요', '동생은 늘 물어봐']) { // Codex P2(4187134611): 서술 꼴은 청한 것이 아님
     s.ai.push({ reply: '그랬군요. 마음이 쓰였겠어요.', question: '그때 어떤 기분이었어요?' });
     const n = await ref(h, { text: t });
     assert.equal(n.status, 200); assert.equal(n.body.question, null, t);
@@ -90,13 +90,13 @@ test('참고 이야기 ③ 「질문 하나 해줘」 = 그 요청에만 질문 
 test('참고 이야기 ④ 「질문하지 마」「그만」 = 짧은 한 줄 · 모델 호출 0 · 저장 0', async () => {
   const { s, h } = await started();
   const calls = s.providerCalls?.length ?? 0, used = usage(s), cl = claims(s).length;
-  for (const t of ['질문하지 마', '오늘은 여기까지', '그만할래', '아니 그만', '질문은 그만']) {
+  for (const t of ['질문하지 마', '오늘은 여기까지', '그만할래', '아니 그만', '질문은 그만', '이제 질문은 그만 해 줘', '안 물어봐도 괜찮아요']) {
     const r = await ref(h, { text: t });
     assert.equal(r.status, 200); assert.equal(r.body.question, null); assert.match(r.body.reply, /더 묻지 않을게요/);
   }
   assert.equal((s.providerCalls?.length ?? 0) - calls, 0); assert.equal(usage(s), used); assert.equal(claims(s).length, cl);
   // Codex P2(4186700786): 이야기 속 「그만」「여기까지」는 멈춤이 아님 → 모델이 그 말에 답한다
-  for (const t of ['친구가 그만 만나자고 해서 속상해', '일을 그만두고 싶어', '여기까지 오느라 힘들었어']) {
+  for (const t of ['친구가 그만 만나자고 해서 속상해', '일을 그만두고 싶어', '여기까지 오느라 힘들었어', '친구가 “질문하지 마”라고 해서 당황했어', '그 사람이 "묻지 마"라고 해서 서운했어']) { // Codex P2(4187134621): 따온 말은 이야기
     s.ai.push({ reply: '많이 속상했겠어요.', question: '' });
     const r = await ref(h, { text: t });
     assert.equal(r.status, 200); assert.equal(r.body.reply, '많이 속상했겠어요.', t);
