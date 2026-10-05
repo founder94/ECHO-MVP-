@@ -20,7 +20,20 @@ if grep -Eq '(^|[;&|(]|\bdo|\bthen|\belse)[[:space:]]*git([[:space:]]+-C[[:space
   fi
 fi
 # 3) GitHub 쪽 병합·워크플로 실행(gh api) — 사람 승인 대상
-if grep -Eq '(^|[;&|(]|\bdo|\bthen|\belse)[[:space:]]*gh[[:space:]]+api\b.*(/merge([[:space:]"'"'"']|$)|/dispatches|/rerun|-X[[:space:]]*(DELETE|PUT))' <<<"$cmd"; then
+#    예외 하나(대표 승인 2026-10-05 16:36 KST 「테스트사이트는 승인 허용 권한 한다」): QA 테스트 사이트 게시만 자동 허용.
+#    조건을 모두 만족할 때만 = 명령 하나(이어 붙인 명령 0) · echo-netlify-deploy.yml 수동 실행 · 가지 echo-qa · target=qa · 운영(prod)·GO 칸 0.
+#    운영(do-it.company · app.do-it.company) 게시는 그대로 막는다(대표 GO + 승인 게이트).
+qa_publish_ok() {
+  grep -Eq '[;&|`]|\$\(' <<<"$cmd" && return 1
+  grep -Eq '^[[:space:]]*gh[[:space:]]+api[[:space:]]+(-X[[:space:]]+POST[[:space:]]+)?/?repos/founder94/(echo-mvp-|ECHO-MVP-)/actions/workflows/echo-netlify-deploy\.yml/dispatches[[:space:]]' <<<"$cmd" || return 1
+  grep -Eq '(^|[[:space:]])-f[[:space:]]+ref=echo-qa([[:space:]]|$)' <<<"$cmd" || return 1
+  grep -Eq '(^|[[:space:]])-f[[:space:]]+"?inputs\[target\]=qa"?([[:space:]]|$)' <<<"$cmd" || return 1
+  grep -Eiq 'prod|inputs\[go\]|inputs\[prod_roles\]' <<<"$cmd" && return 1
+  [ "$(grep -Eo 'ref=' <<<"$cmd" | wc -l)" -eq 1 ] || return 1
+  [ "$(grep -Eo 'inputs\[target\]' <<<"$cmd" | wc -l)" -eq 1 ] || return 1
+  return 0
+}
+if grep -Eq '(^|[;&|(]|\bdo|\bthen|\belse)[[:space:]]*gh[[:space:]]+api\b.*(/merge([[:space:]"'"'"']|$)|/dispatches|/rerun|-X[[:space:]]*(DELETE|PUT))' <<<"$cmd" && ! qa_publish_ok; then
   deny "ECHO 잠금: gh api 로 병합·워크플로 실행·삭제를 하지 않습니다(대표 승인 대상)."
 fi
 exit 0
