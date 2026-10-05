@@ -202,6 +202,8 @@ const SAME_RETRY: ProviderErrorCode[] = ["http_429", "http_5xx", "network"]; // 
 //   사용량 미확인(예약 유지)으로 두지 않고 예약을 바로 푼다(예전: 실패한 4xx 하나가 입력 보장 상한만큼 요청 예산을 계속 잡아 다음 후보가 budget_exceeded).
 //   5xx·시간 초과·연결 끊김은 처리됐을 수 있으므로 예전처럼 예약 유지(대화 예산 보수적 그대로).
 const NO_USAGE_ERRORS: ProviderErrorCode[] = ["http_4xx", "http_429"];
+// 2026-10-05 Codex P2: 408(요청 시간 초과)은 업체가 처리했는지 모른다 → 시간 초과처럼 미확인(예약 유지)으로 둔다.
+const AMBIGUOUS_4XX = new Set([408]);
 // 모델 이름·키·권한 문제(401·403·404)는 같은 요청·다음 요청에서 다시 불러도 같다 → 같은 곳 재시도 0 · 바로 차단기를 열어 쉬는 시간 동안 건너뛴다(다른 후보가 있을 때만 건너뜀 · 기존 규칙).
 const FATAL_4XX = new Set([401, 403, 404]);
 
@@ -347,7 +349,7 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           // 사용량 칸이 있어도 숫자가 하나도 없으면(거절·빈 답의 메타만) 확인된 사용량이 아니다 → 미확인(예약 유지)
           const peUsage = pe.usage && pe.usage.input_tokens != null && pe.usage.output_tokens != null ? pe.usage : null;
           // 키 없음 · HTTP 4xx·429(업체가 처리 전에 거절) = 쓴 토큰 0 → 예약 해제(usage "none") · 그 밖 사용량 없는 실패 = 미확인(예약 유지)
-          const u2 = settle(peUsage, pe.code !== "no_key" && !(NO_USAGE_ERRORS.includes(pe.code) && !peUsage));
+          const u2 = settle(peUsage, pe.code !== "no_key" && !(NO_USAGE_ERRORS.includes(pe.code) && !AMBIGUOUS_4XX.has(pe.detail.status ?? 0) && !peUsage));
           push({ kind, provider: id, model_requested: p.model, model_served: pe.usage?.model_served ?? null, reason, attempt, ok: false, error: pe.code, status: pe.detail.status, latency_ms: pe.latency_ms,
             input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;

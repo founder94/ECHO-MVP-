@@ -882,6 +882,8 @@ export function applyNoneOfChoices(st: AgentState, text: string): TurnResponse {
   st.turns.push(turn); st.pending_fix = null;
   st.rejected_choices = [...new Set([...(st.rejected_choices ?? []), ...shown])].slice(-20);
   cur.rescue_rejected = [...new Set([...(cur.rescue_rejected ?? []), ...shown])];
+  // 2026-10-05 Codex P2: 보기를 다 아니라고 하면 보기가 사라지므로, 보기를 가리키는 질문(「이런 것 중…」)은 서버 질문으로 바꾼다(모델 호출 0).
+  if (refersToChoices(cur.text)) { const a = st.asked[st.asked.length - 1]; const next = safeQuestion(st); if (a && a.text === cur.text) a.text = next; cur.text = next; turn.question = next; turn.fi = [...new Set([...(turn.fi ?? []), "choice_ref_after_none"])]; }
   cur.choices = null; cur.rescue_show = false; cur.rescue_fallback = false; syncAsked(st);
   return { kind: "repair", reply: turn.reply!, question: cur.text, saved: false, extracted: [], recovered: [], finish: false, question_type: cur.type, question_purpose: cur.purpose };
 }
@@ -1465,6 +1467,15 @@ const fallbackLine = (st: AgentState, replacing = false): { text: string; once: 
 // 2026-10-04 서버 계약(QA 「이런 것 중 뭐가 더 좋아요?」 보기 0): 응답의 질문이 보기를 가리키면 같은 응답에 서버가 거른 보기(2개 이상)가 꼭 붙는다.
 //   보기 다시 만들기(ensureRescue)까지 했는데도 없으면 → 보기를 가리키지 않는 질문 한 문장만 다시 청함(1번) → 서버 안내 한 줄 → 이미 한 질문과 글자까지 같지 않은 안내.
 //   바꾼 질문은 상태(current·asked·턴 기록)와 응답에 같이 넣는다(응답 모양 그대로).
+// 2026-10-05 보기 가리킴 질문을 보기 없이 내보내지 않기 위한 서버 질문(모델 호출 0): 안내 두 줄 → 사람 쪽 안내 줄(SAFE_LINES) 중 이미 하지 않았고 만남 준비가 아닌 첫 줄.
+//   모두 했으면 가장 오래전에 한 안내 줄(보기 없는 「이런 것 중…」보다 낫다).
+export function safeQuestion(st: AgentState): string {
+  const bank = SAFE_LINES[st.tone === "casual" ? "casual" : st.tone === "formal" ? "formal" : "polite"];
+  const fresh = [talkFallbackText(st.tone), fillFallbackText(st.tone), ...bank].find((t) => !st.asked.some((a) => squash(a.text) === squash(t)) && !logisticsFlaw(st, t, true));
+  if (fresh) return fresh;
+  const lastAt = (t: string) => st.asked.reduce((m, a, i) => squash(a.text) === squash(t) ? i : m, -1);
+  return bank.slice().sort((x, y) => lastAt(x) - lastAt(y))[0];
+}
 export async function enforceChoiceContract(st: AgentState, llm: Llm, obs: Obs, response: Json): Promise<void> {
   const q = typeof response.question === "string" ? response.question : null;
   if (!q || response.finish || !st.current || st.current.text !== q || !refersToChoices(q)) return;
@@ -1480,13 +1491,7 @@ export async function enforceChoiceContract(st: AgentState, llm: Llm, obs: Obs, 
   // 2026-10-05 Codex P2: 바꿔 쓴 질문도 보통 다시 쓰기와 같은 검사(questionFlaw 전부 — 물음표 두 개 · 설문형 · 나뉜 답 한쪽 등)를 거친다.
   if (ok(r.question) && !questionFlaw(st, latest, r.question, true, q, button)) { next = r.question; obs.retry.push("choice_ref_rewrite"); }
   if (!next) { const f = fallbackLine(st, true); if (f && ok(f.text)) { next = f.text; if (f.once) st.fill_fallback_used = true; obs.retry.push("choice_ref_fallback"); } }
-  const bank = SAFE_LINES[st.tone === "casual" ? "casual" : st.tone === "formal" ? "formal" : "polite"];
-  if (!next) next = [talkFallbackText(st.tone), fillFallbackText(st.tone), ...bank].find((t) => !st.asked.some((a) => squash(a.text) === squash(t)) && !logisticsFlaw(st, t, true)) ?? ""; // 2026-10-05 처음 세 질문엔 장소 안내 0
-  // 2026-10-05 Codex P2: 서버 안내 두 줄도 이미 했으면 이미 한 질문을 다시 내지 않는다 — 사람 쪽 안내 줄(SAFE_LINES) 중 아직 안 한 것을 쓴다.
-  if (!next) { // 다 썼으면 가장 오래전에 쓴 줄(지금 질문 q 바로 앞 질문이 아닌 것) — 보기 없는 보기 질문은 내보내지 않는다
-    const lastAt = (t: string) => st.asked.reduce((m, a, i) => squash(a.text) === squash(t) ? i : m, -1);
-    next = bank.slice().sort((x, y) => lastAt(x) - lastAt(y))[0]; obs.retry.push("choice_ref_bank_reused");
-  }
+  if (!next) { next = safeQuestion(st); obs.retry.push(st.asked.some((a) => squash(a.text) === squash(next)) ? "choice_ref_bank_reused" : "choice_ref_safe_line"); }
   const a = st.asked[st.asked.length - 1];
   if (a && a.text === q) { a.text = next; a.choices = null; a.rescue_show = false; }
   st.current.text = next; st.current.choices = null; st.current.rescue_show = false; st.current.rescue_fallback = false; st.current.rescue_tried = false; // 새 질문 = 「잘 모르겠어요」로 보기를 다시 청할 수 있음

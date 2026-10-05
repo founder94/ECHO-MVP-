@@ -15,6 +15,10 @@ const emit = (file, out) => { const f = path.join(dir, out); writeFileSync(f, ts
 const here = (p) => new URL(p, import.meta.url).pathname;
 emit(here('../supabase/functions/doit-agent/matching.ts'), 'matching.mjs');
 const A = await import(emit(process.env.AGENT_SRC || here('../supabase/functions/doit-agent/agent.ts'), 'agent.mjs'));
+const P = await import(emit(here('../supabase/functions/doit-agent/providers.ts'), 'providers.mjs'));
+const routerUrl = emit(here('../supabase/functions/doit-agent/modelRouter.ts'), 'modelRouter.mjs');
+{ const f = new URL(routerUrl).pathname; writeFileSync(f, readFileSync(f, 'utf8').replace(/from "\.\/providers\.ts"/g, 'from "./providers.mjs"')); }
+const R = await import(routerUrl);
 
 const PURPOSE_BUTTON = '연애로 이어질 만남을 원해요';
 const QS = ['연애할 때 마음이 먼저 가는 순간이 언제예요?', '다정하면 어떨 때 마음이 가요?', '조용히 들어주면 뭐가 제일 좋아요?', '솔직한 연인이면 뭐가 달라져요?'];
@@ -150,4 +154,38 @@ test('Codex P2 ③: 서버 안내 두 줄을 이미 썼으면 이미 한 질문�
   assert.ok(A.SAFE_LINES.polite.includes(r2.question)); assert.ok(o2.retry.includes('choice_ref_bank_reused'));
   assert.ok(A.SAFE_LINES.polite.length > A.MAX_CORE_QUESTIONS + 1, '안내 줄 수 > 한 대화 질문 수');
   for (const tone of ['polite', 'casual', 'formal']) for (const l of A.SAFE_LINES[tone]) { assert.ok(!A.refersToChoices(l), l); assert.ok(!A.logisticsQuestion(l), l); assert.match(l, /\?$/); }
+});
+
+// Codex 리뷰(PR #132 · da0b5f5) P2 두 건 재현
+test('Codex P2 ④: 「보기 다 아니에요」 뒤에도 보기를 가리키는 질문을 보기 없이 남기지 않는다(모델 호출 0)', async () => {
+  const Q0 = '이런 것 중 뭐가 더 좋아요?';
+  const st = afterThree();
+  const cur = { type: 'core', purpose: 'relationship_style', text: Q0, choices: ['조용한 카페', '같이 걷기', '영화 보기'], rescue_show: true };
+  st.asked.push(cur); st.current = cur;
+  let calls = 0;
+  const { response } = await A.runTurn(st, '그건 다 아닌데요', async () => { calls++; return '{}'; });
+  assert.equal(calls, 0, '모델 호출 0');
+  assert.ok(!A.refersToChoices(response.question), `보기 없이 보기 가리킴: ${response.question}`);
+  assert.equal(st.current.text, response.question); assert.equal(st.current.choices, null);
+  assert.ok(!st.asked.slice(0, -1).some((a) => a.text === response.question), '이미 한 질문 아님');
+  // 보기를 가리키지 않는 질문이면 질문은 그대로(예전 동작)
+  const st2 = afterThree();
+  const cur2 = { type: 'core', purpose: 'relationship_style', text: '처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기'], rescue_show: true };
+  st2.asked.push(cur2); st2.current = cur2;
+  const r2 = await A.runTurn(st2, '그건 다 아닌데요', async () => '{}');
+  assert.equal(r2.response.question, '처음엔 뭐 하는 게 편해요?');
+});
+
+test('Codex P2 ⑤: HTTP 408(시간 초과)은 처리 여부를 모르므로 예약을 풀지 않는다 · 400·404·429 는 푼다', async () => {
+  const pol = R.defaultPolicy('gpt-4o-mini');
+  const two = { ...pol, version: 't', providers: { gemini: { model: 'g', allow_user_text: true, enabled: true, verified_tasks: null, price: null }, openai: pol.providers.openai }, tasks: { default: ['gemini', 'openai'] } };
+  const ok = { id: 'openai', call: async (r) => ({ text: '{"ok":true}', provider: 'openai', model_requested: r.model, model_served: r.model, input_tokens: 100, output_tokens: 20, cached_tokens: 0, latency_ms: 5, truncated: false }) };
+  const run = async (status) => {
+    const g = { id: 'gemini', call: async () => { throw new P.ProviderError('gemini', status === 429 ? 'http_429' : 'http_4xx', 5, { status }); } };
+    const r = R.createModelRouter({ policy: two, providers: { gemini: g, openai: ok }, params: A.AGENT_PARAMS, health: {}, sleep: async () => {} });
+    await r.llm('turn', 'sys', { a: 1 });
+    return r.log.filter((x) => x.provider === 'gemini' && x.status === status).map((x) => x.usage);
+  };
+  const u408 = await run(408); assert.ok(u408.length > 0 && u408.every((u) => u === 'unknown'), '408 = 미확인(예약 유지)');
+  for (const s of [400, 404, 429]) { const u = await run(s); assert.ok(u.length > 0 && u.every((x) => x === 'none'), `${s} = 예약 해제`); }
 });
