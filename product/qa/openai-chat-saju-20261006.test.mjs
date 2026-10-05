@@ -13,10 +13,10 @@ const S1 = '11111111-1111-4111-8111-111111111111', S2 = '22222222-2222-4222-8222
 const FACTS = { dayMaster: '갑목', elements: { 목: 3, 화: 1, 토: 2, 금: 1, 수: 1 } };
 
 function load({ ai } = {}) {
-  const st = { keys: [], prompts: [], counts: new Map() };
+  const st = { keys: [], ips: [], prompts: [], counts: new Map() };
   const db = {
     auth: { getUser: async (t) => (t === 'user-token' ? { data: { user: { id: USER } }, error: null } : { data: { user: null }, error: { message: 'bad' } }) },
-    rpc: async (_fn, args) => { st.keys.push(args.p_session_id); const n = (st.counts.get(args.p_session_id) ?? 0) + 1; st.counts.set(args.p_session_id, n); return { data: n <= args.p_daily_limit, error: null }; },
+    rpc: async (_fn, args) => { st.keys.push(args.p_session_id); st.ips.push(args.p_ip); const n = (st.counts.get(args.p_session_id) ?? 0) + 1; st.counts.set(args.p_session_id, n); return { data: n <= args.p_daily_limit, error: null }; },
   };
   const fetchFake = async (_url, init) => {
     const body = JSON.parse(init.body); st.prompts.push(body.messages);
@@ -26,7 +26,7 @@ function load({ ai } = {}) {
   const code = ts.transpileModule(readFileSync(SERVER, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   let handler = null;
   vm.runInNewContext(code, {
-    exports: {}, console, setTimeout, clearTimeout, AbortController, Request, Response, Headers, URL, JSON, Promise, Map, Set, Array, Object, Number, String, Date, Error, RegExp,
+    exports: {}, console, crypto: globalThis.crypto, TextEncoder, Uint8Array, setTimeout, clearTimeout, AbortController, Request, Response, Headers, URL, JSON, Promise, Map, Set, Array, Object, Number, String, Date, Error, RegExp,
     fetch: fetchFake,
     Deno: { env: { get: (k) => ({ SUPABASE_URL: 'http://db', SUPABASE_SERVICE_ROLE_KEY: 's', OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm' })[k] }, serve: (h) => { handler = h; } },
     require: (n) => { if (n.startsWith('npm:@supabase/supabase-js')) return { createClient: () => db }; throw new Error(n); },
@@ -43,14 +43,18 @@ function load({ ai } = {}) {
 }
 const TAROT = { type: 'tarot_reading', cardName: '별', purpose: '천천히 알아가는 만남' };
 
-test('하루 호출 수: 로그인 = 계정 기준 · 로그인 안 함 = 접속 주소 기준 · 세션 번호를 바꿔도 새로 세지 않음', async () => {
+test('하루 호출 수: 로그인 = 계정 기준 · 로그인 안 함 = 접속 주소 기준 · 세션 번호를 바꿔도 새로 세지 않음 · 계정 번호·주소는 표에 남지 않음', async () => {
   const { st, call } = load();
   assert.equal((await call(TAROT, { token: 'user-token', session: S1 })).status, 200);
   assert.equal((await call(TAROT, { token: 'user-token', session: S2 })).status, 200);
-  assert.deepEqual(st.keys, [`user:${USER}`, `user:${USER}`]);
+  const [u1, u2] = st.keys;
+  assert.equal(u1, u2, '같은 사람 = 같은 값'); assert.match(u1, /^u:[0-9a-f]{32}$/);
   await call(TAROT, { token: 'anon-public-key', session: S1 }); await call(TAROT, { session: S2 });
-  assert.deepEqual(st.keys.slice(2), ['ip:203.0.113.7', 'anon:all', 'ip:203.0.113.7', 'anon:all'], '로그인 안 함 = 주소별 + 모두의 상한');
-  assert.ok(!st.keys.some((k) => k === S1 || k === S2), '브라우저 세션 번호로 세지 않음');
+  const [a1, all1, a2, all2] = st.keys.slice(2);
+  assert.equal(a1, a2); assert.match(a1, /^a:[0-9a-f]{32}$/); assert.equal(all1, 'anon:all'); assert.equal(all2, 'anon:all');
+  const joined = st.keys.join(' ');
+  for (const raw of [USER, '203.0.113.7', S1, S2]) assert.ok(!joined.includes(raw), `표에 원래 값 0: ${raw}`);
+  assert.ok(st.ips.every((x) => x === null), '접속 주소 칸에 아무것도 넣지 않음');
 });
 
 test('하루 15번을 넘기면 429 — 세션 번호를 바꿔도 같은 사람이면 막힘', async () => {
@@ -108,7 +112,7 @@ test('사주 이야기: 단정·겁주기·민감 주제 말이 나오면 내보
 });
 
 test('사주 이야기: 끝맺음이 맞아도 몸·병 이야기는 거절(마지막 줄도 허용 모양 — 낱말 검사만으로 막히는지 확인)', async () => {
-  for (const story of ['당신은 조용한 사람입니다.혼자 생각할 때 힘이 날 수 있어요. 새로운 일을 시작할 때 마음이 움직일지도 몰라요.', '당신은 암에 걸릴 수 있어요. 마음이 여린 편이에요.', '당신은 심장이 여린 편일 수 있어요. 숨이 자주 찰지도 몰라요.', '스트레스가 쌓였을지도 몰라요. 잠을 못 이루는 밤이 있을 수 있어요.']) {
+  for (const story of ['당신은 조용한 사람입니다만 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 할 때 마음이 움직일지도 몰라요.', '당신은 다정한 사람이고 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 할 때 마음이 움직일지도 몰라요.', '당신은 조용한 사람입니다.혼자 생각할 때 힘이 날 수 있어요. 새로운 일을 시작할 때 마음이 움직일지도 몰라요.', '당신은 암에 걸릴 수 있어요. 마음이 여린 편이에요.', '당신은 심장이 여린 편일 수 있어요. 숨이 자주 찰지도 몰라요.', '스트레스가 쌓였을지도 몰라요. 잠을 못 이루는 밤이 있을 수 있어요.']) {
     const { call } = load({ ai: () => JSON.stringify({ story, closing: '오늘은 천천히 쉬어 봐요.' }) });
     assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500, story);
   }

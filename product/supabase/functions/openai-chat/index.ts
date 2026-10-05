@@ -146,7 +146,10 @@ function sentencesOf(text: string): string[] {
   // 마침표 뒤에 빈칸이 없어도 나눈다(Codex 4187349199 「~입니다.혼자 …」). 연속 부호(「…」「?!」)는 한 번에.
   return text.split(/(?<=[.!?…])(?![.!?…])\s*|\n+/).map((x) => x.trim()).filter(Boolean);
 }
+// 문장 끝이 여지를 둬도, 문장 안에 「~입니다/합니다」 같은 격식 단정이나 「~한 사람이에요·사람이고」 같은 규정 마디가 있으면 거절(Codex 4187460249).
+const SAJU_CLAUSE_ASSERTION = /[가-힣]니다|사람(?:이에요|이고|이며|이라서|이죠|이야)|성격(?:이에요|이고|이며|이죠)/;
 function isHedgedStory(story: string, closing: string): boolean {
+  if (SAJU_CLAUSE_ASSERTION.test(story) || SAJU_CLAUSE_ASSERTION.test(closing)) return false;
   const lines = sentencesOf(story);
   if (lines.length < 2 || !lines.every((x) => SAJU_STORY_ENDINGS.test(x))) return false;
   const close = sentencesOf(closing);
@@ -182,19 +185,28 @@ function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
   ];
 }
 
-// 로그인한 사람이면 그 계정으로 하루 호출 수를 센다(가입자 공용). 로그인하지 않았으면 접속 주소로 센다.
+// 로그인한 사람이면 그 계정으로, 아니면 접속 주소로 하루 호출 수를 센다.
 // 2026-10-06: 예전에는 브라우저가 만든 세션 번호로만 세서, 번호를 바꿔 가며 보내면 하루 제한 없이 AI 비용을 쓸 수 있었다.
-async function rateKeyFor(req: Request): Promise<string | null> {
+// 개인정보(Codex 4187460244): 계정 번호·접속 주소를 표에 그대로 남기지 않는다 — 서버만 아는 열쇠로 날짜와 함께 섞은 값(HMAC)만 쓴다.
+// 같은 날 같은 사람만 같은 값이 되고, 날짜가 바뀌면 이어 붙일 수 없으며, 표만 보고는 누구인지 알 수 없다. 접속 주소 칸(ip)에도 아무것도 넣지 않는다.
+async function opaqueKey(kind: "u" | "a", value: string, day: string): Promise<string | null> {
+  if (!serviceRoleKey) return null;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(serviceRoleKey), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`openai-chat:${kind}:${day}:${value}`)));
+  return `${kind}:${[...sig.slice(0, 16)].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+
+async function rateKeyFor(req: Request, day: string): Promise<string | null> {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   if (token && supabase) {
     try {
       const { data, error } = await supabase.auth.getUser(token);
-      if (!error && data?.user?.id) return `user:${data.user.id}`;
+      if (!error && data?.user?.id) return await opaqueKey("u", data.user.id, day);
     } catch { /* 공개 키·만료 토큰 → 로그인 안 한 사람으로 */ }
   }
   const ip = getClientIP(req);
-  return ip === "unknown" ? null : `ip:${ip}`;
+  return ip === "unknown" ? null : await opaqueKey("a", ip, day);
 }
 
 function validateRequest(
@@ -404,9 +416,8 @@ Deno.serve(async (req) => {
   }
 
   // DB 기반 호출 제한 (3초 쿨다운 / 하루 15회) → 초과 시 429
-  const ip = getClientIP(req);
   const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
-  const rateKey = await rateKeyFor(req);
+  const rateKey = await rateKeyFor(req, day);
   if (!rateKey) {
     return makeRateLimitResponse(corsHeaders);
   }
@@ -415,7 +426,7 @@ Deno.serve(async (req) => {
     try {
       const { data, error } = await supabase.rpc("openai_rate_limit_allow", {
         p_session_id: rateKey,
-        p_ip: ip,
+        p_ip: null, // 접속 주소를 표에 남기지 않는다(개인정보 · Codex 4187460244)
         p_day: day,
         p_daily_limit: DAILY_LIMIT,
         p_cooldown_ms: COOLDOWN_MS,
@@ -436,7 +447,7 @@ Deno.serve(async (req) => {
   }
 
   // 로그인하지 않은 요청은 주소별 제한을 통과해도, 모두가 함께 쓰는 하루 상한을 한 번 더 통과해야 한다(같은 표·같은 함수 · 대기시간 0).
-  if (rateKey.startsWith("ip:")) {
+  if (rateKey.startsWith("a:")) {
     try {
       const { data, error } = await supabase.rpc("openai_rate_limit_allow", {
         p_session_id: ANON_BUCKET,
