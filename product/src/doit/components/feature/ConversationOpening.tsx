@@ -64,7 +64,7 @@ export default function ConversationOpening({ userId, onDone }: Props) {
     <p className="echo-eyebrow">첫 질문</p>
     {/* 2026-10-04 대표 디자인 교체: 모바일 시작 문구. 서버가 기록하는 첫 질문(doit-agent FIRST_QUESTION 「어떤 만남을 원하세요?」)은 그대로 — 바꾸려면 서버 배포(대표 결정). */}
     <h1>같이 하고 싶은 일이<br />있나요?</h1>
-    <p className="echo-lead">하나만 골라 주세요. 한 줄 덧붙이면 거기서부터 이야기를 시작할게요.</p>
+    <p className="echo-lead">어떤 만남을 원하는지 들려주세요. 하나 고르고 한 줄 덧붙이면, 거기서부터 이야기할게요.</p>
 
     {loadError && <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void loadPurposes()}>다시 불러오기</button></div>}
     {!loadError && purposes === null && <p className="echo-busy" role="status"><Loader2 size={16} className="animate-spin" />만남의 종류를 불러오고 있어요</p>}

@@ -151,7 +151,7 @@ await run(2, 'candidate 1 (단계 공개)', IPHONE, { candidates: [cand('c1')] }
   expect(t.includes('ECHO가 한 사람을 발견했어요.'), '첫 문장'); expect(!t.includes('내가 직접 한 말'), '열기 전 이유 노출');
   expect(await p.getByRole('button', { name: '이어지고 싶어요' }).count() === 0, '열기 전 선택 버튼');
   await p.screenshot({ path: 'uxshots/02a-closed.png' });
-  await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); t = await text(p);
+  await p.getByRole('button', { name: /더 알아보기/ }).click(); t = await text(p);
   expect(t.includes('내가 직접 한 말'), '이유 표시'); expect(await p.getByRole('button', { name: /이어지고 싶어요/ }).count() === 1, '선택 버튼');
   await p.screenshot({ path: 'uxshots/02b-open.png' }); return '닫힘 → 이유 → 선택';
 });
@@ -161,34 +161,34 @@ await run(3, 'candidate 3', IPHONE, { candidates: [cand('c1'), cand('c2'), cand(
   return '카드 3 · 모두 닫힘';
 });
 await run(4, 'nearby 있음(서버가 모르는 거리 필드를 보내도 화면이 만들지 않음)', IPHONE, { candidates: [cand('c1', { distance_band: 'same_area', distance_m: 486 })] }, async (p) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); const t = await text(p);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); const t = await text(p);
   expect(!FORBIDDEN_NEAR.test(t), `거리 표시됨: ${t.match(FORBIDDEN_NEAR)?.[0]}`); return '거리 표시 0(서버 계약 미확정 · 확인 불가)';
 });
 await run(5, 'nearby 없음', IPHONE, { candidates: [cand('c1')] }, async (p) => { await go(p); expect(!FORBIDDEN_NEAR.test(await text(p)), '거리 문구'); return '거리 문구 0'; });
 await run(6, 'YES → 대기', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
   const t = await text(p); expect(t.includes('선택을 보냈어요'), '대기 문구'); expect(!/상대도 (당신이 )?궁금|상대도 관심/.test(t), '상대 관심 추측');
   expect(s.st.calls.some(c => c.action === 'choose' && c.choice === 'yes'), 'choose yes 요청');
   await p.screenshot({ path: 'uxshots/06-waiting.png' }); return 'choose=yes 전송 · 대기 표시';
 });
 await run(7, 'NO', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: '이번에는 넘길게요' }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: '이번에는 넘길게요' }).click(); await p.waitForTimeout(500);
   expect((await text(p)).includes('넘겼어요'), '넘김 문구'); expect(s.st.calls.some(c => c.choice === 'no'), 'no 요청'); return 'choose=no';
 });
 await run(8, 'HIDE', IPHONE, { candidates: [cand('c1')] }, async (p, s) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: '숨기기' }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: '숨기기' }).click(); await p.waitForTimeout(500);
   expect((await text(p)).includes('숨겼어요'), '숨김 문구'); expect(s.st.calls.some(c => c.choice === 'hide'), 'hide 요청'); return 'choose=hide';
 });
 await run(9, '선택 후 대기(다시 열어도 유지)', IPHONE, { candidates: [cand('c1', { my_choice: 'yes', waiting: true })] }, async (p) => {
   await go(p); const t = await text(p); expect(t.includes('선택을 보냈어요.'), '대기 제목'); expect(t.includes('내가 직접 한 말'), '고른 후보는 열린 채'); return '서버 waiting 그대로';
 });
 await run(10, 'mutual (서버가 mutual 이라고 답할 때만)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
-  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('서로 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
+  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('두 분 모두 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
   await p.waitForTimeout(900); await p.screenshot({ path: 'uxshots/10-mutual.png' }); return 'ZZARIT · 상대 정보 0';
 });
 await run(11, 'connection (서버 match_id 로 이동)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
   await p.getByRole('button', { name: /다음 단계 보기/ }).click(); await p.waitForTimeout(1200);
   const focused = await p.evaluate((id) => document.activeElement?.id === `match-${id}`, MID);
   expect(focused, '그 연결로 이동 안 됨'); return `#match-${MID.slice(0, 8)} 포커스`;
@@ -237,7 +237,7 @@ await run(22, 'network slow(3초)', IPHONE, { candidates: [cand('c1')], delay: 3
   expect((await text(p)).includes('한 사람을 발견했어요'), '늦게 도착 표시'); return '로딩 문구 → 도착';
 });
 await run(23, 'reload', IPHONE, { candidates: [cand('c1')] }, async (p) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
   await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(600); expect((await text(p)).includes('선택을 보냈어요.'), '새로고침 뒤 대기 유지'); return '서버 상태로 복원';
 });
 await run(24, 'browser back', IPHONE, { candidates: [cand('c1')] }, async (p) => {
@@ -247,7 +247,7 @@ await run(24, 'browser back', IPHONE, { candidates: [cand('c1')] }, async (p) =>
 });
 for (const [n, name, vp] of [[25, '360px', W360], [26, 'Galaxy Flip viewport(360×880)', FLIP], [27, 'iPhone viewport(390×844)', IPHONE]]) {
   await run(n, name, vp, { candidates: [cand('c1')], matches: [match({ my_answer: 'a', partner_answered: true, revealed: true, partner: PARTNER, messages: [{ id: 'm1', mine: false, body: '안녕하세요!', created_at: '2026-09-30T01:00:00Z' }] })] }, async (p) => {
-    await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); await p.waitForTimeout(300);
+    await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.waitForTimeout(300);
     const ov = await overflow(p); expect(ov <= 0, `가로 넘침 ${ov}px`);
     const btn = await p.getByRole('button', { name: /이어지고 싶어요/ }).boundingBox(); expect(btn && btn.height >= 44, `누르는 칸 높이 ${btn?.height}`);
     await p.screenshot({ path: `uxshots/${n}-${vp.width}x${vp.height}.png`, fullPage: true }); return `가로 넘침 0 · 버튼 높이 ${Math.round(btn.height)}px`;
@@ -359,7 +359,7 @@ for (const [n, w] of [[48, 320], [49, 430]]) await run(n, `P13·P15·P17 ${w}px 
 });
 
 // 50~60 FLOW + SAFETY(2026-10-01 대표 「COMPLETE PRODUCT FLOW」·「SAFETY LAYER」).
-const pickReason = async (p) => { await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).click(); };
+const pickReason = async (p) => { await p.getByRole('button', { name: /더 알아보기/ }).click(); };
 await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·재진입 0', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await pickReason(p); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(400);
   expect(await p.locator('.echo-zzarit').count() === 1, 'ZZARIT 없음');
@@ -397,7 +397,7 @@ await run(56, 'SAFETY 후보 신고 3번: 불편해요 → 신고할게요 → �
   const t = await text(p); expect(t.includes('접수했어요.') && t.includes('다시 추천되지 않아요'), '접수 문구'); return 'choose hide+block+threat · 접수했어요';
 });
 await run(57, 'SAFETY 후보 차단 2번 · 예전 서버(저장 확인 없음)면 「접수·차단했어요」 말하지 않음', IPHONE, { candidates: [cand('c1'), cand('c2')], oldServer: true }, async (p, s) => {
-  await go(p); await p.getByRole('button', { name: /왜 이 사람인지 보기/ }).first().click();
+  await go(p); await p.getByRole('button', { name: /더 알아보기/ }).first().click();
   await p.getByRole('button', { name: /불편해요 · 차단 · 신고/ }).first().click(); await p.getByRole('button', { name: '차단할게요' }).click(); await p.waitForTimeout(500);
   const t = await text(p); expect(s.st.calls.some(c => c.action === 'choose' && c.block === true && !('reason' in c)), '차단 요청');
   expect(!t.includes('접수했어요') && !t.includes('차단했어요') && t.includes('숨겼어요'), '서버 확인 없이 차단·접수 문구'); return '서버 확인 없으면 숨김만 말함';
