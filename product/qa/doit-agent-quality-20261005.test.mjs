@@ -207,3 +207,28 @@ test('Codex P2 ⑧: 다시 쓰기가 모두 실패해도 한쪽만 묻는 앞선
     assert.notEqual(response.question, ONE, `한쪽 질문이 되살아남: ${response.question} ${JSON.stringify(obs.retry)}`);
   }
 });
+
+test('Codex P2(4183004880): 안내 줄을 다 쓴 뒤 「보기 다 아니에요」 — 새 질문은 모델이 만들어도 보기 거절은 남고 저장 0', async () => {
+  const Q0 = '이런 것 중 뭐가 더 좋아요?';
+  const st = afterThree();
+  st.fill_fallback_used = true;
+  st.asked.push({ type: 'core', purpose: 'relationship_style', text: A.talkFallbackText(st.tone) }); // 안내 줄도 이미 물음
+  const shown = ['조용한 카페', '같이 걷기', '영화 보기'];
+  const cur = { type: 'core', purpose: 'relationship_style', text: Q0, choices: shown.slice(), rescue_show: true };
+  st.asked.push(cur); st.current = cur;
+  let calls = 0;
+  const llm = async (kind) => { calls++; return kind === 'turn' ? turnJson({ extracted: [{ purpose: 'relationship_style', note: '다 아님', quote: '그건 다 아닌데요' }], next: { type: 'core', purpose: 'values_character', question: '사람 볼 때 제일 먼저 보는 게 뭐예요?', hint: '', choices: [] } }) : JSON.stringify({ choices: [] }); };
+  const { response } = await A.runTurn(st, '그건 다 아닌데요', llm);
+  assert.ok(calls > 0, '새 질문은 모델이 만듦');
+  assert.equal(response.saved, false, '저장 0');
+  assert.deepEqual(response.extracted, []);
+  for (const c of shown) assert.ok(st.rejected_choices.includes(c), `거절한 보기 기록: ${c}`);
+  assert.ok(!(st.current.choices ?? []).some((c) => shown.includes(c)), '거절한 보기가 다시 나오지 않음');
+});
+
+test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아님 · 한 글자 경우(술·차)도 읽음', () => {
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '친구 따라 술집 가는 게 좋아요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 다르게 고르는 이유가 있어요?'), true);
+  assert.equal(A.keepsCondition('술 아니면 차', '술과 차 중 뭐가 좋아요?'), true);
+  assert.equal(A.keepsCondition('술 아니면 차', '술 마시면 뭐가 좋아요?'), false);
+});

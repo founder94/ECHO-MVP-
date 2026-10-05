@@ -162,8 +162,8 @@ async function finishClaim(admin: Db, userId: string, id: string, attempt?: numb
     let q = admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString() })
       .eq("user_id", userId).eq("request_id", id).eq("action", CLAIM_ACTION).eq("status", "pending");
     if (attempt != null) q = q.eq("applied_revision", attempt);
-    const { error } = await q;
-    if (!error) return true;
+    const { data, error } = await q.select("request_id");
+    if (!error) { if (data && data.length) return true; break; } // Codex P2(4183004866): 0행 = 자리가 그사이 바뀜(다른 시도 · 이미 놓음) → 끝냄 확인 실패
   }
   logDiag({ step: "claim_finish", error: true });
   return false;

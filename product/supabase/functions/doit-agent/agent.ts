@@ -140,14 +140,15 @@ function condBases(latest: string): string[] {
 }
 export const conditionalAnswer = (latest: string) => COND_WORDS.test(String(latest ?? "")) || condBases(latest).length >= 2;
 // 2026-10-05 Codex P2: 「경우」「아니면」「또는」만 있으면 한쪽 질문도 통과했다(「남자인 경우엔 술이 좋아요?」) — 나뉨을 가리키는 말(따라·각각·다르·둘 다·마다)이나 두 경우의 말이 모두 있어야 한다.
-const COND_ACK = /따라|각각|다르|달라|둘\s*다|마다/;
+// Codex P2(4183004890): 맨 「따라」(「친구 따라 …」)는 나뉨 표시가 아니다 — 「에 따라」「경우에 따라」 같은 대조 말만.
+const COND_ACK = /(에|경우에|경우)\s*따라|각각|다르|달라|둘\s*다|마다/;
 // Codex P2(4182821571): 「A 아니면 B」「A 또는 B」 — 이음말 앞뒤 두 낱말씩에서 양쪽에 같이 있는 말(「사람」 등)과 조사를 빼고 남은 첫 낱말 = 두 경우.
 const ALT_SPLIT = /\s*(?:아니면|또는)\s*/;
 const ALT_TRIM = (w: string) => w.replace(/[^가-힣a-zA-Z0-9]/g, "").replace(/(이랑|랑|이나|나|과|와|이|가|을|를|은|는|도|요)$/, "");
 function altBases(latest: string): string[] {
   const parts = String(latest ?? "").split(ALT_SPLIT);
   if (parts.length < 2) return [];
-  const words = (x: string) => x.split(/[\s,.!?~…]+/).map(ALT_TRIM).filter((w) => w.length >= 2);
+  const words = (x: string) => x.split(/[\s,.!?~…]+/).map(ALT_TRIM).filter((w) => w.length >= 1); // Codex P2(4183004898): 「술」「차」「집」 같은 한 글자도 경우가 된다
   const before = words(parts[0]).slice(-2), after = words(parts[1]).slice(0, 2);
   const a = before.filter((w) => !after.includes(w)).at(-1), b = after.find((w) => !before.includes(w));
   return a && b && a !== b ? [a, b] : [];
@@ -1539,7 +1540,18 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     else st.pending_fix = null;
   }
   // 2026-10-01 펼쳐 둔 보기에 「그건 다 아닌데」: 억지로 고르게 하지 않고 직접 말하게 이끈다(AI 호출 0 · 저장 0 · 그 보기는 다시 안 나옴).
-  if (!after && !ui && !forced && st.current && (st.current.choices?.length ?? 0) >= CHOICE_MIN && (st.current.rescue_show || opts.rescueOpen) && isNoneOfChoices(text) && (!refersToChoices(st.current.text) || fallbackLine(st, true))) return { obs, response: { ...applyNoneOfChoices(st, text) } };
+  if (!after && !ui && !forced && st.current && (st.current.choices?.length ?? 0) >= CHOICE_MIN && (st.current.rescue_show || opts.rescueOpen) && isNoneOfChoices(text)) {
+    if (!refersToChoices(st.current.text) || fallbackLine(st, true)) return { obs, response: { ...applyNoneOfChoices(st, text) } };
+    // Codex P2(4183004880): 안내 줄을 이미 다 써서 새 질문은 모델이 만들어야 할 때도 — 보기 거절은 그대로 남기고(다시 안 나옴 · 보기 접음) 저장 0
+    const cur = st.current; const shown = [...(cur.choices ?? [])];
+    st.rejected_choices = [...new Set([...(st.rejected_choices ?? []), ...shown])].slice(-20);
+    cur.rescue_rejected = [...new Set([...(cur.rescue_rejected ?? []), ...shown])];
+    cur.choices = null; cur.rescue_show = false; cur.rescue_fallback = false; syncAsked(st);
+    const r = await runTurn(st, text, llm, { ...opts, rescueOpen: false, choice: undefined });
+    const res = r.response as Record<string, unknown>;
+    if (!res.error) { res.saved = false; res.extracted = []; const t = st.turns.at(-1); if (t && t.user === text) { t.saved = false; t.extracted = []; t.fi = [...new Set([...(t.fi ?? []), "choice_ref_after_none"])]; } }
+    return r;
+  }
   const isChoice = !after && !ui && !forced && validChoice(st, opts.choice, text);
   // 2026-10-05 방금 말이 누른 버튼 글자(목적 타일 · 고른 보기)인지 — 낱말 잇기 검사·「글자 그대로 넣으라」 다시 청하기를 하지 않는다(「원해요 라는 말이 들어가면 …?」 원인).
   const button = !after && !ui && !forced && buttonInput(st.current?.text, isChoice, work);

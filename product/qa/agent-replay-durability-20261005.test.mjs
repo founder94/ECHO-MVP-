@@ -16,7 +16,7 @@ once("import ts from 'typescript';", `import ts from ${JSON.stringify(pathToFile
 once("const DIR = new URL('../supabase/functions/doit-agent/', import.meta.url);", `const DIR = new URL(${JSON.stringify(pathToFileURL(path.join(source, 'product/supabase/functions/doit-agent/')).href + '/')});`);
 once("let filters = []; let op = 'select';", "let filters = []; let faultAction = null; let op = 'select';");
 once("eq: (col, v) => { filters.push", "eq: (col, v) => { if (col === 'action') faultAction = v; filters.push");
-once("const run = () => {", "const run = () => { if (state.failClaimFinish && name === 'doit_request_events' && op === 'update' && faultAction === 'agent_turn_claim' && patch && patch.status === 'applied' && !patch.action) { state.injected = (state.injected ?? 0) + 1; return { data: null, error: { code: 'SYNTHETIC_WRITE' } }; } if (state.failClaimUpdate && name === 'doit_request_events' && op === 'update' && faultAction === 'agent_turn_claim' && patch && patch.action === 'agent_turn') { state.injected = (state.injected ?? 0) + 1; return { data: null, error: { code: 'SYNTHETIC_WRITE' } }; }");
+once("const run = () => {", "const run = () => { if (state.zeroClaimFinish && name === 'doit_request_events' && op === 'update' && faultAction === 'agent_turn_claim' && patch && patch.status === 'applied' && !patch.action) { state.injected = (state.injected ?? 0) + 1; return { data: [], error: null }; } if (state.failClaimFinish && name === 'doit_request_events' && op === 'update' && faultAction === 'agent_turn_claim' && patch && patch.status === 'applied' && !patch.action) { state.injected = (state.injected ?? 0) + 1; return { data: null, error: { code: 'SYNTHETIC_WRITE' } }; } if (state.failClaimUpdate && name === 'doit_request_events' && op === 'update' && faultAction === 'agent_turn_claim' && patch && patch.action === 'agent_turn') { state.injected = (state.injected ?? 0) + 1; return { data: null, error: { code: 'SYNTHETIC_WRITE' } }; }");
 helper += '\nexport {load,newState,T,Q,X,rid,ID};\n';
 const file = pathToFileURL(path.join(mkdtempSync(path.join(tmpdir(), 'replay-durability-')), 'helpers.mjs'));
 writeFileSync(file, helper);
@@ -94,5 +94,15 @@ test('⑥ 「A 아니면 B」 뒤 두 경우를 모두 담은 질문은 나뉨�
   assert.equal(keepsCondition('조용한 사람 아니면 활발한 사람이 좋아요', '조용한 사람이랑 활발한 사람 중 누구와 말이 편해요?'), true);
   assert.equal(keepsCondition('카페 또는 술집이요', '카페랑 술집 중 어디가 대화가 잘 돼요?'), true);
   assert.equal(keepsCondition('조용한 사람 아니면 활발한 사람이 좋아요', '활발한 사람이랑 있으면 뭐 해요?'), false, '한쪽만 고른 질문은 여전히 막힘');
+});
+
+test('⑦ 보기 자리 끝내기가 0행(자리가 그사이 바뀜)이어도 200 으로 답하지 않음(503)', async () => {
+  const { s, h, sid } = await started();
+  s.rescue = [{ choices: ['잘 웃는 사람', '말을 잘 들어주는 사람'] }];
+  s.zeroClaimFinish = true;
+  const r = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
+  assert.ok(s.injected >= 1, '0행 끝내기가 실제로 들어감');
+  assert.equal(r.status, 503, JSON.stringify(r.body));
+  assert.equal(r.body.code, 'CLAIM_UNCONFIRMED');
 });
 
