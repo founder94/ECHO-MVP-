@@ -31,15 +31,15 @@ test('윗줄 짙은 띠 0 · 메뉴(≡)·뒤로 알약은 화면 위에 따로 
   assert.match(rules, /\.doit-product-nav\{background:rgb\(18 84 92\/\.30\)!important/, '아래 탭 검정 판 0');
 });
 
-test('홈·무엇부터·프로필: 유리 리본 · 가운데 제목 · 작은 영문/머리글 0 · 안내 줄 축소', () => {
+test('홈·무엇부터·프로필: 유리 리본 · 가운데 제목 · 글은 그대로(대표 「글은 완성」)', () => {
   const home = src('src/doit/pages/do-it/home/page.tsx');
   assert.match(home, /<div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="\/doit\/echo-ribbon\.webp" alt=""/);
-  assert.doesNotMatch(home, /DO IT · 만나기 전에|잘못 알아들었으면 바로 고쳐 주세요/);
+  for (const t of ['DO IT · 만나기 전에', '잘못 알아들었으면 바로 고쳐 주세요.']) assert.ok(home.includes(t), t);
   const profile = src('src/doit/pages/do-it/profile/page.tsx');
-  assert.doesNotMatch(profile, /MY OWN WORDS|DO IT · PROFILE|연결 준비<\/span>/);
-  assert.match(profile, /<div className="doit-product-head">\n\s*<h2 className="doit-product-title">내 프로필<\/h2>/);
+  for (const t of ['MY OWN WORDS', 'DO IT · PROFILE', '연결 준비</span>', '내 프로필</h2>']) assert.ok(profile.includes(t), t);
   const journey = src('src/doit/pages/do-it/start-journey/page.tsx');
   assert.match(journey, /echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home"/);
+  assert.ok(journey.includes('<p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>'));
 });
 
 test('대화 시작: 목적은 칩, 제목은 한 문장(「…원해요 편하게…」로 붙지 않음)', () => {
