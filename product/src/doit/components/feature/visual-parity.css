@@ -102,3 +102,12 @@
   animation:echo-light-flow 16s ease-in-out infinite alternate}
 @keyframes echo-light-flow{from{background-position:0% 0%,0% 0%,0 0,0 0}to{background-position:100% 100%,100% 100%,0 0,0 0}}
 @media(prefers-reduced-motion:reduce){:root:root :is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{animation:none}}
+
+/* 정정·확인이 390×844 한 화면에 들어오게(시안 4번은 카드 한 장): 칸 이름을 뜻 앞에 같은 줄로(작은 글씨) · 첫 안내는 한 줄 + 링크 */
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li{display:block!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li>b{display:inline;margin-right:6px}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li>.echo-profile-item{display:inline!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li>.echo-profile-item small{display:block}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint p{display:inline}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint-actions{display:inline-flex;gap:12px;margin-left:8px}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions>*{margin:0!important}
