@@ -342,3 +342,10 @@ test('Codex P2(4185047847): 보기 계약 길에서도 나뉜 답 뒤 안내 줄
   await A.enforceChoiceContract(st2, oneSided, obsOf(), r2);
   assert.equal(r2.error, 'QUESTION', JSON.stringify(r2));
 });
+
+test('Codex P2(4185047847) 같은 뿌리: 서버 안내 한 줄을 고르는 길(턴 다시 쓰기 · 보기 계약 · 같은 질문 피하기)이 모두 나뉨을 아는 한 곳(splitFallback)을 쓴다', () => {
+  const src = readFileSync(here('../supabase/functions/doit-agent/agent.ts'), 'utf8');
+  assert.equal((src.match(/splitFallback\(st, /g) ?? []).length, 3);
+  // 보통 안내(fallbackLine)를 바로 쓰는 곳은 「보기 다 아니에요」 길(사용자 말이 나뉜 답이 아님)과 splitFallback 안뿐
+  assert.equal((src.match(/fallbackLine\(st/g) ?? []).length, 3);
+});

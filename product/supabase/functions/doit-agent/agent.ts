@@ -1679,8 +1679,10 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     input.previous_attempt = { why: `${RETRY_FEEDBACK.asked_before} 이번에는 open_purposes 칸 가운데 하나에서, asked_before 에 없는 새 장면·구체적인 예를 묻는다.` };
     let alt2: Parsed | null = null;
     try { alt2 = parseTurn(await call(llm, obs, "turn", turnPromptFor(st.tone, input), input)); } catch { obs.retry.push("dup_switch_failed"); }
-    if (alt2 && alt2.next.question && !questionBlocked(st, alt2.next.question) && alt.includes(alt2.next.purpose) && !logisticsFlaw(st, alt2.next.question) && !metaQuote(alt2.next.question)) { out = { ...out, next: alt2.next }; obs.retry.push("dup_switch"); }
-    else { const f = fallbackLine(st); if (f) { out = { ...out, next: { type: "core", purpose: alt[0], question: f.text, hint: "", check: null } }; if (f.once) st.fill_fallback_used = true; obs.retry.push("dup_fallback"); } else obs.retry.push("dup_unresolved"); } // 2026-10-04 만남 준비 상한이면 이야기 쪽 안내
+    // Codex P2(4185047847) 같은 뿌리: 같은 질문을 피해 바꾼 질문·안내 줄도 나뉜 답이면 나뉨을 받아야 한다.
+    const split = out.kind === "answer" && conditionalAnswer(work);
+    if (alt2 && alt2.next.question && !questionBlocked(st, alt2.next.question) && alt.includes(alt2.next.purpose) && !logisticsFlaw(st, alt2.next.question) && !metaQuote(alt2.next.question) && (!split || keepsCondition(work, alt2.next.question))) { out = { ...out, next: alt2.next }; obs.retry.push("dup_switch"); }
+    else { const f = splitFallback(st, work, split); if (f) { out = { ...out, next: { type: "core", purpose: alt[0], question: f.text, hint: "", check: null } }; if (f.once) st.fill_fallback_used = true; obs.retry.push("dup_fallback"); } else obs.retry.push("dup_unresolved"); } // 2026-10-04 만남 준비 상한이면 이야기 쪽 안내
   }
   const limitReached = st.turns.length + 1 >= MAX_TALK_TURNS;
   const response: Json = { ...applyTurn(st, work, out, { limitReached, uiCorrection: !!ui, ...(forced ? { forced } : {}), ...(isChoice ? { choice: true } : {}), ...(opts.noFacts ? { noFacts: true } : {}) }) };
