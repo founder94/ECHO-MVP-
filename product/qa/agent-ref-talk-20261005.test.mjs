@@ -74,6 +74,17 @@ test('참고 이야기 ③ 「질문 하나 해줘」 = 그 요청에만 질문 
   s.ai.push({ reply: '그럼 하나만요.', question: '언제였어요? 누구랑요?' });
   const c = await ref(h, { text: '물어봐 줘' });
   assert.equal(c.body.question, null);
+  // Codex P2(4187055577): 누가 물었다는 이야기는 청한 것이 아님 → 질문 0
+  for (const t of ['친구가 질문을 하나 해줘서 고마웠어', '그 사람이 물어봐서 당황했어']) {
+    s.ai.push({ reply: '그랬군요. 마음이 쓰였겠어요.', question: '그때 어떤 기분이었어요?' });
+    const n = await ref(h, { text: t });
+    assert.equal(n.status, 200); assert.equal(n.body.question, null, t);
+  }
+  for (const t of ['질문 하나 해줘요', '뭐라도 물어봐 줘', '질문 좀 던져 줘!']) {
+    s.ai.push({ reply: '좋아요.', question: '요즘 가장 자주 떠오르는 사람이 있어요?' });
+    const y = await ref(h, { text: t });
+    assert.equal(y.body.question, '요즘 가장 자주 떠오르는 사람이 있어요?', t);
+  }
 });
 
 test('참고 이야기 ④ 「질문하지 마」「그만」 = 짧은 한 줄 · 모델 호출 0 · 저장 0', async () => {
