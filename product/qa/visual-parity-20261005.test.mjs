@@ -43,7 +43,9 @@ test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화�
     assert.ok(worst >= 4.5, `${name} 흰 글자 대비 ${worst.toFixed(2)}:1`);
   }
   assert.match(CSS, /--echo-glass-blur:blur\(18px\)/);
-  assert.match(CSS, /\.echo-done\{background:transparent!important;border:0!important/);
+  assert.match(CSS, /\.echo-done\.echo-check\{background:transparent!important;border:0!important/, '판 걷기는 정정·확인 카드만');
+  assert.doesNotMatch(CSS, /\.echo-done\{background:transparent/, '정리·소개·음악 카드 판은 지우지 않음(Codex 4184387071)');
+  assert.match(CSS, /\.echo-done:not\(\.echo-check\)\)\{background:var\(--echo-glass\)!important/);
   assert.match(CSS, /prefers-reduced-transparency:reduce/, '투명도 줄이기 사용자는 더 진한 판');
 });
 

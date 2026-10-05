@@ -17,9 +17,10 @@
 }
 
 /* ── 판: 연기빛 유리 한 겹 ── */
-:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-asleep-card,.doit-candidate,.doit-match:not([data-state="zzarit"]),.doit-settings-panel,.doit-settings-note,.doit-install,.doit-understanding-notice,.doit-profile-card,.echo-insight,.echo-editor,.echo-brief,.echo-synthesis,.echo-restart,.echo-pause,.echo-zzarit,.doit-safety,.doit-meet-safety,.echo-profile-card,.echo-guide-hint,.echo-chat-tools){background:var(--echo-glass)!important;border-color:var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-asleep-card,.doit-candidate,.doit-match:not([data-state="zzarit"]),.doit-settings-panel,.doit-settings-note,.doit-install,.doit-understanding-notice,.doit-profile-card,.echo-insight,.echo-editor,.echo-brief,.echo-synthesis,.echo-restart,.echo-pause,.echo-zzarit,.doit-safety,.doit-meet-safety,.echo-profile-card,.echo-guide-hint,.echo-chat-tools,.echo-done:not(.echo-check)){background:var(--echo-glass)!important;border-color:var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
 /* 정정·확인 화면을 감싸던 바깥 판은 걷어 낸다(판 안의 판 0) */
-:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-done{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* Codex 4184387071: 바깥 판을 걷는 것은 정정·확인 카드(.echo-check)만 — 정리·소개 초안·음악·옛 대화 완료 카드는 공통 유리 판 그대로 */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-done.echo-check{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;-webkit-backdrop-filter:none;backdrop-filter:none}
 /* 보조 버튼(조금 달라요 · 그게 아니에요 · 직접 설명할게요 · 칸 고르기) = 짙은 연기빛 유리 · 글자 가운데 */
 :root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-secondary,.doit-product-action--secondary,.echo-choice-confirm.is-secondary,.echo-reactions button,.echo-choice-option,.echo-chat-chips button){background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
 
