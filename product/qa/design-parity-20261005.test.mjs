@@ -21,7 +21,7 @@ test('범위: 홈·프로필·무엇부터·윗줄·아래 탭만 — 대화·�
   }
   assert.doesNotMatch(rules, /--echo-glass\s*:/, '공통 판 색 토큰 0');
   assert.match(rules, /\.doit-product-topbar\{position:relative!important;background:transparent!important/);
-  assert.match(rules, /\.doit-product-nav\{background:rgb\(18 84 92\/\.30\)!important/);
+  assert.match(rules, /\.doit-product-nav\{background:rgb\(14 60 70\/\.74\)!important/);
 });
 
 test('겹치는 파일 0: 대화·첫 질문·메뉴 파일은 PR #138 담당이라 이 PR 의 시안 작업에서 바꾸지 않음', () => {
@@ -87,5 +87,15 @@ test('Codex 4183640424 · 대표 「글은 완성」: 가입 안내·첫 질문 
   assert.ok(sc.includes('원하는 관계를 고르고, 다섯 가지 질문에 답하고, 사진과 소개를 준비해요.'));
   assert.ok(!sc.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').includes('전화 인증까지 마치면'), '전화 인증은 연결 자격이 아님');
   assert.ok(src('src/doit/components/feature/ConversationOpening.tsx').includes('어떤 만남을 원하는지 들려주세요. 하나 고르고 한 줄 덧붙이면, 거기서부터 이야기할게요.'));
-  assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>'));
+  // 보기 만들기 실패 가지(보기 0개)는 사실대로 — Codex echo-review 5994212141: 「편하게 고를 수 있게」는 보기가 없을 때 약속이 된다
+  assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>'));
+});
+
+test('Codex P2(4183198245): 이 파일의 판·아래 탭·주요 버튼 = 흰 글자 4.5:1 이상(바탕 그림 가장 밝은 점 위 · 흐림 전 최악 경우)', () => {
+  const css = src('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const bg = [247, 253, 183];
+  const fills = [...css.matchAll(/background:rgb\((\d+) (\d+) (\d+)\/(\.\d+)\)!important/g)].map((m) => [[+m[1], +m[2], +m[3]], +m[4]]);
+  assert.ok(fills.length >= 4);
+  for (const [c, a] of fills) { const mix = c.map((v, i) => v * a + bg[i] * (1 - a)); const ratio = 1.05 / (L(mix) + 0.05); assert.ok(ratio >= 4.5, `rgb(${c}/${a}) = ${ratio.toFixed(2)}:1`); }
 });

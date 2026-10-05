@@ -4,9 +4,10 @@
    대화 화면 · 첫 질문 · 정정 · 메뉴(≡) · 공통 판 색 토큰(echo-ui.css)은 PR #138(visual-parity.css) 담당 — 여기서 건드리지 않는다.
    범위: 파스텔 사용자 화면 루트 안쪽만 · 전역 body/:root 값 0. 다른 모양 파일보다 강하게 :root:root 로 시작한다. */
 
-/* 1. 홈·프로필 판: 짙은 회청색 판(mobile-polish 의 --echo-glass) → 시안의 비치는 청록 유리 */
+/* 1. 홈·프로필 판: 짙은 회청색 판(mobile-polish 의 --echo-glass) → 시안의 청록 유리.
+   2026-10-05 Codex P2(4183198245): 흰 글자가 바탕 그림 가장 밝은 곳 rgb(247 253 183) 위에서도 4.5:1 이상 — 판 rgb(14 60 70/.70)=5.05:1 · 아래 탭 .74 · 주요 버튼 .72(qa/design-parity 계산 검사). */
 :root:root .doit-app-pastel :is(.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state,.doit-profile-card){
-  background:rgb(18 84 92/.22)!important;border:1px solid rgb(255 255 255/.52)!important;
+  background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.52)!important;
   box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12)!important;
   -webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);
 }
@@ -15,7 +16,7 @@
 :root:root .doit-app-pastel .doit-product-topbar{position:relative!important;background:transparent!important;border-bottom:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 
 /* 3. 아래 탭: 검정 판(.94) → 청록 유리 */
-:root:root .doit-app-pastel .doit-product-nav{background:rgb(18 84 92/.30)!important;border-top:1px solid rgb(255 255 255/.4)!important;box-shadow:0 -10px 30px rgb(20 60 70/.12)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-nav{background:rgb(14 60 70/.74)!important;border-top:1px solid rgb(255 255 255/.4)!important;box-shadow:0 -10px 30px rgb(20 60 70/.12)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
 :root:root .doit-app-pastel .doit-product-nav a{color:rgb(255 255 255/.8)}
 :root:root .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
 
@@ -28,7 +29,7 @@
 :root:root .doit-app-pastel .echo-ref-hero.echo-ref-hero--home .echo-ref-wordmark{display:none}
 :root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action{
   display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:16px;
-  background:rgb(12 64 72/.64)!important;border:1px solid rgb(255 255 255/.52)!important;color:#fff!important;-webkit-text-fill-color:#fff;
+  background:rgb(14 60 70/.72)!important;border:1px solid rgb(255 255 255/.52)!important;color:#fff!important;-webkit-text-fill-color:#fff;
   box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);
 }
 :root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action *{color:#fff!important;-webkit-text-fill-color:#fff}
@@ -73,7 +74,7 @@
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty>svg{box-sizing:content-box;width:30px;height:30px;padding:37px;border-radius:50%;background:rgb(255 255 255/.16);border:1px solid rgb(255 255 255/.62);box-shadow:inset 0 1px 0 rgb(255 255 255/.45),0 10px 30px rgb(20 60 70/.14);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);margin-bottom:6px}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty p{margin:0;font-size:14px}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty span{font-size:13px;opacity:.92}
-:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:rgb(18 84 92/.22)!important;border:1px solid rgb(255 255 255/.5)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.5)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photo-note{margin:8px 2px 0;font-size:12px;line-height:1.55;text-align:center}
 /* 프로필 판 머리: 큰 DO IT 표시가 차지하던 위아래 여백을 줄여 얇은 줄 위계로 */
 :root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head{margin-bottom:12px}
