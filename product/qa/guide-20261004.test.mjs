@@ -54,11 +54,12 @@ test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기�
   assert.doesNotMatch(noComments(BUS + HINT), /consent|agree|동의/i);
 });
 
-test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「앱 설치 안내」 = 설치 항목 · 검정 테마 · 설치는 앱 주소에서만', () => {
+test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「웹 설치하기」 = 설치 항목 문장 · 검정 테마 · 설치는 앱 주소에서만', () => {
   assert.match(HOME, /<button type="button" onClick=\{\(\) => \{ close\(\); openGuide\(undefined, menuBtnRef\.current\); \}\}>이용 안내<\/button>/);
   assert.match(HOME, /<button type="button" className="bh-legal-link" onClick=\{\(\) => openGuide\(\)\}>이용 안내<\/button>/);
-  assert.match(HOME, /<a href=\{appUrl\(INSTALL_PATH\)\} onClick=\{\(e\) => \{ close\(\); openInstallGuide\(e, menuBtnRef\.current\); \}\}>\{BRAND_HOME_COPY\.install\}<\/a>/, '「앱 설치 안내」는 메뉴에서');
-  assert.match(HOME, /openGuide\('install', opener\)/);
+  // 2026-10-05 대표 「웹 설치하기는 룩킹 넣고 채우고」: 메뉴의 설치 = 홈페이지 안 웹 설치하기 구간 · 방법 문장은 이용 안내 설치 항목과 같은 것
+  assert.match(HOME, /<a href="#bh-install" onClick=\{close\}>\{BRAND_HOME_COPY\.install\}<\/a>/, '「웹 설치하기」는 메뉴에서');
+  assert.match(HOME, /const INSTALL = GUIDE_SECTIONS\.find\(\(s\) => s\.id === 'install'\);/);
   assert.match(HOME, /<GuideHost theme="brand"/);
   assert.match(HOME, /이 회사 홈페이지는 설치하지 않아도 돼요\./);
   assert.match(HOME, /\{BRAND_HOME_COPY\.start\}/, '모바일 시작하기는 주 행동 그대로');
