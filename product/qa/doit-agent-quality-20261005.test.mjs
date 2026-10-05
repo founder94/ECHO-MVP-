@@ -92,3 +92,54 @@ test('⑤ 「이런 것 중」처럼 보기를 가리키는 질문은 보기 2�
   assert.ok(A.refersToChoices('다음 중 골라 주세요?'));
   assert.ok(!A.refersToChoices('어떤 사람한테 마음이 가요?'));
 });
+
+// Codex 리뷰(PR #132 · b8574d8) P2 세 건 재현 — 보기를 가리키는 질문인데 보기가 없을 때(enforceChoiceContract)
+const choiceRefState = (q, latest = '조용한 사람이 좋아요') => {
+  const st = afterThree();
+  st.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: latest, kind: 'answer', saved: true, question: q });
+  const cur = { type: 'core', purpose: 'relationship_style', text: q };
+  st.asked.push(cur); st.current = cur;
+  return st;
+};
+const obsOf = () => ({ calls: [], retry: [] });
+
+test('Codex P2 ①: 「아래」는 보기를 가리킬 때만 보기 질문(「나이가 아래인」은 아님)', () => {
+  assert.equal(A.refersToChoices('나보다 나이가 아래인 사람이 편해요?'), false);
+  assert.equal(A.refersToChoices('아래 보기 중에 뭐가 가까워요?'), true);
+  assert.equal(A.refersToChoices('아래 중에 뭐가 좋아요?'), true);
+});
+
+test('Codex P2 ②: 보기 질문을 바꿔 쓸 때도 일반 질문 검사를 모두 거친다(물음표 두 개 · 설문형 · 나뉜 답 한쪽)', async () => {
+  const Q0 = '이런 것 중 뭐가 더 좋아요?';
+  for (const [bad, latest] of [['조용한 사람이 좋아요? 아니면 활발한 사람이 좋아요?', '조용한 사람이 좋아요'], ['남자면 술 마시면 어떤 얘기 해요?', '처음 만나면 남자면 술 여자면 카페'], ['조용하면 어떨 때 제일 편해요?', '평일이면 조용한 사람, 주말이면 활발한 사람이 좋아요']]) {
+    const st = choiceRefState(Q0, latest);
+    const response = { question: Q0 };
+    const llm = async (kind) => kind === 'question' ? JSON.stringify({ question: bad }) : JSON.stringify({ choices: [] });
+    await A.enforceChoiceContract(st, llm, obsOf(), response);
+    assert.notEqual(response.question, bad, `바꿔 쓴 질문이 검사를 건너뛰었다: ${bad}`);
+    assert.ok(!A.refersToChoices(response.question));
+  }
+});
+
+test('Codex P2 ③: 서버 안내 두 줄을 이미 썼으면 이미 한 질문을 다시 내지 않는다', async () => {
+  const Q0 = '이런 것 중 뭐가 더 좋아요?';
+  const st = afterThree();
+  for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite')]) st.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
+  st.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: '조용한 사람이 좋아요', kind: 'answer', saved: true, question: Q0 });
+  const cur = { type: 'core', purpose: 'relationship_style', text: Q0 }; st.asked.push(cur); st.current = cur;
+  const before = st.asked.slice(0, -1).map((a) => a.text);
+  const response = { question: Q0 };
+  const llm = async () => { throw new Error('rewrite failed'); };
+  await A.enforceChoiceContract(st, llm, obsOf(), response);
+  assert.ok(!before.includes(response.question), `이미 한 질문을 다시 냄: ${response.question}`);
+  assert.equal(response.question, A.easeFallbackText('polite'), '세 번째 안내(보기 가리킴 0)');
+  assert.ok(!A.refersToChoices(response.question));
+  // 세 안내를 모두 썼으면: 이미 한 질문을 내지 않고 그대로 둔다(기록만)
+  const st2 = afterThree();
+  for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite'), A.easeFallbackText('polite')]) st2.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
+  st2.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: '조용한 사람이 좋아요', kind: 'answer', saved: true, question: Q0 });
+  const cur2 = { type: 'core', purpose: 'relationship_style', text: Q0 }; st2.asked.push(cur2); st2.current = cur2;
+  const before2 = st2.asked.slice(0, -1).map((a) => a.text); const r2 = { question: Q0 }; const o2 = obsOf();
+  await A.enforceChoiceContract(st2, llm, o2, r2);
+  assert.ok(!before2.includes(r2.question)); assert.ok(o2.retry.includes('choice_ref_unresolved'));
+});
