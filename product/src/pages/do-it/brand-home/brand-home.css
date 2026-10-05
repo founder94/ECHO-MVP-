@@ -162,6 +162,8 @@
 .bh-film[data-orient="portrait"] :is(.bh-film-poster, .bh-film-video) { aspect-ratio: 9 / 16; max-height: 78vh; width: auto; margin: 0 auto; }
 .bh-film-frame { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; }
 .bh-film-frame .bh-film-video { cursor: pointer; object-fit: cover; }
+.bh-film-toggle { position: absolute; right: 10px; bottom: 10px; min-height: 44px; min-width: 64px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.7); background: rgba(8, 9, 12, 0.55); color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.bh-film-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .bh-film-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .bh-film-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 22px 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.85); background: rgba(8, 9, 12, 0.62); color: #fff; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: transform 160ms ease, background 160ms ease; }
 .bh-film-play:active { transform: translate(-50%, -50%) scale(0.97); }
