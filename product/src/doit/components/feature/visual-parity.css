@@ -89,3 +89,16 @@
 .echo-dialogue.echo-chat .echo-chat-log .echo-bubble--me::before{content:"";position:absolute;left:-46px;top:50%;width:36px;height:36px;margin-top:-18px;border-radius:50%;border:1px solid rgb(255 255 255/.6);background:rgb(255 255 255/.22) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Ccircle cx='12' cy='8.5' r='4'/%3E%3Cpath d='M4.5 20c.8-4 3.9-6 7.5-6s6.7 2 7.5 6z'/%3E%3C/svg%3E") center/22px no-repeat;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 :root:root .echo-dialogue.echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo::before{left:-42px;top:0;width:34px;height:34px;box-shadow:0 0 0 3px rgb(255 255 255/.35),0 0 16px rgb(120 240 230/.75)}
 
+
+/* ── 바탕 빛의 흐름(시안 1·5·6번 「빛이 흐르는 무지개빛」): 바탕 색(pastel-bg.css · 실측 LOCK)은 그대로 두고, 그 위 막(::after)에
+   ① 대각선으로 지나가는 옅은 흰 빛 두 줄(최대 12%) ② 가운데 청록 깊이만 더한다. 막은 원래 화면 전환용 어둠(--echo-pastel-veil)도 그대로 맡는다.
+   흰 빛 12% 를 더한 가장 밝은 곳에서도 유리 판 위 흰 글자 4.54:1 이상(검사가 계산). 움직임 줄이기면 빛은 멈춘다. */
+:root:root :is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{
+  background:
+    linear-gradient(118deg,transparent 22%,rgb(255 255 255/.12) 30%,transparent 38%) 0 0/170% 170% no-repeat,
+    linear-gradient(118deg,transparent 52%,rgb(255 255 255/.08) 58%,transparent 64%) 0 0/170% 170% no-repeat,
+    radial-gradient(60% 38% at 38% 46%,rgb(30 150 165/.22),transparent 70%),
+    rgb(9 10 12/var(--echo-pastel-veil));
+  animation:echo-light-flow 16s ease-in-out infinite alternate}
+@keyframes echo-light-flow{from{background-position:0% 0%,0% 0%,0 0,0 0}to{background-position:100% 100%,100% 100%,0 0,0 0}}
+@media(prefers-reduced-motion:reduce){:root:root :is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{animation:none}}

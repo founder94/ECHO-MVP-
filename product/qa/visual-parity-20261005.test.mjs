@@ -18,7 +18,7 @@ test('앱 화면에서만 불러옴(mobile-polish 바로 뒤) · 홈페이지 �
 });
 
 test('전역 오염 0: 모든 규칙이 앱 화면 틀(.doit-app-pastel · .echo-dialogue) 아래에서만', () => {
-  const rules = CSS.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => sel && !sel.startsWith('@'));
+  const rules = CSS.replace(/\/\*[\s\S]*?\*\//g, '').split('}').map((r) => r.split('{')[0].trim()).filter((sel) => sel && !sel.startsWith('@') && !/^(from|to|\d+%)$/.test(sel));
   assert.ok(rules.length > 20, String(rules.length));
   const top = (sel) => { const out = []; let d = 0, cur = ''; for (const ch of sel) { if (ch === '(') d++; if (ch === ')') d--; if (ch === ',' && d === 0) { out.push(cur); cur = ''; } else cur += ch; } return [...out, cur]; };
   for (const sel of rules) for (const part of top(sel)) {
@@ -35,7 +35,9 @@ test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화�
   for (const name of ['--echo-glass', '--echo-glass-soft', '--echo-glass-btn']) {
     const m = CSS.match(new RegExp(`${name}:rgb\\((\\d+) (\\d+) (\\d+)\\/(\\.\\d+)\\)`)); assert.ok(m, name);
     const g = [m[1], m[2], m[3]].map(Number), a = Number(m[4]);
-    const worst = Math.min(...cols.map((c) => { const mix = c.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
+    // 바탕 위 흰 빛(최대 12%)이 지나가는 곳까지 넣어 가장 나쁜 경우로 잰다
+    const LIGHT = 0.12; assert.match(CSS, /rgb\(255 255 255\/\.12\) 30%/);
+    const worst = Math.min(...cols.map((c) => { const lit = c.map((v) => LIGHT * 255 + (1 - LIGHT) * v); const mix = lit.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
     assert.ok(worst >= 4.5, `${name} 흰 글자 대비 ${worst.toFixed(2)}:1`);
   }
   assert.match(CSS, /--echo-glass-blur:blur\(18px\)/);
