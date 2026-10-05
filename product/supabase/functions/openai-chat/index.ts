@@ -16,26 +16,23 @@ const OPENAI_TIMEOUT_MS = 15000;
 
 // ---------------------------------------------------------------------------
 // CORS — 배포 도메인 화이트리스트 (프로덕션 Origin)
-// ALLOWED_ORIGINS(콤마 구분)로 덮어쓸 수 있습니다.
+// 허용 목록은 아래 ALLOWED_ORIGINS 한 곳(코드)에서만 관리합니다(2026-09-26 · 설정값으로 덮어쓰지 않음).
 // Access-Control-Allow-Origin 에 * 를 사용하지 않습니다.
 // ---------------------------------------------------------------------------
 function normalizeOrigin(origin: string): string {
   return origin.replace(/\/+$/, "").toLowerCase();
 }
 
-// 2026-09-26 대표 실기기: 앱(https://app.do-it.company)에서 타로 해석이 「해석을 불러오지 못했어요」 — 운영 로그에 사전 확인(OPTIONS)만 있고 본 요청(POST)이 없음
-// (브라우저가 허용 도메인 불일치로 막은 모양). 다른 함수 6개는 CORS_ALLOWED_ORIGINS 를 읽는데 이 함수만 ALLOWED_ORIGINS 를 읽었다.
-// → 두 이름을 모두 읽어 합친다(Secret 값·이름 변경 0 · 둘 다 없으면 예전 기본값).
-function getAllowedOrigins(): string[] {
-  const list = [Deno.env.get("ALLOWED_ORIGINS"), Deno.env.get("CORS_ALLOWED_ORIGINS")]
-    .flatMap((raw) => (raw ?? "").split(","))
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return list.length ? [...new Set(list)] : ["https://echo.do-it.company"];
+// 2026-09-26 대표 승인(openai-chat CORS 복구): 앱(https://app.do-it.company)에서 타로 해석이 「해석을 불러오지 못했어요」.
+// 원인: 이 함수는 설정이 없으면 https://echo.do-it.company 만 허용 → 브라우저 사전 확인(OPTIONS)에서 앱·브랜드 요청이 막혔다.
+// 허용 목록은 여기 한 곳에서만 관리한다 — 우리 서비스 도메인 3개만 허용 · 그 밖의 Origin 은 거부 · 「*」 금지.
+// (배포 전 운영 v4 실측: 허용되던 Origin 은 https://echo.do-it.company 하나뿐 → 이 목록이 그것을 포함한다.)
+const ALLOWED_ORIGINS = ["https://app.do-it.company", "https://do-it.company", "https://echo.do-it.company"] as const;
+function getAllowedOrigins(): readonly string[] {
+  return ALLOWED_ORIGINS;
 }
 
-// 허용 목록 항목은 정확한 origin 또는 "https://*.readdy.co" 같은 하위 도메인 와일드카드.
-// (A·B 통합 2026-09-05: 레디 미리보기·게시 주소가 바뀌어도 Secrets 한 줄로 관리)
+// 허용 목록 항목은 정확한 origin 또는 "https://*.example.com" 같은 하위 도메인 와일드카드(지금 목록에는 와일드카드 없음).
 function originMatches(origin: string, pattern: string): boolean {
   const o = normalizeOrigin(origin);
   const p = normalizeOrigin(pattern);
