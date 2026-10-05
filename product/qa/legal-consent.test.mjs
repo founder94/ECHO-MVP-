@@ -132,8 +132,23 @@ test('문서: 버전·시행일이 있고, 금지어(데이팅·소개팅·궁�
     assert.ok(doc.sections.length >= 8, doc.key);
   }
   const terms = JSON.stringify(docs.TERMS_DOCUMENT);
-  assert.ok(terms.includes('4,900원'), '가격은 4,900원 단건');
+  // 2026-10-05 대표 승인 「4,900원 삭제」: 약관에 리포트 가격을 적지 않는다(지금 판매하는 유료 콘텐츠 없음 · 결제 전 가격 안내)
+  assert.ok(!/4,?900\s*원/.test(terms), '약관에 4,900원 문구 0');
+  assert.ok(terms.includes('현재 판매하는 유료 콘텐츠가 없습니다'));
   assert.ok(!terms.includes('Stripe'));
   assert.ok(terms.includes('[대표 입력: 사업자등록번호]'), '모르는 값은 지어내지 않는다');
   assert.equal(docs.COMPANY.email, '0423doit@gmail.com');
+});
+
+test('2026-10-05 대표 「4,900원 영구 삭제」: 앱·서버 코드의 글·주석에 4,900 0(결제 기능 안 숫자 상수 두 곳만 남음) · 결제 화면 주소 = 앱 홈', async () => {
+  const { readdirSync, statSync } = await import('node:fs');
+  const walk = (d) => readdirSync(d).flatMap((f) => { const p = `${d}/${f}`; return statSync(p).isDirectory() ? (f === 'node_modules' ? [] : walk(p)) : [p]; });
+  const root = new URL('../', import.meta.url).pathname;
+  const hits = [...walk(`${root}src`), ...walk(`${root}supabase/functions`)].filter((p) => /\.(tsx?|css|html|json)$/.test(p))
+    .flatMap((p) => readFileSync(p, 'utf8').split('\n').map((l, i) => [p.slice(root.length), i + 1, l]).filter(([, , l]) => /4,?900|4천9백|사천구백/.test(l)));
+  const allowed = hits.filter(([p, , l]) => (p === 'src/lib/echo/api.ts' && /^export const REPORT_PRICE_KRW = 4900;$/.test(l)) || (p === 'supabase/functions/echo-payment/index.ts' && /^const PRICE_KRW = 4900;$/.test(l)));
+  assert.equal(hits.length, allowed.length, JSON.stringify(hits.filter((h) => !allowed.includes(h))));
+  assert.match(readFileSync(`${root}src/router/config.tsx`, 'utf8'), /\{ path: '\/payment', element: <Navigate to="\/doit\/home" replace \/> \}/);  // Codex P2(4184535769): 관리자 체크 표도 결제 화면을 「PASS(보임)」로 두지 않는다 — 숨김 = 해당 없음
+  const row = readFileSync(`${root}src/doit/pages/do-it/admin/views/FeatureChecklist.tsx`, 'utf8').split('\n').map((l, i, a) => l + a[i + 1]).find((l) => l.trimStart().startsWith('{ name: "결제('));
+  assert.match(row, /결제 화면은 숨겨 두었어요/); assert.match(row, /ui: "NA"/); assert.doesNotMatch(row, /ui: "PASS"/);
 });

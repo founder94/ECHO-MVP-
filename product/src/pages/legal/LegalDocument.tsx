@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { LEGAL_DRAFT, LEGAL_DRAFT_NOTICE, LEGAL_UPDATED_DATE, type LegalDocument as LegalDocumentData } from '@/lib/legal/documents';
+import { LEGAL_DRAFT, type LegalDocument as LegalDocumentData } from '@/lib/legal/documents';
 import './legal.css';
 import '@/doit/components/feature/app-pastel.css';
 
@@ -18,9 +18,9 @@ export default function LegalDocument({ document }: Props) {
       </header>
 
       <main className="legal-page-body">
-        <p className="legal-page-eyebrow">{document.version} · 시행일 {document.effectiveDate} · 최종 변경 {LEGAL_UPDATED_DATE}</p>
+        <p className="legal-page-eyebrow">{document.version} · 시행일 {document.effectiveDate} · 최종 변경 {document.updatedDate}</p>
         <h1>{document.title}</h1>
-        {LEGAL_DRAFT && <p className="legal-page-draft" role="note">{LEGAL_DRAFT_NOTICE}</p>}
+        {LEGAL_DRAFT && <p className="legal-page-draft" role="note">{document.draftNotice}</p>}
         <p className="legal-page-intro">{document.intro}</p>
 
         {document.sections.map((section) => (

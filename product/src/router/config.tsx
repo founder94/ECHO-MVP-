@@ -38,7 +38,7 @@ const PRODUCT_PATHS_ON_BRAND = [
 
 // 브랜드 화면 표. 함수 안의 lazy() 는 이 함수가 쓰이지 않는 빌드(app)에서 통째로 빠진다.
 // 2026-09-26 MVP(대표 「FINAL HUMAN UX」 §34): 예전 B구조 흐름(날씨·단계 질문·화이트 도어·리포트·보관함 등)은 지금 MVP 흐름 밖이다.
-// 주소로 바로 들어오면 앱 홈으로(화면 파일은 보존). 결제(/payment*)는 결제 결정 범위라 그대로 둔다(이 흐름을 숨겨 들어갈 길은 없다).
+// 주소로 바로 들어오면 앱 홈으로(화면 파일은 보존). 2026-10-05 대표 「리포트 가격 영구 삭제」: 결제(/payment*) 화면도 앱 홈으로(금액이 보이는 화면 0).
 
 function brandRouteTable(): RouteObject[] {
   const DoItHeroPage = lazy(() => import('@/pages/do-it/hero/page'));
@@ -63,9 +63,6 @@ function productRouteTable(): RouteObject[] {
   const StepTwoPage = lazy(() => import('@/pages/do-it/step-2/page'));
   const UnderstandingCheckPage = lazy(() => import('@/pages/do-it/understanding-check/page'));
   const WhiteDoorPage = lazy(() => import('@/pages/do-it/white-door/page'));
-  const PaymentPage = lazy(() => import('@/pages/do-it/payment/page'));
-  const PaymentSuccessPage = lazy(() => import('@/pages/do-it/payment/success/page'));
-  const PaymentFailPage = lazy(() => import('@/pages/do-it/payment/fail/page'));
   const StepNPage = lazy(() => import('@/pages/do-it/step-n/page'));
   const ReportPage = lazy(() => import('@/pages/do-it/report/page'));
   const LockerPage = lazy(() => import('@/pages/do-it/locker/page'));
@@ -89,9 +86,9 @@ function productRouteTable(): RouteObject[] {
     { path: '/step/2', element: visibleInRelease('/step/2') ? <StepTwoPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/understanding-check', element: visibleInRelease('/understanding-check') ? <UnderstandingCheckPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/white-door', element: visibleInRelease('/white-door') ? <WhiteDoorPage /> : <Navigate to="/doit/home" replace /> },
-    { path: '/payment', element: <PaymentPage /> },
-    { path: '/payment/success', element: <PaymentSuccessPage /> },
-    { path: '/payment/fail', element: <PaymentFailPage /> },
+    { path: '/payment', element: <Navigate to="/doit/home" replace /> },
+    { path: '/payment/success', element: <Navigate to="/doit/home" replace /> },
+    { path: '/payment/fail', element: <Navigate to="/doit/home" replace /> },
     { path: '/step/:n', element: visibleInRelease('/step/:n') ? <StepNPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/report', element: visibleInRelease('/report') ? <ReportPage /> : <Navigate to="/doit/home" replace /> },
     { path: '/locker', element: visibleInRelease('/locker') ? <LockerPage /> : <Navigate to="/doit/home" replace /> },
