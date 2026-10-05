@@ -1,0 +1,13 @@
+/* 공식 심볼 3D(2026-10-04) — .doit-sym3d 안쪽만(전역 0). 두께 = 같은 그림을 뒤로 1.6px 씩 겹쳐 어둡게 · 앞면 = 원본 그대로.
+   움직임: 6초에 한 번 좌우로 천천히 기울고(최대 ±22°) 위아래로 살짝 뜬다 · 빛 띠가 앞면을 한 번 지나간다. */
+.doit-sym3d{position:relative;width:var(--sym-size);height:var(--sym-size);perspective:calc(var(--sym-size) * 6);flex:none}
+.doit-sym3d-turn{position:absolute;inset:0;transform-style:preserve-3d;animation:doit-sym3d-turn 6s ease-in-out infinite}
+.doit-sym3d-turn img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;-webkit-user-drag:none;user-select:none;backface-visibility:hidden}
+.doit-sym3d-face{transform:translateZ(0);filter:drop-shadow(0 0 calc(var(--sym-size) * .06) rgb(255 255 255/.25))}
+.doit-sym3d-layer{transform:translateZ(calc(var(--k) * -1.6px));filter:brightness(calc(1 - var(--k) * .09)) contrast(1.05)}
+.doit-sym3d-sheen{position:absolute;inset:0;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;background:linear-gradient(115deg,transparent 30%,rgb(255 255 255/.85) 46%,rgb(160 240 255/.55) 52%,transparent 66%) 0 0/300% 100% no-repeat;mix-blend-mode:screen;transform:translateZ(.5px);animation:doit-sym3d-sheen 6s ease-in-out infinite;pointer-events:none}
+.doit-sym3d-floor{position:absolute;left:12%;right:12%;bottom:-14%;height:14%;border-radius:50%;background:radial-gradient(closest-side,rgb(0 30 40/.38),transparent);filter:blur(4px);animation:doit-sym3d-floor 6s ease-in-out infinite;pointer-events:none}
+@keyframes doit-sym3d-turn{0%,100%{transform:rotateY(-22deg) rotateX(10deg) translateY(0)}50%{transform:rotateY(22deg) rotateX(-6deg) translateY(-6%)}}
+@keyframes doit-sym3d-sheen{0%,35%{background-position:120% 0}65%,100%{background-position:-60% 0}}
+@keyframes doit-sym3d-floor{0%,100%{transform:scaleX(1);opacity:.9}50%{transform:scaleX(.82);opacity:.6}}
+@media(prefers-reduced-motion:reduce){.doit-sym3d-turn{animation:none;transform:rotateY(-14deg) rotateX(6deg)}.doit-sym3d-sheen,.doit-sym3d-floor{animation:none}.doit-sym3d-sheen{opacity:0}}

@@ -235,5 +235,5 @@
 .doit-root .animate-glow { animation: do-it-glow 5s ease-in-out infinite; }
 /* 2026-09-26 대표 「검정은 히어로만」: 파스텔 화면을 담은 뿌리는 뿌리 바탕도 파스텔 첫 줄기로(화면이 바뀌는 순간·짧은 화면 아래 검정 0). 관리자 화면은 그대로. */
 .doit-root:has(.doit-app-pastel, .echo-dialogue--pastel) {
-  background: linear-gradient(180deg, #3fdcb3 0%, #3ad6e0 18%, #7be5ca 40%, #cae9a6 58%, #e1d490 72%, #f3b78a 88%, #e0927d 100%);
+  background: linear-gradient(180deg, #5fd6d6 0%, #9fe2e0 14%, #c8e1c8 26%, #e6d6c0 40%, #eab7ae 55%, #f0ae9f 70%, #f5ae93 85%, #f8a493 100%);
 }

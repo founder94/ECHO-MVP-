@@ -22,3 +22,11 @@
 .echo-wait-mark .echo-zzarit-node{width:64px;height:64px}
 .echo-wait-mark .echo-zzarit-node svg{width:34px;height:34px}
 .echo-wait-link{flex:1;height:0;margin:0 8px;border-top:2px dashed rgb(255 255 255/.55)}
+
+/* 2026-10-04 대표 「디자인 이미지들을 적재적소에 그냥 교체」: 찌릿·대기 그림 = 대표가 보낸 「모바일 최종 디자인 기준」 7·8번 그림(익명 유리 두 사람 · 상대 정보 0).
+   익명 노드는 같은 자리에 투명하게 남겨(배치·검사 그대로) 그림 위 사람 자리와 겹치게 하고, 전류(.echo-zzarit-current)는 그림 위로 한 번 지나간다. */
+.echo-zzarit-mark{max-width:320px;height:auto;aspect-ratio:266/170;margin:0 0 14px;padding:0 6%;border-radius:22px;background:url(/doit/art/zzarit-current.webp) center/cover no-repeat;-webkit-mask-image:radial-gradient(closest-side,#000 78%,transparent);mask-image:radial-gradient(closest-side,#000 78%,transparent)}
+.echo-zzarit-mark .echo-zzarit-node{opacity:0}
+.echo-zzarit-mark .echo-zzarit-link{background:transparent}
+.echo-wait-mark{max-width:300px;height:auto;aspect-ratio:262/170;margin:8px auto 12px;background-image:url(/doit/art/wait-avatars.webp)}
+.echo-wait-mark .echo-wait-link{border-top-color:transparent}

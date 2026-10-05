@@ -1,12 +1,13 @@
 import GuideHint from '@/components/guide/GuideHint';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Mic, RotateCcw, Square } from 'lucide-react';
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Mic, Plus, RotateCcw, Send, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { DEFAULT_AGENT_TONE, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
 import './core-conversation.css';
+import './chat-ref.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
 import AgentIntroCard from './AgentIntroCard';
 import InstallAppCard from './InstallAppCard';
@@ -53,6 +54,7 @@ const VOICE_STATE: Record<VoicePhase, [string, string]> = {
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
 // 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
 export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue }: Props) {
+  const [toolsOpen, setToolsOpen] = useState(false); // 「+」 더 보기(2026-10-04 모바일 기준 디자인)
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -146,7 +148,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
       speakNew(session, r.session, spoke); setSession(r.session);
-      setDraft(prev => (prev.trim() === t ? '' : prev));
+      // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
+      setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
       if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
@@ -220,19 +223,21 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     if (failure && alive.current) setError(failure);
   });
 
-  const header = <header className="echo-dialogue-header"><DoItSymbol decorative /><span>DO IT / ECHO</span><Link to="/doit/home">홈</Link><Link to="/doit/understanding">나의 이해</Link></header>; // 메뉴(사주·타로 등)는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) — 대화는 서버에 남아 돌아오면 이어진다
+  // 2026-10-04 모바일 기준 디자인: 머리 = 뒤로(홈) + 「ECHO와 이야기」 한 줄. 메뉴(사주·타로·나의 이해 등)는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) — 대화는 서버에 남아 돌아오면 이어진다.
+  const header = <header className="echo-chat-head"><Link to="/doit/home" className="echo-chat-back" aria-label="홈으로"><ChevronLeft size={24} aria-hidden="true" /></Link><p className="echo-chat-title">ECHO와 이야기</p></header>;
   // 2026-09-28 대표 「처음부터 다시 시작하기 UX」: 확인 창 없이 한 번 탭 → 새 회차 + ECHO 첫 대화 화면(앱 공통 동작 useRestartConversation · 지난 이야기는 지우지 않음).
   const restartPill = () => <button className="echo-restart-pill" disabled={!!busy} onClick={restart}><RotateCcw size={14} aria-hidden="true" />처음부터 다시 시작하기</button>;
 
-  if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!loadError}>
+  if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!loadError}>
     {header}
     {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div>}
   </section>;
 
   // ── 시작 전(대표 「UI FINAL LOCK · 시작하기 선택창」 2026-09-25): 기존 컬러 대화 화면은 그대로 두고, 그 위에 무채색 선택창 하나만 띄운다.
   //   대화 방식(글/말) + 말투(기본 = 편한 존댓말)를 고르면 창이 닫히고, 같은 화면에서 그 선택으로 대화를 시작한다. 새 페이지 이동 0.
-  if (!session) return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
+  if (!session) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!!busy}>
     {header}
+    <img className="echo-chat-art" src="/doit/art/ribbon-01.webp" alt="" aria-hidden="true" width="940" height="410" decoding="async" />
     <p className="echo-eyebrow">만나기 전에</p>
     {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
     {(session?.goal_label ?? purposeLabel) ? <h1>{session?.goal_label ?? purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
@@ -265,58 +270,67 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   // 뒤로·직전 답 고치기: 직전 질문을 보기로 답했으면 그 보기와 고른 것을 되살린다(고친 말은 정정으로 서버가 다시 정한다).
   const prevChoice = editingPrevious && session.previous && session.previous.question === previousQuestion ? session.previous : null;
 
-  return <section className="echo-dialogue echo-dialogue--pastel" aria-busy={!!busy}>
-    {header}
-    {/* 2026-09-26 통합 검수(P0-B): 「2 / 5」 같은 고정 개수 표시는 설문처럼 느껴진다(대표 실기기). 들은 개수만 보이고, 끝은 서버가 정한다. */}
-    {!done && <div className="echo-steps" role="status" aria-label={`지금까지 ${answered}가지 들었어요`}>
-      <span className="echo-steps-count">{answered}가지 들었어요</span>
-    </div>}
-    {!done && <div className="echo-restart-top">{restartPill()}</div>}
-    <p className="echo-eyebrow">{done ? '다 들었어요' : '대화 중'}{!done && voiceUi && <span className="echo-mode-pill">말로 대화 중</span>}</p>
-    {/* 2026-09-26 대표 실기기 FAIL USER_CONTEXT_NOT_ACKNOWLEDGED: 서버(AI)가 만든 받아주기 말이 질문 카드 위 작은 회색 줄이라 보이지 않았고,
-        그 위 고정 제목 「잘 들었어요. 다음 질문이에요.」가 대신 서 있었다. → 받아주기 말이 있으면 그 말이 제목 자리에 선다(문장은 서버가 준 그대로 · 화면이 만들지 않는다). */}
-    {done ? <h1>다 들었어요.<br />이제 나를 보여 줄 차례예요.</h1> : ack ? <h1 className="echo-ack-heading">{ack}</h1> : <h1>{myAnswers.length ? <>잘 들었어요.<br />다음 질문이에요.</> : '첫 질문이에요.'}</h1>}
-    {!done && <p className="echo-lead">{voiceUi ? '짧아도 괜찮아요. 떠오르는 대로 말해 주세요.' : '짧아도 괜찮아요. 떠오르는 대로 적어 주세요.'}</p>}
+  // 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 3번(ECHO Agent 대화) · 「문구·서체 검수안」 3번 「ECHO와 이야기」:
+  //   위 = 뒤로 + 제목 한 줄 · 가운데 = 말풍선(서버 받아주기 말 → 내 말 → ECHO 질문) · 아래 = 「+ · 입력칸 · 보내기」 한 줄.
+  //   다른 도움 행동(직전 답 고치기 · 여기까지 · 처음부터 다시 · 사진·소개 · 연결 준비 · 한 말 기록)은 「+」 안으로 옮겼다(기능 삭제 0).
+  //   글은 모두 서버가 준 그대로(화면이 질문·받아주기 말을 만들지 않음).
+  return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!!busy}>
+    <header className="echo-chat-head">
+      <Link to="/doit/home" className="echo-chat-back" aria-label="홈으로"><ChevronLeft size={24} aria-hidden="true" /></Link>
+      <h1 className="echo-chat-title">{done ? '다 들었어요.' : 'ECHO와 이야기'}</h1>
+      {/* 다 들은 뒤: 제목 옆 짧은 말(2026-09 승인 문구 「다 들었어요. 이제 나를 보여 줄 차례예요.」 그대로 · 확인 화면이 주인공) */}
+      {done && <span className="echo-sr">이제 나를 보여 줄 차례예요.</span>}
+      {/* 2026-09-26 통합 검수(P0-B): 「2 / 5」 같은 고정 개수 표시는 설문처럼 느껴진다(대표 실기기). 들은 개수만 보이고, 끝은 서버가 정한다. */}
+      {!done && <span className="echo-steps" role="status" aria-label={`지금까지 ${answered}가지 들었어요`}><span className="echo-steps-count">{answered}가지 들었어요</span></span>}
+    </header>
     {/* 2026-10-04 이용 안내: 첫 질문에서만 짧은 도움말(입력칸을 가리지 않는 제자리 한 줄) */}
     {!done && myAnswers.length === 0 && <GuideHint id="talk" />}
-    {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
+    <div className="echo-chat-log">
     {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 고친 답 기준으로 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
-    {editingPrevious && !done && previousQuestion && <div className="echo-question-card"><p className="echo-question">{previousQuestion}</p>
+    {editingPrevious && !done && previousQuestion && <div className="echo-question-card echo-bubble--echo"><p className="echo-question">{previousQuestion}</p>
       {prevChoice && prevChoice.options.length > 0 && <div className="echo-rescue" role="group" aria-label="고른 답 바꾸기">
         <div className="echo-choice-row">
           {prevChoice.options.map(choice => <button key={choice} type="button" className={draft.trim() === choice ? 'echo-choice is-selected' : 'echo-choice'} aria-pressed={draft.trim() === choice} disabled={!!busy} onClick={() => setDraft(choice)}>{choice}</button>)}
         </div>
       </div>}
     </div>}
-    {/* 2026-10-04 디자인 교체(시안 3 「ECHO와 이야기」): 직전 내 답 = 오른쪽 말풍선, 지금 질문 = ECHO 말풍선. 글은 서버가 준 그대로(화면이 만들지 않음). */}
-    {question && !editingPrevious && myAnswers.length > 0 && <p className="echo-bubble echo-bubble--me"><span className="echo-sr">내가 한 말: </span>{myAnswers.at(-1)}</p>}
-    {question && !editingPrevious && <div className="echo-question-card echo-bubble--echo">
-      <p className="echo-question">{question}</p>
-      {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
-      {session.current_hint && (hintFor === question
-        ? <p className="echo-fine" role="note">{session.current_hint}</p>
-        : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (voiceUi && canSpeak()) say(session.current_hint ?? ''); }}>예시 보기</button>)}
-      {/* 2026-10-01 주관식 본체 + 객관식 구조대: 보기는 펼쳤을 때만(내가 「잘 모르겠어요」를 눌렀거나 서버가 먼저 펼침). 보기 = 서버가 승인한 것만.
-          누르면 고른 표시만 하고(바로 넘어가지 않음) 「답변 보내기」로 보낸다 → 서버가 사용자 직접 답으로 저장. 「직접 설명할게요」로 언제든 주관식으로. */}
-      {rescueOpen && <div className="echo-rescue" role="group" aria-label="가까운 답 고르기">
-        {rescueOptions.length >= 2 ? <>
-          {/* 2026-10-01 대표 「FINAL DESIGN」 §5·§12: 작은 ECHO 심볼(도움 신호) + 한 줄 · 보기 카드 = 서버가 고른 생활형 심볼 1개 + 생활말 */}
-          <p className="echo-rescue-lead"><DoItSymbol decorative className="echo-rescue-anchor" />{RESCUE_LEAD}</p>
-          <div className="echo-choice-row echo-option-list">
-            {rescueOptions.map((choice, k) => <button key={choice} type="button" className={picked === choice ? 'echo-choice echo-option is-selected' : 'echo-choice echo-option'} aria-pressed={picked === choice} disabled={!!busy} onClick={() => { setPick(picked === choice ? null : { q: question, choice }); if (picked !== choice) setDraft(''); }}><span className="echo-option-mark" aria-hidden="true">{rescue?.symbols?.[k] || '·'}</span><span className="echo-option-text">{choice}</span></button>)}
-          </div>
-          <button type="button" className="echo-text-button echo-rescue-self" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
-        </> : <>
-          {/* 보기를 못 만들었을 때의 안전 안내(서버 fallback · 실패 코드로 기록됨 — 구조대가 작동한 것으로 세지 않는다) */}
-          <p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>
-          <div className="echo-choice-row">
-            <button type="button" className="echo-choice" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
-            <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(UNSURE_TEXT)}>잘 모르겠어요</button>
-            <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문은 넘어갈게요</button>
-          </div>
-        </>}
+      {/* 내 직전 말 = 오른쪽 말풍선 · 서버 받아주기 말(있을 때) = ECHO 말풍선 · 지금 질문 = ECHO 말풍선(심볼 하나). */}
+      {question && !editingPrevious && myAnswers.length > 0 && <p className="echo-bubble echo-bubble--me"><span className="echo-sr">내가 한 말: </span>{myAnswers.at(-1)}</p>}
+      {/* 2026-09-26 대표 실기기 FAIL USER_CONTEXT_NOT_ACKNOWLEDGED: 받아주기 말은 작은 회색 줄이 아니라 또렷한 ECHO 말풍선으로(문장은 서버가 준 그대로). */}
+      {question && !editingPrevious && ack && <p className="echo-bubble echo-bubble--echo echo-ack-bubble"><span className="echo-sr">ECHO: </span>{ack}</p>}
+      {question && !editingPrevious && <div className="echo-question-card echo-bubble--echo">
+        <p className="echo-question">{question}</p>
+        {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
+        {session.current_hint && (hintFor === question
+          ? <p className="echo-fine" role="note">{session.current_hint}</p>
+          : <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setHintFor(question); if (voiceUi && canSpeak()) say(session.current_hint ?? ''); }}>예시 보기</button>)}
+        {/* 2026-10-01 주관식 본체 + 객관식 구조대: 보기는 펼쳤을 때만(내가 「잘 모르겠어요」를 눌렀거나 서버가 먼저 펼침). 보기 = 서버가 승인한 것만.
+            누르면 고른 표시만 하고(바로 넘어가지 않음) 「답변 보내기」로 보낸다 → 서버가 사용자 직접 답으로 저장. 「직접 설명할게요」로 언제든 주관식으로. */}
+        {rescueOpen && <div className="echo-rescue" role="group" aria-label="가까운 답 고르기">
+          {rescueOptions.length >= 2 ? <>
+            {/* 2026-10-01 대표 「FINAL DESIGN」 §5·§12: 작은 ECHO 심볼(도움 신호) + 한 줄 · 보기 카드 = 서버가 고른 생활형 심볼 1개 + 생활말 */}
+            <p className="echo-rescue-lead"><DoItSymbol decorative className="echo-rescue-anchor" />{RESCUE_LEAD}</p>
+            <div className="echo-choice-row echo-option-list">
+              {rescueOptions.map((choice, k) => <button key={choice} type="button" className={picked === choice ? 'echo-choice echo-option is-selected' : 'echo-choice echo-option'} aria-pressed={picked === choice} disabled={!!busy} onClick={() => setPick(picked === choice ? null : { q: question, choice })}><span className="echo-option-mark" aria-hidden="true">{rescue?.symbols?.[k] || '·'}</span><span className="echo-option-text">{choice}</span></button>)}
+            </div>
+            {/* 2026-10-05 PM 보강(Codex P1): 보기를 눌러도 적어 둔 글은 지우지 않는다 — 둘 다 있으면 무엇을 보낼지 보이고, 내 글로 돌아갈 수 있다(합치지 않음) */}
+            {picked && draft.trim() && <p className="echo-fine echo-pick-note" role="status">「{picked}」로 보낼게요. 적어 둔 글은 그대로 있어요. <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => setPick(null)}>내 글로 보낼게요</button></p>}
+            <button type="button" className="echo-text-button echo-rescue-self" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
+          </> : <>
+            {/* 보기를 못 만들었을 때의 안전 안내(서버 fallback · 실패 코드로 기록됨 — 구조대가 작동한 것으로 세지 않는다) */}
+            <p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>
+            <div className="echo-choice-row">
+              <button type="button" className="echo-choice" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
+              <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(UNSURE_TEXT)}>잘 모르겠어요</button>
+              <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문은 넘어갈게요</button>
+            </div>
+          </>}
+        </div>}
       </div>}
-    </div>}
+      {busy && <div className="echo-thinking echo-typing" role="status"><span className="echo-typing-dots" aria-hidden="true"><i /><i /><i /></span><p>{busy}</p></div>}
+      {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
+      {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
+    </div>
     {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
     {voiceUi && !done && (talk.supported
       ? <div className="echo-voice-stage" role="group" aria-label="말로 대화하기">
@@ -328,11 +342,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         </div>
       : <p className="echo-notice" role="status">이 브라우저는 말 듣기를 지원하지 않아요. 아래 칸에 글로 적어 주세요.</p>)}
     {voiceUi && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
-    {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}><button type="button" disabled={!!busy} onClick={() => setDraft(text)}>{text}</button></li>)}</ol></details>}
-    {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
-    {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
-    {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
-    {done && <section className="echo-done">
+    {/* 2026-10-04 모바일 기준 디자인 4번(정정·확인): 다 들은 뒤 첫 화면은 「이렇게 이해했는데, 맞나요?」 하나. 정리·다음 행동은 확인한 뒤에. */}
+    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
+    {done && (profileOk || !profile) && <img className="echo-chat-art" src="/doit/art/ribbon-03.webp" alt="" aria-hidden="true" width="970" height="410" decoding="async" />}
+    {done && (profileOk || !profile) && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
       <p className="echo-done-lead">{session.closing ?? '말해 준 내용을 정리해 뒀어요.'}</p>
       <p className="echo-context">지금은 이 정리로 바로 누군가와 연결되지는 않아요.</p>
@@ -344,24 +357,37 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       </div>
     </section>}
     {/* 2026-09-26 MVP FINAL PATCH: 다섯 문답 뒤 「ECHO가 이해한 나」(AI 초안) → [맞아요] / [조금 달라요] / [다시 말할게요]. 확인 뒤에 DO IT MUSIC 카드와 소개·사진 단계. */}
-    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
     {done && (profileOk || !profile) && <MusicMoment />}
     {done && (profileOk || !profile) && <AgentIntroCard userId={userId} session={session} onSession={setSession} onSaved={() => setIntroSaved(true)} />}
     {done && (profileOk || !profile) && !introChosen && <div className="echo-done-actions"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>소개는 나중에 · 사진 채우기 <ChevronRight size={18} /></button></div>}
     {/* 홈 화면에 두기 제안(2026-09-26): 소개를 고른 뒤 한 번만. 소개 카드와 겹쳐 권하지 않는다. 설치 안 해도 그대로 쓴다. */}
-    {done && introChosen && <InstallAppCard />}
-    {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). */}
-    {!done && <form className="echo-composer" onSubmit={event => { event.preventDefault(); if (busy) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
-      <label htmlFor="echo-message">{editingPrevious ? '직전 답 고치기' : done ? '고칠 게 있으면 적어 주세요' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
-      <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '편하게 적어주세요.'} maxLength={TEXT_MAX} rows={4} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
+    {done && introChosen && (profileOk || !profile) && <InstallAppCard />}
+    {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP, 보기가 펼쳐졌을 때). 입력줄 바로 위 작은 칩. */}
+    {!done && !editingPrevious && <div className="echo-reactions echo-chat-chips">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
+    {/* 「+」 안: 화면에서 덜 쓰는 행동을 한곳에. 열려 있는 동안만 보인다. */}
+    {/* 다 들은 뒤에는 「맞나요?」 확인이 끝나기 전까지 다음 행동(사진·연결)을 열지 않는다 — 「+」를 열어 둔 채 끝나도 마찬가지(Codex 4179032624). */}
+    {((toolsOpen && !done) || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
+      {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
+      {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
+      {/* 끝난 뒤에는 입력칸이 없으니 지난 말은 읽기만(누르면 입력칸에 넣는 버튼은 진행 중에만 · Codex 4179170288). */}
+      {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}>{done ? text : <button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button>}</li>)}</ol></details>}
+      <button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>
+      <Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>
+      {restartPill()}
+      <p className="echo-fine">적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</p>
+      <p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p>
+    </div>}
+    {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). 끝난 뒤에도 「+」로 다른 행동은 연다. */}
+    {!done && <form className="echo-composer echo-chat-bar" onSubmit={event => { event.preventDefault(); if (busy) return; if (picked && !editingPrevious) send(picked, false, false, picked); else if (draft.trim()) send(draft, false, editingPrevious); }}>
+      <button type="button" className="echo-chat-plus" aria-label={toolsOpen ? '더 보기 닫기' : '더 보기'} aria-expanded={toolsOpen} aria-controls="echo-chat-tools" onClick={() => setToolsOpen(v => !v)}><Plus size={22} aria-hidden="true" /></button>
+      <>
+        <label htmlFor="echo-message" className="echo-sr">{editingPrevious ? '직전 답 고치기' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
+        <textarea id="echo-message" ref={draftRef} value={draft} onChange={event => { setDraft(event.target.value.slice(0, TEXT_MAX)); if (event.target.value.trim()) setPick(null); }} placeholder={editingPrevious ? '고칠 내용을 편하게 적어 주세요' : voice.listening ? '듣고 있어요. 말하는 대로 적혀요' : picked ? `「${picked}」로 답할게요 · 더 적어도 돼요` : '편하게 적어주세요.'} maxLength={TEXT_MAX} rows={1} disabled={!!busy} aria-describedby={voice.error ? 'echo-voice-error' : undefined} />
+        {VOICE_CONVERSATION_ENABLED && voice.supported && !voiceUi && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}
+        {/* 2026-10-01 대표 「FINAL DESIGN」 §9·§11: 한 화면 하나의 주 행동 = 보내기(흰 판) — 이제 입력줄 오른쪽 둥근 버튼(이름은 그대로 「답변 보내기」) */}
+        <button type="submit" className="echo-send-cta" aria-label={editingPrevious ? '고친 답 보내기' : '답변 보내기'} disabled={!!busy || (!draft.trim() && !(picked && !editingPrevious))}><Send size={20} aria-hidden="true" /></button>
+      </>
       {voice.error && <p id="echo-voice-error" className="echo-notice" role="alert">{VOICE_INPUT_ERROR_TEXT[voice.error]}</p>}
-      <div className="echo-composer-footer"><span>적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</span><div className="echo-composer-actions">{VOICE_CONVERSATION_ENABLED && voice.supported && !(voiceUi && !done) && <button type="button" className={voice.listening ? 'echo-voice-button is-listening' : 'echo-voice-button'} aria-label={voice.listening ? '말하기 멈추기' : '말로 적기'} aria-pressed={voice.listening} disabled={!!busy} onClick={() => { if (voice.listening) voice.stop(); else { stopSpeaking(); announceVoiceActive(); voice.start(draft); } }}>{voice.listening ? <Square size={18} /> : <Mic size={20} />}</button>}</div></div>
-      {/* 2026-10-01 대표 「FINAL DESIGN」 §9·§11: 한 화면 하나의 주 행동 = 흰 판 + 짙은 청록 글자 「답변 보내기」 */}
-      <button type="submit" className="echo-send-cta" disabled={!!busy || (!draft.trim() && !(picked && !editingPrevious))}>{editingPrevious ? '고친 답 보내기' : '답변 보내기'}</button>
     </form>}
-    {/* 도움 행동(답이 아님 · 저장 0): 잘 모르겠어요(구조 요청) · 넘어가기(SKIP) · 여기까지(STOP). 보기가 펼쳐져 있으면 「잘 모르겠어요」 자리는 비운다. */}
-    {!done && !editingPrevious && <div className="echo-reactions">{!rescueOpen && <button type="button" disabled={!!busy || !question} onClick={askRescue}>{UNSURE_TEXT}</button>}<button type="button" disabled={!!busy} onClick={() => send(SKIP_TEXT)}>이 질문 넘어가기</button>{rescueOpen && <button type="button" disabled={!!busy} onClick={() => send(STOP_TEXT)}>여기까지 할게요</button>}</div>}
-    {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => send(STOP_TEXT)}>오늘은 여기까지 할게요</button>}
-    <footer className="echo-dialogue-footer"><button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button><Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>{restartPill()}<p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p></footer>
   </section>;
 }

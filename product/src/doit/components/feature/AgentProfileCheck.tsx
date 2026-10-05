@@ -81,7 +81,8 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
 
   const list = (ids: string[]) => <ol className="echo-done-next echo-profile-list" aria-label="ECHO가 이해한 나">{ids.map(id => <SlotLine key={id} session={session} id={id} />)}</ol>;
 
-  return <section className="echo-done" aria-label="ECHO가 이해한 나" aria-busy={busy}>
+  // 2026-10-04 모바일 기준 디자인 4번: 제목(맞나요?) → 이해한 내용 카드 → 네 버튼(맞아요 = 흰 판) 순으로 보인다(배치는 chat-ref.css 의 order).
+  return <section className="echo-done echo-check" aria-label="ECHO가 이해한 나" aria-busy={busy}>
     <p className="echo-done-mark">ECHO가 이해한 나</p>
     <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>
 

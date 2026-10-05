@@ -4,7 +4,7 @@
 .echo-corner-button:active{scale:.94;background:rgb(255 255 255/.26)}
 .echo-corner-button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .echo-corner-backdrop{position:fixed;inset:0;z-index:68;background:rgb(10 14 18/.18)}
-.echo-corner-panel{position:fixed;top:calc(env(safe-area-inset-top) + 60px);right:calc(env(safe-area-inset-right) + 12px);z-index:69;width:min(288px,calc(100vw - 24px));max-height:calc(100dvh - env(safe-area-inset-top) - 76px);overflow:auto;border-radius:20px;background:linear-gradient(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%);box-shadow:0 12px 36px rgb(20 30 30/.28);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
+.echo-corner-panel{position:fixed;top:calc(env(safe-area-inset-top) + 60px);right:calc(env(safe-area-inset-right) + 12px);z-index:69;width:min(288px,calc(100vw - 24px));max-height:calc(100dvh - env(safe-area-inset-top) - 76px);overflow:auto;border-radius:20px;background:linear-gradient(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%);box-shadow:0 12px 36px rgb(20 30 30/.28);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
 .echo-corner-panel *{color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
 .echo-corner-caption{margin:0;padding:14px 18px 8px;font-size:12px;letter-spacing:.12em;opacity:.9}
 .echo-corner-item{display:block;padding:12px 18px;border-top:1px solid rgb(255 255 255/.35);text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s ease}

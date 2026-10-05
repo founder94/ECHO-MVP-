@@ -1,0 +1,15 @@
+/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작) — 첫 화면 위쪽 「ECHO 글자 + 유리 리본」 한 장.
+   범위: .echo-ref-hero 안쪽만(전역 0). 그림은 장식(alt 빈칸 · 읽기 프로그램 건너뜀). 움직임 줄이기면 떠오르는 움직임 0. */
+.echo-ref-hero{position:relative;margin:-8px -24px 6px;height:clamp(250px,72vw,330px);overflow:hidden}
+.echo-ref-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;-webkit-mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);animation:echo-ref-float 7s ease-in-out infinite}
+.echo-ref-hero .echo-ref-wordmark{position:absolute;z-index:1;top:8px;left:24px;font-size:22px;font-weight:600;letter-spacing:.04em;color:#fff;text-shadow:0 1px 6px rgb(20 60 70/.35)}
+@keyframes echo-ref-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.015)}}
+@media(prefers-reduced-motion:reduce){.echo-ref-hero>img{animation:none}}
+/* 대화 시작 화면(ConversationOpening) 안: 판 여백에 맞춰 리본 폭 · 목적 타일 = 짙은 유리 + 오른쪽 › (「모바일 전체 흐름」 2번 목적) */
+.echo-dialogue.echo-opening .echo-ref-hero{margin:-6px -22px 4px}
+.echo-dialogue.echo-dialogue--pastel.echo-opening .echo-opening-tile{position:relative;padding-right:44px;border-radius:18px;background:rgb(30 42 48/.54)!important;border:1px solid rgb(255 255 255/.6)!important}
+.echo-dialogue.echo-dialogue--pastel.echo-opening .echo-opening-tile.is-selected{background:rgb(255 255 255/.26)!important;border:1.5px solid #fff!important}
+.echo-dialogue.echo-opening .echo-opening-tile::after{content:"›";position:absolute;right:18px;top:50%;transform:translateY(-52%);font-size:24px;line-height:1;color:#fff;opacity:.9}
+.echo-dialogue.echo-opening .echo-opening-tile.is-selected::after{content:"✓";font-size:18px}
+/* 리본 가운데 공식 D 심볼 3D — 리본 고리 안에 떠 있다 */
+.echo-ref-hero .echo-ref-symbol{position:absolute;left:50%;top:50%;z-index:1;margin:calc(var(--sym-size) / -2) 0 0 calc(var(--sym-size) / -2)}
