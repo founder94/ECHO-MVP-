@@ -115,6 +115,11 @@ test('참고 이야기 ④-b Codex P2(4186700779): 물음표 없는 의문사 �
     // Codex P2(4186974033): 안긴 말 예외는 그 의문사에만 — 한 문장에 안긴 말과 물음이 같이 있으면 물음
     ['그랬군요. 무슨 일이 있었는지 모르겠지만 지금 뭐가 힘들어요.', '그랬군요.'],
     ['무슨 일이 있었는지, 왜 그런지 몰라도 괜찮아요.', '무슨 일이 있었는지, 왜 그런지 몰라도 괜찮아요.'],
+    // Codex P2(4187208770): 물음표 없는 청하는 말끝(주실래요·줄래요·주시겠어요)도 물음 · 「래요」 서술(좋대요·간대요)은 남김
+    ['그랬군요. 조금 더 이야기해 주실래요.', '그랬군요.'],
+    ['천천히 적어도 돼요. 더 들려줄래요', '천천히 적어도 돼요.'],
+    ['그랬군요. 그때 마음을 적어 주시겠어요.', '그랬군요.'],
+    ['친구도 그게 좋대요. 쉬어 가도 괜찮대요.', '친구도 그게 좋대요. 쉬어 가도 괜찮대요.'],
   ];
   for (const [reply, want] of cases) {
     s.ai.push({ reply, question: '' });
@@ -136,6 +141,18 @@ test('참고 이야기 ⑤ 잘못된 입력 = 400 · 업체 호출 0 (옛 모양
   ];
   for (const b of bad) { const r = await h.call({ action: 'agent_ref', requestId: rid(), ...b }); assert.equal(r.status, 400, JSON.stringify(b).slice(0, 80)); }
   assert.equal((s.providerCalls?.length ?? 0) - calls, 0);
+});
+
+test('참고 이야기 ⑤-b Codex P1(4187208757): 링크·연락처·이메일·식별번호가 든 말 = 422 PRIVATE_DATA · 든 앞 줄 = 400 · 업체 호출 0 · 자리 0', async () => {
+  const { s, h } = await started();
+  const calls = s.providerCalls?.length ?? 0, cl = claims(s).length, used = usage(s);
+  for (const text of ['이거 봐 https://example.com/s?token=abc', 'www.example.com 에 적어 뒀어', '연락은 010-1234-5678', 'me@example.com 으로 보내 줘', '900101-1234567 이건 내 번호']) {
+    const r = await ref(h, { text });
+    assert.equal(r.status, 422, text); assert.equal(r.body.code, 'PRIVATE_DATA', text);
+  }
+  const hist = await ref(h, { history: [{ role: 'user', text: '링크 https://example.com/x' }, { role: 'echo', text: '그랬군요.' }], text: '그냥 좀 지쳤어' });
+  assert.equal(hist.status, 400, JSON.stringify(hist.body));
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0); assert.equal(claims(s).length, cl); assert.equal(usage(s), used);
 });
 
 test('참고 이야기 ⑥ 같은 요청 다시 보냄 = 보관한 답 · 업체 호출 0 · 물음뿐인 답 = 502 AI_FORMAT(가짜 성공 0)', async () => {
@@ -163,6 +180,6 @@ test('참고 이야기 ⑦ 분리: 대화 서버·매칭은 이 모듈을 모름
   assert.match(rt, /미래·결혼·건강·투자를 단정하지 마/);
   const ix = readFileSync(dir + 'index.ts', 'utf8');
   const block = ix.slice(ix.indexOf('if (action === "agent_ref")'), ix.indexOf('if (action === "agent_start")'));
-  for (const t of ['paidOnce<RT.RefReply>', 'kind: "ref_talk"', 'RT.wantsStop(text)', 'RT.asksQuestion(text)']) assert.ok(block.includes(t), t);
+  for (const t of ['paidOnce<RT.RefReply>', 'kind: "ref_talk"', 'A.PRIVATE_DATA.test(text)', 'A.PRIVATE_DATA.test(l.text)', 'RT.wantsStop(text)', 'RT.asksQuestion(text)']) assert.ok(block.includes(t), t);
   assert.doesNotMatch(block, /SESSION_ACTION|stored\.state|profile|matching/);
 });

@@ -710,6 +710,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const history = RT.refHistory(body.history);
       const text = typeof body.text === "string" ? body.text.trim() : "";
       if (!seed || !history || text.length > RT.REF_TEXT_MAX) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
+      // Codex P1(4187208757): 전화·이메일·링크·식별번호가 든 말은 모델에 보내지 않는다(agent_turn 과 같은 PRIVATE_DATA) — 앞 줄도 같은 기준(든 줄이 있으면 요청 전체 거절).
+      if (history.some((l) => A.PRIVATE_DATA.test(l.text))) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
+      if (text && A.PRIVATE_DATA.test(text)) return fail("PRIVATE_DATA", "연락처·번호·링크는 여기에 적지 않아요. 그 부분만 빼고 다시 적어 주세요.", 422, origin);
       if (!text) return json({ ok: true, reply: RT.refOpener(seed), question: null }, 200, origin);
       if (RT.wantsStop(text)) return json({ ok: true, reply: RT.STOP_LINE, question: null }, 200, origin);
       const allow = RT.asksQuestion(text);

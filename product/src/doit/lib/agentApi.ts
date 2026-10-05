@@ -158,7 +158,7 @@ export interface RefLine { role: 'user' | 'echo'; text: string }
 export interface RefReply { reply: string; question: string | null }
 export const refSeedBody = (seed: ContentSeed): RefSeedBody => seed.source === 'TAROT' ? { kind: 'card', label: seed.card } : { kind: 'pattern', key: seed.key };
 export async function agentRef(userId: string, ref: RefSeedBody, history: RefLine[], text: string): Promise<RefReply> {
-  const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR']);
+  const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA']);
   if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
   return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null };
 }

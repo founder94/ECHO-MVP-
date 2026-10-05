@@ -1,0 +1,1 @@
+import{nt as e,ut as t}from"./index-C9SciV26.js";import{t as n}from"./LegalDocument-Du8LaLUA.js";var r=t();function i(){return(0,r.jsx)(n,{document:e})}export{i as default};
