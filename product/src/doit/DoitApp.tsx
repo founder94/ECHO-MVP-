@@ -6,6 +6,7 @@ import { UnderstandingProvider } from "@/doit/hooks/useUnderstanding";
 import AnalyticsBootstrap from "@/doit/components/feature/AnalyticsBootstrap";
 import { getSupabase } from "@/doit/lib/supabase";
 import "@/doit/doit.css";
+import "@/doit/components/feature/mobile-polish.css"; // 2026-10-05 모바일 글자·정렬·대비 마무리(앱 화면 전용 · 홈페이지 빌드 0)
 
 // DO IT(A 구조 · "당신이 잠든 사이에") 서브앱의 뿌리.
 // - /doit/* 아래 모든 화면은 이 레이아웃 안에서 렌더링된다.

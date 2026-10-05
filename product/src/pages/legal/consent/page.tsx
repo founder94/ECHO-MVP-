@@ -8,6 +8,7 @@ import { consentMetadata, EMPTY_CONSENT, persistConsent, requiredAllChecked, typ
 import { LEGAL_VERSION } from '@/lib/legal/documents';
 import '@/pages/legal/legal.css';
 import '@/doit/components/feature/app-pastel.css';
+import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
 
 // 로그인은 됐는데 현재 버전 약관 동의가 서버에 없는 회원이 오는 화면(ConsentGate 가 보낸다).
 // - 필수 3개 동의 → 서버 저장 → 원래 가려던 화면으로 돌아간다.
@@ -71,7 +72,7 @@ export default function ConsentPage() {
       </header>
       <main className="legal-page-body">
         <p className="legal-page-eyebrow">계속하기 전에 · {LEGAL_VERSION}</p>
-        <h1>이용약관과 개인정보 처리방침에<br />동의가 필요해요.</h1>
+        <h1>계속하려면<br />약관을 확인해 주세요.</h1>
         <p className="legal-page-lead">
           내 이야기와 사진을 안전하게 보관하기 위한 약속이에요. 각 문서는 "보기"를 눌러 전체를 읽을 수 있어요.
         </p>

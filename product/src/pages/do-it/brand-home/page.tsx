@@ -6,7 +6,6 @@ import { GREETING, GREETING_CLOSING, GREETING_TITLE } from '@/pages/do-it/landin
 import GuideHost from '@/components/guide/GuideHost';
 import { GUIDE_SECTIONS } from '@/lib/guide/content';
 import BrandFilm, { BRAND_FILM_COPY } from './BrandFilm';
-import MakingFilm, { MAKING_FILM_COPY } from './MakingFilm';
 import DotText from './DotText';
 import SceneLayer from './SceneLayer';
 import { openGuide } from '@/lib/guide/bus';
@@ -35,7 +34,7 @@ export const BRAND_HOME_COPY = {
   scope: '지금 ECHO에서는 이야기를 나누고 소개와 사진을 준비하면, 지금 보여 드릴 사람이 있는지 확인할 수 있어요. 서로 원할 때만 다음 단계가 열려요.',
 } as const;
 
-type Layer = { kind: 'story'; i: number } | { kind: 'film' } | { kind: 'company' } | { kind: 'greeting' };
+type Layer = { kind: 'story'; i: number } | { kind: 'company' } | { kind: 'greeting' };
 
 // 옛 홈페이지(우주인 이야기 9장면)의 승인 문구·사진·순서 그대로. pos = 사진 구도에 맞춘 글자 자리.
 type Story = { no: string; label: string; title: [string, string]; body: [string, string]; img: string; pos: 'top' | 'middle' | 'bottom'; focus: string };
@@ -121,23 +120,12 @@ export default function BrandHomePage() {
         </SceneLayer>
       );
     }
-    if (l.kind === 'film') return (
-      <SceneLayer opener={layerOpener.current} label={BRAND_FILM_COPY.title} onClose={closeLayer}>
-        <p className="bh-kicker">BRAND FILM</p>
-        <h2 className="bh-title">{BRAND_FILM_COPY.title}</h2>
-        <BrandFilm />
-      </SceneLayer>
-    );
     if (l.kind === 'company') return (
       <SceneLayer opener={layerOpener.current} label="회사 소개" image="/brand/stories/story-03.webp" focus="center 74%" onClose={closeLayer}>
         <p className="bh-kicker">COMPANY</p>
         <h2 className="bh-title bh-title--wide">DO IT COMPANY</h2>
         <p className="bh-lead">{BRAND_HOME_COPY.companyLead[0]}<br />{BRAND_HOME_COPY.companyLead[1]}</p>
-        <dl className="bh-rows">
-          <div><dt>서비스</dt><dd><a href={appUrl('/')}>{appHost}<span aria-hidden="true">↗</span></a></dd></div>
-          <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
-          <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
-        </dl>
+        {/* 2026-10-05 대표 「바닥글에 이용약관·문의·개인정보처리방침이 다 있으니 같은 게 있을 필요 없다」(PR #139): 서비스·문의·약관 줄 삭제(바닥글 그대로) */}
       </SceneLayer>
     );
     return (
@@ -168,7 +156,6 @@ export default function BrandHomePage() {
             <a href="#bh-story" onClick={close}>이야기</a>
             <a href="#bh-making" onClick={close}>제작 과정</a>
             <a href="#bh-install" onClick={close}>{BRAND_HOME_COPY.install}</a>
-            <button type="button" onClick={(e) => openLayer({ kind: 'film' }, e.currentTarget)}>브랜드 영상</button>
             <button type="button" onClick={(e) => openLayer({ kind: 'company' }, e.currentTarget)}>회사 소개</button>
             <button type="button" onClick={(e) => openLayer({ kind: 'greeting' }, e.currentTarget)}>대표 인사말</button>
             <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
@@ -217,13 +204,13 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 3. 제작 과정(2026-10-05 대표 「동영상 제작과정이라고 홈페이지 안에 그대로 박아」) */}
+      {/* 3. 제작 과정(2026-10-05 대표 「동영상 제작과정이라고 홈페이지 안에 그대로 박아」 · PR #137 「홈페이지 제작과정」 16초 영상과 같은 영상 — 그 플레이어(BrandFilm) 하나만 쓴다) */}
       <section className="bh-sec bh-film-sec bh-making" id="bh-making" aria-labelledby="bh-making-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
         <div className="bh-content">
           <p className="bh-kicker">MAKING FILM</p>
-          <h2 id="bh-making-title" className="bh-title">{MAKING_FILM_COPY.title}</h2>
-          <MakingFilm />
+          <h2 id="bh-making-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
+          <BrandFilm />
         </div>
       </section>
 
@@ -258,7 +245,6 @@ export default function BrandHomePage() {
       <nav className="bh-more" aria-label="더 알아보기">
         <p className="bh-kicker">MORE</p>
         <ul>
-          <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'film' }, e.currentTarget)}><img src="/brand/film/poster-portrait.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span className="bh-tile-no">25초</span><span className="bh-tile-label">브랜드 영상</span></button></li>
           <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'company' }, e.currentTarget)}><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 74%' }} /><span className="bh-tile-no">DO IT</span><span className="bh-tile-label">회사 소개</span></button></li>
           <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'greeting' }, e.currentTarget)}><img src="/brand/stories/story-06.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 78%' }} /><span className="bh-tile-no">CEO</span><span className="bh-tile-label">대표 인사말</span></button></li>
         </ul>

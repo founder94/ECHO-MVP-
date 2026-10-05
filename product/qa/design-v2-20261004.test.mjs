@@ -14,7 +14,7 @@ test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 �
   order.forEach((v) => assert.ok(v > 0));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
   assert.equal((HOME.match(/<section className="bh-sec/g) ?? []).length, 4, '스크롤 화면 4장');
-  for (const k of ['story', 'film', 'company', 'greeting']) assert.match(HOME, new RegExp(`kind: '${k}'`), `장면 창 ${k}`);
+  for (const k of ['story', 'company', 'greeting']) assert.match(HOME, new RegExp(`kind: '${k}'`), `장면 창 ${k}`); // 영상은 3페이지 제작 과정 한 곳(PR #137 과 같은 영상)
   const layer = read('src/pages/do-it/brand-home/SceneLayer.tsx');
   assert.match(layer, /role="dialog" aria-modal="true"/);
   assert.match(layer, /if \(e\.key === 'Escape'\)/, 'Esc 로 닫기');
@@ -25,8 +25,8 @@ test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 �
   assert.match(layer, /const opener = openerProp \?\? \(document\.activeElement as HTMLElement \| null\);/);
   assert.match(layer, /if \(!\(e\.target as HTMLElement\)\.closest\('\.bh-layer-body > \*'\)\) onClose\(\);/);
   assert.match(layer, /if \(!boxRef\.current\.contains\(document\.activeElement\)\) \{ e\.preventDefault\(\); closeRef\.current\?\.focus\(\); return; \}/);
-  const making = read('src/pages/do-it/brand-home/MakingFilm.tsx');
-  assert.match(making, /void v\.play\(\)\.catch\(\(\) => setBlocked\(true\)\)/); assert.match(making, /controls=\{still \|\| blocked\}/);
+  // 제작 과정 영상 = PR #137 의 BrandFilm 하나(재생 막힘·움직임 줄이기 처리는 qa/brand-film-20261004.test.mjs)
+  assert.match(HOME, /<h2 id="bh-making-title" className="bh-title">\{BRAND_FILM_COPY\.title\}<\/h2>\n\s*<BrandFilm \/>/);
 });
 
 test('홈페이지 문구(2026-10-05 대표 시안 그대로): ECHO · ONLINE SERENDIPITY · DO IT · 「당신이 잠든 사이」 · 버튼 글자만 「모바일로 시작하기」 · 이야기 9장면 원문', () => {
