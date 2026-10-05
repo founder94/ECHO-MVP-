@@ -508,15 +508,15 @@ await run(75, '2026-10-05 PM(Codex P1): 적던 글 → 보기 고르기 → 글 
   const t1 = s.st.calls.filter(c => c.action === 'agent_turn').at(-1); expect(t1 && t1.text === mine && !t1.choice, `내 글 전송 ${JSON.stringify(t1)?.slice(0, 140)}`);
   return '보기 눌러도 글 보존 · 보낼 것 표시 · 내 글로 전송(choice 0)';
 });
-await run(76, '2026-10-05 PM(Codex P1): 적던 글이 있어도 보기를 고르고 보내면 고른 보기 하나만 전송(합치기 0) · 적던 글은 그대로', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용하고 편하게', '밝고 가볍게'], show: true, fallback: false } }) } }, async (p, s) => {
+await run(76, '2026-10-05 PM(Codex P1·P2): 적던 글이 있어도 보기를 고르고 보내면 고른 보기 하나만 전송(합치기 0) · 보낸 뒤 그 질문의 적던 글은 비움(다음 질문으로 새지 않음)', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용하고 편하게', '밝고 가볍게'], show: true, fallback: false } }) } }, async (p, s) => {
   await openConv(p);
   const mine = '전시는 좋아하지만 시끄러운 곳은 싫어요.';
   await p.locator('#echo-message').fill(mine);
   await p.locator('.echo-rescue .echo-choice', { hasText: '밝고 가볍게' }).click(); await p.waitForTimeout(300);
   await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
   const t = s.st.calls.filter(c => c.action === 'agent_turn').at(-1); expect(t && t.text === '밝고 가볍게' && t.choice === '밝고 가볍게', `고른 보기 전송 ${JSON.stringify(t)?.slice(0, 140)}`);
-  expect(await p.locator('#echo-message').inputValue() === mine, '보낸 뒤 적던 글이 사라짐');
-  return '보기 전송(choice) · 글 합치기 0 · 적던 글 남음';
+  expect(await p.locator('#echo-message').inputValue() === '', '보기를 보낸 뒤에도 앞 질문에 적던 글이 남아 다음 답으로 보내질 수 있음');
+  return '보기 전송(choice) · 글 합치기 0 · 보낸 뒤 입력칸 비움';
 });
 await run(39, '보기를 못 만들면 안전 안내(직접 설명할게요 / 잘 모르겠어요 / 이 질문은 넘어갈게요)', IPHONE, { agent: { session: RS({ current_rescue: { options: [], show: false, fallback: false } }), onRescue: { options: [], show: false, fallback: true } } }, async (p, s) => {
   await openConv(p);

@@ -148,7 +148,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
       speakNew(session, r.session, spoke); setSession(r.session);
-      setDraft(prev => (prev.trim() === t ? '' : prev));
+      // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
+      setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
       if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
