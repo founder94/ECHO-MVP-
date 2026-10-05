@@ -33,16 +33,11 @@ export default function TopBar({
               <i className="ri-arrow-left-line text-xl" />
             </button>
           )}
+          {/* 2026-10-05 대표 「DO IT = 회사 · ECHO = 모바일 웹 이름」: 회사 D 심볼을 두고, 옆에 서비스 이름 ECHO 를 따로 적는다.
+              화면 제목(프로필·연결 등)은 본문이 크게 보여 주므로 머리줄에서는 화면 읽기 프로그램용으로만 남긴다. */}
           <DoItSymbol decorative />
-          {title ? (
-            <h1 className="font-heading text-lg font-semibold text-foreground-950">
-              {title}
-            </h1>
-          ) : (
-            <span className="font-heading text-xl font-semibold tracking-tight text-foreground-950">
-              DO IT
-            </span>
-          )}
+          <span className="echo-wordmark font-heading text-xl font-semibold text-foreground-950" aria-label="ECHO">ECHO</span>
+          {title && <h1 className="echo-sr">{title}</h1>}
         </div>
 
         {/* 오른쪽 44px 는 공통 메뉴 버튼 자리(겹침 0). */}

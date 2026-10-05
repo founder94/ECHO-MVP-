@@ -89,3 +89,7 @@
 :root:root .doit-app-pastel .echo-prep .echo-prep-panel :is(input,textarea){min-height:52px;border-radius:14px!important;background:rgb(255 255 255/.10)!important;border:1px solid rgb(255 255 255/.5)!important;color:#fff!important;-webkit-text-fill-color:#fff}
 :root:root .doit-app-pastel .echo-prep .echo-prep-panel :is(input,textarea)::placeholder{color:rgb(255 255 255/.78)!important;-webkit-text-fill-color:rgb(255 255 255/.78)}
 :root:root .doit-app-pastel .echo-prep>div>p,:root:root .doit-app-pastel .echo-prep>div>div>p{text-shadow:0 1px 3px rgb(16 60 70/.35)}
+
+/* 8. 머리줄 이름(2026-10-05 대표 「DO IT = 회사 · ECHO = 모바일 웹」): D 심볼 + 서비스 이름 ECHO(시안처럼 넓은 자간). 화면 제목은 화면 읽기용으로만. */
+:root:root .doit-app-pastel .doit-product-topbar .echo-wordmark{color:#fff;letter-spacing:.14em;text-shadow:0 1px 3px rgb(16 60 70/.3)}
+:root:root .doit-app-pastel .doit-product-topbar .echo-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

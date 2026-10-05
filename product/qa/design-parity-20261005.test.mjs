@@ -112,3 +112,10 @@ test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리
   assert.match(css, /\.echo-prep \.echo-prep-head\{text-align:center\}/);
   assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(14 60 70\/\.70\)!important/);
 });
+
+test('대표 「DO IT = 회사 · ECHO = 모바일 웹」: 윗줄 = D 심볼 + ECHO 글자(DO IT 글자 0) · 화면 제목은 화면 읽기용', () => {
+  const top = src('src/doit/components/feature/TopBar.tsx');
+  assert.match(top, /<DoItSymbol decorative \/>\s*<span className="echo-wordmark[^"]*" aria-label="ECHO">ECHO<\/span>/);
+  assert.doesNotMatch(top.replace(/\{\/\*[\s\S]*?\*\/\}/g, ''), />\s*DO IT\s*</);
+  assert.match(top, /\{title && <h1 className="echo-sr">\{title\}<\/h1>\}/);
+});
