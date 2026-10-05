@@ -176,7 +176,7 @@ export function ProfileBuild({
 
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="echo-prep flex flex-col min-h-screen" // 2026-10-05 승인 시안 모양(ref-parity.css §7) · 글·입력 항목·순서 그대로
       style={{
         backgroundColor: surfaces.page,
       }}
@@ -186,7 +186,7 @@ export function ProfileBuild({
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-6"
+          className="echo-prep-head mb-6"
         >
           <p
             style={{
@@ -227,7 +227,7 @@ export function ProfileBuild({
 
         {/* 실제 입력 폼 — 목적에 필요한 정보를 직접 받는다 */}
         <div
-          className="rounded-3xl p-5 mb-5"
+          className="echo-prep-panel rounded-3xl p-5 mb-5"
           style={{
             backgroundColor: surfaces.card,
             border: `1px solid ${colors.borderStrong}`,
@@ -417,7 +417,7 @@ export function ProfileBuild({
 
         {/* 사진·본인확인 안내(서버 연동 필요) */}
         <div
-          className="rounded-3xl p-5 mb-5"
+          className="echo-prep-panel rounded-3xl p-5 mb-5"
           style={{
             backgroundColor: surfaces.card,
             border: `1px solid ${colors.borderStrong}`,
@@ -495,7 +495,7 @@ export function ProfileBuild({
         </div>
 
         <div
-          className="rounded-2xl p-4 flex items-start gap-2.5"
+          className="echo-prep-panel rounded-2xl p-4 flex items-start gap-2.5"
           style={{
             backgroundColor: surfaces.card,
             border: `1px solid ${colors.border}`,
