@@ -1,0 +1,78 @@
+# ECHO QA 서버 함수 배포(2026-10-05 대표 「QA 서버 함수 배포 승인 · 승인할테니 진행」).
+# - 대상은 QA Supabase(mutniujeiyujhkobadkd)의 doit-agent 하나뿐이다. 운영(PROD) 프로젝트 · 다른 함수 · DB/SQL · Secret 변경 0.
+# - 언제: echo-qa 에 이 파일이나 배포 요청 파일(product/supabase/deploy-requests/qa-doit-agent.txt)이 바뀌어 push 될 때만.
+#         doit-agent 코드가 바뀐다고 자동으로 올리지 않는다(배포는 요청 파일을 고친 커밋 = 사람이 정한 배포).
+# - 필요한 비밀값: 저장소 Actions Secret `SUPABASE_ACCESS_TOKEN`(Supabase 개인 키 · sbp_…). 없으면 배포하지 않고 HOLD 로 멈춘다. 값은 출력하지 않는다.
+# - 디스크의 파일 그대로 올린다(손으로 옮겨 적기 0) · verify_jwt 켬 유지 · 배포 뒤 로그인 없는 요청 = 401 · 사전 요청 = 200 확인.
+name: echo-qa-edge-deploy
+
+on:
+  push:
+    branches: ['echo-qa']
+    paths:
+      - '.github/workflows/echo-qa-edge-deploy.yml'
+      - 'product/supabase/deploy-requests/qa-doit-agent.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-qa-edge-deploy
+  cancel-in-progress: false
+
+env:
+  QA_REF: mutniujeiyujhkobadkd
+  PROD_REF: zyyhhxyupizcqhxqnxuu
+  FUNCTION: doit-agent
+
+jobs:
+  deploy:
+    name: QA doit-agent 배포(QA 전용)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: 대상 잠금(QA 만 · 운영 0)
+        run: |
+          set -euo pipefail
+          [ "$QA_REF" = "mutniujeiyujhkobadkd" ] || { echo "FAIL: QA 프로젝트가 아님"; exit 1; }
+          [ "$QA_REF" != "$PROD_REF" ] || { echo "FAIL: 운영 프로젝트를 대상으로 씀"; exit 1; }
+          [ "$FUNCTION" = "doit-agent" ] || { echo "FAIL: 함수 이름이 다름"; exit 1; }
+          test -f "product/supabase/functions/$FUNCTION/index.ts"
+          echo "대상: QA($QA_REF) · $FUNCTION · 커밋 ${GITHUB_SHA::7}"
+      - name: 비밀값 확인(있음/없음만)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "HOLD: 저장소 Actions Secret SUPABASE_ACCESS_TOKEN 이 없어 배포하지 않음(QA 변경 0)."
+            exit 1
+          fi
+          echo "OK: SUPABASE_ACCESS_TOKEN 있음"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: 배포(디스크 파일 그대로 · verify_jwt 켬)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          W=$(mktemp -d)
+          mkdir -p "$W/supabase/functions"
+          cp -r "product/supabase/functions/$FUNCTION" "$W/supabase/functions/"
+          printf 'project_id = "echo-qa-edge"\n\n[functions.%s]\nverify_jwt = true\n' "$FUNCTION" > "$W/supabase/config.toml"
+          (cd "$W/supabase/functions/$FUNCTION" && sha256sum *.ts)
+          supabase functions deploy "$FUNCTION" --project-ref "$QA_REF" --workdir "$W" --use-api
+          supabase functions list --project-ref "$QA_REF" | grep -E "NAME|$FUNCTION" || true
+      - name: 배포 뒤 확인(로그인 없음 = 401 · 사전 요청 = 200)
+        run: |
+          set -euo pipefail
+          URL="https://$QA_REF.supabase.co/functions/v1/$FUNCTION"
+          ANON="$(sed -n 's/^  QA_SUPABASE_ANON: //p' .github/workflows/echo-netlify-deploy.yml)"
+          sleep 5
+          o=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://echo-app-qa.netlify.app' "$URL")
+          p=$(curl -s -o /tmp/p.json -w '%{http_code}' -X POST -H 'Origin: https://echo-app-qa.netlify.app' -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H 'content-type: application/json' --data '{"action":"agent_card","cardName":"별"}' "$URL")
+          echo "OPTIONS=$o POST(익명)=$p $(head -c 160 /tmp/p.json)"
+          [ "$o" = "200" ] || { echo "FAIL: 사전 요청이 200 이 아님"; exit 1; }
+          [ "$p" = "401" ] || { echo "FAIL: 로그인 없는 요청이 401 이 아님"; exit 1; }
+          echo "PASS: QA $FUNCTION 배포 · 로그인 검사 유지"
