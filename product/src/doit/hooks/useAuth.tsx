@@ -10,6 +10,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured } from "@/doit/lib/supabase";
 import { getAnonSessionId } from "@/doit/lib/openai";
+import { forgetTarotReadings } from "@/doit/lib/agentApi";
 import { rememberReturnPath } from "@/lib/auth/returnPath";
 
 export interface AuthResult {
@@ -153,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) throw new Error('로그아웃 연결을 확인하지 못했어요.');
+    forgetTarotReadings();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   }, []);

@@ -50,16 +50,19 @@ test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질�
   assert.match(TALK, /if \(r\.question\) next\.push\(\{ role: "echo", text: r\.question, question: true \}\);/);
   assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 2, '화면에 박힌 ECHO 말 0');
   assert.match(TALK, /if \(!text\) \{ setOpened\(true\); clearContentSeed\(\); \}/);
-  assert.match(TALK, /if \(text\) setDraft\(text\); \/\/ 적은 말 보존/);
+  assert.match(TALK, /if \(text && fromDraft\) setDraft\(text\); \/\/ 적은 말 보존/);
+  // 검수(P2): 「질문 하나 받아 보기」는 입력칸 글을 지우거나 바꾸지 않고, 실패하면 「다시 보내기」가 그 요청을 그대로 다시 보낸다
+  assert.match(TALK, /else if \(fromDraft\) setDraft\(""\);/);
+  assert.match(TALK, /lastFail && !lastFail\.fromDraft \? send\(lastFail\.text, false\) : send\(draft\)/);
   assert.match(TALK, /useEffect\(\(\) => \{ void ask\("", \[\]\); \}, \[\]\);/);
-  assert.match(TALK, /disabled=\{busy \|\| !opened\} onClick=\{\(\) => send\(ASK_TEXT\)\}>질문 하나 받아 보기/);
-  assert.match(TALK, /const send = \(text: string\) => \{ const t = text\.trim\(\); if \(!t \|\| busy \|\| !opened\) return;/, '보내는 중 연타 = 한 번');
+  assert.match(TALK, /disabled=\{busy \|\| !opened\} onClick=\{\(\) => send\(ASK_TEXT, false\)\}>질문 하나 받아 보기/);
+  assert.match(TALK, /const send = \(text: string, fromDraft = true\) => \{ const t = text\.trim\(\); if \(!t \|\| busy \|\| !opened\) return;/, '보내는 중 연타 = 한 번');
   for (const t of ['원하는 만남 알아보기', '오늘은 여기까지']) assert.ok(TALK.includes(t), t);
   // Codex P2(4186782778): 회사 예산 멈춤 = 따로 안내 · 「다시 보내기」는 실패·몰림일 때만
   assert.match(TALK, /code === "AI_COMPANY_BUDGET" \? "paused"/);
   assert.match(TALK, /code === "PRIVATE_DATA" \? "private"/); // Codex P1(4187208757): 서버가 보내지 않은 말 → 적은 말 보존 · 「다시 보내기」 0(고쳐 보내야 함)
   assert.match(TALK, /\(fail\.kind === "failed" \|\| fail\.kind === "busy"\) && \(/);
   assert.doesNotMatch(TALK, /localStorage|profile|matching|agentTurn|agentStart/, '저장·대화 서버·매칭 0');
-  assert.match(API, /write<RefReply>\(userId, \{ action: 'agent_ref', ref, history: history\.slice\(-8\), text \}, \['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA'\]\)/);
+  assert.match(API, /write<RefReply>\(userId, \{ action: 'agent_ref', ref, history: history\.slice\(-8\), text \}, \['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE'\]\)/);
   assert.match(API, /seed\.source === 'TAROT' \? \{ kind: 'card', label: seed\.card \} : \{ kind: 'pattern', key: seed\.key \}/);
 });

@@ -58,8 +58,13 @@ const ASK = /(질문\s*(을|좀|을\s*좀)?\s*(하나|한\s*개|한\s*가지)?\s
 const STOP_ASK = /(질문\s*(은|좀|을)?\s*(하지\s*마(요|세요|줘)?|그만(\s*(해|해요|하세요|해\s*줘|해\s*주세요|할래|하자))?|싫어(요)?|말아\s*(줘|주세요)|없이\s*(해\s*줘|가자|할래))|묻지\s*마(요|세요)?|안\s*물어\s*봐도\s*(돼|돼요|괜찮아(요)?))[\s.!~…ㅎ"”』」]*$/;
 const STOP_ALL = /^(이제\s*|오늘은\s*|그럼\s*|아니\s*)?(그만|여기까지)(\s*(할래|하자|할게|해|요|할게요|할래요|하고\s*싶어|할\s*래|만))?(\s*(요|할래|하자))?[\s.!~…ㅎㅠ]*$/;
 const stopText = (t: string) => t.trim().replace(/\s+/g, " ");
-export const wantsStop = (t: string) => STOP_ASK.test(t) || STOP_ALL.test(stopText(t));
-export const asksQuestion = (t: string) => ASK.test(t) && !wantsStop(t);
+// 서버 검수(P2): 공백을 먼저 한 칸으로 줄여서 정규식 되짚기(긴 공백 입력)를 막는다.
+export const wantsStop = (t: string) => { const c = stopText(t); return STOP_ASK.test(c) || STOP_ALL.test(c); };
+export const asksQuestion = (t: string) => ASK.test(stopText(t)) && !wantsStop(t);
+// 위기 신호(제품 기준 「위기 신호면 분석·질문을 멈추고 안전 안내」) — 흔한 과장 말(「배고파 죽겠어」)은 잡지 않는다.
+const CRISIS = /(죽고\s*싶|자살|목숨을?\s*끊|사라지고\s*싶|살기\s*싫|살고\s*싶지\s*않|자해|극단적\s*(선택|생각)|죽어\s*버리고\s*싶)/;
+export const crisisSignal = (t: string) => CRISIS.test(t.replace(/\s+/g, " "));
+export const CRISIS_LINE = "적어 준 말이 마음에 걸려요. 혼자 견디지 않아도 돼요. 자살예방상담전화 109(24시간)나 정신건강위기상담 1577-0199에서 지금 바로 이야기를 들어 줄 수 있어요. 위급하면 112나 119에 연락해 주세요.";
 export const STOP_LINE = "알겠어요. 더 묻지 않을게요. 적고 싶은 게 생기면 그때 적어 주세요.";
 
 export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과를 본 뒤 편하게 이야기하는 자리야. 다음 JSON 하나만 출력해. 다른 설명은 붙이지 마.

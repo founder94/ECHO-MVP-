@@ -31,14 +31,16 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
   const [pending, setPending] = useState<string | null>(null);
   const [fail, setFail] = useState<Fail>(null);
   const [opened, setOpened] = useState(false);
+  const [lastFail, setLastFail] = useState<{ text: string; fromDraft: boolean } | null>(null); // 실패한 그 요청을 「다시 보내기」로 그대로
   const busy = pending !== null;
   const endRef = useRef<HTMLDivElement | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [lines, pending]);
 
-  const ask = async (text: string, history: Line[]) => {
-    setPending(text); setFail(null);
+  // 검수(P2): 입력칸은 「입력칸 글을 보낸 때」만 건드린다 — 「질문 하나 받아 보기」 버튼은 적어 둔 글을 지우거나 바꾸지 않는다.
+  const ask = async (text: string, history: Line[], fromDraft = false) => {
+    setPending(text); setFail(null); setLastFail(null);
     try {
       const r = await agentRef(userId, ref, history.map(({ role, text: t }) => ({ role, text: t })), text);
       if (!alive.current) return;
@@ -46,18 +48,19 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
       if (r.question) next.push({ role: "echo", text: r.question, question: true });
       setLines(next);
       if (!text) { setOpened(true); clearContentSeed(); } // 서버가 받은 뒤에 이야기 거리를 지운다
-      else setDraft("");
+      else if (fromDraft) setDraft("");
     } catch (e) {
       if (!alive.current) return;
       const kind = refFailKind(e instanceof UnderstandingError ? e.code : undefined);
       setFail({ kind, message: FAIL_MESSAGE[kind] });
-      if (text) setDraft(text); // 적은 말 보존
+      if (text && fromDraft) setDraft(text); // 적은 말 보존
+      if (text) setLastFail({ text, fromDraft });
     } finally { if (alive.current) setPending(null); }
   };
   // 여는 한 줄(모델 호출 0 · 질문 0) — 한 번만
   useEffect(() => { void ask("", []); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- 처음 한 번만
 
-  const send = (text: string) => { const t = text.trim(); if (!t || busy || !opened) return; void ask(t, lines); };
+  const send = (text: string, fromDraft = true) => { const t = text.trim(); if (!t || busy || !opened) return; void ask(t, lines, fromDraft); };
   const leave = (to: "home" | "plan") => { clearContentSeed(); onLeave(to); };
 
   return (
@@ -80,7 +83,7 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
         <div className="echo-ref-fail" role="alert">
           <p>{fail.message}</p>
           {(fail.kind === "failed" || fail.kind === "busy") && (
-            <button type="button" className="echo-ref-chip" disabled={busy} onClick={() => (opened ? send(draft) : void ask("", []))}>다시 보내기</button>
+            <button type="button" className="echo-ref-chip" disabled={busy} onClick={() => (opened ? (lastFail && !lastFail.fromDraft ? send(lastFail.text, false) : send(draft)) : void ask("", []))}>다시 보내기</button>
           )}
         </div>
       )}
@@ -93,7 +96,7 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
       </form>
 
       <div className="echo-ref-actions">
-        <button type="button" className="echo-ref-chip" disabled={busy || !opened} onClick={() => send(ASK_TEXT)}>질문 하나 받아 보기</button>
+        <button type="button" className="echo-ref-chip" disabled={busy || !opened} onClick={() => send(ASK_TEXT, false)}>질문 하나 받아 보기</button>
         <button type="button" className="echo-ref-chip" onClick={() => leave("plan")}>원하는 만남 알아보기</button>
         <button type="button" className="echo-ref-chip echo-ref-chip--quiet" onClick={() => leave("home")}>오늘은 여기까지</button>
       </div>

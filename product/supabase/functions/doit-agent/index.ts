@@ -168,6 +168,12 @@ async function finishClaim(admin: Db, userId: string, id: string, attempt?: numb
     const { data, error } = await q.select("request_id");
     if (!error) { if (data && data.length) return true; break; } // Codex P2(4183004866): 0행 = 자리가 그사이 바뀜(다른 시도 · 이미 놓음) → 끝냄 확인 실패
   }
+  // 서버 검수(P2): 같은 요청이 거의 동시에 다시 와서 같은 시도 번호의 자리를 먼저 끝냈으면(맞추기) 그것도 끝남이다 — 원래 요청에 가짜 503 을 주지 않는다.
+  //   결과를 함께 남겨야 하는 자리(payload)는 남긴 것을 확인할 수 없으니 그대로 실패로 둔다.
+  if (!payload && attempt != null) {
+    const { data: row, error: re } = await admin.from("doit_request_events").select("status, applied_revision").eq("user_id", userId).eq("request_id", id).eq("action", CLAIM_ACTION).maybeSingle();
+    if (!re && row?.status === "applied" && Number(row.applied_revision ?? -1) === attempt) return true;
+  }
   logDiag({ step: "claim_finish", error: true });
   return false;
 }
@@ -653,13 +659,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 카드 해석·참고 이야기(대화 상태·프로필·매칭과 분리된 유료 호출 한 번)가 함께 쓰는 보호:
     //   끝난 요청 재전송 = 보관한 결과(AI 준비 확인보다 먼저 · Codex P2 4184790634) → AI 사전 확인 → 자리 잡기(하루 한도) → 호출 →
     //   사용 기록 한 줄 → 모양이 틀리면 502(가짜 성공 0) → 결과를 자리에 보관. 사용 기록을 못 남기면 자리 = 결과 모름(하루 한도에 계속 셈).
-    const paidOnce = async <T,>(o: { tag: string; key: string; hash: string; kind: Parameters<A.Llm>[0]; run: (obs: A.Obs) => Promise<T | null>; reply: (r: T, duplicate: boolean) => Json; aiMsg: string; fmtMsg: string }): Promise<Response> => {
+    const paidOnce = async <T,>(o: { tag: string; key: string; hash: string; kind: Parameters<A.Llm>[0]; run: (obs: A.Obs) => Promise<T | null>; reply: (r: T, duplicate: boolean) => Json; aiMsg: string; fmtMsg: string; keep?: (r: T) => Json; noReplay?: boolean }): Promise<Response> => {
       const claimId = await derivedUuid(`${requestId}:claim:${o.tag}`);
+      // 보안 검수(P2): noReplay = 결과 글을 서버에 남기지 않는 동작(참고 이야기) — 끝난 요청을 다시 보내면 보관한 답 대신 「이미 보냄」(409 · 앱은 새 요청으로 다시 보낼 수 있음)
+      const replayKept = (k: T | undefined) => !k ? fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin)
+        : o.noReplay ? fail("ALREADY_DONE", "이미 보낸 말이에요. 다시 보내면 새로 답할게요.", 409, origin)
+        : json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin);
       const kept = (row: { response_payload?: unknown } | null) => (row?.response_payload as Json | null)?.[o.key] as T | undefined;
       const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at, applied_revision, response_payload").eq("user_id", userId).eq("request_id", claimId).maybeSingle();
       if (prior && prior.action === CLAIM_ACTION && prior.status === "applied" && (prior.target_id ?? null) === null && prior.payload_hash === o.hash) {
         const k = kept(prior);
-        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+        return replayKept(k);
       }
       if (!aiReady(o.kind)) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash: o.hash, paid: true, capped: dailyCapped, origin, prior: (prior ?? null) as ClaimRow | null });
@@ -667,7 +677,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (admit.done) {
         const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();
         const k = kept(row);
-        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+        return replayKept(k);
       }
       const attempt = admit.attempt;
       const obs: A.Obs = { calls: [], retry: [] };
@@ -688,7 +698,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         return fail("AI_FORMAT", o.fmtMsg, 502, origin);
       }
       if (!usageOk) { await settleClaim(admin, userId, claimId, TURN_UNCERTAIN, attempt); return json({ ok: true, ...o.reply(result, false) }, 200, origin); }
-      if (!(await finishClaim(admin, userId, claimId, attempt, { [o.key]: result as unknown as Json }))) return unconfirmed(origin);
+      if (!(await finishClaim(admin, userId, claimId, attempt, { [o.key]: (o.keep ? o.keep(result) : result as unknown as Json) }))) return unconfirmed(origin);
       logDiag({ step: o.tag, calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, policy: router.policy.version });
       return json({ ok: true, ...o.reply(result, false) }, 200, origin);
     };
@@ -714,11 +724,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (history.some((l) => A.PRIVATE_DATA.test(l.text))) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
       if (text && A.PRIVATE_DATA.test(text)) return fail("PRIVATE_DATA", "연락처·번호·링크는 여기에 적지 않아요. 그 부분만 빼고 다시 적어 주세요.", 422, origin);
       if (!text) return json({ ok: true, reply: RT.refOpener(seed), question: null }, 200, origin);
+      // 제품 기준: 위기 신호면 분석·질문 생성을 멈추고 안전 안내(모델 호출 0 · 저장 0 · 강제 종료 아님)
+      if (RT.crisisSignal(text)) return json({ ok: true, reply: RT.CRISIS_LINE, question: null, crisis: true }, 200, origin);
       if (RT.wantsStop(text)) return json({ ok: true, reply: RT.STOP_LINE, question: null }, 200, origin);
       const allow = RT.asksQuestion(text);
+      const talkHistory = history.filter((l) => !(l.role === "user" && RT.crisisSignal(l.text))); // 위기 원문은 모델에 다시 보내지 않는다
       return await paidOnce<RT.RefReply>({ tag: "ref", key: "ref", hash: await sha256(`ref:${JSON.stringify(seed)}:${JSON.stringify(history)}:${text}`), kind: "ref_talk",
-        run: (obs) => RT.refTalk(seed, history, text, allow, ctx.llm, obs), reply: (r) => ({ reply: r.reply, question: r.question }),
-        aiMsg: "답을 만들지 못했어요. 같은 말로 다시 보내 볼 수 있어요.", fmtMsg: "답 모양이 잘못 왔어요. 같은 말로 다시 보내 볼 수 있어요." });
+        run: (obs) => RT.refTalk(seed, talkHistory, text, allow, ctx.llm, obs), reply: (r) => ({ reply: r.reply, question: r.question }),
+        aiMsg: "답을 만들지 못했어요. 같은 말로 다시 보내 볼 수 있어요.", fmtMsg: "답 모양이 잘못 왔어요. 같은 말로 다시 보내 볼 수 있어요.",
+        keep: () => ({ done: true }), noReplay: true }); // 답 글은 서버에 남기지 않는다(자리 끝남 표시만)
     }
 
     if (action === "agent_start") {
