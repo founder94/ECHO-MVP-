@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { rememberReturnPath } from '@/lib/auth/returnPath';
+import { forgetTarotReadings } from '@/doit/lib/agentApi';
 import {
   CONSENT_VERSION,
   consentMetadata,
@@ -207,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    forgetTarotReadings();
     try {
       await supabase.auth.signOut();
     } catch {

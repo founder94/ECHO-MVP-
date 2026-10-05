@@ -57,7 +57,7 @@ test('참고 이야기 ② 질문 기본 0: 모델이 물음 문장·question �
   assert.equal(r.body.reply, '요즘 버거웠던 게 떠올랐군요. 그런 마음이 드는 날도 있어요.');
   assert.equal((s.providerCalls?.length ?? 0) - calls, 1);
   assert.equal(usage(s) - used, 1);
-  assert.equal(claims(s).at(-1).status, 'applied'); assert.equal(claims(s).at(-1).response_payload.ref.reply, r.body.reply);
+  assert.equal(claims(s).at(-1).status, 'applied'); assert.deepEqual(claims(s).at(-1).response_payload.ref, { done: true }, '보안 검수: 답 글은 서버에 남기지 않음'); assert.doesNotMatch(JSON.stringify(claims(s).at(-1).response_payload), /버거웠/);
   assert.deepEqual(sessions(s), before, '대화 세션·사실·프로필 그대로');
 });
 
@@ -162,19 +162,55 @@ test('참고 이야기 ⑤-b Codex P1(4187208757): 링크·연락처·이메일�
   assert.equal((s.providerCalls?.length ?? 0) - calls, 0); assert.equal(claims(s).length, cl); assert.equal(usage(s), used);
 });
 
-test('참고 이야기 ⑥ 같은 요청 다시 보냄 = 보관한 답 · 업체 호출 0 · 물음뿐인 답 = 502 AI_FORMAT(가짜 성공 0)', async () => {
+test('참고 이야기 ⑥ 같은 요청 다시 보냄 = 409 ALREADY_DONE(답 글 보관 0) · 업체 호출 0 · 물음뿐인 답 = 502 AI_FORMAT(가짜 성공 0)', async () => {
   const { s, h } = await started();
   s.ai.push({ reply: '그런 날이 있죠. 천천히 적어도 괜찮아요.', question: '' });
   const req = { action: 'agent_ref', requestId: rid(), ref: CARD, history: [], text: '그냥 좀 지쳤어' };
   const a = await h.call(req); assert.equal(a.status, 200);
   const calls = s.providerCalls?.length ?? 0, used = usage(s);
   const again = await h.call(req);
-  assert.equal(again.status, 200); assert.equal(again.body.duplicate, true); assert.equal(again.body.reply, a.body.reply);
+  assert.equal(again.status, 409); assert.equal(again.body.code, 'ALREADY_DONE'); assert.equal(again.body.reply, undefined);
   assert.equal((s.providerCalls?.length ?? 0) - calls, 0); assert.equal(usage(s), used);
   s.ai.push({ reply: '무슨 일이 있었어요? 누가 그랬어요?', question: '' });
   const f = await ref(h, { text: '그냥 그래' });
   assert.equal(f.status, 502, JSON.stringify(f.body)); assert.equal(f.body.code, 'AI_FORMAT');
   assert.equal(claims(s).at(-1).status, 'failed');
+});
+
+test('참고 이야기 ⑧ 위기 신호 = 안전 안내 한 줄(109 · 1577-0199) · 모델 호출 0 · 자리 0 · 다음 요청에 위기 원문을 모델로 보내지 않음', async () => {
+  const { s, h } = await started();
+  const calls = s.providerCalls?.length ?? 0, cl = claims(s).length;
+  for (const text of ['요즘 그냥 죽고 싶어', '자해한 적 있어', '살기 싫다']) {
+    const r = await ref(h, { text });
+    assert.equal(r.status, 200, text); assert.equal(r.body.crisis, true, text); assert.match(r.body.reply, /109/); assert.match(r.body.reply, /1577-0199/); assert.equal(r.body.question, null);
+  }
+  for (const text of ['배고파 죽겠어', '웃겨 죽는 줄']) { s.ai.push({ reply: '그랬군요.', question: '' }); const r = await ref(h, { text }); assert.notEqual(r.body.crisis, true, text); }
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 2); assert.equal(claims(s).length - cl, 2);
+  s.ai.push({ reply: '천천히 적어도 괜찮아요.', question: '' });
+  const r = await ref(h, { history: [{ role: 'user', text: '요즘 그냥 죽고 싶어' }, { role: 'echo', text: '적어 준 말이 마음에 걸려요.' }], text: '조금 나아졌어' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const ix = readFileSync(path.join(source, 'product/supabase/functions/doit-agent/index.ts'), 'utf8');
+  assert.match(ix, /const talkHistory = history\.filter\(\(l\) => !\(l\.role === "user" && RT\.crisisSignal\(l\.text\)\)\)/);
+  assert.match(ix, /RT\.refTalk\(seed, talkHistory, text, allow, ctx\.llm, obs\)/);
+  assert.ok(ix.indexOf('RT.crisisSignal(text)') < ix.indexOf('RT.wantsStop(text)'), '위기 확인이 먼저');
+});
+
+test('참고 이야기 ⑨ 서버 검수(P2): 긴 공백 입력도 판정이 빠름(정규식 되짚기 0)', async () => {
+  const rt = readFileSync(path.join(source, 'product/supabase/functions/doit-agent/reference-talk.ts'), 'utf8');
+  assert.match(rt, /asksQuestion = \(t: string\) => ASK\.test\(stopText\(t\)\)/);
+  assert.match(rt, /wantsStop = \(t: string\) => \{ const c = stopText\(t\); return STOP_ASK\.test\(c\) \|\| STOP_ALL\.test\(c\); \}/);
+  const { s, h } = await started();
+  s.ai.push({ reply: '그랬군요.', question: '' });
+  const t0 = Date.now();
+  const r = await ref(h, { text: '질문' + ' '.repeat(480) + 'x' });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.ok(Date.now() - t0 < 200, `${Date.now() - t0}ms`);
+});
+
+test('서버 검수(P2): 끝내기 0행이어도 같은 시도 번호로 이미 끝난 자리면 끝남(가짜 503 방지) · 결과를 남겨야 하는 자리는 예외', () => {
+  const ix = readFileSync(path.join(source, 'product/supabase/functions/doit-agent/index.ts'), 'utf8');
+  const fn = ix.slice(ix.indexOf('async function finishClaim('), ix.indexOf('const unconfirmed ='));
+  assert.match(fn, /if \(!payload && attempt != null\) \{/);
+  assert.match(fn, /row\?\.status === "applied" && Number\(row\.applied_revision \?\? -1\) === attempt\) return true;/);
 });
 
 test('참고 이야기 ⑦ 분리: 대화 서버·매칭은 이 모듈을 모름 · 모듈에 DB 쓰기 0 · 지시문 = 질문 허용 때만 · 단정 금지', () => {

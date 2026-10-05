@@ -135,6 +135,10 @@ async function tarotKey(userId: string, cardName: string, purpose: string): Prom
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${cardName}\n${purpose}`)); // 목적 글은 원문 대신 지문만 열쇠에
   return `${TAROT_KEEP}${userId}:${localDay()}:${Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)}`;
 }
+// 보안 검수(P2): 로그아웃하면 이 기기의 타로 해석 보관분을 모두 지운다(같은 기기 다음 사람이 읽지 못하게).
+export function forgetTarotReadings(): void {
+  try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith(TAROT_KEEP)) localStorage.removeItem(k); } } catch { /* 저장소가 막힌 기기: 지울 것 없음 */ }
+}
 const tidyTarot = (r: TarotReading): TarotReading => ({ summary: r.summary, tags: r.tags.slice(0, 3), cards: r.cards.slice(0, 3) });
 // Codex P2(4187324611): 같은 열쇠의 해석이 이미 진행 중이면(StrictMode 두 번 실행 · 빠른 재진입) 새로 부르지 않고 그 결과를 함께 받는다(REQUEST_CONFLICT 오류 화면 0).
 const tarotInflight = new Map<string, Promise<TarotReading>>();
@@ -167,7 +171,7 @@ export interface RefLine { role: 'user' | 'echo'; text: string }
 export interface RefReply { reply: string; question: string | null }
 export const refSeedBody = (seed: ContentSeed): RefSeedBody => seed.source === 'TAROT' ? { kind: 'card', label: seed.card } : { kind: 'pattern', key: seed.key };
 export async function agentRef(userId: string, ref: RefSeedBody, history: RefLine[], text: string): Promise<RefReply> {
-  const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA']);
+  const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE']);
   if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
   return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null };
 }
