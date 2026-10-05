@@ -6,7 +6,6 @@ import { savePurpose } from '@/doit/lib/profileSave';
 import DoItSymbol3D from '@/components/DoItSymbol3D';
 import './core-conversation.css';
 import './start-ref.css';
-import './ref-parity.css';
 
 interface Props {
   userId: string;
