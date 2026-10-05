@@ -167,11 +167,11 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 2-1. 브랜드 영상(2026-10-04 대표 「홈페이지 안에 들어갈 DO IT 브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
+      {/* 2-1. 홈페이지 제작과정 영상(2026-10-05 대표 교체 · 처음 자리는 2026-10-04 「브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
       <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
         <div className="bh-content">
-          <p className="bh-kicker">BRAND FILM</p>
+          <p className="bh-kicker">MAKING FILM</p>
           <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
           <BrandFilm />
           <StartActions />
