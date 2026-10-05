@@ -27,5 +27,10 @@ test('운영 게시·GO·다른 가지·다른 워크플로·이어 붙인 명�
     'gh api -X POST repos/founder94/echo-mvp-/actions/workflows/other.yml/dispatches -f ref=echo-qa -f inputs[target]=qa',
     'gh api -X PUT repos/founder94/echo-mvp-/pulls/132/merge',
     'gh api -X POST repos/founder94/echo-mvp-/actions/runs/1/rerun',
+    // Codex P1(PR #134 · 2825b8b): 줄바꿈으로 이어 붙인 명령 · 다른 요청 본문(--input)
+    `${BASE} -f ref=echo-qa -f inputs[target]=qa\ngh api -X PUT repos/founder94/echo-mvp-/pulls/1/merge`,
+    `${BASE} -f ref=echo-qa -f inputs[target]=qa --input /tmp/payload.json`,
+    `${BASE} -f ref=echo-qa -f inputs[target]=qa -F inputs[go]=@/tmp/go`,
+    `${BASE} -f ref=echo-qa -f inputs[target]=qa -f inputs[qa_roles]=app --method PUT`,
   ]) assert.equal(denied(c), true, c);
 });
