@@ -85,7 +85,8 @@ test('상태 변화 = 밝기·채도·움직임 토큰만(색·바탕 교체 0)'
 });
 
 test('화면별 새 바탕 0: 다른 파일은 전체 화면 그라데이션 바탕을 새로 만들지 않는다', () => {
-  const allowed = new Set([BG, 'src/components/route-fallback.css', 'src/doit/doit.css', 'src/doit/pages/do-it/fortune/fortune-space.css']);
+  // 회사 홈페이지(검정 테마 · 파스텔 앱 화면 아님)의 장면 창 사진 위 어두운 막은 대상 아님(2026-10-05 대표 「버튼 누르면 배경 그림이 뜨고 설명」).
+  const allowed = new Set([BG, 'src/components/route-fallback.css', 'src/doit/doit.css', 'src/doit/pages/do-it/fortune/fortune-space.css', 'src/pages/do-it/brand-home/brand-home.css']);
   const walk = (d) => readdirSync(d).flatMap((n) => { const p = path.join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
   for (const f of walk('src').filter((f) => f.endsWith('.css'))) {
     if (allowed.has(f)) continue;
