@@ -10,7 +10,7 @@
 :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
   --echo-font:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;
   /* 2026-10-04 대표 디자인 교체(모바일 검수안): 흰 글자 뒤 판 = 짙은 청록 유리(파스텔이 비침) · 주요 버튼 = 흰 바탕 + 깊은 청록 글자 */
-  --echo-glass:rgb(8 70 78/.34);
+  --echo-glass:rgb(30 42 48/.50);
   --echo-cta-ink:#0f4a4a;
   --echo-glass-strong:rgb(255 255 255/.24);
   --echo-glass-press:rgb(255 255 255/.34);

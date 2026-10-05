@@ -3,18 +3,18 @@
    - 후보: 가운데 정렬 유리 카드 · 큰 따옴표 한 줄(서버가 준 목적) · 주요 버튼 = 흰 판 · 넘기기/숨기기 = 짙은 유리 버튼 나란히.
    - 대화: 내 말 = 오른쪽 짙은 유리 · 상대 말 = 왼쪽 밝은 유리 · 입력줄 = 둥근 유리 한 줄. */
 .doit-app-pastel .doit-candidates .doit-candidates-title{margin:6px 0 14px;font-size:24px!important;line-height:1.35;text-align:center}
-.doit-app-pastel .doit-candidates .doit-candidate{padding:18px 16px 16px;border-radius:22px;background:rgb(8 70 78/.38);border:1px solid rgb(255 255 255/.6);text-align:center}
+.doit-app-pastel .doit-candidates .doit-candidate{padding:18px 16px 16px;border-radius:22px;background:rgb(30 42 48/.54);border:1px solid rgb(255 255 255/.6);text-align:center}
 .doit-app-pastel .doit-candidates .doit-candidate .doit-match-kicker{margin:0;font-size:12px;letter-spacing:.04em;opacity:.9}
 .doit-app-pastel .doit-candidates .doit-candidate-found{margin:6px 0 0;font-size:18px!important}
 .doit-app-pastel .doit-candidates .doit-candidate-quote{display:grid;place-items:center;min-height:120px;margin:14px 0 4px;padding:18px 16px;border-radius:18px;background:linear-gradient(160deg,rgb(255 255 255/.22),rgb(255 255 255/.06));border:1px solid rgb(255 255 255/.5);font-size:18px!important;font-weight:700!important;line-height:1.5;color:#fff;word-break:keep-all}
 .doit-app-pastel .doit-candidates .doit-candidate-quote span span{font-size:22px;line-height:1;opacity:.85;margin:0 4px}
 .doit-app-pastel .doit-candidates .doit-candidate-teaser{margin:8px 0 12px}
-.doit-app-pastel .doit-candidates .doit-candidate-reasons{margin:12px 0 0;padding:12px 14px 12px 30px;border-radius:16px;background:rgb(8 70 78/.35);text-align:left}
+.doit-app-pastel .doit-candidates .doit-candidate-reasons{margin:12px 0 0;padding:12px 14px 12px 30px;border-radius:16px;background:rgb(30 42 48/.51);text-align:left}
 .doit-app-pastel .doit-candidates .doit-candidate-reasons li{color:#fff!important;-webkit-text-fill-color:#fff;opacity:1;font-size:15px}
 .doit-app-pastel .doit-candidates .doit-candidate-why{margin-top:12px}
 .doit-app-pastel .doit-candidates .doit-candidate-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .doit-app-pastel .doit-candidates .doit-candidate-actions .doit-product-action{grid-column:1/-1;justify-content:center;min-height:52px;border-radius:14px}
-.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-connect-link{display:grid;place-items:center;min-height:48px;margin:0;border-radius:14px;background:rgb(8 70 78/.5);border:1px solid rgb(255 255 255/.55);color:#fff;text-decoration:none;font-size:15px}
+.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-connect-link{display:grid;place-items:center;min-height:48px;margin:0;border-radius:14px;background:rgb(30 42 48/.66);border:1px solid rgb(255 255 255/.55);color:#fff;text-decoration:none;font-size:15px}
 .doit-app-pastel .doit-candidates .doit-candidate[data-state=closed] .doit-product-action{justify-content:center;width:100%;min-height:52px;border-radius:14px}
 .doit-app-pastel .doit-candidates .doit-safety-open{margin-top:12px}
 .doit-app-pastel .doit-candidates>.doit-connect-note{text-align:center}
@@ -22,7 +22,7 @@
 /* 9번 연결·대화: 말풍선과 입력줄 */
 .doit-app-pastel .doit-matches .doit-match-messages{display:flex;flex-direction:column;gap:10px;padding:0;list-style:none}
 .doit-app-pastel .doit-matches .doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:6px 18px 18px 18px;background:rgb(255 255 255/.18);border:1px solid rgb(255 255 255/.5)}
-.doit-app-pastel .doit-matches .doit-match-messages li[data-mine=true]{align-self:flex-end;border-radius:18px 18px 6px 18px;background:rgb(8 70 78/.45)}
+.doit-app-pastel .doit-matches .doit-match-messages li[data-mine=true]{align-self:flex-end;border-radius:18px 18px 6px 18px;background:rgb(30 42 48/.61)}
 /* 7번 대기: 「선택을 보냈어요」 줄 — 숨 쉬는 점을 글 바로 앞에(가운데 정렬) */
 .doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting{display:block;text-align:center}
 .doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting .echo-signal-pulse{display:inline-block;margin:0 8px 2px 0}

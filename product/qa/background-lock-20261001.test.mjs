@@ -1,4 +1,4 @@
-// 2026-10-01 대표 「ECHO MOBILE BACKGROUND FINAL LOCK」 검사.
+// 2026-10-01 대표 「ECHO MOBILE BACKGROUND FINAL LOCK」 검사 · 2026-10-05 대표 「배경색부터 내가 보낸 사진 똑같이」로 색 값만 새 기준 시안 실측값으로 바뀜.
 // - 모든 파스텔 모바일 화면 = pastel-bg.css 한 벌(화면별 새 바탕 0).
 // - 색 흐름: 위 Aqua/Cyan + Pastel Blue → 가운데 Mint/Green + Aqua → 아래 Soft Yellow → Coral/Peach. 갈색·올리브 0.
 //   값은 대표 기준 이미지(2026-10-01 「이 색감」)를 실측한 것 — 왼쪽은 민트→노랑→코랄, 오른쪽은 아쿠아가 길게 내려와 피치로.
@@ -30,17 +30,20 @@ test('바탕은 한 벌: 띠 11줄 × 5색 · 흐림 40px 아래', () => {
   assert.match(bg, /filter:blur\(40px\) saturate\(var\(--echo-pastel-sat,1\)\) brightness\(var\(--echo-pastel-light,1\)\);/);
 });
 
-test('색 흐름: 위 Aqua/Cyan+Pastel Blue · 가운데 Mint/Green+Aqua · 아래 Soft Yellow→Coral/Peach', () => {
-  const top = rows.slice(0, 3).flat().map(hsl), mid = rows.slice(3, 6).flat().map(hsl), bot = rows.slice(7).flat().map(hsl);
-  // 위: 청록~하늘(160°~205°) · 맨 위 오른쪽은 파스텔 파랑(190° 이상)
-  for (const c of top) assert.ok(c.h >= 160 && c.h <= 205, `위 색상 ${c.h.toFixed(0)}°`);
-  assert.ok(hsl(rows[0][4]).h >= 190 && hsl(rows[1][4]).h >= 190, '위 오른쪽 파스텔 파랑');
-  // 가운데: 민트·초록~아쿠아(85°~200° · 기준 이미지처럼 오른쪽은 아쿠아·하늘이 더 길게 내려온다)
-  for (const c of mid) assert.ok(c.h >= 85 && c.h <= 200, `가운데 색상 ${c.h.toFixed(0)}°`);
-  // 아래: 맨 아래 두 줄은 전부 노랑~코랄·피치(0°~60°)
-  for (const c of rows.slice(9).flat().map(hsl)) assert.ok(c.h >= 0 && c.h <= 60, `맨 아래 색상 ${c.h.toFixed(0)}°`);
-  // 갈색·어두운 흙색 0: 아래쪽 따뜻한 칸은 모두 밝다(명도 ≥ 60%) · 탁하지 않다(채도 ≥ 45%)
-  for (const c of bot.filter((c) => c.h <= 70)) { assert.ok(c.l >= 0.6, `어두운 갈색 명도 ${(c.l * 100).toFixed(0)}%`); assert.ok(c.s >= 0.45, `탁한 색 채도 ${(c.s * 100).toFixed(0)}%`); }
+test('색 흐름(2026-10-05 새 기준 시안 실측): 위 시안·아쿠아 · 왼쪽 민트→노랑→피치 · 오른쪽 하늘→연보라→분홍 · 맨 아래 피치·분홍', () => {
+  const H = (r, c) => hsl(rows[r][c]);
+  // 위 두 줄: 청록~하늘(165°~200°)
+  for (const c of rows.slice(0, 2).flat().map(hsl)) assert.ok(c.h >= 165 && c.h <= 200, `위 색상 ${c.h.toFixed(0)}°`);
+  // 왼쪽 칸: 민트(위) → 노랑(30%) → 피치·주황(아래)
+  assert.ok(H(0, 0).h >= 160 && H(0, 0).h <= 200, '왼쪽 위 민트·아쿠아');
+  assert.ok(H(3, 0).h >= 35 && H(3, 0).h <= 60, '왼쪽 30% 노랑');
+  for (let r = 6; r < 11; r++) assert.ok(H(r, 0).h <= 35, `왼쪽 아래 피치 ${H(r, 0).h.toFixed(0)}°`);
+  // 오른쪽 칸: 하늘(위) → 연보라(40~50%) → 분홍(아래) — 예전의 청록·올리브·갈색 0
+  assert.ok(H(2, 4).h >= 190 && H(2, 4).h <= 215, '오른쪽 20% 하늘');
+  assert.ok(H(4, 4).h >= 215 && H(4, 4).h <= 300, `오른쪽 40% 연보라 ${H(4, 4).h.toFixed(0)}°`);
+  for (let r = 6; r < 11; r++) assert.ok(H(r, 4).h >= 330 || H(r, 4).h <= 15, `오른쪽 아래 분홍 ${H(r, 4).h.toFixed(0)}°`);
+  // 아래 따뜻한 칸은 밝고(명도 ≥ 70%) 탁하지 않다 — 갈색·흙색 0
+  for (const c of rows.slice(7).flat().map(hsl)) { assert.ok(c.l >= 0.7, `명도 ${(c.l * 100).toFixed(0)}%`); assert.ok(c.s >= 0.5, `채도 ${(c.s * 100).toFixed(0)}%`); }
 });
 
 test('띠 경계가 보이지 않게: 위아래 이웃 띠의 같은 칸 색 차이가 흐림으로 섞이는 범위 안', () => {
@@ -52,12 +55,12 @@ test('띠 경계가 보이지 않게: 위아래 이웃 띠의 같은 칸 색 차
   }
 });
 
-test('스크롤 바탕(밑깔림) 세 곳이 같은 줄기 · 첫 색 = 앱 첫 바탕색(#3fdcb3)', () => {
-  const under = '#3fdcb3 0%,#3ad6e0 18%,#7be5ca 40%,#cae9a6 58%,#e1d490 72%,#f3b78a 88%,#e0927d 100%';
+test('스크롤 바탕(밑깔림) 세 곳이 같은 줄기 · 첫 색 = 앱 첫 바탕색(#5fd6d6)', () => {
+  const under = '#5fd6d6 0%,#9fe2e0 14%,#c8e1c8 26%,#e6d6c0 40%,#eab7ae 55%,#f0ae9f 70%,#f5ae93 85%,#f8a493 100%';
   assert.ok(bg.includes(`--pastel-underlay:linear-gradient(180deg,${under})`));
   assert.ok(read('src/components/route-fallback.css').includes(`linear-gradient(180deg,${under})`));
   assert.ok(read('src/doit/doit.css').includes(`linear-gradient(180deg, ${under.replaceAll(',', ', ')})`));
-  assert.match(read('src/lib/themeColor.ts'), /APP_PASTEL = '#3fdcb3'/);
+  assert.match(read('src/lib/themeColor.ts'), /APP_PASTEL = '#5fd6d6'/);
 });
 
 test('상태 변화 = 밝기·채도·움직임 토큰만(색·바탕 교체 0)', () => {

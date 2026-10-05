@@ -40,7 +40,7 @@ test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React
   assert.match(vite, /var p=location\.pathname/);
   assert.match(vite, /p\.indexOf\("\/do-it\/intro"\)===0/);
   assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.remove\(APP_LAUNCH_CLASS\)/);
-  assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#3fdcb3';/);
+  assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#5fd6d6';/);
 });
 
 test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 실제 이미지 준비 뒤 최소 1.5초 · 흐려지며 사라짐 · 온보딩 경로에서만 · 라우팅 변경 0', () => {

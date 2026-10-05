@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
     if (problem) throw new Error(`BRAND build blocked: ${problem}`);
   }
   // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
-  const APP_START_COLOR = "#3fdcb3";
+  const APP_START_COLOR = "#5fd6d6";
   // 2026-09-29 대표 「시작 화면 배경 변경」(대표 선택 이미지 실측 · 딥 네이비): 앱 아이콘 → 시작 화면(Android 는 manifest background_color 로 그림) → 온보딩(/do-it/intro) 첫 바탕.
   // 파스텔 앱 화면(/doit)의 첫 바탕(APP_START_COLOR)은 그대로 둔다. src/lib/themeColor.ts APP_LAUNCH_COLOR 와 같은 값.
   const APP_LAUNCH_COLOR = "#041433";
