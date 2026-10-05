@@ -74,6 +74,9 @@ function load(state) {
   // 2026-10-05 카드 읽기 모듈(card-reading.ts · agent.ts 만 씀 · 대화 상태와 분리)
   const cardMod = { exports: {} };
   vm.runInNewContext(compile('card-reading.ts'), { ...g, module: cardMod, exports: cardMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'card-reading.ts' });
+  // 2026-10-05 회사 예산 장부 모듈(company-budget.ts · 환경값으로 켤 때만 · state.env 를 요청마다 읽음)
+  const cbMod = { exports: {} };
+  vm.runInNewContext(compile('company-budget.ts'), { ...g, module: cbMod, exports: cbMod.exports, Deno: { env: { get: (k) => (state.env ?? {})[k] } } }, { filename: 'company-budget.ts' });
   // 2026-10-05 참고 이야기 모듈(reference-talk.ts · agent.ts 만 씀 · 저장 0)
   const refMod = { exports: {} };
   vm.runInNewContext(compile('reference-talk.ts'), { ...g, module: refMod, exports: refMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'reference-talk.ts' });
@@ -83,7 +86,7 @@ function load(state) {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
     // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (url, init) => {
       // 2026-10-03 실행 단계의 도구(연결 서버 my_candidates) — state.connect 가 정한 응답(없으면 연결 실패)
       if (String(url).endsWith('/functions/v1/doit-connect')) {

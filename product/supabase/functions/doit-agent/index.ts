@@ -10,6 +10,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.5
 import * as A from "./agent.ts";
 import * as CR from "./card-reading.ts"; // 카드 해석(대화 상태·매칭과 분리 · agent_card 한 곳에서만 씀)
 import * as RT from "./reference-talk.ts"; // 참고 이야기(대화 상태·매칭과 분리 · agent_ref 한 곳에서만 씀)
+import * as CB from "./company-budget.ts"; // 회사 한 달 AI 예산 장부(환경값으로 켤 때만 · 기본 꺼짐)
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
 import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
 import * as R from "./run.ts";
@@ -392,11 +393,14 @@ async function reconcilePaid(c: UsageCtx, o: { claimId: string; claimTarget: str
   return finishClaim(c.admin, c.userId, o.claimId, attempt);
 }
 // 라우터가 「보내기 전에」 멈춘 까닭: 사용자가 끊음(cancelled) · 예산(budget_exceeded). 이때 도우미가 만든 상태(실패한 소개 · 빈 정리 · 대체 보기)는 저장하지 않는다.
-type Halt = "cancelled" | "session" | "request";
-const haltedBy = (r: ModelRouter): Halt | null => r.log.some((x) => x.error === "cancelled") ? "cancelled"
+type Halt = "cancelled" | "session" | "request" | "company";
+// 회사 예산 장부가 이 요청의 예약을 거절했거나 답하지 않음(업체 호출 0) — 라우터 기록과 따로 표시한다.
+const companyHalted = new WeakSet<ModelRouter>();
+const haltedBy = (r: ModelRouter): Halt | null => companyHalted.has(r) ? "company" : r.log.some((x) => x.error === "cancelled") ? "cancelled"
   : r.log.some((x) => x.error === "budget_exceeded" && x.reason === "session_budget") ? "session" : r.log.some((x) => x.error === "budget_exceeded") ? "request" : null;
 // 대화 예산 = 429(다시 보내도 안 됨) · 이번 요청 한도 = 502(다시 보내면 됨) · 사용자가 끊음 = 499
-const haltFail = (why: Halt, origin: string | null) => why === "session" ? fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin)
+const haltFail = (why: Halt, origin: string | null) => why === "company" ? fail("AI_COMPANY_BUDGET", "지금은 AI 사용을 잠시 멈췄어요. 적은 말은 그대로 있어요.", 503, origin)
+  : why === "session" ? fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin)
   : why === "request" ? fail("AI_ERROR", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, origin) : fail("CANCELLED", "요청이 취소됐어요. 다시 보내 주세요.", 499, origin);
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
@@ -425,7 +429,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
       if (!fresh) await foldIntoSaved(ctx, sessionId);
     }
     if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, keptOr(failKept, String(response.error)), ctx.claim.attempt); // 사용량은 위 실패 턴 기록에 · 같은 요청 다시 보내기 = 다시 잡기
-    if (halt === "session" || halt === "cancelled") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 요청 한도 = 아래 기존 502
+    if (halt === "session" || halt === "cancelled" || halt === "company") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 회사 예산 = 503 · 요청 한도 = 아래 기존 502
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
   // 도중에 끊기거나 예산으로 멈췄으면, 도우미가 빈 값으로 채운 상태(빈 정리 등)를 저장하지 않는다 — 사용량만 남김
@@ -529,6 +533,7 @@ async function candidatesTool(baseUrl: string, anonKey: string, authHeader: stri
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get("origin");
+  let budgetDone: (() => Promise<void>) | null = null; // 회사 예산 예약을 잡은 요청이면 응답 전에 정산
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail("BAD_REQUEST", "잘못된 요청이에요.", 405, origin);
   try {
@@ -599,7 +604,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, response_payload, updated_at, applied_revision").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
     const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
-    const ctx = { admin, userId, llm: router.llm, router, origin };
+    // 회사 한 달 AI 예산(켜져 있을 때만): 이 요청의 첫 업체 호출 직전에 예약 한 번(재시도·전환 포함 최대 금액) · 거절·장부 응답 없음·금액 미정 = 업체 호출 0.
+    const budgetCfg = CB.budgetConfig();
+    let llm: A.Llm = router.llm;
+    if (budgetCfg) {
+      const rpc: CB.Rpc = (fn, args) => admin.rpc(fn, args);
+      let held: { key: string; attempt: string } | null = null, stop = false;
+      llm = async (kind, system, input) => {
+        if (!held && !stop) {
+          const max = CB.maxKrw(router.policy, budgetCfg);
+          const attempt = crypto.randomUUID();
+          const key = await sha256(`${userId}:${action}:${requestId}:${attempt}`);
+          const r: CB.ReserveResult = max == null ? { ok: false, code: "UNPRICED" } : await CB.reserve(rpc, { key, fingerprint: await sha256(`${action}:${requestId}:${router.policy.version}`), attempt, maxKrw: max });
+          if (r.ok) { held = { key, attempt }; if (r.level !== "OK") logDiag({ step: "company_budget", level: r.level }); }
+          else { stop = true; companyHalted.add(router); logDiag({ step: "company_budget", code: "code" in r ? r.code : "REFUSED" }); }
+        }
+        if (stop) throw new Error("company_budget");
+        return router.llm(kind, system, input);
+      };
+      budgetDone = async () => { if (!held) return; logDiag({ step: "company_budget_settle", result: await CB.settle(rpc, { key: held.key, attempt: held.attempt, actualKrw: CB.actualKrw(router.summary(), budgetCfg) }) }); };
+    }
+    const ctx = { admin, userId, llm, router, origin };
     // 사용자 하루 한도: 모델을 「실제로 부르기 직전」에만 본다(세기 실패 = 막지 않음 · 기록만). 같은 요청 재전송 재생 · 이미 있는 세션 돌려주기 · agent_run · agent_intro_mark 처럼 모델 호출이 없는 길은 막지 않는다.
     // reserved = 이미 써 둔 자리 수(자리를 쓴 「뒤」 다시 셀 때 1 — 그 자리까지 합쳐 한도를 넘는지)
     const reloadSession = async (sid: string): Promise<Stored | null> => {
@@ -739,7 +764,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
         await settleStart(keptOr(openingKept, "OPENING")); // 사용량은 위 실패 턴 기록에
         // 사용자가 끊은 경우는 다른 모델 경로처럼 499(CANCELLED) — 사용 기록은 위에서 남겼다(리뷰 5401309056)
-        if (haltedBy(router) === "cancelled") return haltFail("cancelled", origin);
+        { const h = haltedBy(router); if (h === "cancelled" || h === "company") return haltFail(h, origin); }
         return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin);
       }
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
@@ -994,5 +1019,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
     return fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
+  } finally {
+    // 예약을 잡은 요청은 성공·실패와 관계없이 정산(장부 쓰기 실패 = 예약 유지 → 보수적으로 막힘)
+    if (budgetDone) await budgetDone().catch(() => logDiag({ step: "company_budget_settle", error: true }));
   }
 });
