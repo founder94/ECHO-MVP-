@@ -84,12 +84,19 @@ test('타로 ②-b Codex P2(4184790634): 끝난 요청 다시 보냄 = AI 키·�
 test('타로 ③ 모양이 틀린 답 = 502 AI_FORMAT(가짜 성공 0) · 자리 놓음 · 사용 기록은 남김', async () => {
   const { s, h } = await started();
   const used = usage(s);
+  // Codex P2(4186782787): 키워드·카드 줄이 덜 온 답도 성공이 아님(보관 0)
+  for (const partial of [{ summary: '요약만 있어요.', tags: [], cards: [] }, { ...READING, tags: ['정리'] }, { ...READING, cards: READING.cards.slice(0, 2) }]) {
+    s.ai.push(partial);
+    const p = await h.call({ action: 'agent_card', requestId: rid(), cardName: '태양', purpose: '' });
+    assert.equal(p.status, 502, JSON.stringify(p.body)); assert.equal(p.body.code, 'AI_FORMAT');
+    assert.equal(claims(s).at(-1).status, 'failed');
+  }
   s.ai.push({ hello: 'world' });
   const r = await h.call({ action: 'agent_card', requestId: rid(), cardName: '태양', purpose: '' });
   assert.equal(r.status, 502, JSON.stringify(r.body));
   assert.equal(r.body.code, 'AI_FORMAT');
   assert.equal(claims(s).at(-1).status, 'failed');
-  assert.equal(usage(s) - used, 1);
+  assert.equal(usage(s) - used, 4, '덜 찬 답 세 번 + 틀린 모양 한 번 = 시도마다 사용 기록 한 줄');
 });
 
 test('타로 ④ 잘못된 입력(빈 카드 · 긴 카드 이름 · 목적에 연락처) = 400 · 업체 호출 0', async () => {

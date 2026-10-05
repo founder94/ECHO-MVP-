@@ -18,11 +18,11 @@ test('타로 해석 = ECHO 서버(agent_card) · 로그인 사용자만 · 예�
 });
 
 test('실패 종류별 안내(로그인 · 준비 중 · 한도 · 몰림 · 실패) — 모든 실패를 같은 「잠시 후」로 숨기지 않음', () => {
-  const kinds = { UNAUTHORIZED: 'login', AI_NOT_CONFIGURED: 'not_ready', NOT_FOUND: 'not_ready', AI_DAILY_LIMIT: 'limit', BUSY: 'busy', RATE_LIMITED: 'busy', AI_FORMAT: 'failed', AI_ERROR: 'failed', NETWORK_ERROR: 'failed' };
+  const kinds = { UNAUTHORIZED: 'login', AI_NOT_CONFIGURED: 'not_ready', NOT_FOUND: 'not_ready', AI_DAILY_LIMIT: 'limit', BUSY: 'busy', RATE_LIMITED: 'busy', AI_FORMAT: 'failed', AI_ERROR: 'failed', NETWORK_ERROR: 'failed', AI_COMPANY_BUDGET: 'paused' };
   const body = OAI.match(/export const tarotErrorKind = \(code: string \| undefined\): TarotErrorKind =>([\s\S]*?);\n/)[1];
   const kindOf = new Function('code', `return (${body});`);
   for (const [code, kind] of Object.entries(kinds)) assert.equal(kindOf(code), kind, code);
-  for (const k of ['login', 'not_ready', 'limit', 'busy', 'failed']) assert.match(OAI, new RegExp(`  ${k}: "[^"]+",`), k);
+  for (const k of ['login', 'not_ready', 'limit', 'busy', 'paused', 'failed']) assert.match(OAI, new RegExp(`  ${k}: "[^"]+",`), k);
   assert.doesNotMatch(OAI.match(/export const TAROT_ERROR[\s\S]*?\};/)[0], /잠시 후 다시 시도해 주세요/);
 });
 

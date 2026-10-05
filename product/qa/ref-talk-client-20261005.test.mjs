@@ -55,6 +55,9 @@ test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질�
   assert.match(TALK, /disabled=\{busy \|\| !opened\} onClick=\{\(\) => send\(ASK_TEXT\)\}>질문 하나 받아 보기/);
   assert.match(TALK, /const send = \(text: string\) => \{ const t = text\.trim\(\); if \(!t \|\| busy \|\| !opened\) return;/, '보내는 중 연타 = 한 번');
   for (const t of ['원하는 만남 알아보기', '오늘은 여기까지']) assert.ok(TALK.includes(t), t);
+  // Codex P2(4186782778): 회사 예산 멈춤 = 따로 안내 · 「다시 보내기」는 실패·몰림일 때만
+  assert.match(TALK, /code === "AI_COMPANY_BUDGET" \? "paused"/);
+  assert.match(TALK, /\(fail\.kind === "failed" \|\| fail\.kind === "busy"\) && \(/);
   assert.doesNotMatch(TALK, /localStorage|profile|matching|agentTurn|agentStart/, '저장·대화 서버·매칭 0');
   assert.match(API, /write<RefReply>\(userId, \{ action: 'agent_ref', ref, history: history\.slice\(-8\), text \}, \['AI_FORMAT', 'AI_ERROR'\]\)/);
   assert.match(API, /seed\.source === 'TAROT' \? \{ kind: 'card', label: seed\.card \} : \{ kind: 'pattern', key: seed\.key \}/);

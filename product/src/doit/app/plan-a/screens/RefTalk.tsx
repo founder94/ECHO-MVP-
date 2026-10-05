@@ -11,15 +11,16 @@ import "./ref-talk.css";
 // - 실패하면 적은 말은 입력칸에 그대로 · 다시 보내기는 누를 때만(같은 말 = 같은 요청 → 서버가 한 번만 부름).
 
 type Line = RefLine & { question?: boolean };
-type Fail = { kind: "limit" | "busy" | "not_ready" | "failed"; message: string } | null;
+type Fail = { kind: "limit" | "busy" | "not_ready" | "paused" | "failed"; message: string } | null;
 const FAIL_MESSAGE: Record<NonNullable<Fail>["kind"], string> = {
   limit: "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.",
   busy: "요청이 몰렸어요. 조금 뒤에 다시 보내 주세요.",
   not_ready: "이야기 기능을 준비하고 있어요. 결과는 그대로 볼 수 있어요.",
+  paused: "지금은 이야기 기능을 잠시 멈췄어요. 적은 말은 그대로 있어요.", // 회사 AI 예산으로 멈춤 — 바로 다시 보내도 같아서 「다시 보내기」 0
   failed: "답을 만들지 못했어요. 적은 말은 그대로 있어요.",
 };
 const refFailKind = (code: string | undefined): NonNullable<Fail>["kind"] =>
-  code === "AI_DAILY_LIMIT" ? "limit" : code === "BUSY" || code === "RATE_LIMITED" ? "busy" : code === "AI_NOT_CONFIGURED" || code === "NOT_FOUND" ? "not_ready" : "failed";
+  code === "AI_COMPANY_BUDGET" ? "paused" : code === "AI_DAILY_LIMIT" ? "limit" : code === "BUSY" || code === "RATE_LIMITED" ? "busy" : code === "AI_NOT_CONFIGURED" || code === "NOT_FOUND" ? "not_ready" : "failed";
 const ASK_TEXT = "질문 하나 해줘";
 
 export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: ContentSeed; onLeave: (to: "home" | "plan") => void }) {

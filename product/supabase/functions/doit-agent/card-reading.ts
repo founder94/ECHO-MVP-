@@ -39,6 +39,8 @@ export function parseCard(raw: string): CardReading | null {
   const tags = Array.isArray(o.tags) ? o.tags.map(str).filter((t) => t && t.length <= 20).slice(0, 3) : [];
   const cards = Array.isArray(o.cards) ? o.cards.map((c) => (c && typeof c === "object" ? { label: str((c as Json).label), value: str((c as Json).value) } : null))
     .filter((c): c is { label: string; value: string } => !!c && !!c.label && !!c.value && c.label.length <= 50 && c.value.length <= 300).slice(0, 3) : [];
+  // Codex P2(4186782787): 화면 모양 = 키워드 3개 · 카드 줄 3개 — 덜 오면 성공으로 보관하지 않는다(가짜 성공·덜 찬 해석 보관 0)
+  if (tags.length !== 3 || cards.length !== 3) return null;
   return { summary, tags, cards };
 }
 export async function readCard(card: string, purpose: string, llm: Llm, obs: Obs): Promise<CardReading | null> {

@@ -52,7 +52,7 @@ function ledger({ open = true, budget = 30000, committed = 0, paused = false } =
   return { L, fn };
 }
 const ON = { AI_POLICY: PRICED, COMPANY_AI_BUDGET: 'on', COMPANY_AI_KRW_PER_USD: '1400' };
-const READING = { summary: '오늘은 조용히 마음을 정리하기 좋은 흐름이에요.', tags: ['정리'], cards: [{ label: '현재의 에너지', value: '차분함' }] };
+const READING = { summary: '오늘은 조용히 마음을 정리하기 좋은 흐름이에요.', tags: ['정리', '여유', '대화'], cards: [{ label: '현재의 에너지', value: '차분함' }, { label: '흐름의 방향', value: '천천히' }, { label: '놓치지 말 것', value: '내 속도' }] };
 async function start(env) {
   const s = newState(); s.env = { AI_POLICY: POLICY }; const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
