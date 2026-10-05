@@ -30,6 +30,9 @@ export const BRAND_HOME_COPY = {
   install: '웹 설치하기',
   storyTitle: ['잘 쓴 소개보다,', '함께한 시간이 궁금해서.'],
   storyLead: '아홉 장면 중 하나를 눌러 열어 보세요.',
+  // 2026-10-05 PM 보강(Codex echo-spec 20261005-plan-a-pm-retention · PR #130 댓글 5989280410 ⑤): 히어로 「내일, 뜻밖의 연결이 기다립니다.」는 승인 원문이라 그대로 두고,
+  //   지금 되는 범위(준비 → 보여 줄 사람이 있는지 확인 → 서로 원할 때만 다음)를 한 줄로 적는다. 내일·자동·알림·후보 보장 말 0.
+  scope: '지금 ECHO에서는 이야기를 나누고 소개와 사진을 준비하면, 지금 보여 드릴 사람이 있는지 확인할 수 있어요. 서로 원할 때만 다음 단계가 열려요.',
 } as const;
 
 type Layer = { kind: 'story'; i: number } | { kind: 'film' } | { kind: 'company' } | { kind: 'greeting' };
@@ -208,6 +211,7 @@ export default function BrandHomePage() {
               </li>
             ))}
           </ol>
+          <p className="bh-scope">{BRAND_HOME_COPY.scope}</p>
         </div>
       </section>
 
