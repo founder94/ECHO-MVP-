@@ -296,7 +296,7 @@ test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아
   for (const q of ['상대가 달라지면 고르는 곳도 바뀌어요?', '상대가 달라서 고르는 곳도 바뀌어요?']) assert.equal(A.keepsCondition('남자면 술, 여자면 카페', q), true, q);
 });
 
-test('Codex P2(4184559630): 나뉜 답에서 다시 쓰기가 모두 실패해도 서버 안내 한 줄이 한쪽도 두 경우도 아닌 질문이 되지 않는다', async () => {
+test('Codex P2(4184559873): 나뉜 답에서 다시 쓰기가 모두 실패해도 서버 안내 한 줄이 한쪽도 두 경우도 아닌 질문이 되지 않는다', async () => {
   const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q }); st.current = st.asked.at(-1);
   const llm = async (kind) => { if (kind === 'turn') return turnJson({ next: { type: 'core', purpose: 'values_character', question: '술 얘기는 재밌어요?', hint: '', choices: [] } }); throw new Error('rewrite failed'); };
   const latest = '처음 만나면 남자면 술, 여자면 카페';
@@ -307,4 +307,16 @@ test('Codex P2(4184559630): 나뉜 답에서 다시 쓰기가 모두 실패해�
   assert.notEqual(response.question, A.talkFallbackText('polite'));
   // 나뉨을 받는 안내 한 줄은 세 말투 모두 나뉜 답 검사를 통과
   for (const t of ['polite', 'casual', 'formal']) assert.ok(A.keepsCondition(latest, A.condFallbackText(t)), t);
+});
+
+test('Codex P2(4184847918): 나뉨을 받는 안내 줄까지 이미 했으면 한쪽 질문을 내보내지 않고 명시적 실패(상태 저장은 서버가 하지 않음)', async () => {
+  const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q });
+  st.asked.push({ type: 'core', purpose: 'values_character', text: A.condFallbackText('polite') }); st.current = st.asked.at(-1);
+  const ONE = '술 얘기는 재밌어요?';
+  const llm = async (kind) => { if (kind === 'turn') return turnJson({ next: { type: 'core', purpose: 'values_character', question: ONE, hint: '', choices: [] } }); throw new Error('rewrite failed'); };
+  const latest = '처음 만나면 남자면 술, 여자면 카페';
+  const { response, obs } = await A.runTurn(st, latest, llm);
+  assert.notEqual(response.question, ONE, JSON.stringify(obs.retry));
+  if (!response.error) assert.ok(A.keepsCondition(latest, response.question), response.question);
+  else { assert.equal(response.error, 'QUESTION'); assert.ok(obs.retry.includes('conditional_unresolved')); }
 });

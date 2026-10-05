@@ -1454,7 +1454,7 @@ export function questionFlaw(st: AgentState, latest: string, q: string, anchor =
   return "";
 }
 // 2026-10-04 만남 준비 질문 상한에 걸렸을 때 쓰는 서버 안내 한 줄 — 대표가 든 좋은 질문 예(「처음엔 어떤 얘기부터 하면 편할 것 같아요?」 · 장면에 붙은 얘기 질문)로, 장소·시간이 아니라 이야기 쪽을 묻는다.
-// Codex P2(4184559630): 경우에 따라 나뉜 답 뒤 서버 안내 한 줄도 나뉨을 받아야 한다(「처음 만날 땐 어디가…」는 한쪽도 두 경우도 아님).
+// Codex P2(4184559873): 경우에 따라 나뉜 답 뒤 서버 안내 한 줄도 나뉨을 받아야 한다(「처음 만날 땐 어디가…」는 한쪽도 두 경우도 아님).
 export const condFallbackText = (tone: Tone) => tone === "casual" ? "경우에 따라 다르구나. 각각 어떤 점이 편한지 조금 더 말해 줄래?" : tone === "formal" ? "경우에 따라 다르시군요. 각각 어떤 점이 편하신지 조금 더 말씀해 주시겠어요?" : "경우에 따라 다르군요. 각각 어떤 점이 편한지 조금 더 말해 줄래요?";
 export const talkFallbackText = (tone: Tone) => tone === "casual" ? "처음엔 어떤 얘기부터 하면 편할 것 같아?" : tone === "formal" ? "처음엔 어떤 이야기부터 나누시면 편하실 것 같으세요?" : "처음엔 어떤 얘기부터 하면 편할 것 같아요?";
 // 서버 안내 한 줄 고르기: 만남 준비 질문 상한이면 이야기 쪽 안내(이미 한 질문이면 쓰지 않음 · 대화 한 번 표시와 따로).
@@ -1631,13 +1631,16 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "covered", "unsure_paste", "same_direction", "survey_tone", "generic_person", "stiff_question", "echo", "logistics", "logistics_early", "meta_quote", "conditional"].includes(questionFlaw(st, qBase, n.question, answered, staleQ, button))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && !answered && spareChoices && !questionBlocked(st, choiceQuestionText(st.tone))) { fixed = { type: "core", purpose: spareChoices.purpose, question: choiceQuestionText(st.tone), hint: "", check: null, choices: spareChoices.choices }; obs.retry.push("question_choices"); }
     // 2026-10-04 만남 준비 질문 상한이면 장소 안내(「처음 만날 땐 어디가…」) 대신 이야기 쪽 안내 한 줄(fallbackLine)
-    // Codex P2(4184559630): 서버 안내 한 줄도 나뉜 답 검사(keepsCondition)를 거친다 — 한쪽도 두 경우도 아닌 안내는 쓰지 않고, 나뉨을 받는 안내 한 줄로 바꾼다(이미 한 질문이면 안내 0).
+    // Codex P2(4184559873): 서버 안내 한 줄도 나뉜 답 검사(keepsCondition)를 거친다 — 한쪽도 두 경우도 아닌 안내는 쓰지 않고, 나뉨을 받는 안내 한 줄로 바꾼다(이미 한 질문이면 안내 0).
     if (!fixed && cand.length) {
       const f = fallbackLine(st);
       const cond = answered && conditionalAnswer(qBase) ? condFallbackText(st.tone) : "";
       const line = f && (!cond || keepsCondition(qBase, f.text)) ? f : cond && !questionBlocked(st, cond) && keepsCondition(qBase, cond) ? { text: cond, once: false } : null;
       if (line) { fixed = { type: "core", purpose: cand[0], question: line.text, hint: "", check: null }; if (line.once) st.fill_fallback_used = true; obs.retry.push(line.text === cond ? "question_fallback_conditional" : "question_fallback"); }
     }
+    // Codex P2(4184847918): 나뉜 답인데 다시 쓰기·앞선 시도·안내 줄이 모두 막혀 한쪽만 묻는 질문만 남으면 그대로 내보내지 않는다 —
+    //   상태 저장 없이 명시적 실패(index: AI_READ_FAILED · 「적은 말은 그대로 있으니 다시 보내 주세요」). 다른 이유로 남은 질문은 예전처럼 둔다.
+    if (!fixed && answered && out.next.question && !keepsCondition(qBase, out.next.question)) { obs.retry.push("conditional_unresolved"); return { obs, response: { error: "QUESTION" } }; }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }
   // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
