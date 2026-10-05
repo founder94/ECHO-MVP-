@@ -1682,7 +1682,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     // Codex P2(4185047847) 같은 뿌리: 같은 질문을 피해 바꾼 질문·안내 줄도 나뉜 답이면 나뉨을 받아야 한다.
     const split = out.kind === "answer" && conditionalAnswer(work);
     if (alt2 && alt2.next.question && !questionBlocked(st, alt2.next.question) && alt.includes(alt2.next.purpose) && !logisticsFlaw(st, alt2.next.question) && !metaQuote(alt2.next.question) && (!split || keepsCondition(work, alt2.next.question))) { out = { ...out, next: alt2.next }; obs.retry.push("dup_switch"); }
-    else { const f = splitFallback(st, work, split); if (f) { out = { ...out, next: { type: "core", purpose: alt[0], question: f.text, hint: "", check: null } }; if (f.once) st.fill_fallback_used = true; obs.retry.push("dup_fallback"); } else obs.retry.push("dup_unresolved"); } // 2026-10-04 만남 준비 상한이면 이야기 쪽 안내
+    // Codex P2(4185230724): 나뉜 답인데 바꿀 질문·안내 줄이 모두 막히면, 같은 질문을 남겨 applyTurn 이 버리고 일찍 끝내게 두지 않고 명시적 실패(상태 저장 0 · 다시 보내기).
+    else { const f = splitFallback(st, work, split); if (f) { out = { ...out, next: { type: "core", purpose: alt[0], question: f.text, hint: "", check: null } }; if (f.once) st.fill_fallback_used = true; obs.retry.push("dup_fallback"); } else if (split) { obs.retry.push("conditional_unresolved"); return { obs, response: { error: "QUESTION" } }; } else obs.retry.push("dup_unresolved"); } // 2026-10-04 만남 준비 상한이면 이야기 쪽 안내
   }
   const limitReached = st.turns.length + 1 >= MAX_TALK_TURNS;
   const response: Json = { ...applyTurn(st, work, out, { limitReached, uiCorrection: !!ui, ...(forced ? { forced } : {}), ...(isChoice ? { choice: true } : {}), ...(opts.noFacts ? { noFacts: true } : {}) }) };

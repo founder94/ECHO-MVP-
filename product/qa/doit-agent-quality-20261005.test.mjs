@@ -349,3 +349,18 @@ test('Codex P2(4185047847) 같은 뿌리: 서버 안내 한 줄을 고르는 길
   // 보통 안내(fallbackLine)를 바로 쓰는 곳은 「보기 다 아니에요」 길(사용자 말이 나뉜 답이 아님)과 splitFallback 안뿐
   assert.equal((src.match(/fallbackLine\(st/g) ?? []).length, 3);
 });
+
+test('Codex P2(4185230724): 같은 질문을 피하다 막히면(나뉨 안내 줄도 이미 함) 일찍 끝내지 않고 명시적 실패', async () => {
+  const latest = '처음 만나면 남자면 술, 여자면 카페';
+  const DUP = '남자랑 여자랑 술이랑 카페가 각각 왜 달라요?';
+  const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q });
+  st.asked.splice(1, 0, { type: 'core', purpose: 'values_character', text: DUP }, { type: 'core', purpose: 'relationship_style', text: A.condFallbackText('polite') });
+  st.current = st.asked.at(-1);
+  // 모델이 세 번(처음 + 다시 청하기 둘) 같은 질문을 내고, 다른 칸으로 바꿔 청하면 한쪽만 묻는 질문을 낸다
+  let n = 0;
+  const llm = async (kind) => { if (kind !== 'turn') throw new Error('x'); n += 1; return turnJson({ next: { type: 'core', purpose: n <= 3 ? 'values_character' : 'relationship_style', question: n <= 3 ? DUP : '술 마시면 무슨 얘기 해요?', hint: '', choices: [] } }); };
+  const { response, obs } = await A.runTurn(st, latest, llm);
+  assert.notEqual(response.finish, true, `일찍 끝남: ${JSON.stringify(obs.retry)}`);
+  assert.equal(response.error, 'QUESTION', JSON.stringify(obs.retry));
+  assert.ok(obs.retry.includes('conditional_unresolved'));
+});
