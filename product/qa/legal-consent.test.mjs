@@ -148,5 +148,7 @@ test('2026-10-05 대표 「4,900원 영구 삭제」: 앱·서버 코드의 글�
     .flatMap((p) => readFileSync(p, 'utf8').split('\n').map((l, i) => [p.slice(root.length), i + 1, l]).filter(([, , l]) => /4,?900|4천9백|사천구백/.test(l)));
   const allowed = hits.filter(([p, , l]) => (p === 'src/lib/echo/api.ts' && /^export const REPORT_PRICE_KRW = 4900;$/.test(l)) || (p === 'supabase/functions/echo-payment/index.ts' && /^const PRICE_KRW = 4900;$/.test(l)));
   assert.equal(hits.length, allowed.length, JSON.stringify(hits.filter((h) => !allowed.includes(h))));
-  assert.match(readFileSync(`${root}src/router/config.tsx`, 'utf8'), /\{ path: '\/payment', element: <Navigate to="\/doit\/home" replace \/> \}/);
+  assert.match(readFileSync(`${root}src/router/config.tsx`, 'utf8'), /\{ path: '\/payment', element: <Navigate to="\/doit\/home" replace \/> \}/);  // Codex P2(4184535769): 관리자 체크 표도 결제 화면을 「PASS(보임)」로 두지 않는다 — 숨김 = 해당 없음
+  const row = readFileSync(`${root}src/doit/pages/do-it/admin/views/FeatureChecklist.tsx`, 'utf8').split('\n').map((l, i, a) => l + a[i + 1]).find((l) => l.trimStart().startsWith('{ name: "결제('));
+  assert.match(row, /결제 화면은 숨겨 두었어요/); assert.match(row, /ui: "NA"/); assert.doesNotMatch(row, /ui: "PASS"/);
 });
