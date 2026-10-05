@@ -243,6 +243,35 @@ test('Codex P1(4183132871): 「보기 다 아니에요」 뒤 모델이 값을 �
   assert.ok(st.turns.at(-1).user === '그건 다 아닌데요' && st.turns.at(-1).saved === false, '사용자 원문은 대화 기록에 보존');
 });
 
+test('Codex P1(4183520261): 준비 문턱 바로 앞에서 「보기 다 아니에요」 — 모델이 마지막 칸을 뽑아도 끝나지 않고 다음 질문으로', async () => {
+  // 핵심 질문 수 상한(MAX_CORE_QUESTIONS)에 걸리지 않게: 앞 질문 1 + 안내 줄 1 + 지금 질문 = 3(끝남 원인을 「충분」 하나로)
+  const st = fresh(); st.asked.push({ type: 'core', purpose: PURP[0], text: QS[0] }); st.current = st.asked.at(-1);
+  st.fill_fallback_used = true;
+  st.asked.push({ type: 'core', purpose: 'relationship_style', text: A.talkFallbackText(st.tone) });
+  const ids = Object.keys(st.slots);
+  // 대화 턴 수 상한(MAX_TALK_TURNS)에 걸리지 않게 턴 기록은 한 줄에 몰아 둔다(끝남 원인을 「충분」 하나로)
+  const fill = (x, id, n) => { n = 1; if (!x.turns.length) x.turns.push({ n: 1, ai: null, question_purpose: id, question_type: 'core', user: '내 답 이야기예요', kind: 'answer', saved: true, extracted: [] }); x.turns[0].extracted.push(id); x.slots[id].items.push({ note: `내 답 ${id}`, quote: `내 답 ${id} 이야기예요`, turn: n, source: 'answer_raw', status: 'CONFIRMED', source_type: 'USER_DIRECT', confirmed_at: '2026-10-05T00:00:00Z' }); x.slots[id].status = 'CONFIRMED'; };
+  // 한 칸만 더 채우면 「충분」이 되는 상태를 찾는다(문턱 숫자를 시험에 박지 않음)
+  let last = null;
+  for (const id of ['relationship_intent', ...ids.filter((x) => x !== 'relationship_intent')]) {
+    const probe = structuredClone(st); fill(probe, id, probe.turns.length + 1);
+    if (A.enoughInfo(probe)) { last = id; break; }
+    fill(st, id, st.turns.length + 1);
+  }
+  assert.ok(last && !A.enoughInfo(st), '문턱 바로 앞 상태를 만듦');
+  const shown = ['조용한 카페', '같이 걷기', '영화 보기'];
+  const cur = { type: 'core', purpose: last, text: '이런 것 중 뭐가 더 좋아요?', choices: shown.slice(), rescue_show: true };
+  st.asked.push(cur); st.current = cur;
+  const NEXT = '사람 볼 때 제일 먼저 보는 게 뭐예요?';
+  const llm = async (kind) => kind === 'turn' ? turnJson({ extracted: [{ purpose: last, note: '천천히 알아감', quote: '그건 다 아닌데요' }], next: { type: 'core', purpose: 'values_character', question: NEXT, hint: '', choices: [] } }) : JSON.stringify({ choices: [] });
+  const { response } = await A.runTurn(st, '그건 다 아닌데요', llm);
+  assert.equal(response.finish, false, JSON.stringify({ d: st.turns.at(-1)?.decision, g: st.turns.at(-1)?.guard, fi: st.turns.at(-1)?.fi, turns: st.turns.length, asked: st.asked.length, enough: A.enoughInfo(st) }));
+  assert.equal(st.phase, 'talk');
+  assert.ok(st.current, '다음 질문이 있음');
+  assert.ok(!response.profile && !response.handoff, '거절 말이 든 프로필·넘김 0');
+  assert.equal(A.enoughInfo(st), false, '준비 상태도 그대로');
+});
+
 test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아님 · 한 글자 경우(술·차)도 읽음', () => {
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '친구 따라 술집 가는 게 좋아요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 다르게 고르는 이유가 있어요?'), true);

@@ -130,3 +130,51 @@ test('⑧ Codex P2(4183132885): 보기 저장 뒤 끝내기 실패(503) → 같�
   assert.equal(r3.status, 200);
   assert.equal(usage(), usageBefore, '세 번째도 새 줄 0');
 });
+
+const claimsOf = (s, target) => s.tables.doit_request_events.filter((x) => x.action === 'agent_turn_claim' && (x.target_id ?? null) === target);
+const usageOf = (s, target) => s.tables.doit_request_events.filter((x) => x.action === 'agent_usage' && x.target_id === target).length;
+
+test('⑨ Codex P2(4183520284): 첫 질문 만들기 저장 뒤 끝내기 실패(503) → 같은 요청 = 이미 있는 세션 + 자리 끝냄 · 사용 기록 한 줄', async () => {
+  const s = newState(); s.env = { AI_POLICY: POLICY }; const h = load(s);
+  s.ai.push({ reply: '반가워요.', question: '요즘 어떤 만남을 생각해요?' });
+  s.failClaimFinish = true;
+  const requestId = rid();
+  const r1 = await h.call({ action: 'agent_start', requestId });
+  assert.ok(s.injected >= 1);
+  assert.equal(r1.status, 503, JSON.stringify(r1.body));
+  assert.equal(claimsOf(s, null).at(-1)?.status, 'pending');
+  const used = usageOf(s, requestId);
+  assert.equal(used, 1, '첫 시도 사용 기록 한 줄');
+  s.failClaimFinish = false;
+  const calls = s.providerCalls?.length ?? 0;
+  const r2 = await h.call({ action: 'agent_start', requestId });
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  assert.equal(r2.body.existing, true);
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0, '모델 호출 0');
+  assert.equal(claimsOf(s, null).at(-1)?.status, 'applied', '유료 자리 끝냄');
+  assert.equal(usageOf(s, requestId), used, '사용 기록 새 줄 0');
+});
+
+test('⑩ Codex P2(4183520274): 소개 저장 뒤 끝내기 실패(503) → 같은 요청 = 저장된 소개로 답함 · 다시 쓰기 0 · 자리 끝냄', async () => {
+  const { s, h, sid } = await started();
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
+  const end = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' });
+  assert.equal(end.status, 200, JSON.stringify(end.body));
+  s.ai.push({ intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  s.failClaimFinish = true;
+  const requestId = rid();
+  const r1 = await h.call({ action: 'agent_intro', requestId, sessionId: sid });
+  assert.ok(s.injected >= 1);
+  assert.equal(r1.status, 503, JSON.stringify(r1.body));
+  const used = usageOf(s, sid);
+  s.failClaimFinish = false;
+  const calls = s.providerCalls?.length ?? 0;
+  s.ai.push({ intro: [{ text: '다시 쓴 소개예요.', basis: '편하게' }] });
+  const r2 = await h.call({ action: 'agent_intro', requestId, sessionId: sid });
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  assert.equal(r2.body.duplicate, true);
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0, '모델 호출 0');
+  assert.ok(!JSON.stringify(r2.body.session.intro ?? {}).includes('다시 쓴 소개'), '저장된 소개 그대로');
+  assert.equal(claimsOf(s, sid).find((x) => x.status === 'applied' || x.status === 'pending')?.status, 'applied');
+  assert.equal(usageOf(s, sid), used, '사용 기록 새 줄 0');
+});

@@ -906,10 +906,12 @@ export interface TurnResponse { record_text?: string; kind: string; reply: strin
 
 // ── 서버 결정(결정적). LLM 출력은 후보다.
 export interface ForcedTurn { kind: Kind; rule: string; actual: string; pending: PendingFix }
-export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: { limitReached?: boolean; uiCorrection?: boolean; forced?: ForcedTurn; choice?: boolean } = {}): TurnResponse {
+export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: { limitReached?: boolean; uiCorrection?: boolean; forced?: ForcedTurn; choice?: boolean; noFacts?: boolean } = {}): TurnResponse {
   const text = String(latest ?? "").trim();
+  // Codex P1(4183520261): 「보기 다 아니에요」 = 답이 아니다 — 이 말에서는 어떤 사실도(정리·원문·추정·선언·정정·되살리기) 받지 않는다. 그래서 끝남·준비도·소개도 이 말로 바뀌지 않는다.
+  if (opts.noFacts) llmOut = { ...llmOut, kind: "answer", extracted: [], inferred: [], declared: null, wrong: [] };
   // 2026-10-01 고른 보기 = 사용자 직접 답(서버가 지금 질문의 승인 보기인지 확인한 뒤에만 · 모델의 말 종류로 바꾸지 않는다).
-  const g = opts.forced ? { kind: opts.forced.kind, rule: opts.forced.rule } : opts.choice ? { kind: "answer" as Kind, rule: "choice_pick" } : decideKind(st, text, llmOut, opts.uiCorrection);
+  const g = opts.forced ? { kind: opts.forced.kind, rule: opts.forced.rule } : opts.choice ? { kind: "answer" as Kind, rule: "choice_pick" } : opts.noFacts ? { kind: "answer" as Kind, rule: "none_of_choices" } : decideKind(st, text, llmOut, opts.uiCorrection);
   // v2.4.7 정정 대상(바로 앞 턴의 확정 칸) — 이번 턴을 넣기 전에 정한다. 확인을 거친 정정은 확인을 물었던 때의 대상.
   const fixT = g.rule === "fix_confirmed" ? opts.forced!.pending.targets : g.rule === "no_corrects_prev" || g.rule === "fix_check" ? fixTargets(st) : null;
   const out: Parsed = g.rule ? { ...llmOut, kind: g.kind } : llmOut;
@@ -1050,7 +1052,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   const whole = (i: Item) => squash(i.note) === squash(text.slice(0, RAW_NOTE_MAX)) || squash(i.quote) === squash(text);
   const rawTwin = !!rawSlot && onlyHere && rawSlot.items.some((i) => i.turn === turn.n && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED" && whole(i));
   const rawFill = !!rawSlot && onlyHere && st.current?.type === "fill";
-  if (!opts.choice && out.kind === "answer" && st.current && rawSlot && (rawBefore || rawTwin || rawFill)
+  if (!opts.choice && !opts.noFacts && out.kind === "answer" && st.current && rawSlot && (rawBefore || rawTwin || rawFill)
     && !rawSlot.items.some((i) => i.turn === turn.n && i.status === "CONFIRMED" && i.source_type !== "AI_EXTRACTED")
     && squash(text).length >= 4 && !NOT_AN_ANSWER(text)) {
     const pid = st.current.purpose;
@@ -1523,7 +1525,7 @@ export async function pickStale(st: AgentState, text: string, out: Parsed, llm: 
 }
 
 // opts.choice = 화면에서 누른 보기(서버가 지금 질문의 승인 보기인지 다시 확인) · opts.rescueOpen = 화면에 보기가 펼쳐져 있었음(「잘 모르겠어요」를 눌러 연 경우 포함).
-export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { ui?: { correction: true; purpose: string | null } | null; choice?: unknown; rescueOpen?: boolean } = {}): Promise<RunResult> {
+export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { ui?: { correction: true; purpose: string | null } | null; choice?: unknown; rescueOpen?: boolean; noFacts?: boolean } = {}): Promise<RunResult> {
   const ui = opts.ui?.correction ? { purpose: opts.ui.purpose && PIDS.includes(opts.ui.purpose) ? opts.ui.purpose : null } : null;
   const text = String(latest ?? "").trim();
   const obs: Obs = { calls: [], retry: [] };
@@ -1549,7 +1551,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     cur.choices = null; cur.rescue_show = false; cur.rescue_fallback = false; syncAsked(st);
     // Codex P1(4183132871): 다음 질문만 모델에게 받고, 이 말에서 생긴 사용자 정보 변화(칸 값·원문 저장·추정·선언·정정·다툼·확인 대기)는 모두 되돌린다(매칭·준비도 영향 0).
     const kept = structuredClone({ slots: st.slots, inferred: st.inferred, declared: st.declared, corrections: st.corrections, disputed: st.disputed, pending_fix: st.pending_fix ?? null });
-    const r = await runTurn(st, text, llm, { ...opts, rescueOpen: false, choice: undefined });
+    const r = await runTurn(st, text, llm, { ...opts, rescueOpen: false, choice: undefined, noFacts: true });
     Object.assign(st, kept);
     const res = r.response as Record<string, unknown>;
     if (!res.error) { res.saved = false; res.extracted = []; res.recovered = []; const t = st.turns.at(-1); if (t && t.user === text) { t.saved = false; t.extracted = []; t.recovered = []; t.fi = [...new Set([...(t.fi ?? []), "choice_ref_after_none"])]; } }
@@ -1657,7 +1659,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     else { const f = fallbackLine(st); if (f) { out = { ...out, next: { type: "core", purpose: alt[0], question: f.text, hint: "", check: null } }; if (f.once) st.fill_fallback_used = true; obs.retry.push("dup_fallback"); } else obs.retry.push("dup_unresolved"); } // 2026-10-04 만남 준비 상한이면 이야기 쪽 안내
   }
   const limitReached = st.turns.length + 1 >= MAX_TALK_TURNS;
-  const response: Json = { ...applyTurn(st, work, out, { limitReached, uiCorrection: !!ui, ...(forced ? { forced } : {}), ...(isChoice ? { choice: true } : {}) }) };
+  const response: Json = { ...applyTurn(st, work, out, { limitReached, uiCorrection: !!ui, ...(forced ? { forced } : {}), ...(isChoice ? { choice: true } : {}), ...(opts.noFacts ? { noFacts: true } : {}) }) };
   // 2026-10-01 서버가 보기를 먼저 펼칠 질문(C·D)인데 보기가 모자라면 보기만 한 번 다시 청한다(그래도 없으면 안전 안내 + RESCUE_OPTIONS_MISSING).
   if (response.question && !response.finish) { const f = await ensureRescue(st, llm, obs); const t = st.turns.at(-1); if (f.length && t) t.fi = [...new Set([...(t.fi ?? []), ...f])]; }
   // 2026-10-04 마지막 확인: 보기를 가리키는 질문인데 보기가 없으면 보기를 가리키지 않는 질문으로 바꾼다(응답·상태 함께).
