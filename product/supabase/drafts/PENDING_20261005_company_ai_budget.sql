@@ -108,6 +108,9 @@ revoke all on function public.company_ai_open_month(date, integer, bigint, text)
 grant execute on function public.company_ai_reserve(text, text, uuid, integer), public.company_ai_settle(text, uuid, integer) to service_role;
 -- company_ai_open_month 는 사람 승인 절차(관리자 SQL 실행)로만 — service_role 에도 주지 않음.
 
+-- 서버 연결(2026-10-05 · doit-agent/company-budget.ts · 기본 꺼짐): COMPANY_AI_BUDGET=on + COMPANY_AI_KRW_PER_USD + AI_POLICY(단가 · limits.max_cost_usd_per_request)일 때
+--   한 요청의 첫 업체 호출 직전 company_ai_reserve(최대 = 요청당 금액 상한 × 환율 · 재시도·전환 포함) → 응답 전 company_ai_settle(같은 시도 토큰 · 실제 금액, 모르면 NULL=최대).
+--   예약 거절·장부 응답 없음·금액 미정 = 업체 호출 0(503 AI_COMPANY_BUDGET). 이 표·함수가 적용되기 전에는 켜지 않는다(켜면 모든 AI 호출이 막힘).
 -- 남은 일(이 초안 밖): 서버가 p_max_krw 를 「요청 토큰 상한 × 단가 × 고정 환율 · 수수료/세금」으로 계산(정책에 단가 없으면 예약 0 · 호출 0),
 --   다른 AI 경로(재시도·제공사 전환 포함 전부)를 같은 예약으로 묶기, 제공사 청구와의 월 대조 절차, 50%/80% 알림 발송(지금은 상태 값만).
 

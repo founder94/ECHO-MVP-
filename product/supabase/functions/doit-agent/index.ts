@@ -8,6 +8,9 @@
 // - 로그에는 코드·개수·시간만 남긴다(사용자 원문·토큰·키 0).
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
+import * as CR from "./card-reading.ts"; // 카드 해석(대화 상태·매칭과 분리 · agent_card 한 곳에서만 씀)
+import * as RT from "./reference-talk.ts"; // 참고 이야기(대화 상태·매칭과 분리 · agent_ref 한 곳에서만 씀)
+import * as CB from "./company-budget.ts"; // 회사 한 달 AI 예산 장부(환경값으로 켤 때만 · 기본 꺼짐)
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
 import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
 import * as R from "./run.ts";
@@ -39,7 +42,7 @@ const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
 const LOCK_WAIT_MS = 25;
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
@@ -157,9 +160,9 @@ async function settleClaim(admin: Db, userId: string, requestId: string, code: s
 }
 // 끝난 자리(시작·소개·보기 — 턴 줄로 바뀌지 않는 자리) = applied(하루 한도에 세지 않음 · 사용량은 사용 기록에)
 // Codex P2(4182821561): 쓰기 오류면 두 번 더 · 끝내 못 바꾸면 false — 부른 쪽은 「끝남」으로 답하지 않는다(자리는 처리 중으로 남아 하루 한도에 셈).
-async function finishClaim(admin: Db, userId: string, id: string, attempt?: number): Promise<boolean> {
+async function finishClaim(admin: Db, userId: string, id: string, attempt?: number, payload?: Json): Promise<boolean> {
   for (let i = 0; i < 3; i++) {
-    let q = admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString() })
+    let q = admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString(), ...(payload ? { response_payload: payload } : {}) }) // payload = 같은 요청 재전송 때 돌려줄 결과(타로 해석)
       .eq("user_id", userId).eq("request_id", id).eq("action", CLAIM_ACTION).eq("status", "pending");
     if (attempt != null) q = q.eq("applied_revision", attempt);
     const { data, error } = await q.select("request_id");
@@ -390,11 +393,15 @@ async function reconcilePaid(c: UsageCtx, o: { claimId: string; claimTarget: str
   return finishClaim(c.admin, c.userId, o.claimId, attempt);
 }
 // 라우터가 「보내기 전에」 멈춘 까닭: 사용자가 끊음(cancelled) · 예산(budget_exceeded). 이때 도우미가 만든 상태(실패한 소개 · 빈 정리 · 대체 보기)는 저장하지 않는다.
-type Halt = "cancelled" | "session" | "request";
-const haltedBy = (r: ModelRouter): Halt | null => r.log.some((x) => x.error === "cancelled") ? "cancelled"
+type Halt = "cancelled" | "session" | "request" | "company";
+// 회사 예산 장부가 이 요청의 예약을 거절했거나 답하지 않음(업체 호출 0) — 라우터 기록과 따로 표시한다.
+const companyHalted = new WeakSet<ModelRouter>();
+const MAX_LEDGER_TRIES = 5; // 같은 요청 id 로 정산까지 끝난 시도 뒤 다시 보내기 허용 횟수(장부 예약 열쇠 번호)
+const haltedBy = (r: ModelRouter): Halt | null => companyHalted.has(r) ? "company" : r.log.some((x) => x.error === "cancelled") ? "cancelled"
   : r.log.some((x) => x.error === "budget_exceeded" && x.reason === "session_budget") ? "session" : r.log.some((x) => x.error === "budget_exceeded") ? "request" : null;
 // 대화 예산 = 429(다시 보내도 안 됨) · 이번 요청 한도 = 502(다시 보내면 됨) · 사용자가 끊음 = 499
-const haltFail = (why: Halt, origin: string | null) => why === "session" ? fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin)
+const haltFail = (why: Halt, origin: string | null) => why === "company" ? fail("AI_COMPANY_BUDGET", "지금은 AI 사용을 잠시 멈췄어요. 적은 말은 그대로 있어요.", 503, origin)
+  : why === "session" ? fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin)
   : why === "request" ? fail("AI_ERROR", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, origin) : fail("CANCELLED", "요청이 취소됐어요. 다시 보내 주세요.", 499, origin);
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
@@ -423,7 +430,7 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
       if (!fresh) await foldIntoSaved(ctx, sessionId);
     }
     if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, keptOr(failKept, String(response.error)), ctx.claim.attempt); // 사용량은 위 실패 턴 기록에 · 같은 요청 다시 보내기 = 다시 잡기
-    if (halt === "session" || halt === "cancelled") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 요청 한도 = 아래 기존 502
+    if (halt === "session" || halt === "cancelled" || halt === "company") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 회사 예산 = 503 · 요청 한도 = 아래 기존 502
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
   // 도중에 끊기거나 예산으로 멈췄으면, 도우미가 빈 값으로 채운 상태(빈 정리 등)를 저장하지 않는다 — 사용량만 남김
@@ -527,6 +534,7 @@ async function candidatesTool(baseUrl: string, anonKey: string, authHeader: stri
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get("origin");
+  let budgetDone: (() => Promise<void>) | null = null; // 회사 예산 예약을 잡은 요청이면 응답 전에 정산
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail("BAD_REQUEST", "잘못된 요청이에요.", 405, origin);
   try {
@@ -597,7 +605,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, response_payload, updated_at, applied_revision").eq("user_id", userId).eq("request_id", requestId).maybeSingle();
     const router = routerForRequest(req.signal);
     const aiReady = (kind: Parameters<A.Llm>[0]) => router.usable(kind).length > 0; // 키·모델·전달 허용이 갖춰진 제공사가 하나라도 있나(키 값은 보지 않음)
-    const ctx = { admin, userId, llm: router.llm, router, origin };
+    // 회사 한 달 AI 예산(켜져 있을 때만): 이 요청의 첫 업체 호출 직전에 예약 한 번(재시도·전환 포함 최대 금액) · 거절·장부 응답 없음·금액 미정 = 업체 호출 0.
+    const budgetCfg = CB.budgetConfig();
+    let llm: A.Llm = router.llm;
+    if (budgetCfg) {
+      const rpc: CB.Rpc = (fn, args) => admin.rpc(fn, args);
+      let held: { key: string; attempt: string } | null = null, stop = false;
+      llm = async (kind, system, input) => {
+        if (!held && !stop) {
+          const max = CB.maxKrw(router.policy, budgetCfg);
+          // Codex P2(4186974029): 예약 열쇠 = 사용자·동작·요청 id 로 정한 값(시도마다 새로 만들지 않음) — 시도 UUID 는 정산 주인 표시로만.
+          //   앞선 시도의 예약이 아직 「reserved」(정산 전에 끊긴 요청)면 같은 요청을 다시 보내도 새 예약·업체 호출 0(DUPLICATE:reserved = 막음).
+          //   앞선 예약이 정산까지 끝났으면(실패 뒤 다시 보내기) 다음 번호 열쇠로 새 예약 — 최대 MAX_LEDGER_TRIES 번.
+          const attempt = crypto.randomUUID();
+          const base = `${userId}:${action}:${requestId}`;
+          const fingerprint = await sha256(`${action}:${requestId}:${router.policy.version}`);
+          let r: CB.ReserveResult = { ok: false, code: "UNPRICED" }, key = "";
+          if (max != null) for (let n = 0; n < MAX_LEDGER_TRIES; n++) {
+            key = await sha256(n ? `${base}:${n}` : base);
+            r = await CB.reserve(rpc, { key, fingerprint, attempt, maxKrw: max });
+            if (r.ok || !("code" in r) || !r.code.startsWith("DUPLICATE:") || r.code === "DUPLICATE:reserved") break;
+            if (n === MAX_LEDGER_TRIES - 1) r = { ok: false, code: "RETRY_LIMIT" };
+          }
+          if (r.ok) { held = { key, attempt }; if (r.level !== "OK") logDiag({ step: "company_budget", level: r.level }); }
+          else { stop = true; companyHalted.add(router); logDiag({ step: "company_budget", code: "code" in r ? r.code : "REFUSED" }); }
+        }
+        if (stop) throw new Error("company_budget");
+        return router.llm(kind, system, input);
+      };
+      budgetDone = async () => { if (!held) return; logDiag({ step: "company_budget_settle", result: await CB.settle(rpc, { key: held.key, attempt: held.attempt, actualKrw: CB.actualKrw(router.summary(), budgetCfg) }) }); };
+    }
+    const ctx = { admin, userId, llm, router, origin };
     // 사용자 하루 한도: 모델을 「실제로 부르기 직전」에만 본다(세기 실패 = 막지 않음 · 기록만). 같은 요청 재전송 재생 · 이미 있는 세션 돌려주기 · agent_run · agent_intro_mark 처럼 모델 호출이 없는 길은 막지 않는다.
     // reserved = 이미 써 둔 자리 수(자리를 쓴 「뒤」 다시 셀 때 1 — 그 자리까지 합쳐 한도를 넘는지)
     const reloadSession = async (sid: string): Promise<Stored | null> => {
@@ -611,6 +649,77 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (used >= USER_DAILY_TURNS + reserved) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
       return null;
     };
+
+    // 카드 해석·참고 이야기(대화 상태·프로필·매칭과 분리된 유료 호출 한 번)가 함께 쓰는 보호:
+    //   끝난 요청 재전송 = 보관한 결과(AI 준비 확인보다 먼저 · Codex P2 4184790634) → AI 사전 확인 → 자리 잡기(하루 한도) → 호출 →
+    //   사용 기록 한 줄 → 모양이 틀리면 502(가짜 성공 0) → 결과를 자리에 보관. 사용 기록을 못 남기면 자리 = 결과 모름(하루 한도에 계속 셈).
+    const paidOnce = async <T,>(o: { tag: string; key: string; hash: string; kind: Parameters<A.Llm>[0]; run: (obs: A.Obs) => Promise<T | null>; reply: (r: T, duplicate: boolean) => Json; aiMsg: string; fmtMsg: string }): Promise<Response> => {
+      const claimId = await derivedUuid(`${requestId}:claim:${o.tag}`);
+      const kept = (row: { response_payload?: unknown } | null) => (row?.response_payload as Json | null)?.[o.key] as T | undefined;
+      const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at, applied_revision, response_payload").eq("user_id", userId).eq("request_id", claimId).maybeSingle();
+      if (prior && prior.action === CLAIM_ACTION && prior.status === "applied" && (prior.target_id ?? null) === null && prior.payload_hash === o.hash) {
+        const k = kept(prior);
+        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      if (!aiReady(o.kind)) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash: o.hash, paid: true, capped: dailyCapped, origin, prior: (prior ?? null) as ClaimRow | null });
+      if (admit.res) return admit.res;
+      if (admit.done) {
+        const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();
+        const k = kept(row);
+        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      const attempt = admit.attempt;
+      const obs: A.Obs = { calls: [], retry: [] };
+      let result: T | null = null;
+      try { result = await o.run(obs); }
+      catch (e) {
+        const halt = haltedBy(router);
+        const ok = await keepUsage(ctx, null, halt ? `${o.tag}_${halt}` : `${o.tag}_error`);
+        await settleClaim(admin, userId, claimId, keptOr(ok, halt ? `HALT_${halt}` : "AI_ERROR"), attempt);
+        if (halt) return haltFail(halt, origin);
+        logDiag({ step: o.tag, code: "ai_error", ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version });
+        void e; return fail("AI_ERROR", o.aiMsg, 502, origin);
+      }
+      const usageOk = router.summary().calls > 0 ? await usageOnce(ctx, null, o.tag, claimId, attempt, aiTrace(router)) : true;
+      if (!result) {
+        await settleClaim(admin, userId, claimId, keptOr(usageOk, "AI_FORMAT"), attempt);
+        logDiag({ step: o.tag, code: "format", calls: obs.calls.length });
+        return fail("AI_FORMAT", o.fmtMsg, 502, origin);
+      }
+      if (!usageOk) { await settleClaim(admin, userId, claimId, TURN_UNCERTAIN, attempt); return json({ ok: true, ...o.reply(result, false) }, 200, origin); }
+      if (!(await finishClaim(admin, userId, claimId, attempt, { [o.key]: result as unknown as Json }))) return unconfirmed(origin);
+      logDiag({ step: o.tag, calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, policy: router.policy.version });
+      return json({ ok: true, ...o.reply(result, false) }, 200, origin);
+    };
+
+    // 2026-10-05 대표 지시 「카드 해석 실패 이유를 알아내서 최종 완성」(Codex echo-spec 20261005 카드 해석 A): QA 에 예전 openai-chat 이 없어 해석이 늘 실패했다.
+    //   받는 것 = 카드 이름 + 관계 목적 글(선택) · 대화 상태·프로필·매칭 쓰기 0 · 해석 글은 이 요청 자리(claim) 안에만 남는다.
+    if (action === "agent_card") {
+      const input = CR.cardInput(body.cardName, body.purpose);
+      if (!input) return fail("BAD_REQUEST", "카드를 다시 골라 주세요.", 400, origin);
+      return await paidOnce<CR.CardReading>({ tag: "card", key: "card", hash: await sha256(`card:${input.card}:${input.purpose}`), kind: "card_reading",
+        run: (obs) => CR.readCard(input.card, input.purpose, ctx.llm, obs), reply: (r) => ({ reading: r as unknown as Json }),
+        aiMsg: "해석을 만들지 못했어요. 같은 카드로 다시 해 볼 수 있어요.", fmtMsg: "해석 모양이 잘못 왔어요. 같은 카드로 다시 해 볼 수 있어요." });
+    }
+
+    // 2026-10-05 Codex echo-spec 20261005 B: 결과 뒤 참고 이야기(질문 기본 0 · 저장 0). 받는 것 = 결과 종류 + 이번 이야기 앞 줄(최대 8) + 지금 말.
+    //   빈 말 = 여는 한 줄(모델 0) · 그만/질문 싫음 = 짧은 한 줄(모델 0) · 질문은 이번 말이 직접 청할 때만 한 개.
+    if (action === "agent_ref") {
+      const seed = RT.refSeed(body.ref);
+      const history = RT.refHistory(body.history);
+      const text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!seed || !history || text.length > RT.REF_TEXT_MAX) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
+      // Codex P1(4187208757): 전화·이메일·링크·식별번호가 든 말은 모델에 보내지 않는다(agent_turn 과 같은 PRIVATE_DATA) — 앞 줄도 같은 기준(든 줄이 있으면 요청 전체 거절).
+      if (history.some((l) => A.PRIVATE_DATA.test(l.text))) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
+      if (text && A.PRIVATE_DATA.test(text)) return fail("PRIVATE_DATA", "연락처·번호·링크는 여기에 적지 않아요. 그 부분만 빼고 다시 적어 주세요.", 422, origin);
+      if (!text) return json({ ok: true, reply: RT.refOpener(seed), question: null }, 200, origin);
+      if (RT.wantsStop(text)) return json({ ok: true, reply: RT.STOP_LINE, question: null }, 200, origin);
+      const allow = RT.asksQuestion(text);
+      return await paidOnce<RT.RefReply>({ tag: "ref", key: "ref", hash: await sha256(`ref:${JSON.stringify(seed)}:${JSON.stringify(history)}:${text}`), kind: "ref_talk",
+        run: (obs) => RT.refTalk(seed, history, text, allow, ctx.llm, obs), reply: (r) => ({ reply: r.reply, question: r.question }),
+        aiMsg: "답을 만들지 못했어요. 같은 말로 다시 보내 볼 수 있어요.", fmtMsg: "답 모양이 잘못 왔어요. 같은 말로 다시 보내 볼 수 있어요." });
+    }
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).
@@ -669,7 +778,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
         await settleStart(keptOr(openingKept, "OPENING")); // 사용량은 위 실패 턴 기록에
         // 사용자가 끊은 경우는 다른 모델 경로처럼 499(CANCELLED) — 사용 기록은 위에서 남겼다(리뷰 5401309056)
-        if (haltedBy(router) === "cancelled") return haltFail("cancelled", origin);
+        { const h = haltedBy(router); if (h === "cancelled" || h === "company") return haltFail(h, origin); }
         return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin);
       }
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
@@ -924,5 +1033,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   } catch (e) {
     logDiag({ step: "unhandled", code: e instanceof Error ? e.name : "unknown" });
     return fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
+  } finally {
+    // 예약을 잡은 요청은 성공·실패와 관계없이 정산(장부 쓰기 실패 = 예약 유지 → 보수적으로 막힘)
+    if (budgetDone) await budgetDone().catch(() => logDiag({ step: "company_budget_settle", error: true }));
   }
 });

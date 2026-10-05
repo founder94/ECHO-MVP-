@@ -12,8 +12,11 @@ import { colors, serif, surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
 import {
   generateTarotInterpretation,
+  TarotError,
+  type TarotErrorKind,
   type TarotInterpretation,
 } from "@/doit/lib/openai";
+import { Link } from "react-router-dom";
 import { TAROT_DECK } from "../tarotDeck";
 import { TarotCardArt } from "../components/TarotCardArt";
 import { ResultCard, SajuPreviewSection, readSelectedCard } from "./FreeResult.parts";
@@ -50,6 +53,10 @@ export function FreeResult({
   const [tarotError, setTarotError] =
     useState<string | null>(null);
 
+  // 2026-10-05 타로 해석 실패 복구: 실패 종류(로그인 · 준비 중 · 한도 · 몰림 · 실패) · 같은 카드로 한 번 다시(누를 때만 · 연타 = 요청 하나)
+  const [tarotErrorKind, setTarotErrorKind] = useState<TarotErrorKind | null>(null);
+  const [tarotTry, setTarotTry] = useState(0);
+
   useEffect(() => {
     if (mode !== "taro") {
       return;
@@ -68,6 +75,7 @@ export function FreeResult({
 
     setTarotLoading(true);
     setTarotError(null);
+    setTarotErrorKind(null);
 
     generateTarotInterpretation(
       selected.card.nameKo,
@@ -85,6 +93,7 @@ export function FreeResult({
               ? err.message
               : "잠시 후 다시 시도해 주세요.",
           );
+          setTarotErrorKind(err instanceof TarotError ? err.kind : "failed");
         }
       })
       .finally(() => {
@@ -96,7 +105,7 @@ export function FreeResult({
     return () => {
       cancelled = true;
     };
-  }, [mode]);
+  }, [mode, tarotTry]);
 
   // 사주는 실제 엔진 연동 전 → 가짜 결과 대신 "준비 중"을 명확히 표시한다.
   const isSajuPreparing = mode === "saju";
@@ -271,6 +280,21 @@ export function FreeResult({
             >
               {tarotError}
             </p>
+          )}
+          {mode === "taro" && tarotError && (tarotErrorKind === "failed" || tarotErrorKind === "busy") && (
+            <button
+              type="button"
+              className="echo-glass-btn echo-glass-btn--primary mt-3 rounded-2xl min-h-12 px-4"
+              disabled={tarotLoading}
+              onClick={() => { if (!tarotLoading) setTarotTry((n) => n + 1); }}
+            >
+              같은 카드로 다시 보기
+            </button>
+          )}
+          {mode === "taro" && tarotError && tarotErrorKind === "login" && (
+            <Link className="echo-glass-btn echo-glass-btn--primary mt-3 inline-flex items-center justify-center rounded-2xl min-h-12 px-4" to="/login" state={{ from: "/doit/fortune?view=taro" }}>
+              로그인하고 해석 보기
+            </Link>
           )}
 
           {showResultContent && (
