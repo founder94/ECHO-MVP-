@@ -364,3 +364,17 @@ test('Codex P2(4185230724): 같은 질문을 피하다 막히면(나뉨 안내 �
   assert.equal(response.error, 'QUESTION', JSON.stringify(obs.retry));
   assert.ok(obs.retry.includes('conditional_unresolved'));
 });
+
+test('Codex P2(4185333096): 모델이 나뉜 답을 정정(correction)으로 읽어도 같은 질문 피하기 길이 나뉨을 지킨다', async () => {
+  const latest = '처음 만나면 남자면 술, 여자면 카페';
+  const DUP = '남자랑 여자랑 술이랑 카페가 각각 왜 달라요?';
+  const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q });
+  st.asked.splice(1, 0, { type: 'core', purpose: 'values_character', text: DUP }, { type: 'core', purpose: 'relationship_style', text: A.condFallbackText('polite') });
+  st.current = st.asked.at(-1);
+  let n = 0;
+  const llm = async (kind) => { if (kind !== 'turn') throw new Error('x'); n += 1; return turnJson({ kind: 'correction', next: { type: 'core', purpose: n <= 3 ? 'values_character' : 'relationship_style', question: n <= 3 ? DUP : '술 마시면 무슨 얘기 해요?', hint: '', choices: [] } }); };
+  const { response, obs } = await A.runTurn(st, latest, llm);
+  assert.notEqual(response.finish, true, JSON.stringify(obs.retry));
+  if (!response.error) assert.ok(response.question && A.keepsCondition(latest, response.question), `${response.question} ${JSON.stringify(obs.retry)}`);
+  else assert.equal(response.error, 'QUESTION');
+});
