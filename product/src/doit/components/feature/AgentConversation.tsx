@@ -196,6 +196,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       // 아직 이 화면의 기록 칸 위라면, 그 위에 쌓인 것(이용 안내 창 등)이 닫힌 뒤로다 — 직전 답 고치기가 아니다(적던 글 그대로 · 2026-10-04).
       if ((window.history.state as { echoBackGuard?: boolean } | null)?.echoBackGuard) return;
       mark();
+      // 2026-10-05 Codex(PR #131 5990611762): 보내는 중(서버 응답 전)에는 뒤로를 무시한다 — 기록 칸만 다시 걸고, 적던 글·편집 상태는 그대로(늦은 응답과 섞이지 않게)
+      if (inFlight.current) return;
       if (editingRef.current) { setEditingPrevious(false); setDraft(''); return; }
       setEditingPrevious(true); setDraft(lastAnswerRef.current); setNotice(null); setHintFor(null); setPick(null);
     };
