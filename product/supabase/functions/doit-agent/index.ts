@@ -171,14 +171,15 @@ async function admitClaim(admin: Db, userId: string, o: { id: string; target: st
   const busy = () => fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, o.origin);
   let prior = o.prior;
   if (prior === undefined) ({ data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at").eq("user_id", userId).eq("request_id", o.id).maybeSingle());
-  let reclaim: { status: string; updatedAt: string; uncertain: boolean } | null = null;
+  let reclaim: { status: string; updatedAt: string; uncertain: boolean; paidUnknown: boolean } | null = null;
   if (prior) {
     if (prior.action !== CLAIM_ACTION || (prior.target_id ?? null) !== o.target || prior.payload_hash !== o.hash) return { res: fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, o.origin), done: false };
     if (prior.status === "applied") return { res: null, done: true };
     const aged = typeof prior.updated_at === "string" && Date.now() - Date.parse(prior.updated_at) > RUN_LEASE_MS;
     const uncertain = prior.status === "pending" || prior.error_code === TURN_UNCERTAIN;
     if (uncertain && !aged) return { res: busy(), done: false };
-    reclaim = { status: String(prior.status), updatedAt: String(prior.updated_at), uncertain };
+    // Codex P2(4181735009): 결과 모르는 사용량 기록은 AI 를 불렀을 수 있는 자리(PAID · 이미 불확실)만 — 모델이 필요 없던 자리는 0
+    reclaim = { status: String(prior.status), updatedAt: String(prior.updated_at), uncertain, paidUnknown: uncertain && (prior.error_code === CLAIM_PAID || prior.error_code === TURN_UNCERTAIN) };
   }
   let lock = await lockAdmission(admin, userId);
   if (!lock) return { res: fail("BUSY", "요청이 몰렸어요. 잠시 뒤 다시 보내 주세요.", 503, o.origin), done: false };
@@ -189,11 +190,13 @@ async function admitClaim(admin: Db, userId: string, o: { id: string; target: st
     lock = fresh;
     const mark = o.paid ? CLAIM_PAID : null;
     if (reclaim) {
-      const { data: again, error } = await admin.from("doit_request_events").update({ status: "pending", error_code: mark, updated_at: new Date().toISOString() })
+      // Codex P1(4181735001): 다시 잡은 시도는 지금 시각으로 센다(created_at 갱신) — 24시간이 지난 옛 자리를 다시 잡아 하루 한도 밖에서 부르는 길 0
+      const now = new Date().toISOString();
+      const { data: again, error } = await admin.from("doit_request_events").update({ status: "pending", error_code: mark, created_at: now, updated_at: now })
         .eq("user_id", userId).eq("request_id", o.id).eq("action", CLAIM_ACTION).eq("status", reclaim.status).eq("updated_at", reclaim.updatedAt).select("request_id");
       if (error || !again || !again.length) return { res: busy(), done: false };
-      if (reclaim.uncertain) {
-        // 결과를 모르는 앞선 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
+      if (reclaim.paidUnknown) {
+        // 결과를 모르는 앞선 유료 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
         const { error: keepError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: o.target, status: "applied",
           payload_hash: await sha256(`usage:claim_uncertain:${o.id}`), applied_revision: 0, response_payload: { usage: { why: "claim_uncertain", attempts_unknown: true } } });
         if (keepError) logDiag({ step: "usage_log", error: true });
@@ -516,7 +519,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 사용자 하루 한도: 모델을 「실제로 부르기 직전」에만 본다(세기 실패 = 막지 않음 · 기록만). 같은 요청 재전송 재생 · 이미 있는 세션 돌려주기 · agent_run · agent_intro_mark 처럼 모델 호출이 없는 길은 막지 않는다.
     const dailyCapped = async (): Promise<Response | null> => {
       const used = await userDailyTurns(admin, userId);
-      if (used == null) { logDiag({ step: "daily_count", error: true }); return null; }
+      // 2026-10-05 Codex echo-review(5990054694): 사용량을 못 세면 유료 호출을 시작하지 않는다(모르는 사용량 = 0 으로 보지 않음 · 이 함수는 모델이 필요한 새 요청에서만 불림)
+      if (used == null) { logDiag({ step: "daily_count", error: true }); return fail("AI_USAGE_UNKNOWN", "지금은 사용량을 확인하지 못했어요. 잠시 뒤 다시 보내 주세요.", 503, origin); }
       if (used >= USER_DAILY_TURNS) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
       return null;
     };

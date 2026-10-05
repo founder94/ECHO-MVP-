@@ -159,3 +159,31 @@ test('Codex P1(4181336991): 다른 요청이 잠금을 쥐고 있으면(임대 �
   assert.equal(fixture.state.providerCalls.length, before);
   assert.equal(fixture.state.tables.doit_request_events.filter((x) => x.action === 'agent_turn_claim' && x.status === 'pending').length, 0, '자리 0');
 });
+
+const hashOf = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+test('Codex P1(4181735001): 24시간 지난 놓은 자리를 다시 잡으면 지금 시각으로 셈 → 하루 한도 밖 호출 0', async () => {
+  const fixture = await setup();
+  fixture.state.tables.doit_request_events.push(...Array.from({ length: 198 }, () => ({ user_id: ID.user, request_id: rid(), action: 'agent_turn', status: 'applied', created_at: new Date().toISOString(), response_payload: { record: { ai_usage: { attempts: 1 } } } })));
+  const old = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  const ids = [rid(), rid()];
+  for (const id of ids) fixture.state.tables.doit_request_events.push({ user_id: ID.user, request_id: id, action: 'agent_turn_claim', target_id: fixture.sessionId, status: 'failed', error_code: 'PROVIDER', created_at: old, updated_at: old, payload_hash: await hashOf(`${fixture.sessionId}:조용한 사람`) });
+  fixture.state.ai.push(turn(), turn());
+  const first = await fixture.first.call({ action: 'agent_turn', requestId: ids[0], sessionId: fixture.sessionId, text: '조용한 사람' });
+  assert.equal(first.status, 200, JSON.stringify(first.body)); // 199 → 200(마지막 한 번)
+  const before = fixture.state.providerCalls.length;
+  const second = await fixture.first.call({ action: 'agent_turn', requestId: ids[1], sessionId: fixture.sessionId, text: '조용한 사람' });
+  assert.equal(second.status, 429, JSON.stringify(second.body));
+  assert.equal(fixture.state.providerCalls.length, before, '한도 밖 호출 0');
+});
+
+test('Codex P2(4181735009): 모델이 필요 없던 오래된 처리 중 자리를 다시 잡아도 「결과 모르는 사용량」 기록 0', async () => {
+  const fixture = await setup();
+  const old = new Date(Date.now() - 10 * 60_000).toISOString();
+  const id = rid();
+  fixture.state.tables.doit_request_events.push({ user_id: ID.user, request_id: id, action: 'agent_turn_claim', target_id: fixture.sessionId, status: 'pending', error_code: null, created_at: old, updated_at: old, payload_hash: await hashOf(`${fixture.sessionId}:조용한 사람`) });
+  fixture.state.ai.push(turn());
+  const r = await fixture.first.call({ action: 'agent_turn', requestId: id, sessionId: fixture.sessionId, text: '조용한 사람' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(fixture.state.tables.doit_request_events.filter((x) => x.action === 'agent_usage' && x.response_payload?.usage?.why === 'claim_uncertain').length, 0);
+});
