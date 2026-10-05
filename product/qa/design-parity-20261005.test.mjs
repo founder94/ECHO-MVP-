@@ -48,3 +48,14 @@ test('Codex PR #131 P2: 목적 고르기 화면의 질문·설명 글은 QA 그�
   assert.ok(ps.includes('선택한 목적은 프로필에 반영돼요. 같은 만남을 고른 사람끼리만 연결돼요.'));
   assert.doesNotMatch(ps, /같이 하고 싶은\n\s*<br \/>\n\s*일이 있나요/);
 });
+
+test('대표 배경 그림(「이거면되?」): 모든 파스텔 화면 바탕 = 시안 배경 그림 한 장 · 흐림 0 · 덮개는 그 위', async () => {
+  const { statSync } = await import('node:fs');
+  const bg = src('src/doit/components/feature/pastel-bg.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const after = bg.match(/:is\(\.echo-dialogue\.echo-dialogue--pastel,\.doit-app-pastel\)::after\{(z-index:-1;[^}]*)\}/)?.[1] ?? '';
+  assert.match(after, /background:linear-gradient\(rgb\(9 10 12\/var\(--echo-pastel-veil\)\),rgb\(9 10 12\/var\(--echo-pastel-veil\)\)\),url\(\/doit\/bg\/echo-mobile-bg\.webp\) center top\/cover no-repeat;/);
+  assert.doesNotMatch(after, /blur|animation/);
+  assert.equal((bg.match(/echo-mobile-bg\.webp/g) ?? []).length, 1, '바탕 그림은 한 곳에서만');
+  const size = statSync(new URL('../public/doit/bg/echo-mobile-bg.webp', import.meta.url)).size;
+  assert.ok(size > 5000 && size < 120000, `그림 크기 ${size}`);
+});
