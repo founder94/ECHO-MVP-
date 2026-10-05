@@ -1,1 +1,0 @@
-import{ot as e}from"./index-DYPi6TGN.js";import{t}from"./StepQuestionScreen-y3jLfb9x.js";var n=e();function r(){return(0,n.jsx)(t,{expectedStatus:`step2`})}export{r as default};

@@ -1,1 +1,0 @@
-import{Z as e,ot as t}from"./index-DYPi6TGN.js";import{t as n}from"./LegalDocument-DomZNKje.js";var r=t();function i(){return(0,r.jsx)(n,{document:e})}export{i as default};
