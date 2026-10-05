@@ -39,6 +39,7 @@ test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움�
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*animation: none !important; transition: none !important;/);
   // 2026-10-05: 히어로 = 대표가 준 지구 그림 · 심볼 = 공식 D(다시 그리지 않음) · 왼쪽 위 JUST TRY. 도장
   assert.match(HOME, /src="\/brand\/hero-earth\.webp"/, '대표가 준 지구 그림');
+  assert.match(HOME, /<h1 className="bh-wordmark"><span className="bh-sr">DO IT<\/span><img src="\/brand\/doit-wordmark\.webp"/, '브랜드 글자 = 공식 접힌 종이 DOIT 그림(대표 「폰트 브랜드 이미지」)');
   assert.match(HOME, /<p className="bh-stamp"><DoItSymbol decorative \/><span>JUST TRY\.<\/span><\/p>/, '왼쪽 위 슬로건 도장 + 공식 심볼');
 });
 

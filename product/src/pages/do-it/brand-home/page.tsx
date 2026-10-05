@@ -121,7 +121,8 @@ export default function BrandHomePage() {
         <img className="bh-earth" src="/brand/hero-earth.webp" alt="" aria-hidden="true" width="1206" height="1150" fetchPriority="high" decoding="async" draggable="false" />
         <div className="bh-hero-copy">
           <p className="bh-eyebrow">{BRAND_HOME_COPY.eyebrow}</p>
-          <h1 className="bh-wordmark">DO IT</h1>
+          {/* 2026-10-05 대표 「폰트 브랜드 이미지 이걸로 박아」: 접힌 종이 DOIT 글자 = 공식 원본 그림(doit-earth-original.png)에서 글자만 오려 낸 것 · 다시 그리지 않음 */}
+          <h1 className="bh-wordmark"><span className="bh-sr">DO IT</span><img src="/brand/doit-wordmark.webp" alt="" aria-hidden="true" width="994" height="265" fetchPriority="high" decoding="async" draggable="false" /></h1>
           <span className="bh-rule" aria-hidden="true" />
           <p id="bh-hero-title" className="bh-hero-title">{BRAND_HOME_COPY.heroTitle[0]}<br />{BRAND_HOME_COPY.heroTitle[1]}</p>
           <p className="bh-hero-line">{BRAND_HOME_COPY.heroLine[0]}<br />{BRAND_HOME_COPY.heroLine[1]}</p>
