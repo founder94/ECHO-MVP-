@@ -92,7 +92,8 @@ test('자리: 성공한 턴은 자리 줄이 턴 기록(agent_turn · applied)�
   assert.equal(r.status, 200, JSON.stringify(r.body));
   const mine = rows(state, (x) => x.request_id === requestId);
   assert.equal(mine.length, 1); assert.equal(mine[0].action, 'agent_turn'); assert.equal(mine[0].status, 'applied'); assert.ok(mine[0].response_payload.turn);
-  assert.equal(rows(state, (x) => x.action === 'agent_turn_claim').length, 0);
+  assert.equal(rows(state, (x) => x.action === 'agent_turn_claim' && x.status === 'pending').length, 0, '처리 중으로 남은 자리 0');
+  assert.equal(rows(state, (x) => x.action === 'agent_turn_claim' && x.request_id === requestId).length, 0, '턴 자리는 턴 기록으로 바뀜');
 });
 
 test('자리: AI 실패(502) 뒤 같은 요청 다시 보내기 = 다시 잡아 정상 처리 · 놓은 자리는 하루 한도에 두 번 세지 않음', async () => {
@@ -132,4 +133,29 @@ test('자리: 같은 요청 id 에 다른 말·다른 대화는 다시 잡지 �
   const other = await first.call({ action: 'agent_turn', requestId, sessionId, text: '다른 말' });
   assert.equal(other.status, 409, JSON.stringify(other.body));
   assert.equal(state.providerCalls.length, before);
+});
+
+test('Codex P2(4181336996): 모델이 필요 없는 처리 중 자리는 하루 한도에 세지 않음(199 + 그 자리 1 → 모델 요청 허용)', async () => {
+  const fixture = await setup();
+  fixture.state.tables.doit_request_events.push(...Array.from({ length: 198 }, () => ({ user_id: ID.user, request_id: rid(), action: 'agent_turn', status: 'applied', created_at: new Date().toISOString(), response_payload: { record: { ai_usage: { attempts: 1 } } } })));
+  const now = new Date().toISOString();
+  fixture.state.tables.doit_request_events.push({ user_id: ID.user, request_id: rid(), action: 'agent_turn_claim', target_id: fixture.sessionId, status: 'pending', error_code: null, created_at: now, updated_at: now, payload_hash: 'x' });
+  fixture.state.ai.push(turn());
+  const before = fixture.state.providerCalls.length;
+  const r = await fixture.first.call({ action: 'agent_turn', requestId: rid(), sessionId: fixture.sessionId, text: '조용한 사람' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.ok(fixture.state.providerCalls.length > before, '모델 호출 허용');
+});
+
+test('Codex P1(4181336991): 다른 요청이 잠금을 쥐고 있으면(임대 안) 자리를 잡지 않고 503 · 업체 호출 0', async () => {
+  const fixture = await setup();
+  const lock = fixture.state.tables.doit_request_events.find((x) => x.action === 'agent_admission');
+  assert.ok(lock, '시작에서 잠금 줄이 만들어짐');
+  lock.response_payload = { until: Date.now() + 60_000 }; // 다른 일꾼이 쥔 채(임대 60초)
+  fixture.state.ai.push(turn());
+  const before = fixture.state.providerCalls.length;
+  const r = await fixture.first.call({ action: 'agent_turn', requestId: rid(), sessionId: fixture.sessionId, text: '조용한 사람' });
+  assert.equal(r.status, 503, JSON.stringify(r.body));
+  assert.equal(fixture.state.providerCalls.length, before);
+  assert.equal(fixture.state.tables.doit_request_events.filter((x) => x.action === 'agent_turn_claim' && x.status === 'pending').length, 0, '자리 0');
 });

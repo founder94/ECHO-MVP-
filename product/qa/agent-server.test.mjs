@@ -288,7 +288,10 @@ test('AI 실패 → 502 · 상태·기록 저장 0 · 실패 관측 1줄(원문 
   const requestId = rid();
   const r = await h.call({ action: 'agent_start', requestId, firstAnswer: '친구' });
   assert.equal(r.status, 502);
-  const events = s.tables.doit_request_events ?? [];
+  const all = s.tables.doit_request_events ?? [];
+  // 2026-10-05 AI 호출 전 자리 잡기: 사용자 잠금 줄(agent_admission)·놓은 자리 줄(agent_turn_claim · failed)은 대화 기록이 아니다 → 대화·턴 기록만 본다. 자리는 놓였어야 함(처리 중으로 남지 않음)
+  assert.ok(all.filter((e) => e.action === 'agent_turn_claim').every((e) => e.status === 'failed'), '시작 자리는 놓임(다시 보내면 다시 잡음)');
+  const events = all.filter((e) => ['agent_session', 'agent_turn'].includes(e.action));
   assert.equal(events.filter((e) => e.status === 'applied').length, 0, '대화 상태 저장 0');
   assert.equal((s.tables.doit_records ?? []).length, 0);
   const failed = events.filter((e) => e.status === 'failed');

@@ -31,6 +31,10 @@ const RUN_TOOL_UNCERTAIN = "TOOL_UNCERTAIN";
 //   · 사용자 잠금(agent_admission) = 사용자마다 한 줄 · 판 번호 비교 저장. 「하루 한도 세기 → 자리 잡기」를 한 번에 하나씩 → 마지막 한 번은 한 요청만 얻는다(여러 화면·서버 일꾼 공통).
 const CLAIM_ACTION = "agent_turn_claim";
 const TURN_UNCERTAIN = "TURN_UNCERTAIN";
+// 2026-10-05 Codex P2(4181336996): 처리 중인 자리 가운데 AI 를 부를 수 있는 자리만 하루 한도에 센다(error_code = PAID) — 모델이 필요 없는 턴의 자리는 세지 않음.
+const CLAIM_PAID = "PAID";
+// 2026-10-05 Codex echo-review 20261005-other-actions-original: 시작(agent_start)·소개(agent_intro)·보기(agent_rescue)도 AI 를 부르기 전에 같은 방식으로 자리를 잡는다.
+//   그 요청들의 마지막 기록 줄은 요청 id 를 이미 쓰므로(세션 줄 · 턴 줄) 자리 id 는 「요청 id:claim:동작」에서 만든 다른 id 다(동작마다 따로 — 같은 요청 id 를 다른 동작에 써도 서로 막지 않음). 끝나면 자리 = applied(세지 않음 · 사용량은 기존 사용 기록).
 const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
@@ -103,7 +107,7 @@ async function userDailyTurns(admin: Db, userId: string): Promise<number | null>
     .eq("user_id", userId).eq("action", TURN_ACTION).gte("created_at", since);
   // 처리 중인 턴 자리 · 결과를 모르는 자리도 센다(AI 를 이미 불렀을 수 있음 — 놓은 자리는 사용량이 따로 남으므로 세지 않음)
   const { count: inflight, error: e3 } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
-    .eq("user_id", userId).eq("action", CLAIM_ACTION).eq("status", "pending").gte("created_at", since);
+    .eq("user_id", userId).eq("action", CLAIM_ACTION).eq("status", "pending").eq("error_code", CLAIM_PAID).gte("created_at", since);
   const { count: unsure, error: e4 } = await admin.from("doit_request_events").select("request_id", { count: "exact", head: true })
     .eq("user_id", userId).eq("action", CLAIM_ACTION).eq("error_code", TURN_UNCERTAIN).gte("created_at", since);
   if (e1 || e0 || e3 || e4) return null;
@@ -147,6 +151,59 @@ async function settleClaim(admin: Db, userId: string, requestId: string, code: s
   const { error } = await admin.from("doit_request_events").update({ status: "failed", error_code: code, updated_at: new Date().toISOString() })
     .eq("user_id", userId).eq("request_id", requestId).eq("action", CLAIM_ACTION).eq("status", "pending");
   if (error) logDiag({ step: "claim_settle", code, error: true });
+}
+// 끝난 자리(시작·소개·보기 — 턴 줄로 바뀌지 않는 자리) = applied(하루 한도에 세지 않음 · 사용량은 사용 기록에)
+async function finishClaim(admin: Db, userId: string, id: string) {
+  const { error } = await admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString() })
+    .eq("user_id", userId).eq("request_id", id).eq("action", CLAIM_ACTION).eq("status", "pending");
+  if (error) logDiag({ step: "claim_finish", error: true });
+}
+// Codex P1(4181336991): 세기가 임대 시간보다 길어졌으면 그 사이 다른 요청이 잠금을 잡았을 수 있다 → 자리를 잡기 직전에 판 번호를 다시 확인하며 임대를 늘린다(못 하면 자리 0).
+async function renewAdmission(admin: Db, userId: string, lock: { id: string; rev: number }): Promise<{ id: string; rev: number } | null> {
+  const { data } = await admin.from("doit_request_events").update({ applied_revision: lock.rev + 1, response_payload: { until: Date.now() + LOCK_LEASE_MS }, updated_at: new Date().toISOString() })
+    .eq("user_id", userId).eq("request_id", lock.id).eq("action", LOCK_ACTION).eq("applied_revision", lock.rev).select("request_id");
+  return data && data.length ? { id: lock.id, rev: lock.rev + 1 } : null;
+}
+type ClaimRow = { action?: unknown; status?: unknown; error_code?: unknown; target_id?: unknown; payload_hash?: unknown; updated_at?: unknown };
+// 자리 잡기(모든 유료 호출 경로 공통): 같은 id 가 있으면 끝남(done) · 처리 중(409) · 다른 요청(409) · 놓은 자리 = 다시 잡기 · 결과 모름 = 임대 시간 뒤에만 다시 잡기.
+//   사용자 잠금 안에서 「(유료면) 하루 한도 세기 → 잠금 다시 확인 → 자리 줄」. AI 호출은 잠금 밖에서, 자리를 잡은 요청만 한다.
+async function admitClaim(admin: Db, userId: string, o: { id: string; target: string | null; hash: string; paid: boolean; capped: () => Promise<Response | null>; origin: string | null; prior?: ClaimRow | null }): Promise<{ res: Response | null; done: boolean }> {
+  const busy = () => fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, o.origin);
+  let prior = o.prior;
+  if (prior === undefined) ({ data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at").eq("user_id", userId).eq("request_id", o.id).maybeSingle());
+  let reclaim: { status: string; updatedAt: string; uncertain: boolean } | null = null;
+  if (prior) {
+    if (prior.action !== CLAIM_ACTION || (prior.target_id ?? null) !== o.target || prior.payload_hash !== o.hash) return { res: fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, o.origin), done: false };
+    if (prior.status === "applied") return { res: null, done: true };
+    const aged = typeof prior.updated_at === "string" && Date.now() - Date.parse(prior.updated_at) > RUN_LEASE_MS;
+    const uncertain = prior.status === "pending" || prior.error_code === TURN_UNCERTAIN;
+    if (uncertain && !aged) return { res: busy(), done: false };
+    reclaim = { status: String(prior.status), updatedAt: String(prior.updated_at), uncertain };
+  }
+  let lock = await lockAdmission(admin, userId);
+  if (!lock) return { res: fail("BUSY", "요청이 몰렸어요. 잠시 뒤 다시 보내 주세요.", 503, o.origin), done: false };
+  try {
+    if (o.paid) { const capped = await o.capped(); if (capped) return { res: capped, done: false }; }
+    const fresh = await renewAdmission(admin, userId, lock);
+    if (!fresh) return { res: fail("BUSY", "요청이 몰렸어요. 잠시 뒤 다시 보내 주세요.", 503, o.origin), done: false };
+    lock = fresh;
+    const mark = o.paid ? CLAIM_PAID : null;
+    if (reclaim) {
+      const { data: again, error } = await admin.from("doit_request_events").update({ status: "pending", error_code: mark, updated_at: new Date().toISOString() })
+        .eq("user_id", userId).eq("request_id", o.id).eq("action", CLAIM_ACTION).eq("status", reclaim.status).eq("updated_at", reclaim.updatedAt).select("request_id");
+      if (error || !again || !again.length) return { res: busy(), done: false };
+      if (reclaim.uncertain) {
+        // 결과를 모르는 앞선 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
+        const { error: keepError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: o.target, status: "applied",
+          payload_hash: await sha256(`usage:claim_uncertain:${o.id}`), applied_revision: 0, response_payload: { usage: { why: "claim_uncertain", attempts_unknown: true } } });
+        if (keepError) logDiag({ step: "usage_log", error: true });
+      }
+    } else {
+      const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: o.id, action: CLAIM_ACTION, target_id: o.target, status: "pending", error_code: mark, payload_hash: o.hash });
+      if (error) return { res: error.code === "23505" ? busy() : fail("ERROR", "서버 오류가 발생했어요.", 500, o.origin), done: false };
+    }
+    return { res: null, done: false };
+  } finally { await unlockAdmission(admin, userId, lock); }
 }
 // 관리자 관측용 호출 기록(코드·수치만 · 사용자 원문 0).
 const aiTrace = (r: ModelRouter) => { const m = r.summary(); return { provider: m.provider ?? "none", providers: m.providers, model_requested: r.policy.providers[m.provider ?? "openai"]?.model ?? null, fallback: m.fallback, ai_policy_version: r.policy.version, ai_calls: r.log.map((x) => ({ ...x })),
@@ -269,7 +326,7 @@ const haltFail = (why: Halt, origin: string | null) => why === "session" ? fail(
   : why === "request" ? fail("AI_ERROR", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, origin) : fail("CANCELLED", "요청이 취소됐어요. 다시 보내 주세요.", 499, origin);
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null; claimed?: boolean }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null; claim?: { id: string; turnRow: boolean } }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
@@ -292,23 +349,23 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
       // 실패한 시도도 지금 저장된 대화의 예산에 넣는다(대화 상태·판 번호 그대로 · 실패 되풀이로 대화 상한 우회 0)
       if (!fresh) await foldIntoSaved(ctx, sessionId);
     }
-    if (ctx.claimed) await settleClaim(ctx.admin, ctx.userId, requestId, String(response.error)); // 사용량은 위 실패 턴 기록에 · 같은 요청 다시 보내기 = 다시 잡기
+    if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, String(response.error)); // 사용량은 위 실패 턴 기록에 · 같은 요청 다시 보내기 = 다시 잡기
     if (halt === "session" || halt === "cancelled") return haltFail(halt, ctx.origin); // 대화 예산 = 429(다시 보내라 하지 않음) · 끊음 = 499 · 요청 한도 = 아래 기존 502
     return fail(response.error === "PROVIDER" ? "AI_ERROR" : "AI_READ_FAILED", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, ctx.origin);
   }
   // 도중에 끊기거나 예산으로 멈췄으면, 도우미가 빈 값으로 채운 상태(빈 정리 등)를 저장하지 않는다 — 사용량만 남김
-  if (halt) { await keepUsage(ctx, fresh ? null : sessionId, `turn_${halt}`); if (ctx.claimed) await settleClaim(ctx.admin, ctx.userId, requestId, `HALT_${halt}`); return haltFail(halt, ctx.origin); }
+  if (halt) { await keepUsage(ctx, fresh ? null : sessionId, `turn_${halt}`); if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, `HALT_${halt}`); return haltFail(halt, ctx.origin); }
   const lastTurn = st.turns.length > before ? st.turns.at(-1) : undefined; // 저장 금지 입력·대화 상한은 턴을 만들지 않는다
   if (response.finish || response.after) { stored.profile = A.matchingProfile(st); stored.handoff = A.matchingHandoff(stored.profile); }
   foldUsage(stored, ctx.router); // 같은 판 번호 저장에 함께(정정 → 계획·도구 결과 무효화)
   // 1) 상태 저장(판 번호 확인) — 이긴 쪽만 아래 기록을 남긴다.
   if (fresh) {
     const { error } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: sessionId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: rev + 1, response_payload: stored });
-    if (error) { await keepUsage(ctx, sessionId, "turn_lost_race"); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, ctx.origin); }
+    if (error) { await keepUsage(ctx, sessionId, "turn_lost_race"); if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, "LOST_RACE"); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, ctx.origin); }
   } else {
     const { data, error } = await ctx.admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
       .eq("user_id", ctx.userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-    if (error || !data || !data.length) { await keepUsage(ctx, sessionId, "turn_lost_race"); if (ctx.claimed) await settleClaim(ctx.admin, ctx.userId, requestId, "LOST_RACE"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 이어졌어요. 새로 불러올게요.", 409, ctx.origin); } // 진 쪽이 부른 모델도 하루 한도·대화 예산에
+    if (error || !data || !data.length) { await keepUsage(ctx, sessionId, "turn_lost_race"); if (ctx.claim) await settleClaim(ctx.admin, ctx.userId, ctx.claim.id, "LOST_RACE"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 이어졌어요. 새로 불러올게요.", 409, ctx.origin); } // 진 쪽이 부른 모델도 하루 한도·대화 예산에
   }
   // 2) 매칭에 쓰는 답이면 기록으로도 남긴다(기존 RPC · 같은 턴은 같은 기록).
   let recordId: string | null = null; let recordError: string | null = null;
@@ -349,13 +406,14 @@ async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: 
   const turnOut = { kind, reply: response.reply ?? "", question: response.question ?? null, saved: response.saved === true, finish: response.finish === true, after: response.after === true };
   const turnRow = { action: TURN_ACTION, target_id: sessionId, status: "applied", payload_hash: await sha256(`${sessionId}:${text}`), applied_revision: rev + 1, response_payload: { turn: turnOut, record } };
   let turnError: unknown = null;
-  if (ctx.claimed) {
+  if (ctx.claim?.turnRow) {
     // 잡아 둔 자리를 턴 기록으로 바꾼다(그 자리가 아직 이 요청의 처리 중일 때만)
     const { data: done, error } = await ctx.admin.from("doit_request_events").update({ ...turnRow, error_code: null, updated_at: new Date().toISOString() })
       .eq("user_id", ctx.userId).eq("request_id", requestId).eq("action", CLAIM_ACTION).eq("status", "pending").select("request_id");
     turnError = error ?? (!done || !done.length ? "claim_lost" : null);
   } else {
     ({ error: turnError } = await ctx.admin.from("doit_request_events").insert({ user_id: ctx.userId, request_id: requestId, ...turnRow }));
+    if (ctx.claim) await finishClaim(ctx.admin, ctx.userId, ctx.claim.id); // 시작(첫 답)의 자리 = 끝남
   }
   logDiag({ step: "turn", kind, saved: record.saved, decision: record.decision, q: record.question_index, calls: obs.calls.length, retry: obs.retry,
     tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0),
@@ -478,15 +536,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
       if (first) A.seedFirstQuestion(stored.state);
       // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
-      if (!first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }))) {
+      const startPaid = !first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }));
+      // 2026-10-05 Codex(other-actions): 모델을 부를 시작이면 AI 호출 전에 자리를 잡는다(같은 요청 동시 2개 = 한쪽만 · 하루 마지막 한 번 = 한 요청만)
+      const startClaim = startPaid ? await derivedUuid(`${requestId}:claim:start`) : null;
+      if (startPaid) {
         // 첫 답이 없으면 다음 호출은 첫 질문 만들기(opening) 하나 → 그 작업의 경로로 확인(작업별 정책 존중)
         if (!aiReady(first ? "turn" : "opening")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-        const capped = await dailyCapped(); if (capped) return capped;
+        const admit = await admitClaim(admin, userId, { id: startClaim!, target: null, hash: await sha256(`start:${goal ?? ""}:${first}`), paid: true, capped: dailyCapped, origin });
+        if (admit.res) return admit.res;
+        if (admit.done) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       }
+      const settleStart = async (code: string) => { if (startClaim) await settleClaim(admin, userId, startClaim, code); };
       if (first) {
         // 앱의 첫 질문(목적 타일 화면)에 한 답 = 첫 턴. 세션 id 는 요청 id 에서 만들고, 턴 기록은 요청 id 로 남긴다.
-        return await runAndSave(ctx, await derivedUuid(`${requestId}:session`), stored, 0, first, requestId, true);
+        try {
+          return await runAndSave(startClaim ? { ...ctx, claim: { id: startClaim, turnRow: false } } : ctx, await derivedUuid(`${requestId}:session`), stored, 0, first, requestId, true);
+        } catch (e) { await settleStart(TURN_UNCERTAIN); throw e; }
       }
+      try {
       const obs: A.Obs = { calls: [], retry: [] };
       const opened = await A.runOpening(stored.state, ctx.llm, obs).catch(() => null);
       if (!opened) {
@@ -498,6 +565,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             payload_hash: await sha256(`opening:error:${requestId}`), applied_revision: 0, response_payload: { record: failed } });
           if (failLogError) logDiag({ step: "opening_fail_log", error: true });
         }
+        await settleStart("OPENING"); // 사용량은 위 실패 턴 기록에
         // 사용자가 끊은 경우는 다른 모델 경로처럼 499(CANCELLED) — 사용 기록은 위에서 남겼다(리뷰 5401309056)
         if (haltedBy(router) === "cancelled") return haltFail("cancelled", origin);
         return fail("AI_ERROR", "첫 질문을 만들지 못했어요. 다시 눌러 주세요.", 502, origin);
@@ -505,9 +573,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       { const u = router.summary(); stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: u.calls, tokens_in: u.tokens_in, tokens_out: u.tokens_out, tokens_unconfirmed: u.tokens_reserved_unconfirmed }); }
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
       await logUsage(ctx, error ? null : requestId, "opening"); // 첫 질문 만들기도 하루 한도에 셈(성공·저장 실패 모두)
-      if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
+      if (error) { await settleStart("LOST_RACE"); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin); }
+      if (startClaim) await finishClaim(admin, userId, startClaim);
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
+      } catch (e) { await settleStart(TURN_UNCERTAIN); throw e; }
     }
 
     // v1.6 소개 초안 다시 쓰기 · 사용자가 고른 것 기록(agent_intro · agent_intro_mark). 판 번호로 동시 쓰기를 막는다. 턴 기록·doit_records 는 만들지 않는다.
@@ -520,7 +590,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const stored = row.response_payload as unknown as Stored;
       if (stored.state.phase === "talk") return fail("NOT_READY", "다섯 가지 이야기를 마친 뒤에 소개를 쓸 수 있어요.", 409, origin);
       const rev = Number(row.applied_revision ?? 0);
-      let obs: A.Obs = { calls: [], retry: [] }; let limited = false;
+      let obs: A.Obs = { calls: [], retry: [] }; let limited = false; let introClaim: string | null = null;
       if (action === "agent_intro_mark") {
         const how = typeof body.how === "string" && INTRO_USES.has(body.how) ? body.how as "as_is" | "edited" | "own" : null;
         if (!how) return fail("BAD_REQUEST", "잘못된 요청이에요.", 400, origin);
@@ -531,20 +601,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (await callsModel(stored, (st, llm) => A.draftIntro(st, llm))) {
           if (!aiReady("intro")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
           if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-          const capped = await dailyCapped(); if (capped) return capped;
+          // 2026-10-05 Codex(other-actions): AI 호출 전에 자리 잡기 — 같은 요청 동시 2개 = 한쪽만 · 하루 마지막 한 번 = 한 요청만 · 끝난 같은 요청 = 지금 상태 그대로(호출 0)
+          introClaim = await derivedUuid(`${requestId}:claim:intro`);
+          const admit = await admitClaim(admin, userId, { id: introClaim, target: sid, hash: await sha256(`intro:${sid}`), paid: true, capped: dailyCapped, origin });
+          if (admit.res) return admit.res;
+          if (admit.done) return json({ ok: true, session: sessionView(sid, stored), limited: false, duplicate: true }, 200, origin);
         }
-        router.limitTo(R.remainingBudget(stored.run));
-        const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
-        const halt = haltedBy(router);
-        if (halt) { await keepUsage(ctx, sid, `intro_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 쓰던 소개를 「실패」로 덮지 않음
-        if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
+        try {
+          router.limitTo(R.remainingBudget(stored.run));
+          const r = await A.draftIntro(stored.state, ctx.llm, obs); obs = r.obs; limited = r.limited;
+          const halt = haltedBy(router);
+          if (halt) { await keepUsage(ctx, sid, `intro_${halt}`); if (introClaim) await settleClaim(admin, userId, introClaim, `HALT_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 쓰던 소개를 「실패」로 덮지 않음
+          if (router.summary().calls > 0) foldUsage(stored, router); // 소개 호출도 대화 예산에
+        } catch (e) { if (introClaim) await settleClaim(admin, userId, introClaim, TURN_UNCERTAIN); throw e; }
       }
       if (!limited) {
         const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
           .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-        if (error || !data || !data.length) { await keepUsage(ctx, sid, "intro_lost_race"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
+        if (error || !data || !data.length) { await keepUsage(ctx, sid, "intro_lost_race"); if (introClaim) await settleClaim(admin, userId, introClaim, "LOST_RACE"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
         await logUsage(ctx, sid, "intro"); // 하루 한도에 셈(예산은 위 저장에 들어감)
       }
+      if (introClaim) await finishClaim(admin, userId, introClaim);
       const intro = stored.state.intro;
       logDiag({ step: action, intro: intro?.status ?? null, lines: intro?.lines.length ?? 0, dropped: intro?.dropped ?? {}, error: intro?.error ?? null, used: intro?.used ?? null, limited,
         calls: obs.calls.length, tokens_in: obs.calls.reduce((n, c) => n + (c.input_tokens ?? 0), 0), tokens_out: obs.calls.reduce((n, c) => n + (c.output_tokens ?? 0), 0), model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
@@ -561,21 +638,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const stored = row.response_payload as unknown as Stored;
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
       // 모델을 부를 때만 AI 사전 확인. 들고 있던 보기·대체 보기 = 모델 0 → 설정·예산·한도와 무관하게 보여 준다
+      let rescueClaim: string | null = null;
       if (await callsModel(stored, (st, llm) => A.requestRescue(st, llm))) {
         if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
-        const capped = await dailyCapped(); if (capped) return capped;
+        // 2026-10-05 Codex(other-actions): AI 호출 전에 자리 잡기 — 같은 요청 동시 2개 = 한쪽만 · 하루 마지막 한 번 = 한 요청만 · 끝난 같은 요청 = 지금 상태 그대로(호출 0)
+        rescueClaim = await derivedUuid(`${requestId}:claim:rescue`);
+        const admit = await admitClaim(admin, userId, { id: rescueClaim, target: sid, hash: await sha256(`rescue:${sid}:${stored.state.current.text}`), paid: true, capped: dailyCapped, origin });
+        if (admit.res) return admit.res;
+        if (admit.done) return json({ ok: true, session: sessionView(sid, stored), duplicate: true }, 200, origin);
       }
       const rev = Number(row.applied_revision ?? 0);
-      router.limitTo(R.remainingBudget(stored.run));
-      const r = await A.requestRescue(stored.state, ctx.llm);
+      let r: Awaited<ReturnType<typeof A.requestRescue>>;
+      try {
+        router.limitTo(R.remainingBudget(stored.run));
+        r = await A.requestRescue(stored.state, ctx.llm);
+      } catch (e) { if (rescueClaim) await settleClaim(admin, userId, rescueClaim, TURN_UNCERTAIN); throw e; }
       const halt = haltedBy(router);
-      if (halt) { await keepUsage(ctx, sid, `rescue_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 대체 보기를 굳히지 않음
+      if (halt) { await keepUsage(ctx, sid, `rescue_${halt}`); if (rescueClaim) await settleClaim(admin, userId, rescueClaim, `HALT_${halt}`); return haltFail(halt, origin); } // 끊김·예산 멈춤 = 대체 보기를 굳히지 않음
       if (router.summary().calls > 0) foldUsage(stored, router); // 보기 호출도 대화 예산에(들고 있던 보기 = 호출 0 → 그대로)
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
-      if (error || !data || !data.length) { await keepUsage(ctx, sid, "rescue_lost_race"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
+      if (error || !data || !data.length) { await keepUsage(ctx, sid, "rescue_lost_race"); if (rescueClaim) await settleClaim(admin, userId, rescueClaim, "LOST_RACE"); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
       await logUsage(ctx, sid, "rescue"); // 하루 한도에 셈
+      if (rescueClaim) await finishClaim(admin, userId, rescueClaim);
       logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
     }
@@ -679,19 +765,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!sessionId || !text) return fail("BAD_REQUEST", "보낼 말을 적어 주세요.", 400, origin);
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
     const turnHash = await sha256(`${sessionId}:${text}`);
-    // 같은 요청 id 가 이미 있으면: 끝난 턴 = 저장된 결과(모델 0) · 처리 중 = 409 · 놓은 자리(같은 대화·같은 말) = 다시 잡기 · 결과를 모르는 자리 = 임대 시간이 지난 뒤에만 다시 잡기
-    let reclaim: { status: string; updatedAt: string; uncertain: boolean } | null = null;
+    // 같은 요청 id 가 이미 있으면: 끝난 턴 = 저장된 결과(모델 0) · 그 밖(처리 중 · 놓은 자리 · 결과 모름 · 다른 요청)은 아래 자리 잡기(admitClaim)가 정한다
     if (prior) {
       const p = prior.response_payload as Json | null;
       if (prior.action === TURN_ACTION && prior.target_id === sessionId && p?.turn) {
         const { data: again } = await admin.from("doit_request_events").select("request_id, response_payload").eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
         if (again) return json({ ok: true, session: sessionView(sessionId, again.response_payload as unknown as Stored), turn: p.turn, duplicate: true }, 200, origin);
       }
-      if (prior.action !== CLAIM_ACTION || prior.target_id !== sessionId || prior.payload_hash !== turnHash) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
-      const aged = typeof prior.updated_at === "string" && Date.now() - Date.parse(prior.updated_at) > RUN_LEASE_MS;
-      const uncertain = prior.status === "pending" || prior.error_code === TURN_UNCERTAIN;
-      if (uncertain && !aged) return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
-      reclaim = { status: String(prior.status), updatedAt: String(prior.updated_at), uncertain };
+      if (prior.action !== CLAIM_ACTION) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
     }
     const { data: row } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
       .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
@@ -706,31 +787,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
     }
     // 자리 잡기: 사용자 잠금 안에서 「하루 한도 세기 → 이 요청의 자리 잡기」(AI 호출은 잠금 밖 · 자리를 잡은 요청만 AI 를 부른다)
-    const lock = await lockAdmission(admin, userId);
-    if (!lock) return fail("BUSY", "요청이 몰렸어요. 잠시 뒤 다시 보내 주세요.", 503, origin);
-    let blocked: Response | null = null;
+    const admit = await admitClaim(admin, userId, { id: requestId, target: sessionId, hash: turnHash, paid: needsModel, capped: dailyCapped, origin, prior: prior as ClaimRow | null });
+    if (admit.res) return admit.res;
+    if (admit.done) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
     try {
-      if (needsModel) blocked = await dailyCapped();
-      if (!blocked && reclaim) {
-        const { data: again, error } = await admin.from("doit_request_events").update({ status: "pending", error_code: null, updated_at: new Date().toISOString() })
-          .eq("user_id", userId).eq("request_id", requestId).eq("action", CLAIM_ACTION).eq("status", reclaim.status).eq("updated_at", reclaim.updatedAt).select("request_id");
-        if (error || !again || !again.length) blocked = fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin);
-        else if (reclaim.uncertain) {
-          // 결과를 모르는 앞선 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
-          const { error: keepError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: sessionId, status: "applied",
-            payload_hash: await sha256(`usage:turn_uncertain:${requestId}`), applied_revision: 0, response_payload: { usage: { why: "turn_uncertain", attempts_unknown: true } } });
-          if (keepError) logDiag({ step: "usage_log", error: true });
-        }
-      } else if (!blocked) {
-        const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: CLAIM_ACTION, target_id: sessionId, status: "pending", payload_hash: turnHash });
-        if (error) blocked = error.code === "23505" ? fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin) : fail("ERROR", "서버 오류가 발생했어요.", 500, origin);
-      }
-    } finally { await unlockAdmission(admin, userId, lock); }
-    if (blocked) return blocked;
-    try {
-      return await runAndSave({ ...ctx, claimed: true }, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: turnOpts.choice, rescueOpen: turnOpts.rescueOpen });
+      return await runAndSave({ ...ctx, claim: { id: requestId, turnRow: true } }, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: turnOpts.choice, rescueOpen: turnOpts.rescueOpen });
     } catch (e) {
-      await settleClaim(admin, userId, requestId, TURN_UNCERTAIN); // 결과를 모름 — 하루 한도에 계속 세고, 임대 시간 뒤에만 다시 잡는다
+      await settleClaim(admin, userId, requestId, needsModel ? TURN_UNCERTAIN : "FAILED"); // 결과를 모름 — 유료 자리는 하루 한도에 계속 세고, 임대 시간 뒤에만 다시 잡는다
       throw e;
     }
   } catch (e) {
