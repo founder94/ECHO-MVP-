@@ -68,7 +68,7 @@ export default function ConversationOpening({ userId, onDone }: Props) {
     {/* 2026-10-04 대표 디자인 교체: 모바일 시작 문구. 서버가 기록하는 첫 질문(doit-agent FIRST_QUESTION 「어떤 만남을 원하세요?」)은 그대로 — 바꾸려면 서버 배포(대표 결정). */}
     <h1>같이 하고 싶은 일이<br />있나요?</h1>
     {/* 「문구·서체 검수안」 1번: 어떤 만남을 원하는지 들려주세요. + 기존 안내(하나 고르기 · 한 줄 덧붙이기) */}
-    <p className="echo-lead">어떤 만남을 원하는지 들려주세요. 하나 고르면 거기서부터 이야기할게요. 한 줄은 안 적어도 괜찮아요.</p>
+    <p className="echo-lead">어떤 만남을 원하는지 들려주세요. 하나 고르고 한 줄 덧붙이면, 거기서부터 이야기할게요.</p>
 
     {loadError && <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void loadPurposes()}>다시 불러오기</button></div>}
     {!loadError && purposes === null && <p className="echo-busy" role="status"><Loader2 size={16} className="animate-spin" />만남의 종류를 불러오고 있어요</p>}
