@@ -72,3 +72,12 @@ test('대표 「키랑 다 같이」: 윗줄 KEY 알약 — 금빛 열쇠 + KEY 
   assert.match(css, /-webkit-backdrop-filter:blur/);
   assert.match(src('src/doit/components/feature/KeyIcon.tsx'), /tone = 'silver'/, '기존 은색 열쇠 기본값 그대로');
 });
+
+test('Codex 5993217604 ①: 프로필 빈 사진 = 가운데 둥근 유리 자리(큰 사각 판 0) · 글·필요 사진 안내 그대로', () => {
+  const css = src('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.doit-product-story \.doit-profile-photos-empty>svg\{[^}]*border-radius:50%/);
+  assert.match(css, /\.doit-product-story \.doit-profile-photos-empty\{[^}]*background:transparent!important/);
+  const g = src('src/doit/components/feature/ProfilePhotoGallery.tsx');
+  assert.ok(g.includes('연결을 받으려면 전신·패션·취미 세 장이 필요해요.'), '필요 사진 안내 그대로');
+  assert.ok(g.includes('지금의 나를 한 장씩 담아보세요.'));
+});

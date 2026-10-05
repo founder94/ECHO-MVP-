@@ -64,3 +64,17 @@
 :root:root .echo-dialogue.echo-hub .echo-ref-hero--home{height:clamp(150px,44vw,190px);margin:-6px -22px 0}
 :root:root .echo-dialogue.echo-hub .echo-journey-exit-actions{justify-content:center}
 :root:root .echo-dialogue.echo-hub .echo-text-button{align-self:center}
+
+/* 6. 프로필 사진(시안 「모바일 전체 흐름」 3번 · Codex echo-review 5993217604 ①): 큰 사각 빈 판 → 가운데 둥근 유리 사진 자리 + 카메라.
+   글·필요한 사진 수·안내는 그대로(글은 대표 확정) · 사진이 있을 때 큰 사진·작은 사진 줄은 그대로. 이 화면(.doit-product-story) 안에서만. */
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos{margin-top:4px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-heading{justify-content:center;text-align:center}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0!important;padding:4px 0 8px!important;background:transparent!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty>svg{box-sizing:content-box;width:30px;height:30px;padding:37px;border-radius:50%;background:rgb(255 255 255/.16);border:1px solid rgb(255 255 255/.62);box-shadow:inset 0 1px 0 rgb(255 255 255/.45),0 10px 30px rgb(20 60 70/.14);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);margin-bottom:6px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty p{margin:0;font-size:14px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty span{font-size:13px;opacity:.92}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:rgb(18 84 92/.22)!important;border:1px solid rgb(255 255 255/.5)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-note{margin:8px 2px 0;font-size:12px;line-height:1.55;text-align:center}
+/* 프로필 판 머리: 큰 DO IT 표시가 차지하던 위아래 여백을 줄여 얇은 줄 위계로 */
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head{margin-bottom:12px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head .doit-official-symbol{width:36px;height:36px;margin:-6px}
