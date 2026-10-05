@@ -1,0 +1,24 @@
+DRAFT / EMPTY FORM — 30-minute tabletop: unauthorized access to synthetic photos / conversations
+Status: NOT performed. No drill has been completed. Use synthetic data only. Do NOT put real contacts, keys, user text or ops details in this public repo.
+
+Roles (fill outside the public repo; do not invent names)
+  responsible: ________   backup: ________   (notification/report decision owner: ________)
+
+Scenario (synthetic): a test account's synthetic photo and a synthetic conversation are viewed by a person without permission.
+
+Agenda (30 min)
+  0-5   Read scenario; confirm roles present (responsible + backup)
+  5-12  Detection: how and when was it found? record discovery time: ________  detection source: ________
+  12-18 Evidence preservation: what is kept, by whom, where (reference only, not the content): ________
+  18-24 Damage scope: which synthetic accounts/items/time window: ________
+  24-30 Notification vs report decision path (separate questions): who is notified internally / who decides on external report: ________
+        Outcome: decision + owner + deadline: ________
+
+Record fields
+  discovery_time | evidence_preserved(Y/N, location ref) | scope_estimate | notify_decision | report_decision | responsible | backup | gaps_found | follow_up_owner
+
+Evidence gaps recorded only (no change made here; product/legal owner decides separately)
+  - privacy notice text conflicts between sources: unresolved
+  - old Plan B / pricing wording remnants: unresolved
+  - LEGAL_VERSION / re-consent: untouched by this work
+This form does not satisfy the gate item "responsible_backup" by itself: that needs owner-registered evidence bound to the exact experiment SHA.

@@ -1,0 +1,21 @@
+Pre-experiment security gate — wiring proposal (NOT applied; no live workflow touched)
+
+Code (this branch, tools/automation/): queue-security-gate.cjs (pure), wired into queue-controller.promote (START creation),
+queue-exec.drain (re-check right before dispatch), queue-exec.initQueue (scope/experimentSha/evidence saved only by the owner-verified init),
+queue-adapter-cli (env QUEUE_SECURITY_GATE=1 turns it on; default OFF = old behaviour).
+
+Proposed workflow change (needs someone with .github/workflows write access; Claude cannot apply it):
+  queue-adapter.workflow.yml.txt: add under env of the event + drain steps:   QUEUE_SECURITY_GATE: '1'
+  No new permission, no new Secret. Pin: the module checkout SHA in the proposed workflows must be moved to the commit that contains
+  queue-security-gate.cjs AFTER review (pin change => re-review). Until then the pinned source does NOT contain the gate.
+
+Registration contract (init input per task): {id, ref, owner, scope:'development'|'experiment', experimentSha?, evidence?}
+  - gate ON + scope missing/unknown  => task BLOCKED (scope_missing/scope_unknown). Old tasks without scope must be re-registered
+    with an explicit scope; this is deliberate so a new experiment cannot become "development" by omitting a field.
+  - experiment needs all 6 evidence items (see REQUIRED in the module): status exactly 'PASS', sha == experimentSha, evidence id.
+  - Who writes the evidence: only the owner-approved registration path. A runtime that supplies evidence (reviewer result store,
+    operations confirmation record) does not exist yet => UNPROVEN / BLOCKED. Evidence update after init (withdraw/refresh) also has no
+    approved write path yet; today it means a new owner-approved registration.
+Limits (unproven): no live run; gate does not prove operations settings, does not replace approval/budget/trusted Codex verdict;
+  a task already RUNNING is not stopped by withdrawal (only unsent outbox entries are); BLOCKED tasks need an explicit owner re-registration (no resume policy).
+Recovery: leave QUEUE_SECURITY_GATE unset (gate OFF) or revert the commit; state branch is kept, nothing is deleted.

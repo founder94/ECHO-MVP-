@@ -7,6 +7,7 @@
 //    A process killed after claim but before the result is recorded leaves DISPATCHING; drain() refuses to dispatch anything further
 //    (needs a human) instead of guessing. A thrown dispatch is stored as FAILED, never as DONE. Real dispatchers must also be idempotent by key.
 const { execFileSync } = require('node:child_process');
+const { gateDecision, pickGateFields } = require('./queue-security-gate.cjs');
 
 const APPROVER = Object.freeze({ login: 'founder94', type: 'User' });
 const REF = /^(pr|issue):[1-9][0-9]{0,9}$/;
@@ -28,7 +29,7 @@ function initQueue(input, sender) {
     if (ids.has(t.id) || refs.has(t.ref)) return { error: 'duplicate_task' };
     ids.add(t.id); refs.add(t.ref);
   }
-  return { state: { tasks: tasks.map(t => ({ id: t.id, ref: t.ref, state: 'READY', rounds: 0, approval: { by: { ...APPROVER }, owner: { ...APPROVER }, ref: t.ref } })),
+  return { state: { tasks: tasks.map(t => ({ id: t.id, ref: t.ref, state: 'READY', rounds: 0, approval: { by: { ...APPROVER }, owner: { ...APPROVER }, ref: t.ref }, ...pickGateFields(t) })), // scope/experimentSha/evidence only via this owner-verified path
     seenEvents: [], deliveries: [], outbox: [], log: [] } };
 }
 
@@ -66,7 +67,16 @@ function casUpdate(store, key, patch, retries) {
 
 // drain: dispatch pending entries one at a time. getHead(ref) -> current head sha (injected; throws on failure).
 // Returns {dispatched:[keys], stopped:reason|null}. Never marks DONE unless dispatch returned without throwing.
-function drain(store, dispatch, { getHead, retries = 3 } = {}) {
+function gateBlock(store, e, reason, retries) {
+  for (let i = 0; i <= retries; i++) {
+    const { rev, state } = store.load();
+    const next = { ...setEntry(state, e.key, { status: 'GATE_BLOCKED', gateReason: reason }), tasks: state.tasks.map(x => (x.id === e.taskId ? { ...x, state: 'BLOCKED', gateReason: reason } : x)) };
+    if (store.save(rev, next)) return true;
+  }
+  return false;
+}
+
+function drain(store, dispatch, { getHead, retries = 3, securityGate = false } = {}) {
   const dispatched = [];
   for (;;) {
     const { rev, state } = store.load();
@@ -80,6 +90,11 @@ function drain(store, dispatch, { getHead, retries = 3 } = {}) {
     if (!t || t.state !== EXPECT_STATE[e.action] || (e.action !== 'START' && e.sha && t.headSha !== e.sha)) {
       if (!casUpdate(store, e.key, { status: 'OBSOLETE' }, retries)) return { dispatched, stopped: 'store_conflict' };
       continue;
+    }
+    if (securityGate) {
+      // Re-check right before dispatch: withdrawn/changed evidence blocks this task and its entry (no dispatch); other tasks are untouched.
+      const g = gateDecision(t);
+      if (!g.ok) { if (!gateBlock(store, e, g.reason, retries)) return { dispatched, stopped: 'store_conflict' }; continue; }
     }
     if (e.sha) {
       let cur; try { cur = getHead(e.ref); } catch { return { dispatched, stopped: 'head_lookup_failed' }; } // nothing dispatched

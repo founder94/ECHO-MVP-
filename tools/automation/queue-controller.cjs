@@ -1,6 +1,7 @@
 // Pure unattended-queue controller (isolated: no I/O, no GitHub/network/model calls, not wired into any workflow).
 // States: READY -> RUNNING -> REVIEW -> (FAIL) FIX -> REVIEW ... | (PASS) DONE -> next READY | BLOCKED/limit -> halted.
 // Review text is never read here; only verified event metadata (actor, id, sha, verdict) is input.
+const { gateDecision } = require('./queue-security-gate.cjs');
 const CODEX = 'chatgpt-codex-connector[bot]';
 const WORKERS = [{ login: 'claude[bot]', type: 'Bot' }, { login: 'github-actions[bot]', type: 'Bot' }];
 const ACTIVE = ['RUNNING', 'REVIEW', 'FIX'];
@@ -10,11 +11,17 @@ const stop = (queue, reason) => ({ action: 'STOP', reason, queue: { ...queue, ha
 const ignore = (queue, reason) => ({ action: 'IGNORE', reason, queue });
 const withTask = (queue, id, patch) => ({ ...queue, tasks: queue.tasks.map(t => (t.id === id ? { ...t, ...patch } : t)) });
 
-function promote(queue, owner) {
+// gate (config.securityGate, default OFF): READY tasks the pre-experiment gate denies become BLOCKED (structured reason only, no halt)
+// and are skipped; the next approved READY task (e.g. an unrelated development task) may still start under the same single-owner order.
+function promote(queue, owner, gate) {
   if (queue.tasks.some(t => ACTIVE.includes(t.state))) return ignore(queue, 'concurrent_owner');
-  const next = queue.tasks.find(t => t.state === 'READY');
-  if (!next) return { action: 'IDLE', reason: 'no_task', queue };
-  return { action: 'START', reason: 'ready_promoted', taskId: next.id, queue: withTask(queue, next.id, { state: 'RUNNING', owner: owner || 'actions' }) };
+  let q = queue, blocked = false;
+  for (const t of queue.tasks.filter(x => x.state === 'READY')) {
+    const g = gate ? gateDecision(t) : { ok: true };
+    if (!g.ok) { q = withTask(q, t.id, { state: 'BLOCKED', gateReason: g.reason }); blocked = true; continue; }
+    return { action: 'START', reason: 'ready_promoted', taskId: t.id, queue: withTask(q, t.id, { state: 'RUNNING', owner: owner || 'actions' }) };
+  }
+  return { action: 'IDLE', reason: blocked ? 'gate_blocked' : 'no_task', queue: q };
 }
 
 // event: {type:'start'|'submit'|'review', id?, actor?:{login,type}, taskId?, sha?, verdict?:'PASS'|'FAIL'|'BLOCKED'}
@@ -34,7 +41,7 @@ function step(queue, event, config = {}) {
   if (queue.halted) return ignore(queue, 'halted');
   if (event?.type === 'submit' && !isWorker(event.actor)) return ignore(queue, 'unauthorized_actor');
   if (event?.type === 'start' && !isWorker(event.actor) && !isOwnerStart(event)) return ignore(queue, 'unauthorized_actor');
-  if (event?.type === 'start') return promote(queue, event.owner);
+  if (event?.type === 'start') return promote(queue, event.owner, config.securityGate === true);
   if (event?.type === 'submit') {
     // worker pushed a new head: RUNNING|FIX -> REVIEW
     const t = queue.tasks.find(x => x.id === event.taskId);
@@ -64,8 +71,8 @@ function step(queue, event, config = {}) {
   const q = { ...queue, seenEvents: [...(queue.seenEvents || []), event.id] };
   if (event.verdict === 'BLOCKED') return stop(withTask(q, t.id, { state: 'BLOCKED' }), event.principalPass ? 'reviewer_pass_unproven' : 'blocked');
   if (event.verdict === 'PASS') {
-    const r = promote(withTask(q, t.id, { state: 'DONE' }), t.owner);
-    return r.action === 'IDLE' ? { ...r, reason: 'pass_no_more_tasks' } : r;
+    const r = promote(withTask(q, t.id, { state: 'DONE' }), t.owner, config.securityGate === true);
+    return r.action === 'IDLE' && r.reason === 'no_task' ? { ...r, reason: 'pass_no_more_tasks' } : r;
   }
   if (event.verdict === 'FAIL') {
     const rounds = (t.rounds || 0) + 1;

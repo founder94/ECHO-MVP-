@@ -75,7 +75,7 @@ function run(argv, env, store, getHead = ghHead, deps = {}) {
     catch { return { code: 1, out: { error: 'findings_lookup_failed' } }; } // no verdict without verified findings
   }
   // QUEUE_REVIEWER_PRINCIPAL (opt-in, default unset = OFF): login of an explicitly approved real User allowed to submit FAIL/BLOCKED verdicts; its PASS never completes a task.
-  const config = { strict: true, ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}),
+  const config = { strict: true, ...(env.QUEUE_SECURITY_GATE === '1' ? { securityGate: true } : {}), ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}),
     ...(env.QUEUE_REVIEWER_PRINCIPAL ? { reviewerPrincipal: { login: env.QUEUE_REVIEWER_PRINCIPAL, type: 'User' } } : {}) };
   const r = handle(st(), name, payload, delivery, config, 3, ctx);
   return { code: r.action === 'STOP' ? 2 : 0, out: { action: r.action, reason: r.reason, taskId: r.taskId } };
@@ -100,7 +100,7 @@ function runInit(argv, env, st) {
 function runDrain(env, st, getHead, deps) {
   if (!env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
   const dispatch = deps.dispatch || ghWorkflowDispatcher(env); // workflow_dispatch (GITHUB_TOKEN-supported), typed inputs only
-  const r = drain(st(), dispatch, { getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
+  const r = drain(st(), dispatch, { securityGate: env.QUEUE_SECURITY_GATE === '1', getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
   return { code: r.stopped && r.stopped !== 'halted' ? 3 : 0, out: { action: 'DRAIN', dispatched: r.dispatched.length, stopped: r.stopped } };
 }
 
