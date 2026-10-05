@@ -72,3 +72,20 @@ test('대표 「키랑 다 같이」: 윗줄 KEY 알약 — 금빛 열쇠 + KEY 
   assert.match(css, /-webkit-backdrop-filter:blur/);
   assert.match(src('src/doit/components/feature/KeyIcon.tsx'), /tone = 'silver'/, '기존 은색 열쇠 기본값 그대로');
 });
+
+test('Codex 5993217604 ①: 프로필 빈 사진 = 가운데 둥근 유리 자리(큰 사각 판 0) · 글·필요 사진 안내 그대로', () => {
+  const css = src('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.doit-product-story \.doit-profile-photos-empty>svg\{[^}]*border-radius:50%/);
+  assert.match(css, /\.doit-product-story \.doit-profile-photos-empty\{[^}]*background:transparent!important/);
+  const g = src('src/doit/components/feature/ProfilePhotoGallery.tsx');
+  assert.ok(g.includes('연결을 받으려면 전신·패션·취미 세 장이 필요해요.'), '필요 사진 안내 그대로');
+  assert.ok(g.includes('지금의 나를 한 장씩 담아보세요.'));
+});
+
+test('Codex 4183640424 · 대표 「글은 완성」: 가입 안내·첫 질문 안내·보기 실패 안내는 QA 문구 그대로(사실과 다른 「전화 인증까지」 한 구절만 바로잡음)', () => {
+  const sc = src('src/doit/app/plan-a/screens/SignupConsent.tsx');
+  assert.ok(sc.includes('원하는 관계를 고르고, 다섯 가지 질문에 답하고, 사진과 소개를 준비해요.'));
+  assert.ok(!sc.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').includes('전화 인증까지 마치면'), '전화 인증은 연결 자격이 아님');
+  assert.ok(src('src/doit/components/feature/ConversationOpening.tsx').includes('어떤 만남을 원하는지 들려주세요. 하나 고르고 한 줄 덧붙이면, 거기서부터 이야기할게요.'));
+  assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>'));
+});

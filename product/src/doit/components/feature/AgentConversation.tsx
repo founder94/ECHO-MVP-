@@ -322,7 +322,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
             <button type="button" className="echo-text-button echo-rescue-self" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
           </> : <>
             {/* 보기를 못 만들었을 때의 안전 안내(서버 fallback · 실패 코드로 기록됨 — 구조대가 작동한 것으로 세지 않는다) */}
-            <p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>
+            <p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>
             <div className="echo-choice-row">
               <button type="button" className="echo-choice" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
               <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(UNSURE_TEXT)}>잘 모르겠어요</button>
