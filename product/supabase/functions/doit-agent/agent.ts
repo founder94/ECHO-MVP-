@@ -1462,6 +1462,14 @@ const fallbackLine = (st: AgentState, replacing = false): { text: string; once: 
   if (!logisticsCapped(st, fillFallbackText(st.tone)) && !logisticsEarly(st, fillFallbackText(st.tone), replacing)) return !st.fill_fallback_used && !questionBlocked(st, fillFallbackText(st.tone)) ? { text: fillFallbackText(st.tone), once: true } : null;
   return !questionBlocked(st, talkFallbackText(st.tone)) ? { text: talkFallbackText(st.tone), once: false } : null;
 };
+// Codex P2(4184559873 · 4185047847): 나뉜 답 뒤 서버 안내 한 줄은 모든 길(턴 다시 쓰기 · 보기 계약)에서 나뉨을 받아야 한다 —
+//   보통 안내가 한쪽도 두 경우도 아니면 나뉨을 받는 안내 한 줄, 그것도 이미 했으면 안내 0(부른 쪽이 명시적 실패).
+const splitFallback = (st: AgentState, latest: string, split: boolean, replacing = false): { text: string; once: boolean } | null => {
+  const f = fallbackLine(st, replacing);
+  if (!split || (f && keepsCondition(latest, f.text))) return f;
+  const c = condFallbackText(st.tone);
+  return !questionBlocked(st, c) && keepsCondition(latest, c) ? { text: c, once: false } : null;
+};
 // 2026-10-04 서버 계약(QA 「이런 것 중 뭐가 더 좋아요?」 보기 0): 응답의 질문이 보기를 가리키면 같은 응답에 서버가 거른 보기(2개 이상)가 꼭 붙는다.
 //   보기 다시 만들기(ensureRescue)까지 했는데도 없으면 → 보기를 가리키지 않는 질문 한 문장만 다시 청함(1번) → 서버 안내 한 줄 → 이미 한 질문과 글자까지 같지 않은 안내.
 //   바꾼 질문은 상태(current·asked·턴 기록)와 응답에 같이 넣는다(응답 모양 그대로).
@@ -1479,7 +1487,7 @@ export async function enforceChoiceContract(st: AgentState, llm: Llm, obs: Obs, 
   const button = buttonInput(prev?.ai, !!prev?.choice, latest);
   // 2026-10-05 Codex P2: 바꿔 쓴 질문도 보통 다시 쓰기와 같은 검사(questionFlaw 전부 — 물음표 두 개 · 설문형 · 나뉜 답 한쪽 등)를 거친다.
   if (ok(r.question) && !questionFlaw(st, latest, r.question, true, q, button)) { next = r.question; obs.retry.push("choice_ref_rewrite"); }
-  if (!next) { const f = fallbackLine(st, true); if (f && ok(f.text)) { next = f.text; if (f.once) st.fill_fallback_used = true; obs.retry.push("choice_ref_fallback"); } }
+  if (!next) { const f = splitFallback(st, latest, conditionalAnswer(latest), true); if (f && ok(f.text)) { next = f.text; if (f.once) st.fill_fallback_used = true; obs.retry.push("choice_ref_fallback"); } }
   // 2026-10-05 대표 최신 계약: 고정 질문 목록으로 메우지 않는다 — 바꿀 질문을 못 만들면 명시적 실패(상태 그대로 · 「다시 보내 주세요」 · 다시 보내면 새로 만듦).
   //   보기 없는 「이런 것 중…」을 내보내지도, 이미 한 질문을 다시 내지도 않는다(Codex P2).
   if (!next) { obs.retry.push("choice_ref_unresolved"); response.error = "QUESTION"; return; }
@@ -1633,10 +1641,8 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     // 2026-10-04 만남 준비 질문 상한이면 장소 안내(「처음 만날 땐 어디가…」) 대신 이야기 쪽 안내 한 줄(fallbackLine)
     // Codex P2(4184559873): 서버 안내 한 줄도 나뉜 답 검사(keepsCondition)를 거친다 — 한쪽도 두 경우도 아닌 안내는 쓰지 않고, 나뉨을 받는 안내 한 줄로 바꾼다(이미 한 질문이면 안내 0).
     if (!fixed && cand.length) {
-      const f = fallbackLine(st);
-      const cond = answered && conditionalAnswer(qBase) ? condFallbackText(st.tone) : "";
-      const line = f && (!cond || keepsCondition(qBase, f.text)) ? f : cond && !questionBlocked(st, cond) && keepsCondition(qBase, cond) ? { text: cond, once: false } : null;
-      if (line) { fixed = { type: "core", purpose: cand[0], question: line.text, hint: "", check: null }; if (line.once) st.fill_fallback_used = true; obs.retry.push(line.text === cond ? "question_fallback_conditional" : "question_fallback"); }
+      const line = splitFallback(st, qBase, answered && conditionalAnswer(qBase));
+      if (line) { fixed = { type: "core", purpose: cand[0], question: line.text, hint: "", check: null }; if (line.once) st.fill_fallback_used = true; obs.retry.push(line.text === condFallbackText(st.tone) ? "question_fallback_conditional" : "question_fallback"); }
     }
     // Codex P2(4184847918): 나뉜 답인데 다시 쓰기·앞선 시도·안내 줄이 모두 막혀 한쪽만 묻는 질문만 남으면 그대로 내보내지 않는다 —
     //   상태 저장 없이 명시적 실패(index: AI_READ_FAILED · 「적은 말은 그대로 있으니 다시 보내 주세요」). 다른 이유로 남은 질문은 예전처럼 둔다.

@@ -320,3 +320,25 @@ test('Codex P2(4184847918): 나뉨을 받는 안내 줄까지 이미 했으면 �
   if (!response.error) assert.ok(A.keepsCondition(latest, response.question), response.question);
   else { assert.equal(response.error, 'QUESTION'); assert.ok(obs.retry.includes('conditional_unresolved')); }
 });
+
+test('Codex P2(4185047847): 보기 계약 길에서도 나뉜 답 뒤 안내 줄은 나뉨을 받는다(안 되면 명시적 실패)', async () => {
+  const latest = '처음 만나면 남자면 술, 여자면 카페';
+  const Q0 = '남자랑 여자랑 이런 것 중 뭐가 편해요?';
+  const setup = (extraAsked = []) => {
+    const st = afterThree();
+    for (const t of extraAsked) st.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
+    st.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: latest, kind: 'answer', saved: true, question: Q0 });
+    const cur = { type: 'core', purpose: 'relationship_style', text: Q0 }; st.asked.push(cur); st.current = cur;
+    return st;
+  };
+  const oneSided = async (kind) => kind === 'question_rewrite' || kind === 'rewrite' ? JSON.stringify({ question: '술 마시면 무슨 얘기 해요?' }) : (() => { throw new Error('x'); })();
+  const st = setup(); const r = { question: Q0 };
+  await A.enforceChoiceContract(st, oneSided, obsOf(), r);
+  assert.equal(r.error, undefined, JSON.stringify(r));
+  assert.ok(A.keepsCondition(latest, r.question), `나뉨을 받지 않은 안내: ${r.question}`);
+  assert.notEqual(r.question, A.fillFallbackText('polite'));
+  // 나뉨을 받는 안내 줄까지 이미 했으면 = 명시적 실패(한쪽 안내 0)
+  const st2 = setup([A.condFallbackText('polite')]); const r2 = { question: Q0 };
+  await A.enforceChoiceContract(st2, oneSided, obsOf(), r2);
+  assert.equal(r2.error, 'QUESTION', JSON.stringify(r2));
+});
