@@ -85,12 +85,96 @@ function isValidAnonSession(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+// ---------------------------------------------------------------------------
+// 사주 「ECHO의 이야기」(2026-10-06 대표 「사람냄새나게 최종완성해」) — 화면이 계산한 값 중 정해진 몇 가지만 받는다.
+// 생년월일·태어난 시간·성별·나이는 받지 않는다(서버로 보내지 않음). 받은 값은 모두 정해진 목록 안의 글자·작은 숫자라
+// 사용자가 쓴 글이 AI 지시문에 섞이지 않는다. 저장 0 — 결과는 화면에만 보인다.
+// ---------------------------------------------------------------------------
+const SAJU_DAY_MASTERS = ["갑목", "을목", "병화", "정화", "무토", "기토", "경금", "신금", "임수", "계수"] as const;
+const SAJU_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
+const SAJU_TEN_GODS = ["비견", "겁재", "식신", "상관", "편재", "정재", "편관", "정관", "편인", "정인"] as const;
+interface SajuFacts { dayMaster: string; elements: Record<string, number>; cycleGod: string | null; yearGod: string | null }
+
+function validateSajuFacts(raw: unknown): { ok: boolean; detail?: string } {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false, detail: "invalid_facts" };
+  const f = raw as Record<string, unknown>;
+  const allowed = new Set(["dayMaster", "elements", "cycleGod", "yearGod"]);
+  if (Object.keys(f).some((k) => !allowed.has(k))) return { ok: false, detail: "invalid_facts_key" };
+  if (typeof f.dayMaster !== "string" || !(SAJU_DAY_MASTERS as readonly string[]).includes(f.dayMaster)) return { ok: false, detail: "invalid_dayMaster" };
+  const el = f.elements;
+  if (typeof el !== "object" || el === null || Array.isArray(el)) return { ok: false, detail: "invalid_elements" };
+  const ek = Object.keys(el as Record<string, unknown>);
+  if (ek.length !== 5 || !SAJU_ELEMENTS.every((k) => ek.includes(k))) return { ok: false, detail: "invalid_elements_key" };
+  let total = 0;
+  for (const k of SAJU_ELEMENTS) {
+    const n = (el as Record<string, unknown>)[k];
+    if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > 8) return { ok: false, detail: "invalid_element_count" };
+    total += n;
+  }
+  if (total !== 6 && total !== 8) return { ok: false, detail: "invalid_element_total" };
+  for (const key of ["cycleGod", "yearGod"] as const) {
+    const g = f[key];
+    if (g !== null && (typeof g !== "string" || !(SAJU_TEN_GODS as readonly string[]).includes(g))) return { ok: false, detail: `invalid_${key}` };
+  }
+  return { ok: true };
+}
+
+// 단정·겁주기·민감 주제 금지: 이런 말이 나오면 쓰지 않고(실패) 화면의 규칙 해설만 남긴다.
+const SAJU_STORY_BANNED = /결혼|이혼|임신|사망|죽음|죽을|질병|병에|병이|수술|사고를|사고가|투자|주식|코인|로또|대박|반드시|무조건|확실히|틀림없|운명이에요|운명입니다|정해져 있|조심하지 않으면|불행|저주|액운|흉하/;
+
+function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
+  const counts = SAJU_ELEMENTS.map((k) => `${k} ${f.elements[k]}개`).join(", ");
+  return [
+    {
+      role: "system",
+      content:
+        `너는 ECHO야. 사주를 오래 공부한 다정한 친구처럼, 사용자 한 사람에게 말을 건네듯 이야기해 줘.\n` +
+        `다음 JSON 형식만 정확히 출력해. 다른 설명은 붙이지 마.\n\n` +
+        `{\n  "story": "3~4문장. 이 사람의 결을 장면처럼 그려 주는 따뜻한 이야기. 해요체.",\n  "closing": "1문장. 오늘 이 사람에게 건네는 짧은 말. 해요체."\n}\n\n` +
+        `규칙:\n` +
+        `- 한국어 해요체로, 사람에게 말하듯 쉽게. 한자·전문 용어(십신·오행 이름 나열)는 쓰지 말고 뜻으로 풀어 줘.\n` +
+        `- 「~한 사람일 수 있어요」, 「~할 때가 있을지도 몰라요」처럼 여지를 남겨. 미래를 단정하지 마.\n` +
+        `- 결혼·건강·돈·투자·사고·죽음은 말하지 마. 겁주는 말, 「반드시·무조건·확실히」 같은 말도 쓰지 마.\n` +
+        `- 칭찬만 늘어놓지 말고, 이 사람이 스스로 고개를 끄덕일 만한 작은 장면(예: 어떤 순간에 힘이 나는지)을 하나 넣어 줘.\n` +
+        `- 이건 재미로 보는 참고 이야기야. 사람을 판단하거나 정의하지 마.`,
+    },
+    {
+      role: "user",
+      content:
+        `일간(나를 뜻하는 글자): ${f.dayMaster}\n` +
+        `오행 개수: ${counts}\n` +
+        `지금 10년 흐름의 자리: ${f.cycleGod ?? "모름"}\n` +
+        `올해의 자리: ${f.yearGod ?? "모름"}\n\n` +
+        `이 값으로 이 사람에게 들려줄 이야기를 만들어 줘.`,
+    },
+  ];
+}
+
+// 로그인한 사람이면 그 계정으로 하루 호출 수를 센다(가입자 공용). 로그인하지 않았으면 접속 주소로 센다.
+// 2026-10-06: 예전에는 브라우저가 만든 세션 번호로만 세서, 번호를 바꿔 가며 보내면 하루 제한 없이 AI 비용을 쓸 수 있었다.
+async function rateKeyFor(req: Request): Promise<string | null> {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (token && supabase) {
+    try {
+      const { data, error } = await supabase.auth.getUser(token);
+      if (!error && data?.user?.id) return `user:${data.user.id}`;
+    } catch { /* 공개 키·만료 토큰 → 로그인 안 한 사람으로 */ }
+  }
+  const ip = getClientIP(req);
+  return ip === "unknown" ? null : `ip:${ip}`;
+}
+
 function validateRequest(
   body: Record<string, unknown>,
 ): { ok: boolean; detail?: string } {
   const type = body.type;
-  if (type !== "tarot_reading" && type !== "conversation") {
+  if (type !== "tarot_reading" && type !== "conversation" && type !== "saju_reading") {
     return { ok: false, detail: "invalid_type" };
+  }
+
+  if (type === "saju_reading") {
+    return validateSajuFacts(body.facts);
   }
 
   if (type === "tarot_reading") {
@@ -194,6 +278,19 @@ function validateOpenAIResponse(
     }
   }
 
+  if (type === "saju_reading") {
+    if (typeof p.story !== "string" || p.story.trim().length < 20 || p.story.length > 400) {
+      return { ok: false, detail: "invalid_story" };
+    }
+    if (typeof p.closing !== "string" || p.closing.trim().length === 0 || p.closing.length > 120) {
+      return { ok: false, detail: "invalid_closing" };
+    }
+    if (SAJU_STORY_BANNED.test(p.story) || SAJU_STORY_BANNED.test(p.closing)) {
+      return { ok: false, detail: "banned_phrase" };
+    }
+    return { ok: true, parsed: { story: p.story.trim(), closing: p.closing.trim() } };
+  }
+
   if (type === "conversation") {
     if (typeof p.reading !== "string" || p.reading.length === 0 || p.reading.length > 300) {
       return { ok: false, detail: "invalid_reading" };
@@ -277,11 +374,15 @@ Deno.serve(async (req) => {
   // DB 기반 호출 제한 (3초 쿨다운 / 하루 15회) → 초과 시 429
   const ip = getClientIP(req);
   const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+  const rateKey = await rateKeyFor(req);
+  if (!rateKey) {
+    return makeRateLimitResponse(corsHeaders);
+  }
   let rateAllowed = false;
   if (supabase) {
     try {
       const { data, error } = await supabase.rpc("openai_rate_limit_allow", {
-        p_session_id: anonSession,
+        p_session_id: rateKey,
         p_ip: ip,
         p_day: day,
         p_daily_limit: DAILY_LIMIT,
@@ -306,7 +407,9 @@ Deno.serve(async (req) => {
 
   let messages: Array<{ role: string; content: string }> = [];
 
-  if (type === "tarot_reading") {
+  if (type === "saju_reading") {
+    messages = sajuMessages(body.facts as SajuFacts);
+  } else if (type === "tarot_reading") {
     const cardName = String(body.cardName);
     const purpose = String(body.purpose);
     messages = [

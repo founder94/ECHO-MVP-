@@ -1,7 +1,40 @@
 import { useMemo, useState } from "react";
 import { ELEMENT_KO, ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, type Pillar, type SajuInput, type TenGod } from "@/doit/lib/saju/engine";
 import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doit/lib/saju/explain";
+import { sajuStoryFacts } from "@/doit/lib/saju/storyFacts";
+import { generateSajuStory, type SajuStory } from "@/doit/lib/openai";
 import "./saju.css";
+
+// 「ECHO가 들려주는 이야기」(2026-10-06 대표 「사람냄새나게」): 규칙 해설 아래, 누를 때만 AI 가 말하듯 풀어 준다.
+// 서버(openai-chat saju_reading)가 운영에 올라가기 전에는 숨긴다 — 빌드 스위치 VITE_SAJU_STORY_ENABLED=true 일 때만 보인다(없는 기능을 켠 척 0).
+const SAJU_STORY_ENABLED = import.meta.env.VITE_SAJU_STORY_ENABLED === "true";
+type StoryState = { kind: "idle" } | { kind: "loading" } | { kind: "done"; story: SajuStory } | { kind: "error" };
+
+function SajuStoryCard({ facts }: { facts: ReturnType<typeof sajuStoryFacts> }) {
+  const [state, setState] = useState<StoryState>({ kind: "idle" });
+  const ask = () => {
+    if (state.kind === "loading") return;
+    setState({ kind: "loading" });
+    generateSajuStory(facts).then((story) => setState({ kind: "done", story })).catch(() => setState({ kind: "error" }));
+  };
+  return <section className="saju-card saju-story" aria-label="ECHO가 들려주는 이야기" aria-busy={state.kind === "loading"}>
+    <h2 className="saju-h2">ECHO가 들려주는 이야기</h2>
+    {state.kind === "done" ? <>
+      <p className="saju-body saju-story-text">{state.story.story}</p>
+      <p className="saju-body saju-story-closing">{state.story.closing}</p>
+      <p className="saju-cap">재미로 보는 참고 이야기예요. 정해진 일을 알려 주지 않아요.</p>
+    </> : <>
+      <p className="saju-body">위 해설을 바탕으로, 당신에게 말하듯 천천히 풀어 볼게요.</p>
+      {state.kind === "error" && <p className="saju-body" role="alert">지금은 이야기를 만들지 못했어요. 위 해설은 그대로 볼 수 있어요.</p>}
+      <div className="saju-actions">
+        <button type="button" className="saju-primary" disabled={state.kind === "loading"} onClick={ask}>
+          {state.kind === "loading" ? "천천히 읽어 보고 있어요…" : state.kind === "error" ? "다시 들어 볼래요" : "이야기로 들어 볼래요"}
+        </button>
+      </div>
+      <p className="saju-cap">누르면 생일·시간이 아니라, 계산된 결과 네 가지만 ECHO에게 보내요. 저장하지 않아요.</p>
+    </>}
+  </section>;
+}
 
 // 무료 사주 결과(2026-09-26 대표 「SAJU / TAROT FINAL LOCK」): 입력 → 계산 엔진 → 명식 · 오행 · 현재 흐름 · 10년 흐름 · 연도별 흐름 · 주제별 해설 · 정리.
 // - 명식·오행·흐름은 engine.ts 계산값만, 해설은 explain.ts 규칙 문장만(AI 0 · 가짜 예시 0).
@@ -94,6 +127,8 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
         {openTopic === tp.id && tp.lines.map((l, i) => <p key={i} className="saju-body">{l}</p>)}
       </div>)}
     </section>
+
+    {SAJU_STORY_ENABLED && <SajuStoryCard facts={sajuStoryFacts(r)} />}
 
     <section className="saju-card" aria-label="정리">
       <h2 className="saju-h2">정리</h2>
