@@ -66,3 +66,10 @@ test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내
   assert.match(HOME, /<button ref=\{menuBtnRef\} type="button" className="bh-menu-btn"/);
   assert.match(HOME, /openGuide\(undefined, menuBtnRef\.current\)/);
 });
+
+test('Codex PR #130 P2: 제작 과정 영상은 보이는 비율 35% 이상일 때만 재생(조금만 보일 때·벗어날 때 멈춤)', () => {
+  const src = readFileSync(new URL('../src/pages/do-it/brand-home/MakingFilm.tsx', import.meta.url), 'utf8');
+  assert.match(src, /e\.intersectionRatio >= VISIBLE_RATIO\) tryPlay\(\); else v\.pause\(\)/);
+  assert.match(src, /threshold: \[0, VISIBLE_RATIO\]/);
+  assert.doesNotMatch(src, /e\.isIntersecting\) tryPlay/);
+});

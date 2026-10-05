@@ -13,6 +13,8 @@ const pickSrc = () => { try { return document.createElement('video').canPlayType
 
 const prefersReduced = () => { try { return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
+const VISIBLE_RATIO = 0.35;
+
 export default function MakingFilm() {
   const ref = useRef<HTMLVideoElement | null>(null);
   const [still] = useState(prefersReduced);
@@ -26,7 +28,8 @@ export default function MakingFilm() {
     if (!v || still) return;
     const tryPlay = () => { void v.play().catch(() => setBlocked(true)); };
     if (typeof IntersectionObserver !== 'function') { tryPlay(); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) tryPlay(); else v.pause(); }, { threshold: 0.35 });
+    // Codex PR #130 P2: isIntersecting 은 조금만 보여도 참이라 35% 아래로 내려가도 멈추지 않는다 → 보이는 비율로 정한다(35% 이상 = 재생 · 아래 = 멈춤)
+    const io = new IntersectionObserver(([e]) => { if (e.intersectionRatio >= VISIBLE_RATIO) tryPlay(); else v.pause(); }, { threshold: [0, VISIBLE_RATIO] });
     io.observe(v);
     return () => io.disconnect();
   }, [still]);
