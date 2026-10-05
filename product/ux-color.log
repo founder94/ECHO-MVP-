@@ -1,7 +1,0 @@
-build 0
-PASS 10 mutual (서버가 mutual 이라고 답할 때만) · ZZARIT · 상대 정보 0
-PASS 80 모바일 기준 디자인 캡처 /doit/start-journey (로그인 전) · 넘침 0 · /doit/conversation?from=journey
-PASS 82 모바일 기준 디자인 캡처 /doit/start-journey (목적 없음) · 넘침 0 · /doit/conversation?from=journey
-
-TOTAL 3 · PASS 3 · FAIL 0
-flow 0

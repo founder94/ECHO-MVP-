@@ -1,1 +1,0 @@
-import{ot as e}from"./index-C3lGPznR.js";import{t}from"./StepQuestionScreen-Dj1nCjh-.js";var n=e();function r(){return(0,n.jsx)(t,{expectedStatus:`step1`})}export{r as default};

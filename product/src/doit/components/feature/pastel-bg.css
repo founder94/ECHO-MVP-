@@ -42,5 +42,8 @@
   animation:float-bg var(--echo-pastel-drift,20s) ease-in-out infinite;
   transition:filter var(--echo-pastel-shift,.6s) ease;
 }
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
+/* 2026-10-05 대표 「디자인 전체 배경이랑 그냥 이대로 똑같이 박으라고」 + 배경 원본 그림 전달(「이거면되?」): 시안 배경 그림을 그대로 깐다.
+   그림(public/doit/bg/echo-mobile-bg.webp, 853×1844 · 22KB)은 흐림 없이 화면에 꽉 차게(cover) 고정한다. 위 색 띠(::before)는 그림이 오기 전·못 왔을 때의 대신 바탕으로 남긴다.
+   덮개(--echo-pastel-veil)는 그림 위 한 겹으로 그대로 · 밝기·채도 토큰(pastel-states.css)도 그림에 그대로 걸린다. 그림은 움직이지 않는다(시안과 같게). */
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{z-index:-1;background:linear-gradient(rgb(9 10 12/var(--echo-pastel-veil)),rgb(9 10 12/var(--echo-pastel-veil))),url(/doit/bg/echo-mobile-bg.webp) center top/cover no-repeat;filter:saturate(var(--echo-pastel-sat,1)) brightness(var(--echo-pastel-light,1));transition:filter var(--echo-pastel-shift,.6s) ease}
 @media(prefers-reduced-motion:reduce){:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{animation:none}}

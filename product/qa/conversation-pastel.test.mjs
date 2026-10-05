@@ -48,7 +48,9 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
 });
 
 test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·배치 규칙 0 · 굵기는 500·600만', () => {
-  assert.doesNotMatch(rules + bgRules, /url\(|readdy|helloreaddy|weather|particle|parallax/i); // 설명 주석은 빼고 실제 규칙만
+  // 2026-10-05 대표가 직접 보낸 시안 배경 그림 한 장(우리 저장소 안 파일)만 허용 · 바깥 주소·다른 그림 0
+  const own = 'url(/doit/bg/echo-mobile-bg.webp)';
+  assert.doesNotMatch(rules + bgRules.split(own).join(''), /url\(|readdy|helloreaddy|weather|particle|parallax/i); // 설명 주석은 빼고 실제 규칙만
   assert.doesNotMatch(bgRules, /font-family|font-size|font-weight|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
   assert.doesNotMatch(rules, /font-family|font-size|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
   // 굵기는 대표 지시 「안내 글씨 굵기 한 단계」(2026-09-25)로 500·600만 허용 · 700/800 금지

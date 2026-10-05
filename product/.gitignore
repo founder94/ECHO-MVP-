@@ -10,3 +10,10 @@ auto-imports.d.ts
 out-app/
 out-brand/
 out-admin/
+
+# local browser-check output (qa-browser/ux-flow.mjs · uxrun) — never commit
+ux-build/
+uxshots/
+ux-*.log
+ux-*.log.build
+qa-browser/*.tmp.mjs
