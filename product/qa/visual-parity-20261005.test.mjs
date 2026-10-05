@@ -28,7 +28,16 @@ test('전역 오염 0: 모든 규칙이 앱 화면 틀(.doit-app-pastel · .echo
 });
 
 test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화면 바깥 판 0', () => {
-  assert.match(CSS, /--echo-glass:rgb\(26 52 60\/\.42\)/);
+  assert.match(CSS, /--echo-glass:rgb\(8 22 28\/\.52\)/);
+  // 대비 계산: 파스텔 바탕(pastel-bg.css 의 모든 색) 위에 판을 겹친 색 vs 흰 글자 ≥ 4.5:1
+  const cols = [...new Set(read('src/doit/components/feature/pastel-bg.css').match(/#[0-9a-fA-F]{6}/g))].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  for (const name of ['--echo-glass', '--echo-glass-soft', '--echo-glass-btn']) {
+    const m = CSS.match(new RegExp(`${name}:rgb\\((\\d+) (\\d+) (\\d+)\\/(\\.\\d+)\\)`)); assert.ok(m, name);
+    const g = [m[1], m[2], m[3]].map(Number), a = Number(m[4]);
+    const worst = Math.min(...cols.map((c) => { const mix = c.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
+    assert.ok(worst >= 4.5, `${name} 흰 글자 대비 ${worst.toFixed(2)}:1`);
+  }
   assert.match(CSS, /--echo-glass-blur:blur\(18px\)/);
   assert.match(CSS, /\.echo-done\{background:transparent!important;border:0!important/);
   assert.match(CSS, /prefers-reduced-transparency:reduce/, '투명도 줄이기 사용자는 더 진한 판');
@@ -53,4 +62,8 @@ test('연결 대화: 「입력칸 · 보내기」 한 줄 · 이름표는 화면
   assert.match(MATCHES, /rows=\{1\} placeholder="편하게 이야기해 주세요\."/);
   assert.match(MATCHES, /<label className="doit-connect-label" htmlFor=\{`message-\$\{match\.id\}`\}>이어서 이야기하기<\/label>/);
   assert.match(CSS, /\.doit-match-send\{display:grid!important;grid-template-columns:1fr auto/);
+});
+
+test('이용 안내 열쇠 그림: 모바일만 유리 열쇠 그림 · 홈페이지는 예전 아이콘(모바일 그림이 홈페이지로 새지 않음)', () => {
+  assert.match(read('src/components/guide/GuideHost.tsx'), /s\.id === 'key' && \(theme === 'app' \? <img className="echo-guide-key-art" src="\/doit\/art\/key-glass\.webp"[^>]*\/> : <KeyIcon size=\{22\} \/>\)/);
 });

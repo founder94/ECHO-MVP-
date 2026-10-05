@@ -3,12 +3,14 @@
    불러오는 곳: DoitApp · 로그인 · 가입 · 약관 동의(mobile-polish.css 바로 뒤). 홈페이지(brand) 빌드에는 들어가지 않는다.
    :root:root 를 앞에 붙인 것은 mobile-polish.css(:root …)보다 한 단계 세게 하려는 것(불러오는 순서와 무관).
    바꾸는 것 = 생김새만: 판 색·투명도·흐림 · 겹친 판 걷어 내기 · 버튼 높이·정렬 · 맨 위 메뉴 · 여백. 글·버튼 뜻·서버·흐름 0.
-   - 유리: 짙은 청록 판(62%) → 뒤 무지개빛이 비치는 연기빛 유리(42%) + 흐림 18px. 흰 글자는 옅은 음영(--echo-shade)으로 읽힘을 지킨다. */
+   - 유리: 짙은 청록 판(청록 62%) → 뒤 무지개빛이 비치는 연기빛 유리(먹색 rgb(8 22 28) 52%) + 흐림 18px.
+     대비(계산값): 파스텔 바탕 60색 중 가장 밝은 곳 위에서도 흰 글자 4.66:1 이상(WCAG AA 4.5:1) · 버튼 56% = 5.24:1 · 말풍선 54% = 4.94:1.
+     (처음 쓴 청록 42% 는 3.04:1 로 미달 — Codex P2 지적으로 바꿈) */
 
 :root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
-  --echo-glass:rgb(26 52 60/.42);
-  --echo-glass-soft:rgb(22 48 56/.48);
-  --echo-glass-btn:rgb(26 44 50/.5);
+  --echo-glass:rgb(8 22 28/.52);
+  --echo-glass-soft:rgb(8 22 28/.54);
+  --echo-glass-btn:rgb(8 22 28/.56);
   --echo-glass-line:rgb(255 255 255/.42);
   --echo-glass-blur:blur(18px) saturate(1.35);
 }
@@ -65,7 +67,7 @@
 /* 정정 화면이 열리면 위 빈 공간 없이 머리줄 바로 아래에서 시작 */
 :root:root .echo-dialogue.echo-chat:has(.echo-check) .echo-chat-log{flex:0 0 auto;padding:0}
 :root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint p{font-size:13.5px;line-height:1.5}
-@media(prefers-reduced-transparency:reduce){:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){--echo-glass:rgb(26 52 60/.7);--echo-glass-soft:rgb(22 48 56/.72);--echo-glass-btn:rgb(26 44 50/.74)}}
+@media(prefers-reduced-transparency:reduce){:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){--echo-glass:rgb(8 22 28/.72);--echo-glass-soft:rgb(8 22 28/.74);--echo-glass-btn:rgb(8 22 28/.76)}}
 /* 정정 화면이 한 화면(390×844) 안에 들어오게: 버튼 48px · 카드 줄 간격 조금 줄임 */
 :root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions :is(.echo-primary,.echo-secondary){min-height:48px!important}
 :root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list{gap:7px!important}
@@ -76,3 +78,13 @@
 :root:root .doit-app-pastel .doit-match-send>.doit-connect-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 :root:root .doit-app-pastel .doit-match-send>:is(textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])){min-height:44px;max-height:140px;margin:0;padding:11px 0;border:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;resize:none;field-sizing:content}
 :root:root .doit-app-pastel .doit-match-send>.doit-product-action{min-height:44px!important;width:auto!important;margin:0!important;padding:0 16px!important;border-radius:999px!important;gap:6px}
+/* 시안 4번 비교 뒤 맞춤: 설명 글은 또렷하게(흰 글 · 15px) · 네 버튼 글은 시안처럼 크게(17px) */
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-context{font-size:15px!important;opacity:1;font-weight:500!important}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions :is(.echo-primary,.echo-secondary){font-size:17px!important}
+
+/* ── 대화(시안 3번): 글 17px · 내 말 옆 사람 그림(동그라미) · ECHO 빛 점 크게 ── */
+:root:root .echo-dialogue.echo-chat .echo-chat-log .echo-bubble{font-size:17px!important;padding:13px 17px}
+:root:root .echo-dialogue.echo-chat .echo-chat-log .echo-question{font-size:17px!important}
+.echo-dialogue.echo-chat .echo-chat-log .echo-bubble--me{position:relative;max-width:calc(82% - 44px)}
+.echo-dialogue.echo-chat .echo-chat-log .echo-bubble--me::before{content:"";position:absolute;left:-46px;top:50%;width:36px;height:36px;margin-top:-18px;border-radius:50%;border:1px solid rgb(255 255 255/.6);background:rgb(255 255 255/.22) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Ccircle cx='12' cy='8.5' r='4'/%3E%3Cpath d='M4.5 20c.8-4 3.9-6 7.5-6s6.7 2 7.5 6z'/%3E%3C/svg%3E") center/22px no-repeat;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+:root:root .echo-dialogue.echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo::before{left:-42px;top:0;width:34px;height:34px;box-shadow:0 0 0 3px rgb(255 255 255/.35),0 0 16px rgb(120 240 230/.75)}
