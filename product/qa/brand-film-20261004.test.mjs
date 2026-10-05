@@ -53,3 +53,9 @@ test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내
   assert.match(HOME, /<button ref=\{menuBtnRef\} type="button" className="bh-menu-btn"/);
   assert.match(HOME, /openGuide\(undefined, menuBtnRef\.current\)/);
 });
+
+test('2026-10-05 대표: 회사 소개 칸의 서비스·문의·약관 줄 삭제 · 바닥글(이용 안내·이용약관·개인정보처리방침·문의)은 그대로', () => {
+  assert.doesNotMatch(HOME, /className="bh-rows"/);
+  const foot = HOME.slice(HOME.lastIndexOf('bh-legal-link'));
+  for (const t of ['이용 안내', 'href="/legal/terms">이용약관', 'href="/legal/privacy">개인정보처리방침', 'mailto:0423doit@gmail.com']) assert.ok(foot.includes(t), t);
+});

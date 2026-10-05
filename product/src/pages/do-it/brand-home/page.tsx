@@ -186,11 +186,7 @@ export default function BrandHomePage() {
           <h2 id="bh-company-title" className="bh-title bh-title--wide">DO IT COMPANY</h2>
           <p className="bh-lead">{BRAND_HOME_COPY.companyLead[0]}<br />{BRAND_HOME_COPY.companyLead[1]}</p>
           <figure className="bh-figure"><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" /></figure>
-          <dl className="bh-rows">
-            <div><dt>서비스</dt><dd><a href={appUrl('/')}>{APP_ORIGIN.replace('https://', '')}<span aria-hidden="true">↗</span></a></dd></div>
-            <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
-            <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
-          </dl>
+          {/* 2026-10-05 대표 「바닥글에 이용약관·문의·개인정보처리방침이 다 있으니 같은 게 있을 필요 없다」: 서비스·문의·약관 줄 삭제(바닥글 그대로) */}
         </div>
       </section>
 
