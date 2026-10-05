@@ -63,7 +63,12 @@ export default function BrandFilm() {
       : null;
     io?.observe(box);
     if (!io) tryPlay();
-    return () => { v.removeEventListener('error', fail); v.removeEventListener('play', onPlay); v.removeEventListener('playing', onPlaying); v.removeEventListener('pause', onPause); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
+    // 보는 중에 「움직임 줄이기」를 켜면 바로 멈추고 「영상 보기」를 보여 준다(다음 스크롤까지 기다리지 않음).
+    let rm: MediaQueryList | null = null;
+    try { rm = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null; } catch { rm = null; }
+    const onReduce = (e: MediaQueryListEvent) => { if (e.matches) { if (!v.paused) v.pause(); setAskPlay(true); } };
+    rm?.addEventListener?.('change', onReduce);
+    return () => { rm?.removeEventListener?.('change', onReduce); v.removeEventListener('error', fail); v.removeEventListener('play', onPlay); v.removeEventListener('playing', onPlaying); v.removeEventListener('pause', onPause); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
   }, [state, attempt]);
 
   const toggle = () => {

@@ -8,13 +8,15 @@ const FILM = read('src/pages/do-it/brand-home/BrandFilm.tsx');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const VTT = read('public/brand/film/captions.ko.vtt');
 
-test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 진짜 「모바일 시작하기」는 영상 아래', () => {
+test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 「모바일 시작하기」는 첫 화면 하나뿐(2026-10-05 대표)', () => {
   const at = (s) => HOME.indexOf(s);
   const order = ['id="bh-echo"', 'id="bh-film"', 'id="bh-company"', 'id="bh-greeting"'].map(at);
   assert.ok(order.every((x) => x > 0), String(order));
   assert.ok(order.every((x, i) => i === 0 || x > order[i - 1]), '순서 hero → ECHO → 영상 → 회사 → 인사');
   const sec = HOME.slice(at('id="bh-film"'), at('id="bh-company"'));
-  assert.ok(sec.indexOf('<BrandFilm />') < sec.indexOf('<StartActions />'), '시작 버튼은 영상 아래');
+  assert.ok(sec.includes('<BrandFilm />') && !sec.includes('BRAND_HOME_COPY.start'), '영상 구간에 시작 버튼 0');
+  assert.equal((HOME.match(/\{BRAND_HOME_COPY\.start\}/g) ?? []).length, 1, '「모바일 시작하기」 = 첫 화면 하나');
+  assert.doesNotMatch(HOME, /StartActions/);
   assert.match(FILM, /title: '홈페이지 제작과정', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
 
@@ -29,6 +31,7 @@ test('2026-10-05 대표 교체: 영상 = 홈페이지 제작과정(대표가 올
   assert.match(FILM, /const onPlay = \(\) => setPlaying\(true\);[\s\S]*v\.addEventListener\('play', onPlay\)/, '버튼 글 = 실제 paused 상태(재생 기다리는 동안에도 「멈춤」)');
   assert.match(FILM, /<button type="button" className="bh-film-toggle" onClick=\{toggle\}/, '키보드로 누르는 멈춤/재생 버튼');
   assert.match(FILM, /rootMargin: '0px 0px 300px 0px'/, '가까이 오기 전 영상 파일 받지 않음');
+  assert.match(FILM, /const onReduce = \(e: MediaQueryListEvent\) => \{ if \(e\.matches\) \{ if \(!v\.paused\) v\.pause\(\); setAskPlay\(true\); \} \};[\s\S]*rm\?\.addEventListener\?\.\('change', onReduce\)/, '보는 중 움직임 줄이기 켜면 멈춤');
   assert.match(FILM, /useState<State>\('waiting'\)/);
   assert.doesNotMatch(FILM, /<video[^>]*onError=/, '<video> React onError 는 <source> 오류까지 받아 대체 재생을 막는다');
   assert.match(FILM, /<source src=\{FILM\.mp4\} type="video\/mp4" onError=\{\(e\) => e\.stopPropagation\(\)\} \/>/);

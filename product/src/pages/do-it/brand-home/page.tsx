@@ -69,10 +69,11 @@ const openInstallGuide = (event: MouseEvent<HTMLAnchorElement>) => {
   openGuide('install');
 };
 
-function StartActions({ id }: { id?: string }) {
+// 2026-10-05 대표 「모바일로 시작하기 버튼이 두 개야 … 히어로 페이지에만 있고 나머지 삭제해」: 「모바일 시작하기」는 첫 화면(히어로) 하나뿐.
+// 아래 구간에는 「앱 설치 안내」 글자 링크만 ECHO 소개 한 곳에 남긴다(컴퓨터에서 첫 화면 버튼을 누르면 내려오는 QR 구간 바로 위).
+function InstallLink() {
   return (
-    <div className="bh-actions" id={id}>
-      <a className="bh-btn bh-btn--primary" href={appUrl(START_PATH)} onClick={goStart}>{BRAND_HOME_COPY.start}<span aria-hidden="true">→</span></a>
+    <div className="bh-actions">
       {/* 2026-10-04 이용 안내 통합: 「앱 설치 안내」 = 이용 안내의 설치 항목(이 자리에서 열림). 새 탭·주소로는 앱 설치 화면 그대로. */}
       <a className="bh-btn bh-btn--text" href={appUrl(INSTALL_PATH)} onClick={openInstallGuide}>{BRAND_HOME_COPY.install}</a>
     </div>
@@ -155,7 +156,7 @@ export default function BrandHomePage() {
               </li>
             ))}
           </ol>
-          <StartActions />
+          <InstallLink />
           <div className="bh-qr" id="bh-start-qr">
             {productionApp && <img src="/brand/app-qr.svg" width="132" height="132" alt="app.do-it.company 로 가는 QR 코드" />}
             <div>
@@ -167,14 +168,13 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 2-1. 홈페이지 제작과정 영상(2026-10-05 대표 교체 · 처음 자리는 2026-10-04 「브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. 진짜 시작 버튼은 영상 아래 따로. */}
+      {/* 2-1. 홈페이지 제작과정 영상(2026-10-05 대표 교체 · 처음 자리는 2026-10-04 「브랜드 영상」): ECHO 소개 다음 · 회사 소개 앞. */}
       <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
         <div className="bh-content">
           <p className="bh-kicker">MAKING FILM</p>
           <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
           <BrandFilm />
-          <StartActions />
         </div>
       </section>
 
@@ -191,7 +191,6 @@ export default function BrandHomePage() {
             <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
             <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
           </dl>
-          <StartActions />
         </div>
       </section>
 
