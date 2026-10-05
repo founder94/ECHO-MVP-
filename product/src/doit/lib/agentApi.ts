@@ -126,10 +126,29 @@ async function write<T>(userId: string, body: Record<string, unknown>, releaseOn
 // 같은 카드로 다시 누르면 같은 요청 id(write 가 보관) → 서버가 끝난 해석을 그대로 돌려주거나, 실패한 자리를 다시 잡아 한 번만 부른다.
 export interface TarotReading { summary: string; tags: string[]; cards: { label: string; value: string }[] }
 const validTarot = (r: unknown): r is TarotReading => { const x = r as TarotReading | null; return !!x && typeof x.summary === 'string' && x.summary.length > 0 && Array.isArray(x.tags) && Array.isArray(x.cards); };
+// Codex echo-review(PR140 ecacd5b FAIL · 「새로고침/재진입 자동 중복 유료 호출 금지」): 성공한 해석은 이 기기에 「계정 · 오늘 · 카드 · 목적」 열쇠로 보관하고,
+//   같은 카드로 다시 들어오면 서버를 부르지 않고 보관한 해석을 쓴다(유료 호출 0). 다른 계정·다른 날·다른 카드·다른 목적 = 열쇠가 달라 섞이지 않음.
+//   보관은 서버가 성공을 준 뒤에만 · 모양 검사를 통과한 것만. 실패·불확실 시도는 보관하지 않는다(그 요청 id 는 write 가 그대로 쥠).
+const TAROT_KEEP = 'echo-tarot-reading:v1:';
+const localDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+async function tarotKey(userId: string, cardName: string, purpose: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${cardName}\n${purpose}`)); // 목적 글은 원문 대신 지문만 열쇠에
+  return `${TAROT_KEEP}${userId}:${localDay()}:${Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)}`;
+}
+const tidyTarot = (r: TarotReading): TarotReading => ({ summary: r.summary, tags: r.tags.slice(0, 3), cards: r.cards.slice(0, 3) });
 export async function agentTarot(userId: string, cardName: string, purpose: string): Promise<TarotReading> {
+  const key = await tarotKey(userId, cardName, purpose);
+  try { const kept = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown; if (validTarot(kept)) return tidyTarot(kept); } catch { /* 보관 읽기 실패 = 서버에 묻는다 */ }
   const r = await write<{ reading: TarotReading }>(userId, { action: 'agent_card', cardName, purpose }, ['AI_FORMAT', 'AI_ERROR']);
   if (!validTarot(r.reading)) throw new UnderstandingError('AI_FORMAT', '해석 모양이 잘못 왔어요.');
-  return { summary: r.reading.summary, tags: r.reading.tags.slice(0, 3), cards: r.reading.cards.slice(0, 3) };
+  const reading = tidyTarot(r.reading);
+  try {
+    // 이 계정의 다른 날 보관분은 지운다(오늘 것만 남김)
+    const prefix = `${TAROT_KEEP}${userId}:`;
+    for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && k.startsWith(prefix) && !k.startsWith(`${prefix}${localDay()}:`)) localStorage.removeItem(k); }
+    localStorage.setItem(key, JSON.stringify(reading));
+  } catch { /* 저장이 막힌 기기: 보관 없이 진행 */ }
+  return reading;
 }
 
 // 2026-10-05 Codex echo-spec B: 결과 뒤 참고 이야기(agent_ref · 질문 기본 0 · 서버 저장 0).

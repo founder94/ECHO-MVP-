@@ -50,9 +50,13 @@ export function refOpener(s: RefSeed): string {
 
 // 질문을 직접 청한 말(이번 요청 한 번만 허용) · 그만/질문 싫음(모델 호출 0)
 const ASK = /질문\s*(을|을\s*좀|좀)?\s*(하나|한\s*개|한\s*가지)?\s*(해|던져|줘|부탁)|물어\s*(봐|봐\s*줘|봐\s*주세요|보세요|줄래)|뭐\s*(라도)?\s*물어/;
-const STOP = /그만|여기까지|질문\s*(하지\s*마|그만|싫|말아|없이)|묻지\s*마|안\s*물어/;
-export const asksQuestion = (t: string) => ASK.test(t) && !STOP.test(t);
-export const wantsStop = (t: string) => STOP.test(t);
+// Codex P2(4186700786): 「그만」을 아무 데서나 잡으면 「친구가 그만 만나자고 해서 속상해」「일을 그만두고 싶어」 같은 이야기를 멈춤으로 읽는다 →
+//   (1) 질문을 멈춰 달라는 말(질문 하지 마·질문 그만·묻지 마 …)은 어디에 있어도 · (2) 「그만」「여기까지」는 말 전체가 멈춤일 때만(짧은 한마디).
+const STOP_ASK = /질문\s*(은|좀|을)?\s*(하지\s*마|그만|싫|말아|없이)|묻지\s*마|안\s*물어\s*(봐|도)/;
+const STOP_ALL = /^(이제\s*|오늘은\s*|그럼\s*|아니\s*)?(그만|여기까지)(\s*(할래|하자|할게|해|요|할게요|할래요|하고\s*싶어|할\s*래|만))?(\s*(요|할래|하자))?[\s.!~…ㅎㅠ]*$/;
+const stopText = (t: string) => t.trim().replace(/\s+/g, " ");
+export const wantsStop = (t: string) => STOP_ASK.test(t) || STOP_ALL.test(stopText(t));
+export const asksQuestion = (t: string) => ASK.test(t) && !wantsStop(t);
 export const STOP_LINE = "알겠어요. 더 묻지 않을게요. 적고 싶은 게 생기면 그때 적어 주세요.";
 
 export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과를 본 뒤 편하게 이야기하는 자리야. 다음 JSON 하나만 출력해. 다른 설명은 붙이지 마.
@@ -66,6 +70,13 @@ export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과
 - 사용자에게 무엇을 하라고 시키거나 다음 단계를 재촉하지 마.`;
 
 const QUESTION_END = /(까요|나요|어때요|어떤가요)\s*[.!]?\s*$/; // 물음표 없이 끝낸 물음 꼴(「~할까요.」) — 「가요」「래요」 같은 서술 끝은 빼지 않는다
+// Codex P2(4186700779): 물음표 없는 의문사 물음(「무슨 일이 있었어요.」 「뭐가 제일 힘들었어요」)도 질문이다 —
+//   의문사가 있고, 그것이 안긴 말(「~는지 · ~은지 · ~인지 · ~을지」 = 「무슨 일이 있었는지 적어도 돼요」)이 아니면 물음으로 본다.
+//   「어떤」은 「어떤 날도 있어요」처럼 서술에 흔해 빼고, 「언제든 · 뭐든 · 누구나 · 왜냐하면」 같은 꼴도 의문사가 아니다.
+const WH = /(?<![가-힣])(무슨|뭐(?!든|라도|니\s*뭐니)|뭘|무엇(?!이든)|누구(?!든|나)|누가|언제(?!든|나)|어디(?!든|서든|에서든)|어떻게|왜(?!냐|냐하면)|얼마나)/;
+// 안긴 말 = 받침이 ㄴ·ㄹ 인 글자 바로 뒤의 「지」(는지·은지·인지·그런지·을지·할지·던지 …). 「같지·먹지」(받침 ㅌ·ㄱ)는 아님.
+const embedded = (t: string) => [...t.matchAll(/([가-힣])지/g)].some((m) => { const jong = (m[1].charCodeAt(0) - 0xac00) % 28; return jong === 4 || jong === 8; });
+const whQuestion = (t: string) => WH.test(t) && !embedded(t);
 const sentences = (t: string) => t.split(/(?<=[.!?？。…])\s+/).map((s) => s.trim()).filter(Boolean);
 
 // 모델 답 → 화면 모양. 질문을 끈 동안 물음 문장은 뺀다 · 남는 게 없으면 null(가짜 성공 0).
@@ -73,7 +84,7 @@ export function parseRef(raw: string, allowQuestion: boolean): RefReply | null {
   const o = parseJson(raw) as Record<string, unknown> | null;
   if (!o || typeof o !== "object") return null;
   const reply = (typeof o.reply === "string" ? o.reply : "").trim();
-  const kept = sentences(reply).filter((s) => !/[?？]/.test(s) && !QUESTION_END.test(s));
+  const kept = sentences(reply).filter((s) => !/[?？]/.test(s) && !QUESTION_END.test(s) && !whQuestion(s));
   const body = kept.join(" ").trim();
   if (!body || body.length > 400) return null;
   let question: string | null = null;

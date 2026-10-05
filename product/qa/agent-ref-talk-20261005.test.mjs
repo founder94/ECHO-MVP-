@@ -79,11 +79,34 @@ test('참고 이야기 ③ 「질문 하나 해줘」 = 그 요청에만 질문 
 test('참고 이야기 ④ 「질문하지 마」「그만」 = 짧은 한 줄 · 모델 호출 0 · 저장 0', async () => {
   const { s, h } = await started();
   const calls = s.providerCalls?.length ?? 0, used = usage(s), cl = claims(s).length;
-  for (const t of ['질문하지 마', '오늘은 여기까지', '그만할래', '질문 하나 해줘 아니 그만']) {
+  for (const t of ['질문하지 마', '오늘은 여기까지', '그만할래', '아니 그만', '질문은 그만']) {
     const r = await ref(h, { text: t });
     assert.equal(r.status, 200); assert.equal(r.body.question, null); assert.match(r.body.reply, /더 묻지 않을게요/);
   }
   assert.equal((s.providerCalls?.length ?? 0) - calls, 0); assert.equal(usage(s), used); assert.equal(claims(s).length, cl);
+  // Codex P2(4186700786): 이야기 속 「그만」「여기까지」는 멈춤이 아님 → 모델이 그 말에 답한다
+  for (const t of ['친구가 그만 만나자고 해서 속상해', '일을 그만두고 싶어', '여기까지 오느라 힘들었어']) {
+    s.ai.push({ reply: '많이 속상했겠어요.', question: '' });
+    const r = await ref(h, { text: t });
+    assert.equal(r.status, 200); assert.equal(r.body.reply, '많이 속상했겠어요.', t);
+  }
+});
+
+test('참고 이야기 ④-b Codex P2(4186700779): 물음표 없는 의문사 물음도 질문을 끈 동안 뺀다 · 안긴 말(~는지·~그런지·~을지)과 「어떤 날」「언제든」은 서술이라 남김', async () => {
+  const { s, h } = await started();
+  const cases = [
+    ['무슨 일이 있었어요. 그런 날도 있어요.', '그런 날도 있어요.'],
+    ['그랬군요. 뭐가 제일 힘들었어요', '그랬군요.'],
+    ['누가 그랬어요. 마음이 쓰였겠어요.', '마음이 쓰였겠어요.'],
+    ['무슨 일이 있었는지 천천히 적어도 괜찮아요.', '무슨 일이 있었는지 천천히 적어도 괜찮아요.'],
+    ['왜 그런지 몰라도 괜찮아요.', '왜 그런지 몰라도 괜찮아요.'],
+    ['어떤 마음이 드는 날도 있어요. 언제든 적어 주세요.', '어떤 마음이 드는 날도 있어요. 언제든 적어 주세요.'],
+  ];
+  for (const [reply, want] of cases) {
+    s.ai.push({ reply, question: '' });
+    const r = await ref(h, { text: '그냥 좀 지쳤어' });
+    assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.reply, want, reply); assert.equal(r.body.question, null);
+  }
 });
 
 test('참고 이야기 ⑤ 잘못된 입력 = 400 · 업체 호출 0 (옛 모양 · 틀린 키 · 긴 카드 이름 · 앞 줄 9개 · 앞 줄 모양 · 긴 말)', async () => {
