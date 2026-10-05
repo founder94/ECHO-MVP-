@@ -242,7 +242,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     <img className="echo-chat-art" src="/doit/art/ribbon-01.webp" alt="" aria-hidden="true" width="940" height="410" decoding="async" />
     <p className="echo-eyebrow">만나기 전에</p>
     {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
-    {(session?.goal_label ?? purposeLabel) ? <h1>{session?.goal_label ?? purposeLabel}<br />편하게 몇 가지만 물어볼게요.</h1> : <h1>편하게 몇 가지만<br />물어볼게요.</h1>}
+    {/* 2026-10-05 시안 일치: 목적은 작은 칩 · 제목은 따로(목적 문장과 제목이 한 문장처럼 붙어 읽히던 것) — 글은 그대로 */}
+    {(session?.goal_label ?? purposeLabel) && <p className="echo-purpose-chip">{session?.goal_label ?? purposeLabel}</p>}
+    <h1>편하게 몇 가지만<br />물어볼게요.</h1>
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}

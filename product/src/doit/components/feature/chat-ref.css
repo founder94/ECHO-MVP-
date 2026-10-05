@@ -73,3 +73,6 @@
 
 /* 대표 디자인 그림 교체(2026-10-04): 대화 시작 전 = 「모션 디자인 시안」 01 빛이 모이다 · 대화 정리(확인 뒤) = 03 대화가 시작되다 */
 .echo-chat .echo-chat-art{display:block;width:100%;max-width:360px;margin:6px auto 14px;aspect-ratio:470/205;object-fit:cover;border-radius:20px;-webkit-mask-image:radial-gradient(closest-side,#000 72%,transparent);mask-image:radial-gradient(closest-side,#000 72%,transparent)}
+
+/* 2026-10-05 시안 일치: 첫 질문 전 화면의 고른 목적 = 작은 유리 칩(제목과 따로 · 판 색은 visual-parity.css 의 --echo-glass) */
+.echo-dialogue.echo-chat .echo-purpose-chip{display:inline-flex;align-items:center;min-height:32px;margin:0 0 10px;padding:4px 14px;border-radius:999px;background:var(--echo-glass,rgb(8 22 28/.52));border:1px solid var(--echo-glass-line,rgb(255 255 255/.42));font-size:14px;font-weight:600;color:#fff;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
