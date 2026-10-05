@@ -127,6 +127,9 @@
 .echo-dialogue .echo-choice.is-selected{font-weight:700}
 .echo-dialogue .echo-choice.is-selected::before{content:"✓ "}
 .echo-dialogue .echo-rescue-self{justify-self:start;min-height:44px}
+/* 2026-10-05 PM(Codex P1): 적던 글이 있는데 보기를 고르면 — 무엇을 보낼지 한 줄 + 「내 글로 보낼게요」(누름 높이 44) */
+.echo-dialogue .echo-pick-note{margin:4px 0 0;line-height:1.5;overflow-wrap:anywhere}
+.echo-dialogue .echo-pick-note .echo-text-button{display:inline-flex;align-items:center;min-height:44px;padding:0 4px}
 .echo-dialogue .echo-stop-link{display:block;margin:8px auto 0;min-height:44px}
 /* 2026-10-01 대표 「FINAL DESIGN」 §12·§13 A-PREMIUM 보기 카드: 생활형 심볼 1개(24px 고정 칸 · 19px) + 생활말. 높이 48px · 둥글기 18(주 버튼 24와 다르게).
    열릴 때 효과는 하나 — 7px 아래에서 0.28초 내려앉음(차례로 30ms). 고르면 1% 미만 커짐 · 0.18초 · 튐 없음. */

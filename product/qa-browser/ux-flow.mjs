@@ -495,6 +495,29 @@ await run(38, '「직접 설명할게요」 = 보기 접고 주관식(입력칸 
   const turn = s.st.calls.find(c => c.action === 'agent_turn'); expect(turn && !turn.choice && turn.text === '조용한 데서 천천히요', `주관식으로 보냄 ${JSON.stringify(turn)?.slice(0, 120)}`);
   await p.screenshot({ path: 'uxshots/38-explain-self.png' }); return '보기 접힘 · 입력칸 초점 · 주관식 전송(choice 0)';
 });
+await run(75, '2026-10-05 PM(Codex P1): 적던 글 → 보기 고르기 → 글 그대로 · 보낼 것 표시 → 「내 글로 보낼게요」 → 글 전송 / 다시 보기 고르면 보기 전송·글 남음', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용하고 편하게', '밝고 가볍게'], show: true, fallback: false } }) } }, async (p, s) => {
+  await openConv(p);
+  const mine = '전시는 좋아하지만 시끄러운 곳은 싫어요.';
+  await p.locator('#echo-message').fill(mine);
+  await p.locator('.echo-rescue .echo-choice').first().click(); await p.waitForTimeout(300);
+  expect(await p.locator('#echo-message').inputValue() === mine, '보기를 누르자 적던 글이 지워짐');
+  const note = p.locator('.echo-pick-note'); expect(await note.count() === 1 && (await note.innerText()).includes('조용하고 편하게'), '무엇을 보낼지 안내 없음');
+  await note.locator('button', { hasText: '내 글로 보낼게요' }).click(); await p.waitForTimeout(200);
+  expect(await p.locator('.echo-rescue .echo-choice[aria-pressed="true"]').count() === 0, '내 글로 돌아갔는데 보기 선택이 남음');
+  await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
+  const t1 = s.st.calls.filter(c => c.action === 'agent_turn').at(-1); expect(t1 && t1.text === mine && !t1.choice, `내 글 전송 ${JSON.stringify(t1)?.slice(0, 140)}`);
+  return '보기 눌러도 글 보존 · 보낼 것 표시 · 내 글로 전송(choice 0)';
+});
+await run(76, '2026-10-05 PM(Codex P1): 적던 글이 있어도 보기를 고르고 보내면 고른 보기 하나만 전송(합치기 0) · 적던 글은 그대로', IPHONE, { agent: { session: RS({ current_rescue: { options: ['조용하고 편하게', '밝고 가볍게'], show: true, fallback: false } }) } }, async (p, s) => {
+  await openConv(p);
+  const mine = '전시는 좋아하지만 시끄러운 곳은 싫어요.';
+  await p.locator('#echo-message').fill(mine);
+  await p.locator('.echo-rescue .echo-choice', { hasText: '밝고 가볍게' }).click(); await p.waitForTimeout(300);
+  await p.locator('.echo-composer button[type=submit]').click(); await p.waitForTimeout(800);
+  const t = s.st.calls.filter(c => c.action === 'agent_turn').at(-1); expect(t && t.text === '밝고 가볍게' && t.choice === '밝고 가볍게', `고른 보기 전송 ${JSON.stringify(t)?.slice(0, 140)}`);
+  expect(await p.locator('#echo-message').inputValue() === mine, '보낸 뒤 적던 글이 사라짐');
+  return '보기 전송(choice) · 글 합치기 0 · 적던 글 남음';
+});
 await run(39, '보기를 못 만들면 안전 안내(직접 설명할게요 / 잘 모르겠어요 / 이 질문은 넘어갈게요)', IPHONE, { agent: { session: RS({ current_rescue: { options: [], show: false, fallback: false } }), onRescue: { options: [], show: false, fallback: true } } }, async (p, s) => {
   await openConv(p);
   await p.locator('.echo-reactions button', { hasText: '잘 모르겠어요' }).click(); await p.waitForTimeout(800);

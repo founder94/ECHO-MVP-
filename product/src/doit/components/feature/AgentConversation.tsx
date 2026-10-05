@@ -310,12 +310,14 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
             {/* 2026-10-01 대표 「FINAL DESIGN」 §5·§12: 작은 ECHO 심볼(도움 신호) + 한 줄 · 보기 카드 = 서버가 고른 생활형 심볼 1개 + 생활말 */}
             <p className="echo-rescue-lead"><DoItSymbol decorative className="echo-rescue-anchor" />{RESCUE_LEAD}</p>
             <div className="echo-choice-row echo-option-list">
-              {rescueOptions.map((choice, k) => <button key={choice} type="button" className={picked === choice ? 'echo-choice echo-option is-selected' : 'echo-choice echo-option'} aria-pressed={picked === choice} disabled={!!busy} onClick={() => { setPick(picked === choice ? null : { q: question, choice }); if (picked !== choice) setDraft(''); }}><span className="echo-option-mark" aria-hidden="true">{rescue?.symbols?.[k] || '·'}</span><span className="echo-option-text">{choice}</span></button>)}
+              {rescueOptions.map((choice, k) => <button key={choice} type="button" className={picked === choice ? 'echo-choice echo-option is-selected' : 'echo-choice echo-option'} aria-pressed={picked === choice} disabled={!!busy} onClick={() => setPick(picked === choice ? null : { q: question, choice })}><span className="echo-option-mark" aria-hidden="true">{rescue?.symbols?.[k] || '·'}</span><span className="echo-option-text">{choice}</span></button>)}
             </div>
+            {/* 2026-10-05 PM 보강(Codex P1): 보기를 눌러도 적어 둔 글은 지우지 않는다 — 둘 다 있으면 무엇을 보낼지 보이고, 내 글로 돌아갈 수 있다(합치지 않음) */}
+            {picked && draft.trim() && <p className="echo-fine echo-pick-note" role="status">「{picked}」로 보낼게요. 적어 둔 글은 그대로 있어요. <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => setPick(null)}>내 글로 보낼게요</button></p>}
             <button type="button" className="echo-text-button echo-rescue-self" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
           </> : <>
             {/* 보기를 못 만들었을 때의 안전 안내(서버 fallback · 실패 코드로 기록됨 — 구조대가 작동한 것으로 세지 않는다) */}
-            <p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>
+            <p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>
             <div className="echo-choice-row">
               <button type="button" className="echo-choice" disabled={!!busy} onClick={explainSelf}>직접 설명할게요</button>
               <button type="button" className="echo-choice" disabled={!!busy} onClick={() => send(UNSURE_TEXT)}>잘 모르겠어요</button>
@@ -375,7 +377,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       <p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p>
     </div>}
     {/* 끝난 뒤 고치기는 위 「ECHO가 이해한 나」 확인 카드 한 곳에서만(입력칸 두 개로 헷갈리지 않게). 끝난 뒤에도 「+」로 다른 행동은 연다. */}
-    {!done && <form className="echo-composer echo-chat-bar" onSubmit={event => { event.preventDefault(); if (busy) return; if (draft.trim()) send(draft, false, editingPrevious); else if (picked && !editingPrevious) send(picked, false, false, picked); }}>
+    {!done && <form className="echo-composer echo-chat-bar" onSubmit={event => { event.preventDefault(); if (busy) return; if (picked && !editingPrevious) send(picked, false, false, picked); else if (draft.trim()) send(draft, false, editingPrevious); }}>
       <button type="button" className="echo-chat-plus" aria-label={toolsOpen ? '더 보기 닫기' : '더 보기'} aria-expanded={toolsOpen} aria-controls="echo-chat-tools" onClick={() => setToolsOpen(v => !v)}><Plus size={22} aria-hidden="true" /></button>
       <>
         <label htmlFor="echo-message" className="echo-sr">{editingPrevious ? '직전 답 고치기' : voiceUi ? '글로 적어도 돼요' : '이어서 적기'}</label>
