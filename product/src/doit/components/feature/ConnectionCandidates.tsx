@@ -122,8 +122,8 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
         {/* 2026-10-04 모바일 기준 디자인 5번(후보 추천): 카드 가운데 큰 따옴표 한 줄 = 서버가 준 이 후보의 만남 목적 그대로(상대 이름·사진 0 · 화면이 문장을 만들지 않음). */}
         {c.purpose && <p className="doit-candidate-quote"><span><span aria-hidden="true">“</span>{c.purpose}<span aria-hidden="true">”</span></span></p>}
         {!open && <>
-          <p className="doit-candidate-teaser">왜 이 사람인지, ECHO가 본 이유가 있어요.</p>
-          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">왜 이 사람인지 보기<span aria-hidden="true">↗</span></button>
+          <p className="doit-candidate-teaser">이분의 이야기를 들어볼까요? ECHO가 이어 본 이유부터 보여 드릴게요.</p>
+          <button type="button" className="doit-product-action" onClick={() => setOpened(prev => ({ ...prev, [c.id]: true }))} aria-expanded="false">더 알아보기<span aria-hidden="true">↗</span></button>
         </>}
         {open && <>
           <p className="doit-candidate-why">이렇게 이어 봤어요</p>

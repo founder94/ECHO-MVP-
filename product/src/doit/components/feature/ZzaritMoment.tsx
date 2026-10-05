@@ -6,7 +6,7 @@ import './zzarit.css';
 // (한쪽 선택만으로는 열리지 않음 · 같은 연결에서 한 번만 = lib/zzarit.ts). 이 화면은 연결을 열거나 상태를 바꾸지 않는다.
 // 두 익명 노드 사이에 청록·흰색 전류가 0.75초 이어짐 → 「찌릿! 텔레파시가 통했어요」. 매칭 기쁨의 비유일 뿐(속마음·궁합 판정 아님).
 // 상대 사진·이름 0(익명 노드). 소리 0 · 진동은 아주 짧게 한 번(움직임 줄이기면 0) · 반복 0. 다음 버튼은 처음부터 눌린다(연출을 기다리지 않음).
-export const ZZARIT_COPY = { title: '찌릿! 텔레파시가 통했어요', body: '서로 대화를 원했어요.', next: '다음 단계 보기' } as const;
+export const ZZARIT_COPY = { title: '찌릿! 텔레파시가 통했어요', body: '두 분 모두 대화를 원했어요.', next: '다음 단계 보기' } as const;
 
 function AnonNode() {
   return <span className="echo-zzarit-node" aria-hidden="true">

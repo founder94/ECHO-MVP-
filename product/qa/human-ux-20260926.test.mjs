@@ -66,12 +66,12 @@ test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 �
   const menu = read('src/components/AppCornerMenu.tsx');
   const css = read('src/components/app-corner-menu.css');
   assert.match(menu, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
-  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\)/);
+  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\)/);
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
   for (const t of ['ECHO와 이야기하기', '나의 이해', '앱 설치', '설정']) assert.ok(menu.includes(`label: '${t}'`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');
-  // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 파스텔 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만
-  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
+  // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만 · 2026-10-05 색은 새 시안의 연기빛 유리(불투명판)로(Codex PR #131 P2)
+  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
   assert.match(ui, /\.doit-menu-panel \*\{color:#fff!important;/);
 });
 

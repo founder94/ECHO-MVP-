@@ -30,8 +30,8 @@
 .echo-guide[data-theme="brand"] .echo-guide-head{background:rgb(8 9 12/.97)}
 .echo-guide[data-theme="brand"] .echo-guide-item{border-color:rgb(200 208 218/.24);background:rgb(255 255 255/.03)}
 /* 앱: 햄버거 창과 같은 불투명 파스텔 그라데이션(뒤 글자가 비치지 않게) + 흰 글자 */
-.echo-guide[data-theme="app"] .echo-guide-panel{background:linear-gradient(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%);color:#fff;border:1px solid rgb(255 255 255/.75);box-shadow:0 -14px 34px rgb(30 70 70/.22);text-shadow:0 1px 2px rgb(40 50 40/.28)}
-.echo-guide[data-theme="app"] .echo-guide-head{background:linear-gradient(165deg,#2fbf97,#2bb9ac)}
+.echo-guide[data-theme="app"] .echo-guide-panel{background:linear-gradient(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%);color:#fff;border:1px solid rgb(255 255 255/.75);box-shadow:0 -14px 34px rgb(30 70 70/.22);text-shadow:0 1px 2px rgb(40 50 40/.28)}
+.echo-guide[data-theme="app"] .echo-guide-head{background:linear-gradient(165deg,#3b5862,#33494f)}
 .echo-guide[data-theme="app"] .echo-guide-item{border-color:rgb(255 255 255/.55);background:rgb(30 42 48/.50)}
 
 @media (min-width:900px){

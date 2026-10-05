@@ -9,6 +9,7 @@ import ConsentChecklist from '@/components/legal/ConsentChecklist';
 import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
 import { authErrorText } from '@/lib/auth/authErrorText';
 import '@/doit/components/feature/app-pastel.css';
+import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
 
 export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth();
@@ -108,10 +109,10 @@ export default function Signup() {
           {/* Heading */}
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-              가입하기
+              반가워요.<br />ECHO를 시작해 볼까요?
             </h1>
             <p className="text-sm text-foreground-400 leading-relaxed">
-              ECHO와 함께 진짜 나를 발견하는 여정을 시작하세요
+              계속하려면 약관을 확인해 주세요.
             </p>
           </div>
 
