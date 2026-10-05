@@ -291,4 +291,20 @@ test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술은 상대에게 달라고 하는 편이에요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 고르는 곳이 달라요?'), true);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대마다 고르는 곳이 다르게 느껴져요?'), true);
+  // Codex P2(4184559863): 「달라는·달라던·달라면」 같은 부탁 꼴도 다름이 아님 · 「달라지면·달라서」는 다름
+  for (const q of ['술은 상대에게 달라는 말을 자주 해요?', '술은 상대에게 달라던데요?', '술은 상대가 달라면 줘요?']) assert.equal(A.keepsCondition('남자면 술, 여자면 카페', q), false, q);
+  for (const q of ['상대가 달라지면 고르는 곳도 바뀌어요?', '상대가 달라서 고르는 곳도 바뀌어요?']) assert.equal(A.keepsCondition('남자면 술, 여자면 카페', q), true, q);
+});
+
+test('Codex P2(4184559630): 나뉜 답에서 다시 쓰기가 모두 실패해도 서버 안내 한 줄이 한쪽도 두 경우도 아닌 질문이 되지 않는다', async () => {
+  const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q }); st.current = st.asked.at(-1);
+  const llm = async (kind) => { if (kind === 'turn') return turnJson({ next: { type: 'core', purpose: 'values_character', question: '술 얘기는 재밌어요?', hint: '', choices: [] } }); throw new Error('rewrite failed'); };
+  const latest = '처음 만나면 남자면 술, 여자면 카페';
+  const { response, obs } = await A.runTurn(st, latest, llm);
+  assert.ok(response.question, JSON.stringify(obs.retry));
+  assert.ok(A.keepsCondition(latest, response.question), `나뉨을 받지 않은 질문: ${response.question} ${JSON.stringify(obs.retry)}`);
+  assert.notEqual(response.question, A.fillFallbackText('polite'));
+  assert.notEqual(response.question, A.talkFallbackText('polite'));
+  // 나뉨을 받는 안내 한 줄은 세 말투 모두 나뉜 답 검사를 통과
+  for (const t of ['polite', 'casual', 'formal']) assert.ok(A.keepsCondition(latest, A.condFallbackText(t)), t);
 });

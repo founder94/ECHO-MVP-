@@ -145,8 +145,10 @@ export const conditionalAnswer = (latest: string) => COND_WORDS.test(String(late
 //   경우를 가리키는 말(사람·상대·경우·상황·성별·누구·어느 쪽) 바로 뒤일 때만 나뉨을 받은 것으로 본다. 그 밖에는 두 경우의 말이 모두 있는지로 판단.
 const CASE_NOUN = "(?:사람|상대|경우|상황|성별|누구|어느\\s*쪽)";
 // Codex P2(4184091713): 경우 말과 「다르·달라」 사이는 조사만(한테·에서 같은 말 0) · 「달라고·달라며」(달라고 하다 = 부탁)는 다름이 아니다
+// Codex P2(4184559863): 부탁 꼴은 「달라고·달라며」 말고도 많다(달라는·달라던·달라니·달라면…) → 「달라」는 다름을 뜻하는 꼴(달라요·달라서·달라져·달라지·달라도·끝)만 받는다.
 const CASE_PARTICLE = "(?:이|가|은|는|도|에|에게|에서|별로|로|마다)?";
-const COND_ACK = new RegExp(`(?:에|경우에|경우)\\s*따라|각각|각자|둘\\s*다|${CASE_NOUN}\\s*마다|${CASE_NOUN}${CASE_PARTICLE}\\s*(?:다르|달라(?!고|며)|차이)`);
+const DIFFER_DALLA = "달라(?=요|서|져|지|도|$|[\\s?？.!,~…])";
+const COND_ACK = new RegExp(`(?:에|경우에|경우)\\s*따라|각각|각자|둘\\s*다|${CASE_NOUN}\\s*마다|${CASE_NOUN}${CASE_PARTICLE}\\s*(?:다르|${DIFFER_DALLA}|차이)`);
 // Codex P2(4182821571): 「A 아니면 B」「A 또는 B」 — 이음말 앞뒤 두 낱말씩에서 양쪽에 같이 있는 말(「사람」 등)과 조사를 빼고 남은 첫 낱말 = 두 경우.
 const ALT_SPLIT = /\s*(?:아니면|또는)\s*/;
 const ALT_TRIM = (w: string) => w.replace(/[^가-힣a-zA-Z0-9]/g, "").replace(/(이랑|랑|이나|나|과|와|이|가|을|를|은|는|도|요)$/, "");
@@ -1452,6 +1454,8 @@ export function questionFlaw(st: AgentState, latest: string, q: string, anchor =
   return "";
 }
 // 2026-10-04 만남 준비 질문 상한에 걸렸을 때 쓰는 서버 안내 한 줄 — 대표가 든 좋은 질문 예(「처음엔 어떤 얘기부터 하면 편할 것 같아요?」 · 장면에 붙은 얘기 질문)로, 장소·시간이 아니라 이야기 쪽을 묻는다.
+// Codex P2(4184559630): 경우에 따라 나뉜 답 뒤 서버 안내 한 줄도 나뉨을 받아야 한다(「처음 만날 땐 어디가…」는 한쪽도 두 경우도 아님).
+export const condFallbackText = (tone: Tone) => tone === "casual" ? "경우에 따라 다르구나. 각각 어떤 점이 편한지 조금 더 말해 줄래?" : tone === "formal" ? "경우에 따라 다르시군요. 각각 어떤 점이 편하신지 조금 더 말씀해 주시겠어요?" : "경우에 따라 다르군요. 각각 어떤 점이 편한지 조금 더 말해 줄래요?";
 export const talkFallbackText = (tone: Tone) => tone === "casual" ? "처음엔 어떤 얘기부터 하면 편할 것 같아?" : tone === "formal" ? "처음엔 어떤 이야기부터 나누시면 편하실 것 같으세요?" : "처음엔 어떤 얘기부터 하면 편할 것 같아요?";
 // 서버 안내 한 줄 고르기: 만남 준비 질문 상한이면 이야기 쪽 안내(이미 한 질문이면 쓰지 않음 · 대화 한 번 표시와 따로).
 const fallbackLine = (st: AgentState, replacing = false): { text: string; once: boolean } | null => {
@@ -1627,7 +1631,13 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     if (!fixed) { const t = tried.find((n) => cand.includes(n.purpose) && !["format", "blocked", "covered", "unsure_paste", "same_direction", "survey_tone", "generic_person", "stiff_question", "echo", "logistics", "logistics_early", "meta_quote", "conditional"].includes(questionFlaw(st, qBase, n.question, answered, staleQ, button))); if (t) { fixed = t; obs.retry.push("question_from_try"); } }
     if (!fixed && !answered && spareChoices && !questionBlocked(st, choiceQuestionText(st.tone))) { fixed = { type: "core", purpose: spareChoices.purpose, question: choiceQuestionText(st.tone), hint: "", check: null, choices: spareChoices.choices }; obs.retry.push("question_choices"); }
     // 2026-10-04 만남 준비 질문 상한이면 장소 안내(「처음 만날 땐 어디가…」) 대신 이야기 쪽 안내 한 줄(fallbackLine)
-    if (!fixed && cand.length) { const f = fallbackLine(st); if (f) { fixed = { type: "core", purpose: cand[0], question: f.text, hint: "", check: null }; if (f.once) st.fill_fallback_used = true; obs.retry.push("question_fallback"); } }
+    // Codex P2(4184559630): 서버 안내 한 줄도 나뉜 답 검사(keepsCondition)를 거친다 — 한쪽도 두 경우도 아닌 안내는 쓰지 않고, 나뉨을 받는 안내 한 줄로 바꾼다(이미 한 질문이면 안내 0).
+    if (!fixed && cand.length) {
+      const f = fallbackLine(st);
+      const cond = answered && conditionalAnswer(qBase) ? condFallbackText(st.tone) : "";
+      const line = f && (!cond || keepsCondition(qBase, f.text)) ? f : cond && !questionBlocked(st, cond) && keepsCondition(qBase, cond) ? { text: cond, once: false } : null;
+      if (line) { fixed = { type: "core", purpose: cand[0], question: line.text, hint: "", check: null }; if (line.once) st.fill_fallback_used = true; obs.retry.push(line.text === cond ? "question_fallback_conditional" : "question_fallback"); }
+    }
     if (fixed) out = { ...out, next: fixed }; else obs.retry.push("QUESTION_STYLE:kept"); // 대화를 오류로 끝내지 않는다(v2.5.4 bb84506 의 QUESTION_STYLE 오류 반환은 QA 실AI 6 FAIL)
   }
   // v2.4.1 두 번 청해도 받아주기가 비거나 사용자 말을 옮겼고 쓸 만한 앞선 받아주기도 없으면, 받아주기 한 문장만 따로 한 번 청한다(드물게만 · 질문·저장 영향 0).
