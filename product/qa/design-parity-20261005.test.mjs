@@ -40,3 +40,11 @@ test('홈·무엇부터·프로필: 유리 리본 · 가운데 제목 · 글은 
   assert.ok(journey.includes('<section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home"'));
   assert.ok(journey.includes('<p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>'));
 });
+
+test('Codex PR #131 P2: 목적 고르기 화면의 질문·설명 글은 QA 그대로(대표 「글은 완성」)', () => {
+  const ps = src('src/doit/app/plan-a/screens/PurposeSelect.tsx');
+  assert.match(ps, /이번에는 어떤 관계를\n\s*<br \/>\n\s*만나고 싶나요\?/);
+  assert.ok(ps.includes('지금 원하는 관계 하나를 골라주세요.'));
+  assert.ok(ps.includes('선택한 목적은 프로필에 반영돼요. 같은 만남을 고른 사람끼리만 연결돼요.'));
+  assert.doesNotMatch(ps, /같이 하고 싶은\n\s*<br \/>\n\s*일이 있나요/);
+});

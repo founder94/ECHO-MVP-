@@ -99,6 +99,7 @@ export function PurposeSelect({
               duration: 0.5,
             }}
           >
+            {/* 2026-10-05 대표 「글은 완성 · 그대로」(Codex PR #131 P2): 질문·설명 글은 QA 그대로 — 바꾼 것은 모양(리본·배치)뿐 */}
             <p className="echo-sr">연결 목적 선택</p>
 
             <h1
@@ -110,9 +111,9 @@ export function PurposeSelect({
                 marginBottom: 12,
               }}
             >
-              같이 하고 싶은
+              이번에는 어떤 관계를
               <br />
-              일이 있나요?
+              만나고 싶나요?
             </h1>
 
             <p
@@ -122,8 +123,8 @@ export function PurposeSelect({
                 lineHeight: 1.65,
               }}
             >
-              어떤 만남을 원하는지 들려주세요.
-              하나를 고르면 프로필에 반영되고, 같은 만남을 고른 사람끼리만 연결돼요.
+              지금 원하는 관계 하나를 골라주세요.
+              선택한 목적은 프로필에 반영돼요. 같은 만남을 고른 사람끼리만 연결돼요.
             </p>
           </motion.div>
         </div>

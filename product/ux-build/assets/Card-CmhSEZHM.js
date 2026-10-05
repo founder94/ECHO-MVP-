@@ -1,0 +1,1 @@
+import{ot as e}from"./index-DYPi6TGN.js";var t=e(),n={none:``,sm:`p-3`,md:`p-4`,lg:`p-5`};function r({children:e,className:r=``,padding:i=`md`,onClick:a}){return(0,t.jsx)(`div`,{onClick:a,className:`rounded-2xl border border-background-200 bg-background-50 ${n[i]} ${a?`cursor-pointer transition-colors hover:bg-background-100`:``} ${r}`,children:e})}export{r as t};
