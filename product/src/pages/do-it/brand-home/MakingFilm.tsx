@@ -8,20 +8,33 @@ export const MAKING_FILM_COPY = {
   error: '영상을 불러오지 못했어요.',
 } as const;
 // 원본(H.264 mp4) 그대로가 기본. H.264 를 못 트는 브라우저만 같은 영상의 webm 사본.
+// Codex PR #130 P2: 파일에 실제로 들어 있는 형식(avcC = High 3.1 → avc1.64001f)으로 물어본다. 더 높은 4.0 으로 물으면 틀 수 있는 기기도 webm 으로 빠진다.
+const MP4_CODEC = 'avc1.64001f';
 const SRC = { mp4: '/brand/film/doit-making-portrait.mp4', webm: '/brand/film/doit-making-portrait.webm', poster: '/brand/film/poster-making.jpg' } as const;
-const pickSrc = () => { try { return document.createElement('video').canPlayType('video/mp4; codecs="avc1.640028"') ? SRC.mp4 : SRC.webm; } catch { return SRC.mp4; } };
+const pickSrc = () => { try { return document.createElement('video').canPlayType(`video/mp4; codecs="${MP4_CODEC}"`) ? SRC.mp4 : SRC.webm; } catch { return SRC.mp4; } };
 
-const prefersReduced = () => { try { return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+const REDUCED_QUERY = '(prefers-reduced-motion: reduce)';
+const reducedQuery = (): MediaQueryList | null => { try { return typeof window.matchMedia === 'function' ? window.matchMedia(REDUCED_QUERY) : null; } catch { return null; } };
+const prefersReduced = () => reducedQuery()?.matches ?? false;
 
 const VISIBLE_RATIO = 0.35;
 
 export default function MakingFilm() {
   const ref = useRef<HTMLVideoElement | null>(null);
-  const [still] = useState(prefersReduced);
+  const [still, setStill] = useState(prefersReduced);
   const [failed, setFailed] = useState(false);
   // 브라우저·사용자 설정이 소리 없는 자동 재생도 막으면(play() 거절) 기본 재생 막대를 보여 직접 틀 수 있게 한다(Codex PR #130 P2)
   const [blocked, setBlocked] = useState(false);
   const [src] = useState(pickSrc);
+
+  // Codex PR #130 P2: 페이지를 연 뒤에 움직임 줄이기를 켜도 바로 멈추고 재생 막대를 보여 준다(끄면 다시 보이는 비율에 따라 저절로 재생).
+  useEffect(() => {
+    const mq = reducedQuery();
+    if (!mq) return;
+    const onChange = (e: MediaQueryListEvent) => { if (e.matches) ref.current?.pause(); setStill(e.matches); };
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
 
   useEffect(() => {
     const v = ref.current;

@@ -73,3 +73,19 @@ test('Codex PR #130 P2: 제작 과정 영상은 보이는 비율 35% 이상일 �
   assert.match(src, /threshold: \[0, VISIBLE_RATIO\]/);
   assert.doesNotMatch(src, /e\.isIntersecting\) tryPlay/);
 });
+
+test('Codex PR #130 P2: 제작 과정 mp4 는 파일에 실제로 든 형식(avc1.64001f)으로 확인 · 열린 뒤 움직임 줄이기를 켜도 멈춤', () => {
+  const src = readFileSync(new URL('../src/pages/do-it/brand-home/MakingFilm.tsx', import.meta.url), 'utf8');
+  const mp4 = readFileSync(new URL('../public/brand/film/doit-making-portrait.mp4', import.meta.url));
+  const at = mp4.indexOf('avcC');
+  assert.ok(at > 0, 'avcC 상자');
+  const codec = `avc1.${mp4.subarray(at + 5, at + 8).toString('hex')}`;
+  assert.equal(codec, 'avc1.64001f', '파일의 형식');
+  assert.ok(src.includes(`const MP4_CODEC = '${codec}';`), '확인하는 형식 = 파일의 형식');
+  assert.doesNotMatch(src, /avc1\.640028/);
+  assert.match(src, /const \[still, setStill\] = useState\(prefersReduced\);/);
+  assert.match(src, /const onChange = \(e: MediaQueryListEvent\) => \{ if \(e\.matches\) ref\.current\?\.pause\(\); setStill\(e\.matches\); \};/);
+  assert.match(src, /mq\.addEventListener\?\.\('change', onChange\);\n\s*return \(\) => mq\.removeEventListener\?\.\('change', onChange\);/);
+  assert.match(src, /controls=\{still \|\| blocked\}/);
+});
+
