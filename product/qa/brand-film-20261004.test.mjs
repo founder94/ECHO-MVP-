@@ -8,15 +8,13 @@ const FILM = read('src/pages/do-it/brand-home/BrandFilm.tsx');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const VTT = read('public/brand/film/captions.ko.vtt');
 
-test('자리: 제작 과정 다음 · 웹 설치하기 앞 · 제목 · 영상 아래 시작 버튼 0(히어로 하나만)', () => {
+test('자리(2026-10-05 대표 「핵심 4페이지만 스크롤 · 나머지는 버튼」): 브랜드 영상은 「더 알아보기」·메뉴의 버튼으로 여는 장면 창 안 · 시작 버튼 0', () => {
   const at = (s) => HOME.indexOf(s);
-  // 2026-10-05 대표 「홈페이지 최종」: 이야기 → 제작 과정 → 브랜드 영상 → 웹 설치하기 → 회사 → 인사
-  const order = ['id="bh-story"', 'id="bh-making"', 'id="bh-film"', 'id="bh-install"', 'id="bh-company"', 'id="bh-greeting"'].map(at);
-  assert.ok(order.every((x) => x > 0), String(order));
-  assert.ok(order.every((x, i) => i === 0 || x > order[i - 1]), '순서');
-  const sec = HOME.slice(at('id="bh-film"'), at('id="bh-install"'));
-  assert.ok(sec.includes('<BrandFilm />'));
-  assert.doesNotMatch(sec, /BRAND_HOME_COPY\.start|StartActions/, '시작 버튼은 히어로 하나만(2026-10-04 대표)');
+  assert.match(HOME, /if \(l\.kind === 'film'\) return \(\n\s*<SceneLayer label=\{BRAND_FILM_COPY\.title\}/);
+  const film = HOME.slice(at("if (l.kind === 'film')"), at("if (l.kind === 'company')"));
+  assert.ok(film.includes('<BrandFilm />'));
+  assert.doesNotMatch(film, /BRAND_HOME_COPY\.start|StartActions/, '시작 버튼은 히어로 하나만');
+  assert.match(HOME, /onClick=\{\(\) => openLayer\(\{ kind: 'film' \}\)\}/, '버튼으로 연다');
   assert.match(FILM, /title: '이야기가 연결이 되기까지', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
 

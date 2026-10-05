@@ -8,11 +8,18 @@ const noComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const HCSS = read('src/pages/do-it/brand-home/brand-home.css');
 
-test('홈페이지: 순서 = 히어로 → 이야기 01~09 → 제작 과정 → 브랜드 영상 → 웹 설치하기 → 회사 → 대표 인사말(맨 마지막) → 법적 고지', () => {
+test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 스크롤」): 스크롤 = 히어로 → 이야기 고르기 → 제작 과정 → 웹 설치하기 → 더 알아보기 → 법적 고지 · 나머지는 장면 창', () => {
   const at = (s) => HOME.indexOf(s);
-  const order = ['className="bh-sec bh-hero"', 'id="bh-story"', 'id="bh-making"', 'id="bh-film"', 'id="bh-install"', 'id="bh-company"', 'id="bh-greeting"', '<footer className="bh-legal">'].map(at);
+  const order = ['className="bh-sec bh-hero"', 'id="bh-story"', 'id="bh-making"', 'id="bh-install"', '<nav className="bh-more"', '<footer className="bh-legal">'].map(at);
   order.forEach((v) => assert.ok(v > 0));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
+  assert.equal((HOME.match(/<section className="bh-sec/g) ?? []).length, 4, '스크롤 화면 4장');
+  for (const k of ['story', 'film', 'company', 'greeting']) assert.match(HOME, new RegExp(`kind: '${k}'`), `장면 창 ${k}`);
+  const layer = read('src/pages/do-it/brand-home/SceneLayer.tsx');
+  assert.match(layer, /role="dialog" aria-modal="true"/);
+  assert.match(layer, /if \(e\.key === 'Escape'\)/, 'Esc 로 닫기');
+  assert.match(layer, /opener\?\.focus\?\.\(\{ preventScroll: true \}\)/, '닫으면 누른 버튼으로 초점');
+  assert.match(layer, /root\.style\.overflow = before/, '닫으면 뒤 화면 스크롤 원래대로');
 });
 
 test('홈페이지 문구(2026-10-05 대표 시안 그대로): ECHO · ONLINE SERENDIPITY · DO IT · 「당신이 잠든 사이」 · 버튼 글자만 「모바일로 시작하기」 · 이야기 9장면 원문', () => {
@@ -32,7 +39,7 @@ test('홈페이지: 대표 인사말은 기존 승인 원문 그대로(시안 �
   for (const t of ['/legal/terms', '/legal/privacy', 'mailto:0423doit@gmail.com', '사업자등록번호 121-46-51503']) assert.ok(HOME.includes(t), t);
 });
 
-test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움직임 줄이기면 모두 정지 · 지구 그림 · 공식 심볼 도장', () => {
+test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움직임 줄이기면 모두 정지 · 지구 그림 · 점 글자 슬로건', () => {
   const css = noComments(HCSS);
   assert.doesNotMatch(css, /#(8|9|a)[0-9a-f]{2}(f|e)[0-9a-f]{2}\b|purple|violet|magenta|neon/i, '보라·네온 0');
   assert.doesNotMatch(css, /rotate\(|translateX\(\s*-?\d{2,}|marquee|infinite/, '회전·옆 스침·무한 반복 0');
@@ -40,7 +47,8 @@ test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움�
   // 2026-10-05: 히어로 = 대표가 준 지구 그림 · 심볼 = 공식 D(다시 그리지 않음) · 왼쪽 위 JUST TRY. 도장
   assert.match(HOME, /src="\/brand\/hero-earth\.webp"/, '대표가 준 지구 그림');
   assert.match(HOME, /<h1 className="bh-wordmark"><span className="bh-sr">DO IT<\/span><img src="\/brand\/doit-wordmark\.webp"/, '브랜드 글자 = 공식 접힌 종이 DOIT 그림(대표 「폰트 브랜드 이미지」)');
-  assert.match(HOME, /<p className="bh-stamp"><DoItSymbol decorative \/><span>JUST TRY\.<\/span><\/p>/, '왼쪽 위 슬로건 도장 + 공식 심볼');
+  assert.match(HOME, /<p className="bh-stamp"><DotText text="JUST TRY\." className="bh-dots" \/><\/p>/, '왼쪽 위 슬로건 = 빛나는 점 글자(대표 「점박으로 · 크게 말고」)');
+  assert.match(HCSS, /\.bh-dots \{ display: block; height: 15px;/, '상단 글자 크기에 맞춘 작은 점 글자');
 });
 
 test('라우터: 새 홈페이지는 brand 빌드에서만(앱·통합 빌드 영향 0)', () => {
@@ -71,14 +79,16 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지: 「모바일로 시작하기」는 히어로 하나만 · 다른 구간 버튼 0(2026-10-05 대표 「다른 페이지에는 버튼 없다」) · 컴퓨터 = 웹 설치하기 QR · Codex PR #123', () => {
+test('홈페이지: 「모바일로 시작하기」는 히어로 하나만 · 다른 버튼은 장면 창을 여는 것뿐 · 컴퓨터 = 웹 설치하기 QR · Codex PR #123', () => {
   const starts = HOME.match(/<a [^>]*href=\{appUrl\(START_PATH\)\}[^>]*>\{BRAND_HOME_COPY\.start\}/g) ?? [];
   assert.equal(starts.length, 1, `시작 링크 ${starts.length}`);
   assert.doesNotMatch(HOME, /StartActions/, '섹션마다 붙던 시작 버튼 묶음 0');
   for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
   const body = HOME.slice(HOME.indexOf('id="bh-story"'), HOME.indexOf('<footer className="bh-legal">'));
-  assert.doesNotMatch(body.replace(/<BrandFilm \/>|<MakingFilm \/>/g, ''), /<button|className="bh-btn/, '이야기~인사말 구간 버튼 0(영상 재생 막대만)');
-  const install = HOME.slice(HOME.indexOf('id="bh-install"'), HOME.indexOf('id="bh-company"'));
+  for (const b of body.match(/<button[^\n]*?onClick=\{[^\n]*?\}\}>/g) ?? []) assert.match(b, /onClick=\{\(\) => openLayer\(/, `장면 창 여는 버튼만: ${b}`);
+  assert.equal((body.match(/<button /g) ?? []).length, (body.match(/onClick=\{\(\) => openLayer\(/g) ?? []).length, '본문 버튼 수 = 장면 창 여는 버튼 수');
+  assert.doesNotMatch(body, /className="bh-btn/, '본문에 시작류 버튼 0');
+  const install = HOME.slice(HOME.indexOf('id="bh-install"'), HOME.indexOf('<nav className="bh-more"'));
   assert.match(install, /id="bh-start-qr"/, '컴퓨터에서 시작하면 웹 설치하기 QR 로');
 });
 

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import DoItSymbol from '@/components/DoItSymbol';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { APP_ORIGIN, appUrl } from '@/lib/siteRole';
 import { DESKTOP_QUERY, INSTALL_PATH } from '@/pages/do-it/landing/components/BrandSections';
@@ -8,12 +7,15 @@ import GuideHost from '@/components/guide/GuideHost';
 import { GUIDE_SECTIONS } from '@/lib/guide/content';
 import BrandFilm, { BRAND_FILM_COPY } from './BrandFilm';
 import MakingFilm, { MAKING_FILM_COPY } from './MakingFilm';
+import DotText from './DotText';
+import SceneLayer from './SceneLayer';
 import { openGuide } from '@/lib/guide/bus';
 import './brand-home.css';
 
 // 2026-10-05 대표 「홈페이지 최종」: 회사 홈페이지(do-it.company) 전용. 홈페이지 = 한 편의 브랜드 영상처럼 넘겨 보는 이야기.
-// 순서 = 히어로(지구 + DO IT · 시작 버튼 하나) → 이야기 01~09(우주인 사진 · 버튼 없음) → 제작 과정 영상 → 브랜드 영상 → 웹 설치하기 → 회사 → 대표 인사말 → 법적 고지.
-// 시작 버튼은 히어로 하나뿐(「다른 페이지에는 버튼 없다」). 사진·영상은 대표가 준 원본 그대로(public/brand).
+// 2026-10-05 대표 「홈페이지가 너무 길다 · 핵심 4페이지만 스크롤 · 나머지는 버튼 누르면 배경 그림이 뜨고 설명」:
+// 스크롤 = 히어로 → 이야기(9장면 고르기) → 제작 과정 영상 → 웹 설치하기(+ 더 알아보기: 브랜드 영상 · 회사 소개 · 대표 인사말) → 법적 고지.
+// 이야기 장면·브랜드 영상·회사·인사말은 누르면 화면 가득 장면 창(SceneLayer)으로 열린다. 시작(앱으로 가기) 버튼은 히어로 하나뿐. 사진·영상은 대표가 준 원본 그대로(public/brand).
 // 앱(app.do-it.company)은 이 화면을 쓰지 않는다(라우터가 brand 역할에서만 연결).
 
 const START_PATH = '/doit/start-journey';
@@ -26,7 +28,11 @@ export const BRAND_HOME_COPY = {
   companyLead: ['대화로 시작하는 만남을', '만듭니다.'],
   start: '모바일로 시작하기',
   install: '웹 설치하기',
+  storyTitle: ['잘 쓴 소개보다,', '함께한 시간이 궁금해서.'],
+  storyLead: '아홉 장면 중 하나를 눌러 열어 보세요.',
 } as const;
+
+type Layer = { kind: 'story'; i: number } | { kind: 'film' } | { kind: 'company' } | { kind: 'greeting' };
 
 // 옛 홈페이지(우주인 이야기 9장면)의 승인 문구·사진·순서 그대로. pos = 사진 구도에 맞춘 글자 자리.
 type Story = { no: string; label: string; title: [string, string]; body: [string, string]; img: string; pos: 'top' | 'middle' | 'bottom'; focus: string };
@@ -91,12 +97,62 @@ export default function BrandHomePage() {
   }, [menuOpen]);
 
   const close = () => setMenuOpen(false);
+  const [layer, setLayer] = useState<Layer | null>(null);
+  const closeLayer = useCallback(() => setLayer(null), []);
+  const openLayer = (next: Layer) => { close(); setLayer(next); };
+
+  const renderLayer = (l: Layer) => {
+    if (l.kind === 'story') {
+      const s = STORIES[l.i];
+      const go = (d: number) => setLayer({ kind: 'story', i: (l.i + d + STORIES.length) % STORIES.length });
+      return (
+        <SceneLayer label={`${s.no} ${s.label}`} image={`/brand/stories/${s.img}.webp`} focus={s.focus} onClose={closeLayer}
+          footer={<><button type="button" className="bh-layer-nav" onClick={() => go(-1)}><span aria-hidden="true">←</span> 이전 장면</button><span className="bh-layer-count">{s.no} / 09</span><button type="button" className="bh-layer-nav" onClick={() => go(1)}>다음 장면 <span aria-hidden="true">→</span></button></>}>
+          <p className="bh-kicker">{s.no} — {s.label}</p>
+          <h2 className="bh-title">{s.title[0]}<br />{s.title[1]}</h2>
+          <p className="bh-lead">{s.body[0]}<br />{s.body[1]}</p>
+        </SceneLayer>
+      );
+    }
+    if (l.kind === 'film') return (
+      <SceneLayer label={BRAND_FILM_COPY.title} onClose={closeLayer}>
+        <p className="bh-kicker">BRAND FILM</p>
+        <h2 className="bh-title">{BRAND_FILM_COPY.title}</h2>
+        <BrandFilm />
+      </SceneLayer>
+    );
+    if (l.kind === 'company') return (
+      <SceneLayer label="회사 소개" image="/brand/stories/story-03.webp" focus="center 74%" onClose={closeLayer}>
+        <p className="bh-kicker">COMPANY</p>
+        <h2 className="bh-title bh-title--wide">DO IT COMPANY</h2>
+        <p className="bh-lead">{BRAND_HOME_COPY.companyLead[0]}<br />{BRAND_HOME_COPY.companyLead[1]}</p>
+        <dl className="bh-rows">
+          <div><dt>서비스</dt><dd><a href={appUrl('/')}>{appHost}<span aria-hidden="true">↗</span></a></dd></div>
+          <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
+          <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
+        </dl>
+      </SceneLayer>
+    );
+    return (
+      <SceneLayer label="대표 인사말" image="/brand/stories/story-06.webp" focus="center 78%" onClose={closeLayer}>
+        <p className="bh-kicker">대표 인사말</p>
+        <h2 className="bh-title bh-title--greeting">{GREETING_TITLE}</h2>
+        <div className="bh-greeting-body">
+          {GREETING.map((line) => <p key={line}>{line}</p>)}
+          <p className="bh-greeting-closing">{GREETING_CLOSING[0]}<br />{GREETING_CLOSING[1]}</p>
+        </div>
+        <span className="bh-rule" aria-hidden="true" />
+        <p className="bh-sign">대표 <strong>박진욱</strong></p>
+      </SceneLayer>
+    );
+  };
+
   return (
     <main ref={rootRef} className="bh">
       <a className="bh-skip" href="#bh-story">이야기로 바로가기</a>
       <header className="bh-nav">
-        {/* 왼쪽 위: 회사 슬로건 도장(2026-10-05 대표 「왼쪽 위에 just try 박아」) */}
-        <p className="bh-stamp"><DoItSymbol decorative /><span>JUST TRY.</span></p>
+        {/* 왼쪽 위: 회사 슬로건을 빛나는 점 글자로 작게(2026-10-05 대표 「두번째 이미지처럼 점박으로 · 크게 말고 비율에 맞게 왼쪽 윗상단」) */}
+        <p className="bh-stamp"><DotText text="JUST TRY." className="bh-dots" /></p>
         <button ref={menuBtnRef} type="button" className="bh-menu-btn" aria-expanded={menuOpen} aria-controls="bh-menu" onClick={() => setMenuOpen((v) => !v)}>
           <span className="bh-sr">{menuOpen ? '메뉴 닫기' : '메뉴 열기'}</span><i aria-hidden="true" /><i aria-hidden="true" />
         </button>
@@ -105,8 +161,9 @@ export default function BrandHomePage() {
             <a href="#bh-story" onClick={close}>이야기</a>
             <a href="#bh-making" onClick={close}>제작 과정</a>
             <a href="#bh-install" onClick={close}>{BRAND_HOME_COPY.install}</a>
-            <a href="#bh-company" onClick={close}>회사 소개</a>
-            <a href="#bh-greeting" onClick={close}>대표 인사말</a>
+            <button type="button" onClick={() => openLayer({ kind: 'film' })}>브랜드 영상</button>
+            <button type="button" onClick={() => openLayer({ kind: 'company' })}>회사 소개</button>
+            <button type="button" onClick={() => openLayer({ kind: 'greeting' })}>대표 인사말</button>
             <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
@@ -131,19 +188,26 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 2. 이야기 01~09: 한 화면에 한 장면 · 버튼 없음 */}
-      <div id="bh-story" className="bh-story">
-        {STORIES.map((s) => (
-          <section key={s.no} className={`bh-sec bh-photo bh-scene bh-scene--${s.pos}`} aria-labelledby={`bh-scene-${s.no}`} data-depth>
-            <img className="bh-bg" src={`/brand/stories/${s.img}.webp`} alt="" aria-hidden="true" loading={s.no === '01' ? 'eager' : 'lazy'} decoding="async" width="941" height="1672" style={{ objectPosition: s.focus }} />
-            <div className="bh-content">
-              <p className="bh-kicker">{s.no} — {s.label}</p>
-              <h2 id={`bh-scene-${s.no}`} className="bh-title">{s.title[0]}<br />{s.title[1]}</h2>
-              <p className="bh-lead">{s.body[0]}<br />{s.body[1]}</p>
-            </div>
-          </section>
-        ))}
-      </div>
+      {/* 2. 이야기: 9장면을 한 화면에 사진 칸으로 · 누르면 그 장면이 화면 가득 열린다 */}
+      <section className="bh-sec bh-photo bh-story" id="bh-story" aria-labelledby="bh-story-title" data-depth>
+        <img className="bh-bg" src="/brand/stories/story-02.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" style={{ objectPosition: '70% center' }} />
+        <div className="bh-content">
+          <p className="bh-kicker">ECHO STORY</p>
+          <h2 id="bh-story-title" className="bh-title">{BRAND_HOME_COPY.storyTitle[0]}<br />{BRAND_HOME_COPY.storyTitle[1]}</h2>
+          <p className="bh-lead">{BRAND_HOME_COPY.storyLead}</p>
+          <ol className="bh-tiles">
+            {STORIES.map((s, i) => (
+              <li key={s.no}>
+                <button type="button" className="bh-tile" onClick={() => openLayer({ kind: 'story', i })}>
+                  <img src={`/brand/stories/${s.img}.webp`} alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" style={{ objectPosition: s.focus }} />
+                  <span className="bh-tile-no">{s.no}</span>
+                  <span className="bh-tile-label">{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
       {/* 3. 제작 과정(2026-10-05 대표 「동영상 제작과정이라고 홈페이지 안에 그대로 박아」) */}
       <section className="bh-sec bh-film-sec bh-making" id="bh-making" aria-labelledby="bh-making-title" data-depth>
@@ -155,17 +219,7 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 4. 브랜드 영상(2026-10-04 대표 승인 그대로) */}
-      <section className="bh-sec bh-film-sec" id="bh-film" aria-labelledby="bh-film-title" data-depth>
-        <div className="bh-stars" aria-hidden="true" />
-        <div className="bh-content">
-          <p className="bh-kicker">BRAND FILM</p>
-          <h2 id="bh-film-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>
-          <BrandFilm />
-        </div>
-      </section>
-
-      {/* 5. 웹 설치하기: 홈 화면에 ECHO 아이콘이 놓이는 모습 + 휴대폰별 방법 · 컴퓨터에서는 QR. 버튼 없음. */}
+      {/* 4. 웹 설치하기: 홈 화면에 ECHO 아이콘이 놓이는 모습 + 휴대폰별 방법 · 컴퓨터에서는 QR. 버튼 없음. */}
       <section className="bh-sec bh-photo bh-install" id="bh-install" aria-labelledby="bh-install-title" data-depth>
         <img className="bh-bg" src="/brand/stories/story-07.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" />
         <div className="bh-content">
@@ -192,42 +246,22 @@ export default function BrandHomePage() {
         </div>
       </section>
 
-      {/* 6. 회사 정보 */}
-      <section className="bh-sec bh-company" id="bh-company" aria-labelledby="bh-company-title" data-depth>
-        <div className="bh-stars" aria-hidden="true" />
-        <div className="bh-content">
-          <p className="bh-kicker">COMPANY</p>
-          <h2 id="bh-company-title" className="bh-title bh-title--wide">DO IT COMPANY</h2>
-          <p className="bh-lead">{BRAND_HOME_COPY.companyLead[0]}<br />{BRAND_HOME_COPY.companyLead[1]}</p>
-          <figure className="bh-figure"><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" /></figure>
-          <dl className="bh-rows">
-            <div><dt>서비스</dt><dd><a href={appUrl('/')}>{appHost}<span aria-hidden="true">↗</span></a></dd></div>
-            <div><dt>문의</dt><dd><a href="mailto:0423doit@gmail.com">0423doit@gmail.com<span aria-hidden="true">↗</span></a></dd></div>
-            <div className="bh-rows-links"><dd><a href="/legal/terms">이용약관<span aria-hidden="true">›</span></a></dd><dd><a href="/legal/privacy">개인정보처리방침<span aria-hidden="true">›</span></a></dd></div>
-          </dl>
-        </div>
-      </section>
-
-      {/* 7. 대표 인사말(맨 마지막): 따뜻한 새벽 · 기존 승인 원문 그대로 */}
-      <section className="bh-sec bh-photo bh-greeting" id="bh-greeting" aria-labelledby="bh-greeting-title" data-depth>
-        <img className="bh-bg" src="/brand/stories/story-06.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" />
-        <div className="bh-content">
-          <p className="bh-kicker">대표 인사말</p>
-          <h2 id="bh-greeting-title" className="bh-title bh-title--greeting">{GREETING_TITLE}</h2>
-          <div className="bh-greeting-body">
-            {GREETING.map((line) => <p key={line}>{line}</p>)}
-            <p className="bh-greeting-closing">{GREETING_CLOSING[0]}<br />{GREETING_CLOSING[1]}</p>
-          </div>
-          <span className="bh-rule" aria-hidden="true" />
-          <p className="bh-sign">대표 <strong>박진욱</strong></p>
-        </div>
-      </section>
+      {/* 더 알아보기(2026-10-05 대표 「나머지는 버튼 누르면」): 브랜드 영상 · 회사 소개 · 대표 인사말 — 누르면 화면 가득 열린다 */}
+      <nav className="bh-more" aria-label="더 알아보기">
+        <p className="bh-kicker">MORE</p>
+        <ul>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'film' })}><img src="/brand/film/poster-portrait.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span className="bh-tile-no">25초</span><span className="bh-tile-label">브랜드 영상</span></button></li>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'company' })}><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 74%' }} /><span className="bh-tile-no">DO IT</span><span className="bh-tile-label">회사 소개</span></button></li>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'greeting' })}><img src="/brand/stories/story-06.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 78%' }} /><span className="bh-tile-no">CEO</span><span className="bh-tile-label">대표 인사말</span></button></li>
+        </ul>
+      </nav>
 
       <footer className="bh-legal">
         <details><summary>DO IT COMPANY · 사업자 정보</summary><p>두잇(DO IT) · 대표 박진욱</p><p>사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호</p><p>경기도 남양주시 강변북로632번길 41-7, 102동 101호(수석동)</p></details>
         <p><button type="button" className="bh-legal-link" onClick={() => openGuide()}>이용 안내</button> · <a href="/legal/terms">이용약관</a> · <a href="/legal/privacy">개인정보처리방침</a> · <a href="mailto:0423doit@gmail.com">문의 · 0423doit@gmail.com</a></p>
         <p>© 2026 DO IT COMPANY</p>
       </footer>
+      {layer && renderLayer(layer)}
       {/* 이용 안내 창(검정·흰색·은색). 설치는 앱 주소에서만 — 이 회사 홈페이지를 설치하게 하지 않는다. */}
       <GuideHost theme="brand" extra={{ install: <p className="bh-guide-install">설치는 앱 주소({appHost})에서 해요. 이 회사 홈페이지는 설치하지 않아도 돼요. <a href={appUrl(INSTALL_PATH)}>앱 주소에서 설치하기<span aria-hidden="true">↗</span></a></p> }} />
     </main>
