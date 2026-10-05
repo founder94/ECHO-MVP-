@@ -286,4 +286,9 @@ test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술집에서 음료를 달라고 먼저 해요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대가 누구냐에 따라 달라지는 이유가 있어요?'), true);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '성별이 다르면 왜 고르는 곳이 달라져요?'), true);
+  // Codex P2(4184091713): 경우 말 뒤 「달라고」(부탁)는 다름이 아님 · 조사 아닌 말(한테)이 끼면 인정 0
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술은 사람한테 달라고 해요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술은 상대에게 달라고 하는 편이에요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 고르는 곳이 달라요?'), true);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대마다 고르는 곳이 다르게 느껴져요?'), true);
 });
