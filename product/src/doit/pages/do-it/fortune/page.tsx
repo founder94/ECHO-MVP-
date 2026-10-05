@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SajuTaroEntry } from "@/doit/app/plan-a/screens/SajuTaroEntry";
 import { SajuInput } from "@/doit/app/plan-a/screens/SajuInput";
 import { TaroCardSelect } from "@/doit/app/plan-a/screens/TaroCardSelect";
@@ -33,8 +33,11 @@ type Step = "entry" | "input" | "result";
 
 export default function Fortune() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("entry");
-  const [mode, setMode] = useState<Mode>("saju");
+  // Codex PR #140 P2(4184790623): 타로 결과에서 「로그인하고 해석 보기」로 나갔다 오면(?view=taro) 오늘 고른 카드의 결과 화면으로 바로 돌아온다(고른 카드 없으면 처음 화면).
+  const [params] = useSearchParams();
+  const backToTaro = params.get("view") === "taro" && readSelectedCard() !== null;
+  const [step, setStep] = useState<Step>(backToTaro ? "result" : "entry");
+  const [mode, setMode] = useState<Mode>(backToTaro ? "taro" : "saju");
   const [sajuInput, setSajuInput] = useState<SajuCalcInput | null>(null);
 
   const exitToHome = () => navigate("/doit/home");

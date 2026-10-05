@@ -619,9 +619,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (action === "agent_card") {
       const input = CR.cardInput(body.cardName, body.purpose);
       if (!input) return fail("BAD_REQUEST", "카드를 다시 골라 주세요.", 400, origin);
-      if (!aiReady("card_reading")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
       const claimId = await derivedUuid(`${requestId}:claim:card`);
-      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash: await sha256(`card:${input.card}:${input.purpose}`), paid: true, capped: dailyCapped, origin });
+      const hash = await sha256(`card:${input.card}:${input.purpose}`);
+      // Codex P2(4184790634): 끝난 요청을 다시 보내면(답을 못 받은 경우) 모델이 필요 없다 → AI 준비 확인보다 먼저 보관한 해석을 돌려준다.
+      const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at, applied_revision, response_payload").eq("user_id", userId).eq("request_id", claimId).maybeSingle();
+      if (prior && prior.action === CLAIM_ACTION && prior.status === "applied" && (prior.target_id ?? null) === null && prior.payload_hash === hash) {
+        const kept = (prior.response_payload as Json | null)?.card;
+        return kept ? json({ ok: true, reading: kept, duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      if (!aiReady("card_reading")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash, paid: true, capped: dailyCapped, origin, prior: (prior ?? null) as ClaimRow | null });
       if (admit.res) return admit.res;
       if (admit.done) {
         const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();

@@ -292,7 +292,7 @@ export function FreeResult({
             </button>
           )}
           {mode === "taro" && tarotError && tarotErrorKind === "login" && (
-            <Link className="echo-glass-btn echo-glass-btn--primary mt-3 inline-flex items-center justify-center rounded-2xl min-h-12 px-4" to="/login" state={{ from: "/doit/fortune" }}>
+            <Link className="echo-glass-btn echo-glass-btn--primary mt-3 inline-flex items-center justify-center rounded-2xl min-h-12 px-4" to="/login" state={{ from: "/doit/fortune?view=taro" }}>
               로그인하고 해석 보기
             </Link>
           )}

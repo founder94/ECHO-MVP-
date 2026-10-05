@@ -61,6 +61,26 @@ test('타로 ② 같은 요청 다시 보냄 = 보관한 해석 · 업체 호출
   assert.equal(usage(s), used);
 });
 
+test('타로 ②-b Codex P2(4184790634): 끝난 요청 다시 보냄 = AI 키·정책이 없어져도 보관한 해석(AI_NOT_CONFIGURED 0) · 새 요청은 설정 필요', async () => {
+  const { s, h } = await started();
+  s.ai.push(READING);
+  const req = { action: 'agent_card', requestId: rid(), cardName: '별', purpose: '' };
+  assert.equal((await h.call(req)).status, 200);
+  s.env = { AI_POLICY: POLICY, OPENAI_API_KEY: '' };
+  const calls = s.providerCalls?.length ?? 0;
+  const again = await h.call(req);
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.duplicate, true);
+  assert.equal(again.body.reading.summary, READING.summary);
+  const fresh = await h.call({ ...req, requestId: rid() });
+  assert.equal(fresh.status, 500); assert.equal(fresh.body.code, 'AI_NOT_CONFIGURED');
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0);
+  // 같은 요청 id 에 다른 카드 = 보관한 해석을 주지 않음(409)
+  s.env = { AI_POLICY: POLICY };
+  const other = await h.call({ ...req, cardName: '달' });
+  assert.equal(other.status, 409, JSON.stringify(other.body));
+});
+
 test('타로 ③ 모양이 틀린 답 = 502 AI_FORMAT(가짜 성공 0) · 자리 놓음 · 사용 기록은 남김', async () => {
   const { s, h } = await started();
   const used = usage(s);

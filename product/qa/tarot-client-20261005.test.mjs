@@ -30,6 +30,11 @@ test('FreeResult: 실패하면 같은 카드로 다시 보기(누를 때만 · �
   assert.match(FREE, /\}, \[mode, tarotTry\]\);/);
   assert.match(FREE, /disabled=\{tarotLoading\}\n\s*onClick=\{\(\) => \{ if \(!tarotLoading\) setTarotTry\(\(n\) => n \+ 1\); \}\}/);
   assert.match(FREE, /tarotErrorKind === "failed" \|\| tarotErrorKind === "busy"/);
-  assert.match(FREE, /<Link [^>]*to="\/login" state=\{\{ from: "\/doit\/fortune" \}\}>/);
+  assert.match(FREE, /<Link [^>]*to="\/login" state=\{\{ from: "\/doit\/fortune\?view=taro" \}\}>/);
+  // Codex PR #140 P2(4184790623): 로그인 뒤 운세 처음 화면이 아니라 고른 카드의 타로 결과로 돌아옴
+  const FORT = src('src/doit/pages/do-it/fortune/page.tsx');
+  assert.match(FORT, /const backToTaro = params\.get\("view"\) === "taro" && readSelectedCard\(\) !== null;/);
+  assert.match(FORT, /useState<Step>\(backToTaro \? "result" : "entry"\)/);
+  assert.match(FORT, /useState<Mode>\(backToTaro \? "taro" : "saju"\)/);
   assert.match(FREE, /setTarotErrorKind\(err instanceof TarotError \? err\.kind : "failed"\);/);
 });
