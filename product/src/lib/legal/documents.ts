@@ -10,10 +10,15 @@ export const LEGAL_EFFECTIVE_DATE = '2026-09-21';
 // 본문 최종 변경일(버전과 따로). 2026-09-26: 지금 제공하지 않는 기능(말로 대화·전화 인증·사진 AI 확인)을 「제공하지 않음」으로 바로잡고 AI 프로필 초안 안내를 더했다.
 // 버전(LEGAL_VERSION)은 동의 기록과 묶여 있어(올리면 모든 회원 재동의) 대표·법무 확정 전에는 올리지 않는다.
 // 2026-10-05 대표 승인 「4,900원 삭제」 1단계: 제5조의 리포트 가격 문구를 지우고 「지금 판매하는 유료 콘텐츠 없음」으로 바로잡음(결제 서버·가격 설정은 그대로 · 버전 v1.0 유지 = 재동의 0).
-export const LEGAL_UPDATED_DATE = '2026-10-05';
+// Codex P2(4183042132): 최종 변경일·초안 안내는 문서마다 따로 — 약관만 바꾼 날짜·내용이 개인정보 처리방침에 붙지 않게.
+export const LEGAL_UPDATED_DATE = '2026-10-05'; // 두 문서 중 가장 최근 변경일(관리자 점검표용)
+export const TERMS_UPDATED_DATE = '2026-10-05';
+export const PRIVACY_UPDATED_DATE = '2026-09-26';
 export const LEGAL_DRAFT = true;
-export const LEGAL_DRAFT_NOTICE =
-  '이 문서는 2026-09-21 기준 초안입니다(2026-09-24 사람 연결 내용 추가 · 2026-09-26 지금 제공하지 않는 기능 표시 정리 · 2026-10-05 리포트 가격 문구 삭제). 대표 검토를 거쳐 확정되며, 확정 전 내용은 바뀔 수 있습니다.';
+const DRAFT_BASE = '이 문서는 2026-09-21 기준 초안입니다(2026-09-24 사람 연결 내용 추가 · 2026-09-26 지금 제공하지 않는 기능 표시 정리';
+const DRAFT_TAIL = '). 대표 검토를 거쳐 확정되며, 확정 전 내용은 바뀔 수 있습니다.';
+export const TERMS_DRAFT_NOTICE = `${DRAFT_BASE} · 2026-10-05 리포트 가격 문구 삭제${DRAFT_TAIL}`;
+export const PRIVACY_DRAFT_NOTICE = `${DRAFT_BASE}${DRAFT_TAIL}`;
 
 export const COMPANY = {
   name: 'DO IT COMPANY (두잇컴퍼니)',
@@ -35,6 +40,8 @@ export interface LegalDocument {
   title: string;
   version: string;
   effectiveDate: string;
+  updatedDate: string;
+  draftNotice: string;
   intro: string;
   sections: LegalSection[];
 }
@@ -44,6 +51,8 @@ export const TERMS_DOCUMENT: LegalDocument = {
   title: '이용약관',
   version: LEGAL_VERSION,
   effectiveDate: LEGAL_EFFECTIVE_DATE,
+  updatedDate: TERMS_UPDATED_DATE,
+  draftNotice: TERMS_DRAFT_NOTICE,
   intro: `이 약관은 ${COMPANY.name}(이하 "회사")가 제공하는 ${COMPANY.serviceName} 서비스(이하 "서비스")의 이용 조건과 회사·회원의 권리·의무를 정합니다.`,
   sections: [
     {
@@ -136,6 +145,8 @@ export const PRIVACY_DOCUMENT: LegalDocument = {
   title: '개인정보 처리방침',
   version: LEGAL_VERSION,
   effectiveDate: LEGAL_EFFECTIVE_DATE,
+  updatedDate: PRIVACY_UPDATED_DATE,
+  draftNotice: PRIVACY_DRAFT_NOTICE,
   intro: `${COMPANY.name}(이하 "회사")는 개인정보 보호법 등 관련 법을 지키며, 회원의 개인정보를 아래와 같이 처리합니다.`,
   sections: [
     {
