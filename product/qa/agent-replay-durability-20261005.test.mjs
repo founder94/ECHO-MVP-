@@ -178,3 +178,25 @@ test('⑩ Codex P2(4183520274): 소개 저장 뒤 끝내기 실패(503) → 같�
   assert.equal(claimsOf(s, sid).find((x) => x.status === 'applied' || x.status === 'pending')?.status, 'applied');
   assert.equal(usageOf(s, sid), used, '사용 기록 새 줄 0');
 });
+
+test('⑪ Codex echo-review 5993988460: 저장된 옛 소개 결과로 더 새 시도의 유료 자리를 끝내지 않음(409 · 자리·사용 기록 그대로)', async () => {
+  const { s, h, sid } = await started();
+  s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
+  assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' })).status, 200);
+  s.ai.push({ intro: [{ text: '저는 편하게 만나는 사이가 좋아요.', basis: '편하게 만나고' }] });
+  s.failClaimFinish = true;
+  const requestId = rid();
+  assert.equal((await h.call({ action: 'agent_intro', requestId, sessionId: sid })).status, 503);
+  s.failClaimFinish = false;
+  // 더 새 시도가 같은 요청 자리를 다시 잡은 상태(시도 번호 +1 · 처리 중 · 유료)
+  const claim = claimsOf(s, sid).find((x) => x.status === 'pending');
+  claim.applied_revision = Number(claim.applied_revision) + 1; claim.error_code = 'PAID'; claim.updated_at = new Date().toISOString();
+  const newer = claim.applied_revision, used = usageOf(s, sid), calls = s.providerCalls?.length ?? 0;
+  const r = await h.call({ action: 'agent_intro', requestId, sessionId: sid });
+  assert.equal(r.status, 409, JSON.stringify(r.body));
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0, '모델 호출 0');
+  assert.equal(claim.status, 'pending', '더 새 시도의 자리는 그대로');
+  assert.equal(claim.error_code, 'PAID');
+  assert.equal(claim.applied_revision, newer);
+  assert.equal(usageOf(s, sid), used, '새 사용 기록 0');
+});

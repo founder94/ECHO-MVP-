@@ -376,11 +376,13 @@ async function usageOnce(c: UsageCtx, sessionId: string | null, why: string, cla
 }
 // 모델 없이 끝나는 같은 요청(앞선 시도가 이미 저장함): 그 시도의 유료 자리가 아직 처리 중이면 사용 기록을 한 줄로 맞추고 끝낸다(하루 한도 이중 셈 0).
 // 돌려주는 값: null = 맞출 자리 없음 · true = 끝냄 · false = 끝내지 못함(부른 쪽은 503).
-async function reconcilePaid(c: UsageCtx, o: { claimId: string; claimTarget: string | null; usageTarget: string | null; why: string; turnRowId?: string }): Promise<boolean | null> {
+async function reconcilePaid(c: UsageCtx, o: { claimId: string; claimTarget: string | null; usageTarget: string | null; why: string; turnRowId?: string; attempt?: number }): Promise<boolean | null | "other_attempt"> {
   const { data: prior, error } = await c.admin.from("doit_request_events").select("action, status, error_code, target_id, applied_revision").eq("user_id", c.userId).eq("request_id", o.claimId).maybeSingle();
   if (error) return false;
   if (!prior || prior.action !== CLAIM_ACTION || prior.status !== "pending" || prior.error_code !== CLAIM_PAID || (prior.target_id ?? null) !== o.claimTarget) return null;
   const attempt = Number(prior.applied_revision ?? 0);
+  // Codex echo-review 5993988460 P1: 저장된 결과가 가리키는 시도 번호와 지금 자리의 시도 번호가 다르면(더 새 시도가 같은 요청을 다시 잡음) 건드리지 않는다
+  if (o.attempt != null && o.attempt !== attempt) return "other_attempt";
   // 첫 답 시작: 사용 기록 = 그 요청의 턴 기록(하루 한도에 이미 셈) → 있으면 새 줄 없이 끝냄
   let counted = false;
   if (o.turnRowId) { const { data: t, error: te } = await c.admin.from("doit_request_events").select("action").eq("user_id", c.userId).eq("request_id", o.turnRowId).eq("action", TURN_ACTION).maybeSingle(); if (te) return false; counted = !!t; }
@@ -700,7 +702,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // Codex P2(4183520274): 같은 요청의 소개가 이미 저장됐으면(마무리만 못 함) 다시 쓰지 않고 그 자리를 끝낸 뒤 저장된 상태로 답한다(모델 0)
         const introClaimId = await derivedUuid(`${requestId}:claim:intro`);
         if (stored.intro_claim?.id === introClaimId) {
-          if ((await reconcilePaid(ctx, { claimId: introClaimId, claimTarget: sid, usageTarget: sid, why: "intro" })) === false) return unconfirmed(origin);
+          const done = await reconcilePaid(ctx, { claimId: introClaimId, claimTarget: sid, usageTarget: sid, why: "intro", attempt: stored.intro_claim.attempt });
+          if (done === false) return unconfirmed(origin);
+          if (done === "other_attempt") return fail("REQUEST_CONFLICT", "같은 요청을 아직 처리하고 있어요. 잠시 뒤 다시 불러올게요.", 409, origin); // 더 새 시도의 자리·사용 기록은 그대로
           return json({ ok: true, session: sessionView(sid, stored), limited: false, duplicate: true }, 200, origin);
         }
         // 모델을 부를 때만 AI 사전 확인(설정 · 대화 예산 · 하루 한도). 상한 도달·들은 말 없음 = 모델 0 → 평소 결과(limited · 빈 소개)
