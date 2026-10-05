@@ -584,7 +584,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null; choices?: string[] } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading" | "ref_talk", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 

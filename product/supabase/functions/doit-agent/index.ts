@@ -9,6 +9,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
 import * as CR from "./card-reading.ts"; // 카드 해석(대화 상태·매칭과 분리 · agent_card 한 곳에서만 씀)
+import * as RT from "./reference-talk.ts"; // 참고 이야기(대화 상태·매칭과 분리 · agent_ref 한 곳에서만 씀)
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
 import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
 import * as R from "./run.ts";
@@ -40,7 +41,7 @@ const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
 const LOCK_WAIT_MS = 25;
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
@@ -613,50 +614,72 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return null;
     };
 
+    // 카드 해석·참고 이야기(대화 상태·프로필·매칭과 분리된 유료 호출 한 번)가 함께 쓰는 보호:
+    //   끝난 요청 재전송 = 보관한 결과(AI 준비 확인보다 먼저 · Codex P2 4184790634) → AI 사전 확인 → 자리 잡기(하루 한도) → 호출 →
+    //   사용 기록 한 줄 → 모양이 틀리면 502(가짜 성공 0) → 결과를 자리에 보관. 사용 기록을 못 남기면 자리 = 결과 모름(하루 한도에 계속 셈).
+    const paidOnce = async <T,>(o: { tag: string; key: string; hash: string; kind: Parameters<A.Llm>[0]; run: (obs: A.Obs) => Promise<T | null>; reply: (r: T, duplicate: boolean) => Json; aiMsg: string; fmtMsg: string }): Promise<Response> => {
+      const claimId = await derivedUuid(`${requestId}:claim:${o.tag}`);
+      const kept = (row: { response_payload?: unknown } | null) => (row?.response_payload as Json | null)?.[o.key] as T | undefined;
+      const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at, applied_revision, response_payload").eq("user_id", userId).eq("request_id", claimId).maybeSingle();
+      if (prior && prior.action === CLAIM_ACTION && prior.status === "applied" && (prior.target_id ?? null) === null && prior.payload_hash === o.hash) {
+        const k = kept(prior);
+        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      if (!aiReady(o.kind)) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash: o.hash, paid: true, capped: dailyCapped, origin, prior: (prior ?? null) as ClaimRow | null });
+      if (admit.res) return admit.res;
+      if (admit.done) {
+        const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();
+        const k = kept(row);
+        return k ? json({ ok: true, ...o.reply(k, true), duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      const attempt = admit.attempt;
+      const obs: A.Obs = { calls: [], retry: [] };
+      let result: T | null = null;
+      try { result = await o.run(obs); }
+      catch (e) {
+        const halt = haltedBy(router);
+        const ok = await keepUsage(ctx, null, halt ? `${o.tag}_${halt}` : `${o.tag}_error`);
+        await settleClaim(admin, userId, claimId, keptOr(ok, halt ? `HALT_${halt}` : "AI_ERROR"), attempt);
+        if (halt) return haltFail(halt, origin);
+        logDiag({ step: o.tag, code: "ai_error", ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version });
+        void e; return fail("AI_ERROR", o.aiMsg, 502, origin);
+      }
+      const usageOk = router.summary().calls > 0 ? await usageOnce(ctx, null, o.tag, claimId, attempt, aiTrace(router)) : true;
+      if (!result) {
+        await settleClaim(admin, userId, claimId, keptOr(usageOk, "AI_FORMAT"), attempt);
+        logDiag({ step: o.tag, code: "format", calls: obs.calls.length });
+        return fail("AI_FORMAT", o.fmtMsg, 502, origin);
+      }
+      if (!usageOk) { await settleClaim(admin, userId, claimId, TURN_UNCERTAIN, attempt); return json({ ok: true, ...o.reply(result, false) }, 200, origin); }
+      if (!(await finishClaim(admin, userId, claimId, attempt, { [o.key]: result as unknown as Json }))) return unconfirmed(origin);
+      logDiag({ step: o.tag, calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, policy: router.policy.version });
+      return json({ ok: true, ...o.reply(result, false) }, 200, origin);
+    };
+
     // 2026-10-05 대표 지시 「카드 해석 실패 이유를 알아내서 최종 완성」(Codex echo-spec 20261005 카드 해석 A): QA 에 예전 openai-chat 이 없어 해석이 늘 실패했다.
-    //   카드 해석 = 로그인 사용자의 유료 호출 한 번 → 다른 경로와 같은 보호(AI 사전 확인 · 자리 잡기 · 하루 한도 · 사용 기록 한 줄 · 같은 요청 재전송 = 저장된 해석).
     //   받는 것 = 카드 이름 + 관계 목적 글(선택) · 대화 상태·프로필·매칭 쓰기 0 · 해석 글은 이 요청 자리(claim) 안에만 남는다.
     if (action === "agent_card") {
       const input = CR.cardInput(body.cardName, body.purpose);
       if (!input) return fail("BAD_REQUEST", "카드를 다시 골라 주세요.", 400, origin);
-      const claimId = await derivedUuid(`${requestId}:claim:card`);
-      const hash = await sha256(`card:${input.card}:${input.purpose}`);
-      // Codex P2(4184790634): 끝난 요청을 다시 보내면(답을 못 받은 경우) 모델이 필요 없다 → AI 준비 확인보다 먼저 보관한 해석을 돌려준다.
-      const { data: prior } = await admin.from("doit_request_events").select("action, status, error_code, target_id, payload_hash, updated_at, applied_revision, response_payload").eq("user_id", userId).eq("request_id", claimId).maybeSingle();
-      if (prior && prior.action === CLAIM_ACTION && prior.status === "applied" && (prior.target_id ?? null) === null && prior.payload_hash === hash) {
-        const kept = (prior.response_payload as Json | null)?.card;
-        return kept ? json({ ok: true, reading: kept, duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
-      }
-      if (!aiReady("card_reading")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
-      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash, paid: true, capped: dailyCapped, origin, prior: (prior ?? null) as ClaimRow | null });
-      if (admit.res) return admit.res;
-      if (admit.done) {
-        const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();
-        const kept = (row?.response_payload as Json | null)?.card;
-        return kept ? json({ ok: true, reading: kept, duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
-      }
-      const attempt = admit.attempt;
-      const obs: A.Obs = { calls: [], retry: [] };
-      let reading: CR.CardReading | null = null;
-      try { reading = await CR.readCard(input.card, input.purpose, ctx.llm, obs); }
-      catch (e) {
-        const halt = haltedBy(router);
-        const ok = await keepUsage(ctx, null, halt ? `card_${halt}` : "card_error");
-        await settleClaim(admin, userId, claimId, keptOr(ok, halt ? `HALT_${halt}` : "AI_ERROR"), attempt);
-        if (halt) return haltFail(halt, origin);
-        logDiag({ step: "card", code: "ai_error", ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version });
-        void e; return fail("AI_ERROR", "해석을 만들지 못했어요. 같은 카드로 다시 해 볼 수 있어요.", 502, origin);
-      }
-      const usageOk = router.summary().calls > 0 ? await usageOnce(ctx, null, "card", claimId, attempt, aiTrace(router)) : true;
-      if (!reading) {
-        await settleClaim(admin, userId, claimId, keptOr(usageOk, "AI_FORMAT"), attempt);
-        logDiag({ step: "card", code: "format", calls: obs.calls.length });
-        return fail("AI_FORMAT", "해석 모양이 잘못 왔어요. 같은 카드로 다시 해 볼 수 있어요.", 502, origin);
-      }
-      if (!usageOk) { await settleClaim(admin, userId, claimId, TURN_UNCERTAIN, attempt); return json({ ok: true, reading }, 200, origin); } // 사용 기록을 못 남겼으면 자리 = 결과 모름(하루 한도에 계속 셈) · 해석은 보여 줌
-      if (!(await finishClaim(admin, userId, claimId, attempt, { card: reading as unknown as Json }))) return unconfirmed(origin);
-      logDiag({ step: "card", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, policy: router.policy.version });
-      return json({ ok: true, reading }, 200, origin);
+      return await paidOnce<CR.CardReading>({ tag: "card", key: "card", hash: await sha256(`card:${input.card}:${input.purpose}`), kind: "card_reading",
+        run: (obs) => CR.readCard(input.card, input.purpose, ctx.llm, obs), reply: (r) => ({ reading: r as unknown as Json }),
+        aiMsg: "해석을 만들지 못했어요. 같은 카드로 다시 해 볼 수 있어요.", fmtMsg: "해석 모양이 잘못 왔어요. 같은 카드로 다시 해 볼 수 있어요." });
+    }
+
+    // 2026-10-05 Codex echo-spec 20261005 B: 결과 뒤 참고 이야기(질문 기본 0 · 저장 0). 받는 것 = 결과 종류 + 이번 이야기 앞 줄(최대 8) + 지금 말.
+    //   빈 말 = 여는 한 줄(모델 0) · 그만/질문 싫음 = 짧은 한 줄(모델 0) · 질문은 이번 말이 직접 청할 때만 한 개.
+    if (action === "agent_ref") {
+      const seed = RT.refSeed(body.ref);
+      const history = RT.refHistory(body.history);
+      const text = typeof body.text === "string" ? body.text.trim() : "";
+      if (!seed || !history || text.length > RT.REF_TEXT_MAX) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin);
+      if (!text) return json({ ok: true, reply: RT.refOpener(seed), question: null }, 200, origin);
+      if (RT.wantsStop(text)) return json({ ok: true, reply: RT.STOP_LINE, question: null }, 200, origin);
+      const allow = RT.asksQuestion(text);
+      return await paidOnce<RT.RefReply>({ tag: "ref", key: "ref", hash: await sha256(`ref:${JSON.stringify(seed)}:${JSON.stringify(history)}:${text}`), kind: "ref_talk",
+        run: (obs) => RT.refTalk(seed, history, text, allow, ctx.llm, obs), reply: (r) => ({ reply: r.reply, question: r.question }),
+        aiMsg: "답을 만들지 못했어요. 같은 말로 다시 보내 볼 수 있어요.", fmtMsg: "답 모양이 잘못 왔어요. 같은 말로 다시 보내 볼 수 있어요." });
     }
 
     if (action === "agent_start") {

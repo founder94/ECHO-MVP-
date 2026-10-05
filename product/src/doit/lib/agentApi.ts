@@ -132,6 +132,18 @@ export async function agentTarot(userId: string, cardName: string, purpose: stri
   return { summary: r.reading.summary, tags: r.reading.tags.slice(0, 3), cards: r.reading.cards.slice(0, 3) };
 }
 
+// 2026-10-05 Codex echo-spec B: 결과 뒤 참고 이야기(agent_ref · 질문 기본 0 · 서버 저장 0).
+// 보내는 것 = 결과 종류(카드 이름 · 사주 세 갈래 키) + 이번 이야기의 앞 줄(최대 8) + 지금 말. 빈 말 = 여는 한 줄(모델 호출 0).
+export type RefSeedBody = { kind: 'card'; label: string } | { kind: 'pattern'; key: string };
+export interface RefLine { role: 'user' | 'echo'; text: string }
+export interface RefReply { reply: string; question: string | null }
+export const refSeedBody = (seed: ContentSeed): RefSeedBody => seed.source === 'TAROT' ? { kind: 'card', label: seed.card } : { kind: 'pattern', key: seed.key };
+export async function agentRef(userId: string, ref: RefSeedBody, history: RefLine[], text: string): Promise<RefReply> {
+  const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR']);
+  if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
+  return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null };
+}
+
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
 // seed = 사주·타로 결과에서 들어왔을 때의 이야기 거리(결과 종류만 · 사용자 사실 아님). 서버가 모르면 무시하고 보통 대화로 시작한다.
 // goal = 고른 만남(목적 타일 id) — 서버는 같은 목적의 세션만 이어받는다(v2.4).

@@ -90,6 +90,13 @@ async function newPage(browser, vp, server) {
     if (u.pathname === '/functions/v1/doit-agent') {
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204 });
       const body = JSON.parse(req.postData() ?? '{}'); server.st.calls.push({ fn: 'agent', ...body });
+      // 2026-10-05 참고 이야기(agent_ref): 빈 말 = 여는 한 줄 · 「질문 하나 해줘」 = 질문 한 개 · server.st.refFail 번 만큼 502
+      if (body.action === 'agent_ref') {
+        if (server.st.refFail > 0 && body.text) { server.st.refFail -= 1; return route.fulfill({ status: 502, json: { ok: false, code: 'AI_ERROR', message: '답을 만들지 못했어요.' } }); }
+        if (!body.text) return route.fulfill({ json: { ok: true, reply: body.ref?.kind === 'card' ? `「${body.ref.label}」 카드를 골랐네요. 떠오르는 게 있으면 편하게 적어 주세요. 읽기만 하고 끝내도 괜찮아요.` : '사주에서는 혼자 정리하는 시간이 필요한 쪽으로 나왔어요. 떠오르는 게 있으면 편하게 적어 주세요. 읽기만 하고 끝내도 괜찮아요.', question: null } });
+        const ask = /질문 하나 해줘/.test(body.text);
+        return route.fulfill({ json: { ok: true, reply: ask ? '좋아요, 하나만 물어볼게요.' : '요즘 버거웠던 게 떠올랐군요. 그런 마음이 드는 날도 있어요.', question: ask ? '그 카드를 골랐을 때 먼저 떠오른 사람이 있었어요?' : null } });
+      }
       const A = server.st.agent;
       if (!A) return route.fulfill({ json: { ok: true, session: null } });
       if (body.action === 'agent_get') return route.fulfill({ json: { ok: true, session: A.session } });
@@ -693,6 +700,58 @@ for (const [n, w] of [[72, 320], [73, 430]]) await run(n, `이용 안내 ${w}px:
   const m = await p.evaluate(() => { const panel = document.querySelector('.echo-guide-panel'); const close = document.querySelector('.echo-guide-close').getBoundingClientRect(); return { over: panel.scrollWidth - panel.clientWidth, close: Math.round(close.height), anim: panel.getAnimations().length, sw: document.documentElement.scrollWidth - innerWidth }; });
   expect(m.over <= 0 && m.sw <= 0 && m.close >= 44 && m.anim === 0, JSON.stringify(m));
   await p.screenshot({ path: `uxshots/72-guide-${w}.png` }); return JSON.stringify(m);
+});
+
+// 2026-10-05 Codex echo-spec B: 사주·타로 결과 → 「ECHO와 이야기」(질문 기본 0 · 서버 저장 0 · 목적 고르기로 끌고 가지 않음)
+const seedInit = (seed) => (p) => p.addInitScript(([k, v]) => { try { if (!sessionStorage.getItem('qa-seeded')) { sessionStorage.setItem(k, v); sessionStorage.setItem('qa-seeded', '1'); } } catch {} }, ['echo-content-seed', JSON.stringify(seed)]);
+await run(92, '참고 이야기 390: 여는 한 줄(질문 0) → 내 말 → 받아주기만 → 「질문 하나 받아 보기」 때만 질문 한 개 · 목적 고르기 0', IPHONE, {}, async (p, s) => {
+  await seedInit({ source: 'TAROT', card: '별' })(p);
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
+  const lines = p.locator('.echo-ref-line');
+  await lines.first().waitFor({ timeout: 8000 });
+  expect(await p.locator('.echo-opening, [class*="echo-opening"]').count() === 0, '목적 고르기 화면이 먼저 뜸');
+  expect(/「별」 카드/.test(await lines.first().innerText()), '여는 한 줄에 카드 이름');
+  expect(!/[?？]/.test(await p.locator('.echo-ref-lines').innerText()), '여는 줄에 질문');
+  expect(await p.evaluate(() => sessionStorage.getItem('echo-content-seed')) === null, '여는 줄을 받은 뒤 이야기 거리를 지우지 않음');
+  await p.locator('#echo-ref-text').fill('이 카드 보고 요즘 버거웠던 게 생각나');
+  await p.getByRole('button', { name: '보내기' }).click(); await p.waitForTimeout(600);
+  expect(await lines.count() === 3, `줄 수 ${await lines.count()}`);
+  expect(!/[?？]/.test(await p.locator('.echo-ref-lines').innerText()), '질문 끈 동안 물음 문장');
+  await p.getByRole('button', { name: '질문 하나 받아 보기' }).click(); await p.waitForTimeout(600);
+  expect(await p.locator('.echo-ref-line--question').count() === 1, '청했을 때 질문 한 개');
+  const refs = s.st.calls.filter(c => c.action === 'agent_ref');
+  expect(refs.length === 3 && refs[0].text === '' && refs[2].text === '질문 하나 해줘' && refs[2].history.length <= 8, JSON.stringify(refs.map(r => r.text)));
+  expect(!s.st.calls.some(c => ['agent_start', 'agent_turn'].includes(c.action)), 'Plan A 대화 서버를 부름');
+  expect(await overflow(p) <= 0, '가로 넘침');
+  await p.screenshot({ path: 'uxshots/92-ref-talk-390.png' });
+  return `서버 호출 ${refs.length}번 · 질문 1개(청했을 때만)`;
+});
+for (const [n, w] of [[93, 360], [94, 430]]) await run(n, `참고 이야기 ${w}px: 넘침 0 · 누름 높이 44+ · 움직임 줄이기`, { width: w, height: 760 }, {}, async (p) => {
+  await p.emulateMedia({ reducedMotion: 'reduce' });
+  await seedInit({ source: 'SAJU', key: 'peer_none' })(p);
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
+  await p.locator('.echo-ref-line').first().waitFor({ timeout: 8000 });
+  const m = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth - innerWidth, min: Math.min(...[...document.querySelectorAll('.echo-ref button, .echo-ref textarea')].map(e => Math.round(e.getBoundingClientRect().height))) }));
+  expect(m.sw <= 0 && m.min >= 44, JSON.stringify(m));
+  await p.screenshot({ path: `uxshots/93-ref-talk-${w}.png` }); return JSON.stringify(m);
+});
+await run(95, '참고 이야기 실패: 적은 말 보존 → 「다시 보내기」 한 번 → 성공 · 「원하는 만남 알아보기」 = 보통 흐름 · 다른 계정 이야기 거리 = 무시', IPHONE, { refFail: 1, agent: { session: GUIDE_DONE } }, async (p, s) => {
+  await seedInit({ source: 'TAROT', card: '달' })(p);
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
+  await p.locator('.echo-ref-line').first().waitFor({ timeout: 8000 });
+  await p.locator('#echo-ref-text').fill('그냥 좀 지쳤어'); await p.getByRole('button', { name: '보내기' }).click(); await p.waitForTimeout(600);
+  expect(await p.locator('.echo-ref-fail').count() === 1, '실패 안내');
+  expect(await p.locator('#echo-ref-text').inputValue() === '그냥 좀 지쳤어', '적은 말이 사라짐');
+  await p.getByRole('button', { name: '다시 보내기' }).click(); await p.waitForTimeout(600);
+  expect(await p.locator('.echo-ref-fail').count() === 0 && await p.locator('.echo-ref-line').count() === 3, '다시 보내기 뒤 성공');
+  const sent = s.st.calls.filter(c => c.action === 'agent_ref' && c.text === '그냥 좀 지쳤어');
+  expect(sent.length === 2, `보낸 횟수 ${sent.length}`);
+  await p.getByRole('button', { name: '원하는 만남 알아보기' }).click(); await p.waitForTimeout(1200);
+  expect(await p.locator('.echo-ref').count() === 0, '보통 흐름으로 안 감');
+  await p.evaluate(() => sessionStorage.setItem('echo-content-seed', JSON.stringify({ source: 'TAROT', card: '해', owner: 'someone-else' })));
+  await p.reload({ waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
+  expect(await p.locator('.echo-ref').count() === 0, '다른 계정 이야기 거리로 참고 이야기가 열림');
+  return '보존 · 한 번 다시 · 보통 흐름 · 다른 계정 0';
 });
 
 const pass = results.filter(r => r.ok).length;

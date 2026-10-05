@@ -107,8 +107,11 @@ test('타로 ⑤ 지시문 = 미래·결혼·건강·투자·성격 단정 금�
   const ix = readFileSync(path.join(source, 'product/supabase/functions/doit-agent/index.ts'), 'utf8');
   assert.match(cr, /미래·결혼·건강·투자를 단정하지 마/);
   assert.match(cr, /사용자의 성격이나 감정을 단정하지 마/);
-  const block = ix.slice(ix.indexOf('if (action === "agent_card")'), ix.indexOf('if (action === "agent_start")'));
-  assert.ok(block.length > 0, 'agent_card 블록');
-  for (const t of ['admitClaim(', 'paid: true, capped: dailyCapped', 'usageOnce(ctx, null, "card"', 'finishClaim(admin, userId, claimId, attempt, { card:', 'aiReady("card_reading")']) assert.ok(block.includes(t), t);
+  const block = ix.slice(ix.indexOf('if (action === "agent_card")'), ix.indexOf('if (action === "agent_ref")'));
+  const helper = ix.slice(ix.indexOf('const paidOnce = async'), ix.indexOf('if (action === "agent_card")'));
+  assert.ok(block.length > 0 && helper.length > 0, 'agent_card 블록 · 공통 보호');
+  for (const t of ['paidOnce<CR.CardReading>', 'tag: "card", key: "card"', 'kind: "card_reading"']) assert.ok(block.includes(t), t);
+  for (const t of ['admitClaim(', 'paid: true, capped: dailyCapped', 'usageOnce(ctx, null, o.tag', 'finishClaim(admin, userId, claimId, attempt, { [o.key]:', 'aiReady(o.kind)']) assert.ok(helper.includes(t), t);
+  assert.doesNotMatch(helper, /SESSION_ACTION|stored\.state|profile/, '공통 보호도 대화 상태·프로필 쓰기 0');
   assert.doesNotMatch(block, /SESSION_ACTION|stored\.state|profile/, '대화 상태·프로필 쓰기 0');
 });
