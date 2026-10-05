@@ -132,7 +132,9 @@ test('문서: 버전·시행일이 있고, 금지어(데이팅·소개팅·궁�
     assert.ok(doc.sections.length >= 8, doc.key);
   }
   const terms = JSON.stringify(docs.TERMS_DOCUMENT);
-  assert.ok(terms.includes('4,900원'), '가격은 4,900원 단건');
+  // 2026-10-05 대표 승인 「4,900원 삭제」: 약관에 리포트 가격을 적지 않는다(지금 판매하는 유료 콘텐츠 없음 · 결제 전 가격 안내)
+  assert.ok(!/4,?900\s*원/.test(terms), '약관에 4,900원 문구 0');
+  assert.ok(terms.includes('현재 판매하는 유료 콘텐츠가 없습니다'));
   assert.ok(!terms.includes('Stripe'));
   assert.ok(terms.includes('[대표 입력: 사업자등록번호]'), '모르는 값은 지어내지 않는다');
   assert.equal(docs.COMPANY.email, '0423doit@gmail.com');

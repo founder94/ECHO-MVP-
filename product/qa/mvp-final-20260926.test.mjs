@@ -104,7 +104,7 @@ test('정책: 로그인 전 링크 · 공개 경로 · 최종 변경일 · 지�
   assert.match(read('src/lib/legal/gatePaths.ts'), /'\/legal'/);
   const d = read('src/lib/legal/documents.ts');
   assert.match(d, /export const LEGAL_VERSION = 'v1\.0';/);
-  assert.match(d, /export const LEGAL_UPDATED_DATE = '2026-09-26';/);
+  assert.match(d, /export const LEGAL_UPDATED_DATE = '2026-10-05';/); // 2026-10-05 대표 승인: 리포트 가격 문구 삭제(본문 변경 → 최종 변경일만 · 판 번호 v1.0 그대로)
   assert.match(read('src/pages/legal/LegalDocument.tsx'), /최종 변경 \{LEGAL_UPDATED_DATE\}/);
   assert.match(d, /말로 대화하기: 지금은 제공하지 않습니다/);
   assert.match(d, /지금은 사진을 AI로 판별하지 않습니다/);
