@@ -107,6 +107,11 @@ test('Codex P2 ①: 「아래」는 보기를 가리킬 때만 보기 질문(「
   assert.equal(A.refersToChoices('나보다 나이가 아래인 사람이 편해요?'), false);
   assert.equal(A.refersToChoices('아래 보기 중에 뭐가 가까워요?'), true);
   assert.equal(A.refersToChoices('아래 중에 뭐가 좋아요?'), true);
+  // 「고르면·골라」 혼자도 보기 가리킴이 아니다
+  assert.equal(A.refersToChoices('같이 메뉴 고르면 편해요?'), false);
+  assert.equal(A.refersToChoices('옷을 골라 주는 사람이 좋아요?'), false);
+  assert.equal(A.refersToChoices('이 중에서 하나 골라 주세요?'), true);
+  assert.equal(A.refersToChoices('보기에서 고르면 뭐가 가까워요?'), true);
 });
 
 test('Codex P2 ②: 보기 질문을 바꿔 쓸 때도 일반 질문 검사를 모두 거친다(물음표 두 개 · 설문형 · 나뉜 답 한쪽)', async () => {
@@ -134,12 +139,15 @@ test('Codex P2 ③: 서버 안내 두 줄을 이미 썼으면 이미 한 질문�
   assert.ok(!before.includes(response.question), `이미 한 질문을 다시 냄: ${response.question}`);
   assert.equal(response.question, A.easeFallbackText('polite'), '세 번째 안내(보기 가리킴 0)');
   assert.ok(!A.refersToChoices(response.question));
-  // 세 안내를 모두 썼으면: 이미 한 질문을 내지 않고 그대로 둔다(기록만)
+  // 안내 줄을 모두 썼어도 보기 없는 보기 질문은 내보내지 않는다(Codex P2 재검수)
   const st2 = afterThree();
-  for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite'), A.easeFallbackText('polite')]) st2.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
+  for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite'), ...A.SAFE_LINES.polite]) st2.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
   st2.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: '조용한 사람이 좋아요', kind: 'answer', saved: true, question: Q0 });
   const cur2 = { type: 'core', purpose: 'relationship_style', text: Q0 }; st2.asked.push(cur2); st2.current = cur2;
-  const before2 = st2.asked.slice(0, -1).map((a) => a.text); const r2 = { question: Q0 }; const o2 = obsOf();
+  const r2 = { question: Q0 }; const o2 = obsOf();
   await A.enforceChoiceContract(st2, llm, o2, r2);
-  assert.ok(!before2.includes(r2.question)); assert.ok(o2.retry.includes('choice_ref_unresolved'));
+  assert.notEqual(r2.question, Q0); assert.ok(!A.refersToChoices(r2.question)); assert.equal(st2.current.text, r2.question);
+  assert.ok(A.SAFE_LINES.polite.includes(r2.question)); assert.ok(o2.retry.includes('choice_ref_bank_reused'));
+  assert.ok(A.SAFE_LINES.polite.length > A.MAX_CORE_QUESTIONS + 1, '안내 줄 수 > 한 대화 질문 수');
+  for (const tone of ['polite', 'casual', 'formal']) for (const l of A.SAFE_LINES[tone]) { assert.ok(!A.refersToChoices(l), l); assert.ok(!A.logisticsQuestion(l), l); assert.match(l, /\?$/); }
 });

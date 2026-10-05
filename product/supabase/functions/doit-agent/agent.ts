@@ -813,8 +813,9 @@ const PICK_SHAPE = /중(엔|에|에서)\s*(뭐|무엇|어느|어떤|가까)|고�
 //   「이런 것 중 뭐가」「다음 중」「이 중」「아래」「고르」를 보기 질문으로 알아보지 못했다 → 보기를 펼치지도(rescue_show) 다시 만들지도 않았다.
 //   보기를 가리키는 말이 있는 질문 = 보기가 꼭 붙어야 하는 질문(서버 계약 · runTurn 의 마지막 확인 enforceChoiceContract).
 //   「산책이랑 카페 둘 중에 뭐가 좋아요?」처럼 질문 안에 고를 것이 다 들어 있는 질문은 보기를 가리키는 말이 아니다(이·그·이런·다음·아래 같은 가리킴 말이 있을 때만).
+// 2026-10-05 Codex P2: 「고르면·골라」 혼자도 보기 가리킴이 아니다(「메뉴 고르면」「옷을 골라 주는」) — 「중에서 골라·보기에서 고르·하나 골라」만.
 // 2026-10-05 Codex P2: 「아래」 혼자는 보기 가리킴이 아니다(「나이가 아래인 사람」) — 「아래 보기·아래 중·아래에서 골라」만.
-const CHOICE_REF = /(?:^|[\s,])(?:이런|저런|그런|요런|다음|아래|이|그)\s*(?:것|거|느낌|곳|장면|보기|예시)?들?\s*(?:중|가운데)(?:엔|에|에서|에선)?(?![가-힣])|아래\s*(?:보기|예시|에서\s*골|목록)|보기\s*(?:중|에서|가운데)|고르(?:면|자면|라면|기|세요|실|시|겠)|골라/;
+const CHOICE_REF = /(?:^|[\s,])(?:이런|저런|그런|요런|다음|아래|이|그)\s*(?:것|거|느낌|곳|장면|보기|예시)?들?\s*(?:중|가운데)(?:엔|에|에서|에선)?(?![가-힣])|아래\s*(?:보기|예시|에서\s*골|목록)|보기\s*(?:중|에서|가운데)|(?:중(?:에서|에|엔)?|보기(?:에서)?|하나(?:만)?)\s*(?:만\s*)?(?:고르|골라)/;
 export const refersToChoices = (q: string | null | undefined) => CHOICE_REF.test(String(q ?? ""));
 export const rescueAuto = (kind: string, rule: string | null, question: string, text = "") => ["unsure", "skip", "help"].includes(kind) || rule === "fatigue" || (kind === "repair" && (FATIGUE.test(text) || ANNOYED_ONLY.test(text))) || questionShape(question) === "choice" || PICK_SHAPE.test(question) || refersToChoices(question);
 const syncAsked = (st: AgentState) => { const a = st.asked[st.asked.length - 1]; const c = st.current; if (!a || !c || a === c) return; if (a.text === c.text) { a.choices = c.choices ?? null; a.rescue_show = c.rescue_show; a.rescue_fallback = c.rescue_fallback; a.rescue_tried = c.rescue_tried; a.objective_tried = c.objective_tried; a.rescue_rejected = c.rescue_rejected; a.rescue_requests = c.rescue_requests; } };
@@ -1447,7 +1448,14 @@ export function questionFlaw(st: AgentState, latest: string, q: string, anchor =
 }
 // 2026-10-04 만남 준비 질문 상한에 걸렸을 때 쓰는 서버 안내 한 줄 — 대표가 든 좋은 질문 예(「처음엔 어떤 얘기부터 하면 편할 것 같아요?」 · 장면에 붙은 얘기 질문)로, 장소·시간이 아니라 이야기 쪽을 묻는다.
 // 2026-10-05 위 두 안내를 이미 썼을 때 쓰는 세 번째 안내(사람 쪽 · 보기 가리킴 0 · 만남 준비 0).
-export const easeFallbackText = (tone: Tone) => tone === "casual" ? "어떤 사람이랑 있을 때 마음이 제일 편해?" : tone === "formal" ? "어떤 분과 계실 때 마음이 가장 편하세요?" : "어떤 사람이랑 있을 때 마음이 제일 편해요?";
+export const easeFallbackText = (tone: Tone) => SAFE_LINES[tone === "casual" ? "casual" : tone === "formal" ? "formal" : "polite"][0];
+// 2026-10-05 Codex P2: 보기 가리킴 질문을 바꿀 마지막 줄 — 사람 쪽 · 보기 가리킴 0 · 만남 준비 0. 이미 한 질문과 글자까지 같은 줄은 쓰지 않는다.
+//   한 대화의 질문 수(핵심 MAX_CORE_QUESTIONS + 채우기)보다 줄이 많아 보통은 다 쓰이지 않는다. 그래도 다 썼으면 가장 오래전에 쓴 줄을 다시 쓴다(보기 없는 「이런 것 중」을 내보내는 것보다 낫다 · choice_ref_bank_reused 기록).
+export const SAFE_LINES: Record<"polite" | "casual" | "formal", string[]> = {
+  polite: ["어떤 사람이랑 있을 때 마음이 제일 편해요?", "누가 어떻게 해 줄 때 고맙다고 느껴요?", "같이 있으면 시간이 빨리 가는 사람은 어떤 사람이에요?", "사람한테 마음이 열리는 순간이 언제예요?", "가까운 사람이 꼭 지켜 줬으면 하는 게 있어요?", "요즘 누구랑 얘기할 때 제일 즐거워요?", "처음 만난 사람한테 먼저 보게 되는 게 뭐예요?", "어떤 말을 들으면 마음이 놓여요?"],
+  casual: ["어떤 사람이랑 있을 때 마음이 제일 편해?", "누가 어떻게 해 줄 때 고맙다고 느껴?", "같이 있으면 시간이 빨리 가는 사람은 어떤 사람이야?", "사람한테 마음이 열리는 순간이 언제야?", "가까운 사람이 꼭 지켜 줬으면 하는 게 있어?", "요즘 누구랑 얘기할 때 제일 즐거워?", "처음 만난 사람한테 먼저 보게 되는 게 뭐야?", "어떤 말을 들으면 마음이 놓여?"],
+  formal: ["어떤 분과 계실 때 마음이 가장 편하세요?", "누가 어떻게 해 줄 때 고맙다고 느끼세요?", "함께 있으면 시간이 빨리 가는 분은 어떤 분이세요?", "사람에게 마음이 열리는 순간이 언제세요?", "가까운 사람이 꼭 지켜 주었으면 하는 것이 있으세요?", "요즘 누구와 이야기할 때 가장 즐거우세요?", "처음 만난 분에게 먼저 보게 되는 것이 무엇이세요?", "어떤 말을 들으면 마음이 놓이세요?"],
+};
 export const talkFallbackText = (tone: Tone) => tone === "casual" ? "처음엔 어떤 얘기부터 하면 편할 것 같아?" : tone === "formal" ? "처음엔 어떤 이야기부터 나누시면 편하실 것 같으세요?" : "처음엔 어떤 얘기부터 하면 편할 것 같아요?";
 // 서버 안내 한 줄 고르기: 만남 준비 질문 상한이면 이야기 쪽 안내(이미 한 질문이면 쓰지 않음 · 대화 한 번 표시와 따로).
 const fallbackLine = (st: AgentState, replacing = false): { text: string; once: boolean } | null => {
@@ -1472,9 +1480,13 @@ export async function enforceChoiceContract(st: AgentState, llm: Llm, obs: Obs, 
   // 2026-10-05 Codex P2: 바꿔 쓴 질문도 보통 다시 쓰기와 같은 검사(questionFlaw 전부 — 물음표 두 개 · 설문형 · 나뉜 답 한쪽 등)를 거친다.
   if (ok(r.question) && !questionFlaw(st, latest, r.question, true, q, button)) { next = r.question; obs.retry.push("choice_ref_rewrite"); }
   if (!next) { const f = fallbackLine(st, true); if (f && ok(f.text)) { next = f.text; if (f.once) st.fill_fallback_used = true; obs.retry.push("choice_ref_fallback"); } }
-  if (!next) next = [talkFallbackText(st.tone), fillFallbackText(st.tone), easeFallbackText(st.tone)].find((t) => !st.asked.some((a) => squash(a.text) === squash(t)) && !logisticsFlaw(st, t, true)) ?? ""; // 2026-10-05 처음 세 질문엔 장소 안내 0
-  // 2026-10-05 Codex P2: 서버 안내 두 줄도 이미 했으면 이미 한 질문을 다시 내지 않는다 — 질문은 그대로 두고 기록만 남긴다(대화가 멈추지 않음 · 「잘 모르겠어요」로 보기를 다시 청할 수 있음).
-  if (!next) { obs.retry.push("choice_ref_unresolved"); return; }
+  const bank = SAFE_LINES[st.tone === "casual" ? "casual" : st.tone === "formal" ? "formal" : "polite"];
+  if (!next) next = [talkFallbackText(st.tone), fillFallbackText(st.tone), ...bank].find((t) => !st.asked.some((a) => squash(a.text) === squash(t)) && !logisticsFlaw(st, t, true)) ?? ""; // 2026-10-05 처음 세 질문엔 장소 안내 0
+  // 2026-10-05 Codex P2: 서버 안내 두 줄도 이미 했으면 이미 한 질문을 다시 내지 않는다 — 사람 쪽 안내 줄(SAFE_LINES) 중 아직 안 한 것을 쓴다.
+  if (!next) { // 다 썼으면 가장 오래전에 쓴 줄(지금 질문 q 바로 앞 질문이 아닌 것) — 보기 없는 보기 질문은 내보내지 않는다
+    const lastAt = (t: string) => st.asked.reduce((m, a, i) => squash(a.text) === squash(t) ? i : m, -1);
+    next = bank.slice().sort((x, y) => lastAt(x) - lastAt(y))[0]; obs.retry.push("choice_ref_bank_reused");
+  }
   const a = st.asked[st.asked.length - 1];
   if (a && a.text === q) { a.text = next; a.choices = null; a.rescue_show = false; }
   st.current.text = next; st.current.choices = null; st.current.rescue_show = false; st.current.rescue_fallback = false; st.current.rescue_tried = false; // 새 질문 = 「잘 모르겠어요」로 보기를 다시 청할 수 있음
