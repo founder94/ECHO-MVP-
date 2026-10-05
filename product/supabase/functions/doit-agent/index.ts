@@ -133,7 +133,7 @@ export function sessionView(id: string, stored: Stored) {
     current_question: st.current?.text ?? null, current_hint: done ? null : st.current?.hint ?? null, current_choices: done || !st.current?.rescue_show ? null : A.choicesFor(st),
     current_rescue: done ? null : A.rescueView(st), previous: done ? null : previousView(st), messages,
     summary: done ? st.summary : [], closing: done ? st.closing : null,
-    profile: done ? A.matchingProfile(st) : null, handoff: done ? stored.handoff ?? null : null,
+    profile: done ? A.profileView(st) : null, handoff: done ? stored.handoff ?? null : null, // 2026-10-04 화면용: 같은 원문의 원문 복사본 한 줄 빼기(저장 프로필·매칭·준비 판단은 그대로)
     // v1.6 소개 초안: 문장과 상태만(근거 인용·버린 이유는 관리자 화면에서만).
     intro: done && st.intro ? { status: st.intro.status, text: A.introText(st.intro), lines: st.intro.lines.map((l) => l.text), tries_left: Math.max(0, A.INTRO_TRIES_MAX - st.intro.tries), used: st.intro.used } : null,
     // 2026-10-03 실행 기록(목표 · 계획 단계 · 도구 결과 · 대기 이유 · 예산) — 코드·수치만. 예전 대화는 지금 상태로 계산해 보여 준다(저장 0).
