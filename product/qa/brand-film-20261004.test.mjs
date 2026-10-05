@@ -8,56 +8,43 @@ const FILM = read('src/pages/do-it/brand-home/BrandFilm.tsx');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const VTT = read('public/brand/film/captions.ko.vtt');
 
-test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 진짜 「모바일 시작하기」는 영상 아래', () => {
+test('자리: ECHO 소개 다음 · 회사 소개 앞 · 제목 · 「모바일 시작하기」는 첫 화면 하나뿐(2026-10-05 대표)', () => {
   const at = (s) => HOME.indexOf(s);
   const order = ['id="bh-echo"', 'id="bh-film"', 'id="bh-company"', 'id="bh-greeting"'].map(at);
   assert.ok(order.every((x) => x > 0), String(order));
   assert.ok(order.every((x, i) => i === 0 || x > order[i - 1]), '순서 hero → ECHO → 영상 → 회사 → 인사');
   const sec = HOME.slice(at('id="bh-film"'), at('id="bh-company"'));
-  assert.ok(sec.indexOf('<BrandFilm />') < sec.indexOf('<StartActions />'), '시작 버튼은 영상 아래');
-  assert.match(FILM, /title: '이야기가 연결이 되기까지', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
+  assert.ok(sec.includes('<BrandFilm />') && !sec.includes('BRAND_HOME_COPY.start'), '영상 구간에 시작 버튼 0');
+  assert.equal((HOME.match(/\{BRAND_HOME_COPY\.start\}/g) ?? []).length, 1, '「모바일 시작하기」 = 첫 화면 하나');
+  assert.doesNotMatch(HOME, /StartActions/);
+  assert.match(FILM, /title: '홈페이지 제작과정', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
 
-test('첫 화면에서 영상을 받지 않음: 누르기 전 <video> 0 · 대표 이미지 lazy · 자동 재생·소리 0', () => {
-  assert.match(FILM, /useState<State>\('idle'\)/);
-  assert.match(FILM, /\{state === 'playing'\n\s*\? <video /);
-  assert.match(FILM, /<img src=\{film\.poster\} alt="" loading="lazy"/);
-  assert.doesNotMatch(FILM, /autoPlay|autoplay/);
-  assert.match(FILM, /controls playsInline preload="metadata"/);
-});
-
-test('재생: 앞 원본 실패는 뒤 원본으로 · 마지막 원본/영상 오류만 실패 안내 · 화면 밖 25% 미만이면 멈춤', () => {
+test('2026-10-05 대표 교체: 영상 = 홈페이지 제작과정(대표가 올린 16초) · 화면에 들어오면 소리 없이 저절로 재생', () => {
+  assert.match(FILM, /mp4: '\/brand\/film\/homepage-making\.mp4'/);
+  assert.match(FILM, /muted loop playsInline preload="metadata"/);
+  assert.match(FILM, /if \(e\.intersectionRatio >= 0\.5\) tryPlay\(\);/, '절반 이상 보이면 재생');
+  assert.match(FILM, /else if \(e\.intersectionRatio < 0\.25 && !v\.paused\) v\.pause\(\);/, '4분의 1 아래면 멈춤');
+  assert.match(FILM, /if \(reduceMotion\(\) \|\| userPaused\.current\)/, '움직임 줄이기 · 직접 멈춘 사람은 저절로 재생 0');
+  assert.match(FILM, /if \(\(e as \{ name\?: string \} \| null\)\?\.name === 'NotAllowedError'\) setAskPlay\(true\)/, '막힘(NotAllowedError)만 「영상 보기」 · 끊긴 시도(AbortError) 무시');
+  assert.match(FILM, /const onPlaying = \(\) => setAskPlay\(false\);/, '재생되면 「영상 보기」 거둠');
+  assert.match(FILM, /const onPlay = \(\) => setPlaying\(true\);[\s\S]*v\.addEventListener\('play', onPlay\)/, '버튼 글 = 실제 paused 상태(재생 기다리는 동안에도 「멈춤」)');
+  assert.match(FILM, /<button type="button" className="bh-film-toggle" onClick=\{toggle\}/, '키보드로 누르는 멈춤/재생 버튼');
+  assert.match(FILM, /rootMargin: '0px 0px 300px 0px'/, '가까이 오기 전 영상 파일 받지 않음');
+  assert.match(FILM, /const onReduce = \(e: MediaQueryListEvent\) => \{ if \(e\.matches\) \{ if \(!v\.paused\) v\.pause\(\); setAskPlay\(true\); \} \};[\s\S]*rm\?\.addEventListener\?\.\('change', onReduce\)/, '보는 중 움직임 줄이기 켜면 멈춤');
+  assert.match(FILM, /useState<State>\('waiting'\)/);
   assert.doesNotMatch(FILM, /<video[^>]*onError=/, '<video> React onError 는 <source> 오류까지 받아 대체 재생을 막는다');
-  assert.match(FILM, /<source src=\{film\.mp4\} type="video\/mp4" onError=\{\(e\) => e\.stopPropagation\(\)\} \/>/);
-  assert.match(FILM, /<source src=\{film\.webm\} type="video\/webm" onError=\{\(e\) => \{ e\.stopPropagation\(\); goError\(\); \}\} \/>/);
-  assert.match(FILM, /const fail = goError;/);
+  assert.match(FILM, /<source src=\{FILM\.mp4\} type="video\/mp4" onError=\{\(e\) => e\.stopPropagation\(\)\} \/>/);
+  assert.match(FILM, /<source src=\{FILM\.webm\} type="video\/webm" onError=\{\(e\) => \{ e\.stopPropagation\(\); setState\('error'\); \}\} \/>/);
   assert.match(FILM, /v\.addEventListener\('error', fail\)/);
-  assert.match(FILM, /if \(next !== null && next !== portraitRef\.current\) \{ portraitRef\.current = next; setPortrait\(next\); \}\n\s*setState\('error'\);/, '실패할 때도 돌려 둔 방향 반영');
-  assert.match(FILM, /e\.intersectionRatio < 0\.25 && !v\.paused\) v\.pause\(\)/);
-  assert.match(FILM, /<track kind="captions" srcLang="ko"/);
 });
 
-test('파일: 가로·세로 mp4/webm · 대표 이미지 · 자막 6개 · 합성/준비 중 표시', () => {
-  for (const o of ['landscape', 'portrait']) {
-    for (const ext of ['mp4', 'webm']) {
-      const n = statSync(`public/brand/film/doit-brand-film-${o}.${ext}`).size;
-      assert.ok(n > 100_000 && n < 3_000_000, `${o}.${ext} ${n}`);
-    }
-    assert.ok(statSync(`public/brand/film/poster-${o}.jpg`).size > 5_000);
-  }
+test('파일: 제작과정 mp4/webm · 대표 이미지 · 16초 안내 · 예전 영상 파일은 지우지 않음', () => {
+  for (const ext of ['mp4', 'webm']) { const n = statSync(`public/brand/film/homepage-making.${ext}`).size; assert.ok(n > 100_000 && n < 3_000_000, `${ext} ${n}`); }
+  assert.ok(statSync('public/brand/film/homepage-making-poster.jpg').size > 5_000);
+  for (const o of ['landscape', 'portrait']) assert.ok(statSync(`public/brand/film/doit-brand-film-${o}.mp4`).size > 0, '예전 파일 보존');
   assert.ok(VTT.startsWith('WEBVTT'));
-  assert.equal((VTT.match(/-->/g) ?? []).length, 6);
-  for (const t of ['서비스 이용 예시', '이렇게 이해했는데, 맞나요?', '찌릿! 텔레파시가 통했어요', '당신이 잠든 사이, AI가 먼저 만나봅니다.', '관련 기능 준비 중']) assert.ok(VTT.includes(t), t);
-  assert.match(FILM, /서비스 이용 예시 · 합성 화면/);
-});
-
-test('휴대폰을 돌리면 세로/가로 영상을 다시 고름 · 재생 중·전체화면이면 기억했다가 멈추거나 끝날 때 반영', () => {
-  assert.match(FILM, /if \(isActive\(videoRef\.current\)\) \{ pendingRef\.current = e\.matches; return; \}/);
-  assert.match(FILM, /const isActive = \(v: HTMLVideoElement \| null\) => !!v && \(\(!v\.paused && !v\.ended\) \|\| document\.fullscreenElement === v\);/);
-  assert.match(FILM, /v\.addEventListener\('pause', onStop\);\n\s*v\.addEventListener\('ended', onStop\);/);
-  assert.match(FILM, /if \(videoRef\.current\) setState\('idle'\);/, '바꾸면 대표 이미지로 — 저절로 재생 0');
-  assert.match(FILM, /mq\.addEventListener\?\.\('change', onChange\)/);
-  assert.doesNotMatch(FILM, /if \(state === 'playing' \|\| typeof window\.matchMedia/, '재생 뒤에도 구독 유지');
+  assert.match(FILM, /16초 영상/);
 });
 
 test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내를 닫으면 초점은 메뉴 버튼으로', () => {
@@ -65,4 +52,10 @@ test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내
   assert.match(FILM, /window\.removeEventListener\(GUIDE_OPEN_EVENT, onGuide\)/);
   assert.match(HOME, /<button ref=\{menuBtnRef\} type="button" className="bh-menu-btn"/);
   assert.match(HOME, /openGuide\(undefined, menuBtnRef\.current\)/);
+});
+
+test('2026-10-05 대표: 회사 소개 칸의 서비스·문의·약관 줄 삭제 · 바닥글(이용 안내·이용약관·개인정보처리방침·문의)은 그대로', () => {
+  assert.doesNotMatch(HOME, /className="bh-rows"/);
+  const foot = HOME.slice(HOME.lastIndexOf('bh-legal-link'));
+  for (const t of ['이용 안내', 'href="/legal/terms">이용약관', 'href="/legal/privacy">개인정보처리방침', 'mailto:0423doit@gmail.com']) assert.ok(foot.includes(t), t);
 });
