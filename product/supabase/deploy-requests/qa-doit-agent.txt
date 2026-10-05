@@ -1,0 +1,2 @@
+# QA doit-agent 배포 요청(이 파일을 고친 커밋이 echo-qa 에 들어가면 QA 에만 배포)
+2026-10-05 echo-qa 5fb1af6 · 대표 승인: QA 서버 함수 배포(타로 해석 agent_card · 참고 이야기 agent_ref · 회사 예산 연결[꺼짐])
