@@ -4,13 +4,14 @@
    :root:root 를 앞에 붙인 것은 mobile-polish.css(:root …)보다 한 단계 세게 하려는 것(불러오는 순서와 무관).
    바꾸는 것 = 생김새만: 판 색·투명도·흐림 · 겹친 판 걷어 내기 · 버튼 높이·정렬 · 맨 위 메뉴 · 여백. 글·버튼 뜻·서버·흐름 0.
    - 유리: 짙은 청록 판(청록 62%) → 뒤 무지개빛이 비치는 연기빛 유리(먹색 rgb(8 22 28) 52%) + 흐림 18px.
-     대비(계산값): 파스텔 바탕 60색 중 가장 밝은 곳 위에서도 흰 글자 4.66:1 이상(WCAG AA 4.5:1) · 버튼 56% = 5.24:1 · 말풍선 54% = 4.94:1.
+     대비(계산값): 바탕 그림(public/doit/bg/echo-mobile-bg.webp)의 가장 밝은 점 rgb(247 253 183) 위에서도 흰 글자 4.73:1 이상(판 58%) · 버튼 60% 5.05:1.
+     파스텔 대체 바탕(pastel-bg.css 색) 위에서는 그보다 높다.
      (처음 쓴 청록 42% 는 3.04:1 로 미달 — Codex P2 지적으로 바꿈) */
 
 :root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
-  --echo-glass:rgb(8 22 28/.52);
-  --echo-glass-soft:rgb(8 22 28/.54);
-  --echo-glass-btn:rgb(8 22 28/.56);
+  --echo-glass:rgb(8 22 28/.58);
+  --echo-glass-soft:rgb(8 22 28/.58);
+  --echo-glass-btn:rgb(8 22 28/.6);
   --echo-glass-line:rgb(255 255 255/.42);
   --echo-glass-blur:blur(18px) saturate(1.35);
 }
@@ -90,18 +91,7 @@
 :root:root .echo-dialogue.echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo::before{left:-42px;top:0;width:34px;height:34px;box-shadow:0 0 0 3px rgb(255 255 255/.35),0 0 16px rgb(120 240 230/.75)}
 
 
-/* ── 바탕 빛의 흐름(시안 1·5·6번 「빛이 흐르는 무지개빛」): 바탕 색(pastel-bg.css · 실측 LOCK)은 그대로 두고, 그 위 막(::after)에
-   ① 대각선으로 지나가는 옅은 흰 빛 두 줄(최대 12%) ② 가운데 청록 깊이만 더한다. 막은 원래 화면 전환용 어둠(--echo-pastel-veil)도 그대로 맡는다.
-   흰 빛 12% 를 더한 가장 밝은 곳에서도 유리 판 위 흰 글자 4.54:1 이상(검사가 계산). 움직임 줄이기면 빛은 멈춘다. */
-:root:root :is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{
-  background:
-    linear-gradient(118deg,transparent 22%,rgb(255 255 255/.12) 30%,transparent 38%) 0 0/170% 170% no-repeat,
-    linear-gradient(118deg,transparent 52%,rgb(255 255 255/.08) 58%,transparent 64%) 0 0/170% 170% no-repeat,
-    radial-gradient(60% 38% at 38% 46%,rgb(30 150 165/.22),transparent 70%),
-    rgb(9 10 12/var(--echo-pastel-veil));
-  animation:echo-light-flow 16s ease-in-out infinite alternate}
-@keyframes echo-light-flow{from{background-position:0% 0%,0% 0%,0 0,0 0}to{background-position:100% 100%,100% 100%,0 0,0 0}}
-@media(prefers-reduced-motion:reduce){:root:root :is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{animation:none}}
+/* (2026-10-05) 바탕 빛 막(::after)은 지웠다 — 바탕과 바탕 그림은 #131 담당(pastel-bg.css 의 ::after 에 대표 승인 그림). 같은 요소·속성을 두 곳에서 덮지 않는다(Codex 5993339944). */
 
 /* 정정·확인이 390×844 한 화면에 들어오게(시안 4번은 카드 한 장): 칸 이름을 뜻 앞에 같은 줄로(작은 글씨) · 첫 안내는 한 줄 + 링크 */
 :root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li{display:block!important}

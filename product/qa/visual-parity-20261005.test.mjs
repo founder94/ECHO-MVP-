@@ -3,6 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const read = (f) => readFileSync(f, 'utf8');
 const CSS = read('src/doit/components/feature/visual-parity.css');
@@ -28,16 +29,17 @@ test('전역 오염 0: 모든 규칙이 앱 화면 틀(.doit-app-pastel · .echo
 });
 
 test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화면 바깥 판 0', () => {
-  assert.match(CSS, /--echo-glass:rgb\(8 22 28\/\.52\)/);
+  assert.match(CSS, /--echo-glass:rgb\(8 22 28\/\.58\)/);
   // 대비 계산: 파스텔 바탕(pastel-bg.css 의 모든 색) 위에 판을 겹친 색 vs 흰 글자 ≥ 4.5:1
   const cols = [...new Set(read('src/doit/components/feature/pastel-bg.css').match(/#[0-9a-fA-F]{6}/g))].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
   const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   for (const name of ['--echo-glass', '--echo-glass-soft', '--echo-glass-btn']) {
     const m = CSS.match(new RegExp(`${name}:rgb\\((\\d+) (\\d+) (\\d+)\\/(\\.\\d+)\\)`)); assert.ok(m, name);
     const g = [m[1], m[2], m[3]].map(Number), a = Number(m[4]);
-    // 바탕 위 흰 빛(최대 12%)이 지나가는 곳까지 넣어 가장 나쁜 경우로 잰다
-    const LIGHT = 0.12; assert.match(CSS, /rgb\(255 255 255\/\.12\) 30%/);
-    const worst = Math.min(...cols.map((c) => { const lit = c.map((v) => LIGHT * 255 + (1 - LIGHT) * v); const mix = lit.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
+    // 바탕 = 대표 승인 그림(#131) + 대체 파스텔 색. 그림의 가장 밝은 점은 따로 재어 둔 값(그림이 바뀌면 지문이 달라져 이 검사가 다시 재라고 실패한다).
+    const BG_SHA = 'f52e14b6af9bc8f39019f7117d66f487a5668c74984f8d69408534e5c63cdca3', BRIGHTEST = [247, 253, 183];
+    assert.equal(createHash('sha256').update(readFileSync('public/doit/bg/echo-mobile-bg.webp')).digest('hex'), BG_SHA, '바탕 그림이 바뀜 → 가장 밝은 점을 다시 재고 판 투명도를 확인');
+    const worst = Math.min(...[...cols, BRIGHTEST].map((c) => { const mix = c.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
     assert.ok(worst >= 4.5, `${name} 흰 글자 대비 ${worst.toFixed(2)}:1`);
   }
   assert.match(CSS, /--echo-glass-blur:blur\(18px\)/);
