@@ -10,6 +10,7 @@ import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type Consent
 import { authErrorText } from '@/lib/auth/authErrorText';
 import '@/doit/components/feature/app-pastel.css';
 import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
+import '@/doit/components/feature/visual-parity.css'; // 2026-10-05 승인 시안과 시각 일치(앱 화면 전용 · mobile-polish 뒤)
 
 export default function Signup() {
   const { signUp, signInWithGoogle } = useAuth();

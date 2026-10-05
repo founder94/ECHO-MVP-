@@ -2,21 +2,21 @@
    보고: docs/design/PARITY_REPORT_20261005.md. 화면 생김새만(글·서버·질문 로직·정정 4종·매칭 규칙 0).
    담당 경계(PR #131 ↔ PR #138, 한 파일 한 담당): 이 파일 = 홈 · 프로필 · 「오늘은 무엇부터」 · 윗줄 · 아래 탭만.
    대화 화면 · 첫 질문 · 정정 · 메뉴(≡) · 공통 판 색 토큰(echo-ui.css)은 PR #138(visual-parity.css) 담당 — 여기서 건드리지 않는다.
+   2026-10-05 21:22 KST 대표 「네가 고쳐!」: 이 파일은 PR #138 담당으로 넘어옴(#131 댓글 5994360174). 판·탭·주요 버튼 색 = 공통 유리 토큰(visual-parity.css) — 흰 글자 4.5:1 이상.
    범위: 파스텔 사용자 화면 루트 안쪽만 · 전역 body/:root 값 0. 다른 모양 파일보다 강하게 :root:root 로 시작한다. */
 
-/* 1. 홈·프로필 판: 짙은 회청색 판(mobile-polish 의 --echo-glass) → 시안의 청록 유리.
-   2026-10-05 Codex P2(4183198245): 흰 글자가 바탕 그림 가장 밝은 곳 rgb(247 253 183) 위에서도 4.5:1 이상 — 판 rgb(14 60 70/.70)=5.05:1 · 아래 탭 .74 · 주요 버튼 .72(qa/design-parity 계산 검사). */
+/* 1. 홈·프로필 판: 짙은 회청색 판(mobile-polish 의 --echo-glass) → 시안의 비치는 청록 유리 */
 :root:root .doit-app-pastel :is(.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state,.doit-profile-card){
-  background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.52)!important;
+  background:var(--echo-glass)!important;border:1px solid var(--echo-glass-line)!important;
   box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12)!important;
-  -webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);
+  -webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur);
 }
 
 /* 2. 윗줄: 짙은 띠 0 — 투명 머리줄(스크롤하면 같이 올라감 · 글 겹침 0) */
 :root:root .doit-app-pastel .doit-product-topbar{position:relative!important;background:transparent!important;border-bottom:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 
 /* 3. 아래 탭: 검정 판(.94) → 청록 유리 */
-:root:root .doit-app-pastel .doit-product-nav{background:rgb(14 60 70/.74)!important;border-top:1px solid rgb(255 255 255/.4)!important;box-shadow:0 -10px 30px rgb(20 60 70/.12)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-nav{background:var(--echo-glass)!important;border-top:1px solid var(--echo-glass-line)!important;box-shadow:0 -10px 30px rgb(20 60 70/.12)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
 :root:root .doit-app-pastel .doit-product-nav a{color:rgb(255 255 255/.8)}
 :root:root .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
 
@@ -29,7 +29,7 @@
 :root:root .doit-app-pastel .echo-ref-hero.echo-ref-hero--home .echo-ref-wordmark{display:none}
 :root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action{
   display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:16px;
-  background:rgb(14 60 70/.72)!important;border:1px solid rgb(255 255 255/.52)!important;color:#fff!important;-webkit-text-fill-color:#fff;
+  background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;color:#fff!important;-webkit-text-fill-color:#fff;
   box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);
 }
 :root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action *{color:#fff!important;-webkit-text-fill-color:#fff}
@@ -74,22 +74,8 @@
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty>svg{box-sizing:content-box;width:30px;height:30px;padding:37px;border-radius:50%;background:rgb(255 255 255/.16);border:1px solid rgb(255 255 255/.62);box-shadow:inset 0 1px 0 rgb(255 255 255/.45),0 10px 30px rgb(20 60 70/.14);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);margin-bottom:6px}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty p{margin:0;font-size:14px}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty span{font-size:13px;opacity:.92}
-:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.5)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
 :root:root .doit-app-pastel .doit-product-story .doit-profile-photo-note{margin:8px 2px 0;font-size:12px;line-height:1.55;text-align:center}
 /* 프로필 판 머리: 큰 DO IT 표시가 차지하던 위아래 여백을 줄여 얇은 줄 위계로 */
 :root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head{margin-bottom:12px}
 :root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head .doit-official-symbol{width:36px;height:36px;margin:-6px}
-
-/* 7. 프로필 준비(ProfileBuild · Codex echo-review 5993217604 ③): 시안 「나를 소개하는 작은 시작」처럼 가운데 제목 · 청록 유리 판 · 얇은 유리 입력 줄.
-   입력 항목·순서·필수 표시·글은 그대로(모양만). 판 안 흰 글자는 위 §1 과 같은 판 색(4.5:1 이상). 화면에 박힌 글자 색(style)을 이기려고 !important. */
-:root:root .doit-app-pastel .echo-prep .echo-prep-head{text-align:center}
-:root:root .doit-app-pastel .echo-prep .echo-prep-head :is(h1,p){color:#fff!important;text-shadow:0 1px 3px rgb(16 60 70/.3)}
-:root:root .doit-app-pastel .echo-prep .echo-prep-panel{background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.52)!important;box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
-:root:root .doit-app-pastel .echo-prep .echo-prep-panel :is(p,label,span,li){color:#fff!important}
-:root:root .doit-app-pastel .echo-prep .echo-prep-panel :is(input,textarea){min-height:52px;border-radius:14px!important;background:rgb(255 255 255/.10)!important;border:1px solid rgb(255 255 255/.5)!important;color:#fff!important;-webkit-text-fill-color:#fff}
-:root:root .doit-app-pastel .echo-prep .echo-prep-panel :is(input,textarea)::placeholder{color:rgb(255 255 255/.78)!important;-webkit-text-fill-color:rgb(255 255 255/.78)}
-:root:root .doit-app-pastel .echo-prep>div>p,:root:root .doit-app-pastel .echo-prep>div>div>p{text-shadow:0 1px 3px rgb(16 60 70/.35)}
-
-/* 8. 머리줄 이름(2026-10-05 대표 「DO IT = 회사 · ECHO = 모바일 웹」): D 심볼 + 서비스 이름 ECHO(시안처럼 넓은 자간). 화면 제목은 화면 읽기용으로만. */
-:root:root .doit-app-pastel .doit-product-topbar .echo-wordmark{color:#fff;letter-spacing:.14em;text-shadow:0 1px 3px rgb(16 60 70/.3)}
-:root:root .doit-app-pastel .doit-product-topbar .echo-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

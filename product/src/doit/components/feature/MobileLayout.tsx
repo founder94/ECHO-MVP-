@@ -3,6 +3,7 @@ import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
 import "./product-brand.css";
 import "./ref-parity.css"; // 2026-10-05 승인 시안 일치(마지막에 적용)
+import "./brand-parity.css"; // 2026-10-05 #131 프로필 준비·머리줄 이름(ref-parity 다음)
 
 interface MobileLayoutProps {
   children: ReactNode;

@@ -197,7 +197,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </ol>
       <form className="doit-connect-form doit-match-send" onSubmit={e => void submit(e, 'message')}>
         <label className="doit-connect-label" htmlFor={`message-${match.id}`}>이어서 이야기하기</label>
-        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={2} onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
+        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={1} placeholder="편하게 이야기해 주세요." onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>

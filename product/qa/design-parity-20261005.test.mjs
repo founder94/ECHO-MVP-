@@ -21,7 +21,8 @@ test('범위: 홈·프로필·무엇부터·윗줄·아래 탭만 — 대화·�
   }
   assert.doesNotMatch(rules, /--echo-glass\s*:/, '공통 판 색 토큰 0');
   assert.match(rules, /\.doit-product-topbar\{position:relative!important;background:transparent!important/);
-  assert.match(rules, /\.doit-product-nav\{background:rgb\(14 60 70\/\.74\)!important/);
+  // 2026-10-05 대표 「네가 고쳐!」: ref-parity 는 PR #138 담당으로 넘어옴 · 아래 탭 판 = 공통 유리 토큰(옅은 청록 30% 는 흰 글자 4.5:1 미달, Codex 4183198245)
+  assert.match(rules, /\.doit-product-nav\{background:var\(--echo-glass\)!important/);
 });
 
 test('겹치는 파일 0: 대화·첫 질문·메뉴 파일은 PR #138 담당이라 이 PR 의 시안 작업에서 바꾸지 않음', () => {
@@ -91,15 +92,15 @@ test('Codex 4183640424 · 대표 「글은 완성」: 가입 안내·첫 질문 
   assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>'));
 });
 
-test('Codex P2(4183198245): 이 파일의 판·아래 탭·주요 버튼 = 흰 글자 4.5:1 이상(바탕 그림 가장 밝은 점 위 · 흐림 전 최악 경우)', () => {
-  const css = src('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+test('Codex P2(4183198245): #131 모양 파일(brand-parity)의 판 = 흰 글자 4.5:1 이상(바탕 그림 가장 밝은 점 위 · 흐림 전 최악 경우) · ref-parity 는 #138 의 공통 유리 토큰', () => {
+  const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
   const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const bg = [247, 253, 183];
   // 흰 막(rgb 255 255 255/…)은 청록 판 안의 입력 줄에만 쓴다(§7) — 판 위에 겹친 색이라 따로 재지 않고, 그 판 색을 잰다
   const fills = [...css.matchAll(/background:rgb\((\d+) (\d+) (\d+)\/(\.\d+)\)!important/g)].map((m) => [[+m[1], +m[2], +m[3]], +m[4]]).filter(([c]) => c.join() !== '255,255,255');
   assert.match(css, /\.echo-prep-panel :is\(input,textarea\)\{[^}]*background:rgb\(255 255 255\/\.10\)!important/, '흰 막은 판 안 입력 줄에만');
-  assert.equal((css.match(/background:rgb\(255 255 255\//g) ?? []).length, 2, '판 안 입력 줄 + 글자 없는 둥근 사진 자리(카메라 그림만)뿐');
-  assert.ok(fills.length >= 4);
+  assert.equal((css.match(/background:rgb\(255 255 255\//g) ?? []).length, 1, '판 안 입력 줄뿐');
+  assert.ok(fills.length >= 1);
   for (const [c, a] of fills) { const mix = c.map((v, i) => v * a + bg[i] * (1 - a)); const ratio = 1.05 / (L(mix) + 0.05); assert.ok(ratio >= 4.5, `rgb(${c}/${a}) = ${ratio.toFixed(2)}:1`); }
 });
 
@@ -108,7 +109,8 @@ test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리
   assert.match(pb, /className="echo-prep flex flex-col min-h-screen"/);
   assert.equal((pb.match(/echo-prep-panel/g) ?? []).length, 3);
   for (const t of ['이제, 실제 나를 보여줄', '닉네임 *', 'id="profile-intro"', '나를 소개할 정보를 입력해요']) assert.ok(pb.includes(t), t);
-  const css = src('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(src('src/doit/components/feature/MobileLayout.tsx'), /import "\.\/ref-parity\.css";[^\n]*\nimport "\.\/brand-parity\.css";/, 'ref-parity 다음에 읽음');
   assert.match(css, /\.echo-prep \.echo-prep-head\{text-align:center\}/);
   assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(14 60 70\/\.70\)!important/);
 });
