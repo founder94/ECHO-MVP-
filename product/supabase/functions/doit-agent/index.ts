@@ -195,15 +195,23 @@ async function admitClaim(admin: Db, userId: string, o: { id: string; target: st
       const { data: again, error } = await admin.from("doit_request_events").update({ status: "pending", error_code: mark, created_at: now, updated_at: now })
         .eq("user_id", userId).eq("request_id", o.id).eq("action", CLAIM_ACTION).eq("status", reclaim.status).eq("updated_at", reclaim.updatedAt).select("request_id");
       if (error || !again || !again.length) return { res: busy(), done: false };
-      if (reclaim.paidUnknown) {
-        // 결과를 모르는 앞선 유료 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
-        const { error: keepError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: o.target, status: "applied",
-          payload_hash: await sha256(`usage:claim_uncertain:${o.id}`), applied_revision: 0, response_payload: { usage: { why: "claim_uncertain", attempts_unknown: true } } });
-        if (keepError) logDiag({ step: "usage_log", error: true });
-      }
     } else {
       const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: o.id, action: CLAIM_ACTION, target_id: o.target, status: "pending", error_code: mark, payload_hash: o.hash });
       if (error) return { res: error.code === "23505" ? busy() : fail("ERROR", "서버 오류가 발생했어요.", 500, o.origin), done: false };
+    }
+    // 2026-10-05 Codex echo-review(5990414265): 자리 쓰기가 늦어 그 사이 잠금이 넘어갔으면(다른 요청이 내 자리를 못 본 채 셌을 수 있음) AI 를 부르지 않는다.
+    //   자리를 쓴 「뒤」에 잠금 판 번호를 한 번 더 확인 — 잃었으면 내 자리를 놓고(결과 모르던 유료 자리였으면 불확실 그대로) 503 · 업체 호출 0.
+    const held = await renewAdmission(admin, userId, lock);
+    if (!held) {
+      await settleClaim(admin, userId, o.id, reclaim?.paidUnknown ? TURN_UNCERTAIN : "LOST_LOCK");
+      return { res: fail("BUSY", "요청이 몰렸어요. 잠시 뒤 다시 보내 주세요.", 503, o.origin), done: false };
+    }
+    lock = held;
+    if (reclaim?.paidUnknown) {
+      // 결과를 모르는 앞선 유료 시도는 하루 한도에서 빼지 않는다(사용 기록 한 줄로 남김 · 수치 모름)
+      const { error: keepError } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: crypto.randomUUID(), action: USAGE_ACTION, target_id: o.target, status: "applied",
+        payload_hash: await sha256(`usage:claim_uncertain:${o.id}`), applied_revision: 0, response_payload: { usage: { why: "claim_uncertain", attempts_unknown: true } } });
+      if (keepError) logDiag({ step: "usage_log", error: true });
     }
     return { res: null, done: false };
   } finally { await unlockAdmission(admin, userId, lock); }
