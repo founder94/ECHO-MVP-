@@ -1,5 +1,5 @@
 // doit-agent 질문 품질(2026-10-04~05 QA 대표 실기기) — 가짜 AI 기준(실제 AI 품질 판정 아님). 실행: node --test qa/doit-agent-quality-20261005.test.mjs
-// 확인: ① (2026-10-05 대표 최신 계약으로 바뀜) 처음 세 질문도 자유 글쓰기 기본 · 보기는 막혔을 때만 2~4개 ② 처음 세 질문에 AI 가 만남 준비(연락·카톡·장소·약속 잡기)로 끌고 가지 않음
+// 확인: ① 처음 세 질문 = 보기 3~4개 먼저 펼침 · 네 번째부터 자유 입력 먼저 ② 처음 세 질문에 AI 가 만남 준비(연락·카톡·장소·약속 잡기)로 끌고 가지 않음
 //       — 사용자가 먼저 꺼낸 말(「카페에서 얘기하는 게 좋아」)을 잇는 것은 허용 · 「약속 시간 잘 지키는 게 중요해요?」는 가치 질문이라 허용
 //       ③ 버튼 글자를 「~라는 말」로 따와 묻지 않음 ④ 나뉜 답(「남자면 술, 여자면 카페」)의 한쪽만 묻지 않음 ⑤ 보기를 가리키는 질문은 보기와 함께만
 import test from 'node:test';
@@ -30,23 +30,19 @@ const fresh = (goal = 'romantic') => { const st = A.newState({ tone: 'polite', g
 // 처음 질문 셋을 이미 한 상태(만남 준비 금지 구간이 끝남)
 const afterThree = () => { const st = fresh(); for (let i = 0; i < 3; i++) st.asked.push({ type: 'core', purpose: PURP[i], text: QS[i] }); st.current = st.asked.at(-1); return st; };
 
-test('① 2026-10-05 대표 최신 계약: 처음 세 질문도 자유 글쓰기가 기본 — 보기는 먼저 펼치지 않고(모델이 내도 들고만 있음) 「잘 모르겠어요」 뒤에만 2~4개', async () => {
-  assert.equal(A.OBJECTIVE_FIRST_QUESTIONS, 3, '처음 세 질문 구간은 만남 준비 금지에만 쓴다');
-  assert.equal(typeof A.ensureObjectiveFirst, 'undefined', '보기 자동 펼침 함수 0(superseded)');
+// 2026-10-05 대표 최신 계약(PR #132 echo-spec 20261005-plan-a-answer-emoji-contract): 질문은 주관식(자유 글쓰기)이 본체 ·
+//   보기(구조대 2~4개)는 「잘 모르겠어요」·도움 요청 등 막혔을 때만. 처음 세 질문도 보기를 먼저 펼치지 않는다(앞선 「처음 세 질문 버튼 중심」 판단은 이 계약으로 대체).
+test('① 처음 세 질문도 주관식이 먼저 — 보기를 먼저 펼치지 않고, 보기 만들기 호출도 따로 하지 않는다', async () => {
   const st = fresh();
   for (let i = 0; i < 3; i++) {
-    const calls = [];
-    const llm = async (kind) => { calls.push(kind); return kind === 'turn' ? turnJson({ extracted: i ? [] : [{ purpose: 'relationship_intent', note: '연애로 이어질 만남', quote: PURPOSE_BUTTON }], next: { type: 'core', purpose: PURP[i], question: QS[i], hint: '', choices: CH[i] } }) : '{}'; };
+    const kinds = [];
+    const llm = async (kind) => { kinds.push(kind); return kind === 'turn' ? turnJson({ extracted: i ? [] : [{ purpose: 'relationship_intent', note: '연애로 이어질 만남', quote: PURPOSE_BUTTON }], next: { type: 'core', purpose: PURP[i], question: QS[i], hint: '', choices: CH[i] } }) : JSON.stringify({ choices: CH[i] }); };
     const { response } = await A.runTurn(st, ANS[i], llm);
     assert.equal(response.question, QS[i], `q${i + 1}`);
-    assert.equal(A.rescueView(st).show, false, `q${i + 1} 보기 먼저 펼침 0(주관식 본체)`);
-    assert.ok(!calls.includes('choices'), `q${i + 1} 보기 만들기 추가 호출 0`);
+    assert.equal(A.rescueView(st).show, false, `q${i + 1} 보기를 먼저 펼치지 않음`);
+    assert.ok(!kinds.includes('choices'), `q${i + 1} 보기만 따로 청하는 호출 0`);
   }
-  // 막히면(앱의 「잘 모르겠어요」 = agent_rescue → requestRescue) 그때 보기 2~4개 — 서버가 거른 보기만
-  const r = await A.requestRescue(st, async (kind) => kind === 'choices' ? JSON.stringify({ choices: CH[2] }) : '{}');
-  assert.equal(r.ok, true);
-  const v = A.rescueView(st);
-  assert.equal(v.show, true, '잘 모르겠어요 뒤에는 보기를 펼친다'); assert.ok(v.options.length >= 2 && v.options.length <= 4, `보기 2~4개 (${v.options.length})`);
+  assert.equal(typeof A.ensureObjectiveFirst, 'undefined', '처음 세 질문 보기 자동 펼침 함수 없음');
 });
 
 test('② 처음 세 질문: AI 가 꺼낸 만남 준비 질문은 막고, 사용자가 꺼낸 말을 잇는 질문은 허용', () => {
@@ -129,34 +125,29 @@ test('Codex P2 ②: 보기 질문을 바꿔 쓸 때도 일반 질문 검사를 �
   }
 });
 
-test('Codex P2 ③: 서버 안내 두 줄을 이미 썼으면 이미 한 질문을 다시 내지 않는다', async () => {
+test('Codex P2 ③ + 대표 계약: 안내 줄을 이미 썼으면 이미 한 질문·고정 질문 목록으로 메우지 않고 명시적 실패(상태 그대로 · 다시 보내기)', async () => {
   const Q0 = '이런 것 중 뭐가 더 좋아요?';
   const st = afterThree();
   for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite')]) st.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
   st.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: '조용한 사람이 좋아요', kind: 'answer', saved: true, question: Q0 });
   const cur = { type: 'core', purpose: 'relationship_style', text: Q0 }; st.asked.push(cur); st.current = cur;
   const before = st.asked.slice(0, -1).map((a) => a.text);
-  const response = { question: Q0 };
-  const llm = async () => { throw new Error('rewrite failed'); };
-  await A.enforceChoiceContract(st, llm, obsOf(), response);
-  assert.ok(!before.includes(response.question), `이미 한 질문을 다시 냄: ${response.question}`);
-  assert.equal(response.question, A.easeFallbackText('polite'), '세 번째 안내(보기 가리킴 0)');
-  assert.ok(!A.refersToChoices(response.question));
-  // 안내 줄을 모두 썼어도 보기 없는 보기 질문은 내보내지 않는다(Codex P2 재검수)
+  const response = { question: Q0 }; const o = obsOf();
+  await A.enforceChoiceContract(st, async () => { throw new Error('rewrite failed'); }, o, response);
+  assert.equal(response.error, 'QUESTION', '명시적 실패');
+  assert.ok(!before.includes(response.question) || response.question === Q0);
+  assert.ok(o.retry.includes('choice_ref_unresolved'));
+  assert.equal(A.SAFE_LINES, undefined, '고정 질문 목록 없음');
+  // 안내 줄이 남아 있으면 그것을 쓴다(기존 동작)
   const st2 = afterThree();
-  for (const t of [A.talkFallbackText('polite'), A.fillFallbackText('polite'), ...A.SAFE_LINES.polite]) st2.asked.splice(1, 0, { type: 'core', purpose: 'relationship_style', text: t });
   st2.turns.push({ n: 1, ai: QS[2], question_purpose: 'boundaries', question_type: 'core', user: '조용한 사람이 좋아요', kind: 'answer', saved: true, question: Q0 });
   const cur2 = { type: 'core', purpose: 'relationship_style', text: Q0 }; st2.asked.push(cur2); st2.current = cur2;
-  const r2 = { question: Q0 }; const o2 = obsOf();
-  await A.enforceChoiceContract(st2, llm, o2, r2);
-  assert.notEqual(r2.question, Q0); assert.ok(!A.refersToChoices(r2.question)); assert.equal(st2.current.text, r2.question);
-  assert.ok(A.SAFE_LINES.polite.includes(r2.question)); assert.ok(o2.retry.includes('choice_ref_bank_reused'));
-  assert.ok(A.SAFE_LINES.polite.length > A.MAX_CORE_QUESTIONS + 1, '안내 줄 수 > 한 대화 질문 수');
-  for (const tone of ['polite', 'casual', 'formal']) for (const l of A.SAFE_LINES[tone]) { assert.ok(!A.refersToChoices(l), l); assert.ok(!A.logisticsQuestion(l), l); assert.match(l, /\?$/); }
+  const r2 = { question: Q0 };
+  await A.enforceChoiceContract(st2, async () => { throw new Error('rewrite failed'); }, obsOf(), r2);
+  assert.equal(r2.error, undefined); assert.ok(!A.refersToChoices(r2.question)); assert.equal(st2.current.text, r2.question);
 });
 
-// Codex 리뷰(PR #132 · da0b5f5) P2 두 건 재현
-test('Codex P2 ④: 「보기 다 아니에요」 뒤에도 보기를 가리키는 질문을 보기 없이 남기지 않는다(모델 호출 0)', async () => {
+test('Codex P2 ④: 「보기 다 아니에요」 뒤에도 보기를 가리키는 질문을 보기 없이 남기지 않는다(안내 줄이 있으면 모델 호출 0)', async () => {
   const Q0 = '이런 것 중 뭐가 더 좋아요?';
   const st = afterThree();
   const cur = { type: 'core', purpose: 'relationship_style', text: Q0, choices: ['조용한 카페', '같이 걷기', '영화 보기'], rescue_show: true };
@@ -166,7 +157,6 @@ test('Codex P2 ④: 「보기 다 아니에요」 뒤에도 보기를 가리키�
   assert.equal(calls, 0, '모델 호출 0');
   assert.ok(!A.refersToChoices(response.question), `보기 없이 보기 가리킴: ${response.question}`);
   assert.equal(st.current.text, response.question); assert.equal(st.current.choices, null);
-  assert.ok(!st.asked.slice(0, -1).some((a) => a.text === response.question), '이미 한 질문 아님');
   // 보기를 가리키지 않는 질문이면 질문은 그대로(예전 동작)
   const st2 = afterThree();
   const cur2 = { type: 'core', purpose: 'relationship_style', text: '처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기'], rescue_show: true };
@@ -197,4 +187,23 @@ test('Codex P2 ⑥: 「그런 경우는 별로 없었어요」는 나뉜 답이 
   assert.equal(A.conditionalAnswer('친구인 경우엔 카페, 연인인 경우엔 산책이 좋아요'), true);
   assert.equal(A.conditionalAnswer('경우마다 달라요'), true);
   assert.equal(A.conditionalAnswer('상황에 따라 달라요'), true);
+});
+
+// Codex 리뷰(PR #132 · 2877bb3) P2 두 건 재현 — 나뉜 답 뒤 한쪽만 묻는 질문
+test('Codex P2 ⑦: 「경우」만 들어간 한쪽 질문은 나뉜 답을 담은 것이 아니다', () => {
+  const L = '처음 만나면 남자면 술, 여자면 카페';
+  assert.equal(A.keepsCondition(L, '남자인 경우엔 술이 좋아요?'), false);
+  assert.equal(A.keepsCondition(L, '술이 좋아요, 아니면 다른 게 좋아요?'), false);
+  assert.equal(A.keepsCondition(L, '남자랑 여자랑 다르게 하는 이유가 있어요?'), true);
+  assert.equal(A.keepsCondition(L, '남자일 땐 술, 여자일 땐 카페면 뭐가 편해요?'), true);
+});
+
+test('Codex P2 ⑧: 다시 쓰기가 모두 실패해도 한쪽만 묻는 앞선 시도를 되살리지 않는다', async () => {
+  for (const ONE of ['술 얘기는 재밌어요?', '남자랑 술 마시면 무슨 얘기 해요?']) {
+    // 처음 세 질문(목적 칸 아직 열림)을 마친 상태 — 다음 질문의 목적 칸이 남아 있어야 앞선 시도 되살리기 길로 간다
+    const st = fresh(); for (const q of QS.slice(0, 3)) st.asked.push({ type: 'core', purpose: 'opening', text: q }); st.current = st.asked.at(-1);
+    const llm = async (kind) => { if (kind === 'turn') return turnJson({ next: { type: 'core', purpose: 'values_character', question: ONE, hint: '', choices: [] } }); throw new Error('rewrite failed'); };
+    const { response, obs } = await A.runTurn(st, '처음 만나면 남자면 술, 여자면 카페', llm);
+    assert.notEqual(response.question, ONE, `한쪽 질문이 되살아남: ${response.question} ${JSON.stringify(obs.retry)}`);
+  }
 });

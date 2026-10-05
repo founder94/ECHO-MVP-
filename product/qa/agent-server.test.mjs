@@ -930,7 +930,6 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
-  // 2026-10-05 대표 최신 계약 「주관식 본체 + 필요할 때 구조대 2~4개」: 처음 질문도 보기를 먼저 펼치지 않는다(같은 날 앞선 「첫 2~3회 버튼 중심」은 superseded)
   assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: false, fallback: false }, '보기는 들고 있되 먼저 펼치지 않음 · 「잘 모르겠어요」는 보기에서 빠짐');
   assert.equal(start.body.session.current_choices, null);
   const turnsBefore = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length; const callsBefore = s.aiCalls.length;
@@ -961,7 +960,7 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
 // ── 2026-10-03 대표 「3개 AI 제공사 통합」: 서버 선택 규칙(modelRouter)을 실제 doit-agent 흐름으로 — 가짜 DB · 가짜 제공사 응답(실제 AI 호출 0 · 실제 AI 품질 판정 아님).
 // 정책·모델 이름은 시험용 가짜 이름이다(실제 승인 모델 아님).
 const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true, enabled: true }, ...(o.providers ?? {}) },
-  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) } });
+  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) }, ...(o.circuit ? { circuit: o.circuit } : {}) });
 const ENV3 = (o) => ({ AI_POLICY: POLICY(o), ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' });
 const sessionRow = (s) => s.tables.doit_request_events.find((x) => x.action === 'agent_session');
 const startWith = async (s, h, first = '연애') => {
@@ -1317,7 +1316,8 @@ test('PR103 경계 — 잘렸지만 JSON 모양은 맞는 응답(실제 index.ts
 test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청에서 같이 일어나도 하나의 예산 · 시도 수 = 실제 업체 호출 수 · 상한에서 멈추고 상태 그대로', async () => {
   // 요청 토큰 상한은 보장된 상한(입력 바이트 + 출력 상한)으로 본다(Codex 리뷰 5400556217 P1) → 사용량 없는 실패 2번이 각각 ~1.5만을 붙잡으므로
   // 이 검사의 1)·2)는 시도 수·전환을 보려고 토큰 상한을 6만으로 둔다. 기본 3만에서의 동작은 3)에서 따로 확인.
-  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
+  // 이 검사는 예산·시도 수 상한을 본다 — 연속 오류 차단기(3번)는 따로 검사하므로 여기서는 열리지 않게 둔다(앞선 턴의 우연한 성공 호출 수에 기대지 않음 · 2026-10-05).
+  const s = newState(); s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
   const sid = await RUNSEQ(s, h);
   // 1) anthropic 500 → openai 깨진 JSON(형식) → Agent 가 previous_attempt 로 다시 청함 → anthropic 500 → openai 정상
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
@@ -1329,19 +1329,16 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   assert.equal(rec.ai_usage.attempts, s.providerCalls.length, '형식 재요청·전환 모두 같은 예산의 시도로 셈');
   assert.ok(rec.retry.includes('format'));
   // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
-  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
+  s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
   const before = structuredClone(sessionRow(s));
-  // 새 함수 인스턴스(업체 건강 상태 초기화): 1)에서 anthropic 이 두 번 실패한 연속 오류가 남아 있으면 2)의 첫 실패로 차단기가 열려 「상한 3에서 멈춤」 대신 차단기 건너뛰기를 보게 된다.
-  //   이 검사는 요청당 호출 상한만 본다(차단기는 따로 검사됨). 2026-10-05: 예전엔 처음 질문 보기 만들기의 성공 호출이 우연히 연속 오류를 지워 주고 있었다.
-  const h2 = load(s);
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
-  const capped = await say3(h2, sid, '솔직한 사람');
+  const capped = await say3(h, sid, '솔직한 사람');
   assert.equal(capped.status, 502); assert.equal(s.providerCalls.length, 3, '상한 3 = 실제 업체 호출 3');
   sameButBudget(sessionRow(s), before);
   const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
   assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
   // 3) 기본 요청 토큰 상한(3만): 사용량 없는 실패가 붙잡은 보장 상한 + 다음 시도 상한이 3만을 넘으면 보내지 않고 멈춤(request_budget) · 상태 그대로
-  s.env = ENV3({ limits: { same_provider_retries: 0 } });
+  s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0 } });
   const before3 = structuredClone(sessionRow(s));
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
   const tight = await say3(h, sid, '솔직한 사람');

@@ -75,7 +75,7 @@ test('v2.5.5 다시 청한 질문도 설문형이면 거절 이유와 함께 한
   assert.equal(purposes.length, 3, 'v2.5.5 같은 목적 두 번(두 번째는 거절 이유를 알려 줌) + 다른 목적 한 번');
   assert.equal(purposes[0], purposes[1]); assert.notEqual(purposes[1], purposes[2]);
   assert.equal(whys[0], null); assert.ok(whys[1], '두 번째 다시 쓰기에 거절 이유를 알린다');
-  assert.equal(r.response.question, A.talkFallbackText('polite')); // 2026-10-05 canon: 처음 세 질문엔 곳 안내 대신 이야기 쪽 안내
+  assert.equal(r.response.question, A.talkFallbackText('polite')); // 2026-10-05 처음 세 질문엔 만남 준비(곳) 안내 대신 이야기 쪽 안내
   assert.ok(!A.infoKindQuestion(r.response.question, PHRASE) && !A.surveyQuestion(PHRASE, r.response.question));
   assert.ok(r.obs.retry.includes('question_fallback'));
 });
@@ -96,7 +96,7 @@ test('v2.5.4 앞선 시도 중 규칙을 지킨 질문이 있으면 서버 안�
 test('v2.5.4 첫 청하기에서 사람 말이면 추가 호출 0', async () => {
   const st = start();
   const seen = [];
-  const llm = async (kind) => { seen.push(kind); return kind === 'turn' ? JSON.stringify({ ...JSON.parse(turnOut('천천히면 처음엔 가벼운 얘기부터가 편해요?')), next: { ...N('relationship_style', '천천히면 처음엔 가벼운 얘기부터가 편해요?'), choices: ['요즘 지내는 얘기', '좋아하는 음식 얘기', '쉬는 날 얘기'] } }) : JSON.stringify({ reply: '오, 좋죠.' }); }; // 모델이 낸 보기는 들고만 있다(먼저 펼치지 않음 · 추가 호출 0)
+  const llm = async (kind) => { seen.push(kind); return kind === 'turn' ? turnOut('천천히면 처음엔 가벼운 얘기부터가 편해요?') : JSON.stringify({ reply: '오, 좋죠.' }); }; // 2026-10-05 처음 세 질문엔 만남 준비(연락) 질문 대신 이야기 쪽
   const r = await A.runTurn(st, PHRASE, llm);
   assert.equal(r.response.question, '천천히면 처음엔 가벼운 얘기부터가 편해요?');
   assert.deepEqual(seen, ['turn']);
@@ -194,7 +194,7 @@ test('10-01 contract: every question keeps server-screened rescue options (2–4
     ? JSON.stringify(T({ reply: '좋죠.', extracted: [X('relationship_intent', '편하게 얘기할 친구', '편하게 얘기할 친구')], next: { ...N('relationship_style', '편하게 얘기할 친구랑 수다 떨면 편해요?'), choices: ['카페', '공원'] } }))
     : JSON.stringify({ reply: '좋죠.' }));
   assert.deepEqual(A.choicesFor(st), ['카페', '공원'], '보통 답 뒤에도 보기는 서버가 들고 있다(구조대)');
-  assert.equal(A.rescueView(st).show, false, '보통 답 뒤에는 먼저 펼치지 않는다(주관식 본체 · 2026-10-05 대표 최신 계약 — 처음 세 질문도 같음)');
+  assert.equal(A.rescueView(st).show, false, '보통 답 뒤에는 먼저 펼치지 않는다(주관식 본체)');
   assert.ok(first.response.question);
   await A.runTurn(st, '잘 모르겠어요', async (kind) => kind === 'turn'
     ? JSON.stringify(T({ kind: 'unsure', reply: '', next: { ...N('contact_rhythm', '처음엔 어떻게 알아가는 게 편해요?'), choices: ['문자로 천천히', '바로 통화', '만나서 얘기'] } }))
