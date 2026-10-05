@@ -582,7 +582,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null; choices?: string[] } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 
@@ -1272,7 +1272,7 @@ function finishWith(st: AgentState, raw: unknown) {
   return { closing: st.closing, summary: st.summary, profile, handoff: matchingHandoff(profile) };
 }
 
-async function call(llm: Llm, obs: Obs, kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices", system: string, input: unknown): Promise<string> {
+export async function call(llm: Llm, obs: Obs, kind: Parameters<Llm>[0], system: string, input: unknown): Promise<string> { // card_reading(카드 읽기 · card-reading.ts)도 같은 관측
   const t0 = Date.now();
   try {
     const r = await llm(kind, system, input);
@@ -1727,3 +1727,4 @@ export const toneMismatch = (tone: Tone, text: string) => { const o = observedTo
 // 프롬프트 판 = 네 프롬프트(모든 말투) 글자의 해시. 파일 끝에서 계산한다(위의 프롬프트 함수·상수가 모두 준비된 뒤).
 // Codex P2(4182589936): 입력 칸이 켜졌을 때 붙는 지시 줄도 판 번호에 넣는다(같은 판 이름으로 다른 지시가 나가지 않게).
 export const PROMPT_VERSION = "p-" + fnv((["formal", "polite", "casual"] as Tone[]).map((t) => openingPrompt(t) + turnPrompt(t) + closingPrompt(t) + introPrompt(t)).join("|") + "|flags:" + TURN_FLAG_RULES.map(([k, r]) => `${k}=${r}`).join("|"));
+

@@ -1,4 +1,6 @@
 import { getSupabase } from "./supabase";
+import { agentTarot, ECHO_AGENT_ENABLED } from "./agentApi";
+import { UnderstandingError } from "./understandingApi";
 
 // A구조 전용 OpenAI 서버 호출 서비스 계층.
 // 브라우저는 OpenAI 를 직접 호출하지 않고, 반드시 이 모듈을 통해
@@ -127,25 +129,36 @@ export interface TarotInterpretation {
   cards: { label: string; value: string }[];
 }
 
+// 2026-10-05 대표 「타로 해석 실패 이유를 알아내서 최종 완성」: 원인 = QA 서버에 예전 openai-chat 함수가 없음(호출 404 · 모든 오류를 같은 「잠시 후」로 숨김).
+//   → 해석은 ECHO 서버(doit-agent agent_tarot · 로그인 · 하루 한도 · 사용 기록)로 부른다. 실패는 종류별 안내(TarotError.kind) — 화면은 같은 카드로 다시 시도·끝내기를 준다.
+export type TarotErrorKind = "login" | "not_ready" | "limit" | "busy" | "failed";
+export class TarotError extends Error { kind: TarotErrorKind; constructor(kind: TarotErrorKind, message: string) { super(message); this.kind = kind; } }
+export const TAROT_ERROR: Record<TarotErrorKind, string> = {
+  login: "로그인하면 이 카드의 해석을 볼 수 있어요. 고른 카드는 그대로 둘게요.",
+  not_ready: "해석 기능을 아직 준비하고 있어요. 고른 카드는 그대로 볼 수 있어요.",
+  limit: "오늘 볼 수 있는 해석을 다 봤어요. 내일 같은 카드로 다시 볼 수 있어요.",
+  busy: "요청이 몰렸어요. 잠시 뒤 같은 카드로 다시 해 볼 수 있어요.",
+  failed: "해석을 만들지 못했어요. 같은 카드로 다시 해 볼 수 있어요.",
+};
+export const tarotErrorKind = (code: string | undefined): TarotErrorKind =>
+  code === "UNAUTHORIZED" ? "login"
+    : code === "AI_NOT_CONFIGURED" || code === "NOT_FOUND" ? "not_ready"
+      : code === "AI_DAILY_LIMIT" || code === "AI_BUDGET" ? "limit"
+        : code === "RATE_LIMITED" || code === "BUSY" || code === "REQUEST_CONFLICT" || code === "AI_USAGE_UNKNOWN" || code === "CLAIM_UNCONFIRMED" ? "busy"
+          : "failed";
+
 export async function generateTarotInterpretation(
   cardName: string,
   purpose: string,
 ): Promise<TarotInterpretation> {
-  const content = await invokeChat({
-    type: "tarot_reading",
-    cardName,
-    purpose,
-  });
-
-  const parsed = extractJson<TarotInterpretation>(content);
-
-  if (parsed?.summary) {
-    return {
-      summary: parsed.summary.trim(),
-      tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 3) : [],
-      cards: Array.isArray(parsed.cards) ? parsed.cards.slice(0, 3) : [],
-    };
+  const supabase = getSupabase();
+  const userId = supabase ? (await supabase.auth.getSession()).data.session?.user.id : undefined;
+  if (!userId) throw new TarotError("login", TAROT_ERROR.login);
+  if (!ECHO_AGENT_ENABLED) throw new TarotError("not_ready", TAROT_ERROR.not_ready);
+  try {
+    return await agentTarot(userId, cardName, purpose);
+  } catch (e) {
+    const kind = tarotErrorKind(e instanceof UnderstandingError ? e.code : undefined);
+    throw new TarotError(kind, TAROT_ERROR[kind]);
   }
-
-  throw new Error("잠시 후 다시 시도해 주세요.");
 }

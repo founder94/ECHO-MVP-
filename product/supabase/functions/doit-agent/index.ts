@@ -8,6 +8,7 @@
 // - 로그에는 코드·개수·시간만 남긴다(사용자 원문·토큰·키 0).
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
+import * as CR from "./card-reading.ts"; // 카드 해석(대화 상태·매칭과 분리 · agent_card 한 곳에서만 씀)
 import { FAILURE_INTELLIGENCE_VERSION } from "./failure-intelligence.ts";
 import { routerFromEnv, type ModelRouter, type RouterHealth } from "./modelRouter.ts";
 import * as R from "./run.ts";
@@ -39,7 +40,7 @@ const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
 const LOCK_WAIT_MS = 25;
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card"]);
 const INTRO_USES = new Set(["as_is", "edited", "own"]);
 const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const TEXT_MAX = 1000;
@@ -157,9 +158,9 @@ async function settleClaim(admin: Db, userId: string, requestId: string, code: s
 }
 // 끝난 자리(시작·소개·보기 — 턴 줄로 바뀌지 않는 자리) = applied(하루 한도에 세지 않음 · 사용량은 사용 기록에)
 // Codex P2(4182821561): 쓰기 오류면 두 번 더 · 끝내 못 바꾸면 false — 부른 쪽은 「끝남」으로 답하지 않는다(자리는 처리 중으로 남아 하루 한도에 셈).
-async function finishClaim(admin: Db, userId: string, id: string, attempt?: number): Promise<boolean> {
+async function finishClaim(admin: Db, userId: string, id: string, attempt?: number, payload?: Json): Promise<boolean> {
   for (let i = 0; i < 3; i++) {
-    let q = admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString() })
+    let q = admin.from("doit_request_events").update({ status: "applied", error_code: null, updated_at: new Date().toISOString(), ...(payload ? { response_payload: payload } : {}) }) // payload = 같은 요청 재전송 때 돌려줄 결과(타로 해석)
       .eq("user_id", userId).eq("request_id", id).eq("action", CLAIM_ACTION).eq("status", "pending");
     if (attempt != null) q = q.eq("applied_revision", attempt);
     const { data, error } = await q.select("request_id");
@@ -611,6 +612,45 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (used >= USER_DAILY_TURNS + reserved) { logDiag({ step: "daily_limit", used }); return fail("AI_DAILY_LIMIT", "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.", 429, origin); }
       return null;
     };
+
+    // 2026-10-05 대표 지시 「카드 해석 실패 이유를 알아내서 최종 완성」(Codex echo-spec 20261005 카드 해석 A): QA 에 예전 openai-chat 이 없어 해석이 늘 실패했다.
+    //   카드 해석 = 로그인 사용자의 유료 호출 한 번 → 다른 경로와 같은 보호(AI 사전 확인 · 자리 잡기 · 하루 한도 · 사용 기록 한 줄 · 같은 요청 재전송 = 저장된 해석).
+    //   받는 것 = 카드 이름 + 관계 목적 글(선택) · 대화 상태·프로필·매칭 쓰기 0 · 해석 글은 이 요청 자리(claim) 안에만 남는다.
+    if (action === "agent_card") {
+      const input = CR.cardInput(body.cardName, body.purpose);
+      if (!input) return fail("BAD_REQUEST", "카드를 다시 골라 주세요.", 400, origin);
+      if (!aiReady("card_reading")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
+      const claimId = await derivedUuid(`${requestId}:claim:card`);
+      const admit = await admitClaim(admin, userId, { id: claimId, target: null, hash: await sha256(`card:${input.card}:${input.purpose}`), paid: true, capped: dailyCapped, origin });
+      if (admit.res) return admit.res;
+      if (admit.done) {
+        const { data: row } = await admin.from("doit_request_events").select("response_payload").eq("user_id", userId).eq("request_id", claimId).eq("action", CLAIM_ACTION).maybeSingle();
+        const kept = (row?.response_payload as Json | null)?.card;
+        return kept ? json({ ok: true, reading: kept, duplicate: true }, 200, origin) : fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
+      }
+      const attempt = admit.attempt;
+      const obs: A.Obs = { calls: [], retry: [] };
+      let reading: CR.CardReading | null = null;
+      try { reading = await CR.readCard(input.card, input.purpose, ctx.llm, obs); }
+      catch (e) {
+        const halt = haltedBy(router);
+        const ok = await keepUsage(ctx, null, halt ? `card_${halt}` : "card_error");
+        await settleClaim(admin, userId, claimId, keptOr(ok, halt ? `HALT_${halt}` : "AI_ERROR"), attempt);
+        if (halt) return haltFail(halt, origin);
+        logDiag({ step: "card", code: "ai_error", ai_errors: router.log.filter((x) => !x.ok).map((x) => `${x.provider ?? "-"}:${x.error}`), policy: router.policy.version });
+        void e; return fail("AI_ERROR", "해석을 만들지 못했어요. 같은 카드로 다시 해 볼 수 있어요.", 502, origin);
+      }
+      const usageOk = router.summary().calls > 0 ? await usageOnce(ctx, null, "card", claimId, attempt, aiTrace(router)) : true;
+      if (!reading) {
+        await settleClaim(admin, userId, claimId, keptOr(usageOk, "AI_FORMAT"), attempt);
+        logDiag({ step: "card", code: "format", calls: obs.calls.length });
+        return fail("AI_FORMAT", "해석 모양이 잘못 왔어요. 같은 카드로 다시 해 볼 수 있어요.", 502, origin);
+      }
+      if (!usageOk) { await settleClaim(admin, userId, claimId, TURN_UNCERTAIN, attempt); return json({ ok: true, reading }, 200, origin); } // 사용 기록을 못 남겼으면 자리 = 결과 모름(하루 한도에 계속 셈) · 해석은 보여 줌
+      if (!(await finishClaim(admin, userId, claimId, attempt, { card: reading as unknown as Json }))) return unconfirmed(origin);
+      logDiag({ step: "card", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, policy: router.policy.version });
+      return json({ ok: true, reading }, 200, origin);
+    }
 
     if (action === "agent_start") {
       // 이번 회차에 이미 대화가 있으면 새로 만들지 않고 그것을 돌려준다(같은 요청 재전송 포함).

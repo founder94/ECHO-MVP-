@@ -122,6 +122,16 @@ async function write<T>(userId: string, body: Record<string, unknown>, releaseOn
   }
 }
 
+// 2026-10-05 대표 「타로 해석 실패 이유를 알아내서 최종 완성」: 타로 해석 = ECHO 서버(agent_card · 로그인 · 하루 한도 · 같은 요청 재전송 = 보관한 해석).
+// 같은 카드로 다시 누르면 같은 요청 id(write 가 보관) → 서버가 끝난 해석을 그대로 돌려주거나, 실패한 자리를 다시 잡아 한 번만 부른다.
+export interface TarotReading { summary: string; tags: string[]; cards: { label: string; value: string }[] }
+const validTarot = (r: unknown): r is TarotReading => { const x = r as TarotReading | null; return !!x && typeof x.summary === 'string' && x.summary.length > 0 && Array.isArray(x.tags) && Array.isArray(x.cards); };
+export async function agentTarot(userId: string, cardName: string, purpose: string): Promise<TarotReading> {
+  const r = await write<{ reading: TarotReading }>(userId, { action: 'agent_card', cardName, purpose }, ['AI_FORMAT', 'AI_ERROR']);
+  if (!validTarot(r.reading)) throw new UnderstandingError('AI_FORMAT', '해석 모양이 잘못 왔어요.');
+  return { summary: r.reading.summary, tags: r.reading.tags.slice(0, 3), cards: r.reading.cards.slice(0, 3) };
+}
+
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
 // seed = 사주·타로 결과에서 들어왔을 때의 이야기 거리(결과 종류만 · 사용자 사실 아님). 서버가 모르면 무시하고 보통 대화로 시작한다.
 // goal = 고른 만남(목적 타일 id) — 서버는 같은 목적의 세션만 이어받는다(v2.4).
