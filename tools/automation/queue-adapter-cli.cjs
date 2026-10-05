@@ -75,7 +75,7 @@ function run(argv, env, store, getHead = ghHead, deps = {}) {
     catch { return { code: 1, out: { error: 'findings_lookup_failed' } }; } // no verdict without verified findings
   }
   // QUEUE_REVIEWER_PRINCIPAL (opt-in, default unset = OFF): login of an explicitly approved real User allowed to submit FAIL/BLOCKED verdicts; its PASS never completes a task.
-  const config = { strict: true, ...(env.QUEUE_SECURITY_GATE === '1' ? { securityGate: true } : {}), ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}),
+  const config = { strict: true, ...(env.QUEUE_SECURITY_GATE === '1' ? { securityGate: true, resolveEvidence: deps.resolveEvidence } : {}), // resolver: runtime-injected only, never from env/event ...(env.QUEUE_MAX_ROUNDS ? { maxRounds: Number(env.QUEUE_MAX_ROUNDS) } : {}),
     ...(env.QUEUE_REVIEWER_PRINCIPAL ? { reviewerPrincipal: { login: env.QUEUE_REVIEWER_PRINCIPAL, type: 'User' } } : {}) };
   const r = handle(st(), name, payload, delivery, config, 3, ctx);
   return { code: r.action === 'STOP' ? 2 : 0, out: { action: r.action, reason: r.reason, taskId: r.taskId } };
@@ -100,7 +100,7 @@ function runInit(argv, env, st) {
 function runDrain(env, st, getHead, deps) {
   if (!env.GITHUB_REPOSITORY) return { code: 1, out: { error: 'usage' } };
   const dispatch = deps.dispatch || ghWorkflowDispatcher(env); // workflow_dispatch (GITHUB_TOKEN-supported), typed inputs only
-  const r = drain(st(), dispatch, { securityGate: env.QUEUE_SECURITY_GATE === '1', getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
+  const r = drain(st(), dispatch, { securityGate: env.QUEUE_SECURITY_GATE === '1', resolveEvidence: deps.resolveEvidence, getHead: ref => getHead(env.GITHUB_REPOSITORY, Number(ref.split(':')[1])) });
   return { code: r.stopped && r.stopped !== 'halted' ? 3 : 0, out: { action: 'DRAIN', dispatched: r.dispatched.length, stopped: r.stopped } };
 }
 
@@ -120,7 +120,7 @@ function runVerifyDispatch(env, st, deps) {
   let r;
   try {
     r = verifyDispatch(st(), { key: env.DQ_KEY, action: env.DQ_ACTION, taskId: env.DQ_TASK_ID, ref: env.DQ_REF, sha: env.DQ_SHA || '' },
-      { getPr, actor: env.ACTOR, triggeringActor: env.TRIGGERING_ACTOR, claimId: env.CLAIM_ID, repo: env.GITHUB_REPOSITORY, maxRounds: env.QUEUE_MAX_ROUNDS ? Number(env.QUEUE_MAX_ROUNDS) : 5 });
+      { getPr, actor: env.ACTOR, triggeringActor: env.TRIGGERING_ACTOR, claimId: env.CLAIM_ID, repo: env.GITHUB_REPOSITORY, maxRounds: env.QUEUE_MAX_ROUNDS ? Number(env.QUEUE_MAX_ROUNDS) : 5, securityGate: env.QUEUE_SECURITY_GATE === '1', resolveEvidence: deps.resolveEvidence });
   } catch { return { code: 1, out: { error: 'verify_lookup_failed' } }; }
   return r.ok ? { code: 0, out: r } : { code: 4, out: { ok: false, reason: r.reason } };
 }

@@ -6,13 +6,15 @@ const { memoryStore, handle, CODEX } = require('./queue-adapter.cjs');
 const { initQueue, drain } = require('./queue-exec.cjs');
 const { run } = require('./queue-adapter-cli.cjs');
 
+// Runtime-injected fixture verifier (stands in for a real trusted verifier; NOT actual operating evidence).
+const trusted = (id, c) => ({ id, criterion: c.criterion, taskId: c.taskId, ref: c.ref, sha: c.sha, status: 'PASS', completed: true, trusted: true });
 const SHA = 'c'.repeat(40), OLD = 'd'.repeat(40), OWNER = { login: 'founder94', type: 'User' };
 const ev = (status = 'PASS', sha = SHA) => Object.fromEntries(REQUIRED.map(k => [k, { id: `ev-${k}`, status, sha }]));
 const exp = (id, n, over = {}) => ({ id, ref: `pr:${n}`, owner: OWNER, scope: 'experiment', experimentSha: SHA, evidence: ev(), ...over });
 const dev = (id, n) => ({ id, ref: `pr:${n}`, owner: OWNER, scope: 'development' });
 const mk = tasks => memoryStore(initQueue({ tasks }, OWNER).state);
 const START = { repository: { full_name: 'o/r' }, sender: OWNER };
-const CFG = { strict: true, securityGate: true };
+const CFG = { strict: true, securityGate: true, resolveEvidence: trusted };
 const start = (s, d, cfg = CFG) => handle(s, 'workflow_dispatch', START, d, cfg);
 const task = (s, id) => s.load().state.tasks.find(t => t.id === id);
 
@@ -20,7 +22,10 @@ test('gateDecision: scope strict, evidence bound to exact SHA, nothing promoted 
   assert.strictEqual(gateDecision({}).reason, 'scope_missing');
   assert.strictEqual(gateDecision({ scope: 'Development' }).reason, 'scope_unknown');
   assert.strictEqual(gateDecision({ scope: 'experiment', evidence: ev() }).reason, 'experiment_sha_invalid');
-  assert.deepStrictEqual(gateDecision(exp('x', 1)), { ok: true });
+  assert.strictEqual(gateDecision(exp('x', 1)).reason, 'resolver_missing'); // descriptor alone is not proof
+  assert.deepStrictEqual(gateDecision(exp('x', 1), { resolveEvidence: trusted }), { ok: true });
+  for (const bad of [() => null, () => { throw new Error('x'); }, (id, c) => ({ ...trusted(id, c), completed: false }), (id, c) => ({ ...trusted(id, c), trusted: 'true' }), (id, c) => ({ ...trusted(id, c), sha: OLD }), (id, c) => ({ ...trusted(id, c), taskId: 'other' })])
+    assert.ok(!gateDecision(exp('x', 1), { resolveEvidence: bad }).ok);
   assert.deepStrictEqual(gateDecision(dev('x', 1)), { ok: true });
   for (const k of REQUIRED) {
     const missing = ev(); delete missing[k];
@@ -75,7 +80,7 @@ test('drain re-checks right before dispatch: withdrawn evidence blocks, dispatch
   assert.strictEqual(start(s, 'd').action, 'START');
   const { rev, state } = s.load(); // owner withdraws one evidence item after the outbox entry was written
   state.tasks[0].evidence[REQUIRED[1]].status = 'FAIL'; assert.ok(s.save(rev, state));
-  const calls = []; const r = drain(s, e => calls.push(e), { getHead: () => SHA, securityGate: true });
+  const calls = []; const r = drain(s, e => calls.push(e), { getHead: () => SHA, securityGate: true, resolveEvidence: trusted });
   assert.deepStrictEqual(calls, []); assert.deepStrictEqual(r.dispatched, []);
   assert.strictEqual(s.load().state.outbox[0].status, 'GATE_BLOCKED'); assert.strictEqual(task(s, 'e1').state, 'BLOCKED');
   assert.strictEqual(task(s, 'e1').gateReason, `evidence_not_pass:${REQUIRED[1]}`);
@@ -83,8 +88,8 @@ test('drain re-checks right before dispatch: withdrawn evidence blocks, dispatch
 
 test('drain with valid evidence dispatches once; two racing drains never double-dispatch', () => {
   const s = mk([exp('e1', 1)]); start(s, 'd');
-  const calls = []; const dispatch = e => { calls.push(e.key); drain(s, e2 => calls.push(e2.key), { getHead: () => SHA, securityGate: true }); }; // second runner during the first claim
-  drain(s, dispatch, { getHead: () => SHA, securityGate: true });
+  const calls = []; const dispatch = e => { calls.push(e.key); drain(s, e2 => calls.push(e2.key), { getHead: () => SHA, securityGate: true, resolveEvidence: trusted }); }; // second runner during the first claim
+  drain(s, dispatch, { getHead: () => SHA, securityGate: true, resolveEvidence: trusted });
   assert.deepStrictEqual(calls, ['START:e1']);
 });
 

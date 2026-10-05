@@ -13,11 +13,11 @@ const withTask = (queue, id, patch) => ({ ...queue, tasks: queue.tasks.map(t => 
 
 // gate (config.securityGate, default OFF): READY tasks the pre-experiment gate denies become BLOCKED (structured reason only, no halt)
 // and are skipped; the next approved READY task (e.g. an unrelated development task) may still start under the same single-owner order.
-function promote(queue, owner, gate) {
+function promote(queue, owner, gate, resolveEvidence) {
   if (queue.tasks.some(t => ACTIVE.includes(t.state))) return ignore(queue, 'concurrent_owner');
   let q = queue, blocked = false;
   for (const t of queue.tasks.filter(x => x.state === 'READY')) {
-    const g = gate ? gateDecision(t) : { ok: true };
+    const g = gate ? gateDecision(t, { resolveEvidence }) : { ok: true };
     if (!g.ok) { q = withTask(q, t.id, { state: 'BLOCKED', gateReason: g.reason }); blocked = true; continue; }
     return { action: 'START', reason: 'ready_promoted', taskId: t.id, queue: withTask(q, t.id, { state: 'RUNNING', owner: owner || 'actions' }) };
   }
@@ -41,7 +41,7 @@ function step(queue, event, config = {}) {
   if (queue.halted) return ignore(queue, 'halted');
   if (event?.type === 'submit' && !isWorker(event.actor)) return ignore(queue, 'unauthorized_actor');
   if (event?.type === 'start' && !isWorker(event.actor) && !isOwnerStart(event)) return ignore(queue, 'unauthorized_actor');
-  if (event?.type === 'start') return promote(queue, event.owner, config.securityGate === true);
+  if (event?.type === 'start') return promote(queue, event.owner, config.securityGate === true, config.resolveEvidence);
   if (event?.type === 'submit') {
     // worker pushed a new head: RUNNING|FIX -> REVIEW
     const t = queue.tasks.find(x => x.id === event.taskId);
@@ -71,7 +71,7 @@ function step(queue, event, config = {}) {
   const q = { ...queue, seenEvents: [...(queue.seenEvents || []), event.id] };
   if (event.verdict === 'BLOCKED') return stop(withTask(q, t.id, { state: 'BLOCKED' }), event.principalPass ? 'reviewer_pass_unproven' : 'blocked');
   if (event.verdict === 'PASS') {
-    const r = promote(withTask(q, t.id, { state: 'DONE' }), t.owner, config.securityGate === true);
+    const r = promote(withTask(q, t.id, { state: 'DONE' }), t.owner, config.securityGate === true, config.resolveEvidence);
     return r.action === 'IDLE' && r.reason === 'no_task' ? { ...r, reason: 'pass_no_more_tasks' } : r;
   }
   if (event.verdict === 'FAIL') {

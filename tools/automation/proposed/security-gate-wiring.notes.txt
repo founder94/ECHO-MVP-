@@ -19,3 +19,18 @@ Registration contract (init input per task): {id, ref, owner, scope:'development
 Limits (unproven): no live run; gate does not prove operations settings, does not replace approval/budget/trusted Codex verdict;
   a task already RUNNING is not stopped by withdrawal (only unsent outbox entries are); BLOCKED tasks need an explicit owner re-registration (no resume policy).
 Recovery: leave QUEUE_SECURITY_GATE unset (gate OFF) or revert the commit; state branch is kept, nothing is deleted.
+
+Update (independent FAIL fix, handoff 5/5): runtime evidence verifier + exact pin + receiver check
+  - The init descriptor (status PASS, sha, id) is only a claim. gateDecision(task, opts.resolveEvidence) additionally requires a RUNTIME-injected
+    resolveEvidence(id, criterion/taskId/ref/sha) returning an attestation with id, criterion, taskId, ref, full sha == experimentSha,
+    status PASS, completed true, trusted true. No resolver / throw / null / mismatch / completed!=true / trusted!=true => BLOCKED.
+    The resolver is never read from task, event, comment or env JSON. NO real resolver exists (needs a separate verifier checking real author,
+    permission and completed result) => every live experiment stays BLOCKED. Fixture resolvers exist only in tests.
+  - Experiment START outbox entries carry sha = experimentSha. drain: gate (with resolver) -> current PR HEAD lookup must equal it
+    (lookup failure => no dispatch). Old unpinned experiment START entries (sha null) => GATE_BLOCKED (fail closed). Gate OFF / development unchanged.
+  - verify-dispatch (receiver, before any model step): with QUEUE_SECURITY_GATE=1 re-runs the same gate + pin check before the CAS workerClaim;
+    denial writes nothing. HEAD must equal the entry sha (existing stale_head check).
+  - Every CLI boundary (event handling, drain, verify-dispatch) must run with the SAME QUEUE_SECURITY_GATE=1 and an injected trusted resolver.
+    receipt only handles submit events (no promotion), so it has no gate step.
+  - Source pin: the pinned module SHA in the proposed workflows predates the gate; moving the pin to a reviewed commit is a separate step and needs re-review.
+    No live workflow, Secret, product, DB or paid-API change; live write permission is still not obtained.

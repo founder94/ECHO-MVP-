@@ -53,7 +53,7 @@ function withOutbox(r, worker) {
   const key = outboxKey(r.action, t, r);
   const outbox = r.queue.outbox || [];
   if (outbox.some(e => e.key === key)) return r.queue;
-  const entry = { key, action: r.action, taskId: t.id, ref: t.ref, sha: t.headSha || null, round: r.round || 0, status: 'PENDING', attempts: 0 };
+  const entry = { key, action: r.action, taskId: t.id, ref: t.ref, sha: t.headSha || (r.action === 'START' && t.scope === 'experiment' ? t.experimentSha || null : null), round: r.round || 0, status: 'PENDING', attempts: 0 }; // experiment START is pinned to the reviewed experimentSha
   const tasks = r.action === 'START' ? r.queue.tasks.map(x => (x.id === t.id ? { ...x, worker } : x)) : r.queue.tasks;
   return { ...r.queue, tasks, outbox: [...outbox, entry] };
 }
@@ -67,6 +67,12 @@ function casUpdate(store, key, patch, retries) {
 
 // drain: dispatch pending entries one at a time. getHead(ref) -> current head sha (injected; throws on failure).
 // Returns {dispatched:[keys], stopped:reason|null}. Never marks DONE unless dispatch returned without throwing.
+// Gate + exact pin: an experiment START entry must carry the experimentSha (old unpinned pending entries fail closed).
+function gateFor(t, e, resolveEvidence) {
+  const g = gateDecision(t, { resolveEvidence });
+  if (g.ok && t.scope === 'experiment' && e.action === 'START' && e.sha !== t.experimentSha) return { ok: false, reason: 'entry_not_pinned' };
+  return g;
+}
 function gateBlock(store, e, reason, retries) {
   for (let i = 0; i <= retries; i++) {
     const { rev, state } = store.load();
@@ -76,7 +82,7 @@ function gateBlock(store, e, reason, retries) {
   return false;
 }
 
-function drain(store, dispatch, { getHead, retries = 3, securityGate = false } = {}) {
+function drain(store, dispatch, { getHead, retries = 3, securityGate = false, resolveEvidence } = {}) {
   const dispatched = [];
   for (;;) {
     const { rev, state } = store.load();
@@ -93,7 +99,7 @@ function drain(store, dispatch, { getHead, retries = 3, securityGate = false } =
     }
     if (securityGate) {
       // Re-check right before dispatch: withdrawn/changed evidence blocks this task and its entry (no dispatch); other tasks are untouched.
-      const g = gateDecision(t);
+      const g = gateFor(t, e, resolveEvidence);
       if (!g.ok) { if (!gateBlock(store, e, g.reason, retries)) return { dispatched, stopped: 'store_conflict' }; continue; }
     }
     if (e.sha) {
@@ -153,7 +159,7 @@ function ghWorkflowDispatcher(env, exec = execFileSync) {
 // This proves "dispatch accepted", not "worker finished": the entry never becomes DONE because of the worker.
 const DISPATCH_ACTORS = ['github-actions[bot]', 'founder94'];
 const BRANCH = /^[A-Za-z0-9._\/-]{1,200}$/;
-function verifyDispatch(store, inp, { getPr, actor, triggeringActor, claimId, repo, maxRounds = 5, retries = 3 } = {}) {
+function verifyDispatch(store, inp, { getPr, actor, triggeringActor, claimId, repo, maxRounds = 5, retries = 3, securityGate = false, resolveEvidence } = {}) {
   const bad = reason => ({ ok: false, reason });
   if (!DISPATCH_ACTORS.includes(actor) || actor !== triggeringActor) return bad('untrusted_actor');
   if (!/^[A-Za-z0-9_.-]{1,80}$/.test(claimId || '')) return bad('bad_claim_id');
@@ -172,6 +178,7 @@ function verifyDispatch(store, inp, { getPr, actor, triggeringActor, claimId, re
     const t = state.tasks.find(x => x.id === e.taskId);
     if (!t || t.state !== EXPECT_STATE[e.action]) return bad('task_state');
     if (!t.worker || t.worker.login !== 'github-actions[bot]' || t.worker.type !== 'Bot') return bad('worker_mismatch');
+    if (securityGate) { const g = gateFor(t, e, resolveEvidence); if (!g.ok) return bad(`gate_${g.reason}`); } // runtime evidence re-check before any model step; nothing claimed on denial
     if (e.action === 'FIX' && (t.headSha !== e.sha || (t.rounds || 0) >= maxRounds)) return bad('fix_not_current');
     const pr = getPr(Number(e.ref.split(':')[1])); // throws on lookup failure: nothing claimed
     if (!pr || pr.state !== 'open' || pr.draft || !['main', 'echo-qa'].includes(pr.base) || pr.headRepo !== repo || !SHA.test(pr.headSha || '') || !BRANCH.test(pr.branch || '') || pr.branch.startsWith('-')) return bad('pr_not_eligible');
