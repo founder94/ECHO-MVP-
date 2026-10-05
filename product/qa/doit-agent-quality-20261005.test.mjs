@@ -281,4 +281,9 @@ test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '주말마다 술 마시는 게 좋아요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '만날 때마다 카페 가는 게 좋아요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '사람마다 고르는 곳이 다른 이유가 있어요?'), true);
+  // Codex P2(4183919195): 맨 「다르·달라」도 나뉨 표시가 아님 · 경우를 가리키는 말 뒤면 인정
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술집에서는 평소랑 다르게 주문해요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '술집에서 음료를 달라고 먼저 해요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대가 누구냐에 따라 달라지는 이유가 있어요?'), true);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '성별이 다르면 왜 고르는 곳이 달라져요?'), true);
 });
