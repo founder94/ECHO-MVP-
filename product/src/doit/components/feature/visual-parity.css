@@ -1,0 +1,78 @@
+/* 2026-10-05 대표 「승인 시안과 실제 구현의 시각 일치(visual parity)」 — 모바일 앱 화면 전용 마지막 한 벌.
+   기준: 대표 승인 시안 6장(「ECHO · 모바일 최종 디자인 기준」 · 「모바일 디자인 제안」 · 「모바일 문구·서체 검수안」 · 「모바일 전체 흐름」 · 「모션 디자인 시안」).
+   불러오는 곳: DoitApp · 로그인 · 가입 · 약관 동의(mobile-polish.css 바로 뒤). 홈페이지(brand) 빌드에는 들어가지 않는다.
+   :root:root 를 앞에 붙인 것은 mobile-polish.css(:root …)보다 한 단계 세게 하려는 것(불러오는 순서와 무관).
+   바꾸는 것 = 생김새만: 판 색·투명도·흐림 · 겹친 판 걷어 내기 · 버튼 높이·정렬 · 맨 위 메뉴 · 여백. 글·버튼 뜻·서버·흐름 0.
+   - 유리: 짙은 청록 판(62%) → 뒤 무지개빛이 비치는 연기빛 유리(42%) + 흐림 18px. 흰 글자는 옅은 음영(--echo-shade)으로 읽힘을 지킨다. */
+
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
+  --echo-glass:rgb(26 52 60/.42);
+  --echo-glass-soft:rgb(22 48 56/.48);
+  --echo-glass-btn:rgb(26 44 50/.5);
+  --echo-glass-line:rgb(255 255 255/.42);
+  --echo-glass-blur:blur(18px) saturate(1.35);
+}
+
+/* ── 판: 연기빛 유리 한 겹 ── */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-asleep-card,.doit-candidate,.doit-match:not([data-state="zzarit"]),.doit-settings-panel,.doit-settings-note,.doit-install,.doit-understanding-notice,.doit-profile-card,.echo-insight,.echo-editor,.echo-brief,.echo-synthesis,.echo-restart,.echo-pause,.echo-zzarit,.doit-safety,.doit-meet-safety,.echo-profile-card,.echo-guide-hint,.echo-chat-tools){background:var(--echo-glass)!important;border-color:var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+/* 정정·확인 화면을 감싸던 바깥 판은 걷어 낸다(판 안의 판 0) */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-done{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* 보조 버튼(조금 달라요 · 그게 아니에요 · 직접 설명할게요 · 칸 고르기) = 짙은 연기빛 유리 · 글자 가운데 */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-secondary,.doit-product-action--secondary,.echo-choice-confirm.is-secondary,.echo-reactions button,.echo-choice-option,.echo-chat-chips button){background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+
+/* ── 입력칸: 유리 · 대화 입력줄 안의 칸은 투명(줄 안에 짙은 네모 0) ── */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])){background-color:var(--echo-glass)!important;border-color:var(--echo-glass-line)!important}
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-chat-bar :is(textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])){background:transparent!important;background-color:transparent!important;border:0!important}
+:root:root .echo-chat .echo-composer.echo-chat-bar{background:var(--echo-glass);border-color:var(--echo-glass-line);margin:0 -4px 6px;border-radius:26px;border-bottom:1px solid var(--echo-glass-line)}
+
+/* ── 말풍선: 내 말 · ECHO 말 모두 같은 연기빛 유리 · ECHO 말 위에 「ECHO」 이름 ── */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-bubble--me{background:var(--echo-glass-soft)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-question-card.echo-bubble--echo,.echo-ack-bubble){background:var(--echo-glass)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+:root:root .echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo{margin-top:20px}
+:root:root .echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo::after{content:"ECHO";position:absolute;left:2px;top:-20px;font-size:12px;font-weight:700;letter-spacing:.04em;color:#fff}
+
+/* ── 맨 위: 오른쪽 위 메뉴는 머리줄과 같은 줄 · 동그라미 판 없이 줄 세 개만(시안) ── */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) ~ .echo-corner-button,
+:root:root body:has(:is(.doit-app-pastel,.echo-dialogue--pastel)) .echo-corner-button{top:calc(env(safe-area-inset-top) + 16px);background:transparent;border-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* 앱 홈 등 윗줄: 짙은 청록 띠 → 배경이 비치는 옅은 유리 */
+:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(255 255 255/.06)!important;border-color:transparent!important;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2)}
+/* 아래 탭은 스크롤한 글이 뒤로 지나가므로 조금 더 진하게(글이 겹쳐 읽히지 않게) */
+:root:root .doit-app-pastel .doit-product-nav{background:rgb(26 52 60/.72)!important;border-color:var(--echo-glass-line)!important;-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3)}
+
+/* ── 정정·확인(시안 4번): 제목(가운데) → 작은 설명 한 줄 → 카드 한 장 → 네 버튼 ── */
+:root:root .echo-dialogue.echo-chat .echo-check{gap:10px!important}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-title{order:1;margin:4px 0 0!important}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-context{order:2!important;margin:0 auto 6px!important;max-width:34ch;text-align:center;font-size:13px!important;opacity:.95}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-mark{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0!important}
+:root:root .echo-dialogue.echo-chat .echo-check>:is(.echo-guide-hint,.echo-guide-link){order:3}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-profile-card{order:4;margin:0;padding:14px 16px 6px;border:1px solid var(--echo-glass-line);border-radius:18px;text-align:left}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-lead{order:5;margin:6px 0 4px;text-align:center;font-size:20px!important;line-height:1.4;font-weight:700!important}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-check-label{order:6;display:block;margin:4px 0 0;font-size:15px;line-height:1.55;text-align:left;color:#fff}
+:root:root .echo-dialogue.echo-chat .echo-check>textarea{order:7;min-height:0;border-radius:16px;padding:12px 14px;resize:none}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions{order:8;gap:8px!important;margin:2px 0 0!important}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions .echo-text-button{justify-self:center}
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-text-button{order:9}
+:root:root .echo-dialogue.echo-chat .echo-check>:is(.echo-fine,.echo-error){order:10}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list{margin:0!important;padding:0!important;background:transparent!important;border:0!important;gap:10px!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li{padding-left:0!important;gap:2px!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list li::before{display:none}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list b{font-size:12px;font-weight:600!important;opacity:.85;color:#fff}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-item{font-size:15px!important;line-height:1.5!important;color:#fff}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-rest{margin:10px 0 0;font-size:12.5px;line-height:1.55;opacity:.85}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-quotes{margin:2px 0 0;font-size:13px!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint{margin:0;padding:0 4px;text-align:center;background:transparent!important;border:0!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint-actions{justify-content:center;margin-top:0}
+/* 정정 화면이 열리면 위 빈 공간 없이 머리줄 바로 아래에서 시작 */
+:root:root .echo-dialogue.echo-chat:has(.echo-check) .echo-chat-log{flex:0 0 auto;padding:0}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-guide-hint p{font-size:13.5px;line-height:1.5}
+@media(prefers-reduced-transparency:reduce){:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){--echo-glass:rgb(26 52 60/.7);--echo-glass-soft:rgb(22 48 56/.72);--echo-glass-btn:rgb(26 44 50/.74)}}
+/* 정정 화면이 한 화면(390×844) 안에 들어오게: 버튼 48px · 카드 줄 간격 조금 줄임 */
+:root:root .echo-dialogue.echo-chat .echo-check>.echo-done-actions :is(.echo-primary,.echo-secondary){min-height:48px!important}
+:root:root .echo-dialogue.echo-chat .echo-check .echo-profile-list{gap:7px!important}
+:root:root .echo-dialogue.echo-chat:has(.echo-check) .echo-chat-head{margin-bottom:6px}
+
+/* ── 연결 대화(시안 9번): 「입력칸 · 보내기」 한 줄 유리 막대 ── */
+:root:root .doit-app-pastel .doit-match-send{display:grid!important;grid-template-columns:1fr auto;align-items:end;gap:8px;padding:6px 6px 6px 14px;border-radius:26px;background:var(--echo-glass);border:1px solid var(--echo-glass-line);-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+:root:root .doit-app-pastel .doit-match-send>.doit-connect-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:root:root .doit-app-pastel .doit-match-send>:is(textarea,input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])){min-height:44px;max-height:140px;margin:0;padding:11px 0;border:0!important;background:transparent!important;background-color:transparent!important;box-shadow:none!important;resize:none;field-sizing:content}
+:root:root .doit-app-pastel .doit-match-send>.doit-product-action{min-height:44px!important;width:auto!important;margin:0!important;padding:0 16px!important;border-radius:999px!important;gap:6px}

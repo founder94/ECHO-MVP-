@@ -34,13 +34,15 @@ function profileConfirmed(session: AgentSession): boolean {
   try { return localStorage.getItem(okKey(session.id)) === profileSignature(session); } catch { return false; }
 }
 
-function SlotLine({ session, id }: { session: AgentSession; id: string }) {
+// 2026-10-05 대표 「승인 시안과 시각 일치」: 카드 한 장 안에 이해한 뜻만 보인다. 내가 한 말(인용)은 「내가 한 말 보기」를 누르면 보인다(지우지 않음).
+const filled = (session: AgentSession, id: string) => slotOf(session, id)?.status === 'CONFIRMED' && (slotOf(session, id)?.items.length ?? 0) > 0;
+function SlotLine({ session, id, quotes }: { session: AgentSession; id: string; quotes: boolean }) {
   const slot = slotOf(session, id);
   const items = slot?.status === 'CONFIRMED' ? slot.items : [];
   return <li>
     <b>{AGENT_PURPOSE_LABELS[id]}</b>
     {items.length
-      ? items.map((i, k) => <span key={k} className="echo-profile-item">{i.note}{i.quote && <small>내 말 「{i.quote}」</small>}</span>)
+      ? items.map((i, k) => <span key={k} className="echo-profile-item">{i.note}{quotes && i.quote && <small>내 말 「{i.quote}」</small>}</span>)
       : <span className="echo-profile-item is-empty">{slot?.status === 'SKIPPED' ? '넘겼어요' : '아직 말하지 않았어요'}</span>}
   </li>;
 }
@@ -79,12 +81,23 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     } finally { if (alive.current) setBusy(false); }
   };
 
-  const list = (ids: string[]) => <ol className="echo-done-next echo-profile-list" aria-label="ECHO가 이해한 나">{ids.map(id => <SlotLine key={id} session={session} id={id} />)}</ol>;
+  const [quotes, setQuotes] = useState(false);
+  // 말한 칸만 줄로 · 아직 말하지 않은(넘긴) 칸은 맨 아래 한 줄로 모은다(칸 이름은 그대로 보임 · 고치기에서 다섯 칸 모두 고를 수 있음).
+  const list = (ids: string[]) => {
+    const shown = ids.length === 1 ? ids : ids.filter(id => filled(session, id));
+    const rest = ids.length === 1 ? [] : ids.filter(id => !filled(session, id));
+    const hasQuote = shown.some(id => (slotOf(session, id)?.items ?? []).some(i => !!i.quote));
+    return <div className="echo-profile-card">
+      <ol className="echo-done-next echo-profile-list" aria-label="ECHO가 이해한 나">{shown.map(id => <SlotLine key={id} session={session} id={id} quotes={quotes} />)}</ol>
+      {rest.length > 0 && <p className="echo-profile-rest">아직 말하지 않은 것 · {rest.map(id => AGENT_PURPOSE_LABELS[id]).join(' · ')}</p>}
+      {hasQuote && <button type="button" className="echo-text-button echo-profile-quotes" aria-expanded={quotes} onClick={() => setQuotes(v => !v)}>{quotes ? '내가 한 말 접기' : '내가 한 말 보기'}</button>}
+    </div>;
+  };
 
   // 2026-10-04 모바일 기준 디자인 4번: 제목(맞나요?) → 이해한 내용 카드 → 네 버튼(맞아요 = 흰 판) 순으로 보인다(배치는 chat-ref.css 의 order).
   return <section className="echo-done echo-check" aria-label="ECHO가 이해한 나" aria-busy={busy}>
     <p className="echo-done-mark">ECHO가 이해한 나</p>
-    <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>
+    {view.kind === 'review' && <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>}
 
     {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
     {/* 2026-10-04 이용 안내: 처음 한 번 짧은 도움말 → 그 뒤 「이 기능이 궁금해요」 (확인 단계에서만) */}
@@ -109,7 +122,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       </div>
     </> : view.kind === 'edit' ? <>
       {list([view.purpose])}
-      <label className="echo-context" htmlFor="echo-profile-fix">{view.reject
+      <label className="echo-check-label" htmlFor="echo-profile-fix">{view.reject
         ? <>「{AGENT_PURPOSE_LABELS[view.purpose]}」는 그렇게 이해하지 않을게요. 맞는 내용을 내 말로 적어 주세요.</>
         : <>「{AGENT_PURPOSE_LABELS[view.purpose]}」를 내 말로 고쳐 주세요. 내가 고친 말이 가장 먼저예요.</>}</label>
       <textarea id="echo-profile-fix" value={view.text} maxLength={TEXT_MAX} rows={3} disabled={busy} onChange={e => setView({ ...view, text: e.target.value.slice(0, TEXT_MAX) })} />
@@ -119,7 +132,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
         <button type="button" className="echo-text-button" disabled={busy} onClick={() => setView({ kind: 'pick', reject: view.reject })}>다른 부분 고르기</button>
       </div>
     </> : view.kind === 'retell' ? <>
-      <label className="echo-context" htmlFor="echo-profile-retell">원하는 걸 짧게 다시 말해 주세요. 새로 말한 것이 가장 먼저예요.</label>
+      <label className="echo-check-label" htmlFor="echo-profile-retell">원하는 걸 짧게 다시 말해 주세요. 새로 말한 것이 가장 먼저예요.</label>
       <textarea id="echo-profile-retell" value={view.text} maxLength={TEXT_MAX} rows={4} disabled={busy} onChange={e => setView({ ...view, text: e.target.value.slice(0, TEXT_MAX) })} />
       <div className="echo-done-actions">
         <button type="button" className="echo-primary" disabled={busy || !view.text.trim()} onClick={() => void sendFix(view.text, null)}>이렇게 말할게요</button>
