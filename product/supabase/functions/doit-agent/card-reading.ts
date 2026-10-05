@@ -25,9 +25,11 @@ export const TAROT_SYSTEM = `너는 타로 카드 리더야. 선택된 카드와
 - 참고로 봐달라는 따뜻한 톤을 유지해.`;
 export interface CardReading { summary: string; tags: string[]; cards: { label: string; value: string }[] }
 export const TAROT_CARD_MAX = 50, TAROT_PURPOSE_MAX = 200;
+const CARD_NAME = /^[가-힣A-Za-z0-9 ·()]{1,20}$/; // 앱 덱 78장 이름(nameKo)과 참고 이야기 refSeed 와 같은 모양
 export function cardInput(card: unknown, purpose: unknown): { card: string; purpose: string } | null {
   const c = typeof card === "string" ? card.trim() : "", p = typeof purpose === "string" ? purpose.trim() : "";
-  if (!c || c.length > TAROT_CARD_MAX || p.length > TAROT_PURPOSE_MAX || PRIVATE_DATA.test(p)) return null;
+  // Codex P2(4187504445): 카드 이름도 모델에 그대로 가므로 같은 기준 — 덱 이름 모양(한글·영문·숫자·띄어쓰기·「·」 20자 이내)만 받고 개인정보 꼴은 거절.
+  if (!c || c.length > TAROT_CARD_MAX || !CARD_NAME.test(c) || PRIVATE_DATA.test(c) || p.length > TAROT_PURPOSE_MAX || PRIVATE_DATA.test(p)) return null;
   return { card: c, purpose: p };
 }
 // 모델 답 → 화면 모양. 형식이 다르면 null(가짜 성공 0).
