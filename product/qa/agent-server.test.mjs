@@ -1529,8 +1529,9 @@ test('자체 P1 저장 경쟁에서 진 요청이 부른 모델도 하루 한도
   let release; const gate = new Promise((ok) => { release = ok; });
   s.fail = { openai: [{ gate }] };
   s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const sent = (s.providerCalls ?? []).length;
   const a = say3(h, sid, '잘 웃는 사람');
-  await new Promise((r) => setTimeout(r, 5));
+  for (let i = 0; i < 200 && (s.providerCalls ?? []).length <= sent; i++) await new Promise((r) => setTimeout(r, 5)); // A 가 업체를 부른 뒤(2026-10-05 AI 호출 전 자리 잡기 · 고정 5ms 대신)
   s.ai.push(T({ extracted: [X('attraction_comfort', '솔직한 사람', '솔직한 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
   const before = sessionRow(s).response_payload.run.budget.calls;
   assert.equal((await say3(h, sid, '솔직한 사람')).status, 200);
@@ -1570,10 +1571,12 @@ test('Codex P1 예산만 접는 저장도 판 번호를 올림 — 그 사이 �
   let release; const gate = new Promise((ok) => { release = ok; });
   s.fail = { anthropic: [{ gate }] }; // A: 느린 정상 턴
   s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const before = (s.providerCalls ?? []).length;
   const a = say3(h, sid, '잘 웃는 사람');
-  await new Promise((r) => setTimeout(r, 5));
+  // A 가 실제로 업체를 부른 뒤(느린 응답 대기 중)에 B 를 보낸다 — 2026-10-05 AI 호출 전 자리 잡기(잠금·자리)가 생겨 고정 5ms 로는 A 가 아직 호출 전일 수 있다
+  for (let i = 0; i < 200 && (s.providerCalls ?? []).length <= before; i++) await new Promise((r) => setTimeout(r, 5));
   s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] }; // B: 같은 판에서 실패(사용량만 접음)
-  assert.equal((await say3(h, sid, '솔직한 사람')).status, 502);
+  const rb = await say3(h, sid, '솔직한 사람'); assert.equal(rb.status, 502, JSON.stringify(rb.body));
   const afterB = sessionRow(s).response_payload.run.budget.calls;
   release(); const ra = await a;
   assert.equal(ra.status, 409, 'B 가 판을 올렸으므로 늦은 A 는 저장 0');
