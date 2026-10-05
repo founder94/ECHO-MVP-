@@ -361,7 +361,7 @@ export function listReports(): Promise<FlowState> {
 
 // ── 결제(echo-payment) ──
 
-// 주문 생성(서버 금액 4,900원 고정). 현재 review_pending에서는 호출하지 않는다.
+// 주문 생성(금액은 서버가 정함). 현재 review_pending에서는 호출하지 않는다 · 2026-10-05 결제 화면 주소는 앱 홈으로 보냄.
 export function createOrder(conversationId: string): Promise<PaymentState> {
   return call<PaymentState>(PAYMENT_FUNCTION, 'create', { conversationId });
 }

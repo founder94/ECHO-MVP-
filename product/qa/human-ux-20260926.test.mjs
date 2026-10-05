@@ -56,7 +56,8 @@ test('숨김: Just Try·KEY·등급·공간·월드·방·알림·예전 A/B 흐
   assert.match(routes, /const gate = \(to: string, element: ReactElement\) => \(visibleInRelease\(to\) \? element : <Navigate to="\/doit\/home" replace \/>\);/);
   const cfg = read('src/router/config.tsx');
   assert.match(cfg, /\{ path: '\/weather', element: visibleInRelease\('\/weather'\) \? <WeatherPage \/> : <Navigate to="\/doit\/home" replace \/> \}/);
-  assert.match(cfg, /\{ path: '\/payment', element: <PaymentPage \/> \}/);
+  // 2026-10-05 대표 「리포트 가격 영구 삭제」: 결제 화면 주소도 앱 홈으로(금액이 보이는 화면 0)
+  for (const p of ['payment', 'payment\\/success', 'payment\\/fail']) assert.match(cfg, new RegExp(`\\{ path: '\\/${p}', element: <Navigate to="\\/doit\\/home" replace \\/> \\}`));
   assert.match(read('src/doit/pages/do-it/choose/page.tsx'), /onSkipToFortune=\{visibleInRelease\("\/doit\/fortune"\) \?/);
 });
 
