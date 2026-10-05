@@ -17,13 +17,16 @@ export default function MakingFilm() {
   const ref = useRef<HTMLVideoElement | null>(null);
   const [still] = useState(prefersReduced);
   const [failed, setFailed] = useState(false);
+  // 브라우저·사용자 설정이 소리 없는 자동 재생도 막으면(play() 거절) 기본 재생 막대를 보여 직접 틀 수 있게 한다(Codex PR #130 P2)
+  const [blocked, setBlocked] = useState(false);
   const [src] = useState(pickSrc);
 
   useEffect(() => {
     const v = ref.current;
     if (!v || still) return;
-    if (typeof IntersectionObserver !== 'function') { void v.play().catch(() => {}); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) void v.play().catch(() => {}); else v.pause(); }, { threshold: 0.35 });
+    const tryPlay = () => { void v.play().catch(() => setBlocked(true)); };
+    if (typeof IntersectionObserver !== 'function') { tryPlay(); return; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) tryPlay(); else v.pause(); }, { threshold: 0.35 });
     io.observe(v);
     return () => io.disconnect();
   }, [still]);
@@ -33,7 +36,7 @@ export default function MakingFilm() {
       <div className="bh-making-frame">
         {failed
           ? <p className="bh-film-msg" role="status">{MAKING_FILM_COPY.error}</p>
-          : <video ref={ref} src={src} poster={SRC.poster} muted loop playsInline preload="metadata" controls={still} aria-label={MAKING_FILM_COPY.title} onError={() => setFailed(true)} />}
+          : <video ref={ref} src={src} poster={SRC.poster} muted loop playsInline preload="metadata" controls={still || blocked} aria-label={MAKING_FILM_COPY.title} onError={() => setFailed(true)} />}
       </div>
       <figcaption className="bh-film-note">{MAKING_FILM_COPY.note}</figcaption>
     </figure>

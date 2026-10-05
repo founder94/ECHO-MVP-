@@ -10,7 +10,7 @@ const VTT = read('public/brand/film/captions.ko.vtt');
 
 test('자리(2026-10-05 대표 「핵심 4페이지만 스크롤 · 나머지는 버튼」): 브랜드 영상은 「더 알아보기」·메뉴의 버튼으로 여는 장면 창 안 · 시작 버튼 0', () => {
   const at = (s) => HOME.indexOf(s);
-  assert.match(HOME, /if \(l\.kind === 'film'\) return \(\n\s*<SceneLayer label=\{BRAND_FILM_COPY\.title\}/);
+  assert.match(HOME, /if \(l\.kind === 'film'\) return \(\n\s*<SceneLayer opener=\{layerOpener\.current\} label=\{BRAND_FILM_COPY\.title\}/);
   const film = HOME.slice(at("if (l.kind === 'film')"), at("if (l.kind === 'company')"));
   assert.ok(film.includes('<BrandFilm />'));
   assert.doesNotMatch(film, /BRAND_HOME_COPY\.start|StartActions/, '시작 버튼은 히어로 하나만');

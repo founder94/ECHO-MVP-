@@ -20,6 +20,13 @@ test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 �
   assert.match(layer, /if \(e\.key === 'Escape'\)/, 'Esc 로 닫기');
   assert.match(layer, /opener\?\.focus\?\.\(\{ preventScroll: true \}\)/, '닫으면 누른 버튼으로 초점');
   assert.match(layer, /root\.style\.overflow = before/, '닫으면 뒤 화면 스크롤 원래대로');
+  // Codex PR #130 P2 4건: 메뉴로 연 창의 초점 복귀 · 휴대폰 빈 곳 탭 닫기 · 창 밖으로 빠진 초점 되돌리기 · 자동 재생 거절 시 재생 막대
+  assert.match(HOME, /layerOpener\.current = menuOpen \? menuBtnRef\.current : \(document\.activeElement as HTMLElement \| null\); close\(\); setLayer\(next\);/);
+  assert.match(layer, /const opener = openerProp \?\? \(document\.activeElement as HTMLElement \| null\);/);
+  assert.match(layer, /if \(!\(e\.target as HTMLElement\)\.closest\('\.bh-layer-body > \*'\)\) onClose\(\);/);
+  assert.match(layer, /if \(!boxRef\.current\.contains\(document\.activeElement\)\) \{ e\.preventDefault\(\); closeRef\.current\?\.focus\(\); return; \}/);
+  const making = read('src/pages/do-it/brand-home/MakingFilm.tsx');
+  assert.match(making, /void v\.play\(\)\.catch\(\(\) => setBlocked\(true\)\)/); assert.match(making, /controls=\{still \|\| blocked\}/);
 });
 
 test('홈페이지 문구(2026-10-05 대표 시안 그대로): ECHO · ONLINE SERENDIPITY · DO IT · 「당신이 잠든 사이」 · 버튼 글자만 「모바일로 시작하기」 · 이야기 9장면 원문', () => {

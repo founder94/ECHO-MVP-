@@ -98,15 +98,17 @@ export default function BrandHomePage() {
 
   const close = () => setMenuOpen(false);
   const [layer, setLayer] = useState<Layer | null>(null);
+  const layerOpener = useRef<HTMLElement | null>(null);
   const closeLayer = useCallback(() => setLayer(null), []);
-  const openLayer = (next: Layer) => { close(); setLayer(next); };
+  // 연 단추를 상태를 바꾸기 전에 잡아 둔다 — 메뉴에서 열면 메뉴 항목이 사라지므로 메뉴 단추로 돌아간다(Codex PR #130 P2)
+  const openLayer = (next: Layer) => { layerOpener.current = menuOpen ? menuBtnRef.current : (document.activeElement as HTMLElement | null); close(); setLayer(next); };
 
   const renderLayer = (l: Layer) => {
     if (l.kind === 'story') {
       const s = STORIES[l.i];
       const go = (d: number) => setLayer({ kind: 'story', i: (l.i + d + STORIES.length) % STORIES.length });
       return (
-        <SceneLayer label={`${s.no} ${s.label}`} image={`/brand/stories/${s.img}.webp`} focus={s.focus} onClose={closeLayer}
+        <SceneLayer opener={layerOpener.current} label={`${s.no} ${s.label}`} image={`/brand/stories/${s.img}.webp`} focus={s.focus} onClose={closeLayer}
           footer={<><button type="button" className="bh-layer-nav" onClick={() => go(-1)}><span aria-hidden="true">←</span> 이전 장면</button><span className="bh-layer-count">{s.no} / 09</span><button type="button" className="bh-layer-nav" onClick={() => go(1)}>다음 장면 <span aria-hidden="true">→</span></button></>}>
           <p className="bh-kicker">{s.no} — {s.label}</p>
           <h2 className="bh-title">{s.title[0]}<br />{s.title[1]}</h2>
@@ -115,14 +117,14 @@ export default function BrandHomePage() {
       );
     }
     if (l.kind === 'film') return (
-      <SceneLayer label={BRAND_FILM_COPY.title} onClose={closeLayer}>
+      <SceneLayer opener={layerOpener.current} label={BRAND_FILM_COPY.title} onClose={closeLayer}>
         <p className="bh-kicker">BRAND FILM</p>
         <h2 className="bh-title">{BRAND_FILM_COPY.title}</h2>
         <BrandFilm />
       </SceneLayer>
     );
     if (l.kind === 'company') return (
-      <SceneLayer label="회사 소개" image="/brand/stories/story-03.webp" focus="center 74%" onClose={closeLayer}>
+      <SceneLayer opener={layerOpener.current} label="회사 소개" image="/brand/stories/story-03.webp" focus="center 74%" onClose={closeLayer}>
         <p className="bh-kicker">COMPANY</p>
         <h2 className="bh-title bh-title--wide">DO IT COMPANY</h2>
         <p className="bh-lead">{BRAND_HOME_COPY.companyLead[0]}<br />{BRAND_HOME_COPY.companyLead[1]}</p>
@@ -134,7 +136,7 @@ export default function BrandHomePage() {
       </SceneLayer>
     );
     return (
-      <SceneLayer label="대표 인사말" image="/brand/stories/story-06.webp" focus="center 78%" onClose={closeLayer}>
+      <SceneLayer opener={layerOpener.current} label="대표 인사말" image="/brand/stories/story-06.webp" focus="center 78%" onClose={closeLayer}>
         <p className="bh-kicker">대표 인사말</p>
         <h2 className="bh-title bh-title--greeting">{GREETING_TITLE}</h2>
         <div className="bh-greeting-body">
