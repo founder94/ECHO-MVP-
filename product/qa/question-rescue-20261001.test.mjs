@@ -34,7 +34,7 @@ test('Q1 질문 본체는 늘 주관식: 보통 답 뒤 보기는 서버가 들�
   const st = await afterFirst();
   assert.equal(st.current.text, '처음 만나면 어디가 편해요?');
   assert.deepEqual(A.rescueView(st), { options: ['조용한 카페', '같이 걷기', '밥 먹으면서'], symbols: ['☕', '🚶', '🍽️'], show: false, fallback: false });
-  assert.match(UI, /\{!done && <form className="echo-composer"/, '대화 중에는 주관식 입력칸이 늘 있다');
+  assert.match(UI, /\{!done && <form className="echo-composer echo-chat-bar"[\s\S]*?<label htmlFor="echo-message"[^\n]*\n\s*<textarea id="echo-message"/, '대화 중에는 주관식 입력칸이 늘 있다');
   assert.match(UI, /\{rescueOpen && <div className="echo-rescue"/, '보기는 펼쳤을 때만');
   assert.match(UI, /const rescueOpen = !!question && !editingPrevious && \(rescueFor\?\.q === question \? rescueFor\.open : !!rescue\?\.show\);/, '펼침 = 내가 누름(A·B) 또는 서버가 먼저 펼침(C·D)');
   assert.ok(!/current_choices\.map/.test(UI), '예전처럼 보기를 늘 바로 그리지 않는다');
@@ -179,7 +179,8 @@ test('Q13 보기는 2~4개(5개 이상 0 · 1개면 보기 없음) · 보기를 
   assert.equal(A.cleanChoices(['가', '나나', '다다', '라라', '마마', '바바']).length, 4);
   assert.deepEqual(A.cleanChoices(['조용한 카페']), []);
   assert.equal(A.CHOICE_LIMIT, 4); assert.equal(A.CHOICE_MIN, 2);
-  assert.match(UI, /onClick=\{\(\) => \{ setPick\(picked === choice \? null : \{ q: question, choice \}\);/, '누르면 고른 표시만');
+  assert.match(UI, /onClick=\{\(\) => setPick\(picked === choice \? null : \{ q: question, choice \}\)\}/, '누르면 고른 표시만(2026-10-05 PM: 적던 글은 지우지 않음)');
+  assert.doesNotMatch(UI, /setPick\(picked === choice[^\n]*setDraft\(''\)/, '보기를 눌러도 적던 글 삭제 0');
   assert.ok(!/echo-choice[^\n]*onClick=\{\(\) => send\(choice\)\}/.test(UI), '보기 탭으로 바로 보내지 않는다');
 });
 

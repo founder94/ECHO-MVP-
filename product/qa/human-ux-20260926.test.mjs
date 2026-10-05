@@ -66,12 +66,12 @@ test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 �
   const menu = read('src/components/AppCornerMenu.tsx');
   const css = read('src/components/app-corner-menu.css');
   assert.match(menu, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
-  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\)/);
+  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\)/);
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
   for (const t of ['ECHO와 이야기하기', '나의 이해', '앱 설치', '설정']) assert.ok(menu.includes(`label: '${t}'`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');
-  // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 파스텔 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만
-  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#2fbf97 0%,#27b3bd 38%,#c9a444 74%,#d0785a 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
+  // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만 · 2026-10-05 색은 새 시안의 연기빛 유리(불투명판)로(Codex PR #131 P2)
+  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
   assert.match(ui, /\.doit-menu-panel \*\{color:#fff!important;/);
 });
 
@@ -83,9 +83,9 @@ test('ECHO UI 한 벌: 글꼴 Pretendard 하나 · 굵기 4단계(800/700/700/60
   assert.doesNotMatch(ui, /font-weight:(300|400)/);
   assert.match(ui, /\[class\*=" bg-background-"\][^{]*\{background-color:var\(--echo-glass\)!important/);
   assert.match(ui, /:not\(:disabled\):active\{background-color:var\(--echo-glass-press\)!important\}/);
-  // 2026-10-04 대표 디자인 교체: 짙은 청록 유리 판(--echo-glass)과 흰 주요 버튼의 청록 글자(--echo-cta-ink)만 예외 — 검정·회색 0
-  assert.doesNotMatch(ui.replace('--echo-glass:rgb(8 70 78/.34)', '').replace('--echo-cta-ink:#0f4a4a', ''), /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정·짙은 색 0');
-  assert.match(ui, /--echo-glass:rgb\(8 70 78\/\.34\)/, '판 = 짙은 청록 유리(파스텔이 비침)');
+  // 2026-10-04 대표 디자인 교체 · 2026-10-05 「사진 똑같이」 = 시안의 짙은 연기빛 유리 판(--echo-glass)과 흰 주요 버튼의 청록 글자(--echo-cta-ink)만 예외 — 검정·회색 0
+  assert.doesNotMatch(ui.replace('--echo-glass:rgb(30 42 48/.50)', '').replace('--echo-cta-ink:#0f4a4a', ''), /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정·짙은 색 0');
+  assert.match(ui, /--echo-glass:rgb\(30 42 48\/\.50\)/, '판 = 시안의 연기빛 유리(파스텔이 비침)');
   for (const f of ['src/doit/components/feature/core-conversation.css', 'src/doit/components/feature/app-pastel.css']) assert.match(read(f), /@import "\.\/echo-ui\.css";/, f);
   for (const f of ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx', 'src/pages/legal/LegalDocument.tsx', 'src/pages/legal/consent/page.tsx']) assert.match(read(f), /doit-app-pastel/, `${f} 파스텔`);
   assert.doesNotMatch(read('src/doit/app/plan-a/screens/PhotoCapture.tsx'), /#242832|#11141a|rgba\(0,0,0,\.78\)|bg-black\/65|#090b10/, '사진 창 검정 0');

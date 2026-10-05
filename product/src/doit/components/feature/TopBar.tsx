@@ -2,6 +2,7 @@ import DoItSymbol from "@/components/DoItSymbol";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
+import KeyChip from "./KeyChip";
 
 interface TopBarProps {
   title?: string;
@@ -46,6 +47,8 @@ export default function TopBar({
 
         {/* 오른쪽 44px 는 공통 메뉴 버튼 자리(겹침 0). */}
         <div className="flex items-center gap-1 pr-12">
+          {/* 2026-10-05 승인 시안: 윗줄 오른쪽 KEY 알약(메뉴 버튼 왼쪽 · 겹침 0) */}
+          <KeyChip />
           {showActions && (
             <>
               {SHOW_NOTIFICATIONS && (

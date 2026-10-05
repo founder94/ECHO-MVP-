@@ -11,6 +11,7 @@ import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
 import '@/doit/components/feature/understanding-pages.css';
+import '@/doit/components/feature/start-ref.css';
 import { splitCurrent } from '@/doit/lib/understandingView';
 
 // 이미 홈 화면 앱으로 열려 있으면 설치 링크를 보이지 않는다.
@@ -60,6 +61,8 @@ export default function Home() {
     <MobileLayout showNav activeTab="home">
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro" aria-labelledby="echo-home-title">
+          {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목(글은 그대로 — 대표 「글은 완성」) */}
+          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" /></div>
           <p className="doit-product-kicker">DO IT · 만나기 전에</p>
           {done
             ? <>

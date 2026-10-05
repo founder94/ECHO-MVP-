@@ -32,7 +32,8 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   // 2026-09-25 대표 MASTER §12 「사용자 APP 전면 파스텔」(이전 결정 「시작 흐름은 첫 질문 직전 한 곳만」을 대체): 시작 흐름의 모든 단계가 파스텔.
   const journey = read('src/doit/pages/do-it/start-journey/page.tsx');
   assert.match(journey, /if \(leaving\) \{[\s\S]{0,260}echo-dialogue echo-dialogue--pastel[\s\S]{0,120}첫 질문을 꺼내고 있어요/, '첫 질문 직전 전환 화면');
-  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative \/><p className="echo-eyebrow">무엇부터 할까요/, '「무엇부터 할까요」 선택 화면');
+  // 2026-10-05 대표 실기기 「승인 시안과 다름」: 심볼·작은 머리글 → 시안 1번 유리 리본 · 가운데 제목(파스텔 루트는 그대로)
+  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="\/doit\/echo-ribbon\.webp" alt=""[^>]*\/><\/div><p className="echo-eyebrow">무엇부터 할까요<\/p><h1>오늘은<br \/>무엇부터 할까요\?<\/h1>/, '「무엇부터 할까요」 선택 화면');
   assert.ok((journey.match(/className="doit-app-pastel/g) ?? []).length >= 6, '불러오기·오류·목적·프로필 작성·사진·확인 단계');
   assert.doesNotMatch(journey, /#090a0c/, '시작 흐름에 검정 바탕 0');
   assert.match(read('src/doit/app/plan-a/screens/SignupConsent.tsx'), /echo-dialogue echo-dialogue--pastel/, '가입 안내도 파스텔');
@@ -47,7 +48,9 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
 });
 
 test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·배치 규칙 0 · 굵기는 500·600만', () => {
-  assert.doesNotMatch(rules + bgRules, /url\(|readdy|helloreaddy|weather|particle|parallax/i); // 설명 주석은 빼고 실제 규칙만
+  // 2026-10-05 대표가 직접 보낸 시안 배경 그림 한 장(우리 저장소 안 파일)만 허용 · 바깥 주소·다른 그림 0
+  const own = 'url(/doit/bg/echo-mobile-bg.webp)';
+  assert.doesNotMatch(rules + bgRules.split(own).join(''), /url\(|readdy|helloreaddy|weather|particle|parallax/i); // 설명 주석은 빼고 실제 규칙만
   assert.doesNotMatch(bgRules, /font-family|font-size|font-weight|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
   assert.doesNotMatch(rules, /font-family|font-size|letter-spacing|line-height|margin|padding|width|height|grid-template|display:/);
   // 굵기는 대표 지시 「안내 글씨 굵기 한 단계」(2026-09-25)로 500·600만 허용 · 700/800 금지

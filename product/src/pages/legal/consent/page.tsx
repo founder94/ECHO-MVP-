@@ -9,6 +9,7 @@ import { LEGAL_VERSION } from '@/lib/legal/documents';
 import '@/pages/legal/legal.css';
 import '@/doit/components/feature/app-pastel.css';
 import '@/doit/components/feature/mobile-polish.css'; // 2026-10-05 모바일 마무리(앱 전용)
+import '@/doit/components/feature/visual-parity.css'; // 2026-10-05 승인 시안과 시각 일치(앱 화면 전용 · mobile-polish 뒤)
 
 // 로그인은 됐는데 현재 버전 약관 동의가 서버에 없는 회원이 오는 화면(ConsentGate 가 보낸다).
 // - 필수 3개 동의 → 서버 저장 → 원래 가려던 화면으로 돌아간다.

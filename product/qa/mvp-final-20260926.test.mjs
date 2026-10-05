@@ -45,7 +45,7 @@ test('ECHO가 이해한 나: 다섯 칸 · [맞아요]/[조금 달라요]/[그�
   assert.ok(!c.includes('부분을 고칠게요'), '문장 머리로 칸을 알리지 않는다');
   assert.match(c, /slot\?\.status === 'SKIPPED' \? '넘겼어요' : '아직 말하지 않았어요'/, 'UNKNOWN 을 억지로 채우지 않는다');
   assert.equal((read('src/doit/components/feature/AgentConversation.tsx').match(/<AgentProfileCheck /g) ?? []).length, 1);
-  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{!done && <form className="echo-composer"/, '끝난 뒤 입력칸은 확인 카드 한 곳');
+  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{!done && <form className="echo-composer echo-chat-bar"/, '끝난 뒤 입력칸은 확인 카드 한 곳');
 });
 
 test('정정 서버 반영(가짜 AI 출력 · v2.2 정정 엔진): 한 칸 고침 → 옛 뜻 SUPERSEDED · 새 뜻 USER_CORRECTED · 매칭 프로필은 새 뜻만', async () => {

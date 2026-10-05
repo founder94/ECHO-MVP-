@@ -101,9 +101,12 @@ export default function Profile() {
   return (
     <MobileLayout title="프로필" showNav activeTab="profile">
       <section className="doit-product-story">
-        <p className="doit-product-kicker">MY OWN WORDS</p>
-        <h2 className="doit-product-title">내 프로필</h2>
-        <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
+        {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 「나를 소개하는 작은 시작」처럼 가운데 제목(글은 그대로) */}
+        <div className="doit-product-head">
+          <p className="doit-product-kicker">MY OWN WORDS</p>
+          <h2 className="doit-product-title">내 프로필</h2>
+          <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
+        </div>
         <ProfilePhotoGallery userId={!authLoading ? user?.id ?? null : null} onManage={() => navigate("/doit/start-journey?edit=photos")} />
         <div className="doit-profile-card" aria-live="polite">
           <div className="doit-profile-card-head"><span className="doit-product-kicker">DO IT · PROFILE</span><DoItSymbol decorative /></div>

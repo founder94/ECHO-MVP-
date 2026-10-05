@@ -1,0 +1,81 @@
+/* 2026-10-05 대표 「실기기 디자인 불일치 긴급 수정」 — 승인 시안(「모바일 최종 디자인 기준」·「모바일 전체 흐름」)과 같은 제품처럼.
+   보고: docs/design/PARITY_REPORT_20261005.md. 화면 생김새만(글·서버·질문 로직·정정 4종·매칭 규칙 0).
+   담당 경계(PR #131 ↔ PR #138, 한 파일 한 담당): 이 파일 = 홈 · 프로필 · 「오늘은 무엇부터」 · 윗줄 · 아래 탭만.
+   대화 화면 · 첫 질문 · 정정 · 메뉴(≡) · 공통 판 색 토큰(echo-ui.css)은 PR #138(visual-parity.css) 담당 — 여기서 건드리지 않는다.
+   2026-10-05 21:22 KST 대표 「네가 고쳐!」: 이 파일은 PR #138 담당으로 넘어옴(#131 댓글 5994360174). 판·탭·주요 버튼 색 = 공통 유리 토큰(visual-parity.css) — 흰 글자 4.5:1 이상.
+   범위: 파스텔 사용자 화면 루트 안쪽만 · 전역 body/:root 값 0. 다른 모양 파일보다 강하게 :root:root 로 시작한다. */
+
+/* 1. 홈·프로필 판: 짙은 회청색 판(mobile-polish 의 --echo-glass) → 시안의 비치는 청록 유리 */
+:root:root .doit-app-pastel :is(.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state,.doit-profile-card){
+  background:var(--echo-glass)!important;border:1px solid var(--echo-glass-line)!important;
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12)!important;
+  -webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur);
+}
+
+/* 2. 윗줄: 짙은 띠 0 — 투명 머리줄(스크롤하면 같이 올라감 · 글 겹침 0) */
+:root:root .doit-app-pastel .doit-product-topbar{position:relative!important;background:transparent!important;border-bottom:0!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+
+/* 3. 아래 탭: 검정 판(.94) → 청록 유리 */
+:root:root .doit-app-pastel .doit-product-nav{background:var(--echo-glass)!important;border-top:1px solid var(--echo-glass-line)!important;box-shadow:0 -10px 30px rgb(20 60 70/.12)!important;-webkit-backdrop-filter:var(--echo-glass-blur);backdrop-filter:var(--echo-glass-blur)}
+:root:root .doit-app-pastel .doit-product-nav a{color:rgb(255 255 255/.8)}
+:root:root .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
+
+/* 4. 홈·프로필: 시안처럼 유리 리본 · 제목 가운데 · 주요 버튼 = 짙은 청록 유리 알약 */
+:root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story>.doit-product-head){text-align:center}
+:root:root .doit-app-pastel .doit-understanding-intro{padding:4px 0 22px}
+:root:root .doit-app-pastel .doit-understanding-intro .doit-product-title{margin:0 0 10px}
+:root:root .doit-app-pastel .doit-understanding-intro .doit-product-description{margin:0 0 18px}
+:root:root .doit-app-pastel .echo-ref-hero.echo-ref-hero--home{height:clamp(150px,44vw,190px);margin:-6px -16px 0}
+:root:root .doit-app-pastel .echo-ref-hero.echo-ref-hero--home .echo-ref-wordmark{display:none}
+:root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action{
+  display:flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border-radius:16px;
+  background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;color:#fff!important;-webkit-text-fill-color:#fff;
+  box-shadow:inset 0 1px 0 rgb(255 255 255/.38),0 10px 30px rgb(20 60 70/.12);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);
+}
+:root:root .doit-app-pastel :is(.doit-understanding-intro,.doit-product-story) .doit-product-action *{color:#fff!important;-webkit-text-fill-color:#fff}
+
+/* 홈 아래 카드: 시안의 얇은 유리 줄 */
+:root:root .doit-app-pastel .doit-understanding-latest{padding:16px 18px!important;border-radius:18px;margin:0 0 10px}
+:root:root .doit-app-pastel .doit-understanding-latest blockquote{margin:8px 0 4px;padding:0;border:0;font-size:15px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+:root:root .doit-app-pastel .doit-understanding-latest .doit-understanding-empty{margin:6px 0 0;font-size:14px;line-height:1.55}
+:root:root .doit-app-pastel .doit-understanding-latest .doit-understanding-section-heading h2{font-size:16px!important;line-height:1.4}
+:root:root .doit-app-pastel .doit-understanding-summary{padding:14px 18px!important;border-radius:18px;margin:0 0 10px}
+:root:root .doit-app-pastel .doit-understanding-summary strong{font-size:22px}
+:root:root .doit-app-pastel .doit-understanding-footer{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;padding:8px 0 0;border:0}
+:root:root .doit-app-pastel .doit-understanding-footer .doit-understanding-text-link{min-height:40px;font-size:14px}
+:root:root .doit-app-pastel .doit-understanding-footer p{flex-basis:100%;margin:4px 0 0;text-align:center;font-size:13px}
+
+/* 프로필: 시안 「나를 소개하는 작은 시작」 — 정보 = 유리 줄 */
+:root:root .doit-app-pastel .doit-product-story{padding-top:8px}
+:root:root .doit-app-pastel .doit-product-story>.doit-product-head .doit-product-title{margin:0 0 6px}
+:root:root .doit-app-pastel .doit-profile-card{margin-top:16px;padding:18px!important;border-radius:20px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-name{margin:0 0 4px;font-size:22px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-intro{margin:6px 0 12px;font-size:15px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-facts{margin:0;display:grid;gap:8px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-facts>div{display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:48px;padding:0 14px;border-radius:14px;background:rgb(18 84 92/.22);border:1px solid rgb(255 255 255/.4)}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-facts dt{font-size:14px;opacity:.95}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-facts dd{margin:0;font-size:14px;text-align:right}
+:root:root .doit-app-pastel .doit-profile-card .doit-product-footnote{margin:12px 0 0;text-align:center;font-size:12px}
+
+/* 흰 글자 읽힘(홈·프로필 안만): 연분홍·연주황 위에서도 보이게 아주 옅은 청록 그림자 */
+:root:root .doit-app-pastel :is(.doit-understanding-page,.doit-product-story) :is(h1,h2,h3,p,span,small,dt,dd,blockquote,a,time){text-shadow:0 1px 3px rgb(16 60 70/.28)}
+
+/* 5. 「오늘은 무엇부터 할까요?」: 유리 리본 · 가운데 */
+:root:root .echo-dialogue.echo-hub{text-align:center}
+:root:root .echo-dialogue.echo-hub .echo-ref-hero--home{height:clamp(150px,44vw,190px);margin:-6px -22px 0}
+:root:root .echo-dialogue.echo-hub .echo-journey-exit-actions{justify-content:center}
+:root:root .echo-dialogue.echo-hub .echo-text-button{align-self:center}
+
+/* 6. 프로필 사진(시안 「모바일 전체 흐름」 3번 · Codex echo-review 5993217604 ①): 큰 사각 빈 판 → 가운데 둥근 유리 사진 자리 + 카메라.
+   글·필요한 사진 수·안내는 그대로(글은 대표 확정) · 사진이 있을 때 큰 사진·작은 사진 줄은 그대로. 이 화면(.doit-product-story) 안에서만. */
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos{margin-top:4px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-heading{justify-content:center;text-align:center}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0!important;padding:4px 0 8px!important;background:transparent!important;border:0!important;box-shadow:none!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty>svg{box-sizing:content-box;width:30px;height:30px;padding:37px;border-radius:50%;background:rgb(255 255 255/.16);border:1px solid rgb(255 255 255/.62);box-shadow:inset 0 1px 0 rgb(255 255 255/.45),0 10px 30px rgb(20 60 70/.14);-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3);margin-bottom:6px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty p{margin:0;font-size:14px}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photos-empty span{font-size:13px;opacity:.92}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-manage{min-height:48px;border-radius:14px;background:var(--echo-glass-btn)!important;border:1px solid var(--echo-glass-line)!important;-webkit-backdrop-filter:blur(20px) saturate(1.3);backdrop-filter:blur(20px) saturate(1.3)}
+:root:root .doit-app-pastel .doit-product-story .doit-profile-photo-note{margin:8px 2px 0;font-size:12px;line-height:1.55;text-align:center}
+/* 프로필 판 머리: 큰 DO IT 표시가 차지하던 위아래 여백을 줄여 얇은 줄 위계로 */
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head{margin-bottom:12px}
+:root:root .doit-app-pastel .doit-profile-card .doit-profile-card-head .doit-official-symbol{width:36px;height:36px;margin:-6px}

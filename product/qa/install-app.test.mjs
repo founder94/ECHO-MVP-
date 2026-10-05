@@ -104,7 +104,7 @@ test('설치 신호는 앱 시작 때부터 듣는다(온보딩 중에 와도 �
 test('홈 화면 제안은 다섯 가지를 마친 뒤에만 보이고, 브랜드 사이트·이미 설치한 경우엔 숨는다', () => {
   assert.match(read('src/doit/pages/do-it/home/page.tsx'), /\{done && <InstallAppCard \/>\}/);
   // 대화 끝 화면에서는 AI 소개를 고른 뒤에만(소개 카드와 겹쳐 권하지 않는다).
-  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{done && introChosen && <InstallAppCard \/>\}/);
+  assert.match(read('src/doit/components/feature/AgentConversation.tsx'), /\{done && introChosen && \(profileOk \|\| !profile\) && <InstallAppCard \/>\}/);
   const card = read('src/doit/components/feature/InstallAppCard.tsx');
   assert.match(card, /!IS_BRAND_SITE && context !== 'installed' && eligible && open/);
   assert.match(card, /if \(!visible\) return null;/);
