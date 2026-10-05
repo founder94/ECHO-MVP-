@@ -34,5 +34,5 @@ test('사주·타로: 위 여백이 safe-area 를 포함해 「뒤로」 알약 
   const css = readFileSync('src/doit/pages/do-it/fortune/fortune-space.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(css, /\.echo-fortune-space\{padding-top:calc\(env\(safe-area-inset-top\) \+ 16px\)\}/);
   assert.match(css, /\.echo-fortune-space \.saju-page\{padding-top:40px\}/);
-  assert.match(readFileSync('src/components/app-back-button.css', 'utf8'), /\.doit-back-pill\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 8px\)/);
+  assert.match(readFileSync('src/components/app-back-button.css', 'utf8'), /\.doit-back-pill\{position:absolute;top:calc\(env\(safe-area-inset-top\) \+ 8px\)/);
 });

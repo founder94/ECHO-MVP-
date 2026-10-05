@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
 import "./product-brand.css";
+import "./ref-parity.css"; // 2026-10-05 승인 시안 일치(마지막에 적용)
 
 interface MobileLayoutProps {
   children: ReactNode;
