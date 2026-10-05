@@ -41,9 +41,12 @@ export default function BrandFilm() {
     const fail = () => setState('error');
     v.addEventListener('error', fail);
     // 실제로 재생되면 「영상 보기」를 거둔다 · 멈춤/재생 버튼 글을 맞춘다
-    const onPlaying = () => { setAskPlay(false); setPlaying(true); };
+    // 버튼 글은 영상의 실제 상태(v.paused)를 그대로 따른다: play() 를 부르는 순간 'play'(paused=false) · 멈추면 'pause'.
+    // 느린 회선에서 재생을 기다리는 동안에도 버튼은 「멈춤」 = 누르면 정말 멈춘다(글과 하는 일이 같음).
+    const onPlay = () => setPlaying(true);
+    const onPlaying = () => setAskPlay(false);
     const onPause = () => setPlaying(false);
-    v.addEventListener('playing', onPlaying); v.addEventListener('pause', onPause);
+    v.addEventListener('play', onPlay); v.addEventListener('playing', onPlaying); v.addEventListener('pause', onPause);
     const onGuide = () => { if (!v.paused) v.pause(); };
     window.addEventListener(GUIDE_OPEN_EVENT, onGuide);
     const tryPlay = () => {
@@ -60,7 +63,7 @@ export default function BrandFilm() {
       : null;
     io?.observe(box);
     if (!io) tryPlay();
-    return () => { v.removeEventListener('error', fail); v.removeEventListener('playing', onPlaying); v.removeEventListener('pause', onPause); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
+    return () => { v.removeEventListener('error', fail); v.removeEventListener('play', onPlay); v.removeEventListener('playing', onPlaying); v.removeEventListener('pause', onPause); window.removeEventListener(GUIDE_OPEN_EVENT, onGuide); io?.disconnect(); };
   }, [state, attempt]);
 
   const toggle = () => {

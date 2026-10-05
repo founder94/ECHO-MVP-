@@ -25,7 +25,8 @@ test('2026-10-05 대표 교체: 영상 = 홈페이지 제작과정(대표가 올
   assert.match(FILM, /else if \(e\.intersectionRatio < 0\.25 && !v\.paused\) v\.pause\(\);/, '4분의 1 아래면 멈춤');
   assert.match(FILM, /if \(reduceMotion\(\) \|\| userPaused\.current\)/, '움직임 줄이기 · 직접 멈춘 사람은 저절로 재생 0');
   assert.match(FILM, /if \(\(e as \{ name\?: string \} \| null\)\?\.name === 'NotAllowedError'\) setAskPlay\(true\)/, '막힘(NotAllowedError)만 「영상 보기」 · 끊긴 시도(AbortError) 무시');
-  assert.match(FILM, /const onPlaying = \(\) => \{ setAskPlay\(false\); setPlaying\(true\); \};/, '재생되면 「영상 보기」 거둠');
+  assert.match(FILM, /const onPlaying = \(\) => setAskPlay\(false\);/, '재생되면 「영상 보기」 거둠');
+  assert.match(FILM, /const onPlay = \(\) => setPlaying\(true\);[\s\S]*v\.addEventListener\('play', onPlay\)/, '버튼 글 = 실제 paused 상태(재생 기다리는 동안에도 「멈춤」)');
   assert.match(FILM, /<button type="button" className="bh-film-toggle" onClick=\{toggle\}/, '키보드로 누르는 멈춤/재생 버튼');
   assert.match(FILM, /rootMargin: '0px 0px 300px 0px'/, '가까이 오기 전 영상 파일 받지 않음');
   assert.match(FILM, /useState<State>\('waiting'\)/);
