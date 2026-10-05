@@ -1690,4 +1690,5 @@ export function observedTone(text: string): "formal" | "polite" | "casual" | "mi
 export const toneMismatch = (tone: Tone, text: string) => { const o = observedTone(text); if (o === "unknown") return false; if (tone === "casual") return o !== "casual"; return o === "casual" || o === "mixed"; };
 
 // 프롬프트 판 = 네 프롬프트(모든 말투) 글자의 해시. 파일 끝에서 계산한다(위의 프롬프트 함수·상수가 모두 준비된 뒤).
-export const PROMPT_VERSION = "p-" + fnv((["formal", "polite", "casual"] as Tone[]).map((t) => openingPrompt(t) + turnPrompt(t) + closingPrompt(t) + introPrompt(t)).join("|"));
+// Codex P2(4182589936): 입력 칸이 켜졌을 때 붙는 지시 줄도 판 번호에 넣는다(같은 판 이름으로 다른 지시가 나가지 않게).
+export const PROMPT_VERSION = "p-" + fnv((["formal", "polite", "casual"] as Tone[]).map((t) => openingPrompt(t) + turnPrompt(t) + closingPrompt(t) + introPrompt(t)).join("|") + "|flags:" + TURN_FLAG_RULES.map(([k, r]) => `${k}=${r}`).join("|"));
