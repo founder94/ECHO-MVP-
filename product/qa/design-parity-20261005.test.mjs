@@ -59,3 +59,16 @@ test('대표 배경 그림(「이거면되?」): 모든 파스텔 화면 바탕 
   const size = statSync(new URL('../public/doit/bg/echo-mobile-bg.webp', import.meta.url)).size;
   assert.ok(size > 5000 && size < 120000, `그림 크기 ${size}`);
 });
+
+test('대표 「키랑 다 같이」: 윗줄 KEY 알약 — 금빛 열쇠 + KEY · 숫자·잔액·차감 0 · 누르면 이용 안내 KEY', () => {
+  const chip = src('src/doit/components/feature/KeyChip.tsx');
+  assert.match(chip, /<KeyIcon size=\{20\} tone="gold" \/>/);
+  assert.match(chip, /openGuide\('key', ref\.current\)/);
+  assert.match(chip, /aria-label="KEY 안내 열기"/);
+  assert.doesNotMatch(chip.replace(/\/\/.*$/gm, ''), /useKeyWallet|total|balance|deduct|remaining/);
+  assert.match(src('src/doit/components/feature/TopBar.tsx'), /<KeyChip \/>/);
+  const css = src('src/doit/components/feature/key-chip.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /min-height:44px/);
+  assert.match(css, /-webkit-backdrop-filter:blur/);
+  assert.match(src('src/doit/components/feature/KeyIcon.tsx'), /tone = 'silver'/, '기존 은색 열쇠 기본값 그대로');
+});
