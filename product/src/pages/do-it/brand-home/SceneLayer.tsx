@@ -3,8 +3,10 @@ import { useEffect, useRef, type ReactNode } from 'react';
 // 2026-10-05 대표 「핵심 4페이지만 스크롤 · 나머지는 버튼 누르면 배경 그림이 뜨고 설명」: 화면 가득 여는 장면 창.
 // 열면 배경 사진이 앞으로 다가오며 선명해지고(움직임 줄이기면 정지) 글자가 올라온다. 닫기 = ✕ · Esc · 바깥 어두운 곳 누르기. 닫으면 누른 버튼으로 초점이 돌아간다.
 // 뒤 화면은 스크롤되지 않게 이 창이 열린 동안만 html 의 overflow 를 잠근다(닫으면 원래 값으로).
-export default function SceneLayer({ label, image, focus, onClose, children, footer, opener: openerProp }: {
+export default function SceneLayer({ label, image, focus, pos = 'top', onClose, children, footer, opener: openerProp }: {
   label: string;
+  // 사진 구도에 맞춘 글자 자리(이야기 장면의 pos · Codex PR #130 P2 4184522065). 기본 = 위.
+  pos?: 'top' | 'middle' | 'bottom';
   opener?: HTMLElement | null;
   image?: string;
   focus?: string;
@@ -44,7 +46,7 @@ export default function SceneLayer({ label, image, focus, onClose, children, foo
       <div ref={boxRef} className="bh-layer-box">
         {/* 장면이 바뀔 때(이전·다음)는 배경·글자만 새로 들어온다 — 닫기·이동 버튼은 그대로라 초점이 사라지지 않는다 */}
         {/* 휴대폰에서는 창이 화면 전체라 「바깥」이 없다 → 사진의 빈 곳(글·단추가 아닌 곳)을 누르면 닫는다(Codex PR #130 P2) */}
-        <div className="bh-layer-scene" key={label} onClick={(e) => { if (!(e.target as HTMLElement).closest('.bh-layer-body > *')) onClose(); }}>
+        <div className={`bh-layer-scene bh-layer-scene--${pos}`} key={label} onClick={(e) => { if (!(e.target as HTMLElement).closest('.bh-layer-body > *')) onClose(); }}>
           {image ? <img className="bh-layer-bg" src={image} alt="" aria-hidden="true" decoding="async" style={focus ? { objectPosition: focus } : undefined} /> : <div className="bh-stars" aria-hidden="true" />}
           <div className="bh-layer-body">{children}</div>
         </div>

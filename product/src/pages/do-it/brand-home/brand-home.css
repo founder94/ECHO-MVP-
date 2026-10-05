@@ -206,13 +206,17 @@
 
 /* 더 알아보기: 웹 설치하기 아래 얇은 줄(화면 한 장이 아님) */
 .bh-more { padding: 40px 24px 8px; max-width: 608px; margin: 0 auto; }
-.bh-more ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bh-more ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; } /* 회사 소개 · 대표 인사말 두 칸(Codex PR #130 P2 4184522072) */
 .bh-tile--wide { aspect-ratio: 4 / 5; }
 
 /* 장면 창: 화면 가득 · 배경 사진이 앞으로 다가오며 선명해지고 글자가 올라온다 */
 .bh-layer { position: fixed; inset: 0; z-index: 60; display: flex; align-items: stretch; justify-content: center; background: rgba(0, 0, 0, 0.7); animation: bh-fade 260ms ease both; }
 .bh-layer-box { position: relative; width: 100%; max-width: 720px; height: 100%; overflow: hidden; isolation: isolate; background: #000; }
 .bh-layer-scene { position: absolute; inset: 0; overflow-y: auto; isolation: isolate; }
+/* 글자 자리 = 이야기의 pos(사진 구도) · 글이 길면 그대로 스크롤(auto 여백은 0이 됨) */
+.bh-layer-scene { display: flex; flex-direction: column; }
+.bh-layer-scene--middle .bh-layer-body { margin-block: auto; }
+.bh-layer-scene--bottom .bh-layer-body { margin-top: auto; }
 .bh-layer-bg { position: fixed; top: 0; bottom: 0; left: 50%; z-index: -2; width: min(100%, 720px); height: 100%; object-fit: cover; translate: -50% 0; animation: bh-zoom 1100ms var(--bh-ease) both; }
 .bh-layer-scene::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.2) 45%, rgba(0, 0, 0, 0.78) 100%); }
 .bh-layer-body { padding: calc(88px + env(safe-area-inset-top)) 24px 120px; animation: bh-rise 700ms var(--bh-ease) 180ms both; }

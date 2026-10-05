@@ -157,3 +157,14 @@ test('2026-10-05 PM 보강: 홈페이지는 히어로 승인 원문을 두고 �
   assert.doesNotMatch(scope, /내일|반드시|자동|알림|보장|매일|무조건/, '내일·자동·알림·보장 말 0');
   assert.match(page, /<p className="bh-scope">\{BRAND_HOME_COPY\.scope\}<\/p>/);
 });
+
+test('Codex PR #130 P2(4184522065 · 4184522072): 이야기 장면 창은 사진 구도의 글자 자리(pos)를 쓴다 · 더 알아보기 두 칸', () => {
+  const LAYER = read('src/pages/do-it/brand-home/SceneLayer.tsx');
+  assert.match(HOME, /focus=\{s\.focus\} pos=\{s\.pos\}/);
+  assert.match(LAYER, /className=\{`bh-layer-scene bh-layer-scene--\$\{pos\}`\}/);
+  assert.match(HCSS, /\.bh-layer-scene--middle \.bh-layer-body \{ margin-block: auto; \}/);
+  assert.match(HCSS, /\.bh-layer-scene--bottom \.bh-layer-body \{ margin-top: auto; \}/);
+  const more = HOME.slice(HOME.indexOf('<nav className="bh-more"'), HOME.indexOf('</nav>', HOME.indexOf('<nav className="bh-more"')));
+  assert.equal((more.match(/<li>/g) ?? []).length, 2);
+  assert.match(noComments(HCSS), /\.bh-more ul \{[^}]*grid-template-columns: repeat\(2, 1fr\)/);
+});

@@ -112,7 +112,7 @@ export default function BrandHomePage() {
       const s = STORIES[l.i];
       const go = (d: number) => setLayer({ kind: 'story', i: (l.i + d + STORIES.length) % STORIES.length });
       return (
-        <SceneLayer opener={layerOpener.current} label={`${s.no} ${s.label}`} image={`/brand/stories/${s.img}.webp`} focus={s.focus} onClose={closeLayer}
+        <SceneLayer opener={layerOpener.current} label={`${s.no} ${s.label}`} image={`/brand/stories/${s.img}.webp`} focus={s.focus} pos={s.pos} onClose={closeLayer}
           footer={<><button type="button" className="bh-layer-nav" onClick={() => go(-1)}><span aria-hidden="true">←</span> 이전 장면</button><span className="bh-layer-count">{s.no} / 09</span><button type="button" className="bh-layer-nav" onClick={() => go(1)}>다음 장면 <span aria-hidden="true">→</span></button></>}>
           <p className="bh-kicker">{s.no} — {s.label}</p>
           <h2 className="bh-title">{s.title[0]}<br />{s.title[1]}</h2>
