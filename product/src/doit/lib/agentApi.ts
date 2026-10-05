@@ -136,9 +136,18 @@ async function tarotKey(userId: string, cardName: string, purpose: string): Prom
   return `${TAROT_KEEP}${userId}:${localDay()}:${Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)}`;
 }
 const tidyTarot = (r: TarotReading): TarotReading => ({ summary: r.summary, tags: r.tags.slice(0, 3), cards: r.cards.slice(0, 3) });
+// Codex P2(4187324611): 같은 열쇠의 해석이 이미 진행 중이면(StrictMode 두 번 실행 · 빠른 재진입) 새로 부르지 않고 그 결과를 함께 받는다(REQUEST_CONFLICT 오류 화면 0).
+const tarotInflight = new Map<string, Promise<TarotReading>>();
 export async function agentTarot(userId: string, cardName: string, purpose: string): Promise<TarotReading> {
   const key = await tarotKey(userId, cardName, purpose);
   try { const kept = JSON.parse(localStorage.getItem(key) ?? 'null') as unknown; if (validTarot(kept)) return tidyTarot(kept); } catch { /* 보관 읽기 실패 = 서버에 묻는다 */ }
+  const running = tarotInflight.get(key);
+  if (running) return running;
+  const p = fetchTarot(userId, key, cardName, purpose).finally(() => tarotInflight.delete(key));
+  tarotInflight.set(key, p);
+  return p;
+}
+async function fetchTarot(userId: string, key: string, cardName: string, purpose: string): Promise<TarotReading> {
   const r = await write<{ reading: TarotReading }>(userId, { action: 'agent_card', cardName, purpose }, ['AI_FORMAT', 'AI_ERROR']);
   if (!validTarot(r.reading)) throw new UnderstandingError('AI_FORMAT', '해석 모양이 잘못 왔어요.');
   const reading = tidyTarot(r.reading);

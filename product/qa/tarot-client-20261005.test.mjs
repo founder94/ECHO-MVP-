@@ -38,3 +38,13 @@ test('FreeResult: 실패하면 같은 카드로 다시 보기(누를 때만 · �
   assert.match(FORT, /useState<Mode>\(backToTaro \? "taro" : "saju"\)/);
   assert.match(FREE, /setTarotErrorKind\(err instanceof TarotError \? err\.kind : "failed"\);/);
 });
+
+test('Codex P2(4187324611): 같은 열쇠(계정·날·카드·목적)의 해석이 진행 중이면 새로 부르지 않고 그 결과를 함께 받음(StrictMode 두 번 실행 → REQUEST_CONFLICT 화면 0) · 끝나면 비움', () => {
+  const fn = API.slice(API.indexOf('export async function agentTarot('), API.indexOf('async function fetchTarot('));
+  assert.match(API, /const tarotInflight = new Map<string, Promise<TarotReading>>\(\);/);
+  assert.ok(fn.indexOf('localStorage.getItem(key)') < fn.indexOf('tarotInflight.get(key)'), '보관분 먼저');
+  assert.match(fn, /const running = tarotInflight\.get\(key\);\n\s*if \(running\) return running;/);
+  assert.match(fn, /fetchTarot\(userId, key, cardName, purpose\)\.finally\(\(\) => tarotInflight\.delete\(key\)\)/);
+  assert.match(fn, /tarotInflight\.set\(key, p\);/);
+  assert.equal((API.match(/action: 'agent_card'/g) ?? []).length, 1, '서버 부름은 fetchTarot 한 곳');
+});
