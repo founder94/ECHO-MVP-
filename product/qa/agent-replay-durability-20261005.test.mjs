@@ -106,3 +106,27 @@ test('⑦ 보기 자리 끝내기가 0행(자리가 그사이 바뀜)이어도 2
   assert.equal(r.body.code, 'CLAIM_UNCONFIRMED');
 });
 
+
+test('⑧ Codex P2(4183132885): 보기 저장 뒤 끝내기 실패(503) → 같은 요청 다시 보냄 = 모델 0 · 자리 끝냄 · 사용 기록 한 줄', async () => {
+  const { s, h, sid } = await started();
+  s.rescue = [{ choices: ['잘 웃는 사람', '말을 잘 들어주는 사람'] }];
+  s.failClaimFinish = true;
+  const requestId = rid();
+  const r1 = await h.call({ action: 'agent_rescue', requestId, sessionId: sid });
+  assert.equal(r1.status, 503, JSON.stringify(r1.body));
+  const rows = () => s.tables.doit_request_events;
+  const claim = () => rows().find((x) => x.action === 'agent_turn_claim' && x.target_id === sid && x.error_code !== null && x.status === 'pending' || (x.action === 'agent_turn_claim' && x.target_id === sid && x.status === 'applied'));
+  const usage = () => rows().filter((x) => x.action === 'agent_usage' && x.target_id === sid).length;
+  const usageBefore = usage();
+  assert.equal(claim()?.status, 'pending', '첫 시도 자리는 처리 중으로 남음');
+  s.failClaimFinish = false;
+  const calls = s.providerCalls?.length ?? 0;
+  const r2 = await h.call({ action: 'agent_rescue', requestId, sessionId: sid });
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  assert.equal((s.providerCalls?.length ?? 0) - calls, 0, '모델 호출 0');
+  assert.equal(claim()?.status, 'applied', '앞선 유료 자리를 끝냄(하루 한도 이중 셈 0)');
+  assert.equal(usage(), usageBefore, '첫 시도의 사용 기록 한 줄 그대로(같은 id · 새 줄 0)');
+  const r3 = await h.call({ action: 'agent_rescue', requestId, sessionId: sid });
+  assert.equal(r3.status, 200);
+  assert.equal(usage(), usageBefore, '세 번째도 새 줄 0');
+});

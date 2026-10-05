@@ -1547,9 +1547,12 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     st.rejected_choices = [...new Set([...(st.rejected_choices ?? []), ...shown])].slice(-20);
     cur.rescue_rejected = [...new Set([...(cur.rescue_rejected ?? []), ...shown])];
     cur.choices = null; cur.rescue_show = false; cur.rescue_fallback = false; syncAsked(st);
+    // Codex P1(4183132871): 다음 질문만 모델에게 받고, 이 말에서 생긴 사용자 정보 변화(칸 값·원문 저장·추정·선언·정정·다툼·확인 대기)는 모두 되돌린다(매칭·준비도 영향 0).
+    const kept = structuredClone({ slots: st.slots, inferred: st.inferred, declared: st.declared, corrections: st.corrections, disputed: st.disputed, pending_fix: st.pending_fix ?? null });
     const r = await runTurn(st, text, llm, { ...opts, rescueOpen: false, choice: undefined });
+    Object.assign(st, kept);
     const res = r.response as Record<string, unknown>;
-    if (!res.error) { res.saved = false; res.extracted = []; const t = st.turns.at(-1); if (t && t.user === text) { t.saved = false; t.extracted = []; t.fi = [...new Set([...(t.fi ?? []), "choice_ref_after_none"])]; } }
+    if (!res.error) { res.saved = false; res.extracted = []; res.recovered = []; const t = st.turns.at(-1); if (t && t.user === text) { t.saved = false; t.extracted = []; t.recovered = []; t.fi = [...new Set([...(t.fi ?? []), "choice_ref_after_none"])]; } }
     return r;
   }
   const isChoice = !after && !ui && !forced && validChoice(st, opts.choice, text);

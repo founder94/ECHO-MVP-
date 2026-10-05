@@ -226,6 +226,23 @@ test('Codex P2(4183004880): 안내 줄을 다 쓴 뒤 「보기 다 아니에요
   assert.ok(!(st.current.choices ?? []).some((c) => shown.includes(c)), '거절한 보기가 다시 나오지 않음');
 });
 
+test('Codex P1(4183132871): 「보기 다 아니에요」 뒤 모델이 값을 뽑아도 칸·원문·준비도 변화 0(매칭 영향 0)', async () => {
+  const Q0 = '이런 것 중 뭐가 더 좋아요?';
+  const st = afterThree();
+  st.fill_fallback_used = true;
+  st.asked.push({ type: 'core', purpose: 'relationship_style', text: A.talkFallbackText(st.tone) });
+  const shown = ['조용한 카페', '같이 걷기', '영화 보기'];
+  const cur = { type: 'core', purpose: 'relationship_style', text: Q0, choices: shown.slice(), rescue_show: true };
+  st.asked.push(cur); st.current = cur;
+  const before = JSON.stringify({ slots: st.slots, inferred: st.inferred, declared: st.declared, corrections: st.corrections, disputed: st.disputed });
+  const llm = async (kind) => kind === 'turn' ? turnJson({ extracted: [{ purpose: 'relationship_style', note: '천천히 알아감', quote: '그건 다 아닌데요' }], inferred: [{ trait: '신중함', basis: '그건 다 아닌데요' }], next: { type: 'core', purpose: 'values_character', question: '사람 볼 때 제일 먼저 보는 게 뭐예요?', hint: '', choices: [] } }) : JSON.stringify({ choices: [] });
+  const { response } = await A.runTurn(st, '그건 다 아닌데요', llm);
+  assert.equal(response.saved, false);
+  assert.equal(JSON.stringify({ slots: st.slots, inferred: st.inferred, declared: st.declared, corrections: st.corrections, disputed: st.disputed }), before, '사용자 정보 변화 0');
+  assert.ok(!st.slots.relationship_style.items.some((i) => i.quote === '그건 다 아닌데요'), '거절 말이 원문 값으로 남지 않음');
+  assert.ok(st.turns.at(-1).user === '그건 다 아닌데요' && st.turns.at(-1).saved === false, '사용자 원문은 대화 기록에 보존');
+});
+
 test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아님 · 한 글자 경우(술·차)도 읽음', () => {
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '친구 따라 술집 가는 게 좋아요?'), false);
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 다르게 고르는 이유가 있어요?'), true);

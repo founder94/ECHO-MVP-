@@ -362,6 +362,28 @@ async function foldIntoSaved(c: UsageCtx, sessionId: string) {
 const keepUsage = async (c: UsageCtx, sessionId: string | null, why: string): Promise<boolean> => { const ok = await logUsage(c, sessionId, why); if (sessionId) await foldIntoSaved(c, sessionId); return ok; };
 // 자리 놓기 코드: 사용 기록이 남았으면 그 코드 · 못 남겼으면 「결과 모름」(하루 한도에 계속 셈)
 const keptOr = (ok: boolean, code: string) => ok ? code : TURN_UNCERTAIN;
+// Codex P2(4183132885): 자리 하나의 사용 기록은 한 줄 — id·지문을 「자리 + 시도 번호」로 고정. 이미 있으면(23505) 같은 기록인지 읽어 확인한 뒤 남은 것으로 본다.
+async function usageOnce(c: UsageCtx, sessionId: string | null, why: string, claimId: string, attempt: number, usage: Json): Promise<boolean> {
+  const id = await derivedUuid(`${claimId}:usage:${attempt}`), hash = await sha256(`usage:${claimId}:${attempt}`);
+  const { error } = await c.admin.from("doit_request_events").insert({ user_id: c.userId, request_id: id, action: USAGE_ACTION, target_id: sessionId, status: "applied", payload_hash: hash, applied_revision: 0, response_payload: { usage: { why, ...usage } } });
+  if (!error) return true;
+  if (error.code === "23505") {
+    const { data: kept, error: readError } = await c.admin.from("doit_request_events").select("action, target_id, payload_hash").eq("user_id", c.userId).eq("request_id", id).maybeSingle();
+    if (!readError && kept && kept.action === USAGE_ACTION && (kept.target_id ?? null) === sessionId && kept.payload_hash === hash) return true;
+  }
+  logDiag({ step: "usage_log", error: true });
+  return false;
+}
+// 모델 없이 끝나는 같은 요청(앞선 시도가 이미 저장함): 그 시도의 유료 자리가 아직 처리 중이면 사용 기록을 한 줄로 맞추고 끝낸다(하루 한도 이중 셈 0).
+// 돌려주는 값: null = 맞출 자리 없음 · true = 끝냄 · false = 끝내지 못함(부른 쪽은 503).
+async function reconcilePaid(c: UsageCtx, sessionId: string, claimId: string, why: string): Promise<boolean | null> {
+  const { data: prior, error } = await c.admin.from("doit_request_events").select("action, status, error_code, target_id, applied_revision").eq("user_id", c.userId).eq("request_id", claimId).maybeSingle();
+  if (error) return false;
+  if (!prior || prior.action !== CLAIM_ACTION || prior.status !== "pending" || prior.error_code !== CLAIM_PAID || (prior.target_id ?? null) !== sessionId) return null;
+  const attempt = Number(prior.applied_revision ?? 0);
+  if (!(await usageOnce(c, sessionId, `${why}_replay`, claimId, attempt, { attempts_unknown: true }))) return false;
+  return finishClaim(c.admin, c.userId, claimId, attempt);
+}
 // 라우터가 「보내기 전에」 멈춘 까닭: 사용자가 끊음(cancelled) · 예산(budget_exceeded). 이때 도우미가 만든 상태(실패한 소개 · 빈 정리 · 대체 보기)는 저장하지 않는다.
 type Halt = "cancelled" | "session" | "request";
 const haltedBy = (r: ModelRouter): Halt | null => r.log.some((x) => x.error === "cancelled") ? "cancelled"
@@ -708,11 +730,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (stored.state.phase !== "talk" || !stored.state.current) return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
       // 모델을 부를 때만 AI 사전 확인. 들고 있던 보기·대체 보기 = 모델 0 → 설정·예산·한도와 무관하게 보여 준다
       let rescueClaim: string | null = null; let rescueAttempt: number | undefined;
-      if (await callsModel(stored, (st, llm) => A.requestRescue(st, llm))) {
+      const rescueClaimId = await derivedUuid(`${requestId}:claim:rescue`);
+      if (!(await callsModel(stored, (st, llm) => A.requestRescue(st, llm)))) {
+        // Codex P2(4183132885): 앞선 시도가 보기를 저장하고 마무리만 못 했으면(503) 그 자리를 여기서 끝낸다
+        if ((await reconcilePaid(ctx, sid, rescueClaimId, "rescue")) === false) return unconfirmed(origin);
+      } else {
         if (!aiReady("choices")) return fail("AI_NOT_CONFIGURED", "AI 서버 설정이 필요해요.", 500, origin);
         if (!R.modelAllowed(stored.run)) return fail("AI_BUDGET", "이 대화에서 쓸 수 있는 AI 사용량을 다 썼어요.", 429, origin);
         // 2026-10-05 Codex(other-actions): AI 호출 전에 자리 잡기 — 같은 요청 동시 2개 = 한쪽만 · 하루 마지막 한 번 = 한 요청만 · 끝난 같은 요청 = 지금 상태 그대로(호출 0)
-        rescueClaim = await derivedUuid(`${requestId}:claim:rescue`);
+        rescueClaim = rescueClaimId;
         const admit = await admitClaim(admin, userId, { id: rescueClaim, target: sid, hash: await sha256(`rescue:${sid}:${stored.state.current.text}`), paid: true, capped: dailyCapped, origin });
         if (admit.res) return admit.res;
         if (admit.done) { const now = await reloadSession(sid); return json({ ok: true, session: sessionView(sid, now ?? stored), duplicate: true }, 200, origin); } // Codex P2(4182589949)
@@ -730,7 +756,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", sid).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (error || !data || !data.length) { const ok = await keepUsage(ctx, sid, "rescue_lost_race"); if (rescueClaim) await settleClaim(admin, userId, rescueClaim, keptOr(ok, "LOST_RACE"), rescueAttempt); return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin); }
-      const usageOk = await logUsage(ctx, sid, "rescue"); // 하루 한도에 셈
+      const usageOk = rescueClaim && rescueAttempt != null && router.summary().calls > 0 ? await usageOnce(ctx, sid, "rescue", rescueClaim, rescueAttempt, aiTrace(router)) : await logUsage(ctx, sid, "rescue"); // 하루 한도에 셈(자리마다 한 줄)
       if (rescueClaim) { if (!usageOk) await settleClaim(admin, userId, rescueClaim, TURN_UNCERTAIN, rescueAttempt); else if (!(await finishClaim(admin, userId, rescueClaim, rescueAttempt))) return unconfirmed(origin); } // Codex P1(4182156210)
       logDiag({ step: "rescue", options: stored.state.current?.choices?.length ?? 0, fallback: !!stored.state.current?.rescue_fallback, fi: r.fi, calls: r.obs.calls.length, retry: r.obs.retry, provider: router.summary().provider, ai_fallback: router.summary().fallback, policy: router.policy.version });
       return json({ ok: true, session: sessionView(sid, stored) }, 200, origin);
