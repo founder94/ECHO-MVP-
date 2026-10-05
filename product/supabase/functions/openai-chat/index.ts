@@ -96,13 +96,14 @@ function isValidAnonSession(id: string): boolean {
 // ---------------------------------------------------------------------------
 const SAJU_DAY_MASTERS = ["갑목", "을목", "병화", "정화", "무토", "기토", "경금", "신금", "임수", "계수"] as const;
 const SAJU_ELEMENTS = ["목", "화", "토", "금", "수"] as const;
-const SAJU_TEN_GODS = ["비견", "겁재", "식신", "상관", "편재", "정재", "편관", "정관", "편인", "정인"] as const;
-interface SajuFacts { dayMaster: string; elements: Record<string, number>; cycleGod: string | null; yearGod: string | null }
+// 2026-10-06 Codex 4187020963: 시기(10년 흐름·올해) 값을 주면 AI 가 앞날을 말하게 된다 → 시기 값은 받지 않는다.
+// 이야기는 「지금 이 사람의 결」(일간·오행)만 그린다 — 앞날을 말할 재료 자체를 주지 않는 것이 근본 대책.
+interface SajuFacts { dayMaster: string; elements: Record<string, number> }
 
 function validateSajuFacts(raw: unknown): { ok: boolean; detail?: string } {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false, detail: "invalid_facts" };
   const f = raw as Record<string, unknown>;
-  const allowed = new Set(["dayMaster", "elements", "cycleGod", "yearGod"]);
+  const allowed = new Set(["dayMaster", "elements"]);
   if (Object.keys(f).some((k) => !allowed.has(k))) return { ok: false, detail: "invalid_facts_key" };
   if (typeof f.dayMaster !== "string" || !(SAJU_DAY_MASTERS as readonly string[]).includes(f.dayMaster)) return { ok: false, detail: "invalid_dayMaster" };
   const el = f.elements;
@@ -116,31 +117,23 @@ function validateSajuFacts(raw: unknown): { ok: boolean; detail?: string } {
     total += n;
   }
   if (total !== 6 && total !== 8) return { ok: false, detail: "invalid_element_total" };
-  for (const key of ["cycleGod", "yearGod"] as const) {
-    const g = f[key];
-    if (g !== null && (typeof g !== "string" || !(SAJU_TEN_GODS as readonly string[]).includes(g))) return { ok: false, detail: `invalid_${key}` };
-  }
   return { ok: true };
 }
 
 // 단정·겁주기·민감 주제 금지: 이런 말이 나오면 쓰지 않고(실패) 화면의 규칙 해설만 남긴다.
 // 주제는 낱말 줄기로 막는다(Codex 4186597176: 「건강이 나빠질…」·「돈이 많이 들어올…」·「큰 사고 위험…」이 빠져나갔다). 「사고방식·사고력」·「돈독」은 예외.
-const SAJU_STORY_BANNED = /결혼|이혼|임신|출산|사망|죽음|죽을|죽는|건강|질병|병에|병이|병원|아프|아플|다치|다칠|부상|수술|사고(?!방식|력)|위험|돈(?!독)|금전|재물|재산|부자|가난|월급|연봉|대출|빚|투자|주식|코인|로또|복권|대박|반드시|무조건|확실히|틀림없|운명이에요|운명입니다|정해져 있|조심하지 않으면|불행|저주|액운|흉하/;
+const SAJU_STORY_BANNED = /결혼|이혼|임신|출산|사망|죽음|죽을|죽는|건강|질병|병에|병이|병원|아프|아플|다치|다칠|부상|수술|사고(?!방식|력)|위험|돈(?!독)|금전|재물|재산|부자|가난|월급|연봉|대출|빚|투자|주식|코인|로또|복권|대박|반드시|무조건|확실히|틀림없|운명이에요|운명입니다|정해져 있|조심하지 않으면|불행|저주|액운|흉하|심장|폐가|폐에|위장|소화|숨이|숨쉬|호흡|혈압|혈액|당뇨|두통|통증|증상|면역|검사를|검진|진료|진단|치료|약을|약이|의사|몸이|몸에|몸을|몸의|체력|체중|살이 찌|다이어트|불면|잠을 못|우울|불안|공황|스트레스|약해질|약해지/;
 
-// 미래를 못 박는 말(Codex 4186732157 · 4186865703). 끝맺음 모양을 하나씩 막는 대신 문장 단위로 본다:
-// ① 받침 ㄹ + 「거예요/것입니다」(될·올·날·할 거예요), 「~게 됩니다/돼요」는 늘 단정이다.
-// ② 앞날을 가리키는 말(내년·올해·곧·앞으로·언젠가…)이나 인연이 오고 만나는 말이 든 문장은
-//    여지를 두는 끝맺음(「~수 있어요」·「~지도 몰라요」·「~것 같아요」)일 때만 통과한다(「시작합니다」·「만나요」 같은 현재형 단정도 막힘).
-const SAJU_FUTURE_MARKER = /내년|올해|이번 해|새해|곧|앞으로|머지않아|조만간|언젠가|가까운 시일|다음 (?:달|해|주)|미래에|인연(?:이|을|도)?\s?(?:와|오|올|생|찾아|만나|다가)|(?:좋은|새로운|운명의) 사람(?:을|이|도)?\s?(?:만나|와|오|올|찾아|생)/;
-const SAJU_HEDGE = /수(?:도)? 있어요|지도 몰라요|것 같아요|거 같아요|기도 해요|봐요|보세요|봐도 좋아요|해요\?/;
+// 앞날 말 금지(Codex 4186732157 · 4186865703 · 4187020963): 이야기에는 시기 재료를 주지 않으므로 앞날을 말할 이유가 없다.
+// 그래서 여지를 둔 말(「~수 있어요」)로 감싸도 앞날을 가리키는 말이 든 문장이 하나라도 있으면 내보내지 않는다(문장 안 다른 마디의 여지로 덮이지 않음).
+// 받침 ㄹ + 「거예요/것입니다」, 「~게 됩니다/돼요」도 앞날 단정이다.
+const SAJU_FUTURE_MARKER = /내년|올해|이번 해|새해|곧|앞으로|머지않아|조만간|언젠가|나중에|가까운 시일|다음 (?:달|해|주)|미래|운세|시기|때가 오|인연(?:이|을|도)?\s?(?:와|오|올|생|찾아|만나|다가)|(?:좋은|새로운|운명의) 사람(?:을|이|도)?\s?(?:만나|와|오|올|찾아|생)/;
 function isDefinitiveFuture(text: string): boolean {
+  if (SAJU_FUTURE_MARKER.test(text)) return true;
   if (/게\s?(됩니다|돼요|되어요|될\s?거)/.test(text)) return true;
   for (const m of text.matchAll(/([가-힣])\s?(?:거|것)(?:예요|이에요|입니다|이다)/g)) {
     const code = m[1].charCodeAt(0) - 0xac00;
     if (code % 28 === 8) return true; // 받침 ㄹ(될·올·날·할 …) + 거예요 = 미래를 못 박는 말
-  }
-  for (const sentence of text.split(/(?<=[.!?…。])\s+|\n+/)) {
-    if (SAJU_FUTURE_MARKER.test(sentence) && !SAJU_HEDGE.test(sentence)) return true;
   }
   return false;
 }
@@ -156,8 +149,9 @@ function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
         `{\n  "story": "3~4문장. 이 사람의 결을 장면처럼 그려 주는 따뜻한 이야기. 해요체.",\n  "closing": "1문장. 오늘 이 사람에게 건네는 짧은 말. 해요체."\n}\n\n` +
         `규칙:\n` +
         `- 한국어 해요체로, 사람에게 말하듯 쉽게. 한자·전문 용어(십신·오행 이름 나열)는 쓰지 말고 뜻으로 풀어 줘.\n` +
-        `- 「~한 사람일 수 있어요」, 「~할 때가 있을지도 몰라요」처럼 여지를 남겨. 미래를 단정하지 마. 「~할 거예요」·「~하게 될 거예요」는 쓰지 마.\n` +
-        `- 결혼·건강·돈·투자·사고·죽음은 말하지 마. 겁주는 말, 「반드시·무조건·확실히」 같은 말도 쓰지 마.\n` +
+        `- 지금 이 사람의 결(성향·마음이 움직이는 순간)만 이야기해. 앞날·시기·올해·인연이 온다는 말은 하지 마. 「~할 거예요」·「~하게 될 거예요」도 쓰지 마.\n` +
+        `- 「~한 사람일 수 있어요」, 「~할 때 힘이 나는 편일지도 몰라요」처럼 여지를 남겨.\n` +
+        `- 결혼·건강·몸·마음의 병·돈·투자·사고·죽음은 말하지 마. 겁주는 말, 「반드시·무조건·확실히」 같은 말도 쓰지 마.\n` +
         `- 칭찬만 늘어놓지 말고, 이 사람이 스스로 고개를 끄덕일 만한 작은 장면(예: 어떤 순간에 힘이 나는지)을 하나 넣어 줘.\n` +
         `- 이건 재미로 보는 참고 이야기야. 사람을 판단하거나 정의하지 마.`,
     },
@@ -166,8 +160,7 @@ function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
       content:
         `일간(나를 뜻하는 글자): ${f.dayMaster}\n` +
         `오행 개수: ${counts}\n` +
-        `지금 10년 흐름의 자리: ${f.cycleGod ?? "모름"}\n` +
-        `올해의 자리: ${f.yearGod ?? "모름"}\n\n` +
+        `\n` +
         `이 값으로 이 사람에게 들려줄 이야기를 만들어 줘.`,
     },
   ];

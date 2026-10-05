@@ -31,7 +31,7 @@ function SajuStoryCard({ facts }: { facts: ReturnType<typeof sajuStoryFacts> }) 
           {state.kind === "loading" ? "천천히 읽어 보고 있어요…" : state.kind === "error" ? "다시 들어 볼래요" : "이야기로 들어 볼래요"}
         </button>
       </div>
-      <p className="saju-cap">누르면 생일·시간이 아니라, 계산된 결과 네 가지만 ECHO에게 보내요. 저장하지 않아요.</p>
+      <p className="saju-cap">누르면 생일·시간이 아니라, 계산된 결과 두 가지만 ECHO에게 보내요. 저장하지 않아요.</p>
     </>}
   </section>;
 }
