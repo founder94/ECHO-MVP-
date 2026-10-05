@@ -141,9 +141,22 @@ function condBases(latest: string): string[] {
 export const conditionalAnswer = (latest: string) => COND_WORDS.test(String(latest ?? "")) || condBases(latest).length >= 2;
 // 2026-10-05 Codex P2: 「경우」「아니면」「또는」만 있으면 한쪽 질문도 통과했다(「남자인 경우엔 술이 좋아요?」) — 나뉨을 가리키는 말(따라·각각·다르·둘 다·마다)이나 두 경우의 말이 모두 있어야 한다.
 const COND_ACK = /따라|각각|다르|달라|둘\s*다|마다/;
+// Codex P2(4182821571): 「A 아니면 B」「A 또는 B」 — 이음말 앞뒤 두 낱말씩에서 양쪽에 같이 있는 말(「사람」 등)과 조사를 빼고 남은 첫 낱말 = 두 경우.
+const ALT_SPLIT = /\s*(?:아니면|또는)\s*/;
+const ALT_TRIM = (w: string) => w.replace(/[^가-힣a-zA-Z0-9]/g, "").replace(/(이랑|랑|이나|나|과|와|이|가|을|를|은|는|도|요)$/, "");
+function altBases(latest: string): string[] {
+  const parts = String(latest ?? "").split(ALT_SPLIT);
+  if (parts.length < 2) return [];
+  const words = (x: string) => x.split(/[\s,.!?~…]+/).map(ALT_TRIM).filter((w) => w.length >= 2);
+  const before = words(parts[0]).slice(-2), after = words(parts[1]).slice(0, 2);
+  const a = before.filter((w) => !after.includes(w)).at(-1), b = after.find((w) => !before.includes(w));
+  return a && b && a !== b ? [a, b] : [];
+}
 export function keepsCondition(latest: string, question: string): boolean {
   if (!conditionalAnswer(latest)) return true;
   if (COND_ACK.test(question)) return true;
+  const alts = altBases(latest);
+  if (alts.length === 2 && alts.every((w) => question.includes(w.slice(0, 2)))) return true;
   const hit = condBases(latest).filter((b) => question.includes(b.slice(0, 2)));
   return hit.length >= 2;
 }
