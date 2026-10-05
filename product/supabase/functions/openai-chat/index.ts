@@ -11,6 +11,10 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 // 모델명은 Secrets(OPENAI_MODEL)에서만 읽는다 — 코드에 기본 모델명을 두지 않는다(B 규칙과 통일).
 const MAX_TOKENS = 800;
 const DAILY_LIMIT = 15;
+// 로그인하지 않은 사람 전체가 하루에 함께 쓰는 상한(2026-10-06 Codex 4186732134): 접속 주소 머리글은 요청하는 쪽이 바꿀 수 있어서,
+// 주소별 15회만으로는 주소를 바꿔 가며 끝없이 쓸 수 있다 → 로그인 안 한 요청은 모두 이 한 통을 함께 쓴다(비용 상한이 정해진다).
+const ANON_DAILY_TOTAL = 150;
+const ANON_BUCKET = "anon:all";
 const COOLDOWN_MS = 3000;
 const OPENAI_TIMEOUT_MS = 15000;
 
@@ -123,6 +127,17 @@ function validateSajuFacts(raw: unknown): { ok: boolean; detail?: string } {
 // 주제는 낱말 줄기로 막는다(Codex 4186597176: 「건강이 나빠질…」·「돈이 많이 들어올…」·「큰 사고 위험…」이 빠져나갔다). 「사고방식·사고력」·「돈독」은 예외.
 const SAJU_STORY_BANNED = /결혼|이혼|임신|출산|사망|죽음|죽을|죽는|건강|질병|병에|병이|병원|아프|아플|다치|다칠|부상|수술|사고(?!방식|력)|위험|돈(?!독)|금전|재물|재산|부자|가난|월급|연봉|대출|빚|투자|주식|코인|로또|복권|대박|반드시|무조건|확실히|틀림없|운명이에요|운명입니다|정해져 있|조심하지 않으면|불행|저주|액운|흉하/;
 
+// 미래를 못 박는 말(Codex 4186732157): 「~하게 될 거예요」·「~올 거예요」·「~게 됩니다」처럼 받침 ㄹ + 「거예요/것입니다」.
+// 「~할 수 있어요」·「~일지도 몰라요」처럼 여지를 둔 말만 통과. 마지막 한 줄의 권유(「해 봐요」)도 통과.
+function isDefinitiveFuture(text: string): boolean {
+  if (/게\s?(됩니다|돼요|되어요|될\s?거)/.test(text)) return true;
+  for (const m of text.matchAll(/([가-힣])\s?(?:거|것)(?:예요|이에요|입니다|이다)/g)) {
+    const code = m[1].charCodeAt(0) - 0xac00;
+    if (code % 28 === 8) return true; // 받침 ㄹ(될·올·날·할 …) + 거예요 = 미래를 못 박는 말
+  }
+  return false;
+}
+
 function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
   const counts = SAJU_ELEMENTS.map((k) => `${k} ${f.elements[k]}개`).join(", ");
   return [
@@ -134,7 +149,7 @@ function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
         `{\n  "story": "3~4문장. 이 사람의 결을 장면처럼 그려 주는 따뜻한 이야기. 해요체.",\n  "closing": "1문장. 오늘 이 사람에게 건네는 짧은 말. 해요체."\n}\n\n` +
         `규칙:\n` +
         `- 한국어 해요체로, 사람에게 말하듯 쉽게. 한자·전문 용어(십신·오행 이름 나열)는 쓰지 말고 뜻으로 풀어 줘.\n` +
-        `- 「~한 사람일 수 있어요」, 「~할 때가 있을지도 몰라요」처럼 여지를 남겨. 미래를 단정하지 마.\n` +
+        `- 「~한 사람일 수 있어요」, 「~할 때가 있을지도 몰라요」처럼 여지를 남겨. 미래를 단정하지 마. 「~할 거예요」·「~하게 될 거예요」는 쓰지 마.\n` +
         `- 결혼·건강·돈·투자·사고·죽음은 말하지 마. 겁주는 말, 「반드시·무조건·확실히」 같은 말도 쓰지 마.\n` +
         `- 칭찬만 늘어놓지 말고, 이 사람이 스스로 고개를 끄덕일 만한 작은 장면(예: 어떤 순간에 힘이 나는지)을 하나 넣어 줘.\n` +
         `- 이건 재미로 보는 참고 이야기야. 사람을 판단하거나 정의하지 마.`,
@@ -286,7 +301,7 @@ function validateOpenAIResponse(
     if (typeof p.closing !== "string" || p.closing.trim().length === 0 || p.closing.length > 120) {
       return { ok: false, detail: "invalid_closing" };
     }
-    if (SAJU_STORY_BANNED.test(p.story) || SAJU_STORY_BANNED.test(p.closing)) {
+    if (SAJU_STORY_BANNED.test(p.story) || SAJU_STORY_BANNED.test(p.closing) || isDefinitiveFuture(p.story) || isDefinitiveFuture(p.closing)) {
       return { ok: false, detail: "banned_phrase" };
     }
     return { ok: true, parsed: { story: p.story.trim(), closing: p.closing.trim() } };
@@ -402,6 +417,23 @@ Deno.serve(async (req) => {
 
   if (!rateAllowed) {
     return makeRateLimitResponse(corsHeaders);
+  }
+
+  // 로그인하지 않은 요청은 주소별 제한을 통과해도, 모두가 함께 쓰는 하루 상한을 한 번 더 통과해야 한다(같은 표·같은 함수 · 대기시간 0).
+  if (rateKey.startsWith("ip:")) {
+    try {
+      const { data, error } = await supabase.rpc("openai_rate_limit_allow", {
+        p_session_id: ANON_BUCKET,
+        p_ip: null,
+        p_day: day,
+        p_daily_limit: ANON_DAILY_TOTAL,
+        p_cooldown_ms: 0,
+      });
+      if (error) return makeServerErrorResponse(corsHeaders);
+      if (data !== true) return makeRateLimitResponse(corsHeaders);
+    } catch {
+      return makeServerErrorResponse(corsHeaders);
+    }
   }
 
   const type = body.type as string;

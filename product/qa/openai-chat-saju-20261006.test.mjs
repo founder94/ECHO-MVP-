@@ -49,7 +49,7 @@ test('하루 호출 수: 로그인 = 계정 기준 · 로그인 안 함 = 접속
   assert.equal((await call(TAROT, { token: 'user-token', session: S2 })).status, 200);
   assert.deepEqual(st.keys, [`user:${USER}`, `user:${USER}`]);
   await call(TAROT, { token: 'anon-public-key', session: S1 }); await call(TAROT, { session: S2 });
-  assert.deepEqual(st.keys.slice(2), ['ip:203.0.113.7', 'ip:203.0.113.7']);
+  assert.deepEqual(st.keys.slice(2), ['ip:203.0.113.7', 'anon:all', 'ip:203.0.113.7', 'anon:all'], '로그인 안 함 = 주소별 + 모두의 상한');
   assert.ok(!st.keys.some((k) => k === S1 || k === S2), '브라우저 세션 번호로 세지 않음');
 });
 
@@ -95,7 +95,7 @@ test('사주 이야기: AI 에게는 정해진 값만 들어가고, 따뜻한 �
 });
 
 test('사주 이야기: 단정·겁주기·민감 주제 말이 나오면 내보내지 않음(500 → 화면은 규칙 해설 그대로)', async () => {
-  for (const bad of ['건강이 나빠질 수 있어요. 그래도 마음은 단단한 사람이에요. 천천히 가요.', '돈이 많이 들어올 거예요. 기대해도 좋아요. 마음을 열어 봐요.', '큰 사고 위험이 있어요. 길을 걸을 때 살펴요. 괜찮을 거예요.', '몸이 아플 수 있는 해예요. 쉬어 가요. 무리하지 마요.', '재물이 모이는 흐름이에요. 기회를 잡아 봐요. 좋은 해예요.', '올해 반드시 결혼하게 될 거예요. 좋은 사람이 와요. 기다려 보세요.', '건강을 조심하지 않으면 큰일이 날 수 있어요. 수술 운이 있어요. 조심해요.', '투자 운이 좋아요. 주식을 해 보세요. 돈이 들어올 거예요.']) {
+  for (const bad of ['내년에는 새로운 일을 시작하게 될 거예요. 곧 좋은 사람도 만나게 될 거예요. 기대해요.', '좋은 사람이 곧 찾아올 거예요. 마음을 열고 기다려 봐요. 괜찮아요.', '올해는 마음이 편해질 거예요. 사람들 사이에서 힘이 날 거예요. 천천히 가요.', '새로운 인연이 생기게 됩니다. 천천히 다가가 봐요. 좋은 흐름이에요.', '건강이 나빠질 수 있어요. 그래도 마음은 단단한 사람이에요. 천천히 가요.', '돈이 많이 들어올 거예요. 기대해도 좋아요. 마음을 열어 봐요.', '큰 사고 위험이 있어요. 길을 걸을 때 살펴요. 괜찮을 거예요.', '몸이 아플 수 있는 해예요. 쉬어 가요. 무리하지 마요.', '재물이 모이는 흐름이에요. 기회를 잡아 봐요. 좋은 해예요.', '올해 반드시 결혼하게 될 거예요. 좋은 사람이 와요. 기다려 보세요.', '건강을 조심하지 않으면 큰일이 날 수 있어요. 수술 운이 있어요. 조심해요.', '투자 운이 좋아요. 주식을 해 보세요. 돈이 들어올 거예요.']) {
     const { call } = load({ ai: () => JSON.stringify({ story: bad, closing: '좋은 하루예요.' }) });
     assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500, bad);
   }
@@ -107,6 +107,16 @@ test('사주 이야기: 막는 말 줄기가 평범한 표현까지 잡되 「�
   const ok = { story: '당신은 사고방식이 유연해서, 사람들과 돈독하게 지내는 걸 좋아하는 사람일 수 있어요. 새로운 일을 시작할 때 마음이 먼저 움직일지도 몰라요.', closing: '오늘은 한 사람에게 먼저 안부를 건네 봐요.' };
   const { call } = load({ ai: () => JSON.stringify(ok) });
   assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200);
+});
+
+test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰는 하루 상한(150)에서 막힘', async () => {
+  const { st, call } = load();
+  let last;
+  for (let i = 0; i < 151; i++) last = await call(TAROT, { ip: `198.51.${Math.floor(i / 250)}.${i % 250}`, session: i % 2 ? S1 : S2 });
+  assert.equal(last.status, 429);
+  assert.equal(st.counts.get('anon:all'), 151);
+  const user = await call(TAROT, { token: 'user-token' });
+  assert.equal(user.status, 200, '로그인한 사람은 따로 셈');
 });
 
 test('화면: 서버가 올라가기 전에는 숨김(빌드 스위치) · 생일·시간은 보내지 않는다고 알림 · 실패하면 규칙 해설 그대로', () => {
