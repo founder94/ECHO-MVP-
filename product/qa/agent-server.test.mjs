@@ -930,8 +930,9 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
-  assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: true, fallback: false }, '「잘 모르겠어요」는 보기에서 빠짐 · 2026-10-05 canon: 처음 세 질문은 보기를 먼저 펼친다');
-  assert.deepEqual(start.body.session.current_choices, ['조용한 카페', '같이 걷기']); // 2026-10-05 canon: 처음 세 질문은 펼친 보기를 함께 보낸다
+  // 2026-10-05 대표 최신 계약 「주관식 본체 + 필요할 때 구조대 2~4개」: 처음 질문도 보기를 먼저 펼치지 않는다(같은 날 앞선 「첫 2~3회 버튼 중심」은 superseded)
+  assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: false, fallback: false }, '보기는 들고 있되 먼저 펼치지 않음 · 「잘 모르겠어요」는 보기에서 빠짐');
+  assert.equal(start.body.session.current_choices, null);
   const turnsBefore = s.tables.doit_request_events.filter((r) => r.action === 'agent_turn').length; const callsBefore = s.aiCalls.length;
   const rescue = await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid });
   assert.equal(rescue.status, 200); assert.equal(rescue.body.session.current_rescue.show, true);
@@ -1330,8 +1331,11 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
   s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
   const before = structuredClone(sessionRow(s));
+  // 새 함수 인스턴스(업체 건강 상태 초기화): 1)에서 anthropic 이 두 번 실패한 연속 오류가 남아 있으면 2)의 첫 실패로 차단기가 열려 「상한 3에서 멈춤」 대신 차단기 건너뛰기를 보게 된다.
+  //   이 검사는 요청당 호출 상한만 본다(차단기는 따로 검사됨). 2026-10-05: 예전엔 처음 질문 보기 만들기의 성공 호출이 우연히 연속 오류를 지워 주고 있었다.
+  const h2 = load(s);
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
-  const capped = await say3(h, sid, '솔직한 사람');
+  const capped = await say3(h2, sid, '솔직한 사람');
   assert.equal(capped.status, 502); assert.equal(s.providerCalls.length, 3, '상한 3 = 실제 업체 호출 3');
   sameButBudget(sessionRow(s), before);
   const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
@@ -1385,10 +1389,10 @@ test('Codex P2 소개 다시 쓰기·구조대 보기의 모델 호출도 대화
   const sid = start.body.session.id;
   // 구조대: 들고 있는 보기가 없으면 보기를 청하는 모델 호출 1
   s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
-  const b0 = structuredClone(sessionRow(s).response_payload.run.budget); const rc0 = (s.rescueCalls ?? []).length; // 2026-10-05 canon: 처음 질문의 보기 만들기(시작 때 1번)는 따로 셈
+  const b0 = structuredClone(sessionRow(s).response_payload.run.budget);
   assert.equal((await h.call({ action: 'agent_rescue', requestId: rid(), sessionId: sid })).status, 200);
   const b1 = sessionRow(s).response_payload.run.budget;
-  assert.equal((s.rescueCalls ?? []).length - rc0, 1, '보기 모델 호출 1');
+  assert.equal((s.rescueCalls ?? []).length, 1, '보기 모델 호출 1');
   assert.equal(b1.calls, b0.calls + 1, '구조대 호출이 예산에'); assert.equal(b1.tokens_in, b0.tokens_in + 100);
   s.ai.push(T({ kind: 'stop' }), { summary: [], closing: '고마워요.', intro: [{ text: '저는 요리를 잘해요.', basis: '요리' }] });
   assert.equal((await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '그만할래요' })).status, 200);
@@ -1431,9 +1435,9 @@ test('Codex P2 하루 한도: 이미 쓴 요청 id 로 구조대·소개를 불�
   const start = await h.call({ action: 'agent_start', requestId: used, tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
   const sid = start.body.session.id;
   seedDaily(s, 200);
-  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }]; const rc0 = (s.rescueCalls ?? []).length; // 2026-10-05 canon: 시작 때 처음 질문의 보기 만들기는 한도 전(따로 셈)
+  s.rescue = [{ choices: ['조용한 카페', '같이 걷기'] }];
   const r = await h.call({ action: 'agent_rescue', requestId: used, sessionId: sid });
-  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length - rc0, 0, '보기 모델 호출 0');
+  assert.equal(r.status, 429); assert.equal(r.body.code, 'AI_DAILY_LIMIT'); assert.equal((s.rescueCalls ?? []).length, 0, '보기 모델 호출 0');
 });
 test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 요청 id 로 시작해도 그 세션을 돌려줌(모델 0 · 429 아님)', async () => {
   const s = newState(); const h = load(s);

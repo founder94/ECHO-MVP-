@@ -1,5 +1,5 @@
 // doit-agent 질문 품질(2026-10-04~05 QA 대표 실기기) — 가짜 AI 기준(실제 AI 품질 판정 아님). 실행: node --test qa/doit-agent-quality-20261005.test.mjs
-// 확인: ① 처음 세 질문 = 보기 3~4개 먼저 펼침 · 네 번째부터 자유 입력 먼저 ② 처음 세 질문에 AI 가 만남 준비(연락·카톡·장소·약속 잡기)로 끌고 가지 않음
+// 확인: ① (2026-10-05 대표 최신 계약으로 바뀜) 처음 세 질문도 자유 글쓰기 기본 · 보기는 막혔을 때만 2~4개 ② 처음 세 질문에 AI 가 만남 준비(연락·카톡·장소·약속 잡기)로 끌고 가지 않음
 //       — 사용자가 먼저 꺼낸 말(「카페에서 얘기하는 게 좋아」)을 잇는 것은 허용 · 「약속 시간 잘 지키는 게 중요해요?」는 가치 질문이라 허용
 //       ③ 버튼 글자를 「~라는 말」로 따와 묻지 않음 ④ 나뉜 답(「남자면 술, 여자면 카페」)의 한쪽만 묻지 않음 ⑤ 보기를 가리키는 질문은 보기와 함께만
 import test from 'node:test';
@@ -30,24 +30,23 @@ const fresh = (goal = 'romantic') => { const st = A.newState({ tone: 'polite', g
 // 처음 질문 셋을 이미 한 상태(만남 준비 금지 구간이 끝남)
 const afterThree = () => { const st = fresh(); for (let i = 0; i < 3; i++) st.asked.push({ type: 'core', purpose: PURP[i], text: QS[i] }); st.current = st.asked.at(-1); return st; };
 
-test('① 처음 세 질문은 보기 3~4개를 먼저 펼치고, 네 번째 질문은 자유 입력이 먼저', async () => {
-  assert.equal(A.OBJECTIVE_FIRST_QUESTIONS, 3);
+test('① 2026-10-05 대표 최신 계약: 처음 세 질문도 자유 글쓰기가 기본 — 보기는 먼저 펼치지 않고(모델이 내도 들고만 있음) 「잘 모르겠어요」 뒤에만 2~4개', async () => {
+  assert.equal(A.OBJECTIVE_FIRST_QUESTIONS, 3, '처음 세 질문 구간은 만남 준비 금지에만 쓴다');
+  assert.equal(typeof A.ensureObjectiveFirst, 'undefined', '보기 자동 펼침 함수 0(superseded)');
   const st = fresh();
   for (let i = 0; i < 3; i++) {
-    const llm = async (kind) => kind === 'turn' ? turnJson({ extracted: i ? [] : [{ purpose: 'relationship_intent', note: '연애로 이어질 만남', quote: PURPOSE_BUTTON }], next: { type: 'core', purpose: PURP[i], question: QS[i], hint: '', choices: CH[i] } }) : '{}';
+    const calls = [];
+    const llm = async (kind) => { calls.push(kind); return kind === 'turn' ? turnJson({ extracted: i ? [] : [{ purpose: 'relationship_intent', note: '연애로 이어질 만남', quote: PURPOSE_BUTTON }], next: { type: 'core', purpose: PURP[i], question: QS[i], hint: '', choices: CH[i] } }) : '{}'; };
     const { response } = await A.runTurn(st, ANS[i], llm);
     assert.equal(response.question, QS[i], `q${i + 1}`);
-    const v = A.rescueView(st);
-    assert.equal(v.show, true, `q${i + 1} 보기 먼저 펼침`); assert.ok(v.options.length >= 3 && v.options.length <= 4, `q${i + 1} 보기 3~4개`);
+    assert.equal(A.rescueView(st).show, false, `q${i + 1} 보기 먼저 펼침 0(주관식 본체)`);
+    assert.ok(!calls.includes('choices'), `q${i + 1} 보기 만들기 추가 호출 0`);
   }
-  // 네 번째: 처음 세 질문을 마친 상태에서 새 질문 → 보기를 먼저 펼치지 않음
-  const st4 = afterThree();
-  st4.turns.push({ n: 1, ai: A.FIRST_QUESTION, question_purpose: 'relationship_intent', question_type: 'core', user: PURPOSE_BUTTON, kind: 'answer', saved: true });
-  assert.equal(A.objectiveFirstNext(st4), false);
-  const llm4 = async (kind) => kind === 'turn' ? turnJson({ next: { type: 'core', purpose: PURP[3], question: QS[3], hint: '', choices: CH[3] } }) : '{}';
-  const { response } = await A.runTurn(st4, ANS[3], llm4);
-  assert.equal(response.question, QS[3]);
-  assert.equal(A.rescueView(st4).show, false, 'q4 는 자유 입력 먼저(보기는 구조 요청 때)');
+  // 막히면(앱의 「잘 모르겠어요」 = agent_rescue → requestRescue) 그때 보기 2~4개 — 서버가 거른 보기만
+  const r = await A.requestRescue(st, async (kind) => kind === 'choices' ? JSON.stringify({ choices: CH[2] }) : '{}');
+  assert.equal(r.ok, true);
+  const v = A.rescueView(st);
+  assert.equal(v.show, true, '잘 모르겠어요 뒤에는 보기를 펼친다'); assert.ok(v.options.length >= 2 && v.options.length <= 4, `보기 2~4개 (${v.options.length})`);
 });
 
 test('② 처음 세 질문: AI 가 꺼낸 만남 준비 질문은 막고, 사용자가 꺼낸 말을 잇는 질문은 허용', () => {

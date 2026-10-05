@@ -157,16 +157,15 @@ export const logisticsQuestion = (q: string | null | undefined) => LOGISTICS_Q.t
 // 이미 한 만남 준비 질문 수(서버 고정 첫 질문 제외). 지금 보이는 질문(st.current)도 이미 한 질문이다.
 export const logisticsAsked = (st: AgentState) => st.asked.filter((a) => a.text !== FIRST_QUESTION && logisticsQuestion(a.text)).length;
 export const logisticsCapped = (st: AgentState, q: string | null | undefined) => logisticsQuestion(q) && logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS;
-// 2026-10-05 대표 고정 원칙 「첫 2~3회는 버튼 중심의 짧은 대화, 이후 자유 입력」: 목적을 고른 뒤 Agent 가 만든 처음 세 질문은 보기 3~4개와 함께 먼저 펼쳐 보인다(자유 입력칸은 그대로).
+// 2026-10-05 대표 최신 계약 「주관식 본체 + 필요할 때 객관식 구조대 2~4개」(PLAN A ANSWER/EMOJI/SYMBOL CONTRACT)가 같은 날 앞선 「첫 2~3회는 버튼 중심」을 대체(superseded)한다:
+//   처음 세 질문도 자유 글쓰기가 기본이다 — 보기를 먼저 펼치지 않는다(보기는 막힘·잘 모르겠어요·구조 요청·보기를 가리키는 질문일 때만 ensureRescue).
+//   아래 「처음 세 질문」 구간은 남은 뜻 하나에만 쓴다: AI 가 처음 질문부터 만남 준비(연락·장소·약속)로 끌고 가지 않기(logisticsEarly · objective_first 지시 줄).
 //   센다 = 서버 고정 첫 질문(목적 타일 FIRST_QUESTION)을 뺀 asked 수(지금 보이는 질문 포함 · 다시 묻기·먼저 답하기는 새로 세지 않음). 운영 기록 q(=coreAsked 수, 첫 질문 포함) 로는 q=2~4.
 export const OBJECTIVE_FIRST_QUESTIONS = 3;
-export const OBJECTIVE_FIRST_CHOICE_MIN = 3; // 이 구간의 보기는 3~4개(CHOICE_LIMIT)
 //   asked[0] = 목적 질문(앱 목적 타일 FIRST_QUESTION 또는 목적 없는 예전 앱의 opening 질문)이라 세지 않는다.
 export const agentQuestionCount = (st: AgentState) => Math.max(0, st.asked.length - 1);
 // 다음에 새로 묻는 질문이 처음 세 질문 안인지(질문을 만들기 전 검사용). replacing = 이미 센 지금 질문을 바꿔 쓰는 경우.
 export const objectiveFirstNext = (st: AgentState, replacing = false) => st.phase === "talk" && agentQuestionCount(st) - (replacing ? 1 : 0) < OBJECTIVE_FIRST_QUESTIONS;
-// 지금 보이는 질문이 처음 세 질문 중 하나인지(질문을 정한 뒤 · 보기를 붙일 때).
-export const objectiveFirstCurrent = (st: AgentState) => st.phase === "talk" && !!st.current && st.asked.length >= 2 && agentQuestionCount(st) <= OBJECTIVE_FIRST_QUESTIONS;
 // 2026-10-05 QA(목적 「연애로 이어질 만남을 원해요」 → 「원해요 라는 말이 들어가면 먼저 카톡을 해보는 게 편해요?」): 처음 세 질문에는 만남 준비(연락·카톡·장소·카페·술·약속·날짜·시간)를 묻지 않는다.
 //   그 뒤에는 예전처럼 대화에 한 번까지(logisticsCapped). 상한(이미 함)을 먼저 본다.
 //   단, 사용자가 먼저 꺼낸 말(「카페에서 얘기하는 게 좋아」)을 이어 묻는 것은 막지 않는다 — AI 가 만남 준비 쪽으로 끌고 가는 것만 막는다(사용자 말 따라가기).
@@ -447,7 +446,7 @@ JSON 하나로만 답한다: {"reply":"","question":""}`;
 //   칸이 있는 턴만 아래 한 줄씩(짧게). 보기를 가리키는 질문 규칙은 서버가 응답마다 강제한다(enforceChoiceContract).
 const TURN_FLAG_RULES: [string, string][] = [
   ["latest_is_conditional", "- latest_is_conditional: 경우에 따라 나뉜 답이다. 한쪽만 골라 묻지 말고 두 경우나 그 차이를 묻는다."],
-  ["objective_first", "- objective_first: 처음 질문. 만남 준비 말고 바라는 관계를 묻고 choices 3~4개."],
+  ["objective_first", "- objective_first: 처음 질문. 만남 준비 말고 바라는 관계를 묻는다."],
   ["latest_is_button", "- latest_is_button: latest 는 누른 버튼 글자다. 그 낱말이나 「~라는 말」로 묻지 말고 그 뜻으로 묻는다."],
   ["logistics_done", "- logistics_done: 만남 준비(장소·연락·약속·시간)는 이미 물었다. 다시 묻지 않는다."],
 ];
@@ -540,9 +539,7 @@ export type SourceType = "USER_DIRECT" | "AI_EXTRACTED" | "AI_INFERRED" | "USER_
 export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED" | "DISPUTED"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
 export interface Asked { type: "core" | "clarify" | "fill"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null; choices?: string[] | null;
   // 2026-10-01 구조대: rescue_show = 서버가 보기를 먼저 펼쳐 둠(C·D) · rescue_fallback = 보기를 못 만들어 안전 안내만 · rescue_tried = 보기 다시 만들기를 이미 함 · rescue_rejected = 「다 아닌데」로 거절된 보기
-  rescue_show?: boolean; rescue_fallback?: boolean; rescue_tried?: boolean; rescue_rejected?: string[]; rescue_requests?: number;
-  // 2026-10-05 처음 세 질문의 보기 만들기를 이미 함(rescue_tried 와 따로 — 이것이 실패해도 사용자의 「잘 모르겠어요」 구조 요청은 보기를 한 번 다시 청할 수 있다)
-  objective_tried?: boolean }
+  rescue_show?: boolean; rescue_fallback?: boolean; rescue_tried?: boolean; rescue_rejected?: string[]; rescue_requests?: number }
 export interface TurnRec { choice?: string; fi?: string[]; guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; presented?: { purpose: string; note: string }[]; fix_text?: string; fix_of?: number; vague_reject?: string; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
@@ -715,7 +712,7 @@ export function turnInput(st: AgentState, latest: string, opts: { button?: boole
     // 2026-10-04 만남 준비(곳·술·약속·날짜·연락 빈도) 질문을 이미 했으면 알린다 · 방금 말이 경우에 따라 나뉜 답이면 알린다(있을 때만 칸을 넣음)
     ...(logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS ? { logistics_done: true } : {}),
     ...(conditionalAnswer(latest) ? { latest_is_conditional: true } : {}),
-    // 2026-10-05 처음 세 질문(보기와 함께 · 만남 준비 질문 0) · 방금 말이 누른 버튼 글자(낱말 따오기 0)
+    // 2026-10-05 처음 세 질문(만남 준비 질문 0 · 보기는 먼저 펼치지 않음 — 최신 계약) · 방금 말이 누른 버튼 글자(낱말 따오기 0)
     ...(objectiveFirstNext(st) ? { objective_first: true } : {}),
     ...(opts.button ?? buttonInput(st.current?.text) ? { latest_is_button: true } : {}),
   };
@@ -819,7 +816,7 @@ const PICK_SHAPE = /중(엔|에|에서)\s*(뭐|무엇|어느|어떤|가까)|고�
 const CHOICE_REF = /(?:^|[\s,])(?:이런|저런|그런|요런|다음|아래|이|그)\s*(?:것|거|느낌|곳|장면|보기|예시)?들?\s*(?:중|가운데)(?:엔|에|에서|에선)?(?![가-힣])|아래\s*(?:보기|예시|에서\s*골|목록)|보기\s*(?:중|에서|가운데)|(?:중(?:에서|에|엔)?|보기(?:에서)?|하나(?:만)?)\s*(?:만\s*)?(?:고르|골라)/;
 export const refersToChoices = (q: string | null | undefined) => CHOICE_REF.test(String(q ?? ""));
 export const rescueAuto = (kind: string, rule: string | null, question: string, text = "") => ["unsure", "skip", "help"].includes(kind) || rule === "fatigue" || (kind === "repair" && (FATIGUE.test(text) || ANNOYED_ONLY.test(text))) || questionShape(question) === "choice" || PICK_SHAPE.test(question) || refersToChoices(question);
-const syncAsked = (st: AgentState) => { const a = st.asked[st.asked.length - 1]; const c = st.current; if (!a || !c || a === c) return; if (a.text === c.text) { a.choices = c.choices ?? null; a.rescue_show = c.rescue_show; a.rescue_fallback = c.rescue_fallback; a.rescue_tried = c.rescue_tried; a.objective_tried = c.objective_tried; a.rescue_rejected = c.rescue_rejected; a.rescue_requests = c.rescue_requests; } };
+const syncAsked = (st: AgentState) => { const a = st.asked[st.asked.length - 1]; const c = st.current; if (!a || !c || a === c) return; if (a.text === c.text) { a.choices = c.choices ?? null; a.rescue_show = c.rescue_show; a.rescue_fallback = c.rescue_fallback; a.rescue_tried = c.rescue_tried; a.rescue_rejected = c.rescue_rejected; a.rescue_requests = c.rescue_requests; } };
 const RESCUE_PROMPT = `너는 대화 질문 하나에 붙일 「고르기 보기」를 만든다. 질문 본체는 주관식이고, 보기는 답하기 막막한 사람을 돕는 구조대다.
 - question 에 바로 답이 되는 서로 다른 보기 2~4개. 각 ${CHOICE_MAX}자 이내, 물음표 없이, 친구에게 말하듯 일상 말로 쓴다.
   예: 질문이 「처음 만나면 어디가 편해요?」이면 「조용한 카페」「같이 걷기」「밥 먹으면서」.
@@ -845,27 +842,6 @@ export async function ensureRescue(st: AgentState, llm: Llm, obs: Obs, requested
   }
   cur.choices = null; cur.rescue_fallback = true; if (!requested) cur.rescue_show = false;
   fi.add(RESCUE_FI.MISSING); obs.retry.push("rescue_fallback"); syncAsked(st);
-  return [...fi];
-}
-// 2026-10-05 대표 고정 원칙 「첫 2~3회는 버튼 중심」: 처음 세 질문(objectiveFirstCurrent)은 보기 3~4개를 붙여 먼저 펼친다(rescue_show = true · 자유 입력칸은 화면에 그대로).
-//   AI 가 낸 보기가 3개 미만이면 보기만 한 번 다시 청한다(같은 RESCUE_PROMPT · 3~4개). 그래도 3개 미만이면 거른 보기 2개는 그대로 펼치고(OBJECTIVE_FIRST_SHORT),
-//   2개도 없으면 보기 없이 둔다(fallback · RESCUE_OPTIONS_MISSING) — 보기를 가리키는 질문이면 enforceChoiceContract 가 보기 없이 답할 수 있는 질문으로 바꾼다.
-export async function ensureObjectiveFirst(st: AgentState, llm: Llm, obs: Obs, question: string): Promise<string[]> {
-  const cur = st.current;
-  if (!cur || cur.text !== question || !objectiveFirstCurrent(st)) return [];
-  const fi = new Set<string>();
-  if ((cur.choices?.length ?? 0) < OBJECTIVE_FIRST_CHOICE_MIN && !cur.objective_tried) {
-    cur.objective_tried = true;
-    let raw: string | null = null;
-    try { raw = await call(llm, obs, "choices", `${RESCUE_PROMPT}\n- 이번에는 대화의 처음 질문이라 보기를 3~4개 낸다(서로 다른 뜻 · 짧게).`, { question: cur.text, session_goal: goalOf(st).name, avoid_words: avoidText(st), heard: heard(st).map((h) => h.note), rejected: rejectedMeanings(st).slice(-8), tone: TONES[st.tone]?.label ?? "" }); } catch { obs.retry.push("objective_first_call_failed"); }
-    const sc = screenChoices(st, parseJson(raw)?.choices, cur.text);
-    for (const f of sc.fi) fi.add(f);
-    if (sc.choices.length > (cur.choices?.length ?? 0)) cur.choices = sc.choices;
-  }
-  const n = cur.choices?.length ?? 0;
-  if (n >= CHOICE_MIN) { cur.rescue_show = true; cur.rescue_fallback = false; obs.retry.push(n >= OBJECTIVE_FIRST_CHOICE_MIN ? "objective_first_choices" : "objective_first_short"); }
-  else { cur.choices = null; cur.rescue_show = false; fi.add(RESCUE_FI.MISSING); obs.retry.push("objective_first_no_choices"); } // 안전 안내(rescue_fallback)는 구조 요청 때 ensureRescue 가 정한다
-  syncAsked(st);
   return [...fi];
 }
 // 「그건 다 아닌데」: 펼쳐 둔 보기를 거절함 — 억지로 고르게 하지 않고 직접 말하게 이끈다(저장 0 · 그 보기는 다시 안 나옴 · 사실로 올리지 않음).
@@ -1666,8 +1642,6 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   const limitReached = st.turns.length + 1 >= MAX_TALK_TURNS;
   const response: Json = { ...applyTurn(st, work, out, { limitReached, uiCorrection: !!ui, ...(forced ? { forced } : {}), ...(isChoice ? { choice: true } : {}) }) };
   // 2026-10-01 서버가 보기를 먼저 펼칠 질문(C·D)인데 보기가 모자라면 보기만 한 번 다시 청한다(그래도 없으면 안전 안내 + RESCUE_OPTIONS_MISSING).
-  // 2026-10-05 처음 세 질문: 보기 3~4개를 붙여 먼저 펼친다(rescue_show). 보기를 못 만들면 보기 없이(아래 enforceChoiceContract 가 보기를 가리키는 질문을 바꿔 씀).
-  if (response.question && !response.finish) { const f = await ensureObjectiveFirst(st, llm, obs, String(response.question)); const t = st.turns.at(-1); if (f.length && t) t.fi = [...new Set([...(t.fi ?? []), ...f])]; }
   if (response.question && !response.finish) { const f = await ensureRescue(st, llm, obs); const t = st.turns.at(-1); if (f.length && t) t.fi = [...new Set([...(t.fi ?? []), ...f])]; }
   // 2026-10-04 마지막 확인: 보기를 가리키는 질문인데 보기가 없으면 보기를 가리키지 않는 질문으로 바꾼다(응답·상태 함께).
   if (response.question && !response.finish) await enforceChoiceContract(st, llm, obs, response);
