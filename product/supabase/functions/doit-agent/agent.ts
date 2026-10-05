@@ -141,7 +141,7 @@ function condBases(latest: string): string[] {
 export const conditionalAnswer = (latest: string) => COND_WORDS.test(String(latest ?? "")) || condBases(latest).length >= 2;
 // 2026-10-05 Codex P2: 「경우」「아니면」「또는」만 있으면 한쪽 질문도 통과했다(「남자인 경우엔 술이 좋아요?」) — 나뉨을 가리키는 말(따라·각각·다르·둘 다·마다)이나 두 경우의 말이 모두 있어야 한다.
 // Codex P2(4183004890): 맨 「따라」(「친구 따라 …」)는 나뉨 표시가 아니다 — 「에 따라」「경우에 따라」 같은 대조 말만.
-const COND_ACK = /(에|경우에|경우)\s*따라|각각|다르|달라|둘\s*다|마다/;
+const COND_ACK = /(에|경우에|경우)\s*따라|각각|다르|달라|둘\s*다|(사람|상대|경우|상황|성별)\s*마다/; // Codex P2(4183702323): 맨 「마다」(주말마다·만날 때마다)는 경우를 나눈 말이 아니다
 // Codex P2(4182821571): 「A 아니면 B」「A 또는 B」 — 이음말 앞뒤 두 낱말씩에서 양쪽에 같이 있는 말(「사람」 등)과 조사를 빼고 남은 첫 낱말 = 두 경우.
 const ALT_SPLIT = /\s*(?:아니면|또는)\s*/;
 const ALT_TRIM = (w: string) => w.replace(/[^가-힣a-zA-Z0-9]/g, "").replace(/(이랑|랑|이나|나|과|와|이|가|을|를|은|는|도|요)$/, "");

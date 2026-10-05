@@ -277,4 +277,8 @@ test('Codex P2(4183004890·4183004898): 맨 「따라」는 나뉨 표시가 아
   assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '상대에 따라 다르게 고르는 이유가 있어요?'), true);
   assert.equal(A.keepsCondition('술 아니면 차', '술과 차 중 뭐가 좋아요?'), true);
   assert.equal(A.keepsCondition('술 아니면 차', '술 마시면 뭐가 좋아요?'), false);
+  // Codex P2(4183702323): 맨 「마다」는 나뉨 표시가 아님 · 「사람마다」처럼 경우를 나눈 말은 인정
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '주말마다 술 마시는 게 좋아요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '만날 때마다 카페 가는 게 좋아요?'), false);
+  assert.equal(A.keepsCondition('남자면 술, 여자면 카페', '사람마다 고르는 곳이 다른 이유가 있어요?'), true);
 });
