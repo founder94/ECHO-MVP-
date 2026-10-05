@@ -33,7 +33,7 @@ test('공통 메뉴: 앱 시작·온보딩부터 오른쪽 맨 위 하나(안전
   const hidden = new RegExp(menu.match(/const HIDDEN_PATH = \/(.*)\/;/)[1]);
   for (const p of ['/auth/callback', '/admin/mobile', '/qa/test']) assert.ok(hidden.test(p), p);
   for (const p of ['/', '/do-it/intro', '/do-it/hero', '/do-it/landing', '/doit/start-journey', '/login', '/signup', '/doit/conversation', '/doit/profile', '/doit/settings', '/doit/connections']) assert.ok(!hidden.test(p), p);
-  assert.match(css, /\.echo-corner-button\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 8px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);z-index:70;[^}]*width:44px;height:44px/);
+  assert.match(css, /\.echo-corner-button\{position:absolute;top:calc\(env\(safe-area-inset-top\) \+ 8px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);z-index:70;[^}]*width:44px;height:44px/);
   for (const p of ['src/doit/components/feature/TopBar.tsx', 'src/doit/components/feature/AgentConversation.tsx', 'src/doit/pages/do-it/fortune/page.tsx']) {
     const s = read(p); assert.doesNotMatch(s, /MenuButton|ri-settings-3-line/, p);
   }

@@ -32,7 +32,8 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   // 2026-09-25 대표 MASTER §12 「사용자 APP 전면 파스텔」(이전 결정 「시작 흐름은 첫 질문 직전 한 곳만」을 대체): 시작 흐름의 모든 단계가 파스텔.
   const journey = read('src/doit/pages/do-it/start-journey/page.tsx');
   assert.match(journey, /if \(leaving\) \{[\s\S]{0,260}echo-dialogue echo-dialogue--pastel[\s\S]{0,120}첫 질문을 꺼내고 있어요/, '첫 질문 직전 전환 화면');
-  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel"><DoItSymbol decorative \/><p className="echo-eyebrow">무엇부터 할까요/, '「무엇부터 할까요」 선택 화면');
+  // 2026-10-05 대표 실기기 「승인 시안과 다름」: 심볼·작은 머리글 → 시안 1번 유리 리본 · 가운데 제목(파스텔 루트는 그대로)
+  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="\/doit\/echo-ribbon\.webp" alt=""[^>]*\/><\/div><h1>오늘은<br \/>무엇부터 할까요\?<\/h1>/, '「무엇부터 할까요」 선택 화면');
   assert.ok((journey.match(/className="doit-app-pastel/g) ?? []).length >= 6, '불러오기·오류·목적·프로필 작성·사진·확인 단계');
   assert.doesNotMatch(journey, /#090a0c/, '시작 흐름에 검정 바탕 0');
   assert.match(read('src/doit/app/plan-a/screens/SignupConsent.tsx'), /echo-dialogue echo-dialogue--pastel/, '가입 안내도 파스텔');

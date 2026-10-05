@@ -11,6 +11,7 @@ import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
 import '@/doit/components/feature/understanding-pages.css';
+import '@/doit/components/feature/start-ref.css';
 import { splitCurrent } from '@/doit/lib/understandingView';
 
 // 이미 홈 화면 앱으로 열려 있으면 설치 링크를 보이지 않는다.
@@ -60,7 +61,8 @@ export default function Home() {
     <MobileLayout showNav activeTab="home">
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro" aria-labelledby="echo-home-title">
-          <p className="doit-product-kicker">DO IT · 만나기 전에</p>
+          {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목 · 버튼 하나(작은 머리글·안내 줄 0) */}
+          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" /></div>
           {done
             ? <>
                 <h1 id="echo-home-title" className="doit-product-title">이야기,<br />잘 들었어요.</h1>
@@ -82,7 +84,6 @@ export default function Home() {
                   <p className="doit-product-description">편하게 말하면 돼요.<br />찾는 건 ECHO가 할게요.</p>
                   <Link className="doit-product-action" to="/doit/start-journey">시작하기 <span aria-hidden="true">↗</span></Link>
                 </>}
-          <p className="doit-product-footnote">잘못 알아들었으면 바로 고쳐 주세요.</p>
         </section>
 
         {/* 내 연결에서 내 차례가 있으면 먼저 알린다(알림이 아직 없어서, v1.2). 없으면 아무것도 안 보인다. */}

@@ -64,7 +64,8 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」): 기존 대화 화면 CSS 만 쓰고 새 CSS 파일·새 클래스를 만들지 않는다.
   const imports = [...ui.matchAll(/import '\.\/([^']+\.css)'/g)].map((m) => m[1]);
   // 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」: 대화 화면 배치 한 장(chat-ref.css · .echo-chat 아래로만)이 더해졌다.
-  assert.deepEqual(imports, ['core-conversation.css', 'chat-ref.css', 'agent-choice.css']);
+  // 2026-10-05 대표 「실기기 디자인 불일치 긴급 수정」: 승인 시안 일치 한 장(ref-parity.css · 파스텔 루트 아래로만)이 마지막에 더해졌다.
+  assert.deepEqual(imports, ['core-conversation.css', 'chat-ref.css', 'ref-parity.css', 'agent-choice.css']);
   const chatRef = src('src/doit/components/feature/chat-ref.css').replace(/\/\*[\s\S]*?\*\//g, '');
   for (const sel of chatRef.match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@') && !/^(\d+%|from|to)/.test(x))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-(dialogue\.echo-)?chat( |$)/, `대화 화면 밖 규칙: ${part}`);
   assert.ok(!/body|:root|html/.test(chatRef), '전역 규칙 0');
@@ -74,7 +75,7 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   const choice = src('src/doit/components/feature/agent-choice.css');
   for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-choice-layer( |$)/, `선택창 밖 규칙: ${part}`);
   assert.ok(!/body|:root|html/.test(choice.replace(/\/\*[\s\S]*?\*\//g, '')), '전역 규칙 0');
-  const css = choice + chatRef + src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css');
+  const css = choice + chatRef + src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css') + src('src/doit/components/feature/ref-parity.css');
   const classes = [...new Set([...ui.matchAll(/className=["{]['"]?([^"'}]+)/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith('echo-')))];
   const unknown = classes.filter((c) => !css.includes(`.${c}`));
   assert.deepEqual(unknown, [], `기존 CSS 에 없는 클래스: ${unknown.join(',')}`);

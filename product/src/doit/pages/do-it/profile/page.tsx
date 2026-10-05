@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
-import DoItSymbol from "@/components/DoItSymbol";
 import ProfilePhotoGallery from "@/doit/components/feature/ProfilePhotoGallery";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { loadProfile, saveNickname, type LoadedProfile } from "@/doit/lib/profileSave";
@@ -101,12 +100,13 @@ export default function Profile() {
   return (
     <MobileLayout title="프로필" showNav activeTab="profile">
       <section className="doit-product-story">
-        <p className="doit-product-kicker">MY OWN WORDS</p>
-        <h2 className="doit-product-title">내 프로필</h2>
-        <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
+        {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 「나를 소개하는 작은 시작」처럼 가운데 제목 · 영문 머리글 0 */}
+        <div className="doit-product-head">
+          <h2 className="doit-product-title">내 프로필</h2>
+          <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
+        </div>
         <ProfilePhotoGallery userId={!authLoading ? user?.id ?? null : null} onManage={() => navigate("/doit/start-journey?edit=photos")} />
         <div className="doit-profile-card" aria-live="polite">
-          <div className="doit-profile-card-head"><span className="doit-product-kicker">DO IT · PROFILE</span><DoItSymbol decorative /></div>
           <h3 className="doit-profile-name">
             {visible.status === "loading" && "프로필을 불러오고 있어요"}
             {visible.status === "signed_out" && "나의 이야기를 남겨주세요"}
@@ -137,7 +137,6 @@ export default function Profile() {
         </div>
         {visible.status === "signed_out" ? <Link className="doit-product-action" to="/login" state={{from:"/doit/profile"}}>로그인하고 프로필 보기 <span aria-hidden="true">↗</span></Link> :
           (visible.status === "ok" || visible.status === "none") && <Link className="doit-product-action" to="/doit/start-journey?edit=profile">{visible.status === "none" ? "프로필 준비하기" : "내 소개 수정하기"}<span aria-hidden="true">↗</span></Link>}
-        <div className="doit-product-note"><span className="doit-product-status">연결 준비</span><p>남은 게 뭔지는 아래 「연결」 탭에서 봐요.</p></div>
       </section>
     </MobileLayout>
   );
