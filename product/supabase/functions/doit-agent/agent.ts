@@ -122,7 +122,8 @@ export const ackCopies = (reply: string, latest: string) => { const b = bare(lat
 export const anchored = (latest: string, question: string) => { const ws = anchorWords(latest); return ws.length < 2 || ws.some((w) => question.includes(w)); };
 // 2026-10-04 QA: 「처음만나면 남자면 술 여자면 카패」(경우에 따라 다른 답) 뒤 「카페로 가기로 하면 …?」 — 한쪽 경우만 골라 물었다.
 //   anchored 는 낱말 하나만 이어지면 통과라 나뉨을 놓쳤다. 나뉜 답이면 다음 질문이 나뉨을 담았는지(두 경우의 말 · 「따라·경우·각각·다르」)를 따로 본다(재시도 신호만 · 질문을 버리지 않는다).
-const COND_WORDS = /에\s*따라|따라\s*(달라|다르)|경우(에|엔|마다|는)?|그때그때\s*달라|아니면|또는/;
+// 2026-10-05 Codex P2: 「경우」 낱말만으로는 나뉨이 아니다(「그런 경우는 별로 없었어요」) — 「경우마다」「경우에 따라」 또는 「경우」가 두 번(「~인 경우엔 …, ~인 경우엔 …」)일 때만.
+const COND_WORDS = /에\s*따라|따라\s*(달라|다르)|경우\s*마다|경우(에|엔)?\s*(따라|다르|달라)|경우[^]*경우|그때그때\s*달라|아니면|또는/;
 const COND_SKIP = new Set(["라면", "냉면", "측면", "반면", "표면", "이면", "장면", "화면", "전면", "정면", "외면", "가면", "수면", "지면"]);
 // 「~면」 조건 낱말(뒤에 다른 말이 이어진 것만 · 「시간 되면 만나면 좋겠어」처럼 바로 이어진 조건은 나뉨이 아니다)
 function condBases(latest: string): string[] {

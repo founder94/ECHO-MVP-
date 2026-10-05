@@ -189,3 +189,13 @@ test('Codex P2 ⑤: HTTP 408(시간 초과)은 처리 여부를 모르므로 예
   const u408 = await run(408); assert.ok(u408.length > 0 && u408.every((u) => u === 'unknown'), '408 = 미확인(예약 유지)');
   for (const s of [400, 404, 429]) { const u = await run(s); assert.ok(u.length > 0 && u.every((x) => x === 'none'), `${s} = 예약 해제`); }
 });
+
+// Codex 리뷰(PR #132 · cec0b9b) P2 재현 — 「경우」라는 낱말만으로 나뉜 답으로 보지 않는다
+test('Codex P2 ⑥: 「그런 경우는 별로 없었어요」는 나뉜 답이 아니다 · 「~인 경우엔 …, ~인 경우엔 …」「경우마다」는 나뉜 답', () => {
+  assert.equal(A.conditionalAnswer('그런 경우는 별로 없었어요'), false);
+  assert.equal(A.conditionalAnswer('대부분의 경우에 혼자가 편해요'), false);
+  assert.equal(A.questionFlaw(afterThree(), '그런 경우는 별로 없었어요', '어떤 말에 마음이 놓여요?', true, '', true), '');
+  assert.equal(A.conditionalAnswer('친구인 경우엔 카페, 연인인 경우엔 산책이 좋아요'), true);
+  assert.equal(A.conditionalAnswer('경우마다 달라요'), true);
+  assert.equal(A.conditionalAnswer('상황에 따라 달라요'), true);
+});
