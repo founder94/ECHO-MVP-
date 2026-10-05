@@ -198,6 +198,12 @@ export interface ModelRouter { llm: Llm; log: AiCallLog[]; policy: AiPolicy; lim
 const NO_SWITCH: ProviderErrorCode[] = ["refused"];
 const MSG_OVERHEAD_TOKENS = 64; // 역할·메시지 구분 등 업체가 덧붙이는 토큰(넉넉히)
 const SAME_RETRY: ProviderErrorCode[] = ["http_429", "http_5xx", "network"]; // 지금 운영과 같음 — 시간 초과는 같은 곳에 다시 안 함(기다림 상한)
+// 2026-10-04 QA(gemini:http_4xx ×3 → anthropic:budget_exceeded · openai 까지 못 감): 업체가 HTTP 4xx·429 로 「처리 전에」 거절한 시도는 생성·과금 0 →
+//   사용량 미확인(예약 유지)으로 두지 않고 예약을 바로 푼다(예전: 실패한 4xx 하나가 입력 보장 상한만큼 요청 예산을 계속 잡아 다음 후보가 budget_exceeded).
+//   5xx·시간 초과·연결 끊김은 처리됐을 수 있으므로 예전처럼 예약 유지(대화 예산 보수적 그대로).
+const NO_USAGE_ERRORS: ProviderErrorCode[] = ["http_4xx", "http_429"];
+// 모델 이름·키·권한 문제(401·403·404)는 같은 요청·다음 요청에서 다시 불러도 같다 → 같은 곳 재시도 0 · 바로 차단기를 열어 쉬는 시간 동안 건너뛴다(다른 후보가 있을 때만 건너뜀 · 기존 규칙).
+const FATAL_4XX = new Set([401, 403, 404]);
 
 /** 요청 하나(Agent 행동 하나)에 라우터 하나 — 한도·전환·기록은 요청 단위, 건강 상태(연속 오류 차단)는 함수 인스턴스 단위로 공유. */
 export function createModelRouter(d: RouterDeps): ModelRouter {
@@ -340,7 +346,8 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           // 실패여도 업체가 사용량을 알려 줬으면 확인된 사용량으로 센다(전환 전에 예산에 반영). 키 없음 = 보내지 않음. 그 밖에 사용량 없는 실패 = 미확인(예약 유지 · 0원으로 치지 않음).
           // 사용량 칸이 있어도 숫자가 하나도 없으면(거절·빈 답의 메타만) 확인된 사용량이 아니다 → 미확인(예약 유지)
           const peUsage = pe.usage && pe.usage.input_tokens != null && pe.usage.output_tokens != null ? pe.usage : null;
-          const u2 = settle(peUsage, pe.code !== "no_key");
+          // 키 없음 · HTTP 4xx·429(업체가 처리 전에 거절) = 쓴 토큰 0 → 예약 해제(usage "none") · 그 밖 사용량 없는 실패 = 미확인(예약 유지)
+          const u2 = settle(peUsage, pe.code !== "no_key" && !(NO_USAGE_ERRORS.includes(pe.code) && !peUsage));
           push({ kind, provider: id, model_requested: p.model, model_served: pe.usage?.model_served ?? null, reason, attempt, ok: false, error: pe.code, status: pe.detail.status, latency_ms: pe.latency_ms,
             input_tokens: pe.usage?.input_tokens ?? null, output_tokens: pe.usage?.output_tokens ?? null, cached_tokens: pe.usage?.cached_tokens ?? null, usage: u2, reserved_tokens: held.get(hk)?.tokens ?? 0 });
           lastErr = pe;
@@ -349,6 +356,8 @@ export function createModelRouter(d: RouterDeps): ModelRouter {
           if (NO_SWITCH.includes(pe.code)) { refusedInRequest = true; throw pe; } // 안전상 거절 → 다른 모델로 우회하지 않음 · 이 요청의 뒤 호출도 0
           // 사용자가 끊은 요청(abort)은 업체 건강 문제가 아니다 → 연속 오류(차단기)에 넣지 않음
           if (pe.code !== "no_key" && !d.signal?.aborted && ++h.consecutive_errors >= policy.circuit.open_after) h.open_until = now() + policy.circuit.cooldown_ms;
+          const fatal = pe.code === "http_4xx" && pe.detail.status != null && FATAL_4XX.has(pe.detail.status);
+          if (fatal) { h.open_until = now() + policy.circuit.cooldown_ms; break; } // 401·403·404 = 설정 문제 → 같은 곳 재시도 0 · 차단기 바로 열고 다음 후보로
           if (SAME_RETRY.includes(pe.code) && attempt <= L.same_provider_retries && (!skipOpen || !isOpen(id))) {
             // 기다림도 요청 전체 기한 안에서만: 기다린 뒤 기한을 넘기면 같은 곳 재시도는 하지 않는다(다음 후보 → 기한 확인)
             const wait = Math.min(L.retry_wait_ms, pe.detail.retry_after_ms ?? L.retry_wait_ms);
