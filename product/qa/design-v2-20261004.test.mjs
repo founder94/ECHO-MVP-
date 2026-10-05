@@ -21,7 +21,7 @@ test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 �
   assert.match(layer, /opener\?\.focus\?\.\(\{ preventScroll: true \}\)/, '닫으면 누른 버튼으로 초점');
   assert.match(layer, /root\.style\.overflow = before/, '닫으면 뒤 화면 스크롤 원래대로');
   // Codex PR #130 P2 4건: 메뉴로 연 창의 초점 복귀 · 휴대폰 빈 곳 탭 닫기 · 창 밖으로 빠진 초점 되돌리기 · 자동 재생 거절 시 재생 막대
-  assert.match(HOME, /layerOpener\.current = menuOpen \? menuBtnRef\.current : \(document\.activeElement as HTMLElement \| null\); close\(\); setLayer\(next\);/);
+  assert.match(HOME, /layerOpener\.current = menuOpen \? menuBtnRef\.current : \(trigger \?\? \(document\.activeElement as HTMLElement \| null\)\); close\(\); setLayer\(next\);/);
   assert.match(layer, /const opener = openerProp \?\? \(document\.activeElement as HTMLElement \| null\);/);
   assert.match(layer, /if \(!\(e\.target as HTMLElement\)\.closest\('\.bh-layer-body > \*'\)\) onClose\(\);/);
   assert.match(layer, /if \(!boxRef\.current\.contains\(document\.activeElement\)\) \{ e\.preventDefault\(\); closeRef\.current\?\.focus\(\); return; \}/);
@@ -92,8 +92,8 @@ test('홈페이지: 「모바일로 시작하기」는 히어로 하나만 · �
   assert.doesNotMatch(HOME, /StartActions/, '섹션마다 붙던 시작 버튼 묶음 0');
   for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
   const body = HOME.slice(HOME.indexOf('id="bh-story"'), HOME.indexOf('<footer className="bh-legal">'));
-  for (const b of body.match(/<button[^\n]*?onClick=\{[^\n]*?\}\}>/g) ?? []) assert.match(b, /onClick=\{\(\) => openLayer\(/, `장면 창 여는 버튼만: ${b}`);
-  assert.equal((body.match(/<button /g) ?? []).length, (body.match(/onClick=\{\(\) => openLayer\(/g) ?? []).length, '본문 버튼 수 = 장면 창 여는 버튼 수');
+  for (const b of body.match(/<button[^\n]*?onClick=\{[^\n]*?\}\}>/g) ?? []) assert.match(b, /onClick=\{\(e\) => openLayer\(\{[^}]*\}, e\.currentTarget\)\}/, `장면 창 여는 버튼만: ${b}`);
+  assert.equal((body.match(/<button /g) ?? []).length, (body.match(/onClick=\{\(e\) => openLayer\(/g) ?? []).length, '본문 버튼 수 = 장면 창 여는 버튼 수');
   assert.doesNotMatch(body, /className="bh-btn/, '본문에 시작류 버튼 0');
   const install = HOME.slice(HOME.indexOf('id="bh-install"'), HOME.indexOf('<nav className="bh-more"'));
   assert.match(install, /id="bh-start-qr"/, '컴퓨터에서 시작하면 웹 설치하기 QR 로');

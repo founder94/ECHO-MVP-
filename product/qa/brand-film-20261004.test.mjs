@@ -14,7 +14,7 @@ test('자리(2026-10-05 대표 「핵심 4페이지만 스크롤 · 나머지는
   const film = HOME.slice(at("if (l.kind === 'film')"), at("if (l.kind === 'company')"));
   assert.ok(film.includes('<BrandFilm />'));
   assert.doesNotMatch(film, /BRAND_HOME_COPY\.start|StartActions/, '시작 버튼은 히어로 하나만');
-  assert.match(HOME, /onClick=\{\(\) => openLayer\(\{ kind: 'film' \}\)\}/, '버튼으로 연다');
+  assert.match(HOME, /onClick=\{\(e\) => openLayer\(\{ kind: 'film' \}, e\.currentTarget\)\}/, '버튼으로 연다');
   assert.match(FILM, /title: '이야기가 연결이 되기까지', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
 
@@ -94,5 +94,12 @@ test('Codex PR #130 P2: QR 이 없는 빌드(QA 앱 주소)에서는 컴퓨터 �
   assert.match(home, /if \(!qr \|\| !qr\.querySelector\('img'\)\) return;\n  event\.preventDefault\(\);/);
   assert.match(home, /\{productionApp && <img src="\/brand\/app-qr\.svg"/, 'QR 그림은 운영 앱 주소일 때만');
   assert.match(home, /<p>주소는 <strong><a href=\{appUrl\('\/'\)\}>\{APP_ORIGIN\}<\/a><\/strong><\/p>/);
+});
+
+test('Codex PR #130 P2: 장면 창은 누른 단추(currentTarget)를 받아 닫으면 그 단추로 돌아감 — Safari 는 눌러도 초점을 주지 않음', () => {
+  const home = readFileSync(new URL('../src/pages/do-it/brand-home/page.tsx', import.meta.url), 'utf8');
+  assert.match(home, /const openLayer = \(next: Layer, trigger\?: HTMLElement \| null\) => \{ layerOpener\.current = menuOpen \? menuBtnRef\.current : \(trigger \?\? /);
+  assert.doesNotMatch(home, /onClick=\{\(\) => openLayer\(/, '모든 여는 단추가 currentTarget 을 넘김');
+  assert.equal((home.match(/openLayer\(\{[^}]*\}, e\.currentTarget\)/g) ?? []).length, 7);
 });
 

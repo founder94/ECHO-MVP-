@@ -105,7 +105,8 @@ export default function BrandHomePage() {
   const layerOpener = useRef<HTMLElement | null>(null);
   const closeLayer = useCallback(() => setLayer(null), []);
   // 연 단추를 상태를 바꾸기 전에 잡아 둔다 — 메뉴에서 열면 메뉴 항목이 사라지므로 메뉴 단추로 돌아간다(Codex PR #130 P2)
-  const openLayer = (next: Layer) => { layerOpener.current = menuOpen ? menuBtnRef.current : (document.activeElement as HTMLElement | null); close(); setLayer(next); };
+  // Codex PR #130 P2: Safari 는 눌러도 단추에 초점을 주지 않으므로 activeElement 대신 누른 단추(currentTarget)를 받는다
+  const openLayer = (next: Layer, trigger?: HTMLElement | null) => { layerOpener.current = menuOpen ? menuBtnRef.current : (trigger ?? (document.activeElement as HTMLElement | null)); close(); setLayer(next); };
 
   const renderLayer = (l: Layer) => {
     if (l.kind === 'story') {
@@ -167,9 +168,9 @@ export default function BrandHomePage() {
             <a href="#bh-story" onClick={close}>이야기</a>
             <a href="#bh-making" onClick={close}>제작 과정</a>
             <a href="#bh-install" onClick={close}>{BRAND_HOME_COPY.install}</a>
-            <button type="button" onClick={() => openLayer({ kind: 'film' })}>브랜드 영상</button>
-            <button type="button" onClick={() => openLayer({ kind: 'company' })}>회사 소개</button>
-            <button type="button" onClick={() => openLayer({ kind: 'greeting' })}>대표 인사말</button>
+            <button type="button" onClick={(e) => openLayer({ kind: 'film' }, e.currentTarget)}>브랜드 영상</button>
+            <button type="button" onClick={(e) => openLayer({ kind: 'company' }, e.currentTarget)}>회사 소개</button>
+            <button type="button" onClick={(e) => openLayer({ kind: 'greeting' }, e.currentTarget)}>대표 인사말</button>
             <button type="button" onClick={() => { close(); openGuide(undefined, menuBtnRef.current); }}>이용 안내</button>
             {!loading && user
               ? <button type="button" onClick={() => { close(); void signOut(); }}>로그아웃</button>
@@ -204,7 +205,7 @@ export default function BrandHomePage() {
           <ol className="bh-tiles">
             {STORIES.map((s, i) => (
               <li key={s.no}>
-                <button type="button" className="bh-tile" onClick={() => openLayer({ kind: 'story', i })}>
+                <button type="button" className="bh-tile" onClick={(e) => openLayer({ kind: 'story', i }, e.currentTarget)}>
                   <img src={`/brand/stories/${s.img}.webp`} alt="" aria-hidden="true" loading="lazy" decoding="async" width="941" height="1672" style={{ objectPosition: s.focus }} />
                   <span className="bh-tile-no">{s.no}</span>
                   <span className="bh-tile-label">{s.label}</span>
@@ -257,9 +258,9 @@ export default function BrandHomePage() {
       <nav className="bh-more" aria-label="더 알아보기">
         <p className="bh-kicker">MORE</p>
         <ul>
-          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'film' })}><img src="/brand/film/poster-portrait.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span className="bh-tile-no">25초</span><span className="bh-tile-label">브랜드 영상</span></button></li>
-          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'company' })}><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 74%' }} /><span className="bh-tile-no">DO IT</span><span className="bh-tile-label">회사 소개</span></button></li>
-          <li><button type="button" className="bh-tile bh-tile--wide" onClick={() => openLayer({ kind: 'greeting' })}><img src="/brand/stories/story-06.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 78%' }} /><span className="bh-tile-no">CEO</span><span className="bh-tile-label">대표 인사말</span></button></li>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'film' }, e.currentTarget)}><img src="/brand/film/poster-portrait.jpg" alt="" aria-hidden="true" loading="lazy" decoding="async" /><span className="bh-tile-no">25초</span><span className="bh-tile-label">브랜드 영상</span></button></li>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'company' }, e.currentTarget)}><img src="/brand/stories/story-03.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 74%' }} /><span className="bh-tile-no">DO IT</span><span className="bh-tile-label">회사 소개</span></button></li>
+          <li><button type="button" className="bh-tile bh-tile--wide" onClick={(e) => openLayer({ kind: 'greeting' }, e.currentTarget)}><img src="/brand/stories/story-06.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" style={{ objectPosition: 'center 78%' }} /><span className="bh-tile-no">CEO</span><span className="bh-tile-label">대표 인사말</span></button></li>
         </ul>
       </nav>
 
