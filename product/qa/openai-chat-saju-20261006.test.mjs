@@ -95,12 +95,18 @@ test('사주 이야기: AI 에게는 정해진 값만 들어가고, 따뜻한 �
 });
 
 test('사주 이야기: 단정·겁주기·민감 주제 말이 나오면 내보내지 않음(500 → 화면은 규칙 해설 그대로)', async () => {
-  for (const bad of ['올해 반드시 결혼하게 될 거예요. 좋은 사람이 와요. 기다려 보세요.', '건강을 조심하지 않으면 큰일이 날 수 있어요. 수술 운이 있어요. 조심해요.', '투자 운이 좋아요. 주식을 해 보세요. 돈이 들어올 거예요.']) {
+  for (const bad of ['건강이 나빠질 수 있어요. 그래도 마음은 단단한 사람이에요. 천천히 가요.', '돈이 많이 들어올 거예요. 기대해도 좋아요. 마음을 열어 봐요.', '큰 사고 위험이 있어요. 길을 걸을 때 살펴요. 괜찮을 거예요.', '몸이 아플 수 있는 해예요. 쉬어 가요. 무리하지 마요.', '재물이 모이는 흐름이에요. 기회를 잡아 봐요. 좋은 해예요.', '올해 반드시 결혼하게 될 거예요. 좋은 사람이 와요. 기다려 보세요.', '건강을 조심하지 않으면 큰일이 날 수 있어요. 수술 운이 있어요. 조심해요.', '투자 운이 좋아요. 주식을 해 보세요. 돈이 들어올 거예요.']) {
     const { call } = load({ ai: () => JSON.stringify({ story: bad, closing: '좋은 하루예요.' }) });
     assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500, bad);
   }
   const { call } = load({ ai: () => JSON.stringify({ story: '짧음', closing: '안녕' }) });
   assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500);
+});
+
+test('사주 이야기: 막는 말 줄기가 평범한 표현까지 잡되 「사고방식·돈독」 같은 다른 뜻은 통과', async () => {
+  const ok = { story: '당신은 사고방식이 유연해서, 사람들과 돈독하게 지내는 걸 좋아하는 사람일 수 있어요. 새로운 일을 시작할 때 마음이 먼저 움직일지도 몰라요.', closing: '오늘은 한 사람에게 먼저 안부를 건네 봐요.' };
+  const { call } = load({ ai: () => JSON.stringify(ok) });
+  assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200);
 });
 
 test('화면: 서버가 올라가기 전에는 숨김(빌드 스위치) · 생일·시간은 보내지 않는다고 알림 · 실패하면 규칙 해설 그대로', () => {
