@@ -71,3 +71,24 @@ test('연결 대화: 「입력칸 · 보내기」 한 줄 · 이름표는 화면
 test('이용 안내 열쇠 그림: 모바일만 유리 열쇠 그림 · 홈페이지는 예전 아이콘(모바일 그림이 홈페이지로 새지 않음)', () => {
   assert.match(read('src/components/guide/GuideHost.tsx'), /s\.id === 'key' && \(theme === 'app' \? <img className="echo-guide-key-art" src="\/doit\/art\/key-glass\.webp"[^>]*\/> : <KeyIcon size=\{22\} \/>\)/);
 });
+
+test('홈·프로필(ref-parity)·연결(connect-ref): 흰 글자 밑 판은 공통 유리 토큰 · 옅은 청록/흰 빛 판 0(Codex 4183198245 · 4183643949)', () => {
+  const REF = read('src/doit/components/feature/ref-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const CON = read('src/doit/components/feature/connect-ref.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (css, sel) => { const i = css.indexOf(sel); assert.ok(i >= 0, sel); return css.slice(i, css.indexOf('}', i)); };
+  assert.match(rule(REF, '.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state,.doit-profile-card){'), /background:var\(--echo-glass\)!important/);
+  assert.match(rule(REF, '.doit-product-nav{'), /background:var\(--echo-glass\)!important/);
+  assert.match(rule(REF, '.doit-product-story) .doit-product-action{'), /background:var\(--echo-glass-btn\)!important/);
+  assert.match(rule(REF, '.doit-profile-photo-manage{'), /background:var\(--echo-glass-btn\)!important/);
+  // 상대 말풍선: 판을 밝히는 흰 빛 0 · 내 말풍선: 더 어둡게만(먹색)
+  assert.match(rule(CON, '.doit-match-messages li{'), /background:transparent/);
+  assert.match(rule(CON, '.doit-match-messages li[data-mine=true]{'), /background:rgb\(8 22 28\/\.\d+\)/);
+});
+
+test('시안 5·7 배치: 아직 안 연 후보 = 큰 그림 카드 · 한쪽 대기 = 두 사람 그림이 맨 위, 이어 본 이유는 보임(글·버튼 0 변경)', () => {
+  const CON = read('src/doit/components/feature/connect-ref.css');
+  assert.match(CON, /\[data-state=closed\] \.doit-candidate-quote\{min-height:clamp\(220px/);
+  assert.match(CON, /\[data-state=waiting\]>:is\(\.doit-candidate-found,\.doit-candidate-quote\)\{display:none\}/);
+  assert.match(CON, /\[data-state=waiting\]>\.echo-wait-mark\{order:1/);
+  assert.doesNotMatch(CON, /\[data-state=waiting\][^{]*doit-candidate-reasons[^{]*\{[^}]*display:none/, '대기 중에도 이유 글은 보임');
+});

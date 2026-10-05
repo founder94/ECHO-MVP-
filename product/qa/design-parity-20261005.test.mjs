@@ -21,7 +21,8 @@ test('범위: 홈·프로필·무엇부터·윗줄·아래 탭만 — 대화·�
   }
   assert.doesNotMatch(rules, /--echo-glass\s*:/, '공통 판 색 토큰 0');
   assert.match(rules, /\.doit-product-topbar\{position:relative!important;background:transparent!important/);
-  assert.match(rules, /\.doit-product-nav\{background:rgb\(18 84 92\/\.30\)!important/);
+  // 2026-10-05 대표 「네가 고쳐!」: ref-parity 는 PR #138 담당으로 넘어옴 · 아래 탭 판 = 공통 유리 토큰(옅은 청록 30% 는 흰 글자 4.5:1 미달, Codex 4183198245)
+  assert.match(rules, /\.doit-product-nav\{background:var\(--echo-glass\)!important/);
 });
 
 test('겹치는 파일 0: 대화·첫 질문·메뉴 파일은 PR #138 담당이라 이 PR 의 시안 작업에서 바꾸지 않음', () => {
