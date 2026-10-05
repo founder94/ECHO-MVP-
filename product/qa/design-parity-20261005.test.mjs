@@ -110,7 +110,10 @@ test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리
   assert.equal((pb.match(/echo-prep-panel/g) ?? []).length, 3);
   for (const t of ['이제, 실제 나를 보여줄', '닉네임 *', 'id="profile-intro"', '나를 소개할 정보를 입력해요']) assert.ok(pb.includes(t), t);
   const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.match(src('src/doit/components/feature/MobileLayout.tsx'), /import "\.\/ref-parity\.css";[^\n]*\nimport "\.\/brand-parity\.css";/, 'ref-parity 다음에 읽음');
+  // Codex P2(4185618667): 시작 경로는 MobileLayout 을 거치지 않음 → 모양을 쓰는 화면(ProfileBuild · TopBar)이 직접 읽는다
+  assert.match(pb, /import "@\/doit\/components\/feature\/brand-parity\.css";/);
+  assert.match(src('src/doit/components/feature/TopBar.tsx'), /import "\.\/brand-parity\.css";/);
+  assert.match(src('src/doit/pages/do-it/start-journey/page.tsx'), /ProfileBuild/);
   assert.match(css, /\.echo-prep \.echo-prep-head\{text-align:center\}/);
   assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(14 60 70\/\.70\)!important/);
 });

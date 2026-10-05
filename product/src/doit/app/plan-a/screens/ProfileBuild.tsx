@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { colors, serif , surfaces } from "../theme";
 import { PrimaryButton } from "../components/PrimaryButton";
+// Codex P2(4185618667): 시작 경로(/doit/start-journey)는 MobileLayout 을 거치지 않으므로 이 화면이 직접 모양 파일을 읽는다
+import "@/doit/components/feature/brand-parity.css";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
 import { INTRO_MAX } from "@/doit/lib/introDraft";
 

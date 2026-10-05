@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { visibleInRelease } from "@/doit/lib/releaseScope";
 import KeyChip from "./KeyChip";
+import "./brand-parity.css"; // 머리줄 ECHO 글자(§8) — 이 머리줄을 쓰는 화면이면 어디서든
 
 interface TopBarProps {
   title?: string;
