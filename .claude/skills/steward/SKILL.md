@@ -46,6 +46,7 @@ description: ECHO PR 자동 왕복 규칙(Codex 검수 → Claude 수정·검사
 - 병합 · 운영 배포 · Secret/키 · DB/RLS/Migration · 결제/가격 · 모델 변경 · 실제 유료 호출 · 개인정보 전송 범위 확대 · 워크플로 실행/수정.
   - 훅이 일부를 막는다(`echo-guard-bash.sh` · `echo-guard-mcp.sh`). 훅이 안 막아도 위 항목은 하지 않는다.
   - 예외(대표 승인 2026-10-05): **QA 테스트 사이트 게시**(`echo-netlify-deploy` · 가지 echo-qa · target=qa)는 검사 전부 통과한 변경에 한해 Claude 가 직접 실행한다. 운영 게시는 그대로 대표만.
+  - 예외(대표 승인 2026-10-05 「모든거 다 너가해 병합도」): **echo-qa 로의 합치기**는 `bash .claude/hooks/echo-qa-merge.sh <PR>` 로만 한다 — 대상 가지 echo-qa · 같은 저장소 · 충돌 없음 · 지금 머리 커밋에 Codex 「큰 문제 없음」이 있을 때만, 그 커밋으로만 합친다. main·운영 가지 합치기와 운영 게시는 그대로 대표만.
 - 같은 PR 에서 **수정 왕복 5회**(인계 표시 `echo-handoff to=codex` 댓글 수)를 넘으면 멈추고 남은 결함을 한 번에 보고한다(무한 왕복 0) — 워크플로도 같은 수로 스스로 멈춘다.
 - Codex 결과가 PASS 면: `@codex` · `@claude` 없이 「대표 보고」 댓글 한 줄(검수 SHA · 결과 · 남은 승인 항목)로 끝낸다.
 - Codex 지적이 설계·범위 변경(여러 파일 구조 변경 · API/스키마 변경)이면 고치지 말고 제안만 보고한다.
