@@ -79,7 +79,8 @@ function useDepthReveal() {
 const goStart = (event: MouseEvent<HTMLAnchorElement>) => {
   if (!matches(DESKTOP_QUERY)) return;
   const qr = document.getElementById('bh-start-qr');
-  if (!qr) return;
+  // Codex PR #130 P2: QR 그림이 없는 빌드(QA 등 운영 외 앱 주소)에서는 막지 않는다 — 버튼이 그대로 앱 주소로 간다.
+  if (!qr || !qr.querySelector('img')) return;
   event.preventDefault();
   qr.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
 };
@@ -246,7 +247,7 @@ export default function BrandHomePage() {
             {productionApp && <img src="/brand/app-qr.svg" width="132" height="132" alt="app.do-it.company 로 가는 QR 코드" />}
             <div>
               <p className="bh-qr-title">{productionApp ? '휴대폰 카메라로 비춰 보세요.' : '휴대폰에서 앱 주소를 열어 보세요.'}</p>
-              <p>주소는 <strong>{APP_ORIGIN}</strong></p>
+              <p>주소는 <strong><a href={appUrl('/')}>{APP_ORIGIN}</a></strong></p>
             </div>
           </div>
         </div>

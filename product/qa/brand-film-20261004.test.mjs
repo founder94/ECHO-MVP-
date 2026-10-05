@@ -89,3 +89,10 @@ test('Codex PR #130 P2: 제작 과정 mp4 는 파일에 실제로 든 형식(avc
   assert.match(src, /controls=\{still \|\| blocked\}/);
 });
 
+test('Codex PR #130 P2: QR 이 없는 빌드(QA 앱 주소)에서는 컴퓨터 「시작」 버튼이 막히지 않고 앱 주소로 · 주소 글자도 링크', () => {
+  const home = readFileSync(new URL('../src/pages/do-it/brand-home/page.tsx', import.meta.url), 'utf8');
+  assert.match(home, /if \(!qr \|\| !qr\.querySelector\('img'\)\) return;\n  event\.preventDefault\(\);/);
+  assert.match(home, /\{productionApp && <img src="\/brand\/app-qr\.svg"/, 'QR 그림은 운영 앱 주소일 때만');
+  assert.match(home, /<p>주소는 <strong><a href=\{appUrl\('\/'\)\}>\{APP_ORIGIN\}<\/a><\/strong><\/p>/);
+});
+
