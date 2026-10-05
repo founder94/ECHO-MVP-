@@ -36,7 +36,7 @@ export async function reserve(rpc: Rpc, a: { key: string; fingerprint: string; a
   const { data, error } = await rpc("company_ai_reserve", { p_request_key: a.key, p_fingerprint: a.fingerprint, p_attempt: a.attempt, p_max_krw: a.maxKrw });
   if (error || typeof data !== "string") return { ok: false, code: "LEDGER_UNAVAILABLE" };
   const m = /^RESERVED:(OK|CHECK50|WARN80)$/.exec(data);
-  return m ? { ok: true, level: m[1] as "OK" | "CHECK50" | "WARN80" } : { ok: false, code: data.split(":")[0].slice(0, 24) || "REFUSED" };
+  return m ? { ok: true, level: m[1] as "OK" | "CHECK50" | "WARN80" } : { ok: false, code: (data.startsWith("DUPLICATE:") ? data : data.split(":")[0]).slice(0, 24) || "REFUSED" }; // 중복은 앞선 예약의 상태까지(DUPLICATE:reserved = 끝나지 않은 예약)
 }
 
 export async function settle(rpc: Rpc, a: { key: string; attempt: string; actualKrw: number | null }): Promise<string> {

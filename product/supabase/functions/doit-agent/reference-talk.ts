@@ -76,7 +76,13 @@ const QUESTION_END = /(까요|나요|어때요|어떤가요)\s*[.!]?\s*$/; // �
 const WH = /(?<![가-힣])(무슨|뭐(?!든|라도|니\s*뭐니)|뭘|무엇(?!이든)|누구(?!든|나)|누가|언제(?!든|나)|어디(?!든|서든|에서든)|어떻게|왜(?!냐|냐하면)|얼마나)/;
 // 안긴 말 = 받침이 ㄴ·ㄹ 인 글자 바로 뒤의 「지」(는지·은지·인지·그런지·을지·할지·던지 …). 「같지·먹지」(받침 ㅌ·ㄱ)는 아님.
 const embedded = (t: string) => [...t.matchAll(/([가-힣])지/g)].some((m) => { const jong = (m[1].charCodeAt(0) - 0xac00) % 28; return jong === 4 || jong === 8; });
-const whQuestion = (t: string) => WH.test(t) && !embedded(t);
+// Codex P2(4186974033): 안긴 말 예외는 그 의문사에만 — 의문사마다 「그 의문사부터 다음 의문사 앞까지」에 안긴 말이 있는지 따로 본다.
+//   「무슨 일이 있었는지 모르겠지만 지금 뭐가 힘들어요.」 = 「무슨 … 있었는지」는 안긴 말 · 「뭐가 힘들어요」는 물음 → 문장 전체가 물음.
+const WH_ALL = new RegExp(WH.source, "g");
+const whQuestion = (t: string) => {
+  const hits = [...t.matchAll(WH_ALL)].map((m) => m.index ?? 0);
+  return hits.some((at, i) => !embedded(t.slice(at, hits[i + 1] ?? t.length)));
+};
 const sentences = (t: string) => t.split(/(?<=[.!?？。…])\s+/).map((s) => s.trim()).filter(Boolean);
 
 // 모델 답 → 화면 모양. 질문을 끈 동안 물음 문장은 뺀다 · 남는 게 없으면 null(가짜 성공 0).

@@ -396,6 +396,7 @@ async function reconcilePaid(c: UsageCtx, o: { claimId: string; claimTarget: str
 type Halt = "cancelled" | "session" | "request" | "company";
 // 회사 예산 장부가 이 요청의 예약을 거절했거나 답하지 않음(업체 호출 0) — 라우터 기록과 따로 표시한다.
 const companyHalted = new WeakSet<ModelRouter>();
+const MAX_LEDGER_TRIES = 5; // 같은 요청 id 로 정산까지 끝난 시도 뒤 다시 보내기 허용 횟수(장부 예약 열쇠 번호)
 const haltedBy = (r: ModelRouter): Halt | null => companyHalted.has(r) ? "company" : r.log.some((x) => x.error === "cancelled") ? "cancelled"
   : r.log.some((x) => x.error === "budget_exceeded" && x.reason === "session_budget") ? "session" : r.log.some((x) => x.error === "budget_exceeded") ? "request" : null;
 // 대화 예산 = 429(다시 보내도 안 됨) · 이번 요청 한도 = 502(다시 보내면 됨) · 사용자가 끊음 = 499
@@ -613,9 +614,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       llm = async (kind, system, input) => {
         if (!held && !stop) {
           const max = CB.maxKrw(router.policy, budgetCfg);
+          // Codex P2(4186974029): 예약 열쇠 = 사용자·동작·요청 id 로 정한 값(시도마다 새로 만들지 않음) — 시도 UUID 는 정산 주인 표시로만.
+          //   앞선 시도의 예약이 아직 「reserved」(정산 전에 끊긴 요청)면 같은 요청을 다시 보내도 새 예약·업체 호출 0(DUPLICATE:reserved = 막음).
+          //   앞선 예약이 정산까지 끝났으면(실패 뒤 다시 보내기) 다음 번호 열쇠로 새 예약 — 최대 MAX_LEDGER_TRIES 번.
           const attempt = crypto.randomUUID();
-          const key = await sha256(`${userId}:${action}:${requestId}:${attempt}`);
-          const r: CB.ReserveResult = max == null ? { ok: false, code: "UNPRICED" } : await CB.reserve(rpc, { key, fingerprint: await sha256(`${action}:${requestId}:${router.policy.version}`), attempt, maxKrw: max });
+          const base = `${userId}:${action}:${requestId}`;
+          const fingerprint = await sha256(`${action}:${requestId}:${router.policy.version}`);
+          let r: CB.ReserveResult = { ok: false, code: "UNPRICED" }, key = "";
+          if (max != null) for (let n = 0; n < MAX_LEDGER_TRIES; n++) {
+            key = await sha256(n ? `${base}:${n}` : base);
+            r = await CB.reserve(rpc, { key, fingerprint, attempt, maxKrw: max });
+            if (r.ok || !("code" in r) || !r.code.startsWith("DUPLICATE:") || r.code === "DUPLICATE:reserved") break;
+            if (n === MAX_LEDGER_TRIES - 1) r = { ok: false, code: "RETRY_LIMIT" };
+          }
           if (r.ok) { held = { key, attempt }; if (r.level !== "OK") logDiag({ step: "company_budget", level: r.level }); }
           else { stop = true; companyHalted.add(router); logDiag({ step: "company_budget", code: "code" in r ? r.code : "REFUSED" }); }
         }

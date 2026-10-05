@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync } fro
 import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 const source = fileURLToPath(new URL('../../', import.meta.url));
 let helper = readFileSync(path.join(source, 'product/qa/agent-server.test.mjs'), 'utf8');
 helper = helper.slice(0, helper.indexOf("test('로그인 안 함"));
@@ -137,4 +138,39 @@ test('회사 예산 ⑥ 소스: 기본 꺼짐 · 실패하면 닫힌 쪽(호출 
   assert.match(ix, /\} finally \{\n[^\n]*\n\s*if \(budgetDone\) await budgetDone\(\)/);
   assert.ok(existsSync(path.join(source, 'product/supabase/drafts/PENDING_20261005_company_ai_budget.sql')), '장부 초안(실행 전)');
   assert.ok(!readdirSync(path.join(source, 'product/supabase/migrations')).some((f) => /company_ai/.test(f)), '마이그레이션으로 옮기지 않음(대표 승인 전)');
+});
+
+test('회사 예산 ⑦ Codex P2(4186974029): 예약 열쇠 = 사용자·동작·요청 id(시도마다 새로 안 만듦) · 앞선 예약이 정산 전(reserved)이면 같은 요청 다시 보내도 업체 호출 0 · 정산까지 끝난 뒤 다시 보내기는 다음 번호 열쇠', async () => {
+  const sha = (t) => createHash('sha256').update(t).digest('hex');
+  // (1) 끊긴 앞선 시도(정산 전 reserved)가 남은 같은 요청 → 503 · 업체 호출 0 · 새 예약 0
+  {
+    const { s, h } = await start(ON);
+    const { L, fn } = ledger(); s.ledger = fn;
+    const requestId = rid();
+    L.rows.set(sha(`${ID.user}:agent_card:${requestId}`), { attempt: 'old-attempt', max: 70, status: 'reserved' }); L.reserved += 70;
+    const calls = s.providerCalls?.length ?? 0;
+    s.ai.push(READING);
+    const r = await h.call({ action: 'agent_card', requestId, cardName: '별', purpose: '' });
+    assert.equal(r.status, 503, JSON.stringify(r.body)); assert.equal(r.body.code, 'AI_COMPANY_BUDGET');
+    assert.equal((s.providerCalls?.length ?? 0) - calls, 0);
+    assert.equal(L.rows.size, 1, '새 예약 0');
+    s.ai.length = 0;
+  }
+  // (2) 같은 요청이 실패로 정산까지 끝난 뒤 다시 보내기 → 다음 번호 열쇠(:1)로 새 예약 → 성공 · 정산은 그 열쇠
+  {
+    const { s, h } = await start(ON);
+    const { L, fn } = ledger(); s.ledger = fn;
+    const requestId = rid();
+    s.ai.push({ hello: 'world' }); // 모양이 틀린 답 = 502 AI_FORMAT(자리 놓음 · 예약은 정산됨)
+    const a = await h.call({ action: 'agent_card', requestId, cardName: '별', purpose: '' });
+    assert.equal(a.status, 502, JSON.stringify(a.body));
+    const k0 = sha(`${ID.user}:agent_card:${requestId}`);
+    assert.ok(L.rows.has(k0) && L.rows.get(k0).status !== 'reserved', '첫 시도 정산됨');
+    s.ai.push(READING);
+    const b = await h.call({ action: 'agent_card', requestId, cardName: '별', purpose: '' });
+    assert.equal(b.status, 200, JSON.stringify(b.body));
+    const k1 = sha(`${ID.user}:agent_card:${requestId}:1`);
+    assert.ok(L.rows.has(k1) && L.rows.get(k1).status !== 'reserved', '다음 번호 열쇠로 예약·정산');
+    assert.equal(L.reserved, 0);
+  }
 });
