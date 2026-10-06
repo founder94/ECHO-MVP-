@@ -4,7 +4,8 @@ import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
-import { ECHO_AGENT_ENABLED, agentGet, type AgentSession, type AgentSlot } from '@/doit/lib/agentApi';
+import { ECHO_AGENT_ENABLED, agentForget, agentGet, type AgentKnown, type AgentSession, type AgentSlot, type KnownLine } from '@/doit/lib/agentApi';
+import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { AREA_LABEL, areaOf, groupByArea, splitCurrent, type AreaId, type ViewItem } from '@/doit/lib/understandingView';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
 import '@/doit/components/feature/understanding-pages.css';
@@ -13,6 +14,8 @@ import '@/doit/components/feature/understanding-pages.css';
 // 내가 맞다고 한 말만 모은 곳. 지금의 나(같은 뜻은 가장 최근 것 하나)를 먼저, 겹친 옛 말은 「지난 기록 보기」 안에.
 // 다섯 칸으로 나눈다. ECHO 대화 정리는 서버가 정한 칸, 예전 기록은 낱말 규칙(understandingView.ts) · 애매하면 「아직 나누지 않은 말」.
 // 저장된 기록은 지우거나 바꾸지 않는다(보이는 방식만).
+// 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」: 맨 위에 네 칸(내가 확인한 것 / AI 짐작(확정 아님) / 내가 고친 것 / 아니라고 한 것) — 서버(doit-agent) knownView 그대로.
+//   줄마다 「지우기」 = 서버 agent_forget(지운 글자는 AI 가 다시 만들지 않음). 거절된 AI 해석 원문은 보여 주되 사실로 쓰지 않는다. 민감 주제(건강·성·금전 등)는 글자를 다시 적지 않는다.
 
 const ORIGIN_TEXT: Record<ViewItem['origin'], string> = { conversation: '대화에서 말한 것', confirmed: '맞다고 한 말', corrected: '내가 고친 말', self: '내가 직접 쓴 말' };
 
@@ -30,11 +33,49 @@ function Entry({ item }: { item: ViewItem }) {
   </li>;
 }
 
+const KNOWN_COLUMNS: { id: keyof Pick<AgentKnown, 'confirmed' | 'guesses' | 'corrected' | 'rejected'>; title: string; note: string }[] = [
+  { id: 'confirmed', title: '내가 확인한 것', note: '내가 직접 말했거나 맞다고 한 것이에요.' },
+  { id: 'guesses', title: 'AI 짐작 · 확정 아님', note: 'ECHO가 정리하거나 짐작한 것이에요. 사실로 쓰지 않아요.' },
+  { id: 'corrected', title: '내가 고친 것', note: '고친 말이 가장 먼저예요. 옛 뜻은 다시 쓰지 않아요.' },
+  { id: 'rejected', title: '아니라고 한 것', note: '다시 단정하지 않아요. 원문은 참고로만 남겨요.' },
+];
+const SENSITIVE_TEXT = '민감한 내용이라 여기 다시 적지 않아요.';
+function KnownSection({ known, busyKey, onForget }: { known: AgentKnown; busyKey: string | null; onForget: (line: KnownLine) => void }) {
+  const total = KNOWN_COLUMNS.reduce((n, c) => n + known[c.id].length, 0);
+  return <section className="doit-known" aria-label="ECHO가 아는 나">
+    <div className="doit-understanding-section-heading"><h2>ECHO가 아는 나</h2>{known.confirmed_at && <time dateTime={known.confirmed_at}>확인 {formatDate(known.confirmed_at)}</time>}</div>
+    {total === 0 ? <p className="doit-known-empty">아직 ECHO가 아는 게 없어요. 이야기하면 여기에 네 칸으로 나뉘어 보여요.</p>
+      : KNOWN_COLUMNS.map((c) => <div key={c.id} className={`doit-known-col doit-known-col--${c.id}`}>
+        <h3>{c.title} <small>{known[c.id].length}</small></h3>
+        <p className="doit-known-note">{c.note}</p>
+        {known[c.id].length > 0 && <ul className="doit-known-list">{known[c.id].map((l) => <li key={l.key} className={l.sensitive ? 'is-sensitive' : undefined}>
+          <div className="doit-known-line">
+            <span className="doit-known-text">{l.sensitive ? SENSITIVE_TEXT : l.text}</span>
+            <button type="button" className="doit-known-forget" disabled={busyKey !== null} aria-label={`지우기: ${l.sensitive ? '민감한 내용' : l.text}`} onClick={() => onForget(l)}>{busyKey === l.key ? '지우는 중' : '지우기'}</button>
+          </div>
+          {!l.sensitive && c.id === 'corrected' && l.from.length > 0 && <small className="doit-known-from">전에는 「{l.from.join(' · ')}」</small>}
+          {!l.sensitive && l.quote && l.quote.trim() !== l.text.trim() && c.id !== 'guesses' && <small className="doit-known-quote">내 말 「{l.quote}」</small>}
+          {!l.sensitive && c.id === 'guesses' && l.quote && <small className="doit-known-quote">근거 「{l.quote}」</small>}
+        </li>)}</ul>}
+      </div>)}
+    {known.forgotten > 0 && <p className="doit-known-footnote">지운 줄 {known.forgotten}개는 ECHO가 다시 만들지 않아요.</p>}
+  </section>;
+}
+
 export default function Understanding() {
   const { user, loading: authLoading } = useAuth();
   const { records, insights, loading, error, reload } = useUnderstanding();
   const [agent, setAgent] = useState<AgentSession | null>(null);
+  const [forgetKey, setForgetKey] = useState<string | null>(null);
+  const [forgetError, setForgetError] = useState<string | null>(null);
   const userId = user?.id ?? null;
+  const forget = async (line: KnownLine) => {
+    if (!userId || forgetKey) return;
+    setForgetKey(line.key); setForgetError(null);
+    try { const s = await agentForget(userId, line.key, agent?.id ?? null); setAgent(s); } // 서버가 지운 뒤 돌려준 모습 그대로(화면이 먼저 지우지 않음)
+    catch (e) { setForgetError(e instanceof UnderstandingError && e.code === 'NOT_FOUND' ? '이미 지워진 줄이에요. 새로 불러올게요.' : '지우지 못했어요. 잠시 뒤 다시 눌러 주세요.'); if (e instanceof UnderstandingError && e.code === 'NOT_FOUND') agentGet(userId).then(setAgent).catch(() => undefined); }
+    finally { setForgetKey(null); }
+  };
   useEffect(() => {
     if (!userId || !ECHO_AGENT_ENABLED) return;
     let live = true;
@@ -67,8 +108,8 @@ export default function Understanding() {
     <MobileLayout title="나의 이해" back>
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro doit-understanding-intro--compact">
-          <h2 className="doit-product-title">ECHO가 기억하고 있는 나</h2>
-          <p className="doit-product-description">내가 맞다고 한 것만 모았어요.</p>
+          <h2 className="doit-product-title">ECHO가 아는 나</h2>
+          <p className="doit-product-description">확인한 것 · 짐작 · 고친 것 · 아니라고 한 것을 나눠서 보여 드려요. 줄마다 지울 수 있어요.</p>
         </section>
         {!A_STRUCTURE_SERVER_ENABLED ? (
           <section className="doit-understanding-notice">
@@ -89,6 +130,8 @@ export default function Understanding() {
           </section>
         ) : (
           <>
+            {agent?.known && <KnownSection known={agent.known} busyKey={forgetKey} onForget={(l) => void forget(l)} />}
+            {forgetError && <p className="doit-known-error" role="alert">{forgetError}</p>}
             <div className="doit-understanding-section-heading">
               <h2>지금의 나</h2>
               <button className="doit-understanding-refresh" type="button" onClick={() => void reload()} aria-label="다시 불러오기">↻</button>

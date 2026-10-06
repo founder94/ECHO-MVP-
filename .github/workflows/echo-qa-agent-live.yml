@@ -7,6 +7,8 @@ on:
       - '.github/workflows/echo-qa-agent-live.yml'
       - 'product/qa-real/qa-core-live.mjs'
       - 'product/qa-real/qa-tarot-ref-live.mjs'
+      - 'product/qa-real/qa-memory-live.mjs'
+      - 'product/supabase/functions/doit-agent/free-talk.ts'
       - 'product/supabase/functions/doit-agent/card-reading.ts'
       - 'product/supabase/functions/doit-agent/reference-talk.ts'
       - 'product/supabase/functions/doit-agent/agent.ts'
@@ -36,3 +38,4 @@ jobs:
           export QA_ANON
           node qa-real/qa-core-live.mjs
           node qa-real/qa-tarot-ref-live.mjs
+          node qa-real/qa-memory-live.mjs

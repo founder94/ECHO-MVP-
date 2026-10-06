@@ -51,7 +51,7 @@ test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화�
 
 test('정정 네 버튼: 글·순서·하는 일 그대로(맞아요 → 조금 달라요 → 그게 아니에요 → 직접 설명할게요)', () => {
   const at = (s) => CHECK.indexOf(s);
-  const order = ["onClick={confirm}>맞아요", "setView({ kind: 'pick' })}>조금 달라요", "setView({ kind: 'pick', reject: true })}>그게 아니에요", "setView({ kind: 'retell', text: '' })}>직접 설명할게요"].map(at);
+  const order = ["onClick={() => void confirm()}>맞아요", "setView({ kind: 'pick' })}>조금 달라요", "setView({ kind: 'pick', reject: true })}>그게 아니에요", "setView({ kind: 'retell', text: '' })}>직접 설명할게요"].map(at);
   assert.ok(order.every((x, i) => x > 0 && (i === 0 || x > order[i - 1])), String(order));
   assert.match(CHECK, /await agentTurn\(userId, session\.id, t, \{ purpose \}\)/, '정정 = 같은 서버 호출');
 });

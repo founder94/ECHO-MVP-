@@ -151,7 +151,9 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
-      if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
+      // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤 준 고정 문장(turn.receipt)을 그대로 — 버튼 정정이든 자유 입력 정정(「아닌데, …」)이든 같은 줄(화면이 먼저 만들지 않음)
+      if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.receipt?.line ?? (r.turn.reply || '고친 말로 다시 이어갈게요.')); }
+      else if (r.turn.receipt?.line) setNotice(r.turn.receipt.line);
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
     });
   };

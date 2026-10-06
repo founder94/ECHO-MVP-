@@ -6,7 +6,7 @@
 import { conversationReadiness, CONVERSATION_READY_MIN_AREAS, READY_SOURCE_TYPES, READY_CONFIRMED_MAX, type ConversationReadiness } from "../doit-agent/agent.ts";
 
 export interface AgentSessionRow { user_id: string; created_at: string | null; updated_at: string | null; profile: unknown; phase: unknown }
-export interface AgentMatchSource { confirmed: string[]; confirmedAreas: number; finished: boolean; ready: boolean; sessionAt: string | null; readiness: ConversationReadiness }
+export interface AgentMatchSource { confirmed: string[]; corrected: string[]; confirmedAreas: number; finished: boolean; ready: boolean; sessionAt: string | null; readiness: ConversationReadiness }
 
 export const AGENT_READY_MIN_CONFIRMED_AREAS = CONVERSATION_READY_MIN_AREAS;
 export const AGENT_CONFIRMED_MAX = READY_CONFIRMED_MAX;
@@ -15,7 +15,7 @@ export const MATCH_SOURCE_TYPES = READY_SOURCE_TYPES;
 /** agent_session 한 줄의 profile 에서 매칭 재료만 뽑는다(공통 계약 그대로). 틀린 모양이면 빈 재료(매칭에 쓰지 않음). */
 export function sourceFromProfile(profile: unknown, phase: unknown, sessionAt: string | null): AgentMatchSource {
   const r = conversationReadiness(profile, phase);
-  return { confirmed: r.confirmed, confirmedAreas: r.confirmed_areas, finished: r.finished, ready: r.conversation_ready, sessionAt, readiness: r };
+  return { confirmed: r.confirmed, corrected: r.corrected, confirmedAreas: r.confirmed_areas, finished: r.finished, ready: r.conversation_ready, sessionAt, readiness: r };
 }
 
 /** 사용자마다 이번 회차(since 이후) 가장 최근 agent_session 하나로 매칭 재료를 만든다. */
