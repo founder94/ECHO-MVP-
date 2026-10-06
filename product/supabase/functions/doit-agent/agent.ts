@@ -731,7 +731,7 @@ export function turnInput(st: AgentState, latest: string, opts: { button?: boole
     heard: heard(st),
     corrections: st.corrections.slice(-3),
     disputed: st.disputed.slice(-5),
-    ...(st.turns.at(-1)?.kind === "correction" && st.last_receipt?.after.length ? { user_corrected: { values: st.last_receipt.after, note: "사용자가 방금 앞 답을 고쳤다. 이 고친 뜻을 전제로 이어 묻고 옛 뜻을 전제로 묻지 않는다." } } : {}), // 2026-10-06 방금 앞 턴이 정정이면 고친 내용(USER_CORRECTED)을 재료로
+    ...(st.turns.at(-1)?.kind === "correction" && st.last_receipt?.after.length && st.last_receipt.turn === st.turns.at(-1)?.n ? { user_corrected: { values: st.last_receipt.after, note: "사용자가 방금 앞 답을 고쳤다. 이 고친 뜻을 전제로 이어 묻고 옛 뜻을 전제로 묻지 않는다." } } : {}), // 2026-10-06 방금 앞 턴이 정정이면 고친 내용(USER_CORRECTED)을 재료로
     open_purposes: (openPurposes(st).length ? openPurposes(st) : fillTargets(st)).map((id) => ({ purpose: id, label: dimLabel(st, id) })),
     ...(!openPurposes(st).length && fillTargets(st).length ? { fill_request: "연결 준비에 이야기가 조금 더 필요하다. open_purposes 칸에서 heard 에 없는 새 장면·구체적인 예 하나를 방금 말에 이어 가볍게 묻는다. 이미 들은 것을 되묻지 않는다." } : {}),
     asked_before: st.asked.map((a) => a.text), // 목적 설명 문장(goal)은 넣지 않는다 — 실제 AI 가 그 문장을 질문으로 옮겨 써서 설문처럼 들렸다(운영판 실AI 재생 run 7)
@@ -1093,7 +1093,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   //   같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)은 AI 정리와 겹치면 빼고 하나만 적는다(dedupeViewItems · 화면 규칙과 같음).
   const goneNow = dedupeViewItems(PIDS.flatMap((id) => st.slots[id].items.filter((i) => statusBefore.get(i) === "CONFIRMED" && (i.status === "SUPERSEDED" || i.status === "RETRACTED")).map((i) => ({ note: i.note, quote: i.quote, source_turn: i.turn })))).map((i) => i.note);
   const receipt = (out.kind === "correction" || goneNow.length) && !["unsure", "skip", "stop", "help"].includes(out.kind) && g.rule !== "fix_check" ? makeReceipt(goneNow, kept.filter((k) => k.turn === turn.n).map((k) => k.note)) : null;
-  if (receipt) { turn.receipt = receipt; st.last_receipt = { ...receipt, turn: turn.n }; }
+  if (receipt) { turn.receipt = receipt; st.last_receipt = { ...receipt, turn: turn.n }; } else if (out.kind === "correction") st.last_receipt = null; // 검수 P2-2: 영수증 없는 정정은 옛 영수증을 재료로 쓰지 않는다
   // 저장(기록 표에 이번 말을 남김)은 이번 말에서 나온 정보가 있을 때만 — 「아까 말했는데」 같은 항의는 되살리기만 하고 답으로 남지 않는다.
   turn.saved = kept.some((k) => k.turn === turn.n); turn.extracted = kept.map((k) => k.purpose);
   const recovered = kept.filter((k) => k.turn !== turn.n).map((k) => k.purpose); if (recovered.length) turn.recovered = recovered;
@@ -1161,6 +1161,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   turn.hint = question ? st.current?.hint ?? null : null;
   turn.reply = reply; turn.question = question;
   // 2026-10-06 다음 장면 증거: 정정 직후의 새 질문 한 번에만 고친 내용을 서버가 짧게 인용한다(「「고친 내용」으로 알아들었어요.」 + 질문 · AI 0 · 질문 본문·같은 질문 판정은 그대로).
+  if (st.current && st.current.cite && !(receipt?.after.length)) delete st.current.cite; // 검수 P2-1: 인용은 정정 직후 한 번만 — 같은 질문이 유지돼도(모르겠다·되묻기) 다음 턴부터는 뗀다
   if (question && receipt?.after.length && st.current && ["core", "core_relabeled", "fill", "clarify"].includes(decision)) { st.current.cite = citeLine(receipt.after); turn.cite = st.current.cite; } turn.decision = finish ? (opts.limitReached ? "finish_limit" : decision === "finish_enough" ? "finish_enough" : needsMoreAnswers(st) ? "finish_not_ready" : "finish") : decision; // v2.4.5 준비 미완료로 멈춤을 따로 남긴다
   // 이 답이 사용자에게 보인 AI 해석(출처 기록) — 다음 말이 모호한 거절이면 이것만 대상이 된다.
   const shownNow = kept.map((k) => ({ purpose: k.purpose, item: st.slots[k.purpose].items.find((i) => i.note === k.note && i.turn === k.turn && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED") }))
@@ -1289,6 +1290,17 @@ export function forgetKnown(st: AgentState, key: string): boolean {
   const hit = st.slots[purpose].items.find((i) => i.turn === turn && i.note === note && i.status !== "FORGOTTEN");
   if (!hit) return false;
   hit.status = "FORGOTTEN"; remember(note);
+  // 검수 P1(2026-10-06): 같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)과 그 복사본에 기댄 정리는 화면에서 한 줄로 보였으므로 함께 지운다(dedupeViewItems 와 같은 기준 · 칸 무관).
+  //   아니면 지운 뒤 숨어 있던 복사본이 「내가 확인한 것」으로 다시 나타나고 매칭 재료에도 남는다.
+  const hb = bare(hit.quote), hn = bare(hit.note);
+  for (const id of PIDS) for (const j of st.slots[id].items) {
+    if (j === hit || j.status === "FORGOTTEN" || j.turn !== hit.turn) continue;
+    const jb = bare(j.quote), jn = bare(j.note);
+    const jRaw = !!jn && !!jb && (jn === jb || (jn.length >= 10 && jb.startsWith(jn)));
+    const hRaw = !!hn && !!hb && (hn === hb || (hn.length >= 10 && hb.startsWith(hn)));
+    if ((jRaw && !!hb && jb.includes(hb)) || (hRaw && !!jb && hb.includes(jb))) { j.status = "FORGOTTEN"; remember(j.note); }
+  }
+  for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
   if (st.slots[purpose].status === "CONFIRMED" && !st.slots[purpose].items.some((i) => i.status === "CONFIRMED")) st.slots[purpose].status = "UNKNOWN";
   return true;
 }

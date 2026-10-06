@@ -72,9 +72,12 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
   // [반영할게요] = 사용자가 직접 누른 그 한 번만 서버에 남긴다(고친 자기 문장만 · 해석 원문 0). 실패하면 적은 말은 그대로, 다시 누르면 새 요청.
   const keep = async () => {
     if (!offer || offer.state === "saving" || offer.state === "saved") return;
-    setOffer({ ...offer, state: "saving" });
-    try { await agentSelfNote(userId, offer.text, "ref_correction"); if (alive.current) setOffer({ ...offer, state: "saved" }); }
-    catch { if (alive.current) setOffer({ ...offer, state: "failed" }); }
+    const mine = offer.text;
+    setOffer({ text: mine, state: "saving" });
+    // 검수 P2-9: 저장하는 사이 새 정정이 와서 offer 가 바뀌었으면 옛 문장 결과로 덮어쓰지 않는다
+    const settle = (state: NonNullable<Offer>["state"]) => setOffer((cur) => (cur && cur.text === mine ? { text: mine, state } : cur));
+    try { await agentSelfNote(userId, mine, "ref_correction"); if (alive.current) settle("saved"); }
+    catch (e) { if (!alive.current) return; if (e instanceof UnderstandingError && e.code === "NOT_ALLOWED") settle("declined"); else settle("failed"); }
   };
   const leave = (to: "home" | "plan") => { clearContentSeed(); onLeave(to); };
 

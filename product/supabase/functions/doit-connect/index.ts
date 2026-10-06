@@ -48,7 +48,7 @@
 
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { agentSources, AGENT_CONFIRMED_MAX, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
+import { agentSources, AGENT_CONFIRMED_MAX, AGENT_READY_MIN_CONFIRMED_AREAS, SELF_NOTE_SKIP, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
 import { createMeetRuntime, type CurrentMeetState } from "./meetRuntime.ts"; // 영상 → 각자 확인 → 만남(PR #99 meetApi + PR #100 실행 경계 · Codex 소유 · 기본 꺼짐)
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
@@ -434,7 +434,7 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
         const cur = src.get(String(row.user_id)); if (!cur || !Array.isArray(row.notes)) continue;
         for (const n of row.notes as { text?: unknown }[]) {
           const t = cleanText(typeof n?.text === "string" ? n.text : "");
-          if (!t || /사주|타로|카드|궁합|운세/.test(t) || cur.confirmed.includes(t) || cur.confirmed.length >= AGENT_CONFIRMED_MAX) continue;
+          if (!t || SELF_NOTE_SKIP(t) || cur.confirmed.includes(t) || cur.confirmed.length >= AGENT_CONFIRMED_MAX) continue;
           cur.confirmed.push(t); cur.corrected.push(t);
         }
       }

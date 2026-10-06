@@ -30,6 +30,8 @@ export default function TalkPage() {
   const { user, loading } = useAuth();
   const userId = user?.id ?? null;
   const [status, setStatus] = useState<FreeTalkStatus | null>(null);
+  const [statusError, setStatusError] = useState(false); // 상태를 못 읽은 것과 「꺼짐」을 구분(검수 P2-10)
+  const [retry, setRetry] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,9 +44,10 @@ export default function TalkPage() {
   useEffect(() => {
     if (!userId || !ECHO_AGENT_ENABLED) return;
     let live = true;
-    agentHome(userId).then((r) => { if (live) setStatus(r.free_talk); }).catch(() => { if (live) setStatus({ enabled: false }); });
+    setStatusError(false);
+    agentHome(userId).then((r) => { if (live) setStatus(r.free_talk); }).catch(() => { if (live) setStatusError(true); });
     return () => { live = false; };
-  }, [userId]);
+  }, [userId, retry]);
 
   const send = async () => {
     const t = draft.trim();
@@ -77,6 +80,7 @@ export default function TalkPage() {
         </header>
         {loading ? <p className="echo-ref-line echo-ref-line--echo" role="status">불러오는 중이에요.</p>
           : !user ? <p className="echo-ref-line echo-ref-line--echo">로그인하면 이어서 이야기할 수 있어요. <Link to="/login" state={{ from: '/doit/talk' }}>로그인하기</Link></p>
+          : statusError ? <div className="echo-ref-fail" role="alert"><p>상태를 불러오지 못했어요.</p><button type="button" className="echo-ref-chip" onClick={() => setRetry((n) => n + 1)}>다시 불러오기</button></div>
           : off ? <p className="echo-ref-line echo-ref-line--echo" role="status">자유 대화는 아직 열리지 않았어요. 정해진 이야기는 <Link to="/doit/conversation">ECHO와 이야기</Link>에서 그대로 할 수 있어요.</p>
           : <>
             {status && !status.entitled && typeof status.trial_left === 'number' && lines.length === 0 && <p className="echo-ref-line echo-ref-line--echo" role="status">{status.trial_left > 0 ? `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요. 맛보기 ${status.trial_left}번 남았어요.` : FAIL.TRIAL_USED}</p>}

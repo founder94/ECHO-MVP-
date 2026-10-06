@@ -4,7 +4,7 @@ import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED } from '@/doit/lib/understandingApi';
-import { ECHO_AGENT_ENABLED, agentForget, agentGet, type AgentKnown, type AgentSession, type AgentSlot, type KnownLine } from '@/doit/lib/agentApi';
+import { ECHO_AGENT_ENABLED, agentForget, agentHome, type AgentKnown, type AgentSession, type AgentSlot, type KnownLine } from '@/doit/lib/agentApi';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { AREA_LABEL, areaOf, groupByArea, splitCurrent, type AreaId, type ViewItem } from '@/doit/lib/understandingView';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
@@ -66,20 +66,21 @@ export default function Understanding() {
   const { user, loading: authLoading } = useAuth();
   const { records, insights, loading, error, reload } = useUnderstanding();
   const [agent, setAgent] = useState<AgentSession | null>(null);
+  const [known, setKnown] = useState<AgentKnown | null>(null); // 세션이 없어도 자기 문장은 보인다(검수 P2-6)
   const [forgetKey, setForgetKey] = useState<string | null>(null);
   const [forgetError, setForgetError] = useState<string | null>(null);
   const userId = user?.id ?? null;
   const forget = async (line: KnownLine) => {
     if (!userId || forgetKey) return;
     setForgetKey(line.key); setForgetError(null);
-    try { const s = await agentForget(userId, line.key, agent?.id ?? null); setAgent(s); } // 서버가 지운 뒤 돌려준 모습 그대로(화면이 먼저 지우지 않음)
-    catch (e) { setForgetError(e instanceof UnderstandingError && e.code === 'NOT_FOUND' ? '이미 지워진 줄이에요. 새로 불러올게요.' : '지우지 못했어요. 잠시 뒤 다시 눌러 주세요.'); if (e instanceof UnderstandingError && e.code === 'NOT_FOUND') agentGet(userId).then(setAgent).catch(() => undefined); }
+    try { const r = await agentForget(userId, line.key, agent?.id ?? null); setAgent(r.session); setKnown(r.known); } // 서버가 지운 뒤 돌려준 모습 그대로(화면이 먼저 지우지 않음)
+    catch (e) { setForgetError(e instanceof UnderstandingError && e.code === 'NOT_FOUND' ? '이미 지워진 줄이에요. 새로 불러올게요.' : '지우지 못했어요. 잠시 뒤 다시 눌러 주세요.'); if (e instanceof UnderstandingError && e.code === 'NOT_FOUND') agentHome(userId).then((r) => { setAgent(r.session); setKnown(r.known); }).catch(() => undefined); }
     finally { setForgetKey(null); }
   };
   useEffect(() => {
     if (!userId || !ECHO_AGENT_ENABLED) return;
     let live = true;
-    agentGet(userId).then((s) => { if (live) setAgent(s); }).catch(() => undefined); // 못 불러와도 예전 기록은 그대로 보인다
+    agentHome(userId).then((r) => { if (live) { setAgent(r.session); setKnown(r.known); } }).catch(() => undefined); // 못 불러와도 예전 기록은 그대로 보인다
     return () => { live = false; };
   }, [userId]);
 
@@ -130,7 +131,7 @@ export default function Understanding() {
           </section>
         ) : (
           <>
-            {agent?.known && <KnownSection known={agent.known} busyKey={forgetKey} onForget={(l) => void forget(l)} />}
+            {known && <KnownSection known={known} busyKey={forgetKey} onForget={(l) => void forget(l)} />}
             {forgetError && <p className="doit-known-error" role="alert">{forgetError}</p>}
             <div className="doit-understanding-section-heading">
               <h2>지금의 나</h2>

@@ -1,7 +1,7 @@
 // 「나를 기억하는 ECHO와 무엇이든 대화」(2026-10-06 대표 승인 C·D·E) — 유료 자유 대화 모듈. 대화 상태(agent.ts)·매칭 계약(matching.ts)은 이 모듈을 모른다.
 // - 스위치 기본 꺼짐: 환경값 FREE_TALK_ENABLED=on 일 때만 동작(QA 포함). 꺼져 있으면 503 FREE_TALK_OFF(변경 0).
 // - 권한: 유료 권한(doit_entitlements 표 · 초안 PENDING_20261006_free_talk.sql) 또는 QA 시험용 권한(FREE_TALK_TEST_USERS) · 없으면 로그인 계정당 평생 맛보기 3회(비로그인 0).
-// - 상한(설정값 · 실측 뒤 조정): 하루 30회 · 한 사람 월 비용 5,000원 · 요청당 호출 3 · 토큰 8,000 · 출력 768. QA 에서 켤 때 하루 10회(FREE_TALK_DAILY).
+// - 상한(설정값 · 실측 뒤 조정): 하루 30회 · 한 사람 월 비용 5,000원 · 요청당 호출 3 · 토큰 8,000 · 출력 768(요청당 금액 상한은 AI_POLICY 로). QA 에서 켤 때 하루 10회(FREE_TALK_DAILY).
 // - 답변 재료 = 본인 프로필(확인·고친 것) · 거절 의미(다시 단정 0)만. 다른 사용자 정보 0. AI 짐작을 사실처럼 말하기 금지.
 // - 안전: 위기 신호 → 안전 안내·분석 중단 · 연락처·성적 표현 차단 · 건강·결혼·돈·앞날 단정 금지 · 연인 역할극 금지 · 사람과의 연결로 자연스럽게 이음.
 // - 모델: 정책의 free_talk 순서(없으면 기본 OpenAI 하나). 첫 후보가 OpenAI 가 아니면 부르지 않는다(검증 전 Claude·Gemini 비활성).
@@ -9,7 +9,8 @@ import { call, parseJson, PRIVATE_DATA, SENSITIVE_TOPIC, type KnownView, type Ll
 import { crisisSignal, CRISIS_LINE } from "./reference-talk.ts";
 
 type Env = (k: string) => string | undefined;
-export interface FreeTalkConfig { enabled: boolean; trials: number; daily: number; monthKrw: number; krwPerUsd: number | null; testUsers: Set<string>; maxCalls: number; maxTokens: number; maxCostUsd: number }
+// 요청당 금액 상한(0.01 USD)은 라우터 정책(AI_POLICY.limits.max_cost_usd_per_request · 단가 필요)으로만 건다 — 이 모듈이 따로 세지 않는다(검수 P2-4 · 없는 상한을 약속하지 않음).
+export interface FreeTalkConfig { enabled: boolean; trials: number; daily: number; monthKrw: number; krwPerUsd: number | null; testUsers: Set<string>; maxCalls: number; maxTokens: number }
 const int = (v: string | undefined, d: number, lo: number, hi: number) => { const t = (v ?? "").trim(); if (!t) return d; const n = Number(t); return Number.isInteger(n) && n >= lo && n <= hi ? n : d; }; // 빈 값 = 기본값(0 으로 읽지 않음)
 export function freeTalkConfig(get: Env): FreeTalkConfig {
   const rate = Number((get("FREE_TALK_KRW_PER_USD") ?? get("COMPANY_AI_KRW_PER_USD") ?? "").trim());
@@ -18,7 +19,7 @@ export function freeTalkConfig(get: Env): FreeTalkConfig {
     trials: int(get("FREE_TALK_TRIALS"), 3, 0, 10), daily: int(get("FREE_TALK_DAILY"), 30, 1, 200), monthKrw: int(get("FREE_TALK_MONTH_KRW"), 5000, 100, 100_000),
     krwPerUsd: Number.isFinite(rate) && rate >= 500 && rate <= 3000 ? rate : null,
     testUsers: new Set((get("FREE_TALK_TEST_USERS") ?? "").split(",").map((s) => s.trim()).filter((s) => /^[0-9a-f-]{36}$/i.test(s))),
-    maxCalls: int(get("FREE_TALK_MAX_CALLS"), 3, 1, 6), maxTokens: int(get("FREE_TALK_MAX_TOKENS"), 8000, 1000, 30_000), maxCostUsd: 0.01,
+    maxCalls: int(get("FREE_TALK_MAX_CALLS"), 3, 1, 6), maxTokens: int(get("FREE_TALK_MAX_TOKENS"), 8000, 1000, 30_000),
   };
 }
 export const FREE_TEXT_MAX = 500, FREE_HISTORY_MAX = 8, FREE_LINE_MAX = 600;
@@ -70,6 +71,8 @@ export function freeInput(known: KnownView, history: FreeLine[], latest: string)
   };
 }
 export type FreeGuard = { kind: "crisis" | "private" | "sexual" | "roleplay" | "injection"; reply: string; status: number; code: string } | null;
+// 검수 P2-7: 앞 줄(사용자가 보낸 history · 가짜 echo 줄 포함)에 주입·성적 표현이 있으면 요청 전체를 받지 않는다(모델 0).
+export const historyTainted = (h: FreeLine[]) => h.some((l) => injectionAttempt(l.text) || sexualText(l.text));
 export function freeGuard(text: string): FreeGuard {
   if (crisisSignal(text)) return { kind: "crisis", reply: CRISIS_LINE, status: 200, code: "CRISIS" };
   if (PRIVATE_DATA.test(text)) return { kind: "private", reply: "연락처·번호·링크는 여기에 적지 않아요. 그 부분만 빼고 다시 적어 주세요.", status: 422, code: "PRIVATE_DATA" };

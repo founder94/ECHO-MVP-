@@ -107,3 +107,42 @@ test('⑤ 민감 주제 표시 · 서버 응답·화면 계약(코드 검사)', 
   assert.match(connect, /고쳐 주신 대로 「\$\{t\}」/, '후보 이유 1줄');
   assert.match(connect, /me\?\.corrected \?\? \[\]/, '내 화면의 내 말에만(상대 노출 0)');
 });
+
+// ── 2026-10-06 독립 검수 반영(P1-1 · P2-1 · P2-2 · P2-5)
+test('⑥ P1 지우기: 같은 말의 원문 복사본도 함께 FORGOTTEN — 확인 칸 재등장 0 · 매칭 재료 0', () => {
+  const st = A.newState({ tone: 'polite', goal: 'friend' }); A.seedFirstQuestion(st);
+  st.current = { type: 'core', purpose: 'relationship_style', text: '연락은 어떻게?' };
+  A.applyTurn(st, '매일 연락하는 게 좋아요', T({ extracted: [X('relationship_style', '매일 연락 선호', '매일 연락하는 게 좋아요')] }));
+  assert.ok(st.slots.relationship_style.items.some((i) => i.source_type === 'USER_DIRECT'), '전제: 원문 복사본이 함께 저장됨');
+  const k = A.knownView(st); const line = k.guesses.find((l) => l.text === '매일 연락 선호');
+  assert.ok(line, '화면에는 정리 한 줄'); assert.equal(k.confirmed.length, 0, '복사본은 숨김');
+  assert.equal(A.forgetKnown(st, line.key), true);
+  const k2 = A.knownView(st);
+  assert.equal(k2.confirmed.length + k2.guesses.length, 0, JSON.stringify(k2.confirmed));
+  assert.ok(st.slots.relationship_style.items.every((i) => i.status === 'FORGOTTEN'));
+  assert.equal(M.sourceFromProfile(A.matchingProfile(st), 'done', null).confirmed.length, 0, '매칭 재료 0');
+  assert.equal(st.slots.relationship_style.status, 'UNKNOWN');
+});
+
+test('⑦ P2 인용은 정정 직후 한 번만 — 다음 턴(모르겠다)의 질문에는 인용 0 · 영수증 없는 정정은 옛 영수증 재료 0', () => {
+  const st = base();
+  A.applyTurn(st, '매일 연락하는 게 좋아요', T({ extracted: [X('relationship_style', '매일 연락', '매일 연락하는 게 좋아요')], next: { type: 'core', purpose: 'values_character', question: '친구 볼 때 뭘 먼저 봐요?' } }));
+  const r = A.applyTurn(st, '아니 그게 아니라 주말에만 연락이 좋아', T({ kind: 'correction', extracted: [X('relationship_style', '주말에만 연락', '주말에만 연락이 좋아')], wrong: ['매일 연락'], next: { type: 'core', purpose: 'boundaries', question: '주말에 뭐 하고 싶어요?' } }));
+  assert.ok(r.cite && st.current.cite);
+  const r2 = A.applyTurn(st, '잘 모르겠어요', T({ kind: 'unsure', next: { type: 'core', purpose: 'values_character', question: '친구한테 서운했던 적 있어요?' } }));
+  assert.equal(r2.cite, null); assert.equal(st.current?.cite, undefined, '다음 질문에는 인용 0');
+  assert.ok(!('user_corrected' in A.turnInput(st, '아무 말')), '정정 턴이 아니면 재료 0');
+  // 영수증 없는 정정(바뀐 것 0)
+  st.last_receipt = { line: 'x', before: [], after: ['옛것'], turn: 1 };
+  A.applyTurn(st, '아니', T({ kind: 'correction', extracted: [], wrong: [] }));
+  assert.equal(st.last_receipt, null); assert.ok(!('user_corrected' in A.turnInput(st, '다음')));
+});
+
+test('⑧ P2-5 해석 부정 판정: 물음이 든 말·보통 서술은 정정 아님', async () => {
+  const R = await import(emit('../supabase/functions/doit-agent/reference-talk.ts', 'ref.mjs', (x) => x.replace('"./agent.ts"', '"./agent.mjs"')));
+  assert.equal(R.denyInterpretation('나는 그런 사람 아닌데, 왜 그렇게 나와요?'), null);
+  assert.equal(R.denyInterpretation('요즘 좀 달라요'), null);
+  assert.equal(R.denyInterpretation('친구랑 저는 성격이 반대예요'), null);
+  assert.deepEqual(R.denyInterpretation('나 그런 사람 아닌데, 저는 사람 많은 데를 좋아해요'), { text: '저는 사람 많은 데를 좋아해요' });
+  assert.deepEqual(R.denyInterpretation('사람 많은 데 싫어하는 거 아닌데'), { text: '사람 많은 데 싫어하는 거 아닌데' });
+});

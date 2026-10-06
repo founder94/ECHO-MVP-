@@ -108,13 +108,15 @@ export function forgetAgentSession(userId: string): void { rememberSession(userI
 
 // 2026-10-06 유료 자유 대화 상태(서버 agent_get 이 함께 준다 · 스위치 꺼짐이면 enabled=false 만). 화면은 이 값을 바꾸지 않는다.
 export interface FreeTalkStatus { enabled: boolean; entitled?: boolean; trial_left?: number; daily_left?: number }
-export async function agentHome(userId: string): Promise<{ session: AgentSession | null; free_talk: FreeTalkStatus }> {
+const validKnown = (k: unknown): k is AgentKnown => { const x = k as AgentKnown | null; return !!x && ['confirmed', 'guesses', 'corrected', 'rejected'].every((c) => Array.isArray((x as unknown as Record<string, unknown>)[c])); };
+// known = 「ECHO가 아는 나」(세션이 없어도 자기 문장은 온다 · 검수 P2-6)
+export async function agentHome(userId: string): Promise<{ session: AgentSession | null; free_talk: FreeTalkStatus; known: AgentKnown | null }> {
   const sessionId = rememberedSession(userId);
-  const r = await serverFunctionRequest<{ session: AgentSession | null; free_talk?: FreeTalkStatus }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);
+  const r = await serverFunctionRequest<{ session: AgentSession | null; free_talk?: FreeTalkStatus; known?: AgentKnown | null }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);
   const session = r.session && validSession(r.session) ? r.session : null;
   if (session) rememberSession(userId, session.id);
   const f = r.free_talk && typeof r.free_talk === 'object' && typeof r.free_talk.enabled === 'boolean' ? r.free_talk : { enabled: false };
-  return { session, free_talk: f };
+  return { session, free_talk: f, known: validKnown(r.known) ? r.known : session?.known ?? null };
 }
 export interface FreeReply { reply: string; ai: boolean; trial_left: number | null; entitled: boolean; notice: string | null; guard: string | null }
 // 자유 대화 한 마디(서버 agent_free_talk · 답 글 저장 0 · 같은 요청 재전송 = 409 ALREADY_DONE → 새 요청으로). 실패 코드마다 화면 문구는 화면이 고른다.
@@ -228,14 +230,13 @@ export async function agentConfirm(userId: string, sessionId: string): Promise<A
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r.session;
 }
-export async function agentForget(userId: string, key: string, sessionId?: string | null): Promise<AgentSession | null> {
-  const r = await write<{ session: AgentSession | null }>(userId, { action: 'agent_forget', key, ...(sessionId ? { sessionId } : {}) }, ['NOT_FOUND']);
-  if (r.session === null) return null;
-  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
-  return r.session;
+export async function agentForget(userId: string, key: string, sessionId?: string | null): Promise<{ session: AgentSession | null; known: AgentKnown | null }> {
+  const r = await write<{ session: AgentSession | null; known?: AgentKnown | null }>(userId, { action: 'agent_forget', key, ...(sessionId ? { sessionId } : {}) }, ['NOT_FOUND']);
+  const session = r.session && validSession(r.session) ? r.session : null;
+  return { session, known: validKnown(r.known) ? r.known : session?.known ?? null };
 }
 export async function agentSelfNote(userId: string, text: string, origin: 'ref_correction' | 'self' = 'self'): Promise<{ session: AgentSession | null; duplicate: boolean }> {
-  const r = await write<{ session: AgentSession | null; duplicate?: boolean }>(userId, { action: 'agent_self_note', text, origin }, ['PRIVATE_DATA', 'BAD_REQUEST']);
+  const r = await write<{ session: AgentSession | null; duplicate?: boolean }>(userId, { action: 'agent_self_note', text, origin }, ['PRIVATE_DATA', 'BAD_REQUEST', 'NOT_ALLOWED']);
   if (r.session !== null && !validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return { session: r.session, duplicate: r.duplicate === true };
 }
