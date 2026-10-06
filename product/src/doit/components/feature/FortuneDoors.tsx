@@ -9,11 +9,11 @@ export default function FortuneDoors() {
     <p className="doit-fortune-doors-kicker" id="fortune-doors-title">잠깐 쉬어 가요</p>
     <div className="doit-fortune-doors-row">
       <Link className="doit-fortune-door" to="/doit/fortune?mode=saju">
-        <img src="/doit/art/saju-main.webp" alt="" loading="lazy" decoding="async" />
+        <img src="/doit/art/saju-start.webp" alt="" loading="lazy" decoding="async" />
         <span className="doit-fortune-door-text"><strong>사주</strong><small>내 안의 다섯 가지 기운 보기</small></span>
       </Link>
       <Link className="doit-fortune-door" to="/doit/fortune?mode=taro">
-        <img src="/doit/art/tarot-main.webp" alt="" loading="lazy" decoding="async" />
+        <img src="/doit/art/tarot-start.webp" alt="" loading="lazy" decoding="async" />
         <span className="doit-fortune-door-text"><strong>타로</strong><small>카드 한 장으로 오늘 흐름 보기</small></span>
       </Link>
     </div>

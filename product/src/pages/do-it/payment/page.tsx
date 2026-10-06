@@ -8,9 +8,8 @@ import { REPORT_PRICE_KRW, UNKNOWN_STATE_MESSAGE, createOrder, resumeConversatio
 import { PAYMENT_PENDING_BUTTON_LABEL, PAYMENT_PENDING_NOTICE, getTossClientKey, isPaymentEnabled, isUserCancel, requestCardPayment } from '@/lib/echo/toss';
 
 const PAYABLE_STATUSES: readonly FlowStatus[] = ['report_ready'];
-const priceLabel = `${REPORT_PRICE_KRW.toLocaleString('ko-KR')}원`;
 
-// STEP 7 완료 뒤: 최종 자기이해 리포트 4,900원 단건 선택 구매.
+// STEP 7 완료 뒤: 최종 자기이해 리포트 단건 선택 구매(2026-10-05 대표 「가격 문구 영구 삭제」 — 화면에 금액 0 · 이 화면 주소는 앱 홈으로 보냄).
 export default function PaymentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -122,7 +121,6 @@ export default function PaymentPage() {
       <div style={reveal(400)} className="w-full max-w-xs rounded-2xl bg-white/[0.06] border border-white/15 backdrop-blur-md px-5 py-4 mb-3 text-left">
         <div className="flex items-center justify-between">
           <span className="text-[13px] text-white/75">자기이해 리포트 · 1회</span>
-          <span className="text-[17px] font-bold text-white">{priceLabel}</span>
         </div>
         <p className="text-[11.5px] text-white/45 mt-2">원할 때 한 번만 선택해요.</p>
       </div>
@@ -143,7 +141,7 @@ export default function PaymentPage() {
               결제창 여는 중...
             </>
           ) : (
-            `${priceLabel}으로 리포트 열기`
+            '리포트 열기'
           )}
         </button>
         <button type="button" onClick={() => navigate(routeWithConversation(flowStatus, conversationId) ?? '/')} disabled={paying} className={GHOST_BUTTON}>

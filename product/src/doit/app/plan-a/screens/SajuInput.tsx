@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { colors, serif, surfaces } from "../theme";
+import { startArtStyle } from "../startArt";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { SajuInput as SajuCalcInput } from "@/doit/lib/saju/engine";
 
@@ -87,6 +88,18 @@ export function SajuInput({
           >
             FREE · 기본 사주
           </p>
+
+          {/* 사주 시작 그림(2026-10-06 대표 지정 · public/doit/art/saju-start.webp) */}
+          <img
+            className="doit-start-art"
+            src="/doit/art/saju-start.webp"
+            alt=""
+            aria-hidden="true"
+            width="900"
+            height="1002"
+            decoding="async"
+            style={startArtStyle}
+          />
 
           <h1
             style={{

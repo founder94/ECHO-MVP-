@@ -79,7 +79,7 @@ test('홈: 사주·타로 그림 문 → 바로 입력 화면(mode 주소) · �
   const d = read('src/doit/components/feature/FortuneDoors.tsx');
   assert.ok(d.includes('/doit/fortune?mode=saju') && d.includes('/doit/fortune?mode=taro'));
   assert.ok(d.includes('나의 이해나 연결에는 쓰지 않아요'));
-  for (const f of ['public/doit/art/saju-main.webp', 'public/doit/art/tarot-main.webp']) assert.ok(existsSync(path.join(root, f)), f);
+  for (const f of ['public/doit/art/saju-start.webp', 'public/doit/art/tarot-start.webp']) assert.ok(existsSync(path.join(root, f)), f);
   assert.ok(read('src/doit/pages/do-it/home/page.tsx').includes('<FortuneDoors'));
   const f = read('src/doit/pages/do-it/fortune/page.tsx');
   assert.ok(f.includes('deep === "saju" || deep === "taro" ? "input" : "entry"'));

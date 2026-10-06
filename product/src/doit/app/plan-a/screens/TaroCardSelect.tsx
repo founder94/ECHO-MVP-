@@ -13,6 +13,7 @@ import {
   Star,
 } from "lucide-react";
 import { colors, serif, surfaces } from "../theme";
+import { startArtStyle } from "../startArt";
 import { PrimaryButton } from "../components/PrimaryButton";
 import {
   TarotCardArt,
@@ -192,6 +193,17 @@ export function TaroCardSelect({
                 y: 0,
               }}
             >
+              {/* 타로 시작 그림(2026-10-06 대표 지정 · public/doit/art/tarot-start.webp) */}
+              <img
+                className="doit-start-art"
+                src="/doit/art/tarot-start.webp"
+                alt=""
+                aria-hidden="true"
+                width="900"
+                height="971"
+                decoding="async"
+                style={startArtStyle}
+              />
               <h1
                 style={{
                   fontFamily: serif,

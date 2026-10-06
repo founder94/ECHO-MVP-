@@ -88,5 +88,39 @@ test('Codex 4183640424 · 대표 「글은 완성」: 가입 안내·첫 질문 
   assert.ok(sc.includes('원하는 관계를 고르고, 다섯 가지 질문에 답하고, 사진과 소개를 준비해요.'));
   assert.ok(!sc.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').includes('전화 인증까지 마치면'), '전화 인증은 연결 자격이 아님');
   assert.ok(src('src/doit/components/feature/ConversationOpening.tsx').includes('어떤 만남을 원하는지 들려주세요. 하나 고르고 한 줄 덧붙이면, 거기서부터 이야기할게요.'));
-  assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">편하게 고를 수 있게 해 드릴게요.</p>'));
+  // 보기 만들기 실패 가지(보기 0개)는 사실대로 — Codex echo-review 5994212141: 「편하게 고를 수 있게」는 보기가 없을 때 약속이 된다
+  assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>'));
+});
+
+test('Codex P2(4183198245): #131 모양 파일(brand-parity)의 판 = 흰 글자 4.5:1 이상(바탕 그림 가장 밝은 점 위 · 흐림 전 최악 경우) · ref-parity 는 #138 의 공통 유리 토큰', () => {
+  const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
+  const bg = [247, 253, 183];
+  // 흰 막(rgb 255 255 255/…)은 청록 판 안의 입력 줄에만 쓴다(§7) — 판 위에 겹친 색이라 따로 재지 않고, 그 판 색을 잰다
+  const fills = [...css.matchAll(/background:rgb\((\d+) (\d+) (\d+)\/(\.\d+)\)!important/g)].map((m) => [[+m[1], +m[2], +m[3]], +m[4]]).filter(([c]) => c.join() !== '255,255,255');
+  assert.match(css, /\.echo-prep-panel :is\(input,textarea\)\{[^}]*background:rgb\(255 255 255\/\.10\)!important/, '흰 막은 판 안 입력 줄에만');
+  assert.equal((css.match(/background:rgb\(255 255 255\//g) ?? []).length, 1, '판 안 입력 줄뿐');
+  assert.ok(fills.length >= 1);
+  for (const [c, a] of fills) { const mix = c.map((v, i) => v * a + bg[i] * (1 - a)); const ratio = 1.05 / (L(mix) + 0.05); assert.ok(ratio >= 4.5, `rgb(${c}/${a}) = ${ratio.toFixed(2)}:1`); }
+});
+
+test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리 판(4.5:1) · 얇은 유리 입력 줄 · 입력 항목·글 그대로', () => {
+  const pb = src('src/doit/app/plan-a/screens/ProfileBuild.tsx');
+  assert.match(pb, /className="echo-prep flex flex-col min-h-screen"/);
+  assert.equal((pb.match(/echo-prep-panel/g) ?? []).length, 3);
+  for (const t of ['이제, 실제 나를 보여줄', '닉네임 *', 'id="profile-intro"', '나를 소개할 정보를 입력해요']) assert.ok(pb.includes(t), t);
+  const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Codex P2(4185618667): 시작 경로는 MobileLayout 을 거치지 않음 → 모양을 쓰는 화면(ProfileBuild · TopBar)이 직접 읽는다
+  assert.match(pb, /import "@\/doit\/components\/feature\/brand-parity\.css";/);
+  assert.match(src('src/doit/components/feature/TopBar.tsx'), /import "\.\/brand-parity\.css";/);
+  assert.match(src('src/doit/pages/do-it/start-journey/page.tsx'), /ProfileBuild/);
+  assert.match(css, /\.echo-prep \.echo-prep-head\{text-align:center\}/);
+  assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(14 60 70\/\.70\)!important/);
+});
+
+test('대표 「DO IT = 회사 · ECHO = 모바일 웹」: 윗줄 = D 심볼 + ECHO 글자(DO IT 글자 0) · 화면 제목은 화면 읽기용', () => {
+  const top = src('src/doit/components/feature/TopBar.tsx');
+  assert.match(top, /<DoItSymbol decorative \/>\s*<span className="echo-wordmark[^"]*" aria-label="ECHO">ECHO<\/span>/);
+  assert.doesNotMatch(top.replace(/\{\/\*[\s\S]*?\*\/\}/g, ''), />\s*DO IT\s*</);
+  assert.match(top, /\{title && <h1 className="echo-sr">\{title\}<\/h1>\}/);
 });

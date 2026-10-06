@@ -80,7 +80,8 @@ test('frontend routes, copy, and review-pending gate match the server contract',
   assert.match(report, /navigate\(`\/payment\?c=/);
   assert.match(whiteDoor, /state\.status !== 'report_ready'/);
   assert.match(whiteDoor, /일곱 단계 이야기를/);
-  assert.match(weather, /1~7단계 대화는 무료예요\. 최종 자기이해 리포트는 원할 때 4,900원에 열 수 있어요\./);
+  assert.match(weather, /1~7단계 대화는 무료예요\./);
+  assert.doesNotMatch(weather, /4,?900\s*원/, '2026-10-05 대표 승인: 안내에 4,900원 문구 0');
 });
 
 test('production build is blocked when required public Supabase settings are missing', async () => {

@@ -33,11 +33,13 @@ type Step = "entry" | "input" | "result";
 
 export default function Fortune() {
   const navigate = useNavigate();
+  // Codex PR #140 P2(4184790623): 타로 결과에서 「로그인하고 해석 보기」로 나갔다 오면(?view=taro) 오늘 고른 카드의 결과 화면으로 바로 돌아온다(고른 카드 없으면 처음 화면).
   // 2026-10-06 홈 그림 문(사주·타로)에서 바로 들어오면 고르기 화면을 건너뛴다(/doit/fortune?mode=saju|taro).
   const [params] = useSearchParams();
+  const backToTaro = params.get("view") === "taro" && readSelectedCard() !== null;
   const deep = params.get("mode");
-  const [step, setStep] = useState<Step>(deep === "saju" || deep === "taro" ? "input" : "entry");
-  const [mode, setMode] = useState<Mode>(deep === "taro" ? "taro" : "saju");
+  const [step, setStep] = useState<Step>(backToTaro ? "result" : deep === "saju" || deep === "taro" ? "input" : "entry");
+  const [mode, setMode] = useState<Mode>(backToTaro || deep === "taro" ? "taro" : "saju");
   const [sajuInput, setSajuInput] = useState<SajuCalcInput | null>(null);
 
   const exitToHome = () => navigate("/doit/home");

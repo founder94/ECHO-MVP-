@@ -4,44 +4,19 @@ import { motion } from "motion/react";
 import type { TarotCard } from "../tarotDeck";
 
 // =============================================================
-// 타로 원본 스프라이트 시트 복원 준비
-// 현재 상태: "78장 데이터 완성 / 원화 연결 대기"
-//   - 78장 식별·선택·하루 한 장 기록은 tarotDeck.ts로 정상 동작.
-//   - 원본 6장 PNG가 아직 없어 카드 이름 플레이스홀더를 표시 중.
-// 업로드할 파일(src/imports/):
-//   tarot-major-0-10.png    (메이저 0~10, 4x3 그리드)
-//   tarot-major-11-21.png   (메이저 11~21, 4x3 그리드)
-//   tarot-wands.png         (완드 14장, 5x3 그리드)
-//   tarot-cups.png          (컵 14장, 5x3 그리드)
-//   tarot-swords.png        (소드 14장, 5x3 그리드)
-//   tarot-pentacles.png     (펜타클 14장, 5x3 그리드)
-// 파일 업로드 후 원화 연결 절차:
-//   1) import majorA from "@/doit/imports/tarot-major-0-10.png"; (6장 모두)
-//   2) const sheetUrlMap = { majorA, majorB, wands, cups, swords, pentacles };
-//   3) TarotCardArt 본문에서 플레이스홀더 대신 아래처럼 렌더링:
-//        <div
-//          className="absolute inset-0 bg-cover bg-no-repeat"
-//          style={{
-//            backgroundImage: `url(${sheetUrlMap[card.sheet]})`,
-//            ...spriteStyle(card),
-//          }}
-//        />
-// 각 카드 좌표는 tarotDeck.ts의 TarotCard(row, col, cols, rows)가 기준입니다.
+// 타로 원화 스프라이트 시트(78장) — 저장소 보관(public/doit/tarot, WebP 6장).
+//   majorA(0~10)·majorB(11~21): 4x3 그리드 / wands·cups·swords·pentacles(14장): 5x3 그리드
+//   각 카드 좌표는 tarotDeck.ts의 TarotCard(row, col, cols, rows)가 기준.
 // =============================================================
 
 const SHEET_URLS: Record<string, string> = {
-  majorA:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/6313df40-2ad8-4c3b-997f-8f7e7af9b9d5_compressed_tarot-major-0-10.webp",
-  majorB:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/03cb025b-e2b3-4ba3-86bd-0b6c8367e6f9_compressed_tarot-major-11-21.webp",
-  wands:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/33a15caa-0a03-4ce5-a7af-8330d4898d25_compressed_tarot-wands.webp",
-  cups:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/b5b5298b-f389-4b3a-b050-84b52ca812e9_compressed_tarot-cups.webp",
-  swords:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/e3636873-6b5f-4349-9d71-1d30b53027e6_compressed_tarot-swords.webp",
-  pentacles:
-    "https://storage.helloreaddy.io/project_files/5373f95c-3561-4ff8-be0c-c1fc7b33ff2e/235261f6-9be6-4f56-866d-b71403d4a1ca_compressed_tarot-pentacles.webp",
+  // 2026-10-06 대표 「그림 복사해」: 원화 6장을 저장소(public/doit/tarot)로 옮김. 외부 서버(Readdy) 의존 0.
+  majorA: "/doit/tarot/tarot-major-0-10.webp",
+  majorB: "/doit/tarot/tarot-major-11-21.webp",
+  wands: "/doit/tarot/tarot-wands.webp",
+  cups: "/doit/tarot/tarot-cups.webp",
+  swords: "/doit/tarot/tarot-swords.webp",
+  pentacles: "/doit/tarot/tarot-pentacles.webp",
 };
 
 const SERIF =

@@ -71,13 +71,22 @@ function load(state) {
   // 2026-10-03 실행 기록(run.ts · 순수 함수 · agent.ts 만 씀)
   const runMod = { exports: {} };
   vm.runInNewContext(compile('run.ts'), { ...g, structuredClone, module: runMod, exports: runMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'run.ts' });
+  // 2026-10-05 카드 읽기 모듈(card-reading.ts · agent.ts 만 씀 · 대화 상태와 분리)
+  const cardMod = { exports: {} };
+  vm.runInNewContext(compile('card-reading.ts'), { ...g, module: cardMod, exports: cardMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'card-reading.ts' });
+  // 2026-10-05 회사 예산 장부 모듈(company-budget.ts · 환경값으로 켤 때만 · state.env 를 요청마다 읽음)
+  const cbMod = { exports: {} };
+  vm.runInNewContext(compile('company-budget.ts'), { ...g, module: cbMod, exports: cbMod.exports, Deno: { env: { get: (k) => (state.env ?? {})[k] } } }, { filename: 'company-budget.ts' });
+  // 2026-10-05 참고 이야기 모듈(reference-talk.ts · agent.ts 만 씀 · 저장 0)
+  const refMod = { exports: {} };
+  vm.runInNewContext(compile('reference-talk.ts'), { ...g, module: refMod, exports: refMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'reference-talk.ts' });
   let handler = null;
   const logs = [];
   const sandbox = {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
     // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (url, init) => {
       // 2026-10-03 실행 단계의 도구(연결 서버 my_candidates) — state.connect 가 정한 응답(없으면 연결 실패)
       if (String(url).endsWith('/functions/v1/doit-connect')) {
@@ -288,7 +297,10 @@ test('AI 실패 → 502 · 상태·기록 저장 0 · 실패 관측 1줄(원문 
   const requestId = rid();
   const r = await h.call({ action: 'agent_start', requestId, firstAnswer: '친구' });
   assert.equal(r.status, 502);
-  const events = s.tables.doit_request_events ?? [];
+  const all = s.tables.doit_request_events ?? [];
+  // 2026-10-05 AI 호출 전 자리 잡기: 사용자 잠금 줄(agent_admission)·놓은 자리 줄(agent_turn_claim · failed)은 대화 기록이 아니다 → 대화·턴 기록만 본다. 자리는 놓였어야 함(처리 중으로 남지 않음)
+  assert.ok(all.filter((e) => e.action === 'agent_turn_claim').every((e) => e.status === 'failed'), '시작 자리는 놓임(다시 보내면 다시 잡음)');
+  const events = all.filter((e) => ['agent_session', 'agent_turn'].includes(e.action));
   assert.equal(events.filter((e) => e.status === 'applied').length, 0, '대화 상태 저장 0');
   assert.equal((s.tables.doit_records ?? []).length, 0);
   const failed = events.filter((e) => e.status === 'failed');
@@ -547,7 +559,7 @@ test('v1.9 대표 실기기 재현(2026-09-25): AI 가 놓친 답은 원문으�
   s.ai.push(T({ extracted: [], ...Q('values_character', '사람을 만날 때 가장 먼저 어떤 점을 보나요?') }));
   assert.equal((await say('능력이좀 있는사람')).body.turn.saved, true);
   assert.deepEqual(state().slots.attraction_comfort.items.map((i) => i.quote), ['능력이좀 있는사람']);
-  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람 내가 지금 능력이 없었기 때문에')], ...Q('relationship_style', '연락은 자주 하는 편인가요?') }));
+  s.ai.push(T({ extracted: [X('values_character', '능력 있는 사람', '능력이 있는 사람 내가 지금 능력이 없었기 때문에')], ...Q('relationship_style', '능력 있는 사람이면 어떤 점이 제일 끌려요?') }));
   await say('능력이 있는 사람 내가 지금 능력이 없었기 때문에');
   // ② 항의 + 새 이야기: 새 이야기(이번 말에 실제로 있는 글자)는 저장 · 항의 문장 원문 저장 0
   s.ai.push(T({ kind: 'repair', reply: '네, 아까 말씀하셨죠.', extracted: [X('relationship_style', '연락 자주', '연락은 자주하는 편')], ...Q('boundaries', '이건 좋고 이건 싫다 싶은 게 있나요?') }));
@@ -619,7 +631,7 @@ test('v2.4 세션 격리: 같은 계정 · 기기 A(친구)와 기기 B(연애)�
   // 두 세션에 동시에 말해도 서로의 턴·질문이 섞이지 않는다
   s.ai.push(T({ extracted: [X('attraction_comfort', '카페에서 얘기', '카페에서 얘기하는')], ...Q('relationship_style', '카페에서 보면 오래 얘기하는 편이에요?') })); // v2.5.4: 「얼마나 자주」는 정보 종류 질문(대표 HUMAN MIRROR)
   const ta = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: a.body.session.id, text: '카페에서 얘기하는 게 좋아' });
-  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '다정한 사람이면 연락도 자주 오면 좋아요?') }));
+  s.ai.push(T({ extracted: [X('attraction_comfort', '다정한 사람', '다정한')], ...Q('relationship_style', '다정한 사람이면 어떤 말에 마음이 가요?') }));
   const tb = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: b.body.session.id, text: '다정한 사람이 좋아요' });
   const aUsers = ta.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
   const bUsers = tb.body.session.messages.filter((m) => m.role === 'user').map((m) => m.text).join('|');
@@ -863,7 +875,7 @@ test('v2.5: 이미 충분히 들은 상태면 중복 후보를 더 생성하지 
 // ── FI-018(2026-10-01 대표 「AGENT ↔ MATCHING CONTRACT」): Agent 완료 판단 = 연결 서버 대화 자격과 같은 함수(conversationReadiness).
 // QA 실서버(run 36841364057 · 재현 2026-10-01): A 는 대화를 마쳤는데 사용자 출처 칸이 2개라 연결 자격 0(candidate 0) — 같은 모양을 서버 흐름으로 다시 만든다.
 const fi018Done = async (h, s) => {
-  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화부터 시작하고 싶어요', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '깊은 대화는 처음에 어디서 하면 편해요?') }));
+  s.ai.push(T({ extracted: [X('relationship_intent', '깊은 대화부터 시작하고 싶어요', '깊은 대화부터 시작하고 싶어요')], ...Q('attraction_comfort', '깊은 대화는 어떤 순간에 제일 잘 통해요?') }));
   const sid = (await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', goal: 'conversation', goalLabel: '깊은 대화부터 시작하고 싶어요', firstAnswer: '깊은 대화부터 시작하고 싶어요' })).body.session.id;
   const say = (text) => h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text });
   // 두 번째 답: AI 가 물은 칸(attraction)에 원문을 넣지 않고 다른 칸(style)에 정리 → 물은 칸에는 사용자 원문
@@ -927,7 +939,7 @@ test('FI-018 CASE 8: 같은 사용자가 다시 들어옴 → 같은 세션 · A
 // 2026-10-01 대표 「P0 QUESTION UX CONTRACT RESTORE」: 서버 전 구간(가짜 AI) — 잘 모르겠어요(구조 요청 · 턴 0) → 보기 고름(사용자 직접 답) → 뒤로 복원(previous) → 고치기(옛 보기 밀림).
 test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 USER_DIRECT 로 기록 · previous 로 복원 · 고치면 옛 보기 0', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   assert.deepEqual(start.body.session.current_rescue, { options: ['조용한 카페', '같이 걷기'], symbols: ['☕', '🚶'], show: false, fallback: false }, '보기는 들고 있되 먼저 펼치지 않음 · 「잘 모르겠어요」는 보기에서 빠짐');
@@ -948,7 +960,7 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
   const st = s.tables.doit_request_events.find((r) => r.action === 'agent_session').response_payload.state;
   assert.equal(st.slots.relationship_style.items.find((i) => i.source === 'choice').source_type, 'USER_DIRECT');
   assert.equal(st.slots.boundaries.items.length, 0, 'AI 정리를 얹지 않는다');
-  assert.deepEqual(pick.body.session.previous, { question: '친구 만나면 처음엔 어디가 편해요?', options: ['조용한 카페', '같이 걷기'], chosen: '조용한 카페' }, '뒤로 = 질문 · 보기 · 고른 것 복원');
+  assert.deepEqual(pick.body.session.previous, { question: '친구 만나면 처음엔 뭐 하는 게 편해요?', options: ['조용한 카페', '같이 걷기'], chosen: '조용한 카페' }, '뒤로 = 질문 · 보기 · 고른 것 복원');
   for (let k = 0; k < 3; k++) s.ai.push(T({ kind: 'correction', reply: '아, 같이 걷기요.', extracted: [], ...Q('values_character', '같이 걸으면 약속 시간도 중요해요?') }));
   const fix = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '같이 걷기', correction: { purpose: null } });
   assert.equal(fix.status, 200, JSON.stringify(fix.body));
@@ -960,7 +972,7 @@ test('구조대 전 구간: agent_rescue 는 턴·기록 0 · 고른 보기는 U
 // ── 2026-10-03 대표 「3개 AI 제공사 통합」: 서버 선택 규칙(modelRouter)을 실제 doit-agent 흐름으로 — 가짜 DB · 가짜 제공사 응답(실제 AI 호출 0 · 실제 AI 품질 판정 아님).
 // 정책·모델 이름은 시험용 가짜 이름이다(실제 승인 모델 아님).
 const POLICY = (o = {}) => JSON.stringify({ version: 'p-test-1', providers: { anthropic: { model: 'fake-anthropic-model', allow_user_text: true }, openai: { model: 'fake-openai-model', allow_user_text: true }, gemini: { model: 'fake-gemini-model', allow_user_text: true, enabled: true }, ...(o.providers ?? {}) },
-  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) } });
+  tasks: o.tasks ?? { default: ['anthropic', 'openai'] }, switch_on_invalid: o.switch_on_invalid ?? false, limits: { retry_wait_ms: 0, same_provider_retries: 0, ...(o.limits ?? {}) }, ...(o.circuit ? { circuit: o.circuit } : {}) });
 const ENV3 = (o) => ({ AI_POLICY: POLICY(o), ANTHROPIC_API_KEY: 'k2', GEMINI_API_KEY: 'k3' });
 const sessionRow = (s) => s.tables.doit_request_events.find((x) => x.action === 'agent_session');
 const startWith = async (s, h, first = '연애') => {
@@ -1316,7 +1328,8 @@ test('PR103 경계 — 잘렸지만 JSON 모양은 맞는 응답(실제 index.ts
 test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청에서 같이 일어나도 하나의 예산 · 시도 수 = 실제 업체 호출 수 · 상한에서 멈추고 상태 그대로', async () => {
   // 요청 토큰 상한은 보장된 상한(입력 바이트 + 출력 상한)으로 본다(Codex 리뷰 5400556217 P1) → 사용량 없는 실패 2번이 각각 ~1.5만을 붙잡으므로
   // 이 검사의 1)·2)는 시도 수·전환을 보려고 토큰 상한을 6만으로 둔다. 기본 3만에서의 동작은 3)에서 따로 확인.
-  const s = newState(); s.env = ENV3({ limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
+  // 이 검사는 예산·시도 수 상한을 본다 — 연속 오류 차단기(3번)는 따로 검사하므로 여기서는 열리지 않게 둔다(앞선 턴의 우연한 성공 호출 수에 기대지 않음 · 2026-10-05).
+  const s = newState(); s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0, max_tokens_per_request: 60_000 } }); const h = load(s);
   const sid = await RUNSEQ(s, h);
   // 1) anthropic 500 → openai 깨진 JSON(형식) → Agent 가 previous_attempt 로 다시 청함 → anthropic 500 → openai 정상
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
@@ -1328,7 +1341,7 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   assert.equal(rec.ai_usage.attempts, s.providerCalls.length, '형식 재요청·전환 모두 같은 예산의 시도로 셈');
   assert.ok(rec.retry.includes('format'));
   // 2) 같은 모양인데 요청 상한 3 → 4번째 시도 전에 멈춤 → 502 · 상태 그대로
-  s.env = ENV3({ limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
+  s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0, max_calls_per_request: 3, max_tokens_per_request: 60_000 } });
   const before = structuredClone(sessionRow(s));
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
   const capped = await say3(h, sid, '솔직한 사람');
@@ -1337,7 +1350,7 @@ test('PR103 복합 — Agent 형식 재요청 + 제공사 전환이 한 요청�
   const failed = s.tables.doit_request_events.filter((x) => x.status === 'failed').at(-1).response_payload.record;
   assert.equal(failed.ai_calls.at(-1).error, 'budget_exceeded');
   // 3) 기본 요청 토큰 상한(3만): 사용량 없는 실패가 붙잡은 보장 상한 + 다음 시도 상한이 3만을 넘으면 보내지 않고 멈춤(request_budget) · 상태 그대로
-  s.env = ENV3({ limits: { same_provider_retries: 0 } });
+  s.env = ENV3({ circuit: { open_after: 20, cooldown_ms: 60_000 }, limits: { same_provider_retries: 0 } });
   const before3 = structuredClone(sessionRow(s));
   s.providerCalls = []; s.fail = { anthropic: ['HTTP500', 'HTTP500'], openai: ['BADJSON'] };
   const tight = await say3(h, sid, '솔직한 사람');
@@ -1448,7 +1461,7 @@ test('Codex P2 하루 한도: 같은 목적의 세션이 이미 있으면 새 �
 // ── PR #103 Codex Code Review(리뷰 5400022834 · 9a531dd) 재현 2건
 test('Codex P2 하루 한도에서도 모델이 필요 없는 소개(상한 도달)·구조대(들고 있던 보기)는 막지 않음 · 모델이 필요하면 막음', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   seedDaily(s, 200);
@@ -1472,7 +1485,7 @@ test('Codex P2 첫 질문 만들기가 실패해도 시도가 하루 한도에 �
 });
 test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·대화 예산 소진에서도 평소 결과(설정·예산 확인은 모델을 부를 때만)', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
@@ -1487,7 +1500,7 @@ test('Codex P2 모델이 필요 없는 소개·구조대는 AI 설정 없음·�
 });
 test('Codex P2 대화 차례: 모델이 필요 없는 입력(개인정보 안내 · 보기 모두 아님)은 대화 예산·하루 한도에서도 평소 응답 · 모델이 필요하면 막음', async () => {
   const s = newState(); const h = load(s);
-  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 어디가 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
+  s.ai.push(T({ reply: '좋죠.', extracted: [X('relationship_intent', '친구', '친구')], next: { type: 'core', purpose: 'relationship_style', question: '친구 만나면 처음엔 뭐 하는 게 편해요?', choices: ['조용한 카페', '같이 걷기', '잘 모르겠어요'] } }));
   const start = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구 만나고 싶어요' });
   const sid = start.body.session.id;
   sessionRow(s).response_payload.run.budget.calls = 150; // 대화 예산 소진
@@ -1528,8 +1541,9 @@ test('자체 P1 저장 경쟁에서 진 요청이 부른 모델도 하루 한도
   let release; const gate = new Promise((ok) => { release = ok; });
   s.fail = { openai: [{ gate }] };
   s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const sent = (s.providerCalls ?? []).length;
   const a = say3(h, sid, '잘 웃는 사람');
-  await new Promise((r) => setTimeout(r, 5));
+  for (let i = 0; i < 200 && (s.providerCalls ?? []).length <= sent; i++) await new Promise((r) => setTimeout(r, 5)); // A 가 업체를 부른 뒤(2026-10-05 AI 호출 전 자리 잡기 · 고정 5ms 대신)
   s.ai.push(T({ extracted: [X('attraction_comfort', '솔직한 사람', '솔직한 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
   const before = sessionRow(s).response_payload.run.budget.calls;
   assert.equal((await say3(h, sid, '솔직한 사람')).status, 200);
@@ -1569,10 +1583,12 @@ test('Codex P1 예산만 접는 저장도 판 번호를 올림 — 그 사이 �
   let release; const gate = new Promise((ok) => { release = ok; });
   s.fail = { anthropic: [{ gate }] }; // A: 느린 정상 턴
   s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], ...Q('values_character', '사람 볼 때 뭘 먼저 봐요?') }));
+  const before = (s.providerCalls ?? []).length;
   const a = say3(h, sid, '잘 웃는 사람');
-  await new Promise((r) => setTimeout(r, 5));
+  // A 가 실제로 업체를 부른 뒤(느린 응답 대기 중)에 B 를 보낸다 — 2026-10-05 AI 호출 전 자리 잡기(잠금·자리)가 생겨 고정 5ms 로는 A 가 아직 호출 전일 수 있다
+  for (let i = 0; i < 200 && (s.providerCalls ?? []).length <= before; i++) await new Promise((r) => setTimeout(r, 5));
   s.fail = { anthropic: ['HTTP500'], openai: ['HTTP500'] }; // B: 같은 판에서 실패(사용량만 접음)
-  assert.equal((await say3(h, sid, '솔직한 사람')).status, 502);
+  const rb = await say3(h, sid, '솔직한 사람'); assert.equal(rb.status, 502, JSON.stringify(rb.body));
   const afterB = sessionRow(s).response_payload.run.budget.calls;
   release(); const ra = await a;
   assert.equal(ra.status, 409, 'B 가 판을 올렸으므로 늦은 A 는 저장 0');

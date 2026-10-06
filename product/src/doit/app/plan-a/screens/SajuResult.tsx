@@ -4,6 +4,7 @@ import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doi
 import { sajuStoryFacts } from "@/doit/lib/saju/storyFacts";
 import { generateSajuStory, type SajuStory } from "@/doit/lib/openai";
 import "./saju.css";
+import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 
 // 「ECHO가 들려주는 이야기」(2026-10-06 대표 「사람냄새나게」): 규칙 해설 아래, 누를 때만 AI 가 말하듯 풀어 준다.
 // 2026-10-06 운영 openai-chat v7(saju_reading) 배포 · 대표 「사주말투 좋고 … ai와 대화시작으로 플로우 이어가게」 → 기본으로 켠다.
@@ -191,6 +192,8 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
 
     {r.calculation_meta.notes.length > 0 && <section className="saju-note" aria-label="계산 참고">{r.calculation_meta.notes.map((n, i) => <p key={i} className="saju-cap">{n}</p>)}</section>}
     <p className="saju-cap">계산 기준: 양력 · 한국 시간 · 절기 기준 월 · 밤 11시 반부터 다음 날. 입력한 생일·시간은 이 휴대폰에서 계산에만 쓰고 저장하지 않아요.</p>
+
+    {OPEN_PERIOD.active && <p className="saju-cap">{OPEN_PERIOD.result}</p>}
 
     <div className="saju-actions">
       <button type="button" className="saju-secondary" onClick={onEdit}>다시 입력할게요</button>

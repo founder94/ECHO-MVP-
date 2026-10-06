@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/echo-qa-agent-live.yml'
       - 'product/qa-real/qa-core-live.mjs'
+      - 'product/qa-real/qa-tarot-ref-live.mjs'
+      - 'product/supabase/functions/doit-agent/card-reading.ts'
+      - 'product/supabase/functions/doit-agent/reference-talk.ts'
       - 'product/supabase/functions/doit-agent/agent.ts'
       - 'product/supabase/functions/doit-agent/index.ts'
       - 'product/supabase/functions/doit-agent/failure-intelligence.ts'
@@ -32,3 +35,4 @@ jobs:
           [ -n "$QA_ANON" ] || { echo 'QA public key missing'; exit 1; }
           export QA_ANON
           node qa-real/qa-core-live.mjs
+          node qa-real/qa-tarot-ref-live.mjs
