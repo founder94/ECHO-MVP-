@@ -9,6 +9,7 @@ import {
   keyPolicy,
   keyPurchaseHistory,
 } from "@/doit/mocks/do-it";
+import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 
 export default function Key() {
   const { isDemo, revenueKey, rewardKey, total, history } = useKeyWallet();
@@ -23,9 +24,7 @@ export default function Key() {
                 <i className="ri-information-line text-sm" />
               </span>
               <p className="text-xs leading-relaxed text-foreground-600">
-                <span className="font-semibold text-secondary-900">데모 잔액이에요 · </span>
-                아래 숫자는 서버 원장이 아니라 화면 데모용 예시 값이에요. 실제 KEY
-                잔액·내역은 서버 연결 후에만 표시돼요.
+                {OPEN_PERIOD.key}
               </p>
             </div>
           </Card>
@@ -33,14 +32,14 @@ export default function Key() {
         {/* Balance */}
         <Card padding="lg" className="mb-4 border-primary-200 bg-primary-50 text-center">
           <span className="mb-2 inline-flex justify-center"><KeyIcon size={40} /></span>
-          <p className="text-xs text-primary-700">내 KEY 잔액 (데모)</p>
+          <p className="text-xs text-primary-700">{isDemo ? "KEY 잔액 · 오픈 기간엔 쓰지 않아요" : "내 KEY 잔액"}</p>
           <p className="mt-1 font-heading text-3xl font-semibold text-foreground-950">
-            {total}
+            {isDemo ? "—" : total}
           </p>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {!isDemo && <div className="mt-3 flex flex-wrap justify-center gap-2">
             <Badge tone="secondary">Reward {rewardKey}</Badge>
             <Badge tone="neutral">Revenue {revenueKey}</Badge>
-          </div>
+          </div>}
           <p className="mt-2 text-xs text-foreground-500">
             사용 시 Reward KEY부터 먼저 차감돼요.
           </p>
@@ -107,9 +106,10 @@ export default function Key() {
         </Card>
 
         {/* Usage history */}
-        <h3 className="mb-2 text-sm font-semibold text-foreground-800">KEY 내역 (데모 예시)</h3>
+        <h3 className="mb-2 text-sm font-semibold text-foreground-800">{isDemo ? "KEY 내역 · 오픈 기간이 끝나면 쌓여요" : "KEY 내역"}</h3>
         <Card padding="sm">
-          {history.map((h, i) => (
+          {isDemo && <p className="py-3 text-center text-xs text-foreground-400">아직 없어요.</p>}
+          {(isDemo ? [] : history).map((h, i) => (
             <div
               key={h.id}
               className={`flex items-center justify-between py-3 ${
