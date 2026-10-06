@@ -45,3 +45,4 @@
 /* 2026-10-06 「ECHO가 들려주는 이야기」: 규칙 해설과 구분되게 조금 더 숨 쉬는 글 · 마지막 한 줄은 건네는 말처럼 */
 .saju-story .saju-story-text{font-size:16px;line-height:1.85;font-weight:500;word-break:keep-all}
 .saju-story .saju-story-closing{margin-top:4px;padding-left:12px;border-left:2px solid rgb(255 255 255/.5);font-weight:700;word-break:keep-all}
+.saju-story .saju-story-next{margin-top:14px;font-weight:700}

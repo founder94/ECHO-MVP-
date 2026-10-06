@@ -137,10 +137,12 @@ test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰�
   assert.equal(user.status, 200, '로그인한 사람은 따로 셈');
 });
 
-test('화면: 서버가 올라가기 전에는 숨김(빌드 스위치) · 생일·시간은 보내지 않는다고 알림 · 실패하면 규칙 해설 그대로', () => {
+test('화면: 기본으로 켬(끄기 스위치 있음) · 이야기 뒤 ECHO 대화로 이어 감 · 생일·시간은 보내지 않는다고 알림 · 실패하면 규칙 해설 그대로', () => {
   const ui = readFileSync('src/doit/app/plan-a/screens/SajuResult.tsx', 'utf8');
-  assert.match(ui, /const SAJU_STORY_ENABLED = import\.meta\.env\.VITE_SAJU_STORY_ENABLED === "true";/);
-  assert.match(ui, /\{SAJU_STORY_ENABLED && <SajuStoryCard facts=\{sajuStoryFacts\(r\)\} \/>\}/);
+  assert.match(ui, /const SAJU_STORY_ENABLED = import\.meta\.env\.VITE_SAJU_STORY_ENABLED !== "false";/, '운영 서버 배포 뒤 기본으로 켬 · 끄기 스위치 유지');
+  assert.match(ui, /\{SAJU_STORY_ENABLED && <SajuStoryCard facts=\{sajuStoryFacts\(r\)\} onTalk=\{\(\) => onTalk\(sajuSeedKey\(r\)\)\} \/>\}/);
+  assert.match(ui, /좀 더 알고 싶으시면, ECHO와 이야기를 이어 가 봐요\./);
+  assert.match(ui, /onClick=\{onTalk\}>ECHO와 대화 시작하기<\/button>/, '이야기 다음 걸음 = ECHO 대화(기존 대화 길과 같음)');
   assert.match(ui, /생일·시간이 아니라, 계산된 결과 두 가지만 ECHO에게 보내요\. 저장하지 않아요\./);
   assert.match(ui, /지금은 이야기를 만들지 못했어요\. 위 해설은 그대로 볼 수 있어요\./);
   const facts = readFileSync('src/doit/lib/saju/storyFacts.ts', 'utf8').replace(/\/\/.*$/gm, '');

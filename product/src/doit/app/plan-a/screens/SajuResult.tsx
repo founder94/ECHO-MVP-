@@ -6,11 +6,12 @@ import { generateSajuStory, type SajuStory } from "@/doit/lib/openai";
 import "./saju.css";
 
 // 「ECHO가 들려주는 이야기」(2026-10-06 대표 「사람냄새나게」): 규칙 해설 아래, 누를 때만 AI 가 말하듯 풀어 준다.
-// 서버(openai-chat saju_reading)가 운영에 올라가기 전에는 숨긴다 — 빌드 스위치 VITE_SAJU_STORY_ENABLED=true 일 때만 보인다(없는 기능을 켠 척 0).
-const SAJU_STORY_ENABLED = import.meta.env.VITE_SAJU_STORY_ENABLED === "true";
+// 2026-10-06 운영 openai-chat v7(saju_reading) 배포 · 대표 「사주말투 좋고 … ai와 대화시작으로 플로우 이어가게」 → 기본으로 켠다.
+// 끄려면 빌드 스위치 VITE_SAJU_STORY_ENABLED=false. 서버가 없거나 실패하면 규칙 해설은 그대로 두고 「지금은 이야기를 만들지 못했어요」만 보인다.
+const SAJU_STORY_ENABLED = import.meta.env.VITE_SAJU_STORY_ENABLED !== "false";
 type StoryState = { kind: "idle" } | { kind: "loading" } | { kind: "done"; story: SajuStory } | { kind: "error" };
 
-function SajuStoryCard({ facts }: { facts: ReturnType<typeof sajuStoryFacts> }) {
+function SajuStoryCard({ facts, onTalk }: { facts: ReturnType<typeof sajuStoryFacts>; onTalk: () => void }) {
   const [state, setState] = useState<StoryState>({ kind: "idle" });
   const ask = () => {
     if (state.kind === "loading") return;
@@ -23,6 +24,9 @@ function SajuStoryCard({ facts }: { facts: ReturnType<typeof sajuStoryFacts> }) 
       <p className="saju-body saju-story-text">{state.story.story}</p>
       <p className="saju-body saju-story-closing">{state.story.closing}</p>
       <p className="saju-cap">재미로 보는 참고 이야기예요. 정해진 일을 알려 주지 않아요.</p>
+      {/* 이야기 다음 걸음: 더 알고 싶으면 ECHO 대화로 이어 간다(아래 「ECHO랑 이야기해볼래요」와 같은 길 · 사주 결과는 대화에 사실로 쓰지 않음). */}
+      <p className="saju-body saju-story-next">좀 더 알고 싶으시면, ECHO와 이야기를 이어 가 봐요.</p>
+      <div className="saju-actions"><button type="button" className="saju-primary" onClick={onTalk}>ECHO와 대화 시작하기</button></div>
     </> : <>
       <p className="saju-body">위 해설을 바탕으로, 당신에게 말하듯 천천히 풀어 볼게요.</p>
       {state.kind === "error" && <p className="saju-body" role="alert">지금은 이야기를 만들지 못했어요. 위 해설은 그대로 볼 수 있어요.</p>}
@@ -128,7 +132,7 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
       </div>)}
     </section>
 
-    {SAJU_STORY_ENABLED && <SajuStoryCard facts={sajuStoryFacts(r)} />}
+    {SAJU_STORY_ENABLED && <SajuStoryCard facts={sajuStoryFacts(r)} onTalk={() => onTalk(sajuSeedKey(r))} />}
 
     <section className="saju-card" aria-label="정리">
       <h2 className="saju-h2">정리</h2>
