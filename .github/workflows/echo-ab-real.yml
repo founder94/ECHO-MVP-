@@ -53,6 +53,16 @@ jobs:
           mkdir -p ../ab-out
           node spike/ab-20260925/model-probe.mjs --out ../ab-out/models.md --json ../ab-out/models.json
           cat ../ab-out/models.md >> "$GITHUB_STEP_SUMMARY"
+      - name: 자유 대화 비용 실측(2026-10-06 · free-talk.ts · QA·운영 0)
+        if: steps.mode.outputs.mode == 'free_talk'
+        working-directory: product
+        env:
+          NODE_PATH: /tmp/tools/node_modules
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_AB_TEST }}
+        run: |
+          mkdir -p ../ab-out
+          node spike/free-talk-20261006/run-free.mjs --out ../ab-out/free-result.md --json ../ab-out/free-result.json
+          cat ../ab-out/free-result.md >> "$GITHUB_STEP_SUMMARY"
       - name: MODEL GATE(B-1.0 고정 · 모델만 변경)
         if: steps.mode.outputs.mode == 'model_gate'
         working-directory: product

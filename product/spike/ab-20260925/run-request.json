@@ -1,10 +1,10 @@
 {
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
- "requested_at": "2026-09-25",
- "approved_by": "대표 「ECHO FINAL PRODUCT / UX / PROFILE / TRUST / POLICY MASTER」(2026-09-25) §23 실제 AI 검사",
- "run": 15,
- "mode": "prod_agent",
- "what": "v1.8 — 소개 초안 뜻 왜곡 수정(판정 규칙 prod_agent_gate.why_v9)",
+ "requested_at": "2026-10-06",
+ "approved_by": "대표 「ECHO 최종 지시 · 기억하는 AI + 사주타로 정정 매칭 + 유료 자유 대화 · 대표 승인 2026-10-06」 D-16 턴당 비용 실측(QA 서버 스위치는 기본 끔이라 R&D 시험 키로 같은 지시문·같은 파라미터)",
+ "run": 16,
+ "mode": "free_talk",
+ "what": "자유 대화 free-talk.ts 비용 실측 — 36회(입력 12 × 앞 줄 0·4·8)",
  "history": [
   {
    "run": 1,
@@ -89,6 +89,12 @@
    "mode": "prod_agent",
    "actions_run": 36139695084,
    "commit": "70c1466"
+  },
+  {
+   "run": 15,
+   "mode": "prod_agent",
+   "actions_run": null,
+   "commit": "c29115f 이전"
   }
  ],
  "models": [
