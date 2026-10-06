@@ -1,0 +1,38 @@
+/* 파스텔 배경 — 대화 화면과 사용자 앱 화면이 함께 쓰는 한 벌(2026-09-25 대표 MASTER §12 「사용자 APP 전면 파스텔 통일」).
+   전에는 core-conversation.css 안에 대화 화면(.echo-dialogue--pastel) 전용으로 있었다. 규칙·색·흐림·움직임은 글자 하나 바꾸지 않고 옮겼고,
+   선택자만 :is(대화 화면, .doit-app-pastel) 로 넓혔다(:is 의 세기는 가장 센 쪽 = 전과 같다 → 대화 화면 모습 변화 0).
+   .doit-app-pastel 은 하단 탭이 있는 앱 화면(MobileLayout)과 시작 흐름 화면의 맨 바깥에만 붙인다. 히어로(우주)·관리자 화면·전역(body/:root)은 0.
+   색의 출처·흐림 이유 등 자세한 설명은 core-conversation.css 의 「2026-09-24 대화 화면 파스텔 배경」 주석. */
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel){--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
+/* 2026-09-25 대표 Galaxy 「중간 검정 전환·뒤로 버튼 뒤 검정 금지」: 고정 바탕(::before)이 휴대폰 주소창이 접히고 펴지는 동안·끝까지 당길 때 잠깐 비면
+   아래 검은 바탕이 보였다. 같은 색 줄기(위 초록 → 아래 산호)를 스크롤되는 바탕으로 한 겹 깔아, 비는 순간에도 검정이 아니라 파스텔이 보이게 한다.
+   평소에는 고정 바탕이 위를 덮어 화면 차이가 없다(검사: 멈춘 화면 픽셀 비교). */
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel){--pastel-underlay:linear-gradient(180deg,#3fdcb3 0%,#43e9a5 25%,#9fdc98 45%,#e2d58c 62%,#e0a276 80%,#c9714f 100%);background:var(--pastel-underlay)}
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before,
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{content:"";position:fixed;inset:0;pointer-events:none}
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{inset:-80px} /* 바탕 흐림 40px 가 화면 가장자리에서 비지 않게 넉넉히 — 색 칸 위치는 화면 기준(80px + vw/vh)으로 잡는다 */
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{
+  z-index:-2;
+  background:
+    radial-gradient(circle calc(28rem*.7071) at calc(-6% + 14rem) calc(-8% + 14rem),rgba(160,255,200,.15) 0%,rgba(160,255,200,.15) 18%,transparent 70%),
+    radial-gradient(circle calc(24rem*.7071) at calc(105% - 12rem) calc(15% + 12rem),rgba(160,220,255,.12) 0%,rgba(160,220,255,.12) 18%,transparent 70%),
+    radial-gradient(circle calc(30rem*.7071) at calc(10% + 15rem) calc(95% - 15rem),rgba(255,235,160,.10) 0%,rgba(255,235,160,.10) 18%,transparent 70%),
+    radial-gradient(circle calc(20rem*.7071) at calc(85% - 10rem) calc(45% + 10rem),rgba(255,180,180,.12) 0%,rgba(255,180,180,.12) 18%,transparent 70%),
+    radial-gradient(circle calc(26rem*.7071) at calc(104% - 13rem) calc(108% - 13rem),rgba(160,255,220,.10) 0%,rgba(160,255,220,.10) 18%,transparent 70%),
+    radial-gradient(circle calc(32rem*.7071) at calc(-8% + 16rem) calc(75% - 16rem),rgba(200,230,255,.08) 0%,rgba(200,230,255,.08) 18%,transparent 70%),
+    linear-gradient(90deg,#43e0a9 calc(80px + 0vw),#42dcba calc(80px + 25vw),#43dbc0 calc(80px + 50vw),#3edbc2 calc(80px + 75vw),#3bd1c5 calc(80px + 100vw)) 0 0/100% calc(80px + 5vh + 1px) no-repeat,
+    linear-gradient(90deg,#31ee99 calc(80px + 0vw),#57edb5 calc(80px + 25vw),#39e9ac calc(80px + 50vw),#28e2b9 calc(80px + 75vw),#12d1c9 calc(80px + 100vw)) 0 calc(80px + 5vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#38f294 calc(80px + 0vw),#47f19e calc(80px + 25vw),#4eeea7 calc(80px + 50vw),#37d9c0 calc(80px + 75vw),#0ed2d2 calc(80px + 100vw)) 0 calc(80px + 15vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#3bed91 calc(80px + 0vw),#4df19d calc(80px + 25vw),#5de7a8 calc(80px + 50vw),#3dd2c3 calc(80px + 75vw),#0ed5d5 calc(80px + 100vw)) 0 calc(80px + 25vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#57d485 calc(80px + 0vw),#67e69b calc(80px + 25vw),#83dea4 calc(80px + 50vw),#4ecdbf calc(80px + 75vw),#18d5d5 calc(80px + 100vw)) 0 calc(80px + 35vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#9faf7d calc(80px + 0vw),#a2db92 calc(80px + 25vw),#bae0a2 calc(80px + 50vw),#79d0b7 calc(80px + 75vw),#1dd1ce calc(80px + 100vw)) 0 calc(80px + 45vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#d99279 calc(80px + 0vw),#ded38f calc(80px + 25vw),#e3e99e calc(80px + 50vw),#9ed1a4 calc(80px + 75vw),#3abeac calc(80px + 100vw)) 0 calc(80px + 55vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#e38376 calc(80px + 0vw),#eecb8a calc(80px + 25vw),#edea96 calc(80px + 50vw),#c7d18e calc(80px + 75vw),#799872 calc(80px + 100vw)) 0 calc(80px + 65vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#e17972 calc(80px + 0vw),#eab67c calc(80px + 25vw),#e9de88 calc(80px + 50vw),#cfc176 calc(80px + 75vw),#967647 calc(80px + 100vw)) 0 calc(80px + 75vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#d96d66 calc(80px + 0vw),#e09967 calc(80px + 25vw),#d9bf72 calc(80px + 50vw),#bca05f calc(80px + 75vw),#925d38 calc(80px + 100vw)) 0 calc(80px + 85vh)/100% calc(10vh + 1px) no-repeat,
+    linear-gradient(90deg,#cb6550 calc(80px + 0vw),#cb7e4f calc(80px + 25vw),#bd9058 calc(80px + 50vw),#a77c4e calc(80px + 75vw),#844c35 calc(80px + 100vw)) 0 100%/100% calc(80px + 5vh + 1px) no-repeat;
+  filter:blur(40px);
+  animation:float-bg 20s ease-in-out infinite;
+}
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{z-index:-1;background:rgb(9 10 12/var(--echo-pastel-veil))}
+@media(prefers-reduced-motion:reduce){:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{animation:none}}

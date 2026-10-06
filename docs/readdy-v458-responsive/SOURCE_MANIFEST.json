@@ -1,0 +1,69 @@
+{
+  "baseline": "Readdy project-13871930 (readdy-v88 작업본과 동일 파일 확인)",
+  "date": "2026-09-16",
+  "files": [
+    {
+      "path": "src/index.css",
+      "status": "modified",
+      "before_sha256": "050ce6b76f0c55be87aa76dc20634a3a837d08c0346fdf4fe315b12bf30682a9",
+      "after_sha256": "d64bf7a57bcdb0387986a5ed82c74abcdc2b3a1a4fd2a45e329bad301bbfa988",
+      "after_bytes": 17420
+    },
+    {
+      "path": "src/pages/home/page.tsx",
+      "status": "modified",
+      "before_sha256": "0b40857e9ffabc10586c36cfa7102d2962657ad380d1125b9da4c25281b36ebe",
+      "after_sha256": "3ea10c61aa1f2952a9563f740dbe1dd982132d5ae37223a1cf1f5ccbf264f1e7",
+      "after_bytes": 5603
+    },
+    {
+      "path": "src/pages/home/scrollToSection.ts",
+      "status": "new",
+      "before_sha256": null,
+      "after_sha256": "2b7a30ab3a3ad3612f6943bf5b27a23e13e59c4d22a806c8f386fd229778200f",
+      "after_bytes": 874
+    },
+    {
+      "path": "src/pages/home/components/PastelBlobs.tsx",
+      "status": "modified",
+      "before_sha256": "38056aa93e44d017a800efbaf140fb8ab7039ec60abc286b5ff93f15aedff1bf",
+      "after_sha256": "39c68e5ff5b5de7955f36929bdf8fdd76cfe7c6f31dfd6432f628b4e0ff59a94",
+      "after_bytes": 2077
+    },
+    {
+      "path": "src/pages/home/components/FloatingEffects.tsx",
+      "status": "modified",
+      "before_sha256": "f9366b69b4daa1c0d8ecdbd2971b50c8a66c10705118c6c3b44e38e76e7582a9",
+      "after_sha256": "9409bd9eeec8b89da54f08066c76ca9237c0977727d41b579cc5f61f9be8d44e",
+      "after_bytes": 17725
+    },
+    {
+      "path": "src/pages/home/components/Navbar.tsx",
+      "status": "modified",
+      "before_sha256": "5d7eaa6003d90d02f591e92e1e482b0c5a71f2d28a6f767fb3e0eed71b4af018",
+      "after_sha256": "9a2892a6713b002a6ff61a676e6685f5e611768c9febb86a12a905fe5c18db90",
+      "after_bytes": 11384
+    },
+    {
+      "path": "src/pages/home/components/Footer.tsx",
+      "status": "modified",
+      "before_sha256": "91039f79497b1f23a3bf4be0ad02021072e319132c8754179f8fdb841a42aaee",
+      "after_sha256": "03bd2a47fc626686438849d0ea277bee3dbbd7259ca9baa489aa29ff19aa9edc",
+      "after_bytes": 4805
+    },
+    {
+      "path": "src/components/ScrollToTop.tsx",
+      "status": "modified",
+      "before_sha256": "dd4b1688edfb3469d6da63b37e5636bc680d06c553c890c179afaeb01b1d138b",
+      "after_sha256": "da4a85f96398f0bc43b2c809d8368b743612188d64fea513a92e001ee0b4823a",
+      "after_bytes": 1103
+    },
+    {
+      "path": "src/components/MusicPlayer.tsx",
+      "status": "modified",
+      "before_sha256": "e8a723880e5ed2e25dde77864f2a1cd1b0bde2f2ed5819cd93d9079efe4b5e5d",
+      "after_sha256": "d15399e40fc7e514787fc4f95ac0b7b9408ab8c40b8de459eef9717623672d0f",
+      "after_bytes": 4933
+    }
+  ]
+}

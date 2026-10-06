@@ -1,0 +1,407 @@
+{
+ "schema": "echo-failed-solution-v1",
+ "updated": "2026-09-25",
+ "solutions": [
+  {
+   "id": "FS-01",
+   "solution": "인용 14자 이하면 질문에 그대로 끼워 넣기(v13.7)",
+   "target": "긴 답을 통째로 붙여 문장이 깨짐",
+   "result": "「…에너지가 뺏기가 싫어서는 어떤 모습일까요?」 운영 노출(GF-12)",
+   "why_failed": "글자 수로는 낱말과 구절을 가를 수 없다",
+   "now": "v14 에서 삭제",
+   "related": [
+    "GF-12"
+   ],
+   "why_chosen": "사용자 말을 인용해 이어짐을 보이려고",
+   "implementation": "서버 고정 대체 문장이 14자 이하 인용을 질문 문장에 삽입",
+   "improved": "긴 답 통째 붙이기는 사라짐",
+   "broke_normal": "구절 인용이 조사 자리에서 깨짐",
+   "reuse_condition": "다시 쓰지 않음(인용은 「\"…\"라고 하셨죠.」 한 줄 안에서만)"
+  },
+  {
+   "id": "FS-02",
+   "solution": "주제별 쉬운 고정 질문 `EASY_QUESTION`·`GENERIC_RESCUE`(v14.3)",
+   "target": "무거운 질문·깨진 질문",
+   "result": "AI 가 실패하면 방금 답과 상관없는 고정 질문으로 건너뜀(v14.4 원인 분석: 「잘 웃는 사람」 뒤 「쉬는 날에는 무엇을 하세요?」 — 가짜 AI 로 v23 코드에서 재현)",
+   "why_failed": "고정 질문은 앞 말을 모른다 = 방향이탈",
+   "now": "v14.4 에서 삭제",
+   "related": [
+    "GF-13"
+   ],
+   "why_chosen": "무거운 질문 대신 가벼운 질문을 확실히 내려고",
+   "implementation": "AI 실패·말투 검사 탈락 시 주제별 고정 질문",
+   "improved": "깨진 문장은 줄어듦",
+   "broke_normal": "앞 말과 무관한 질문(방향이탈)",
+   "reuse_condition": "다시 쓰지 않음(고정 질문 0 원칙)"
+  },
+  {
+   "id": "FS-03",
+   "solution": "되묻기 판정 정규식 확장(v14.3 META_PATTERNS)",
+   "target": "「딥하네」 등 되묻기 저장(GF-14)",
+   "result": "해당 말은 잡힘(Replay R1) · 짧은 물음표 규칙이 「취미생활?」 정상 답을 meta 로 강제(GF-05)",
+   "why_failed": "실패마다 규칙 추가 → 다른 정상 답 오판",
+   "now": "v27 운영 잔존 · B-1.0 에는 없음",
+   "related": [
+    "GF-14",
+    "GF-05"
+   ],
+   "why_chosen": "되묻기를 답으로 저장하지 않으려고",
+   "implementation": "META_PATTERNS 정규식 확장 · 짧은 물음표 규칙",
+   "improved": "「딥하네」 등은 잡힘",
+   "broke_normal": "「취미생활?」·「ai가 오타기 날수도 있어?」를 되묻기로 강제(GF-05·GF-53)",
+   "reuse_condition": "문자열 강제 없이 모델 판단 + 실AI 검증 뒤에만"
+  },
+  {
+   "id": "FS-04",
+   "solution": "글자쌍(bigram) 반복 검사 sim > 0.6 / overlap > 0.7",
+   "target": "같은 질문 반복",
+   "result": "같은 뜻 4개 통과(GF-01, Replay R2 재현) · 「싸이클 테니스 골프」 뒤 후보 2개 탈락(GF-07, 가설)",
+   "why_failed": "글자 겹침 ≠ 뜻. 미탐·오탐 둘 다",
+   "now": "v27 운영 잔존 · B 는 의도 장부로 대체(실AI 미검증)",
+   "related": [
+    "GF-01",
+    "GF-07"
+   ],
+   "why_chosen": "같은 질문 반복을 막으려고",
+   "implementation": "글자쌍 유사도 sim>0.6·overlap>0.7",
+   "improved": "글자까지 비슷한 반복은 막음",
+   "broke_normal": "같은 뜻 다른 표현은 통과 · 정상 후보 탈락 가능",
+   "reuse_condition": "단독 사용 금지 — 뜻 비교(의도)와 실AI 검증 필요"
+  },
+  {
+   "id": "FS-05",
+   "solution": "단서 글자 인용 검사 `clue`(v16)",
+   "target": "원문과 상관없는 질문",
+   "result": "정상 답 뒤 후보 2개 모두 탈락(GF-02)",
+   "why_failed": "모델이 단서를 조금만 바꿔 써도 탈락",
+   "now": "v27 운영 잔존",
+   "related": [
+    "GF-02"
+   ],
+   "why_chosen": "원문과 무관한 질문을 막으려고",
+   "implementation": "단서가 원문 안에 글자 그대로 있는지 검사",
+   "improved": "근거 없는 질문 일부 차단",
+   "broke_normal": "정상 후보 전부 탈락(질문 생성 실패)",
+   "reuse_condition": "글자 일치 검사 금지"
+  },
+  {
+   "id": "FS-06",
+   "solution": "모델 자기 표시(self_flag) 즉시 탈락(v16)",
+   "target": "모델 스스로 반복이라 인정한 질문",
+   "result": "불만 턴 후보 2개 모두 탈락 → 질문 생성 실패(GF-03)",
+   "why_failed": "다시 만들어도 같은 입력이라 같은 표시",
+   "now": "v27 운영 잔존 · B 는 1번 더 → 반응만",
+   "related": [
+    "GF-03"
+   ],
+   "why_chosen": "모델이 스스로 반복이라 인정한 질문을 버리려고",
+   "implementation": "self_flag 표시 즉시 탈락",
+   "improved": "자기 인정 반복은 막음",
+   "broke_normal": "불만 턴에서 후보 전멸",
+   "reuse_condition": "즉시 탈락 대신 1번 더 → 질문 없이 반응"
+  },
+  {
+   "id": "FS-07",
+   "solution": "새 갈래 첫 줄(ack) 필수 + basis 글자 인용 확인(v15.1 `no_bridge`)",
+   "target": "다리 없는 주제 점프",
+   "result": "후보 9개 전부 탈락(GF-10)",
+   "why_failed": "첫 줄이 조용히 지워지고 이유가 모델에 부정확하게 전달",
+   "now": "v16 에서 경로 교체",
+   "related": [
+    "GF-10"
+   ],
+   "why_chosen": "새 주제로 넘어갈 때 다리를 두려고",
+   "implementation": "ack 필수 + basis 글자 인용 확인",
+   "improved": "—",
+   "broke_normal": "첫 줄이 조용히 지워져 후보 9개 전멸",
+   "reuse_condition": "다시 쓰지 않음"
+  },
+  {
+   "id": "FS-08",
+   "solution": "첫 줄이 방금 답 낱말을 담으면 근거 인정 `ackGrounded`(v15.2)",
+   "target": "FS-07 의 과잉 탈락",
+   "result": "「편한 친구를 원하시군요. 어떤 활동을…」 점프 통과(GF-08)",
+   "why_failed": "받아 주는 첫 줄만 있으면 이어졌다고 봄 — **내 수정이 점프를 통과시켰다**",
+   "now": "v16 에서 경로 교체",
+   "related": [
+    "GF-10",
+    "GF-08"
+   ],
+   "why_chosen": "FS-07 의 과잉 탈락을 풀려고",
+   "implementation": "ack 가 방금 답 낱말을 담으면 인정",
+   "improved": "질문 생성 실패 감소",
+   "broke_normal": "받아 주는 첫 줄만 있으면 점프도 통과",
+   "reuse_condition": "다시 쓰지 않음"
+  },
+  {
+   "id": "FS-09",
+   "solution": "12자 이하 답 → 새 갈래 + 주제 칸 순서(TOPICS)",
+   "target": "짧은 답에서 막힘",
+   "result": "짧은 답마다 주제 점프(GF-08·10)",
+   "why_failed": "서버가 방향을 정해 방금 말을 버림",
+   "now": "v16 한 턴 경로에서 사용 안 함(옛 경로 잔존)",
+   "related": [
+    "GF-08",
+    "GF-10"
+   ],
+   "why_chosen": "짧은 답에서 막히지 않으려고",
+   "implementation": "12자 이하 → 새 갈래 + 주제 칸 순서",
+   "improved": "—",
+   "broke_normal": "방금 말을 버리고 주제 점프",
+   "reuse_condition": "다시 쓰지 않음(숨은 목차 금지)"
+  },
+  {
+   "id": "FS-10",
+   "solution": "넓은 불만·지친 말 규칙(v15)",
+   "target": "불만이 답으로 저장",
+   "result": "실사용 말투 답 14/16 오판(GF-18, SYNTHETIC)",
+   "why_failed": "낱말 하나로 판정",
+   "now": "v15.1 에서 축소",
+   "related": [
+    "GF-18"
+   ],
+   "why_chosen": "불만·지친 말을 답으로 저장하지 않으려고",
+   "implementation": "넓은 낱말 규칙",
+   "improved": "불만 일부 차단",
+   "broke_normal": "실사용 말투 답 14/16 오판",
+   "reuse_condition": "규칙은 대화 자체를 가리키는 분명한 말만"
+  },
+  {
+   "id": "FS-11",
+   "solution": "판정 LLM 다단(연결·목적·톤·정보·거절) · 질문 하나에 LLM 4~5회(v15)",
+   "target": "엉뚱한 질문",
+   "result": "턴 16.2초·11.9초(GF-11)",
+   "why_failed": "호출이 쌓여 지연 · 판정끼리 충돌",
+   "now": "v16 에서 한 턴 1~2회",
+   "related": [
+    "GF-11"
+   ],
+   "why_chosen": "엉뚱한 질문을 여러 판정으로 막으려고",
+   "implementation": "연결·목적·톤·정보·거절 판정 LLM 다단",
+   "improved": "—",
+   "broke_normal": "턴 16.2초·11.9초 · 판정끼리 충돌",
+   "reuse_condition": "한 턴 호출 수 상한(1~2) 안에서만"
+  },
+  {
+   "id": "FS-12",
+   "solution": "질문 실패 뒤 화면 자동 재요청",
+   "target": "사용자 수고",
+   "result": "0.04초 뒤 같은 요청 502 한 번 더(GF-11)",
+   "why_failed": "같은 입력이면 같은 실패 · 비용 두 배",
+   "now": "Agent v1 에서 제거",
+   "related": [
+    "GF-11"
+   ],
+   "why_chosen": "사용자가 다시 누르지 않게",
+   "implementation": "질문 실패 뒤 자동 재요청",
+   "improved": "—",
+   "broke_normal": "같은 실패 반복 · 비용 두 배",
+   "reuse_condition": "다시 쓰지 않음"
+  },
+  {
+   "id": "FS-13",
+   "solution": "가짜 AI 검사 통과를 배포 근거로 사용",
+   "target": "—",
+   "result": "479개 중 474 통과 뒤 첫 실제 입력 실패(GF-15)",
+   "why_failed": "가짜 AI 가 서버 검사를 통과하는 모양만 만든다",
+   "now": "Replay(실제 문장)·실AI 하네스로 보강 중",
+   "related": [
+    "GF-15"
+   ],
+   "why_chosen": "빠르게 배포하려고",
+   "implementation": "가짜 AI 검사 통과를 배포 근거로",
+   "improved": "—",
+   "broke_normal": "첫 실제 입력 실패",
+   "reuse_condition": "가짜 검사는 구조 확인용으로만 · 실AI/실제 문장 재생 필수"
+  },
+  {
+   "id": "FS-14",
+   "solution": "애매한 말은 AI 분류에 맡기고 「애매하면 answer」 기본값(v15.1, FS-10 의 대체)",
+   "target": "규칙 과잉 오판(GF-18)",
+   "result": "「활동?갑자기?」(되물음)가 answer 로 저장 → 칸 2/5 → 502(GF-11, 운영 v26 로그)",
+   "why_failed": "기본값이 한쪽(답 저장)으로 기울어 되물음·항의를 답으로 삼킴 — GF-05(규칙이 정상 답을 되묻기로)와 반대 방향의 같은 문제",
+   "now": "v27 운영: 옛 앱용 turn_classify 경로에 잔존(v27 index.ts 1424행 「애매하면 \"answer\"」) · 현재 앱이 쓰는 turn 경로는 모델이 한 번에 종류를 가림",
+   "related": [
+    "GF-18",
+    "GF-11"
+   ],
+   "why_chosen": "규칙 오판을 줄이려고",
+   "implementation": "애매하면 AI 분류, 기본값 answer",
+   "improved": "정상 답 저장 회복",
+   "broke_normal": "되물음을 답으로 저장",
+   "reuse_condition": "기본값을 한쪽으로 두지 않음 — 모델 판단 + 실AI 검증"
+  },
+  {
+   "id": "FS-15",
+   "solution": "v34: 정정 반영 수정(옛 흐름, 2026-09-18)",
+   "target": "정정무시(GF-25)",
+   "result": "막다른 길 2건 → 5건 악화(캐너리 표) · 로그 correction_ignored:2,repeat:1 → no_candidate",
+   "why_failed": "같은 모양의 코드를 다 찾지 않고 한 곳만 고침(보고서 자인)",
+   "now": "3회차에 되돌림",
+   "related": [
+    "GF-25",
+    "GF-44"
+   ],
+   "why_chosen": "정정무시를 고치려고",
+   "implementation": "v34 정정 반영 수정(한 곳만)",
+   "improved": "—",
+   "broke_normal": "막다른 길 2→5",
+   "reuse_condition": "같은 모양 코드 전수 수정 후에만"
+  },
+  {
+   "id": "FS-16",
+   "solution": "「그게 아니에요」로 거절한 문장을 낱말로 쪼개 모두 금지",
+   "target": "거절 의미 재등장",
+   "result": "사용자 자신의 낱말(「걱정」)까지 금지 → 다음 질문이 그 말을 붙잡으면 차단(GF-47)",
+   "why_failed": "해석과 사용자 말을 구분하지 않음",
+   "now": "해석 단위 차단으로 교체(31a9091)",
+   "related": [
+    "GF-47"
+   ],
+   "why_chosen": "거절한 뜻이 다시 나오지 않게",
+   "implementation": "거절 문장을 낱말로 쪼개 금지",
+   "improved": "—",
+   "broke_normal": "사용자 자신의 낱말 금지",
+   "reuse_condition": "해석 단위로만 차단"
+  },
+  {
+   "id": "FS-17",
+   "solution": "의도 태그 12종 + 대화 전체와 의도 반복 비교(옛 흐름, 2026-09-16)",
+   "target": "같은 뜻 반복",
+   "result": "STEP 4 쯤 태그 소진 → 새 후보 전부 repeat_intent 차단 → 「질문을 만들지 못했어요」(GF-22) · 짧은 답 뒤 3번 막힘(GF-24)",
+   "why_failed": "비교 범위가 대화 전체라 쓸 수 있는 의도가 바닥남",
+   "now": "옛 흐름 수정 · **B-1.0 의 의도 장부도 대화 전체 answered_intents 와 비교한다 = 같은 모양(단, B 는 막히면 질문 없이 반응만 보내 막다른 길은 없음)** — 실AI 로 소진 여부 확인 필요",
+   "related": [
+    "GF-22",
+    "GF-24"
+   ],
+   "why_chosen": "같은 뜻 반복을 막으려고",
+   "implementation": "의도 태그 12종 + 대화 전체 비교",
+   "improved": "초반 반복 감소",
+   "broke_normal": "태그 소진 → 막다른 길",
+   "reuse_condition": "비교 범위·빠져나갈 문 필요 — B-1.0 도 같은 모양(주의)"
+  },
+  {
+   "id": "FS-18",
+   "solution": "공감 문장(ack)에 anchor 를 글자 그대로 넣도록 강제 · anchor 길이 무제한",
+   "target": "공감이 원문과 무관",
+   "result": "사용자 문장 전체를 따라 씀(되받아치기, GF-22)",
+   "why_failed": "글자 인용 강제 = 복사",
+   "now": "anchor 길이 제한(옛 흐름)",
+   "related": [
+    "GF-22"
+   ],
+   "why_chosen": "공감이 원문과 이어지게",
+   "implementation": "ack 에 anchor 글자 그대로 강제",
+   "improved": "—",
+   "broke_normal": "사용자 말 따라 하기",
+   "reuse_condition": "다시 쓰지 않음"
+  },
+  {
+   "id": "FS-19",
+   "solution": "BURDEN 정규식 /(답|대답|말).{0,10}(못|어렵|힘들)/ (옛 흐름)",
+   "target": "질문이 부담스럽다는 말",
+   "result": "「질문했는데 답을 못햐?」(AI 에게 한 질문)를 부담 피드백으로 → 고정 문장(GF-22)",
+   "why_failed": "낱말 조합으로 뜻을 판정",
+   "now": "Action Router(옛 흐름)",
+   "related": [
+    "GF-22"
+   ],
+   "why_chosen": "부담 표현을 잡으려고",
+   "implementation": "BURDEN 정규식",
+   "improved": "—",
+   "broke_normal": "AI 에게 한 질문을 부담 피드백으로",
+   "reuse_condition": "다시 쓰지 않음"
+  },
+  {
+   "id": "FS-20",
+   "solution": "근거 인용 글자 일치(띄어쓰기 포함) 검사(v13.x)",
+   "target": "근거 없는 질문",
+   "result": "「진실된 마음」 인용이 「진실된마음」과 달라 후보 전부 탈락 → 생뚱맞은 구제 질문(GF-36)",
+   "why_failed": "표기 차이를 뜻 차이로 봄",
+   "now": "v13.6 띄어쓰기 무시 → 같은 모양의 글자 검사가 v16 clue 로 재등장(FS-05, GF-02)",
+   "related": [
+    "GF-36",
+    "GF-02"
+   ],
+   "why_chosen": "근거 없는 질문을 막으려고",
+   "implementation": "근거 인용 글자 일치(띄어쓰기 포함)",
+   "improved": "—",
+   "broke_normal": "띄어쓰기 차이로 전멸 → 생뚱맞은 구제",
+   "reuse_condition": "글자 일치 검사 금지(v16 clue 로 재등장한 전례)"
+  },
+  {
+   "id": "FS-21",
+   "solution": "후보 시도 2회 · 완화 없음 · 탈출구가 시간 예산 밖(옛 흐름)",
+   "target": "—",
+   "result": "두 번 막히면 12초+ 뒤 실패(GF-22) · STEP 5·6 NO_CANDIDATE(GF-44)",
+   "why_failed": "탈출구가 실행되기 전에 시간이 끝남",
+   "now": "탈출구를 예산 안으로(5aabb41)",
+   "related": [
+    "GF-22",
+    "GF-44"
+   ],
+   "why_chosen": "시도를 제한하려고",
+   "implementation": "시도 2회·완화 없음·탈출구가 예산 밖",
+   "improved": "—",
+   "broke_normal": "12초+ 뒤 실패 · NO_CANDIDATE",
+   "reuse_condition": "탈출구는 항상 시간 예산 안"
+  },
+  {
+   "id": "FS-22",
+   "solution": "질문은 선택사항 — 서버가 질문을 막으면 버리고 반응만 · repair 에서는 null 이 낫다(B-1.0)",
+   "target": "GF-02·GF-03·GF-07·GF-10(서버가 정상 후보를 죽여 대화가 멈추던 것)",
+   "result": "질문 실패 안내는 0 이 됐지만 정정·거절 뒤 다음 걸음이 없어 대표 블라인드 2칸에서 A 보다 낮게 평가(GF-70)",
+   "why_failed": "실패 안내를 없애는 것과 대화를 이어 가는 것은 다르다 — 반응만으로는 사용자가 다음에 무엇을 말할지 모른다",
+   "now": "B-1.0 은 사전 고정이라 그대로 · 모델 비교 뒤 별도 실험 후보",
+   "related": [
+    "GF-70",
+    "GF-02",
+    "GF-03"
+   ],
+   "why_chosen": "A 의 과잉 Guard(질문 실패 안내) 반대편",
+   "implementation": "runBTurn: 막힌 질문 폐기 · 최대 2회 · 프롬프트 6번 「repair·ask·fatigue 에서는 대개 null 이 낫다」",
+   "improved": "질문 실패 안내 0(run1 B)",
+   "broke_normal": "정정·거절 뒤 대화 이어 가기(P09·P10)",
+   "reuse_condition": "정정·거절 턴에서는 고친 뜻에서 출발하는 질문을 남기는 조건과 함께만"
+  },
+  {
+   "id": "FS-23",
+   "solution": "질문 품질을 서버 규칙으로 고치기 — Guard·Intent·Repair 규칙 누적(v13~v27 · B-1.0)",
+   "target": "반복·점프·항의 대응(GF-01·GF-08·GF-67 등)",
+   "result": "A(v27)·B-1.0·모델 4종 모두 Conversation P0 미통과(대표 블라인드 2회) · 규칙마다 반대쪽 실패",
+   "why_failed": "질문 문장을 심사하는 규칙은 뜻을 모른 채 글자를 본다 — 정상 후보를 죽이거나 다른 표현의 같은 뜻을 통과시킨다. 무엇을 알아야 끝나는지(제품 목적)가 정해지지 않아 규칙이 방향을 대신 정했다",
+   "now": "대표 LOCK(2026-09-25): 새 Guard·정규식·고정 질문·주제 순서·질문 수 강제 금지 · core-0.1 후보",
+   "related": [
+    "GF-73",
+    "GF-74",
+    "GF-75"
+   ],
+   "why_chosen": "실패가 보일 때마다 가장 빨리 막을 수 있는 방법",
+   "implementation": "no_bridge·not_anchored·글자쌍 반복·판정 LLM·되묻기 정규식·의도 장부",
+   "improved": "각 규칙이 겨냥한 한 사례는 막음(가짜 AI 기준)",
+   "broke_normal": "정상 질문 소실·지연·고정 대체 문장(GF-73)",
+   "reuse_condition": "쓰지 않는다 — 안전(금지어·개인정보)과 사실 근거(원문 인용) 확인만 남긴다"
+  },
+  {
+   "id": "FS-24",
+   "solution": "core-0.1: 질문 수·주제 순서 강제 없이 「방금 말에서 한 단계 더」 + 네 영역 모두 들으면 끝",
+   "target": "GF-71(점프)·GF-73(과잉 통제)",
+   "result": "대표 휴대폰 13턴 · 끝나지 않음 · 한 주제 파고들기 · 넘기기 무시(GF-78~82)",
+   "why_failed": "끝 조건을 모델의 영역 배정에 맡기고 질문 수 상한을 두지 않았다 — 점프를 막으려던 「방금 말 붙잡기」가 과잉 탐문으로 뒤집혔다(실패 → 대책 → 반대 실패 고리 재발)",
+   "now": "대표 FINAL LOCK: 목적 5개·최대 5 질문·꼬리질문 0(echo-agent-v1.1)",
+   "related": [
+    "GF-78",
+    "GF-79",
+    "GF-80",
+    "GF-81",
+    "GF-82"
+   ],
+   "why_chosen": "대표 RESET(질문 수 강제 금지 · 방금 말이 출발점)을 그대로 따름",
+   "implementation": "core.mjs enough() · TURN_PROMPT",
+   "improved": "점프 없음(대표 세션 두 개 모두 「활동」 0)",
+   "broke_normal": "대화 끝 · 넘기기 · 피로",
+   "reuse_condition": "끝 조건과 질문 상한을 서버가 소유할 때만"
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+ECHO Agent v1 + 홈페이지 최종 배포 후보 (2026-09-24 · 대표 최종 승인 PDF 「AGENT v1 / HOMEPAGE FINAL LOCK」)
+운영 배포 0건 — 아래는 후보 지문이다.
+
+[서버] supabase/functions/doit-understanding/index.ts
+  SHA-256 113e3738cc48192c92e55db4741cb9e76d9de71e0612d7530db7ee21e07d430d  (227,650바이트)
+  = 앞선 Agent v1 후보와 같다(이번 작업에서 서버 수정 0)
+  운영 대상: Supabase 프로젝트 zyyhhxyupizcqhxqnxuu · 함수 doit-understanding (현재 운영 = 버전 26 / v15.2 / fd2e1eee…)
+  되돌리기: PATCH-20260924-v16-conversation/rollback/doit-understanding.v26.ts (fd2e1eee…)
+
+[서버·변경 없음] supabase/functions/doit-connect/index.ts
+  SHA-256 9c2bac1448a90cde818ef898590c858c823974af074b8af7e5db616264c48124 = 운영 버전 5 와 같다 → 배포 대상 아님
+
+[앱] 1_APP_여기에올릴것_doitmobile.zip
+  SHA-256 a8d4e79043e2b08016b9783797488170fc47acec000851aea4f11f6259b7b5b6  (3,055,416바이트 · 149개 파일)
+  운영 대상: Netlify 사이트 doitmobile (app.do-it.company) · 현재 운영 배포 6ab50bb9…(43차) = 되돌리기 대상
+  앞선 후보 a8a74422… 를 대체한다
+
+[홈페이지] 2_BRAND_여기에올릴것_echo-mvp-doit.zip
+  SHA-256 061f7397e6ee5811180ba91d263a3881d4970e15ede307912f9865a0c80399f0  (2,953,610바이트 · 106개 파일)
+  운영 대상: Netlify 사이트 echo-mvp-doit (do-it.company) · 현재 운영 = 36차
+  앞선 후보 34759882… 를 대체한다
+
+ZIP 확인: 풀어서 빌드 폴더와 차이 0 · 소스맵 0 · .env 0 · 비밀키 0(supabase-js 의 "sb_secret_" 글자 비교 코드 1곳은 키가 아님) · Stripe 0
+배포 순서(대표 승인 PDF §13): ① 서버 doit-understanding → ② 앱 → ③ 홈페이지. 배포할 때마다 운영 파일·배포 지문을 이 값과 대조하고, 다르면 PASS 금지.

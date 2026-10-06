@@ -1,0 +1,179 @@
+{
+ "models": [
+  "gpt-4.1",
+  "gpt-4.1-mini",
+  "gpt-4o",
+  "gpt-4o-mini"
+ ],
+ "rows": [
+  {
+   "id": "M01",
+   "flow": "FLOW1",
+   "turn": 2,
+   "why": "대표 실제 항의 「나 진심이라고 적은거 같은데」 · 같은 질문 반복",
+   "example": false,
+   "choice": "②",
+   "winner": "gpt-4o"
+  },
+  {
+   "id": "M02",
+   "flow": "FLOW1",
+   "turn": 5,
+   "why": "대표 실제 항의 「적었자네」",
+   "example": false,
+   "choice": "③",
+   "winner": "gpt-4.1-mini"
+  },
+  {
+   "id": "M03",
+   "flow": "FLOW2",
+   "turn": 1,
+   "why": "「활동」 점프",
+   "example": false,
+   "choice": "①",
+   "winner": "gpt-4.1"
+  },
+  {
+   "id": "M04",
+   "flow": "FLOW2",
+   "turn": 2,
+   "why": "「활동」 점프 뒤 되물음 · 같은 질문 반복",
+   "example": false,
+   "choice": "①",
+   "winner": "gpt-4.1-mini"
+  },
+  {
+   "id": "M05",
+   "flow": "FLOW3",
+   "turn": 2,
+   "why": "「취미생활?」",
+   "example": false,
+   "choice": "③",
+   "winner": "gpt-4.1-mini"
+  },
+  {
+   "id": "M06",
+   "flow": "FLOW3",
+   "turn": 3,
+   "why": "거절 · 질문 방향 제안",
+   "example": false,
+   "choice": "②",
+   "winner": "gpt-4o"
+  },
+  {
+   "id": "M07",
+   "flow": "FLOW3",
+   "turn": 4,
+   "why": "정상 답(취미 셋) 뒤 반응",
+   "example": false,
+   "choice": "④",
+   "winner": "gpt-4.1-mini"
+  },
+  {
+   "id": "M08",
+   "flow": "FLOW4",
+   "turn": 2,
+   "why": "거절 「왜 또 물어봐?」",
+   "example": true,
+   "choice": "③",
+   "winner": "gpt-4.1"
+  },
+  {
+   "id": "M09",
+   "flow": "FLOW4",
+   "turn": 4,
+   "why": "정정 「활동 말고 …」",
+   "example": true,
+   "choice": "④",
+   "winner": "gpt-4o"
+  },
+  {
+   "id": "M10",
+   "flow": "FLOW4",
+   "turn": 5,
+   "why": "거절 「그 질문 말고」",
+   "example": true,
+   "choice": "②",
+   "winner": "gpt-4.1"
+  },
+  {
+   "id": "M11",
+   "flow": "FLOW5",
+   "turn": 5,
+   "why": "「활동」 점프 뒤 항의",
+   "example": false,
+   "choice": "모두 별로",
+   "winner": "모두 별로"
+  },
+  {
+   "id": "M12",
+   "flow": "FLOW6",
+   "turn": 1,
+   "why": "AI 에게 직접 질문",
+   "example": false,
+   "choice": "③",
+   "winner": "gpt-4o-mini"
+  },
+  {
+   "id": "M13",
+   "flow": "FLOW6",
+   "turn": 2,
+   "why": "AI 에게 직접 질문",
+   "example": false,
+   "choice": "③",
+   "winner": "gpt-4o-mini"
+  },
+  {
+   "id": "M14",
+   "flow": "FLOW6",
+   "turn": 3,
+   "why": "AI 에게 직접 질문 · 항의",
+   "example": false,
+   "choice": "②",
+   "winner": "gpt-4.1-mini"
+  },
+  {
+   "id": "M15",
+   "flow": "FLOW7",
+   "turn": 1,
+   "why": "「활동」 점프",
+   "example": false,
+   "choice": "②",
+   "winner": "gpt-4.1"
+  },
+  {
+   "id": "M16",
+   "flow": "FLOW7",
+   "turn": 2,
+   "why": "같은 질문 반복",
+   "example": false,
+   "choice": "모두 별로",
+   "winner": "모두 별로"
+  },
+  {
+   "id": "M17",
+   "flow": "FLOW7",
+   "turn": 3,
+   "why": "거절 · 반영 요구",
+   "example": false,
+   "choice": "모두 별로",
+   "winner": "모두 별로"
+  }
+ ],
+ "all": {
+  "gpt-4.1": 4,
+  "gpt-4.1-mini": 5,
+  "gpt-4o": 3,
+  "gpt-4o-mini": 2,
+  "모두 별로": 3
+ },
+ "actual": {
+  "gpt-4.1": 2,
+  "gpt-4.1-mini": 5,
+  "gpt-4o": 2,
+  "gpt-4o-mini": 2,
+  "모두 별로": 3
+ },
+ "n": 17,
+ "n_actual": 14
+}

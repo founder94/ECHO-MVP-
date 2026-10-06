@@ -1,0 +1,71 @@
+--- /tmp/claude-0/-home-user-ECHO-MVP-/32b2e916-384e-5880-bd86-61d37f6fbd49/scratchpad/v17/src/doit/pages/do-it/start-journey/page.tsx	2026-09-20 12:59:06.000000000 +0000
++++ src/doit/pages/do-it/start-journey/page.tsx	2026-09-21 10:19:34.587064743 +0000
+@@ -34,7 +34,8 @@
+ } from "@/doit/lib/purposes";
+ 
+ // A구조(DO IT) 진입 흐름 오케스트레이터 — 사주·타로를 끼워 넣지 않는 본 과정.
+-// 목적 선택 → 로그인 → 선택형 AI 대화 → 프로필 입력 → 사진 6장 → 프로필 확인.
++// 목적 선택 → 로그인 → ECHO 대화(서버 스위치 ON이면 프로필 상태와 무관하게 먼저) → 프로필 입력 → 사진 6장 → 프로필 확인.
++// 2026-09-21 대표 결정: 로그인하면 바로 AI 대화부터. 프로필·사진은 대화 화면의 '내 소개와 사진 준비하기'(?edit=profile)로 이어간다.
+ // 사주·타로는 햄버거 메뉴의 별도 무료 재미 기능이며 여기에 포함하지 않는다.
+ //
+ // 로그인한 사용자는 진입 시 기존 프로필·사진을 DB에서 읽어 목적·닉네임·소개·지역·생활 리듬·사진을
+@@ -189,7 +190,9 @@
+ 
+     if (purposeId && edit === "profile") nextStep = "profile-build";
+     if (purposeId && edit === "photos") nextStep = "photo";
+-    setStep(nextStep);
++    // 목적이 있고 ?edit 지정이 없으면 프로필 상태와 상관없이 ECHO 대화로 간다(스위치 ON일 때만).
++    const goConversation = A_STRUCTURE_SERVER_ENABLED && !!purposeId && edit !== "profile" && edit !== "photos";
++    if (!goConversation) setStep(nextStep);
+ 
+     // 로그인 전 목적 draft를 이제 DB에 영속화한다. 성공한 경우에만 draft를 지운다.
+     if (draft) {
+@@ -199,6 +202,9 @@
+       });
+       if (!error) clearJourneyDraft();
+     }
++    if (goConversation && mountedRef.current && accountRef.current === userId) {
++      navigate("/doit/conversation?from=journey", { replace: true });
++    }
+   }
+ 
+   // 목적 정본 읽기. 성공/실패/0건을 구분해 그대로 화면에 넘긴다.
+@@ -461,7 +467,8 @@
+         onNext={() => {
+           if (user) {
+             // 이미 로그인 → 동의 완료 후 프로필 입력으로 바로 진행(재로그인 강제 안 함).
+-            setStep(A_STRUCTURE_SERVER_ENABLED ? "conversation-choice" : "profile-build");
++            if (A_STRUCTURE_SERVER_ENABLED) navigate("/doit/conversation?from=journey");
++            else setStep("profile-build");
+           } else {
+             // 미로그인 → 목적 draft 보존 + 로그인으로 이동. 복귀 후 step은 DB/draft 기준 복원된다.
+             if (selectedPurpose) {
+@@ -485,12 +492,21 @@
+ 
+   if (step === "profile-build") {
+     return (
+-      <ProfileBuild
+-        onNext={handleProfileNext}
+-        initialDraft={initialDraft}
+-        saving={saving}
+-        saveError={saveError}
+-      />
++      <>
++        {A_STRUCTURE_SERVER_ENABLED && (
++          <div style={{ padding: "16px 24px 0", backgroundColor: "#090a0c" }}>
++            <button type="button" className="echo-text-button" onClick={() => navigate("/doit/conversation")}>
++              ← ECHO 대화로 돌아가기
++            </button>
++          </div>
++        )}
++        <ProfileBuild
++          onNext={handleProfileNext}
++          initialDraft={initialDraft}
++          saving={saving}
++          saveError={saveError}
++        />
++      </>
+     );
+   }
+ 

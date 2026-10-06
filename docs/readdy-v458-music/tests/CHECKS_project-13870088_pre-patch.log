@@ -1,0 +1,23 @@
+=== type-check
+
+> react@0.0.0 type-check
+> tsc --noEmit --project tsconfig.app.json
+
+exit=0
+=== lint
+
+> react@0.0.0 lint
+> eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+
+exit=0
+=== build
+✓ built in 3.22s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+exit=0
+index-D28pGo6y.css
+index-uYZk6AxU.js
+DONE

@@ -1,0 +1,25 @@
+/* 사용자 앱 화면 전면 파스텔(2026-09-25 대표 「FINAL PRODUCT / UX … POLICY MASTER」 §12~13).
+   - 바탕: pastel-bg.css(대화 화면과 같은 한 벌). 이 파일은 .doit-app-pastel 아래에만 적용한다 — 히어로(우주)·관리자 화면·전역(body/:root) 0.
+   - 판(카드·입력창·보조 버튼): 한 토큰 --app-surface. 대표 MASTER 「카드/버튼 가독성을 위한 어두운 반투명 Surface는 허용」.
+     .81 = 원래 카드 안 회색 글자(#9CA3AF)가 파스텔 6색(노랑·민트·산호·청록 등) 위 어디서나 4.5:1 에 닿는 가장 옅은 값(WCAG 계산 · .78 은 노랑 위 4.05 로 미달).
+   - 머리줄·하단 탭: 검은 띠가 남지 않게 반투명(탭 글자는 흰색 계열로 올려 대비를 지킨다).
+   - 파스텔 위에 바로 놓인 글자는 대화 화면과 같은 흰색(대표 2026-09-25 「글씨 흰색 하나로」). 표준 대비는 낮다 — 보고서에 숫자로 적는다. */
+@import "./pastel-bg.css";
+.doit-app-pastel{--app-page:transparent;--app-surface:rgb(14 18 24/.81);--app-surface-border:#d9dfe8a6;color:#fff}
+/* 탭이 있는 앱 화면(MobileLayout)·프로필 확인 화면: 원래 검정 바탕(#090a0c) 대신 파스텔 줄기(고정 바탕이 비는 순간에도 검정이 아니다) */
+.doit-root .doit-product.doit-app-pastel{background:var(--pastel-underlay)}
+.doit-app-pastel .doit-profile-review{background:transparent}
+.doit-app-pastel .doit-product-topbar{background:rgb(14 18 24/.28);border-color:#ffffff2e}
+.doit-app-pastel .doit-product-nav{background:rgb(14 18 24/.62);border-color:#ffffff2e;box-shadow:none}
+.doit-app-pastel .doit-product-nav a{color:#e3e7ee}
+.doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff}
+/* 파스텔 위 글자: 흰색 하나로(대화 화면과 같게) */
+.doit-app-pastel :is(.doit-product-kicker,.doit-product-title,.doit-product-description,.doit-product-status,.doit-product-footnote,.doit-product-note p,.doit-profile-section-label,.doit-profile-review-brand,.doit-product-stage>span){color:#fff}
+.doit-app-pastel .doit-product-note{border-color:#ffffff4d}
+/* 판: 한 토큰 */
+.doit-app-pastel :is(.doit-profile-card,.doit-product-action--secondary){background:var(--app-surface);border-color:var(--app-surface-border)}
+.doit-app-pastel .doit-product-stage{mix-blend-mode:normal}
+/* 파스텔 위에 바로 놓인 안내 글자(카드·버튼 밖): 흰색 하나로. 카드·버튼·오류 안내 안의 글자는 원래 색 그대로(어두운 판 위라 읽힌다). */
+.doit-app-pastel{--app-on-page:#fff}
+.doit-app-pastel .echo-text-button{color:#fff}
+.doit-app-pastel .doit-product-main :is(p,span,li,dt,dd,small,label,blockquote,h1,h2,h3,h4,em,strong,b,time):not(:is(button,[role="alert"],[class*="error"],[class*="card"],[class*="action"],[class*="primary"],[class*="install"]) *):not([class*="error"]){color:#fff}

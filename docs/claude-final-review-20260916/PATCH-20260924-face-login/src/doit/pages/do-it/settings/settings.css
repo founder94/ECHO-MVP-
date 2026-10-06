@@ -1,0 +1,41 @@
+.doit-settings{padding:34px 0 16px;font-family:var(--font-body,"Gothic A1",sans-serif)}
+.doit-settings-intro{padding:0 0 36px}
+.doit-settings-intro .doit-product-description{margin-top:18px}
+.doit-settings-section{margin:0 0 32px}
+.doit-settings-heading{margin:0 0 12px;font-size:12px;line-height:1.6;letter-spacing:.03em;font-weight:600;color:#b8bdc7}
+.doit-settings-panel{overflow:hidden;border:1px solid #c0cad22e;border-radius:22px;background:radial-gradient(ellipse at 95% 0,#bac8dc12,transparent 65%),linear-gradient(135deg,#1b1e24,#111317);box-shadow:inset 0 1px 0 #ffffff09,0 14px 34px #0002}
+.doit-settings-link{display:flex;align-items:center;gap:14px;min-height:96px;padding:21px 19px;text-decoration:none;color:#f2f1ef;transition:background .2s}
+.doit-settings-link+.doit-settings-link{border-top:1px solid #ffffff0c}
+.doit-settings-icon{display:grid;place-items:center;flex:none;width:37px;height:37px;border:1px solid #c8d1df20;border-radius:12px;background:linear-gradient(135deg,#bac4d11a,#8995a407);color:#d0d5dd;font-size:19px}
+.doit-settings-link-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.doit-settings-link-title{font-size:15px;line-height:1.5;letter-spacing:-.025em;font-weight:600}
+.doit-settings-link-description{font-size:12px;line-height:1.7;font-weight:500;color:#aeb4bf;word-break:keep-all;overflow-wrap:anywhere}
+.doit-settings-chevron{font-size:18px;color:#b2bbc8;flex:none}
+.doit-settings-session{width:100%;display:flex;align-items:center;justify-content:space-between;min-height:60px;padding:16px 20px;border:0;border-top:1px solid #ffffff0d;background:#090b0f40;color:#c8cdd6;font-size:13px;font-weight:500;text-decoration:none;text-align:left;cursor:pointer}
+.doit-settings-session:disabled{cursor:wait;opacity:.65}
+.doit-settings-status-list{margin:0;border-top:1px solid #ffffff13}
+.doit-settings-status-list>div{padding:19px 0;border-bottom:1px solid #ffffff0d}
+.doit-settings-status-list dt{font-size:14px;line-height:1.6;font-weight:500;color:#d8dbe1}
+.doit-settings-status-list dd{margin:6px 0 0;font-size:12px;line-height:1.85;font-weight:500;color:#9ba2ae;word-break:keep-all;overflow-wrap:anywhere}
+.doit-settings-note{padding:22px 20px;border:1px solid #ffffff16;border-radius:18px;background:linear-gradient(130deg,#171a20,#111318)}
+.doit-settings-note h4{margin:0;font-size:14px;line-height:1.6;color:#dfe2e8;font-weight:600}
+.doit-settings-note>p{margin:12px 0 0;font-size:13px;line-height:1.9;font-weight:500;color:#acb3bf;word-break:keep-all;overflow-wrap:anywhere}
+.doit-settings-mail{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;margin-top:21px;padding:12px 15px;border:1px solid #c8d0db44;border-radius:12px;background:linear-gradient(120deg,#32394499,#171c24);font-size:13px;font-weight:600;color:#e3e7ee;text-decoration:none}
+.doit-settings-note>.doit-settings-mail-address{margin-top:11px;font-size:11px;line-height:1.8;color:#a8afbb}
+.doit-settings-signature{margin:36px 0 0;font-size:9px;line-height:1.8;font-weight:500;letter-spacing:.19em;color:#89919f}
+@media(hover:hover) and (pointer:fine){.doit-settings-link:hover,.doit-settings-session:not(:disabled):hover{background:#e6edff07}.doit-settings-mail:hover{border-color:#d6dfed88}}
+@media(max-width:360px){.doit-settings-link{gap:10px;padding-inline:14px}.doit-settings-icon{width:32px;height:32px}.doit-settings-note{padding-inline:16px}}
+@media(prefers-reduced-motion:reduce){.doit-settings-link{transition:none}}
+/* 얼굴·지문 로그인 (2026-09-24) — .doit-face 아래로만 */
+.doit-face .doit-face-register{width:100%;cursor:pointer;font-family:inherit}
+.doit-face .doit-face-register:disabled{cursor:wait;opacity:.65}
+.doit-face .doit-face-register i{font-size:18px}
+.doit-face .doit-face-state{margin:16px 0 0;font-size:13px;line-height:1.85;font-weight:500;color:#d8dde5;word-break:keep-all;overflow-wrap:anywhere}
+.doit-face .doit-face-ok{margin:14px 0 0;font-size:13px;line-height:1.8;color:#dfe8f2;word-break:keep-all}
+.doit-face .doit-face-list{list-style:none;margin:18px 0 0;padding:0;border-top:1px solid #ffffff13}
+.doit-face .doit-face-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #ffffff0d}
+.doit-face .doit-face-list strong{display:block;font-size:14px;color:#e6e9ee;font-weight:600}
+.doit-face .doit-face-list li span{display:block;margin-top:3px;font-size:11px;line-height:1.7;color:#9ba2ae}
+.doit-face .doit-face-list button{min-height:44px;padding:8px 4px;border:0;background:none;color:#d9dee7;font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer;white-space:nowrap}
+.doit-face .doit-face-list button:disabled{opacity:.5;cursor:default}
+.doit-face .doit-face-confirm{display:flex;gap:10px;margin:0}

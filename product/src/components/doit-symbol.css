@@ -1,0 +1,6 @@
+.doit-official-symbol{display:block;flex:none;width:44px;height:44px;object-fit:contain;mix-blend-mode:screen;user-select:none}
+.doit-brand-company{display:inline-flex;align-items:center;gap:10px}
+.doit-brand-company .doit-official-symbol{width:40px;height:40px}
+.doit-brand-bottom-actions{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.doit-brand-bottom-actions .doit-motion-toggle{margin:0;padding:8px 0;min-height:44px}
+@media(max-width:700px){.doit-brand-company{gap:5px}.doit-brand-company .doit-official-symbol{width:32px;height:32px}.doit-brand-bottom-actions{gap:10px 20px}}

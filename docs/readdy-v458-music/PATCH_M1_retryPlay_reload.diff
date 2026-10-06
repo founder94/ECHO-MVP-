@@ -1,0 +1,20 @@
+--- /tmp/claude-0/-home-user-ECHO-MVP-/32b2e916-384e-5880-bd86-61d37f6fbd49/scratchpad/p88/src/pages/do-it/hero/components/OriginalMusicCard.tsx	1979-12-31 00:00:00.000000000 +0000
++++ src/pages/do-it/hero/components/OriginalMusicCard.tsx	2026-09-13 12:55:52.587943806 +0000
+@@ -197,8 +197,16 @@
+ 
+   const retryPlay = useCallback(() => {
+     const audio = audioRef.current;
+-    if (!audio || trackRef.current === null) return;
++    const idx = trackRef.current;
++    if (!audio || idx === null) return;
+     const reqId = ++requestIdRef.current;
++    // 로드 실패(네트워크·포맷)로 error 가 남은 엘리먼트는 play() 만으로 복구되지 않는다 → 같은 곡을 다시 로드한다.
++    // 브라우저 차단(NotAllowedError)은 error 가 없으므로 재생 위치를 보존한 채 그대로 재생한다.
++    if (audio.error) {
++      setCurrent(0);
++      setDuration(0);
++      audio.src = TRACKS[idx].src;
++    }
+     audio
+       .play()
+       .then(() => {

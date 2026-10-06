@@ -1,0 +1,21 @@
+# ECHO 신규 최종 100회 기준점 · test_run_id=final100v4 · 2026-09-20T03:20:49Z
+제품 HEAD: d5a1551eb698481abc2eed77cfa653922046e485 (서버 소스 기준 커밋 6ed213d, 작업트리 변경 0)
+운영 get-step-question v48 ACTIVE verify_jwt=True ezbr=df08ec7342c24c927eb2b3b7bcf7ea4ebf5b377b53b7a8d9500ff05935a6dcd1
+운영 echo-journey v26 ACTIVE verify_jwt=True ezbr=5bec72936a0ad37df73642b4afeeccfdf72440625f71eb6da2a7545071b060cc
+서버 소스 get-step-question/ai.ts da406048a6ad44e42ddf8008303659a4af7ed73a066e774e3856526be41f1502 (운영 내려받기 대조: gsq 03:19 3/3, ej 02:54 2/2 일치)
+서버 소스 get-step-question/rules.ts 5bd49ceb78e0491456840b6c46375e9a5a9a1ab41ce4f3f9c01cd12c6b82022a (운영 내려받기 대조: gsq 03:19 3/3, ej 02:54 2/2 일치)
+서버 소스 get-step-question/index.ts b79390f722295734008f092416b5ba10cb2f9ad549ae73f369706b58c1bb990e (운영 내려받기 대조: gsq 03:19 3/3, ej 02:54 2/2 일치)
+서버 소스 echo-journey/index.ts 468254ab3dc855cf77d753293c2bbdc4ccd7f824ece5cbd896a68c995d8019ab (운영 내려받기 대조: gsq 03:19 3/3, ej 02:54 2/2 일치)
+서버 소스 echo-journey/question-quality.ts 599dad5f727b888c216e3a3387f73b6b7913277179ddf7a08dbea4a7a1979190 (운영 내려받기 대조: gsq 03:19 3/3, ej 02:54 2/2 일치)
+검사 도구:
+  99498cce26c418fc0645dcc1ae38293eda638b9630746ee55085850ef9d5a4b5  run100v3.mjs
+  445775197e77bdb7788c8b43b80d42f6303706dde90a7dbfab965c386f1f6249  agg100v3.mjs
+  6d1f7a294717c0098fe7c9b9fead72f2fa735b9b565f98120e5d81b815f1da8a  supervise3.sh
+  71b6e0664168f77f5b438ee60c3243ed43bda47991a1e562f4addf6dc0f2f557  integrity-watch.sh
+  9116744203b70c94de8cfb08648e01bd7f84f79000fda6230e27c5dadd132743  live.mjs
+판정 규칙 버전: FINAL-3tier-20260920 (P0 후보=REJECTED_MEANING_REAPPEARED 만, USER_SOURCE_AFTER_REJECTION·LEXICAL_REUSE_ONLY 는 P0 아님, REVIEW_REQUIRED 는 수동 확인; 정정무시=정정 직후 서버 문장 1개; 401/403 은 P0 아님)
+자동 재시도: AI_RETRY=미설정
+서버 상태: 스모크 401/403/200 통과, 검사 계정 start+ask 성공(03:19)
+완료 회차: 0 (결과 파일·상태 파일 없음)
+중복 실행 방지: 실행 중 검사 프로세스 0개
+이전 중단 데이터: final100v3 14행은 FAILED/INTERRUPTED TEST RUN 으로 별도 보존, 합산 금지

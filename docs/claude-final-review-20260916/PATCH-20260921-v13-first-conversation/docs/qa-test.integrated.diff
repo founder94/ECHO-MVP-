@@ -1,0 +1,132 @@
+--- /tmp/claude-0/-home-user-ECHO-MVP-/32b2e916-384e-5880-bd86-61d37f6fbd49/scratchpad/v17/qa/core-conversation-question-state.test.mjs	2026-09-20 14:40:52.000000000 +0000
++++ qa/core-conversation-question-state.test.mjs	2026-09-21 02:24:31.022460146 +0000
+@@ -18,8 +18,12 @@
+   return { promise, resolve, reject };
+ }
+ 
+-function componentHarness(overrides = {}, { followup = true, server = true } = {}) {
++function componentHarness(overrides = {}, { followup = true, server = true, pending = null, transport = null } = {}) {
+   const slots = [];
++  // 통합안: 직접 설명 예약(conversationRecovery)은 메모리 저장소로, 전송 계층은 필요할 때만 주입한다.
++  const store = { pending };
++  let port = null;
++  class UnderstandingError extends Error { constructor(code, message) { super(message); this.code = code; } }
+   const pendingEffects = [];
+   let cursor = 0;
+   let dirty = true;
+@@ -78,11 +82,16 @@
+     '@/doit/hooks/useUnderstanding': { useUnderstanding: () => ({ reload: async () => undefined }) },
+     '@/doit/lib/understandingApi': {
+       A_STRUCTURE_SERVER_ENABLED: server,
+-      UnderstandingError: class UnderstandingError extends Error {},
+-      prepareUnderstandingRequest: () => { throw new Error('External request forbidden'); },
+-      understandingRequest: () => { throw new Error('External request forbidden'); },
++      UnderstandingError,
++      prepareUnderstandingRequest: transport ? transport.prepare : () => { throw new Error('External request forbidden'); },
++      understandingRequest: transport ? transport.request : () => { throw new Error('External request forbidden'); },
++    },
++    '@/doit/lib/coreConversation': { createCoreConversation: given => { port = given; return api; } },
++    '@/doit/lib/conversationRecovery': {
++      loadPendingSelf: () => store.pending,
++      savePendingSelf: (_userId, next) => { store.pending = next; },
++      clearPendingSelf: () => { store.pending = null; },
+     },
+-    '@/doit/lib/coreConversation': { createCoreConversation: () => api },
+     './core-conversation.css': {},
+   };
+   const compiled = ts.transpileModule(source.replaceAll('import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED', JSON.stringify(String(followup))), {
+@@ -134,8 +143,13 @@
+     form.props.onSubmit({ preventDefault() {} });
+     await flush();
+   }
++  function value(id) {
++    const input = nodes().find(node => node.props.id === id);
++    assert.ok(input, `Missing input: ${id}`);
++    return input.props.value;
++  }
+   return {
+-    api, calls, flush, click, type, send, content,
++    api, calls, flush, click, type, send, content, value, store, UnderstandingError, port: () => port,
+     renderBeforeEffects: render,
+     questions: () => nodes().filter(node => node.props.className === 'echo-question').map(node => content(node)),
+     unmount: () => { for (const slot of slots) slot?.cleanup?.(); },
+@@ -302,3 +316,79 @@
+   assert.deepEqual(h.questions(), []);
+   assert.deepEqual(h.calls, []);
+ });
++
++// ── 통합안(r2 이식) 추가 검사 ──
++
++test('pending direct explanation reopens the editor with its text after reload and saves without a second rejection', async () => {
++  const rejected = insight('r1', 'rejected');
++  const saved = { ...insight('r1', 'confirmed'), id: 'self-1', origin: 'self', text: '장소만 조용했으면 해요' };
++  const h = componentHarness({
++    load: async () => ({ records: [record('r1')], insights: [rejected] }),
++    explain: async () => saved,
++  }, { pending: { insightId: rejected.id, recordId: 'r1', category: 'value', text: '장소만 조용했으면 해요' } });
++  await h.flush();
++  assert.equal(h.value('echo-correction'), '장소만 조용했으면 해요');
++  assert.match(h.content(), /이전 AI 해석은 제외했어요/);
++  h.click('이 설명으로 저장하기 ');
++  await h.flush();
++  assert.deepEqual(h.calls.filter(c => c.name === 'react'), [], 'already rejected → no second rejection');
++  assert.deepEqual(h.calls.filter(c => c.name === 'explain').map(c => c.args), [['r1', 'value', '장소만 조용했으면 해요']]);
++  assert.equal(h.store.pending, null, 'reservation cleared after success');
++  assert.match(h.content(), /직접 설명해 주신 내용으로 저장했어요/);
++  h.unmount();
++});
++
++test('explanation failure keeps the reservation with the typed text; success clears it', async () => {
++  const candidate = insight('r1', 'candidate');
++  const rejected = { ...candidate, status: 'rejected', revision: 2 };
++  // 서버 정본을 흉내: 거절이 저장되면 이후 load 는 거절된 행(revision 2)을 돌려준다.
++  const server = { insights: [candidate] };
++  let explainCalls = 0;
++  const h = componentHarness({
++    load: async () => ({ records: [record('r1')], insights: server.insights }),
++    react: async () => { server.insights = [rejected]; return rejected; },
++    explain: async () => { explainCalls += 1; if (explainCalls === 1) throw new Error('ERROR'); return { ...rejected, id: 'self-1', origin: 'self', status: 'confirmed', text: '내 설명' }; },
++  });
++  await h.flush();
++  h.click('직접 설명할게요');
++  await h.flush();
++  h.type('echo-correction', '내 설명');
++  await h.flush();
++  h.click('이 설명으로 저장하기 ');
++  await h.flush();
++  // 컴포넌트는 vm 별도 렌름에서 객체를 만들므로(프로토타입 다름) 값만 비교한다.
++  assert.deepEqual(JSON.parse(JSON.stringify(h.store.pending)), { insightId: candidate.id, recordId: 'r1', category: 'value', text: '내 설명' }, 'reserved after reject, kept after explain failure');
++  assert.equal(h.value('echo-correction'), '내 설명', 'typed text preserved');
++  h.click('이 설명으로 저장하기 ');
++  await h.flush();
++  assert.equal(h.calls.filter(c => c.name === 'react').length, 1, 'reject sent exactly once');
++  assert.equal(explainCalls, 2);
++  assert.equal(h.store.pending, null);
++  h.unmount();
++});
++
++test('STALE_CONTEXT write drops the stored request id and retries exactly once with a fresh id', async () => {
++  const ids = []; const completed = []; const seen = [];
++  const h = componentHarness({}, { transport: {
++    prepare: async (_userId, body) => { const id = `id-${ids.length + 1}`; ids.push(id); return { body: { ...body, requestId: id }, complete: () => completed.push(id) }; },
++    request: async body => { seen.push(body.requestId); if (body.requestId === 'id-1') throw new h.UnderstandingError('STALE_CONTEXT', 'stale'); return { ok: true, echoed: body.requestId }; },
++  } });
++  await h.flush();
++  const result = await h.port().write({ action: 'followup_generate', recordId: 'r1' });
++  assert.deepEqual(seen, ['id-1', 'id-2']);
++  assert.deepEqual(completed, ['id-1', 'id-2'], 'stale id discarded, fresh id completed');
++  assert.equal(result.echoed, 'id-2');
++  h.unmount();
++});
++
++test('a second STALE_CONTEXT is reported, not retried forever', async () => {
++  const seen = [];
++  const h = componentHarness({}, { transport: {
++    prepare: async (_userId, body) => ({ body: { ...body, requestId: `id-${seen.length + 1}` }, complete: () => undefined }),
++    request: async body => { seen.push(body.requestId); throw new h.UnderstandingError('STALE_CONTEXT', 'stale'); },
++  } });
++  await h.flush();
++  await assert.rejects(h.port().write({ action: 'followup_generate', recordId: 'r1' }), error => error.code === 'STALE_CONTEXT');
++  assert.equal(seen.length, 2, 'exactly two attempts');
++  h.unmount();
++});

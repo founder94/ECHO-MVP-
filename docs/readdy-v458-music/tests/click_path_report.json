@@ -1,0 +1,59 @@
+{
+  "at": "2026-09-13T13:24:37.203Z",
+  "counters": {
+    "track1": 1,
+    "track2": 0,
+    "youtubeAttempt": 2,
+    "supabase": 0,
+    "openMeteo": 0,
+    "other": 29
+  },
+  "results": [
+    {
+      "n": "홈: BGM 플레이어 컨테이너·토글 버튼 존재(YouTube 스크립트는 로컬에서 차단 → 실제 재생 없음)",
+      "p": true,
+      "d": "container=1 btn=1 ytAttempt=1"
+    },
+    {
+      "n": "홈 \"시작하기\" → /start 이동",
+      "p": true,
+      "d": ""
+    },
+    {
+      "n": "DO IT 선택 → /do-it/landing 이동",
+      "p": true,
+      "d": ""
+    },
+    {
+      "n": "랜딩 진입 후 홈 BGM 컴포넌트 언마운트(컨테이너 0·iframe 0) — 실제 YouTube 정지는 로컬에서 검증 불가",
+      "p": true,
+      "d": "container=0 iframe=0"
+    },
+    {
+      "n": "09 구간: 시작하기 버튼 아래 카드 1개",
+      "p": true,
+      "d": "btnBottom=484 cardTop=502"
+    },
+    {
+      "n": "클릭 경로 진입 시 자동 재생 없음(요청 0)",
+      "p": true,
+      "d": ""
+    },
+    {
+      "n": "클릭 경로에서 원음 1 재생(대표 원음) · 시간 증가",
+      "p": true,
+      "d": "ct 0.18→0.88"
+    },
+    {
+      "n": "09 \"시작하기\" 로 이탈 → 카드 Audio 정지",
+      "p": true,
+      "d": "→ /do-it/1 paused=[true]"
+    },
+    {
+      "n": "홈 복귀: BGM 컴포넌트 재마운트 · 카드 Audio 새로 만들지 않음",
+      "p": true,
+      "d": ""
+    }
+  ],
+  "scope": "홈 BGM 실제 재생·정지는 YouTube 차단으로 미검증(컴포넌트 마운트/언마운트만 확인)"
+}

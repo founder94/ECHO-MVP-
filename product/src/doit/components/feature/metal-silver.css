@@ -1,0 +1,61 @@
+/* 메탈 실버 (대표 2026-09-23 "은색 말고 메탈 실버를 섞어 더 감각적이고 고급스럽게").
+   평평한 두 가지 회색 대신, 밝은 반사 띠와 어두운 결이 번갈아 있는 솔질한 금속판 색을 쓴다. 빛이 천천히 흐른다.
+   - 앱 화면(대화·앱 홈·설치 안내·하단 탭)의 주요 버튼·제목·진행 표시에만 쓴다.
+   - 홈 히어로·랜딩(.doit-brand-*, .doit-editorial)은 건드리지 않는다(대표 승인 구역).
+   - 전역(body/:root)을 건드리지 않는다. 모든 규칙은 화면 루트 클래스 아래에 있다.
+   - 동작 줄이기 설정이면 빛 흐름을 멈춘다. */
+
+/* 1) 금속판 버튼 — 흰 반사 띠 · 회청색 결 · 윗면 하이라이트 · 아랫면 그림자 */
+.echo-dialogue .echo-primary,
+.doit-product .doit-product-action:not(.doit-product-action--secondary),
+.doit-profile-review .doit-product-action:not(.doit-product-action--secondary),
+.doit-install .doit-install-action {
+  background-image: linear-gradient(115deg, #fdfdfe 0%, #dfe2e7 15%, #a3aab4 33%, #f4f5f7 50%, #b8bec7 67%, #e8eaee 83%, #959da8 100%);
+  background-size: 240% 100%;
+  background-position: 0% 50%;
+  color: #111317;
+  border: 1px solid #ffffffa6;
+  text-shadow: 0 1px 0 #ffffff8c;
+  box-shadow: inset 0 1px 0 #ffffffe0, inset 0 -1px 0 #4f56606b, 0 10px 26px #0000005c, 0 0 0 1px #00000024;
+  animation: doit-metal-sheen 7s ease-in-out infinite alternate;
+}
+
+/* 2) 금속 글자 — 화면 제목. 지원하지 않는 브라우저는 밝은 은회색 글자로 그대로 읽힌다. */
+.echo-dialogue h1,
+.doit-understanding-page .doit-product-title {
+  color: #eceef1;
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .echo-dialogue h1,
+  .doit-understanding-page .doit-product-title {
+    background-image: linear-gradient(100deg, #ffffff 0%, #e5e8ec 22%, #a9b0ba 44%, #f8f9fa 60%, #c4c9d0 80%, #eef0f2 100%);
+    background-size: 220% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: doit-metal-sheen 9s ease-in-out infinite alternate;
+  }
+}
+
+/* 3) 금속 진행 표시 — 다섯 가지 진행 막대 · 하단 탭의 지금 탭 표시 */
+.echo-dialogue .echo-steps-bar i,
+.doit-product .doit-product-nav a[aria-current="page"]:before {
+  background-image: linear-gradient(90deg, #8e959f 0%, #f5f6f8 42%, #b2b8c1 68%, #eef0f2 100%);
+  box-shadow: 0 0 10px #dfe3e866;
+}
+
+@keyframes doit-metal-sheen {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .echo-dialogue .echo-primary,
+  .doit-product .doit-product-action,
+  .doit-profile-review .doit-product-action,
+  .doit-install .doit-install-action,
+  .echo-dialogue h1,
+  .doit-understanding-page .doit-product-title { animation: none; }
+}

@@ -1,0 +1,106 @@
+--- ../bak-legal/context/AuthContext.tsx	2026-09-21 10:44:45.455644362 +0000
++++ src/context/AuthContext.tsx	2026-09-21 10:44:45.495902750 +0000
+@@ -2,11 +2,23 @@
+ import type { Session, User } from '@supabase/supabase-js';
+ import { supabase } from '@/lib/supabase/client';
+ import { rememberReturnPath } from '@/lib/auth/returnPath';
++import {
++  CONSENT_VERSION,
++  consentMetadata,
++  consumePendingConsent,
++  fetchConsentStatus,
++  persistConsent,
++  readConsentMetadata,
++  type ConsentChoice,
++  type ConsentStatus,
++} from '@/lib/legal/consent';
+ 
+ export interface SignUpParams {
+   email: string;
+   password: string;
+   displayName: string;
++  // 가입 화면에서 받은 약관 동의. 세션이 생기기 전이라 인증 메타데이터에 실어 보내고, 첫 로그인 때 profiles 로 옮긴다.
++  consent?: ConsentChoice;
+ }
+ 
+ export interface AuthResult {
+@@ -22,6 +34,9 @@
+   signIn: (email: string, password: string) => Promise<AuthResult>;
+   signInWithGoogle: (returnPath: string) => Promise<AuthResult>;
+   signOut: () => Promise<void>;
++  // 현재 버전 약관 동의가 서버(profiles.consent_version)에 있는지. 'unknown' = 미로그인 또는 조회 실패(막지 않음).
++  consentStatus: ConsentStatus;
++  markConsented: () => void;
+ }
+ 
+ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+@@ -68,6 +83,7 @@
+   const [session, setSession] = useState<Session | null>(null);
+   const [user, setUser] = useState<User | null>(null);
+   const [loading, setLoading] = useState(true);
++  const [consentStatus, setConsentStatus] = useState<ConsentStatus>('unknown');
+ 
+   // 세션 복원. onAuthStateChange 콜백은 동기로 처리해야 하므로 비동기 데이터 로딩은
+   // 여기서 하지 않고, getSession 결과만으로 즉시 loading을 해제한다.
+@@ -112,14 +128,50 @@
+     };
+   }, []);
+ 
++  // 약관 동의 상태 동기화(로그인 사용자 기준).
++  // 1) 서버 profiles.consent_version 이 현재 버전이면 ok.
++  // 2) 아니면 가입 때 메타데이터(또는 Google 이동 전 임시값)에 남긴 동의를 서버로 옮기고 ok.
++  // 3) 둘 다 없으면 required → ConsentGate 가 동의 화면으로 보낸다. 조회 실패는 unknown(막지 않음).
++  const userId = user?.id ?? null;
++  useEffect(() => {
++    if (!userId) {
++      setConsentStatus('unknown');
++      return;
++    }
++    let cancelled = false;
++    (async () => {
++      let status = await fetchConsentStatus(supabase, userId);
++      if (status === 'required') {
++        const fromMeta = readConsentMetadata(user?.user_metadata);
++        const pending = consumePendingConsent() ?? (fromMeta?.consent_version === CONSENT_VERSION ? fromMeta : null);
++        if (pending && !(await persistConsent(supabase, userId, pending))) status = 'ok';
++      }
++      if (!cancelled) setConsentStatus(status);
++    })().catch(() => {
++      if (!cancelled) setConsentStatus('unknown');
++    });
++    return () => {
++      cancelled = true;
++    };
++    // user 객체는 메타데이터 갱신마다 바뀌므로 id 로만 다시 실행한다.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [userId]);
++
++  const markConsented = useCallback(() => setConsentStatus('ok'), []);
++
+   const signUp = useCallback(async (params: SignUpParams): Promise<AuthResult> => {
+-    const { email, password, displayName } = params;
++    const { email, password, displayName, consent } = params;
+     try {
+       // 프로필은 브라우저가 세션 전에 직접 쓰지 않는다. 이름은 메타데이터로 넘겨 인증 완료 뒤(트리거·ensureProfile) 만든다.
+       const { data, error } = await supabase.auth.signUp({
+         email,
+         password,
+-        options: { data: { display_name: displayName || DEFAULT_DISPLAY_NAME } },
++        options: {
++          data: {
++            display_name: displayName || DEFAULT_DISPLAY_NAME,
++            ...(consent ? consentMetadata(consent) : {}),
++          },
++        },
+       });
+       if (error) return { error: error.message };
+       // 이메일 확인이 켜져 있으면 세션이 즉시 생성되지 않을 수 있다.
+@@ -164,7 +216,7 @@
+     setUser(null);
+   }, []);
+ 
+-  const value: AuthContextValue = { session, user, loading, signUp, signIn, signInWithGoogle, signOut };
++  const value: AuthContextValue = { session, user, loading, signUp, signIn, signInWithGoogle, signOut, consentStatus, markConsented };
+ 
+   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+ }

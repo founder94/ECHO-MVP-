@@ -1,0 +1,11 @@
+/* 기다리는 동안의 심볼 3D 효과 (SymbolLoader). 전역(body/:root)을 건드리지 않는다. .doit-symbol-loader 아래로만. */
+.doit-symbol-loader{display:flex;flex-direction:column;align-items:center;gap:16px}
+.doit-symbol-loader-stage{position:relative;flex:none}
+.doit-symbol-loader-stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+/* 3D 효과를 준비하는 짧은 순간이나 심볼을 못 읽었을 때만 보인다. 바로 나타나지 않아 번쩍임이 없다. */
+.doit-symbol-loader-fallback{position:absolute;inset:20%;width:60%;height:60%;object-fit:contain;opacity:0;animation:doit-symbol-loader-appear .5s .4s ease forwards,doit-symbol-loader-breathe 2.4s .9s ease-in-out infinite}
+.doit-symbol-loader--ready .doit-symbol-loader-fallback{display:none}
+.doit-symbol-loader-label{margin:0;font-size:13px;line-height:1.8;color:#b9bec7;text-align:center;word-break:keep-all}
+@keyframes doit-symbol-loader-appear{to{opacity:1}}
+@keyframes doit-symbol-loader-breathe{0%,100%{transform:scale(.94);opacity:.7}50%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.doit-symbol-loader-fallback{animation:none;opacity:1}}

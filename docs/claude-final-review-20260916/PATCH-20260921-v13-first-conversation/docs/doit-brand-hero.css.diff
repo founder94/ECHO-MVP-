@@ -1,0 +1,22 @@
+--- ../bak-hero/doit-brand-hero.css.bak	2026-09-21 10:34:00.060015331 +0000
++++ src/components/doit-brand-hero.css	2026-09-21 10:34:00.098279276 +0000
+@@ -7,7 +7,9 @@
+ .doit-brand-company{font-size:18px;font-weight:750;letter-spacing:-.035em}
+ .doit-brand-company>span{font-size:9px;letter-spacing:.18em;font-weight:450;margin-left:10px;color:#aaa}
+ .doit-brand-nav nav{display:flex;align-items:center;gap:32px}
+-.doit-brand-nav nav>a{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:12px;color:#c4c4c4}
++.doit-brand-nav nav>a,.doit-brand-nav nav>.doit-brand-session{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:12px;color:#c4c4c4}
++.doit-brand-nav nav>.doit-brand-session{margin:0;padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
++.doit-brand-nav nav>.doit-brand-session:disabled{cursor:default;opacity:.7}
+ .doit-brand-main{width:100%;max-width:1600px;margin:auto;display:flex;align-items:center;flex-direction:column;padding:44px 0 48px}
+ .doit-brand-badge{display:inline-flex;gap:9px;align-items:center;font-size:12px;font-weight:500;letter-spacing:.16em}
+ .doit-brand-badge>span{font-size:7px}
+@@ -33,7 +35,7 @@
+ .doit-brand-legal p{margin:4px 0}
+ @media(max-width:700px){
+  .doit-brand-nav{padding:14px 24px}.doit-brand-company{font-size:17px}.doit-brand-company>span{font-size:8px;margin-left:8px}
+- .doit-brand-nav nav{gap:18px}.doit-brand-nav nav>a{font-size:11px;gap:8px}
++ .doit-brand-nav nav{gap:18px}.doit-brand-nav nav>a,.doit-brand-nav nav>.doit-brand-session{font-size:11px;gap:8px}
+  .doit-brand-main{padding:32px 0 36px}.doit-brand-badge{font-size:11px}
+  .doit-brand-art{aspect-ratio:2.55;margin:28px 0 30px!important}.doit-brand-art img{width:150%;left:-25%;top:-47.5%}
+  .doit-brand-intro{display:flex;flex-direction:column;align-items:stretch;width:calc(100% - 48px);margin:0 24px;gap:28px}

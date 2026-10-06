@@ -1,0 +1,79 @@
+--- ../bak-legal/pages/signup/page.tsx	2026-09-21 10:44:45.461090645 +0000
++++ src/pages/signup/page.tsx	2026-09-21 10:44:45.496223049 +0000
+@@ -2,6 +2,8 @@
+ import { Link, useLocation } from 'react-router-dom';
+ import { useAuth } from '@/context/AuthContext';
+ import { sanitizeReturnPath } from '@/lib/auth/returnPath';
++import ConsentChecklist from '@/components/legal/ConsentChecklist';
++import { EMPTY_CONSENT, rememberPendingConsent, requiredAllChecked, type ConsentChoice } from '@/lib/legal/consent';
+ 
+ export default function Signup() {
+   const { signUp, signInWithGoogle } = useAuth();
+@@ -16,13 +18,18 @@
+   const [errorMessage, setErrorMessage] = useState('');
+   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
+   const [googleStatus, setGoogleStatus] = useState<'idle' | 'google'>('idle');
++  // 약관 동의: 필수 3개가 켜져야 이메일 가입·Google 가입 버튼이 열린다.
++  const [consent, setConsent] = useState<ConsentChoice>(EMPTY_CONSENT);
++  const consentReady = requiredAllChecked(consent);
+ 
+   // Google 로그인: 실제 signInWithOAuth 호출. 제공자 설정이 없으면 Supabase 오류를 그대로 표시한다(가짜 성공 없음).
+   const handleGoogle = async () => {
+-    if (googleStatus !== 'idle' || formStatus === 'submitting') return;
++    if (googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady) return;
+     setGoogleStatus('google');
+     setErrorMessage('');
+     try {
++      // Google 화면을 거쳐 돌아오므로 동의 내용을 잠깐 보관했다가 로그인 뒤 서버에 옮긴다(AuthContext).
++      rememberPendingConsent(consent);
+       const result = await signInWithGoogle(from);
+       if (result.error) {
+         setFormStatus('error');
+@@ -49,6 +56,11 @@
+       setErrorMessage('비밀번호는 8자 이상이어야 해요.');
+       return;
+     }
++    if (!consentReady) {
++      setFormStatus('error');
++      setErrorMessage('필수 약관에 동의해 주세요.');
++      return;
++    }
+ 
+     setFormStatus('submitting');
+     setErrorMessage('');
+@@ -58,6 +70,7 @@
+         email: email.trim(),
+         password,
+         displayName: displayName.trim() || '사용자',
++        consent,
+       });
+ 
+       if (result.error) {
+@@ -196,6 +209,9 @@
+                 />
+               </div>
+ 
++              {/* 약관 동의 */}
++              <ConsentChecklist value={consent} onChange={setConsent} disabled={formStatus === 'submitting' || googleStatus !== 'idle'} />
++
+               {/* Error message */}
+               {formStatus === 'error' && errorMessage && (
+                 <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+@@ -207,7 +223,7 @@
+               {/* Submit */}
+               <button
+                 type="submit"
+-                disabled={formStatus === 'submitting'}
++                disabled={formStatus === 'submitting' || !consentReady}
+                 className="w-full py-3 rounded-xl bg-gradient-to-r from-primary-500 via-accent-500 to-secondary-500 text-background-50 text-sm font-semibold hover:opacity-90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 animate-gradient-text cursor-pointer"
+               >
+                 {formStatus === 'submitting' ? (
+@@ -224,7 +240,7 @@
+               <button
+                 type="button"
+                 onClick={handleGoogle}
+-                disabled={googleStatus !== 'idle' || formStatus === 'submitting'}
++                disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
+                 className="w-full py-3 rounded-xl border border-background-300/60 bg-background-50 text-sm font-medium text-foreground-200 hover:border-primary-400/60 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+               >
+                 {googleStatus === 'google' ? (
