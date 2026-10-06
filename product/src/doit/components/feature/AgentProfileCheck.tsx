@@ -1,8 +1,9 @@
 import GuideHint from '@/components/guide/GuideHint';
 import { useEffect, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { AGENT_PURPOSE_LABELS, agentTurn, type AgentSession, type AgentSlot } from '@/doit/lib/agentApi';
+import { AGENT_PURPOSE_LABELS, agentConfirm, agentTurn, type AgentReceipt, type AgentSession, type AgentSlot } from '@/doit/lib/agentApi';
 
 // 「ECHO가 이해한 나」 확인·정정(2026-09-26 대표 「MVP FINAL PATCH」 §12~§18).
 // - 보이는 뜻(note)은 서버(doit-agent)가 사용자 말에서 정리한 것이다. 이 화면은 뜻을 만들거나 고치지 않는다.
@@ -10,7 +11,8 @@ import { AGENT_PURPOSE_LABELS, agentTurn, type AgentSession, type AgentSlot } fr
 // - [그게 아니에요](2026-10-04 대표 디자인 교체 · 네 버튼) → 아닌 칸 하나 → 맞는 내용을 내 말로 → [조금 달라요]와 같은 정정 턴(서버가 그 칸의 옛 뜻을 SUPERSEDED 로 거둬 다시 쓰지 않음 · 원문은 서버가 보존).
 // - [직접 설명할게요](예전 「다시 말할게요」) → 짧게 다시 설명한 말을 그대로 보낸다(최신 사용자 원문으로 남는다).
 // - 고친 뒤에는 바뀐 부분만 다시 보여 주고 [맞아요] / [다시 고칠게요]. 정정 때문에 다섯 질문을 다시 시작하지 않는다.
-// - [맞아요] 는 지금 이 화면(이 기기)에만 기억한다: 운영 서버 v2.2 에는 「사용자 확인」 기록 동작이 없다(서버 변경은 대표 승인 뒤).
+// - [맞아요] = 서버 agent_confirm(지금 보이는 AI 정리를 사용자 확인 USER_CONFIRMED 로) + 이 기기 표시. 서버가 없거나 실패하면 기기 표시만(2026-10-06 대표 「기억 영수증」).
+// - 정정 뒤 영수증 한 줄(옛 뜻이 아니라 고친 내용으로 기억한다는 서버 고정 문장)은 서버가 저장을 마친 응답(turn.receipt)으로만 보인다 — 화면이 먼저 만들지 않는다(AI 0 · 문장을 화면에 두지 않음).
 
 const ORDER = Object.keys(AGENT_PURPOSE_LABELS);
 const SEND_ERROR = '보내지 못했어요. 적은 말은 그대로 있으니 다시 눌러 주세요.';
@@ -55,25 +57,33 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<AgentReceipt | null>(null); // 서버 저장 성공 응답에서만
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { onConfirmed(ok); }, [ok, onConfirmed]);
 
-  const confirm = () => {
-    try { localStorage.setItem(okKey(session.id), profileSignature(session)); } catch { /* 저장이 막혀도 이 화면에서는 확인한 것으로 */ }
-    setOk(true); setView({ kind: 'review' }); setReply(null);
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true); setError(null);
+    let s = session;
+    try { s = await agentConfirm(userId, session.id); if (!alive.current) return; onSession(s); } // 서버에 「사용자 확인」으로 남긴다(실패해도 이 기기 표시는 한다)
+    catch { /* 예전 서버·일시 오류: 기기 표시만 */ }
+    try { localStorage.setItem(okKey(s.id), profileSignature(s)); } catch { /* 저장이 막혀도 이 화면에서는 확인한 것으로 */ }
+    if (!alive.current) return;
+    setBusy(false); setOk(true); setView({ kind: 'review' }); setReply(null); setReceipt(null);
   };
 
   const sendFix = async (text: string, purpose: string | null) => {
     const t = text.trim().slice(0, TEXT_MAX);
     if (!t || busy) return;
     const before = purpose ? notesOf(session, purpose) : profileSignature(session);
-    setBusy(true); setError(null); setReply(null);
+    setBusy(true); setError(null); setReply(null); setReceipt(null);
     try {
       const r = await agentTurn(userId, session.id, t, { purpose }); // 정정 버튼 = 정정(칸은 사용자가 고른 것 · 서버가 확정)
       if (!alive.current) return;
       onSession(r.session);
       if (r.turn.reply) setReply(r.turn.reply);
+      if (r.turn.receipt?.line) setReceipt(r.turn.receipt); // 서버가 저장을 마쳤다는 응답 뒤에만
       const after = purpose ? notesOf(r.session, purpose) : profileSignature(r.session);
       setView({ kind: 'recheck', purpose, changed: after !== before });
     } catch (e) {
@@ -106,10 +116,11 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       {list(ORDER)}
       <p className="echo-done-lead"><Check size={16} aria-hidden="true" /> 맞다고 확인했어요.</p>
       <button type="button" className="echo-text-button" onClick={() => { setOk(false); setView({ kind: 'pick' }); }}>그래도 고칠 게 있어요</button>
+      <Link className="echo-text-button echo-known-link" to="/doit/understanding">ECHO가 아는 나 보기</Link>
     </> : view.kind === 'review' ? <>
       {list(ORDER)}
       <div className="echo-done-actions">
-        <button type="button" className="echo-primary" disabled={busy} onClick={confirm}>맞아요</button>
+        <button type="button" className="echo-primary" disabled={busy} onClick={() => void confirm()}>맞아요</button>
         <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'pick' })}>조금 달라요</button>
         <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'pick', reject: true })}>그게 아니에요</button>
         <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView({ kind: 'retell', text: '' })}>직접 설명할게요</button>
@@ -139,12 +150,14 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
         <button type="button" className="echo-text-button" disabled={busy} onClick={() => setView({ kind: 'review' })}>돌아가기</button>
       </div>
     </> : <>
+      {/* 기억 영수증: 서버 고정 문장(저장 성공 뒤에만 · AI 0) */}
+      {receipt && <p className="echo-done-lead echo-receipt" role="status"><Check size={16} aria-hidden="true" /> {receipt.line}</p>}
       {reply && <p className="echo-done-lead">{reply}</p>}
       {view.changed ? <>
         {list(view.purpose ? [view.purpose] : ORDER)}
         <p className="echo-done-lead">{CHECK_TITLE}</p>
         <div className="echo-done-actions">
-          <button type="button" className="echo-primary" disabled={busy} onClick={confirm}>맞아요</button>
+          <button type="button" className="echo-primary" disabled={busy} onClick={() => void confirm()}>맞아요</button>
           <button type="button" className="echo-secondary" disabled={busy} onClick={() => setView(view.purpose ? { kind: 'edit', purpose: view.purpose, text: '' } : { kind: 'retell', text: '' })}>다시 고칠게요</button>
         </div>
       </> : <>

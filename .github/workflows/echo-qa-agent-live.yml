@@ -7,12 +7,21 @@ on:
       - '.github/workflows/echo-qa-agent-live.yml'
       - 'product/qa-real/qa-core-live.mjs'
       - 'product/qa-real/qa-tarot-ref-live.mjs'
+      - 'product/qa-real/qa-memory-live.mjs'
+      - 'product/supabase/functions/doit-agent/free-talk.ts'
       - 'product/supabase/functions/doit-agent/card-reading.ts'
       - 'product/supabase/functions/doit-agent/reference-talk.ts'
       - 'product/supabase/functions/doit-agent/agent.ts'
       - 'product/supabase/functions/doit-agent/index.ts'
       - 'product/supabase/functions/doit-agent/failure-intelligence.ts'
   workflow_dispatch:
+    inputs:
+      sweep:
+        description: 'QA 게시본 전체 버튼 검사(브라우저 · 실제 AI) 도 실행 — yes 일 때만'
+        required: false
+        default: 'no'
+        type: choice
+        options: ['no', 'yes']
 
 permissions:
   contents: read
@@ -36,3 +45,37 @@ jobs:
           export QA_ANON
           node qa-real/qa-core-live.mjs
           node qa-real/qa-tarot-ref-live.mjs
+          node qa-real/qa-memory-live.mjs
+
+  app_sweep:
+    # 2026-10-06 대표 「시작부터 기능들 버튼들 테스트」: QA 게시본(echo-app-qa) + QA 서버를 실제 브라우저로 처음부터 누른다. 수동 실행 + sweep=yes 일 때만(비용 보호). 운영 0.
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.sweep == 'yes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ECHO-QA
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Playwright(크로미움만)
+        working-directory: product
+        run: |
+          set -euo pipefail
+          npm i --no-save --no-audit --no-fund playwright@1.47.2
+          npx playwright install --with-deps chromium
+      - name: QA 게시본 전체 버튼 검사(실제 AI · 캡처)
+        working-directory: product
+        run: |
+          set -euo pipefail
+          QA_ANON="$(sed -n 's/^  QA_SUPABASE_ANON: //p' ../.github/workflows/echo-netlify-deploy.yml)"
+          [ -n "$QA_ANON" ] || { echo 'QA public key missing'; exit 1; }
+          export QA_ANON
+          node qa-real/qa-live-sweep.mjs qa-sweep-out | tee qa-sweep-out/result.txt
+          ! grep -q '^FAIL' qa-sweep-out/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-live-sweep
+          path: product/qa-sweep-out
+          retention-days: 7

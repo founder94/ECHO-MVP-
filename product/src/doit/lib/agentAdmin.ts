@@ -5,7 +5,7 @@ import { serverFunctionRequest } from '@/doit/lib/understandingApi';
 
 export const PURPOSE_IDS = ['relationship_intent', 'attraction_comfort', 'values_character', 'relationship_style', 'boundaries'] as const;
 
-interface StateTurn { n: number; ai: string | null; question_purpose: string | null; user: string; kind: string; reply?: string; question?: string | null; decision?: string; saved?: boolean; recovered?: string[]; dropped?: string }
+interface StateTurn { n: number; ai: string | null; question_purpose: string | null; user: string; kind: string; reply?: string; question?: string | null; decision?: string; saved?: boolean; recovered?: string[]; dropped?: string; receipt?: { line: string } | null; cite?: string | null }
 export interface IntroInfo { status: 'ready' | 'failed' | 'none'; lines: { text: string; basis: string }[]; dropped: Record<string, number>; tries: number; error: string | null; used: 'as_is' | 'edited' | 'own' | null; used_at: string | null }
 interface StoredState { tone: string; mode: string; phase: string; turns: StateTurn[]; asked: { type: string; purpose: string; text: string }[]; closing: string | null; corrections: string[]; disputed: string[]; intro?: IntroInfo | null }
 // 연결 준비의 부족 조건(서버가 profiles 에서 읽은 참·거짓만 — 번호·소개 글은 오지 않는다). 예전 서버는 이 칸이 없다.
@@ -16,7 +16,7 @@ export interface CallRec { kind: string; ms: number; model: string | null; input
 export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number; fi?: string[] }
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
-export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
+export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[]; receipt: boolean; cite: boolean }
 export interface Session { id: string; user: string; nickname: string | null; agent: string; mode: string; tone: string; phase: string; created_at: string; updated_at: string; core: number; clarify: number; turns: Turn[]; profile: Record<string, unknown> | null; handoff: { status?: string } | null; records: TurnRecord[]; photos: PhotoInfo | null; intro: IntroInfo | null; readiness: ReadinessInfo | null }
 
 export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
@@ -27,7 +27,7 @@ export function normalize(raw: RawSession, allTurns: RawTurn[]): Session {
     const rec = byIndex.get(t.n) ?? null;
     return { i: t.n, user: t.user, assistant: [t.reply, t.decision?.startsWith('finish') ? st?.closing : null, t.question].filter(Boolean).join('\n'), question_purpose: t.question_purpose, action: t.kind,
       flags: rec?.flags ?? { correction: t.kind === 'correction', rejection: t.kind === 'repair', complaint: t.kind === 'repair', skip: t.kind === 'skip', fatigue: t.kind === 'stop' }, rec,
-      decision: t.decision ?? null, recovered: t.recovered ?? [] };
+      decision: t.decision ?? null, recovered: t.recovered ?? [], receipt: !!t.receipt, cite: !!t.cite };
   });
   return { id: raw.id, user: raw.user, nickname: raw.nickname, agent: raw.stored?.agent ?? '알 수 없음', mode: st?.mode ?? '기록 없음', tone: st?.tone ?? '기록 없음', phase: st?.phase === 'talk' ? 'talk' : 'done',
     created_at: raw.created_at, updated_at: raw.updated_at, core: (st?.asked ?? []).filter(q => q.type === 'core').length, clarify: (st?.asked ?? []).filter(q => q.type === 'clarify').length,
@@ -214,4 +214,18 @@ export function aiOsEngines(sessions: Session[]): EngineRow[] {
     row('direction', '방향 잠금(5개 목적)', n((x) => typ(x.c.success, 'FIVE_TURN_COMPLETED')), n((x) => typ(x.c.failure, 'QUESTIONS_OVER_5')), '다섯 안에 마침 / 핵심 질문 5 초과'),
     row('failure', '실패·성공 기록', recs.length, recs.filter((r) => r.kind === 'error').length, `턴 기록 ${recs.length} · 실패 턴 ${recs.filter((r) => r.kind === 'error').length} · 판 기록 있는 턴 ${recs.filter((r) => r.agent_version).length}`),
   ];
+}
+
+// ── 2026-10-06 기억 영수증 · 사주·타로 정정 반영 · 유료 자유 대화(관리자 관측 · 수치만 · 글 0)
+export function memoryStats(sessions: Session[]) {
+  const turns = sessions.flatMap((s) => s.turns);
+  const corrections = turns.filter((t) => t.action === 'correction').length;
+  const selfNotes = sessions.reduce((n, s) => n + PURPOSE_IDS.reduce((k, id) => k + (((s.profile?.[id] as { items?: { source_type?: string; origin?: string }[] } | undefined)?.items ?? []).filter((i) => i.source_type === 'USER_CORRECTED').length), 0), 0);
+  return { receipts: turns.filter((t) => t.receipt).length, corrections, cited: turns.filter((t) => t.cite).length, user_corrected: selfNotes };
+}
+export interface FreeSummary { enabled: boolean; month_start: string; users: number; requests: number; failed: number; calls: number; tokens_in: number; tokens_out: number; krw: number | null; price_known: boolean; limits: { trial: number; daily: number; user_month_krw: number; company_month_krw: number; max_cost_usd: number } }
+export async function fetchFreeSummary(): Promise<FreeSummary> {
+  const r = await serverFunctionRequest<FreeSummary>('doit-agent', { action: 'admin_free_summary' });
+  if (typeof r.enabled !== 'boolean' || typeof r.requests !== 'number' || !r.limits) throw new Error('INVALID_RESPONSE');
+  return r;
 }

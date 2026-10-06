@@ -46,7 +46,7 @@ test('대화 화면: 결과에서 왔으면(이 계정의 이야기 거리) 목�
 
 test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질문을 만들지 않음) · 여는 한 줄 받은 뒤에 이야기 거리 지움 · 실패 = 적은 말 보존 · 다시 보내기는 누를 때만', () => {
   assert.match(TALK, /const r = await agentRef\(userId, ref, history\.map/);
-  assert.match(TALK, /\{ role: "echo", text: r\.reply \}/);
+  assert.match(TALK, /\{ role: "echo", text: r\.reply, receipt: !!r\.correction \}/); // 2026-10-06 정정 영수증 줄 표시(글은 서버 것 그대로)
   assert.match(TALK, /if \(r\.question\) next\.push\(\{ role: "echo", text: r\.question, question: true \}\);/);
   assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 2, '화면에 박힌 ECHO 말 0');
   assert.match(TALK, /if \(!text\) \{ setOpened\(true\); clearContentSeed\(\); \}/);

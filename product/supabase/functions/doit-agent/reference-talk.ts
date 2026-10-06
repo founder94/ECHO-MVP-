@@ -9,6 +9,8 @@ export type RefSeed = { kind: "card"; label: string } | { kind: "pattern"; key: 
 export type PatternKey = "peer_many" | "peer_none" | "peer_some";
 export interface RefLine { role: "user" | "echo"; text: string }
 export interface RefReply { reply: string; question: string | null }
+// 2026-10-06 대표 「사주·타로 정정 → 매칭 사용」: 사용자가 해석을 부정하고 자기 말로 고친 문장(해석 원문 0). 화면이 「프로필에도 반영할까요?」를 한 번 묻고, [반영할게요]일 때만 서버(agent_self_note)에 남긴다.
+export interface RefCorrection { text: string }
 
 const CARD = /^[가-힣A-Za-z0-9 ·()]{1,20}$/; // 앱 contentSeed 와 같은 모양
 // 사주 세 갈래(앱 saju/explain.ts topics 「관계」와 같은 문장) — 결과 「종류」만 · 사용자 사실 아님
@@ -66,6 +68,32 @@ const CRISIS = /(죽고\s*싶|자살|목숨을?\s*끊|사라지고\s*싶|살기\
 export const crisisSignal = (t: string) => CRISIS.test(t.replace(/\s+/g, " "));
 export const CRISIS_LINE = "적어 준 말이 마음에 걸려요. 혼자 견디지 않아도 돼요. 자살예방상담전화 109(24시간)나 정신건강위기상담 1577-0199에서 지금 바로 이야기를 들어 줄 수 있어요. 위급하면 112나 119에 연락해 주세요.";
 export const STOP_LINE = "알겠어요. 더 묻지 않을게요. 적고 싶은 게 생기면 그때 적어 주세요.";
+// 해석 부정(「나 그런 사람 아닌데」 「저는 안 그래요」 「그건 틀렸어요」) — 말 전체가 자기 이야기를 부정·정정하는 꼴일 때만(모델 0 · 저장 0).
+//   DENY_LEAD = 앞머리(나·저·전·그건·그게·사주·카드…) + 부정 끝말. 이야기 속 인용(「친구가 "넌 그런 사람 아니야"라고 했어」)은 따옴표가 있어 잡지 않는다.
+const DENY = /^(?:아니(?:요|야|에요)?[,.\s]*)?(?:(?:나|난|저|전|제가|내가|저는|나는|그건|그게|그런\s*건|사주는?|카드는?|결과는?|이건|그\s*(?:해석|말|부분)(?:은|는)?)\s*)?(?:(?:그런|그렇게|그런\s*(?:사람|스타일|쪽|타입|성격))\s*)?(?:(?:사람|쪽|스타일|타입|성격|편)\s*)?(?:은|는|이|가|도)?\s*(?:전혀\s*|별로\s*|좀\s*)?(?:아닌데(?:요)?|아니야|아니에요|아닙니다|아니거든(?:요)?|아닌\s*것\s*같(?:은데요|아요|은데|아)|안\s*그래(?:요)?|안\s*그런데(?:요)?|안\s*맞(?:는데요|아요|는데|아)|틀렸(?:는데요|어요|는데|어)|맞지\s*않(?:은데요|아요|은데|아)|달라(?:요)?|다른데(?:요)?|반대(?:인데요|예요|인데|야))[\s.!~…ㅋㅎ]*/;
+// 검수 P2-5: 꼬리만으로 잡을 때는 「달라요·반대예요」처럼 보통 서술에도 흔한 끝말은 빼고, 「…거 아닌데」 꼴의 분명한 부정만.
+const DENY_TAIL = /(?:거|건|게|것|편|사람|스타일|쪽)\s*(?:아닌데(?:요)?|아니야|아니에요|아닙니다|아니거든(?:요)?)[\s.!~…ㅋㅎ]*$|(?:안\s*그래(?:요)?|안\s*그런데(?:요)?|틀렸(?:는데요|어요|는데|어)|맞지\s*않(?:은데요|아요|은데|아))[\s.!~…ㅋㅎ]*$/;
+const QUOTED = /["“”'‘’「」]/;
+const HANGUL = (t: string) => (t.match(/[가-힣]/g) ?? []).length;
+/** 해석 부정이면 사용자 자신의 문장(부정 머리말을 뗀 나머지 · 없으면 말 전체)을 돌려준다. 아니면 null. */
+export function denyInterpretation(t: string): RefCorrection | null {
+  const c = stopText(t);
+  if (!c || QUOTED.test(c) || c.length > 200 || /[?？]/.test(c)) return null; // 검수 P2-5: 물음이 든 말은 정정이 아니다(「왜 그렇게 나와요?」)
+  const tidy = (t: string) => t.replace(/^[,.\s]+/, "").replace(/^(?:그냥|사실은?|실제로는?|오히려)\s*/, "").replace(/[\s.!~…ㅋㅎ,]+$/, "").slice(0, 120);
+  if (DENY.test(c)) {
+    const rest = tidy(c.replace(DENY, "").trim());
+    if (HANGUL(rest) >= 4) return { text: rest };
+    return HANGUL(c) >= 6 ? { text: tidy(c) } : null; // 「아니에요」 한 마디는 무엇을 고치는지 몰라 정정으로 받지 않는다
+  }
+  // 「아니, 나는 혼자 있는 걸 더 좋아하는데」 — 거절 머리말 뒤에 자기 문장(6글자 이상)
+  const lead = c.match(/^아니(?:요|야|에요)?[,.\s]+/);
+  if (lead) { const rest = tidy(c.slice(lead[0].length)); if (HANGUL(rest) >= 6 && !/[?？]/.test(rest)) return { text: rest }; }
+  // 「사람 많은 데 싫어하는 거 아닌데」처럼 자기 이야기 뒤에 부정 끝말만 붙은 꼴(앞머리 없이) — 말 전체가 자기 문장
+  if (DENY_TAIL.test(c) && HANGUL(c) >= 6 && !/[?？]/.test(c)) return { text: c.replace(/[\s.!~…ㅋㅎ]+$/, "").slice(0, 120) };
+  return null;
+}
+/** 영수증(고정 문장 · AI 0): 사주·카드보다 사용자 말이 먼저. */
+export const denyReceipt = (s: RefSeed, text: string) => `${s.kind === "card" ? "카드보다" : "사주보다"} 당신 말이 맞아요. 「${text}」${/[가-힣]$/.test(text) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) !== 8 ? "으로" : "로"} 기억할게요.`;
 
 export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과를 본 뒤 편하게 이야기하는 자리야. 다음 JSON 하나만 출력해. 다른 설명은 붙이지 마.
 {"reply": "1~3문장 · 사용자가 방금 한 말에 짧게 공감하거나 요약하거나 생각거리를 하나 건넨다", "question": "allow_question 이 true 일 때만 지금 이야기에 맞는 짧은 질문 한 문장 · 아니면 빈 문자열"}
