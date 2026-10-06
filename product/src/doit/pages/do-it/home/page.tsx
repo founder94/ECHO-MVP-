@@ -10,6 +10,7 @@ import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from '@/doit/lib/agen
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
+import FortuneDoors from '@/doit/components/feature/FortuneDoors';
 import '@/doit/components/feature/understanding-pages.css';
 import '@/doit/components/feature/start-ref.css';
 import { splitCurrent } from '@/doit/lib/understandingView';
@@ -132,6 +133,7 @@ export default function Home() {
             {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">아직 확인 안 한 말 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
           </>
         )}
+        <FortuneDoors />
         <div className="doit-understanding-footer">
           <Link className="doit-understanding-text-link" to="/doit/connections">연결까지 남은 것 보기 <span aria-hidden="true">↗</span></Link>
           <Link className="doit-understanding-text-link" to="/doit/profile">내 프로필 보기 <span aria-hidden="true">↗</span></Link>

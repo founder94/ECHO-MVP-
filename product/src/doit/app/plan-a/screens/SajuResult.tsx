@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ELEMENT_KO, ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, type Pillar, type SajuInput, type TenGod } from "@/doit/lib/saju/engine";
+import { ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, type SajuInput } from "@/doit/lib/saju/engine";
 import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doit/lib/saju/explain";
 import { sajuStoryFacts } from "@/doit/lib/saju/storyFacts";
 import { generateSajuStory, type SajuStory } from "@/doit/lib/openai";
@@ -19,6 +19,7 @@ function SajuStoryCard({ facts, onTalk }: { facts: ReturnType<typeof sajuStoryFa
     generateSajuStory(facts).then((story) => setState({ kind: "done", story })).catch(() => setState({ kind: "error" }));
   };
   return <section className="saju-card saju-story" aria-label="ECHO가 들려주는 이야기" aria-busy={state.kind === "loading"}>
+    <p className="saju-step">8 · 이야기로 듣기</p>
     <h2 className="saju-h2">ECHO가 들려주는 이야기</h2>
     {state.kind === "done" ? <>
       <p className="saju-body saju-story-text">{state.story.story}</p>
@@ -46,19 +47,40 @@ function SajuStoryCard({ facts, onTalk }: { facts: ReturnType<typeof sajuStoryFa
 // - 저장 0: 입력·결과·[비슷해요/조금 달라요]는 이 화면에만 있고 서버·나의 이해·매칭으로 가지 않는다.
 // - 사주/타로 콘텐츠 화면은 대표가 허락한 어두운 콘텐츠 테마(Content Dark Exception) — 앱 본 화면(파스텔)과 구분한다.
 
-const EL_COLOR: Record<string, string> = { wood: "#7fbf86", fire: "#e0826c", earth: "#d4b574", metal: "#d9d6cc", water: "#7fa6d6" };
+// 2026-10-06 대표 「일반 사용자는 이미지로 보여 줘야 이해한다」: 글자 칸을 기운 색 타일로 · 다섯 기운은 그림 바퀴로 · 각 장마다 한 줄 안내.
+// 색은 전통 오행 색(나무=초록 · 불=빨강 · 흙=노랑 · 쇠=흰빛 · 물=검정)만 쓴다(다른 서비스 화면을 옮기지 않음).
+const EL_TILE: Record<string, { bg: string; fg: string; icon: string; name: string }> = {
+  wood: { bg: "#3f8f6b", fg: "#fff", icon: "🌳", name: "나무" },
+  fire: { bg: "#e2574c", fg: "#fff", icon: "🔥", name: "불" },
+  earth: { bg: "#e8b545", fg: "#2b2310", icon: "⛰️", name: "흙" },
+  metal: { bg: "#eef0f2", fg: "#20242a", icon: "💎", name: "쇠" },
+  water: { bg: "#23262b", fg: "#fff", icon: "💧", name: "물" },
+};
+// 나를 뜻하는 글자(일간)를 한 장면으로 — 처음 보는 사람도 「아, 나는 이런 결이구나」 하고 들어오게.
+const DAY_IMAGE = ["큰 나무", "풀꽃", "한낮의 해", "촛불", "큰 산", "너른 들", "단단한 바위", "반짝이는 보석", "넓은 바다", "보슬비"];
+const DAY_ICON = ["🌳", "🌿", "☀️", "🕯️", "⛰️", "🌾", "🪨", "💎", "🌊", "🌧️"];
 
-function PillarBox({ label, pillar, gods }: { label: string; pillar: Pillar | null; gods: [TenGod | null, TenGod] | null }) {
-  if (!pillar) return <div className="saju-pillar is-empty"><p className="saju-cap">{label}</p><div className="saju-pillar-body"><span>모름</span></div><p className="saju-cap">시간 없음</p></div>;
-  const se = elementOfStem(pillar.stem), be = elementOfBranch(pillar.branch);
-  return <div className="saju-pillar">
-    <p className="saju-cap">{label}</p>
-    <div className="saju-pillar-body">
-      <div className="saju-char" style={{ borderColor: EL_COLOR[se] }}><b>{pillar.hanja[0]}</b><small>{STEMS_KO[pillar.stem]} · {ELEMENT_KO[se]}</small></div>
-      <div className="saju-char" style={{ borderColor: EL_COLOR[be] }}><b>{pillar.hanja[1]}</b><small>{BRANCHES_KO[pillar.branch]} · {ELEMENT_KO[be]}</small></div>
-    </div>
-    <p className="saju-cap">{gods ? `${gods[0] ?? "나"} · ${gods[1]}` : ""}</p>
+function Tile({ ch, ko, el, sub, me }: { ch: string; ko: string; el: string; sub?: string | null; me?: boolean }) {
+  const t = EL_TILE[el];
+  return <div className={`saju-tile${me ? " is-me" : ""}`} style={{ background: t.bg, color: t.fg }}>
+    <b>{ch}</b><i>{ko}</i>{sub && <small>{sub}</small>}
   </div>;
+}
+
+// 다섯 기운 바퀴: 오각형 자리에 기운 그림 · 많을수록 큰 원 · 둘레 화살표 = 서로 살려 주는 순서(목→화→토→금→수).
+function ElementWheel({ counts }: { counts: Record<string, number> }) {
+  const pos = [[100, 34], [176, 88], [148, 172], [52, 172], [24, 88]];
+  return <svg className="saju-wheel" viewBox="0 0 200 222" role="img" aria-label={ELEMENT_ORDER.map((k) => `${EL_TILE[k].name} ${counts[k]}개`).join(", ")}>
+    <circle cx="100" cy="112" r="76" fill="none" stroke="rgb(255 255 255/.45)" strokeWidth="1.5" strokeDasharray="3 5" />
+    {ELEMENT_ORDER.map((k, i) => {
+      const [x, y] = pos[i]; const n = counts[k]; const r = 14 + Math.min(n, 4) * 3.5;
+      return <g key={k}>
+        <circle cx={x} cy={y} r={r} fill={EL_TILE[k].bg} stroke="#fff" strokeWidth="1.5" opacity={n ? 1 : 0.35} />
+        <text x={x} y={y + 5} textAnchor="middle" fontSize={r * 0.9}>{EL_TILE[k].icon}</text>
+        <text x={x} y={y + r + 13} textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">{EL_TILE[k].name} {n}</text>
+      </g>;
+    })}
+  </svg>;
 }
 
 interface Props { input: SajuInput; onEdit: () => void; onExit: () => void; onTalk: (seedKey: ReturnType<typeof sajuSeedKey>) => void }
@@ -87,44 +109,64 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
     <h1 className="saju-title">내 사주 명식</h1>
     <p className="saju-body">{input.date} · {input.time ?? "시간 모름"} · 양력</p>
 
+    <section className="saju-card saju-hero" aria-label="나를 뜻하는 글자">
+      <p className="saju-hero-icon" aria-hidden="true">{DAY_ICON[r.day_master.stem]}</p>
+      <p className="saju-step">1 · 나</p>
+      <h2 className="saju-h2">나를 뜻하는 글자는 「{STEMS_KO[r.day_master.stem]}」, {DAY_IMAGE[r.day_master.stem]} 같은 결이에요.</h2>
+      <p className="saju-cap">사주는 태어난 순간의 하늘과 땅을 여덟 글자로 적은 거예요. 그중 한 글자가 「나」예요. 아래로 내려가면 나머지 글자가 나를 어떻게 둘러싸는지 볼 수 있어요.</p>
+      <p className="saju-next" aria-hidden="true">↓ 나를 둘러싼 여덟 글자</p>
+    </section>
+
     <section className="saju-card" aria-label="기본 명식">
+      <p className="saju-step">2 · 여덟 글자</p>
       <h2 className="saju-h2">기본 명식</h2>
       <div className="saju-pillars">
-        <PillarBox label="시주" pillar={f.hour} gods={t.hour} />
-        <PillarBox label="일주" pillar={f.day} gods={t.day} />
-        <PillarBox label="월주" pillar={f.month} gods={t.month} />
-        <PillarBox label="년주" pillar={f.year} gods={t.year} />
+        {([["시", f.hour, t.hour], ["일", f.day, t.day], ["월", f.month, t.month], ["년", f.year, t.year]] as const).map(([label, pl, g]) => <div key={label} className="saju-col">
+          <p className="saju-cap">{label}</p>
+          {pl ? <>
+            <Tile ch={pl.hanja[0]} ko={STEMS_KO[pl.stem]} el={elementOfStem(pl.stem)} sub={label === "일" ? "나" : g?.[0] ?? null} me={label === "일"} />
+            <Tile ch={pl.hanja[1]} ko={BRANCHES_KO[pl.branch]} el={elementOfBranch(pl.branch)} sub={g?.[1] ?? null} />
+          </> : <div className="saju-tile is-empty">모름</div>}
+        </div>)}
       </div>
-      <p className="saju-cap">일주의 윗글자({STEMS_KO[r.day_master.stem]})가 나를 뜻해요. 아래 작은 글씨는 나와의 관계(십신)예요.</p>
+      <p className="saju-cap">테두리가 있는 칸({STEMS_KO[r.day_master.stem]})이 나예요. 칸 색은 기운(나무·불·흙·쇠·물), 작은 글씨는 나와의 관계예요.</p>
+      <p className="saju-next" aria-hidden="true">↓ 이 색들을 모아 보면</p>
     </section>
 
     <section className="saju-card" aria-label="오행">
-      <h2 className="saju-h2">오행</h2>
-      <div className="saju-elements">{ELEMENT_ORDER.map((k) => <div key={k} className="saju-element"><span className="saju-dot" style={{ background: EL_COLOR[k] }}>{r.five_elements[k]}</span><span>{ELEMENT_KO[k]}</span></div>)}</div>
-      <p className="saju-cap">명식 {f.hour ? 8 : 6}글자의 오행 개수예요(점수가 아니에요).</p>
+      <p className="saju-step">3 · 다섯 기운</p>
+      <h2 className="saju-h2">내 안의 다섯 가지 기운</h2>
+      <ElementWheel counts={r.five_elements as Record<string, number>} />
+      <p className="saju-cap">명식 {f.hour ? 8 : 6}글자의 오행 개수예요(점수가 아니에요). 많은 기운은 내가 자주 쓰는 결, 적은 기운은 덜 익숙한 결이에요.</p>
+      <p className="saju-next" aria-hidden="true">↓ 그럼 지금은 어떤 때일까요</p>
     </section>
 
     <section className="saju-card" aria-label="현재 흐름">
+      <p className="saju-step">4 · 지금</p>
       <h2 className="saju-h2">지금 흐름</h2>
       {cf.lines.length ? cf.lines.map((l, i) => <p key={i} className="saju-body">{l}</p>) : <p className="saju-body">성별을 고르지 않아 10년 흐름은 계산하지 않았어요.</p>}
     </section>
 
     <section className="saju-card" aria-label="10년 흐름">
+      <p className="saju-step">5 · 큰 흐름</p>
       <h2 className="saju-h2">10년 흐름</h2>
       {r.major_cycles ? <>
         <p className="saju-cap">{r.major_cycles.startAgeText}부터 10년마다 바뀌어요 · {r.major_cycles.direction === "forward" ? "순행" : "역행"}</p>
-        <ol className="saju-cycles">{r.major_cycles.cycles.map((c) => <li key={c.order} className={cf.cycle?.order === c.order ? "is-now" : ""}><b>{c.pillar.hanja}</b><span>{c.startAge}세~</span><small>{c.tenGod}</small></li>)}</ol>
+        <ol className="saju-cycles">{r.major_cycles.cycles.map((c) => <li key={c.order} className={cf.cycle?.order === c.order ? "is-now" : ""}><span>{c.startAge}세~</span><Tile ch={c.pillar.hanja[0]} ko={STEMS_KO[c.pillar.stem]} el={elementOfStem(c.pillar.stem)} /><Tile ch={c.pillar.hanja[1]} ko={BRANCHES_KO[c.pillar.branch]} el={elementOfBranch(c.pillar.branch)} /><small>{c.tenGod}</small></li>)}</ol>
       </> : <p className="saju-body">성별을 고르지 않아 계산하지 않았어요. 다시 입력에서 고를 수 있어요.</p>}
     </section>
 
     <section className="saju-card" aria-label="연도별 흐름">
+      <p className="saju-step">6 · 올해와 다음 해</p>
       <h2 className="saju-h2">연도별 흐름</h2>
+      <p className="saju-cap">궁금한 해를 눌러 보세요.</p>
       <div className="saju-years" role="group" aria-label="연도 고르기">{r.annual_flow.map((a) => <button key={a.year} type="button" aria-pressed={a.year === picked.year} onClick={() => setPickedYear(a.year)}><b>{a.year}</b><small>{a.pillar.hanja}</small></button>)}</div>
       <p className="saju-body">{picked.year}년 {picked.pillar.hangul}({picked.pillar.hanja})은 나에게 {picked.tenGod} 자리예요. {groupFlow(picked.tenGod)}</p>
       <p className="saju-cap">이 시기를 돌아보는 참고로만 봐 주세요. 정해진 일을 알려 주는 건 아니에요.</p>
     </section>
 
     <section className="saju-card" aria-label="주제별 해설">
+      <p className="saju-step">7 · 궁금한 것만</p>
       <h2 className="saju-h2">주제별로 보기</h2>
       {topics(r).map((tp) => <div key={tp.id} className="saju-topic">
         <button type="button" aria-expanded={openTopic === tp.id} onClick={() => setOpenTopic(openTopic === tp.id ? null : tp.id)}>{tp.title}<span aria-hidden="true">{openTopic === tp.id ? "▴" : "▾"}</span></button>

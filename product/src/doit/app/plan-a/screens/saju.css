@@ -46,3 +46,18 @@
 .saju-story .saju-story-text{font-size:16px;line-height:1.85;font-weight:500;word-break:keep-all}
 .saju-story .saju-story-closing{margin-top:4px;padding-left:12px;border-left:2px solid rgb(255 255 255/.5);font-weight:700;word-break:keep-all}
 .saju-story .saju-story-next{margin-top:14px;font-weight:700}
+/* 2026-10-06 대표 「이미지로 보여 줘야 이해한다」: 기운 색 타일 · 다섯 기운 바퀴 · 첫 장면 · 장 번호 · 다음 장으로 이끄는 한 줄 */
+.saju-hero{text-align:center}
+.saju-hero-icon{margin:0 0 6px;font-size:52px;line-height:1.1}
+.saju-step{display:inline-block;margin:0 0 8px;padding:3px 10px;border-radius:999px;background:rgb(10 14 20/.32);font-size:12px;font-weight:800;letter-spacing:.02em;color:#fff}
+.saju-next{margin:14px 0 0;font-size:13px;font-weight:700;color:rgb(255 255 255/.86);text-align:center}
+.saju-col{display:grid;gap:6px;align-content:start}
+.saju-col>.saju-cap{margin:0}
+.saju-tile{display:grid;justify-items:center;gap:1px;padding:8px 2px;border-radius:12px;box-shadow:0 2px 8px rgb(0 0 0/.18)}
+.saju-tile b{font-size:24px;line-height:1.15;font-weight:800}
+.saju-tile i{font-style:normal;font-size:12px;font-weight:700}
+.saju-tile small{font-size:10.5px;font-weight:700;opacity:.92}
+.saju-tile.is-me{outline:3px solid #fff;outline-offset:2px}
+.saju-tile.is-empty{min-height:120px;place-items:center;border:1px dashed rgb(255 255 255/.5);background:transparent;box-shadow:none;font-weight:700}
+.saju-cycles li .saju-tile{padding:4px 2px}.saju-cycles li .saju-tile b{font-size:18px}
+.saju-wheel{display:block;width:100%;max-width:260px;margin:0 auto}

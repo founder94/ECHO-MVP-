@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SajuTaroEntry } from "@/doit/app/plan-a/screens/SajuTaroEntry";
 import { SajuInput } from "@/doit/app/plan-a/screens/SajuInput";
 import { TaroCardSelect } from "@/doit/app/plan-a/screens/TaroCardSelect";
@@ -33,8 +33,11 @@ type Step = "entry" | "input" | "result";
 
 export default function Fortune() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("entry");
-  const [mode, setMode] = useState<Mode>("saju");
+  // 2026-10-06 홈 그림 문(사주·타로)에서 바로 들어오면 고르기 화면을 건너뛴다(/doit/fortune?mode=saju|taro).
+  const [params] = useSearchParams();
+  const deep = params.get("mode");
+  const [step, setStep] = useState<Step>(deep === "saju" || deep === "taro" ? "input" : "entry");
+  const [mode, setMode] = useState<Mode>(deep === "taro" ? "taro" : "saju");
   const [sajuInput, setSajuInput] = useState<SajuCalcInput | null>(null);
 
   const exitToHome = () => navigate("/doit/home");
