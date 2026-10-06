@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ELEMENT_KO, ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, type Pillar, type SajuInput, type TenGod } from "@/doit/lib/saju/engine";
 import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doit/lib/saju/explain";
 import "./saju.css";
+import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 
 // 무료 사주 결과(2026-09-26 대표 「SAJU / TAROT FINAL LOCK」): 입력 → 계산 엔진 → 명식 · 오행 · 현재 흐름 · 10년 흐름 · 연도별 흐름 · 주제별 해설 · 정리.
 // - 명식·오행·흐름은 engine.ts 계산값만, 해설은 explain.ts 규칙 문장만(AI 0 · 가짜 예시 0).
@@ -110,6 +111,8 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
 
     {r.calculation_meta.notes.length > 0 && <section className="saju-note" aria-label="계산 참고">{r.calculation_meta.notes.map((n, i) => <p key={i} className="saju-cap">{n}</p>)}</section>}
     <p className="saju-cap">계산 기준: 양력 · 한국 시간 · 절기 기준 월 · 밤 11시 반부터 다음 날. 입력한 생일·시간은 이 휴대폰에서 계산에만 쓰고 저장하지 않아요.</p>
+
+    {OPEN_PERIOD.active && <p className="saju-cap">{OPEN_PERIOD.result}</p>}
 
     <div className="saju-actions">
       <button type="button" className="saju-secondary" onClick={onEdit}>다시 입력할게요</button>

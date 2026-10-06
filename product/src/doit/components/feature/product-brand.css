@@ -22,6 +22,7 @@
 .doit-product-nav a[aria-current="page"]:before{content:"";position:absolute;top:0;width:24px;height:2px;background:#e4e5e6;box-shadow:0 2px 12px #ffffff38}
 .doit-product :is(a,button):focus-visible,.doit-profile-review :is(a,button):focus-visible{outline:2px solid #f1f1ed;outline-offset:5px}
 .doit-product-story{padding:32px 0 20px;animation:doit-product-arrive .7s ease-out both}
+.doit-open-period{font:500 12px/1.6 var(--font-body,system-ui);color:#6b7280;margin:-8px 0 16px}
 .doit-product-kicker{font:500 10px/1.5 var(--font-label,system-ui);letter-spacing:.18em;text-transform:uppercase;color:#a1a5ae;margin:0 0 17px}
 .doit-product-title{font-family:var(--font-heading,"Gothic A1",sans-serif);font-size:clamp(27px,7.4vw,32px);font-weight:600;letter-spacing:-.055em;line-height:1.48;color:#f2f1ef;margin:0;word-break:keep-all;overflow-wrap:anywhere}
 .doit-product-description{font-weight:500;font-size:14px;line-height:1.9;color:#adb1ba;margin:20px 0 0;word-break:keep-all;overflow-wrap:anywhere}

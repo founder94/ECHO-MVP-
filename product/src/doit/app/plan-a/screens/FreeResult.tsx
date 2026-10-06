@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import { TAROT_DECK } from "../tarotDeck";
 import { TarotCardArt } from "../components/TarotCardArt";
 import { ResultCard, SajuPreviewSection, readSelectedCard } from "./FreeResult.parts";
+import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 
 interface Props {
   mode: "saju" | "taro";
@@ -550,6 +551,9 @@ export function FreeResult({
           <br />
           단정하는 내용이 아니에요.
         </p>
+        {OPEN_PERIOD.active && (
+          <p className="mt-2 text-center" style={{ color: surfaces.onPageFaint, fontSize: 11.5, lineHeight: 1.6 }}>{OPEN_PERIOD.result}</p>
+        )}
       </div>
 
       <div
