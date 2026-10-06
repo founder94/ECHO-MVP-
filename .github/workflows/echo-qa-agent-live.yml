@@ -73,6 +73,7 @@ jobs:
           QA_ANON="$(sed -n 's/^  QA_SUPABASE_ANON: //p' ../.github/workflows/echo-netlify-deploy.yml)"
           [ -n "$QA_ANON" ] || { echo 'QA public key missing'; exit 1; }
           export QA_ANON
+          mkdir -p qa-sweep-out
           node qa-real/qa-live-sweep.mjs qa-sweep-out | tee qa-sweep-out/result.txt
           ! grep -q '^FAIL' qa-sweep-out/result.txt
       - uses: actions/upload-artifact@v4
