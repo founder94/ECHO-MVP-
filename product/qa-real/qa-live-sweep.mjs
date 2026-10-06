@@ -57,7 +57,7 @@ try { const { ctx, p } = await open(`${APP}/doit/fortune`);
   await waitIdle(p); check('② 결과 → 사주 참고 이야기(여는 한 줄 · 질문 0)', talk && /참고 이야기/.test(await txt(p)) && await p.locator('.echo-ref-line--echo').count() >= 1 && !/[?？]/.test(await p.locator('.echo-ref-line--echo').first().innerText().catch(() => '?')), p.url());
   await p.locator('#echo-ref-text').fill('나 그런 사람 아닌데, 저는 사람 많은 데를 좋아해요'); await clickText(p, /^보내기$/, 1500); await waitIdle(p);
   const t2 = await txt(p); check('② 해석 부정 → 영수증 「사주보다 당신 말이 맞아요」 + 반영할까요?', /사주보다 당신 말이 맞아요/.test(t2) && /프로필에도 반영할까요/.test(t2), t2.slice(-200)); await shot(p, '02d-saju-deny-receipt');
-  await clickText(p, /^반영할게요$/, 1500); check('② [반영할게요] → 반영했어요', /반영했어요/.test(await txt(p)), (await txt(p)).slice(-160)); await shot(p, '02e-saju-reflected');
+  await clickText(p, /^반영할게요$/, 500); { const t0 = Date.now(); while (Date.now() - t0 < 12000 && !/반영했어요/.test(await txt(p))) await p.waitForTimeout(300); } check('② [반영할게요] → 반영했어요', /반영했어요/.test(await txt(p)), (await txt(p)).slice(-160)); await shot(p, '02e-saju-reflected');
   await clickText(p, /질문 하나 받아 보기/, 1500); await waitIdle(p); check('② 「질문 하나 받아 보기」 = 물음표 질문 1개', await p.locator('.echo-ref-line--question').count() === 1, String(await p.locator('.echo-ref-line--question').count()));
   await ctx.close(); } catch (e) { check('섹션 예외(멈추지 않음)', false, String(e).split('\n')[0]); }
 // ③ 타로: 시작 그림 → 목적 → 새 카드 뽑기 → 카드 → 해석(실제 AI) → ECHO와 조금 더 이야기하기
@@ -92,6 +92,8 @@ try { const { ctx, p } = await open(`${APP}/doit/conversation`);
     await p.waitForTimeout(1500); await waitIdle(p, 60000);
     diag += ` err=${(await p.locator('.echo-error').allInnerTexts().catch(() => [])).join('|').slice(0, 120)}`;
   }
+  // 소개 카드(AgentIntroCard): 「대화 시작하기」 + 말투 고르기 — 누르면 서버가 첫 질문을 만든다(실제 AI)
+  { const begin = p.getByRole('button', { name: /^대화 시작하기/ }).first(); if (await begin.count()) { await begin.click({ timeout: 8000 }).catch(() => undefined); diag += ' intro=clicked'; await p.waitForTimeout(1500); await waitIdle(p, 60000); } }
   const ta = p.locator('#echo-message'); const sendBtn = p.getByRole('button', { name: /답변 보내기|고친 답 보내기/ }).first();
   await ta.waitFor({ state: 'visible', timeout: 60000 }).catch(() => undefined);
   await shot(p, '04a-conv-after-start');
