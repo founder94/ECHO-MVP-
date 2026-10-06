@@ -70,10 +70,14 @@ test('참고 이야기 ③ 「질문 하나 해줘」 = 그 요청에만 질문 
   s.ai.push({ reply: '그랬군요. 그 사람 생각이 났다니 마음이 쓰였겠어요.', question: '그 사람과는 요즘 어때요?' });
   const b = await ref(h, { text: '응 친구가 생각났어', history: [{ role: 'user', text: '질문 하나 해줘' }, { role: 'echo', text: a.body.question }] });
   assert.equal(b.status, 200); assert.equal(b.body.question, null, '허용은 그 요청 한 번만');
-  // 두 문장 · 물음표 둘인 질문은 받지 않음(질문은 한 개)
+  // 두 문장 · 물음표 둘인 질문은 받지 않음(질문은 한 개) → 청했는데 맞는 질문이 없으면 가짜 성공 대신 502 AI_FORMAT(앱 = 다시 보내기)
   s.ai.push({ reply: '그럼 하나만요.', question: '언제였어요? 누구랑요?' });
   const c = await ref(h, { text: '물어봐 줘' });
-  assert.equal(c.body.question, null);
+  assert.equal(c.status, 502, JSON.stringify(c.body)); assert.equal(c.body.code, 'AI_FORMAT');
+  // QA 실서버(v106): 「질문 하나 해줘」에 질문 없이 「편하게 물어봐 주세요」만 옴 → 502(질문 없는 성공 0)
+  s.ai.push({ reply: '물론이죠. 편하게 물어봐 주세요.', question: '' });
+  const e = await ref(h, { text: '질문 하나 해줘' });
+  assert.equal(e.status, 502, JSON.stringify(e.body)); assert.equal(e.body.code, 'AI_FORMAT');
   // Codex P2(4187055577): 누가 물었다는 이야기는 청한 것이 아님 → 질문 0
   for (const t of ['친구가 질문을 하나 해줘서 고마웠어', '그 사람이 물어봐서 당황했어', '친구는 만날 때마다 질문을 하나 해', '동생은 늘 질문을 해요', '동생은 늘 물어봐']) { // Codex P2(4187134611): 서술 꼴은 청한 것이 아님
     s.ai.push({ reply: '그랬군요. 마음이 쓰였겠어요.', question: '그때 어떤 기분이었어요?' });
