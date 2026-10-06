@@ -73,6 +73,7 @@ export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과
 규칙:
 - 한국어로, 부드럽게 답해.
 - allow_question 이 false 이면 질문하지 마. reply 에도 물음표·「~해요?」 같은 질문 문장을 넣지 마.
+- allow_question 이 true 이면 사용자가 「ECHO 에게서 질문을 하나 받고 싶다」고 청한 것이다. 사용자에게 「물어봐 주세요」처럼 되돌리지 말고, question 에 지금 이야기(ref·history·latest)에 맞는 짧은 질문 한 문장을 반드시 쓴다. reply 는 짧은 한마디(물음표 없이).
 - 사용자가 직접 한 말에만 응답해. 카드·사주(ref)만 보고 성격·감정·관계를 단정하지 마(ref 는 참고일 뿐이야).
 - 미래·결혼·건강·투자를 단정하지 마. 상담·진단처럼 말하지 마.
 - 사용자에게 무엇을 하라고 시키거나 다음 단계를 재촉하지 마.`;
@@ -109,6 +110,8 @@ export function parseRef(raw: string, allowQuestion: boolean): RefReply | null {
     const q = (typeof o.question === "string" ? o.question : "").trim();
     // 한 문장 · 물음표 하나로 끝남 · 짧게
     if (q && q.length <= 80 && /[?？]\s*$/.test(q) && (q.match(/[?？]/g) ?? []).length === 1 && sentences(q).length === 1) question = q;
+    // QA 실서버(v106): 「질문 하나 해줘」에 질문 없이 「편하게 물어봐 주세요」만 옴 → 청한 질문이 없으면 성공으로 넘기지 않는다(가짜 성공 0 · 앱은 다시 보내기)
+    if (!question) return null;
   }
   return { reply: body, question };
 }
