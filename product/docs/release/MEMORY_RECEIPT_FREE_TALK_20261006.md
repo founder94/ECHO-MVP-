@@ -14,7 +14,7 @@
 | A4 화면 | `src/doit/pages/do-it/understanding/page.tsx`, `understanding-pages.css` | 「ECHO가 아는 나」 네 칸(확인 / AI 짐작·확정 아님 / 고친 것 / 아니라고 한 것) · 줄마다 지우기 · 민감 주제 글자 미표시 |
 | B 사주·타로 | `supabase/functions/doit-agent/reference-talk.ts`, `index.ts` | 해석 부정(`denyInterpretation`) = 고정 영수증 「사주보다/카드보다 당신 말이 맞아요. 「…」로 기억할게요.」 + `correction`(모델 0 · 저장 0) |
 | B 화면 | `src/doit/app/plan-a/screens/RefTalk.tsx`, `ref-talk.css` | 「이 말, 내 프로필에도 반영할까요?」 [반영할게요]/[여기서만 기억] → 반영일 때만 `agent_self_note`(해석 원문 0) |
-| C/D/E 서버 | `supabase/functions/doit-agent/free-talk.ts`(새) | 스위치 `FREE_TALK_ENABLED=on`(기본 꺼짐) · 맛보기 3회(계정당 평생) · 유료 권한(`doit_entitlements` 초안 또는 QA 시험용 `FREE_TALK_TEST_USERS`) · 하루 30회(`FREE_TALK_DAILY`) · 월 5,000원(`FREE_TALK_MONTH_KRW` · 환율 없으면 월 300턴) · 요청당 호출 3 · 토큰 8,000 · 출력 768 · OpenAI 첫 후보만 · 가드(위기·연락처·성적·주입·역할극) · 답 글 저장 0(금액·토큰만) |
+| C/D/E 서버 | `supabase/functions/doit-agent/free-talk.ts`(새) | 스위치 `FREE_TALK_ENABLED=on`(기본 꺼짐) · 맛보기 3회(계정당 평생) · 유료 권한(`doit_entitlements` 초안 또는 QA 시험용 `FREE_TALK_TEST_USERS`) · 하루 30회(`FREE_TALK_DAILY`) · 월 5,000원(`FREE_TALK_MONTH_KRW`) · 회사 월 10,000원(`FREE_TALK_COMPANY_MONTH_KRW`) · 요청당 호출 3 · 토큰 8,000 · 출력 768 · 요청당 0.01달러(`FREE_TALK_MAX_COST_USD` · 단가로 토큰 상한 재계산) · **단가(AI_POLICY openai.price)·환율(`FREE_TALK_KRW_PER_USD` 또는 `COMPANY_AI_KRW_PER_USD`) 없으면 호출 0(503)** · 유료 권한은 `doit_entitlements` 초안 · 계정 메타 `app_metadata.doit_free_talk=true` · `FREE_TALK_TEST_USERS` 셋 중 하나 · OpenAI 첫 후보만 · 가드(위기·연락처·성적·주입·역할극) · 답 글 저장 0(금액·토큰만) |
 | C 화면 | `src/doit/pages/do-it/talk/page.tsx`(새) · `routes.tsx` · `agentApi.ts` | 「나를 기억하는 ECHO와 무엇이든 대화」 · AI 표시 · 모델명 0 · 가격 숫자 0 · 결제 버튼 0(토스 심사 중) · 스위치 꺼짐 안내 |
 | DB 초안 | `supabase/drafts/PENDING_20261006_free_talk.sql` | 유료 권한 표(실행 금지 · 승인 대상) |
 | 검사 | `qa/memory-receipt-20261006.test.mjs`, `qa/free-talk-20261006.test.mjs`, `qa-real/qa-memory-live.mjs`, `.github/workflows/echo-qa-agent-live.yml` | 모의 검사 2벌 · QA 실서버 검사 1벌(워크플로에 연결) |
@@ -85,7 +85,7 @@
 
 ## 7. 병합·게시 조건과 남은 것
 - 최종 지시: 「echo-qa 병합·QA 게시는 Codex 통과 후」. Codex 는 2026-10-06 현재 사용 한도 초과(#147 자동 댓글) → **PR 을 올려 두고 Codex 재검수(토요일) 또는 대표 「병합」 한마디를 기다린다**. 대표가 Codex 없이 병합을 원하면 그때 QA 서버 함수 배포 요청 파일을 올리고 QA 게시·실서버 검사까지 진행한다.
-- QA 에서 자유 대화를 켜려면 QA 함수 환경값 `FREE_TALK_ENABLED=on` · `FREE_TALK_DAILY=10` · `FREE_TALK_TEST_USERS=<시험 계정 id>` 설정이 필요(Secret 변경 = 대표 승인 대상). 켜지 않으면 QA 실서버 검사 ⑩은 「꺼짐=503」만 확인한다.
+- QA 에서 자유 대화를 켜려면 QA 함수 환경값 `FREE_TALK_ENABLED=on` · `FREE_TALK_DAILY=10` · `FREE_TALK_KRW_PER_USD=1400`(또는 기존 `COMPANY_AI_KRW_PER_USD`) · `AI_POLICY` 에 openai `price`(0.15/0.60) · `FREE_TALK_TEST_USERS=<시험 계정 id>` 설정이 필요(Secret 변경 = 대표 승인 대상). 켜지 않으면 QA 실서버 검사 ⑩은 「꺼짐=503」만 확인한다.
 - 회사 월 예산 10,000원(E.17) 적용은 `COMPANY_AI_BUDGET` 장부(초안 미적용)와 함께 — 아직 꺼짐.
 - 캡처: 모의 서버 기준 6장은 PR 본문·`docs/release/shots-20261006/`에 · QA 실화면 캡처는 QA 게시 뒤 추가.
 
@@ -101,6 +101,7 @@
 | 4 | QA 실서버 버튼 검사(시작부터) | 세션 | `qa-real/qa-memory-live.mjs`(워크플로) + 전체 버튼 스윕 스크립트 · 캡처 | FAIL 0 이어야 5번으로 |
 | 5 | 운영 서버 함수 배포(doit-agent · doit-connect · doit-understanding) | ★대표 | 방법 A: Supabase 대시보드 → 운영 프로젝트(zyyhhxyupizcqhxqnxuu) → Edge Functions → 각 함수 「Deploy」(echo-qa 파일 그대로) · 방법 B: `product/docs/release/DRAFT_echo-prod-edge-deploy.yml.txt` 를 `.github/workflows/echo-prod-edge-deploy.yml` 로 올린 뒤 Actions 에서 go=GO 로 실행(ECHO-PROD 승인) | 운영 판 번호 증가(doit-agent 17→, doit-connect 9→, doit-understanding 29→) · 로그인 없는 요청 401 |
 | 6 | 운영 함수 비밀값 확인(값은 보지 않음 · 있음/없음만) | ★대표 | Supabase 대시보드 → Edge Functions → Secrets: `OPENAI_API_KEY` · `MATCH_SOURCE=agent` · `CORS_ALLOWED_ORIGINS`(app.do-it.company 포함) · `FREE_TALK_ENABLED` 은 **두지 않음(기본 꺼짐)** | 없으면 5번 배포 뒤 첫 대화가 503/500 |
+| 6-2 | 사진 AI 확인(doit-photo-check)이 사진을 OpenAI 로 보내는 점과 처리방침 불일치(GF-95) — 재동의·일시중지·법무검토 중 결정 | ★대표 | 운영 배포 전 결정 · 이번 PR 은 그 함수를 건드리지 않음 | 결정 전엔 사진 확인 기능 안내 문구 검토 |
 | 7 | 운영 웹·앱 게시(1회 빌드 · brand+app 2곳 = 30 credits) | ★대표 | Actions → `echo-netlify-deploy` → Run workflow: target=**prod** · prod_roles=**brand,app** · go=**GO** → ECHO-PROD 환경 승인 | do-it.company · app.do-it.company 새 판 · Stale Redirect Guard 통과 |
 | 8 | 운영 확인(읽기만) | 세션/대표 | 홈 → 로그인 → 대화 시작 → 정정 1회 영수증 → 「ECHO가 아는 나」 → 사주·타로 시작 그림 | 실기기 1대 확인 전에는 「운영 확인 완료」라 쓰지 않음 |
 
@@ -109,3 +110,33 @@ Netlify 절약: QA 는 app 1곳만(brand 는 이번 PR 에서 안 바뀜) · 운
 되돌리기: 운영 함수는 Supabase 대시보드에서 이전 판(doit-agent v17 · doit-connect v9 · doit-understanding v29) 복원 · Netlify 는 사이트 → Deploys → 이전 배포 「Publish deploy」.
 
 주의(운영 전 대표 판단 필요): ① 사주·타로 시작 화면 그림 2장은 검색 결과 이미지라 저작권 확인 전에는 운영 노출을 권하지 않음(#147) ② 자유 대화는 운영에서도 스위치 꺼짐(503) — 토스 심사 뒤 켜기 ③ `doit_entitlements` 표는 초안만(운영 DB 변경 0).
+
+
+## 9. 2026-10-06 21:30 인계(다른 세션 PR #149) 대조 · 보강 결과
+
+같은 대표 지시를 두 세션이 각각 구현했다. **PR #148(이 PR)과 PR #149는 같은 파일 11개(agent.ts · index.ts · free-talk.ts · reference-talk.ts · RefTalk.tsx · AgentConversation.tsx · agentApi.ts · routes.tsx 등)를 다르게 고쳐서 둘 다 병합할 수 없다.** 아래 표대로 #149 에만 있던 것을 #148 에 보강했으므로, 권장 = **#148 병합 · #149 닫기(기록 보존)**. 최종 선택은 대표.
+
+| #149(인계문) 항목 | #148 상태 | 보강(이번 커밋) |
+|---|---|---|
+| 영수증: 서버 저장 뒤 고정 한 줄(AI 0) | 있음(`turn.receipt`) | — |
+| 건강·성·돈 이야기면 일반 문장 「알겠어요. 고친 내용으로 기억할게요.」 | 없었음 | **추가**(`makeReceipt` · 다음 질문 인용도 0) |
+| 고치는 말일 때만 지시 한 줄(latest_may_fix) · 짚었는지 관측(fix_cited) | 다른 방식: 서버가 고정 문장으로 인용(`cite` · 모델에 맡기지 않음) + `user_corrected` 재료 | 관리자 탭에 「인용 턴 수」 표시로 관측 |
+| 「ECHO가 아는 나」 4칸 · 줄 지우기 | 있음(/doit/understanding · 아니라고 한 것도 지우기 가능) | — (지우기 범위는 대표 선택) |
+| 사주·타로 정정 → 영수증 → [반영할게요] → USER_CORRECTED | 있음(`agent_self_note` · 「내가 고친 것」 + 연결 재료) | — |
+| 자유 대화 스위치 기본 끔 · 맛보기 3회 · 하루 30 · 한 사람 월 5,000원 | 있음 | — |
+| 회사 한 달 10,000원 | 없었음(회사 예산 장부에만 의존) | **추가**(`FREE_TALK_COMPANY_MONTH_KRW` · 모든 사용자 합산 · 못 세면 닫힘 503) |
+| 요청 하나 = 호출 3 · 토큰 8,000 · 0.01달러 | 호출·토큰만 | **추가**(`FREE_TALK_MAX_COST_USD` · 단가로 토큰 상한 재계산) |
+| 단가·환율 없으면 호출 0 | 없었음(월 300턴 대체 상한) | **추가**(503 FREE_TALK_CONFIG · 대체 상한 삭제) |
+| 권한 = app_metadata 또는 테스트 계정 목록 | 테스트 목록 + `doit_entitlements` 초안 | **추가**(`app_metadata.doit_free_talk` / `doit_free_chat`) |
+| 사용자 잠금 안에서 상한 셈(동시 요청) | 있음(`freeCapped` · 자리 잠금 안) | — |
+| 위기·성적·역할극·연락처 = 모델 0 · 재료 = 본인 것만 · 글 저장 0 | 있음 | — |
+| 대화 중 말 종류 ask + 스위치 켜짐 → 「맛보기 N번 남았어요」 안내 | 없었음(참고 이야기 화면에만) | **추가**(AgentConversation · 기본 꺼짐이면 0) |
+| 관리자 모바일 「기억·자유 대화」 탭 + admin_free_summary | 없었음 | **추가**(수치만 · 글 0 · 관리자 역할 서버 재확인) |
+| 관리자 사이트 Revenue 에 자유 대화 이번 달 비용 | 없었음 | **추가**(admin/api.ts 에 doit-agent 허용 · 관리자 사이트 → doit-agent CORS 허용 주소는 QA 에서 확인 필요) |
+| 추천 이유 「고쳐 주신 대로 ~」(doit-connect) | **#148 에만 있음** | — |
+| 법무 초안 · 처리방침 확인 | 있음(§4·§5) | — |
+| 검사(모의): #149 전체 1423/0 · 새 21 | #148 전체 아래 「최종 수치」 · 새 memory-receipt 9 · free-talk 12 | — |
+
+#141(사주 이야기 · openai-chat 하루 제한 · KEY 안내)은 #148 과 파일이 겹치지 않는다(별도 병합 가능).
+
+인계문의 열린 결정(대표): 자유 대화 한도(권장 하루 30 · 한 사람 월 5,000 · 회사 월 10,000) · KEY 값 · 처리방침 「사주 정정 매칭 사용」 문구 삽입 여부(재동의 포함) · 사진 AI 확인(doit-photo-check)이 사진을 OpenAI 로 보내는 것과 처리방침 불일치(GF-95 · 재동의/일시중지/법무검토).

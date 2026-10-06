@@ -1162,7 +1162,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   turn.reply = reply; turn.question = question;
   // 2026-10-06 다음 장면 증거: 정정 직후의 새 질문 한 번에만 고친 내용을 서버가 짧게 인용한다(「「고친 내용」으로 알아들었어요.」 + 질문 · AI 0 · 질문 본문·같은 질문 판정은 그대로).
   if (st.current && st.current.cite && !(receipt?.after.length)) delete st.current.cite; // 검수 P2-1: 인용은 정정 직후 한 번만 — 같은 질문이 유지돼도(모르겠다·되묻기) 다음 턴부터는 뗀다
-  if (question && receipt?.after.length && st.current && ["core", "core_relabeled", "fill", "clarify"].includes(decision)) { st.current.cite = citeLine(receipt.after); turn.cite = st.current.cite; } turn.decision = finish ? (opts.limitReached ? "finish_limit" : decision === "finish_enough" ? "finish_enough" : needsMoreAnswers(st) ? "finish_not_ready" : "finish") : decision; // v2.4.5 준비 미완료로 멈춤을 따로 남긴다
+  if (question && receipt?.after.length && st.current && ["core", "core_relabeled", "fill", "clarify"].includes(decision)) { const c = citeLine(receipt.after); if (c) { st.current.cite = c; turn.cite = c; } } turn.decision = finish ? (opts.limitReached ? "finish_limit" : decision === "finish_enough" ? "finish_enough" : needsMoreAnswers(st) ? "finish_not_ready" : "finish") : decision; // v2.4.5 준비 미완료로 멈춤을 따로 남긴다
   // 이 답이 사용자에게 보인 AI 해석(출처 기록) — 다음 말이 모호한 거절이면 이것만 대상이 된다.
   const shownNow = kept.map((k) => ({ purpose: k.purpose, item: st.slots[k.purpose].items.find((i) => i.note === k.note && i.turn === k.turn && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED") }))
     .filter((x) => x.item && shownIn(reply, x.item)).map((x) => ({ purpose: x.purpose, note: x.item!.note }));
@@ -1225,11 +1225,12 @@ const neun = (t: string) => (batchim(t) ? "은" : "는");
 export function makeReceipt(before: string[], after: string[]): Receipt | null {
   const b = [...new Set(before.map(rcpt).filter(Boolean))].slice(0, 2), a = [...new Set(after.map(rcpt).filter(Boolean))].slice(0, 2).filter((x) => !b.includes(x));
   if (!b.length && !a.length) return null;
+  if ([...b, ...a].some((x) => SENSITIVE_TOPIC.test(x))) return { line: "알겠어요. 고친 내용으로 기억할게요.", before: b, after: a }; // 건강·성·돈 이야기는 글자를 되풀이하지 않는다(일반 문장)
   const B = b.join(" · "), A = a.join(" · ");
   const line = b.length && a.length ? `알겠어요. 「${B}」${ga(B)} 아니라 「${A}」${ro(A)} 기억할게요.` : a.length ? `알겠어요. 「${A}」${ro(A)} 기억할게요.` : `알겠어요. 「${B}」${neun(B)} 아니라고 기억할게요.`;
   return { line, before: b, after: a };
 }
-export const citeLine = (after: string[]) => { const A = after.map(rcpt).filter(Boolean).slice(0, 2).join(" · "); return A ? `「${A}」${ro(A)} 알아들었어요.` : ""; };
+export const citeLine = (after: string[]) => { if (after.some((x) => SENSITIVE_TOPIC.test(x))) return ""; const A = after.map(rcpt).filter(Boolean).slice(0, 2).join(" · "); return A ? `「${A}」${ro(A)} 알아들었어요.` : ""; }; // 민감 주제는 다음 질문에도 되풀이 0
 // 민감 주제(건강·성·금전 등)는 「ECHO가 아는 나」에서 글자를 다시 적지 않는다(지우기는 가능). 사실 판단이 아니라 되풀이 금지 규칙.
 export const SENSITIVE_TOPIC = /(건강|질병|질환|병원|진단|우울|불안|공황|복용|약을?\s*먹|성관계|섹스|성적|야한|몸\s*사진|돈|월급|연봉|수입|빚|대출|재산|투자|주식|코인)/;
 export interface KnownLine { key: string; text: string; quote: string | null; purpose: string | null; at: string | null; sensitive: boolean; from: string[]; origin: string }

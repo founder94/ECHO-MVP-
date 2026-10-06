@@ -43,7 +43,7 @@ const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
 const LOCK_WAIT_MS = 25;
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref", "agent_confirm", "agent_forget", "agent_self_note", "agent_free_talk"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref", "agent_confirm", "agent_forget", "agent_self_note", "agent_free_talk", "admin_free_summary"]);
 // 2026-10-06 대표 「기억 영수증」: agent_confirm = 「맞아요」(지금 이해를 사용자 확인으로) · agent_forget = 「ECHO가 아는 나」 줄 지우기 · agent_self_note = 사주·타로 이어 대화에서 사용자가 「프로필에도 반영」을 고른 자기 문장(해석 원문 0)
 const SELF_NOTES_ACTION = "agent_self_notes"; const SELF_NOTES_MAX = 30; const SELF_NOTE_MAX = 200;
 interface SelfNote { text: string; at: string; origin: "ref_correction" | "self"; id?: string } // id = 지우기 열쇠(검수 P2-12 · 같은 밀리초 두 줄 구분)
@@ -307,8 +307,8 @@ function knownWith(st: A.AgentState, notes: SelfNote[]): A.KnownView {
 // ── 2026-10-06 유료 자유 대화 상태(모델 0 · 읽기만). 자리(claim) 지문 = "free:trial:<sha>" / "free:paid:<sha>" — 맛보기·유료를 세는 열쇠(원문 0).
 //   권한 = QA 시험용 권한 목록(FREE_TALK_TEST_USERS) 또는 doit_entitlements 표(초안 PENDING_20261006_free_talk.sql · 표가 없으면 권한 0 · 오류도 권한 0).
 interface FreeRow { payload_hash: string | null; status: string | null; error_code?: string | null; created_at: string | null; free: { cost_usd?: unknown; tokens?: unknown } | null }
-async function freeStatus(admin: Db, userId: string, cfg: FT.FreeTalkConfig): Promise<{ entitled: boolean; trials_used: number; trial_left: number; daily_used: number; daily_left: number; month_krw: number | null; month_turns: number; unknown: boolean }> {
-  let entitled = cfg.testUsers.has(userId);
+async function freeStatus(admin: Db, userId: string, cfg: FT.FreeTalkConfig, appMeta: Record<string, unknown> | null = null): Promise<{ entitled: boolean; trials_used: number; trial_left: number; daily_used: number; daily_left: number; month_krw: number | null; month_turns: number; company_krw: number | null; unknown: boolean }> {
+  let entitled = cfg.testUsers.has(userId) || appMeta?.doit_free_talk === true || appMeta?.doit_free_chat === true; // 계정 메타(app_metadata · 서버만 쓰는 칸)로도 유료 권한(2026-10-06 인계 보강)
   if (!entitled) {
     try {
       const { data, error } = await admin.from("doit_entitlements").select("feature, status, ends_at").eq("user_id", userId).eq("feature", "free_talk").eq("status", "active").limit(5);
@@ -332,9 +332,13 @@ async function freeStatus(admin: Db, userId: string, cfg: FT.FreeTalkConfig): Pr
   let usd = 0, unknown = false;
   for (const r of month) { const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) usd += c; else if (r.status === "applied") unknown = true; }
   const month_krw = cfg.krwPerUsd == null ? null : Math.ceil(usd * cfg.krwPerUsd);
-  return { entitled, trials_used, trial_left: Math.max(0, cfg.trials - trials_used), daily_used, daily_left: error ? 0 : Math.max(0, cfg.daily - daily_used), month_krw, month_turns: month.length, unknown: unknown || error != null }; // 읽기 오류 = 닫힌 쪽
+  // 회사 전체 이번 달(모든 사용자 · 금액만 · 원문 0) — 못 읽으면 닫힌 쪽(company_krw = null → 상한 판정에서 503)
+  const { data: co, error: e4 } = await admin.from("doit_request_events").select("status, error_code, free:response_payload->free").eq("action", CLAIM_ACTION).like("payload_hash", "free:%").gte("created_at", monthStart).limit(5000);
+  let coUsd = 0;
+  for (const r of (e4 ? [] : (co ?? [])) as unknown as FreeRow[]) { if (!counts(r)) continue; const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) coUsd += c; }
+  const company_krw = e4 || cfg.krwPerUsd == null ? null : Math.ceil(coUsd * cfg.krwPerUsd);
+  return { entitled, trials_used, trial_left: Math.max(0, cfg.trials - trials_used), daily_used, daily_left: error ? 0 : Math.max(0, cfg.daily - daily_used), month_krw, month_turns: month.length, company_krw, unknown: unknown || error != null }; // 읽기 오류 = 닫힌 쪽
 }
-const FREE_MONTH_TURNS_FALLBACK = 300; // 금액을 셀 수 없을 때(단가·환율 없음) 월 상한 대신 쓰는 턴 수 상한(5,000원 ÷ 턴당 약 16원 어림 · 실측 뒤 조정)
 // 자기 문장 보관 줄(사용자마다 하나 · request_id 는 사용자 id 에서 만든다). 세션과 따로 — 대화가 없어도 남는다.
 async function selfNotesRow(admin: Db, userId: string): Promise<{ id: string; rev: number; notes: SelfNote[] }> {
   const id = await derivedUuid(`${userId}:self_notes`);
@@ -625,7 +629,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const row = (want ? await sessionById(admin, userId, want, since) : null) ?? await currentSession(admin, userId, since);
       const notes = (await selfNotesRow(admin, userId)).notes;
       const ftCfg = FT.freeTalkConfig((k) => Deno.env.get(k));
-      const free_talk = ftCfg.enabled ? await (async () => { const f = await freeStatus(admin, userId, ftCfg); return { enabled: true, entitled: f.entitled, trial_left: f.trial_left, daily_left: f.daily_left }; })() : { enabled: false };
+      const free_talk = ftCfg.enabled ? await (async () => { const f = await freeStatus(admin, userId, ftCfg, (user.app_metadata ?? null) as Record<string, unknown> | null); return { enabled: true, entitled: f.entitled, trial_left: f.trial_left, daily_left: f.daily_left }; })() : { enabled: false };
       // 검수 P2-6: 대화 세션이 없어도(사주·타로 [반영할게요]만 한 사람) 자기 문장은 보고 지울 수 있어야 한다 → known 을 따로도 준다
       return json({ ok: true, session: row ? sessionView(row.request_id, row.response_payload as unknown as Stored, { self_notes: notes }) : null, self_notes: notes.length, known: knownWith(row ? (row.response_payload as unknown as Stored).state : A.newState(), notes), free_talk }, 200, origin);
     }
@@ -675,6 +679,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: notes }) : null, known: knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), notes), note: { text, at: notes.at(-1)!.at } }, 200, origin);
     }
 
+    // 2026-10-06 관리자: 유료 자유 대화 이번 달 요약(수치만 · 글 0 · 모델 0). 관리자 역할은 서버가 다시 확인한다.
+    if (action === "admin_free_summary") {
+      if (!(await isAdmin(admin, userId))) return fail("FORBIDDEN", "관리자 권한이 없어요.", 403, origin);
+      const cfg = FT.freeTalkConfig((k) => Deno.env.get(k));
+      const price = routerForRequest(req.signal).policy.providers.openai?.price ?? null;
+      const monthStart = (() => { const k = new Date(Date.now() + 9 * 3_600_000); return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), 1) - 9 * 3_600_000).toISOString(); })();
+      const { data, error } = await admin.from("doit_request_events").select("user_id, status, error_code, free:response_payload->free").eq("action", CLAIM_ACTION).like("payload_hash", "free:%").gte("created_at", monthStart).limit(5000);
+      if (error) return fail("ERROR", "요약을 불러오지 못했어요.", 500, origin);
+      let usd = 0, tin = 0, tout = 0, calls = 0, failed = 0, requests = 0; const users = new Set<string>();
+      for (const r of (data ?? []) as unknown as (FreeRow & { user_id: string })[]) {
+        if (!(r.status === "applied" || r.status === "pending" || /UNCERTAIN/.test(String(r.error_code ?? "")))) continue;
+        requests++; users.add(r.user_id); if (r.status !== "applied") failed++;
+        const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) usd += c;
+        const t = r.free?.tokens as { in?: unknown; out?: unknown; calls?: unknown } | undefined; tin += Number(t?.in ?? 0) || 0; tout += Number(t?.out ?? 0) || 0; calls += Number(t?.calls ?? 0) || 0;
+      }
+      return json({ ok: true, enabled: cfg.enabled, month_start: monthStart, users: users.size, requests, failed, calls, tokens_in: tin, tokens_out: tout, krw: cfg.krwPerUsd == null ? null : Math.ceil(usd * cfg.krwPerUsd), price_known: !!price && cfg.krwPerUsd != null,
+        limits: { trial: cfg.trials, daily: cfg.daily, user_month_krw: cfg.monthKrw, company_month_krw: cfg.companyMonthKrw, max_cost_usd: cfg.maxCostUsd } }, 200, origin);
+    }
     if (action === "admin_sessions" || action === "admin_session") {
       if (!(await isAdmin(admin, userId))) return fail("FORBIDDEN", "관리자 권한이 없어요.", 403, origin);
       if (action === "admin_sessions") {
@@ -850,25 +872,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const text = typeof body.text === "string" ? body.text.trim() : "";
       if (!history || !text || text.length > FT.FREE_TEXT_MAX) return fail("BAD_REQUEST", "할 말을 적어 주세요.", 400, origin);
       if (history.some((l) => A.PRIVATE_DATA.test(l.text)) || FT.historyTainted(history)) return fail("BAD_REQUEST", "이야기를 다시 시작해 주세요.", 400, origin); // 검수 P2-7: 앞 줄도 같은 가드
+      // 단가(정책 openai.price)·환율이 없으면 금액을 셀 수 없다 = 호출 0(503 · 2026-10-06 인계 보강). 요청당 토큰 상한은 금액 상한(0.01달러)으로 다시 계산.
+      const tokenCap = FT.freeTokenCap(cfg, router.policy.providers.openai?.price ?? null);
+      if (cfg.krwPerUsd == null || tokenCap == null || tokenCap < 1000) { logDiag({ step: "free_config", rate: cfg.krwPerUsd != null, price: tokenCap != null }); return fail("FREE_TALK_CONFIG", FT.CONFIG_LINE, 503, origin); }
+      const appMeta = (user.app_metadata ?? null) as Record<string, unknown> | null;
       // 상한 판정(맛보기·하루·월) — 자리 잡기 잠금 안에서 다시 센다(freeCapped · 동시 요청 두 개가 같은 마지막 한 번을 둘 다 쓰지 못하게)
       const freeLimit = (f: Awaited<ReturnType<typeof freeStatus>>): Response | null => {
         const m: "paid" | "trial" | null = f.entitled ? "paid" : f.trial_left > 0 ? "trial" : null;
         if (!m) return json({ ok: false, code: "TRIAL_USED", error: FT.trialNotice(0), trial_left: 0, entitled: false }, 402, origin);
+        if (f.company_krw == null || f.company_krw >= cfg.companyMonthKrw) return json({ ok: false, code: "FREE_TALK_COMPANY", error: FT.COMPANY_LINE, trial_left: f.trial_left, entitled: f.entitled }, 503, origin); // 회사 월 상한(못 세면 닫힘)
         if (f.daily_left <= 0) return json({ ok: false, code: "FREE_TALK_DAILY", error: FT.DAY_LINE, trial_left: f.trial_left, entitled: f.entitled }, 429, origin);
-        if ((f.month_krw != null && f.month_krw >= cfg.monthKrw) || (f.month_krw == null && f.month_turns >= FREE_MONTH_TURNS_FALLBACK)) return json({ ok: false, code: "FREE_TALK_MONTH", error: FT.MONTH_LINE, trial_left: f.trial_left, entitled: f.entitled }, 429, origin);
+        if (f.month_krw != null && f.month_krw >= cfg.monthKrw) return json({ ok: false, code: "FREE_TALK_MONTH", error: FT.MONTH_LINE, trial_left: f.trial_left, entitled: f.entitled }, 429, origin);
         return null;
       };
-      const st = await freeStatus(admin, userId, cfg);
+      const st = await freeStatus(admin, userId, cfg, appMeta);
       { const r = freeLimit(st); if (r) return r; }
       const mode: "paid" | "trial" = st.entitled ? "paid" : "trial";
-      const freeCapped = async (reserved = 0): Promise<Response | null> => (await dailyCapped(reserved)) ?? freeLimit(await freeStatus(admin, userId, cfg));
+      const freeCapped = async (reserved = 0): Promise<Response | null> => (await dailyCapped(reserved)) ?? freeLimit(await freeStatus(admin, userId, cfg, appMeta));
       // 안전 가드(모델 0 · 저장 0): 위기 → 안전 안내 · 연락처 422 · 성적 표현 · 규칙 무시/타인 정보 · 연인 역할극
       const g = FT.freeGuard(text);
       if (g) { logDiag({ step: "free_guard", kind: g.kind }); return g.status === 200 ? json({ ok: true, reply: g.reply, ai: false, guard: g.kind, trial_left: st.trial_left, entitled: st.entitled }, 200, origin) : fail(g.code, g.reply, g.status, origin); }
       // 모델: 정책의 free_talk 첫 후보가 OpenAI 가 아니면 부르지 않는다(검증 전 Claude·Gemini 비활성)
       const first = router.explain("free_talk").order[0] ?? null;
       if (first !== "openai") return fail("FREE_TALK_PROVIDER", "자유 대화는 아직 준비 중이에요.", 503, origin);
-      router.limitTo({ calls: cfg.maxCalls, tokens: cfg.maxTokens }); // 요청당 호출 3 · 토큰 8,000(재시도 포함)
+      router.limitTo({ calls: cfg.maxCalls, tokens: tokenCap }); // 요청당 호출 3 · 토큰 8,000 과 금액 0.01달러 중 작은 쪽(재시도 포함)
       // 답변 재료 = 본인 「아는 나」(확인·고친 것·거절 의미·짐작 표시)만 — 다른 사용자 0
       const sess = await currentSession(admin, userId, since);
       const known = knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), (await selfNotesRow(admin, userId)).notes);

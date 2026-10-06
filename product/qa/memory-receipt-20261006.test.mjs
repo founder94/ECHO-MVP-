@@ -146,3 +146,14 @@ test('⑧ P2-5 해석 부정 판정: 물음이 든 말·보통 서술은 정정 
   assert.deepEqual(R.denyInterpretation('나 그런 사람 아닌데, 저는 사람 많은 데를 좋아해요'), { text: '저는 사람 많은 데를 좋아해요' });
   assert.deepEqual(R.denyInterpretation('사람 많은 데 싫어하는 거 아닌데'), { text: '사람 많은 데 싫어하는 거 아닌데' });
 });
+
+test('⑨ 민감 주제(돈·건강·성) 정정의 영수증은 글자를 되풀이하지 않는 일반 문장 · 다음 질문 인용 0', () => {
+  const st = base();
+  A.applyTurn(st, '연봉 높은 사람이 좋아요', T({ extracted: [X('values_character', '연봉 높은 사람', '연봉 높은 사람이 좋아요')], next: { type: 'core', purpose: 'relationship_style', question: '연락은 어떻게 하고 싶어요?' } }));
+  const r = A.applyTurn(st, '아니 연봉이 아니라 월급보다 성실함이 중요해요', T({ kind: 'correction', extracted: [X('values_character', '월급보다 성실함', '월급보다 성실함이 중요해요')], wrong: ['연봉 높은 사람'], next: { type: 'core', purpose: 'boundaries', question: '싫은 건 뭐예요?' } }));
+  assert.ok(r.receipt, '정정 저장 뒤 영수증은 있다');
+  assert.equal(r.receipt.line, '알겠어요. 고친 내용으로 기억할게요.');
+  assert.doesNotMatch(r.receipt.line, /연봉|월급/, '민감 글자 되풀이 0');
+  assert.equal(r.cite ?? null, null, '다음 질문 인용 0'); assert.equal(st.current?.cite, undefined);
+  assert.equal(A.makeReceipt(['매일 연락'], ['주말 연락']).line, '알겠어요. 「매일 연락」이 아니라 「주말 연락」으로 기억할게요.', '보통 주제는 그대로');
+});

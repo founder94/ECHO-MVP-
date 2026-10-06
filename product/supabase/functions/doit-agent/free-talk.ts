@@ -1,7 +1,7 @@
 // 「나를 기억하는 ECHO와 무엇이든 대화」(2026-10-06 대표 승인 C·D·E) — 유료 자유 대화 모듈. 대화 상태(agent.ts)·매칭 계약(matching.ts)은 이 모듈을 모른다.
 // - 스위치 기본 꺼짐: 환경값 FREE_TALK_ENABLED=on 일 때만 동작(QA 포함). 꺼져 있으면 503 FREE_TALK_OFF(변경 0).
 // - 권한: 유료 권한(doit_entitlements 표 · 초안 PENDING_20261006_free_talk.sql) 또는 QA 시험용 권한(FREE_TALK_TEST_USERS) · 없으면 로그인 계정당 평생 맛보기 3회(비로그인 0).
-// - 상한(설정값 · 실측 뒤 조정): 하루 30회 · 한 사람 월 비용 5,000원 · 요청당 호출 3 · 토큰 8,000 · 출력 768(요청당 금액 상한은 AI_POLICY 로). QA 에서 켤 때 하루 10회(FREE_TALK_DAILY).
+// - 상한(설정값 · 실측 뒤 조정): 하루 30회 · 한 사람 월 비용 5,000원 · 회사 월 10,000원 · 요청당 호출 3 · 토큰 8,000 · 출력 768 · 요청당 0.01달러(단가로 토큰 상한 재계산). 단가·환율 없음 = 호출 0. QA 에서 켤 때 하루 10회(FREE_TALK_DAILY).
 // - 답변 재료 = 본인 프로필(확인·고친 것) · 거절 의미(다시 단정 0)만. 다른 사용자 정보 0. AI 짐작을 사실처럼 말하기 금지.
 // - 안전: 위기 신호 → 안전 안내·분석 중단 · 연락처·성적 표현 차단 · 건강·결혼·돈·앞날 단정 금지 · 연인 역할극 금지 · 사람과의 연결로 자연스럽게 이음.
 // - 모델: 정책의 free_talk 순서(없으면 기본 OpenAI 하나). 첫 후보가 OpenAI 가 아니면 부르지 않는다(검증 전 Claude·Gemini 비활성).
@@ -9,17 +9,29 @@ import { call, parseJson, PRIVATE_DATA, SENSITIVE_TOPIC, type KnownView, type Ll
 import { crisisSignal, CRISIS_LINE } from "./reference-talk.ts";
 
 type Env = (k: string) => string | undefined;
-// 요청당 금액 상한(0.01 USD)은 라우터 정책(AI_POLICY.limits.max_cost_usd_per_request · 단가 필요)으로만 건다 — 이 모듈이 따로 세지 않는다(검수 P2-4 · 없는 상한을 약속하지 않음).
-export interface FreeTalkConfig { enabled: boolean; trials: number; daily: number; monthKrw: number; krwPerUsd: number | null; testUsers: Set<string>; maxCalls: number; maxTokens: number }
+// 요청당 금액 상한(기본 0.01달러)은 정책 단가로 토큰 상한을 다시 계산해 건다(freeTokenCap) — 단가·환율이 없으면 호출 0(없는 상한을 약속하지 않음 · 2026-10-06 인계 보강).
+export interface FreeTalkConfig { enabled: boolean; trials: number; daily: number; monthKrw: number; companyMonthKrw: number; krwPerUsd: number | null; testUsers: Set<string>; maxCalls: number; maxTokens: number; maxCostUsd: number }
 const int = (v: string | undefined, d: number, lo: number, hi: number) => { const t = (v ?? "").trim(); if (!t) return d; const n = Number(t); return Number.isInteger(n) && n >= lo && n <= hi ? n : d; }; // 빈 값 = 기본값(0 으로 읽지 않음)
+const num = (v: string | undefined, d: number, lo: number, hi: number) => { const t = (v ?? "").trim(); if (!t) return d; const n = Number(t); return Number.isFinite(n) && n >= lo && n <= hi ? n : d; };
+export const FREE_OUTPUT_TOKENS = 768; // 호출마다 출력 상한(AGENT_PARAMS.max_tokens 와 같음)
+export type FreePrice = { in_usd_per_1m: number; out_usd_per_1m: number } | null | undefined;
+/** 요청당 토큰 상한 = 설정 토큰 상한과 금액 상한(maxCostUsd)을 둘 다 지키는 값. 단가가 없으면 null(= 금액을 못 세니 호출 0). */
+export function freeTokenCap(cfg: FreeTalkConfig, price: FreePrice): number | null {
+  if (!price || !(price.in_usd_per_1m > 0) || !(price.out_usd_per_1m >= 0)) return null;
+  const outMax = FREE_OUTPUT_TOKENS * cfg.maxCalls;
+  const byCost = Math.floor((cfg.maxCostUsd * 1e6 - outMax * price.out_usd_per_1m) / price.in_usd_per_1m);
+  return Math.max(0, Math.min(cfg.maxTokens, byCost));
+}
+export const COMPANY_LINE = "이번 달 자유 대화는 여기까지 열려 있었어요. 다음 달에 다시 열려요.";
+export const CONFIG_LINE = "자유 대화는 아직 준비 중이에요.";
 export function freeTalkConfig(get: Env): FreeTalkConfig {
   const rate = Number((get("FREE_TALK_KRW_PER_USD") ?? get("COMPANY_AI_KRW_PER_USD") ?? "").trim());
   return {
     enabled: (get("FREE_TALK_ENABLED") ?? "").trim().toLowerCase() === "on",
-    trials: int(get("FREE_TALK_TRIALS"), 3, 0, 10), daily: int(get("FREE_TALK_DAILY"), 30, 1, 200), monthKrw: int(get("FREE_TALK_MONTH_KRW"), 5000, 100, 100_000),
+    trials: int(get("FREE_TALK_TRIALS"), 3, 0, 10), daily: int(get("FREE_TALK_DAILY"), 30, 1, 200), monthKrw: int(get("FREE_TALK_MONTH_KRW"), 5000, 100, 100_000), companyMonthKrw: int(get("FREE_TALK_COMPANY_MONTH_KRW"), 10_000, 1000, 1_000_000),
     krwPerUsd: Number.isFinite(rate) && rate >= 500 && rate <= 3000 ? rate : null,
     testUsers: new Set((get("FREE_TALK_TEST_USERS") ?? "").split(",").map((s) => s.trim()).filter((s) => /^[0-9a-f-]{36}$/i.test(s))),
-    maxCalls: int(get("FREE_TALK_MAX_CALLS"), 3, 1, 6), maxTokens: int(get("FREE_TALK_MAX_TOKENS"), 8000, 1000, 30_000),
+    maxCalls: int(get("FREE_TALK_MAX_CALLS"), 3, 1, 6), maxTokens: int(get("FREE_TALK_MAX_TOKENS"), 8000, 1000, 30_000), maxCostUsd: num(get("FREE_TALK_MAX_COST_USD"), 0.01, 0.001, 1),
   };
 }
 export const FREE_TEXT_MAX = 500, FREE_HISTORY_MAX = 8, FREE_LINE_MAX = 600;

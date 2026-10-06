@@ -6,7 +6,7 @@ export class AdminError extends Error {
   constructor(code: string, message: string) { super(message); this.code = code; }
 }
 
-type Fn = 'admin-web' | 'doit-connect';
+type Fn = 'admin-web' | 'doit-connect' | 'doit-agent'; // doit-agent = 2026-10-06 유료 자유 대화 이번 달 요약(admin_free_summary · 관리자 역할을 서버가 다시 확인)
 
 export async function adminCall<T>(fn: Fn, body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();

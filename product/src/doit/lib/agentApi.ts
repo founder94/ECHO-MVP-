@@ -127,6 +127,8 @@ export async function agentFreeTalk(userId: string, history: RefLine[], text: st
   return { reply: r.reply, ai: r.ai !== false, trial_left: typeof r.trial_left === 'number' ? r.trial_left : null, entitled: r.entitled === true, notice: typeof r.notice === 'string' && r.notice ? r.notice : null, guard: typeof r.guard === 'string' ? r.guard : null };
 }
 
+// 자유 대화 상태만(스위치·권한·맛보기 남은 수) — 대화 화면의 안내용(서버 스위치가 꺼져 있으면 enabled=false 하나)
+export async function agentFreeStatus(userId: string): Promise<FreeTalkStatus> { return (await agentHome(userId)).free_talk; }
 export async function agentGet(userId: string): Promise<AgentSession | null> {
   const sessionId = rememberedSession(userId);
   const r = await serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);

@@ -12,12 +12,19 @@ const once = (a, b) => { assert.equal(helper.split(a).length, 2, a); helper = he
 once("import ts from 'typescript';", `import ts from ${JSON.stringify(pathToFileURL(path.join(source, 'product/node_modules/typescript/lib/typescript.js')).href)};`);
 once("const DIR = new URL('../supabase/functions/doit-agent/', import.meta.url);", `const DIR = new URL(${JSON.stringify(pathToFileURL(path.join(source, 'product/supabase/functions/doit-agent/')).href + '/')});`);
 // 가짜 DB 에 like(앞부분 일치)를 더한다 — 자유 대화 자리 지문 'free:%' 세기
+// 가짜 DB 에 select 별칭(free:response_payload->free)을 더한다 — 금액·토큰 칸을 서버처럼 읽어 월·회사 상한을 실제로 센다(2026-10-06 인계 보강)
+once("      select: () => { if (op !== 'select') returning = true; return c; },", "      select: (cols) => { if (op !== 'select') returning = true; else aliases = String(cols ?? '').split(',').map((x) => x.trim()).filter((x) => x.includes(':')).map((x) => { const [al, path] = x.split(':'); return { al, path: path.split('->').map((k) => k.replace(/^>/, '')) }; }); return c; },");
+once("    let filters = []; let op = 'select'; let patch = null; let order = null; let lim = null; let returning = false;", "    let filters = []; let op = 'select'; let patch = null; let order = null; let lim = null; let returning = false; let aliases = [];\n    const withAliases = (r) => { for (const { al, path } of aliases) { let v = r; for (const k of path) v = v == null ? undefined : v[k]; r[al] = v ?? null; } return r; };");
+once("      const all = rows(); return { data: all.map((r) => structuredClone(r)), error: null, count: all.length };", "      const all = rows(); return { data: all.map((r) => withAliases(structuredClone(r))), error: null, count: all.length };");
 once("      gte: (col, v) => {", "      like: (col, v) => { const re = new RegExp('^' + String(v).replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/%/g, '.*') + '$'); filters.push((r) => re.test(String(r[col] ?? ''))); return c; },\n      gte: (col, v) => {");
 helper += '\nexport {load,newState,T,Q,X,rid,ID};\n';
 const file = pathToFileURL(path.join(mkdtempSync(path.join(tmpdir(), 'free-talk-')), 'helpers.mjs'));
 writeFileSync(file, helper);
 const { load, newState, T, Q, X, rid, ID } = await import(file.href);
-const ON = { FREE_TALK_ENABLED: 'on' };
+// 2026-10-06 인계 보강: 단가(정책 openai.price)·환율이 없으면 호출 0 → 검사 기본 환경에 둘 다 둔다(가짜 값)
+const PRICED = (o = {}) => JSON.stringify({ version: 'free-talk-priced', providers: { openai: { model: 'fixture', allow_user_text: true, price: { in_usd_per_1m: 0.15, out_usd_per_1m: 0.6 } }, ...(o.providers ?? {}) }, tasks: o.tasks ?? { default: ['openai'] }, limits: { retry_wait_ms: 0, same_provider_retries: 0 } });
+const ON = { FREE_TALK_ENABLED: 'on', FREE_TALK_KRW_PER_USD: '1400', AI_POLICY: PRICED() };
+const readSrc = (p) => readFileSync(path.join(source, 'product', p), 'utf8');
 async function started(env = ON) {
   const s = newState(); s.env = { ...env }; const h = load(s);
   s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
@@ -91,7 +98,7 @@ test('④ 안전 가드(모델 0): 위기 → 안전 안내 · 연락처 422 · 
 });
 
 test('⑤ 모델: free_talk 첫 후보가 OpenAI 가 아니면 부르지 않는다(503) · 요청당 호출·토큰 상한을 라우터에 건다 · 답에 금지어·연락처면 형식 오류', async () => {
-  const POLICY = JSON.stringify({ version: 'free-talk-test', providers: { openai: { model: 'fixture', allow_user_text: true }, anthropic: { model: 'claude-fixture', allow_user_text: true } }, tasks: { default: ['openai'], free_talk: ['anthropic', 'openai'] } });
+  const POLICY = PRICED({ providers: { anthropic: { model: 'claude-fixture', allow_user_text: true } }, tasks: { default: ['openai'], free_talk: ['anthropic', 'openai'] } });
   const { s, h } = await started({ ...ON, AI_POLICY: POLICY, ANTHROPIC_API_KEY: 'k2' });
   const c = calls(s);
   const r = await talk(h, '안녕'); assert.equal(r.status, 503); assert.equal(r.body.code, 'FREE_TALK_PROVIDER'); assert.equal(calls(s), c);
@@ -138,4 +145,46 @@ test('⑨ 세션 없이도 agent_get 에 known(자기 문장) · 민감·금지 
   const ok = await h.call({ action: 'agent_self_note', requestId: rid(), text: '저는 사람 많은 데를 좋아해요', origin: 'ref_correction' }); assert.equal(ok.status, 200, JSON.stringify(ok.body)); assert.equal(ok.body.session, null);
   const g = await h.call({ action: 'agent_get' }); assert.equal(g.body.session, null); assert.equal(g.body.known.corrected.length, 1); assert.match(g.body.known.corrected[0].key, /^self:[0-9a-f-]{36}$/);
   const f = await h.call({ action: 'agent_forget', requestId: rid(), key: g.body.known.corrected[0].key }); assert.equal(f.status, 200); assert.equal(f.body.known.corrected.length, 0);
+});
+
+// ── 2026-10-06 인계 보강(PR #149 대조): 단가·환율 없음 = 호출 0 · 회사 월 상한 · 계정 메타 권한 · 관리자 요약
+test('⑩ 단가 또는 환율이 없으면 503 FREE_TALK_CONFIG · 모델 호출 0 · 맛보기 셈 0', async () => {
+  for (const env of [{ FREE_TALK_ENABLED: 'on', AI_POLICY: PRICED() }, { FREE_TALK_ENABLED: 'on', FREE_TALK_KRW_PER_USD: '1400' }]) {
+    const { s, h } = await started(env); const c = calls(s);
+    const r = await talk(h, '안녕'); assert.equal(r.status, 503, JSON.stringify(r.body)); assert.equal(r.body.code, 'FREE_TALK_CONFIG'); assert.equal(calls(s), c); assert.equal(claims(s).length, 0);
+    assert.doesNotMatch(JSON.stringify(r.body), /\d,\d{3}원|달러|USD/, '안내 문장에 금액 0');
+  }
+  // 요청당 토큰 상한 = 설정 토큰과 금액 상한(0.01달러) 중 작은 쪽
+  const idx = readSrc('supabase/functions/doit-agent/index.ts'); assert.match(idx, /router\.limitTo\(\{ calls: cfg\.maxCalls, tokens: tokenCap \}\)/);
+  const ft = readSrc('supabase/functions/doit-agent/free-talk.ts'); assert.match(ft, /export function freeTokenCap/); assert.match(ft, /maxCostUsd: num\(get\("FREE_TALK_MAX_COST_USD"\), 0\.01/);
+});
+
+test('⑪ 회사 월 상한(FREE_TALK_COMPANY_MONTH_KRW): 다른 사용자 사용액까지 합쳐 넘으면 503 FREE_TALK_COMPANY · 모델 0 · 못 세면 닫힘', async () => {
+  const { s, h } = await started({ ...ON, FREE_TALK_COMPANY_MONTH_KRW: '1000' });
+  const now = new Date().toISOString();
+  s.tables.doit_request_events.push({ user_id: ID.other, request_id: 'co-1', action: 'agent_turn_claim', status: 'applied', payload_hash: 'free:paid:zzz', created_at: now, updated_at: now, response_payload: { free: { done: true, mode: 'paid', cost_usd: 0.8, tokens: { in: 1000, out: 100, calls: 1 } } } }); // 0.8달러 × 1,400 = 1,120원 ≥ 1,000
+  const c = calls(s);
+  const r = await talk(h, '안녕'); assert.equal(r.status, 503, JSON.stringify(r.body)); assert.equal(r.body.code, 'FREE_TALK_COMPANY'); assert.equal(calls(s), c); assert.equal(claims(s).filter((x) => x.user_id === ID.user).length, 0);
+  // 상한 아래면 정상
+  const { s: s2, h: h2 } = await started({ ...ON, FREE_TALK_COMPANY_MONTH_KRW: '5000' });
+  s2.tables.doit_request_events.push({ user_id: ID.other, request_id: 'co-2', action: 'agent_turn_claim', status: 'applied', payload_hash: 'free:paid:zzz', created_at: now, updated_at: now, response_payload: { free: { done: true, mode: 'paid', cost_usd: 0.8, tokens: { in: 1000, out: 100, calls: 1 } } } });
+  s2.ai.push({ reply: '편한 친구를 원한다고 했죠. 오늘은 어떤 하루였어요.' });
+  const ok = await talk(h2, '안녕'); assert.equal(ok.status, 200, JSON.stringify(ok.body));
+});
+
+test('⑫ 계정 메타(app_metadata.doit_free_talk) 권한 = 유료(맛보기 셈 0 · 자리 지문 free:paid) · 관리자 요약은 관리자만(수치만 · 원문 0)', async () => {
+  const { s, h } = await started();
+  s.authUser.app_metadata = { doit_free_talk: true };
+  const g = await h.call({ action: 'agent_get' }); assert.equal(g.body.free_talk.entitled, true);
+  s.ai.push({ reply: '편한 친구를 원한다고 했죠. 오늘은 어떤 하루였어요.' });
+  const r = await talk(h, '요즘 어때'); assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.entitled, true); assert.equal(r.body.notice, null);
+  assert.ok(claims(s).every((x) => x.payload_hash.startsWith('free:paid:')));
+  const no = await h.call({ action: 'admin_free_summary' }); assert.equal(no.status, 403);
+  const a = newState('admin'); a.env = { ...ON }; a.tables.doit_request_events = s.tables.doit_request_events; const ha = load(a);
+  const sum = await ha.call({ action: 'admin_free_summary' }); assert.equal(sum.status, 200, JSON.stringify(sum.body));
+  assert.equal(sum.body.enabled, true); assert.equal(sum.body.users, 1); assert.equal(sum.body.requests, 1); assert.equal(sum.body.price_known, true);
+  assert.deepEqual(Object.keys(sum.body.limits).sort(), ['company_month_krw', 'daily', 'max_cost_usd', 'trial', 'user_month_krw']);
+  assert.ok(!JSON.stringify(sum.body).includes('요즘 어때'), '원문 0');
+  const off = newState('admin'); off.env = {}; const ho = load(off);
+  const so = await ho.call({ action: 'admin_free_summary' }); assert.equal(so.status, 200); assert.equal(so.body.enabled, false); assert.equal(so.body.price_known, false);
 });

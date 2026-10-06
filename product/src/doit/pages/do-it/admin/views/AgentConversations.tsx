@@ -2,15 +2,15 @@
 // 가짜 사용자·가짜 매칭·가짜 비용 0. 사용자 원문은 기본 가림(「원문 보기」를 눌러야 보임). 이 화면은 읽기만 한다(쓰기 호출 0).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
-import { PIPELINE_STAGES, PURPOSE_IDS, aiOsEngines, candidates, dashboard, fetchAgentAdmin, observability, pipeline, pipelineSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
+import { PIPELINE_STAGES, PURPOSE_IDS, aiOsEngines, candidates, dashboard, fetchAgentAdmin, fetchFreeSummary, memoryStats, observability, pipeline, pipelineSummary, type FreeSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
 import { AGENT_PURPOSE_LABELS } from "@/doit/lib/agentApi";
 import { PanelTitle, StatCard, Pill, EmptyRow, fmtDate } from "../components/ui";
 
 type Load = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; sessions: Session[] };
-type Tab = "pipeline" | "dashboard" | "sessions" | "profile" | "candidates" | "ai";
+type Tab = "pipeline" | "dashboard" | "sessions" | "profile" | "candidates" | "ai" | "memory";
 const TABS: { key: Tab; label: string }[] = [
   { key: "pipeline", label: "어디서 막혔나(파이프라인)" }, { key: "dashboard", label: "대시보드" }, { key: "sessions", label: "대화 보기" }, { key: "profile", label: "매칭 프로필" },
-  { key: "candidates", label: "실패·성공 후보" }, { key: "ai", label: "AI 관측" },
+  { key: "candidates", label: "실패·성공 후보" }, { key: "ai", label: "AI 관측" }, { key: "memory", label: "기억·자유 대화" },
 ];
 const TONE: Record<string, string> = { formal: "정중한 존댓말", polite: "편한 존댓말", casual: "편한 반말" };
 const FLAG: Record<string, string> = { correction: "정정", rejection: "거절", complaint: "항의", skip: "넘기기", fatigue: "지침", unsure: "모르겠음", ask: "AI에게 질문", help: "질문 뜻 되물음", blocked: "저장 금지 입력" };
@@ -47,6 +47,10 @@ export default function AgentConversations() {
   const open = sessions.find((s) => s.id === openId) ?? null;
   const pipe = useMemo(() => pipelineSummary(sessions), [sessions]);
   const engines = useMemo(() => aiOsEngines(sessions), [sessions]);
+  const mem = useMemo(() => memoryStats(sessions), [sessions]);
+  // 2026-10-06 유료 자유 대화 이번 달 요약(탭을 열 때만 서버에 묻는다 · 수치만)
+  const [free, setFree] = useState<{ kind: "idle" | "loading" } | { kind: "error"; message: string } | { kind: "ready"; data: FreeSummary }>({ kind: "idle" });
+  useEffect(() => { if (tab !== "memory" || free.kind !== "idle") return; setFree({ kind: "loading" }); fetchFreeSummary().then((data) => setFree({ kind: "ready", data })).catch((e) => setFree({ kind: "error", message: message(e) })); }, [tab, free.kind]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -158,6 +162,22 @@ export default function AgentConversations() {
         </article>)}
       </section>}
 
+      {load.kind === "ready" && tab === "memory" && <section className="flex flex-col gap-4" aria-label="기억·자유 대화">
+        <p className="text-xs leading-relaxed text-foreground-600">기억 영수증 = 서버가 정정을 저장한 턴에만 보낸 한 줄(AI 0). 「다음 질문 인용」 = 정정 직후 질문에 고친 말을 넣은 턴(서버가 고정 문장으로 붙임). 2026-10-06 배포 뒤 대화부터 쌓여요.</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="기억 영수증 보낸 턴" value={mem.receipts} sub={`정정 턴 ${mem.corrections} 중`} status="success" accent />
+          <StatCard label="다음 질문에 고친 말 인용" value={mem.cited} sub="영수증 턴 중 질문이 이어진 것" status="success" />
+          <StatCard label="사용자가 직접 고친 값" value={mem.user_corrected} sub="프로필 USER_CORRECTED(사주·타로 「반영할게요」 포함)" status="success" />
+        </div>
+        {free.kind === "loading" && <p className="text-sm text-foreground-600">자유 대화 요약을 불러오고 있어요.</p>}
+        {free.kind === "error" && <p role="alert" className="text-sm text-secondary-900">{free.message}</p>}
+        {free.kind === "ready" && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="자유 대화 스위치" value={free.data.enabled ? "켜짐" : "꺼짐(기본)"} sub={free.data.price_known ? "단가·환율 확인됨" : "단가·환율 없음 → 켜도 호출 0"} status="success" accent />
+          <StatCard label="이번 달 사용자 · 요청" value={`${free.data.users} · ${free.data.requests}`} sub={`AI 호출 ${free.data.calls} · 실패 ${free.data.failed}`} status="success" />
+          <StatCard label="이번 달 토큰 입력 · 출력" value={`${free.data.tokens_in.toLocaleString()} · ${free.data.tokens_out.toLocaleString()}`} status="success" />
+          <StatCard label="이번 달 금액(원)" value={free.data.krw == null ? "확인 불가" : free.data.krw.toLocaleString()} sub={`한 사람 ${free.data.limits.user_month_krw.toLocaleString()}원 · 회사 ${free.data.limits.company_month_krw.toLocaleString()}원 · 하루 ${free.data.limits.daily}회 · 맛보기 ${free.data.limits.trial}회`} status="success" />
+        </div>}
+      </section>}
       {load.kind === "ready" && tab === "ai" && <section className="flex flex-col gap-3 text-xs">
         <p>다시 청함 {obs.retries}번 · 대체 모델(fallback) {obs.fallback}번 · 비용 = 확인 불가(공식 단가 미확인)</p>
         {obs.rows.length === 0 && <EmptyRow>아직 AI 호출 기록이 없어요.</EmptyRow>}
