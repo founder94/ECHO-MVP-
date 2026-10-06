@@ -578,6 +578,7 @@ export interface AgentState {
   rejected_choices?: string[]; // 2026-10-01 「그건 다 아닌데」로 거절된 보기(다시 보기로 · 사실로 올리지 않는다)
   fi_pending?: string[]; // 턴 밖(보기 요청)에서 난 실패 코드 — 다음 턴 기록에 붙인다
   goal?: GoalId; goal_label?: string | null; // v2.4 세션의 관계 목적(예전 대화에는 없다 → open)
+  forgotten_traits?: string[]; // 2026-10-06 「ECHO가 아는 나」에서 지운 AI 짐작 — 같은 뜻으로 다시 올리지 않는다(예전 대화에는 없다)
 }
 export interface PendingFix { turn: number; text: string; targets: { turn: number; purposes: string[]; notes: string[] } }
 export interface IntroLine { text: string; basis: string }
@@ -976,7 +977,10 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     }
   }
   if (SAVABLE.has(out.kind)) {
-    for (const t of out.inferred) st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    for (const t of out.inferred) {
+      if ((st.forgotten_traits ?? []).some((f) => nearSame(f, t.trait))) continue; // 2026-10-06 사용자가 지운 짐작은 다시 올리지 않는다
+      st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    }
     if (out.declared && inText(out.declared.quote)) {
       if (MBTI.test(out.declared.mbti)) st.declared.mbti = out.declared.mbti.toUpperCase();
       if (BLOOD.test(out.declared.blood_type)) st.declared.blood_type = out.declared.blood_type.toUpperCase().replace(/형$/, "");

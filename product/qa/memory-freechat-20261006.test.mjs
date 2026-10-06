@@ -118,12 +118,34 @@ test('A-4 「ECHO가 아는 나」: 네 묶음 · 지우기 → 지금 사실·�
   assert.equal(again.status, 200); assert.equal(again.body.forgot, false);
   // AI 가 같은 뜻을 다시 정리해도(AI 정리) 지금 사실로 올리지 않는다
   s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '웃는')], ...Q('relationship_style', '웃는 거 말고 또 뭐가 좋아요?') }));
-  await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '웃는 모습이 좋긴 해요' });
+  const t2 = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '웃는 모습이 좋긴 해요' });
+  assert.equal(t2.status, 200, JSON.stringify(t2.body)); // 턴이 실제로 처리돼야 「재등장 0」이 의미가 있다
   const st2 = session(s).state;
   assert.ok(!st2.slots.attraction_comfort.items.some((i) => i.status === 'CONFIRMED' && i.note === '잘 웃는 사람' && i.source_type === 'AI_EXTRACTED'), '재등장 0');
   // 모르는 줄 id 는 바뀐 것 0
   const bad = await h.call({ action: 'agent_memory_forget', sessionId: sid, itemId: 'i:drop_table:1:0' });
   assert.equal(bad.status, 200); assert.equal(bad.body.forgot, false);
+});
+
+test('A-4 「AI 짐작」 줄을 지우면 AI 가 같은 짐작을 다시 내도 올리지 않는다(재등장 0 · 매칭 추측 후보에도 0)', async () => {
+  const { s, h, sid } = await started();
+  s.ai.push(T({ extracted: [X('attraction_comfort', '잘 웃는 사람', '잘 웃는 사람')], inferred: [{ trait: '밝은 분위기를 좋아함', basis: '잘 웃는 사람' }], ...Q('values_character', '잘 웃는 사람이면 같이 뭐 할 때 좋아요?') }));
+  await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '잘 웃는 사람' });
+  assert.ok(session(s).state.inferred.some((t) => t.trait === '밝은 분위기를 좋아함'));
+  const m = (await h.call({ action: 'agent_memory', sessionId: sid })).body.memory;
+  const guess = m.guessed.find((l) => l.text === '밝은 분위기를 좋아함');
+  assert.ok(guess, JSON.stringify(m.guessed));
+  const f = await h.call({ action: 'agent_memory_forget', sessionId: sid, itemId: guess.id });
+  assert.equal(f.body.forgot, true);
+  s.ai.push(T({ extracted: [X('values_character', '웃는 모습', '웃는 모습')], inferred: [{ trait: '밝은 분위기를 좋아함', basis: '웃는 모습' }], ...Q('relationship_style', '웃는 거 말고 또 뭐가 좋아요?') }));
+  const t2 = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: sid, text: '웃는 모습이 좋긴 해요' });
+  assert.equal(t2.status, 200, JSON.stringify(t2.body));
+  const st = session(s).state;
+  assert.ok(st.slots.values_character.items.some((i) => i.note === '웃는 모습'), '같은 턴의 다른 정리는 그대로 저장(이 턴이 실제로 처리됨)');
+  assert.ok(!st.inferred.some((t) => t.trait === '밝은 분위기를 좋아함'), '지운 짐작 재등장 0');
+  assert.ok(!h.agent.matchingProfile(st).inferred_candidates.some((t) => t.trait === '밝은 분위기를 좋아함'));
+  const m2 = (await h.call({ action: 'agent_memory', sessionId: sid })).body.memory;
+  assert.ok(!Object.values(m2).flat().some((l) => l.text === '밝은 분위기를 좋아함'));
 });
 
 test('A-4 「아니라고 한 것」은 지우기 0 · 지운 값은 매칭 거절 뜻(rejected_meanings)에 섞이지 않는다', async () => {
@@ -152,11 +174,13 @@ test('B-5·6 사주 정정: 결과를 부정하고 고친 자기 말만 뽑아 �
   const r = await h.call({ action: 'agent_ref', requestId: rid(), ref: SAJU, history: [], text: said });
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.fix.text, '나는 혼자 조용히 정리하는 시간이 꼭 필요해');
-  assert.equal(r.body.fix.receipt, '사주보다 당신 말이 맞아요. 「나는 혼자 조용히 정리하는 시간이 꼭 필요해」, 이렇게 기억할게요.');
+  assert.equal(r.body.fix.receipt, '사주보다 당신 말이 맞아요. 「나는 혼자 조용히 정리하는 시간이 꼭 필요해」');
+  assert.ok(!/기억할게요/.test(r.body.fix.receipt), '저장 전에는 「기억할게요」 약속 0(여기에만 둘게요를 누를 수 있다)');
   assert.equal(r.body.fix.ask, '이 말, 내 프로필에도 반영할까요?');
   assert.equal(JSON.stringify(session(s)), before, '확인 전 저장 0');
   const ok = await h.call({ action: 'agent_ref_fix', ref: SAJU, text: said });
   assert.equal(ok.status, 200, JSON.stringify(ok.body)); assert.equal(ok.body.saved, true);
+  assert.equal(ok.body.line, '내 프로필에 반영했어요. 이 말로 기억할게요.', '「기억할게요」는 저장 뒤에만');
   const items = session(s).state.slots.values_character.items.filter((i) => i.source === 'ref_fix');
   assert.equal(items.length, 1);
   assert.equal(items[0].source_type, 'USER_CORRECTED'); assert.equal(items[0].quote, '나는 혼자 조용히 정리하는 시간이 꼭 필요해');

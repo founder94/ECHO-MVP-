@@ -139,5 +139,7 @@ export function refFixCandidate(text: string, privateData: RegExp): string | nul
   if (crisisSignal(rest) || privateData.test(rest) || REF_FIX_SEXUAL.test(rest) || REF_FIX_SENSITIVE.test(rest)) return null;
   return rest;
 }
-export const refFixReceipt = (seed: RefSeed, fix: string) => `${seed.kind === "card" ? "카드" : "사주"}보다 당신 말이 맞아요. 「${fix}」, 이렇게 기억할게요.`;
+// 반영 확인 전 줄 — 아직 저장하지 않았으니 「기억할게요」라고 약속하지 않는다(약속은 저장 뒤 REF_FIX_SAVED 에서만).
+export const refFixReceipt = (seed: RefSeed, fix: string) => `${seed.kind === "card" ? "카드" : "사주"}보다 당신 말이 맞아요. 「${fix}」`;
+export const REF_FIX_SAVED = "내 프로필에 반영했어요. 이 말로 기억할게요.";
 export const REF_FIX_ASK = "이 말, 내 프로필에도 반영할까요?";

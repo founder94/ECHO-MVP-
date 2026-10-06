@@ -41,6 +41,8 @@ export function fixCited(receipt: Receipt | null, question: string | null): bool
   return words.some((w) => question.includes(w.slice(0, 2)));
 }
 
+const FORGOTTEN_MAX = 30; // 지운 짐작을 기억해 두는 개수 상한(상태 크기 보호)
+
 export type MemoryBucket = "confirmed" | "guessed" | "corrected" | "rejected";
 export interface MemoryLine { id: string; text: string; hidden: boolean; can_forget: boolean }
 export interface MemoryView { confirmed: MemoryLine[]; guessed: MemoryLine[]; corrected: MemoryLine[]; rejected: MemoryLine[] }
@@ -83,6 +85,11 @@ export function forgetMemory(st: AgentState, id: string): boolean {
     return true;
   }
   const t = /^t:(\d+)$/.exec(id);
-  if (t) { const k = Number(t[1]); if (!st.inferred?.[k]) return false; st.inferred.splice(k, 1); return true; }
+  if (t) {
+    const k = Number(t[1]); const gone = st.inferred?.[k]; if (!gone) return false;
+    st.inferred.splice(k, 1);
+    st.forgotten_traits = [...(st.forgotten_traits ?? []), gone.trait].slice(-FORGOTTEN_MAX); // AI 가 같은 짐작을 다시 내도 올리지 않게 남긴다(글 그대로 · 화면에는 보이지 않음)
+    return true;
+  }
   return false;
 }

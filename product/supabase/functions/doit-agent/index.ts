@@ -677,14 +677,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (!cur?.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
         const st2 = structuredClone(cur.response_payload) as unknown as Stored;
         const slot = st2.state.slots.values_character;
-        if (slot.items.some((x) => x.source === "ref_fix" && x.quote === fix && x.status === "CONFIRMED")) return json({ ok: true, saved: true, duplicate: true, line: "내 프로필에 반영했어요." }, 200, origin);
+        if (slot.items.some((x) => x.source === "ref_fix" && x.quote === fix && x.status === "CONFIRMED")) return json({ ok: true, saved: true, duplicate: true, line: RT.REF_FIX_SAVED }, 200, origin);
         slot.items.push({ note: fix.slice(0, 60), quote: fix, turn: 0, source: "ref_fix", status: "CONFIRMED", source_type: "USER_CORRECTED", confirmed_at: new Date().toISOString(), corrected_from: [] });
         slot.status = "CONFIRMED";
         if (st2.state.phase !== "talk") { st2.profile = A.matchingProfile(st2.state); st2.handoff = A.matchingHandoff(st2.profile); }
         const rv = Number(cur.applied_revision ?? 0);
         const { data: saved, error } = await admin.from("doit_request_events").update({ response_payload: st2, applied_revision: rv + 1 })
           .eq("user_id", userId).eq("request_id", row.request_id).eq("action", SESSION_ACTION).eq("applied_revision", rv).select("request_id");
-        if (!error && saved && saved.length) { logDiag({ step: "ref_fix_saved", ref: seed.kind }); return json({ ok: true, saved: true, line: "내 프로필에 반영했어요." }, 200, origin); }
+        if (!error && saved && saved.length) { logDiag({ step: "ref_fix_saved", ref: seed.kind }); return json({ ok: true, saved: true, line: RT.REF_FIX_SAVED }, 200, origin); }
       }
       return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 다시 눌러 주세요.", 409, origin);
     }

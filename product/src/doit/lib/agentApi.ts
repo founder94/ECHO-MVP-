@@ -182,7 +182,7 @@ export async function agentRef(userId: string, ref: RefSeedBody, history: RefLin
 // 2026-10-06 사주·타로 정정 → 내 프로필 반영(사용자가 [반영할게요]를 누를 때만). said = 사용자가 보낸 말 그대로(서버가 다시 자기 말을 뽑는다).
 export async function agentRefFix(userId: string, ref: RefSeedBody, said: string): Promise<{ saved: boolean; line: string }> {
   const r = await serverFunctionRequest<{ saved?: boolean; line?: string }>('doit-agent', { action: 'agent_ref_fix', ref, text: said }, userId);
-  return { saved: r.saved === true, line: typeof r.line === 'string' ? r.line : '내 프로필에 반영했어요.' };
+  return { saved: r.saved === true, line: typeof r.line === 'string' ? r.line : '내 프로필에 반영했어요. 이 말로 기억할게요.' };
 }
 
 // 2026-10-06 「ECHO가 아는 나」: 네 묶음(내가 확인한 것 · AI 짐작 · 내가 고친 것 · 아니라고 한 것) · 줄 지우기.
