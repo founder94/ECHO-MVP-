@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { DEFAULT_AGENT_TONE, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone } from '@/doit/lib/agentApi';
+import { DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeStatus } from '@/doit/lib/agentApi';
 import './core-conversation.css';
 import './chat-ref.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
@@ -64,6 +64,10 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // 2026-10-06 유료 자유 대화 안내: 서버 스위치가 켜져 있을 때만(기본 끔) · 정해진 흐름에서 ECHO에게 다른 걸 물었을 때(말 종류 ask) 한 번 보인다.
+  const [freeStatus, setFreeStatus] = useState<FreeStatus | null>(null);
+  const [freeOffer, setFreeOffer] = useState(false);
+  useEffect(() => { let on = true; agentFreeStatus(userId).then((f) => { if (on) setFreeStatus(f); }).catch(() => { /* 상태를 못 읽으면 안내를 보이지 않는다 */ }); return () => { on = false; }; }, [userId]);
   const [editingPrevious, setEditingPrevious] = useState(false);
   const [speaking, setSpeaking] = useState(false); // 말로 대화하기: ECHO 가 소리로 읽는 중
   const [voiceNote, setVoiceNote] = useState<string | null>(null);
@@ -151,8 +155,11 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
-      if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
+      // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤에만 오는 한 줄(화면이 만들지 않음)
+      if (r.turn.receipt) { if (correctionMode) setEditingPrevious(false); setNotice(r.turn.receipt); }
+      else if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
+      setFreeOffer(r.turn.kind === 'ask');
     });
   };
 
@@ -333,6 +340,11 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       </div>}
       {busy && <div className="echo-thinking echo-typing" role="status"><span className="echo-typing-dots" aria-hidden="true"><i /><i /><i /></span><p>{busy}</p></div>}
       {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
+      {/* 새 CSS 0 — 기존 안내 줄·보조 버튼 모양 그대로 */}
+      {freeOffer && freeStatus?.enabled && !busy && <>
+        <p className="echo-notice" role="note">{freeStatus.entitled ? '여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요.' : `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요. 맛보기 ${freeStatus.trial_left ?? 0}번 남았어요.`}</p>
+        <Link className="echo-secondary" to="/doit/free-talk">무엇이든 이야기하기 <ChevronRight size={18} /></Link>
+      </>}
       {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
     </div>
     {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
@@ -377,6 +389,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}>{done ? text : <button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button>}</li>)}</ol></details>}
       <button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>
       <Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>
+      <Link className="echo-secondary" to="/doit/known">ECHO가 아는 나 <ChevronRight size={18} /></Link>
       {restartPill()}
       <p className="echo-fine">적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</p>
       <p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p>

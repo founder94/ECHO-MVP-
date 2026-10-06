@@ -120,3 +120,24 @@ export async function refTalk(seed: RefSeed, history: RefLine[], text: string, a
   const raw = await call(llm, obs, "ref_talk", REF_SYSTEM, { ref: seedText(seed), history, latest: text, allow_question: allowQuestion });
   return parseRef(raw, allowQuestion);
 }
+
+// ── 2026-10-06 대표 승인 「사주·타로 정정 → 매칭 사용」(B): 결과 해석을 부정하고 「자기 말」로 고친 문장만 뽑는다(AI 호출 0 · 해석 글은 재료 0).
+//   - 머리말(아닌데 · 그건 아니고 · 실제로는 · 사주(카드)는 그렇다는데 …)을 떼고 남은 사용자 글자 그대로 · 한글 6자 이상 · 물음 아님 · 120자 이하.
+//   - 위기 신호·연락처·성적 표현·민감 주제(건강·성·돈)는 후보로 내지 않는다(되풀이 금지 · 프로필에 올리지 않음).
+//   - 이 단계에서는 저장 0. 화면이 「이 말, 내 프로필에도 반영할까요?」를 한 번 묻고 [반영할게요]를 누를 때만 agent_ref_fix 가 저장한다.
+const REF_FIX_LEAD = /^\s*(음+|흠+|아+|어+)?[\s,.]*(사주(는|에선|에서는|로는)?|카드(는|에선|에서는|로는)?|그\s*(해석|풀이|결과)(은|는)?)?\s*(그렇다(는데|지만|고\s*해도)|그렇게\s*(나왔|말하)(는데|지만)|그렇게\s*보일\s*수\s*있(는데|지만))?[\s,.]*(아니(요|야|에요|거든요?)?|아냐|아닌데(요)?|그게\s*아니(라|고|야|에요)?|그건\s*아니(라|고|야|에요)?|전혀\s*아니(야|에요|고|라)?|안\s*맞(아|아요|는데|는\s*것\s*같아)|틀렸(어|어요|네|네요)?|실제로는|사실은|저는\s*오히려|나는\s*오히려|오히려)[\s,.!~…]*/;
+const REF_FIX_SEXUAL = /섹스|성관계|원나잇|조건\s*만남|성매매|야한\s*사진|몸\s*사진|노콘/; // doit-connect·doit-understanding 의 저장 금지 성적 표현과 같은 목록
+const REF_FIX_SENSITIVE = /(건강|병원|질병|진단|우울|공황|정신과|임신|성생활|돈|빚|대출|연봉|월급|재산|파산|신용)/;
+export const REF_FIX_MAX = 120;
+export function refFixCandidate(text: string, privateData: RegExp): string | null {
+  const t = String(text ?? "").trim().replace(/\s+/g, " ");
+  const m = t.match(REF_FIX_LEAD);
+  if (!m || !m[0] || !/(아니|아냐|아닌데|안\s*맞|틀렸|실제로는|사실은|오히려)/.test(m[0])) return null;
+  const rest = t.slice(m[0].length).trim().replace(/^[,.\s]+/, "");
+  if ((rest.match(/[가-힣]/g) ?? []).length < 6 || rest.length > REF_FIX_MAX) return null;
+  if (/[?？]/.test(rest) || QUESTION_END.test(rest) || whQuestion(rest)) return null;
+  if (crisisSignal(rest) || privateData.test(rest) || REF_FIX_SEXUAL.test(rest) || REF_FIX_SENSITIVE.test(rest)) return null;
+  return rest;
+}
+export const refFixReceipt = (seed: RefSeed, fix: string) => `${seed.kind === "card" ? "카드" : "사주"}보다 당신 말이 맞아요. 「${fix}」, 이렇게 기억할게요.`;
+export const REF_FIX_ASK = "이 말, 내 프로필에도 반영할까요?";

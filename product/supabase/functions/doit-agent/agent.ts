@@ -472,6 +472,8 @@ const TURN_FLAG_RULES: [string, string][] = [
   ["objective_first", "- objective_first: 처음 질문. 만남 준비 말고 바라는 관계를 묻는다."],
   ["latest_is_button", "- latest_is_button: latest 는 누른 버튼 글자다. 그 낱말이나 「~라는 말」로 묻지 말고 그 뜻으로 묻는다."],
   ["logistics_done", "- logistics_done: 만남 준비(장소·연락·약속·시간)는 이미 물었다. 다시 묻지 않는다."],
+  // 2026-10-06 대표 「기억하는 AI」 A-3: 고치는 말일 때만 — 정정 직후 다음 질문 한 번에 고친 말을 짧게 짚는다(다음 장면 증거).
+  ["latest_may_fix", "- latest_may_fix: 사용자가 앞말을 고치고 있을 수 있다. correction 이면 next.question 앞부분에 고친 말의 낱말 하나를 그대로 짧게 넣는다(예: 「주말이면, …?」)."],
 ];
 // objective_first 가 켜져 있으면 만남 준비 금지가 이미 들어 있으므로 logistics_done 줄은 붙이지 않는다(같은 뜻 두 번 · 바이트만 늘어남).
 export const flagRules = (input: Record<string, unknown>) => TURN_FLAG_RULES.filter(([k]) => input[k] === true && !(k === "logistics_done" && input.objective_first === true)).map(([, r]) => r);
@@ -584,7 +586,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null; choices?: string[] } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading" | "ref_talk", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading" | "ref_talk" | "free_talk", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 
@@ -631,7 +633,8 @@ function shownIn(reply: string, item: { note: string; quote: string }): boolean 
 function sameAsRejected(st: AgentState, note: string): boolean {
   const b = squash(note);
   return PIDS.some((id) => st.slots[id].items.some((i) => {
-    if (i.status !== "RETRACTED" || i.source_type !== "AI_EXTRACTED") return false;
+    // 2026-10-06 「ECHO가 아는 나」에서 사용자가 지운 값(source user_forget)도 같은 뜻으로 다시 올리지 않는다(출처와 관계없이).
+    if (i.status !== "RETRACTED" || (i.source_type !== "AI_EXTRACTED" && i.source !== "user_forget")) return false;
     const a = squash(i.note);
     if (a === b) return true;
     if (NEG_MARK.test(a) !== NEG_MARK.test(b)) return false;
@@ -1173,7 +1176,8 @@ export function matchingProfile(st: AgentState) {
     relationship_style: slot("relationship_style"), boundaries: slot("boundaries"),
     confirmed_preferences: PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").map((i) => i.note)),
     inferred_candidates: st.inferred.map((i) => ({ trait: i.trait, basis: i.basis, status: "INFERRED", source_type: "AI_INFERRED", source_turn: i.turn })),
-    rejected_meanings: [...st.disputed, ...PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED").map((i) => i.note))],
+    // 2026-10-06 사용자가 「ECHO가 아는 나」에서 지운 값(user_forget)은 「아니라는 뜻」이 아니라 「쓰지 말라는 뜻」 — 거절 뜻(매칭 제외 재료)에 넣지 않는다.
+    rejected_meanings: [...st.disputed, ...PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "RETRACTED" && i.source !== "user_forget").map((i) => i.note))],
     user_corrections: st.corrections,
     mbti: st.declared.mbti ? { value: st.declared.mbti, status: "CONFIRMED" } : { value: null, status: "UNKNOWN" },
     blood_type: st.declared.blood_type ? { value: st.declared.blood_type, status: "CONFIRMED" } : { value: null, status: "UNKNOWN" },
@@ -1584,6 +1588,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
     if (forced) input.confirmed_by_user = forced.kind === "correction" ? { fixes_previous_turn: true, purposes: pend!.targets.purposes, note: "사용자가 이 말(latest)은 앞 턴 말을 고치는 뜻이라고 확인했다. latest 에서 그 칸의 새 뜻을 정리하고, 앞 턴의 옛 뜻은 wrong 에 적는다." } : { fixes_previous_turn: false, note: "사용자가 이 말(latest)은 앞말을 고친 것이 아니라 지금 질문에 대한 답이라고 확인했다." };
     // 끝난 뒤: run 7 과 같은 입력(run 8 에서 직전 반응을 넣었더니 AI 가 그 문장을 그대로 되풀이해 되돌렸다).
     if (after) { input.open_purposes = []; input.clarify_allowed = false; input.note = "대화는 끝났다. 사용자가 고칠 것을 말하면 받아들이고 질문하지 않는다."; }
+    if (ui || forced?.kind === "correction" || rejectWithNewValue(work)) input.latest_may_fix = true; // 2026-10-06 고치는 말로 보일 때만 지시 한 줄(그 밖의 턴은 지시문 글자 그대로)
     if (ui) input.ui_correction = { purpose: ui.purpose, label: ui.purpose ? UI_PURPOSE_LABELS[ui.purpose] : null, note: ui.purpose ? "사용자가 화면에서 이 칸을 직접 고쳤다(정정). 이 말을 이 칸의 새 뜻으로 정리한다. 이 정정 때문에 더는 맞지 않는 heard 항목은 다른 칸에 있어도 wrong 에 note 글자 그대로 적는다." : "사용자가 화면에서 다시 설명했다(정정). 이 말에서 새 뜻을 정리한다. 이 정정 때문에 더는 맞지 않는 heard 항목은 어느 칸에 있어도 wrong 에 note 글자 그대로 적는다." };
     if (previous) input.previous_attempt = previous;
     let raw: string;

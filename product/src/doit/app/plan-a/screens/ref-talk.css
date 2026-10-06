@@ -26,3 +26,8 @@
 .echo-ref :is(button,textarea):disabled{opacity:.55}
 .echo-ref :is(button,textarea):focus-visible{outline:2px solid #fff;outline-offset:2px}
 .echo-ref .echo-ref-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* 2026-10-06 사주·타로 정정 → 프로필 반영 확인 */
+.echo-ref .echo-ref-line--receipt{font-weight:700}
+.echo-ref .echo-ref-fix{margin:6px 0 10px;padding:12px 14px;border:1px solid rgb(255 255 255/.7);border-radius:16px;background:rgb(255 255 255/.08)}
+.echo-ref .echo-ref-fix p{margin:0 0 8px;font-size:14px;line-height:1.6;font-weight:600}
+.echo-ref .echo-ref-fix-row{display:flex;flex-wrap:wrap;gap:8px}

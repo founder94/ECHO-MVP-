@@ -11,6 +11,7 @@ const ID = { user: '10000000-0000-4000-8000-00000000000a', admin: '00000000-0000
 let seq = 0;
 const rid = () => `${String(++seq).padStart(8, '0')}-0000-4000-8000-${String(seq).padStart(12, '0')}`;
 
+const pick = (row, col) => { const ks = String(col).split(/->>?/); let v = row; for (const k of ks) v = v == null ? undefined : v[k]; return v; };
 function fakeDb(state) {
   const table = (n) => (state.tables[n] ??= []);
   const q = (name) => {
@@ -25,6 +26,9 @@ function fakeDb(state) {
       eq: (col, v) => { filters.push((r) => r[col] === v); return c; },
       gte: (col, v) => { filters.push((r) => String(r[col] ?? '') >= String(v)); return c; },
       in: (col, vals) => { filters.push((r) => vals.includes(r[col])); return c; },
+      // 2026-10-06 자유 대화 세기: JSON 경로 칸(「a->b->>c」) · like(앞부분 %) · or(「칸.eq.값,…」 하나라도)
+      like: (col, pat) => { const pre = String(pat).replace(/%$/, ''); filters.push((r) => String(pick(r, col) ?? '').startsWith(pre)); return c; },
+      or: (expr) => { const parts = String(expr).split(',').map((x) => x.split('.eq.')); filters.push((r) => parts.some(([k, v]) => String(r[k] ?? '') === v)); return c; },
       order: (col, o) => { order = { col, asc: o?.ascending !== false }; return c; },
       limit: (n) => { lim = n; return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
@@ -80,13 +84,18 @@ function load(state) {
   // 2026-10-05 참고 이야기 모듈(reference-talk.ts · agent.ts 만 씀 · 저장 0)
   const refMod = { exports: {} };
   vm.runInNewContext(compile('reference-talk.ts'), { ...g, module: refMod, exports: refMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'reference-talk.ts' });
+  // 2026-10-06 기억 영수증·「ECHO가 아는 나」(memory.ts · 순수 함수) · 유료 자유 대화(free-talk.ts · state.env 로 켜고 끔)
+  const memMod = { exports: {} };
+  vm.runInNewContext(compile('memory.ts'), { ...g, module: memMod, exports: memMod.exports, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'memory.ts' });
+  const freeMod = { exports: {} };
+  vm.runInNewContext(compile('free-talk.ts'), { ...g, module: freeMod, exports: freeMod.exports, Deno: { env: { get: (k) => (state.env ?? {})[k] } }, require: (n) => { if (n === './agent.ts') return agentMod.exports; throw new Error(`Unexpected dependency ${n}`); } }, { filename: 'free-talk.ts' });
   let handler = null;
   const logs = [];
   const sandbox = {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
     // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; if (name === './memory.ts') return memMod.exports; if (name === './free-talk.ts') return freeMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (url, init) => {
       // 2026-10-03 실행 단계의 도구(연결 서버 my_candidates) — state.connect 가 정한 응답(없으면 연결 실패)
       if (String(url).endsWith('/functions/v1/doit-connect')) {

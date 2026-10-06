@@ -48,7 +48,9 @@ test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질�
   assert.match(TALK, /const r = await agentRef\(userId, ref, history\.map/);
   assert.match(TALK, /\{ role: "echo", text: r\.reply \}/);
   assert.match(TALK, /if \(r\.question\) next\.push\(\{ role: "echo", text: r\.question, question: true \}\);/);
-  assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 2, '화면에 박힌 ECHO 말 0');
+  // 2026-10-06 사주·타로 정정 영수증(r.fix.receipt)도 서버가 준 글 그대로 — 화면에 박힌 ECHO 말은 여전히 0
+  assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 3, '화면에 박힌 ECHO 말 0');
+  assert.match(TALK, /next\.push\(\{ role: "echo", text: r\.fix\.receipt, receipt: true \}\)/);
   assert.match(TALK, /if \(!text\) \{ setOpened\(true\); clearContentSeed\(\); \}/);
   assert.match(TALK, /if \(text && fromDraft\) setDraft\(text\); \/\/ 적은 말 보존/);
   // 검수(P2): 「질문 하나 받아 보기」는 입력칸 글을 지우거나 바꾸지 않고, 실패하면 「다시 보내기」가 그 요청을 그대로 다시 보낸다

@@ -2,15 +2,15 @@
 // 가짜 사용자·가짜 매칭·가짜 비용 0. 사용자 원문은 기본 가림(「원문 보기」를 눌러야 보임). 이 화면은 읽기만 한다(쓰기 호출 0).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
-import { PIPELINE_STAGES, PURPOSE_IDS, aiOsEngines, candidates, dashboard, fetchAgentAdmin, observability, pipeline, pipelineSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
+import { PIPELINE_STAGES, PURPOSE_IDS, aiOsEngines, candidates, dashboard, fetchAgentAdmin, fetchFreeSummary, memoryStats, observability, pipeline, pipelineSummary, type FreeSummary, type Session, type StageState } from "@/doit/lib/agentAdmin";
 import { AGENT_PURPOSE_LABELS } from "@/doit/lib/agentApi";
 import { PanelTitle, StatCard, Pill, EmptyRow, fmtDate } from "../components/ui";
 
 type Load = { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; sessions: Session[] };
-type Tab = "pipeline" | "dashboard" | "sessions" | "profile" | "candidates" | "ai";
+type Tab = "pipeline" | "dashboard" | "sessions" | "profile" | "candidates" | "ai" | "memory";
 const TABS: { key: Tab; label: string }[] = [
   { key: "pipeline", label: "어디서 막혔나(파이프라인)" }, { key: "dashboard", label: "대시보드" }, { key: "sessions", label: "대화 보기" }, { key: "profile", label: "매칭 프로필" },
-  { key: "candidates", label: "실패·성공 후보" }, { key: "ai", label: "AI 관측" },
+  { key: "candidates", label: "실패·성공 후보" }, { key: "ai", label: "AI 관측" }, { key: "memory", label: "기억·자유 대화" },
 ];
 const TONE: Record<string, string> = { formal: "정중한 존댓말", polite: "편한 존댓말", casual: "편한 반말" };
 const FLAG: Record<string, string> = { correction: "정정", rejection: "거절", complaint: "항의", skip: "넘기기", fatigue: "지침", unsure: "모르겠음", ask: "AI에게 질문", help: "질문 뜻 되물음", blocked: "저장 금지 입력" };
@@ -47,6 +47,10 @@ export default function AgentConversations() {
   const open = sessions.find((s) => s.id === openId) ?? null;
   const pipe = useMemo(() => pipelineSummary(sessions), [sessions]);
   const engines = useMemo(() => aiOsEngines(sessions), [sessions]);
+  const mem = useMemo(() => memoryStats(sessions), [sessions]);
+  // 2026-10-06 유료 자유 대화 이번 달 요약(탭을 열 때만 서버에 묻는다 · 글 0)
+  const [free, setFree] = useState<{ kind: "idle" | "loading" } | { kind: "error"; message: string } | { kind: "ready"; data: FreeSummary }>({ kind: "idle" });
+  useEffect(() => { if (tab !== "memory" || free.kind !== "idle") return; setFree({ kind: "loading" }); fetchFreeSummary().then((data) => setFree({ kind: "ready", data })).catch((e) => setFree({ kind: "error", message: message(e) })); }, [tab, free.kind]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,6 +100,23 @@ export default function AgentConversations() {
         </div>
       </section>}
 
+      {load.kind === "ready" && tab === "memory" && <section className="flex flex-col gap-4" aria-label="기억·자유 대화">
+        <p className="text-xs leading-relaxed text-foreground-600">기억 영수증 = 서버가 정정을 저장한 턴에만 보낸 한 줄. 「고친 말 짚음」은 다음 질문에 고친 말의 낱말이 들어갔는지(글자 비교 · 관측만). 2026-10-06 배포 뒤 대화부터 쌓여요.</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="기억 영수증 보낸 턴" value={mem.receipts} sub={`새 기록 ${mem.recorded}턴 중`} status="success" accent />
+          <StatCard label="다음 질문이 고친 말 짚음 · 못 짚음" value={`${mem.cited} · ${mem.not_cited}`} sub="못 짚음이 많으면 지시 문구를 다시 봐야 해요" status="success" />
+          <StatCard label="사주·타로 정정 반영" value={mem.ref_fix} sub="사용자가 「반영할게요」를 누른 것만(끝난 대화의 프로필 기준)" status="success" />
+        </div>
+        {free.kind === "loading" && <p className="text-sm text-foreground-600">자유 대화 요약을 불러오고 있어요.</p>}
+        {free.kind === "error" && <p role="alert" className="text-sm text-secondary-900">{free.message}</p>}
+        {free.kind === "ready" && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard label="자유 대화 스위치" value={free.data.enabled ? "켜짐" : "꺼짐"} sub={free.data.price_known ? "단가·환율 확인됨" : "단가·환율 없음 → 켜도 호출 0"} status="success" accent />
+          <StatCard label="이번 달 사용자 · 요청" value={`${free.data.users} · ${free.data.requests}`} sub={`AI 호출 ${free.data.calls} (실패 ${free.data.failed_calls})`} status="success" />
+          <StatCard label="이번 달 토큰 입력 · 출력" value={`${free.data.tokens_in.toLocaleString()} · ${free.data.tokens_out.toLocaleString()}`} status="success" />
+          <StatCard label="이번 달 금액(원)" value={free.data.krw == null ? "확인 불가" : free.data.krw.toLocaleString()} sub={`한 사람 ${free.data.limits.user_month_krw.toLocaleString()}원 · 회사 ${free.data.limits.company_month_krw.toLocaleString()}원 · 하루 ${free.data.limits.daily}회 · 맛보기 ${free.data.limits.trial}회`} status="success" />
+        </div>}
+      </section>}
+
       {load.kind === "ready" && sessions.length > 0 && tab === "dashboard" && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="대화" value={d.sessions} sub={`진행 ${d.in_progress} · 끝남 ${d.done}`} status="success" accent />
         <StatCard label="글 / 말" value={`${d.text} / ${d.voice}`} status="success" />
@@ -122,7 +143,7 @@ export default function AgentConversations() {
           </button>
           {open?.id === s.id && <ol className="mt-3 flex flex-col gap-3 text-xs">
             {s.turns.map((t) => <li key={t.i} className="rounded-md bg-background-100 px-3 py-2">
-              <p className="font-semibold">턴 {t.i} · {t.action}{t.rec ? ` · 질문 ${t.rec.question_index}/5 · ${t.rec.decision}` : ""} {Object.entries(t.flags).filter(([, v]) => v).map(([k]) => <Pill key={k} tone="secondary">{FLAG[k] ?? k}</Pill>)}{t.rec?.guard ? <Pill tone="neutral">서버가 바로잡음: {t.rec.guard.from}→{t.rec.guard.to} ({t.rec.guard.rule})</Pill> : null}{t.rec?.superseded ? <Pill tone="neutral">정정으로 옛 뜻 {t.rec.superseded}개 거둠</Pill> : null}</p>
+              <p className="font-semibold">턴 {t.i} · {t.action}{t.rec ? ` · 질문 ${t.rec.question_index}/5 · ${t.rec.decision}` : ""} {Object.entries(t.flags).filter(([, v]) => v).map(([k]) => <Pill key={k} tone="secondary">{FLAG[k] ?? k}</Pill>)}{t.rec?.guard ? <Pill tone="neutral">서버가 바로잡음: {t.rec.guard.from}→{t.rec.guard.to} ({t.rec.guard.rule})</Pill> : null}{t.rec?.superseded ? <Pill tone="neutral">정정으로 옛 뜻 {t.rec.superseded}개 거둠</Pill> : null}{t.rec?.receipt ? <Pill tone="neutral">기억 영수증{t.rec.fix_cited === true ? " · 다음 질문이 짚음" : t.rec.fix_cited === false ? " · 다음 질문이 못 짚음" : ""}</Pill> : null}</p>
               <p className="mt-1">사용자: {hide(t.user, showRaw)}</p>
               <p className="mt-1 whitespace-pre-wrap">ECHO: {t.assistant || "(말 없음)"}</p>
               {t.rec && <p className="mt-1 text-foreground-500">{t.rec.provider} · {t.rec.calls.map((c) => `${c.kind} ${c.model ?? "?"} ${c.ms}ms 입력 ${c.input_tokens ?? "?"} 출력 ${c.output_tokens ?? "?"}${c.error ? ` 오류 ${c.error}` : ""}`).join(" / ")} · 다시 청함 {t.rec.retry.join(",") || "0"}{t.rec.tone_mismatch_observed ? " · 말투 어긋남(추정)" : ""}{t.rec.record_error ? ` · 기록 저장 실패` : ""}</p>}

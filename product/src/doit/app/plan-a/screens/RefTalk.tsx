@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { agentRef, refSeedBody, type RefLine } from "@/doit/lib/agentApi";
+import { agentRef, agentRefFix, refSeedBody, type RefLine } from "@/doit/lib/agentApi";
 import { clearContentSeed, type ContentSeed } from "@/doit/lib/contentSeed";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
 import "./ref-talk.css";
@@ -10,7 +10,9 @@ import "./ref-talk.css";
 // - 이야기 거리(결과 종류)는 서버가 여는 한 줄을 돌려준 뒤에 지운다(로그인 복귀·늦은 응답에도 유지).
 // - 실패하면 적은 말은 입력칸에 그대로 · 다시 보내기는 누를 때만(같은 말 = 같은 요청 → 서버가 한 번만 부름).
 
-type Line = RefLine & { question?: boolean };
+type Line = RefLine & { question?: boolean; receipt?: boolean };
+// 2026-10-06 대표 「사주·타로 정정 → 매칭 사용」: 사용자가 결과를 부정하고 자기 말로 고치면 서버가 영수증 + 반영 확인을 준다(저장 0). [반영할게요]만 저장.
+type FixAsk = { said: string; ask: string; state: "ask" | "saving" | "saved" | "skipped" | "error"; message?: string };
 type Fail = { kind: "limit" | "busy" | "not_ready" | "paused" | "private" | "failed"; message: string } | null;
 const FAIL_MESSAGE: Record<NonNullable<Fail>["kind"], string> = {
   limit: "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.",
@@ -32,6 +34,7 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
   const [fail, setFail] = useState<Fail>(null);
   const [opened, setOpened] = useState(false);
   const [lastFail, setLastFail] = useState<{ text: string; fromDraft: boolean } | null>(null); // 실패한 그 요청을 「다시 보내기」로 그대로
+  const [fixAsk, setFixAsk] = useState<FixAsk | null>(null);
   const busy = pending !== null;
   const endRef = useRef<HTMLDivElement | null>(null);
   const alive = useRef(true);
@@ -40,12 +43,13 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
 
   // 검수(P2): 입력칸은 「입력칸 글을 보낸 때」만 건드린다 — 「질문 하나 받아 보기」 버튼은 적어 둔 글을 지우거나 바꾸지 않는다.
   const ask = async (text: string, history: Line[], fromDraft = false) => {
-    setPending(text); setFail(null); setLastFail(null);
+    setPending(text); setFail(null); setLastFail(null); if (text) setFixAsk((f) => (f && f.state === "ask" ? null : f));
     try {
       const r = await agentRef(userId, ref, history.map(({ role, text: t }) => ({ role, text: t })), text);
       if (!alive.current) return;
       const next: Line[] = [...history, ...(text ? [{ role: "user" as const, text }] : []), { role: "echo", text: r.reply }];
       if (r.question) next.push({ role: "echo", text: r.question, question: true });
+      if (r.fix && text) { next.push({ role: "echo", text: r.fix.receipt, receipt: true }); setFixAsk({ said: text, ask: r.fix.ask, state: "ask" }); }
       setLines(next);
       if (!text) { setOpened(true); clearContentSeed(); } // 서버가 받은 뒤에 이야기 거리를 지운다
       else if (fromDraft) setDraft("");
@@ -62,19 +66,34 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
 
   const send = (text: string, fromDraft = true) => { const t = text.trim(); if (!t || busy || !opened) return; void ask(t, lines, fromDraft); };
   const leave = (to: "home" | "plan") => { clearContentSeed(); onLeave(to); };
+  const applyFix = async () => {
+    if (!fixAsk || fixAsk.state !== "ask") return;
+    setFixAsk({ ...fixAsk, state: "saving" });
+    try { const r = await agentRefFix(userId, ref, fixAsk.said); if (alive.current) setFixAsk({ ...fixAsk, state: r.saved ? "saved" : "error", message: r.saved ? r.line : "반영하지 못했어요." }); }
+    catch (e) { if (alive.current) setFixAsk({ ...fixAsk, state: "error", message: e instanceof UnderstandingError && e.code === "NO_SESSION" ? "다섯 가지 이야기를 먼저 시작하면 그때 반영할 수 있어요." : "반영하지 못했어요. 이 말은 여기에만 남아 있어요." }); }
+  };
 
   return (
     <section className="echo-dialogue echo-dialogue--pastel echo-ref" aria-labelledby="echo-ref-title">
       <header className="echo-ref-head">
         <p className="echo-eyebrow">{seed.source === "TAROT" ? "타로 카드" : "사주"} 참고 이야기</p>
         <h1 id="echo-ref-title" className="echo-ref-title">ECHO와 이야기</h1>
-        <p className="echo-ref-note">ECHO는 먼저 묻지 않아요. 결과는 참고일 뿐이고, 여기서 한 말은 프로필이나 연결에 쓰이지 않아요.</p>
+        <p className="echo-ref-note">ECHO는 먼저 묻지 않아요. 결과는 참고일 뿐이고, 여기서 한 말은 프로필이나 연결에 쓰이지 않아요. 결과와 다르다고 고친 내 말만, 내가 「반영할게요」를 누르면 프로필에 반영돼요.</p>
       </header>
 
       <div className="echo-ref-lines" aria-live="polite">
         {lines.map((l, i) => (
-          <p key={i} className={`echo-ref-line echo-ref-line--${l.role}${l.question ? " echo-ref-line--question" : ""}`}>{l.text}</p>
+          <p key={i} className={`echo-ref-line echo-ref-line--${l.role}${l.question ? " echo-ref-line--question" : ""}${l.receipt ? " echo-ref-line--receipt" : ""}`}>{l.text}</p>
         ))}
+        {fixAsk && <div className="echo-ref-fix" role="group" aria-label="프로필 반영 확인">
+          {fixAsk.state === "ask" || fixAsk.state === "saving" ? <>
+            <p>{fixAsk.ask}</p>
+            <div className="echo-ref-fix-row">
+              <button type="button" className="echo-ref-chip" disabled={fixAsk.state === "saving"} onClick={() => void applyFix()}>{fixAsk.state === "saving" ? "반영하는 중…" : "반영할게요"}</button>
+              <button type="button" className="echo-ref-chip echo-ref-chip--quiet" disabled={fixAsk.state === "saving"} onClick={() => setFixAsk({ ...fixAsk, state: "skipped" })}>여기에만 둘게요</button>
+            </div>
+          </> : <p role="status">{fixAsk.state === "skipped" ? "알겠어요. 프로필에는 넣지 않을게요." : fixAsk.message}</p>}
+        </div>}
         {busy && <p className="echo-ref-line echo-ref-line--echo echo-ref-typing" aria-label="ECHO가 답을 쓰고 있어요"><span /><span /><span /></p>}
         <div ref={endRef} />
       </div>

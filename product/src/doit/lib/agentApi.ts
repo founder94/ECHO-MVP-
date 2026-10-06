@@ -74,7 +74,7 @@ function validRunTool(t: unknown): t is AgentRunTool {
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
 export interface AgentRescue { options: string[]; symbols?: string[]; show: boolean; fallback: boolean } // symbols = 서버가 고른 생활형 심볼(보기와 같은 순서 · 빈 칸이면 점)
-export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean }
+export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: string | null } // receipt = 서버가 정정을 저장한 턴의 영수증 한 줄(2026-10-06)
 
 export const AGENT_PURPOSE_LABELS: Record<string, string> = {
   relationship_intent: '원하는 만남', attraction_comfort: '편하거나 끌리는 사람', values_character: '사람을 볼 때 중요한 것',
@@ -168,12 +168,53 @@ async function fetchTarot(userId: string, key: string, cardName: string, purpose
 // 보내는 것 = 결과 종류(카드 이름 · 사주 세 갈래 키) + 이번 이야기의 앞 줄(최대 8) + 지금 말. 빈 말 = 여는 한 줄(모델 호출 0).
 export type RefSeedBody = { kind: 'card'; label: string } | { kind: 'pattern'; key: string };
 export interface RefLine { role: 'user' | 'echo'; text: string }
-export interface RefReply { reply: string; question: string | null }
+export interface RefFix { text: string; receipt: string; ask: string }
+export interface RefReply { reply: string; question: string | null; fix?: RefFix | null } // fix = 결과 해석을 부정하고 고친 자기 말(2026-10-06 · 저장 0 · [반영할게요]를 누를 때만 agentRefFix)
 export const refSeedBody = (seed: ContentSeed): RefSeedBody => seed.source === 'TAROT' ? { kind: 'card', label: seed.card } : { kind: 'pattern', key: seed.key };
 export async function agentRef(userId: string, ref: RefSeedBody, history: RefLine[], text: string): Promise<RefReply> {
   const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE']);
   if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
-  return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null };
+  const f = r.fix as RefFix | null | undefined;
+  const fix = f && typeof f.text === 'string' && f.text.trim() && typeof f.receipt === 'string' && typeof f.ask === 'string' ? { text: f.text, receipt: f.receipt, ask: f.ask } : null;
+  return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null, fix };
+}
+
+// 2026-10-06 사주·타로 정정 → 내 프로필 반영(사용자가 [반영할게요]를 누를 때만). said = 사용자가 보낸 말 그대로(서버가 다시 자기 말을 뽑는다).
+export async function agentRefFix(userId: string, ref: RefSeedBody, said: string): Promise<{ saved: boolean; line: string }> {
+  const r = await serverFunctionRequest<{ saved?: boolean; line?: string }>('doit-agent', { action: 'agent_ref_fix', ref, text: said }, userId);
+  return { saved: r.saved === true, line: typeof r.line === 'string' ? r.line : '내 프로필에 반영했어요.' };
+}
+
+// 2026-10-06 「ECHO가 아는 나」: 네 묶음(내가 확인한 것 · AI 짐작 · 내가 고친 것 · 아니라고 한 것) · 줄 지우기.
+export interface MemoryLine { id: string; text: string; hidden: boolean; can_forget: boolean }
+export interface MemoryView { confirmed: MemoryLine[]; guessed: MemoryLine[]; corrected: MemoryLine[]; rejected: MemoryLine[] }
+const validLines = (v: unknown): v is MemoryLine[] => Array.isArray(v) && v.every((l) => !!l && typeof (l as MemoryLine).id === 'string' && typeof (l as MemoryLine).text === 'string');
+const validMemory = (m: unknown): m is MemoryView => { const x = m as MemoryView | null; return !!x && validLines(x.confirmed) && validLines(x.guessed) && validLines(x.corrected) && validLines(x.rejected); };
+export async function agentMemory(userId: string): Promise<MemoryView | null> {
+  const sessionId = rememberedSession(userId);
+  const r = await serverFunctionRequest<{ memory: MemoryView | null }>('doit-agent', { action: 'agent_memory', ...(sessionId ? { sessionId } : {}) }, userId);
+  if (r.memory === null) return null;
+  if (!validMemory(r.memory)) throw new Error('INVALID_RESPONSE');
+  return r.memory;
+}
+export async function agentMemoryForget(userId: string, itemId: string): Promise<MemoryView> {
+  const sessionId = rememberedSession(userId);
+  const r = await serverFunctionRequest<{ memory: MemoryView }>('doit-agent', { action: 'agent_memory_forget', itemId, ...(sessionId ? { sessionId } : {}) }, userId);
+  if (!validMemory(r.memory)) throw new Error('INVALID_RESPONSE');
+  return r.memory;
+}
+
+// 2026-10-06 유료 자유 대화(서버 스위치 기본 끔). 상태 = 켜짐 · 권한 · 맛보기 남은 수(AI 0).
+export interface FreeStatus { enabled: boolean; entitled: boolean; trial_left: number | null }
+export async function agentFreeStatus(userId: string): Promise<FreeStatus> {
+  const r = await serverFunctionRequest<Partial<FreeStatus>>('doit-agent', { action: 'agent_free_status' }, userId);
+  return { enabled: r.enabled === true, entitled: r.entitled === true, trial_left: typeof r.trial_left === 'number' ? r.trial_left : null };
+}
+export interface FreeReply { reply: string; blocked: string | null; crisis: boolean }
+export async function agentFree(userId: string, history: RefLine[], text: string): Promise<FreeReply> {
+  const r = await write<{ reply?: unknown; blocked?: unknown; crisis?: unknown }>(userId, { action: 'agent_free', history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'ALREADY_DONE', 'FREE_CHAT_TRIAL_DONE', 'FREE_CHAT_DAILY', 'FREE_CHAT_MONTH', 'FREE_CHAT_COMPANY', 'FREE_CHAT_OFF', 'FREE_CHAT_PRICE_UNKNOWN', 'FREE_CHAT_PROVIDER']);
+  if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
+  return { reply: r.reply, blocked: typeof r.blocked === 'string' ? r.blocked : null, crisis: r.crisis === true };
 }
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.

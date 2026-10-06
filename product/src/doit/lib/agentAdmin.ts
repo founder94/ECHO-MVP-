@@ -13,7 +13,7 @@ export interface ReadinessInfo { phone_verified: boolean; intro_saved: boolean }
 export interface PhotoInfo { count: number; primary: boolean; last_updated_at: string | null }
 export interface RawSession { id: string; user: string; nickname: string | null; created_at: string; updated_at: string; photos?: PhotoInfo; readiness?: ReadinessInfo; stored: { agent?: string; state?: StoredState; profile?: Record<string, unknown> | null; handoff?: { status?: string } | null } | null }
 export interface CallRec { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
-export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number; fi?: string[] }
+export interface TurnRecord { agent_version?: string; prompt_version?: string; policy_version?: string; pipeline_version?: string; guard?: { from: string; to: string; rule: string } | null; superseded?: number; error?: string; turn_index: number | null; kind: string; saved: boolean; decision: string; question_index: number; question_purpose: string | null; flags: Record<string, boolean>; provider: string; model_requested: string; calls: CallRec[]; retry: string[]; fallback: number; tone_mismatch_observed: boolean; id_leak: boolean; record_error: string | null; total_ms: number; fi?: string[]; receipt?: boolean; fix_cited?: boolean | null } // receipt·fix_cited = 2026-10-06 기억 영수증(예전 기록엔 없음)
 export interface RawTurn { session_id: string; created_at: string; record: TurnRecord | null }
 
 export interface Turn { i: number; user: string; assistant: string; question_purpose: string | null; action: string; flags: Record<string, boolean>; rec: TurnRecord | null; decision: string | null; recovered: string[] }
@@ -214,4 +214,17 @@ export function aiOsEngines(sessions: Session[]): EngineRow[] {
     row('direction', '방향 잠금(5개 목적)', n((x) => typ(x.c.success, 'FIVE_TURN_COMPLETED')), n((x) => typ(x.c.failure, 'QUESTIONS_OVER_5')), '다섯 안에 마침 / 핵심 질문 5 초과'),
     row('failure', '실패·성공 기록', recs.length, recs.filter((r) => r.kind === 'error').length, `턴 기록 ${recs.length} · 실패 턴 ${recs.filter((r) => r.kind === 'error').length} · 판 기록 있는 턴 ${recs.filter((r) => r.agent_version).length}`),
   ];
+}
+
+// ── 2026-10-06 기억 영수증 · 사주·타로 정정 반영 · 유료 자유 대화(관리자 관측 · 수치만 · 글 0)
+export function memoryStats(sessions: Session[]) {
+  const recs = sessions.flatMap((s) => s.records);
+  const refFix = sessions.reduce((n, s) => n + PURPOSE_IDS.reduce((k, id) => k + (((s.profile?.[id] as { items?: { source_type?: string; source_turn?: number }[] } | undefined)?.items ?? []).filter((i) => i.source_type === 'USER_CORRECTED' && i.source_turn === 0).length), 0), 0);
+  return { receipts: recs.filter((r) => r.receipt === true).length, cited: recs.filter((r) => r.fix_cited === true).length, not_cited: recs.filter((r) => r.fix_cited === false).length, ref_fix: refFix, recorded: recs.filter((r) => r.receipt !== undefined).length };
+}
+export interface FreeSummary { enabled: boolean; month_start: string; users: number; calls: number; failed_calls: number; requests: number; tokens_in: number; tokens_out: number; krw: number | null; limits: { trial: number; daily: number; user_month_krw: number; company_month_krw: number }; price_known: boolean }
+export async function fetchFreeSummary(): Promise<FreeSummary> {
+  const r = await serverFunctionRequest<FreeSummary>('doit-agent', { action: 'admin_free_summary' });
+  if (typeof r.enabled !== 'boolean' || typeof r.calls !== 'number') throw new Error('INVALID_RESPONSE');
+  return r;
 }
