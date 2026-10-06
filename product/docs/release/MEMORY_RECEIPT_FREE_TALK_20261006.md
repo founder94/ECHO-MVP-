@@ -88,3 +88,24 @@
 - QA 에서 자유 대화를 켜려면 QA 함수 환경값 `FREE_TALK_ENABLED=on` · `FREE_TALK_DAILY=10` · `FREE_TALK_TEST_USERS=<시험 계정 id>` 설정이 필요(Secret 변경 = 대표 승인 대상). 켜지 않으면 QA 실서버 검사 ⑩은 「꺼짐=503」만 확인한다.
 - 회사 월 예산 10,000원(E.17) 적용은 `COMPANY_AI_BUDGET` 장부(초안 미적용)와 함께 — 아직 꺼짐.
 - 캡처: 모의 서버 기준 6장은 PR 본문·`docs/release/shots-20261006/`에 · QA 실화면 캡처는 QA 게시 뒤 추가.
+
+## 8. 운영 배포 실행 순서(2026-10-06 대표 「테스트 진행 후 운영 배포」 · 대표 손으로 누르는 부분 표시)
+
+이 세션에서 **할 수 없는 것**(자동 안전장치가 막음 · 우회하지 않음): ① PR #148 병합 버튼(「검토 없는 병합」으로 차단) ② 운영 배포 실행 ③ 운영 배포 워크플로 파일 추가. 아래 ★ 표시가 대표가 직접 누르는 단계다. 나머지는 병합 알림이 오면 이 세션이 이어서 한다.
+
+| 순서 | 할 일 | 누가 | 방법 | 확인 |
+|---|---|---|---|---|
+| 1 | PR #148 → echo-qa 병합 | ★대표 | GitHub 앱 → Pull requests → #148 → **Merge pull request**(일반 merge) | 병합 뒤 Actions 에 `echo-qa-edge-deploy`(doit-agent · doit-connect 2개) · `echo-netlify-deploy`(검사만) 자동 시작 |
+| 2 | QA 서버 함수 배포 확인 | 세션 | Actions 결과 읽기 · QA 함수 판 번호 증가(doit-agent 107→, doit-connect 70→) | 로그인 없는 요청 401 · 사전 요청 200 |
+| 3 | QA 앱 게시(1곳 · 15 credits) | 세션 | `echo-netlify-deploy` 수동 실행 target=qa · qa_roles=app | https://echo-app-qa.netlify.app 새 판 |
+| 4 | QA 실서버 버튼 검사(시작부터) | 세션 | `qa-real/qa-memory-live.mjs`(워크플로) + 전체 버튼 스윕 스크립트 · 캡처 | FAIL 0 이어야 5번으로 |
+| 5 | 운영 서버 함수 배포(doit-agent · doit-connect · doit-understanding) | ★대표 | 방법 A: Supabase 대시보드 → 운영 프로젝트(zyyhhxyupizcqhxqnxuu) → Edge Functions → 각 함수 「Deploy」(echo-qa 파일 그대로) · 방법 B: `product/docs/release/DRAFT_echo-prod-edge-deploy.yml.txt` 를 `.github/workflows/echo-prod-edge-deploy.yml` 로 올린 뒤 Actions 에서 go=GO 로 실행(ECHO-PROD 승인) | 운영 판 번호 증가(doit-agent 17→, doit-connect 9→, doit-understanding 29→) · 로그인 없는 요청 401 |
+| 6 | 운영 함수 비밀값 확인(값은 보지 않음 · 있음/없음만) | ★대표 | Supabase 대시보드 → Edge Functions → Secrets: `OPENAI_API_KEY` · `MATCH_SOURCE=agent` · `CORS_ALLOWED_ORIGINS`(app.do-it.company 포함) · `FREE_TALK_ENABLED` 은 **두지 않음(기본 꺼짐)** | 없으면 5번 배포 뒤 첫 대화가 503/500 |
+| 7 | 운영 웹·앱 게시(1회 빌드 · brand+app 2곳 = 30 credits) | ★대표 | Actions → `echo-netlify-deploy` → Run workflow: target=**prod** · prod_roles=**brand,app** · go=**GO** → ECHO-PROD 환경 승인 | do-it.company · app.do-it.company 새 판 · Stale Redirect Guard 통과 |
+| 8 | 운영 확인(읽기만) | 세션/대표 | 홈 → 로그인 → 대화 시작 → 정정 1회 영수증 → 「ECHO가 아는 나」 → 사주·타로 시작 그림 | 실기기 1대 확인 전에는 「운영 확인 완료」라 쓰지 않음 |
+
+Netlify 절약: QA 는 app 1곳만(brand 는 이번 PR 에서 안 바뀜) · 운영은 brand,app 을 **한 번의 실행**으로(빌드 1회 · 게시 2곳). admin 은 운영에 없음(QA 전용).
+
+되돌리기: 운영 함수는 Supabase 대시보드에서 이전 판(doit-agent v17 · doit-connect v9 · doit-understanding v29) 복원 · Netlify 는 사이트 → Deploys → 이전 배포 「Publish deploy」.
+
+주의(운영 전 대표 판단 필요): ① 사주·타로 시작 화면 그림 2장은 검색 결과 이미지라 저작권 확인 전에는 운영 노출을 권하지 않음(#147) ② 자유 대화는 운영에서도 스위치 꺼짐(503) — 토스 심사 뒤 켜기 ③ `doit_entitlements` 표는 초안만(운영 DB 변경 0).
