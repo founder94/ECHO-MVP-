@@ -80,14 +80,21 @@ try { const { ctx, p } = await open(`${APP}/doit/conversation`);
   let t = await txt(p);
   check('④ 대화 첫 화면(목적 또는 첫 질문)', /ECHO|만남|친구|어떤/.test(t), t.slice(0, 120)); await shot(p, '04-conv-start');
   // 시작 화면(ConversationOpening): 목적 타일(radio) 하나 → 한 줄(선택) → 「이렇게 시작하기 / 이 말로 시작하기」. 이미 대화가 있으면 이 단계가 없다.
-  const tile = p.getByRole('radio', { name: /친구/ }).first();
+  const tile = p.locator('.echo-opening-tile').filter({ hasText: /친구/ }).first();
+  let diag = `tiles=${await p.locator('.echo-opening-tile').count()}`;
   if (await tile.count()) {
-    await tile.click({ timeout: 8000 }).catch(() => undefined); await p.waitForTimeout(400);
+    await tile.click({ timeout: 8000 }).catch((e) => { diag += ` tileClick=${String(e).slice(0, 60)}`; });
+    await p.waitForTimeout(600);
+    diag += ` checked=${await p.locator('.echo-opening-tile.is-selected').count()} line=${await p.locator('#echo-opening-line').count()}`;
     const line = p.locator('#echo-opening-line'); if (await line.count()) await line.fill('편하게 알아가고 싶어요').catch(() => undefined);
-    await clickText(p, /이렇게 시작하기|이 말로 시작하기/, 1500); await waitIdle(p, 45000);
+    const go = p.locator('.echo-opening-line button[type="submit"]').first(); diag += ` submit=${await go.count()}`;
+    await go.click({ timeout: 8000 }).catch((e) => { diag += ` goClick=${String(e).slice(0, 60)}`; });
+    await p.waitForTimeout(1500); await waitIdle(p, 60000);
+    diag += ` err=${(await p.locator('.echo-error').allInnerTexts().catch(() => [])).join('|').slice(0, 120)}`;
   }
   const ta = p.locator('#echo-message'); const sendBtn = p.getByRole('button', { name: /답변 보내기|고친 답 보내기/ }).first();
-  await ta.waitFor({ state: 'visible', timeout: 45000 }).catch(() => undefined);
+  await ta.waitFor({ state: 'visible', timeout: 60000 }).catch(() => undefined);
+  await shot(p, '04a-conv-after-start');
   const say = async (s) => { await ta.fill(s); await sendBtn.click({ timeout: 8000 }).catch(() => undefined); await p.waitForTimeout(1500); await waitIdle(p, 45000); };
   if (await ta.count()) {
     t = await txt(p); check('④ 시작 → 첫 질문(실제 AI)', await p.locator('.echo-question').count() > 0, t.slice(0, 160));
@@ -102,13 +109,13 @@ try { const { ctx, p } = await open(`${APP}/doit/conversation`);
     await shot(p, '04b-conv-receipt');
     check('④ 「직전 답 고치기」·「잘 모르겠어요」 등 도움 버튼 존재', await p.getByRole('button', { name: /직전 답 고치기|잘 모르겠어요|예시 보기/ }).count() > 0);
     const plus = p.getByRole('button', { name: /더 보기|\+/ }).first(); if (await plus.count()) { await plus.click().catch(() => undefined); await p.waitForTimeout(400); }
-  } else check('④ 입력칸', false, t.slice(0, 160));
+  } else check('④ 입력칸', false, `${diag} · ${(await txt(p)).slice(0, 160)}`);
   await ctx.close(); } catch (e) { check('섹션 예외(멈추지 않음)', false, String(e).split('\n')[0]); }
 // ⑤ ECHO가 아는 나: 네 칸 · 지우기 · 다시 불러오기
 try { const { ctx, p } = await open(`${APP}/doit/understanding`);
   const t = await txt(p); check('⑤ 「ECHO가 아는 나」 화면 · 네 칸 제목', /ECHO가 아는 나/.test(t) && /내가 고친 것/.test(t) && /아니라고 한 것/.test(t), t.slice(0, 160)); await shot(p, '05-known');
   check('⑤ 고친 뜻이 「내가 고친 것」에 있음(실제 AI 정정 결과)', /주말|한두 번/.test(t));
-  const del = p.locator('.doit-known-forget').first(); if (await del.count()) { const before = await p.locator('.doit-known-list li').count(); await del.click(); await p.waitForTimeout(1500); check('⑤ 줄 지우기 → 줄 수 -1', (await p.locator('.doit-known-list li').count()) === before - 1, `${before}→${await p.locator('.doit-known-list li').count()}`); await shot(p, '05b-known-forget'); } else check('⑤ 줄 지우기 버튼', false, '지울 줄 없음');
+  const del = p.locator('.doit-known-forget').first(); if (await del.count()) { const before = await p.locator('.doit-known-list li').count(); await del.click(); const t0 = Date.now(); while (Date.now() - t0 < 10000 && (await p.locator('.doit-known-list li').count()) >= before) await p.waitForTimeout(300); const after = await p.locator('.doit-known-list li').count(); check('⑤ 줄 지우기 → 줄 수 -1', after === before - 1, `${before}→${after} · ${(await p.locator('[role="alert"]').allInnerTexts().catch(() => [])).join('|').slice(0, 120)}`); await shot(p, '05b-known-forget'); } else check('⑤ 줄 지우기 버튼', false, '지울 줄 없음');
   await ctx.close(); } catch (e) { check('섹션 예외(멈추지 않음)', false, String(e).split('\n')[0]); }
 // ⑥ 자유 대화(스위치 꺼짐 안내) · KEY · 설정 · 연결 · 프로필 · 알림
 try { const { ctx, p } = await open(`${APP}/doit/talk`); const t = await txt(p); check('⑥ /doit/talk: 스위치 꺼짐 안내(또는 켜짐이면 맛보기 안내)', /아직 열리지 않았어요|맛보기/.test(t), t.slice(0, 160)); await shot(p, '06-talk'); await ctx.close(); } catch (e) { check('섹션 예외(멈추지 않음)', false, String(e).split('\n')[0]); }
