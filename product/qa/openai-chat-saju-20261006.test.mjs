@@ -146,3 +146,12 @@ test('화면: 서버가 올라가기 전에는 숨김(빌드 스위치) · 생�
   const facts = readFileSync('src/doit/lib/saju/storyFacts.ts', 'utf8').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(facts, /input\.|date|gender|time|annual|cycle|currentFlow/, '보내는 값에 생년월일·시간·성별·시기 0');
 });
+
+test('AI 사용 기록 30일 뒤 삭제(대표 승인 2026-10-06): 실행 전 초안 · 같은 함수 이름·인자·권한 · 표 구조 변경 0', () => {
+  const sql = readFileSync('supabase/drafts/PENDING_20261006_openai_rate_limits_30d.sql', 'utf8');
+  assert.match(sql, /사용기록 저장 승인 30일뒤 삭제/);
+  assert.match(sql, /create or replace function public\.openai_rate_limit_allow\(\s*p_session_id text,\s*p_ip text,\s*p_day text,\s*p_daily_limit integer,\s*p_cooldown_ms integer\s*\) returns boolean/);
+  assert.match(sql, /delete from public\.openai_rate_limits\s+where day < to_char\(\(v_now at time zone 'utc'\)::date - 30, 'YYYY-MM-DD'\);/);
+  assert.match(sql, /revoke all on function public\.openai_rate_limit_allow\(text, text, text, integer, integer\) from public, anon, authenticated;/);
+  assert.doesNotMatch(sql, /alter table|drop table|create table|create extension|grant /i);
+});
