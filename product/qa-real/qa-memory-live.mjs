@@ -51,7 +51,7 @@ const victim = k?.guesses[0] ?? k?.confirmed[0] ?? null;
 if (victim) {
   const f = await agent(A.jwt, { action: 'agent_forget', requestId: randomUUID(), sessionId: sid, key: victim.key });
   const k2 = f.data?.session?.known;
-  check('⑥ 줄 지우기 → 네 칸에서 사라짐 · 지운 수 +1', f.status === 200 && !!k2 && ![...k2.confirmed, ...k2.guesses, ...k2.corrected, ...k2.rejected].some((l) => l.key === victim.key) && k2.forgotten === (k.forgotten ?? 0) + 1, `status=${f.status} ${short(f.data?.error)}`);
+  check('⑥ 줄 지우기 → 네 칸에서 사라짐 · 지운 수 +1', f.status === 200 && !!k2 && ![...k2.confirmed, ...k2.guesses, ...k2.corrected, ...k2.rejected].some((l) => l.key === victim.key) && k2.forgotten >= (k.forgotten ?? 0) + 1, `status=${f.status} forgotten ${k.forgotten ?? 0}→${k2?.forgotten ?? '-'} ${short(f.data?.error)}`); // 지운 줄의 원문 복사본도 함께 지워지면 +2 가 정상(검수 P1)
 } else check('⑥ 줄 지우기(지울 줄 없음 → 확인 불가)', false, '네 칸이 비어 있음');
 const c1 = await agent(A.jwt, { action: 'agent_confirm', requestId: randomUUID(), sessionId: sid });
 check('⑦ 「맞아요」 = 서버 확인 시각 기록', c1.status === 200 && !!c1.data?.session?.known?.confirmed_at, `status=${c1.status} at=${short(c1.data?.session?.known?.confirmed_at)}`);
