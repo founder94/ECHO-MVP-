@@ -2,7 +2,7 @@
  "purpose": "실AI 실행 요청 — 이 파일이 바뀌어 push 되면 .github/workflows/echo-ab-real.yml 이 돈다",
  "requested_at": "2026-10-06",
  "approved_by": "대표 「ECHO 최종 지시 · 기억하는 AI + 사주타로 정정 매칭 + 유료 자유 대화 · 대표 승인 2026-10-06」 D-16 턴당 비용 실측(QA 서버 스위치는 기본 끔이라 R&D 시험 키로 같은 지시문·같은 파라미터)",
- "run": 16,
+ "run": "16-2",
  "mode": "free_talk",
  "what": "자유 대화 free-talk.ts 비용 실측 — 36회(입력 12 × 앞 줄 0·4·8)",
  "history": [
@@ -94,7 +94,15 @@
    "run": 15,
    "mode": "prod_agent",
    "actions_run": null,
-   "commit": "c29115f 이전"
+   "commit": null,
+   "note": "기록 칸 비어 있음(이전 세션 기록 확인 필요)"
+  },
+  {
+   "run": 16,
+   "mode": "free_talk",
+   "actions_run": 37453931969,
+   "commit": "b3b1a7c",
+   "note": "성공했지만 결과 첨부·로그 저장소가 이 작업 환경에서 막혀 알림으로 다시 냄"
   }
  ],
  "models": [

@@ -63,6 +63,8 @@ jobs:
           mkdir -p ../ab-out
           node spike/free-talk-20261006/run-free.mjs --out ../ab-out/free-result.md --json ../ab-out/free-result.json
           cat ../ab-out/free-result.md >> "$GITHUB_STEP_SUMMARY"
+          # 결과 요약을 알림(annotation)으로도 남긴다 — 로그·첨부 파일 저장소에 닿지 못하는 환경에서 API 로 읽기 위함(키·원문 0 · 수치와 답 앞부분만)
+          node -e "const r=require('../ab-out/free-result.json'); console.log('::notice title=free-summary::'+JSON.stringify(r.summary)); for (const [k,x] of r.rows.entries()) console.log('::notice title=free-row-'+k+'::'+JSON.stringify({h:x.history,t:x.text,ok:x.ok,tin:x.tin,tout:x.tout,krw:x.krw&&+x.krw.toFixed(3),ms:x.ms,r:x.reply_excerpt}))"
       - name: MODEL GATE(B-1.0 고정 · 모델만 변경)
         if: steps.mode.outputs.mode == 'model_gate'
         working-directory: product
