@@ -23,8 +23,8 @@ test('다음 작업: 믿을 수 있는 사람의 echo-ready 중 가장 오래된
   assert.equal(pickNextTask([]), null);
 });
 
-test('PASS = Codex 「지적 없음」 댓글의 Reviewed commit 이 현재 head SHA', () => {
-  assert.equal(judgeRunning(base({ issueComments: [ok(SHA)] })).action, 'pass');
+test('현재 head의 지적 없음 문구도 trusted 완료 증명 없으면 BLOCKED', () => {
+  assert.equal(judgeRunning(base({ issueComments: [ok(SHA)] })).action, 'block');
 });
 
 test('Codex 지적(리뷰 5972966203 계열) 👍 반응만으로는 PASS 아님 · 옛 SHA 의 「지적 없음」도 PASS 아님 · 리뷰 없음 PASS 아님 · 다른 사람이 쓴 같은 문구 무시', () => {
@@ -49,7 +49,7 @@ test('옛 SHA 지적은 현재 판정에 쓰지 않음', () => {
     reviewComments: [{ user: { login: CODEX }, commit_id: 'b'.repeat(40), body: '![P1 Badge](x)' }],
     issueComments: [ok(SHA)],
   }));
-  assert.equal(r.action, 'pass');
+  assert.equal(r.action, 'block');
 });
 
 test('조용하면 25분 뒤 한 번만 다시 검수 요청 · 그 뒤 오래 조용하면 막힘(무한 반복 0)', () => {

@@ -4,8 +4,8 @@
 //   작업 PR = 브랜치 echo/task-<이슈 번호> · 라벨 echo-auto(라벨은 쓰기 권한자만 붙일 수 있음)
 // Codex 결과 판정(설치된 Codex 앱이 실제로 남기는 신호만):
 //   FAIL = 현재 head SHA 에 대한 Codex 리뷰 + P0~P2 배지 지적 → 수정은 claude.yml 이 맡음(여기서는 대기)
-//   PASS = Codex 의 「Didn't find any major issues」 댓글이 현재 head SHA 를 「Reviewed commit」으로 적었고 그 SHA 에 지적이 없음
-//          (👍 반응은 어느 SHA 인지 모르므로 PASS 근거로 쓰지 않음 · Codex 검수 지적)
+//   PASS = 현재 실행기에는 지원되는 typed trusted verdict 경로가 없어 자동 PASS 0.
+//          지적 없음 본문·짧거나 긴 SHA·👍 반응·리뷰 없음은 PASS 근거가 아니다.
 //   리뷰 없음 ≠ PASS. 오래 조용하면 그 SHA 에 한 번만 다시 검수를 요청한다.
 'use strict';
 
@@ -42,10 +42,12 @@ function judgeRunning({ now, issue, pr, headCommittedAt, reviews, reviewComments
   const codexReviews = reviews.filter((r) => r.user?.login === CODEX && r.commit_id === sha);
   const findings = reviewComments.filter((c) => c.user?.login === CODEX && c.commit_id === sha && FINDING.test(c.body || ''));
   if (codexReviews.length && findings.length) return { action: 'wait', reason: 'fail_fix_by_claude_yml', sha };
+  // Standard review prose and short/full SHA text are not a typed, completed trusted verdict.
+  // No supported verdict resolver is connected here. Keep the task blocked rather than declaring PASS.
   const reviewedSha = (c) => ((c.body || '').match(/Reviewed commit:\*{0,2}\s*`([0-9a-f]{7,40})`/) || [])[1];
-  const passed = issueComments.some((c) => c.user?.login === CODEX && /Didn.t find any major issues/.test(c.body || '')
+  const noFindingsForHead = issueComments.some((c) => c.user?.login === CODEX && /Didn.t find any major issues/.test(c.body || '')
     && Boolean(reviewedSha(c)) && sha.startsWith(reviewedSha(c)));
-  if (passed && !findings.length) return { action: 'pass', reason: 'codex_no_findings_for_head_sha', sha };
+  if (noFindingsForHead && !findings.length) return { action: 'block', reason: 'trusted_verdict_unavailable', sha };
   const pokes = issueComments.filter((c) => (c.body || '').startsWith(`<!-- echo-poke sha=${sha} -->`)).length;
   if (pokes >= LIMITS.maxPokesPerSha) {
     return minutes(now, headCommittedAt) > LIMITS.pokeAfterMin * 4 ? { action: 'block', reason: 'no_codex_review', sha } : { action: 'wait', reason: 'poked_waiting', sha };
