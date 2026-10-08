@@ -73,8 +73,9 @@ export function parseFree(raw: string, known?: KnownView): FreeReply | null {
   const o = parseJson(raw) as Record<string, unknown> | null;
   const reply = (typeof o?.reply === "string" ? o.reply : "").trim();
   if (!reply || reply.length > 600 || BANNED.test(reply) || PRIVATE_DATA.test(reply)) return null;
-  // A remembered claim requires an exact current source, not an invented model memory.
-  if (PAST_CLAIM.test(reply)) {
+  // A citation is a memory claim even when its prose avoids a past-tense phrase.
+  // Explicit empty/malformed citations fail closed; ordinary uncited conversation is unchanged.
+  if (PAST_CLAIM.test(reply) || Object.hasOwn(o!, 'memory_citations')) {
     const rejected = (known?.rejected ?? []).map(l => l.text.replace(/\s+/g, '')).filter(Boolean);
     const sources = [...(known?.confirmed ?? []), ...(known?.corrected ?? [])].filter(l => !l.sensitive && !SENSITIVE_TOPIC.test(l.text) && !rejected.some(t => (l.quote || l.text).replace(/\s+/g, '').includes(t)));
     const citations = o?.memory_citations;
