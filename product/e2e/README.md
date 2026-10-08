@@ -71,7 +71,7 @@ npx playwright show-trace test-results/ci/실패한검사폴더/trace.zip
 
 ## PR 자동 검사
 
-`.github/workflows/playwright-e2e.yml`은 경로 필터 없이 모든 PR에 실행하도록 준비했습니다. Secret·배포·DB 쓰기 없이 코드 읽기 권한만 씁니다. **이번 제출은 로컬 파일 준비와 CI 설정의 로컬 실행까지입니다. GitHub에 올려 반영한 사실이나 실제 Actions 실행 성공을 뜻하지 않습니다.**
+`.github/workflows/playwright-e2e.yml`은 경로 필터 없이 모든 PR에 실행합니다. Secret·배포·DB 쓰기 없이 코드 읽기 권한만 씁니다. 실제 실행 결과는 해당 PR의 **Checks → Isolated browser E2E → browser**와 연결된 Actions 로그에서 확인합니다. 워크플로 파일이 있다는 사실이나 로컬 검사 통과만으로 GitHub 실행 성공을 판정하지 않습니다.
 
 ## 이 검사로 보장하지 않는 것
 
@@ -79,6 +79,6 @@ npx playwright show-trace test-results/ci/실패한검사폴더/trace.zip
 - 실제 AI 답변 품질·과금·장기 기억의 저장과 검색·서버 접근 권한·DB 동시 처리.
 - 실제 결제·KEY 차감·운영에서 꺼진 기능의 활성화.
 - iPhone·Android 실기기의 키보드·카메라·앱 설치와 전체 시안 일치.
-- GitHub Actions 환경에서의 실제 실행. 로컬 CI 설정 검사는 이와 구분합니다.
+- 실제 서버·실기기 결과. GitHub Actions에서 통과해도 서버 응답은 가상 자료이며, 로컬 CI 설정 검사와 실제 Actions 실행은 각각의 로그로 구분합니다.
 
 예를 들어 로그아웃 요청에 오류가 있어도 현재 인증 라이브러리는 내 브라우저의 세션을 지웁니다. 이 동작을 검사하며, “모든 기기의 세션을 취소했다”고 말하지 않습니다. 새 브라우저의 가상 기억 조회 통과도 실제 오래된 사용자 기록을 복구했다는 증거로 쓰지 않습니다.
