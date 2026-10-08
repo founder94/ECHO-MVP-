@@ -19,6 +19,8 @@ export const memoryIntent = (text: string): "history" | "current" => /처음|최
 export const memoryQuestion = (text: string) => /뭐|무엇|얼마|어떤|알려|[?？]/u.test(text) && /기억(?:해|하|나|한|하는|해요|하고)|(?:처음|최초|예전|이전|현재|지금).*(?:말했|말한|정한|목표|결정)/u.test(text);
 function words(query: string) { return [...new Set(query.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])].map(w => w.replace(/(?:였나요|인가요|이었나요|했나요|였는지|이었는지|했는지|의|은|는|이|가|을|를)$/u, "")).filter(w => w.length >= 2); }
 function forgotten(st: State, turn: Turn) { return items(st).some(i => i.turn === turn.n && i.status === "FORGOTTEN") || (st.forgotten ?? []).some(t => has(turn.user, t)) || (st.forgotten_traits ?? []).some(t => has(turn.user, t)); }
+// 2026-10-09 Codex P1: AI 가 바꿔 말한 해석(원문의 글자 조각이 아님)을 사용자가 「아니에요」로 물리면 글자 비교(withheld)로는 못 가린다 → 그 턴에 물린·고쳐진 해석이 있고 확인된 사용자 직접 말이 없으면 원문 통째로 다시 쓰지 않는다.
+function deniedTurn(st: State, turn: Turn) { const linked = items(st).filter(i => i.turn === turn.n); return linked.some(i => i.status === "RETRACTED" || i.status === "DISPUTED" || i.status === "SUPERSEDED") && !linked.some(i => i.status === "CONFIRMED" && direct(i)); }
 const empty = (status: Recall["status"], notice: string): Recall => ({ status, evidence: [], complete: !["PARTIAL", "READ_FAILED"].includes(status), next: null, notice });
 export function recallRows(rows: Row[], userId: string, query: string, intent: "current" | "history", currentId: string | null, opts: { match?: number; rowMore?: boolean; offset?: number } = {}): Recall {
   if (!userId || typeof query !== "string" || query.length > 1000) throw new Error("MEMORY_INPUT");
@@ -36,6 +38,7 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
       if (!num(turn.n) || !turn.user || CONTROL.has(turn.kind) || forgotten(st, turn) || PRIVATE.test(turn.user)) continue;
       const linked = all.filter(i => i.turn === turn.n);
       const userItems = linked.filter(i => direct(i) && typeof i.quote === "string" && i.quote.length);
+      if (intent === "current" && !userItems.length && deniedTurn(st, turn)) continue;
       const entries = userItems.length ? userItems.map(i => ({ i, quote: i.quote! })) : [{ i: null, quote: turn.fix_text || turn.user }];
       const seen = new Set<string>();
       for (const { i, quote } of entries) {
@@ -81,4 +84,4 @@ export function withheld(st: State, text: string): boolean {
   const blocked = [...(st.forgotten ?? []), ...(st.forgotten_traits ?? []), ...(st.disputed ?? []), ...items(st).filter(i => i.status && i.status !== "CONFIRMED").map(i => i.note ?? "")];
   return blocked.some(t => has(text, t));
 }
-export function allowedRecent(st: State, count: number): Turn[] { return st.turns.filter(t => !forgotten(st, t) && !t.superseded && !withheld(st, t.user)).slice(-count); }
+export function allowedRecent(st: State, count: number): Turn[] { return st.turns.filter(t => !forgotten(st, t) && !t.superseded && !withheld(st, t.user) && !deniedTurn(st, t)).slice(-count); }

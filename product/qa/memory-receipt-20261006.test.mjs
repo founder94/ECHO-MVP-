@@ -190,3 +190,17 @@ test('⑫ 2026-10-09 지금 대화 기억 찾기(current)도 아니라고 한 �
   assert.equal(ask({ turns, slots, disputed: [], forgotten: ['등산'] }, '등산 얘기 뭐라고 했지?').evidence.length, 0, '지운 말 0');
   assert.equal(H.recallRows([row({ turns, slots })], 'u1', '연락 얘기 뭐라고 했지?', 'history', null).evidence.length, 1, '처음·예전(history)에는 당시 말로 남는다(HISTORICAL_ONLY)');
 });
+
+test('⑬ 2026-10-09 Codex P1: AI 가 바꿔 말한 해석을 물려도 원문이 지금 기억·최근 대화로 다시 들어가지 않는다(글자 조각이 아니어도)', async () => {
+  const H = await import(emit('../supabase/functions/doit-agent/history-retrieval.ts', 'history-retrieval3.mjs'));
+  const turns = [{ n: 1, user: '주말 등산을 좋아해요', kind: 'answer' }, { n: 2, user: '매일 연락하는 게 좋아요', kind: 'answer' }, { n: 3, user: '그건 아니고 가끔 연락해도 괜찮아요', kind: 'correction' }];
+  const para = { relationship_style: { items: [{ note: '매일 연락을 자주 주고받는 관계가 편하다', quote: '매일 연락하는 게 좋아요', turn: 2, status: 'RETRACTED', source_type: 'AI_EXTRACTED' }] }, attraction_comfort: { items: [{ note: '주말 등산', quote: '주말 등산을 좋아해요', turn: 1, status: 'CONFIRMED', source_type: 'USER_DIRECT' }] } };
+  const row = { user_id: 'u1', request_id: 's1', action: 'agent_session', status: 'applied', applied_revision: 4, created_at: '2026-10-09T00:00:00Z', response_payload: { state: { turns, slots: para } } };
+  assert.equal(H.withheld({ turns, slots: para }, '매일 연락하는 게 좋아요'), false, '전제: 글자 비교로는 못 가림(바꿔 말한 해석)');
+  assert.equal(H.recallRows([row], 'u1', '매일 연락 얘기 뭐라고 했지?', 'current', 's1').evidence.filter((e) => e.turn === 2).length, 0, '물린 해석의 원문 = 지금 기억 0');
+  assert.deepEqual(H.allowedRecent({ turns, slots: para }, 10).map((t) => t.n), [1, 3], '최근 대화에서도 빠짐 · 고친 말(3)은 남음');
+  // 같은 턴에 확인된 사용자 직접 말이 있으면 그 말은 남는다
+  const mixed = structuredClone(para); mixed.relationship_style.items.push({ note: '연락', quote: '연락하는 게 좋아요', turn: 2, status: 'CONFIRMED', source_type: 'USER_DIRECT' });
+  assert.deepEqual(H.allowedRecent({ turns, slots: mixed }, 10).map((t) => t.n), [1, 2, 3]);
+  assert.equal(H.recallRows([row], 'u1', '매일 연락 얘기 뭐라고 했지?', 'history', null).evidence.filter((e) => e.turn === 2).length, 1, '처음·예전(history)에는 당시 말로 남는다');
+});
