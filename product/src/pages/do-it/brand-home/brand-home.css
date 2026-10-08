@@ -55,7 +55,7 @@
 .bh-earth { position: absolute; left: calc(50% - min(75%, 550px)); bottom: -24%; z-index: -1; width: min(150%, 1100px); max-width: none; height: auto; opacity: 0.92;
   -webkit-mask-image: radial-gradient(closest-side, #000 70%, transparent 100%); mask-image: radial-gradient(closest-side, #000 70%, transparent 100%); }
 .bh-hero::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.5) 46%, rgba(0, 0, 0, 0.2) 70%, rgba(0, 0, 0, 0.55) 100%); }
-.bh-hero-copy { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; }
+.bh-hero-copy { width: 100%; max-width: 460px; position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; }
 .bh-eyebrow { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--bh-sub); }
 .bh-wordmark { margin: 26px 0 0; width: 100%; display: flex; justify-content: center; }
 .bh-wordmark img { display: block; width: min(86vw, 640px); max-width: 100%; height: auto; filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.55)); }
@@ -228,3 +228,20 @@
 @keyframes bh-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bh-zoom { from { transform: scale(1.18); filter: brightness(0.4) blur(6px); } to { transform: scale(1); filter: none; } }
 @keyframes bh-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+
+/* ── 2026-10-08 대표 「GetLayers 로 교체 · 모바일도 같은 계열」: 3D 그림층(layers/) — 첫 화면 입자 구체(Vesper·Solaris) · 제작 과정 격자(Einstein–Rosen) ──
+   켜진 뒤(data-scene-layer="on")에만: 지구 그림·별은 희미하게 · 휴대폰 첫 화면은 글을 아래로 내려 위쪽에 구체 자리. 꺼지면 원래 화면.
+   색은 파랑(--bh-blue 계열)만 · 회전·옆 스침은 CSS 0(구체 자전은 WebGL 안 · 대표 결정 대기 · 움직임 줄이기면 층 자체가 안 켜짐). */
+.bh-scene-layer { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity 1200ms ease; }
+.bh-scene-layer canvas { display: block; width: 100% !important; height: 100% !important; }
+.bh-sec[data-scene-layer="on"] .bh-scene-layer { opacity: 1; }
+.bh-sec[data-scene-layer="on"] .bh-content { z-index: 1; }
+.bh-hero[data-scene-layer="on"] .bh-earth { opacity: 0.3; }
+.bh-hero[data-scene-layer="on"] { justify-content: flex-end; padding-bottom: 44px; }
+.bh-hero[data-scene-layer="on"] .bh-wordmark { margin-top: 14px; }
+.bh-hero[data-scene-layer="on"] .bh-btn--start { margin-top: 28px; }
+.bh-making[data-scene-layer="on"] .bh-stars { opacity: 0.45; }
+.bh-making[data-scene-layer="on"] .bh-making-frame { box-shadow: 0 30px 80px rgba(40, 70, 140, 0.45); }
+@media (min-width: 900px) {
+  .bh-hero[data-scene-layer="on"] { justify-content: center; padding-bottom: 48px; }
+}

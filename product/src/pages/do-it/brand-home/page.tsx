@@ -8,6 +8,7 @@ import { GUIDE_SECTIONS } from '@/lib/guide/content';
 import BrandFilm, { BRAND_FILM_COPY } from './BrandFilm';
 import DotText from './DotText';
 import SceneLayer from './SceneLayer';
+import SceneHost from './layers/SceneHost';
 import { openGuide } from '@/lib/guide/bus';
 import './brand-home.css';
 
@@ -16,6 +17,7 @@ import './brand-home.css';
 // 스크롤 = 히어로 → 이야기(9장면 고르기) → 제작 과정 영상 → 웹 설치하기(+ 더 알아보기: 브랜드 영상 · 회사 소개 · 대표 인사말) → 법적 고지.
 // 이야기 장면·브랜드 영상·회사·인사말은 누르면 화면 가득 장면 창(SceneLayer)으로 열린다. 시작(앱으로 가기) 버튼은 히어로 하나뿐. 사진·영상은 대표가 준 원본 그대로(public/brand).
 // 앱(app.do-it.company)은 이 화면을 쓰지 않는다(라우터가 brand 역할에서만 연결).
+// 2026-10-08 대표 「홈페이지는 회사 얼굴 · GetLayers 구매(Vesper·Solaris·Einstein–Rosen) · 3D·600KB 허용 · 모바일도 같은 계열 · 틀 유지 · 온보딩 유지」: 3D 는 갈아끼우는 층(layers/ · 첫 화면 구체 · 제작 과정 격자)에서만 · 문구·버튼·지구 그림·4장 구조는 그대로.
 
 const START_PATH = '/doit/start-journey';
 export const BRAND_HOME_COPY = {
@@ -169,6 +171,8 @@ export default function BrandHomePage() {
       {/* 1. 히어로: 대표가 준 지구 그림 위에 시안 첫 화면 그대로(버튼 글자만 「모바일로 시작하기」) */}
       <section className="bh-sec bh-hero" aria-labelledby="bh-hero-title">
         <div className="bh-stars" aria-hidden="true" />
+        {/* 2026-10-08 갈아끼우는 3D 층(첫 화면 = Vesper 입자 구체 · 대안 Solaris) — 켜지면 지구는 희미하게 · 꺼지면(움직임 줄이기·WebGL 없음) 지구 그림 그대로 */}
+        <SceneHost slot="hero" />
         <img className="bh-earth" src="/brand/hero-earth.webp" alt="" aria-hidden="true" width="1206" height="1150" fetchPriority="high" decoding="async" draggable="false" />
         <div className="bh-hero-copy">
           <p className="bh-eyebrow">{BRAND_HOME_COPY.eyebrow}</p>
@@ -207,6 +211,8 @@ export default function BrandHomePage() {
       {/* 3. 제작 과정(2026-10-05 대표 「동영상 제작과정이라고 홈페이지 안에 그대로 박아」 · PR #137 「홈페이지 제작과정」 16초 영상과 같은 영상 — 그 플레이어(BrandFilm) 하나만 쓴다) */}
       <section className="bh-sec bh-film-sec bh-making" id="bh-making" aria-labelledby="bh-making-title" data-depth>
         <div className="bh-stars" aria-hidden="true" />
+        {/* 2026-10-08 갈아끼우는 3D 층(제작 과정 = Einstein–Rosen 격자 「연결의 다리」) — 영상 뒤 배경 · 꺼지면 별 배경 그대로 */}
+        <SceneHost slot="making" />
         <div className="bh-content">
           <p className="bh-kicker">MAKING FILM</p>
           <h2 id="bh-making-title" className="bh-title">{BRAND_FILM_COPY.title}</h2>

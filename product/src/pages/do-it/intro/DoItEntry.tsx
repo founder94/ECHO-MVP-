@@ -17,10 +17,17 @@ function landedWithOAuthTokens(): boolean {
 
 // 메인 진입(/): 이 세션에서 온보딩을 아직 안 봤으면 심볼 온보딩으로, 봤으면 바로 랜딩.
 // 랜딩은 첫 화면 번들에 그대로 남는다(지연 불러오기로 바꾸지 않는다).
+/** 2026-10-08 홈페이지 3D 층 미리보기 인자(?scene_hero=solaris · layers/registry.ts 가 읽음): 온보딩을 지나며 주소가 바뀌어도 남게 이 탭(sessionStorage)에만 적어 둔다. 온보딩 화면·순서는 그대로. */
+function rememberScenePreview(): void {
+  try {
+    new URLSearchParams(window.location.search).forEach((v, k) => { if (k.startsWith('scene_')) { if (v === '') window.sessionStorage.removeItem(k); else window.sessionStorage.setItem(k, v); } });
+  } catch { /* 저장 불가(사생활 모드 등) — 미리보기만 못 할 뿐 */ }
+}
+
 export default function DoItEntry({ landing }: Props) {
   const [oauthLanding] = useState(landedWithOAuthTokens);
   if (oauthLanding) return <OAuthLanding landing={landing} />;
-  if (!hasSeenIntro()) return <Navigate to="/do-it/intro" replace />;
+  if (!hasSeenIntro()) { rememberScenePreview(); return <Navigate to="/do-it/intro" replace />; }
   return landing;
 }
 
