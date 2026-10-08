@@ -7,7 +7,7 @@
 - 서버 `supabase/functions/doit-agent/`: `memory.ts`(새) · `free-talk.ts`(새) · `reference-talk.ts`(정정 뽑기) · `agent.ts`(지시 한 줄 latest_may_fix · 지운 값 재등장 차단 · 지운 값은 거절 뜻에서 뺌 · free_talk 종류) · `index.ts`(영수증 · agent_memory · agent_memory_forget · agent_ref_fix · agent_free · agent_free_status · admin_free_summary)
 - 앱: `lib/agentApi.ts` · `AgentConversation.tsx`(영수증 · 자유 대화 안내 · 「ECHO가 아는 나」 링크) · `RefTalk.tsx`(+css · 반영 확인) · 새 화면 `pages/do-it/known/` · `pages/do-it/free-talk/` · `routes.tsx`
 - 관리자: 앱 안 `/doit/admin/mobile` 대화 에이전트 → 「기억·자유 대화」 탭 · 턴마다 「기억 영수증」 표시 / 관리자 사이트 `src/admin/views/Revenue.tsx` 에 자유 대화 이번 달 AI 비용
-- 검사: `qa/memory-freechat-20261006.test.mjs`(21개) · `qa/agent-server.test.mjs`(가짜 DB 보강) · `qa/ref-talk-client-20261005.test.mjs`(영수증 줄 1개 늘어난 것 반영)
+- 검사: `qa/memory-freechat-20261006.test.mjs`(21개 · 2026-10-09 대표 승인으로 삭제 — 병합 뒤 옛 요청 이름을 써서 전부 실패하던 파일, 지금 기능은 `memory-receipt`·`free-talk`·`agent-ref-talk` 검사가 맡는다) · `qa/agent-server.test.mjs`(가짜 DB 보강) · `qa/ref-talk-client-20261005.test.mjs`(영수증 줄 1개 늘어난 것 반영)
 - 문서: `docs/release/LEGAL_DRAFTS_MEMORY_FREECHAT_20261006.md`(법무 초안 · 처리방침 확인 결과)
 
 ## 검사 숫자
