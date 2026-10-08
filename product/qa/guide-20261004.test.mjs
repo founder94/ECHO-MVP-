@@ -55,14 +55,13 @@ test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기�
 });
 
 test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「웹 설치하기」 = 설치 항목 문장 · 검정 테마 · 설치는 앱 주소에서만', () => {
-  assert.match(HOME, /<button type="button" onClick=\{\(\) => \{ close\(\); openGuide\(undefined, menuBtnRef\.current\); \}\}>이용 안내<\/button>/);
-  assert.match(HOME, /<button type="button" className="bh-legal-link" onClick=\{\(\) => openGuide\(\)\}>이용 안내<\/button>/);
-  // 2026-10-05 대표 「웹 설치하기는 룩킹 넣고 채우고」: 메뉴의 설치 = 홈페이지 안 웹 설치하기 구간 · 방법 문장은 이용 안내 설치 항목과 같은 것
-  assert.match(HOME, /<a href="#bh-install" onClick=\{close\}>\{BRAND_HOME_COPY\.install\}<\/a>/, '「웹 설치하기」는 메뉴에서');
-  assert.match(HOME, /const INSTALL = GUIDE_SECTIONS\.find\(\(s\) => s\.id === 'install'\);/);
+  // 2026-10-05 대표 「웹 설치하기는 룩킹 넣고 채우고」 → 2026-10-08 「GetLayers 코드 그대로」: 메뉴의 「웹 설치하기」 = 원본 머리띠 메뉴(#financial 카드) · 설치 카드 제목 = 이용 안내 설치 항목 제목 · 설치 자체는 앱 주소에서.
+  assert.match(read('src/vesper/components/common/site-header.tsx'), /\{ label: BRAND_HOME_COPY\.install, href: "\/#financial" \}/, '「웹 설치하기」는 메뉴에서');
+  assert.match(read('src/vesper/views/home/sections/financial-section.tsx'), /const TITLE = "홈 화면에서 바로 시작하세요\.";/, '설치 카드 제목 = 이용 안내 설치 항목 제목');
+  assert.match(read('src/vesper/views/home/sections/site-footer.tsx'), /onClick=\{\(\) => openGuide\(\)\}/, '바닥글 「이용 안내」');
   assert.match(HOME, /<GuideHost theme="brand"/);
   assert.match(HOME, /이 회사 홈페이지는 설치하지 않아도 돼요\./);
-  assert.match(HOME, /\{BRAND_HOME_COPY\.start\}/, '모바일 시작하기는 주 행동 그대로');
+  assert.match(read('src/vesper/views/home/send-request.tsx'), /\{BRAND_HOME_COPY\.start\}/, '모바일 시작하기는 주 행동 그대로');
 });
 
 test('앱: 안내 창 하나(앱 테마) · 설치 항목 = 실제 설치 카드 · 기능 옆 도움말(이야기·확인·후보·찌릿)', () => {

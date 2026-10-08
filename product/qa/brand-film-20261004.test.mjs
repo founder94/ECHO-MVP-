@@ -7,18 +7,19 @@ const read = (f) => readFileSync(f, 'utf8');
 const FILM = read('src/pages/do-it/brand-home/BrandFilm.tsx');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const VTT = read('public/brand/film/captions.ko.vtt');
+// 2026-10-08 대표 「GetLayers 코드 그대로 · 글만 넣어」: 홈페이지 = src/vesper 원본. 제작 과정 영상은 Einstein–Rosen 격자 장면(#making) 위에.
+const LATTICE = read('src/vesper/views/home/sections/lattice-section.tsx');
+const FOOT = read('src/vesper/views/home/sections/site-footer.tsx');
 
-test('자리(2026-10-05 대표 「핵심 4페이지만 스크롤 · 나머지는 버튼」 + PR #137 제작과정 영상): 제작 과정 영상은 3페이지(#bh-making) 하나 · 「모바일 시작하기」는 첫 화면 하나뿐', () => {
-  const at = (s) => HOME.indexOf(s);
-  const sec = HOME.slice(at('id="bh-making"'), at('id="bh-install"'));
-  assert.ok(at('id="bh-making"') > 0 && sec.includes('<BrandFilm />'), '제작 과정 = BrandFilm');
-  assert.equal((HOME.match(/<BrandFilm \/>/g) ?? []).length, 1, '같은 영상 한 번만');
-  assert.doesNotMatch(HOME, /kind: 'film'/, '같은 영상을 여는 「브랜드 영상」 창 0');
-  assert.equal((HOME.match(/\{BRAND_HOME_COPY\.start\}/g) ?? []).length, 1, '「모바일 시작하기」 = 첫 화면 하나');
-  assert.doesNotMatch(HOME, /StartActions/);
+test('자리(2026-10-08 대표 「코드 그대로」 + PR #137 제작과정 영상): 제작 과정 영상은 격자 장면(#making) 하나 · 같은 영상을 여는 창 0', () => {
+  assert.match(LATTICE, /<section ref=\{hostRef\} id="making" aria-label=\{BRAND_FILM_COPY\.title\}/);
+  assert.equal((LATTICE.match(/<BrandFilm \/>/g) ?? []).length, 1, '같은 영상 한 번만');
+  assert.equal((HOME.match(/<BrandFilm \/>/g) ?? []).length, 0, 'page.tsx 는 원본 틀만');
+  assert.doesNotMatch(HOME + LATTICE, /kind: 'film'/, '같은 영상을 여는 「브랜드 영상」 창 0');
+  assert.match(LATTICE, /import BrandFilm, \{ BRAND_FILM_COPY \} from "@\/pages\/do-it\/brand-home\/BrandFilm"/);
+  assert.match(LATTICE, /<div className="bh [^"]*">[\s\S]*<BrandFilm \/>/, '영상 칸은 .bh 틀 안(brand-home.css 그대로)');
   assert.match(FILM, /title: '홈페이지 제작과정', play: '영상 보기', error: '영상을 불러오지 못했어요\. 다시 시도해 주세요\.'/);
 });
-
 test('2026-10-05 대표 교체: 영상 = 홈페이지 제작과정(대표가 올린 16초) · 화면에 들어오면 소리 없이 저절로 재생', () => {
   assert.match(FILM, /mp4: '\/brand\/film\/homepage-making\.mp4'/);
   assert.match(FILM, /muted loop playsInline preload="metadata"/);
@@ -46,29 +47,26 @@ test('파일: 제작과정 mp4/webm · 대표 이미지 · 16초 안내 · 예�
   assert.match(FILM, /16초 영상/);
 });
 
-test('이용 안내를 열면 영상 멈춤 · 홈페이지 메뉴로 연 안내를 닫으면 초점은 메뉴 버튼으로', () => {
+test('이용 안내를 열면 영상 멈춤 · 바닥글 「이용 안내」 단추로 연 안내를 닫으면 초점은 그 단추로(GuideHost 가 누른 요소를 기억)', () => {
   assert.match(FILM, /const onGuide = \(\) => \{ if \(!v\.paused\) v\.pause\(\); \};\n\s*window\.addEventListener\(GUIDE_OPEN_EVENT, onGuide\);/);
   assert.match(FILM, /window\.removeEventListener\(GUIDE_OPEN_EVENT, onGuide\)/);
-  assert.match(HOME, /<button ref=\{menuBtnRef\} type="button" className="bh-menu-btn"/);
-  assert.match(HOME, /openGuide\(undefined, menuBtnRef\.current\)/);
+  assert.match(FOOT, /<PressableButton\n\s*type="button"\n\s*onClick=\{\(\) => openGuide\(\)\}/);
+  assert.match(read('src/components/guide/GuideHost.tsx'), /openerRef\.current = detail\?\.opener \?\? \(document\.activeElement instanceof HTMLElement/);
 });
-
-test('Codex PR #130 P2: QR 이 없는 빌드(QA 앱 주소)에서는 컴퓨터 「시작」 버튼이 막히지 않고 앱 주소로 · 주소 글자도 링크', () => {
-  const home = readFileSync(new URL('../src/pages/do-it/brand-home/page.tsx', import.meta.url), 'utf8');
-  assert.match(home, /if \(!qr \|\| !qr\.querySelector\('img'\)\) return;\n  event\.preventDefault\(\);/);
-  assert.match(home, /\{productionApp && <img src="\/brand\/app-qr\.svg"/, 'QR 그림은 운영 앱 주소일 때만');
-  assert.match(home, /<p>주소는 <strong><a href=\{appUrl\('\/'\)\}>\{APP_ORIGIN\}<\/a><\/strong><\/p>/);
+test('컴퓨터·휴대폰 모두 「웹 설치하기」 카드(#financial) = 설치 방법 글 · 설치는 앱 주소에서(이용 안내 설치 항목에 앱 주소 링크)', () => {
+  const fin = read('src/vesper/views/home/sections/financial-section.tsx');
+  assert.match(fin, /const TITLE = "홈 화면에서 바로 시작하세요\.";/);
+  assert.match(fin, /아이폰은 공유 버튼 → 홈 화면에 추가, 안드로이드는 메뉴 → 홈 화면에 추가\./);
+  assert.match(fin, /설치하지 않아도 웹에서 그대로 쓸 수 있어요\./);
+  assert.match(HOME, /설치는 앱 주소\(\{APP_ORIGIN\.replace\('https:\/\/', ''\)\}\)에서 해요\. 이 회사 홈페이지는 설치하지 않아도 돼요\. <a href=\{appUrl\(INSTALL_PATH\)\}>앱 주소에서 설치하기/);
 });
-
-test('Codex PR #130 P2: 장면 창은 누른 단추(currentTarget)를 받아 닫으면 그 단추로 돌아감 — Safari 는 눌러도 초점을 주지 않음', () => {
-  const home = readFileSync(new URL('../src/pages/do-it/brand-home/page.tsx', import.meta.url), 'utf8');
-  assert.match(home, /const openLayer = \(next: Layer, trigger\?: HTMLElement \| null\) => \{ layerOpener\.current = menuOpen \? menuBtnRef\.current : \(trigger \?\? /);
-  assert.doesNotMatch(home, /onClick=\{\(\) => openLayer\(/, '모든 여는 단추가 currentTarget 을 넘김');
-  assert.equal((home.match(/openLayer\(\{[^}]*\}, e\.currentTarget\)/g) ?? []).length, 5, '이야기 장면·회사 소개·대표 인사말(메뉴·더 알아보기)');
+test('옛 장면 창(SceneLayer)은 더 쓰지 않음 · 격자 장면 글 = 이야기 8장면(연결의 속도) · Solaris 글 = 5장면(감정의 이유)', () => {
+  assert.doesNotMatch(HOME, /openLayer|SceneLayer|layerOpener/);
+  assert.match(LATTICE, /const STORY = STORIES\[7\];/);
+  assert.match(read('src/vesper/views/home/sections/solaris-section.tsx'), /const STORY = STORIES\[4\];/);
 });
-
-test('2026-10-05 대표: 회사 소개 칸의 서비스·문의·약관 줄 삭제 · 바닥글(이용 안내·이용약관·개인정보처리방침·문의)은 그대로', () => {
+test('2026-10-05 대표: 바닥글(이용 안내·이용약관·개인정보처리방침·문의)은 그대로 · 원본의 이름·이메일 입력 칸은 뺌(개인정보 받는 칸 0)', () => {
   assert.doesNotMatch(HOME, /className="bh-rows"/);
-  const foot = HOME.slice(HOME.lastIndexOf('bh-legal-link'));
-  for (const t of ['이용 안내', 'href="/legal/terms">이용약관', 'href="/legal/privacy">개인정보처리방침', 'mailto:0423doit@gmail.com']) assert.ok(foot.includes(t), t);
+  for (const t of ['이용 안내', 'href="/legal/terms" className="underline underline-offset-4">이용약관', 'href="/legal/privacy" className="underline underline-offset-4">개인정보처리방침', 'href={`mailto:${LEGAL.email}`}']) assert.ok(FOOT.includes(t), t);
+  assert.doesNotMatch(FOOT, /<input|<form|type="email"/, '원본 연락 폼 0');
 });

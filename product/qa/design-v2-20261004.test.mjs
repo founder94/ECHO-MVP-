@@ -1,63 +1,83 @@
 // 2026-10-04 대표 「홈페이지·모바일 디자인 교체」 — 소스 규칙 검사(모의 · 실제 렌더·실기기 아님).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+const execSyncList = (dir) => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? execSyncList(p) : /\.(tsx?|css)$/.test(n) ? [p] : []; });
 
 const read = (f) => readFileSync(f, 'utf8');
 const noComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 const HOME = read('src/pages/do-it/brand-home/page.tsx');
 const HCSS = read('src/pages/do-it/brand-home/brand-home.css');
+// 2026-10-08 대표: 「GetLayers 구매 코드(Vesper · Solaris · Einstein–Rosen) 그대로 · 색·글씨체·3D 그대로 · 거기에 글만 넣어 · 온보딩 유지」 → 2026-10-05 「4장·지구 그림·보라 0」 잠금 해제.
+const COPY = read('src/pages/do-it/brand-home/copy.ts');
+const V = (f) => read(`src/vesper/${f}`);
+const STAGE = V('views/home/scroll-stage.tsx');
+const HERO = V('views/home/hero/hero.tsx');
+const GALAXY = V('views/home/section-galaxy.tsx');
+const FOOT = V('views/home/sections/site-footer.tsx');
+const MOCK = V('data/mocks/home.ts');
+const HEADER = V('components/common/site-header.tsx');
+const MNAV = V('components/common/mobile-nav.tsx');
+const SEND = V('views/home/send-request.tsx');
 
-test('홈페이지(2026-10-05 대표 「너무 길다 · 핵심 4페이지만 스크롤」): 스크롤 = 히어로 → 이야기 고르기 → 제작 과정 → 웹 설치하기 → 더 알아보기 → 법적 고지 · 나머지는 장면 창', () => {
-  const at = (s) => HOME.indexOf(s);
-  const order = ['className="bh-sec bh-hero"', 'id="bh-story"', 'id="bh-making"', 'id="bh-install"', '<nav className="bh-more"', '<footer className="bh-legal">'].map(at);
-  order.forEach((v) => assert.ok(v > 0));
+test('홈페이지(2026-10-08 대표 「GetLayers 코드 그대로」): 스크롤 = 원본 Vesper 3막(구슬 → 은하 → 뇌) → Solaris → 제작 과정(격자) → 웹 설치하기 → 이야기 → 바닥글 · 온보딩(인트로)은 그대로', () => {
+  for (const t of ["from '@vesper/layouts/scroll-layout'", "from '@vesper/components/common/site-header'", "from '@vesper/views/home'", "<AdaptiveGrid />", "<ReducedMotion />", "import '@vesper/vesper.css'"]) assert.ok(HOME.includes(t), t);
+  assert.match(HOME, /document\.documentElement\.classList\.add\('vesper'\)/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만');
+  assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
+  const at = (s) => STAGE.indexOf(s);
+  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="solaris">', '<HydrateNear id="making">', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="site-footer">'].map(at);
+  order.forEach((v, i) => assert.ok(v > 0, String(i)));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
-  assert.equal((HOME.match(/<section className="bh-sec/g) ?? []).length, 4, '스크롤 화면 4장');
-  for (const k of ['story', 'company', 'greeting']) assert.match(HOME, new RegExp(`kind: '${k}'`), `장면 창 ${k}`); // 영상은 3페이지 제작 과정 한 곳(PR #137 과 같은 영상)
-  const layer = read('src/pages/do-it/brand-home/SceneLayer.tsx');
-  assert.match(layer, /role="dialog" aria-modal="true"/);
-  assert.match(layer, /if \(e\.key === 'Escape'\)/, 'Esc 로 닫기');
-  assert.match(layer, /opener\?\.focus\?\.\(\{ preventScroll: true \}\)/, '닫으면 누른 버튼으로 초점');
-  assert.match(layer, /root\.style\.overflow = before/, '닫으면 뒤 화면 스크롤 원래대로');
-  // Codex PR #130 P2 4건: 메뉴로 연 창의 초점 복귀 · 휴대폰 빈 곳 탭 닫기 · 창 밖으로 빠진 초점 되돌리기 · 자동 재생 거절 시 재생 막대
-  assert.match(HOME, /layerOpener\.current = menuOpen \? menuBtnRef\.current : \(trigger \?\? \(document\.activeElement as HTMLElement \| null\)\); close\(\); setLayer\(next\);/);
-  assert.match(layer, /const opener = openerProp \?\? \(document\.activeElement as HTMLElement \| null\);/);
-  assert.match(layer, /if \(!\(e\.target as HTMLElement\)\.closest\('\.bh-layer-body > \*'\)\) onClose\(\);/);
-  assert.match(layer, /if \(!boxRef\.current\.contains\(document\.activeElement\)\) \{ e\.preventDefault\(\); closeRef\.current\?\.focus\(\); return; \}/);
-  // 제작 과정 영상 = PR #137 의 BrandFilm 하나(재생 막힘·움직임 줄이기 처리는 qa/brand-film-20261004.test.mjs)
-  assert.match(HOME, /<h2 id="bh-making-title" className="bh-title">\{BRAND_FILM_COPY\.title\}<\/h2>\n\s*<BrandFilm \/>/);
+  assert.doesNotMatch(HOME, /SceneLayer|DotText|hero-earth/, '옛 장면 창·점 글자·지구 그림은 쓰지 않음');
+  // 온보딩(인트로)은 손대지 않음: 루트 → 인트로 → 홈페이지 그대로.
+  const entry = read('src/pages/do-it/intro/DoItEntry.tsx');
+  assert.doesNotMatch(entry, /vesper|scene_hero/i);
+  assert.match(read('src/router/config.tsx'), /\{ path: '\/do-it\/intro', element: <DoItIntroPage \/> \}/);
 });
-
-test('홈페이지 문구(2026-10-05 대표 시안 그대로): ECHO · ONLINE SERENDIPITY · DO IT · 「당신이 잠든 사이」 · 버튼 글자만 「모바일로 시작하기」 · 이야기 9장면 원문', () => {
-  for (const t of ["eyebrow: 'ECHO · ONLINE SERENDIPITY'", "heroTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "heroLine: ['오늘의 나를 남겨두세요.', '내일, 뜻밖의 연결이 기다립니다.']", "start: '모바일로 시작하기'", "install: '웹 설치하기'"]) assert.ok(HOME.includes(t), t);
-  // 시안의 「사주 또는 타로로 가볍게 시작해요」는 시작 흐름(사주·타로 없음)과 달라 쓰지 않고, 지금 되는 일만 적는다.
-  assert.doesNotMatch(noComments(HOME), /사주|타로|무료로 시작하기/);
-  assert.match(HOME, /heroNote: '지금은 당신의 이야기를 듣는 데서 시작합니다\.'/);
-  assert.match(HOME, /\{BRAND_HOME_COPY\.heroNote\}/, '시작 버튼 바로 아래에 지금 되는 일');
-  assert.equal((HOME.match(/\{ no: '0\d', label:/g) ?? []).length, 9, '이야기 9장면');
-  for (const t of ['잘 쓴 소개보다,', '내 이야기는,', '마지막 말은, 나에게.', '대화가 끝나도,', '오늘의 감정에도', '어제와 다른 나여도,', '조금 다른 시선으로,', '연결의 속도는,', '어떤 사람을']) assert.ok(HOME.includes(t), t);
-  assert.doesNotMatch(noComments(HOME), /AI가 (대신|최종) (선택|고르)/, 'AI가 대신 고른다는 설명 0');
+test('홈페이지 문구(2026-10-05 대표 시안 그대로 · 글은 copy.ts 한 곳): ECHO · ONLINE SERENDIPITY · 「당신이 잠든 사이」 · 버튼 글자 「모바일로 시작하기」 · 이야기 9장면 원문 · 원본 자리 문구 0', () => {
+  for (const t of ["eyebrow: 'ECHO · ONLINE SERENDIPITY'", "heroTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "heroLine: ['오늘의 나를 남겨두세요.', '내일, 뜻밖의 연결이 기다립니다.']", "start: '모바일로 시작하기'", "install: '웹 설치하기'"]) assert.ok(COPY.includes(t), t);
+  assert.doesNotMatch(noComments(COPY), /사주|타로|무료로 시작하기/);
+  assert.match(COPY, /heroNote: '지금은 당신의 이야기를 듣는 데서 시작합니다\.'/);
+  assert.match(HERO, /const TITLE = `\$\{BRAND_HOME_COPY\.heroTitle\[0\]\} \$\{BRAND_HOME_COPY\.heroTitle\[1\]\}`/);
+  assert.match(HERO, /const TAGLINE = `\$\{BRAND_HOME_COPY\.heroLine\[0\]\} \$\{BRAND_HOME_COPY\.heroLine\[1\]\}`/);
+  assert.match(HERO, /const SUPPORT = BRAND_HOME_COPY\.heroNote;/, '시작 버튼 곁에 지금 되는 일');
+  assert.equal((COPY.match(/\{ no: '0\d', label:/g) ?? []).length, 9, '이야기 9장면');
+  for (const t of ['잘 쓴 소개보다,', '내 이야기는,', '마지막 말은, 나에게.', '대화가 끝나도,', '오늘의 감정에도', '어제와 다른 나여도,', '조금 다른 시선으로,', '연결의 속도는,', '어떤 사람을']) assert.ok(COPY.includes(t), t);
+  assert.match(MOCK, /items: \[\n\s*\.\.\.STORIES\.map\(\(s\) => \(\{ question: `\$\{s\.no\} \$\{s\.label\}`, answer: `\$\{s\.title\.join\(" "\)\} \$\{s\.body\.join\(" "\)\}` \}\)\),/, '이야기 9장면 = 접었다 펴는 칸');
+  // 원본(Vesper) 자리 문구가 남아 있으면 안 된다(영문 홍보 문구).
+  const vendored = ['views/home/hero/hero.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx', 'views/home/sections/financial-section.tsx', 'views/home/sections/site-footer.tsx', 'data/mocks/home.ts', 'components/common/site-header.tsx'].map(V).join('\n');
+  const visible = noComments(vendored).replace(/^\s*import .*$/gm, '').replace(/@vesper\//g, '');
+  assert.doesNotMatch(visible, /Vesper|Send Request|Frequently asked|living interface|Lorem/i, '원본 자리 문구 0');
+  assert.doesNotMatch(noComments(vendored + COPY), /AI가 (대신|최종) (선택|고르)/, 'AI가 대신 고른다는 설명 0');
+  assert.doesNotMatch(noComments(vendored + COPY), /데이팅|소개팅|궁합|점술|심리치료|성격검사|Stripe|9,900|4,900/, '금지어·옛 가격 0');
 });
-
-test('홈페이지: 대표 인사말은 기존 승인 원문 그대로(시안 제안 문구로 바꾸지 않음) · 법적 고지·문의 보존', () => {
-  assert.match(HOME, /import \{[^}]*GREETING[^}]*GREETING_CLOSING[^}]*GREETING_TITLE[^}]*\} from '@\/pages\/do-it\/landing\/components\/brandGreeting'/);
-  assert.ok(!HOME.includes('기술보다 먼저'), '시안의 제안 인사말은 넣지 않음(대표 확인 대기)');
-  for (const t of ['/legal/terms', '/legal/privacy', 'mailto:0423doit@gmail.com', '사업자등록번호 121-46-51503']) assert.ok(HOME.includes(t), t);
+test('홈페이지: 대표 인사말은 기존 승인 원문 그대로(이야기 칸 10번째 · 시안 제안 문구로 바꾸지 않음) · 법적 고지·문의 보존', () => {
+  assert.match(MOCK, /import \{ GREETING, GREETING_CLOSING, GREETING_TITLE \} from "@\/pages\/do-it\/landing\/components\/brandGreeting"/);
+  assert.match(MOCK, /\{ question: "10 대표 인사말", answer: `\$\{GREETING_TITLE\} \$\{GREETING\.join\(" "\)\} \$\{GREETING_CLOSING\.join\(" "\)\}` \}/);
+  assert.ok(!(MOCK + COPY + FOOT).includes('기술보다 먼저'), '시안의 제안 인사말은 넣지 않음(대표 확인 대기)');
+  for (const t of ["registration: '사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호'", "email: '0423doit@gmail.com'", "company: '두잇(DO IT) · 대표 박진욱'"]) assert.ok(COPY.includes(t), t);
+  for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);
 });
-
-test('홈페이지 색·움직임: 보라·네온·옆 스침·회전 0 · 움직임 줄이기면 모두 정지 · 지구 그림 · 점 글자 슬로건', () => {
-  const css = noComments(HCSS);
-  assert.doesNotMatch(css, /#(8|9|a)[0-9a-f]{2}(f|e)[0-9a-f]{2}\b|purple|violet|magenta|neon/i, '보라·네온 0');
-  assert.doesNotMatch(css, /rotate\(|translateX\(\s*-?\d{2,}|marquee|infinite/, '회전·옆 스침·무한 반복 0');
-  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^@]*animation: none !important; transition: none !important;/);
-  // 2026-10-05: 히어로 = 대표가 준 지구 그림 · 심볼 = 공식 D(다시 그리지 않음) · 왼쪽 위 JUST TRY. 도장
-  assert.match(HOME, /src="\/brand\/hero-earth\.webp"/, '대표가 준 지구 그림');
-  assert.match(HOME, /<h1 className="bh-wordmark"><span className="bh-sr">DO IT<\/span><img src="\/brand\/doit-wordmark\.webp"/, '브랜드 글자 = 공식 접힌 종이 DOIT 그림(대표 「폰트 브랜드 이미지」)');
-  assert.match(HOME, /<p className="bh-stamp"><DotText text="JUST TRY\." className="bh-dots" \/><\/p>/, '왼쪽 위 슬로건 = 빛나는 점 글자(대표 「점박으로 · 크게 말고」)');
-  assert.match(HCSS, /\.bh-dots \{ display: block; height: 15px;/, '상단 글자 크기에 맞춘 작은 점 글자');
+test('홈페이지 색·글씨체·3D(2026-10-08 대표 「색도 글씨체도 3D 효과도 코드 그대로」): 원본 보라 #170a2b·민트 · General Sans/Onest/Mulish · Solaris·격자 원본 색 · 움직임 줄이기는 원본 장치 그대로', () => {
+  const css = V('vesper.css');
+  assert.match(css, /--background: #170a2b;/, '원본 바탕색(10/5 「보라 0」 잠금은 10/8 대표가 해제)');
+  assert.match(css, /--signal: #6cf3a3;/);
+  for (const w of ['Light', 'Regular', 'Medium']) assert.ok(css.includes(`/vesper/fonts/GeneralSans-${w}.woff2`), w);
+  assert.match(css, /html\.vesper \{/, '루트 글자 크기 사다리는 html.vesper 안에서만(전역 index.css 수정 0)');
+  assert.match(read('index.html'), /fonts\.googleapis\.com\/css2\?family=Mulish:wght@300;400&family=Onest:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this\.media='all'"/, '원본 글씨체 2종은 index.html 에서(지연 조각 CSS @import 는 막힌 망에서 화면 전체를 깨뜨림)');
+  const sol = V('views/home/sections/solaris-section.tsx');
+  assert.match(sol, /colorWarm: "#ff4c33",\n\s*colorCool: "#3366ff",/, 'Solaris 원본 색 그대로');
+  const lat = V('views/home/sections/lattice-section.tsx');
+  assert.match(lat, /lineColor: '#eef3ff', throatTint: '#ffd9a6', rimTint: '#5878ff', glowColor: '#8fb4ff'/, '격자(Einstein–Rosen) 원본 색 그대로');
+  assert.match(V('components/common/reduced-motion.tsx'), /useReducedMotion\(\)/, '움직임 줄이기 = 원본 장치(react-spring 전역 skip)');
+  assert.match(V('hooks/animation/use-motion-off.ts'), /prefers-reduced-motion/, '원본 장면·회전 표시도 움직임 줄이기를 읽음');
+  assert.match(read('src/pages/do-it/brand-home/brand-home.css'), /@media \(prefers-reduced-motion: reduce\) \{[^@]*animation: none !important; transition: none !important;/, '영상 칸(.bh) 움직임 줄이기');
+  // 3D 는 묶음(three 0.186 · @react-three/fiber) — CDN·외부 스크립트 0, 이 기기 저장(localStorage) 0.
+  const all = execSyncList('src/vesper').map(read).join('\n');
+  assert.doesNotMatch(noComments(all), /cdn\.jsdelivr|unpkg\.com|cdnjs\.cloudflare|localStorage|sessionStorage|document\.cookie/, '외부 스크립트·기기 저장 0');
+  assert.ok(all.includes('from "three"'), '3D = 묶음 three');
 });
-
 test('라우터: 새 홈페이지는 brand 빌드에서만(앱·통합 빌드 영향 0)', () => {
   const r = read('src/router/config.tsx');
   assert.match(r, /BrandHomePage \? <BrandHomePage \/> : <DoItLandingPage \/>/);
@@ -86,31 +106,31 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지: 「모바일로 시작하기」는 히어로 하나만 · 다른 버튼은 장면 창을 여는 것뿐 · 컴퓨터 = 웹 설치하기 QR · Codex PR #123', () => {
-  const starts = HOME.match(/<a [^>]*href=\{appUrl\(START_PATH\)\}[^>]*>\{BRAND_HOME_COPY\.start\}/g) ?? [];
-  assert.equal(starts.length, 1, `시작 링크 ${starts.length}`);
-  assert.doesNotMatch(HOME, /StartActions/, '섹션마다 붙던 시작 버튼 묶음 0');
-  for (const a of starts) assert.match(a, /onClick=\{goStart\}/, a);
-  const body = HOME.slice(HOME.indexOf('id="bh-story"'), HOME.indexOf('<footer className="bh-legal">'));
-  for (const b of body.match(/<button[^\n]*?onClick=\{[^\n]*?\}\}>/g) ?? []) assert.match(b, /onClick=\{\(e\) => openLayer\(\{[^}]*\}, e\.currentTarget\)\}/, `장면 창 여는 버튼만: ${b}`);
-  assert.equal((body.match(/<button /g) ?? []).length, (body.match(/onClick=\{\(e\) => openLayer\(/g) ?? []).length, '본문 버튼 수 = 장면 창 여는 버튼 수');
-  assert.doesNotMatch(body, /className="bh-btn/, '본문에 시작류 버튼 0');
-  const install = HOME.slice(HOME.indexOf('id="bh-install"'), HOME.indexOf('<nav className="bh-more"'));
-  assert.match(install, /id="bh-start-qr"/, '컴퓨터에서 시작하면 웹 설치하기 QR 로');
+test('홈페이지: 「모바일로 시작하기」 = 원본 CTA 자리 그대로(머리띠 · 휴대폰 메뉴 · 본문 Send Request) · 모두 앱 주소 시작 경로 · 시작 경로 글자는 copy.ts 한 곳', () => {
+  for (const [name, src] of [['header', HEADER], ['mobile-nav', MNAV], ['send-request', SEND]]) {
+    assert.match(src, /href=\{appUrl\(START_PATH\)\}/, `${name} 시작 주소`);
+    assert.match(src, /\{BRAND_HOME_COPY\.start\}/, `${name} 시작 글자`);
+    assert.match(src, /from "@\/pages\/do-it\/brand-home\/copy"/, name);
+  }
+  assert.match(COPY, /export const START_PATH = '\/doit\/start-journey';/);
+  const vendored = execSyncList('src/vesper').map(read).join('\n');
+  assert.ok(!vendored.includes("'/doit/start-journey'") && !vendored.includes('"/doit/start-journey"'), '시작 경로 글자는 copy.ts 에만');
+  assert.doesNotMatch(vendored, /href="#"/, '빈 링크 0');
+  assert.match(HEADER, /\{ label: "이야기", href: "\/#faq" \},\n\s*\{ label: "제작 과정", href: "\/#making" \},\n\s*\{ label: BRAND_HOME_COPY\.install, href: "\/#financial" \},/, '메뉴 = 이야기·제작 과정·웹 설치하기');
 });
-
-test('홈페이지 첫 화면: 시안 그대로 둥근 유리 버튼 하나(「모바일로 시작하기」) · 보조 링크 0', () => {
-  const hero = HOME.slice(HOME.indexOf('className="bh-sec bh-hero"'), HOME.indexOf('id="bh-story"'));
-  assert.match(hero, /<a className="bh-btn bh-btn--start" href=\{appUrl\(START_PATH\)\} onClick=\{goStart\}>\{BRAND_HOME_COPY\.start\}/);
-  assert.equal((hero.match(/className="bh-btn/g) ?? []).length, 1, '첫 화면 버튼 하나');
-  assert.match(HCSS, /\.bh-btn--start \{ width: 100%; max-width: 360px; min-height: 60px; margin-top: 40px; border-radius: 999px;/, '시안의 둥근 버튼');
+test('홈페이지 첫 화면: 원본 Vesper 히어로 그대로(글자만 교체) · 꼬리표 [ ECHO ] [ ONLINE SERENDIPITY ] [ JUST TRY. ]', () => {
+  assert.match(HERO, /const TAGS = \["\[ ECHO \]", "\[ ONLINE SERENDIPITY \]", "\[ JUST TRY\. \]"\];/);
+  assert.match(HERO, /<SendRequest \/>/, '첫 화면 시작 버튼 = 원본 CTA');
+  assert.match(MOCK, /export const homeStatus: StatusCopy = \{ label: "ECHO · ONLINE SERENDIPITY", detail: "· JUST TRY\.", scrollHint: "내려서 이어 보기" \};/);
+  assert.match(MOCK, /export const homeBrand: BrandCopy = \{ name: "DO IT", suffix: "\/ ECHO" \};/);
 });
-
-test('홈페이지 움직임 줄이기: 화면 부드러운 굴림(html smooth)도 이 홈페이지에서만 끔 · 전역 index.css 수정 0 · Codex PR #123', () => {
-  assert.match(HCSS, /@media \(prefers-reduced-motion: reduce\) \{[^@]*html:has\(main\.bh\) \{ scroll-behavior: auto; \}/);
-  assert.match(HOME, /<main ref=\{rootRef\} className="bh">/);
+test('홈페이지 부드러운 굴림(lenis)은 원본 ScrollLayout 안에서만 · 전역 index.css 수정 0 · 앱 빌드 영향 0', () => {
+  const layout = V('layouts/scroll-layout.tsx');
+  assert.match(layout, /lenis/i, '원본 부드러운 굴림');
+  assert.doesNotMatch(read('src/index.css'), /vesper|lenis|\.bh/, '전역 index.css 수정 0');
+  assert.match(read('vite.config.ts'), /"@vesper": resolve\(import\.meta\.dirname, "\.\/src\/vesper"\)/);
+  assert.match(read('eslint.config.ts'), /ignores: \['dist', 'node_modules', 'src\/vesper\/\*\*'\]/, '구매 코드는 원본 그대로(우리 lint 규칙으로 고치지 않음)');
 });
-
 test('모바일 시안 7 선택 대기: 익명 두 노드 + 점선(움직임 0) · 상대가 골랐는지 추정 표시 0', () => {
   const Z = read('src/doit/components/feature/ZzaritMoment.tsx');
   const C = read('src/doit/components/feature/ConnectionCandidates.tsx');
@@ -150,21 +170,18 @@ test('역할 분리: 홈페이지 빌드에도 들어가는 echo-ui.css 에 앱�
 });
 
 test('2026-10-05 PM 보강: 홈페이지는 히어로 승인 원문을 두고 지금 되는 범위를 한 줄로 · 보장 말 0', () => {
-  const page = readFileSync(new URL('../src/pages/do-it/brand-home/page.tsx', import.meta.url), 'utf8');
-  assert.match(page, /heroLine: \['오늘의 나를 남겨두세요\.', '내일, 뜻밖의 연결이 기다립니다\.'\]/, '히어로 승인 원문 그대로');
-  const scope = page.match(/scope: '([^']+)'/)?.[1] ?? '';
+  assert.match(COPY, /heroLine: \['오늘의 나를 남겨두세요\.', '내일, 뜻밖의 연결이 기다립니다\.'\]/, '히어로 승인 원문 그대로');
+  const scope = COPY.match(/scope: '([^']+)'/)?.[1] ?? '';
   assert.ok(scope.includes('보여 드릴 사람이 있는지 확인') && scope.includes('서로 원할 때만'), '준비 → 확인 → 서로 원할 때');
   assert.doesNotMatch(scope, /내일|반드시|자동|알림|보장|매일|무조건/, '내일·자동·알림·보장 말 0');
-  assert.match(page, /<p className="bh-scope">\{BRAND_HOME_COPY\.scope\}<\/p>/);
+  assert.match(GALAXY, /const SUPPORT = BRAND_HOME_COPY\.scope;/, '은하 장면 받침글 = 지금 되는 범위');
 });
-
-test('Codex PR #130 P2(4184522065 · 4184522072): 이야기 장면 창은 사진 구도의 글자 자리(pos)를 쓴다 · 더 알아보기 두 칸', () => {
-  const LAYER = read('src/pages/do-it/brand-home/SceneLayer.tsx');
-  assert.match(HOME, /focus=\{s\.focus\} pos=\{s\.pos\}/);
-  assert.match(LAYER, /className=\{`bh-layer-scene bh-layer-scene--\$\{pos\}`\}/);
-  assert.match(HCSS, /\.bh-layer-scene--middle \.bh-layer-body \{ margin-block: auto; \}/);
-  assert.match(HCSS, /\.bh-layer-scene--bottom \.bh-layer-body \{ margin-top: auto; \}/);
-  const more = HOME.slice(HOME.indexOf('<nav className="bh-more"'), HOME.indexOf('</nav>', HOME.indexOf('<nav className="bh-more"')));
-  assert.equal((more.match(/<li>/g) ?? []).length, 2);
-  assert.match(noComments(HCSS), /\.bh-more ul \{[^}]*grid-template-columns: repeat\(2, 1fr\)/);
+test('이야기 9장면 + 대표 인사말 = 원본 FAQ 카드(접었다 펴기 · Esc 0 · 창 0) · 바닥글 두 묶음(ECHO · 회사)', () => {
+  const faq = V('views/home/sections/faq-section.tsx');
+  assert.match(faq, /aria-expanded=\{open\}/);
+  assert.match(faq, /aria-controls=\{id\}/);
+  assert.match(faq, /id="faq"/);
+  assert.match(MOCK, /\{ heading: "ECHO", links: \[/);
+  assert.match(MOCK, /\{ heading: "회사", links: \[/);
+  assert.match(MOCK, /\{ label: "이용약관", href: "\/legal\/terms" \},\n\s*\{ label: "개인정보처리방침", href: "\/legal\/privacy" \},\n\s*\{ label: "문의", href: "mailto:0423doit@gmail\.com" \},/);
 });
