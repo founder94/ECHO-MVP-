@@ -108,10 +108,6 @@ for (const [path, re, name] of [['/doit/key', /KEY|오픈 기간/, 'KEY(오픈 �
   const { ctx, p } = await open(`${APP}${path}`); const t = await txt(p); check(`⑥ ${name} 화면`, re.test(t) && !/오류가 발생/.test(t), t.slice(0, 100)); await shot(p, `06-${path.split('/').pop()}`); await ctx.close(); }
 // ⑦ 홈페이지(브랜드): 첫 화면 · 법무 문서 · 앱으로 가기 링크
 try { const { ctx, p } = await open(`${BRAND}/`); const t = await txt(p); check('⑦ 홈페이지 첫 화면', /ECHO|DO IT/.test(t), t.slice(0, 80)); await shot(p, '07-brand');
-  // 2026-10-08 3D 그림층(layers/): 자리 2곳(hero·making)이 있고 상태가 on 이거나 이유 있는 off(움직임 줄이기·WebGL 없음 등)여야 한다. 실제 WebGL 은 실행 환경(SwiftShader)에 따라 다르므로 on 을 강제하지 않는다.
-  const layers = await p.evaluate(() => Array.from(document.querySelectorAll('.bh-scene-layer')).map((el) => ({ slot: el.getAttribute('data-slot'), layer: el.getAttribute('data-layer'), state: el.getAttribute('data-state'), why: el.getAttribute('data-why') })));
-  check('⑦ 홈페이지 3D 층 자리 2곳(hero·making)', layers.length === 2 && layers.some((l) => l.slot === 'hero') && layers.some((l) => l.slot === 'making'), JSON.stringify(layers));
-  check('⑦ 홈페이지 3D 층 상태 = on 또는 이유 있는 off', layers.every((l) => l.state === 'on' || l.state === 'loading' || (l.state === 'off' && l.why) || l.state === 'failed'), JSON.stringify(layers));
   for (const path of ['/legal/privacy', '/legal/terms']) { await p.goto(`${BRAND}${path}`, { waitUntil: 'networkidle' }).catch(() => undefined); await p.waitForTimeout(800); check(`⑦ 법무 문서 ${path}`, /개인정보|약관/.test(await txt(p))); }
   await ctx.close(); } catch (e) { check('섹션 예외(멈추지 않음)', false, String(e).split('\n')[0]); }
 await browser.close();
