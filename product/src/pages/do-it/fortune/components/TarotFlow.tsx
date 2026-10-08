@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TAROT_DECK, type TarotCard } from '@/doit/app/plan-a/tarotDeck';
 import {
   generateTarotInterpretation,

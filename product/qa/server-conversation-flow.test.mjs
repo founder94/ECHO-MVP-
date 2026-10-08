@@ -77,7 +77,7 @@ function loadServer(ai, state) {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('../_shared/')) { const mod = {exports:{}}; const code = ts.transpileModule(readFileSync('supabase/functions/doit-understanding/'+name,'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText; vm.runInNewContext(code,{module:mod,exports:mod.exports,TextDecoder,Uint8Array,Error,Number,JSON}); return mod.exports; } if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
       const stage = stageOf(body.messages[0].content);

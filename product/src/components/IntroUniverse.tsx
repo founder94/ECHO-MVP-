@@ -1,3 +1,4 @@
+import { mulberry32 } from '../lib/seededRandom';
 import { useEffect, useRef } from 'react';
 import { SYMBOL_DISPLAY_SRC, SYMBOL_ORIGINAL_SRC } from '@/components/symbolAssets';
 import { SAMPLE_SIZE, SymbolReadError, readSymbol } from '@/components/symbolSampling';
@@ -21,14 +22,7 @@ const DOT_TARGET = 700;
 const DPR_MAX = 2;
 const SYMBOL_BOX_CSS = 'clamp(144px, 38vw, 220px)'; // DoItIntroFrame 의 심볼 크기와 같아야 점이 PNG 위에 정확히 겹친다.
 
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);

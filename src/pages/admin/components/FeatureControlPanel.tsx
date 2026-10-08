@@ -23,8 +23,8 @@ interface FeatureStatus {
 
 // ── DESIGN TEAM EDIT ZONE ─────────────────────────────
 // 디자인팀이 이 상수들만 수정하면 전체 UI 색상/크기 변경 가능
-const PANEL_BG = C.blackCard;
-const PANEL_BORDER = C.graphite;
+
+
 const STATUS_DOT_SIZE = 'w-2 h-2';
 // ───────────────────────────────────────────────────────
 

@@ -10,12 +10,7 @@ import {
   type ReviewCandidate,
 } from '@/doit/mocks/understanding';
 
-const INFO_TONE: Record<InfoStatus, 'primary' | 'accent' | 'secondary' | 'neutral'> = {
-  confirmed: 'primary',
-  possible: 'secondary',
-  undetermined: 'neutral',
-  needs_verification: 'accent',
-};
+
 
 interface CandidateCardProps {
   candidate: ReviewCandidate;

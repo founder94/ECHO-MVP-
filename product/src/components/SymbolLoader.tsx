@@ -1,3 +1,4 @@
+import { mulberry32 } from '../lib/seededRandom';
 import { useEffect, useRef, useState } from 'react';
 import { SYMBOL_DISPLAY_SRC, SYMBOL_ORIGINAL_SRC, fallbackToOriginal } from '@/components/symbolAssets';
 import { SAMPLE_SIZE, readSymbol, type SymbolSample } from '@/components/symbolSampling';
@@ -21,14 +22,7 @@ const TILT = 0.2; // 위에서 살짝 내려다보는 각도(라디안)
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+
 
 // 여러 로딩 화면이 같은 심볼을 매번 다시 읽지 않도록 한 번 읽은 결과를 나눠 쓴다. 실패하면 다음에 다시 읽는다.
 let cached: Promise<SymbolSample> | null = null;

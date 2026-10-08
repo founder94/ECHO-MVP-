@@ -27,11 +27,7 @@ import {
   loadProfile,
   type LoadedProfile,
 } from "@/doit/lib/profileSave";
-import {
-  restorePhotos,
-  PHOTO_SLOT_COUNT,
-  type RestoredPhoto,
-} from "@/doit/lib/photoStorage";
+import { restorePhotos, type RestoredPhoto } from "@/doit/lib/photoStorage";
 import {
   saveJourneyDraft,
   loadFreshJourneyDraft,

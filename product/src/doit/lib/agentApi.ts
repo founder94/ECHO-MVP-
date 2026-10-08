@@ -229,7 +229,18 @@ export async function agentTurn(userId: string, sessionId: string, text: string,
 //   agentConfirm = 「맞아요」(지금 보이는 AI 정리를 사용자 확인으로) · agentForget = 줄 하나 지우기(서버가 다시 만들지 않음) · agentSelfNote = 사주·타로 이어 대화에서 「프로필에도 반영」한 자기 문장
 export interface AgentMemory { intent?: 'current' | 'history'; status: 'FOUND' | 'NOT_FOUND' | 'PARTIAL' | 'READ_FAILED'; complete: boolean; notice: string; next: { offset: number; match: number } | null; evidence: { source_id: string; session_id: string; revision: number; turn: number; quote: string; validity: 'CURRENT_CONFIRMED' | 'UNCONFIRMED' | 'HISTORICAL_ONLY'; matching_promotion: false }[] }
 export async function agentRecall(userId: string, query: string, intent: 'current' | 'history' = 'history', cursor?: AgentMemory['next']): Promise<{ memory: AgentMemory; reply: string }> {
-  return await serverFunctionRequest<{ memory: AgentMemory; reply: string }>('doit-agent', { action: 'agent_recall', query, intent, ...(cursor ? { cursor } : {}) }, userId);
+  const result = await serverFunctionRequest<{ memory: AgentMemory; reply: string }>('doit-agent', { action: 'agent_recall', query, intent, ...(cursor ? { cursor } : {}) }, userId);
+  const m = result.memory;
+  if (typeof result.reply !== 'string' || !m || !['FOUND', 'NOT_FOUND', 'PARTIAL', 'READ_FAILED'].includes(m.status)
+    || typeof m.complete !== 'boolean' || (m.notice != null && typeof m.notice !== 'string')
+    || !Array.isArray(m.evidence) || !m.evidence.every(item => !!item && typeof item.source_id === 'string'
+      && typeof item.session_id === 'string' && Number.isSafeInteger(item.revision) && item.revision >= 0
+      && Number.isSafeInteger(item.turn) && item.turn >= 0 && typeof item.quote === 'string'
+      && ['CURRENT_CONFIRMED', 'UNCONFIRMED', 'HISTORICAL_ONLY'].includes(item.validity) && item.matching_promotion === false)
+    || (m.next != null && (!Number.isSafeInteger(m.next.offset) || m.next.offset < 0 || !Number.isSafeInteger(m.next.match) || m.next.match < 0))) {
+    throw new Error('INVALID_RESPONSE');
+  }
+  return result;
 }
 // Existing PR149 preview imports: adapt to current QA APIs without reviving its old server actions.
 export interface MemoryLine { id: string; text: string; hidden: boolean; can_forget: boolean }

@@ -6,6 +6,9 @@
 //   · 매칭에 쓰는 답 = 기존 RPC doit_apply_record_create 로 doit_records 에(소개 초안·연결 화면이 그대로 읽는다)
 // - 모델 = 서버 선택 규칙(modelRouter.ts · AI_POLICY). 정책이 없으면 기존 승인 모델(resolveModel(OPENAI_MODEL) · 운영 Secret 그대로 · 새 키 0). 호출 주소는 환경변수로 바꿀 수 없다(providers.ts 고정).
 // - 로그에는 코드·개수·시간만 남긴다(사용자 원문·토큰·키 0).
+import { readJsonObject, RequestProblem } from "../_shared/read-json-limited.ts";
+import { browserOriginAllowed, browserCorsHeaders } from "../_shared/browser-cors.ts";
+import { durableRateDecision } from "../_shared/durable-rate-limit.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
 import * as H from "./history-retrieval.ts";
@@ -62,11 +65,8 @@ function resolveModel(raw: string | undefined): string {
 }
 
 const ALLOWED_ORIGINS = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const corsHeaders = (origin: string | null): Record<string, string> => ({
-  "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS.length === 0 ? "*" : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-});
+const corsHeaders = (origin: string | null): Record<string, string> => browserCorsHeaders(origin, ALLOWED_ORIGINS);
+
 const json = (data: unknown, status = 200, origin: string | null = null) =>
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json" } });
 const fail = (code: string, error: string, status: number, origin: string | null) => json({ ok: false, code, error }, status, origin);
@@ -611,6 +611,7 @@ async function candidatesTool(baseUrl: string, anonKey: string, authHeader: stri
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get("origin");
   let budgetDone: (() => Promise<void>) | null = null; // 회사 예산 예약을 잡은 요청이면 응답 전에 정산
+  if (!browserOriginAllowed(origin, ALLOWED_ORIGINS)) return fail("FORBIDDEN", "허용되지 않은 요청이에요.", 403, origin);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail("BAD_REQUEST", "잘못된 요청이에요.", 405, origin);
   try {
@@ -625,9 +626,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (authError || !user) return fail("UNAUTHORIZED", "로그인이 필요해요.", 401, origin);
     const admin: Db = createClient(url, serviceKey, { auth: { persistSession: false } });
     const userId = user.id;
-    if (rateLimited(userId)) return fail("RATE_LIMITED", "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.", 429, origin);
+    const rate = await durableRateDecision(admin, userId, "agent", Deno.env.get("ECHO_DURABLE_RATE_LIMIT_ENABLED") === "true");
+    if (rate === "unavailable") return fail("ERROR", "요청 제한을 확인하지 못했어요.", 503, origin);
+    if (rate === "limited") return fail("RATE_LIMITED", "잠시 후 다시 시도해 주세요.", 429, origin);
+    if (rate === "disabled" && rateLimited(userId)) return fail("RATE_LIMITED", "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.", 429, origin);
 
-    const body = (await req.json().catch(() => null)) as Json | null;
+    let body: Json;
+    try { body = await readJsonObject(req, BODY_MAX_BYTES); }
+    catch (error) {
+      if (error instanceof RequestProblem) return fail(error.code, error.message, error.status, origin);
+      return fail("BAD_REQUEST", "요청을 읽지 못했어요.", 400, origin);
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail("BAD_REQUEST", "요청 형식이 잘못됐어요.", 400, origin);
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return fail("BAD_REQUEST", "알 수 없는 요청이에요.", 400, origin);

@@ -76,7 +76,7 @@ test('글꼴 — 고운바탕(제목)·고운돋움(안내)을 앱 화면에만,
     assert.match(read(`src/doit/components/feature/${f}`), /^@import "\.\/doit-type\.css";/m, f);
   }
   const html = read('index.html');
-  assert.match(html, /family=Gowun\+Batang:wght@400;700&family=Gowun\+Dodum[^"]*" rel="stylesheet" media="print" onload="this\.media='all'"/);
+  assert.match(html, /family=Gowun\+Batang:wght@400;700&family=Gowun\+Dodum[^"]*" rel="stylesheet" media="print" data-echo-deferred-font/);
   // 구글 폰트가 막혀도 제품 화면이 멈추지 않도록, 화면 조각 스타일 안에서 글꼴을 @import 하지 않는다.
   assert.doesNotMatch(read('src/doit/doit.css'), /@import url\('https:\/\/fonts\.googleapis\.com/);
   // 한글 머리말 자간을 넓게 두지 않는다.

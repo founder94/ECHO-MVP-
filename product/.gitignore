@@ -17,3 +17,8 @@ uxshots/
 ux-*.log
 ux-*.log.build
 qa-browser/*.tmp.mjs
+
+# Playwright: only synthetic local data; generated output is never source.
+e2e-dist/
+test-results/
+playwright-report/
