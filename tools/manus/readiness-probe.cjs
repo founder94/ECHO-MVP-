@@ -28,7 +28,12 @@ async function readiness({ apiKey, fetchImpl = fetch, timeoutMs = 15000 }) {
   let positive = null, creditCode = null, creditSchema = null;
   try {
     const result = await get('/v2/usage.availableCredits');
-    const total = result.data?.total_credits;
+    // The documented response is data.total_credits; the observed v2 API also flattens it.
+    // Accept only the same named authoritative field, never a component sum or an invented default.
+    const nested = !!result.data && typeof result.data === 'object' && Object.hasOwn(result.data,'total_credits');
+    const flat = Object.hasOwn(result,'total_credits');
+    if (nested && flat && result.data.total_credits !== result.total_credits) throw new ReadinessError('AMBIGUOUS_CREDIT_BALANCE');
+    const total = nested ? result.data.total_credits : flat ? result.total_credits : undefined;
     const kind = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
     // Whitelisted public schema names/types only; never arbitrary keys or actual balances.
     const publicFields = ['data','total_credits','credits','available_credits','balance','free_credits','periodic_credits','addon_credits'];

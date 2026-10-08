@@ -63,3 +63,16 @@ test('schema diagnosis reveals only whitelisted field types, never private value
   assert.ok(!JSON.stringify(r).includes('SECRET'));
   assert.ok(!JSON.stringify(r).includes('PRIVATE_BALANCE'));
 });
+test('observed flat v2 total_credits is authoritative without guessed component sums', async () => {
+  for (const total of [0,120]) {
+    const fetchImpl=async url=>({ok:true,text:async()=>JSON.stringify(url.endsWith('/user.me')?{ok:true,user_id:'synthetic'}:{ok:true,total_credits:total,periodic_credits:999999})});
+    const r=await readiness({apiKey:'synthetic',fetchImpl});
+    assert.equal(r.credit_read,'PASS');assert.equal(r.spendable_credits_positive,total>0);assert.equal(r.paid_task_started,false);
+    assert.ok(!JSON.stringify(r).includes('999999'));
+  }
+});
+test('conflicting flat and nested totals remain blocked, never picked optimistically', async () => {
+  const fetchImpl=async url=>({ok:true,text:async()=>JSON.stringify(url.endsWith('/user.me')?{ok:true,user_id:'synthetic'}:{ok:true,total_credits:100,data:{total_credits:0}})});
+  const r=await readiness({apiKey:'synthetic',fetchImpl});
+  assert.equal(r.credit_read,'BLOCKED');assert.equal(r.spendable_credits_positive,null);assert.equal(r.credit_code,'AMBIGUOUS_CREDIT_BALANCE');
+});
