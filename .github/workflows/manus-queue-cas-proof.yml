@@ -1,0 +1,169 @@
+# Synthetic runner persistence proof only: no Manus key or task, no deployment or product data.
+name: Manus queue persistent CAS proof
+'on':
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Reviewed full source SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: manus-queue-cas-proof
+  cancel-in-progress: false
+jobs:
+  init:
+    if: github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - name: Validate source binding
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+      run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: ${{ inputs.source_sha }}
+        path: code
+        persist-credentials: false
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: 542fc1465bb97fd13a5dfb6a574e3a716bacdd49
+        path: queue
+        persist-credentials: true
+    - name: Validate exact executable bytes
+      run: printf '%s\n' '43eb48e6f2175d71ffa49687f4aaf05a8d41a25e808ff359f2205df0130b9a7c  code/tools/manus/queue-cas-probe.cjs'
+        'ca98e3cc4caa10847d3071884eba76921e7f767512f08ff29920d6187cfa3e13  queue/tools/automation/queue-store-git.cjs'
+        | sha256sum -c -
+    - name: Synthetic queue init
+      id: probe
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+        CODE_CWD: ${{ github.workspace }}/code
+        QUEUE_CWD: ${{ github.workspace }}/queue
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: node code/tools/manus/queue-cas-probe.cjs init
+    outputs:
+      base_rev: ${{ steps.probe.outputs.base_rev }}
+  writer_a:
+    if: github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - name: Validate source binding
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+      run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: ${{ inputs.source_sha }}
+        path: code
+        persist-credentials: false
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: 542fc1465bb97fd13a5dfb6a574e3a716bacdd49
+        path: queue
+        persist-credentials: true
+    - name: Validate exact executable bytes
+      run: printf '%s\n' '43eb48e6f2175d71ffa49687f4aaf05a8d41a25e808ff359f2205df0130b9a7c  code/tools/manus/queue-cas-probe.cjs'
+        'ca98e3cc4caa10847d3071884eba76921e7f767512f08ff29920d6187cfa3e13  queue/tools/automation/queue-store-git.cjs'
+        | sha256sum -c -
+    - name: Synthetic queue write
+      id: probe
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+        CODE_CWD: ${{ github.workspace }}/code
+        QUEUE_CWD: ${{ github.workspace }}/queue
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BASE_REV: ${{ needs.init.outputs.base_rev }}
+      run: node code/tools/manus/queue-cas-probe.cjs write
+    needs:
+    - init
+    outputs:
+      won: ${{ steps.probe.outputs.won }}
+  writer_b:
+    if: github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - name: Validate source binding
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+      run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: ${{ inputs.source_sha }}
+        path: code
+        persist-credentials: false
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: 542fc1465bb97fd13a5dfb6a574e3a716bacdd49
+        path: queue
+        persist-credentials: true
+    - name: Validate exact executable bytes
+      run: printf '%s\n' '43eb48e6f2175d71ffa49687f4aaf05a8d41a25e808ff359f2205df0130b9a7c  code/tools/manus/queue-cas-probe.cjs'
+        'ca98e3cc4caa10847d3071884eba76921e7f767512f08ff29920d6187cfa3e13  queue/tools/automation/queue-store-git.cjs'
+        | sha256sum -c -
+    - name: Synthetic queue write
+      id: probe
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+        CODE_CWD: ${{ github.workspace }}/code
+        QUEUE_CWD: ${{ github.workspace }}/queue
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BASE_REV: ${{ needs.init.outputs.base_rev }}
+      run: node code/tools/manus/queue-cas-probe.cjs write
+    needs:
+    - init
+    outputs:
+      won: ${{ steps.probe.outputs.won }}
+  reader:
+    if: github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+      actions: read
+    steps:
+    - name: Validate source binding
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+      run: '[[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: ${{ inputs.source_sha }}
+        path: code
+        persist-credentials: false
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        ref: 542fc1465bb97fd13a5dfb6a574e3a716bacdd49
+        path: queue
+        persist-credentials: true
+    - name: Validate exact executable bytes
+      run: printf '%s\n' '43eb48e6f2175d71ffa49687f4aaf05a8d41a25e808ff359f2205df0130b9a7c  code/tools/manus/queue-cas-probe.cjs'
+        'ca98e3cc4caa10847d3071884eba76921e7f767512f08ff29920d6187cfa3e13  queue/tools/automation/queue-store-git.cjs'
+        | sha256sum -c -
+    - name: Synthetic queue verify
+      id: probe
+      env:
+        SOURCE_SHA: ${{ inputs.source_sha }}
+        CODE_CWD: ${{ github.workspace }}/code
+        QUEUE_CWD: ${{ github.workspace }}/queue
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WRITER_A: ${{ needs.writer_a.outputs.won }}
+        WRITER_B: ${{ needs.writer_b.outputs.won }}
+      run: node code/tools/manus/queue-cas-probe.cjs verify
+    needs:
+    - init
+    - writer_a
+    - writer_b
