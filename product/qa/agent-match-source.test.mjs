@@ -7,11 +7,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { AGENT_DEP, AGENT_DEP_URL } from './agent-deps.mjs';
 
 // agentSource.ts 는 ../doit-agent/agent.ts 의 공통 준비 계약(conversationReadiness · FI-018)을 그대로 쓴다(중복 구현 0) — 같은 상대 경로로 옮겨 풀어 둔다.
 const dir = mkdtempSync(path.join(tmpdir(), 'agentsrc-'));
 const emit = (src, out) => {
-  const code = ts.transpileModule(readFileSync(new URL(src, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const code = ts.transpileModule(readFileSync(new URL(src, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(AGENT_DEP, AGENT_DEP_URL);
   const file = path.join(dir, out); writeFileSync(file, code.replace('"../doit-agent/agent.ts"', '"./agent.mjs"')); return file;
 };
 emit('../supabase/functions/doit-agent/agent.ts', 'agent.mjs');

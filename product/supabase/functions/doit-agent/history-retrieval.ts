@@ -42,7 +42,7 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
         if (seen.has(quote) || !(turn.user.includes(quote) || turn.fix_text?.includes(quote))) continue;
         seen.add(quote);
         const invalid = !!turn.superseded || !!i && i.status !== "CONFIRMED";
-        if (intent === "current" && (invalid || (st.disputed ?? []).some(t => has(quote, t)))) continue;
+        if (intent === "current" && (invalid || (st.disputed ?? []).some(t => has(quote, t)) || withheld(st, quote))) continue; // 2026-10-09 지금 대화 = allowedRecent 와 같은 가림(아니라고 한 뜻·지운 말)
         const score = terms.reduce((n, w) => n + (has(quote, w) ? Math.min(w.length, 8) : 0), 0);
         if (!score) continue;
         const confirmed = time(i?.confirmed_at), date = time(row.created_at);

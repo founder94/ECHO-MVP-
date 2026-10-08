@@ -188,3 +188,22 @@ test('⑫ 계정 메타(app_metadata.doit_free_talk) 권한 = 유료(맛보기 �
   const off = newState('admin'); off.env = {}; const ho = load(off);
   const so = await ho.call({ action: 'admin_free_summary' }); assert.equal(so.status, 200); assert.equal(so.body.enabled, false); assert.equal(so.body.price_known, false);
 });
+
+test('⑬ 2026-10-09 금액을 모르는 자리(cost_usd 없음)는 0원이 아니라 요청당 상한(FREE_TALK_MAX_COST_USD)으로 센다 — 한 사람 월·회사 월 상한이 새지 않게', async () => {
+  const now = new Date().toISOString();
+  const seed = (s, user, n) => { for (let i = 0; i < n; i++) s.tables.doit_request_events.push({ user_id: user, request_id: `unk-${user.slice(0, 2)}-${i}`, action: 'agent_turn_claim', status: 'applied', payload_hash: 'free:paid:unk', created_at: now, updated_at: now, response_payload: { free: { done: true, mode: 'paid', cost_usd: null, tokens: { in: 0, out: 0, calls: 1 } } } }); };
+  // 한 사람 월 100원 · 금액 모름 8번 = 8 × 0.01달러 × 1,400 = 112원 ≥ 100 → 429 · 모델 0
+  const { s, h } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_MONTH_KRW: '100' });
+  seed(s, ID.user, 8);
+  const c = calls(s);
+  const r = await talk(h, '안녕'); assert.equal(r.status, 429, JSON.stringify(r.body)); assert.equal(r.body.code, 'FREE_TALK_MONTH'); assert.equal(calls(s), c);
+  // 회사 월 1,000원 · 다른 사용자의 금액 모름 72번 = 1,008원 ≥ 1,000 → 503 · 모델 0
+  const { s: s2, h: h2 } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_COMPANY_MONTH_KRW: '1000' });
+  seed(s2, ID.other, 72);
+  const c2 = calls(s2);
+  const r2 = await talk(h2, '안녕'); assert.equal(r2.status, 503, JSON.stringify(r2.body)); assert.equal(r2.body.code, 'FREE_TALK_COMPANY'); assert.equal(calls(s2), c2);
+  // 상한 아래(금액 모름 1번 = 14원)면 정상
+  const { s: s3, h: h3 } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_MONTH_KRW: '100' });
+  seed(s3, ID.user, 1); s3.ai.push({ reply: '좋아요.' });
+  const ok = await talk(h3, '안녕'); assert.equal(ok.status, 200, JSON.stringify(ok.body));
+});

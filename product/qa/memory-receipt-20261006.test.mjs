@@ -158,3 +158,35 @@ test('⑨ 민감 주제(돈·건강·성) 정정의 영수증은 글자를 되�
   assert.equal(r.cite ?? null, null, '다음 질문 인용 0'); assert.equal(st.current?.cite, undefined);
   assert.equal(A.makeReceipt(['매일 연락'], ['주말 연락']).line, '알겠어요. 「매일 연락」이 아니라 「주말 연락」으로 기억할게요.', '보통 주제는 그대로');
 });
+
+test('⑩ 2026-10-09 지운 「AI 짐작」은 AI 가 같은(비슷한) 짐작을 다시 내도 올리지 않는다 — 화면 「지운 줄은 다시 만들지 않아요」와 일치', () => {
+  const st = base();
+  const inf = A.knownView(st).guesses.find((l) => l.origin === 'ai_guess');
+  assert.equal(A.forgetKnown(st, inf.key), true);
+  A.applyTurn(st, '조용한 데가 좋아요', T({ extracted: [X('relationship_style', '조용한 곳', '조용한 데가 좋아요')], inferred: [{ trait: '조용한 편', basis: '조용한 데' }, { trait: '조용한 편이에요', basis: '조용한 데' }, { trait: '계획형', basis: '조용한 데' }] }));
+  assert.deepEqual(st.inferred.map((t) => t.trait), ['계획형'], '지운 짐작·비슷한 짐작 재등장 0 · 다른 짐작은 그대로');
+  assert.ok(!A.knownView(st).guesses.some((l) => /조용한 편/.test(l.text)));
+  assert.ok(!JSON.stringify(A.matchingProfile(st)).includes('조용한 편'), '매칭 추측 후보에도 0');
+});
+
+test('⑪ 2026-10-09 사주·타로 정정 영수증은 저장 전이라 「기억할게요」라고 하지 않는다 — 남기는 말은 [반영할게요](agent_self_note) 뒤', async () => {
+  const R = await import(emit('../supabase/functions/doit-agent/reference-talk.ts', 'ref2.mjs', (x) => x.replace('"./agent.ts"', '"./agent.mjs"')));
+  const card = R.denyReceipt({ kind: 'card' }, '저는 사람 많은 데를 좋아해요');
+  const saju = R.denyReceipt({ kind: 'saju' }, '나는 혼자 정리하는 시간이 필요해');
+  assert.equal(card, '카드보다 당신 말이 맞아요. 「저는 사람 많은 데를 좋아해요」로 이해했어요.');
+  assert.equal(saju, '사주보다 당신 말이 맞아요. 「나는 혼자 정리하는 시간이 필요해」로 이해했어요.');
+  assert.ok(![card, saju].some((s) => /기억/.test(s)), '저장 전 「기억」 약속 0');
+  assert.match(read('src/doit/app/plan-a/screens/RefTalk.tsx'), /offer\.state === "saved" \? <p>반영했어요\./, '「반영했어요」는 저장 성공 뒤에만');
+});
+
+test('⑫ 2026-10-09 지금 대화 기억 찾기(current)도 아니라고 한 뜻·지운 말을 가린다 — 최근 대화(allowedRecent)와 같은 기준', async () => {
+  const H = await import(emit('../supabase/functions/doit-agent/history-retrieval.ts', 'history-retrieval2.mjs'));
+  const turns = [{ n: 1, user: '주말 등산을 좋아해요', kind: 'answer' }, { n: 2, user: '매일 연락하는 게 좋아요', kind: 'answer' }];
+  const slots = { relationship_style: { items: [{ note: '매일 연락', quote: '매일 연락하는 게 좋아요', turn: 2, status: 'RETRACTED', source_type: 'AI_EXTRACTED' }] }, attraction_comfort: { items: [{ note: '주말 등산', quote: '주말 등산을 좋아해요', turn: 1, status: 'CONFIRMED', source_type: 'USER_DIRECT' }] } };
+  const row = (state) => ({ user_id: 'u1', request_id: 's1', action: 'agent_session', status: 'applied', applied_revision: 3, created_at: '2026-10-09T00:00:00Z', response_payload: { state } });
+  const ask = (state, q) => H.recallRows([row(state)], 'u1', q, 'current', 's1');
+  assert.equal(ask({ turns, slots }, '연락 얘기 뭐라고 했지?').evidence.length, 0, '아니라고 한 뜻(RETRACTED)의 원문은 지금 기억으로 다시 넣지 않음');
+  assert.equal(ask({ turns, slots }, '등산 얘기 뭐라고 했지?').evidence[0]?.validity, 'CURRENT_CONFIRMED', '확인한 말은 그대로');
+  assert.equal(ask({ turns, slots, disputed: [], forgotten: ['등산'] }, '등산 얘기 뭐라고 했지?').evidence.length, 0, '지운 말 0');
+  assert.equal(H.recallRows([row({ turns, slots })], 'u1', '연락 얘기 뭐라고 했지?', 'history', null).evidence.length, 1, '처음·예전(history)에는 당시 말로 남는다(HISTORICAL_ONLY)');
+});

@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { AGENT_DEP, AGENT_DEP_URL } from './agent-deps.mjs';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'pa1005-'));
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-const emit = (p, out) => { const f = path.join(dir, out); writeFileSync(f, ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText); return pathToFileURL(f).href; };
+const emit = (p, out) => { const f = path.join(dir, out); writeFileSync(f, ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(AGENT_DEP, AGENT_DEP_URL)); return pathToFileURL(f).href; };
 emit('supabase/functions/doit-agent/matching.ts', 'matching.mjs');
 const A = await import(emit('supabase/functions/doit-agent/agent.ts', 'agent.mjs'));
 const code = (p) => read(p).replace(/^\s*\/\/.*$/gm, '');

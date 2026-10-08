@@ -981,7 +981,10 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     }
   }
   if (SAVABLE.has(out.kind)) {
-    for (const t of out.inferred) st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    for (const t of out.inferred) {
+      if ((st.forgotten ?? []).some((f) => nearSame(f, t.trait))) continue; // 2026-10-09 지운 「AI 짐작」은 다시 올리지 않는다(화면 「지운 줄은 다시 만들지 않아요」와 일치)
+      st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    }
     if (out.declared && inText(out.declared.quote)) {
       if (MBTI.test(out.declared.mbti)) st.declared.mbti = out.declared.mbti.toUpperCase();
       if (BLOOD.test(out.declared.blood_type)) st.declared.blood_type = out.declared.blood_type.toUpperCase().replace(/형$/, "");
