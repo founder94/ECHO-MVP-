@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeStatus } from '@/doit/lib/agentApi';
+import { agentRecall, type AgentMemory, DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeTalkStatus } from '@/doit/lib/agentApi';
 import './core-conversation.css';
 import './chat-ref.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
@@ -54,6 +54,8 @@ const VOICE_STATE: Record<VoicePhase, [string, string]> = {
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
 // 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
 export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue }: Props) {
+  const [memory, setMemory] = useState<AgentMemory | null>(null);
+  const [memoryQuery, setMemoryQuery] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false); // 「+」 더 보기(2026-10-04 모바일 기준 디자인)
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -64,8 +66,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // 2026-10-06 유료 자유 대화 안내: 서버 스위치가 켜져 있을 때만(기본 끔) · 정해진 흐름에서 ECHO에게 다른 걸 물었을 때(말 종류 ask) 한 번 보인다.
-  const [freeStatus, setFreeStatus] = useState<FreeStatus | null>(null);
+  // 2026-10-06 유료 자유 대화 안내: 서버 스위치가 켜져 있을 때만(기본 꺼짐 → 상태 enabled=false → 안내 0) · 정해진 흐름에서 ECHO에게 다른 걸 물었을 때(말 종류 ask) 한 번.
+  const [freeStatus, setFreeStatus] = useState<FreeTalkStatus | null>(null);
   const [freeOffer, setFreeOffer] = useState(false);
   useEffect(() => { let on = true; agentFreeStatus(userId).then((f) => { if (on) setFreeStatus(f); }).catch(() => { /* 상태를 못 읽으면 안내를 보이지 않는다 */ }); return () => { on = false; }; }, [userId]);
   const [editingPrevious, setEditingPrevious] = useState(false);
@@ -155,11 +157,12 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
-      // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤에만 오는 한 줄(화면이 만들지 않음)
-      if (r.turn.receipt) { if (correctionMode) setEditingPrevious(false); setNotice(r.turn.receipt); }
-      else if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.reply || '고친 말로 다시 이어갈게요.'); }
+      // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤 준 고정 문장(turn.receipt)을 그대로 — 버튼 정정이든 자유 입력 정정(「아닌데, …」)이든 같은 줄(화면이 먼저 만들지 않음)
+      setMemory(r.turn.memory ?? null); setMemoryQuery(t);
+      setFreeOffer(r.turn.kind === 'ask' && !r.turn.memory);
+      if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.receipt?.line ?? (r.turn.reply || '고친 말로 다시 이어갈게요.')); }
+      else if (r.turn.receipt?.line) setNotice(r.turn.receipt.line);
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
-      setFreeOffer(r.turn.kind === 'ask');
     });
   };
 
@@ -340,11 +343,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       </div>}
       {busy && <div className="echo-thinking echo-typing" role="status"><span className="echo-typing-dots" aria-hidden="true"><i /><i /><i /></span><p>{busy}</p></div>}
       {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
-      {/* 새 CSS 0 — 기존 안내 줄·보조 버튼 모양 그대로 */}
-      {freeOffer && freeStatus?.enabled && !busy && <>
-        <p className="echo-notice" role="note">{freeStatus.entitled ? '여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요.' : `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요. 맛보기 ${freeStatus.trial_left ?? 0}번 남았어요.`}</p>
-        <Link className="echo-secondary" to="/doit/free-talk">무엇이든 이야기하기 <ChevronRight size={18} /></Link>
-      </>}
+      {freeOffer && freeStatus?.enabled && (freeStatus.entitled || (freeStatus.trial_left ?? 0) > 0) && !busy && !done && <p className="echo-notice" role="note">{freeStatus.entitled ? '여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요.' : `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요. 맛보기 ${freeStatus.trial_left ?? 0}번 남았어요.`} <Link className="echo-text-button" to="/doit/talk">무엇이든 이야기하기</Link></p>}
       {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
     </div>
     {/* 말로 대화하기(Voice Lite): 주 행동은 이 마이크 하나. 누르면 듣고 → 말을 멈추면 같은 대화 서버로 → 대답을 화면에 적고 기기 목소리로 읽는다. */}
@@ -385,11 +384,17 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {((toolsOpen && !done) || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
       {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
       {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
+      <form className="echo-history" onSubmit={event => { event.preventDefault(); if (busy || !memoryQuery.trim()) return; void run('기록을 찾고 있어요', async () => { const r = await agentRecall(userId, memoryQuery, 'history'); if (alive.current) { setMemory(r.memory); setNotice(r.reply); } }); }}>
+        <label htmlFor="echo-memory-query">예전에 남긴 말 찾아보기</label>
+        <input id="echo-memory-query" className="echo-input" maxLength={1000} disabled={!!busy} value={memoryQuery} onChange={event => { setMemoryQuery(event.target.value); setMemory(null); }} placeholder="찾고 싶은 내용을 적어 주세요" />
+        <button type="submit" className="echo-secondary" disabled={!!busy || !memoryQuery.trim()}>원문 찾기</button>
+        <p className="echo-fine">저장된 내 대화만 찾아요. 예전 말은 현재 프로필로 자동 반영하지 않아요.</p>
+      </form>
+      {memory?.next && <button type="button" className="echo-secondary" disabled={!!busy} onClick={() => { const cursor = memory.next!; void run('기록을 더 찾고 있어요', async () => { const r = await agentRecall(userId, memoryQuery, memory.intent ?? 'history', cursor); if (alive.current) { setMemory(r.memory); setNotice(r.reply); } }); }}>기록 더 찾기</button>}
       {/* 끝난 뒤에는 입력칸이 없으니 지난 말은 읽기만(누르면 입력칸에 넣는 버튼은 진행 중에만 · Codex 4179170288). */}
       {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}>{done ? text : <button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button>}</li>)}</ol></details>}
       <button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>
       <Link className="echo-secondary" to="/doit/connections">당신이 잠든 사이 · 연결 준비 보기 <ChevronRight size={18} /></Link>
-      <Link className="echo-secondary" to="/doit/known">ECHO가 아는 나 <ChevronRight size={18} /></Link>
       {restartPill()}
       <p className="echo-fine">적은 말은 나만 봐요. 프로필에 저절로 올라가지 않아요.</p>
       <p className="echo-fine">{done ? '이번 대화는 여기까지예요. 다시 하고 싶으면 「처음부터 다시 시작하기」를 눌러 주세요.' : '충분히 들으면 ECHO가 먼저 멈춰요. 중간에 멈춰도 괜찮아요.'}</p>

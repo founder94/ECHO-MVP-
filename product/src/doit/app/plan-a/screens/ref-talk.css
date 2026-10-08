@@ -26,8 +26,14 @@
 .echo-ref :is(button,textarea):disabled{opacity:.55}
 .echo-ref :is(button,textarea):focus-visible{outline:2px solid #fff;outline-offset:2px}
 .echo-ref .echo-ref-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-/* 2026-10-06 사주·타로 정정 → 프로필 반영 확인 */
-.echo-ref .echo-ref-line--receipt{font-weight:700}
-.echo-ref .echo-ref-fix{margin:6px 0 10px;padding:12px 14px;border:1px solid rgb(255 255 255/.7);border-radius:16px;background:rgb(255 255 255/.08)}
-.echo-ref .echo-ref-fix p{margin:0 0 8px;font-size:14px;line-height:1.6;font-weight:600}
-.echo-ref .echo-ref-fix-row{display:flex;flex-wrap:wrap;gap:8px}
+
+/* 2026-10-06 사주·타로 정정 영수증 + 「프로필에도 반영할까요?」 */
+.echo-ref .echo-ref-line--receipt{font-weight:600}
+.echo-ref .echo-ref-offer{margin:6px 0 10px;padding:12px 14px;border-radius:16px;background:rgb(14 60 70/.70);border:1px solid rgb(255 255 255/.5);color:#fff}
+.echo-ref .echo-ref-offer p{margin:0;font-size:14px;line-height:1.6}
+.echo-ref .echo-ref-offer b{font-weight:600}
+.echo-ref .echo-ref-offer-fail{margin-top:6px!important;font-size:13px!important;opacity:.9}
+.echo-ref .echo-ref-offer-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+/* 2026-10-06 자유 대화: AI 표시 · 맛보기 안내 */
+.echo-ref .echo-talk-ai{font-size:11px;opacity:.75;font-weight:600}
+.echo-ref .echo-talk-notice{font-size:13px;opacity:.9}

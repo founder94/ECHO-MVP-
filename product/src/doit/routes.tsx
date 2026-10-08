@@ -17,11 +17,10 @@ const Timeline = lazy(() => import("@/doit/pages/do-it/timeline/page"));
 const Value = lazy(() => import("@/doit/pages/do-it/value/page"));
 const Pattern = lazy(() => import("@/doit/pages/do-it/pattern/page"));
 const Memory = lazy(() => import("@/doit/pages/do-it/memory/page"));
-const Known = lazy(() => import("@/doit/pages/do-it/known/page")); // 2026-10-06 「ECHO가 아는 나」
-const FreeTalk = lazy(() => import("@/doit/pages/do-it/free-talk/page")); // 2026-10-06 유료 자유 대화(서버 스위치 기본 끔)
 const Spaces = lazy(() => import("@/doit/pages/do-it/spaces/page"));
 const StartJourney = lazy(() => import("@/doit/pages/do-it/start-journey/page"));
 const Conversation = lazy(() => import("@/doit/pages/do-it/conversation/page"));
+const Talk = lazy(() => import("@/doit/pages/do-it/talk/page")); // 2026-10-06 유료 자유 대화(서버 스위치 기본 꺼짐)
 const Choose = lazy(() => import("@/doit/pages/do-it/choose/page"));
 const World = lazy(() => import("@/doit/pages/do-it/world/page"));
 const Room = lazy(() => import("@/doit/pages/do-it/room/page"));
@@ -65,12 +64,11 @@ return {
     { path: "value", element: gate("/doit/value", <Value />) },
     { path: "pattern", element: gate("/doit/pattern", <Pattern />) },
     { path: "memory", element: gate("/doit/memory", <Memory />) },
-    { path: "known", element: <Known /> },
-    { path: "free-talk", element: <FreeTalk /> },
     { path: "spaces", element: gate("/doit/spaces", <Spaces />) },
     { path: "choose", element: gate("/doit/choose", <Choose />) },
     { path: "start-journey", element: <StartJourney /> },
     { path: "conversation", element: <Conversation /> },
+    { path: "talk", element: <Talk /> },
     { path: "world", element: gate("/doit/world", <World />) },
     { path: "room", element: gate("/doit/room", <Room />) },
     { path: "grade", element: gate("/doit/grade", <Grade />) },

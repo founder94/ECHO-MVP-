@@ -61,3 +61,24 @@
 .doit-understanding-source>summary{display:inline-flex;align-items:center;gap:4px;font-size:13px}
 .doit-understanding-page button.doit-restart-pill{font-family:inherit;cursor:pointer}
 .doit-understanding-page button.doit-restart-pill:disabled{opacity:.6;cursor:default}
+
+/* 2026-10-06 「ECHO가 아는 나」 네 칸 + 줄 지우기 */
+.doit-known{margin:0 0 30px;padding-bottom:10px;border-bottom:1px solid #ffffff1b}
+.doit-known-empty{margin:0;font-size:14px;line-height:1.85;color:#d6dbe2}
+.doit-known-col{padding:14px 0 6px}
+.doit-known-col h3{margin:0;font-size:15px;line-height:1.5;color:#fff}
+.doit-known-col h3 small{margin-left:6px;font-size:12px;color:#aeb7c4;font-weight:500}
+.doit-known-note{margin:4px 0 0;font-size:12px;line-height:1.7;color:#a9b1bd}
+.doit-known-list{list-style:none;margin:8px 0 0;padding:0}
+.doit-known-list>li{padding:10px 0;border-top:1px solid #ffffff14}
+.doit-known-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.doit-known-text{flex:1;min-width:0;font-size:15px;line-height:1.7;color:#eef0f2;overflow-wrap:anywhere}
+.doit-known-col--guesses .doit-known-text,.doit-known-col--rejected .doit-known-text{color:#c9d0da}
+.doit-known-col--rejected .doit-known-text{text-decoration:line-through;text-decoration-color:#ffffff66}
+.is-sensitive .doit-known-text{color:#aeb7c4;font-style:italic}
+.doit-known-forget{flex:none;min-height:36px;padding:6px 12px;border:1px solid #bac4d13d;border-radius:999px;background:transparent;color:#d6dbe2;font-size:12px;font-weight:600;cursor:pointer}
+.doit-known-forget:disabled{opacity:.5;cursor:default}
+.doit-known-from,.doit-known-quote{display:block;margin-top:4px;font-size:12px;line-height:1.6;color:#a9b3c1}
+.doit-known-footnote,.doit-known-error{margin:12px 0 0;font-size:12px;line-height:1.7;color:#aeb7c4}
+.doit-known-error{color:#ffd6d6}
+.echo-check .echo-known-link{display:inline-block;margin-top:8px}

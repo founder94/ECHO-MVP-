@@ -12,7 +12,8 @@ import ts from 'typescript';
 const dir = mkdtempSync(path.join(tmpdir(), 'fi018-'));
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const emit = (p, out, fix = (x) => x) => { const f = path.join(dir, out); writeFileSync(f, fix(ts.transpileModule(read(p), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText)); return pathToFileURL(f).href; };
-const A = await import(emit('supabase/functions/doit-agent/agent.ts', 'agent.mjs'));
+await import(emit('supabase/functions/doit-agent/history-retrieval.ts', 'history-retrieval.mjs'));
+const A = await import(emit('supabase/functions/doit-agent/agent.ts', 'agent.mjs', x => x.replace('"./history-retrieval.ts"', '"./history-retrieval.mjs"')));
 const M = await import(emit('supabase/functions/doit-connect/agentSource.ts', 'agentSource.mjs', (x) => x.replace('"../doit-agent/agent.ts"', '"./agent.mjs"')));
 const code = (p) => read(p).replace(/^\s*\/\/.*$/gm, '');
 
