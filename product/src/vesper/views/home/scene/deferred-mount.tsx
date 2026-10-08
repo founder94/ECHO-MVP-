@@ -1,0 +1,116 @@
+"use client";
+
+import { useThree } from "@react-three/fiber";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type * as THREE from "three";
+
+/**
+ * Mounts the scene's later forms one at a time, each in an idle period of its
+ * own after the page has loaded — behind the loader, long before the scroll
+ * clock reaches them.
+ *
+ * The orb is the first screen and mounts with the canvas. The galaxy, the
+ * brain and the atmosphere used to mount in the same commit, and drei's
+ * `<Preload all />` then compiled every program at once: one long task at load
+ * on a phone (~175 + 155 ms at 4× CPU, the r3f chunk's share of mobile TBT).
+ * Here each form builds and compiles in a short task of its own.
+ *
+ * `order` sets the queue: 0 first. Compiling is done per form on mount
+ * (`WarmOnMount`), so nothing reaches the GPU for the first time mid-scroll.
+ */
+let loaded = false;
+let next = 0;
+const waiting = new Map<number, () => void>();
+
+/** The next idle period — or, where there is none (the scene worker), a beat. */
+const later = (callback: () => void): void => {
+  if (typeof globalThis.requestIdleCallback === "function") {
+    globalThis.requestIdleCallback(callback, { timeout: 600 });
+  } else {
+    globalThis.setTimeout(callback, 50);
+  }
+};
+
+const pump = (): void => {
+  const run = waiting.get(next);
+  if (!run) return;
+  later(() => {
+    waiting.delete(next);
+    next += 1;
+    run();
+    // The next form gets an idle period of its own.
+    later(pump);
+  });
+};
+
+const enqueue = (order: number, run: () => void): (() => void) => {
+  waiting.set(order, run);
+  if (loaded) {
+    if (order === next) pump();
+  } else if (
+    // In the scene worker there is no document — and no load to wait for.
+    typeof document === "undefined" ||
+    document.readyState === "complete"
+  ) {
+    loaded = true;
+    pump();
+  } else {
+    window.addEventListener(
+      "load",
+      () => {
+        loaded = true;
+        pump();
+      },
+      { once: true },
+    );
+  }
+  return () => {
+    waiting.delete(order);
+  };
+};
+
+/**
+ * Compiles a freshly mounted form's programs once, while it is still hidden —
+ * the per-form share of what `<Preload all />` did for the whole scene.
+ * `compile` walks visible objects only, so the group is shown for the call.
+ */
+const WarmOnMount = ({ children }: { children: ReactNode }) => {
+  const gl = useThree((state) => state.gl);
+  const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
+  const ref = useRef<THREE.Group>(null);
+
+  useLayoutEffect(() => {
+    const group = ref.current;
+    if (!group) return;
+    const hidden: THREE.Object3D[] = [];
+    group.traverse((object) => {
+      if (!object.visible) {
+        hidden.push(object);
+        object.visible = true;
+      }
+    });
+    gl.compile(group, camera, scene);
+    for (const object of hidden) object.visible = false;
+  });
+
+  return <group ref={ref}>{children}</group>;
+};
+
+export const DeferredMount = ({
+  order,
+  children,
+}: {
+  order: number;
+  children: ReactNode;
+}) => {
+  const [ready, setReady] = useState(false);
+  useEffect(() => enqueue(order, () => setReady(true)), [order]);
+  return ready ? <WarmOnMount>{children}</WarmOnMount> : null;
+};
