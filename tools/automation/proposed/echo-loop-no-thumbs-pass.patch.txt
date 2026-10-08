@@ -1,0 +1,19 @@
+--- a/.github/scripts/echo-loop.cjs
++++ b/.github/scripts/echo-loop.cjs
+@@ -4,7 +4,7 @@
+ //   작업 PR = 브랜치 echo/task-<이슈 번호> · 라벨 echo-auto(라벨은 쓰기 권한자만 붙일 수 있음)
+ // Codex 결과 판정(설치된 Codex 앱이 실제로 남기는 신호만):
+ //   FAIL = 현재 head SHA 에 대한 Codex 리뷰 + P0~P2 배지 지적 → 수정은 claude.yml 이 맡음(여기서는 대기)
+-//   PASS = Codex 의 「Didn't find any major issues」 댓글이 현재 head SHA 를 「Reviewed commit」으로 적었고 그 SHA 에 지적이 없음
++//   PASS = (제안 수정: 지원되는 trusted PASS 없음 → 아래 본문 신호는 BLOCKED codex_pass_unproven) Codex 의 「Didn't find any major issues」 댓글이 현재 head SHA 를 「Reviewed commit」으로 적었고 그 SHA 에 지적이 없음
+ //          (👍 반응은 어느 SHA 인지 모르므로 PASS 근거로 쓰지 않음 · Codex 검수 지적)
+ //   리뷰 없음 ≠ PASS. 오래 조용하면 그 SHA 에 한 번만 다시 검수를 요청한다.
+ 'use strict';
+@@ -45,5 +45,6 @@
+   const passed = issueComments.some((c) => c.user?.login === CODEX && /Didn.t find any major issues/.test(c.body || '')
+     && Boolean(reviewedSha(c)) && sha.startsWith(reviewedSha(c)));
+-  if (passed && !findings.length) return { action: 'pass', reason: 'codex_no_findings_for_head_sha', sha };
++  // 본문 문구 + 축약 SHA 는 GitHub 작성자만으로는 실제 완료 검수·typed verdict 를 증명하지 못한다 → PASS 승격 금지(fail-closed).
++  if (passed && !findings.length) return { action: 'block', reason: 'codex_pass_unproven', sha };
+   const pokes = issueComments.filter((c) => (c.body || '').startsWith(`<!-- echo-poke sha=${sha} -->`)).length;
+   if (pokes >= LIMITS.maxPokesPerSha) {

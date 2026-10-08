@@ -1,0 +1,56 @@
+# PROPOSAL ONLY (not under .github/workflows, not active, no live workflow changed). Install as .github/workflows/queue-task-register.yml after review + 대표 approval.
+# Registers an approved task for the per-task handoff budget (queue-budget.cjs) and, as a SEPARATE step, creates the approved task branch.
+# Fixed workflow executor: the model never gets git switch/create, gh api or workflow rights here. No model call, no paid API, no new Secret, no new permission scope
+# beyond what the other proposed queue workflows already list (contents: write for the state branch + the task branch push; pull-requests: read).
+#
+# register  (mode=register): the dispatch sender must be the real founder94 User (github.actor AND triggering_actor; queue-register.cjs re-checks event.sender.type=User).
+#   Typed inputs only. Verified from GitHub metadata, not from inputs: repository (GITHUB_REPOSITORY), PR open + same repo, base SHA == current main HEAD (commits/main), legacy handoff count from real PR comments.
+#   Registration is a CAS commit on refs/heads/echo-automation-state: two runners racing -> one wins. A registered task is immutable: same taskId, same branch,
+#   or any new id on a PR whose task is BLOCKED/DONE is refused (resume_policy_missing) - there is no resume policy yet, so blocked work stays blocked.
+# bootstrap (mode=bootstrap): lease first (CAS CLAIMED), measure repo/permission/current main HEAD (commits/main; mismatch with the registered base => STATE_CHANGED, no branch action)/remote branch,
+#   atomic create-if-absent via `gh api -X POST repos/<repo>/git/refs` (422 if the ref exists; never force, never git push),
+#   re-measure the remote head, then CAS-record DONE or FAILED. Crash after the lease => stays CLAIMED, never auto-retried (human needed): no duplicate execution, exactly-once is NOT promised.
+# Exit codes: 0 ok, 4 refused (reason printed as a fixed code), 1 lookup/store error (fail closed, no token in output).
+# NOT proven: real GitHub behavior of gh api commits/main, the refs API 422 on an existing ref, permission field for the GitHub App token, ref creation with GITHUB_TOKEN.
+name: queue-task-register
+on:
+  workflow_dispatch:
+    inputs:
+      mode:       { description: 'register or bootstrap', required: true, type: choice, options: [register, bootstrap] }
+      task_id:    { description: 'task id (A-Za-z0-9._- up to 64)', required: true, type: string }
+      source_pr:  { description: 'PR number the task belongs to (register only)', required: false, type: string }
+      base_sha:   { description: '40-hex base SHA (register only)', required: false, type: string }
+      branch:     { description: 'claude/<name> task branch (register only)', required: false, type: string }
+      acceptance: { description: 'acceptance criteria (register only)', required: false, type: string }
+permissions:
+  contents: write         # state branch CAS push + task branch creation (needs approval); no other write scope
+  pull-requests: read
+concurrency:
+  group: queue-task-register
+  cancel-in-progress: false
+jobs:
+  task:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10     # cost cap: node + gh only
+    if: github.actor == 'founder94' && github.triggering_actor == 'founder94'
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: 6c73ad5bddc6b7fdc78388447e5444d3fd7c8f48, fetch-depth: 0, persist-credentials: true }   # PIN: automation modules = reviewed module commit (not main); changing it requires re-review
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: register or bootstrap
+        env:
+          MODE: ${{ github.event.inputs.mode }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}              # existing token only; never printed
+          QUEUE_STORE_DIR: ${{ github.workspace }}
+        run: |
+          set +e
+          case "$MODE" in register|bootstrap) ;; *) echo '{"ok":false,"reason":"bad_mode"}'; exit 4;; esac
+          node tools/automation/queue-register.cjs "$MODE"; code=$?
+          echo "queue-register exit=$code"
+          exit $code
+# Activation facts (for the owner who applies it):
+#   permissions vs today: identical to the other proposed queue workflows (contents: write only for refs/heads/echo-automation-state + the registered claude/* branch); no new Secret.
+#   cost: no model call; 3-5 gh api calls per run. apply: only a principal with .github/workflows write access (repository owner/admin founder94 or a workflows-scoped token); Claude's App token cannot.
+#   rollback: disable this workflow (or revert the file). Registered tasks and the state branch are kept as records; nothing is deleted. A created task branch is left in place.
