@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          printf '%s\n' 'beeb8b8db8dcb2151f9ed08590ab74d75836099d0e578af5c8a96360b1499069  tools/manus/auth-probe.cjs' '59b016e7afec94c9b73e7149565ca5d08ad7290ebfc761a628cf9fd591a39217  tools/manus/client.cjs' '26ac74bf1c74fc78f7d4d3edd9bf2a0d0ef1d7fe8e9c9726162ef35c47147ea3  tools/manus/readiness-probe.cjs' | sha256sum -c -
+          printf '%s\n' 'beeb8b8db8dcb2151f9ed08590ab74d75836099d0e578af5c8a96360b1499069  tools/manus/auth-probe.cjs' '59b016e7afec94c9b73e7149565ca5d08ad7290ebfc761a628cf9fd591a39217  tools/manus/client.cjs' '453edf7babd5279b32376eb88a97edd8cd2a708b6dc95183467acb7840e9921d  tools/manus/readiness-probe.cjs' | sha256sum -c -
       - name: Read-only authentication
         env:
           MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
