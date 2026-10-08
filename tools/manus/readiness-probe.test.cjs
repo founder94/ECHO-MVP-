@@ -54,3 +54,12 @@ test('invalid auth stops before credit lookup and never issues POST', async () =
   await assert.rejects(readiness({ apiKey: 'synthetic', fetchImpl: async () => { calls++; return { ok: true, text: async () => '{"ok":true}' }; } }), { code: 'INVALID_IDENTITY' });
   assert.equal(calls, 1);
 });
+test('schema diagnosis reveals only whitelisted field types, never private values or keys', async () => {
+  const fetchImpl = async url => ({ok:true,text:async()=>JSON.stringify(url.endsWith('/user.me') ? {ok:true,user_id:'SECRET_ID'} : {ok:true,data:{total_credits:'PRIVATE_BALANCE',SECRET_KEY:'SECRET_VALUE'},SECRET_TOP:'SECRET_VALUE'})});
+  const r = await readiness({apiKey:'synthetic',fetchImpl});
+  assert.equal(r.credit_read,'BLOCKED');
+  assert.equal(r.credit_schema.declared_total_type,'string');
+  assert.deepEqual(r.credit_schema.data_fields,[['total_credits','string']]);
+  assert.ok(!JSON.stringify(r).includes('SECRET'));
+  assert.ok(!JSON.stringify(r).includes('PRIVATE_BALANCE'));
+});

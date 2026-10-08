@@ -25,15 +25,19 @@ async function readiness({ apiKey, fetchImpl = fetch, timeoutMs = 15000 }) {
   }
   const identity = await get('/v2/user.me');
   if (typeof identity.user_id !== 'string' || !identity.user_id) throw new ReadinessError('INVALID_IDENTITY');
-  let positive = null, creditCode = null;
+  let positive = null, creditCode = null, creditSchema = null;
   try {
     const result = await get('/v2/usage.availableCredits');
     const total = result.data?.total_credits;
+    const kind = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+    // Whitelisted public schema names/types only; never arbitrary keys or actual balances.
+    const publicFields = ['data','total_credits','credits','available_credits','balance','free_credits','periodic_credits','addon_credits'];
+    creditSchema = { data_type: kind(result.data), declared_total_type: kind(total), top_fields: publicFields.filter(k => Object.hasOwn(result, k)).map(k => [k,kind(result[k])]), data_fields: result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? publicFields.filter(k => Object.hasOwn(result.data,k)).map(k => [k,kind(result.data[k])]) : [] };
     // Official total_credits is authoritative; never add expired component quotas ourselves.
     if (!Number.isSafeInteger(total) || total < 0 || total > 2147483647) throw new ReadinessError('INVALID_CREDIT_BALANCE');
     positive = total > 0;
   } catch (e) { creditCode = e instanceof ReadinessError ? e.code : 'UNKNOWN'; }
-  return { authentication: 'PASS', credential_present: true, credit_read: positive === null ? 'BLOCKED' : 'PASS', spendable_credits_positive: positive, ...(creditCode ? { credit_code: creditCode } : {}), task_cost_quote: 'UNAVAILABLE', provider_hard_task_cap: 'UNAVAILABLE', paid_task_started: false, task_round_trip: 'NOT_RUN' };
+  return { authentication: 'PASS', credential_present: true, credit_read: positive === null ? 'BLOCKED' : 'PASS', spendable_credits_positive: positive, ...(creditCode ? { credit_code: creditCode, ...(creditSchema ? { credit_schema: creditSchema } : {}) } : {}), task_cost_quote: 'UNAVAILABLE', provider_hard_task_cap: 'UNAVAILABLE', paid_task_started: false, task_round_trip: 'NOT_RUN' };
 }
 async function main() {
   try { process.stdout.write(JSON.stringify(await readiness({ apiKey: process.env.MANUS_API_KEY })) + '\n'); }
