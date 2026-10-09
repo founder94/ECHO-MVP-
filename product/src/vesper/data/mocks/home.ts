@@ -2,7 +2,8 @@
  * 홈 화면 문구(원본 Vesper 의 자리 문구를 ECHO 승인 문구로). 컴포넌트는 props 로 받는다.
  */
 import { BRAND_HOME_COPY, STORIES } from "@/pages/do-it/brand-home/copy";
-import { GREETING, GREETING_CLOSING, GREETING_TITLE } from "@/pages/do-it/landing/components/brandGreeting";
+import { appUrl } from "@/lib/siteRole";
+import { INSTALL_PATH } from "@/pages/do-it/landing/components/BrandSections";
 
 export interface MetricCard { label: string; value: string; detail: string }
 export interface MetaRow { label: string; value: string }
@@ -33,25 +34,14 @@ export const homeOutro: OutroCopy = {
   cta: { label: BRAND_HOME_COPY.start, href: "/" },
 };
 
-/** 아홉 장면(옛 홈페이지 이야기 9장면 승인 문구 그대로) — 접었다 펴는 칸으로. */
-export const homeFaq: FaqCopy = {
-  eyebrow: "ECHO STORY",
-  title: BRAND_HOME_COPY.storyTitle.join(" "),
-  items: [
-    ...STORIES.map((s) => ({ question: `${s.no} ${s.label}`, answer: `${s.title.join(" ")} ${s.body.join(" ")}` })),
-    // 대표 인사말(승인 원문 그대로 · brandGreeting.ts) — 열 번째 칸.
-    { question: "10 대표 인사말", answer: `${GREETING_TITLE} ${GREETING.join(" ")} ${GREETING_CLOSING.join(" ")}` },
-  ],
-};
-
 export const homeFooter: FooterCopy = {
   wordmark: "DO IT",
   tagline: `${BRAND_HOME_COPY.heroTitle.join(" ")} ${BRAND_HOME_COPY.heroLine[0]}`,
   columns: [
+    // 2026-10-09 대표: 설치 카드·이야기 카드·제작 영상 삭제 → 설치는 앱 주소로(이용 안내 설치 항목과 같은 곳).
     { heading: "ECHO", links: [
-      { label: "이야기 아홉 장면", href: "/#faq" },
-      { label: "제작 과정", href: "/#making" },
-      { label: BRAND_HOME_COPY.install, href: "/#financial" },
+      { label: "감정의 이유", href: "/#solaris" },
+      { label: BRAND_HOME_COPY.install, href: appUrl(INSTALL_PATH) },
     ] },
     { heading: "회사", links: [
       { label: "이용약관", href: "/legal/terms" },

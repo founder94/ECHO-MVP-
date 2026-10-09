@@ -991,3 +991,10 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - ① `shims/next-navigation.ts` usePathname 이 해시를 붙여 휴대폰 메뉴 「홈」이 같은 페이지를 다른 페이지로 봄(맨 위로 안 올라감) — **내 대체 모듈 버그**라 고침: usePathname 은 Next 처럼 해시 없이, 해시로 굴러가는 원본 로직(scroll-layout)은 그 자리에서만 해시를 붙임. 로컬 검증(PC·휴대폰): 「이야기」→ FAQ 로, 「홈」→ 맨 위(y 0).
 - ② 태블릿에서 메뉴를 연 채 회전해 1024px 을 넘으면 메뉴·토글이 숨겨진 채 스크롤 잠김(원본 Vesper mobile-nav 그대로) — 원본 코드 수정은 대표 결정(「코드 그대로」 지시) → 보고 항목.
 - 자동 왕복 5회 한도 도달: 재검수 요청 없이 대표 보고.
+
+## 28. 홈페이지 대표 피드백 반영(2026-10-09 · 실기기 캡처 6장 · 「구매한 홈페이지가 먼저 · 기존 홈페이지는 다 삭제」)
+- 대표 말(원문 요지): 로더 비 효과 본 적 없음 / 뇌와 글이 겹침 / Solaris 로 내려갈 때 선 끊김 / 설치 카드 뒤 3D 안 보임 → 삭제, 그 효과는 히어로로, DO IT 3D(제작 영상) 삭제, 이야기·바닥 카드도 삭제 / 홈페이지를 먼저 살리고 거기에 글만 레이아웃으로 / 기존 홈페이지는 다 삭제.
+- 해석(명시): 「다섯번째 효과를 히어로페이지에」 = 설치 카드 뒤에 있던 Einstein–Rosen 격자를 첫 화면 배경으로. 「여섯번째·일곱번째도 마찬가지」 = 이야기 9장면 카드·그 아래 카드(대표 인사말) 삭제. 바닥글은 법적 고지(사업자·약관·개인정보) 때문에 유지 → 대표가 「바닥글도 빼」 하면 그때 뺀다.
+- 한 것: 로더 StarFall 제거 · 뇌 장면 휴대폰 글 뒤 어두운 막 · Solaris 위·아래 검정 gradient · 격자 → `hero/hero-lattice.tsx`(fixed · screen 합성 · 세기 0.55 · hero 와 같은 시계 구간) · FinancialSection·FaqSection·LatticeSection·BrandFilm 제거 · `public/brand/film/*`·`hero-earth.webp`·SceneLayer·DotText 삭제 · brand-home.css 는 이용 안내 설치 한 줄만 · 메뉴 홈·이야기 · 바닥글 ECHO 묶음 = 감정의 이유 · 웹 설치하기(앱 주소).
+- 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 문구 6종 표시 · 삭제 문구 4종 미표시 · pageerror 0.
+- 삭제 승인 근거: 대표 2026-10-09 「기존에 있던 홈페이지는 다 삭제 처리해」 「doit3d효과 만든건 삭제해」.

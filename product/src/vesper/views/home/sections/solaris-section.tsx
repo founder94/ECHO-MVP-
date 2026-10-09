@@ -175,6 +175,9 @@ export const SolarisSection = () => {
   return (
     <section ref={hostRef} id="solaris" aria-label={TITLE} className="relative h-lvh w-full overflow-hidden bg-black text-white">
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full" />
+      {/* 2026-10-09 대표: 스크롤할 때 앞 장면과 선처럼 끊겨 보임 → 위·아래를 검정으로 녹여 한 편처럼 이어지게. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[34vh] bg-gradient-to-b from-black via-black/70 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[26vh] bg-gradient-to-t from-black to-transparent" />
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-end px-[1.667vw] pb-[2.222vw] max-lg:px-[1.5rem] max-lg:pb-[2rem] max-sm:px-[1.25rem]">
         <Inview mode="always" immediateOut={false} from={UNIT_REVEAL.from} to={UNIT_REVEAL.to} config={UNIT_REVEAL.config} className="font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:text-[0.8125rem]">
           {STORY.no} — {STORY.label}

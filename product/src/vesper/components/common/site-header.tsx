@@ -23,11 +23,10 @@ import { BRAND_HOME_COPY, START_PATH } from "@/pages/do-it/brand-home/copy";
  * fit that row at any legible size. This stays a Server
  * Component — only the toggle is a client leaf.
  */
+// 2026-10-09 대표: 설치 카드·이야기 카드·제작 영상 삭제 → 메뉴는 홈 · 이야기(Solaris). 웹 설치하기는 바닥글(앱 주소).
 const NAV = [
   { label: "홈", href: "/" },
-  { label: "이야기", href: "/#faq" },
-  { label: "제작 과정", href: "/#making" },
-  { label: BRAND_HOME_COPY.install, href: "/#financial" },
+  { label: "이야기", href: "/#solaris" },
 ] as const;
 
 export const SiteHeader = () => {

@@ -1,6 +1,7 @@
 "use client";
 // GetLayers 3D Scenes 「Einstein–Rosen Lattice」 원본(einstein-rosen-lattice.html) 그대로 — 2026-10-08 대표 「색도 글씨체도 3D 효과도 코드대로」.
-// 바꾼 것: CDN importmap → 번들 three(WebGL1Renderer → WebGLRenderer · PlaneBufferGeometry → PlaneGeometry) · 제어판·localStorage 제거 · 보일 때만 그림 · 위에 ECHO 문구 + 제작 과정 영상.
+// 바꾼 것: CDN importmap → 번들 three(WebGL1Renderer → WebGLRenderer · PlaneBufferGeometry → PlaneGeometry) · 제어판·localStorage 제거.
+// 2026-10-09 대표: 따로 노는 장면이 아니라 첫 화면(히어로)의 배경 효과로 — 구슬 장면 위에 screen 합성(검정은 투명) · 첫 화면을 지나면 사라짐.
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -9,13 +10,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { GammaCorrectionShader } from "three/addons/shaders/GammaCorrectionShader.js";
 import { CopyShader } from "three/addons/shaders/CopyShader.js";
-import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
-import { Inview } from "@vesper/components/common/robot-inview";
-import { FollowLineBlur, wordCount } from "../line-blur";
-import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "../reveal";
+import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { BRIDGE_FRAG, GLOW_FRAG, QUAD_VERT } from "./lattice-shaders";
-import BrandFilm, { BRAND_FILM_COPY } from "@/pages/do-it/brand-home/BrandFilm";
-import { STORIES } from "@/pages/do-it/brand-home/copy";
 import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 const CONFIG = {
@@ -37,13 +33,13 @@ const hexToVec3 = (hex: string) => {
 };
 const LAYERS = { NONE: 0, TORUS_SCENE: 1, BLOOM_SCENE: 2, ENTIRE_SCENE: 3 };
 
-const STORY = STORIES[7];
-const TITLE = STORY.title.join(" ");
-const BODY = STORY.body.join(" ");
+/** 첫 화면 글(hero.tsx)과 같은 구간에서 보이고, 그 뒤로는 사라진다(clock 0.08 → 0.28). 배경이라 글·구슬이 읽히게 절반 세기. */
+const LATTICE_STRENGTH = 0.55;
+const heroOpacity = (clock: number) => LATTICE_STRENGTH * (1 - Math.min(Math.max((clock - 0.08) / 0.2, 0), 1));
 
-export const LatticeSection = () => {
+export const HeroLattice = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const hostRef = useRef<HTMLElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,7 +49,8 @@ export const LatticeSection = () => {
     try {
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     } catch { return; }
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    // 첫 화면에서 구슬 장면과 함께 그리므로 휴대폰은 1배, PC 는 1.5배까지.
+    const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth <= 1024 ? 1 : 1.5);
     const U = {
       iTime: { value: 0 }, iAlpha: { value: 0 }, iResolution: { value: new THREE.Vector3(1, 1, 1) }, uAspect: { value: 1 },
       iAz: { value: 0 }, iEl: { value: 0 }, iSpin: { value: 0 }, iPhase: { value: 0 }, iPulse: { value: 0 }, iBreath: { value: 1 },
@@ -152,13 +149,16 @@ export const LatticeSection = () => {
     host.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('pointerleave', onLeave, { passive: true });
 
-    let visible = false;
-    const io = new IntersectionObserver((entries) => { for (const e of entries) visible = e.isIntersecting; }, { threshold: 0 });
-    io.observe(host);
+    // 고정(fixed) 배경이라 교차 관찰 대신 장면 시계로: 첫 화면 글이 사라지면 그림도 멈춘다.
+    let visible = true;
+    let lastOpacity = -1;
 
     let raf = 0;
     const animate = () => {
       raf = requestAnimationFrame(animate);
+      const opacity = heroOpacity(sceneTimeline.getProgress());
+      if (opacity !== lastOpacity) { lastOpacity = opacity; host.style.opacity = String(opacity); }
+      visible = opacity > 0.01;
       if (!visible || document.hidden) { live.last = performance.now() / 1000; return; }
       // 2026-10-09(Codex P2): 움직임 줄이기 · 이용 안내 창 열림 → 한 장만 그리고 멈춤(풀리면 다시 진행).
       const paused = pageMotionPaused();
@@ -189,7 +189,7 @@ export const LatticeSection = () => {
     raf = requestAnimationFrame(animate);
 
     return () => {
-      cancelAnimationFrame(raf); io.disconnect();
+      cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); host.removeEventListener('pointerdown', onDown); window.removeEventListener('pointerleave', onLeave);
       bridge.geometry.dispose(); glow.geometry.dispose(); bridgeMat.dispose(); glowMat.dispose(); blackPixel.dispose();
       torusComposer.dispose(); bloomComposer.dispose(); finalComposer.dispose(); renderer.dispose();
@@ -197,34 +197,8 @@ export const LatticeSection = () => {
   }, []);
 
   return (
-    <section ref={hostRef} id="making" aria-label={BRAND_FILM_COPY.title} className="relative min-h-lvh w-full overflow-hidden bg-black text-white">
+    <div ref={hostRef} aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[5] h-lvh mix-blend-screen">
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full" />
-      <div className="relative z-10 flex min-h-lvh flex-col justify-end px-[1.667vw] pt-[6.5vw] pb-[2.222vw] max-lg:px-[1.5rem] max-lg:pt-[6.5rem] max-lg:pb-[2rem] max-sm:px-[1.25rem]">
-        <div className="pointer-events-none">
-          <Inview mode="always" immediateOut={false} from={UNIT_REVEAL.from} to={UNIT_REVEAL.to} config={UNIT_REVEAL.config} className="font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:text-[0.8125rem]">
-            {STORY.no} — {STORY.label} · MAKING FILM
-          </Inview>
-          <FollowLineBlur letters={TITLE.length}>
-            {(onTextStart) => (
-              <TextEngine tag="h2" mode="always" immediateOut={false} {...LETTER_FADE} onTextStart={onTextStart} className="mt-[0.833vw] w-[46vw] font-general text-[5.556vw] leading-[0.9] font-light max-lg:mt-[0.5rem] max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2.125rem]">
-                {TITLE}
-              </TextEngine>
-            )}
-          </FollowLineBlur>
-          <FollowLineBlur unit="word" letters={wordCount(BODY)}>
-            {(onTextStart) => (
-              <TextEngine tag="p" mode="always" immediateOut={false} delayIn={160} {...WORD_FADE} onTextStart={onTextStart} className="mt-[1.111vw] w-[27.5vw] font-general text-[1.111vw] leading-[1.2] max-lg:mt-[0.75rem] max-lg:w-full max-lg:text-[0.9375rem]">
-                {BODY}
-              </TextEngine>
-            )}
-          </FollowLineBlur>
-        </div>
-        {/* 제작 과정 영상(2026-10-05 대표 · PR #137 BrandFilm 그대로) — 격자 위 */}
-        <div className="bh mx-auto mt-[2.222vw] w-full max-w-[26rem] max-lg:mt-[1.5rem]">
-          <p className="font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:text-[0.8125rem]">{BRAND_FILM_COPY.title}</p>
-          <BrandFilm />
-        </div>
-      </div>
-    </section>
+    </div>
   );
 };

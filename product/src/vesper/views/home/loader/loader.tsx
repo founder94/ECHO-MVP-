@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoaderCopy } from "@vesper/data/mocks/home";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { cubicBezier } from "@vesper/utils/animation/cubic-bezier";
-import { StarFall } from "./star-fall";
 
 /** The loader never flashes past faster than this, however fast assets land. */
 const MIN_DURATION_MS = 900;
@@ -55,7 +54,6 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
 
   // Read by the star field every frame — never through React, so the field is
   // free to run at whatever rate the ticker gives it.
-  const intensity = useCallback(() => intensityRef.current, []);
 
   useEffect(() => {
     startedAt.current ??= performance.now();
@@ -137,7 +135,7 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
       aria-live="polite"
       aria-label={copy.initializing}
     >
-      <StarFall intensity={intensity} />
+      {/* 2026-10-09 대표: 비 내리듯 떨어지는 줄(StarFall)은 구매 미리보기에 없던 효과 → 뺌(진행 막대만). */}
 
       <div className="absolute top-0 left-0 flex items-center gap-loader-inline px-loader-x py-loader-y">
         <span>{copy.brand}</span>

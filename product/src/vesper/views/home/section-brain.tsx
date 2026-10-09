@@ -64,6 +64,8 @@ export const SectionBrain = () => {
       className="pointer-events-none fixed inset-0 z-10 text-white max-lg:flex max-lg:flex-col max-lg:justify-center max-lg:gap-[1.25rem] max-lg:px-[1.5rem] max-lg:py-[6.5rem] max-sm:px-[1.25rem]"
       style={{ opacity, visibility }}
     >
+      {/* 2026-10-09 대표: 휴대폰에서 뇌와 글이 겹쳐 보임 → 글 뒤에 어두운 막(뇌는 배경으로 묻힘). 1024px 이상은 원본 그대로. */}
+      <div aria-hidden className="absolute inset-0 -z-10 hidden max-lg:block bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.72)_22%,rgba(0,0,0,0.72)_78%,rgba(0,0,0,0)_100%)]" />
       <LineBlur active={active} letters={TITLE_LEFT.length}>
         <TextEngine
           tag="h2"

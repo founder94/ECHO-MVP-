@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from "react";
 
-import type { FaqCopy, FooterCopy, LoaderCopy } from "@vesper/data/mocks/home";
+import type { FooterCopy, LoaderCopy } from "@vesper/data/mocks/home";
 import { useProgressTrigger } from "@vesper/hooks/animation/use-progress-trigger";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { startIntro } from "@vesper/lib/scene/intro";
@@ -22,13 +22,11 @@ import {
 } from "@vesper/lib/scene/timeline";
 import { getParams } from "./scene/adaptive";
 import { Hero } from "./hero/hero";
+import { HeroLattice } from "./hero/hero-lattice";
 import { SectionBrain } from "./section-brain";
 import { SectionGalaxy } from "./section-galaxy";
-import { FaqSection } from "./sections/faq-section";
-import { FinancialSection } from "./sections/financial-section";
 import { SiteFooter } from "./sections/site-footer";
 import { SolarisSection } from "./sections/solaris-section";
-import { LatticeSection } from "./sections/lattice-section";
 import { toLvh } from "./hud/windows";
 import { Loader } from "./loader/loader";
 import { HydrateIdle, HydrateNear } from "@vesper/components/common/hydrate-near";
@@ -69,38 +67,22 @@ const StageOverlays = memo(function StageOverlays() {
  *  visitor nears it (`HydrateNear`); its server HTML stands meanwhile. */
 const ClosingBlocks = memo(function ClosingBlocks({
   outroRef,
-  faq,
   footer,
 }: {
   outroRef: RefObject<HTMLDivElement | null>;
-  faq: FaqCopy;
   footer: FooterCopy;
 }) {
   return (
     <>
-      {/* 2026-10-08 대표: GetLayers 3D 장면 2개(Solaris · Einstein–Rosen)도 코드 그대로 — 닫는 카드 앞에 한 화면씩 */}
-      <Suspense fallback={null}>
-        <HydrateNear id="solaris">
-          <SolarisSection />
-        </HydrateNear>
-      </Suspense>
-      <Suspense fallback={null}>
-        <HydrateNear id="making">
-          <LatticeSection />
-        </HydrateNear>
-      </Suspense>
-      <div id="financial" ref={outroRef} className="mb-[1.667vw]">
+      {/* 2026-10-09 대표: 옛 홈페이지에서 가져온 설치 카드·이야기 9장면 카드·제작 영상은 모두 뺌(구매한 홈페이지가 먼저).
+          Solaris(대표가 준 3D 장면)는 뇌 장면 다음에 한 화면 — 떠오르면서 뇌의 퇴장(outro)을 끈다(원본의 설치 카드 자리). */}
+      <div ref={outroRef}>
         <Suspense fallback={null}>
-          <HydrateNear id="financial">
-            <FinancialSection />
+          <HydrateNear id="solaris">
+            <SolarisSection />
           </HydrateNear>
         </Suspense>
       </div>
-      <Suspense fallback={null}>
-        <HydrateNear id="faq">
-          <FaqSection copy={faq} />
-        </HydrateNear>
-      </Suspense>
       {/* The footer is transparent over the live shader (like the cards), so
           nothing opaque covers the scene — the frame gate keeps drawing it. */}
       <Suspense fallback={null}>
@@ -114,7 +96,6 @@ const ClosingBlocks = memo(function ClosingBlocks({
 
 export interface ScrollStageProps {
   loader: LoaderCopy;
-  faq: FaqCopy;
   footer: FooterCopy;
 }
 
@@ -128,7 +109,7 @@ export interface ScrollStageProps {
  * which is what makes the clock run at double rate through its middle. That is
  * faithful to the original timeline, not an oversight.
  */
-export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
+export const ScrollStage = ({ loader, footer }: ScrollStageProps) => {
   const trackOne = useRef<HTMLDivElement>(null);
   const trackTwo = useRef<HTMLDivElement>(null);
   const trackThree = useRef<HTMLDivElement>(null);
@@ -215,6 +196,8 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
       {!robot && <Loader copy={loader} onReady={handleReady} />}
 
       <main className="relative">
+        {/* 2026-10-09 대표: Einstein–Rosen 격자는 첫 화면의 배경 효과(구슬 장면 위 · 글 아래). */}
+        {!robot && <HeroLattice />}
         <Hero introStarted={introStarted} />
         <StageOverlays />
 
@@ -247,7 +230,7 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
           {/* The Financial and FAQ cards float over the still-drawing scene — no
               opaque surface here, so the shader shows around them. They stack
               close together (small gap). */}
-          <ClosingBlocks outroRef={outroRef} faq={faq} footer={footer} />
+          <ClosingBlocks outroRef={outroRef} footer={footer} />
         </div>
       </main>
     </>
