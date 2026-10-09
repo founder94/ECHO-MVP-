@@ -90,3 +90,6 @@ three 0.186.1 · @react-three/fiber 9.8.1 · @react-three/drei 10.7.9 · @react-
 ## 2026-10-09 글 = 원본 그대로(대표 「글씨는 내가 준 코드 원본 그대로 우선」)
 - 위 「장면별 글」 표의 한글 승인 문구는 이번 게시본에 없다. 화면 글은 Vesper 원본 영어 글(Motion instead of chrome · Reads presence, in motion · Send Request · Contact Us · Let's talk. · Engine/Studio/Connect · VESPER 로더). Solaris·Onyx 글 0.
 - 남긴 것: 로고 DO IT · 맨 아래 사업자 정보·약관·개인정보 줄. 승인 문구는 `src/pages/do-it/brand-home/copy.ts` 에 보관(다음 단계 재료).
+
+## 2026-10-09 원본 페이지 전부 복원(대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」)
+- 흰 카드 「A living interface」(원본 사진) · FAQ 카드(원본 4문항) · 별 줄기 로더 복원. 순서: 첫 화면 → 은하 → 뇌 → 흰 카드 → FAQ → Solaris → Onyx → 바닥글.

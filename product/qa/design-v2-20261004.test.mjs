@@ -21,20 +21,24 @@ const HEADER = V('components/common/site-header.tsx');
 const MNAV = V('components/common/mobile-nav.tsx');
 const SEND = V('views/home/send-request.tsx');
 
-test('홈페이지(2026-10-09 대표 「구매한 홈페이지가 먼저 · 기존 홈페이지는 다 삭제」): 첫 화면(격자 배경 + 구슬) → 은하 → 뇌 → Solaris(선 없이) → 바닥글 · 설치 카드·이야기 카드·제작 영상 0 · 온보딩은 그대로', () => {
+test('홈페이지(2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」): 원본 Vesper 그대로 — 첫 화면(격자 배경 + 구슬) → 은하 → 뇌 → 흰 카드 → FAQ 카드 → Solaris → Onyx → 바닥글 · 설치 카드·이야기 카드·제작 영상 0 · 온보딩은 그대로', () => {
   for (const t of ["from '@vesper/layouts/scroll-layout'", "from '@vesper/components/common/site-header'", "from '@vesper/views/home'", "<AdaptiveGrid />", "<ReducedMotion />", "import '@vesper/vesper.css'"]) assert.ok(HOME.includes(t), t);
   assert.match(HOME, /document\.documentElement\.classList\.add\('vesper'\)/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만');
   assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
   const at = (s) => STAGE.indexOf(s);
   // 파일 순서: 겹 그림(StageOverlays) → 닫는 블록(ClosingBlocks) → 무대(ScrollStage: 격자 배경 → 첫 화면 글)
-  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
+  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
   order.forEach((v, i) => assert.ok(v > 0, String(i)));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
-  assert.doesNotMatch(STAGE, /FinancialSection|FaqSection|LatticeSection|id="financial"|id="faq"|id="making"/, '옛 홈페이지에서 온 설치 카드·이야기 카드·제작 영상 장면 0');
-  assert.match(STAGE, /<div ref=\{outroRef\}>\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="solaris">/, 'Solaris 가 떠오르며 뇌의 퇴장을 끈다');
+  assert.doesNotMatch(STAGE, /LatticeSection|id="making"|BrandFilm/, '옛 ECHO 홈페이지 조각(제작 영상 등) 0 · 격자는 첫 화면 배경으로만');
+  assert.match(STAGE, /<div id="financial" ref=\{outroRef\} className="mb-\[1\.667vw\]">\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="financial">\n\s*<FinancialSection \/>/, '원본: 흰 카드가 떠오르며 뇌의 퇴장을 끈다');
+  assert.match(STAGE, /<HydrateNear id="faq">\n\s*<FaqSection copy=\{faq\} \/>/, '원본 FAQ 카드');
+  const fin = V('views/home/sections/financial-section.tsx');
+  assert.match(fin, /const TITLE = "A living interface";/); assert.match(fin, /src="\/vesper\/assets\/sections\/financial\.png"/, '원본 사진');
+  assert.match(V('views/home.tsx'), /<ScrollStage loader=\{homeLoader\} faq=\{homeFaq\} footer=\{homeFooter\} \/>/);
   for (const f of ['src/pages/do-it/brand-home/SceneLayer.tsx', 'src/pages/do-it/brand-home/DotText.tsx', 'src/pages/do-it/brand-home/BrandFilm.tsx', 'public/brand/film', 'public/brand/hero-earth.webp', 'src/vesper/views/home/sections/lattice-section.tsx']) assert.ok(!existsSync(f), `${f} 삭제`);
   assert.doesNotMatch(HOME, /SceneLayer|DotText|hero-earth|BrandFilm/, '옛 홈페이지 조각 0');
-  assert.doesNotMatch(V('views/home/loader/loader.tsx'), /<StarFall/, '로더의 비 내리는 줄 0(대표: 구매 미리보기에 없던 효과)');
+  assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로(대표 10/9 「우선 똑같이 퍼온다」)');
   assert.match(V('views/home/section-brain.tsx'), /hidden max-lg:block bg-\[linear-gradient\(180deg,rgba\(0,0,0,0\)_0%,rgba\(0,0,0,0\.72\)/, '휴대폰 뇌 장면: 글 뒤 어두운 막(뇌는 배경으로)');
   const sol = V('views/home/sections/solaris-section.tsx');
   assert.match(sol, /top-0 h-\[34vh\] bg-gradient-to-b from-black via-black\/70 to-transparent/, 'Solaris 위를 검정으로 녹임(선 0)');
@@ -69,7 +73,7 @@ test('홈페이지 글(2026-10-09 대표 「글씨는 내가 준 코드 원본 �
 });
 test('홈페이지: 대표 인사말 승인 원문은 brandGreeting.ts 에 그대로(10/9 이야기 카드 삭제로 홈페이지엔 없음 · 시안 제안 문구 0) · 법적 고지·문의 보존', () => {
   assert.match(read('src/pages/do-it/landing/components/brandGreeting.ts'), /GREETING_TITLE = 'DO IT은 제가 직접 겪은 경험에서 시작됐습니다\.'/);
-  assert.doesNotMatch(MOCK, /GREETING/, '인사말 칸 0(대표 10/9)'); assert.doesNotMatch(STAGE, /FaqSection|homeFaq/, '이야기 카드(FAQ) 0 — 원본 mocks 의 homeFaq 자료는 그대로지만 화면엔 안 쓴다');
+  assert.doesNotMatch(MOCK, /GREETING/, '인사말 칸 0(대표 10/9)'); assert.doesNotMatch(STAGE + MOCK, /GREETING|brandGreeting/, '옛 인사말 카드 0');
   assert.ok(!(MOCK + COPY + FOOT).includes('기술보다 먼저'), '시안의 제안 인사말은 넣지 않음(대표 확인 대기)');
   for (const t of ["registration: '사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호'", "email: '0423doit@gmail.com'", "company: '두잇(DO IT) · 대표 박진욱'"]) assert.ok(COPY.includes(t), t);
   for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);

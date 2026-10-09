@@ -36,11 +36,12 @@ import {
  */
 
 const BODY_ONE =
-  "앱 스토어에 가지 않아도 돼요. 브라우저에서 홈 화면에 두면 앱처럼 한 번에 열려요. 아이폰은 공유 버튼 → 홈 화면에 추가, 안드로이드는 메뉴 → 홈 화면에 추가.";
+  "Vesper is a rendering and interaction layer that reads presence — pointer, scroll and dwell — and answers in motion rather than in chrome around it.";
 const BODY_TWO =
-  "설치하지 않아도 웹에서 그대로 쓸 수 있어요. 처음에는 당신의 이야기를 듣는 데서 시작합니다.";
+  "Point counts, tessellation and device pixel ratio all step down by viewport class, and the render loop yields sooner rather than starving the frame.";
 
-const TITLE = "홈 화면에서 바로 시작하세요.";
+// 2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」 → 원본 Vesper 흰 카드 글·사진 그대로.
+const TITLE = "A living interface";
 
 export const FinancialSection = () => {
   return (
@@ -82,8 +83,8 @@ export const FinancialSection = () => {
               configures AVIF/WebP + device sizes in `next.config.ts`. Served raw it
               was the single heaviest asset on the page — heavier than the scene. */}
           <Image
-            src="/brand/stories/story-07.webp"
-            alt="창밖의 지구를 바라보는 우주인"
+            src="/vesper/assets/sections/financial.png"
+            alt="A figure lit in teal, face turned toward the light"
             fill
             sizes="(max-width: 1023px) 100vw, 28vw"
             className="object-cover"

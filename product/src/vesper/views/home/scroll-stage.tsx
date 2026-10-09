@@ -10,7 +10,7 @@ import {
   type RefObject,
 } from "react";
 
-import type { FooterCopy, LoaderCopy } from "@vesper/data/mocks/home";
+import type { FaqCopy, FooterCopy, LoaderCopy } from "@vesper/data/mocks/home";
 import { useProgressTrigger } from "@vesper/hooks/animation/use-progress-trigger";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { startIntro } from "@vesper/lib/scene/intro";
@@ -25,6 +25,8 @@ import { Hero } from "./hero/hero";
 import { HeroLattice } from "./hero/hero-lattice";
 import { SectionBrain } from "./section-brain";
 import { SectionGalaxy } from "./section-galaxy";
+import { FaqSection } from "./sections/faq-section";
+import { FinancialSection } from "./sections/financial-section";
 import { SiteFooter } from "./sections/site-footer";
 import { SolarisSection } from "./sections/solaris-section";
 import { OnyxSection } from "./sections/onyx-section";
@@ -68,23 +70,34 @@ const StageOverlays = memo(function StageOverlays() {
  *  visitor nears it (`HydrateNear`); its server HTML stands meanwhile. */
 const ClosingBlocks = memo(function ClosingBlocks({
   outroRef,
+  faq,
   footer,
 }: {
   outroRef: RefObject<HTMLDivElement | null>;
+  faq: FaqCopy;
   footer: FooterCopy;
 }) {
   return (
     <>
-      {/* 2026-10-09 대표: 옛 홈페이지에서 가져온 설치 카드·이야기 9장면 카드·제작 영상은 모두 뺌(구매한 홈페이지가 먼저).
-          Solaris(대표가 준 3D 장면)는 뇌 장면 다음에 한 화면 — 떠오르면서 뇌의 퇴장(outro)을 끈다(원본의 설치 카드 자리). */}
-      <div ref={outroRef}>
+      {/* 2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」 → 원본 Vesper 의 닫는 구간 그대로:
+          흰 카드(A living interface · 뇌의 퇴장을 끈다) → FAQ 카드 → 바닥글. 대표가 준 3D 장면(Solaris · Onyx)은 FAQ 와 바닥글 사이. */}
+      <div id="financial" ref={outroRef} className="mb-[1.667vw]">
         <Suspense fallback={null}>
-          <HydrateNear id="solaris">
-            <SolarisSection />
+          <HydrateNear id="financial">
+            <FinancialSection />
           </HydrateNear>
         </Suspense>
       </div>
-      {/* 2026-10-09 대표: Onyx Cubes(대표가 준 네 번째 3D 장면)도 그대로 — Solaris 다음, 밝은 한 화면(원본의 흰 카드 자리). */}
+      <Suspense fallback={null}>
+        <HydrateNear id="faq">
+          <FaqSection copy={faq} />
+        </HydrateNear>
+      </Suspense>
+      <Suspense fallback={null}>
+        <HydrateNear id="solaris">
+          <SolarisSection />
+        </HydrateNear>
+      </Suspense>
       <Suspense fallback={null}>
         <HydrateNear id="onyx">
           <OnyxSection />
@@ -103,6 +116,7 @@ const ClosingBlocks = memo(function ClosingBlocks({
 
 export interface ScrollStageProps {
   loader: LoaderCopy;
+  faq: FaqCopy;
   footer: FooterCopy;
 }
 
@@ -116,7 +130,7 @@ export interface ScrollStageProps {
  * which is what makes the clock run at double rate through its middle. That is
  * faithful to the original timeline, not an oversight.
  */
-export const ScrollStage = ({ loader, footer }: ScrollStageProps) => {
+export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
   const trackOne = useRef<HTMLDivElement>(null);
   const trackTwo = useRef<HTMLDivElement>(null);
   const trackThree = useRef<HTMLDivElement>(null);
@@ -237,7 +251,7 @@ export const ScrollStage = ({ loader, footer }: ScrollStageProps) => {
           {/* The Financial and FAQ cards float over the still-drawing scene — no
               opaque surface here, so the shader shows around them. They stack
               close together (small gap). */}
-          <ClosingBlocks outroRef={outroRef} footer={footer} />
+          <ClosingBlocks outroRef={outroRef} faq={faq} footer={footer} />
         </div>
       </main>
     </>

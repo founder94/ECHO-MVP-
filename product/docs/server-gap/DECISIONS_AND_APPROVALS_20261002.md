@@ -1012,3 +1012,11 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 한 것: `data/mocks/home.ts` 원본 파일 그대로 · hero/galaxy/brain 글 상수 원본 · site-header/mobile-nav 메뉴 Home·Services·Works·About + Contact Us(/#contact) · send-request 「Send Request」(/#contact) · site-footer 원본(「Let's talk.」 + 원본 연락 폼 = 서버 없음·보내지 않음 · 「이용 안내」 버튼 제거) + 법적 고지 줄 · Solaris 글 덧판 제거.
 - 앱 시작 링크(모바일로 시작하기)는 이번 화면에 없음 — 다음 단계(글 넣기)에서 원본 CTA 칸에 넣는다.
 - 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 원본 글 표시 · 한글 승인 문구 미표시 · pageerror 0.
+
+## 31. 홈페이지 = 구매한 Vesper 원본 페이지 전부 그대로(2026-10-09 · 대표 vesper.zip 재전송 + 「이거 봐 페이지도 올라오고 · 우선 똑같이 퍼온다」)
+- 대표가 다시 준 vesper.zip 은 10/8 원본과 파일 단위로 동일(diff 0). 동봉된 설명서(단일 HTML 재현 프롬프트)에 흰 카드 「A living interface」·FAQ 카드·별 줄기 로더가 원본 구성으로 적혀 있음.
+- 해석(명시): 10/9 오전 「설치 카드·이야기 카드 삭제」는 옛 ECHO 홈페이지 조각을 뺀 것이고, 이번 지시는 **구매한 원본의 페이지(흰 카드 2장·별 줄기 로더)까지 그대로** 되살리라는 것. 대표가 준 3D 장면(격자=첫 화면 배경 · Solaris · Onyx)은 그대로 두고 FAQ 와 바닥글 사이에 둔다.
+- 한 것: `financial-section.tsx` 원본 글·사진(`/vesper/assets/sections/financial.png`) · `faq-section.tsx` 원본 FAQ 4문항(homeFaq) · 로더 StarFall 복원 · `scroll-stage.tsx` 닫는 구간 = 원본(흰 카드 outro → FAQ) + Solaris + Onyx + 바닥글 · home.tsx 에 faq 전달.
+- 순서: 첫 화면(구슬 + 격자) → 은하 → 뇌 → 흰 카드(뇌 퇴장) → FAQ 카드 → Solaris → Onyx → 바닥글(Let's talk. + 법적 고지).
+- 남긴 것: 로고 DO IT · 법적 고지 줄 · 휴대폰 뇌 장면 어두운 막 · Solaris 위아래 검정 녹임(대표 10/9 지적 반영분).
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 11장씩 + 휴대폰 동영상 · pageerror 0.
