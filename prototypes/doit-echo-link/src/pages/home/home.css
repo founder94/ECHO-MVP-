@@ -445,13 +445,18 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
   .scrim-soft::before {
     content: "";
     position: absolute;
-    inset: -2.5rem -3.25rem;
+    inset: -2.5rem -3rem; /* 좌우 3rem: 화면 여백(3.125rem) 안 — 3.25rem이면 PC에서 2px 가로 넘침 */
     z-index: -1;
     pointer-events: none;
     background: rgb(246 250 254 / 0.9);
     -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
     mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
     filter: blur(2px);
+  }
+  /* 휴대폰: 좌우로 39px 넘치던 막이 화면 밖으로 나가 페이지 폭이 23px 넓어졌다(390 → 413).
+     좌우 여백을 화면 여백(16px)보다 작게 줄여 막이 화면 안에 머물게 한다. */
+  @media (width < 48rem) {
+    .scrim-soft::before { inset: -2.5rem -0.75rem; }
   }
   /* 유리 카드 안 글: 그라디언트 그림 위 밝은 바탕 한 겹(카드 자체가 유리라 상자 추가 없음). */
   .glass-read::before {

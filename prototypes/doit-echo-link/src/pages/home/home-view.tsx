@@ -28,7 +28,7 @@ const DISPLAY =
   "m-0 font-light text-display leading-display tracking-tight2 text-ink keep-all whitespace-nowrap max-md:whitespace-normal";
 const LINE = "h-px bg-spectrum";
 const CTA =
-  "inline-flex min-h-tap items-center gap-3 rounded-pill border border-ink bg-glass-30 px-10 py-3.5 text-cta font-semibold text-ink no-underline backdrop-blur-md transition-[background-color,translate] duration-[var(--duration-hover)] ease-css hover:-translate-y-lift hover:bg-glass-60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink";
+  "inline-flex min-h-tap items-center gap-3 rounded-pill border border-ink bg-transparent px-10 py-3.5 text-cta font-semibold text-ink no-underline transition-[background-color,translate] duration-[var(--duration-hover)] ease-css hover:-translate-y-lift hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink";
 
 const Lines = ({ lines, className }: { lines: readonly string[]; className: string }) => (
   <p className={className}>
@@ -245,20 +245,24 @@ export const HomeView = () => {
           </div>
         </main>
 
-        {/* 유리 바닥글 — 마지막에 아래에서 올라온다. 서비스로 들어가는 주요 CTA. */}
+        {/* 바닥글 — 마지막에 아래에서 올라온다. 서비스로 들어가는 주요 CTA.
+            대표 지시(2026-10-09 「ECHO 창을 투명하게 · 뒤 배경이 보이게」): 흰 유리 판(채움·흐림·그림자)을 없애고
+            얇은 테두리만 남긴다. 글자는 글자 뒤에만 깔리는 옅은 막(.scrim-soft)으로 읽힌다. */}
         <div id="phase6-footer" className="pointer-events-none fixed top-0 left-0 z-4 h-screen w-full [transform:translateY(100vh)] [&_*]:pointer-events-auto">
-          <footer className="absolute right-12.5 bottom-10 left-12.5 flex flex-col rounded-4xl border border-glass-50 bg-glass-70 p-12 text-ink shadow-footer backdrop-blur-glass max-md:right-gutter max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:left-gutter max-md:p-6">
+          <footer className="absolute right-12.5 bottom-10 left-12.5 flex flex-col overflow-hidden rounded-4xl border border-ink/15 bg-transparent p-12 text-ink max-md:right-gutter max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:left-gutter max-md:p-6">
             <div className="flex items-end justify-between gap-10 max-md:flex-col max-md:items-start max-md:gap-6">
-              <div className="flex flex-col">
+              <div className="scrim-soft flex flex-col">
                 <h2 className="m-0 mb-4 text-service font-semibold tracking-tight2 text-ink">{c.footer.service}</h2>
                 <Lines lines={c.footer.text} className={`${BODY} m-0`} />
               </div>
-              <a href={serviceHref} onClick={goToService} className={CTA}>
-                {c.footer.cta} <span aria-hidden="true">{c.footer.ctaArrow}</span>
-              </a>
+              <span className="scrim-soft inline-flex">
+                <a href={serviceHref} onClick={goToService} className={CTA}>
+                  {c.footer.cta} <span aria-hidden="true">{c.footer.ctaArrow}</span>
+                </a>
+              </span>
             </div>
             <div className="mt-10 mb-5 h-px bg-veil-15 max-md:mt-6 max-md:mb-4" />
-            <div className="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
+            <div className="scrim-soft flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
               <span className="flex items-center gap-2 text-sign font-semibold text-ink-1">
                 <Symbol className="h-6 w-auto" />
                 {c.footer.sign}
