@@ -334,7 +334,7 @@ test('Codex 13·14차(PR #151): #how 틀 항상 마운트 · Onyx touchmove 차�
   assert.doesNotMatch(onyx, /touchmove|preventDefault/, 'Onyx: 세로 제스처를 막는 touchmove 차단 0');
   assert.match(onyx, /touch-pan-y/); assert.match(onyx, /host\.contains\(target\)/, '메뉴 위 포인터는 밖'); assert.match(onyx, /pointerInside = false; ndc\.set\(0, 0\); return;/, '밖이면 카메라 중립');
   const lat = V('views/home/hero/hero-lattice.tsx');
-  assert.match(lat, /if \(!visible \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/);
+  assert.match(lat, /if \(heroOpacity\(sceneTimeline\.getProgress\(\)\) <= 0\.01 \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/, '15차: 지금 진행률로');
   assert.match(lat, /closest\('a,button,input,textarea,select,\[role="dialog"\],\[aria-modal="true"\],\[data-no-zoom\]'\)/, '버튼·링크·창 위 누름 제외');
   assert.match(lat, /document\.querySelector\('\[aria-modal="true"\]'\)/); assert.match(lat, /e\.clientX < r\.left \|\| e\.clientX > r\.right/, '격자 밖 누름 제외');
   const hn = V('components/common/hydrate-near.tsx');
@@ -359,4 +359,10 @@ test('앵커 도착 = 고정 머리글 아래(2026-10-09 모의 검사: #how 제
   assert.match(st, /top: Math\.max\(0, getDistanceFromTop\(target\) - anchorOffset\(\)\)/);
   assert.match(V('components/common/mobile-nav.tsx'), /lenis\.scrollTo\(element \?\? 0, \{ duration: 1\.2, offset: element \? -anchorOffset\(\) : 0 \}\)/);
   assert.match(V('vesper.css'), /html\.vesper :is\(#how, #choice, #faq, #contact, #financial, #top\) \{ scroll-margin-top: calc\(0\.694vw \+ 3\.542vw \+ 8px\); \}/);
+});
+
+test('Codex 15차(9138d3b): 격자 누름 = 지금 진행률로 판단(L06) · 앱 CSS 요청 굵기 500~800 → 400 · 온보딩 틀 글꼴 Jua', () => {
+  assert.match(V('views/home/hero/hero-lattice.tsx'), /if \(heroOpacity\(sceneTimeline\.getProgress\(\)\) <= 0\.01 \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/);
+  for (const f of ['src/doit/components/feature/echo-ui.css', 'src/doit/components/feature/mobile-polish.css', 'src/doit/components/feature/visual-parity.css', 'src/components/guide/guide.css', 'src/components/app-corner-menu.css', 'src/components/app-back-button.css']) assert.doesNotMatch(read(f).replace(/\/\*[\s\S]*?\*\//g, ''), /font-weight: ?[5-9]00/, `${f}: 500~900 요청 0`);
+  assert.match(read('src/components/DoItIntroFrame.ts'), /fontFamily: '"Jua", "Pretendard"/);
 });

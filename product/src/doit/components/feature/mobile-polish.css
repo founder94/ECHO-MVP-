@@ -37,7 +37,7 @@
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,[role="button"],.doit-product-action,.echo-primary,.echo-secondary) *{font-weight:inherit!important}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,.doit-product-title,.echo-done-title){font-weight:var(--echo-fw-title)!important;font-size:var(--echo-fs-title)!important;line-height:var(--echo-lh-title)!important;letter-spacing:-.01em}
 /* 질문 말풍선 글 = 읽는 글(굵게 박지 않는다) */
-:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question{font-weight:600!important;font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
+:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question{font-weight:400!important;font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-lead,.doit-product-description,.doit-candidate-teaser,.doit-mutual-body){font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
 
 /* 작은 머리말 · 보조 글: 10~12px → 13~14px, 자간은 조금만 */
@@ -65,7 +65,7 @@
 :root .doit-app-pastel .doit-product-nav a span.whitespace-nowrap{font-size:12px!important}
 
 /* ── 말풍선(ECHO 대화 · 연결 대화): 내 말 = 오른쪽 · ECHO/상대 = 왼쪽, 서로 다른 유리 · 16px ── */
-:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-bubble--me{background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);font-weight:500!important;max-width:82%;margin-left:auto}
+:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-bubble--me{background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);font-weight:400!important;max-width:82%;margin-left:auto}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question-card.echo-bubble--echo{background:var(--echo-glass);border-color:rgb(255 255 255/.4);max-width:calc(100% - 34px)}
 :root .doit-app-pastel .doit-match-messages li{max-width:82%;font-size:var(--echo-fs-body);line-height:1.55;background:var(--echo-glass);border:1px solid rgb(255 255 255/.4);border-radius:18px 18px 18px 6px;align-self:flex-start}
 :root .doit-app-pastel .doit-match-messages li[data-mine=true]{align-self:flex-end;background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);border-radius:18px 18px 6px 18px}

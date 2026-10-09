@@ -6,23 +6,23 @@
   font-family:'Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;word-break:keep-all;overflow-wrap:anywhere;
   animation:echo-guide-rise .28s cubic-bezier(.2,.8,.2,1) both}
 .echo-guide-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-18px;padding:6px 0 8px;z-index:1}
-.echo-guide-head h2{margin:0;font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-.02em}
+.echo-guide-head h2{margin:0;font-size:22px;line-height:1.3;font-weight:400;letter-spacing:-.02em}
 .echo-guide-close{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;border:1px solid currentColor;background:transparent;color:inherit;cursor:pointer}
 .echo-guide-lead{margin:2px 0 14px;font-size:14px;line-height:1.6;opacity:.86}
 .echo-guide-list{display:grid;gap:8px}
 .echo-guide-item{border-radius:16px;border:1px solid;transition:transform .18s ease}
-.echo-guide-item>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;font-size:16px;font-weight:600;cursor:pointer;list-style:none}
+.echo-guide-item>summary{display:flex;align-items:center;gap:10px;min-height:52px;padding:0 16px;font-size:16px;font-weight:400;cursor:pointer;list-style:none}
 .echo-guide-item>summary::-webkit-details-marker{display:none}
 .echo-guide-item>summary::after{content:"";margin-left:auto;width:9px;height:9px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg) translate(-2px,-2px);transition:transform .18s ease}
 .echo-guide-item[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
 .echo-guide-item[open]{transform:translateY(-1px)}
-.echo-guide-soon{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid currentColor;opacity:.85}
+.echo-guide-soon{font-size:12px;font-weight:400;padding:2px 8px;border-radius:999px;border:1px solid currentColor;opacity:.85}
 .echo-guide-body{padding:0 16px 16px}
-.echo-guide-body h3{margin:2px 0 8px;font-size:18px;line-height:1.4;font-weight:700}
+.echo-guide-body h3{margin:2px 0 8px;font-size:18px;line-height:1.4;font-weight:400}
 .echo-guide-body p{margin:0;font-size:16px;line-height:1.65}
 .echo-guide-body :is(ol,ul){margin:10px 0 0;padding-left:20px;display:grid;gap:6px;font-size:15px;line-height:1.6}
 .echo-guide-body a{color:inherit;text-decoration:underline;text-underline-offset:3px}
-.echo-guide-done{display:block;width:100%;min-height:52px;margin-top:16px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit;font-size:16px;font-weight:600;cursor:pointer}
+.echo-guide-done{display:block;width:100%;min-height:52px;margin-top:16px;border-radius:999px;border:1px solid currentColor;background:transparent;color:inherit;font-size:16px;font-weight:400;cursor:pointer}
 .echo-guide-close:focus-visible,.echo-guide-done:focus-visible,.echo-guide-item>summary:focus-visible,.echo-guide-link:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 
 /* 홈페이지: 검정 판 + 은색 선 */

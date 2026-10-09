@@ -147,7 +147,8 @@ export const HeroLattice = () => {
     // Codex 7차(f9d9613): host 는 pointer-events-none 이라 여기 달린 pointerdown 은 닿지 않음 → window 에서 받고, 첫 화면 배경이 보일 때만.
     // Codex 14차(P2): 버튼·링크·입력·열린 창(메뉴·이용 안내) 위의 누름, 움직임 줄이기, 격자 사각형 밖의 누름은 줌을 시작하지 않는다.
     const onDown = (e: PointerEvent) => {
-      if (!visible || live.zoomStart >= 0 || pageMotionPaused()) return;
+      // Codex 15차(913 L06): 한 프레임 전 값(visible) 대신 지금 진행률로 — 첫 화면을 막 벗어난 직후 누름은 줌 0.
+      if (heroOpacity(sceneTimeline.getProgress()) <= 0.01 || live.zoomStart >= 0 || pageMotionPaused()) return;
       const t = e.target instanceof Element ? e.target : null;
       if (t && t.closest('a,button,input,textarea,select,[role="dialog"],[aria-modal="true"],[data-no-zoom]')) return;
       if (document.querySelector('[aria-modal="true"]')) return;

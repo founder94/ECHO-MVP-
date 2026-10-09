@@ -80,8 +80,9 @@ test('ECHO UI 한 벌: 글꼴 주아체(Jua) 하나(2026-10-09) · 굵기 4단�
   const ui = read('src/doit/components/feature/echo-ui.css').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(ui, /--echo-font:'Jua','Pretendard'/);
   assert.match(ui, /:not\(i\)[^{]*\{font-family:var\(--echo-font\)!important;-webkit-text-stroke:0!important\}/);
-  for (const w of ['800', '700', '600']) assert.match(ui, new RegExp(`font-weight:${w}!important`));
-  assert.doesNotMatch(ui, /font-weight:(300|400)/);
+  // 2026-10-09 주아체(400 하나): 요청 굵기도 400 으로 정합(Codex 15차 P2) — 500~800 요청 0.
+  assert.match(ui, /font-weight:400!important/);
+  assert.doesNotMatch(ui, /font-weight:(300|[5-9]00)/);
   assert.match(ui, /\[class\*=" bg-background-"\][^{]*\{background-color:var\(--echo-glass\)!important/);
   assert.match(ui, /:not\(:disabled\):active\{background-color:var\(--echo-glass-press\)!important\}/);
   // 2026-10-04 대표 디자인 교체 · 2026-10-05 「사진 똑같이」 = 시안의 짙은 연기빛 유리 판(--echo-glass)과 흰 주요 버튼의 청록 글자(--echo-cta-ink)만 예외 — 검정·회색 0

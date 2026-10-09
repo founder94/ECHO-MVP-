@@ -93,7 +93,7 @@ export default function DoItIntroFrame({
     style: {
       position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden',
       boxSizing: 'border-box', lineHeight: 1.5,
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+      fontFamily: '"Jua", "Pretendard", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
       background: 'radial-gradient(120% 120% at 50% 45%, #08070C 0%, #060509 58%, #040308 100%)',
     },
   },
