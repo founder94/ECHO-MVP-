@@ -467,8 +467,9 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
   @media (width < 48rem) {
     .scrim-soft { --scrim-x: 0.75rem; --scrim-y: 2rem; }
   }
-  /* 마지막 장면 한 줄 제목 뒤 막(휴대폰): 한 줄로 맞추느라 글자가 작아져 모델 위에서 2.3:1 이었다. */
-  .finale-plate { --scrim-x: 0.75rem; --scrim-y: 0.6em; }
+  /* 마지막 장면 한 줄 제목 뒤 막: 휴대폰 2.3:1 · PC 2.58:1(모델·입자가 지나갈 때) → 제목 폭만큼 옅은 막. */
+  .finale-plate { --scrim-x: 0.75em; --scrim-y: 0.6em; }
+  @media (width < 48rem) { .finale-plate { --scrim-x: 0.75rem; } }
   /* 유리 카드 안 글: 그라디언트 그림 위 밝은 바탕 한 겹(카드 자체가 유리라 상자 추가 없음). */
   .glass-read::before {
     content: "";

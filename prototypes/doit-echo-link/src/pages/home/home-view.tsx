@@ -126,7 +126,9 @@ export const HomeView = () => {
 
         <main>
           {/* ② 이야기 장면 — 원본 흐름 제목 자리(첫 화면 아래 34.375rem 에서 시작해 모델 뒤로 지나간다). */}
-          <div className="absolute top-[calc(100vh+34.375rem)] left-0 z-2 flex w-full flex-col portrait:z-4">
+          {/* 원본은 이 장면이 모델 뒤(z 2)였으나, 문장을 한 줄로 펼치자 PC 에서 모델이 글을 가려 3.6:1 —
+              세로 화면처럼 모델 앞(z 4)으로 올린다(대표 지시 가독성 우선). */}
+          <div className="absolute top-[calc(100vh+34.375rem)] left-0 z-4 flex w-full flex-col">
             <div className="mb-150 pl-12.5 max-md:pl-gutter max-md:pr-gutter">
               <SplitTitle tag="h2" trigger={{ on: "inview" }} lines={c.story.title} className={`halo ${DISPLAY}`} />
             </div>
@@ -237,7 +239,7 @@ export const HomeView = () => {
           <div id="phase6-container" className="will-change-[transform,opacity] pointer-events-none fixed top-0 left-0 z-4 flex h-screen w-full items-center justify-center opacity-0">
             <div
               aria-hidden="true"
-              className="scrim-soft finale-plate pointer-events-none absolute top-[28vh] left-1/2 hidden h-[1.3em] w-[calc(100%-2.5rem)] -translate-x-1/2 -translate-y-1/2 text-[min(30px,calc((100vw-32px)/15))] max-md:block"
+              className="scrim-soft finale-plate pointer-events-none absolute top-[28vh] left-1/2 block h-[1.3em] w-[15em] max-w-[calc(100%-2.5rem)] -translate-x-1/2 -translate-y-1/2 text-finale max-md:text-[min(30px,calc((100vw-32px)/15))]"
             />
             <SplitTitle
               tag="h2"
