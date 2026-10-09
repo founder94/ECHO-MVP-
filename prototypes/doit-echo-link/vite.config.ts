@@ -27,8 +27,20 @@ const threeFloraSelfImports = (): Plugin => ({
  *   /echo/story/ 이야기 쓰기 → 확인·수정 → 다음 단계 안내(로컬 체험)
  * 쪽마다 따로 불러오므로 두 디자인의 CSS·글꼴·WebGL 이 서로 섞이지 않고, 쪽을 떠나면 브라우저가 자원을 정리한다.
  */
+/**
+ * 정적 미리보기 빌드(`npm run build:preview`): 폴더 주소를 index.html 로 내주지 않는 곳에서도 쪽 사이를 오가도록
+ * 각 쪽에 `<meta name="link-mode" content="file">` 를 넣는다(src/shared/paths.ts 가 읽는다).
+ */
+const previewLinkMode = (): Plugin => ({
+  name: "preview-link-mode",
+  transformIndexHtml(html) {
+    if (process.env.VITE_MODEL_INLINE !== "1") return html;
+    return html.replace('<meta name="site-root"', '<meta name="link-mode" content="file" />\n    <meta name="site-root"');
+  },
+});
+
 export default defineConfig({
-  plugins: [threeFloraSelfImports(), react(), tailwindcss()],
+  plugins: [threeFloraSelfImports(), previewLinkMode(), react(), tailwindcss()],
   // 개발 서버의 사전 묶음(esbuild)은 위 규칙을 거치지 않으므로 three-flora 는 묶지 않는다.
   optimizeDeps: { exclude: ["three-flora"] },
   resolve: {
@@ -36,8 +48,12 @@ export default defineConfig({
       "@clarix": resolve(__dirname, "src/clarix"),
       "@flora": resolve(__dirname, "src/flora"),
       "@shared": resolve(__dirname, "src/shared"),
+      // 미리보기 빌드(VITE_MODEL_INLINE=1)가 모델을 스크립트에 담을 때만 쓴다.
+      "@public-assets": resolve(__dirname, "public/assets"),
     },
   },
+  // 3D 모델(.glb)을 자산으로 인식(미리보기 빌드의 ?inline 가져오기용).
+  assetsInclude: ["**/*.glb"],
   build: {
     sourcemap: false,
     rollupOptions: {

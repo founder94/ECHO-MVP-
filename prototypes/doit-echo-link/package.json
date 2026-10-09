@@ -6,11 +6,11 @@
   "description": "DOIT COMPANY 홈페이지(Clarix) → ECHO 모바일(Flora) 연결 시안. 운영 배포·결제·DB와 무관한 독립 시안.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:hash": "tsc -b && VITE_ROUTER=hash vite build --base ./ --outDir dist-hash",
+    "build": "tsc -b --noEmit && vite build",
     "preview": "vite preview",
     "type-check": "tsc -b --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:preview": "tsc -b --noEmit && VITE_MODEL_INLINE=1 vite build --base ./ --outDir dist-preview --emptyOutDir"
   },
   "engines": {
     "node": ">=20.19.0"

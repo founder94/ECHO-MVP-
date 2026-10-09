@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -11,13 +15,28 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
-    "types": ["vite/client", "node"],
+    "types": [
+      "vite/client",
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@clarix/*": ["src/clarix/*"],
-      "@flora/*": ["src/flora/*"],
-      "@shared/*": ["src/shared/*"]
+      "@clarix/*": [
+        "src/clarix/*"
+      ],
+      "@flora/*": [
+        "src/flora/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "@public-assets/*": [
+        "public/assets/*"
+      ]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
 }

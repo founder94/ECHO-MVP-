@@ -16,15 +16,22 @@ const siteRoot = (): string => {
   return new URL(`${root}/`, window.location.href).href;
 };
 
-/** 주소창에 `index.html`이 보이는 미리보기(정적 파일 호스팅)에서는 쪽 주소에도 붙인다. */
-const fileMode = (): boolean => window.location.pathname.endsWith(".html");
+/**
+ * 폴더 주소(/echo/)를 그 폴더의 index.html 로 내주지 않는 정적 미리보기에서는 쪽 주소에 index.html 을 붙인다 —
+ * 주소창에 `.html` 이 보이거나, 쪽이 `<meta name="link-mode" content="file">` 로 그렇게 선언했을 때.
+ * 맨 위 쪽(홈)은 사이트 맨 위 주소 그대로 연다(그 주소가 곧 홈 쪽이다).
+ */
+const fileMode = (): boolean =>
+  window.location.pathname.endsWith(".html") ||
+  document.querySelector<HTMLMetaElement>('meta[name="link-mode"]')?.content === "file";
 
 /** 공개 폴더(public/)의 파일 — 예: publicUrl("assets/model.glb"). */
 export const publicUrl = (path: string): string => new URL(path.replace(/^\//, ""), siteRoot()).href;
 
 /** 다른 쪽의 주소. `query`는 쪽을 열 때 함께 넘길 표시(예: from=home). */
 export const pageUrl = (page: PageId, query?: Record<string, string>): string => {
-  const url = new URL(PAGE_DIR[page] + (fileMode() ? "index.html" : ""), siteRoot());
+  const file = fileMode() && page !== "home" ? "index.html" : "";
+  const url = new URL(PAGE_DIR[page] + file, siteRoot());
   if (query) for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
   return url.href;
 };

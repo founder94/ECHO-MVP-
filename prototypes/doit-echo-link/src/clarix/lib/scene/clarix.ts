@@ -766,8 +766,21 @@ export async function initClarix(bgCanvas: HTMLCanvasElement, fgCanvas: HTMLCanv
 
   const loader = new GLTFLoader();
   loader.setDRACOLoader(dracoLoader);
-  loader.load(
-    MODEL_URL(),
+  // 연결 시안 미리보기(정적 미리보기 호스트는 .glb 파일을 내주지 않는다): VITE_MODEL_INLINE=1 로 만든 빌드만
+  // 같은 모델을 스크립트 안에 담아 그 바이트로 읽는다. 보통 빌드는 원본대로 /assets/model.glb 를 내려받는다.
+  const inlineModel =
+    import.meta.env.VITE_MODEL_INLINE === "1"
+      ? (await import("@public-assets/model.glb?inline")).default
+      : null;
+  const loadModel: (...args: Parameters<GLTFLoader["load"]> extends [unknown, ...infer R] ? R : never) => void = (onLoad, onProgress, onError) => {
+    if (!inlineModel) {
+      loader.load(MODEL_URL(), onLoad, onProgress, onError);
+      return;
+    }
+    const bytes = Uint8Array.from(atob(inlineModel.slice(inlineModel.indexOf(",") + 1)), (ch) => ch.charCodeAt(0));
+    loader.parse(bytes.buffer, "", onLoad, (e) => onError?.(e as never));
+  };
+  loadModel(
     (gltf) => {
       if (disposed) return;
       const model = gltf.scene;
