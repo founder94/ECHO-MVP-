@@ -3,7 +3,9 @@
 import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
 
 import { Inview } from "@vesper/components/common/robot-inview";
-import { LEGAL } from "@/pages/do-it/brand-home/copy";
+import { HOME_V2, LEGAL } from "@/pages/do-it/brand-home/copy";
+import { openGuide } from "@/lib/guide/bus";
+import { SendRequest } from "../send-request";
 // 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 바닥글 그대로(연락 폼은 원본처럼 서버 없음 · 보내지 않음).
 // 남긴 것: 로고(DO IT) · 맨 아래 사업자 정보·약관·개인정보(법적 고지 — 대표가 빼라 하면 뺀다).
 import { PressableButton, PressableLink } from "@vesper/components/ui/pressable";
@@ -29,7 +31,8 @@ export interface SiteFooterProps {
  * inputs over a full-width button — and the link columns become a two-column grid
  * under the wordmark.
  */
-const TITLE = "Let's talk.";
+// 2026-10-09 대표 「최신 채택안」 ⑤ 마지막 시작 버튼: 원본 연락 폼(보내지 않는 stub) 대신 시작 버튼 + 이용 안내.
+const TITLE = HOME_V2.footerTitle;
 
 export const SiteFooter = ({ copy }: SiteFooterProps) => {
   return (
@@ -45,15 +48,13 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
             mode="once"
             {...LETTER_FADE}
             onTextStart={onTextStart}
-            className="justify-center text-center font-general text-[5.556vw] leading-[0.9] font-light max-lg:text-[3rem] max-sm:text-[2.375rem]"
+            className="justify-center text-center font-general text-[5.556vw] leading-[1.15] font-light max-lg:text-[3rem] max-sm:text-[2.375rem]"
           >
             {TITLE}
           </TextEngine>
         )}
       </FollowLineBlur>
 
-      {/* Contact form — a header-style glass pill, centred on the shader. Not yet
-          wired to a backend (no `/api/contact` route); submit is a stub. */}
       <Inview
         mode="once"
         from={UNIT_REVEAL.from}
@@ -61,39 +62,18 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
         config={UNIT_REVEAL.config}
         className="mx-auto mt-[2.917vw] w-[38.264vw] max-lg:mt-[2rem] max-lg:w-full max-lg:max-w-[30rem]"
       >
-        <form
-          onSubmit={(event) => event.preventDefault()}
-          className="flex h-[3.542vw] w-full items-center border border-white/20 bg-black/80 py-[0.556vw] pr-[0.556vw] pl-[1.667vw] backdrop-blur-[8px] max-lg:h-auto max-lg:flex-col max-lg:items-stretch max-lg:gap-[0.75rem] max-lg:p-[1rem]"
-        >
-          {/* The inputs had `outline-none` with nothing put back — invisible to a
-              keyboard, and on a live shader the UA default would vanish anyway.
-              The focus ring is deliberately *not* sprung: a focus indicator that
-              eases in is a focus indicator that is briefly wrong. */}
-          <input
-            aria-label="Name"
-            name="name"
-            placeholder="Name"
-            className="w-[12.5vw] bg-transparent font-general text-[1.111vw] leading-[1.2] text-white outline-none placeholder:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal max-lg:w-full max-lg:border-b max-lg:border-white/20 max-lg:pb-[0.5rem] max-lg:text-[1rem] max-lg:placeholder:text-white/60"
-          />
-          <input
-            aria-label="Email"
-            name="email"
-            type="email"
-            placeholder="Email"
-            className="ml-[1.111vw] w-[12.5vw] bg-transparent font-general text-[1.111vw] leading-[1.2] text-white outline-none placeholder:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal max-lg:ml-0 max-lg:w-full max-lg:border-b max-lg:border-white/20 max-lg:pb-[0.5rem] max-lg:text-[1rem] max-lg:placeholder:text-white/60"
-          />
+        <div className="flex w-full flex-col items-center gap-[1.111vw] max-lg:gap-[1rem]">
+          <SendRequest />
           <PressableButton
-            type="submit"
+            type="button"
+            onClick={() => openGuide()}
             interaction={GHOST_SIGNAL}
-            className="ml-auto flex items-center gap-[0.694vw] self-stretch border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] whitespace-nowrap max-lg:ml-0 max-lg:justify-center max-lg:gap-[0.5rem] max-lg:py-[0.875rem] max-lg:text-[1rem]"
+            className="flex min-h-[48px] items-center gap-[0.694vw] border px-[1.111vw] py-[0.694vw] font-general text-[1.111vw] leading-[1.2] whitespace-nowrap max-lg:gap-[0.5rem] max-lg:px-[1.25rem] max-lg:py-[0.875rem] max-lg:text-[1rem]"
           >
-            Contact Us
-            <span
-              aria-hidden
-              className="block size-[0.139vw] shrink-0 bg-current max-lg:size-[0.1875rem]"
-            />
+            {HOME_V2.guide}
+            <span aria-hidden className="block size-[0.139vw] shrink-0 bg-current max-lg:size-[0.1875rem]" />
           </PressableButton>
-        </form>
+        </div>
       </Inview>
 
       {/* Full-width divider (edge to edge, wider than the inset content). */}

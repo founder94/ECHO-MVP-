@@ -172,7 +172,7 @@ export const FaqSection = ({ copy }: FaqSectionProps) => {
               immediateOut={false}
               {...LETTER_FADE}
               onTextStart={onTextStart}
-              className="mt-[1.111vw] justify-center text-center font-general text-[5.556vw] leading-[0.9] font-light max-lg:mt-[1rem] max-lg:text-[2.75rem] max-sm:text-[2.125rem]"
+              className="mt-[1.111vw] justify-center text-center font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:mt-[1rem] max-lg:text-[2.75rem] max-sm:text-[2.125rem]"
             >
               {copy.title}
             </TextEngine>

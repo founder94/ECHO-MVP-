@@ -4,6 +4,7 @@ import Image from "next/image";
 import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
 
 import { Inview } from "@vesper/components/common/robot-inview";
+import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 import { FollowLineBlur, wordCount } from "../line-blur";
 import {
   CARD_REVEAL,
@@ -36,16 +37,16 @@ import {
  */
 
 const BODY_ONE =
-  "Vesper is a rendering and interaction layer that reads presence — pointer, scroll and dwell — and answers in motion rather than in chrome around it.";
+  HOME_V2.howLead;
 const BODY_TWO =
-  "Point counts, tessellation and device pixel ratio all step down by viewport class, and the render loop yields sooner rather than starving the frame.";
+  HOME_V2.choiceBody;
 
-// 2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」 → 원본 Vesper 흰 카드 글·사진 그대로.
-const TITLE = "A living interface";
+// 2026-10-09 대표 「최신 채택안」: 흰 카드 = 「어떻게 만나나요?」(이용 안내 승인 문장). 사진 칸은 승인 브랜드 그림(이야기 09) — 실제 ECHO 화면은 자료 미확보.
+const TITLE = HOME_V2.howTitle;
 
 export const FinancialSection = () => {
   return (
-    <section className="relative mx-auto h-[44.167vw] w-[96.667vw] [perspective:1400px] max-lg:h-auto max-lg:w-[calc(100%-3rem)] max-sm:w-[calc(100%-2rem)]">
+    <section id="how" className="relative mx-auto h-[44.167vw] w-[96.667vw] [perspective:1400px] max-lg:h-auto max-lg:w-[calc(100%-3rem)] max-sm:w-[calc(100%-2rem)]">
       <Inview
         mode="always"
         immediateOut={false}
@@ -63,7 +64,7 @@ export const FinancialSection = () => {
               {...LETTER_FADE}
               onTextStart={onTextStart}
               style={{ position: "absolute" }}
-              className="absolute top-[2.222vw] left-[2.222vw] w-[41.875vw] font-general text-[5.556vw] leading-[0.9] font-light max-lg:!static max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2.125rem]"
+              className="absolute top-[2.222vw] left-[2.222vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2.125rem]"
             >
               {TITLE}
             </TextEngine>
@@ -83,8 +84,8 @@ export const FinancialSection = () => {
               configures AVIF/WebP + device sizes in `next.config.ts`. Served raw it
               was the single heaviest asset on the page — heavier than the scene. */}
           <Image
-            src="/vesper/assets/sections/financial.png"
-            alt="A figure lit in teal, face turned toward the light"
+            src="/brand/stories/story-09.webp"
+            alt="창밖의 별을 바라보는 사람 — 어떤 사람을 만나고 싶으세요?"
             fill
             sizes="(max-width: 1023px) 100vw, 28vw"
             className="object-cover"
@@ -111,7 +112,7 @@ export const FinancialSection = () => {
               delayIn={120}
               {...WORD_FADE}
               style={{ position: "absolute" }}
-              className="absolute top-[36.667vw] left-[2.222vw] w-[20.347vw] font-general text-[1.111vw] leading-[1.2] max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.875rem]"
+              className="absolute top-[36.667vw] left-[2.222vw] w-[20.347vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.875rem]"
             >
               {BODY_ONE}
             </TextEngine>
@@ -138,7 +139,7 @@ export const FinancialSection = () => {
               delayIn={180}
               {...WORD_FADE}
               style={{ position: "absolute" }}
-              className="absolute top-[36.667vw] left-[24.792vw] w-[20.347vw] font-general text-[1.111vw] leading-[1.2] max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.875rem]"
+              className="absolute top-[36.667vw] left-[24.792vw] w-[20.347vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.875rem]"
             >
               {BODY_TWO}
             </TextEngine>

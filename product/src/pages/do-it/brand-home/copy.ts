@@ -37,3 +37,56 @@ export const LEGAL = {
   email: '0423doit@gmail.com',
   copyright: '© 2026 DO IT COMPANY',
 } as const;
+
+// 2026-10-09 대표 「ECHO 홈페이지 — 최신 채택안 추가 지시」: 첫 화면 문구·버튼(원문 그대로) · 아래 설명은 이용 안내(승인 문장)에서만.
+import { GUIDE_SECTIONS, guideSection } from '@/lib/guide/content';
+// 같은 페이지 앵커는 해시만 — 브랜드 홈 경로는 /do-it/landing 이라 "/#how" 는 인트로(/)로 되돌아간다.
+export const TOP_PATH = '#top';
+export const HOW_PATH = '#how';
+export const FAQ_PATH = '#faq';
+export const HOME_V2 = {
+  heroTitle: '당신이 잠든 사이',
+  heroDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.',
+  heroChoice: '관계의 시작은 서로가 선택합니다.',
+  start: 'ECHO 시작하기',
+  how: '어떻게 만나나요?',
+  faq: '자주 묻는 질문',
+  tags: ['[ ECHO ]', '[ ONLINE SERENDIPITY ]', '[ JUST TRY. ]'],
+  nav: [
+    { label: '홈', href: TOP_PATH },
+    { label: '어떻게 만나나요?', href: HOW_PATH },
+    { label: '자주 묻는 질문', href: FAQ_PATH },
+  ],
+  // ③ 짧은 브랜드 연출 + ECHO Agent 소개(승인 문장: 이야기 2장면 제목 + 이용 안내 「ECHO와 이야기하기」).
+  agentEyebrow: 'ECHO AGENT',
+  agentTitle: STORIES[1].title,
+  agentBody: guideSection('talk').body,
+  // ② 이용 방법(이용 안내 「처음이라면」 본문 + 다섯 순서).
+  howTitle: '어떻게 만나나요?',
+  howLead: guideSection('start').body,
+  howSteps: guideSection('start').points ?? [],
+  // ④ 서로의 선택·정보 공개(이용 안내 「추천과 서로의 선택」).
+  choiceTitle: '관계의 시작은 서로가 선택합니다.',
+  choiceBody: guideSection('choice').body,
+  choicePoints: guideSection('choice').points ?? [],
+  // 은하 장면 네 칸 = 이용 안내 네 항목 이름(원본의 91k·8.3·0.9·60 은 템플릿 숫자라 쓰지 않음).
+  steps: GUIDE_SECTIONS.filter((g) => ['start', 'talk', 'check', 'choice'].includes(g.id)).map((g) => g.label),
+  // 뇌 장면(정정·선택): 승인 이야기 제목 + 이용 안내 짧은 줄.
+  brainLeft: STORIES[2].title,
+  brainRight: STORIES[8].title,
+  brainLeftLine: guideSection('check').hint ?? '',
+  brainRightLine: STORIES[8].body[1],
+  footerTitle: 'JUST TRY.',
+  guide: '이용 안내',
+  install: '웹 설치하기',
+} as const;
+
+// FAQ = 실제 확인된 이용 방식만(이용 안내 승인 문장 그대로).
+export const HOME_FAQ = {
+  eyebrow: 'FAQ',
+  title: '자주 묻는 질문',
+  items: (['talk', 'check', 'choice', 'zzarit'] as const).map((id) => {
+    const g = guideSection(id);
+    return { question: g.title, answer: g.points ? `${g.body} ${g.points.join(' ')}` : g.body };
+  }),
+};

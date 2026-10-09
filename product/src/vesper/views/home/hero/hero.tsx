@@ -9,6 +9,9 @@ import { hiddenWhenClear, useSceneClock } from "../overlay";
 import { LETTER_FADE, UNIT_REVEAL_FIRST_SCREEN, WORD_REVEAL } from "../reveal";
 import { LineBlur } from "../line-blur";
 import { SendRequest } from "../send-request";
+import { PressableLink } from "@vesper/components/ui/pressable";
+import { GHOST } from "@vesper/lib/springs/interaction";
+import { HOME_V2, HOW_PATH } from "@/pages/do-it/brand-home/copy";
 
 /**
  * Hero overlay — the Figma "Motion instead of chrome" screen.
@@ -31,13 +34,11 @@ import { SendRequest } from "../send-request";
  * an **inline** style, so only `position: static !important` can beat it.
  */
 
-// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
-const TITLE = "Motion instead of chrome";
-const TAGLINE =
-  "It reads your presence — pointer, scroll, dwell — and it answers in motion.";
-const SUPPORT =
-  "A rendering and interaction layer that turns your presence into motion, tuned to feel alive under every pointer.";
-const TAGS = ["[ LIVING INTERFACE ]", "[ MOTION LAYER ]", "[ MOTION LAYER ]"];
+// 2026-10-09 대표 「최신 채택안」: 원본 글 칸에 ECHO 문구(제목 · 선택권 안내 · 서비스 설명 · 꼬리표 · 주요/보조 버튼). 한글 행간 제목 1.15 · 본문 1.55.
+const TITLE = HOME_V2.heroTitle;
+const TAGLINE = HOME_V2.heroChoice;
+const SUPPORT = HOME_V2.heroDesc;
+const TAGS = HOME_V2.tags;
 
 export interface HeroProps {
   /** Flips true once the loader curtain lifts — gates the reveal. */
@@ -68,7 +69,7 @@ export const Hero = ({ introStarted }: HeroProps) => {
           delayIn={200}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[0.9] font-light max-lg:!static max-lg:w-full max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
+          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
         >
           {TITLE}
         </TextEngine>
@@ -84,7 +85,7 @@ export const Hero = ({ introStarted }: HeroProps) => {
           delayIn={500}
           {...WORD_REVEAL}
           style={{ position: "absolute" }}
-          className="absolute top-0 left-0 w-[27.5vw] font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
+          className="absolute top-0 left-0 w-[27.5vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
         >
           {TAGLINE}
         </TextEngine>
@@ -96,7 +97,7 @@ export const Hero = ({ introStarted }: HeroProps) => {
           delayIn={560}
           {...WORD_REVEAL}
           style={{ position: "absolute" }}
-          className="absolute top-0 right-0 w-[19.348vw] text-left font-general text-[1.111vw] leading-[1.2] max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
+          className="absolute top-0 right-0 w-[19.348vw] text-left font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
         >
           {SUPPORT}
         </TextEngine>
@@ -123,9 +124,17 @@ export const Hero = ({ introStarted }: HeroProps) => {
           enabled={introStarted}
           delayIn={820}
           {...UNIT_REVEAL_FIRST_SCREEN}
-          className="pointer-events-auto absolute top-[10.972vw] right-0 max-lg:static"
+          className="pointer-events-auto absolute top-[10.972vw] right-0 flex items-center gap-[0.833vw] max-lg:static"
         >
           <SendRequest />
+          {/* 보조 버튼 — 바로 아래 이용 방법(#how)으로. */}
+          <PressableLink
+            href={HOW_PATH}
+            interaction={GHOST}
+            className="flex h-[3.542vw] items-center border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] font-normal whitespace-nowrap"
+          >
+            {HOME_V2.how}
+          </PressableLink>
         </Inview>
       </div>
     </animated.div>

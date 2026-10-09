@@ -27,6 +27,8 @@ import {
   SPRING_SOFT,
 } from "@vesper/lib/springs/config";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
+import { appUrl } from "@/lib/siteRole";
+import { HOME_V2, START_PATH } from "@/pages/do-it/brand-home/copy";
 
 export interface MobileNavItem {
   label: string;
@@ -218,7 +220,8 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
     // with this render).
     const frame = requestAnimationFrame(() => {
       const [path, hash] = target.split("#");
-      const samePage = (path || "/") === pathname;
+      // 해시만 있는 링크(#how)는 같은 페이지.
+      const samePage = !path || path === pathname;
       if (!samePage) {
         router.push(target);
         return;
@@ -349,12 +352,11 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
             {tagline}
           </p>
           <PressableLink
-            href="/#contact"
-            onClick={onNavigate}
+            href={appUrl(START_PATH)}
             interaction={GHOST}
             className="flex items-center justify-center gap-[0.5rem] border px-[1.111rem] py-[0.875rem] font-general text-[1rem] leading-[1.2]"
           >
-            Contact Us
+            {HOME_V2.start}
             <span aria-hidden className="block size-[0.1875rem] bg-current" />
           </PressableLink>
         </animated.div>

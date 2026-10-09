@@ -1,7 +1,12 @@
 /**
  * Placeholder copy for the home view. Passed in via props — never imported
  * directly by a component.
+ *
+ * 2026-10-09 대표 「최신 채택안」: 로더·바닥글 글은 ECHO 승인 문구(원본 자리 그대로). 나머지 원본 자료(homeSections·homeOutro·homeFaq)는 화면에 안 쓴다.
  */
+import { HOME_V2, HOW_PATH, FAQ_PATH } from "@/pages/do-it/brand-home/copy";
+import { appUrl } from "@/lib/siteRole";
+import { INSTALL_PATH } from "@/pages/do-it/landing/components/BrandSections";
 
 /** A glassy metric card, shown beside a HUD section. */
 export interface MetricCard {
@@ -169,48 +174,29 @@ export const homeFaq: FaqCopy = {
 };
 
 export const homeFooter: FooterCopy = {
-  wordmark: "Vesper",
-  tagline:
-    "A living interface that reads your presence and answers in motion, not chrome.",
+  wordmark: "DO IT",
+  tagline: HOME_V2.heroDesc,
   columns: [
-    {
-      heading: "Engine",
-      links: [
-        { label: "Overview", href: "/" },
-        { label: "The renderer", href: "/" },
-        { label: "Interaction", href: "/" },
-        { label: "Performance", href: "/" },
-        { label: "Roadmap", href: "/" },
-      ],
-    },
-    {
-      heading: "Studio",
-      links: [
-        { label: "Origin story", href: "/" },
-        { label: "The team", href: "/" },
-        { label: "Journal", href: "/" },
-        { label: "In residency", href: "/" },
-      ],
-    },
-    {
-      heading: "Connect",
-      links: [
-        { label: "Get in touch", href: "/#contact" },
-        { label: "Privacy", href: "/" },
-        { label: "Terms", href: "/" },
-        { label: "Report an issue", href: "/" },
-      ],
-    },
+    { heading: "ECHO", links: [
+      { label: HOME_V2.how, href: HOW_PATH },
+      { label: HOME_V2.faq, href: FAQ_PATH },
+      { label: HOME_V2.install, href: appUrl(INSTALL_PATH) },
+    ] },
+    { heading: "회사", links: [
+      { label: "이용약관", href: "/legal/terms" },
+      { label: "개인정보처리방침", href: "/legal/privacy" },
+      { label: "문의", href: "mailto:0423doit@gmail.com" },
+    ] },
   ],
 };
 
 export const homeLoader: LoaderCopy = {
-  brand: "VESPER",
-  brandDetail: "V—0RB / SYS.04",
-  bootLabel: "BOOT SEQUENCE",
-  bootState: "● INIT",
-  initializing: "INITIALIZING ENVIRONMENT",
-  loading: "LOADING ASSETS",
-  coordinates: "42.0192°N / 23.3219°E",
-  version: "v0.4.1 — beta channel",
+  brand: "DO IT",
+  brandDetail: "ECHO / ONLINE SERENDIPITY",
+  bootLabel: "시작 준비",
+  bootState: "● 준비",
+  initializing: "ECHO 를 깨우는 중",
+  loading: "장면 불러오는 중",
+  coordinates: "37.6°N / 127.2°E",
+  version: "2026 — DO IT COMPANY",
 };

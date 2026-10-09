@@ -1,6 +1,8 @@
 import { PressableLink } from "@vesper/components/ui/pressable";
 import { homeFooter } from "@vesper/data/mocks/home";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
+import { appUrl } from "@/lib/siteRole";
+import { HOME_V2, START_PATH } from "@/pages/do-it/brand-home/copy";
 
 import { MobileNav } from "./mobile-nav";
 
@@ -22,12 +24,7 @@ import { MobileNav } from "./mobile-nav";
  * Component — only the toggle is a client leaf.
  */
 // 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 메뉴·버튼 글자는 원본 Vesper 그대로(로고만 DO IT).
-const NAV = [
-  { label: "Home", href: "/" },
-  { label: "Services", href: "/#services" },
-  { label: "Works", href: "/#works" },
-  { label: "About", href: "/#about" },
-] as const;
+const NAV = HOME_V2.nav;
 
 export const SiteHeader = () => {
   return (
@@ -66,11 +63,11 @@ export const SiteHeader = () => {
             width and style only — an inline spring value would beat a `border-*`
             utility anyway, and having both would just be a lie in the markup. */}
         <PressableLink
-          href="/#contact"
+          href={appUrl(START_PATH)}
           interaction={GHOST}
           className="flex shrink-0 items-center gap-[0.694vw] self-stretch border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] font-normal whitespace-nowrap max-lg:hidden"
         >
-          Contact Us
+          {HOME_V2.start}
           <span aria-hidden className="block size-[0.139vw] bg-current" />
         </PressableLink>
 

@@ -21,63 +21,77 @@ const HEADER = V('components/common/site-header.tsx');
 const MNAV = V('components/common/mobile-nav.tsx');
 const SEND = V('views/home/send-request.tsx');
 
-test('홈페이지(2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」): 원본 Vesper 그대로 — 첫 화면(격자 배경 + 구슬) → 은하 → 뇌 → 흰 카드 → FAQ 카드 → Solaris → Onyx → 바닥글 · 설치 카드·이야기 카드·제작 영상 0 · 온보딩은 그대로', () => {
+test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원본 Vesper 문서(격자 배경 + 구슬 → 은하 → 뇌 → 흰 카드(어떻게 만나나요?) → FAQ → Solaris → Onyx → 바닥글) · 1024px 미만 = 모바일 세로 배치(① 첫 화면 ② 이용 방법 ③ 짧은 브랜드 연출 ④ 서로의 선택 ⑤ FAQ + 시작 버튼 + 바닥글) · 온보딩은 그대로', () => {
   for (const t of ["from '@vesper/layouts/scroll-layout'", "from '@vesper/components/common/site-header'", "from '@vesper/views/home'", "<AdaptiveGrid />", "<ReducedMotion />", "import '@vesper/vesper.css'"]) assert.ok(HOME.includes(t), t);
-  assert.match(HOME, /root\.classList\.add\('vesper'\);\n\s*root\.setAttribute\('lang', 'en'\);/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만 · 영어 원본 글 동안 lang=en(Codex 10차)');
-  assert.match(HOME, /root\.classList\.remove\('vesper'\);\n\s*if \(prevLang === null\) root\.removeAttribute\('lang'\); else root\.setAttribute\('lang', prevLang\);/);
-  assert.match(FOOT, /<div lang="ko" className=/, '법적 고지 줄은 한국어');
+  assert.match(HOME, /document\.documentElement\.classList\.add\('vesper'\)/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만');
+  assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
+  assert.doesNotMatch(HOME, /setAttribute\('lang'/, '글이 한글이라 문서 언어는 index.html 의 ko 그대로');
   const at = (s) => STAGE.indexOf(s);
-  // 파일 순서: 겹 그림(StageOverlays) → 닫는 블록(ClosingBlocks) → 무대(ScrollStage: 격자 배경 → 첫 화면 글)
   const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
   order.forEach((v, i) => assert.ok(v > 0, String(i)));
-  assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
-  assert.doesNotMatch(STAGE, /LatticeSection|id="making"|BrandFilm/, '옛 ECHO 홈페이지 조각(제작 영상 등) 0 · 격자는 첫 화면 배경으로만');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, '데스크톱 순서');
+  assert.match(STAGE, /const mobile = useWindowWidth\(\) < MOBILE_MAX_WIDTH;/, '1024 미만 = 모바일 문서');
+  assert.match(STAGE, /\{robot \? <SceneStill \/> : <SceneHostLazy \/>\}\n\s*\{!robot && <Loader copy=\{loader\} onReady=\{handleReady\} \/>\}\n\s*\{mobile \? \(\n\s*<MobileStage/, '장면 캔버스·로더는 한 벌, 문서만 둘');
   assert.match(STAGE, /<div id="financial" ref=\{outroRef\} className="mb-\[1\.667vw\]">\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="financial">\n\s*<FinancialSection \/>/, '원본: 흰 카드가 떠오르며 뇌의 퇴장을 끈다');
-  assert.match(STAGE, /<HydrateNear id="faq">\n\s*<FaqSection copy=\{faq\} \/>/, '원본 FAQ 카드');
-  const fin = V('views/home/sections/financial-section.tsx');
-  assert.match(fin, /const TITLE = "A living interface";/); assert.match(fin, /src="\/vesper\/assets\/sections\/financial\.png"/, '원본 사진');
-  assert.match(V('views/home.tsx'), /<ScrollStage loader=\{homeLoader\} faq=\{homeFaq\} footer=\{homeFooter\} \/>/);
-  for (const f of ['src/pages/do-it/brand-home/SceneLayer.tsx', 'src/pages/do-it/brand-home/DotText.tsx', 'src/pages/do-it/brand-home/BrandFilm.tsx', 'public/brand/film', 'public/brand/hero-earth.webp', 'src/vesper/views/home/sections/lattice-section.tsx']) assert.ok(!existsSync(f), `${f} 삭제`);
-  assert.doesNotMatch(HOME, /SceneLayer|DotText|hero-earth|BrandFilm/, '옛 홈페이지 조각 0');
-  assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로(대표 10/9 「우선 똑같이 퍼온다」)');
+  assert.match(STAGE, /style=\{\{ height: toLvh\(1\) \}\}/, '데스크톱 트랙(200lvh) 숫자 그대로');
+  // 모바일 문서
+  const M = V('views/home/mobile-stage.tsx');
+  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<HydrateNear id="how">', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="choice">', '<HydrateNear id="faq">', '<HydrateNear id="site-footer">'].map((s) => M.indexOf(s));
+  mOrder.forEach((v, i) => assert.ok(v > 0, `mobile ${i}`)); assert.deepEqual([...mOrder].sort((a, b) => a - b), mOrder, '모바일 순서');
+  assert.doesNotMatch(M, /toLvh|SectionBrain|SectionGalaxy|setOutro/, '모바일은 원본 200lvh 트랙·뇌 장면·고정 겹 그림을 쓰지 않음');
+  assert.match(M, /sceneTimeline\.setTrack\(0, progress\);\n\s*sceneTimeline\.setTrack\(1, progress\);/, '③ 구간 하나가 장면 시계 0→2(구체 → 은하)');
+  assert.match(M, /id="hero"[\s\S]*min-h-\[100lvh\] flex-col justify-end/, '① 첫 화면: 제목·설명·버튼이 한 화면(min-height · 세로로 늘어남)');
+  assert.match(M, /text-\[clamp\(36px,9vw,52px\)\] leading-\[1\.15\] font-light break-keep/, '모바일 제목 clamp(36px, 9vw, 52px) · 300 · 행간 1.15');
+  assert.match(M, /text-\[16px\] leading-\[1\.55\] break-keep/, '모바일 본문 16px/1.55');
+  assert.match(M, /px-6 max-\[360px\]:px-5/, '좌우 여백 24px · 360px 이하 20px');
+  assert.match(M, /min-h-\[48px\]/, '버튼 터치 영역 48px');
+  assert.match(SEND, /min-h-\[48px\]/, '주요 버튼 48px');
+  assert.match(V('views/home/sections/financial-section.tsx'), /<section id="how"/, '데스크톱에도 #how');
+  assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로');
   assert.match(V('views/home/loader/star-fall.tsx'), /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\) return;/, '별 줄기도 움직임 줄이기면 한 장(Codex 10차)');
   const onyx = V('views/home/sections/onyx-section.tsx');
   assert.match(onyx, /touch-pan-y/, 'Onyx 캔버스 위에서도 세로 스크롤(Codex 8차 P1)'); assert.doesNotMatch(onyx, /touch-none/);
   assert.match(onyx, /if \(!inside && !grabbed\) \{ pointerInside = false; return; \}/, 'Onyx 구간 밖 포인터 무시(Codex 8차)');
-  assert.match(FOOT, /id="contact"/, '/#contact 가 닿는 바닥글(Codex 9차 P1)');
+  assert.match(FOOT, /id="contact"/, '바닥글 id(Codex 9차)');
   assert.match(V('views/home/hero/hero-lattice.tsx'), /window\.addEventListener\('pointerdown', onDown/, '격자 누름은 window 에서(Codex 7차)');
   assert.match(MNAV, /window\.matchMedia\("\(min-width: 1024px\)"\)/, '메뉴 열린 채 넓어지면 닫힘(Codex 6차)');
-  assert.match(V('views/home/section-brain.tsx'), /hidden max-lg:block bg-\[linear-gradient\(180deg,rgba\(0,0,0,0\)_0%,rgba\(0,0,0,0\.72\)/, '휴대폰 뇌 장면: 글 뒤 어두운 막(뇌는 배경으로)');
+  assert.match(MNAV, /const samePage = !path \|\| path === pathname;/, '해시만 있는 링크는 같은 페이지(브랜드 홈은 /do-it/landing)');
+  assert.match(V('views/home/section-brain.tsx'), /hidden max-lg:block bg-\[linear-gradient\(180deg,rgba\(0,0,0,0\)_0%,rgba\(0,0,0,0\.72\)/, '휴대폰 뇌 장면: 글 뒤 어두운 막');
   const sol = V('views/home/sections/solaris-section.tsx');
   assert.match(sol, /top-0 h-\[34vh\] bg-gradient-to-b from-black via-black\/70 to-transparent/, 'Solaris 위를 검정으로 녹임(선 0)');
-  assert.match(sol, /bottom-0 h-\[26vh\] bg-gradient-to-t from-black to-transparent/, 'Solaris 아래도');
   const hl = V('views/home/hero/hero-lattice.tsx');
-  assert.match(hl, /fixed inset-x-0 top-0 z-\[5\] h-lvh mix-blend-screen/, '격자 = 첫 화면 배경(구슬 위 screen 합성 · 글 아래)');
-  assert.match(hl, /const heroOpacity = \(clock: number\) => LATTICE_STRENGTH \* \(1 - Math\.min\(Math\.max\(\(clock - 0\.08\) \/ 0\.2, 0\), 1\)\);/, '첫 화면 글과 같은 구간에서만 · 배경 세기');
-  assert.match(hl, /visible = opacity > 0\.01;/, '첫 화면을 지나면 그리지 않음');
+  assert.match(hl, /fixed inset-x-0 top-0 z-\[5\] h-lvh mix-blend-screen/, '격자 = 첫 화면 배경');
+  assert.match(hl, /const heroOpacity = \(clock: number\) => LATTICE_STRENGTH \* \(1 - Math\.min\(Math\.max\(\(clock - 0\.08\) \/ 0\.2, 0\), 1\)\);/);
+  for (const f of ['src/pages/do-it/brand-home/SceneLayer.tsx', 'src/pages/do-it/brand-home/DotText.tsx', 'src/pages/do-it/brand-home/BrandFilm.tsx', 'public/brand/film', 'public/brand/hero-earth.webp', 'src/vesper/views/home/sections/lattice-section.tsx']) assert.ok(!existsSync(f), `${f} 삭제`);
+  assert.doesNotMatch(HOME, /SceneLayer|DotText|hero-earth|BrandFilm/, '옛 홈페이지 조각 0');
   // 온보딩(인트로)은 손대지 않음: 루트 → 인트로 → 홈페이지 그대로.
   const entry = read('src/pages/do-it/intro/DoItEntry.tsx');
   assert.doesNotMatch(entry, /vesper|scene_hero/i);
   assert.match(read('src/router/config.tsx'), /\{ path: '\/do-it\/intro', element: <DoItIntroPage \/> \}/);
 });
-test('홈페이지 글(2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」): 히어로·은하·뇌·머리띠·바닥글·로더 = 원본 Vesper 글 그대로 · Solaris·Onyx 글 0 · 승인 문구는 copy.ts 에 보관', () => {
-  assert.match(HERO, /const TITLE = "Motion instead of chrome";/); assert.match(HERO, /const TAGS = \["\[ LIVING INTERFACE \]", "\[ MOTION LAYER \]", "\[ MOTION LAYER \]"\];/);
-  assert.match(GALAXY, /const TITLE = "Reads presence, in motion";/); assert.match(GALAXY, /\{ value: "91k", label: "Live particles", left: "6\.944vw" \},/);
-  const BRAIN = V('views/home/section-brain.tsx');
-  assert.match(BRAIN, /const TITLE_LEFT = "Motion instead of chrome";\nconst TITLE_RIGHT = "Reads presence, in motion";/);
-  assert.match(BRAIN, /const TAGLINE_RIGHT = "Reduced-motion honoured across the page";/);
-  assert.match(HEADER, /\{ label: "Home", href: "\/" \},\n\s*\{ label: "Services", href: "\/#services" \},\n\s*\{ label: "Works", href: "\/#works" \},\n\s*\{ label: "About", href: "\/#about" \},\n\] as const;/);
-  for (const [n, s] of [['header', HEADER], ['mobile-nav', MNAV]]) { assert.match(s, /href="\/#contact"/, n); assert.ok(s.includes('Contact Us'), n); }
-  assert.ok(SEND.includes('Send Request') && SEND.includes('href="/#contact"'), '본문 CTA 원본');
-  assert.match(FOOT, /const TITLE = "Let's talk\.";/); assert.match(FOOT, /onSubmit=\{\(event\) => event\.preventDefault\(\)\}/, '원본 연락 폼 = 서버 없음(보내지 않음)');
-  assert.match(MOCK, /name: "VESPER",\n\s*suffix: "\/ V—0RB",/); assert.match(MOCK, /brand: "VESPER",/); assert.match(MOCK, /wordmark: "Vesper",/);
-  assert.doesNotMatch(noComments(V('views/home/sections/solaris-section.tsx') + V('views/home/sections/onyx-section.tsx')), /STORIES|TextEngine|<h2|<p /, 'Solaris·Onyx 원본에는 글이 없다 → 글 0');
-  // 승인 문구는 copy.ts 에 그대로 보관(다음 단계 「글 넣기」 재료) — 홈페이지엔 아직 안 쓴다.
-  for (const t of ["heroTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "start: '모바일로 시작하기'"]) assert.ok(COPY.includes(t), t);
-  assert.equal((COPY.match(/\{ no: '0\d', label:/g) ?? []).length, 9, '이야기 9장면 보관');
-  const vendored = ['views/home/hero/hero.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx', 'views/home/sections/solaris-section.tsx', 'views/home/sections/site-footer.tsx', 'data/mocks/home.ts', 'components/common/site-header.tsx', 'components/common/mobile-nav.tsx', 'views/home/send-request.tsx'].map(V).join('\n');
-  assert.doesNotMatch(noComments(vendored).replace(/^\s*import .*$/gm, ''), /brand-home\/copy|BRAND_HOME_COPY|STORIES/, '홈페이지 글은 원본 그대로(copy.ts 참조 0 · LEGAL 제외)'.replace('LEGAL 제외', '') );
+test('홈페이지 글(2026-10-09 대표 「최신 채택안」): 첫 화면 「당신이 잠든 사이」 · 설명 · 선택권 안내 · 「ECHO 시작하기」 · 「어떻게 만나나요?」 원문 그대로 · 설명·FAQ 는 이용 안내 승인 문장만 · 템플릿 숫자·Vesper 문구 0 · 한글 행간 1.15/1.55', () => {
+  for (const t of ["heroTitle: '당신이 잠든 사이'", "heroDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.'", "heroChoice: '관계의 시작은 서로가 선택합니다.'", "start: 'ECHO 시작하기'", "how: '어떻게 만나나요?'", "export const START_PATH = '/doit/start-journey';", "export const HOW_PATH = '#how';"]) assert.ok(COPY.includes(t), t);
+  assert.match(COPY, /HOME_FAQ = \{[\s\S]*\(\['talk', 'check', 'choice', 'zzarit'\] as const\)/, 'FAQ = 이용 안내 승인 문장');
+  assert.match(COPY, /howLead: guideSection\('start'\)\.body,\n\s*howSteps: guideSection\('start'\)\.points/, '이용 방법 = 이용 안내 「처음이라면」');
+  assert.match(HERO, /const TITLE = HOME_V2\.heroTitle;\nconst TAGLINE = HOME_V2\.heroChoice;\nconst SUPPORT = HOME_V2\.heroDesc;\nconst TAGS = HOME_V2\.tags;/, '데스크톱 원본 글 칸에 ECHO 문구');
+  assert.match(HERO, /leading-\[1\.15\] font-light break-keep/, '한글 제목 행간 1.15'); assert.match(HERO, /leading-\[1\.55\] break-keep/, '한글 본문 행간 1.55');
+  assert.match(HERO, /href=\{HOW_PATH\}[\s\S]*\{HOME_V2\.how\}/, '보조 버튼 → #how');
+  assert.match(GALAXY, /\{ value: "01", label: HOME_V2\.steps\[0\]/, '은하 네 칸 = 이용 안내 항목(91k 등 템플릿 숫자 0)');
+  assert.match(V('views/home/section-brain.tsx'), /const TITLE_LEFT = HOME_V2\.brainLeft\.join\(" "\);/);
+  const fin = V('views/home/sections/financial-section.tsx');
+  assert.match(fin, /const TITLE = HOME_V2\.howTitle;/); assert.match(fin, /src="\/brand\/stories\/story-09\.webp"/, '사진 칸 = 승인 브랜드 그림(실제 ECHO 화면은 자료 미확보)');
+  for (const [n, s] of [['header', HEADER], ['mobile-nav', MNAV], ['send-request', SEND]]) { assert.match(s, /href=\{appUrl\(START_PATH\)\}/, `${n} 시작 주소`); assert.match(s, /\{HOME_V2\.start\}/, `${n} 시작 글자`); }
+  assert.match(HEADER, /const NAV = HOME_V2\.nav;/);
+  assert.match(FOOT, /const TITLE = HOME_V2\.footerTitle;/); assert.doesNotMatch(FOOT, /<form|<input/, '보내지 않는 연락 폼 0 → 마지막 시작 버튼 + 이용 안내');
+  assert.match(FOOT, /onClick=\{\(\) => openGuide\(\)\}/);
+  assert.match(MOCK, /brand: "DO IT",/); assert.match(MOCK, /heading: "ECHO", links: \[/); assert.match(MOCK, /heading: "회사", links: \[/);
+  assert.match(read('src/vesper/views/home.tsx'), /faq=\{HOME_FAQ\}/);
+  // mocks/home.ts 의 원본 자료(homeSections·homeOutro·homeFaq)는 화면에 안 쓰므로 템플릿 문구 검사에서 뺀다(로더·바닥글만 따로 검사).
+  const vendored = ['views/home/hero/hero.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx', 'views/home/sections/solaris-section.tsx', 'views/home/sections/financial-section.tsx', 'views/home/sections/site-footer.tsx', 'views/home/mobile-stage.tsx', 'components/common/site-header.tsx', 'components/common/mobile-nav.tsx', 'views/home/send-request.tsx'].map(V).join('\n');
+  const visible = noComments(vendored).replace(/^\s*import .*$/gm, '').replace(/@vesper\//g, '');
+  assert.doesNotMatch(visible, /91k|Send Request|Contact Us|Frequently asked|living interface|Motion instead of chrome|Reads presence/i, '템플릿 문구·숫자 0(원본 자료 homeSections·homeFaq 는 화면에 안 씀)');
   assert.doesNotMatch(noComments(vendored + COPY), /데이팅|소개팅|궁합|점술|심리치료|성격검사|Stripe|9,900|4,900/, '금지어·옛 가격 0');
+  assert.doesNotMatch(noComments(vendored + COPY), /야간 자동|매칭 완료|만남을 보장|보장합니다/, '확인되지 않은 기능 문구 0');
 });
 test('홈페이지: 대표 인사말 승인 원문은 brandGreeting.ts 에 그대로(10/9 이야기 카드 삭제로 홈페이지엔 없음 · 시안 제안 문구 0) · 법적 고지·문의 보존', () => {
   assert.match(read('src/pages/do-it/landing/components/brandGreeting.ts'), /GREETING_TITLE = 'DO IT은 제가 직접 겪은 경험에서 시작됐습니다\.'/);
@@ -138,16 +152,16 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지 CTA(2026-10-09 대표 「글씨 원본 그대로 우선」): 머리띠·휴대폰 메뉴·본문 = 원본 Contact Us / Send Request → /#contact(바닥글) · 앱 시작 경로는 다음 단계(글 넣기)에서 · 시작 경로 글자는 copy.ts 한 곳', () => {
-  assert.match(COPY, /export const START_PATH = '\/doit\/start-journey';/);
+test('홈페이지 CTA: 주요 버튼 = 확인된 시작 경로(앱 주소 + /doit/start-journey) · 보조 버튼·메뉴·바닥글 앵커는 해시만(#top·#how·#faq) · 빈 링크 0', () => {
   const vendored = execSyncList('src/vesper').map(read).join('\n');
   assert.ok(!vendored.includes("'/doit/start-journey'") && !vendored.includes('"/doit/start-journey"'), '시작 경로 글자는 copy.ts 에만');
   assert.doesNotMatch(vendored, /href="#"/, '빈 링크 0');
+  assert.doesNotMatch(noComments(vendored + COPY), /"\/#|'\/#/, '"/#id" 꼴 링크 0(브랜드 홈은 /do-it/landing 이라 인트로로 되돌아감)');
+  assert.match(STAGE, /<main id="top"/); assert.match(V('views/home/mobile-stage.tsx'), /<main id="top"/);
 });
-test('홈페이지 첫 화면: 원본 Vesper 히어로·상태 줄·로더 글 그대로(2026-10-09 대표) · 로고만 DO IT', () => {
-  assert.match(HERO, /<SendRequest \/>/, '첫 화면 CTA = 원본');
-  assert.match(MOCK, /label: "SYS\.LINK ESTABLISHED",\n\s*detail: "· FRAME LOCKED",\n\s*scrollHint: "SCROLL TO ADVANCE",/);
-  assert.match(MOCK, /initializing: "INITIALIZING ENVIRONMENT",\n\s*loading: "LOADING ASSETS",/);
+test('홈페이지 첫 화면·로더: 원본 Vesper 자리 그대로(글만 ECHO) · 로고 DO IT · 로더 글 ECHO', () => {
+  assert.match(HERO, /<SendRequest \/>/, '첫 화면 CTA = 원본 자리');
+  assert.match(MOCK, /initializing: "ECHO 를 깨우는 중",\n\s*loading: "장면 불러오는 중",/);
   for (const s of [HEADER, MNAV, FOOT]) assert.match(s, /src="\/brand\/doit-wordmark\.webp"/, '로고 = DO IT');
   assert.doesNotMatch(HEADER + MNAV + FOOT, /\/assets\/hero\/logo\.svg/, 'Vesper 로고 0');
 });
@@ -235,7 +249,8 @@ test('2026-10-05 PM 보강: 홈페이지는 히어로 승인 원문을 두고 �
   assert.doesNotMatch(scope, /내일|반드시|자동|알림|보장|매일|무조건/, '내일·자동·알림·보장 말 0');
   // 2026-10-09 대표 「글씨 원본 그대로 우선」: 은하 받침글은 원본 Vesper 글 · scope 문구는 copy.ts 보관(다음 단계).
 });
-test('바닥글: 원본 Vesper 세 묶음(Engine · Studio · Connect) 글 그대로 · 맨 아래 법적 고지(사업자·약관·개인정보·문의)는 남긴다', () => {
-  for (const h of ['Engine', 'Studio', 'Connect']) assert.match(MOCK, new RegExp(`heading: "${h}",`));
-  for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);
+test('바닥글: ECHO · 회사 두 묶음 · 맨 아래 법적 고지(사업자·약관·개인정보·문의) · 법적 고지 lang=ko', () => {
+  assert.match(MOCK, /\{ label: HOME_V2\.how, href: HOW_PATH \},\n\s*\{ label: HOME_V2\.faq, href: FAQ_PATH \},\n\s*\{ label: HOME_V2\.install, href: appUrl\(INSTALL_PATH\) \},/);
+  assert.match(MOCK, /\{ label: "이용약관", href: "\/legal\/terms" \},\n\s*\{ label: "개인정보처리방침", href: "\/legal\/privacy" \},\n\s*\{ label: "문의", href: "mailto:0423doit@gmail\.com" \},/);
+  for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}', '<div lang="ko" className=']) assert.ok(FOOT.includes(t), t);
 });

@@ -6,6 +6,7 @@ import { HeroText as TextEngine } from "./hero/hero-text";
 
 import { Inview } from "@vesper/components/common/robot-inview";
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
+import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 import { hiddenWhenClear, smoothstep, useSceneClock } from "./overlay";
 import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "./reveal";
 import { LineBlur, wordCount } from "./line-blur";
@@ -27,12 +28,12 @@ import { SendRequest } from "./send-request";
  * about anyway.
  */
 
-// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
-const TITLE_LEFT = "Motion instead of chrome";
-const TITLE_RIGHT = "Reads presence, in motion";
+// 2026-10-09 대표 「최신 채택안」: 정정·선택(승인 이야기 제목 + 이용 안내 짧은 줄).
+const TITLE_LEFT = HOME_V2.brainLeft.join(" ");
+const TITLE_RIGHT = HOME_V2.brainRight.join(" ");
 const TAGLINE_LEFT =
-  "Point counts, tessellation and pixel ratio step down by device, never by frame rate.";
-const TAGLINE_RIGHT = "Reduced-motion honoured across the page";
+  HOME_V2.brainLeftLine;
+const TAGLINE_RIGHT = HOME_V2.brainRightLine;
 
 export const SectionBrain = () => {
   const clock = useSceneClock();
@@ -75,7 +76,7 @@ export const SectionBrain = () => {
           immediateOut={false}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[0.9] font-light max-lg:!static max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2rem]"
+          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2rem]"
         >
           {TITLE_LEFT}
         </TextEngine>
@@ -95,7 +96,7 @@ export const SectionBrain = () => {
           delayIn={200}
           {...WORD_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[calc(50%+2.361vw)] left-[1.667vw] w-[26.597vw] font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:!static max-lg:w-full max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
+          className="absolute top-[calc(50%+2.361vw)] left-[1.667vw] w-[26.597vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
         >
           {TAGLINE_LEFT}
         </TextEngine>
@@ -115,7 +116,7 @@ export const SectionBrain = () => {
           delayIn={260}
           {...WORD_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[calc(50%+2.361vw)] right-[1.667vw] w-[14.583vw] justify-end text-right font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
+          className="absolute top-[calc(50%+2.361vw)] right-[1.667vw] w-[14.583vw] justify-end text-right font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
         >
           {TAGLINE_RIGHT}
         </TextEngine>
@@ -130,7 +131,7 @@ export const SectionBrain = () => {
           delayIn={120}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute right-[1.667vw] bottom-[1.667vw] w-[40.972vw] justify-end text-right font-general text-[5.556vw] leading-[0.9] font-light max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[2.75rem] max-sm:text-[2rem]"
+          className="absolute right-[1.667vw] bottom-[1.667vw] w-[40.972vw] justify-end text-right font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[2.75rem] max-sm:text-[2rem]"
         >
           {TITLE_RIGHT}
         </TextEngine>

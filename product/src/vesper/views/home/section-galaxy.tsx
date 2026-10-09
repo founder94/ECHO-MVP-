@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HeroText as TextEngine } from "./hero/hero-text";
 
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
+import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 import { hiddenWhenClear, smoothstep, useSceneClock } from "./overlay";
 import { LETTER_FADE, WORD_FADE } from "./reveal";
 import { LineBlur, wordCount } from "./line-blur";
@@ -22,17 +23,16 @@ import { LineBlur, wordCount } from "./line-blur";
  * a single column on phones, with the copy stacked above it.
  */
 
-// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
-const TITLE = "Reads presence, in motion";
-const SUPPORT =
-  "Every particle here is a reply to you — pointer, scroll and dwell, read live and answered as pure, drawn motion.";
+// 2026-10-09 대표 「최신 채택안」: ECHO Agent 소개(승인 이야기 제목 + 이용 안내 문장) · 네 칸 = 이용 안내 네 항목(템플릿 숫자 0).
+const TITLE = HOME_V2.agentTitle.join(" ");
+const SUPPORT = HOME_V2.agentBody;
 
 /** `value` / `label` / `left` (Figma x ÷14.4 — the desktop offset only). */
 const STATS = [
-  { value: "91k", label: "Live particles", left: "6.944vw" },
-  { value: "8.3", label: "Frame budget ms", left: "31.944vw" },
-  { value: "0.9", label: "Cold start secs", left: "56.944vw" },
-  { value: "60", label: "Frames per sec", left: "81.944vw" },
+  { value: "01", label: HOME_V2.steps[0], left: "6.944vw" },
+  { value: "02", label: HOME_V2.steps[1], left: "31.944vw" },
+  { value: "03", label: HOME_V2.steps[2], left: "56.944vw" },
+  { value: "04", label: HOME_V2.steps[3], left: "81.944vw" },
 ];
 
 /** Column dividers between the stats (Figma x ÷14.4 — desktop only). */
@@ -79,7 +79,7 @@ export const SectionGalaxy = () => {
           immediateOut={false}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[7.014vw] left-1/2 w-[46.319vw] -translate-x-1/2 justify-center text-center font-general text-[5.556vw] leading-[0.9] font-light max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
+          className="absolute top-[7.014vw] left-1/2 w-[46.319vw] -translate-x-1/2 justify-center text-center font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
         >
           {TITLE}
         </TextEngine>
@@ -101,7 +101,7 @@ export const SectionGalaxy = () => {
             delayIn={200}
             {...WORD_FADE}
             style={{ position: "absolute" }}
-            className="absolute top-0 left-1/2 w-[29.097vw] -translate-x-1/2 justify-center text-center font-general text-[1.111vw] leading-[1.2] max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:justify-start max-lg:text-left max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
+            className="absolute top-0 left-1/2 w-[29.097vw] -translate-x-1/2 justify-center text-center font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:justify-start max-lg:text-left max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
           >
             {SUPPORT}
           </TextEngine>

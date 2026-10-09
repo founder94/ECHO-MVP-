@@ -34,6 +34,8 @@ import { toLvh } from "./hud/windows";
 import { Loader } from "./loader/loader";
 import { HydrateIdle, HydrateNear } from "@vesper/components/common/hydrate-near";
 import { useRobot } from "@vesper/components/common/robot-view";
+import { useWindowWidth } from "@vesper/hooks/use-window-size";
+import { MobileStage } from "./mobile-stage";
 
 import { SceneHostLazy } from "./scene/scene-host-lazy";
 import { SceneStill } from "./scene/scene-still";
@@ -130,17 +132,16 @@ export interface ScrollStageProps {
  * which is what makes the clock run at double rate through its middle. That is
  * faithful to the original timeline, not an oversight.
  */
-export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
-  const trackOne = useRef<HTMLDivElement>(null);
-  const trackTwo = useRef<HTMLDivElement>(null);
-  const trackThree = useRef<HTMLDivElement>(null);
-  const outroRef = useRef<HTMLDivElement>(null);
+/** 1023.98px 이하 = 모바일·태블릿 세로 배치(대표 2026-10-09 최신 채택안). */
+const MOBILE_MAX_WIDTH = 1024;
 
+export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
   // Flips true when the loader curtain lifts — gates the section reveals.
   // The robot form (D-016): no loader, a still of the scene, the copy at rest.
   const robot = useRobot();
   const [introOpen, setIntroStarted] = useState(false);
   const introStarted = introOpen || robot;
+  const mobile = useWindowWidth() < MOBILE_MAX_WIDTH;
 
   const handleReady = useCallback(() => {
     startIntro();
@@ -163,6 +164,36 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
       },
       () => 0,
     );
+  }, []);
+
+  // 장면 캔버스·로더는 한 벌(경계를 넘어 크기가 바뀌어도 다시 만들지 않음). 문서(트랙·글·카드)만 데스크톱/모바일로 나뉜다.
+  return (
+    <>
+      {robot ? <SceneStill /> : <SceneHostLazy />}
+      {!robot && <Loader copy={loader} onReady={handleReady} />}
+      {mobile ? (
+        <MobileStage faq={faq} footer={footer} introStarted={introStarted} />
+      ) : (
+        <DesktopStage faq={faq} footer={footer} introStarted={introStarted} />
+      )}
+    </>
+  );
+};
+
+/** 데스크톱(≥1024px): 원본 Vesper 의 스크롤 문서 그대로 — 트랙 셋 + 고정 겹 그림 + 닫는 블록. */
+const DesktopStage = ({ faq, footer, introStarted }: { faq: FaqCopy; footer: FooterCopy; introStarted: boolean }) => {
+  const trackOne = useRef<HTMLDivElement>(null);
+  const trackTwo = useRef<HTMLDivElement>(null);
+  const trackThree = useRef<HTMLDivElement>(null);
+  const outroRef = useRef<HTMLDivElement>(null);
+  const robot = useRobot();
+
+  // 모바일 → 데스크톱으로 넘어온 뒤 모바일 구간이 올려 둔 track 값이 남지 않게(같은 시계를 공유).
+  useEffect(() => {
+    return () => {
+      for (let index = 0; index < 4; index += 1) sceneTimeline.setTrack(index, 0);
+      setOutro(0);
+    };
   }, []);
 
   const setTrack = useCallback(
@@ -213,10 +244,7 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
 
   return (
     <>
-      {robot ? <SceneStill /> : <SceneHostLazy />}
-      {!robot && <Loader copy={loader} onReady={handleReady} />}
-
-      <main className="relative">
+      <main id="top" className="relative">
         {/* 2026-10-09 대표: Einstein–Rosen 격자는 첫 화면의 배경 효과(구슬 장면 위 · 글 아래). */}
         {!robot && <HeroLattice />}
         <Hero introStarted={introStarted} />
