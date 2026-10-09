@@ -8,9 +8,8 @@ import { Inview } from "@vesper/components/common/robot-inview";
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 import { hiddenWhenClear, smoothstep, useSceneClock } from "./overlay";
-import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "./reveal";
-import { LineBlur, wordCount } from "./line-blur";
-import { SendRequest } from "./send-request";
+import { LETTER_FADE, UNIT_REVEAL } from "./reveal";
+import { LineBlur } from "./line-blur";
 
 /**
  * Third-section overlay — the Figma "convergence" screen over the brain. A fixed
@@ -28,12 +27,10 @@ import { SendRequest } from "./send-request";
  * about anyway.
  */
 
-// 2026-10-09 대표 「최신 채택안」: 정정·선택(승인 이야기 제목 + 이용 안내 짧은 줄).
-const TITLE_LEFT = HOME_V2.brainLeft.join(" ");
-const TITLE_RIGHT = HOME_V2.brainRight.join(" ");
-const TAGLINE_LEFT =
-  HOME_V2.brainLeftLine;
-const TAGLINE_RIGHT = HOME_V2.brainRightLine;
+// 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 4 영상 페이지 ① 이야기: 제목 하나 + 설명 두 줄(이용 안내 승인 문장).
+const PAGE = HOME_V2.pages[0];
+const TITLE_LEFT = PAGE.title;
+const LINES = PAGE.lines;
 
 export const SectionBrain = () => {
   const clock = useSceneClock();
@@ -76,64 +73,9 @@ export const SectionBrain = () => {
           immediateOut={false}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2rem]"
+          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
         >
           {TITLE_LEFT}
-        </TextEngine>
-      </LineBlur>
-
-      <LineBlur
-        active={active}
-        unit="word"
-        letters={wordCount(TAGLINE_LEFT)}
-        delay={200}
-      >
-        <TextEngine
-          tag="p"
-          mode="always"
-          enabled={active}
-          immediateOut={false}
-          delayIn={200}
-          {...WORD_FADE}
-          style={{ position: "absolute" }}
-          className="absolute top-[calc(50%+2.361vw)] left-[1.667vw] w-[26.597vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
-        >
-          {TAGLINE_LEFT}
-        </TextEngine>
-      </LineBlur>
-
-      <LineBlur
-        active={active}
-        unit="word"
-        letters={wordCount(TAGLINE_RIGHT)}
-        delay={260}
-      >
-        <TextEngine
-          tag="p"
-          mode="always"
-          enabled={active}
-          immediateOut={false}
-          delayIn={260}
-          {...WORD_FADE}
-          style={{ position: "absolute" }}
-          className="absolute top-[calc(50%+2.361vw)] right-[1.667vw] w-[14.583vw] justify-end text-right font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[0.8125rem] max-sm:text-[0.75rem]"
-        >
-          {TAGLINE_RIGHT}
-        </TextEngine>
-      </LineBlur>
-
-      <LineBlur active={active} letters={TITLE_RIGHT.length} delay={120}>
-        <TextEngine
-          tag="p"
-          mode="always"
-          enabled={active}
-          immediateOut={false}
-          delayIn={120}
-          {...LETTER_FADE}
-          style={{ position: "absolute" }}
-          className="absolute right-[1.667vw] bottom-[1.667vw] w-[40.972vw] justify-end text-right font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:justify-start max-lg:text-left max-lg:text-[2.75rem] max-sm:text-[2rem]"
-        >
-          {TITLE_RIGHT}
         </TextEngine>
       </LineBlur>
 
@@ -141,11 +83,13 @@ export const SectionBrain = () => {
         mode="always"
         enabled={active}
         immediateOut={false}
-        delayIn={500}
+        delayIn={200}
         {...UNIT_REVEAL}
-        className="pointer-events-auto absolute bottom-[1.667vw] left-[1.667vw] max-lg:static max-lg:mt-[0.75rem]"
+        className="absolute top-[calc(50%+2.361vw)] left-[1.667vw] flex w-[26.597vw] flex-col gap-[0.4vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:static max-lg:w-full max-lg:text-[1rem]"
       >
-        <SendRequest />
+        {LINES.map((line) => (
+          <p key={line} className="m-0">{line}</p>
+        ))}
       </Inview>
     </animated.div>
   );

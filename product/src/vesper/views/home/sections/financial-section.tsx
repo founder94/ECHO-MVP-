@@ -24,13 +24,13 @@ import {
  * Desktop measurements are the Figma pixels in `vw` (÷14.4).
  */
 
-const BODY_ONE =
-  HOME_V2.howLead;
-const BODY_TWO =
-  HOME_V2.choiceShort;
+// 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 4 영상 페이지 ② 확인·정정: 제목 하나 + 설명 두 줄.
+const PAGE = HOME_V2.pages[1];
+const BODY_ONE = PAGE.lines[0];
+const BODY_TWO = PAGE.lines[1];
 
 // 2026-10-09 대표 「최신 채택안」: 「어떻게 만나나요?」(이용 안내 승인 문장). 사진 칸은 승인 브랜드 그림(이야기 09) — 실제 ECHO 화면은 자료 미확보.
-const TITLE = HOME_V2.howTitle;
+const TITLE = PAGE.title;
 
 export const FinancialSection = () => {
   return (

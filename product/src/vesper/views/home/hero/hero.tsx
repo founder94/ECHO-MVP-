@@ -1,17 +1,14 @@
 "use client";
 
 import { animated } from "@react-spring/web";
-import { Fragment, useMemo } from "react";
+import { useMemo } from "react";
 import { HeroText as TextEngine } from "./hero-text";
 
 import { Inview } from "@vesper/components/common/robot-inview";
 import { hiddenWhenClear, useSceneClock } from "../overlay";
 import { LETTER_FADE, UNIT_REVEAL_FIRST_SCREEN, WORD_REVEAL } from "../reveal";
 import { LineBlur } from "../line-blur";
-import { SendRequest } from "../send-request";
-import { PressableLink } from "@vesper/components/ui/pressable";
-import { GHOST } from "@vesper/lib/springs/interaction";
-import { HOME_V2, HOW_PATH } from "@/pages/do-it/brand-home/copy";
+import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 
 /**
  * Hero overlay — the Figma "Motion instead of chrome" screen.
@@ -35,10 +32,11 @@ import { HOME_V2, HOW_PATH } from "@/pages/do-it/brand-home/copy";
  */
 
 // 2026-10-09 대표 「최신 채택안」: 원본 글 칸에 ECHO 문구(제목 · 선택권 안내 · 서비스 설명 · 꼬리표 · 주요/보조 버튼). 한글 행간 제목 1.15 · 본문 1.55.
+// 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 1·3: 첫 화면은 로고(머리글)·제목·작은 스크롤 안내만. 긴 설명·큰 시작 버튼 0.
+// 입자 구체 한 줄은 장면이 안정된 뒤(인트로 2.9초 뒤)에 왼쪽 아래 — 구체 중심을 가리지 않는다.
 const TITLE = HOME_V2.heroTitle;
-const TAGLINE = HOME_V2.heroChoice;
-const SUPPORT = HOME_V2.heroDesc;
-const TAGS = HOME_V2.tags;
+const SPHERE_LINE = HOME_V2.sphereLine;
+const SCROLL_HINT = HOME_V2.scrollHint;
 
 export interface HeroProps {
   /** Flips true once the loader curtain lifts — gates the reveal. */
@@ -75,66 +73,28 @@ export const Hero = ({ introStarted }: HeroProps) => {
         </TextEngine>
       </LineBlur>
 
-      {/* Bottom cluster — children at their exact Figma offsets on desktop, a
-          simple stack below 1024. */}
-      <div className="absolute right-[1.667vw] bottom-[2.153vw] left-[1.667vw] h-[14.514vw] max-lg:!static max-lg:flex max-lg:h-auto max-lg:flex-col max-lg:gap-[1.25rem]">
+      {/* Bottom cluster — 구체 한 줄(왼쪽 아래 · 안정된 뒤) + 작은 스크롤 안내(가운데 아래). */}
+      <div className="absolute right-[1.667vw] bottom-[2.153vw] left-[1.667vw] h-[6vw] max-lg:!static max-lg:flex max-lg:h-auto max-lg:flex-col max-lg:gap-[1rem]">
         <TextEngine
           tag="p"
           mode="once"
           enabled={introStarted}
-          delayIn={500}
+          delayIn={3200}
           {...WORD_REVEAL}
           style={{ position: "absolute" }}
-          className="absolute top-0 left-0 w-[27.5vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
+          className="absolute bottom-0 left-0 w-[27.5vw] font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[1rem]"
         >
-          {TAGLINE}
+          {SPHERE_LINE}
         </TextEngine>
-
-        <TextEngine
-          tag="p"
-          mode="once"
-          enabled={introStarted}
-          delayIn={560}
-          {...WORD_REVEAL}
-          style={{ position: "absolute" }}
-          className="absolute top-0 right-0 w-[19.348vw] text-left font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
-        >
-          {SUPPORT}
-        </TextEngine>
-
         <Inview
           mode="once"
           enabled={introStarted}
-          delayIn={700}
+          delayIn={1400}
           {...UNIT_REVEAL_FIRST_SCREEN}
-          className="absolute top-[13.194vw] left-0 flex items-center gap-[1.667vw] font-tag text-[1.111vw] leading-[1.2] whitespace-nowrap uppercase max-lg:static max-lg:flex-wrap max-lg:gap-[0.75rem] max-lg:text-[0.75rem] max-lg:whitespace-normal"
+          className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-[0.556vw] font-tag text-[0.833vw] leading-[1.2] text-white/70 max-lg:static max-lg:translate-x-0 max-lg:text-[0.8125rem]"
         >
-          {TAGS.map((tag, index) => (
-            <Fragment key={index}>
-              {index > 0 && (
-                <span className="size-[0.208vw] shrink-0 bg-white max-lg:size-[0.1875rem]" />
-              )}
-              <span>{tag}</span>
-            </Fragment>
-          ))}
-        </Inview>
-
-        <Inview
-          mode="once"
-          enabled={introStarted}
-          delayIn={820}
-          {...UNIT_REVEAL_FIRST_SCREEN}
-          className="pointer-events-auto absolute top-[10.972vw] right-0 flex items-center gap-[0.833vw] max-lg:static"
-        >
-          <SendRequest />
-          {/* 보조 버튼 — 바로 아래 이용 방법(#how)으로. */}
-          <PressableLink
-            href={HOW_PATH}
-            interaction={GHOST}
-            className="flex h-[3.542vw] items-center border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] font-normal whitespace-nowrap"
-          >
-            {HOME_V2.how}
-          </PressableLink>
+          <span>{SCROLL_HINT}</span>
+          <span aria-hidden className="vesper-scroll-hint block h-[1.111vw] w-px bg-white/70 max-lg:h-[1rem]" />
         </Inview>
       </div>
     </animated.div>

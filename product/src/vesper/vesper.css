@@ -48,4 +48,8 @@ html.vesper .vesper-soft { text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 0 14px rg
 html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(0.694vw + 3.542vw + 8px); }
 @media (max-width: 1023.98px) { html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(1rem + 3.5rem + 8px); } }
 html.vesper .vesper-veil { position: relative; }
+/* 첫 화면 작은 스크롤 안내 — 가는 세로선이 아래로 흐른다(움직임 줄이기면 정지). */
+@keyframes vesper-scroll-hint { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 50.01% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+html.vesper .vesper-scroll-hint { animation: vesper-scroll-hint 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { html.vesper .vesper-scroll-hint { animation: none; } }
 html.vesper .vesper-veil::before { content: ""; position: absolute; inset: -2.5rem -2rem; z-index: -1; pointer-events: none; background: rgb(0 0 0 / 0.38); -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); }

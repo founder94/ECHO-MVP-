@@ -42,7 +42,8 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(STAGE, /style=\{\{ height: toLvh\(1\) \}\}/, '데스크톱 트랙(200lvh) 숫자 그대로');
   // 모바일 문서
   const M = V('views/home/mobile-stage.tsx');
-  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<HydrateNear id="how">', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="choice">', '<HydrateNear id="faq">', '<HydrateNear id="contact">'].map((s) => M.indexOf(s));
+  // 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」: ① 첫 화면 → ② 연출(회전 카드 세 문장) → ③ 영상 페이지 셋(이야기 → 확인·정정 → 직접 선택) → ④ FAQ → ⑤ 바닥글.
+  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="how">', 'page={HOME_V2.pages[1]}', '<PageBlock id="choice" page={HOME_V2.pages[2]}', '<HydrateNear id="faq">', '<HydrateNear id="contact">'].map((s) => M.indexOf(s));
   mOrder.forEach((v, i) => assert.ok(v > 0, `mobile ${i}`)); assert.deepEqual([...mOrder].sort((a, b) => a - b), mOrder, '모바일 순서');
   assert.doesNotMatch(M, /toLvh|SectionBrain|SectionGalaxy|setOutro/, '모바일은 원본 200lvh 트랙·뇌 장면·고정 겹 그림을 쓰지 않음');
   assert.match(M, /sceneTimeline\.setTrack\(0, progress\);\n\s*sceneTimeline\.setTrack\(1, progress\);/, '③ 구간 하나가 장면 시계 0→2(구체 → 은하)');
@@ -50,7 +51,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(M, /text-\[clamp\(36px,9vw,52px\)\] leading-\[1\.15\] font-normal break-keep/, '모바일 제목 clamp(36px, 9vw, 52px) · 400(주아체 한 굵기) · 행간 1.15');
   assert.match(M, /text-\[16px\] leading-\[1\.55\] break-keep/, '모바일 본문 16px/1.55');
   assert.match(M, /px-6 max-\[360px\]:px-5/, '좌우 여백 24px · 360px 이하 20px');
-  assert.match(M, /min-h-\[48px\]/, '버튼 터치 영역 48px');
+  assert.doesNotMatch(M, /SendRequest|HOW_PATH/, '첫 화면에 큰 시작 버튼·보조 버튼 0(대표 최신 정정 1) — 시작 버튼은 마지막 화면(바닥글)에만');
   assert.match(SEND, /min-h-\[48px\]/, '주요 버튼 48px');
   assert.match(V('views/home/sections/financial-section.tsx'), /<section id="financial"/, '블록 자체는 #financial(자리표와 같은 id) — #how 는 항상 마운트된 바깥 틀(Codex 13차 P1)');
   assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로');
@@ -77,16 +78,16 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(read('src/router/config.tsx'), /\{ path: '\/do-it\/intro', element: <DoItIntroPage \/> \}/);
 });
 test('홈페이지 글(2026-10-09 대표 「최신 채택안」): 첫 화면 「당신이 잠든 사이」 · 설명 · 선택권 안내 · 「ECHO 시작하기」 · 「어떻게 만나나요?」 원문 그대로 · 설명·FAQ 는 이용 안내 승인 문장만 · 템플릿 숫자·Vesper 문구 0 · 한글 행간 1.15/1.55', () => {
-  for (const t of ["heroTitle: '당신이 잠든 사이'", "heroDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.'", "heroChoice: '관계의 시작은 서로가 선택합니다.'", "start: 'ECHO 시작하기'", "how: '어떻게 만나나요?'", "export const START_PATH = '/doit/start-journey';", "export const HOW_PATH = '#how';"]) assert.ok(COPY.includes(t), t);
+  for (const t of ["heroTitle: '당신이 잠든 사이'", "heroDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.'", "heroChoice: '관계의 시작은 서로가 선택합니다.'", "start: '모바일 시작하기'", "how: '어떻게 만나나요?'", "export const START_PATH = '/doit/start-journey';", "export const HOW_PATH = '#how';"]) assert.ok(COPY.includes(t), t);
   assert.match(COPY, /HOME_FAQ = \{[\s\S]*\(\['talk', 'check', 'choice', 'zzarit'\] as const\)/, 'FAQ = 이용 안내 승인 문장');
   assert.match(COPY, /howLead: guideSection\('start'\)\.body,\n\s*howSteps: guideSection\('start'\)\.points/, '이용 방법 = 이용 안내 「처음이라면」');
-  assert.match(HERO, /const TITLE = HOME_V2\.heroTitle;\nconst TAGLINE = HOME_V2\.heroChoice;\nconst SUPPORT = HOME_V2\.heroDesc;\nconst TAGS = HOME_V2\.tags;/, '데스크톱 원본 글 칸에 ECHO 문구');
+  assert.match(HERO, /const TITLE = HOME_V2\.heroTitle;\nconst SPHERE_LINE = HOME_V2\.sphereLine;\nconst SCROLL_HINT = HOME_V2\.scrollHint;/, '첫 화면 = 제목 + 구체 한 줄(안정된 뒤) + 작은 스크롤 안내(대표 최신 정정 1·3)');
+  assert.doesNotMatch(HERO, /heroDesc|TAGS|SendRequest|HOW_PATH/, '첫 화면에 긴 설명·꼬리표·큰 시작 버튼 0'); assert.match(HERO, /delayIn=\{3200\}[\s\S]*\{SPHERE_LINE\}/, '구체 한 줄은 인트로(2.9초) 뒤');
   assert.match(HERO, /leading-\[1\.15\] font-normal break-keep/, '한글 제목 행간 1.15'); assert.match(HERO, /leading-\[1\.55\] break-keep/, '한글 본문 행간 1.55');
-  assert.match(HERO, /href=\{HOW_PATH\}[\s\S]*\{HOME_V2\.how\}/, '보조 버튼 → #how');
-  assert.match(GALAXY, /\{ value: "01", label: HOME_V2\.steps\[0\]/, '은하 네 칸 = 이용 안내 항목(91k 등 템플릿 숫자 0)');
-  assert.match(V('views/home/section-brain.tsx'), /const TITLE_LEFT = HOME_V2\.brainLeft\.join\(" "\);/);
+  assert.match(GALAXY, /const CARDS = HOME_V2\.cards;/, '회전 카드 세 문장(대표 최신 정정 2)'); assert.doesNotMatch(GALAXY, /agentTitle|agentBody|HOME_V2\.steps/, '은하 장면에 제목·긴 설명·이용 순서 0');
+  const brain = V('views/home/section-brain.tsx'); assert.match(brain, /const PAGE = HOME_V2\.pages\[0\];/, '영상 페이지 ① 이야기 = 뇌 장면'); assert.doesNotMatch(brain, /SendRequest|brainRight|TITLE_RIGHT/, '뇌 장면에 둘째 제목·버튼 0');
   const fin = V('views/home/sections/financial-section.tsx');
-  assert.match(fin, /const TITLE = HOME_V2\.howTitle;/); assert.match(fin, /src="\/brand\/stories\/story-09\.webp"/, '사진 칸 = 승인 브랜드 그림(실제 ECHO 화면은 자료 미확보)');
+  assert.match(fin, /const PAGE = HOME_V2\.pages\[1\];/, '영상 페이지 ② 확인·정정'); assert.match(fin, /src="\/brand\/stories\/story-09\.webp"/, '사진 칸 = 승인 브랜드 그림(실제 ECHO 화면은 자료 미확보)');
   for (const [n, s] of [['header', HEADER], ['mobile-nav', MNAV], ['send-request', SEND]]) { assert.match(s, /href=\{appUrl\(START_PATH\)\}/, `${n} 시작 주소`); assert.match(s, /\{HOME_V2\.start\}/, `${n} 시작 글자`); }
   assert.match(HEADER, /const NAV = HOME_V2\.nav;/);
   assert.match(FOOT, /const TITLE = HOME_V2\.footerTitle;/); assert.doesNotMatch(FOOT, /<form|<input/, '보내지 않는 연락 폼 0 → 마지막 시작 버튼 + 이용 안내');
@@ -168,7 +169,7 @@ test('홈페이지 CTA: 주요 버튼 = 확인된 시작 경로(앱 주소 + /do
   assert.match(STAGE, /<main id="top"/); assert.match(V('views/home/mobile-stage.tsx'), /<main id="top"/);
 });
 test('홈페이지 첫 화면·로더: 원본 Vesper 자리 그대로(글만 ECHO) · 로고 DO IT · 로더 글 ECHO', () => {
-  assert.match(HERO, /<SendRequest \/>/, '첫 화면 CTA = 원본 자리');
+  assert.doesNotMatch(HERO, /<SendRequest \/>/, '첫 화면 CTA 0(대표 최신 정정 1) — 바닥글 「모바일 시작하기」');
   assert.match(MOCK, /initializing: "ECHO 를 깨우는 중",\n\s*loading: "장면 불러오는 중",/);
   for (const s of [HEADER, MNAV, FOOT]) assert.match(s, /src="\/brand\/doit-wordmark\.webp"/, '로고 = DO IT');
   assert.doesNotMatch(HEADER + MNAV + FOOT, /\/assets\/hero\/logo\.svg/, 'Vesper 로고 0');
@@ -312,8 +313,8 @@ test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebG
   assert.match(faq, /interaction=\{LIGHT_ROW\}/); assert.match(faq, /border-b border-white\/20/); assert.match(faq, /asterisk-light\.svg/);
   assert.match(faq, /vesper-soft vesper-veil relative flex w-full origin-bottom flex-col items-center border-t border-white\/15/);
   assert.match(mob, /const CARD_FACE = "vesper-soft vesper-veil relative flex w-full origin-bottom flex-col gap-4 border-t border-white\/15 pt-6 text-white";/);
-  assert.match(mob, /splitSentences\(HOME_V2\.choiceBody\)\.map/, '서로가 선택합니다: 승인 문장을 문장 단위로만 나눔(글자 변경 0)');
-  assert.match(V('views/home/sentences.ts'), /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
+  assert.match(V('views/home/sections/choice-section.tsx'), /const PAGE = HOME_V2\.pages\[2\];[\s\S]*vesper-soft vesper-veil/, '영상 페이지 ③ 직접 선택(투명)');
+  assert.match(mob, /\{page\.lines\.map\(\(line\) => \(/, '영상 페이지: 제목 + 설명 줄(이용 안내 승인 문장 그대로)');
   assert.match(send, /usePressable\(GHOST\)/); assert.match(send, /send-icon-light\.svg/); assert.match(send, /min-h-\[48px\]/, '44px 이상 터치');
   const icon = read('public/vesper/assets/hero/send-icon-light.svg');
   assert.doesNotMatch(icon, /<rect/, '아이콘 흰 배경 도형 0'); assert.match(icon, /#fdfdfd/);
@@ -323,8 +324,8 @@ test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebG
   assert.doesNotMatch(V('vesper.css'), /backdrop-filter/, '유리 블러 0');
   assert.match(read('src/pages/NotFound.tsx'), /font-body">\{location\.pathname\}/, '404 안내도 주아체');
   const stage = V('views/home/scroll-stage.tsx');
-  assert.match(stage, /id="how"[\s\S]*HydrateNear id="financial"[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서 그대로(어떻게 → FAQ → Solaris → Onyx → 바닥글)');
-  assert.match(mob, /<HeroMobile[\s\S]*<HowCard[\s\S]*<AgentScene[\s\S]*<ChoiceCard[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 ①~⑤ 순서 그대로');
+  assert.match(stage, /id="how"[\s\S]*HydrateNear id="financial"[\s\S]*<div id="choice" className="mb-\[1\.667vw\]">\n\s*<ChoiceSection \/>[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서(확인·정정 → 직접 선택 → FAQ → Solaris → Onyx → 바닥글)');
+  assert.match(mob, /<HeroMobile[\s\S]*<AgentScene[\s\S]*<PageBlock page=\{HOME_V2\.pages\[0\]\}[\s\S]*<PageBlock page=\{HOME_V2\.pages\[1\]\}[\s\S]*<PageBlock id="choice" page=\{HOME_V2\.pages\[2\]\}[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 순서(최신 정정)');
 });
 
 test('Codex 13·14차(PR #151): #how 틀 항상 마운트 · Onyx touchmove 차단 0 · 격자 누름 필터 · Onyx 메뉴 위 포인터 중립 · 버린 문의 대기 콜백 취소', () => {
@@ -365,4 +366,18 @@ test('Codex 15차(9138d3b): 격자 누름 = 지금 진행률로 판단(L06) · �
   assert.match(V('views/home/hero/hero-lattice.tsx'), /if \(heroOpacity\(sceneTimeline\.getProgress\(\)\) <= 0\.01 \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/);
   for (const f of ['src/doit/components/feature/echo-ui.css', 'src/doit/components/feature/mobile-polish.css', 'src/doit/components/feature/visual-parity.css', 'src/components/guide/guide.css', 'src/components/app-corner-menu.css', 'src/components/app-back-button.css']) assert.doesNotMatch(read(f).replace(/\/\*[\s\S]*?\*\//g, ''), /font-weight: ?[5-9]00/, `${f}: 500~900 요청 0`);
   assert.match(read('src/components/DoItIntroFrame.ts'), /fontFamily: '"Jua", "Pretendard"/);
+});
+
+test('대표 「홈페이지 수정사항 — 최신 정정」(2026-10-09): 장면마다 글 분배 — 1 첫 화면 최소 · 2 회전 카드 세 문장 · 3 구체 한 줄 · 4 영상 페이지 셋(제목 + 한두 줄 · 승인 문장 그대로) · 5 비행·전환 무글 · 6 마지막 JUST TRY. + 짧은 설명 + 「모바일 시작하기」', () => {
+  assert.match(COPY, /cards: \['내 이야기는, 내 말로\.', '내 생각과 맞는지 확인해요\.', '서로가 선택합니다\.'\] as const,/, '회전 카드 원문 그대로');
+  assert.match(COPY, /sphereLine: '관계의 시작은 서로가 선택합니다\.'/); assert.match(COPY, /scrollHint: '아래로 스크롤'/);
+  assert.match(COPY, /\{ id: 'talk', title: '내 이야기는, 내 말로\.'[\s\S]*\{ id: 'check', title: '내 생각과 맞는지 확인해요\.'[\s\S]*\{ id: 'choice', title: '서로가 선택합니다\.'/, '페이지 순서 이야기 → 확인·정정 → 직접 선택');
+  // 설명 줄은 이용 안내 승인 문장 그대로(글자 변경 0)
+  const guide = read('src/lib/guide/content.ts');
+  for (const line of ['떠오르는 대로 편하게 적어주세요.', '한 번에 질문 하나만 드려요.', '대화를 마치면 ECHO가 이해한 내용을 보여 드려요.', '고친 내용은 다음 질문에 반영되고, 틀린 해석은 다시 쓰지 않아요.', '추천을 받아도 바로 연결되지 않아요.', '두 분 모두 선택해야 열려요.']) assert.ok(guide.includes(line), `승인 문장: ${line}`);
+  assert.match(COPY, /footerDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추\.'/); assert.match(COPY, /start: '모바일 시작하기'/);
+  assert.match(FOOT, /\{HOME_V2\.footerDesc\}[\s\S]*<SendRequest \/>/, '마지막 화면: JUST TRY. + 짧은 설명 + 모바일 시작하기');
+  assert.match(SEND, /href=\{appUrl\(START_PATH\)\}/, '기존 ECHO 진입 주소 그대로');
+  for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/sections/onyx-section.tsx']) assert.doesNotMatch(V(f), /HOME_V2/, `${f}: 비행·전환 구간 추가 문구 0`);
+  assert.match(V('vesper.css'), /html\.vesper \.vesper-scroll-hint \{ animation: vesper-scroll-hint 1\.8s ease-in-out infinite; \}/); assert.match(V('vesper.css'), /prefers-reduced-motion: reduce\) \{ html\.vesper \.vesper-scroll-hint \{ animation: none; \}/);
 });

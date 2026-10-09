@@ -2,13 +2,12 @@
 
 import { animated } from "@react-spring/web";
 import { useEffect, useMemo, useState } from "react";
-import { HeroText as TextEngine } from "./hero/hero-text";
 
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { HOME_V2 } from "@/pages/do-it/brand-home/copy";
 import { hiddenWhenClear, smoothstep, useSceneClock } from "./overlay";
-import { LETTER_FADE, WORD_FADE } from "./reveal";
-import { LineBlur, wordCount } from "./line-blur";
+import { UNIT_REVEAL } from "./reveal";
+import { Inview } from "@vesper/components/common/robot-inview";
 
 /**
  * Second-section overlay — the Figma "Reads presence, in motion" screen over the
@@ -23,20 +22,10 @@ import { LineBlur, wordCount } from "./line-blur";
  * a single column on phones, with the copy stacked above it.
  */
 
-// 2026-10-09 대표 「최신 채택안」: ECHO Agent 소개(승인 이야기 제목 + 이용 안내 문장) · 네 칸 = 이용 안내 네 항목(템플릿 숫자 0).
-const TITLE = HOME_V2.agentTitle.join(" ");
-const SUPPORT = HOME_V2.agentBody;
-
-/** `value` / `label` / `left` (Figma x ÷14.4 — the desktop offset only). */
-const STATS = [
-  { value: "01", label: HOME_V2.steps[0], left: "6.944vw" },
-  { value: "02", label: HOME_V2.steps[1], left: "31.944vw" },
-  { value: "03", label: HOME_V2.steps[2], left: "56.944vw" },
-  { value: "04", label: HOME_V2.steps[3], left: "81.944vw" },
-];
-
-/** Column dividers between the stats (Figma x ÷14.4 — desktop only). */
-const DIVIDERS = ["25vw", "50vw", "75vw"];
+// 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 2 회전 카드: 카드마다 짧은 문장 하나(제목·긴 설명 0). 은하 장면의 세 칸이 그 카드다.
+const CARDS = HOME_V2.cards;
+/** 세 칸의 데스크톱 x(원본 네 칸 간격을 셋으로 — 1440 기준 ÷14.4). */
+const CARD_LEFT = ["6.944vw", "41.5vw", "76vw"];
 
 export const SectionGalaxy = () => {
   const clock = useSceneClock();
@@ -71,70 +60,24 @@ export const SectionGalaxy = () => {
       className="pointer-events-none fixed inset-0 z-10 text-white max-lg:flex max-lg:flex-col max-lg:justify-between max-lg:px-[1.5rem] max-lg:pt-[6.5rem] max-lg:pb-[2rem] max-sm:px-[1.25rem] max-sm:pt-[5.5rem]"
       style={{ opacity, visibility }}
     >
-      <LineBlur active={active} letters={TITLE.length}>
-        <TextEngine
-          tag="h2"
-          mode="always"
-          enabled={active}
-          immediateOut={false}
-          {...LETTER_FADE}
-          style={{ position: "absolute" }}
-          className="absolute top-[7.014vw] left-1/2 w-[46.319vw] -translate-x-1/2 justify-center text-center font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
-        >
-          {TITLE}
-        </TextEngine>
-      </LineBlur>
-
-      {/* Bottom cluster — support copy, dividers, stat band. */}
+      {/* Bottom cluster — 가로 줄 + 세 카드(문장 하나씩). */}
       <div className="absolute inset-x-0 bottom-0 h-[16.181vw] max-lg:!static max-lg:flex max-lg:h-auto max-lg:flex-col max-lg:gap-[1.5rem]">
-        <LineBlur
-          active={active}
-          unit="word"
-          letters={wordCount(SUPPORT)}
-          delay={200}
-        >
-          <TextEngine
-            tag="p"
-            mode="always"
-            enabled={active}
-            immediateOut={false}
-            delayIn={200}
-            {...WORD_FADE}
-            style={{ position: "absolute" }}
-            className="absolute top-0 left-1/2 w-[29.097vw] -translate-x-1/2 justify-center text-center font-general text-[1.111vw] leading-[1.55] break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:justify-start max-lg:text-left max-lg:text-[0.9375rem] max-sm:text-[0.8125rem]"
-          >
-            {SUPPORT}
-          </TextEngine>
-        </LineBlur>
-
-        {/* The rule across the top of the stat band, and the columns between the
-            stats. Both are pure desktop chrome — the grid below carries its own
-            divider. */}
         <div className="absolute inset-x-0 top-[4.792vw] border-t border-white/20 max-lg:hidden" />
-        {DIVIDERS.map((left) => (
-          <div
-            key={left}
-            className="absolute top-[4.792vw] h-[11.389vw] border-l border-white/20 max-lg:hidden"
-            style={{ left }}
-          />
-        ))}
-
-        {/* `contents` on desktop, so the stats stay direct children of the
-            cluster they are absolutely placed in; a real grid below 1024. */}
-        <div className="contents max-lg:grid max-lg:grid-cols-2 max-lg:gap-x-[1.25rem] max-lg:gap-y-[1rem] max-lg:border-t max-lg:border-white/20 max-lg:pt-[1.25rem] max-sm:grid-cols-1 max-sm:gap-y-[0.625rem]">
-          {STATS.map((stat) => (
-            <div
-              key={stat.label}
-              className="absolute top-[8.333vw] flex w-[17vw] flex-col items-start gap-[0.833vw] border-l border-white/80 pl-[1.111vw] max-lg:static max-lg:w-auto max-lg:gap-[0.25rem] max-lg:pl-[0.625rem] max-sm:flex-row max-sm:items-baseline max-sm:gap-[0.5rem]"
-              style={{ left: stat.left }}
+        <div className="contents max-lg:flex max-lg:flex-col max-lg:gap-y-[1rem] max-lg:border-t max-lg:border-white/20 max-lg:pt-[1.25rem]">
+          {CARDS.map((line, index) => (
+            <Inview
+              key={line}
+              mode="always"
+              enabled={active}
+              immediateOut={false}
+              delayIn={200 + index * 120}
+              {...UNIT_REVEAL}
+              className="absolute top-[8.333vw] flex w-[17vw] flex-col items-start gap-[0.833vw] border-l border-white/80 pl-[1.111vw] max-lg:static max-lg:w-auto max-lg:gap-[0.25rem] max-lg:pl-[0.625rem]"
+              style={{ left: CARD_LEFT[index] }}
             >
-              <span className="font-tag text-[2.222vw] leading-none font-normal max-lg:text-[1.5rem] max-sm:text-[1.25rem]">
-                {stat.value}
-              </span>
-              <span className="font-general text-[1.111vw] leading-[1.2] font-normal break-keep max-lg:text-[0.75rem] max-lg:text-white/70">
-                {stat.label}
-              </span>
-            </div>
+              <span className="font-tag text-[1.111vw] leading-none text-white/60 max-lg:text-[0.75rem]">{String(index + 1).padStart(2, "0")}</span>
+              <span className="font-general text-[1.944vw] leading-[1.3] break-keep max-lg:text-[1.375rem]">{line}</span>
+            </Inview>
           ))}
         </div>
       </div>

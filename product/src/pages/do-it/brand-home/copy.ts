@@ -48,7 +48,8 @@ export const HOME_V2 = {
   heroTitle: '당신이 잠든 사이',
   heroDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.',
   heroChoice: '관계의 시작은 서로가 선택합니다.',
-  start: 'ECHO 시작하기',
+  // 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」: 마지막 화면 버튼 = 「모바일 시작하기」(기존 ECHO 진입 주소 그대로).
+  start: '모바일 시작하기',
   how: '어떻게 만나나요?',
   faq: '자주 묻는 질문',
   tags: ['[ ECHO ]', '[ ONLINE SERENDIPITY ]', '[ JUST TRY. ]'],
@@ -79,6 +80,20 @@ export const HOME_V2 = {
   brainLeftLine: guideSection('check').hint ?? '',
   brainRightLine: STORIES[8].body[1],
   footerTitle: 'JUST TRY.',
+  // 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」: 글을 장면마다 나눈다(뒤쪽에 몰아넣지 않음).
+  // 1 첫 화면 = 로고 · 「당신이 잠든 사이」 · 작은 스크롤 안내만. 3 입자 구체 = 한 줄(장면이 안정된 뒤 · 구체 중심 밖).
+  scrollHint: '아래로 스크롤',
+  sphereLine: '관계의 시작은 서로가 선택합니다.',
+  // 2 회전 카드 = 카드마다 짧은 문장 하나(대표 지정 원문).
+  cards: ['내 이야기는, 내 말로.', '내 생각과 맞는지 확인해요.', '서로가 선택합니다.'] as const,
+  // 4 영상 페이지 = 페이지마다 제목 하나 + 설명 한두 줄(이야기 → 확인·정정 → 직접 선택). 설명 줄은 이용 안내 승인 문장 그대로.
+  pages: [
+    { id: 'talk', title: '내 이야기는, 내 말로.', lines: ['떠오르는 대로 편하게 적어주세요.', '한 번에 질문 하나만 드려요.'] },
+    { id: 'check', title: '내 생각과 맞는지 확인해요.', lines: ['대화를 마치면 ECHO가 이해한 내용을 보여 드려요.', '고친 내용은 다음 질문에 반영되고, 틀린 해석은 다시 쓰지 않아요.'] },
+    { id: 'choice', title: '서로가 선택합니다.', lines: ['추천을 받아도 바로 연결되지 않아요.', '두 분 모두 선택해야 열려요.'] },
+  ] as const,
+  // 6 마지막 화면 = JUST TRY. + 짧은 서비스 설명 + 「모바일 시작하기」.
+  footerDesc: 'ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.',
   guide: '이용 안내',
   install: '웹 설치하기',
 } as const;

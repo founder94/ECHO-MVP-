@@ -25,6 +25,7 @@ import { Hero } from "./hero/hero";
 import { HeroLattice } from "./hero/hero-lattice";
 import { SectionBrain } from "./section-brain";
 import { SectionGalaxy } from "./section-galaxy";
+import { ChoiceSection } from "./sections/choice-section";
 import { FaqSection } from "./sections/faq-section";
 import { FinancialSection } from "./sections/financial-section";
 import { SiteFooter } from "./sections/site-footer";
@@ -90,6 +91,10 @@ const ClosingBlocks = memo(function ClosingBlocks({
             <FinancialSection />
           </HydrateNear>
         </Suspense>
+      </div>
+      {/* 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 4 영상 페이지 ③ 직접 선택(제목 + 두 줄) — 이용 순서를 한 페이지에 쌓지 않는다. */}
+      <div id="choice" className="mb-[1.667vw]">
+        <ChoiceSection />
       </div>
       <Suspense fallback={null}>
         <HydrateNear id="faq">

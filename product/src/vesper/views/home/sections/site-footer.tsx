@@ -63,6 +63,8 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
         className="mx-auto mt-[2.917vw] w-[38.264vw] max-lg:mt-[2rem] max-lg:w-full max-lg:max-w-[30rem]"
       >
         <div className="flex w-full flex-col items-center gap-[1.111vw] max-lg:gap-[1rem]">
+          {/* 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」 6: JUST TRY. + 짧은 서비스 설명 + 「모바일 시작하기」(기존 ECHO 진입 주소). */}
+          <p className="m-0 mb-[0.5vw] text-center font-general text-[1.111vw] leading-[1.55] break-keep text-white/85 max-lg:mb-[0.25rem] max-lg:text-[1rem]">{HOME_V2.footerDesc}</p>
           <SendRequest />
           <PressableButton
             type="button"
