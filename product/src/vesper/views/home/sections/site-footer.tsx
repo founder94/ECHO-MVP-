@@ -34,7 +34,8 @@ const TITLE = "Let's talk.";
 export const SiteFooter = ({ copy }: SiteFooterProps) => {
   return (
     <footer
-      id="site-footer"
+      // Codex 9차(42a44ba · P1): 머리띠·메뉴·Send Request 의 /#contact 가 닿는 곳(원본은 site-footer 라 어디에도 닿지 않았음).
+      id="contact"
       className="w-full pt-[4.444vw] text-white max-lg:px-[1.5rem] max-lg:pt-[4rem] max-sm:px-[1.25rem]"
     >
       <FollowLineBlur letters={TITLE.length}>
@@ -156,7 +157,7 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
         </nav>
       </div>
       {/* 사업자 정보 · 법적 고지 */}
-      <div className="mx-auto w-[96.667vw] border-t border-white/15 pt-[1.389vw] pb-[2.222vw] font-general text-[0.833vw] leading-[1.6] text-white/70 max-lg:w-full max-lg:pt-[1rem] max-lg:pb-[2rem] max-lg:text-[0.8125rem]">
+      <div lang="ko" className="mx-auto w-[96.667vw] border-t border-white/15 pt-[1.389vw] pb-[2.222vw] font-general text-[0.833vw] leading-[1.6] text-white/70 max-lg:w-full max-lg:pt-[1rem] max-lg:pb-[2rem] max-lg:text-[0.8125rem]">
         <p className="m-0">{LEGAL.company} · {LEGAL.registration}</p>
         <p className="m-0">{LEGAL.address}</p>
         <p className="m-0">

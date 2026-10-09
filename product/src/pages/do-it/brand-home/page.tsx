@@ -17,9 +17,16 @@ export { BRAND_HOME_COPY, STORIES } from './copy';
 
 export default function BrandHomePage() {
   // 원본 globals.css 의 루트 글자 크기(vw 사다리)·바탕색은 홈페이지가 열려 있을 때만(html.vesper).
+  // Codex 10차: 지금 화면 글은 원본 영어 → 열려 있는 동안 lang="en"(법적 고지 줄은 lang="ko"). 글을 한글로 넣을 때 되돌린다.
   useEffect(() => {
-    document.documentElement.classList.add('vesper');
-    return () => document.documentElement.classList.remove('vesper');
+    const root = document.documentElement;
+    const prevLang = root.getAttribute('lang');
+    root.classList.add('vesper');
+    root.setAttribute('lang', 'en');
+    return () => {
+      root.classList.remove('vesper');
+      if (prevLang === null) root.removeAttribute('lang'); else root.setAttribute('lang', prevLang);
+    };
   }, []);
   return (
     <>

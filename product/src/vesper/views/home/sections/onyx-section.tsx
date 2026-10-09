@@ -152,9 +152,12 @@ export const OnyxSection = () => {
     let dragConstraint: CANNON.PointToPointConstraint | null = null;
     const dragPlane = new THREE.Plane();
     const _hit = new THREE.Vector3();
+    // Codex 8차(7fda8b7): 구간(section) 밖의 포인터 이동은 받지 않는다(잡고 있을 때만 예외) — 안 그러면 머리띠 위·반쯤 보일 때 엉뚱한 광선으로 반응.
     const setNDC = (e: PointerEvent) => {
       const r = host.getBoundingClientRect();
-      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (inside || grabbed) ndc.set(Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1)), Math.max(-1, Math.min(1, -((e.clientY - r.top) / r.height) * 2 + 1)));
+      return inside;
     };
     const onDown = (e: PointerEvent) => {
       setNDC(e); pointerInside = true;
@@ -176,7 +179,9 @@ export const OnyxSection = () => {
       try { canvas.setPointerCapture(e.pointerId); } catch { /* 지원 안 하는 브라우저 */ }
     };
     const onMove = (e: PointerEvent) => {
-      setNDC(e); pointerInside = true;
+      const inside = setNDC(e);
+      if (!inside && !grabbed) { pointerInside = false; return; }
+      pointerInside = true;
       if (grabbed && pointerBody) {
         raycaster.setFromCamera(ndc, camera);
         if (raycaster.ray.intersectPlane(dragPlane, _hit)) pointerBody.position.set(_hit.x, _hit.y, _hit.z);
@@ -189,6 +194,9 @@ export const OnyxSection = () => {
       if (e && e.pointerId != null) { try { canvas.releasePointerCapture(e.pointerId); } catch { /* 이미 풀림 */ } }
     };
     const onLeave = () => { pointerInside = false; };
+    // Codex 8차(7fda8b7 · P1): 휴대폰에서 세로 스크롤은 캔버스 위에서도 되어야 한다(touch-action: pan-y). 육면체를 잡은 동안만 막는다.
+    const onTouchMove = (e: TouchEvent) => { if (grabbed) e.preventDefault(); };
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
     canvas.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', endGrab);
@@ -279,7 +287,7 @@ export const OnyxSection = () => {
     return () => {
       cancelAnimationFrame(raf); io.disconnect();
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('touchmove', onTouchMove); window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', endGrab); window.removeEventListener('pointercancel', endGrab); canvas.removeEventListener('pointerleave', onLeave);
       for (const c of cubes) { scene.remove(c.mesh); c.mesh.geometry.dispose(); world.removeBody(c.body); }
       material.dispose(); shadowMat.dispose(); shadowFloor.geometry.dispose(); background.dispose(); envRT.dispose(); pmrem.dispose(); renderer.dispose();
@@ -288,7 +296,7 @@ export const OnyxSection = () => {
 
   return (
     <section ref={hostRef} id="onyx" aria-label="Onyx Cubes" className="relative h-lvh w-full overflow-hidden bg-[#eef0f3]">
-      <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full touch-none" />
+      <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full touch-pan-y" />
     </section>
   );
 };

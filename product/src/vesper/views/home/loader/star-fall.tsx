@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { ORB, ORB_CONFIG } from "@vesper/lib/scene/constants";
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 /** Fall direction, measured from straight down. */
 const ANGLE = -0.32; // radians, ~18° — streaks lean left as they fall
@@ -111,10 +112,15 @@ export const StarFall = ({ intensity }: StarFallProps) => {
 
     let last = performance.now();
 
+    // Codex 10차(39ca6cf): 움직임 줄이기·이용 안내 열림이면 한 장만 그리고 멈춤(WebGL 루프와 같은 규칙).
+    let stillDrawn = false;
     return subscribeToTicker(() => {
       const now = performance.now();
       const delta = Math.min((now - last) / 1000, 0.05);
       last = now;
+      const paused = pageMotionPaused();
+      if (paused && stillDrawn) return;
+      stillDrawn = paused;
 
       const boost = intensity();
       // Trails are drawn by fading rather than clearing, so each streak leaves a

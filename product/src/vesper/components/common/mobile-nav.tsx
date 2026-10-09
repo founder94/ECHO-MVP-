@@ -164,6 +164,19 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
     config: open ? SPRING_MENU_ITEM : SPRING_CURTAIN_EXIT,
   });
 
+  // Codex 6차(대표 댓글 6077064641 의 제안): CSS 가 lg 에서 메뉴를 숨기니 같은 경계에서 상태도 닫는다(열린 채 넓어지면 스크롤 잠금이 남던 문제).
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeForDesktop = () => {
+      if (!desktop.matches) return;
+      pending.current = null;
+      setOpen(false);
+    };
+    closeForDesktop();
+    desktop.addEventListener("change", closeForDesktop);
+    return () => desktop.removeEventListener("change", closeForDesktop);
+  }, []);
+
   // Scroll lock, focus in, Escape — while open.
   useEffect(() => {
     if (!open) return;
@@ -193,7 +206,12 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
     const target = pending.current;
     pending.current = null;
     if (!target) {
-      document.getElementById(TOGGLE_ID)?.focus({ preventScroll: true });
+      const toggle = document.getElementById(TOGGLE_ID);
+      if (toggle?.getClientRects().length) {
+        toggle.focus({ preventScroll: true });
+      } else if (panelRef.current?.contains(document.activeElement)) {
+        (document.activeElement as HTMLElement).blur();
+      }
       return;
     }
     // After the scroll layout has re-enabled scrolling (its effect commits

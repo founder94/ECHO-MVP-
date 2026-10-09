@@ -1020,3 +1020,13 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 순서: 첫 화면(구슬 + 격자) → 은하 → 뇌 → 흰 카드(뇌 퇴장) → FAQ 카드 → Solaris → Onyx → 바닥글(Let's talk. + 법적 고지).
 - 남긴 것: 로고 DO IT · 법적 고지 줄 · 휴대폰 뇌 장면 어두운 막 · Solaris 위아래 검정 녹임(대표 10/9 지적 반영분).
 - 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 11장씩 + 휴대폰 동영상 · pageerror 0.
+
+## 32. Codex 6~10차 지적 일괄 수정(2026-10-09 · PR #151)
+- 7차(f9d9613) P2 격자 누름: host 가 pointer-events-none 이라 닿지 않음 → window 에서 받고 배경이 보일 때만.
+- 8차(7fda8b7) P1 Onyx `touch-none` 이 휴대폰 세로 스크롤을 막음 → `touch-pan-y`, 육면체를 잡은 동안만 touchmove preventDefault. P2 구간 밖 포인터 이동 무시(잡고 있을 때만 예외).
+- 9차(42a44ba) P1 `/#contact` 대상 없음(원본 Vesper 도 footer id=site-footer 라 같은 버그) → footer id="contact"(HydrateNear 자리표 id 는 site-footer 그대로).
+- 10차(39ca6cf) P2 별 줄기(StarFall) 움직임 줄이기 미적용 → pageMotionPaused 면 한 장. P2 옛 지구 그림 선읽기: index.html 의 preload 는 앱 사이트 랜딩이 쓰므로 유지(공유 html), 인트로의 런타임 선읽기는 앱 사이트에서만. P2 문서 언어: 홈페이지 열려 있는 동안 lang=en, 법적 고지 줄 lang=ko(한글 글 넣을 때 되돌림).
+- 6차(대표 댓글 6077064641 · Codex 제안 diff) 메뉴 열린 채 1024px 이상으로 넓어지면 닫힘 · 숨은 토글에 초점 주지 않음 — 원본 mobile-nav 의 최소 수정.
+- 실제 주소 데스크톱 검사(39ca6cf · 1440×800 · Playwright SwiftShader): 전체 높이 9216 · 가로 넘침 0 · 흰 카드 h636/op1 · FAQ h612/op1(첫 항목 열림 · 둘째 클릭 시 전환) · 바닥글 h744 · 원본 글 표시 · Name/Email 입력칸 있음(action 없음 = 보내지 않음) · 메뉴·CTA 목적지 원본과 동일 · pageerror 0 · General Sans 400/500·Mulish 로드 확인, 300(Light) 은 그 실행에서 요청이 한 번 끊김(파일은 200 응답 확인 · 재검사 예정).
+- 로컬 1440·1280 캡처 11장씩 + 실제 주소 1440 전체 스크롤 영상. 1920·움직임 줄이기 실행은 스크립트 오류로 중단 → 재실행 중(미실행으로 둠).
+- 모바일은 「대표 별도 디자인 수령 후 진행」.

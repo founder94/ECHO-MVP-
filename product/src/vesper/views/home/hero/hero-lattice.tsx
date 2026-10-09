@@ -142,15 +142,16 @@ export const HeroLattice = () => {
       if (a >= 1) x *= a; else y /= a;
       return [Math.max(-2, Math.min(2, x)), Math.max(-2, Math.min(2, y))];
     };
+    let visible = true;
     const onMove = (e: PointerEvent) => { const p = ndc(e.clientX, e.clientY); live.tx = p[0]; live.ty = p[1]; };
-    const onDown = () => { if (live.zoomStart < 0) live.zoomStart = performance.now() / 1000; };
+    // Codex 7차(f9d9613): host 는 pointer-events-none 이라 여기 달린 pointerdown 은 닿지 않음 → window 에서 받고, 첫 화면 배경이 보일 때만.
+    const onDown = () => { if (visible && live.zoomStart < 0) live.zoomStart = performance.now() / 1000; };
     const onLeave = () => { live.tx = 0; live.ty = 0; };
     window.addEventListener('pointermove', onMove, { passive: true });
-    host.addEventListener('pointerdown', onDown, { passive: true });
+    window.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('pointerleave', onLeave, { passive: true });
 
     // 고정(fixed) 배경이라 교차 관찰 대신 장면 시계로: 첫 화면 글이 사라지면 그림도 멈춘다.
-    let visible = true;
     let lastOpacity = -1;
 
     let raf = 0;
@@ -190,7 +191,7 @@ export const HeroLattice = () => {
 
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); host.removeEventListener('pointerdown', onDown); window.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('resize', resize); window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerdown', onDown); window.removeEventListener('pointerleave', onLeave);
       bridge.geometry.dispose(); glow.geometry.dispose(); bridgeMat.dispose(); glowMat.dispose(); blackPixel.dispose();
       torusComposer.dispose(); bloomComposer.dispose(); finalComposer.dispose(); renderer.dispose();
     };

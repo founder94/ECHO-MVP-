@@ -23,8 +23,9 @@ const SEND = V('views/home/send-request.tsx');
 
 test('홈페이지(2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」): 원본 Vesper 그대로 — 첫 화면(격자 배경 + 구슬) → 은하 → 뇌 → 흰 카드 → FAQ 카드 → Solaris → Onyx → 바닥글 · 설치 카드·이야기 카드·제작 영상 0 · 온보딩은 그대로', () => {
   for (const t of ["from '@vesper/layouts/scroll-layout'", "from '@vesper/components/common/site-header'", "from '@vesper/views/home'", "<AdaptiveGrid />", "<ReducedMotion />", "import '@vesper/vesper.css'"]) assert.ok(HOME.includes(t), t);
-  assert.match(HOME, /document\.documentElement\.classList\.add\('vesper'\)/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만');
-  assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
+  assert.match(HOME, /root\.classList\.add\('vesper'\);\n\s*root\.setAttribute\('lang', 'en'\);/, '원본 루트 글자 크기·바탕색은 홈페이지가 열려 있을 때만 · 영어 원본 글 동안 lang=en(Codex 10차)');
+  assert.match(HOME, /root\.classList\.remove\('vesper'\);\n\s*if \(prevLang === null\) root\.removeAttribute\('lang'\); else root\.setAttribute\('lang', prevLang\);/);
+  assert.match(FOOT, /<div lang="ko" className=/, '법적 고지 줄은 한국어');
   const at = (s) => STAGE.indexOf(s);
   // 파일 순서: 겹 그림(StageOverlays) → 닫는 블록(ClosingBlocks) → 무대(ScrollStage: 격자 배경 → 첫 화면 글)
   const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
@@ -39,6 +40,13 @@ test('홈페이지(2026-10-09 대표 「페이지도 올라오고 · 우선 똑�
   for (const f of ['src/pages/do-it/brand-home/SceneLayer.tsx', 'src/pages/do-it/brand-home/DotText.tsx', 'src/pages/do-it/brand-home/BrandFilm.tsx', 'public/brand/film', 'public/brand/hero-earth.webp', 'src/vesper/views/home/sections/lattice-section.tsx']) assert.ok(!existsSync(f), `${f} 삭제`);
   assert.doesNotMatch(HOME, /SceneLayer|DotText|hero-earth|BrandFilm/, '옛 홈페이지 조각 0');
   assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로(대표 10/9 「우선 똑같이 퍼온다」)');
+  assert.match(V('views/home/loader/star-fall.tsx'), /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\) return;/, '별 줄기도 움직임 줄이기면 한 장(Codex 10차)');
+  const onyx = V('views/home/sections/onyx-section.tsx');
+  assert.match(onyx, /touch-pan-y/, 'Onyx 캔버스 위에서도 세로 스크롤(Codex 8차 P1)'); assert.doesNotMatch(onyx, /touch-none/);
+  assert.match(onyx, /if \(!inside && !grabbed\) \{ pointerInside = false; return; \}/, 'Onyx 구간 밖 포인터 무시(Codex 8차)');
+  assert.match(FOOT, /id="contact"/, '/#contact 가 닿는 바닥글(Codex 9차 P1)');
+  assert.match(V('views/home/hero/hero-lattice.tsx'), /window\.addEventListener\('pointerdown', onDown/, '격자 누름은 window 에서(Codex 7차)');
+  assert.match(MNAV, /window\.matchMedia\("\(min-width: 1024px\)"\)/, '메뉴 열린 채 넓어지면 닫힘(Codex 6차)');
   assert.match(V('views/home/section-brain.tsx'), /hidden max-lg:block bg-\[linear-gradient\(180deg,rgba\(0,0,0,0\)_0%,rgba\(0,0,0,0\.72\)/, '휴대폰 뇌 장면: 글 뒤 어두운 막(뇌는 배경으로)');
   const sol = V('views/home/sections/solaris-section.tsx');
   assert.match(sol, /top-0 h-\[34vh\] bg-gradient-to-b from-black via-black\/70 to-transparent/, 'Solaris 위를 검정으로 녹임(선 0)');
