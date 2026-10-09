@@ -85,3 +85,40 @@ test('홈: 사주·타로 그림 문 → 바로 입력 화면(mode 주소) · �
   assert.ok(f.includes('const deepMode: Mode | null = !backToTaro && (deep === "saju" || deep === "taro") ? deep : null;'));
   assert.match(f, /if \(deepMode && !deepApplied\) \{\n\s*setDeepApplied\(true\);\n\s*setMode\(deepMode\);\n\s*setStep\("input"\);/);
 });
+
+// Codex PR #141 b7a8bb4 P1: 프로필 화면이 그대로 있는 채 계정이 A → B 로 바뀌면, B 의 사진을 받기 전에도 A 의 사진·실패 표시가 보이면 안 된다.
+// 작은 가짜 React(상태·효과만)로 컴포넌트를 실제로 돌린다(모의 — 브라우저 아님).
+test('Codex P1: 계정이 바뀌면 앞 계정 사진이 한 장도 보이지 않음(새 사진을 받기 전에도)', async () => {
+  const ts = (await import('typescript')).default;
+  const code = ts.transpileModule(read('src/doit/components/feature/ProfileAsOthersSee.tsx'), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  const slots = []; let si = 0; const effects = []; let ei = 0;
+  const React = {
+    useState(init) { const i = si++; if (!(i in slots)) slots[i] = init; return [slots[i], (v) => { slots[i] = typeof v === 'function' ? v(slots[i]) : v; }]; },
+    useEffect(fn, deps) { const i = ei++; const prev = effects[i]; if (!prev || deps.some((d, k) => d !== prev.deps[k])) { prev?.cleanup?.(); effects[i] = { deps, cleanup: undefined, run: fn }; } },
+  };
+  const pending = {};
+  const mods = {
+    react: React,
+    'react/jsx-runtime': { jsx: (t, p) => ({ t, p }), jsxs: (t, p) => ({ t, p }), Fragment: 'F' },
+    '@/doit/lib/photoStorage': { restorePhotos: (uid) => new Promise((res) => { pending[uid] = res; }) },
+    '@/doit/lib/photoPolicy': { PHOTO_BASE_COUNT: 5, isExtraSlot: (s) => s >= 5 },
+    '@/doit/components/feature/LockedProfileParts': { FadedExtraPhoto: 'FadedExtraPhoto', StoryLockButton: 'StoryLockButton' },
+    './locked-profile.css': {},
+  };
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', code)((m) => mods[m], module, module.exports);
+  const Comp = module.exports.default;
+  const render = (userId) => { si = 0; ei = 0; const tree = Comp({ userId }); for (const e of effects) if (e.run) { const r = e.run; e.run = undefined; e.cleanup = r(); } return tree; };
+  const srcs = (n, out = []) => { if (!n || typeof n !== 'object') return out; if (Array.isArray(n)) { n.forEach((x) => srcs(x, out)); return out; } if (n.p?.src) out.push(n.p.src); srcs(n.p?.children, out); return out; };
+  render('A');
+  pending.A([{ photoId: 'a1', slot: 0, url: 'https://x/A-private.jpg', isPrimary: true }]);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(srcs(render('A')), ['https://x/A-private.jpg'], 'A 는 자기 사진을 본다');
+  const treeB = render('B');
+  assert.deepEqual(srcs(treeB), [], 'B 로 바뀐 순간 A 사진 0');
+  assert.deepEqual(srcs(render('B')), [], 'B 를 받기 전 다시 그려도 A 사진 0');
+  pending.A?.([]);
+  pending.B([{ photoId: 'b1', slot: 0, url: 'https://x/B.jpg', isPrimary: true }]);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(srcs(render('B')), ['https://x/B.jpg']);
+});

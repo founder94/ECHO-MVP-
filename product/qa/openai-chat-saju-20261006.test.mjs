@@ -122,9 +122,25 @@ test('사주 이야기: 막는 말 줄기가 평범한 표현까지 잡되 「�
   const talk = { story: '사람들과 의사소통할 때 마음을 천천히 여는 편이에요. 낯선 자리에서는 먼저 이야기를 듣는 편일지도 몰라요. 익숙해지면 생각을 나누는 데 힘이 날 수 있어요.', closing: '오늘은 한 사람에게 먼저 말을 건네 봐요.' };
   const tk = load({ ai: () => JSON.stringify(talk) });
   assert.equal((await tk.call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200, '의사소통은 병 낱말이 아님');
-  const ok = { story: '당신은 사고방식이 유연해서, 사람들과 돈독하게 지내는 걸 좋아하는 사람일 수 있어요. 새로운 일을 시작할 때 마음이 먼저 움직일지도 몰라요.', closing: '오늘은 한 사람에게 먼저 안부를 건네 봐요.' };
+  const ok = { story: '당신은 사고방식이 유연한 편이라, 사람들과 돈독하게 지내는 걸 좋아하는 사람일 수 있어요. 새로운 일을 시작할 때 마음이 먼저 움직일지도 몰라요.', closing: '오늘은 한 사람에게 먼저 안부를 건네 봐요.' };
   const { call } = load({ ai: () => JSON.stringify(ok) });
   assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200);
+});
+
+test('Codex PR #141 b7a8bb4 P2: 문장 끝만 여지를 두고 앞 마디에서 못 박으면 거절 · 여지를 둔 말로 이으면 통과', async () => {
+  // Codex 재현 글자 그대로
+  {
+    const { call } = load({ ai: () => JSON.stringify({ story: '당신은 조용하지만 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 시작할 때 마음이 움직일지도 몰라요.', closing: '오늘은 천천히 쉬어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500);
+  }
+  for (const story of ['당신은 다정하고 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 할 때 마음이 움직일지도 몰라요.', '조용하지만 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 할 때 마음이 움직일지도 몰라요.', '당신은 신중해서, 결정이 느린 편이에요. 혼자 있을 때 힘이 날 수 있어요.', '당신은 고집이 센데 사람들과 있을 때 힘이 날 수 있어요. 새로운 일을 할 때 마음이 움직일지도 몰라요.', '마음이 여리며 쉽게 감동하는 편이에요. 혼자 있을 때 힘이 날 수 있어요.']) {
+    const { call } = load({ ai: () => JSON.stringify({ story, closing: '오늘은 천천히 쉬어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500, story);
+  }
+  for (const story of ['당신은 조용한 편이라 혼자 있을 때 힘이 날 수 있어요. 새로운 일을 시작할 때 마음이 움직일지도 몰라요.', '혼자 있을 때 힘이 날 수 있고, 사람들 속에서도 금방 웃을 수 있어요. 가끔은 쉬고 싶을 때가 있을지도 몰라요.', '조용한 것 같지만 마음속은 바쁠지도 몰라요. 그리고 좋아하는 일 앞에서는 오래 머무는 편이에요.']) {
+    const { call } = load({ ai: () => JSON.stringify({ story, closing: '오늘은 천천히 쉬어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200, story);
+  }
 });
 
 test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰는 하루 상한(150)에서 막힘', async () => {

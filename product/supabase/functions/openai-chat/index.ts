@@ -148,10 +148,32 @@ function sentencesOf(text: string): string[] {
 }
 // 문장 끝이 여지를 둬도, 문장 안에 「~입니다/합니다」 같은 격식 단정이나 「~한 사람이에요·사람이고」 같은 규정 마디가 있으면 거절(Codex 4187460249).
 const SAJU_CLAUSE_ASSERTION = /[가-힣]니다|사람(?:이에요|이고|이며|이라서|이죠|이야)|성격(?:이에요|이고|이며|이죠)/;
+// 문장 끝만 여지를 두고 앞 마디에서 사람을 못 박는 경우(Codex PR #141 b7a8bb4 「당신은 조용하지만 … 날 수 있어요」).
+// 낱말 목록을 더 늘리지 않고 「마디를 잇는 끝(~지만·~고·~며·~해서 …)」을 모양으로 본다: 이어지는 마디는 그 자체로 끝맺지 않으므로
+// 여지를 둔 말(「~수 있고」·「~지도 모르지만」·「~편이라」·「~것 같아서」)로 이을 때만 허용한다. 「~고 싶/있/나」 같은 보조 동사와 「그리고」 같은 접속어는 마디가 아니다.
+const SAJU_CLAUSE_LINK = /(?:지만|고|며|면서|는데|은데|인데|해서|어서|아서|워서|라서|니까|으니)$/;
+const SAJU_LINK_WORDS = new Set(["그리고", "그래서", "그런데", "그러니까", "하지만", "그렇지만", "그러면서"]);
+const SAJU_AUX_AFTER_GO = /^(?:싶|있|나|보|말|계|들)/;
+function hasDefinitiveClause(sentence: string): boolean {
+  const words = sentence.replace(/[,.!?…~"'「」]/g, " ").split(/\s+/).filter(Boolean);
+  for (let i = 0; i < words.length - 1; i++) {
+    const w = words[i], prev = words[i - 1] ?? "", next = words[i + 1];
+    const nDe = w.length >= 2 && w.endsWith("데") && (w.charCodeAt(w.length - 2) - 0xac00) % 28 === 4; // 받침 ㄴ + 데(센데·큰데)
+    if (!(SAJU_CLAUSE_LINK.test(w) || nDe) || SAJU_LINK_WORDS.has(w)) continue;
+    if (w.endsWith("고") && SAJU_AUX_AFTER_GO.test(next)) continue;
+    if (/^(?:있|없)/.test(w) && /^수도?$/.test(prev)) continue;
+    if (/^(?:모르|몰라)/.test(w) && /지도$/.test(prev)) continue;
+    if (/^편(?:이|인)/.test(w)) continue;
+    if (/^같/.test(w) && /(?:것|거)$/.test(prev)) continue;
+    return true;
+  }
+  return false;
+}
 function isHedgedStory(story: string, closing: string): boolean {
   if (SAJU_CLAUSE_ASSERTION.test(story) || SAJU_CLAUSE_ASSERTION.test(closing)) return false;
   const lines = sentencesOf(story);
   if (lines.length < 2 || !lines.every((x) => SAJU_STORY_ENDINGS.test(x))) return false;
+  if (lines.some(hasDefinitiveClause)) return false;
   const close = sentencesOf(closing);
   return close.length === 1 && SAJU_CLOSING_ENDINGS.test(close[0]);
 }
@@ -169,6 +191,7 @@ function sajuMessages(f: SajuFacts): Array<{ role: string; content: string }> {
         `- 한국어 해요체로, 사람에게 말하듯 쉽게. 한자·전문 용어(십신·오행 이름 나열)는 쓰지 말고 뜻으로 풀어 줘.\n` +
         `- 지금 이 사람의 결(성향·마음이 움직이는 순간)만 이야기해. 앞날·시기·올해·인연이 온다는 말은 하지 마. 「~할 거예요」·「~하게 될 거예요」도 쓰지 마.\n` +
         `- story 의 모든 문장은 「~수 있어요」·「~지도 몰라요」·「~것 같아요」·「~편이에요」 중 하나로 끝내. 「~입니다」·「~해요」로 단정하지 마.\n` +
+        `- 문장 중간에서도 「당신은 조용하지만」·「다정하고」처럼 못 박고 이어 가지 마. 마디를 이을 때는 「~수 있고」·「~편이라」처럼 여지를 둔 말로 이어.\n` +
         `- closing 은 한 문장, 「~해 봐요」·「~해도 좋아요」·「~어때요?」 같은 권유로 끝내.\n` +
         `- 결혼·건강·몸·마음의 병·돈·투자·사고·죽음은 말하지 마. 겁주는 말, 「반드시·무조건·확실히」 같은 말도 쓰지 마.\n` +
         `- 칭찬만 늘어놓지 말고, 이 사람이 스스로 고개를 끄덕일 만한 작은 장면(예: 어떤 순간에 힘이 나는지)을 하나 넣어 줘.\n` +
