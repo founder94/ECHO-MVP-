@@ -498,7 +498,45 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
   .nav-link:hover { translate: -4px 0; }
   .nav-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 4px; }
   .nav-arrow { font-size: 1.15em; line-height: 1; }
+  /* 메뉴의 서비스 버튼: 글자만 있던 링크 → 진한 알약(메뉴에서 가장 먼저 눈에 띄고 누르기 쉽게). */
+  .nav-go {
+    margin-top: 0.25rem;
+    padding: 0 1.1rem;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #ffffff;
+    text-shadow: none;
+  }
+  .nav-go .nav-arrow { color: #bbfc9e; }
+
+  /* 홈 → ECHO 주요 버튼(대표 지시 2026-10-09 「누르기 쉽게」): 진한 채움 · 흰 글 · 높이 56px ·
+     휴대폰 폭 전체. 라임은 화살표에만(대표 규칙 「라임은 버튼·화살표에만」). */
+  .go-mobile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: 56px;
+    padding: 0 2.5rem;
+    border-radius: 999px;
+    background: var(--ink);
+    color: #ffffff;
+    font-size: var(--text-cta);
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: 0 10px 24px -12px rgb(5 5 5 / 0.55);
+    transition: translate var(--duration-hover) var(--raw-ease-css), box-shadow var(--duration-hover) var(--raw-ease-css);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .go-mobile:hover { translate: 0 -2px; box-shadow: 0 14px 28px -12px rgb(5 5 5 / 0.6); }
+  .go-mobile:active { translate: 0 1px; }
+  .go-mobile:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+  .go-mobile-arrow { color: #bbfc9e; font-size: 1.2em; line-height: 1; animation: go-nudge 2.4s ease-in-out infinite; }
+  @media (width < 48rem) { .go-mobile { width: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .go-mobile-arrow { animation: none; } }
 }
+/* 화살표가 2.4초마다 오른쪽으로 살짝 — 「눌러서 넘어가는 버튼」이라는 신호(움직임 줄이기 설정이면 멈춤). */
+@keyframes go-nudge { 0%, 70%, 100% { translate: 0 0; } 80% { translate: 5px 0; } 90% { translate: 0 0; } }
 
 /* 홈페이지 → ECHO: 같은 브랜드 안에서 이어지게 화면을 ECHO 의 밤색으로 짧게 덮고 넘어간다. */
 html.leaving-to-echo body::after {

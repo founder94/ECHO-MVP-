@@ -21,7 +21,7 @@ export const homeCopy = {
     { id: "company", label: "회사 소개" },
     { id: "echo", label: "ECHO" },
     { id: "how", label: "만드는 방식" },
-    { id: "start", label: "서비스 시작" },
+    { id: "start", label: "모바일로 시작하기" },
   ] as const,
   navArrow: "↗",
   hero: {
@@ -65,8 +65,10 @@ export const homeCopy = {
   footer: {
     service: SERVICE,
     text: ["당신다운 만남을 향해, 첫 이야기를 들려주세요."],
-    cta: "내 이야기 시작하기",
-    ctaArrow: "↗",
+    /* 대표 지시(2026-10-09): 홈 → ECHO 버튼 문구는 「모바일로 시작하기」. 버튼 바로 위 한 줄 후킹(연결·만남 보장 표현 없음). */
+    hook: "휴대폰 하나면, 지금 바로 시작돼요.",
+    cta: "모바일로 시작하기",
+    ctaArrow: "→",
     sign: `${COMPANY} · ${TAGLINE}`,
     copyright: `© ${new Date().getFullYear()} ${COMPANY}`,
   },

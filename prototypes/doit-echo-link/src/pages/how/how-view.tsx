@@ -11,9 +11,12 @@ import { OnyxStage } from "./onyx-stage";
  */
 export const HowView = () => {
   const service = (
-    <a className="how-cta" href={pageUrl("echo", { from: "home" })}>
-      {c.service} <span aria-hidden="true">{c.serviceArrow}</span>
-    </a>
+    <>
+      <p className="how-cta-hook">{c.serviceHook}</p>
+      <a className="how-cta" href={pageUrl("echo", { from: "home" })}>
+        {c.service} <span aria-hidden="true" className="how-cta-arrow">{c.serviceArrow}</span>
+      </a>
+    </>
   );
   return (
     <div className="how-page">

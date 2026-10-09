@@ -27,8 +27,8 @@ const BODY = "text-body font-medium leading-body text-ink-1 keep-all";
 const DISPLAY =
   "m-0 font-light text-display leading-display tracking-tight2 text-ink keep-all whitespace-nowrap max-md:whitespace-normal";
 const LINE = "h-px bg-spectrum";
-const CTA =
-  "inline-flex min-h-tap items-center gap-3 rounded-pill border border-ink bg-transparent px-10 py-3.5 text-cta font-semibold text-ink no-underline transition-[background-color,translate] duration-[var(--duration-hover)] ease-css hover:-translate-y-lift hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink";
+/** 서비스로 넘어가는 주요 버튼 — 진한 채움 · 흰 글 · 높이 56px · 휴대폰은 폭 전체(누르기 쉽게, home.css .go-mobile). */
+const CTA = "go-mobile";
 
 /** 설명 글: 문장 하나가 한 줄(.sentence — PC 는 한 줄 고정, 휴대폰은 넘치면 고르게 두 줄). */
 const Lines = ({ lines, className }: { lines: readonly string[]; className: string }) => (
@@ -108,7 +108,7 @@ export const HomeView = () => {
                   {item.label}
                 </a>
               ) : item.id === "start" ? (
-                <a key={item.id} href={serviceHref} onClick={goToService} className="nav-link">
+                <a key={item.id} href={serviceHref} onClick={goToService} className="nav-link nav-go">
                   {item.label} <span aria-hidden="true" className="nav-arrow">{c.navArrow}</span>
                 </a>
               ) : (
@@ -266,11 +266,15 @@ export const HomeView = () => {
                 <h2 className="m-0 mb-4 text-service font-semibold tracking-tight2 text-ink">{c.footer.service}</h2>
                 <Lines lines={c.footer.text} className={`${BODY} m-0`} />
               </div>
-              <span className="scrim-soft inline-flex">
+              <div className="scrim-soft flex flex-col items-start gap-3 max-md:w-full">
+                <p className="m-0 text-[15px] font-semibold text-ink-1">{c.footer.hook}</p>
                 <a href={serviceHref} onClick={goToService} className={CTA}>
-                  {c.footer.cta} <span aria-hidden="true">{c.footer.ctaArrow}</span>
+                  {c.footer.cta}
+                  <span aria-hidden="true" className="go-mobile-arrow">
+                    {c.footer.ctaArrow}
+                  </span>
                 </a>
-              </span>
+              </div>
             </div>
             <div className="mt-10 mb-5 h-px bg-veil-15 max-md:mt-6 max-md:mb-4" />
             <div className="scrim-soft flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">

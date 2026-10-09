@@ -39,7 +39,7 @@ import {
  * 바뀐 것은 글과 버튼이 가는 곳뿐이다.
  *
  * 홈페이지 CTA 로 들어온 방문(?from=home 또는 이 탭의 기록)은 키홀 로딩을 건너뛰고 첫 화면에서 바로
- * 「내 이야기 시작하기」를 누를 수 있다(대표 지시 §7). 처음 온 방문은 키홀·성장 연출을 그대로 본다.
+ * 「모바일로 시작하기」를 누를 수 있다(대표 지시 §7). 처음 온 방문은 키홀·성장 연출을 그대로 본다.
  */
 
 const FOCUS = { tension: 170, friction: 28 };
@@ -53,9 +53,16 @@ const EchoIntro = ({ storyHref }: { storyHref: string }) => {
       <p className="font-display text-desc-ko max-phone:text-[18px] leading-desc-ko text-foreground-desc font-medium whitespace-pre-line text-balance">
         <WordFlight text={echoIntro.lead} mode="rise" offset={220} />
       </p>
-      <animated.span style={{ opacity: sharp, filter: sharp.to((v) => `blur(${(1 - v) * 7}px)`) }}>
-        <CtaButton href={storyHref} label={echoIntro.cta} className="w-[15.5rem]" plateClassName="w-[12.3125rem] pl-5" />
-      </animated.span>
+      {/* 휴대폰: 버튼을 폭 전체로(누르기 쉽게) · 버튼 위 한 줄 후킹 배지 — 뒤 빛줄기 위에서도 읽히게 짙은 밤색 바탕(실측 360: 2.63:1 → 배지). */}
+      <animated.div className="flex flex-col gap-3" style={{ opacity: sharp, filter: sharp.to((v) => `blur(${(1 - v) * 7}px)`) }}>
+        <p className="text-panel-note max-phone:text-[15px] text-foreground-desc m-0 w-fit rounded-full bg-[#010b24]/80 px-3.5 py-1.5 font-semibold leading-desc-ko">{echoIntro.hook}</p>
+        <CtaButton
+          href={storyHref}
+          label={echoIntro.cta}
+          className="w-[15.5rem] max-phone:w-full"
+          plateClassName="w-[12.3125rem] max-phone:w-auto max-phone:flex-1 max-phone:text-[16px] pl-5"
+        />
+      </animated.div>
     </div>
   );
 };

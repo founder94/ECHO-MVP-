@@ -40,12 +40,19 @@ body {
 .how-desc { margin: 1.25rem 0 0; font-size: clamp(16px, 4.3vw, 19px); font-weight: 500; line-height: 1.6; color: var(--ink-1); }
 .how-line { display: block; text-wrap: balance; }
 
+/* 홈 → ECHO 버튼(대표 지시 2026-10-09): 진한 채움 · 흰 글 · 높이 56px · 화살표만 라임. */
+.how-cta-hook { margin: 0 0 0.75rem; font-size: 15px; font-weight: 600; color: var(--ink-1); }
 .how-cta {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; min-height: 48px;
-  padding: 0.85rem 2rem; border: 1px solid var(--ink); border-radius: 999px;
-  color: var(--ink); background: transparent; text-decoration: none; font-weight: 600; font-size: 16px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; min-height: 56px;
+  padding: 0 2.5rem; border-radius: 999px; background: var(--ink); color: #ffffff;
+  text-decoration: none; font-weight: 600; font-size: 17px;
+  box-shadow: 0 10px 24px -12px rgb(5 5 5 / 0.55); -webkit-tap-highlight-color: transparent;
 }
-.how-cta:hover { background: rgb(5 5 5 / 0.05); }
+.how-cta:hover { translate: 0 -2px; }
+.how-cta:active { translate: 0 1px; }
+.how-cta-arrow { color: #bbfc9e; font-size: 1.2em; line-height: 1; animation: how-nudge 2.4s ease-in-out infinite; }
+@keyframes how-nudge { 0%, 70%, 100% { translate: 0 0; } 80% { translate: 5px 0; } 90% { translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .how-cta-arrow { animation: none; } }
 .how-cta-wide { display: none; margin-top: 2.25rem; }
 .how-cta-narrow { display: block; }
 .how-cta-narrow .how-cta { width: 100%; }
