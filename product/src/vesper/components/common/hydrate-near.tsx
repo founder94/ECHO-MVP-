@@ -44,10 +44,11 @@ const engage = () => {
   for (const wake of engageWaiters) wake();
   engageWaiters.clear();
 };
-const onEngaged = (wake: () => void) => {
+// Codex 14차(P2): 돌려주는 함수로 대기를 취소할 수 있다 — 버린 문의 콜백이 첫 제스처에 떨어진 자리표를 다시 지켜보지 않도록.
+const onEngaged = (wake: () => void): (() => void) => {
   if (engaged) {
     wake();
-    return;
+    return () => {};
   }
   if (engageWaiters.size === 0) {
     for (const type of ENGAGE_EVENTS) {
@@ -55,6 +56,11 @@ const onEngaged = (wake: () => void) => {
     }
   }
   engageWaiters.add(wake);
+  return () => {
+    engageWaiters.delete(wake);
+    if (engageWaiters.size === 0 && !engaged)
+      for (const type of ENGAGE_EVENTS) window.removeEventListener(type, engage, true);
+  };
 };
 
 // Codex 12차(b133e1d · P1): 문이 아직 안 열린 채 자리표가 내려가면(1024px 경계를 넘어 문서가 바뀜) 그 문을 버린다 —
@@ -66,9 +72,13 @@ const gateFor = (id: string): Gate => {
   const known = gates.get(id);
   if (known) return known;
   let io: IntersectionObserver | null = null;
+  let offEngaged: () => void = () => {};
   const gate: Gate = {
     opened: false,
-    dispose: () => io?.disconnect(),
+    dispose: () => {
+      offEngaged();
+      io?.disconnect();
+    },
     promise: new Promise<void>((open) => {
       const el =
         document.getElementById(id) ??
@@ -90,7 +100,7 @@ const gateFor = (id: string): Gate => {
         io.observe(el);
       };
       watch("0px");
-      onEngaged(() => watch(LOOKAHEAD));
+      offEngaged = onEngaged(() => watch(LOOKAHEAD));
     }),
   };
   void gate.promise.then(() => {

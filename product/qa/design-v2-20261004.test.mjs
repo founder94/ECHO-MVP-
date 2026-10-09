@@ -38,7 +38,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(V('views/home/scene/deferred-mount.tsx'), /if \(mine !== generation\) return;/, '지연 마운트 idle 콜백은 세대가 다르면 무시(Codex 13차)');
   assert.match(V('layouts/scroll-layout.tsx'), /lenis\.destroy\(\);\n\s*setLenis\(null\);\n[\s\S]{0,200}useScroll\.getState\(\)\.start\(\);\n\s*enableNativeScroll\(true\);/, '떠날 때 전역 스크롤 복구(Codex 13차)');
   assert.match(HEADER, /href=\{TOP_PATH\}/, '로고도 #top'); assert.match(MNAV, /href=\{TOP_PATH\}/);
-  assert.match(STAGE, /<div id="financial" ref=\{outroRef\} className="mb-\[1\.667vw\]">\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="financial">\n\s*<FinancialSection \/>/, '원본: 흰 카드가 떠오르며 뇌의 퇴장을 끈다');
+  assert.match(STAGE, /<div id="how" ref=\{outroRef\} className="mb-\[1\.667vw\]">\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="financial">\n\s*<FinancialSection \/>/, '원본: 흰 카드가 떠오르며 뇌의 퇴장을 끈다');
   assert.match(STAGE, /style=\{\{ height: toLvh\(1\) \}\}/, '데스크톱 트랙(200lvh) 숫자 그대로');
   // 모바일 문서
   const M = V('views/home/mobile-stage.tsx');
@@ -52,12 +52,12 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(M, /px-6 max-\[360px\]:px-5/, '좌우 여백 24px · 360px 이하 20px');
   assert.match(M, /min-h-\[48px\]/, '버튼 터치 영역 48px');
   assert.match(SEND, /min-h-\[48px\]/, '주요 버튼 48px');
-  assert.match(V('views/home/sections/financial-section.tsx'), /<section id="how"/, '데스크톱에도 #how');
+  assert.match(V('views/home/sections/financial-section.tsx'), /<section id="financial"/, '블록 자체는 #financial(자리표와 같은 id) — #how 는 항상 마운트된 바깥 틀(Codex 13차 P1)');
   assert.match(V('views/home/loader/loader.tsx'), /<StarFall intensity=\{intensity\} \/>/, '원본 로더의 별 줄기 그대로');
   assert.match(V('views/home/loader/star-fall.tsx'), /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\) return;/, '별 줄기도 움직임 줄이기면 한 장(Codex 10차)');
   const onyx = V('views/home/sections/onyx-section.tsx');
   assert.match(onyx, /touch-pan-y/, 'Onyx 캔버스 위에서도 세로 스크롤(Codex 8차 P1)'); assert.doesNotMatch(onyx, /touch-none/);
-  assert.match(onyx, /if \(!inside && !grabbed\) \{ pointerInside = false; return; \}/, 'Onyx 구간 밖 포인터 무시(Codex 8차)');
+  assert.match(onyx, /if \(!inside && !grabbed\) \{ pointerInside = false; ndc\.set\(0, 0\); return; \}/, 'Onyx 구간 밖 포인터 무시(Codex 8차) + 카메라 중립(14차)');
   assert.match(FOOT, /id="contact"/, '바닥글 id(Codex 9차)');
   assert.match(V('views/home/hero/hero-lattice.tsx'), /window\.addEventListener\('pointerdown', onDown/, '격자 누름은 window 에서(Codex 7차)');
   assert.match(MNAV, /window\.matchMedia\("\(min-width: 1024px\)"\)/, '메뉴 열린 채 넓어지면 닫힘(Codex 6차)');
@@ -306,12 +306,12 @@ test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebG
     const body = s.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/<span[^>]*\b(h-px|w-px|size-\[0\.\d+rem\])[^>]*\/>/g, '');
     assert.doesNotMatch(body, /bg-white\b(?!\/)|text-black|border-black|bg-black\b(?!\/)|SOLID_CTA|backdrop-blur/, `${n}: 흰 바탕·검정 글자·흰 채움 버튼·강한 유리 블러 0`);
   }
-  assert.match(fin, /className="vesper-soft relative grid w-full origin-bottom grid-cols-\[minmax\(0,1fr\)_27\.361vw\][^"]*border-t border-white\/15[^"]*text-white/, '어떻게 만나나요: 내용 높이 격자 · 얇은 윗줄 · 밝은 글자');
+  assert.match(fin, /className="vesper-soft vesper-veil relative grid w-full origin-bottom grid-cols-\[minmax\(0,1fr\)_27\.361vw\][^"]*border-t border-white\/15[^"]*text-white/, '어떻게 만나나요: 내용 높이 격자 · 얇은 윗줄 · 밝은 글자');
   assert.doesNotMatch(fin, /h-\[44\.167vw\]|top-\[36\.667vw\]|position: "absolute"/, '고정 높이·절대 배치 0(내용 높이로 재정렬)');
   assert.match(fin, /CARD_REVEAL|MASK_REVEAL|LETTER_FADE|WORD_FADE/, '도착·글 연출 그대로');
   assert.match(faq, /interaction=\{LIGHT_ROW\}/); assert.match(faq, /border-b border-white\/20/); assert.match(faq, /asterisk-light\.svg/);
-  assert.match(faq, /vesper-soft relative flex w-full origin-bottom flex-col items-center border-t border-white\/15/);
-  assert.match(mob, /const CARD_FACE = "vesper-soft relative flex w-full origin-bottom flex-col gap-4 border-t border-white\/15 pt-6 text-white";/);
+  assert.match(faq, /vesper-soft vesper-veil relative flex w-full origin-bottom flex-col items-center border-t border-white\/15/);
+  assert.match(mob, /const CARD_FACE = "vesper-soft vesper-veil relative flex w-full origin-bottom flex-col gap-4 border-t border-white\/15 pt-6 text-white";/);
   assert.match(mob, /splitSentences\(HOME_V2\.choiceBody\)\.map/, '서로가 선택합니다: 승인 문장을 문장 단위로만 나눔(글자 변경 0)');
   assert.match(V('views/home/sentences.ts'), /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
   assert.match(send, /usePressable\(GHOST\)/); assert.match(send, /send-icon-light\.svg/); assert.match(send, /min-h-\[48px\]/, '44px 이상 터치');
@@ -319,7 +319,25 @@ test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebG
   assert.doesNotMatch(icon, /<rect/, '아이콘 흰 배경 도형 0'); assert.match(icon, /#fdfdfd/);
   assert.match(V('lib/springs/interaction.ts'), /export const LIGHT_ROW: Interaction = \{\n\s*rest: \{ backgroundColor: alpha\(0\) \},/);
   assert.match(V('vesper.css'), /html\.vesper \.vesper-soft \{ text-shadow: 0 1px 2px rgb\(0 0 0 \/ 0\.55\), 0 0 14px rgb\(0 0 0 \/ 0\.35\); \}/, '옅은 글자 그림자만');
+  assert.match(V('vesper.css'), /\.vesper-veil::before \{[^}]*background: rgb\(0 0 0 \/ 0\.38\);[^}]*mask-image: radial-gradient\(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%\)/, '경계 없는 낮은 농도 그라데이션만(판·블러 0)');
+  assert.doesNotMatch(V('vesper.css'), /backdrop-filter/, '유리 블러 0');
+  assert.match(read('src/pages/NotFound.tsx'), /font-body">\{location\.pathname\}/, '404 안내도 주아체');
   const stage = V('views/home/scroll-stage.tsx');
-  assert.match(stage, /id="financial"[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서 그대로(어떻게 → FAQ → Solaris → Onyx → 바닥글)');
+  assert.match(stage, /id="how"[\s\S]*HydrateNear id="financial"[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서 그대로(어떻게 → FAQ → Solaris → Onyx → 바닥글)');
   assert.match(mob, /<HeroMobile[\s\S]*<HowCard[\s\S]*<AgentScene[\s\S]*<ChoiceCard[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 ①~⑤ 순서 그대로');
+});
+
+test('Codex 13·14차(PR #151): #how 틀 항상 마운트 · Onyx touchmove 차단 0 · 격자 누름 필터 · Onyx 메뉴 위 포인터 중립 · 버린 문의 대기 콜백 취소', () => {
+  const stage = V('views/home/scroll-stage.tsx');
+  assert.match(stage, /<div id="how" ref=\{outroRef\}[\s\S]*<HydrateNear id="financial">/, '#how = 바깥 틀(문 열리기 전에도 있음)');
+  const onyx = V('views/home/sections/onyx-section.tsx').replace(/\/\/[^\n]*/g, '');
+  assert.doesNotMatch(onyx, /touchmove|preventDefault/, 'Onyx: 세로 제스처를 막는 touchmove 차단 0');
+  assert.match(onyx, /touch-pan-y/); assert.match(onyx, /host\.contains\(target\)/, '메뉴 위 포인터는 밖'); assert.match(onyx, /pointerInside = false; ndc\.set\(0, 0\); return;/, '밖이면 카메라 중립');
+  const lat = V('views/home/hero/hero-lattice.tsx');
+  assert.match(lat, /if \(!visible \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/);
+  assert.match(lat, /closest\('a,button,input,textarea,select,\[role="dialog"\],\[aria-modal="true"\],\[data-no-zoom\]'\)/, '버튼·링크·창 위 누름 제외');
+  assert.match(lat, /document\.querySelector\('\[aria-modal="true"\]'\)/); assert.match(lat, /e\.clientX < r\.left \|\| e\.clientX > r\.right/, '격자 밖 누름 제외');
+  const hn = V('components/common/hydrate-near.tsx');
+  assert.match(hn, /const onEngaged = \(wake: \(\) => void\): \(\(\) => void\) =>/); assert.match(hn, /engageWaiters\.delete\(wake\)/);
+  assert.match(hn, /dispose: \(\) => \{\n\s*offEngaged\(\);\n\s*io\?\.disconnect\(\);/, '버린 문 = 관찰자 + 대기 콜백 모두 해제');
 });

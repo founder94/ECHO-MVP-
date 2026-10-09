@@ -1056,3 +1056,12 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 버튼(4): 「ECHO 시작하기」(SendRequest) 흰 채움(SOLID_CTA) → 투명 + 밝은 글자 + 얇은 외곽선(GHOST, hover/press 옅은 빛 · focus 링 · min-h 48px 유지). 화살표 칸 = 외곽선만, 아이콘 SVG 는 흰 배경 `<rect>` 만 뺀 사본(`send-icon-light.svg` · 밝은 선). FAQ 별표도 밝은 사본. 머리글·바닥글 버튼은 이미 GHOST.
 - 3D·효과(6): 장면 순서(첫 화면·은하·뇌·어떻게·FAQ·Solaris·Onyx·바닥글 / 모바일 ①~⑤)·시간표·연출(CARD_REVEAL·MASK·LETTER·WORD) 그대로. 앱(7): 파스텔 바탕·흐름 그대로, 글꼴만.
 - 검사: type-check 0 · lint 0 · node --test(갱신: brand-home·design-v2(+2 잠금)·human-ux·ux-writing 글꼴 단언) · brand/app 빌드 exit 0(.map 0 · 역할 누출 0 · dist 안 구글 글꼴 0 · Jua woff2 88 + LICENSE) · Playwright 모의(아래 §35 표) · 실기기(아이폰) = 확인 불가(없음).
+- 모바일 디자인 원본·승인 근거(대표 「[ECHO 홈페이지·모바일 최종 완성 지시]」 §5 요구): 홈페이지 모바일(B)의 확정 원본 = 대표 글 지시 「ECHO 홈페이지 — 최신 채택안 추가 지시」(2026-10-09 · ①~⑤ 세로 구성 · 본 문서 §33) + 이번 「최종 디자인 수정 / 대표 승인」(주아체·투명). 별도 모바일 시안 파일(이미지·ZIP)은 이 저장소·대화에서 받은 것이 없다(AI Studio/Superconscious·Clarix·Auralis·New Era 자료 없음 · 파스텔 대화 미리보기는 글꼴 비교용). 따라서 새 템플릿 선택은 보류하고, 확인된 현재 모바일 구성에 글꼴·투명화·배치만 적용했다. 실제 모바일 서비스(C)의 원본 = 승인 파스텔 화면(§「2026-10-04 대표 디자인 교체」 · echo-ui.css) — 글꼴만 교체.
+- 로고·아이콘·캔버스 글자: 캔버스 글자(fillText) 0 · SVG 로고(DO IT 워드마크)·리믹스아이콘·타로 카드 그림 그대로. `TarotCardArt.tsx` 의 명조 상수는 쓰이지 않는 선언(변경 0).
+- 가독성 보정(모의 검사 뒤 보강): 은하 띠(장면 시계 2 이후 화면 세로 가운데에 고정된 밝은 띠)가 FAQ 줄·본문을 지날 때 흰 글자가 묻혔다(가로 844×390 FAQ 캡처) → 글 덩어리 뒤에 경계 없는 낮은 농도(38%) 타원 그라데이션(`.vesper-veil::before` · 판·블러 0)만 추가. 띠의 가장 밝은 심(수십 px)은 그 순간 읽기 어려울 수 있음 — 띠는 승인 효과라 밝기를 줄이지 않았다(남은 문제로 보고). 404 안내의 경로 글씨(font-mono)도 주아체로.
+- 대표 추가 지시(2026-10-09): 별도 모바일 디자인은 추후 확정 원본 + 구현 명세와 함께 전달 → 그전까지 새 모바일 디자인을 임의로 만들거나 후보 템플릿으로 교체하지 않는다. 현재 승인된 홈페이지 PC·모바일(①~⑤) 수정·검수만 계속.
+
+## 36. Codex 13·14차 지적 반영(2026-10-09 · PR #151)
+- 13차(406316d · Codex 봇 P1): 데스크톱 `#how` 가 문(HydrateNear) 안 블록에만 있어 처음 로드에서 메뉴·보조 버튼의 #how 이동이 실패 → 바깥 틀(항상 마운트) id=how · 블록·자리표 id=financial. verify-desktop 에 「맨 위에서 머리글 어떻게 만나나요? 클릭 → #how 도착」 검사 추가.
+- 14차(대표 전달 Codex 독립 검수 · b1f0b19 기준 남은 FAIL 4건): P1 Onyx `touchmove preventDefault`(잡은 동안) 가 실제 세로 제스처를 막음 → touchmove 차단 제거(touch-pan-y 만 · pointercancel 로 잡기 풀림). P2 격자 window pointerdown 이 CTA·메뉴·안내 창·움직임 줄이기·격자 밖 누름까지 줌 시작 → 대상 필터(a/button/input/dialog/aria-modal · 열린 창 · 격자 사각형 밖 · pageMotionPaused) 추가. P2 Onyx setNDC 가 덮인 메뉴 위 pointermove 도 받음 → 대상이 구간 요소일 때만 안쪽 · 밖이면 ndc(0,0) 카메라 중립. P2 hydrate-near dispose 가 onEngaged 대기 콜백을 안 지움 → onEngaged 가 취소 함수를 돌려주고 dispose 가 함께 해제.
+- 잠금 테스트 추가(design-v2) · type-check 0 · lint 0.

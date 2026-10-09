@@ -155,7 +155,9 @@ export const OnyxSection = () => {
     // Codex 8차(7fda8b7): 구간(section) 밖의 포인터 이동은 받지 않는다(잡고 있을 때만 예외) — 안 그러면 머리띠 위·반쯤 보일 때 엉뚱한 광선으로 반응.
     const setNDC = (e: PointerEvent) => {
       const r = host.getBoundingClientRect();
-      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      // Codex 14차(P2): 위에 덮인 메뉴·안내 창 위의 포인터는 받지 않는다 — 사각형 안이어도 대상이 이 구간 요소가 아니면 밖.
+      const target = e.target instanceof Node ? e.target : null;
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom && (target === null || host.contains(target));
       if (inside || grabbed) ndc.set(Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1)), Math.max(-1, Math.min(1, -((e.clientY - r.top) / r.height) * 2 + 1)));
       return inside;
     };
@@ -180,7 +182,7 @@ export const OnyxSection = () => {
     };
     const onMove = (e: PointerEvent) => {
       const inside = setNDC(e);
-      if (!inside && !grabbed) { pointerInside = false; return; }
+      if (!inside && !grabbed) { pointerInside = false; ndc.set(0, 0); return; }
       pointerInside = true;
       if (grabbed && pointerBody) {
         raycaster.setFromCamera(ndc, camera);
@@ -194,9 +196,8 @@ export const OnyxSection = () => {
       if (e && e.pointerId != null) { try { canvas.releasePointerCapture(e.pointerId); } catch { /* 이미 풀림 */ } }
     };
     const onLeave = () => { pointerInside = false; };
-    // Codex 8차(7fda8b7 · P1): 휴대폰에서 세로 스크롤은 캔버스 위에서도 되어야 한다(touch-action: pan-y). 육면체를 잡은 동안만 막는다.
-    const onTouchMove = (e: TouchEvent) => { if (grabbed) e.preventDefault(); };
-    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    // Codex 8차(7fda8b7)·14차(P1): 휴대폰 세로 스크롤은 캔버스 위에서도 브라우저가 가져간다(touch-action: pan-y · touchmove 차단 0).
+    // 잡은 채 세로로 밀면 브라우저가 pointercancel 을 보내 잡기가 풀리고 스크롤이 된다. 가로 끌기·탭은 그대로.
     canvas.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', endGrab);
@@ -287,7 +288,7 @@ export const OnyxSection = () => {
     return () => {
       cancelAnimationFrame(raf); io.disconnect();
       window.removeEventListener('resize', resize);
-      canvas.removeEventListener('pointerdown', onDown); canvas.removeEventListener('touchmove', onTouchMove); window.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerdown', onDown); window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', endGrab); window.removeEventListener('pointercancel', endGrab); canvas.removeEventListener('pointerleave', onLeave);
       for (const c of cubes) { scene.remove(c.mesh); c.mesh.geometry.dispose(); world.removeBody(c.body); }
       material.dispose(); shadowMat.dispose(); shadowFloor.geometry.dispose(); background.dispose(); envRT.dispose(); pmrem.dispose(); renderer.dispose();

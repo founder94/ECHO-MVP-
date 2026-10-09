@@ -31,7 +31,7 @@ const BODY = "font-general text-[16px] leading-[1.55] break-keep";
 const AUX = "font-general text-[13px] leading-[1.5] break-keep";
 /** 2026-10-09 대표 승인: 흰 카드 0 — 글은 장면 위에 바로(밝은 글자 · 얇은 윗줄 · 여백). 도착 연출(CARD_REVEAL)은 그대로. */
 const CARD = `[perspective:1400px] ${GUTTER}`;
-const CARD_FACE = "vesper-soft relative flex w-full origin-bottom flex-col gap-4 border-t border-white/15 pt-6 text-white";
+const CARD_FACE = "vesper-soft vesper-veil relative flex w-full origin-bottom flex-col gap-4 border-t border-white/15 pt-6 text-white";
 
 /** ① 첫 화면 — 제목·설명·선택권 안내·버튼이 한 화면에 함께. 높이가 작으면(가로 휴대폰) 세로로 늘어난다(min-height). */
 const HeroMobile = ({ introStarted }: { introStarted: boolean }) => (

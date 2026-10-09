@@ -34,14 +34,14 @@ const TITLE = HOME_V2.howTitle;
 
 export const FinancialSection = () => {
   return (
-    <section id="how" className="relative mx-auto w-[96.667vw] [perspective:1400px] max-lg:w-auto max-lg:px-6 max-[360px]:px-5">
+    <section id="financial" className="relative mx-auto w-[96.667vw] [perspective:1400px] max-lg:w-auto max-lg:px-6 max-[360px]:px-5">
       <Inview
         mode="always"
         immediateOut={false}
         from={CARD_REVEAL.from}
         to={CARD_REVEAL.to}
         config={CARD_REVEAL.config}
-        className="vesper-soft relative grid w-full origin-bottom grid-cols-[minmax(0,1fr)_27.361vw] gap-x-[2.222vw] gap-y-[2.222vw] border-t border-white/15 pt-[2.222vw] text-white max-lg:flex max-lg:flex-col max-lg:gap-[1rem] max-lg:pt-[1.5rem]"
+        className="vesper-soft vesper-veil relative grid w-full origin-bottom grid-cols-[minmax(0,1fr)_27.361vw] gap-x-[2.222vw] gap-y-[2.222vw] border-t border-white/15 pt-[2.222vw] text-white max-lg:flex max-lg:flex-col max-lg:gap-[1rem] max-lg:pt-[1.5rem]"
       >
         <FollowLineBlur letters={TITLE.length}>
           {(onTextStart) => (

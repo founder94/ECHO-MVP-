@@ -158,7 +158,7 @@ export const FaqSection = ({ copy }: FaqSectionProps) => {
         from={CARD_REVEAL.from}
         to={CARD_REVEAL.to}
         config={CARD_REVEAL.config}
-        className="vesper-soft relative flex w-full origin-bottom flex-col items-center border-t border-white/15 pt-[2.222vw] pb-[3.056vw] text-white max-lg:pt-[1.5rem] max-lg:pb-[2.5rem]"
+        className="vesper-soft vesper-veil relative flex w-full origin-bottom flex-col items-center border-t border-white/15 pt-[2.222vw] pb-[3.056vw] text-white max-lg:pt-[1.5rem] max-lg:pb-[2.5rem]"
       >
         <FaqAsterisk />
 

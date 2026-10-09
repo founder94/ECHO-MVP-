@@ -83,7 +83,8 @@ const ClosingBlocks = memo(function ClosingBlocks({
     <>
       {/* 2026-10-09 대표 「페이지도 올라오고 · 우선 똑같이 퍼온다」 → 원본 Vesper 의 닫는 구간 그대로:
           흰 카드(A living interface · 뇌의 퇴장을 끈다) → FAQ 카드 → 바닥글. 대표가 준 3D 장면(Solaris · Onyx)은 FAQ 와 바닥글 사이. */}
-      <div id="financial" ref={outroRef} className="mb-[1.667vw]">
+      {/* Codex 13차(406316d · P1): 메뉴·보조 버튼의 #how 는 문이 열리기 전에도 있어야 한다 → 바깥 틀이 #how(항상 마운트) · 블록·자리표는 #financial. */}
+      <div id="how" ref={outroRef} className="mb-[1.667vw]">
         <Suspense fallback={null}>
           <HydrateNear id="financial">
             <FinancialSection />
