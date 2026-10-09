@@ -445,33 +445,30 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
 
   /* 읽는 글 뒤에만 까는 부드러운 밝은 막(대표 지시 §6-2). 화면 전체를 덮는 흰 상자가 아니라
      글 영역 가장자리로 갈수록 사라지는 타원. 움직이는 모델·격자 위에서도 본문 대비를 지킨다. */
-  .scrim-soft { position: relative; isolation: isolate; }
+  .scrim-soft { position: relative; isolation: isolate; --scrim-x: 3rem; --scrim-y: 2.5rem; }
+  /* 막 모양: 글 상자를 따르고 가장자리만 옅어지는 사각형(대표 지시 「문장 하나 = 한 줄」로 설명 줄이 길어지자
+     타원 막이 긴 줄의 양 끝을 못 덮어 PC ② 2.7:1 · ⑤ 5:1 로 떨어졌다). 좌우 여백은 화면 여백보다 작게(가로 넘침 0). */
   .scrim-soft::before {
     content: "";
     position: absolute;
-    inset: -2.5rem -3rem; /* 좌우 3rem: 화면 여백(3.125rem) 안 — 3.25rem이면 PC에서 2px 가로 넘침 */
+    inset: calc(-1 * var(--scrim-y)) calc(-1 * var(--scrim-x));
     z-index: -1;
     pointer-events: none;
     background: rgb(246 250 254 / 0.9);
-    -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
-    mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--scrim-x), #000 calc(100% - var(--scrim-x)), transparent),
+      linear-gradient(to bottom, transparent, #000 var(--scrim-y), #000 calc(100% - var(--scrim-y)), transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, #000 var(--scrim-x), #000 calc(100% - var(--scrim-x)), transparent),
+      linear-gradient(to bottom, transparent, #000 var(--scrim-y), #000 calc(100% - var(--scrim-y)), transparent);
+    mask-composite: intersect;
     filter: blur(2px);
   }
-  /* 휴대폰: 좌우로 39px 넘치던 막이 화면 밖으로 나가 페이지 폭이 23px 넓어졌다(390 → 413).
-     좌우 여백을 화면 여백(16px)보다 작게 줄여 막이 화면 안에 머물게 한다. */
+  /* 휴대폰: 화면 여백 16px 안에 머물게 좌우 0.75rem(12px). */
   @media (width < 48rem) {
-    /* 좌우 여백이 좁아지자 타원 막(closest-side)이 글 상자의 네 귀퉁이를 덮지 못해 ⑤ 통제권 글 뒤로
-       모델·격자가 비쳤다(390 실측 3.43:1). 휴대폰은 글 상자 모양을 따르는 가장자리만 옅어지는 막으로. */
-    .scrim-soft::before {
-      inset: -2rem -0.75rem;
-      -webkit-mask-image: linear-gradient(to right, transparent, #000 0.75rem, #000 calc(100% - 0.75rem), transparent),
-        linear-gradient(to bottom, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
-      -webkit-mask-composite: source-in;
-      mask-image: linear-gradient(to right, transparent, #000 0.75rem, #000 calc(100% - 0.75rem), transparent),
-        linear-gradient(to bottom, transparent, #000 2rem, #000 calc(100% - 2rem), transparent);
-      mask-composite: intersect;
-    }
+    .scrim-soft { --scrim-x: 0.75rem; --scrim-y: 2rem; }
   }
+  /* 마지막 장면 한 줄 제목 뒤 막(휴대폰): 한 줄로 맞추느라 글자가 작아져 모델 위에서 2.3:1 이었다. */
+  .finale-plate { --scrim-x: 0.75rem; --scrim-y: 0.6em; }
   /* 유리 카드 안 글: 그라디언트 그림 위 밝은 바탕 한 겹(카드 자체가 유리라 상자 추가 없음). */
   .glass-read::before {
     content: "";

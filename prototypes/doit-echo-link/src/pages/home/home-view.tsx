@@ -235,12 +235,16 @@ export const HomeView = () => {
           {/* ⑦ 마지막 장면 제목 — 모델 뒤 */}
           {/* 원본은 이 제목이 모델 뒤(z 2)였으나, 마지막에 흩어지는 D 입자와 모델에 가려 읽히지 않아 앞(z 4)으로 올린다(대표 지시 §6). */}
           <div id="phase6-container" className="will-change-[transform,opacity] pointer-events-none fixed top-0 left-0 z-4 flex h-screen w-full items-center justify-center opacity-0">
+            <div
+              aria-hidden="true"
+              className="scrim-soft finale-plate pointer-events-none absolute top-[28vh] left-1/2 hidden h-[1.3em] w-[calc(100%-2.5rem)] -translate-x-1/2 -translate-y-1/2 text-[min(30px,calc((100vw-32px)/15))] max-md:block"
+            />
             <SplitTitle
               tag="h2"
               id="phase6-title"
               trigger={{ on: "stage", id: "phase6-title" }}
               lines={c.finale.title}
-              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-light text-finale leading-hero whitespace-nowrap text-ink keep-all max-md:text-[min(30px,calc((100vw-32px)/15))]"
+              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-light max-md:font-normal text-finale leading-hero whitespace-nowrap text-ink keep-all max-md:text-[min(30px,calc((100vw-32px)/15))]"
             />
           </div>
         </main>
