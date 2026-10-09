@@ -37,3 +37,37 @@ test('body PASS/no findings or user interruption never proves task result',()=>{
 test('cancel, invalid task identifiers, invalid poll limits rejected',async()=>{const api=client({apiKey:'fake',fetchImpl:async()=>{throw Error('must not run');}});await assert.rejects(api.detail('agent-default-main_task'));await assert.rejects(receive(api,'fixture',{maxPolls:Infinity}));await assert.rejects(receive(api,'fixture',{signal:{aborted:true}}),e=>e.code==='CANCELLED');});
 
 test('progress-only or missing final-result typing is not completion, even with the exact JSON',()=>{for(const delivery_kind of [undefined,'progress','opening'])assert.equal(verifySmoke({state:'RESULT_CANDIDATE',fixtureSha:SMOKE_SHA,candidateMessages:[{id:'result',type:'assistant_message',assistant_message:{delivery_kind,content:'{"echo":"ECHO_MANUS_SYNTHETIC_V1"}'}}]}),false);for(const type of ['user_stop','error_message'])assert.equal(verifySmoke({state:'RESULT_CANDIDATE',fixtureSha:SMOKE_SHA,candidateMessages:[{id:'result',type:'assistant_message',assistant_message:{delivery_kind:'result',content:'{"echo":"ECHO_MANUS_SYNTHETIC_V1"}'}},{id:'stopped',type}]}),false);});
+
+ 
+// Cancellation regressions: synthetic providers only; no HTTP, paid task or remote stop.
+test('cancellation during detail read must stop before fetching result messages', async () => {
+  const controller = new AbortController(); let messageReads = 0;
+  const api = {
+    async detail() { controller.abort(); return { id: 'synthetic-task', status: 'stopped', has_running_background_jobs: false }; },
+    async messages() { messageReads++; return { messages: [{ id: 'synthetic-result', type: 'assistant_message', assistant_message: { delivery_kind: 'result', content: '{"echo":"ECHO_MANUS_SYNTHETIC_V1"}' } }], has_more: false }; },
+  };
+  await assert.rejects(receive(api, 'synthetic-task', { maxPolls: 1, signal: controller.signal }), error => error.code === 'CANCELLED');
+  assert.equal(messageReads, 0);
+});
+test('cancellation while reading a page must stop before the next page', async () => {
+  const controller = new AbortController(); let pageReads = 0;
+  const api = {
+    async detail() { return { id: 'synthetic-task', status: 'stopped', has_running_background_jobs: false }; },
+    async messages() {
+      pageReads++;
+      if (pageReads === 1) { controller.abort(); return { messages: [], has_more: true, next_cursor: 'synthetic-page-two' }; }
+      return { messages: [{ id: 'synthetic-result', type: 'assistant_message', assistant_message: { delivery_kind: 'result', content: '{"echo":"ECHO_MANUS_SYNTHETIC_V1"}' } }], has_more: false };
+    },
+  };
+  await assert.rejects(receive(api, 'synthetic-task', { maxPolls: 1, signal: controller.signal }), error => error.code === 'CANCELLED');
+  assert.equal(pageReads, 1);
+});
+test('final-page cancellation cannot deliver a candidate after abort', async () => {
+  const controller = new AbortController(); let pages = 0;
+  const api = {
+    detail: async () => ({ status: 'stopped', has_running_background_jobs: false }),
+    messages: async () => { pages++; controller.abort(); return { messages: [{ id: 'synthetic-final', type: 'assistant_message', assistant_message: { delivery_kind: 'result', content: '{"echo":"ECHO_MANUS_SYNTHETIC_V1"}' } }], has_more: false }; },
+  };
+  await assert.rejects(receive(api, 'synthetic-task', { maxPolls: 1, signal: controller.signal }), error => error.code === 'CANCELLED');
+  assert.equal(pages, 1);
+});
