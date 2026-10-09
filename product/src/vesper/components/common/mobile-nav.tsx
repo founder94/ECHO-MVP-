@@ -29,6 +29,7 @@ import {
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 import { appUrl } from "@/lib/siteRole";
 import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from "@/components/symbolAssets";
+import { anchorOffset } from "@vesper/utils/scroll-to";
 import { HOME_V2, START_PATH, TOP_PATH } from "@/pages/do-it/brand-home/copy";
 
 export interface MobileNavItem {
@@ -230,7 +231,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
       const lenis = useScroll.getState().lenis;
       const element = hash ? document.getElementById(hash) : null;
       if (hash && !element) return;
-      if (lenis) lenis.scrollTo(element ?? 0, { duration: 1.2 });
+      if (lenis) lenis.scrollTo(element ?? 0, { duration: 1.2, offset: element ? -anchorOffset() : 0 });
       else if (element) element.scrollIntoView({ behavior: "smooth" });
       else window.scrollTo({ top: 0, behavior: "smooth" });
     });

@@ -44,5 +44,8 @@ html.vesper body::-webkit-scrollbar { width: 0; }
 /* 2026-10-09 대표 승인: 설명·FAQ 글이 흰 카드 없이 장면 위에 바로 놓인다 — 가장 밝은 순간에도 읽히도록 아주 옅은 글자 그림자만(큰 검은 판·강한 유리 블러 0). */
 html.vesper .vesper-soft { text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.35); }
 /* 은하 띠처럼 가장 밝은 순간에도 본문이 읽히도록, 글 덩어리 뒤에 경계 없는 낮은 농도(38%)의 어두운 타원 그라데이션만 깐다 — 판·블러 0, 장면은 그대로 비친다. */
+/* 앵커 도착 지점 = 고정 머리글 아래(브라우저 자체 해시 이동용 · JS 이동은 anchorOffset()). */
+html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(0.694vw + 3.542vw + 8px); }
+@media (max-width: 1023.98px) { html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(1rem + 3.5rem + 8px); } }
 html.vesper .vesper-veil { position: relative; }
 html.vesper .vesper-veil::before { content: ""; position: absolute; inset: -2.5rem -2rem; z-index: -1; pointer-events: none; background: rgb(0 0 0 / 0.38); -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); }

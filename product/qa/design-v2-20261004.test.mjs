@@ -352,3 +352,11 @@ test('대표 「심볼은 왼쪽 윗상단에 배치해」(2026-10-09): 홈페�
   }
   assert.match(read('src/components/symbolAssets.ts'), /SYMBOL_DISPLAY_SRC = '\/brand\/doit-symbol-intro\.webp'/);
 });
+
+test('앵커 도착 = 고정 머리글 아래(2026-10-09 모의 검사: #how 제목이 머리글 밑에 숨음): scroll-to 와 메뉴 이동 모두 anchorOffset · CSS scroll-margin-top', () => {
+  const st = V('utils/scroll-to.ts');
+  assert.match(st, /export const anchorOffset = \(\): number =>/); assert.match(st, /header\.getBoundingClientRect\(\)\.bottom \+ 8/);
+  assert.match(st, /top: Math\.max\(0, getDistanceFromTop\(target\) - anchorOffset\(\)\)/);
+  assert.match(V('components/common/mobile-nav.tsx'), /lenis\.scrollTo\(element \?\? 0, \{ duration: 1\.2, offset: element \? -anchorOffset\(\) : 0 \}\)/);
+  assert.match(V('vesper.css'), /html\.vesper :is\(#how, #choice, #faq, #contact, #financial, #top\) \{ scroll-margin-top: calc\(0\.694vw \+ 3\.542vw \+ 8px\); \}/);
+});
