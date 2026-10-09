@@ -69,12 +69,17 @@ async function receive(api, taskId, { maxPolls = 20, wait = ms => new Promise(r 
   if (!Number.isSafeInteger(maxPolls) || maxPolls < 1 || maxPolls > 60) throw new ManusError('INVALID_POLL_LIMIT');
   for (let i = 0; i < maxPolls; i++) {
     if (signal?.aborted) throw new ManusError('CANCELLED');
-    const task = await api.detail(taskId); const state = classify(task);
+    const task = await api.detail(taskId);
+    if (signal?.aborted) throw new ManusError('CANCELLED');
+    const state = classify(task);
     if (state === 'FAILED' || state === 'WAITING' || state === 'UNKNOWN') return { state, verified: false };
     if (state === 'STOPPED') {
       const pages = []; let cursor;
       for (let p = 0; p < 10; p++) {
-        const r = await api.messages(taskId, cursor); pages.push(...r.messages);
+        if (signal?.aborted) throw new ManusError('CANCELLED');
+        const r = await api.messages(taskId, cursor);
+        if (signal?.aborted) throw new ManusError('CANCELLED');
+        pages.push(...r.messages);
         if (!r.has_more) return { state: 'RESULT_CANDIDATE', verified: false, candidateMessages: pages, fixtureSha: SMOKE_SHA, observedCredits: Number.isSafeInteger(task.credit_usage) && task.credit_usage >= 0 ? task.credit_usage : null };
         cursor = r.next_cursor;
       }
