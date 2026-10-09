@@ -26,8 +26,10 @@ export const scrollTo = (id?: string | number, immediate?: boolean) => {
     //endif
 
     setTimeout(() => {
+      // Codex 12차(b133e1d): 50ms 사이에 자리표(HydrateNear)가 실제 블록으로 바뀔 수 있다 → 그때 다시 찾는다.
+      const target = document.getElementById(id) ?? el;
       window.scrollTo({
-        top: getDistanceFromTop(el),
+        top: getDistanceFromTop(target),
         behavior: immediate ? "instant" : "smooth",
       });
     }, 50);

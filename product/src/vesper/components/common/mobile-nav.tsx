@@ -28,7 +28,7 @@ import {
 } from "@vesper/lib/springs/config";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 import { appUrl } from "@/lib/siteRole";
-import { HOME_V2, START_PATH } from "@/pages/do-it/brand-home/copy";
+import { HOME_V2, START_PATH, TOP_PATH } from "@/pages/do-it/brand-home/copy";
 
 export interface MobileNavItem {
   label: string;
@@ -289,7 +289,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
         {/* The header bar, drawn again on top: logo and the ✕ where the burger was. */}
         <div className="absolute top-[1rem] left-1/2 flex h-[3.5rem] w-[calc(100%-3rem)] -translate-x-1/2 items-center justify-between border border-white/10 py-[0.5rem] pr-[0.5rem] pl-[1rem] max-sm:top-[0.75rem] max-sm:w-[calc(100%-2.5rem)]">
           <PressableLink
-            href="/"
+            href={TOP_PATH}
             aria-label="DO IT — home"
             interaction={QUIET}
             onClick={onNavigate}

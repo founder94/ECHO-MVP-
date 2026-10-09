@@ -8,7 +8,6 @@ import { Suspense, memo, useCallback, useEffect, useRef, type RefObject } from "
 import { HydrateNear } from "@vesper/components/common/hydrate-near";
 import { Inview } from "@vesper/components/common/robot-inview";
 import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
-import { useRobot } from "@vesper/components/common/robot-view";
 import { PressableLink } from "@vesper/components/ui/pressable";
 import type { FaqCopy, FooterCopy } from "@vesper/data/mocks/home";
 import { useProgressTrigger } from "@vesper/hooks/animation/use-progress-trigger";
@@ -16,7 +15,6 @@ import { GHOST } from "@vesper/lib/springs/interaction";
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { HOME_V2, HOW_PATH } from "@/pages/do-it/brand-home/copy";
 
-import { HeroLattice } from "./hero/hero-lattice";
 import { LineBlur } from "./line-blur";
 import { CARD_REVEAL, LETTER_FADE, UNIT_REVEAL, UNIT_REVEAL_FIRST_SCREEN } from "./reveal";
 import { SendRequest } from "./send-request";
@@ -131,7 +129,6 @@ export interface MobileStageProps {
 }
 
 export const MobileStage = memo(function MobileStage({ faq, footer, introStarted }: MobileStageProps) {
-  const robot = useRobot();
   const trackRef = useRef<HTMLDivElement>(null);
 
   // 데스크톱으로 넘어갈 때 이 구간이 올려 둔 시계를 되돌린다(같은 시계를 공유).
@@ -150,7 +147,6 @@ export const MobileStage = memo(function MobileStage({ faq, footer, introStarted
 
   return (
     <main id="top" className="relative">
-      {!robot && <HeroLattice />}
       <HeroMobile introStarted={introStarted} />
       <div className="relative z-10">
         <Suspense fallback={null}>

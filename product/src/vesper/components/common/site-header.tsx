@@ -2,7 +2,7 @@ import { PressableLink } from "@vesper/components/ui/pressable";
 import { homeFooter } from "@vesper/data/mocks/home";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 import { appUrl } from "@/lib/siteRole";
-import { HOME_V2, START_PATH } from "@/pages/do-it/brand-home/copy";
+import { HOME_V2, START_PATH, TOP_PATH } from "@/pages/do-it/brand-home/copy";
 
 import { MobileNav } from "./mobile-nav";
 
@@ -31,7 +31,7 @@ export const SiteHeader = () => {
     <header className="pointer-events-auto fixed top-[0.694vw] left-1/2 z-50 h-[3.542vw] w-[49.514vw] max-w-[95vw] -translate-x-1/2 border border-white/10 bg-black/80 backdrop-blur-[8px] max-lg:top-[1rem] max-lg:h-[3.5rem] max-lg:w-[calc(100%-3rem)] max-sm:top-[0.75rem] max-sm:w-[calc(100%-2.5rem)]">
       <div className="flex h-full items-center justify-between py-[0.556vw] pr-[0.556vw] pl-[0.833vw] max-lg:py-[0.5rem] max-lg:pr-[0.5rem] max-lg:pl-[1rem]">
         <PressableLink
-          href="/"
+          href={TOP_PATH}
           aria-label="DO IT — home"
           interaction={QUIET}
           className="block h-[1.806vw] w-[5.86vw] shrink-0 max-lg:h-[1.5rem] max-lg:w-[4.875rem]"

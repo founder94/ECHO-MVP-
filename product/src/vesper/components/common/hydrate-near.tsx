@@ -57,37 +57,55 @@ const onEngaged = (wake: () => void) => {
   engageWaiters.add(wake);
 };
 
-const gates = new Map<string, Promise<void>>();
+// Codex 12차(b133e1d · P1): 문이 아직 안 열린 채 자리표가 내려가면(1024px 경계를 넘어 문서가 바뀜) 그 문을 버린다 —
+// 안 그러면 떨어져 나간 자리표를 지켜보는 약속이 남아 새 자리표는 영영 열리지 않는다.
+type Gate = { promise: Promise<void>; opened: boolean; dispose: () => void };
+const gates = new Map<string, Gate>();
 
-const gateFor = (id: string): Promise<void> => {
+const gateFor = (id: string): Gate => {
   const known = gates.get(id);
   if (known) return known;
-  const gate = new Promise<void>((open) => {
-    const el =
-      document.getElementById(id) ??
-      document.querySelector(`[data-hydrate-near="${id}"]`);
-    if (!el) {
-      open();
-      return;
-    }
-    let io: IntersectionObserver | null = null;
-    const watch = (rootMargin: string) => {
-      io?.disconnect();
-      io = new IntersectionObserver(
-        (entries) => {
-          if (!entries.some((entry) => entry.isIntersecting)) return;
-          io?.disconnect();
-          open();
-        },
-        { rootMargin },
-      );
-      io.observe(el);
-    };
-    watch("0px");
-    onEngaged(() => watch(LOOKAHEAD));
+  let io: IntersectionObserver | null = null;
+  const gate: Gate = {
+    opened: false,
+    dispose: () => io?.disconnect(),
+    promise: new Promise<void>((open) => {
+      const el =
+        document.getElementById(id) ??
+        document.querySelector(`[data-hydrate-near="${id}"]`);
+      if (!el) {
+        open();
+        return;
+      }
+      const watch = (rootMargin: string) => {
+        io?.disconnect();
+        io = new IntersectionObserver(
+          (entries) => {
+            if (!entries.some((entry) => entry.isIntersecting)) return;
+            io?.disconnect();
+            open();
+          },
+          { rootMargin },
+        );
+        io.observe(el);
+      };
+      watch("0px");
+      onEngaged(() => watch(LOOKAHEAD));
+    }),
+  };
+  void gate.promise.then(() => {
+    gate.opened = true;
   });
   gates.set(id, gate);
   return gate;
+};
+
+/** 자리표가 문이 열리기 전에 내려갔다 — 보류 중인 문을 버린다(열린 문은 그대로). */
+const dropPendingGate = (id: string) => {
+  const gate = gates.get(id);
+  if (!gate || gate.opened) return;
+  gate.dispose();
+  gates.delete(id);
 };
 
 /**
@@ -112,12 +130,13 @@ export const HydrateNear = ({
   useEffect(() => {
     if (open) return;
     let live = true;
-    void gateFor(id).then(() => {
+    void gateFor(id).promise.then(() => {
       openedGates.add(id);
       if (live) setOpen(true);
     });
     return () => {
       live = false;
+      dropPendingGate(id);
     };
   }, [id, open]);
   if (open) return children;

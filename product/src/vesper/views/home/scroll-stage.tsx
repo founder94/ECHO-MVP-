@@ -171,6 +171,8 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
     <>
       {robot ? <SceneStill /> : <SceneHostLazy />}
       {!robot && <Loader copy={loader} onReady={handleReady} />}
+      {/* 2026-10-09 대표: Einstein–Rosen 격자는 첫 화면의 배경 효과(구슬 장면 위 · 글 아래). 장면과 같이 한 벌(경계 넘어도 재생성 0 · Codex 12차). */}
+      {!robot && <HeroLattice />}
       {mobile ? (
         <MobileStage faq={faq} footer={footer} introStarted={introStarted} />
       ) : (
@@ -245,8 +247,6 @@ const DesktopStage = ({ faq, footer, introStarted }: { faq: FaqCopy; footer: Foo
   return (
     <>
       <main id="top" className="relative">
-        {/* 2026-10-09 대표: Einstein–Rosen 격자는 첫 화면의 배경 효과(구슬 장면 위 · 글 아래). */}
-        {!robot && <HeroLattice />}
         <Hero introStarted={introStarted} />
         <StageOverlays />
 
