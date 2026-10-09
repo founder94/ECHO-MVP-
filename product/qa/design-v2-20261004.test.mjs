@@ -135,7 +135,15 @@ test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까�
   assert.match(pm, /classList\.contains\(GUIDE_OPEN_CLASS\)/);
   assert.match(pm, /const GUIDE_OPEN_CLASS = "echo-guide-open";/, 'GuideHost 가 켜는 클래스와 같은 이름');
   assert.match(read('src/components/guide/GuideHost.tsx'), /root\.classList\.add\('echo-guide-open'\)/);
-  assert.match(V('views/home/scene/frame-gate.tsx'), /if \(pageMotionPaused\(\)\) return;\n\s*invalidate\(\);/, '원본 FrameGate: 멈춤이면 새 프레임 0');
+  const fg = V('views/home/scene/frame-gate.tsx');
+  assert.match(fg, /if \(pageMotionPaused\(\)\) \{\n\s*const key = `\$\{sceneTimeline\.getProgress\(\)\}\|/, '원본 FrameGate: 멈춤이면 상태(스크롤)가 바뀔 때만 한 장');
+  assert.match(fg, /if \(key === stillKey\) return;\n\s*stillKey = key;\n\s*invalidate\(\);\n\s*return;/);
+  // 2026-10-09 Codex 2차(f64517b) P2 두 건: 멈춤 상태의 첫 장이 비어 있으면 안 된다.
+  assert.match(V('views/home/scene/scene.worker.tsx'), /if \(!message\.running\) drawOnce\(\);/, '워커: 멈춤으로 시작해도 한 장');
+  assert.match(V('views/home/scene/scene.worker.tsx'), /message\.type === "frame"\) \{\n\s*drawOnce\(\);/);
+  assert.match(V('views/home/scene/scene-host.tsx'), /if \(pausedButShown\) send\(\{ type: "frame" \}\);/, '페이지: 멈춤이라도 상태가 바뀌면 한 장');
+  assert.match(V('views/home/sections/solaris-section.tsx'), /if \(paused\) introStart = now - CONFIG\.introSeconds \* 1000;/, 'Solaris 멈춤 장 = 등장 끝난 모습');
+  assert.match(V('views/home/sections/lattice-section.tsx'), /if \(paused\) live\.t0 = Math\.min\(live\.t0, now - CONFIG\.fadeInSeconds\);/, '격자 멈춤 장 = 나타나기 끝난 모습');
   assert.match(V('views/home/scene/scene-host.tsx'), /!document\.hidden && !pageMotionPaused\(\) && getSceneCover\(\) < HANDOFF/, '워커 경로도 같은 문');
   for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/sections/lattice-section.tsx']) {
     const src = V(f);

@@ -971,3 +971,8 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - P1 `hydrate-near.tsx`: 원본은 Next 서버 HTML 을 hydrate 하는 전제라 `use(gateFor(id))` 가 render 중 대상 요소를 못 찾으면 바로 열림 → CSR 인 우리 앱에서는 아래 5블록(Solaris·격자·설치·이야기·바닥글)이 첫 화면에서 한꺼번에 마운트돼 WebGL 2장면을 즉시 생성. 수정: 닫힌 동안 한 화면 높이 자리표(`data-hydrate-near` · 같은 id 가 없으면 그 id)를 두고 효과에서 문을 열면 블록을 그림. 로컬 검증: 첫 화면 캔버스 0 · 자리표 5 → 내려가면 마운트 · 중복 id 0 · `#making` 앵커 이동 OK.
 - P2 움직임 줄이기 · P2 이용 안내 열림: `lib/scene/page-motion.ts`(`prefers-reduced-motion` + `html.echo-guide-open`) 를 원본 FrameGate(invalidate 0) · 워커 shouldRun · Solaris · Lattice 루프(한 장만 그리고 멈춤)에 연결. 로컬 검증(PC·휴대폰): 보통 = 움직임, 움직임 줄이기 = 정지, 이용 안내 열림 = 정지 → 닫으면 재개.
 - 원본 파일 수정 범위: hydrate-near(문 방식) · frame-gate 1줄 · scene-host 1줄. 그 외 원본 그대로.
+
+### 27.2 Codex 3차(f64517b · 리뷰 5464914384) P2 2건 + 같은 결의 보강(2026-10-09)
+- Solaris: 멈춤으로 시작하면 첫 장이 등장(intro) 0 이라 입자 불투명도 0(빈 화면) → 멈춤 장은 `introStart` 를 등장 끝으로. 격자도 같은 이유(fade-in 0 → iAlpha 0) 보강.
+- 워커(휴대폰): `running:false` 로 시작하면 첫 장조차 없음 → 멈춤 시작 시 6초(로더 막 + 구슬 등장) 동안 보통 속도로 그린 뒤 정지. 페이지는 멈춤 중에도 탭이 보이고 덮이기 전이면 상태(스크롤·등장/퇴장)가 바뀔 때 `frame` 한 장(새 메시지). 원본 FrameGate 도 같은 규칙(상태 바뀔 때만 invalidate).
+- 로컬 검증(휴대폰 390 · PC 1440 · 움직임 줄이기 켬): 첫 화면·은하·Solaris·격자 모두 보통 설정과 같은 무게(JPEG 바이트 어림)로 그려지고 두 캡처 동일(정지) · 스크롤하면 장면이 따라 바뀜 · pageerror 0.

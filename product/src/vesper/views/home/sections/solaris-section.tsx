@@ -135,6 +135,8 @@ export const SolarisSection = () => {
       stillDrawn = paused;
       time += 0.005 * CONFIG.noiseSpeed;
       if (introStart === 0) introStart = now;
+      // 멈춤 상태의 한 장은 등장(intro) 이 끝난 모습이어야 한다(uIntro 0 이면 입자 불투명도 0 → 빈 화면).
+      if (paused) introStart = now - CONFIG.introSeconds * 1000;
       const introRaw = Math.min((now - introStart) / (CONFIG.introSeconds * 1000), 1);
       const introEased = 1 - Math.pow(1 - introRaw, 3);
       material.uniforms.uIntro.value = introEased;

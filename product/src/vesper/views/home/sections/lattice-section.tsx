@@ -163,6 +163,8 @@ export const LatticeSection = () => {
       if (paused && stillDrawn) { live.last = performance.now() / 1000; return; }
       stillDrawn = paused;
       const now = performance.now() / 1000;
+      // 멈춤 상태의 한 장은 서서히 나타나기(fade-in) 가 끝난 모습이어야 한다(iAlpha 0 → 빈 화면).
+      if (paused) live.t0 = Math.min(live.t0, now - CONFIG.fadeInSeconds);
       let dt = now - live.last; live.last = now; dt = Math.min(Math.max(dt, 0), 0.05);
       U.iTime.value = now;
       const f = Math.min(1, (now - live.t0) / Math.max(CONFIG.fadeInSeconds, 0.001));

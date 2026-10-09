@@ -78,6 +78,29 @@ const setRunning = (on: boolean) => {
     loop = 0;
   }
 };
+/**
+ * 2026-10-09(Codex 검수 P2 · PR #151): 멈춤 상태(움직임 줄이기 · 이용 안내)로 시작하면 `running` 이 false 라 첫 장조차
+ * 없었다. 멈춤으로 시작하면 자리 잡을 때까지(`settleMs` · 로더 막 + 구슬이 모이는 등장) 보통 속도로 그린 뒤 멈추고,
+ * 그 뒤로는 페이지가 `frame` 을 보낼 때(스크롤 등 상태 변화) 한 장만 그린다. 시계는 실제 시간을 따른다(멈춘 시계로는
+ * 구슬이 모이다 만 모습이 남는다).
+ */
+const drawOnce = (settleMs = 0) => {
+  if (!store || running) return;
+  const startAt = performance.now();
+  const one = (time: number) => {
+    if (!store || running) return;
+    if (origin < 0) origin = time;
+    if (!settleMs || time - last >= interval - 1) {
+      last = time;
+      seconds = (time - origin) / 1000;
+      advance(seconds, true, store.getState());
+    }
+    if (performance.now() - startAt < settleMs) frameApi.requestAnimationFrame(one);
+  };
+  frameApi.requestAnimationFrame(one);
+};
+/** 멈춤으로 시작할 때 자리 잡는 시간: 로더 막(~2초) + 구슬 등장(2.9초). */
+const SETTLE_MS = 6000;
 let root: ReturnType<typeof createRoot<OffscreenCanvas>> | null = null;
 
 const sizeOf = (width: number, height: number) => ({
@@ -117,6 +140,7 @@ const start = async (message: Extract<SceneMessage, { type: "init" }>) => {
     </>,
   );
   setRunning(message.running);
+  if (!message.running) drawOnce(SETTLE_MS);
 };
 
 self.onmessage = (event: MessageEvent<SceneMessage>) => {
@@ -133,6 +157,8 @@ self.onmessage = (event: MessageEvent<SceneMessage>) => {
     store.getState().pointer.set(message.x, message.y);
   } else if (message.type === "run") {
     setRunning(message.on);
+  } else if (message.type === "frame") {
+    drawOnce();
   } else if (message.type === "resize") {
     void resize(message);
   }

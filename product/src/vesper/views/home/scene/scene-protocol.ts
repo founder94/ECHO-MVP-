@@ -31,6 +31,8 @@ export type SceneMessage =
       y: number;
     }
   | { type: "run"; on: boolean }
+  /** 멈춤(움직임 줄이기 · 이용 안내) 중 한 장만: 시계는 멈춘 채 지금 상태(스크롤 등)로 그린다. */
+  | { type: "frame" }
   | { type: "resize"; width: number; height: number; dpr: number };
 
 export type SceneReply = { type: "error" };

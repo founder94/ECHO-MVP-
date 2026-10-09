@@ -146,7 +146,9 @@ export const SceneHost = () => {
             on = run;
             send({ type: "run", on });
           }
-          if (!on) return;
+          // 멈춤(움직임 줄이기 · 이용 안내)이라도 탭이 보이고 아직 덮이지 않았으면, 스크롤 등 상태가 바뀔 때 한 장만 다시 그린다.
+          const pausedButShown = !on && pageMotionPaused() && !document.hidden && getSceneCover() < HANDOFF;
+          if (!on && !pausedButShown) return;
           const next = {
             progress: sceneTimeline.getProgress(),
             target: sceneTimeline.getTarget(),
@@ -166,6 +168,7 @@ export const SceneHost = () => {
             return;
           sent = next;
           send({ type: "state", ...next });
+          if (pausedButShown) send({ type: "frame" });
         },
         () => 0,
       );
