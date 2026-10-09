@@ -43,7 +43,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   // 모바일 문서
   const M = V('views/home/mobile-stage.tsx');
   // 2026-10-09 대표 「홈페이지 수정사항 — 최신 정정」: ① 첫 화면 → ② 연출(회전 카드 세 문장) → ③ 영상 페이지 셋(이야기 → 확인·정정 → 직접 선택) → ④ FAQ → ⑤ 바닥글.
-  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="how">', 'page={HOME_V2.pages[1]}', '<PageBlock id="choice" page={HOME_V2.pages[2]}', '<HydrateNear id="faq">', '<HydrateNear id="contact">'].map((s) => M.indexOf(s));
+  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="how">', '<PageBlock id="how" page={HOME_V2.pages[0]}', 'page={HOME_V2.pages[1]}', '<PageBlock id="choice" page={HOME_V2.pages[2]}', '<HydrateNear id="faq">', '<HydrateNear id="contact">'].map((s) => M.indexOf(s));
   mOrder.forEach((v, i) => assert.ok(v > 0, `mobile ${i}`)); assert.deepEqual([...mOrder].sort((a, b) => a - b), mOrder, '모바일 순서');
   assert.doesNotMatch(M, /toLvh|SectionBrain|SectionGalaxy|setOutro/, '모바일은 원본 200lvh 트랙·뇌 장면·고정 겹 그림을 쓰지 않음');
   assert.match(M, /sceneTimeline\.setTrack\(0, progress\);\n\s*sceneTimeline\.setTrack\(1, progress\);/, '③ 구간 하나가 장면 시계 0→2(구체 → 은하)');
@@ -325,7 +325,7 @@ test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebG
   assert.match(read('src/pages/NotFound.tsx'), /font-body">\{location\.pathname\}/, '404 안내도 주아체');
   const stage = V('views/home/scroll-stage.tsx');
   assert.match(stage, /id="how"[\s\S]*HydrateNear id="financial"[\s\S]*<div id="choice" className="mb-\[1\.667vw\]">\n\s*<ChoiceSection \/>[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서(확인·정정 → 직접 선택 → FAQ → Solaris → Onyx → 바닥글)');
-  assert.match(mob, /<HeroMobile[\s\S]*<AgentScene[\s\S]*<PageBlock page=\{HOME_V2\.pages\[0\]\}[\s\S]*<PageBlock page=\{HOME_V2\.pages\[1\]\}[\s\S]*<PageBlock id="choice" page=\{HOME_V2\.pages\[2\]\}[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 순서(최신 정정)');
+  assert.match(mob, /<HeroMobile[\s\S]*<AgentScene[\s\S]*<PageBlock id="how" page=\{HOME_V2\.pages\[0\]\}[\s\S]*<PageBlock page=\{HOME_V2\.pages\[1\]\}[\s\S]*<PageBlock id="choice" page=\{HOME_V2\.pages\[2\]\}[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 순서(최신 정정)');
 });
 
 test('Codex 13·14차(PR #151): #how 틀 항상 마운트 · Onyx touchmove 차단 0 · 격자 누름 필터 · Onyx 메뉴 위 포인터 중립 · 버린 문의 대기 콜백 취소', () => {
@@ -357,8 +357,8 @@ test('대표 「심볼은 왼쪽 윗상단에 배치해」(2026-10-09): 홈페�
 test('앵커 도착 = 고정 머리글 아래(2026-10-09 모의 검사: #how 제목이 머리글 밑에 숨음): scroll-to 와 메뉴 이동 모두 anchorOffset · CSS scroll-margin-top', () => {
   const st = V('utils/scroll-to.ts');
   assert.match(st, /export const anchorOffset = \(\): number =>/); assert.match(st, /header\.getBoundingClientRect\(\)\.bottom \+ 8/);
-  assert.match(st, /top: Math\.max\(0, getDistanceFromTop\(target\) - anchorOffset\(\)\)/);
-  assert.match(V('components/common/mobile-nav.tsx'), /lenis\.scrollTo\(element \?\? 0, \{ duration: 1\.2, offset: element \? -anchorOffset\(\) : 0 \}\)/);
+  assert.match(st, /const top = Math\.max\(0, getDistanceFromTop\(target\) - anchorOffset\(\)\);/);
+  assert.match(V('components/common/mobile-nav.tsx'), /element\.getBoundingClientRect\(\)\.top \+ window\.scrollY - anchorOffset\(\)/);
   assert.match(V('vesper.css'), /html\.vesper :is\(#how, #choice, #faq, #contact, #financial, #top\) \{ scroll-margin-top: calc\(0\.694vw \+ 3\.542vw \+ 8px\); \}/);
 });
 
@@ -384,4 +384,21 @@ test('대표 「홈페이지 수정사항 — 최신 정정」(2026-10-09): 장�
   assert.match(SEND, /href=\{appUrl\(START_PATH\)\}/, '기존 ECHO 진입 주소 그대로');
   for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/sections/onyx-section.tsx']) assert.doesNotMatch(V(f), /HOME_V2/, `${f}: 비행·전환 구간 추가 문구 0`);
   assert.match(V('vesper.css'), /html\.vesper \.vesper-scroll-hint \{ animation: vesper-scroll-hint 1\.8s ease-in-out infinite; \}/); assert.match(V('vesper.css'), /prefers-reduced-motion: reduce\) \{ html\.vesper \.vesper-scroll-hint \{ animation: none; \}/);
+});
+
+test('앵커 이동 뒤 화면 끌림 0: html.vesper overflow-anchor none(문 열림으로 아래 높이가 바뀌어도 #how 위치 유지)', () => {
+  assert.match(V('vesper.css'), /html\.vesper \{ font-size: 16px; font-synthesis: none; overflow-anchor: none; scroll-behavior: auto;/, '홈페이지는 브라우저 부드러운 스크롤 끔(Lenis 와 겹침 방지)');
+});
+
+test('Codex 17차(54cb565): 모바일 #how 는 문이 열린 뒤에도 남음(P1) · 앵커 이동은 Lenis 가 있으면 Lenis 로(목표값 동기화 · P2)', () => {
+  assert.match(V('views/home/mobile-stage.tsx'), /<HydrateNear id="how">[\s\S]{0,200}<PageBlock id="how" page=\{HOME_V2\.pages\[0\]\}/);
+  const st = V('utils/scroll-to.ts');
+  assert.match(st, /const lenis = useScroll\.getState\(\)\.lenis;\n\s*if \(lenis\) \{\n\s*lenis\.scrollTo\(top, \{ immediate: Boolean\(immediate\), force: true \}\);/);
+  assert.match(st, /else \{\n\s*window\.scrollTo\(\{ top, behavior: immediate \? "instant" : "smooth" \}\);/, 'Lenis 없으면 브라우저 이동');
+});
+
+test('Codex 17차 재검(휴대폰 메뉴): 요소 대신 숫자로 Lenis 이동 — CSS scroll-margin-top 과 머리글 보정이 두 번 빠지지 않음(실측 156 → 76)', () => {
+  const nav = V('components/common/mobile-nav.tsx');
+  assert.match(nav, /const top = element \? Math\.max\(0, element\.getBoundingClientRect\(\)\.top \+ window\.scrollY - anchorOffset\(\)\) : 0;\n\s*if \(lenis\) lenis\.scrollTo\(top, \{ duration: 1\.2 \}\);/);
+  assert.doesNotMatch(nav, /lenis\.scrollTo\(element/, 'Lenis 에 요소를 넘기면 scroll-margin 이 한 번 더 빠진다');
 });

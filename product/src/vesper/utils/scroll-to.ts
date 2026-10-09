@@ -38,10 +38,16 @@ export const scrollTo = (id?: string | number, immediate?: boolean) => {
     setTimeout(() => {
       // Codex 12차(b133e1d): 50ms 사이에 자리표(HydrateNear)가 실제 블록으로 바뀔 수 있다 → 그때 다시 찾는다.
       const target = document.getElementById(id) ?? el;
-      window.scrollTo({
-        top: Math.max(0, getDistanceFromTop(target) - anchorOffset()),
-        behavior: immediate ? "instant" : "smooth",
-      });
+      const top = Math.max(0, getDistanceFromTop(target) - anchorOffset());
+      // Codex 17차(54cb565 · P2): Lenis 가 있으면 Lenis 로 옮긴다 — 브라우저 scrollTo 로 옮기면 Lenis 내부 목표가 옛 값으로 남아,
+      // 잠깐 멈췄던 Lenis 가 다시 켜질 때 바로잡은 위치를 덮어썼다(움직임 줄이기 PC 에서 #how 를 1270px 지나침).
+      // force: 멈춘 상태(isEnableScroll=false)에서도 목표를 함께 맞춘다.
+      const lenis = useScroll.getState().lenis;
+      if (lenis) {
+        lenis.scrollTo(top, { immediate: Boolean(immediate), force: true });
+      } else {
+        window.scrollTo({ top, behavior: immediate ? "instant" : "smooth" });
+      }
     }, 50);
   } else {
     setTimeout(() => {

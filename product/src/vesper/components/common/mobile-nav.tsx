@@ -231,7 +231,10 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
       const lenis = useScroll.getState().lenis;
       const element = hash ? document.getElementById(hash) : null;
       if (hash && !element) return;
-      if (lenis) lenis.scrollTo(element ?? 0, { duration: 1.2, offset: element ? -anchorOffset() : 0 });
+      // 2026-10-09(Codex 17차 재검): 요소를 넘기면 Lenis 가 CSS scroll-margin-top(머리글 높이)을 스스로 빼는데
+      // 여기서 anchorOffset 까지 또 빼서 휴대폰 메뉴 → #how 가 80px 덜 내려갔다(실측 156 → 기대 76). 숫자로 넘겨 한 번만 뺀다.
+      const top = element ? Math.max(0, element.getBoundingClientRect().top + window.scrollY - anchorOffset()) : 0;
+      if (lenis) lenis.scrollTo(top, { duration: 1.2 });
       else if (element) element.scrollIntoView({ behavior: "smooth" });
       else window.scrollTo({ top: 0, behavior: "smooth" });
     });

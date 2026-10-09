@@ -111,7 +111,8 @@ export const MobileStage = memo(function MobileStage({ faq, footer, introStarted
       <div className="relative z-10">
         <Suspense fallback={null}>
           <HydrateNear id="how">
-            <PageBlock page={HOME_V2.pages[0]} className="mt-4" />
+            {/* Codex 17차(P1): 문이 열려 자리표가 블록으로 바뀌어도 #how 가 남아야 메뉴·바닥글 이동이 된다. */}
+            <PageBlock id="how" page={HOME_V2.pages[0]} className="mt-4" />
           </HydrateNear>
         </Suspense>
         <PageBlock page={HOME_V2.pages[1]} className="mt-10" />
