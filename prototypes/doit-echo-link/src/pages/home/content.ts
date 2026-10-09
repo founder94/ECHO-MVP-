@@ -1,4 +1,8 @@
 /**
+ * 줄 규칙(대표 지시 2026-10-09): 설명 글은 「문장 하나 = 항목 하나 = 한 줄」. 문장 중간에서 줄을 나누지 않는다.
+ * 휴대폰에서 한 문장이 화면 폭보다 길면 자동 줄바꿈하되 두 줄 길이를 고르게(text-wrap: balance).
+ * 제목은 의미 단위(쉼표로 나뉜 두 마디 = 두 줄), 한 단어만 따로 떨어지는 줄은 만들지 않는다.
+ *
  * DOIT COMPANY 홈페이지 글 — 대표 「최종 연결 시안 제작 지시서」(2026-10-09) §4 확정 카피 그대로.
  * 화면 코드에는 글을 두지 않는다(원본 Clarix 규칙: 글은 데이터 파일에만).
  *
@@ -23,14 +27,13 @@ export const homeCopy = {
     label: "DOIT COMPANY PRESENTS ECHO",
     title: [[{ text: "당신이 잠든 사이" }], [{ text: "AI가 먼저 만나봅니다", weight: "regular" }]] as TitleLines,
     text: [
-      "당신의 이야기를 바탕으로 ECHO Agent가",
-      "만남의 가능성을 먼저 살펴봅니다.",
+      "당신의 이야기를 바탕으로 ECHO\u00A0Agent가 만남의 가능성을 먼저 살펴봅니다.",
       "연결은 두 사람이 서로 선택했을 때 시작됩니다.",
     ],
   },
   story: {
     title: [[{ text: "당신을 알아가는 시작은" }], [{ text: "당신의 이야기에서", weight: "medium" }]] as TitleLines,
-    text: ["좋아하는 것, 중요하게 여기는 것,", "편하게 느끼는 관계를 들려주세요."],
+    text: ["좋아하는 것, 중요하게 여기는 것, 편하게 느끼는 관계를 들려주세요."],
   },
   words: ["이야기", "이해", "연결"],
   glass: {
@@ -45,22 +48,22 @@ export const homeCopy = {
   control: {
     title: [[{ text: "AI가 먼저 살펴보고," }], [{ text: "결정은 당신이 합니다.", weight: "medium" }]] as TitleLines,
     text: [
-      "ECHO Agent가 이해한 내용을 확인하고 고칠 수 있습니다.",
-      "당신의 최신 이야기와 선택을 기준으로",
-      "다음 만남의 가능성을 살펴봅니다.",
+      "ECHO\u00A0Agent가 이해한 내용을 확인하고 고칠 수 있습니다.",
+      "당신의 최신 이야기와 선택을 기준으로 다음 만남의 가능성을 살펴봅니다.",
     ],
   },
   company: {
     top: [[{ text: COMPANY }]] as TitleLines,
     bottom: [[{ text: TAGLINE, weight: "medium" }]] as TitleLines,
-    text: ["새로운 가능성을,", "실제로 경험할 수 있게."],
+    text: ["새로운 가능성을, 실제로 경험할 수 있게."],
   },
   finale: {
-    title: [[{ text: "이제," }], [{ text: "당신의 이야기를 시작할 차례.", weight: "regular" }]] as TitleLines,
+    /* 대표 지시: 한 문장은 한 줄 — 「이제,」가 홀로 떨어지지 않게 한 줄(휴대폰은 화면 폭에 맞춰 글자 크기를 줄인다). */
+    title: [[{ text: "이제, " }, { text: "당신의 이야기를 시작할 차례.", weight: "regular" }]] as TitleLines,
   },
   footer: {
     service: SERVICE,
-    text: ["당신다운 만남을 향해,", "첫 이야기를 들려주세요."],
+    text: ["당신다운 만남을 향해, 첫 이야기를 들려주세요."],
     cta: "내 이야기 시작하기",
     ctaArrow: "↗",
     sign: `${COMPANY} · ${TAGLINE}`,

@@ -924,3 +924,7 @@ body {
   .story-main { padding-bottom: 3rem; }
 }
 :root { --raw-text-foot: 0.8125rem; --raw-text-meta: 0.8125rem; }
+
+/* 문장 하나 = 한 줄(대표 지시 2026-10-09): 두 문장 글은 문장마다 줄을 나누고(\n), 화면보다 긴 문장만
+   두 줄 길이를 고르게 자동 줄바꿈한다. */
+.story-lead, .story-hint, .story-notice, .story-card-note, .story-flow-desc { white-space: pre-line; text-wrap: balance; }

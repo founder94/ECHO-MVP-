@@ -201,15 +201,17 @@ export const MigrationScreen = ({
         aria-hidden
         className={`font-display text-foreground-desc max-laptop:top-[8.0625rem] max-laptop:left-8 max-tablet:left-6 max-phone:top-[7.0625rem] max-phone:left-5 absolute top-[11.25rem] left-10 font-semibold uppercase [mask-image:var(--copy-veil-fading)] ${look.settledTop ?? ""} ${look.settled}`}
       >
+        {/* 연결 시안: 설명 문장은 따로 한 덩어리(문장 하나 = 한 줄, 넘치면 고르게 두 줄) — 뒤따라 오는
+            큰 문장 조각이 설명 끝에 같은 줄로 붙지 않게 한다. */}
         {settled ? (
-          <>
+          <span className="mb-[0.6em] block text-balance">
             <WordFlight
               text={settled}
               mode="rise"
               kerning={look.kerning?.settled}
               clock={scrubbed}
-            />{" "}
-          </>
+            />
+          </span>
         ) : null}
         {/* Inline, not `inline-block`: an atomic box moves as one, so a
             phrase on its way in wrapped differently from the same phrase

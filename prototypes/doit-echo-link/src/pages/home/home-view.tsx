@@ -30,11 +30,11 @@ const LINE = "h-px bg-spectrum";
 const CTA =
   "inline-flex min-h-tap items-center gap-3 rounded-pill border border-ink bg-transparent px-10 py-3.5 text-cta font-semibold text-ink no-underline transition-[background-color,translate] duration-[var(--duration-hover)] ease-css hover:-translate-y-lift hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink";
 
+/** 설명 글: 문장 하나가 한 줄(.sentence — PC 는 한 줄 고정, 휴대폰은 넘치면 고르게 두 줄). */
 const Lines = ({ lines, className }: { lines: readonly string[]; className: string }) => (
   <p className={className}>
-    {lines.map((l, i) => (
-      <span key={l}>
-        {i > 0 && <br />}
+    {lines.map((l) => (
+      <span key={l} className="sentence">
         {l}
       </span>
     ))}
@@ -115,7 +115,7 @@ export const HomeView = () => {
           </PreloadRevealNav>
           <PreloadRevealDiv
             from="bottom"
-            className="scrim-soft absolute bottom-12.5 left-12.5 z-5 flex w-[26rem] flex-col text-ink portrait:left-6.5 max-md:right-gutter max-md:left-gutter! max-md:bottom-8 max-md:w-auto"
+            className="scrim-soft absolute bottom-12.5 left-12.5 z-5 flex w-max flex-col text-ink portrait:left-6.5 max-md:right-gutter max-md:left-gutter! max-md:bottom-8 max-md:w-auto"
           >
             <div className={`${HI_TOP} mb-5`}>
               <span>{c.hero.label}</span>
@@ -131,7 +131,7 @@ export const HomeView = () => {
               <SplitTitle tag="h2" trigger={{ on: "inview" }} lines={c.story.title} className={`halo ${DISPLAY}`} />
             </div>
             <div className="flex w-full flex-col items-end px-12.5 max-md:px-gutter">
-              <div className="scrim-soft max-w-[34rem] text-right max-md:text-left">
+              <div className="scrim-soft text-right max-md:text-left">
                 <div className={`${LINE} mb-8 w-full`} />
                 <Lines lines={c.story.text} className={`${BODY} m-0 text-lead`} />
               </div>
@@ -208,7 +208,7 @@ export const HomeView = () => {
                   <SplitTitle tag="h2" id="phase4-title" trigger={{ on: "stage", id: "phase4-title" }} lines={c.control.title} className={`${DISPLAY} mt-0 text-left`} />
                   <div className={`${LINE} mx-0 my-10 w-full max-md:my-6`} />
                 </div>
-                <Lines lines={c.control.text} className={`${BODY} m-0 max-w-[36rem] text-left`} />
+                <Lines lines={c.control.text} className={`${BODY} m-0 text-left`} />
               </div>
             </div>
           </div>
@@ -222,7 +222,7 @@ export const HomeView = () => {
               lines={c.company.top}
               className={`${DISPLAY} absolute top-10 left-12.5 text-left max-md:top-24 max-md:left-gutter`}
             />
-            <Lines lines={c.company.text} className={`scrim-soft ${BODY} absolute bottom-10 left-12.5 m-0 max-w-100 text-left max-md:bottom-32 max-md:left-gutter`} />
+            <Lines lines={c.company.text} className={`scrim-soft ${BODY} absolute bottom-10 left-12.5 m-0 text-left max-md:bottom-32 max-md:left-gutter`} />
             <SplitTitle
               tag="h2"
               id="phase5-title-2"
@@ -240,7 +240,7 @@ export const HomeView = () => {
               id="phase6-title"
               trigger={{ on: "stage", id: "phase6-title" }}
               lines={c.finale.title}
-              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-light text-finale leading-hero text-ink keep-all"
+              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-light text-finale leading-hero whitespace-nowrap text-ink keep-all max-md:text-[min(30px,calc((100vw-32px)/15))]"
             />
           </div>
         </main>

@@ -438,6 +438,10 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
 
 @layer components {
   .keep-all { word-break: keep-all; overflow-wrap: break-word; }
+  /* 문장 하나 = 한 줄(대표 지시 2026-10-09). PC 는 한 줄로 고정하고, 휴대폰에서 화면보다 긴 문장만
+     자동 줄바꿈 — 두 줄 길이를 고르게 맞춰 단어 하나가 홀로 떨어지지 않게 한다. */
+  .sentence { display: block; text-wrap: balance; }
+  @media (width >= 48rem) { .sentence { white-space: nowrap; } }
 
   /* 읽는 글 뒤에만 까는 부드러운 밝은 막(대표 지시 §6-2). 화면 전체를 덮는 흰 상자가 아니라
      글 영역 가장자리로 갈수록 사라지는 타원. 움직이는 모델·격자 위에서도 본문 대비를 지킨다. */

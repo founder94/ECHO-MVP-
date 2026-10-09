@@ -90,8 +90,9 @@ export interface FooterColumn {
 }
 
 export interface ConnectContent {
-  /** Three lines, the middle one stepped in. A capital S marks a swash. */
-  headline: [string, string, string];
+  /** Three lines, the middle one stepped in. A capital S marks a swash.
+      연결 시안: 두 마디 문장은 두 줄(세 번째 줄 생략 가능 — 대표 지시 「두 문항이면 두 줄」). */
+  headline: [string, string, string?];
   lead: string;
   cta: NavLink;
   columns: FooterColumn[];
