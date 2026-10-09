@@ -27,11 +27,12 @@ import { SendRequest } from "./send-request";
  * about anyway.
  */
 
-const TITLE_LEFT = "내 이야기는, 내 말로.";
-const TITLE_RIGHT = "마지막 말은, 나에게.";
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
+const TITLE_LEFT = "Motion instead of chrome";
+const TITLE_RIGHT = "Reads presence, in motion";
 const TAGLINE_LEFT =
-  "AI의 해석이 나와 다르면 그 자리에서 고칠 수 있어요. 고친 내용은 다음 대화에 이어집니다.";
-const TAGLINE_RIGHT = "움직임 줄이기 설정을 따릅니다";
+  "Point counts, tessellation and pixel ratio step down by device, never by frame rate.";
+const TAGLINE_RIGHT = "Reduced-motion honoured across the page";
 
 export const SectionBrain = () => {
   const clock = useSceneClock();

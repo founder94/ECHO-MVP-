@@ -27,8 +27,6 @@ import {
   SPRING_SOFT,
 } from "@vesper/lib/springs/config";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
-import { appUrl } from "@/lib/siteRole";
-import { BRAND_HOME_COPY, START_PATH } from "@/pages/do-it/brand-home/copy";
 
 export interface MobileNavItem {
   label: string;
@@ -252,7 +250,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
       id={PANEL_ID}
       role="dialog"
       aria-modal="true"
-      aria-label="메뉴"
+      aria-label="Menu"
       inert={!open}
       hidden={!shown}
       onKeyDown={onPanelKeyDown}
@@ -271,7 +269,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
         <div className="absolute top-[1rem] left-1/2 flex h-[3.5rem] w-[calc(100%-3rem)] -translate-x-1/2 items-center justify-between border border-white/10 py-[0.5rem] pr-[0.5rem] pl-[1rem] max-sm:top-[0.75rem] max-sm:w-[calc(100%-2.5rem)]">
           <PressableLink
             href="/"
-            aria-label="DO IT — 홈"
+            aria-label="DO IT — home"
             interaction={QUIET}
             onClick={onNavigate}
             className="block h-[1.5rem] w-[4.875rem] shrink-0"
@@ -282,7 +280,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
           <PressableButton
             data-menu-close=""
             type="button"
-            aria-label="메뉴 닫기"
+            aria-label="Close menu"
             onClick={hide}
             interaction={QUIET}
             className="relative flex size-[2.5rem] shrink-0 items-center justify-center"
@@ -333,11 +331,12 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
             {tagline}
           </p>
           <PressableLink
-            href={appUrl(START_PATH)}
+            href="/#contact"
+            onClick={onNavigate}
             interaction={GHOST}
             className="flex items-center justify-center gap-[0.5rem] border px-[1.111rem] py-[0.875rem] font-general text-[1rem] leading-[1.2]"
           >
-            {BRAND_HOME_COPY.start}
+            Contact Us
             <span aria-hidden className="block size-[0.1875rem] bg-current" />
           </PressableLink>
         </animated.div>
@@ -352,7 +351,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
         type="button"
         aria-expanded={open}
         aria-controls={PANEL_ID}
-        aria-label="메뉴 열기"
+        aria-label="Open menu"
         onClick={show}
         interaction={QUIET}
         className="relative flex size-[2.5rem] shrink-0 items-center justify-center"

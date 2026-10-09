@@ -9,7 +9,6 @@ import { hiddenWhenClear, useSceneClock } from "../overlay";
 import { LETTER_FADE, UNIT_REVEAL_FIRST_SCREEN, WORD_REVEAL } from "../reveal";
 import { LineBlur } from "../line-blur";
 import { SendRequest } from "../send-request";
-import { BRAND_HOME_COPY } from "@/pages/do-it/brand-home/copy";
 
 /**
  * Hero overlay — the Figma "Motion instead of chrome" screen.
@@ -32,10 +31,13 @@ import { BRAND_HOME_COPY } from "@/pages/do-it/brand-home/copy";
  * an **inline** style, so only `position: static !important` can beat it.
  */
 
-const TITLE = `${BRAND_HOME_COPY.heroTitle[0]} ${BRAND_HOME_COPY.heroTitle[1]}`;
-const TAGLINE = `${BRAND_HOME_COPY.heroLine[0]} ${BRAND_HOME_COPY.heroLine[1]}`;
-const SUPPORT = BRAND_HOME_COPY.heroNote;
-const TAGS = ["[ ECHO ]", "[ ONLINE SERENDIPITY ]", "[ JUST TRY. ]"];
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
+const TITLE = "Motion instead of chrome";
+const TAGLINE =
+  "It reads your presence — pointer, scroll, dwell — and it answers in motion.";
+const SUPPORT =
+  "A rendering and interaction layer that turns your presence into motion, tuned to feel alive under every pointer.";
+const TAGS = ["[ LIVING INTERFACE ]", "[ MOTION LAYER ]", "[ MOTION LAYER ]"];
 
 export interface HeroProps {
   /** Flips true once the loader curtain lifts — gates the reveal. */

@@ -3,14 +3,14 @@
 import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
 
 import { Inview } from "@vesper/components/common/robot-inview";
+import { LEGAL } from "@/pages/do-it/brand-home/copy";
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 바닥글 그대로(연락 폼은 원본처럼 서버 없음 · 보내지 않음).
+// 남긴 것: 로고(DO IT) · 맨 아래 사업자 정보·약관·개인정보(법적 고지 — 대표가 빼라 하면 뺀다).
 import { PressableButton, PressableLink } from "@vesper/components/ui/pressable";
 import type { FooterCopy } from "@vesper/data/mocks/home";
 import { GHOST_SIGNAL, MUTED_LINK } from "@vesper/lib/springs/interaction";
 import { FollowLineBlur } from "../line-blur";
 import { LETTER_FADE, UNIT_REVEAL } from "../reveal";
-import { SendRequest } from "../send-request";
-import { LEGAL } from "@/pages/do-it/brand-home/copy";
-import { openGuide } from "@/lib/guide/bus";
 
 export interface SiteFooterProps {
   copy: FooterCopy;
@@ -29,7 +29,7 @@ export interface SiteFooterProps {
  * inputs over a full-width button — and the link columns become a two-column grid
  * under the wordmark.
  */
-const TITLE = "JUST TRY.";
+const TITLE = "Let's talk.";
 
 export const SiteFooter = ({ copy }: SiteFooterProps) => {
   return (
@@ -51,24 +51,48 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
         )}
       </FollowLineBlur>
 
-      {/* 원본의 연락 폼(이름·이메일) 대신 시작 버튼 + 이용 안내(개인정보를 받는 칸 0). */}
+      {/* Contact form — a header-style glass pill, centred on the shader. Not yet
+          wired to a backend (no `/api/contact` route); submit is a stub. */}
       <Inview
         mode="once"
         from={UNIT_REVEAL.from}
         to={UNIT_REVEAL.to}
         config={UNIT_REVEAL.config}
-        className="mx-auto mt-[2.917vw] flex w-[38.264vw] flex-col items-center gap-[1.111vw] max-lg:mt-[2rem] max-lg:w-full max-lg:max-w-[30rem] max-lg:gap-[1rem]"
+        className="mx-auto mt-[2.917vw] w-[38.264vw] max-lg:mt-[2rem] max-lg:w-full max-lg:max-w-[30rem]"
       >
-        <SendRequest />
-        <PressableButton
-          type="button"
-          onClick={() => openGuide()}
-          interaction={GHOST_SIGNAL}
-          className="flex items-center gap-[0.694vw] border px-[1.111vw] py-[0.694vw] font-general text-[1.111vw] leading-[1.2] whitespace-nowrap max-lg:gap-[0.5rem] max-lg:px-[1.25rem] max-lg:py-[0.875rem] max-lg:text-[1rem]"
+        <form
+          onSubmit={(event) => event.preventDefault()}
+          className="flex h-[3.542vw] w-full items-center border border-white/20 bg-black/80 py-[0.556vw] pr-[0.556vw] pl-[1.667vw] backdrop-blur-[8px] max-lg:h-auto max-lg:flex-col max-lg:items-stretch max-lg:gap-[0.75rem] max-lg:p-[1rem]"
         >
-          이용 안내
-          <span aria-hidden className="block size-[0.139vw] shrink-0 bg-current max-lg:size-[0.1875rem]" />
-        </PressableButton>
+          {/* The inputs had `outline-none` with nothing put back — invisible to a
+              keyboard, and on a live shader the UA default would vanish anyway.
+              The focus ring is deliberately *not* sprung: a focus indicator that
+              eases in is a focus indicator that is briefly wrong. */}
+          <input
+            aria-label="Name"
+            name="name"
+            placeholder="Name"
+            className="w-[12.5vw] bg-transparent font-general text-[1.111vw] leading-[1.2] text-white outline-none placeholder:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal max-lg:w-full max-lg:border-b max-lg:border-white/20 max-lg:pb-[0.5rem] max-lg:text-[1rem] max-lg:placeholder:text-white/60"
+          />
+          <input
+            aria-label="Email"
+            name="email"
+            type="email"
+            placeholder="Email"
+            className="ml-[1.111vw] w-[12.5vw] bg-transparent font-general text-[1.111vw] leading-[1.2] text-white outline-none placeholder:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal max-lg:ml-0 max-lg:w-full max-lg:border-b max-lg:border-white/20 max-lg:pb-[0.5rem] max-lg:text-[1rem] max-lg:placeholder:text-white/60"
+          />
+          <PressableButton
+            type="submit"
+            interaction={GHOST_SIGNAL}
+            className="ml-auto flex items-center gap-[0.694vw] self-stretch border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] whitespace-nowrap max-lg:ml-0 max-lg:justify-center max-lg:gap-[0.5rem] max-lg:py-[0.875rem] max-lg:text-[1rem]"
+          >
+            Contact Us
+            <span
+              aria-hidden
+              className="block size-[0.139vw] shrink-0 bg-current max-lg:size-[0.1875rem]"
+            />
+          </PressableButton>
+        </form>
       </Inview>
 
       {/* Full-width divider (edge to edge, wider than the inset content). */}
@@ -131,8 +155,7 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
           ))}
         </nav>
       </div>
-
-      {/* 사업자 정보 · 법적 고지(옛 홈페이지 바닥글 그대로) */}
+      {/* 사업자 정보 · 법적 고지 */}
       <div className="mx-auto w-[96.667vw] border-t border-white/15 pt-[1.389vw] pb-[2.222vw] font-general text-[0.833vw] leading-[1.6] text-white/70 max-lg:w-full max-lg:pt-[1rem] max-lg:pb-[2rem] max-lg:text-[0.8125rem]">
         <p className="m-0">{LEGAL.company} · {LEGAL.registration}</p>
         <p className="m-0">{LEGAL.address}</p>

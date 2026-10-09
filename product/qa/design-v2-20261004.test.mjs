@@ -48,25 +48,28 @@ test('홈페이지(2026-10-09 대표 「구매한 홈페이지가 먼저 · 기�
   assert.doesNotMatch(entry, /vesper|scene_hero/i);
   assert.match(read('src/router/config.tsx'), /\{ path: '\/do-it\/intro', element: <DoItIntroPage \/> \}/);
 });
-test('홈페이지 문구(2026-10-05 대표 시안 그대로 · 글은 copy.ts 한 곳): ECHO · ONLINE SERENDIPITY · 「당신이 잠든 사이」 · 버튼 글자 「모바일로 시작하기」 · 이야기 9장면 원문 · 원본 자리 문구 0', () => {
-  for (const t of ["eyebrow: 'ECHO · ONLINE SERENDIPITY'", "heroTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "heroLine: ['오늘의 나를 남겨두세요.', '내일, 뜻밖의 연결이 기다립니다.']", "start: '모바일로 시작하기'", "install: '웹 설치하기'"]) assert.ok(COPY.includes(t), t);
-  assert.doesNotMatch(noComments(COPY), /사주|타로|무료로 시작하기/);
-  assert.match(COPY, /heroNote: '지금은 당신의 이야기를 듣는 데서 시작합니다\.'/);
-  assert.match(HERO, /const TITLE = `\$\{BRAND_HOME_COPY\.heroTitle\[0\]\} \$\{BRAND_HOME_COPY\.heroTitle\[1\]\}`/);
-  assert.match(HERO, /const TAGLINE = `\$\{BRAND_HOME_COPY\.heroLine\[0\]\} \$\{BRAND_HOME_COPY\.heroLine\[1\]\}`/);
-  assert.match(HERO, /const SUPPORT = BRAND_HOME_COPY\.heroNote;/, '시작 버튼 곁에 지금 되는 일');
-  assert.equal((COPY.match(/\{ no: '0\d', label:/g) ?? []).length, 9, '이야기 9장면');
-  for (const t of ['잘 쓴 소개보다,', '내 이야기는,', '마지막 말은, 나에게.', '대화가 끝나도,', '오늘의 감정에도', '어제와 다른 나여도,', '조금 다른 시선으로,', '연결의 속도는,', '어떤 사람을']) assert.ok(COPY.includes(t), t);
-  // 원본(Vesper) 자리 문구가 남아 있으면 안 된다(영문 홍보 문구).
-  const vendored = ['views/home/hero/hero.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx', 'views/home/sections/solaris-section.tsx', 'views/home/sections/site-footer.tsx', 'data/mocks/home.ts', 'components/common/site-header.tsx'].map(V).join('\n');
-  const visible = noComments(vendored).replace(/^\s*import .*$/gm, '').replace(/@vesper\//g, '');
-  assert.doesNotMatch(visible, /Vesper|Send Request|Frequently asked|living interface|Lorem/i, '원본 자리 문구 0');
-  assert.doesNotMatch(noComments(vendored + COPY), /AI가 (대신|최종) (선택|고르)/, 'AI가 대신 고른다는 설명 0');
+test('홈페이지 글(2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」): 히어로·은하·뇌·머리띠·바닥글·로더 = 원본 Vesper 글 그대로 · Solaris·Onyx 글 0 · 승인 문구는 copy.ts 에 보관', () => {
+  assert.match(HERO, /const TITLE = "Motion instead of chrome";/); assert.match(HERO, /const TAGS = \["\[ LIVING INTERFACE \]", "\[ MOTION LAYER \]", "\[ MOTION LAYER \]"\];/);
+  assert.match(GALAXY, /const TITLE = "Reads presence, in motion";/); assert.match(GALAXY, /\{ value: "91k", label: "Live particles", left: "6\.944vw" \},/);
+  const BRAIN = V('views/home/section-brain.tsx');
+  assert.match(BRAIN, /const TITLE_LEFT = "Motion instead of chrome";\nconst TITLE_RIGHT = "Reads presence, in motion";/);
+  assert.match(BRAIN, /const TAGLINE_RIGHT = "Reduced-motion honoured across the page";/);
+  assert.match(HEADER, /\{ label: "Home", href: "\/" \},\n\s*\{ label: "Services", href: "\/#services" \},\n\s*\{ label: "Works", href: "\/#works" \},\n\s*\{ label: "About", href: "\/#about" \},\n\] as const;/);
+  for (const [n, s] of [['header', HEADER], ['mobile-nav', MNAV]]) { assert.match(s, /href="\/#contact"/, n); assert.ok(s.includes('Contact Us'), n); }
+  assert.ok(SEND.includes('Send Request') && SEND.includes('href="/#contact"'), '본문 CTA 원본');
+  assert.match(FOOT, /const TITLE = "Let's talk\.";/); assert.match(FOOT, /onSubmit=\{\(event\) => event\.preventDefault\(\)\}/, '원본 연락 폼 = 서버 없음(보내지 않음)');
+  assert.match(MOCK, /name: "VESPER",\n\s*suffix: "\/ V—0RB",/); assert.match(MOCK, /brand: "VESPER",/); assert.match(MOCK, /wordmark: "Vesper",/);
+  assert.doesNotMatch(noComments(V('views/home/sections/solaris-section.tsx') + V('views/home/sections/onyx-section.tsx')), /STORIES|TextEngine|<h2|<p /, 'Solaris·Onyx 원본에는 글이 없다 → 글 0');
+  // 승인 문구는 copy.ts 에 그대로 보관(다음 단계 「글 넣기」 재료) — 홈페이지엔 아직 안 쓴다.
+  for (const t of ["heroTitle: ['당신이 잠든 사이,', 'AI가 먼저 만나봅니다.']", "start: '모바일로 시작하기'"]) assert.ok(COPY.includes(t), t);
+  assert.equal((COPY.match(/\{ no: '0\d', label:/g) ?? []).length, 9, '이야기 9장면 보관');
+  const vendored = ['views/home/hero/hero.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx', 'views/home/sections/solaris-section.tsx', 'views/home/sections/site-footer.tsx', 'data/mocks/home.ts', 'components/common/site-header.tsx', 'components/common/mobile-nav.tsx', 'views/home/send-request.tsx'].map(V).join('\n');
+  assert.doesNotMatch(noComments(vendored).replace(/^\s*import .*$/gm, ''), /brand-home\/copy|BRAND_HOME_COPY|STORIES/, '홈페이지 글은 원본 그대로(copy.ts 참조 0 · LEGAL 제외)'.replace('LEGAL 제외', '') );
   assert.doesNotMatch(noComments(vendored + COPY), /데이팅|소개팅|궁합|점술|심리치료|성격검사|Stripe|9,900|4,900/, '금지어·옛 가격 0');
 });
 test('홈페이지: 대표 인사말 승인 원문은 brandGreeting.ts 에 그대로(10/9 이야기 카드 삭제로 홈페이지엔 없음 · 시안 제안 문구 0) · 법적 고지·문의 보존', () => {
   assert.match(read('src/pages/do-it/landing/components/brandGreeting.ts'), /GREETING_TITLE = 'DO IT은 제가 직접 겪은 경험에서 시작됐습니다\.'/);
-  assert.doesNotMatch(MOCK, /GREETING|homeFaq/, '이야기 카드·인사말 칸 0(대표 10/9)');
+  assert.doesNotMatch(MOCK, /GREETING/, '인사말 칸 0(대표 10/9)'); assert.doesNotMatch(STAGE, /FaqSection|homeFaq/, '이야기 카드(FAQ) 0 — 원본 mocks 의 homeFaq 자료는 그대로지만 화면엔 안 쓴다');
   assert.ok(!(MOCK + COPY + FOOT).includes('기술보다 먼저'), '시안의 제안 인사말은 넣지 않음(대표 확인 대기)');
   for (const t of ["registration: '사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호'", "email: '0423doit@gmail.com'", "company: '두잇(DO IT) · 대표 박진욱'"]) assert.ok(COPY.includes(t), t);
   for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);
@@ -123,24 +126,18 @@ test('찌릿: 서버 mutual + match_id 뒤에만 · 같은 연결에서 한 번�
   assert.ok(cand.indexOf('<ZzaritMoment') > cand.indexOf('if (mutual) return'));
 });
 
-test('홈페이지: 「모바일로 시작하기」 = 원본 CTA 자리 그대로(머리띠 · 휴대폰 메뉴 · 본문 Send Request) · 모두 앱 주소 시작 경로 · 시작 경로 글자는 copy.ts 한 곳', () => {
-  for (const [name, src] of [['header', HEADER], ['mobile-nav', MNAV], ['send-request', SEND]]) {
-    assert.match(src, /href=\{appUrl\(START_PATH\)\}/, `${name} 시작 주소`);
-    assert.match(src, /\{BRAND_HOME_COPY\.start\}/, `${name} 시작 글자`);
-    assert.match(src, /from "@\/pages\/do-it\/brand-home\/copy"/, name);
-  }
+test('홈페이지 CTA(2026-10-09 대표 「글씨 원본 그대로 우선」): 머리띠·휴대폰 메뉴·본문 = 원본 Contact Us / Send Request → /#contact(바닥글) · 앱 시작 경로는 다음 단계(글 넣기)에서 · 시작 경로 글자는 copy.ts 한 곳', () => {
   assert.match(COPY, /export const START_PATH = '\/doit\/start-journey';/);
   const vendored = execSyncList('src/vesper').map(read).join('\n');
   assert.ok(!vendored.includes("'/doit/start-journey'") && !vendored.includes('"/doit/start-journey"'), '시작 경로 글자는 copy.ts 에만');
   assert.doesNotMatch(vendored, /href="#"/, '빈 링크 0');
-  assert.match(HEADER, /\{ label: "홈", href: "\/" \},\n\s*\{ label: "이야기", href: "\/#solaris" \},\n\] as const;/, '메뉴 = 홈 · 이야기(같은 페이지 링크만)');
-  assert.match(MOCK, /\{ label: BRAND_HOME_COPY\.install, href: appUrl\(INSTALL_PATH\) \}/, '웹 설치하기 = 바닥글에서 앱 주소로');
 });
-test('홈페이지 첫 화면: 원본 Vesper 히어로 그대로(글자만 교체) · 꼬리표 [ ECHO ] [ ONLINE SERENDIPITY ] [ JUST TRY. ]', () => {
-  assert.match(HERO, /const TAGS = \["\[ ECHO \]", "\[ ONLINE SERENDIPITY \]", "\[ JUST TRY\. \]"\];/);
-  assert.match(HERO, /<SendRequest \/>/, '첫 화면 시작 버튼 = 원본 CTA');
-  assert.match(MOCK, /export const homeStatus: StatusCopy = \{ label: "ECHO · ONLINE SERENDIPITY", detail: "· JUST TRY\.", scrollHint: "내려서 이어 보기" \};/);
-  assert.match(MOCK, /export const homeBrand: BrandCopy = \{ name: "DO IT", suffix: "\/ ECHO" \};/);
+test('홈페이지 첫 화면: 원본 Vesper 히어로·상태 줄·로더 글 그대로(2026-10-09 대표) · 로고만 DO IT', () => {
+  assert.match(HERO, /<SendRequest \/>/, '첫 화면 CTA = 원본');
+  assert.match(MOCK, /label: "SYS\.LINK ESTABLISHED",\n\s*detail: "· FRAME LOCKED",\n\s*scrollHint: "SCROLL TO ADVANCE",/);
+  assert.match(MOCK, /initializing: "INITIALIZING ENVIRONMENT",\n\s*loading: "LOADING ASSETS",/);
+  for (const s of [HEADER, MNAV, FOOT]) assert.match(s, /src="\/brand\/doit-wordmark\.webp"/, '로고 = DO IT');
+  assert.doesNotMatch(HEADER + MNAV + FOOT, /\/assets\/hero\/logo\.svg/, 'Vesper 로고 0');
 });
 test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까이 올 때만 마운트(CSR 자리표) · 움직임 줄이기 · 이용 안내 열림이면 3D 루프 정지', () => {
   const hn = V('components/common/hydrate-near.tsx');
@@ -224,10 +221,9 @@ test('2026-10-05 PM 보강: 홈페이지는 히어로 승인 원문을 두고 �
   const scope = COPY.match(/scope: '([^']+)'/)?.[1] ?? '';
   assert.ok(scope.includes('보여 드릴 사람이 있는지 확인') && scope.includes('서로 원할 때만'), '준비 → 확인 → 서로 원할 때');
   assert.doesNotMatch(scope, /내일|반드시|자동|알림|보장|매일|무조건/, '내일·자동·알림·보장 말 0');
-  assert.match(GALAXY, /const SUPPORT = BRAND_HOME_COPY\.scope;/, '은하 장면 받침글 = 지금 되는 범위');
+  // 2026-10-09 대표 「글씨 원본 그대로 우선」: 은하 받침글은 원본 Vesper 글 · scope 문구는 copy.ts 보관(다음 단계).
 });
-test('바닥글 두 묶음(ECHO · 회사) · 법적 고지(약관·개인정보·문의)는 남긴다', () => {
-  assert.match(MOCK, /\{ heading: "ECHO", links: \[/);
-  assert.match(MOCK, /\{ heading: "회사", links: \[/);
-  assert.match(MOCK, /\{ label: "이용약관", href: "\/legal\/terms" \},\n\s*\{ label: "개인정보처리방침", href: "\/legal\/privacy" \},\n\s*\{ label: "문의", href: "mailto:0423doit@gmail\.com" \},/);
+test('바닥글: 원본 Vesper 세 묶음(Engine · Studio · Connect) 글 그대로 · 맨 아래 법적 고지(사업자·약관·개인정보·문의)는 남긴다', () => {
+  for (const h of ['Engine', 'Studio', 'Connect']) assert.match(MOCK, new RegExp(`heading: "${h}",`));
+  for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);
 });

@@ -56,11 +56,11 @@ test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기�
 
 test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「웹 설치하기」 = 설치 항목 문장 · 검정 테마 · 설치는 앱 주소에서만', () => {
   // 2026-10-09 대표 「기존 홈페이지는 다 삭제」: 설치 카드 0 → 「웹 설치하기」는 바닥글에서 앱 주소로(이용 안내 설치 항목과 같은 곳) · 방법 문장은 이용 안내 설치 항목에.
-  assert.match(read('src/vesper/data/mocks/home.ts'), /\{ label: BRAND_HOME_COPY\.install, href: appUrl\(INSTALL_PATH\) \}/, '「웹 설치하기」는 바닥글에서 앱 주소로');
-  assert.match(read('src/vesper/views/home/sections/site-footer.tsx'), /onClick=\{\(\) => openGuide\(\)\}/, '바닥글 「이용 안내」');
+  // 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」: 홈페이지 메뉴·바닥글은 원본 Vesper 글 → 「이용 안내」·「웹 설치하기」 링크는 다음 단계(글 넣기)에서. 이용 안내 창(GuideHost)은 그대로 둔다.
+  assert.doesNotMatch(read('src/vesper/data/mocks/home.ts'), /BRAND_HOME_COPY|INSTALL_PATH/, '바닥글 글 = 원본');
   assert.match(HOME, /<GuideHost theme="brand"/);
   assert.match(HOME, /이 회사 홈페이지는 설치하지 않아도 돼요\./);
-  assert.match(read('src/vesper/views/home/send-request.tsx'), /\{BRAND_HOME_COPY\.start\}/, '모바일 시작하기는 주 행동 그대로');
+  assert.ok(read('src/vesper/views/home/send-request.tsx').includes('Send Request'), '본문 CTA = 원본(10/9)');
 });
 
 test('앱: 안내 창 하나(앱 테마) · 설치 항목 = 실제 설치 카드 · 기능 옆 도움말(이야기·확인·후보·찌릿)', () => {

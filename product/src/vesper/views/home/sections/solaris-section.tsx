@@ -6,12 +6,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { RobotText as TextEngine } from "@vesper/components/common/robot-text";
-import { Inview } from "@vesper/components/common/robot-inview";
-import { FollowLineBlur, wordCount } from "../line-blur";
-import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "../reveal";
 import { solarisBackgroundFragmentShader, solarisBackgroundVertexShader, solarisParticleFragmentShader, solarisParticleVertexShader } from "./solaris-shaders";
-import { STORIES } from "@/pages/do-it/brand-home/copy";
 import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 const CONFIG = {
@@ -33,9 +28,7 @@ const hexToVec3 = (hex: string) => {
   return new THREE.Vector3(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 };
 
-const STORY = STORIES[4];
-const TITLE = STORY.title.join(" ");
-const BODY = STORY.body.join(" ");
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Solaris 에는 글이 없다. 글 0.
 
 export const SolarisSection = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -173,30 +166,11 @@ export const SolarisSection = () => {
   }, []);
 
   return (
-    <section ref={hostRef} id="solaris" aria-label={TITLE} className="relative h-lvh w-full overflow-hidden bg-black text-white">
+    <section ref={hostRef} id="solaris" aria-label="Solaris" className="relative h-lvh w-full overflow-hidden bg-black text-white">
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full" />
       {/* 2026-10-09 대표: 스크롤할 때 앞 장면과 선처럼 끊겨 보임 → 위·아래를 검정으로 녹여 한 편처럼 이어지게. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[34vh] bg-gradient-to-b from-black via-black/70 to-transparent" />
       <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[26vh] bg-gradient-to-t from-black to-transparent" />
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-end px-[1.667vw] pb-[2.222vw] max-lg:px-[1.5rem] max-lg:pb-[2rem] max-sm:px-[1.25rem]">
-        <Inview mode="always" immediateOut={false} from={UNIT_REVEAL.from} to={UNIT_REVEAL.to} config={UNIT_REVEAL.config} className="font-tag text-[1.111vw] leading-[1.2] uppercase max-lg:text-[0.8125rem]">
-          {STORY.no} — {STORY.label}
-        </Inview>
-        <FollowLineBlur letters={TITLE.length}>
-          {(onTextStart) => (
-            <TextEngine tag="h2" mode="always" immediateOut={false} {...LETTER_FADE} onTextStart={onTextStart} className="mt-[0.833vw] w-[46vw] font-general text-[5.556vw] leading-[0.9] font-light max-lg:mt-[0.5rem] max-lg:w-full max-lg:text-[2.75rem] max-sm:text-[2.125rem]">
-              {TITLE}
-            </TextEngine>
-          )}
-        </FollowLineBlur>
-        <FollowLineBlur unit="word" letters={wordCount(BODY)}>
-          {(onTextStart) => (
-            <TextEngine tag="p" mode="always" immediateOut={false} delayIn={160} {...WORD_FADE} onTextStart={onTextStart} className="mt-[1.111vw] w-[27.5vw] font-general text-[1.111vw] leading-[1.2] max-lg:mt-[0.75rem] max-lg:w-full max-lg:text-[0.9375rem]">
-              {BODY}
-            </TextEngine>
-          )}
-        </FollowLineBlur>
-      </div>
     </section>
   );
 };

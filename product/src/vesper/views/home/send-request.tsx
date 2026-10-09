@@ -5,8 +5,6 @@ import Link from "next/link";
 
 import { usePressable } from "@vesper/components/ui/pressable";
 import { SOLID_CTA } from "@vesper/lib/springs/interaction";
-import { appUrl } from "@/lib/siteRole";
-import { BRAND_HOME_COPY, START_PATH } from "@/pages/do-it/brand-home/copy";
 
 /**
  * The Figma "Send Request" CTA — a filled block plus the arrow tile beside it.
@@ -27,7 +25,7 @@ export const SendRequest = () => {
 
   return (
     <Link
-      href={appUrl(START_PATH)}
+      href="/#contact"
       {...bind}
       className="flex items-center gap-[0.278vw] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal max-lg:gap-[0.25rem]"
     >
@@ -35,7 +33,7 @@ export const SendRequest = () => {
         style={style}
         className="flex items-center justify-center px-[4.167vw] py-[1.111vw] font-general text-[1.111vw] leading-[1.2] font-medium max-lg:grow max-lg:px-[1.5rem] max-lg:py-[0.9375rem] max-lg:text-[1rem]"
       >
-        {BRAND_HOME_COPY.start}
+        Send Request
       </animated.span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

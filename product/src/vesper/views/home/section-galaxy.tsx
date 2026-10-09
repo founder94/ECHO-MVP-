@@ -8,7 +8,6 @@ import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { hiddenWhenClear, smoothstep, useSceneClock } from "./overlay";
 import { LETTER_FADE, WORD_FADE } from "./reveal";
 import { LineBlur, wordCount } from "./line-blur";
-import { BRAND_HOME_COPY } from "@/pages/do-it/brand-home/copy";
 
 /**
  * Second-section overlay — the Figma "Reads presence, in motion" screen over the
@@ -23,15 +22,17 @@ import { BRAND_HOME_COPY } from "@/pages/do-it/brand-home/copy";
  * a single column on phones, with the copy stacked above it.
  */
 
-const TITLE = `${BRAND_HOME_COPY.storyTitle[0]} ${BRAND_HOME_COPY.storyTitle[1]}`;
-const SUPPORT = BRAND_HOME_COPY.scope;
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 원본 Vesper 글 그대로.
+const TITLE = "Reads presence, in motion";
+const SUPPORT =
+  "Every particle here is a reply to you — pointer, scroll and dwell, read live and answered as pure, drawn motion.";
 
 /** `value` / `label` / `left` (Figma x ÷14.4 — the desktop offset only). */
 const STATS = [
-  { value: "01", label: "당신의 하루", left: "6.944vw" },
-  { value: "02", label: "AI의 이해", left: "31.944vw" },
-  { value: "03", label: "연결의 시작", left: "56.944vw" },
-  { value: "04", label: "메아리의 답", left: "81.944vw" },
+  { value: "91k", label: "Live particles", left: "6.944vw" },
+  { value: "8.3", label: "Frame budget ms", left: "31.944vw" },
+  { value: "0.9", label: "Cold start secs", left: "56.944vw" },
+  { value: "60", label: "Frames per sec", left: "81.944vw" },
 ];
 
 /** Column dividers between the stats (Figma x ÷14.4 — desktop only). */

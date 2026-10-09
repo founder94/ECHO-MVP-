@@ -3,8 +3,6 @@ import { homeFooter } from "@vesper/data/mocks/home";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 
 import { MobileNav } from "./mobile-nav";
-import { appUrl } from "@/lib/siteRole";
-import { BRAND_HOME_COPY, START_PATH } from "@/pages/do-it/brand-home/copy";
 
 /**
  * Fixed, site-wide header — the pill bar from the Figma hero.
@@ -23,10 +21,12 @@ import { BRAND_HOME_COPY, START_PATH } from "@/pages/do-it/brand-home/copy";
  * fit that row at any legible size. This stays a Server
  * Component — only the toggle is a client leaf.
  */
-// 2026-10-09 대표: 설치 카드·이야기 카드·제작 영상 삭제 → 메뉴는 홈 · 이야기(Solaris). 웹 설치하기는 바닥글(앱 주소).
+// 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」 → 메뉴·버튼 글자는 원본 Vesper 그대로(로고만 DO IT).
 const NAV = [
-  { label: "홈", href: "/" },
-  { label: "이야기", href: "/#solaris" },
+  { label: "Home", href: "/" },
+  { label: "Services", href: "/#services" },
+  { label: "Works", href: "/#works" },
+  { label: "About", href: "/#about" },
 ] as const;
 
 export const SiteHeader = () => {
@@ -35,7 +35,7 @@ export const SiteHeader = () => {
       <div className="flex h-full items-center justify-between py-[0.556vw] pr-[0.556vw] pl-[0.833vw] max-lg:py-[0.5rem] max-lg:pr-[0.5rem] max-lg:pl-[1rem]">
         <PressableLink
           href="/"
-          aria-label="DO IT — 홈"
+          aria-label="DO IT — home"
           interaction={QUIET}
           className="block h-[1.806vw] w-[5.86vw] shrink-0 max-lg:h-[1.5rem] max-lg:w-[4.875rem]"
         >
@@ -66,11 +66,11 @@ export const SiteHeader = () => {
             width and style only — an inline spring value would beat a `border-*`
             utility anyway, and having both would just be a lie in the markup. */}
         <PressableLink
-          href={appUrl(START_PATH)}
+          href="/#contact"
           interaction={GHOST}
           className="flex shrink-0 items-center gap-[0.694vw] self-stretch border px-[1.111vw] font-general text-[1.111vw] leading-[1.2] font-normal whitespace-nowrap max-lg:hidden"
         >
-          {BRAND_HOME_COPY.start}
+          Contact Us
           <span aria-hidden className="block size-[0.139vw] bg-current" />
         </PressableLink>
 

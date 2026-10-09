@@ -86,3 +86,7 @@ three 0.186.1 · @react-three/fiber 9.8.1 · @react-three/drei 10.7.9 · @react-
 - 자리: 뇌 → Solaris → **Onyx(밝은 한 화면)** → 바닥글. 원본 Vesper 의 흰 카드 자리(어두운 장면 사이의 밝은 구간).
 - 글: 아직 없음(대표 지시 순서 — 효과 자리 먼저 보고, 글은 그다음). 글을 넣을 때도 원본 영어 글 칸(히어로·은하·뇌·바닥글)에만 넣는다.
 - 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 · 로컬 Playwright 휴대폰·PC(Onyx 정지·포인터 지나간 뒤) 캡처 + 휴대폰 동영상 · pageerror 0.
+
+## 2026-10-09 글 = 원본 그대로(대표 「글씨는 내가 준 코드 원본 그대로 우선」)
+- 위 「장면별 글」 표의 한글 승인 문구는 이번 게시본에 없다. 화면 글은 Vesper 원본 영어 글(Motion instead of chrome · Reads presence, in motion · Send Request · Contact Us · Let's talk. · Engine/Studio/Connect · VESPER 로더). Solaris·Onyx 글 0.
+- 남긴 것: 로고 DO IT · 맨 아래 사업자 정보·약관·개인정보 줄. 승인 문구는 `src/pages/do-it/brand-home/copy.ts` 에 보관(다음 단계 재료).

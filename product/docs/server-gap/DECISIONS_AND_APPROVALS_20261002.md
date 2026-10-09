@@ -1005,3 +1005,10 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 한 것: `cannon-es 0.20.0`(원본 importmap 과 같은 판) 설치 · `sections/onyx-section.tsx` 원본 이식(CONFIG·물리·포인터·조명 그대로 · CDN/localStorage 제거 · 보일 때만 · 멈춤이면 한 장) · `scroll-stage.tsx` Solaris 다음 `<HydrateNear id="onyx">` · 검사 `qa/design-v2-20261004.test.mjs`(순서 · 원본 색/수치 · cannon-es · 멈춤 한 장).
 - 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0(.map 0 · 앱에 3D 0) · 로컬 Playwright 휴대폰·PC 캡처 9장씩 + 휴대폰 동영상 · pageerror 0.
 - 승인 범위 밖(대표 결정 대기): 태블릿 회전 메뉴(원본 코드) · 홈페이지 조각 크기(약 996KB · 허용 600KB 초과) · 바닥글 유지 · 병합.
+
+## 30. 홈페이지 글 = 구매한 코드 원본 그대로(2026-10-09 · 대표 「기존 홈페이지 우선 삭제 · 내가 준 코드만 · 효과들 코드대로 · 글씨는 내가 준 코드 원본 그대로 우선」)
+- 대표가 본 화면(실기기 캡처 · 「01 / INTO THE DESIGN」 제작 영상): 07:11 게시본(d433a41)에 남아 있던 옛 홈페이지 조각. f9d9613 게시(07:48)에서 이미 삭제됐고 실제 주소 묶음에 `INTO THE DESIGN` 0건 확인.
+- 해석(명시): ① 화면 글은 모두 구매한 Vesper 원본 영어 글로(히어로·은하·뇌·메뉴·CTA·바닥글·로더·상태 줄) ② Solaris·Onyx 원본에는 글이 없으니 글 0 ③ 승인 문구(copy.ts)는 보관만, 다음 단계 「글 넣기」 재료 ④ 남긴 것: 로고 DO IT(회사 로고) · 맨 아래 사업자 정보·약관·개인정보(법적 고지). 대표가 빼라 하면 뺀다.
+- 한 것: `data/mocks/home.ts` 원본 파일 그대로 · hero/galaxy/brain 글 상수 원본 · site-header/mobile-nav 메뉴 Home·Services·Works·About + Contact Us(/#contact) · send-request 「Send Request」(/#contact) · site-footer 원본(「Let's talk.」 + 원본 연락 폼 = 서버 없음·보내지 않음 · 「이용 안내」 버튼 제거) + 법적 고지 줄 · Solaris 글 덧판 제거.
+- 앱 시작 링크(모바일로 시작하기)는 이번 화면에 없음 — 다음 단계(글 넣기)에서 원본 CTA 칸에 넣는다.
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 원본 글 표시 · 한글 승인 문구 미표시 · pageerror 0.
