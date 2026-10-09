@@ -28,6 +28,7 @@ import {
 } from "@vesper/lib/springs/config";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 import { appUrl } from "@/lib/siteRole";
+import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from "@/components/symbolAssets";
 import { HOME_V2, START_PATH, TOP_PATH } from "@/pages/do-it/brand-home/copy";
 
 export interface MobileNavItem {
@@ -293,10 +294,13 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
             aria-label="DO IT — home"
             interaction={QUIET}
             onClick={onNavigate}
-            className="block h-[1.5rem] w-[4.875rem] shrink-0"
+            className="flex h-[1.5rem] shrink-0 items-center gap-[0.5rem]"
           >
+            {/* 대표 「심볼은 왼쪽 윗상단에 배치해」: 열린 메뉴 머리에도 공식 D 심볼 → DO IT. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/doit-wordmark.webp" alt="DO IT" className="block h-full w-full object-contain object-left" />
+            <img src={SYMBOL_DISPLAY_SRC} onError={(event) => fallbackToOriginal(event.currentTarget)} alt="" aria-hidden className="block size-[1.5rem] shrink-0 object-contain" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/doit-wordmark.webp" alt="DO IT" className="block h-full w-[4.875rem] object-contain object-left" />
           </PressableLink>
           <PressableButton
             data-menu-close=""

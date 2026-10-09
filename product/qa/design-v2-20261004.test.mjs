@@ -341,3 +341,14 @@ test('Codex 13·14차(PR #151): #how 틀 항상 마운트 · Onyx touchmove 차�
   assert.match(hn, /const onEngaged = \(wake: \(\) => void\): \(\(\) => void\) =>/); assert.match(hn, /engageWaiters\.delete\(wake\)/);
   assert.match(hn, /dispose: \(\) => \{\n\s*offEngaged\(\);\n\s*io\?\.disconnect\(\);/, '버린 문 = 관찰자 + 대기 콜백 모두 해제');
 });
+
+test('대표 「심볼은 왼쪽 윗상단에 배치해」(2026-10-09): 홈페이지 머리글(PC·휴대폰)·열린 메뉴 맨 왼쪽 = 공식 D 심볼(투명 표시판 · 재디자인 0) → DO IT 워드마크', () => {
+  for (const f of ['components/common/site-header.tsx', 'components/common/mobile-nav.tsx']) {
+    const s = V(f);
+    assert.match(s, /import \{ SYMBOL_DISPLAY_SRC, fallbackToOriginal \} from "@\/components\/symbolAssets";/, f);
+    const sym = s.indexOf('src={SYMBOL_DISPLAY_SRC}'), word = s.indexOf('src="/brand/doit-wordmark.webp"');
+    assert.ok(sym > 0 && word > sym, `${f}: 심볼이 워드마크보다 앞(왼쪽)`);
+    assert.match(s, /onError=\{\(event\) => fallbackToOriginal\(event\.currentTarget\)\}/, `${f}: 작은 판 못 읽으면 공식 원본`);
+  }
+  assert.match(read('src/components/symbolAssets.ts'), /SYMBOL_DISPLAY_SRC = '\/brand\/doit-symbol-intro\.webp'/);
+});

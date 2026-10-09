@@ -2,6 +2,7 @@ import { PressableLink } from "@vesper/components/ui/pressable";
 import { homeFooter } from "@vesper/data/mocks/home";
 import { GHOST, NAV_LINK, QUIET } from "@vesper/lib/springs/interaction";
 import { appUrl } from "@/lib/siteRole";
+import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from "@/components/symbolAssets";
 import { HOME_V2, START_PATH, TOP_PATH } from "@/pages/do-it/brand-home/copy";
 
 import { MobileNav } from "./mobile-nav";
@@ -34,13 +35,22 @@ export const SiteHeader = () => {
           href={TOP_PATH}
           aria-label="DO IT — home"
           interaction={QUIET}
-          className="block h-[1.806vw] w-[5.86vw] shrink-0 max-lg:h-[1.5rem] max-lg:w-[4.875rem]"
+          className="flex h-[1.806vw] shrink-0 items-center gap-[0.556vw] max-lg:h-[1.5rem] max-lg:gap-[0.5rem]"
         >
+          {/* 2026-10-09 대표 「심볼은 왼쪽 윗상단에 배치해」: 공식 D 심볼(투명 표시판 · 재디자인 0)을 맨 왼쪽에, 이어서 DO IT 워드마크. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={SYMBOL_DISPLAY_SRC}
+            onError={(event) => fallbackToOriginal(event.currentTarget)}
+            alt=""
+            aria-hidden
+            className="block size-[1.806vw] shrink-0 object-contain max-lg:size-[1.5rem]"
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/doit-wordmark.webp"
             alt="DO IT"
-            className="block h-full w-full object-contain object-left"
+            className="block h-full w-[5.86vw] object-contain object-left max-lg:w-[4.875rem]"
           />
         </PressableLink>
 
