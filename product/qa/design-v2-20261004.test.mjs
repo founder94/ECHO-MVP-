@@ -35,6 +35,8 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.doesNotMatch(V('views/home/mobile-stage.tsx'), /HeroLattice/, '격자는 모바일 문서 안에 따로 없음');
   assert.match(V('components/common/hydrate-near.tsx'), /const dropPendingGate = \(id: string\) => \{/, '열리지 않은 문은 자리표가 내려가면 버림(Codex 12차 P1)');
   assert.match(V('utils/scroll-to.ts'), /const target = document\.getElementById\(id\) \?\? el;/, '해시 이동은 50ms 뒤 다시 찾음(Codex 12차)');
+  assert.match(V('views/home/scene/deferred-mount.tsx'), /if \(mine !== generation\) return;/, '지연 마운트 idle 콜백은 세대가 다르면 무시(Codex 13차)');
+  assert.match(V('layouts/scroll-layout.tsx'), /lenis\.destroy\(\);\n\s*setLenis\(null\);\n[\s\S]{0,200}useScroll\.getState\(\)\.start\(\);\n\s*enableNativeScroll\(true\);/, '떠날 때 전역 스크롤 복구(Codex 13차)');
   assert.match(HEADER, /href=\{TOP_PATH\}/, '로고도 #top'); assert.match(MNAV, /href=\{TOP_PATH\}/);
   assert.match(STAGE, /<div id="financial" ref=\{outroRef\} className="mb-\[1\.667vw\]">\n\s*<Suspense fallback=\{null\}>\n\s*<HydrateNear id="financial">\n\s*<FinancialSection \/>/, '원본: 흰 카드가 떠오르며 뇌의 퇴장을 끈다');
   assert.match(STAGE, /style=\{\{ height: toLvh\(1\) \}\}/, '데스크톱 트랙(200lvh) 숫자 그대로');

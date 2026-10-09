@@ -29,6 +29,8 @@ let next = 0;
 const waiting = new Map<number, () => void>();
 /** Codex 11차(1ce8595): 장면이 다시 마운트되면(워커 불가 → 메인 스레드 장면 재진입) 줄을 0 부터 다시 — 모든 인스턴스가 내려가면 초기화. */
 let mounted = 0;
+/** Codex 13차(b1f0b19): 줄이 초기화되면 세대가 바뀐다 — 이미 예약된 idle 콜백은 자기 세대가 아니면 아무것도 하지 않는다. */
+let generation = 0;
 
 /** The next idle period — or, where there is none (the scene worker), a beat. */
 const later = (callback: () => void): void => {
@@ -42,12 +44,16 @@ const later = (callback: () => void): void => {
 const pump = (): void => {
   const run = waiting.get(next);
   if (!run) return;
+  const mine = generation;
   later(() => {
+    if (mine !== generation) return;
     waiting.delete(next);
     next += 1;
     run();
     // The next form gets an idle period of its own.
-    later(pump);
+    later(() => {
+      if (mine === generation) pump();
+    });
   });
 };
 
@@ -80,6 +86,7 @@ const enqueue = (order: number, run: () => void): (() => void) => {
       mounted = 0;
       next = 0;
       waiting.clear();
+      generation += 1;
     }
   };
 };

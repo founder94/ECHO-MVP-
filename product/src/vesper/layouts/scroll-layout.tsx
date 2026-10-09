@@ -65,6 +65,9 @@ function ScrollController() {
       unsubscribe();
       lenis.destroy();
       setLenis(null);
+      // Codex 13차(b1f0b19): 메뉴가 스크롤을 멈춘 채 다른 화면으로 가면(뒤로 가기) 잠금이 남는다 → 떠날 때 전역 스크롤을 되살린다.
+      useScroll.getState().start();
+      enableNativeScroll(true);
     };
   }, [setLenis]);
 
