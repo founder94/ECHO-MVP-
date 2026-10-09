@@ -174,7 +174,7 @@ export const MobileStage = memo(function MobileStage({ faq, footer, introStarted
           </Suspense>
         </div>
         <Suspense fallback={null}>
-          <HydrateNear id="site-footer">
+          <HydrateNear id="contact">
             <SiteFooter copy={footer} />
           </HydrateNear>
         </Suspense>

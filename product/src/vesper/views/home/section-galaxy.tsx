@@ -125,13 +125,13 @@ export const SectionGalaxy = () => {
           {STATS.map((stat) => (
             <div
               key={stat.label}
-              className="absolute top-[8.333vw] flex w-[11.111vw] flex-col items-start gap-[0.833vw] border-l border-white/80 pl-[1.111vw] max-lg:static max-lg:w-auto max-lg:gap-[0.25rem] max-lg:pl-[0.625rem] max-sm:flex-row max-sm:items-baseline max-sm:gap-[0.5rem]"
+              className="absolute top-[8.333vw] flex w-[17vw] flex-col items-start gap-[0.833vw] border-l border-white/80 pl-[1.111vw] max-lg:static max-lg:w-auto max-lg:gap-[0.25rem] max-lg:pl-[0.625rem] max-sm:flex-row max-sm:items-baseline max-sm:gap-[0.5rem]"
               style={{ left: stat.left }}
             >
               <span className="font-tag text-[2.222vw] leading-none font-light max-lg:text-[1.5rem] max-sm:text-[1.25rem]">
                 {stat.value}
               </span>
-              <span className="font-tag text-[1.111vw] leading-[1.2] font-normal max-lg:text-[0.75rem] max-lg:text-white/70">
+              <span className="font-general text-[1.111vw] leading-[1.2] font-normal break-keep max-lg:text-[0.75rem] max-lg:text-white/70">
                 {stat.label}
               </span>
             </div>

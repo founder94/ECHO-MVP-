@@ -108,7 +108,7 @@ const ClosingBlocks = memo(function ClosingBlocks({
       {/* The footer is transparent over the live shader (like the cards), so
           nothing opaque covers the scene — the frame gate keeps drawing it. */}
       <Suspense fallback={null}>
-        <HydrateNear id="site-footer">
+        <HydrateNear id="contact">
           <SiteFooter copy={footer} />
         </HydrateNear>
       </Suspense>

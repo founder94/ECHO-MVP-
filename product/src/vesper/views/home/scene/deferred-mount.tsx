@@ -27,6 +27,8 @@ import type * as THREE from "three";
 let loaded = false;
 let next = 0;
 const waiting = new Map<number, () => void>();
+/** Codex 11차(1ce8595): 장면이 다시 마운트되면(워커 불가 → 메인 스레드 장면 재진입) 줄을 0 부터 다시 — 모든 인스턴스가 내려가면 초기화. */
+let mounted = 0;
 
 /** The next idle period — or, where there is none (the scene worker), a beat. */
 const later = (callback: () => void): void => {
@@ -50,6 +52,7 @@ const pump = (): void => {
 };
 
 const enqueue = (order: number, run: () => void): (() => void) => {
+  mounted += 1;
   waiting.set(order, run);
   if (loaded) {
     if (order === next) pump();
@@ -72,6 +75,12 @@ const enqueue = (order: number, run: () => void): (() => void) => {
   }
   return () => {
     waiting.delete(order);
+    mounted -= 1;
+    if (mounted <= 0) {
+      mounted = 0;
+      next = 0;
+      waiting.clear();
+    }
   };
 };
 

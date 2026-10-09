@@ -69,6 +69,8 @@ export const HOME_V2 = {
   choiceTitle: '관계의 시작은 서로가 선택합니다.',
   choiceBody: guideSection('choice').body,
   choicePoints: guideSection('choice').points ?? [],
+  // 데스크톱 흰 카드 [02] — 짧은 줄(카드 높이 44.167vw 안에 들어가는 길이).
+  choiceShort: guideSection('choice').hint ?? '',
   // 은하 장면 네 칸 = 이용 안내 네 항목 이름(원본의 91k·8.3·0.9·60 은 템플릿 숫자라 쓰지 않음).
   steps: GUIDE_SECTIONS.filter((g) => ['start', 'talk', 'check', 'choice'].includes(g.id)).map((g) => g.label),
   // 뇌 장면(정정·선택): 승인 이야기 제목 + 이용 안내 짧은 줄.

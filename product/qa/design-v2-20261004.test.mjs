@@ -27,7 +27,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
   assert.doesNotMatch(HOME, /setAttribute\('lang'/, '글이 한글이라 문서 언어는 index.html 의 ko 그대로');
   const at = (s) => STAGE.indexOf(s);
-  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
+  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="financial">', '<HydrateNear id="faq">', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="contact">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
   order.forEach((v, i) => assert.ok(v > 0, String(i)));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '데스크톱 순서');
   assert.match(STAGE, /const mobile = useWindowWidth\(\) < MOBILE_MAX_WIDTH;/, '1024 미만 = 모바일 문서');
@@ -36,7 +36,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(STAGE, /style=\{\{ height: toLvh\(1\) \}\}/, '데스크톱 트랙(200lvh) 숫자 그대로');
   // 모바일 문서
   const M = V('views/home/mobile-stage.tsx');
-  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<HydrateNear id="how">', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="choice">', '<HydrateNear id="faq">', '<HydrateNear id="site-footer">'].map((s) => M.indexOf(s));
+  const mOrder = ['<HeroMobile introStarted={introStarted} />', '<HydrateNear id="how">', '<AgentScene trackRef={trackRef} />', '<HydrateNear id="choice">', '<HydrateNear id="faq">', '<HydrateNear id="contact">'].map((s) => M.indexOf(s));
   mOrder.forEach((v, i) => assert.ok(v > 0, `mobile ${i}`)); assert.deepEqual([...mOrder].sort((a, b) => a - b), mOrder, '모바일 순서');
   assert.doesNotMatch(M, /toLvh|SectionBrain|SectionGalaxy|setOutro/, '모바일은 원본 200lvh 트랙·뇌 장면·고정 겹 그림을 쓰지 않음');
   assert.match(M, /sceneTimeline\.setTrack\(0, progress\);\n\s*sceneTimeline\.setTrack\(1, progress\);/, '③ 구간 하나가 장면 시계 0→2(구체 → 은하)');
@@ -56,6 +56,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.match(V('views/home/hero/hero-lattice.tsx'), /window\.addEventListener\('pointerdown', onDown/, '격자 누름은 window 에서(Codex 7차)');
   assert.match(MNAV, /window\.matchMedia\("\(min-width: 1024px\)"\)/, '메뉴 열린 채 넓어지면 닫힘(Codex 6차)');
   assert.match(MNAV, /const samePage = !path \|\| path === pathname;/, '해시만 있는 링크는 같은 페이지(브랜드 홈은 /do-it/landing)');
+  assert.match(V('views/home/scene/deferred-mount.tsx'), /if \(mounted <= 0\) \{\n\s*mounted = 0;\n\s*next = 0;\n\s*waiting\.clear\(\);/, '장면 재마운트 시 지연 마운트 줄 초기화(Codex 11차)');
   assert.match(V('views/home/section-brain.tsx'), /hidden max-lg:block bg-\[linear-gradient\(180deg,rgba\(0,0,0,0\)_0%,rgba\(0,0,0,0\.72\)/, '휴대폰 뇌 장면: 글 뒤 어두운 막');
   const sol = V('views/home/sections/solaris-section.tsx');
   assert.match(sol, /top-0 h-\[34vh\] bg-gradient-to-b from-black via-black\/70 to-transparent/, 'Solaris 위를 검정으로 녹임(선 0)');

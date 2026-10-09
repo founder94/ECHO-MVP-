@@ -39,7 +39,7 @@ import {
 const BODY_ONE =
   HOME_V2.howLead;
 const BODY_TWO =
-  HOME_V2.choiceBody;
+  HOME_V2.choiceShort;
 
 // 2026-10-09 대표 「최신 채택안」: 흰 카드 = 「어떻게 만나나요?」(이용 안내 승인 문장). 사진 칸은 승인 브랜드 그림(이야기 09) — 실제 ECHO 화면은 자료 미확보.
 const TITLE = HOME_V2.howTitle;
