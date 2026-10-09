@@ -1077,3 +1077,4 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 모바일 순서: ① 첫 화면 → ② 연출(구체→은하) 위 세 문장 → ③ 페이지 셋 → ④ FAQ → ⑤ 바닥글. 이용 순서 다섯 줄 목록·「서로가 선택합니다」 긴 본문·글머리 4줄은 제거(한 페이지에 쌓지 않음 · FAQ 에 승인 문장 그대로 남아 있음).
 - 버튼 글 「ECHO 시작하기」 → 「모바일 시작하기」(머리글·메뉴·바닥글 공통 · 주소 동일). 앱·서버 변경 0.
 - 비교 자료: 원본 복원 커밋(39ca6cf) 빌드와 수정본을 같은 장면(1440 · 390)에서 캡처 · 전체 흐름 영상.
+- 16차(대표 전달 Codex 독립 검수 · c82bd7a 기준): Hero L01+L06 2/2 · guide/corner/back 요청 400 PASS. 남은 B03 = mobile-polish.css 굵기 토큰(--echo-fw-body 500 · strong/title 700)이 var() 로 덮음 → 400(894cea1). 메뉴 열기/닫기 40px → 44px(size-[2.75rem]) · DoItIntroFrame 진행 숫자 700 → 400 · LandingHero 800 → 400. 테스트: 토큰·인라인 굵기·44px 잠금(소스 검사 + 앱 실제 계산값은 verify-app-font 의 computed family/synthesis 로 확인).
