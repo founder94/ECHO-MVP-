@@ -1,0 +1,403 @@
+/* `source("../")` limits class detection to `src/` (this file lives in src/app).
+   Without it Tailwind v4 scans the whole repo — including obsidian/ and .claude/,
+   where documented class *patterns* like duration-[var(--duration-*)] parse as
+   real candidates and emit CSS warnings. Docs are not a source of utilities. */
+@import "tailwindcss" source("../");
+
+/* ---------------------------------------------------------------------------
+   TIER 1 — PRIMITIVES  (`--raw-*`)
+   Raw literal values. The only tier allowed to contain a hex/px/ms literal.
+   Never referenced in markup, never bound into @theme. Rename freely.
+   Grammar: --raw-<category>-<name>[-<shade>]
+   See obsidian/frontend/design-system.md → "Token naming convention".
+   --------------------------------------------------------------------------- */
+:root {
+  --raw-color-white: #ffffff;
+  --raw-color-neutral-100: #ededed;
+  --raw-color-neutral-900: #171717;
+  --raw-color-neutral-950: #0a0a0a;
+
+  --raw-duration-fast: 150ms;
+  --raw-duration-normal: 250ms;
+
+  /* Clarix — the shipped page's values (clarix-old/3d-website/index.html), 1:1. */
+  --raw-color-black: #000000;
+  /* Chrome's UA placeholder colour (the shipped page never set one; Tailwind's
+     preflight would make it 50 % currentColor). */
+  --raw-color-ua-placeholder: #757575;
+  /* The spectrum the hairlines and the WebGL shaders share. */
+  --raw-color-spectrum-blue: #0091ff;
+  --raw-color-spectrum-cyan: #00aaff;
+  --raw-color-spectrum-violet: #8000ff;
+  --raw-color-spectrum-pink: #ff0099;
+  --raw-color-spectrum-red: #ff0000;
+  --raw-color-white-a10: rgba(255, 255, 255, 0.1);
+  --raw-color-white-a15: rgba(255, 255, 255, 0.15);
+  --raw-color-white-a30: rgba(255, 255, 255, 0.3);
+  --raw-color-white-a40: rgba(255, 255, 255, 0.4);
+  --raw-color-white-a50: rgba(255, 255, 255, 0.5);
+  --raw-color-white-a60: rgba(255, 255, 255, 0.6);
+  --raw-color-black-a05: rgba(0, 0, 0, 0.05);
+  --raw-color-black-a10: rgba(0, 0, 0, 0.1);
+  --raw-color-black-a15: rgba(0, 0, 0, 0.15);
+  --raw-color-black-a20: rgba(0, 0, 0, 0.2);
+
+  /* The shipped root: 16 px at 1920, scaling with the viewport, never under
+     12 px (ADR-0027). Every rem below — and every Tailwind spacing step — is
+     this rem, as on the old page. */
+  --raw-root-size: max(12px, 0.833333vw);
+  /* The cinematic scroll every phase is keyed to: the last pace key + one
+     viewport (lib/scene/clarix.ts, ADR-0033). Shipped: 2800vh. */
+  --raw-page-height: 1930vh;
+  --raw-page-height-portrait: 1710vh;
+  /* Phones (owner review, D-033): the scene's sticky stage — the mobile pace's
+     last key (6.6 viewports, "growth" parked) + a 0.4 hold + its own viewport.
+     lvh: the box the canvases fill is the large viewport (lib/scene/clarix.ts). */
+  --raw-stage-height-mobile: 800lvh;
+  /* The scene's own ground (bgScene.background) — the phone page continues on
+     it after the stage scrolls away. */
+  --raw-color-scene-ground: #f6fafe;
+  /* How far the content after the stage overlaps the scene, fading it out. */
+  --raw-stage-fade: 35lvh;
+  /* The glass card's corner once it has landed (the frame loop's 24 px). */
+  --raw-radius-card: 24px;
+  --raw-font-fallback: sans-serif;
+
+  --raw-text-hero: max(2.5rem, 7vw);
+  --raw-text-display: max(2.625rem, 5.5vw);
+  --raw-text-stat: max(42px, 5.5vw);
+  /* Phone-only (rebuild addition): the stat rows of the glass card. */
+  --raw-text-stat-sm: 32px;
+  --raw-space-stat-num: 80px;
+  /* A touch target's minimum (rebuild addition) — px, because this page's rem
+     is 12 px on every phone. */
+  --raw-space-tap: 44px;
+  /* Portrait-only halo behind type (rebuild addition, ADR-0032): the page's
+     own background colour, so text over the model reads on the page. */
+  --raw-color-halo: rgba(246, 250, 254, 0.95);
+  --raw-text-word: max(80px, 25vw);
+  --raw-text-4: 4rem;
+  --raw-text-1-5: 1.5rem;
+  --raw-text-1-2: 1.2rem;
+  --raw-text-1-1: 1.1rem;
+  --raw-text-1-0625: 1.0625rem;
+  --raw-text-1: 1rem;
+  --raw-text-0-95: 0.95rem;
+  --raw-text-0-9: 0.9rem;
+  --raw-text-0-85: 0.85rem;
+  --raw-text-0-8: 0.8rem;
+  --raw-text-0-75: 0.75rem;
+  --raw-text-14px: 14px;
+  --raw-text-13px: 13px;
+  --raw-text-11px: 11px;
+  /* Chrome's UA <button> font-size — the shipped Submit never set one. */
+  --raw-text-ua-button: 13.333333px;
+
+  --raw-tracking-tight: -0.02em;
+  --raw-tracking-button: 1px;
+  --raw-leading-fine: 1.4;
+  --raw-radius-pill: 2.5rem;
+  --raw-blur-glass: 20px;
+  --raw-blur-veil: 30px;
+  --raw-perspective-words: 1500px;
+  --raw-shadow-footer: 0 8px 32px rgba(0, 0, 0, 0.05);
+
+  --raw-space-nudge: 4px;
+  --raw-space-lift: 2px;
+  --raw-space-input-pad: 0.3rem;
+  --raw-space-submit-y: 0.6rem;
+  --raw-space-ua-input-x: 2px;
+  --raw-space-stat-pad: 20px;
+  --raw-space-stat-gap: 16px;
+  --raw-space-stat-tall: 120px;
+  --raw-space-stat-btn: 44px;
+  --raw-space-stat-btn-top: 8px;
+  /* Phones' page gutter (owner review 2, D-036: "padding left and right 1rem
+     on mobile"). In px: this page's rem is 12 px on a phone (the root's
+     floor), so `1rem` here would be 12 — the owner's 1rem is the browser's
+     16, the edge relay and the rest of the fleet show. Was 0.5rem (6 px). */
+  --raw-space-gutter-mobile: 16px;
+
+  --raw-duration-hover: 200ms;
+  --raw-duration-odometer: 50ms;
+  --raw-ease-css: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   TIER 2 — SEMANTIC  (role names, no namespace prefix)
+   Purpose, not appearance. Always `var(--raw-*)` — never a literal.
+   This is the themeable layer: dark mode overrides happen HERE, which is why
+   these are separate from the @theme bindings below (see the note there).
+   Grammar: --<role>[-<variant>][-<state>]
+   --------------------------------------------------------------------------- */
+:root {
+  --background: var(--raw-color-white);
+  --foreground: var(--raw-color-neutral-900);
+
+  --duration-fast: var(--raw-duration-fast);
+  --duration-normal: var(--raw-duration-normal);
+  --duration-hover: var(--raw-duration-hover);
+  --duration-odometer: var(--raw-duration-odometer);
+
+  /* Clarix is one light page in both schemes (the shipped page never adapted). */
+  --paper: var(--raw-color-white);
+  --ink: var(--raw-color-black);
+  --placeholder: var(--raw-color-ua-placeholder);
+  --halo: var(--raw-color-halo);
+  --scene-ground: var(--raw-color-scene-ground);
+  --glass-10: var(--raw-color-white-a10);
+  --glass-15: var(--raw-color-white-a15);
+  --glass-30: var(--raw-color-white-a30);
+  --glass-40: var(--raw-color-white-a40);
+  --glass-50: var(--raw-color-white-a50);
+  --glass-60: var(--raw-color-white-a60);
+  --veil-5: var(--raw-color-black-a05);
+  --veil-10: var(--raw-color-black-a10);
+  --veil-15: var(--raw-color-black-a15);
+  --veil-20: var(--raw-color-black-a20);
+  --spectrum: linear-gradient(
+    to right,
+    var(--raw-color-spectrum-blue),
+    var(--raw-color-spectrum-cyan),
+    var(--raw-color-spectrum-violet),
+    var(--raw-color-spectrum-pink),
+    var(--raw-color-spectrum-red)
+  );
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--raw-color-neutral-950);
+    --foreground: var(--raw-color-neutral-100);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THEME BINDINGS — map semantic tokens into Tailwind namespaces.
+   Every entry is exactly `--<tw-namespace>-<role>: var(--<role>)`.
+   `inline` is required: it inlines the var() into each utility, so the
+   dark-mode overrides on the Tier 2 tokens above cascade. Binding a literal
+   here instead would freeze the value and break theming.
+
+   Only these namespaces generate utilities (verified against tailwindcss
+   v4.3.3): --color-* --spacing-* --radius-* --leading-* --tracking-* --text-*
+   --font-* --ease-* --breakpoint-* --container-* --shadow-* --blur-* --animate-*
+   NOTE: there is NO --duration-* namespace in v4 — `duration-fast` compiles to
+   nothing. Durations stay Tier 2 only and are used as duration-[var(--duration-fast)].
+   --------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* Sarabun — `--font-sarabun` is defined by next/font on <body>, so it is
+     referenced here (inlined where it is in scope), never inside a :root token. */
+  --font-sans: var(--font-sarabun), var(--raw-font-fallback);
+
+  /* Leading floor for clipped TextEngine reveals — see
+     obsidian/frontend/text-engine.md → "Alignment & line-height". */
+  --leading-display: 1.1;
+
+  --ease-entrance: cubic-bezier(0.2, 0, 0, 1);
+  --ease-css: var(--raw-ease-css);
+
+  --color-paper: var(--paper);
+  --color-scene-ground: var(--scene-ground);
+  --color-ink: var(--ink);
+  --color-placeholder: var(--placeholder);
+  --color-glass-10: var(--glass-10);
+  --color-glass-15: var(--glass-15);
+  --color-glass-30: var(--glass-30);
+  --color-glass-40: var(--glass-40);
+  --color-glass-50: var(--glass-50);
+  --color-glass-60: var(--glass-60);
+  --color-veil-5: var(--veil-5);
+  --color-veil-10: var(--veil-10);
+  --color-veil-15: var(--veil-15);
+  --color-veil-20: var(--veil-20);
+
+  --text-hero: var(--raw-text-hero);
+  --text-display: var(--raw-text-display);
+  --text-stat: var(--raw-text-stat);
+  --text-stat-sm: var(--raw-text-stat-sm);
+  --text-word: var(--raw-text-word);
+  --text-c4: var(--raw-text-4);
+  --text-c1-5: var(--raw-text-1-5);
+  --text-c1-2: var(--raw-text-1-2);
+  --text-c1-1: var(--raw-text-1-1);
+  --text-c1-0625: var(--raw-text-1-0625);
+  --text-c1: var(--raw-text-1);
+  --text-c0-95: var(--raw-text-0-95);
+  --text-c0-9: var(--raw-text-0-9);
+  --text-c0-85: var(--raw-text-0-85);
+  --text-c0-8: var(--raw-text-0-8);
+  --text-c0-75: var(--raw-text-0-75);
+  --text-px14: var(--raw-text-14px);
+  --text-px13: var(--raw-text-13px);
+  --text-px11: var(--raw-text-11px);
+  --text-ua-button: var(--raw-text-ua-button);
+
+  --tracking-tight2: var(--raw-tracking-tight);
+  --tracking-button: var(--raw-tracking-button);
+  --leading-fine: var(--raw-leading-fine);
+  --radius-pill: var(--raw-radius-pill);
+  --radius-card: var(--raw-radius-card);
+  --blur-glass: var(--raw-blur-glass);
+  --blur-veil: var(--raw-blur-veil);
+  --perspective-words: var(--raw-perspective-words);
+  --shadow-footer: var(--raw-shadow-footer);
+
+  --spacing-nudge: var(--raw-space-nudge);
+  --spacing-lift: var(--raw-space-lift);
+  --spacing-input-pad: var(--raw-space-input-pad);
+  --spacing-submit-y: var(--raw-space-submit-y);
+  --spacing-ua-input-x: var(--raw-space-ua-input-x);
+  --spacing-stat-pad: var(--raw-space-stat-pad);
+  --spacing-stat-gap: var(--raw-space-stat-gap);
+  --spacing-stat-tall: var(--raw-space-stat-tall);
+  --spacing-stat-btn: var(--raw-space-stat-btn);
+  --spacing-stat-btn-top: var(--raw-space-stat-btn-top);
+  --spacing-stat-num: var(--raw-space-stat-num);
+  --spacing-tap: var(--raw-space-tap);
+  --spacing-gutter: var(--raw-space-gutter-mobile);
+  --spacing-page: var(--raw-page-height);
+  --spacing-page-portrait: var(--raw-page-height-portrait);
+  --spacing-stage-mobile: var(--raw-stage-height-mobile);
+}
+
+body {
+  /* The shipped body: white, no margin, no horizontal scroll, scrollbar hidden
+     (WebKit below), Sarabun on every element that set it — which was all of
+     them. It never set a line-height: `normal`, not Tailwind's 1.5. */
+  margin: 0;
+  overflow-x: hidden;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sarabun), var(--raw-font-fallback);
+  line-height: normal;
+}
+
+/* Hide scrollbar for WebKit browsers (shipped). */
+::-webkit-scrollbar {
+  display: none;
+}
+
+@layer base {
+  /* The shipped root size, not the starter's adaptive grid (ADR-0027): the old
+     page's rem already scaled with the viewport — 16 px at 1920, floored at
+     12 px — and the design is laid out in that rem. */
+  html {
+    font-size: var(--raw-root-size);
+  }
+
+  canvas {
+    display: block;
+  }
+
+  input::placeholder {
+    color: var(--placeholder);
+  }
+}
+
+@layer utilities {
+}
+
+@layer components {
+  /* The hairline under OUR CLIENTS and the phase 4 title. */
+  .bg-spectrum {
+    background: var(--spectrum);
+  }
+
+  /* A split title's character: the mask clips the rise; its oversized bottom
+     padding keeps the blur from being cut off (shipped .char-mask/.hero-char). */
+  .char-mask {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: bottom;
+    padding-top: 0.2em;
+    margin-top: -0.2em;
+    padding-bottom: 1.2em;
+    margin-bottom: -1.2em;
+    perspective: 500px;
+  }
+  /* will-change is set per character while it animates (split-title.tsx):
+     as a class rule it kept every character of every title a layer. */
+  .hero-char {
+    display: inline-block;
+    transform-origin: bottom center;
+  }
+
+  /* The glass card's stat columns: a faded vertical rule on the left
+     (shipped .stat-col::before); the tall one's rule reaches down 120 px. */
+  .stat-rule::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--veil-20) 10%,
+      var(--veil-20) 90%,
+      transparent
+    );
+  }
+  .stat-rule-tall::before {
+    bottom: calc(var(--raw-space-stat-tall) * -1);
+  }
+  /* Portrait screens (phones, tablets upright): the type sits ABOVE the model
+     (portrait:z-4 on its layers) and carries a soft halo of the page colour,
+     so the figure passes behind it and never hides a word (ADR-0032).
+     Landscape screens keep the shipped look — no halo, titles behind the model. */
+  @media (orientation: portrait) {
+    /* Two shadows, not more: each is a blur raster per glyph per frame, and
+       these layers move every frame on a phone (scroll test, ADR-0033). The
+       flying words and the logo track carry none — huge black glyphs and
+       logos read without, and blurred moving glyphs were the costliest. */
+    .halo {
+      text-shadow:
+        0 0 max(0.06em, 2px) var(--halo),
+        0 0 max(0.3em, 10px) var(--halo);
+    }
+  }
+  /* Phones: one shadow, not two (owner, D-031 / open question #39) — the soft
+     one, which is what keeps a word off the figure; the tight inner one only
+     sharpened the edge. */
+  @media (orientation: portrait) and (width < 48rem) {
+    .halo {
+      text-shadow: 0 0 max(0.3em, 10px) var(--halo);
+    }
+  }
+  /* Phones (D-033): a still of the scene melts into the page's ground at its
+     top and bottom edges, as the live scene's radial mask did. */
+  .scene-still {
+    mask-image: linear-gradient(to bottom, transparent, black 14%, black 86%, transparent);
+  }
+  /* Phones (D-033): the content after the stage rises over the scene's lower
+     part on a fade into the ground, so the scene dissolves as it scrolls away
+     instead of ending on the canvas's hard edge. (Positioned and z 2: over the
+     sticky stage, z 1 — `max-md:relative max-md:z-2` on the element.) */
+  @media (width < 48rem) {
+    .stage-after {
+      margin-top: calc(var(--raw-stage-fade) * -1);
+      padding-top: var(--raw-stage-fade);
+      background-image: linear-gradient(to bottom, transparent, var(--scene-ground) var(--raw-stage-fade));
+    }
+  }
+  /* Phones stack the stats as rows (rebuild addition): no tall offset. */
+  @media (width < 48rem) {
+    .stat-rule-tall::before {
+      bottom: 0;
+    }
+  }
+}
+
+/* The consent banner is server-rendered (it paints with the page). Hidden before
+   paint for a visitor who already chose (`consent-flag.ts`) and on the robot
+   form, which has no visitor to ask (D-016). */
+html[data-consent] [data-cookie-banner],
+html:has(meta[name="x-robot-view"]) [data-cookie-banner] {
+  display: none;
+}
