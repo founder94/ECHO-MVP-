@@ -143,6 +143,21 @@ test('Codex PR #141 b7a8bb4 P2: 문장 끝만 여지를 두고 앞 마디에서 
   }
 });
 
+test('Codex PR #141 4500978 P2: 「시간이 걸릴」 같은 평범한 말은 통과 · 병에 걸리는 말은 거절', async () => {
+  {
+    const { call } = load({ ai: () => JSON.stringify({ story: '결정을 내리기까지 시간이 걸릴 수 있어요. 혼자 생각할 때 마음을 가다듬을 수 있어요.', closing: '오늘은 좋아하는 노래를 들어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200);
+  }
+  for (const story of ['마음을 여는 데 오래 걸릴 수 있어요. 익숙해지면 편해질 수 있어요.', '친해지기까지 조금 걸릴지도 몰라요. 한번 마음을 열면 오래가는 편이에요.']) {
+    const { call } = load({ ai: () => JSON.stringify({ story, closing: '오늘은 천천히 쉬어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 200, story);
+  }
+  for (const story of ['감기에 걸릴 수 있어요. 따뜻하게 지내는 편이 좋을지도 몰라요.', '병에 걸릴 수 있어요. 마음이 여린 편이에요.', '당신은 몸살에 걸려 쉬어야 할 수 있어요. 혼자 있을 때 힘이 날 수 있어요.']) {
+    const { call } = load({ ai: () => JSON.stringify({ story, closing: '오늘은 천천히 쉬어 봐요.' }) });
+    assert.equal((await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' })).status, 500, story);
+  }
+});
+
 test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰는 하루 상한(150)에서 막힘', async () => {
   const { st, call } = load();
   let last;

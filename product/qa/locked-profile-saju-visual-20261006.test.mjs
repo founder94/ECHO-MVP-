@@ -121,4 +121,27 @@ test('Codex P1: 계정이 바뀌면 앞 계정 사진이 한 장도 보이지 �
   pending.B([{ photoId: 'b1', slot: 0, url: 'https://x/B.jpg', isPrimary: true }]);
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(srcs(render('B')), ['https://x/B.jpg']);
+
+  // Codex PR #141 4500978 P2: 불러오기 실패 = 「사진 없음」이 아니라 실패 안내 + 다시 불러오기
+  const texts = (n, out = []) => { if (n == null || typeof n === 'boolean') return out; if (typeof n === 'string') { out.push(n); return out; } if (Array.isArray(n)) { n.forEach((x) => texts(x, out)); return out; } texts(n.p?.children, out); return out; };
+  const buttons = (n, out = []) => { if (!n || typeof n !== 'object') return out; if (Array.isArray(n)) { n.forEach((x) => buttons(x, out)); return out; } if (n.t === 'button') out.push(n); buttons(n.p?.children, out); return out; };
+  render('C');
+  let rejectC; const firstC = new Promise((_, rej) => { rejectC = rej; }); firstC.catch(() => {});
+  delete pending.C;
+  mods['@/doit/lib/photoStorage'].restorePhotos = (uid) => uid === 'C' && rejectC ? (() => { const r = rejectC; rejectC = null; return new Promise((_, rej) => r && rej(new Error('net'))) ; })() : new Promise((res) => { pending[uid] = res; });
+  si = 0; ei = 0; effects.length = 0; slots.length = 0;
+  render('C');
+  await new Promise((r) => setTimeout(r, 0));
+  const failTree = render('C');
+  const t = texts(failTree).join(' ');
+  assert.ok(t.includes('사진을 불러오지 못했어요'), t);
+  assert.ok(!t.includes('사진을 올리면'), '실패를 「사진 없음」으로 보이지 않음');
+  const retry = buttons(failTree).find((b) => texts(b).join('').includes('다시 불러오기'));
+  assert.ok(retry, '다시 불러오기 버튼');
+  retry.p.onClick();
+  render('C');
+  assert.equal(typeof pending.C, 'function', '다시 누르면 사진을 새로 받음');
+  pending.C([{ photoId: 'c1', slot: 0, url: 'https://x/C.jpg', isPrimary: true }]);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(srcs(render('C')), ['https://x/C.jpg']);
 });
