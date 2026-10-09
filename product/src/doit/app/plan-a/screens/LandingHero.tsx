@@ -75,7 +75,7 @@ export function LandingHero({
           className="text-white text-[clamp(27px,7.7vw,32px)] md:text-[37px]"
           style={{
             fontFamily: "'Jua', 'Pretendard', sans-serif",
-            fontWeight: 800,
+            fontWeight: 400,
             lineHeight: 1.2,
             letterSpacing: "-0.03em",
             wordBreak: "keep-all",

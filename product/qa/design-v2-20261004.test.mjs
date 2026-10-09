@@ -366,6 +366,10 @@ test('Codex 15차(9138d3b): 격자 누름 = 지금 진행률로 판단(L06) · �
   assert.match(V('views/home/hero/hero-lattice.tsx'), /if \(heroOpacity\(sceneTimeline\.getProgress\(\)\) <= 0\.01 \|\| live\.zoomStart >= 0 \|\| pageMotionPaused\(\)\) return;/);
   for (const f of ['src/doit/components/feature/echo-ui.css', 'src/doit/components/feature/mobile-polish.css', 'src/doit/components/feature/visual-parity.css', 'src/components/guide/guide.css', 'src/components/app-corner-menu.css', 'src/components/app-back-button.css']) assert.doesNotMatch(read(f).replace(/\/\*[\s\S]*?\*\//g, ''), /font-weight: ?[5-9]00/, `${f}: 500~900 요청 0`);
   assert.match(read('src/components/DoItIntroFrame.ts'), /fontFamily: '"Jua", "Pretendard"/);
+  // Codex 16차(c82bd7a): 토큰·인라인 굵기도 400(var() 실계산값 정합) · 메뉴 열기/닫기 44px
+  assert.match(read('src/doit/components/feature/mobile-polish.css'), /--echo-fw-body:400;\n\s*--echo-fw-strong:400;\n\s*--echo-fw-title:400;/, '파스텔 굵기 토큰 400');
+  for (const f of ['src/components/DoItIntroFrame.ts', 'src/doit/app/plan-a/screens/LandingHero.tsx', 'src/doit/app/plan-a/components/PrimaryButton.tsx']) assert.doesNotMatch(read(f), /fontWeight: ?[5-9]00/, `${f}: 인라인 굵기 500~900 0`);
+  const mnav = V('components/common/mobile-nav.tsx'); assert.doesNotMatch(mnav, /size-\[2\.5rem\]/, '메뉴 열기/닫기 40px 0'); assert.ok((mnav.match(/size-\[2\.75rem\]/g) ?? []).length >= 2, '메뉴 열기/닫기 44px');
 });
 
 test('대표 「홈페이지 수정사항 — 최신 정정」(2026-10-09): 장면마다 글 분배 — 1 첫 화면 최소 · 2 회전 카드 세 문장 · 3 구체 한 줄 · 4 영상 페이지 셋(제목 + 한두 줄 · 승인 문장 그대로) · 5 비행·전환 무글 · 6 마지막 JUST TRY. + 짧은 설명 + 「모바일 시작하기」', () => {

@@ -8,7 +8,7 @@ const CSS = read('src/doit/components/feature/mobile-polish.css');
 const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
 
 test('글자 토큰: 제목 22~24px · 본문·입력 16px · 보조 14px · 작은 글 13px · 줄 높이 1.6/1.34 · 가는 글자 0', () => {
-  for (const t of ['--echo-fs-title:clamp(22px,6.2vw,24px)', '--echo-fs-body:16px', '--echo-fs-sub:14px', '--echo-fs-caption:13px', '--echo-lh-body:1.6', '--echo-lh-title:1.34', '--echo-fw-body:500', '--echo-fw-title:700']) assert.ok(bare.includes(t), t);
+  for (const t of ['--echo-fs-title:clamp(22px,6.2vw,24px)', '--echo-fs-body:16px', '--echo-fs-sub:14px', '--echo-fs-caption:13px', '--echo-lh-body:1.6', '--echo-lh-title:1.34', '--echo-fw-body:400', '--echo-fw-title:400']) assert.ok(bare.includes(t), t);
   assert.doesNotMatch(bare, /font-weight:\s*(100|200|300|400)\b/, '가는 글자 0');
   assert.doesNotMatch(bare, /font-size:\s*(9|10|11)px/, '11px 이하 글자 0');
   assert.match(bare, /word-break:keep-all/);

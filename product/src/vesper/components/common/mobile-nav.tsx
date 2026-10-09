@@ -309,7 +309,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
             aria-label="Close menu"
             onClick={hide}
             interaction={QUIET}
-            className="relative flex size-[2.5rem] shrink-0 items-center justify-center"
+            className="relative flex size-[2.75rem] shrink-0 items-center justify-center"
           >
             <Bars open={open} />
           </PressableButton>
@@ -379,7 +379,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
         aria-label="Open menu"
         onClick={show}
         interaction={QUIET}
-        className="relative flex size-[2.5rem] shrink-0 items-center justify-center"
+        className="relative flex size-[2.75rem] shrink-0 items-center justify-center"
       >
         <Bars open={open} />
       </PressableButton>
