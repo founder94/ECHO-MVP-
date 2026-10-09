@@ -998,3 +998,10 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 한 것: 로더 StarFall 제거 · 뇌 장면 휴대폰 글 뒤 어두운 막 · Solaris 위·아래 검정 gradient · 격자 → `hero/hero-lattice.tsx`(fixed · screen 합성 · 세기 0.55 · hero 와 같은 시계 구간) · FinancialSection·FaqSection·LatticeSection·BrandFilm 제거 · `public/brand/film/*`·`hero-earth.webp`·SceneLayer·DotText 삭제 · brand-home.css 는 이용 안내 설치 한 줄만 · 메뉴 홈·이야기 · 바닥글 ECHO 묶음 = 감정의 이유 · 웹 설치하기(앱 주소).
 - 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 문구 6종 표시 · 삭제 문구 4종 미표시 · pageerror 0.
 - 삭제 승인 근거: 대표 2026-10-09 「기존에 있던 홈페이지는 다 삭제 처리해」 「doit3d효과 만든건 삭제해」.
+
+## 29. 홈페이지 Onyx Cubes 추가(2026-10-09 · 대표 「이것도 추가로 훅킹 박고 같이 넣고 · 효과들 코드 준 대로 그대로 · 우선 효과들부터 자리 잡고 미리 보고 · 그다음에 글자」)
+- 대표 말(원문 요지): onyx-cubes.zip 도 홈페이지에 그대로 넣어라 / 기존 홈페이지는 생각하지 마라 / 효과 자리부터 잡고 미리보기 먼저 띄우고 설명해라 / 글은 그다음, 구매한 홈페이지의 영어 글 칸 안에만 똑같이.
+- 해석(명시): ① Onyx 는 네 번째 3D 효과로 Solaris 다음 한 화면(원본 흰 카드 자리) ② 이번 푸시에는 Onyx 에 글 0 ③ 지금까지 넣은 글은 이미 구매한 홈페이지의 글 칸(히어로·은하·뇌·바닥글)에만 있고 새 칸은 만들지 않았다.
+- 한 것: `cannon-es 0.20.0`(원본 importmap 과 같은 판) 설치 · `sections/onyx-section.tsx` 원본 이식(CONFIG·물리·포인터·조명 그대로 · CDN/localStorage 제거 · 보일 때만 · 멈춤이면 한 장) · `scroll-stage.tsx` Solaris 다음 `<HydrateNear id="onyx">` · 검사 `qa/design-v2-20261004.test.mjs`(순서 · 원본 색/수치 · cannon-es · 멈춤 한 장).
+- 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0(.map 0 · 앱에 3D 0) · 로컬 Playwright 휴대폰·PC 캡처 9장씩 + 휴대폰 동영상 · pageerror 0.
+- 승인 범위 밖(대표 결정 대기): 태블릿 회전 메뉴(원본 코드) · 홈페이지 조각 크기(약 996KB · 허용 600KB 초과) · 바닥글 유지 · 병합.

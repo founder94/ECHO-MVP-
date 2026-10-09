@@ -27,7 +27,7 @@ test('홈페이지(2026-10-09 대표 「구매한 홈페이지가 먼저 · 기�
   assert.match(HOME, /return \(\) => document\.documentElement\.classList\.remove\('vesper'\)/);
   const at = (s) => STAGE.indexOf(s);
   // 파일 순서: 겹 그림(StageOverlays) → 닫는 블록(ClosingBlocks) → 무대(ScrollStage: 격자 배경 → 첫 화면 글)
-  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="solaris">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
+  const order = ['<SectionGalaxy />', '<SectionBrain />', '<HydrateNear id="solaris">', '<HydrateNear id="onyx">', '<HydrateNear id="site-footer">', '{!robot && <HeroLattice />}', '<Hero introStarted={introStarted} />'].map(at);
   order.forEach((v, i) => assert.ok(v > 0, String(i)));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '순서');
   assert.doesNotMatch(STAGE, /FinancialSection|FaqSection|LatticeSection|id="financial"|id="faq"|id="making"/, '옛 홈페이지에서 온 설치 카드·이야기 카드·제작 영상 장면 0');
@@ -82,6 +82,12 @@ test('홈페이지 색·글씨체·3D(2026-10-08 대표 「색도 글씨체도 3
   assert.match(sol, /colorWarm: "#ff4c33",\n\s*colorCool: "#3366ff",/, 'Solaris 원본 색 그대로');
   const lat = V('views/home/hero/lattice-shaders.ts') + V('views/home/hero/hero-lattice.tsx');
   assert.match(lat, /lineColor: '#eef3ff', throatTint: '#ffd9a6', rimTint: '#5878ff', glowColor: '#8fb4ff'/, '격자(Einstein–Rosen) 원본 색 그대로');
+  const onyx = V('views/home/sections/onyx-section.tsx');
+  assert.match(onyx, /bgTop: '#fbfcfd', bgBottom: '#cfd4db', cubeColor: '#0b0c10', envTint: '#191b21', exposure: 1\.0,/, 'Onyx Cubes 원본 색 그대로(2026-10-09 대표 「이것도 추가로 · 코드 준 대로」)');
+  assert.match(onyx, /cubeCount: 12, cubeSize: 1\.05, sizeVar: 0\.32, cornerR: 0\.1, spawnSpread: 2\.6,/, 'Onyx 원본 수치 그대로');
+  assert.match(onyx, /import \* as CANNON from "cannon-es";/, 'Onyx 물리 = 원본과 같은 cannon-es(묶음)');
+  assert.match(onyx, /world\.step\(1 \/ 120, dt, 4\);/, 'Onyx 원본 물리 걸음');
+  assert.match(onyx, /new PointToPointConstraint|CANNON\.PointToPointConstraint/, 'Onyx 원본 잡기(드래그) 그대로');
   assert.match(V('components/common/reduced-motion.tsx'), /useReducedMotion\(\)/, '움직임 줄이기 = 원본 장치(react-spring 전역 skip)');
   assert.match(V('hooks/animation/use-motion-off.ts'), /prefers-reduced-motion/, '원본 장면·회전 표시도 움직임 줄이기를 읽음');
   // 3D 는 묶음(three 0.186 · @react-three/fiber) — CDN·외부 스크립트 0, 이 기기 저장(localStorage) 0.
@@ -160,7 +166,7 @@ test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까�
   assert.match(V('views/home/sections/solaris-section.tsx'), /if \(paused\) introStart = now - CONFIG\.introSeconds \* 1000;/, 'Solaris 멈춤 장 = 등장 끝난 모습');
   assert.match(V('views/home/hero/hero-lattice.tsx'), /if \(paused\) live\.t0 = Math\.min\(live\.t0, now - CONFIG\.fadeInSeconds\);/, '격자 멈춤 장 = 나타나기 끝난 모습');
   assert.match(V('views/home/scene/scene-host.tsx'), /!document\.hidden && !pageMotionPaused\(\) && getSceneCover\(\) < HANDOFF/, '워커 경로도 같은 문');
-  for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/hero/hero-lattice.tsx']) {
+  for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/hero/hero-lattice.tsx', 'views/home/sections/onyx-section.tsx']) {
     const src = V(f);
     assert.match(src, /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\)/, `${f}: 한 장만 그리고 멈춤`);
     assert.match(src, /stillDrawn = paused;/, f);

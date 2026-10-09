@@ -54,10 +54,11 @@ product/index.html                       Mulish·Onest 글꼴 link(지연 조각
 | 2막 은하 | galaxy | 「잘 쓴 소개보다, 함께한 시간이 궁금해서.」 · 지금 되는 범위 한 줄(10/5 PM 보강) · 01~04 장면 이름 |
 | 3막 뇌 | brain | 「내 이야기는, 내 말로.」 「마지막 말은, 나에게.」 |
 | Solaris(추가 3D) | 태양 구슬 | 이야기 5장면 「오늘의 감정에도 이유가 있으니까.」 |
+| Onyx Cubes(추가 3D · 10/9) | 검은 육면체 12개(물리 · 손가락으로 밀기·잡기) | 글 없음 — 대표 「효과 자리 먼저 · 글은 다음」 |
 | 바닥글 | footer | JUST TRY. · 「모바일로 시작하기」 · 「이용 안내」 · ECHO/회사 링크 · 사업자 정보·약관·개인정보·문의 (원본 이름·이메일 입력 칸은 뺌) |
 
 ## 보안·규칙 자가 점검
-- CDN·외부 스크립트: src/vesper 안 0건(검사 `qa/design-v2-20261004.test.mjs`). 3D 는 번들 three 0.186.1.
+- CDN·외부 스크립트: src/vesper 안 0건(검사 `qa/design-v2-20261004.test.mjs`). 3D 는 번들 three 0.186.1 · 물리(Onyx)는 번들 cannon-es 0.20.0(원본 importmap 과 같은 판).
 - localStorage·sessionStorage·cookie: src/vesper 안 0건.
 - 비밀값·개인정보 입력 칸: 0건(원본 연락 폼 제거).
 - 금지어(데이팅·소개팅·궁합·점술·심리치료·성격검사)·Stripe·옛 가격: 0건.
@@ -67,15 +68,21 @@ product/index.html                       Mulish·Onest 글꼴 link(지연 조각
 ## 크기(브랜드 빌드 · gzip)
 | 조각 | 크기 | gzip |
 |---|---|---|
-| 홈페이지 조각(vesper + three + fiber) | 약 941KB | 약 249KB |
+| 홈페이지 조각(vesper + three + fiber + cannon-es · 10/9 Onyx 포함) | 약 996KB | 약 266KB |
 | 장면 워커(휴대폰 ≤1024px · 필요할 때만) | 약 1,073KB | 약 290KB |
 | 장면 캔버스 | 약 295KB | 약 90KB |
 - 대표 허용(약 600KB)보다 크다. 원본 그대로 쓰라는 지시가 우선이라 그대로 두었고, 홈페이지 조각은 brand 빌드에서만 내려받는다(앱 0).
 
 ## 설치 의존성(고정)
-three 0.186.1 · @react-three/fiber 9.8.1 · @react-three/drei 10.7.9 · @react-three/postprocessing 3.1.3 · postprocessing 6.39.5 · @react-spring/web 10.1.2 · spring-text-engine 0.1.5 · lenis 1.3.26 · zustand 5.0.12 · @types/three 0.186.0
+three 0.186.1 · @react-three/fiber 9.8.1 · @react-three/drei 10.7.9 · @react-three/postprocessing 3.1.3 · postprocessing 6.39.5 · @react-spring/web 10.1.2 · spring-text-engine 0.1.5 · lenis 1.3.26 · zustand 5.0.12 · @types/three 0.186.0 · cannon-es 0.20.0(10/9 Onyx)
 
 ## 검사
 - type-check 0 · lint 0(src/vesper 는 제외) · node --test(옛 홈페이지 잠금 15건은 10/8 결정으로 새 구조 검사로 바꿈).
 - 로컬 Playwright(SwiftShader WebGL): 휴대폰 390×844 · PC 1440×900 전체 스크롤 캡처 9장씩 + 동영상(WebM) · 화면 오류 0 · 승인 문구 모두 표시.
 - 실기기(아이폰·안드로이드) 확인은 QA 게시 뒤 대표 확인 필요(확인 불가로 남김).
+
+## 2026-10-09 추가 · Onyx Cubes(대표 「이것도 추가로 · 효과들 코드 준 대로 그대로 · 홈페이지가 먼저」)
+- 원본: GetLayers 「Onyx Cubes」(`onyx-cubes.html` 한 파일 · three 0.170 + cannon-es 0.20.0 importmap). 이식: `src/vesper/views/home/sections/onyx-section.tsx` — CONFIG 값·재질·조명·그림자·물리(가운데 당김·출렁임·포인터 파동·잡기)·시차 카메라 모두 원본 그대로. 바꾼 것은 CDN → 번들, 제어판·localStorage 제거, 캔버스를 구간(section) 크기로, 보일 때만 그림, 움직임 줄이기/이용 안내 열림이면 한 장만.
+- 자리: 뇌 → Solaris → **Onyx(밝은 한 화면)** → 바닥글. 원본 Vesper 의 흰 카드 자리(어두운 장면 사이의 밝은 구간).
+- 글: 아직 없음(대표 지시 순서 — 효과 자리 먼저 보고, 글은 그다음). 글을 넣을 때도 원본 영어 글 칸(히어로·은하·뇌·바닥글)에만 넣는다.
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 · 로컬 Playwright 휴대폰·PC(Onyx 정지·포인터 지나간 뒤) 캡처 + 휴대폰 동영상 · pageerror 0.

@@ -27,6 +27,7 @@ import { SectionBrain } from "./section-brain";
 import { SectionGalaxy } from "./section-galaxy";
 import { SiteFooter } from "./sections/site-footer";
 import { SolarisSection } from "./sections/solaris-section";
+import { OnyxSection } from "./sections/onyx-section";
 import { toLvh } from "./hud/windows";
 import { Loader } from "./loader/loader";
 import { HydrateIdle, HydrateNear } from "@vesper/components/common/hydrate-near";
@@ -83,6 +84,12 @@ const ClosingBlocks = memo(function ClosingBlocks({
           </HydrateNear>
         </Suspense>
       </div>
+      {/* 2026-10-09 대표: Onyx Cubes(대표가 준 네 번째 3D 장면)도 그대로 — Solaris 다음, 밝은 한 화면(원본의 흰 카드 자리). */}
+      <Suspense fallback={null}>
+        <HydrateNear id="onyx">
+          <OnyxSection />
+        </HydrateNear>
+      </Suspense>
       {/* The footer is transparent over the live shader (like the cards), so
           nothing opaque covers the scene — the frame gate keeps drawing it. */}
       <Suspense fallback={null}>
