@@ -122,6 +122,7 @@ export const LatticeSection = () => {
     };
     applyConfig();
 
+    let stillDrawn = false;
     const resize = () => {
       const w = host.clientWidth, h = host.clientHeight;
       renderer.setPixelRatio(dpr); renderer.setSize(w, h);
@@ -130,6 +131,8 @@ export const LatticeSection = () => {
       finalPass.uniforms.bloomTexture.value = bloomComposer.renderTarget1.texture;
       finalPass.uniforms.torusTexture.value = torusComposer.renderTarget1.texture;
       U.iResolution.value.set(w * dpr, h * dpr, 1); U.uAspect.value = w / h;
+      // 크기가 바뀌면 버퍼가 지워진다: 멈춤 중이어도 다음 프레임에 한 장 다시(회전한 채 빈 화면 0).
+      stillDrawn = false;
     };
     window.addEventListener('resize', resize);
     resize();
@@ -154,7 +157,6 @@ export const LatticeSection = () => {
     io.observe(host);
 
     let raf = 0;
-    let stillDrawn = false;
     const animate = () => {
       raf = requestAnimationFrame(animate);
       if (!visible || document.hidden) { live.last = performance.now() / 1000; return; }

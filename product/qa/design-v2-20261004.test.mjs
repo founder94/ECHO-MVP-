@@ -151,6 +151,7 @@ test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까�
     const src = V(f);
     assert.match(src, /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\)/, `${f}: 한 장만 그리고 멈춤`);
     assert.match(src, /stillDrawn = paused;/, f);
+    assert.match(src, /stillDrawn = false;\n\s*\};\n\s*window\.addEventListener\("?'?resize/, `${f}: 크기 변경 뒤 멈춤 장 다시`);
   }
 });
 

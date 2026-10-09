@@ -94,11 +94,14 @@ export const SolarisSection = () => {
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), CONFIG.bloomStrength, CONFIG.bloomRadius, CONFIG.bloomThreshold);
     composer.addPass(bloomPass);
 
+    let stillDrawn = false;
     const resize = () => {
       ({ w, h } = size());
       camera.aspect = w / h; camera.updateProjectionMatrix();
       renderer.setSize(w, h); composer.setSize(w, h);
       bgMaterial.uniforms.uResolution.value.set(w, h);
+      // 크기가 바뀌면 버퍼가 지워진다: 멈춤 중이어도 다음 프레임에 한 장 다시(회전한 채 빈 화면 0).
+      stillDrawn = false;
     };
     window.addEventListener("resize", resize);
 
@@ -125,7 +128,6 @@ export const SolarisSection = () => {
     let time = 0;
     let introStart = 0;
     let raf = 0;
-    let stillDrawn = false;
     const render = (now: number) => {
       raf = requestAnimationFrame(render);
       if (!visible || document.hidden) return;
