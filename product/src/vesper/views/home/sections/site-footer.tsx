@@ -48,7 +48,7 @@ export const SiteFooter = ({ copy }: SiteFooterProps) => {
             mode="once"
             {...LETTER_FADE}
             onTextStart={onTextStart}
-            className="justify-center text-center font-general text-[5.556vw] leading-[1.15] font-light max-lg:text-[3rem] max-sm:text-[2.375rem]"
+            className="justify-center text-center font-general text-[5.556vw] leading-[1.15] font-normal max-lg:text-[3rem] max-sm:text-[2.375rem]"
           >
             {TITLE}
           </TextEngine>

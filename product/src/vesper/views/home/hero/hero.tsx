@@ -69,7 +69,7 @@ export const Hero = ({ introStarted }: HeroProps) => {
           delayIn={200}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
+          className="absolute top-[9.028vw] left-[1.667vw] w-[41.875vw] font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
         >
           {TITLE}
         </TextEngine>

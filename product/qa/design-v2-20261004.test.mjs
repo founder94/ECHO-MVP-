@@ -47,7 +47,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   assert.doesNotMatch(M, /toLvh|SectionBrain|SectionGalaxy|setOutro/, '모바일은 원본 200lvh 트랙·뇌 장면·고정 겹 그림을 쓰지 않음');
   assert.match(M, /sceneTimeline\.setTrack\(0, progress\);\n\s*sceneTimeline\.setTrack\(1, progress\);/, '③ 구간 하나가 장면 시계 0→2(구체 → 은하)');
   assert.match(M, /id="hero"[\s\S]*min-h-\[100lvh\] flex-col justify-end/, '① 첫 화면: 제목·설명·버튼이 한 화면(min-height · 세로로 늘어남)');
-  assert.match(M, /text-\[clamp\(36px,9vw,52px\)\] leading-\[1\.15\] font-light break-keep/, '모바일 제목 clamp(36px, 9vw, 52px) · 300 · 행간 1.15');
+  assert.match(M, /text-\[clamp\(36px,9vw,52px\)\] leading-\[1\.15\] font-normal break-keep/, '모바일 제목 clamp(36px, 9vw, 52px) · 400(주아체 한 굵기) · 행간 1.15');
   assert.match(M, /text-\[16px\] leading-\[1\.55\] break-keep/, '모바일 본문 16px/1.55');
   assert.match(M, /px-6 max-\[360px\]:px-5/, '좌우 여백 24px · 360px 이하 20px');
   assert.match(M, /min-h-\[48px\]/, '버튼 터치 영역 48px');
@@ -81,7 +81,7 @@ test('홈페이지 글(2026-10-09 대표 「최신 채택안」): 첫 화면 「
   assert.match(COPY, /HOME_FAQ = \{[\s\S]*\(\['talk', 'check', 'choice', 'zzarit'\] as const\)/, 'FAQ = 이용 안내 승인 문장');
   assert.match(COPY, /howLead: guideSection\('start'\)\.body,\n\s*howSteps: guideSection\('start'\)\.points/, '이용 방법 = 이용 안내 「처음이라면」');
   assert.match(HERO, /const TITLE = HOME_V2\.heroTitle;\nconst TAGLINE = HOME_V2\.heroChoice;\nconst SUPPORT = HOME_V2\.heroDesc;\nconst TAGS = HOME_V2\.tags;/, '데스크톱 원본 글 칸에 ECHO 문구');
-  assert.match(HERO, /leading-\[1\.15\] font-light break-keep/, '한글 제목 행간 1.15'); assert.match(HERO, /leading-\[1\.55\] break-keep/, '한글 본문 행간 1.55');
+  assert.match(HERO, /leading-\[1\.15\] font-normal break-keep/, '한글 제목 행간 1.15'); assert.match(HERO, /leading-\[1\.55\] break-keep/, '한글 본문 행간 1.55');
   assert.match(HERO, /href=\{HOW_PATH\}[\s\S]*\{HOME_V2\.how\}/, '보조 버튼 → #how');
   assert.match(GALAXY, /\{ value: "01", label: HOME_V2\.steps\[0\]/, '은하 네 칸 = 이용 안내 항목(91k 등 템플릿 숫자 0)');
   assert.match(V('views/home/section-brain.tsx'), /const TITLE_LEFT = HOME_V2\.brainLeft\.join\(" "\);/);
@@ -107,13 +107,14 @@ test('홈페이지: 대표 인사말 승인 원문은 brandGreeting.ts 에 그�
   for (const t of ["registration: '사업자등록번호 121-46-51503 · 통신판매업 신고 제 2026-다산-0583호'", "email: '0423doit@gmail.com'", "company: '두잇(DO IT) · 대표 박진욱'"]) assert.ok(COPY.includes(t), t);
   for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}']) assert.ok(FOOT.includes(t), t);
 });
-test('홈페이지 색·글씨체·3D(2026-10-08 대표 「색도 글씨체도 3D 효과도 코드 그대로」): 원본 보라 #170a2b·민트 · General Sans/Onest/Mulish · Solaris·격자 원본 색 · 움직임 줄이기는 원본 장치 그대로', () => {
+test('홈페이지 색·3D(2026-10-08 대표 「색도 3D 효과도 코드 그대로」· 글씨체만 2026-10-09 주아체로): 원본 보라 #170a2b·민트 · Solaris·격자 원본 색 · 움직임 줄이기는 원본 장치 그대로', () => {
   const css = V('vesper.css');
   assert.match(css, /--background: #170a2b;/, '원본 바탕색(10/5 「보라 0」 잠금은 10/8 대표가 해제)');
   assert.match(css, /--signal: #6cf3a3;/);
-  for (const w of ['Light', 'Regular', 'Medium']) assert.ok(css.includes(`/vesper/fonts/GeneralSans-${w}.woff2`), w);
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /General Sans|GeneralSans|Onest'|Mulish'/, '옛 글꼴 선언 0(2026-10-09 주아체 하나)');
+  assert.match(css, /--font-general-sans: 'Jua';/); assert.match(css, /font-synthesis: none;/, '가짜 굵기·기울임 0');
   assert.match(css, /html\.vesper \{/, '루트 글자 크기 사다리는 html.vesper 안에서만(전역 index.css 수정 0)');
-  assert.match(read('index.html'), /fonts\.googleapis\.com\/css2\?family=Mulish:wght@300;400&family=Onest:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this\.media='all'"/, '원본 글씨체 2종은 index.html 에서(지연 조각 CSS @import 는 막힌 망에서 화면 전체를 깨뜨림)');
+  assert.doesNotMatch(read('index.html'), /fonts\.googleapis\.com/, '구글 글꼴 링크 0(주아체는 저장소 안 파일)');
   const sol = V('views/home/sections/solaris-section.tsx');
   assert.match(sol, /colorWarm: "#ff4c33",\n\s*colorCool: "#3366ff",/, 'Solaris 원본 색 그대로');
   const lat = V('views/home/hero/lattice-shaders.ts') + V('views/home/hero/hero-lattice.tsx');
@@ -260,4 +261,65 @@ test('바닥글: ECHO · 회사 두 묶음 · 맨 아래 법적 고지(사업자
   assert.match(MOCK, /\{ label: HOME_V2\.how, href: HOW_PATH \},\n\s*\{ label: HOME_V2\.faq, href: FAQ_PATH \},\n\s*\{ label: HOME_V2\.install, href: appUrl\(INSTALL_PATH\) \},/);
   assert.match(MOCK, /\{ label: "이용약관", href: "\/legal\/terms" \},\n\s*\{ label: "개인정보처리방침", href: "\/legal\/privacy" \},\n\s*\{ label: "문의", href: "mailto:0423doit@gmail\.com" \},/);
   for (const t of ['href="/legal/terms"', 'href="/legal/privacy"', 'href={`mailto:${LEGAL.email}`}', '{LEGAL.company} · {LEGAL.registration}', '{LEGAL.address}', '{LEGAL.copyright}', '<div lang="ko" className=']) assert.ok(FOOT.includes(t), t);
+});
+
+// 2026-10-09 대표 「ECHO 홈페이지·모바일 최종 디자인 수정 / 대표 승인」: 주아체(Jua) 전면 적용 + 흰 카드·흰 버튼 바탕 0(투명 구성) + 3D·효과 그대로.
+test('글꼴 = 주아체(Jua) 하나(400): 저장소 안 파일(OFL) · 홈페이지·앱 공통 선언 · 가짜 굵기 0 · 옛 글꼴 선언 0 · 구글 글꼴 링크 0', () => {
+  const jua = read('src/fonts/jua.css');
+  assert.ok((jua.match(/@font-face/g) ?? []).length >= 80, '유니코드 범위 조각 @font-face(한글 전부)');
+  assert.match(jua, /font-family: 'Jua';\n\s*font-style: normal;\n\s*font-display: swap;\n\s*font-weight: 400;\n\s*src: url\('\/fonts\/jua\/jua-[\w-]+-400-normal\.woff2'\) format\('woff2'\);/);
+  assert.doesNotMatch(jua, /https?:\/\//, '외부 글꼴 CDN 0');
+  assert.ok(existsSync('public/fonts/jua/LICENSE.txt') && existsSync('public/fonts/jua/jua-latin-400-normal.woff2'), '글꼴 파일 + 라이선스 동봉');
+  assert.ok(!existsSync('public/vesper/fonts/GeneralSans-Regular.woff2'), 'General Sans 파일 0');
+  const idx = read('src/index.css');
+  assert.match(idx, /^@import '\.\/fonts\/jua\.css';/m);
+  assert.match(idx, /--font-heading: 'Jua', 'Pretendard'/); assert.match(idx, /--font-body: 'Jua', 'Pretendard'/); assert.match(idx, /--font-label: 'Jua', 'Pretendard'/);
+  assert.match(idx, /html \{\n\s*scroll-behavior: smooth;[^}]*font-synthesis: none;/, '가짜 굵기·기울임 0(홈페이지·앱 공통)');
+  assert.doesNotMatch(idx.replace(/\/\*[\s\S]*?\*\//g, ''), /Doto/, 'Doto 0');
+  const tw = read('tailwind.config.ts');
+  for (const k of ['general', 'display', 'tag', 'heading', 'body', 'sans']) assert.match(tw, new RegExp(`${k}: \\['Jua', 'Pretendard'`), k);
+  assert.doesNotMatch(tw, /Doto|Noto Sans KR|General Sans|Mulish/);
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const f of ['src/doit/doit.css', 'src/doit/components/feature/doit-type.css', 'src/doit/components/feature/core-conversation.css', 'src/doit/components/feature/product-brand.css', 'src/doit/components/feature/asleep-connections.css', 'src/doit/app/plan-a/screens/saju.css', 'src/components/guide/guide.css', 'src/components/app-back-button.css', 'src/components/app-corner-menu.css']) {
+    assert.doesNotMatch(strip(read(f)), /Gowun|Fraunces|Instrument Sans|Archivo Black|JetBrains Mono|Noto Serif KR|Gothic A1|Do Hyeon/, `${f}: 옛 글꼴 0`);
+    assert.match(read(f), /Jua/, `${f}: Jua`);
+  }
+  assert.match(read('src/doit/components/feature/echo-ui.css'), /--echo-font:'Jua','Pretendard'/, '파스텔 앱 화면(!important 한 벌) = Jua');
+  assert.match(read('src/doit/app/plan-a/theme.ts'), /export const serif = '"Jua", "Pretendard", system-ui, sans-serif';/, '플랜A 화면 인라인 글꼴 = Jua');
+  assert.match(read('src/pages/do-it/fortune/cardArt.ts'), /export const SERIF = '"Jua", "Pretendard"/);
+  for (const f of ['src/doit/app/plan-a/screens/LandingHero.tsx', 'src/doit/app/plan-a/components/PrimaryButton.tsx']) assert.doesNotMatch(read(f), /Do Hyeon/, f);
+  for (const f of ['src/pages/do-it/photo/page.tsx', 'src/pages/do-it/grade/page.tsx', 'src/pages/do-it/hero/page.tsx']) assert.doesNotMatch(read(f), /Noto Serif KR|fontFamily: "'Pretendard'/, f);
+  const vcss = V('vesper.css');
+  assert.match(vcss, /html\.vesper \{ font-size: 16px; font-synthesis: none;/);
+  assert.match(vcss, /html\.vesper body \{[^}]*font-family: 'Jua', 'Pretendard'/);
+  assert.doesNotMatch(strip(vcss), /@font-face/, '홈페이지 조각 CSS 안 @font-face 0(공통 jua.css 하나)');
+  // 굵기 클래스: 주아체는 400 하나 — 300/500 클래스 0
+  for (const f of ['views/home/hero/hero.tsx', 'views/home/mobile-stage.tsx', 'views/home/sections/financial-section.tsx', 'views/home/sections/faq-section.tsx', 'views/home/send-request.tsx', 'views/home/section-galaxy.tsx', 'views/home/section-brain.tsx']) assert.doesNotMatch(V(f), /font-(light|medium|semibold|bold)\b/, `${f}: 굵기 클래스 0`);
+  assert.doesNotMatch(read('index.html'), /fonts\.googleapis|fonts\.gstatic/);
+  assert.match(read('index.html'), /remixicon\.min\.css/, '아이콘 글꼴은 그대로');
+});
+
+test('흰 카드·흰 버튼 바탕 0 — 설명·FAQ·CTA 가 투명하게 WebGL 장면 위에(밝은 글자 · 얇은 선 · 옅은 글자 그림자) · 3D 순서 그대로', () => {
+  const fin = V('views/home/sections/financial-section.tsx'), faq = V('views/home/sections/faq-section.tsx'), mob = V('views/home/mobile-stage.tsx'), send = V('views/home/send-request.tsx');
+  for (const [n, s] of [['how', fin], ['faq', faq], ['mobile', mob], ['send', send]]) {
+    // 1px 선(+ 표시)·점(꼬리표·글머리)은 바탕이 아니다 — 빼고 본다.
+    const body = s.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '').replace(/<span[^>]*\b(h-px|w-px|size-\[0\.\d+rem\])[^>]*\/>/g, '');
+    assert.doesNotMatch(body, /bg-white\b(?!\/)|text-black|border-black|bg-black\b(?!\/)|SOLID_CTA|backdrop-blur/, `${n}: 흰 바탕·검정 글자·흰 채움 버튼·강한 유리 블러 0`);
+  }
+  assert.match(fin, /className="vesper-soft relative grid w-full origin-bottom grid-cols-\[minmax\(0,1fr\)_27\.361vw\][^"]*border-t border-white\/15[^"]*text-white/, '어떻게 만나나요: 내용 높이 격자 · 얇은 윗줄 · 밝은 글자');
+  assert.doesNotMatch(fin, /h-\[44\.167vw\]|top-\[36\.667vw\]|position: "absolute"/, '고정 높이·절대 배치 0(내용 높이로 재정렬)');
+  assert.match(fin, /CARD_REVEAL|MASK_REVEAL|LETTER_FADE|WORD_FADE/, '도착·글 연출 그대로');
+  assert.match(faq, /interaction=\{LIGHT_ROW\}/); assert.match(faq, /border-b border-white\/20/); assert.match(faq, /asterisk-light\.svg/);
+  assert.match(faq, /vesper-soft relative flex w-full origin-bottom flex-col items-center border-t border-white\/15/);
+  assert.match(mob, /const CARD_FACE = "vesper-soft relative flex w-full origin-bottom flex-col gap-4 border-t border-white\/15 pt-6 text-white";/);
+  assert.match(mob, /splitSentences\(HOME_V2\.choiceBody\)\.map/, '서로가 선택합니다: 승인 문장을 문장 단위로만 나눔(글자 변경 0)');
+  assert.match(V('views/home/sentences.ts'), /split\(\/\(\?<=\[\.!\?\]\)\\s\+\/\)/);
+  assert.match(send, /usePressable\(GHOST\)/); assert.match(send, /send-icon-light\.svg/); assert.match(send, /min-h-\[48px\]/, '44px 이상 터치');
+  const icon = read('public/vesper/assets/hero/send-icon-light.svg');
+  assert.doesNotMatch(icon, /<rect/, '아이콘 흰 배경 도형 0'); assert.match(icon, /#fdfdfd/);
+  assert.match(V('lib/springs/interaction.ts'), /export const LIGHT_ROW: Interaction = \{\n\s*rest: \{ backgroundColor: alpha\(0\) \},/);
+  assert.match(V('vesper.css'), /html\.vesper \.vesper-soft \{ text-shadow: 0 1px 2px rgb\(0 0 0 \/ 0\.55\), 0 0 14px rgb\(0 0 0 \/ 0\.35\); \}/, '옅은 글자 그림자만');
+  const stage = V('views/home/scroll-stage.tsx');
+  assert.match(stage, /id="financial"[\s\S]*HydrateNear id="faq"[\s\S]*id="solaris"[\s\S]*id="onyx"[\s\S]*HydrateNear id="contact"/, '장면 순서 그대로(어떻게 → FAQ → Solaris → Onyx → 바닥글)');
+  assert.match(mob, /<HeroMobile[\s\S]*<HowCard[\s\S]*<AgentScene[\s\S]*<ChoiceCard[\s\S]*<FaqSection[\s\S]*<SiteFooter/, '모바일 ①~⑤ 순서 그대로');
 });

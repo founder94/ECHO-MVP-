@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Doto:wght@400;700;900&display=swap');
+/* 2026-10-09 대표 승인: 사이트 글꼴 = 주아체(Jua) 하나(400). 글꼴 조각은 저장소 안 public/fonts/jua(OFL 1.1). Doto·Gowun·Fraunces 등 옛 글꼴은 더 받지 않는다. */
+@import './fonts/jua.css';
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
 @tailwind base;
@@ -67,9 +68,9 @@
     --secondary-900: 0.25 0.05 180;
     --secondary-950: 0.15 0.04 180;
 
-    --font-heading: 'Doto', monospace;
-    --font-body: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
-    --font-label: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    --font-heading: 'Jua', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    --font-body: 'Jua', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    --font-label: 'Jua', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
   }
 
   .light {
@@ -100,6 +101,8 @@
 
   html {
     scroll-behavior: smooth;
+    /* 주아체는 400 하나 — 브라우저가 가짜 굵기·기울임을 만들지 않게 */
+    font-synthesis: none;
   }
 
   body {
@@ -173,7 +176,7 @@
 @layer components {
   .font-dot {
     font-family: var(--font-heading);
-    font-weight: 900;
+    font-weight: 400;
   }
 }
 

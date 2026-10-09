@@ -65,10 +65,10 @@ test('연결 화면: 다섯 가지를 다 답했으면 「이어서 답하기」
   assert.match(read('src/doit/pages/do-it/start-journey/page.tsx'), /onNext=\{\(\) => navigate\("\/doit\/connections"\)\}/, '프로필 확인 다음은 준비 중인 공간이 아니라 연결 준비');
 });
 
-test('글꼴 — 고운바탕(제목)·고운돋움(안내)을 앱 화면에만, 화면을 멈추지 않게 받는다', () => {
+test('글꼴 — 2026-10-09 대표 승인: 앱 화면 글은 주아체(Jua) 하나(고운바탕·고운돋움 0), 화면을 멈추지 않게 저장소 안 파일로 받는다', () => {
   const type = read('src/doit/components/feature/doit-type.css');
-  assert.match(type, /"Gowun Batang"/);
-  assert.match(type, /"Gowun Dodum"/);
+  assert.match(type, /"Jua", "Pretendard"/);
+  assert.doesNotMatch(type.replace(/\/\*[\s\S]*?\*\//g, ''), /Gowun|Noto Serif/);
   const body = type.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.doesNotMatch(body, /(^|[\s,}])(body|html|:root)\s*[{,]/);
   assert.doesNotMatch(body, /doit-brand-|doit-editorial|doit-landing/);
@@ -76,7 +76,8 @@ test('글꼴 — 고운바탕(제목)·고운돋움(안내)을 앱 화면에만,
     assert.match(read(`src/doit/components/feature/${f}`), /^@import "\.\/doit-type\.css";/m, f);
   }
   const html = read('index.html');
-  assert.match(html, /family=Gowun\+Batang:wght@400;700&family=Gowun\+Dodum[^"]*" rel="stylesheet" media="print" onload="this\.media='all'"/);
+  assert.doesNotMatch(html, /fonts\.googleapis\.com/, '구글 글꼴 링크 0 — 주아체는 src/fonts/jua.css(public/fonts/jua)');
+  assert.match(read('src/index.css'), /@import '\.\/fonts\/jua\.css';/);
   // 구글 폰트가 막혀도 제품 화면이 멈추지 않도록, 화면 조각 스타일 안에서 글꼴을 @import 하지 않는다.
   assert.doesNotMatch(read('src/doit/doit.css'), /@import url\('https:\/\/fonts\.googleapis\.com/);
   // 한글 머리말 자간을 넓게 두지 않는다.

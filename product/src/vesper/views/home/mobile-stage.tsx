@@ -18,19 +18,20 @@ import { HOME_V2, HOW_PATH } from "@/pages/do-it/brand-home/copy";
 import { LineBlur } from "./line-blur";
 import { CARD_REVEAL, LETTER_FADE, UNIT_REVEAL, UNIT_REVEAL_FIRST_SCREEN } from "./reveal";
 import { SendRequest } from "./send-request";
+import { splitSentences } from "./sentences";
 import { FaqSection } from "./sections/faq-section";
 import { SiteFooter } from "./sections/site-footer";
 
 /** 좌우 여백 24px(360px 이하 20px) — 대표 지시 모바일 기준. */
 const GUTTER = "px-6 max-[360px]:px-5";
 /** 대표 제목 clamp(36px, 9vw, 52px) 두께 300 · 행간 1.15 · 단어 단위 줄바꿈. */
-const TITLE = "font-general text-[clamp(36px,9vw,52px)] leading-[1.15] font-light break-keep";
+const TITLE = "font-general text-[clamp(36px,9vw,52px)] leading-[1.15] font-normal break-keep";
 /** 본문 16px/1.55 · 보조 13px. */
 const BODY = "font-general text-[16px] leading-[1.55] break-keep";
 const AUX = "font-general text-[13px] leading-[1.5] break-keep";
-/** 흰 카드(원본 Vesper 의 밝은 하단 카드) — 화면 가장자리에서 띄워 뒤 장면이 보인다. */
-const CARD = "mx-auto w-[calc(100%-3rem)] max-[360px]:w-[calc(100%-2.5rem)] [perspective:1400px]";
-const CARD_FACE = "relative flex w-full origin-bottom flex-col gap-4 border border-white/10 bg-white p-6 text-black max-[360px]:p-5";
+/** 2026-10-09 대표 승인: 흰 카드 0 — 글은 장면 위에 바로(밝은 글자 · 얇은 윗줄 · 여백). 도착 연출(CARD_REVEAL)은 그대로. */
+const CARD = `[perspective:1400px] ${GUTTER}`;
+const CARD_FACE = "vesper-soft relative flex w-full origin-bottom flex-col gap-4 border-t border-white/15 pt-6 text-white";
 
 /** ① 첫 화면 — 제목·설명·선택권 안내·버튼이 한 화면에 함께. 높이가 작으면(가로 휴대폰) 세로로 늘어난다(min-height). */
 const HeroMobile = ({ introStarted }: { introStarted: boolean }) => (
@@ -61,7 +62,7 @@ const HeroMobile = ({ introStarted }: { introStarted: boolean }) => (
       <PressableLink
         href={HOW_PATH}
         interaction={GHOST}
-        className="flex min-h-[48px] items-center justify-center border px-5 font-general text-[16px] leading-[1.2] font-medium"
+        className="flex min-h-[48px] items-center justify-center border px-5 font-general text-[16px] leading-[1.2] font-normal"
       >
         {HOME_V2.how}
       </PressableLink>
@@ -71,14 +72,14 @@ const HeroMobile = ({ introStarted }: { introStarted: boolean }) => (
 
 /** ② 이용 방법(이용 안내 「처음이라면」 승인 문장 + 다섯 순서). 실제 ECHO 화면은 승인된 캡처가 없어 넣지 않는다(자료 미확보). */
 const HowCard = () => (
-  <section id="how" aria-label={HOME_V2.howTitle} className={CARD}>
+  <section id="how" aria-label={HOME_V2.howTitle} className={`${CARD} mt-4`}>
     <Inview mode="always" immediateOut={false} from={CARD_REVEAL.from} to={CARD_REVEAL.to} config={CARD_REVEAL.config} className={CARD_FACE}>
       <h2 className={`m-0 ${TITLE}`}>{HOME_V2.howTitle}</h2>
       <p className={`m-0 ${BODY}`}>{HOME_V2.howLead}</p>
-      <ol className="m-0 flex list-none flex-col gap-3 border-t border-black/15 p-0 pt-4">
+      <ol className="m-0 flex list-none flex-col gap-3 border-t border-white/15 p-0 pt-4">
         {HOME_V2.howSteps.map((step, index) => (
           <li key={step} className={`flex gap-3 ${BODY}`}>
-            <span className="shrink-0 font-tag text-[13px] leading-[1.6] text-black/60">{String(index + 1).padStart(2, "0")}</span>
+            <span className="shrink-0 font-tag text-[13px] leading-[1.6] text-white/60">{String(index + 1).padStart(2, "0")}</span>
             <span>{step}</span>
           </li>
         ))}
@@ -106,14 +107,19 @@ const AgentScene = ({ trackRef }: { trackRef: RefObject<HTMLDivElement | null> }
 
 /** ④ 서로의 선택·정보 공개 방식(이용 안내 「추천과 서로의 선택」 승인 문장). */
 const ChoiceCard = () => (
-  <section id="choice" aria-label={HOME_V2.choiceTitle} className={`${CARD} mt-[1.5rem]`}>
+  <section id="choice" aria-label={HOME_V2.choiceTitle} className={`${CARD} mt-10`}>
     <Inview mode="always" immediateOut={false} from={CARD_REVEAL.from} to={CARD_REVEAL.to} config={CARD_REVEAL.config} className={CARD_FACE}>
       <h2 className={`m-0 ${TITLE}`}>{HOME_V2.choiceTitle}</h2>
-      <p className={`m-0 ${BODY}`}>{HOME_V2.choiceBody}</p>
-      <ul className="m-0 flex list-none flex-col gap-3 border-t border-black/15 p-0 pt-4">
+      {/* 승인 문장을 글자 그대로, 문장 단위로만 짧게 나눠 보인다(대표 승인 2026-10-09). */}
+      <div className="flex flex-col gap-2">
+        {splitSentences(HOME_V2.choiceBody).map((sentence) => (
+          <p key={sentence} className={`m-0 ${BODY}`}>{sentence}</p>
+        ))}
+      </div>
+      <ul className="m-0 flex list-none flex-col gap-3 border-t border-white/15 p-0 pt-4">
         {HOME_V2.choicePoints.map((point) => (
           <li key={point} className={`flex gap-3 ${BODY}`}>
-            <span aria-hidden className="mt-[0.7em] size-[0.375rem] shrink-0 bg-black" />
+            <span aria-hidden className="mt-[0.7em] size-[0.375rem] shrink-0 bg-white" />
             <span>{point}</span>
           </li>
         ))}
@@ -162,7 +168,7 @@ export const MobileStage = memo(function MobileStage({ faq, footer, introStarted
             <ChoiceCard />
           </HydrateNear>
         </Suspense>
-        <div className="mt-[1.5rem]">
+        <div className="mt-10">
           <Suspense fallback={null}>
             <HydrateNear id="faq">
               <FaqSection copy={faq} />

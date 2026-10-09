@@ -76,9 +76,9 @@ test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 �
   assert.match(ui, /\.doit-menu-panel \*\{color:#fff!important;/);
 });
 
-test('ECHO UI 한 벌: 글꼴 Pretendard 하나 · 굵기 4단계(800/700/700/600) · 가는 글자 0 · 흐린 글자 흰색 · 검정 채움 → 유리 · 누른 상태도 흰 막', () => {
+test('ECHO UI 한 벌: 글꼴 주아체(Jua) 하나(2026-10-09) · 굵기 4단계(800/700/700/600 — 주아체는 400 하나라 font-synthesis:none 으로 가짜 굵기 0) · 가는 글자 0 · 흐린 글자 흰색 · 검정 채움 → 유리 · 누른 상태도 흰 막', () => {
   const ui = read('src/doit/components/feature/echo-ui.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.match(ui, /--echo-font:'Pretendard'/);
+  assert.match(ui, /--echo-font:'Jua','Pretendard'/);
   assert.match(ui, /:not\(i\)[^{]*\{font-family:var\(--echo-font\)!important;-webkit-text-stroke:0!important\}/);
   for (const w of ['800', '700', '600']) assert.match(ui, new RegExp(`font-weight:${w}!important`));
   assert.doesNotMatch(ui, /font-weight:(300|400)/);

@@ -1,15 +1,12 @@
 /* GetLayers 「Vesper」 globals.css 를 Tailwind v3 틀에 맞게 옮긴 것(2026-10-08 대표 「색·글씨체·3D 효과 코드 그대로」).
    토큰(@theme)은 tailwind.config.ts theme.extend 로, 나머지(변수·글꼴·바탕·루트 글자 크기)는 여기. 홈페이지(html.vesper)에만 적용. */
-/* Mulish·Onest(구글 글꼴)는 index.html 의 <link>(media=print → all)로 받는다 — 조각 CSS 안 @import 는 글꼴 차단 환경에서 조각 자체를 오류로 만든다(2026-10-08 실측). */
+/* 2026-10-09 대표 승인: 홈페이지 글꼴 = 주아체(Jua) 하나(400) — src/fonts/jua.css(index.css 가 받음). General Sans·Mulish·Onest 는 쓰지 않는다. */
 
-@font-face { font-family: 'General Sans'; font-weight: 300; font-style: normal; font-display: swap; src: url('/vesper/fonts/GeneralSans-Light.woff2') format('woff2'); }
-@font-face { font-family: 'General Sans'; font-weight: 400; font-style: normal; font-display: swap; src: url('/vesper/fonts/GeneralSans-Regular.woff2') format('woff2'); }
-@font-face { font-family: 'General Sans'; font-weight: 500; font-style: normal; font-display: swap; src: url('/vesper/fonts/GeneralSans-Medium.woff2') format('woff2'); }
 
 :root {
-  --font-onest: 'Onest';
-  --font-general-sans: 'General Sans';
-  --font-mulish: 'Mulish';
+  --font-onest: 'Jua';
+  --font-general-sans: 'Jua';
+  --font-mulish: 'Jua';
 
   --background: #170a2b;
   --foreground: #fdfdfd;
@@ -34,8 +31,8 @@
   --menu-glow: radial-gradient(120% 70% at 100% 0%, rgba(108, 243, 163, 0.1), transparent 60%);
 }
 
-html.vesper { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: clip; }
-html.vesper body { background: var(--background); color: var(--foreground); overscroll-behavior-y: none; overflow-x: clip; font-family: var(--font-onest), 'Pretendard', ui-sans-serif, system-ui, sans-serif; /* 한글 글자는 General Sans·Onest 에 없어 Pretendard(이미 index.css 에서 받음)로 */ }
+html.vesper { font-size: 16px; font-synthesis: none; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: clip; }
+html.vesper body { background: var(--background); color: var(--foreground); overscroll-behavior-y: none; overflow-x: clip; font-family: 'Jua', 'Pretendard', ui-sans-serif, system-ui, sans-serif; /* 주아체에 없는 글자(특수기호 등)만 Pretendard·시스템 글꼴로 */ }
 html.vesper body::-webkit-scrollbar { width: 0; }
 @media (max-width: 1920px) { html.vesper { font-size: 0.833333vw; } }
 @media (max-width: 1440px) { html.vesper { font-size: 1.111111vw; } }
@@ -43,3 +40,6 @@ html.vesper body::-webkit-scrollbar { width: 0; }
 
 /* 원본 @utility */
 .text-shadow-title { text-shadow: 0 0 30px rgba(255, 255, 255, 0.08); }
+
+/* 2026-10-09 대표 승인: 설명·FAQ 글이 흰 카드 없이 장면 위에 바로 놓인다 — 가장 밝은 순간에도 읽히도록 아주 옅은 글자 그림자만(큰 검은 판·강한 유리 블러 0). */
+html.vesper .vesper-soft { text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.35); }

@@ -325,7 +325,7 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
                         href={item.href}
                         interaction={NAV_LINK}
                         onClick={onNavigate}
-                        className="flex items-baseline gap-[1rem] py-[0.5rem] font-general text-menu leading-title font-light tracking-title"
+                        className="flex items-baseline gap-[1rem] py-[0.5rem] font-general text-menu leading-title font-normal tracking-title"
                       >
                         <span aria-hidden className="font-tag text-[0.8125rem] tracking-hud text-white/60">
                           {String(index + 1).padStart(2, "0")}

@@ -59,7 +59,7 @@ export function LandingHero({
           transition={{ delay: 0.15, duration: 0.7 }}
           className="mb-4"
           style={{
-            fontFamily: "'Do Hyeon', sans-serif",
+            fontFamily: "'Jua', 'Pretendard', sans-serif",
             fontSize: 11,
             letterSpacing: "0.28em",
             color: "#9CA3AF",
@@ -74,7 +74,7 @@ export function LandingHero({
           transition={{ delay: 0.3, duration: 0.8 }}
           className="text-white text-[clamp(27px,7.7vw,32px)] md:text-[37px]"
           style={{
-            fontFamily: "'Do Hyeon', sans-serif",
+            fontFamily: "'Jua', 'Pretendard', sans-serif",
             fontWeight: 800,
             lineHeight: 1.2,
             letterSpacing: "-0.03em",
@@ -92,7 +92,7 @@ export function LandingHero({
           transition={{ delay: 0.45, duration: 0.8 }}
           className="mt-5 text-white/85 text-[clamp(13px,3.7vw,15px)] md:text-[16px]"
           style={{
-            fontFamily: "'Do Hyeon', sans-serif",
+            fontFamily: "'Jua', 'Pretendard', sans-serif",
             whiteSpace: "nowrap",
             wordBreak: "keep-all",
           }}
@@ -109,7 +109,7 @@ export function LandingHero({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           className="echo-glass-btn echo-glass-btn--primary mt-10 inline-flex w-full max-w-[480px] items-center justify-center gap-2 rounded-full whitespace-nowrap cursor-pointer md:w-[280px]"
-          style={{ height: 60, fontFamily: "'Do Hyeon', sans-serif", fontSize: 15 }}
+          style={{ height: 60, fontFamily: "'Jua', 'Pretendard', sans-serif", fontSize: 15 }}
         >
           무료로 시작하기
           <ArrowRight size={18} />
@@ -121,7 +121,7 @@ export function LandingHero({
           transition={{ delay: 0.8, duration: 0.6 }}
           className="mt-4"
           style={{
-            fontFamily: "'Do Hyeon', sans-serif",
+            fontFamily: "'Jua', 'Pretendard', sans-serif",
             fontSize: 12,
             color: "#6B7280",
           }}

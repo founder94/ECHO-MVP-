@@ -79,7 +79,7 @@ export const SectionGalaxy = () => {
           immediateOut={false}
           {...LETTER_FADE}
           style={{ position: "absolute" }}
-          className="absolute top-[7.014vw] left-1/2 w-[46.319vw] -translate-x-1/2 justify-center text-center font-general text-[5.556vw] leading-[1.15] font-light break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
+          className="absolute top-[7.014vw] left-1/2 w-[46.319vw] -translate-x-1/2 justify-center text-center font-general text-[5.556vw] leading-[1.15] font-normal break-keep max-lg:!static max-lg:w-full max-lg:translate-x-0 max-lg:text-[3.25rem] max-sm:text-[2.375rem]"
         >
           {TITLE}
         </TextEngine>
@@ -128,7 +128,7 @@ export const SectionGalaxy = () => {
               className="absolute top-[8.333vw] flex w-[17vw] flex-col items-start gap-[0.833vw] border-l border-white/80 pl-[1.111vw] max-lg:static max-lg:w-auto max-lg:gap-[0.25rem] max-lg:pl-[0.625rem] max-sm:flex-row max-sm:items-baseline max-sm:gap-[0.5rem]"
               style={{ left: stat.left }}
             >
-              <span className="font-tag text-[2.222vw] leading-none font-light max-lg:text-[1.5rem] max-sm:text-[1.25rem]">
+              <span className="font-tag text-[2.222vw] leading-none font-normal max-lg:text-[1.5rem] max-sm:text-[1.25rem]">
                 {stat.value}
               </span>
               <span className="font-general text-[1.111vw] leading-[1.2] font-normal break-keep max-lg:text-[0.75rem] max-lg:text-white/70">

@@ -112,6 +112,13 @@ export const CARD_ROW: Interaction = {
   press: { backgroundColor: ink(0.07) },
 };
 
+/** 2026-10-09 대표 승인: FAQ 줄이 투명 바탕(WebGL 장면 위)에 놓이므로 밝은 빛으로만 살짝 반응한다(흰 바탕 0). */
+export const LIGHT_ROW: Interaction = {
+  rest: { backgroundColor: alpha(0) },
+  hover: { backgroundColor: alpha(0.07) },
+  press: { backgroundColor: alpha(0.14) },
+};
+
 /** A control on a white surface (the cookie banner's primary). */
 export const SOLID_INVERSE: Interaction = {
   rest: { backgroundColor: CHALK, color: INK, opacity: 1 },
