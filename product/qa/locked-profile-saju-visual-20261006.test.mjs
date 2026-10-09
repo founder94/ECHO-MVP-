@@ -82,5 +82,6 @@ test('홈: 사주·타로 그림 문 → 바로 입력 화면(mode 주소) · �
   for (const f of ['public/doit/art/saju-start.webp', 'public/doit/art/tarot-start.webp']) assert.ok(existsSync(path.join(root, f)), f);
   assert.ok(read('src/doit/pages/do-it/home/page.tsx').includes('<FortuneDoors'));
   const f = read('src/doit/pages/do-it/fortune/page.tsx');
-  assert.ok(f.includes('deep === "saju" || deep === "taro" ? "input" : "entry"'));
+  assert.ok(f.includes('const deepMode: Mode | null = !backToTaro && (deep === "saju" || deep === "taro") ? deep : null;'));
+  assert.match(f, /if \(deepMode && !deepApplied\) \{\n\s*setDeepApplied\(true\);\n\s*setMode\(deepMode\);\n\s*setStep\("input"\);/);
 });

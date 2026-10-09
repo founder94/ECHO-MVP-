@@ -38,8 +38,16 @@ export default function Fortune() {
   const [params] = useSearchParams();
   const backToTaro = params.get("view") === "taro" && readSelectedCard() !== null;
   const deep = params.get("mode");
-  const [step, setStep] = useState<Step>(backToTaro ? "result" : deep === "saju" || deep === "taro" ? "input" : "entry");
-  const [mode, setMode] = useState<Mode>(backToTaro || deep === "taro" ? "taro" : "saju");
+  const deepMode: Mode | null = !backToTaro && (deep === "saju" || deep === "taro") ? deep : null;
+  const [step, setStep] = useState<Step>(backToTaro ? "result" : "entry");
+  const [mode, setMode] = useState<Mode>(backToTaro ? "taro" : "saju");
+  // 그림 문 바로 들어오기: 첫 그리기 전에 한 번만 입력 화면으로(React 의 렌더 중 상태 맞추기 — 고르기 화면이 깜빡이지 않음).
+  const [deepApplied, setDeepApplied] = useState(false);
+  if (deepMode && !deepApplied) {
+    setDeepApplied(true);
+    setMode(deepMode);
+    setStep("input");
+  }
   const [sajuInput, setSajuInput] = useState<SajuCalcInput | null>(null);
 
   const exitToHome = () => navigate("/doit/home");
