@@ -142,6 +142,7 @@ test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까�
   assert.match(V('views/home/scene/scene.worker.tsx'), /if \(!message\.running\) drawOnce\(\);/, '워커: 멈춤으로 시작해도 한 장');
   assert.match(V('views/home/scene/scene.worker.tsx'), /message\.type === "frame"\) \{\n\s*drawOnce\(\);/);
   assert.match(V('views/home/scene/scene.worker.tsx'), /if \(running\) advance\(seconds, true, store\.getState\(\)\);\n\s*else drawOnce\(\);/, '멈춤 중 크기 변경 뒤에도 한 장');
+  assert.match(V('shims/next-navigation.ts'), /export function usePathname\(\): string \{\n\s*return useLocation\(\)\.pathname;\n\}/, 'usePathname 은 Next 처럼 해시 없이(휴대폰 메뉴 「홈」 = 같은 페이지 → 맨 위로)');
   assert.match(V('lib/scene/intro.ts'), /if \(pageMotionPaused\(\)\) \{\n\s*introValue\.set\(1\);\n\s*return;/, '멈춤이면 등장은 끝 상태로');
   assert.match(V('views/home/scene/scene-host.tsx'), /if \(pausedButShown\) send\(\{ type: "frame" \}\);/, '페이지: 멈춤이라도 상태가 바뀌면 한 장');
   assert.match(V('views/home/sections/solaris-section.tsx'), /if \(paused\) introStart = now - CONFIG\.introSeconds \* 1000;/, 'Solaris 멈춤 장 = 등장 끝난 모습');

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Lenis from "lenis";
 import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { useScroll } from "@vesper/hooks/smooth-scroll/use-scroll";
 import { subscribeToTicker, TICKER_PRIORITY } from "@vesper/lib/animation/ticker";
 import { scrollTo } from "@vesper/utils/scroll-to";
@@ -29,7 +30,10 @@ function ScrollController() {
   const [lenis, setLenis] = useScroll(
     useShallow((state) => [state.lenis, state.setLenis]),
   );
-  const pathname = usePathname();
+  // 2026-10-09: 해시(#faq 등)로 굴러가는 원본 로직은 경로+해시를 본다. usePathname 은 Next 처럼 해시 없이 두고(휴대폰 메뉴의
+  // 같은 페이지 판정), 여기서만 해시를 붙인다.
+  const locationHash = useLocation().hash;
+  const pathname = usePathname() + locationHash;
   const savedPathname = useRef("");
 
   useEffect(() => {
