@@ -151,16 +151,21 @@ const SAJU_CLAUSE_ASSERTION = /[가-힣]니다|사람(?:이에요|이고|이며|
 // 문장 끝만 여지를 두고 앞 마디에서 사람을 못 박는 경우(Codex PR #141 b7a8bb4 「당신은 조용하지만 … 날 수 있어요」).
 // 낱말 목록을 더 늘리지 않고 「마디를 잇는 끝(~지만·~고·~며·~해서 …)」을 모양으로 본다: 이어지는 마디는 그 자체로 끝맺지 않으므로
 // 여지를 둔 말(「~수 있고」·「~지도 모르지만」·「~편이라」·「~것 같아서」)로 이을 때만 허용한다. 「~고 싶/있/나」 같은 보조 동사와 「그리고」 같은 접속어는 마디가 아니다.
-const SAJU_CLAUSE_LINK = /(?:지만|고|며|면서|는데|은데|인데|해서|어서|아서|워서|라서|니까|으니)$/;
-const SAJU_LINK_WORDS = new Set(["그리고", "그래서", "그런데", "그러니까", "하지만", "그렇지만", "그러면서"]);
+// Codex b7a8bb4 → afe492a: 「~하나·~해도·~한 반면」도 같은 이음이다(양보·대조 이음과 이유 이음을 함께 넣음).
+const SAJU_CLAUSE_LINK = /(?:지만|고|며|면서|면서도|는데|은데|인데|해서|어서|아서|워서|라서|니까|으니|해도|어도|아도|워도|여도|더라도|거나|든지|므로|기에|길래|던데|스러우나|로우나)$/;
+const SAJU_LINK_TOKENS = new Set(["반면", "반면에", "대신", "대신에"]);
+const SAJU_LINK_WORDS = new Set(["그리고", "그래서", "그런데", "그러니까", "하지만", "그렇지만", "그러면서", "그래도", "그러나", "그러므로"]);
 const SAJU_AUX_AFTER_GO = /^(?:싶|있|나|보|말|계|들)/;
 function hasDefinitiveClause(sentence: string): boolean {
   const words = sentence.replace(/[,.!?…~"'「」]/g, " ").split(/\s+/).filter(Boolean);
   for (let i = 0; i < words.length - 1; i++) {
     const w = words[i], prev = words[i - 1] ?? "", next = words[i + 1];
     const nDe = w.length >= 2 && w.endsWith("데") && (w.charCodeAt(w.length - 2) - 0xac00) % 28 === 4; // 받침 ㄴ + 데(센데·큰데)
-    if (!(SAJU_CLAUSE_LINK.test(w) || nDe) || SAJU_LINK_WORDS.has(w)) continue;
+    const haNa = w.length >= 3 && w.endsWith("하나"); // 조용하나·신중하나(「하나」 = 숫자 하나는 제외)
+    if (SAJU_LINK_TOKENS.has(w) && i > 0) return true; // 「~한 반면」·「~한 대신」
+    if (!(SAJU_CLAUSE_LINK.test(w) || nDe || haNa) || SAJU_LINK_WORDS.has(w)) continue;
     if (w.endsWith("고") && SAJU_AUX_AFTER_GO.test(next)) continue;
+    if (/도$/.test(w) && /^(?:괜찮|좋|돼|되)/.test(next)) continue; // 「서두르지 않아도 괜찮아요」 = 허락하는 말, 이음 아님
     if (/^(?:있|없)/.test(w) && /^수도?$/.test(prev)) continue;
     if (/^(?:모르|몰라)/.test(w) && /지도$/.test(prev)) continue;
     if (/^편(?:이|인)/.test(w)) continue;
