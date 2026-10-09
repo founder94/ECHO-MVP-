@@ -6,9 +6,9 @@
  * 그래서 실제 경로(https://…/echo/)로 올려도, 파일 이름이 그대로 보이는 미리보기(…/echo/index.html)로
  * 열어도 같은 코드로 이동한다.
  */
-export type PageId = "home" | "echo" | "story";
+export type PageId = "home" | "echo" | "story" | "how" | "connected";
 
-const PAGE_DIR: Record<PageId, string> = { home: "", echo: "echo/", story: "echo/story/" };
+const PAGE_DIR: Record<PageId, string> = { home: "", echo: "echo/", story: "echo/story/", how: "how/", connected: "echo/connected/" };
 
 const siteRoot = (): string => {
   const meta = document.querySelector<HTMLMetaElement>('meta[name="site-root"]');

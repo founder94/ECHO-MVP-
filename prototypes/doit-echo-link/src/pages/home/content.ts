@@ -20,6 +20,7 @@ export const homeCopy = {
   nav: [
     { id: "company", label: "회사 소개" },
     { id: "echo", label: "ECHO" },
+    { id: "how", label: "만드는 방식" },
     { id: "start", label: "서비스 시작" },
   ] as const,
   navArrow: "↗",

@@ -52,5 +52,6 @@ export const storyCopy = {
     edit: "내 이야기 고치기",
     toIntro: "ECHO 소개로",
     toHome: "DOIT COMPANY 홈페이지로",
+    connectedPreview: "서로 선택이 확인된 뒤의 첫 대화 장면 미리보기(시안)",
   },
 } as const;

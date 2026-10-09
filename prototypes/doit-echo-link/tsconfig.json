@@ -30,6 +30,9 @@
       "@shared/*": [
         "src/shared/*"
       ],
+      "@fx/*": [
+        "src/fx/*"
+      ],
       "@public-assets/*": [
         "public/assets/*"
       ]

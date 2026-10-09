@@ -102,7 +102,12 @@ export const HomeView = () => {
             className="absolute top-10 right-12.5 z-5 flex flex-col items-end gap-3 max-md:top-6 max-md:right-gutter max-md:gap-0"
           >
             {c.nav.map((item) =>
-              item.id === "start" ? (
+              item.id === "how" ? (
+                // 우리가 만드는 방식(Onyx Cubes) — 별도 쪽. 홈페이지 본편 스크롤 길이는 그대로.
+                <a key={item.id} href={pageUrl("how")} className="nav-link">
+                  {item.label}
+                </a>
+              ) : item.id === "start" ? (
                 <a key={item.id} href={serviceHref} onClick={goToService} className="nav-link">
                   {item.label} <span aria-hidden="true" className="nav-arrow">{c.navArrow}</span>
                 </a>

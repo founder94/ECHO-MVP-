@@ -281,6 +281,10 @@ export const StoryView = () => {
             ))}
           </ol>
           <p className="story-card-note">{c.next.rule}</p>
+          {/* 서로 선택이 확인된 뒤의 첫 대화 진입 장면 — 시안 미리보기(서버 연결 없음, 실제 연결 아님). */}
+          <a className="story-text-button" href={pageUrl("connected", { preview: "mutual" })}>
+            {c.next.connectedPreview}
+          </a>
           <LocalNotice />
           <div className="story-actions story-actions-stack">
             <button type="button" className="story-secondary" onClick={() => go("write")}>
