@@ -9,6 +9,8 @@
 
 import { SpringValue, easings } from "@react-spring/web";
 
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
+
 /**
  * Duration of the intro reveal.
  *
@@ -25,6 +27,12 @@ let started = false;
 export const startIntro = (): void => {
   if (started) return;
   started = true;
+  // 2026-10-09(Codex 검수 P2 · PR #151): 움직임 줄이기(또는 이용 안내 열림)면 등장을 재생하지 않고 끝 상태로 — 장면 루프가
+  // 멈춘 채 그리는 한 장이 「구슬이 모이다 만 모습」이 되지 않게.
+  if (pageMotionPaused()) {
+    introValue.set(1);
+    return;
+  }
   introValue.start({
     to: 1,
     config: { duration: INTRO_DURATION_MS, easing: easings.easeOutCubic },

@@ -80,27 +80,21 @@ const setRunning = (on: boolean) => {
 };
 /**
  * 2026-10-09(Codex 검수 P2 · PR #151): 멈춤 상태(움직임 줄이기 · 이용 안내)로 시작하면 `running` 이 false 라 첫 장조차
- * 없었다. 멈춤으로 시작하면 자리 잡을 때까지(`settleMs` · 로더 막 + 구슬이 모이는 등장) 보통 속도로 그린 뒤 멈추고,
- * 그 뒤로는 페이지가 `frame` 을 보낼 때(스크롤 등 상태 변화) 한 장만 그린다. 시계는 실제 시간을 따른다(멈춘 시계로는
- * 구슬이 모이다 만 모습이 남는다).
+ * 없었다. 멈춤 중에는 지금 상태로 **한 장만** 그린다 — 시작할 때, 페이지가 `frame` 을 보낼 때(스크롤 등 상태 변화),
+ * 크기가 바뀌어 버퍼가 지워졌을 때. 시계는 「자리 잡은」 값으로 한 번에 건너뛴다(지난 장보다 1초 이상 뒤): 카메라 ·
+ * 포인터 따라가기가 `min(1, delta × k)` 로 완화되므로 큰 delta 한 번이면 목표 자리에 바로 선다(delta 0 이면 등장
+ * 전 먼 카메라에 멈춘 작은 구슬이 남는다). 등장(intro)은 `lib/scene/intro.ts` 가 멈춤이면 끝 상태(1)로 둔다.
  */
-const drawOnce = (settleMs = 0) => {
+const drawOnce = () => {
   if (!store || running) return;
-  const startAt = performance.now();
-  const one = (time: number) => {
+  frameApi.requestAnimationFrame((time) => {
     if (!store || running) return;
     if (origin < 0) origin = time;
-    if (!settleMs || time - last >= interval - 1) {
-      last = time;
-      seconds = (time - origin) / 1000;
-      advance(seconds, true, store.getState());
-    }
-    if (performance.now() - startAt < settleMs) frameApi.requestAnimationFrame(one);
-  };
-  frameApi.requestAnimationFrame(one);
+    last = time;
+    seconds = Math.max((time - origin) / 1000, seconds + 1);
+    advance(seconds, true, store.getState());
+  });
 };
-/** 멈춤으로 시작할 때 자리 잡는 시간: 로더 막(~2초) + 구슬 등장(2.9초). */
-const SETTLE_MS = 6000;
 let root: ReturnType<typeof createRoot<OffscreenCanvas>> | null = null;
 
 const sizeOf = (width: number, height: number) => ({
@@ -140,7 +134,7 @@ const start = async (message: Extract<SceneMessage, { type: "init" }>) => {
     </>,
   );
   setRunning(message.running);
-  if (!message.running) drawOnce(SETTLE_MS);
+  if (!message.running) drawOnce();
 };
 
 self.onmessage = (event: MessageEvent<SceneMessage>) => {
@@ -179,5 +173,8 @@ const resize = async (message: Extract<SceneMessage, { type: "resize" }>) => {
     size: sizeOf(message.width, message.height),
     dpr: message.dpr,
   });
-  if (running && store) advance(seconds, true, store.getState());
+  if (!store) return;
+  // 크기가 바뀌면 버퍼가 지워진다: 멈춤 중이어도 한 장은 다시 그린다(회전한 채 빈 화면 0).
+  if (running) advance(seconds, true, store.getState());
+  else drawOnce();
 };
