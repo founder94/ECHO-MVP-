@@ -846,10 +846,10 @@ body {
 }
 .story-brand { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .story-wordmark { font-family: var(--font-chakra-petch); font-weight: 500; font-size: 18px; letter-spacing: 0.12em; }
-.story-operator { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgb(255 255 255 / 0.86); }
+.story-operator { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #dce3ed; }
 .story-operator img { height: 15px; width: auto; }
 
-.story-progress { display: flex; gap: 0.5rem; margin: 1.5rem 0 0; padding: 0; list-style: none; font-size: 14px; color: rgb(255 255 255 / 0.7); }
+.story-progress { display: flex; gap: 0.5rem; margin: 1.5rem 0 0; padding: 0; list-style: none; font-size: 14px; font-weight: 500; color: #dce3ed; }
 .story-progress li { display: inline-flex; align-items: center; gap: 0.4rem; }
 .story-progress li + li::before { content: ""; width: 1.25rem; height: 1px; background: var(--rule); margin-right: 0.4rem; }
 .story-progress-dot { width: 8px; height: 8px; border-radius: 50%; background: rgb(255 255 255 / 0.3); }
@@ -858,8 +858,8 @@ body {
 .story-progress [data-state="now"] .story-progress-dot { background: var(--accent); box-shadow: 0 0 0 4px rgb(187 252 158 / 0.18); }
 
 .story-main { padding: 1.75rem 0 calc(7.5rem + env(safe-area-inset-bottom)); }
-.story-title { margin: 0; font-family: var(--font-chakra-petch); font-weight: 500; font-size: clamp(30px, 8vw, 44px); line-height: 1.2; color: var(--accent); letter-spacing: -0.01em; }
-.story-lead { margin: 0.75rem 0 0; font-size: 17px; line-height: 1.65; color: rgb(255 255 255 / 0.92); }
+.story-title { margin: 0; font-family: var(--font-chakra-petch); font-weight: 500; font-size: clamp(30px, 8vw, 44px); line-height: 1.2; color: #fff; letter-spacing: -0.01em; } /* 대표 최종 지시 §2: 제목 흰색(라임은 버튼·점에만) */
+.story-lead { margin: 0.75rem 0 0; font-size: 17px; font-weight: 500; line-height: 1.65; color: #f2f4f8; }
 .story-label { display: block; margin: 1.75rem 0 0.5rem; font-size: 15px; font-weight: 600; }
 .story-field, .story-line-field {
   box-sizing: border-box; width: 100%; resize: vertical;
@@ -870,13 +870,13 @@ body {
 .story-field { min-height: 12rem; }
 .story-field::placeholder { color: rgb(255 255 255 / 0.55); }
 .story-field:focus, .story-line-field:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--accent); }
-.story-hint { margin: 0.6rem 0 0; font-size: 15px; line-height: 1.6; color: rgb(255 255 255 / 0.82); }
-.story-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.6rem; font-size: 14px; color: rgb(255 255 255 / 0.78); }
-.story-text-button { min-height: 44px; padding: 0 0.25rem; border: 0; background: none; color: rgb(255 255 255 / 0.9); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.story-hint { margin: 0.6rem 0 0; font-size: 15px; font-weight: 500; line-height: 1.6; color: #dce3ed; }
+.story-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 0.6rem; font-size: 14px; font-weight: 500; color: #dce3ed; }
+.story-text-button { min-height: 44px; padding: 0 0.25rem; border: 0; background: none; color: #dce3ed; font: inherit; font-size: 14px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .story-notice {
   margin: 1.5rem 0 0; padding: 0.9rem 1rem; border-radius: var(--corner-panel);
   background: rgb(255 255 255 / 0.05); box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px rgb(255 255 255 / 0.1);
-  font-size: 14px; line-height: 1.6; color: rgb(255 255 255 / 0.88);
+  font-size: 14px; font-weight: 500; line-height: 1.6; color: #dce3ed;
 }
 
 /* 아래 고정 버튼 줄 — 키보드가 올라오면 그만큼 올라간다(--kb = visualViewport 로 잰 키보드 높이). */
@@ -901,7 +901,7 @@ body {
 
 .story-card { margin-top: 1.25rem; padding: 1.1rem 1.1rem 1.2rem; border-radius: var(--corner-panel); background: var(--surface-glass); box-shadow: var(--hairline-glass); }
 .story-card-title { margin: 0; font-size: 17px; font-weight: 700; }
-.story-card-note { margin: 0.5rem 0 0; font-size: 15px; line-height: 1.65; color: rgb(255 255 255 / 0.86); }
+.story-card-note { margin: 0.5rem 0 0; font-size: 15px; font-weight: 500; line-height: 1.65; color: #dce3ed; }
 .story-card-pending { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14); background: rgb(255 255 255 / 0.03); }
 .story-pending-badge { display: inline-block; margin: 0.5rem 0 0; padding: 0.25rem 0.6rem; border-radius: 999px; background: rgb(255 255 255 / 0.1); font-size: 13px; color: rgb(255 255 255 / 0.9); white-space: nowrap; }
 .story-lines { margin: 0.75rem 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
@@ -915,7 +915,7 @@ body {
 .story-flow-item { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.9rem; padding: 1rem; border-radius: var(--corner-panel); background: var(--surface-glass); box-shadow: var(--hairline-glass); }
 .story-flow-index { grid-row: span 2; font-family: var(--font-chakra-petch); font-size: 20px; color: var(--accent); }
 .story-flow-name { margin: 0; font-size: 17px; font-weight: 700; }
-.story-flow-desc { margin: 0.2rem 0 0; font-size: 15px; line-height: 1.6; color: rgb(255 255 255 / 0.86); }
+.story-flow-desc { margin: 0.2rem 0 0; font-size: 15px; font-weight: 500; line-height: 1.6; color: #dce3ed; }
 .story-flow-item .story-pending-badge { grid-column: 2; justify-self: start; }
 
 @media (min-width: 900px) {

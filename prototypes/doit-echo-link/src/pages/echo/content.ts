@@ -22,7 +22,7 @@ export const echoPreloader: PreloaderContent = {
 
 export const echoIntro = {
   headline: ["당신이 잠든 사이", "AI가 먼저 만나봅니다"] as [string, string],
-  lead: "당신을 이해하는 이야기에서,\n서로를 선택하는 만남까지.",
+  lead: "당신의 이야기를 바탕으로\nECHO Agent가 만남의 가능성을 살펴봅니다.",
   cta: "내 이야기 시작하기",
   /** 기존 이용자 경로(대표 지시 §7). 인증은 이 시안에 연결돼 있지 않다 — 작동하는 로그인처럼 꾸미지 않는다. */
   returning: {
@@ -54,6 +54,7 @@ export const echoLeak: MigrationContent = {
 export const echoStem: MigrationContent = {
   layout: "stem",
   scrim: "haze",
+  settled: "당신이 직접 들려준 이야기가\n이해와 추천의 기준이 됩니다.",
   phrases: ["내 뜻과 다르면,", "바로 고칠 수", "있어요."],
   run: [0.3356, 0.5017],
   window: { enter: [0.3218, 0.3356], leave: [0.5017, 0.5225] },
@@ -85,7 +86,7 @@ export const echoFluff: FluffContent = {
 export const echoConnect = {
   window: { enter: [0.9308, 0.9585] as [number, number], leave: [1.0, 1.0] as [number, number] },
   headline: ["서로 선택하면,", "연결이", "시작됩니다."] as [string, string, string],
-  lead: "",
+  lead: "만나고 싶은 사람을 살펴보세요.\n두 사람이 서로 선택했을 때 연결됩니다.",
   columns: [],
   legal: [],
   mark: `© ${new Date().getFullYear()} ${COMPANY}`,

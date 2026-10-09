@@ -80,7 +80,7 @@ export const HeroNav = ({ brand, operator, links, connect, menu }: HeroNavProps)
               <span className="font-display text-wordmark leading-tight tracking-label text-scene-foreground font-medium uppercase">
                 {brand}
               </span>
-              <span className="text-operator text-foreground-lead flex items-center gap-1.5 leading-none whitespace-nowrap">
+              <span className="text-operator text-foreground-note font-medium flex items-center gap-1.5 leading-none whitespace-nowrap">
                 <img src={publicUrl("brand/doit-symbol.png")} alt="" aria-hidden="true" className="h-[1.05rem] w-auto" />
                 {operator}
               </span>

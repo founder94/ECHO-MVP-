@@ -90,13 +90,13 @@ const crossing = (along: number) => {
 const LAYOUTS: Record<MigrationContent["layout"], Layout> = {
   leak: {
     settled:
-      "text-copy-aside leading-aside w-[16.5625rem] max-laptop:w-[16.6875rem] max-tablet:w-[18.75rem]",
+      "text-copy-aside leading-desc-ko w-[16.5625rem] max-laptop:w-[16.6875rem] max-tablet:w-[18.75rem]",
     stack:
       "text-copy-voice leading-none tracking-voice w-[35.6875rem] max-laptop:w-[32.875rem] max-tablet:w-[38.75rem] max-phone:w-[21.125rem]",
   },
   integrate: {
     settled:
-      "text-copy-aside leading-aside w-[22.875rem] max-laptop:w-[18.75rem] max-tablet:w-[18.125rem] max-phone:w-[13.4375rem]",
+      "text-copy-aside leading-desc-ko w-[22.875rem] max-laptop:w-[18.75rem] max-tablet:w-[18.125rem] max-phone:w-[13.4375rem]",
     stack:
       "text-copy-voice leading-none tracking-voice w-[34.375rem] max-laptop:w-[29.375rem] max-tablet:w-[38.75rem] max-phone:w-[21.875rem]",
     settledTop: "max-laptop:top-[8.25rem] max-tablet:top-[8.0625rem]",
@@ -110,7 +110,7 @@ const LAYOUTS: Record<MigrationContent["layout"], Layout> = {
     // `whitespace-pre-wrap`: the design sets a double space after the swash in
     // "walkS", which is the room that glyph takes and not a typo to collapse.
     settled:
-      "text-copy-aside leading-aside tracking-aside w-[19.875rem] max-laptop:w-[16.6875rem] max-tablet:w-[18.75rem] whitespace-pre-wrap",
+      "text-copy-aside leading-desc-ko tracking-aside w-[19.875rem] max-laptop:w-[16.6875rem] max-tablet:w-[18.75rem] whitespace-pre-wrap",
     stack:
       "text-copy-voice leading-none tracking-voice w-[34.25rem] max-laptop:w-[32.875rem] max-tablet:w-[38.75rem] max-phone:w-[21.125rem] whitespace-pre-wrap",
   },
@@ -199,7 +199,7 @@ export const MigrationScreen = ({
 
       <p
         aria-hidden
-        className={`font-display text-scene-foreground max-laptop:top-[8.0625rem] max-laptop:left-8 max-tablet:left-6 max-phone:top-[7.0625rem] max-phone:left-5 absolute top-[11.25rem] left-10 font-medium uppercase [mask-image:var(--copy-veil-fading)] ${look.settledTop ?? ""} ${look.settled}`}
+        className={`font-display text-foreground-desc max-laptop:top-[8.0625rem] max-laptop:left-8 max-tablet:left-6 max-phone:top-[7.0625rem] max-phone:left-5 absolute top-[11.25rem] left-10 font-semibold uppercase [mask-image:var(--copy-veil-fading)] ${look.settledTop ?? ""} ${look.settled}`}
       >
         {settled ? (
           <>
@@ -241,7 +241,7 @@ export const MigrationScreen = ({
 
       <p
         aria-hidden
-        className={`font-display text-scene-foreground max-laptop:right-8 max-laptop:bottom-8 max-tablet:right-6 max-tablet:bottom-6 max-phone:right-5 max-phone:bottom-5 absolute right-10 bottom-10 text-right font-medium uppercase [mask-image:var(--copy-veil-rising)] ${look.stack}`}
+        className={`font-display text-title max-laptop:right-8 max-laptop:bottom-8 max-tablet:right-6 max-tablet:bottom-6 max-phone:right-5 max-phone:bottom-5 absolute right-10 bottom-10 text-right font-medium uppercase [mask-image:var(--copy-veil-rising)] ${look.stack}`}
       >
         {/* The phrase in hand: it shrinks into its own line, so the stack below
             closes the gap at exactly the rate the words give it up.

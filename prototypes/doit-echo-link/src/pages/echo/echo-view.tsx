@@ -50,7 +50,7 @@ const EchoIntro = ({ storyHref }: { storyHref: string }) => {
   const [{ sharp }] = useSpring(() => ({ sharp: live ? 1 : 0, delay: live ? 420 : 0, config: FOCUS }), [live]);
   return (
     <div className="max-laptop:top-[33.4286%] max-laptop:left-8 max-tablet:top-auto max-tablet:bottom-6 max-tablet:left-6 max-tablet:w-[23.125rem] max-phone:static max-phone:w-full absolute top-[35%] left-10 flex w-[32.5rem] flex-col gap-6">
-      <p className="font-display text-lead-ko leading-lead-ko text-foreground-lead whitespace-pre-line">
+      <p className="font-display text-desc-ko leading-desc-ko text-foreground-desc font-medium whitespace-pre-line">
         <WordFlight text={echoIntro.lead} mode="rise" offset={220} />
       </p>
       <animated.span style={{ opacity: sharp, filter: sharp.to((v) => `blur(${(1 - v) * 7}px)`) }}>
@@ -82,9 +82,9 @@ const ReturningPanel = ({ storyHref }: { storyHref: string }) => {
           {r.resume} →
         </a>
       ) : (
-        <p className="text-panel-note text-foreground-lead m-0">{r.noDraft}</p>
+        <p className="text-panel-note text-foreground-note m-0 font-medium leading-desc-ko">{r.noDraft}</p>
       )}
-      <p className="text-panel-note text-foreground-lead m-0">{r.login}</p>
+      <p className="text-panel-note text-foreground-note m-0 font-medium leading-desc-ko">{r.login}</p>
     </animated.aside>
   );
 };

@@ -118,7 +118,7 @@ export const ConnectScreen = ({
 
   return (
     <div className="absolute inset-0">
-      <h2 className="font-display text-closing leading-headline tracking-closing text-accent max-laptop:top-8 max-laptop:left-8 max-laptop:w-[26.75rem] max-tablet:top-6 max-tablet:left-6 max-tablet:w-[30.5rem] max-phone:top-5 max-phone:left-5 max-phone:w-[19.0625rem] absolute top-[2.5rem] left-10 w-[31.9375rem] uppercase">
+      <h2 className="font-display text-closing leading-headline tracking-closing text-title max-laptop:top-8 max-laptop:left-8 max-laptop:w-[26.75rem] max-tablet:top-6 max-tablet:left-6 max-tablet:w-[30.5rem] max-phone:top-5 max-phone:left-5 max-phone:w-[19.0625rem] absolute top-[2.5rem] left-10 w-[31.9375rem] uppercase">
         {/* Every line held to one line: a letter is its own box, and a word
             of them could otherwise break between two glyphs. */}
         <span className="block whitespace-nowrap">
@@ -155,7 +155,7 @@ export const ConnectScreen = ({
         or 32 gutter every other block keeps. */}
       <div className="max-laptop:top-[2.125rem] max-laptop:right-8 max-laptop:w-[19.0625rem] max-laptop:gap-[4.8125rem] max-tablet:top-[19.375rem] max-tablet:right-auto max-tablet:left-6 max-tablet:w-[18.875rem] max-tablet:items-start max-tablet:gap-6 max-phone:top-[11.875rem] max-phone:left-5 max-phone:w-[18.9375rem] absolute top-10 right-10 flex w-[26.4375rem] flex-col items-end gap-[4.875rem]">
         {lead ? (
-          <p className="font-display text-closing-aside leading-aside text-scene-foreground max-tablet:text-left w-full text-right whitespace-pre-wrap [mask-image:var(--copy-veil-fading)] font-medium uppercase">
+          <p className="font-display text-closing-aside leading-desc-ko text-foreground-desc max-phone:text-desc-ko max-tablet:text-left w-full text-right whitespace-pre-wrap font-semibold uppercase">
             <WordFlight text={lead} mode="rise" offset={420} />
           </p>
         ) : null}
@@ -233,7 +233,7 @@ export const ConnectScreen = ({
             ),
           }}
         >
-          <p className="text-foot tracking-mark text-scene-foreground flex items-center gap-2 leading-normal">
+          <p className="text-foot tracking-mark text-foreground-note flex items-center gap-2 leading-normal font-medium">
             <img src={publicUrl("brand/doit-symbol.png")} alt="" aria-hidden="true" className="h-[1.1rem] w-auto" />
             <span>{operator}</span>
             <span aria-hidden="true" className="text-foreground-faint">·</span>

@@ -830,3 +830,32 @@ body { word-break: keep-all; overflow-wrap: break-word; }
 :root { --raw-text-foot: 0.8125rem; --raw-text-meta: 0.8125rem; }
 @media (max-width: 887px) { :root { --raw-text-display: 3.75rem; } }
 @media (max-width: 600px) { :root { --raw-text-display: 2.3rem; --raw-text-closing: 2.75rem; } }
+
+/* ── 대표 「디자인 최종 수정 지시」(2026-10-09) ────────────────────────────
+   §2 제목은 흰색. 라임(--accent)은 버튼·화살표·작은 강조에 그대로 두고, 제목 색만 따로 뗀다
+      — --accent 를 바꾸면 버튼 판·입자·키홀까지 함께 바뀐다.
+   §3 서브 문구: 주요 설명 #F2F4F8 · 작은 보조 #DCE3ED · 읽는 상태의 반투명 제거. */
+:root {
+  --title: #ffffff;
+  --foreground-desc: #f2f4f8;
+  --foreground-note: #dce3ed;
+  /* 원본의 흰색 반투명 단계(0.88·0.80·0.40·0.38)는 글자에 쓰이던 것만 불투명 색으로 바꾼다. */
+  --foreground-lead: var(--foreground-desc);
+  --foreground-nav: var(--foreground-note);
+  --foreground-quiet: var(--foreground-note);
+  --foreground-faint: var(--foreground-note);
+  /* 설명 단(왼쪽 위)은 아래로 갈수록 0.6 까지 옅어지던 막을 없앤다. 대기 중인 큰 문장(오른쪽 아래)의
+     "다가오는" 느낌은 남기되, 위쪽 0.6 → 0.9 로 올려 제목이 묻히지 않게 한다. */
+  --copy-veil-fading: linear-gradient(to bottom, #000, #000);
+  --copy-veil-rising: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), #000);
+  /* 꽃 장면 갈라진 문장(나와 맞는 가능성을 / 살펴보세요.)은 위쪽 0.62 막 → 0.9 */
+  --accent-veil-rising: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), #000);
+}
+@theme inline {
+  --color-title: var(--title);
+  --color-foreground-desc: var(--foreground-desc);
+  --color-foreground-note: var(--foreground-note);
+  /* 읽는 설명(한글) 행간 1.5–1.65 · 휴대폰 16px 이상 */
+  --leading-desc-ko: 1.55;
+  --text-desc-ko: clamp(16px, 1.25rem, 22px);
+}

@@ -289,7 +289,7 @@ export const FluffScreen = ({
       {/* The line the beam splits in two: each half is set its own half-gap
           from the axis, so the two are even whatever they happen to measure. */}
       <animated.p
-        className="font-display text-split leading-note text-accent max-laptop:bottom-8 max-laptop:w-[12.5rem] max-tablet:bottom-6 max-tablet:w-[9.9375rem] max-phone:bottom-5 max-phone:w-[9.375rem] absolute right-1/2 bottom-10 w-[12.875rem] text-right [mask-image:var(--accent-veil-rising)] uppercase"
+        className="font-display text-split leading-note text-title font-medium max-laptop:bottom-8 max-laptop:w-[12.5rem] max-tablet:bottom-6 max-tablet:w-[9.9375rem] max-phone:bottom-5 max-phone:w-[9.375rem] absolute right-1/2 bottom-10 w-[12.875rem] text-right [mask-image:var(--accent-veil-rising)] uppercase"
         style={{
           transform: `translateX(${(BEAM - arc.split) / REM}rem)`,
           ...splitLeaving,
@@ -298,7 +298,7 @@ export const FluffScreen = ({
         <WordFlight text={split[0]} mode="rise" />
       </animated.p>
       <animated.p
-        className="font-display text-split leading-note text-accent max-laptop:bottom-8 max-laptop:w-[12.5rem] max-tablet:bottom-6 max-tablet:w-[11.25rem] max-phone:bottom-5 max-phone:w-[9.375rem] absolute bottom-10 left-1/2 w-[11.375rem] [mask-image:var(--accent-veil-rising)] uppercase"
+        className="font-display text-split leading-note text-title font-medium max-laptop:bottom-8 max-laptop:w-[12.5rem] max-tablet:bottom-6 max-tablet:w-[11.25rem] max-phone:bottom-5 max-phone:w-[9.375rem] absolute bottom-10 left-1/2 w-[11.375rem] [mask-image:var(--accent-veil-rising)] uppercase"
         style={{
           transform: `translateX(${(BEAM + arc.split) / REM}rem)`,
           ...splitLeaving,

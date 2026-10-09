@@ -34,7 +34,7 @@ export interface HeroHeadlineProps {
 export const HeroHeadline = ({ id, lines }: HeroHeadlineProps) => (
   <h1
     id={id}
-    className="font-display text-display leading-headline tracking-display text-accent max-laptop:bottom-[1.35rem] max-laptop:left-8 max-tablet:top-[8.0625rem] max-tablet:bottom-auto max-tablet:left-[0.875rem] max-phone:static absolute bottom-[1.7125rem] left-10 uppercase"
+    className="font-display text-display leading-headline tracking-display text-title max-laptop:bottom-[1.35rem] max-laptop:left-8 max-tablet:top-[8.0625rem] max-tablet:bottom-auto max-tablet:left-[0.875rem] max-phone:static absolute bottom-[1.7125rem] left-10 uppercase"
   >
     {/* Each line is held to exactly its step. The swash is a tall glyph and
         its inline box asks the line box it sits in for a few px more than the
