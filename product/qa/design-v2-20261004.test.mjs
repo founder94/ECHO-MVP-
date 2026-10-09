@@ -124,6 +124,26 @@ test('홈페이지 첫 화면: 원본 Vesper 히어로 그대로(글자만 교�
   assert.match(MOCK, /export const homeStatus: StatusCopy = \{ label: "ECHO · ONLINE SERENDIPITY", detail: "· JUST TRY\.", scrollHint: "내려서 이어 보기" \};/);
   assert.match(MOCK, /export const homeBrand: BrandCopy = \{ name: "DO IT", suffix: "\/ ECHO" \};/);
 });
+test('2026-10-09 Codex 검수(PR #151 · 75c7295) 3건: 아래 블록은 가까이 올 때만 마운트(CSR 자리표) · 움직임 줄이기 · 이용 안내 열림이면 3D 루프 정지', () => {
+  const hn = V('components/common/hydrate-near.tsx');
+  assert.match(hn, /document\.getElementById\(id\) \?\?\n\s*document\.querySelector\(`\[data-hydrate-near="\$\{id\}"\]`\)/, '자리표도 문이 지켜본다');
+  assert.match(hn, /const \[open, setOpen\] = useState\(\n\s*\(\) => typeof window === "undefined" \|\| openedGates\.has\(id\),\n\s*\);/, '효과 기반 문(render 중 use 로 바로 열리지 않음)');
+  assert.match(hn, /if \(el && !document\.getElementById\(id\)\) el\.id = id;/, '같은 id 가 없을 때만 자리표가 그 id(해시 이동 유지)');
+  assert.match(hn, /data-hydrate-near=\{id\}[\s\S]*className="min-h-lvh w-full"/);
+  const pm = V('lib/scene/page-motion.ts');
+  assert.match(pm, /prefers-reduced-motion: reduce/);
+  assert.match(pm, /classList\.contains\(GUIDE_OPEN_CLASS\)/);
+  assert.match(pm, /const GUIDE_OPEN_CLASS = "echo-guide-open";/, 'GuideHost 가 켜는 클래스와 같은 이름');
+  assert.match(read('src/components/guide/GuideHost.tsx'), /root\.classList\.add\('echo-guide-open'\)/);
+  assert.match(V('views/home/scene/frame-gate.tsx'), /if \(pageMotionPaused\(\)\) return;\n\s*invalidate\(\);/, '원본 FrameGate: 멈춤이면 새 프레임 0');
+  assert.match(V('views/home/scene/scene-host.tsx'), /!document\.hidden && !pageMotionPaused\(\) && getSceneCover\(\) < HANDOFF/, '워커 경로도 같은 문');
+  for (const f of ['views/home/sections/solaris-section.tsx', 'views/home/sections/lattice-section.tsx']) {
+    const src = V(f);
+    assert.match(src, /const paused = pageMotionPaused\(\);\n\s*if \(paused && stillDrawn\)/, `${f}: 한 장만 그리고 멈춤`);
+    assert.match(src, /stillDrawn = paused;/, f);
+  }
+});
+
 test('홈페이지 부드러운 굴림(lenis)은 원본 ScrollLayout 안에서만 · 전역 index.css 수정 0 · 앱 빌드 영향 0', () => {
   const layout = V('layouts/scroll-layout.tsx');
   assert.match(layout, /lenis/i, '원본 부드러운 굴림');

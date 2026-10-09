@@ -966,3 +966,8 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 지적 3(옛 메뉴 Escape/Back): 옛 메뉴·SceneLayer 는 미사용(파일 보존 · 삭제 승인 대기). 메뉴 = Vesper 원본 mobile-nav(초점 가두기·Escape·초점 복귀).
 - 검사: type-check 0 · lint 0 · node --test 1369(fail 0 · todo 5) · brand/app 빌드 exit 0 · 로컬 Playwright(SwiftShader) 휴대폰·PC 캡처+동영상 pageerror 0. 실기기 = 확인 불가(QA 게시 #179 뒤 대표).
 - 대표 결정 대기: 모바일 앱 교체 여부 · GetLayers 라이선스 범위 · 옛 파일 삭제 · 조각 크기(gzip 249KB+290KB · 허용 600KB 초과 여부) · echo-qa 병합.
+
+### 27.1 Codex 자동 검수(75c7295 · 리뷰 5464769025) 3건 수정(2026-10-09)
+- P1 `hydrate-near.tsx`: 원본은 Next 서버 HTML 을 hydrate 하는 전제라 `use(gateFor(id))` 가 render 중 대상 요소를 못 찾으면 바로 열림 → CSR 인 우리 앱에서는 아래 5블록(Solaris·격자·설치·이야기·바닥글)이 첫 화면에서 한꺼번에 마운트돼 WebGL 2장면을 즉시 생성. 수정: 닫힌 동안 한 화면 높이 자리표(`data-hydrate-near` · 같은 id 가 없으면 그 id)를 두고 효과에서 문을 열면 블록을 그림. 로컬 검증: 첫 화면 캔버스 0 · 자리표 5 → 내려가면 마운트 · 중복 id 0 · `#making` 앵커 이동 OK.
+- P2 움직임 줄이기 · P2 이용 안내 열림: `lib/scene/page-motion.ts`(`prefers-reduced-motion` + `html.echo-guide-open`) 를 원본 FrameGate(invalidate 0) · 워커 shouldRun · Solaris · Lattice 루프(한 장만 그리고 멈춤)에 연결. 로컬 검증(PC·휴대폰): 보통 = 움직임, 움직임 줄이기 = 정지, 이용 안내 열림 = 정지 → 닫으면 재개.
+- 원본 파일 수정 범위: hydrate-near(문 방식) · frame-gate 1줄 · scene-host 1줄. 그 외 원본 그대로.

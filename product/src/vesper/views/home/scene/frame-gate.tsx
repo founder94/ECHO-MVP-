@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { getSceneCover } from "@vesper/lib/scene/outro";
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 /** Past this the scene is fully behind the *opaque* closing content. Stop it. */
 const HANDOFF = 0.995;
@@ -39,6 +40,8 @@ export const FrameGate = ({ targetFps }: FrameGateProps) => {
       () => {
         if (document.hidden) return;
         if (getSceneCover() >= HANDOFF) return;
+        // 2026-10-09(Codex P2): 움직임 줄이기 · 이용 안내 창 열림 → 새 프레임 0(마지막 장면이 그대로 남는다).
+        if (pageMotionPaused()) return;
         invalidate();
       },
       () => interval,

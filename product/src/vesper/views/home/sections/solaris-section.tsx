@@ -12,6 +12,7 @@ import { FollowLineBlur, wordCount } from "../line-blur";
 import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "../reveal";
 import { solarisBackgroundFragmentShader, solarisBackgroundVertexShader, solarisParticleFragmentShader, solarisParticleVertexShader } from "./solaris-shaders";
 import { STORIES } from "@/pages/do-it/brand-home/copy";
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 const CONFIG = {
   colorWarm: "#ff4c33",
@@ -124,9 +125,14 @@ export const SolarisSection = () => {
     let time = 0;
     let introStart = 0;
     let raf = 0;
+    let stillDrawn = false;
     const render = (now: number) => {
       raf = requestAnimationFrame(render);
       if (!visible || document.hidden) return;
+      // 2026-10-09(Codex P2): 움직임 줄이기 · 이용 안내 창 열림 → 한 장만 그리고 멈춤(풀리면 다시 진행).
+      const paused = pageMotionPaused();
+      if (paused && stillDrawn) return;
+      stillDrawn = paused;
       time += 0.005 * CONFIG.noiseSpeed;
       if (introStart === 0) introStart = now;
       const introRaw = Math.min((now - introStart) / (CONFIG.introSeconds * 1000), 1);

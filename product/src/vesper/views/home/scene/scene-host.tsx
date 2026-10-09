@@ -6,6 +6,7 @@ import { SceneViewport } from "@vesper/components/common/scene-viewport";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
 import { getIntro } from "@vesper/lib/scene/intro";
 import { getOutro, getSceneCover } from "@vesper/lib/scene/outro";
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { getStableViewportHeight } from "@vesper/utils/stable-viewport";
 import { getParams } from "./adaptive";
@@ -23,7 +24,7 @@ const pixelRatio = (): number => {
 
 /** Draw only while the tab is visible and the scene not yet covered (`frame-gate`). */
 const shouldRun = (): boolean =>
-  !document.hidden && getSceneCover() < HANDOFF;
+  !document.hidden && !pageMotionPaused() && getSceneCover() < HANDOFF;
 
 const canRenderInWorker = (): boolean =>
   typeof Worker !== "undefined" &&

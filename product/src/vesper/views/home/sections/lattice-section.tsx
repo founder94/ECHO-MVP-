@@ -16,6 +16,7 @@ import { LETTER_FADE, UNIT_REVEAL, WORD_FADE } from "../reveal";
 import { BRIDGE_FRAG, GLOW_FRAG, QUAD_VERT } from "./lattice-shaders";
 import BrandFilm, { BRAND_FILM_COPY } from "@/pages/do-it/brand-home/BrandFilm";
 import { STORIES } from "@/pages/do-it/brand-home/copy";
+import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 
 const CONFIG = {
   lineColor: '#eef3ff', throatTint: '#ffd9a6', rimTint: '#5878ff', glowColor: '#8fb4ff',
@@ -153,9 +154,14 @@ export const LatticeSection = () => {
     io.observe(host);
 
     let raf = 0;
+    let stillDrawn = false;
     const animate = () => {
       raf = requestAnimationFrame(animate);
       if (!visible || document.hidden) { live.last = performance.now() / 1000; return; }
+      // 2026-10-09(Codex P2): 움직임 줄이기 · 이용 안내 창 열림 → 한 장만 그리고 멈춤(풀리면 다시 진행).
+      const paused = pageMotionPaused();
+      if (paused && stillDrawn) { live.last = performance.now() / 1000; return; }
+      stillDrawn = paused;
       const now = performance.now() / 1000;
       let dt = now - live.last; live.last = now; dt = Math.min(Math.max(dt, 0), 0.05);
       U.iTime.value = now;
