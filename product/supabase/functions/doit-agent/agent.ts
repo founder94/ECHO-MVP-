@@ -248,7 +248,7 @@ const rdItems = (slot: RdObj | null, key: "items" | "history", purpose: string):
   .map((o) => ({ purpose, note: rdClean(o.note), quote: rdClean(o.quote), status: String(o.status ?? ""), source_type: String(o.source_type ?? ""), source_turn: typeof o.source_turn === "number" ? o.source_turn : null }));
 export interface ConversationReadiness {
   conversation_ready: boolean; finished: boolean; areas_ready: boolean; confirmed_areas: number; areas_needed: number;
-  ready_areas: string[]; missing_areas: string[]; confirmed: string[];
+  ready_areas: string[]; missing_areas: string[]; confirmed: string[]; corrected: string[]; // corrected = confirmed 중 사용자가 고친 값(USER_CORRECTED) — 추천 이유 「고쳐 주신 대로」(본인 화면만)
   excluded: { ai_only: number; inferred_or_unconfirmed: number; superseded_or_rejected: number; stale_before_correction: number; content: number };
 }
 export function conversationReadiness(profile: unknown, phase: unknown): ConversationReadiness {
@@ -273,12 +273,12 @@ export function conversationReadiness(profile: unknown, phase: unknown): Convers
     if (lc !== undefined && typeof i.source_turn === "number" && i.source_turn < lc) { excluded.stale_before_correction++; return false; }
     return true;
   });
-  const confirmed: string[] = [];
-  for (const i of usable) if (confirmed.length < READY_CONFIRMED_MAX && !confirmed.includes(i.note)) confirmed.push(i.note);
+  const confirmed: string[] = []; const corrected: string[] = [];
+  for (const i of usable) if (confirmed.length < READY_CONFIRMED_MAX && !confirmed.includes(i.note)) { confirmed.push(i.note); if (i.source_type === "USER_CORRECTED") corrected.push(i.note); }
   const ready_areas = PIDS.filter((id) => slots[id]?.status === "CONFIRMED" && usable.some((i) => i.purpose === id));
   const areas_ready = ready_areas.length >= CONVERSATION_READY_MIN_AREAS;
   return { conversation_ready: finished && areas_ready, finished, areas_ready, confirmed_areas: ready_areas.length, areas_needed: CONVERSATION_READY_MIN_AREAS,
-    ready_areas, missing_areas: PIDS.filter((id) => !ready_areas.includes(id)), confirmed, excluded };
+    ready_areas, missing_areas: PIDS.filter((id) => !ready_areas.includes(id)), confirmed, corrected, excluded };
 }
 // 대화 중 판단도 같은 함수(지금 상태로 만든 프로필 칸 · 대화 마침 여부는 보지 않음).
 export const stateReadiness = (st: AgentState) => conversationReadiness(profileSlots(st), st.phase);
@@ -559,11 +559,11 @@ type Json = Record<string, unknown>;
 // 정보 계보(2026-09-26 DATA LINEAGE): 어디서 왔는지(source_type) · 어느 사용자 말(turn, quote = 사용자가 친 글자)인지 · 언제 확인/교체/거절됐는지.
 // status: CONFIRMED = 지금 쓰는 값(ACTIVE) · SUPERSEDED = 사용자 정정으로 새 값에 밀림 · RETRACTED = 사용자가 아니라고 함(거절 뜻) · DISPUTED = 모호한 거절로 어느 해석인지 몰라 확인 중(지금 값 아님 · 지우지 않음). 옛 값은 지우지 않는다(이력).
 export type SourceType = "USER_DIRECT" | "AI_EXTRACTED" | "AI_INFERRED" | "USER_CONFIRMED" | "USER_CORRECTED" | "PHOTO_INFERRED" | "PROFILE_DIRECT";
-export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED" | "DISPUTED"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
-export interface Asked { type: "core" | "clarify" | "fill"; purpose: string; text: string; keeps?: number; helps?: number; hint?: string | null; choices?: string[] | null;
+export interface Item { note: string; quote: string; turn: number; source: string; status: "CONFIRMED" | "SUPERSEDED" | "RETRACTED" | "DISPUTED" | "FORGOTTEN"; source_type?: SourceType; confirmed_at?: string; corrected_from?: string[]; superseded_at?: string; rejected_at?: string }
+export interface Asked { type: "core" | "clarify" | "fill"; purpose: string; text: string; cite?: string | null; keeps?: number; helps?: number; hint?: string | null; choices?: string[] | null;
   // 2026-10-01 구조대: rescue_show = 서버가 보기를 먼저 펼쳐 둠(C·D) · rescue_fallback = 보기를 못 만들어 안전 안내만 · rescue_tried = 보기 다시 만들기를 이미 함 · rescue_rejected = 「다 아닌데」로 거절된 보기
   rescue_show?: boolean; rescue_fallback?: boolean; rescue_tried?: boolean; rescue_rejected?: string[]; rescue_requests?: number }
-export interface TurnRec { choice?: string; fi?: string[]; guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; presented?: { purpose: string; note: string }[]; fix_text?: string; fix_of?: number; vague_reject?: string; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string }
+export interface TurnRec { choice?: string; fi?: string[]; guard?: { from: string; to: string; rule: string }; superseded?: number; n: number; ai: string | null; question_purpose: string | null; question_type: string | null; user: string; kind: string; saved?: boolean; extracted?: string[]; recovered?: string[]; recovered_from?: number[]; presented?: { purpose: string; note: string }[]; fix_text?: string; fix_of?: number; vague_reject?: string; dropped?: string; hint?: string | null; check?: Record<string, boolean> | null; reply?: string; question?: string | null; decision?: string; receipt?: Receipt | null; cite?: string | null }
 export interface AgentState {
   version: string; tone: Tone; mode: "TEXT" | "VOICE"; phase: "talk" | "done" | "post"; turns: TurnRec[];
   slots: Record<string, { status: "UNKNOWN" | "CONFIRMED" | "SKIPPED"; items: Item[] }>;
@@ -576,7 +576,11 @@ export interface AgentState {
   rejected_choices?: string[]; // 2026-10-01 「그건 다 아닌데」로 거절된 보기(다시 보기로 · 사실로 올리지 않는다)
   fi_pending?: string[]; // 턴 밖(보기 요청)에서 난 실패 코드 — 다음 턴 기록에 붙인다
   goal?: GoalId; goal_label?: string | null; // v2.4 세션의 관계 목적(예전 대화에는 없다 → open)
+  // 2026-10-06 대표 「기억 영수증」: forgotten = 「ECHO가 아는 나」에서 사용자가 지운 줄(글자 그대로 · AI 가 다시 만들지 않는다) · user_confirmed_at = 「맞아요」로 지금 이해 전체를 확인한 시각 · last_receipt = 마지막 정정 영수증
+  forgotten?: string[]; user_confirmed_at?: string | null; last_receipt?: (Receipt & { turn: number }) | null;
 }
+// 2026-10-06 기억 영수증(서버 고정 문장 · AI 0): before = 이번 말로 밀리거나 거둔 옛 뜻 · after = 이번 말에서 새로 받은 뜻.
+export interface Receipt { line: string; before: string[]; after: string[] }
 export interface PendingFix { turn: number; text: string; targets: { turn: number; purposes: string[]; notes: string[] } }
 export interface IntroLine { text: string; basis: string }
 // status: ready = 쓸 문장이 있음 · failed = AI 가 썼지만 쓸 문장이 0(또는 AI 실패) · none = 들은 말이 없어 쓰지 않음.
@@ -584,7 +588,7 @@ export interface IntroLine { text: string; basis: string }
 export interface IntroDraft { status: "ready" | "failed" | "none"; lines: IntroLine[]; dropped: Record<string, number>; tries: number; error: string | null; used: "as_is" | "edited" | "own" | null; used_at: string | null }
 export interface Parsed { kind: Kind; understood: string; reply: string; extracted: { purpose: string; note: string; quote: string }[]; inferred: { trait: string; basis: string }[]; declared: { mbti: string; blood_type: string; quote: string } | null; wrong: string[]; next: { type: "core" | "clarify" | "none"; purpose: string; question: string; hint?: string; check?: Record<string, boolean> | null; choices?: string[] } }
 export interface LlmResult { text: string; model?: string | null; input_tokens?: number | null; output_tokens?: number | null }
-export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading" | "ref_talk", system: string, input: unknown) => Promise<LlmResult | string>;
+export type Llm = (kind: "opening" | "turn" | "closing" | "intro" | "pick" | "ack" | "question" | "choices" | "card_reading" | "ref_talk" | "free_talk", system: string, input: unknown) => Promise<LlmResult | string>;
 export interface CallObs { kind: string; ms: number; model: string | null; input_tokens: number | null; output_tokens: number | null; error: string | null }
 export interface Obs { calls: CallObs[]; retry: string[] }
 
@@ -630,6 +634,7 @@ function shownIn(reply: string, item: { note: string; quote: string }): boolean 
 // 거둔 AI 해석과 같은 뜻을 AI 가 다른 표현으로 다시 정리하면 지금 사실로 올리지 않는다(부정 표현이 한쪽에만 있으면 다른 뜻).
 function sameAsRejected(st: AgentState, note: string): boolean {
   const b = squash(note);
+  if ((st.forgotten ?? []).some((f) => nearSame(f, note))) return true; // 2026-10-06 사용자가 지운 줄은 AI 정리로 다시 만들지 않는다
   return PIDS.some((id) => st.slots[id].items.some((i) => {
     if (i.status !== "RETRACTED" || i.source_type !== "AI_EXTRACTED") return false;
     const a = squash(i.note);
@@ -726,6 +731,7 @@ export function turnInput(st: AgentState, latest: string, opts: { button?: boole
     heard: heard(st),
     corrections: st.corrections.slice(-3),
     disputed: st.disputed.slice(-5),
+    ...(st.turns.at(-1)?.kind === "correction" && st.last_receipt?.after.length && st.last_receipt.turn === st.turns.at(-1)?.n ? { user_corrected: { values: st.last_receipt.after, note: "사용자가 방금 앞 답을 고쳤다. 이 고친 뜻을 전제로 이어 묻고 옛 뜻을 전제로 묻지 않는다." } } : {}), // 2026-10-06 방금 앞 턴이 정정이면 고친 내용(USER_CORRECTED)을 재료로
     open_purposes: (openPurposes(st).length ? openPurposes(st) : fillTargets(st)).map((id) => ({ purpose: id, label: dimLabel(st, id) })),
     ...(!openPurposes(st).length && fillTargets(st).length ? { fill_request: "연결 준비에 이야기가 조금 더 필요하다. open_purposes 칸에서 heard 에 없는 새 장면·구체적인 예 하나를 방금 말에 이어 가볍게 묻는다. 이미 들은 것을 되묻지 않는다." } : {}),
     asked_before: st.asked.map((a) => a.text), // 목적 설명 문장(goal)은 넣지 않는다 — 실제 AI 가 그 문장을 질문으로 옮겨 써서 설문처럼 들렸다(운영판 실AI 재생 run 7)
@@ -909,7 +915,7 @@ export function cleanHint(v: unknown): string {
   return h && h.length <= HINT_MAX && !/[?？]/.test(h) && !BANNED_WORDS.test(h) && !leaksId(h) ? h : "";
 }
 
-export interface TurnResponse { record_text?: string; kind: string; reply: string; question: string | null; saved: boolean; extracted: { purpose: string; note: string }[]; recovered: string[]; finish: boolean; question_type: string | null; question_purpose: string | null }
+export interface TurnResponse { record_text?: string; kind: string; reply: string; question: string | null; saved: boolean; extracted: { purpose: string; note: string }[]; recovered: string[]; finish: boolean; question_type: string | null; question_purpose: string | null; receipt?: Receipt | null; cite?: string | null }
 
 // ── 서버 결정(결정적). LLM 출력은 후보다.
 export interface ForcedTurn { kind: Kind; rule: string; actual: string; pending: PendingFix }
@@ -928,6 +934,7 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   if (opts.choice) turn.choice = text;
   const prevTurn = st.turns.at(-1);
   const fi = new Set<string>();
+  const statusBefore = new Map<Item, Item["status"]>(); for (const id of PIDS) for (const i of st.slots[id].items) statusBefore.set(i, i.status); // 2026-10-06 영수증: 이번 말로 상태가 바뀐 옛 뜻을 찾기 위한 스냅샷
   st.turns.push(turn);
   st.pending_fix = null;
   // v2.4.7 애매한 「아니요 + 새 값」: 지우지도 저장하지도 않고 한 번만 확인한다(지금 질문은 그대로 · 질문 수 0).
@@ -1081,6 +1088,12 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     for (const id of PIDS) { const before = st.slots[id].items.length; st.slots[id].items = st.slots[id].items.filter((i) => i.turn !== turn.n); leaked += before - st.slots[id].items.length; if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN"; }
     if (leaked) { for (let k = kept.length - 1; k >= 0; k--) if (kept[k].turn === turn.n) kept.splice(k, 1); fi.add(out.kind === "skip" ? RESCUE_FI.SKIP_SAVED : RESCUE_FI.HELP_SAVED); }
   }
+  // 2026-10-06 대표 「기억 영수증」: 정정(또는 옛 뜻을 거둔 거절)이 상태에 반영된 뒤에만 고정 문장 한 줄을 만든다(AI 0 · 화면은 서버 저장 성공 응답을 받은 뒤에만 보인다).
+  //   before = 이번 말로 CONFIRMED 에서 밀리거나 거둔 뜻(SUPERSEDED·RETRACTED) · after = 이번 말에서 새로 받은 뜻. 도움 행동(모르겠다·넘기기·그만)에는 영수증 0.
+  //   같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)은 AI 정리와 겹치면 빼고 하나만 적는다(dedupeViewItems · 화면 규칙과 같음).
+  const goneNow = dedupeViewItems(PIDS.flatMap((id) => st.slots[id].items.filter((i) => statusBefore.get(i) === "CONFIRMED" && (i.status === "SUPERSEDED" || i.status === "RETRACTED")).map((i) => ({ note: i.note, quote: i.quote, source_turn: i.turn })))).map((i) => i.note);
+  const receipt = (out.kind === "correction" || goneNow.length) && !["unsure", "skip", "stop", "help"].includes(out.kind) && g.rule !== "fix_check" ? makeReceipt(goneNow, kept.filter((k) => k.turn === turn.n).map((k) => k.note)) : null;
+  if (receipt) { turn.receipt = receipt; st.last_receipt = { ...receipt, turn: turn.n }; } else if (out.kind === "correction") st.last_receipt = null; // 검수 P2-2: 영수증 없는 정정은 옛 영수증을 재료로 쓰지 않는다
   // 저장(기록 표에 이번 말을 남김)은 이번 말에서 나온 정보가 있을 때만 — 「아까 말했는데」 같은 항의는 되살리기만 하고 답으로 남지 않는다.
   turn.saved = kept.some((k) => k.turn === turn.n); turn.extracted = kept.map((k) => k.purpose);
   const recovered = kept.filter((k) => k.turn !== turn.n).map((k) => k.purpose); if (recovered.length) turn.recovered = recovered;
@@ -1146,14 +1159,17 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
   const finish = !question && st.phase === "talk";
   if (finish) st.current = null;
   turn.hint = question ? st.current?.hint ?? null : null;
-  turn.reply = reply; turn.question = question; turn.decision = finish ? (opts.limitReached ? "finish_limit" : decision === "finish_enough" ? "finish_enough" : needsMoreAnswers(st) ? "finish_not_ready" : "finish") : decision; // v2.4.5 준비 미완료로 멈춤을 따로 남긴다
+  turn.reply = reply; turn.question = question;
+  // 2026-10-06 다음 장면 증거: 정정 직후의 새 질문 한 번에만 고친 내용을 서버가 짧게 인용한다(「「고친 내용」으로 알아들었어요.」 + 질문 · AI 0 · 질문 본문·같은 질문 판정은 그대로).
+  if (st.current && st.current.cite && !(receipt?.after.length)) delete st.current.cite; // 검수 P2-1: 인용은 정정 직후 한 번만 — 같은 질문이 유지돼도(모르겠다·되묻기) 다음 턴부터는 뗀다
+  if (question && receipt?.after.length && st.current && ["core", "core_relabeled", "fill", "clarify"].includes(decision)) { const c = citeLine(receipt.after); if (c) { st.current.cite = c; turn.cite = c; } } turn.decision = finish ? (opts.limitReached ? "finish_limit" : decision === "finish_enough" ? "finish_enough" : needsMoreAnswers(st) ? "finish_not_ready" : "finish") : decision; // v2.4.5 준비 미완료로 멈춤을 따로 남긴다
   // 이 답이 사용자에게 보인 AI 해석(출처 기록) — 다음 말이 모호한 거절이면 이것만 대상이 된다.
   const shownNow = kept.map((k) => ({ purpose: k.purpose, item: st.slots[k.purpose].items.find((i) => i.note === k.note && i.turn === k.turn && i.status === "CONFIRMED" && i.source_type === "AI_EXTRACTED") }))
     .filter((x) => x.item && shownIn(reply, x.item)).map((x) => ({ purpose: x.purpose, note: x.item!.note }));
   if (shownNow.length) turn.presented = shownNow;
   if (st.fi_pending?.length) { for (const f of st.fi_pending) fi.add(f); st.fi_pending = []; }
   if (fi.size) turn.fi = [...fi];
-  return { ...(opts.forced ? { record_text: text } : {}), kind: out.kind, reply, question, saved: turn.saved, extracted: kept.map(({ purpose, note }) => ({ purpose, note })), recovered, finish, question_type: question ? st.current!.type : null, question_purpose: question ? st.current!.purpose : null };
+  return { ...(opts.forced ? { record_text: text } : {}), kind: out.kind, reply, question, saved: turn.saved, extracted: kept.map(({ purpose, note }) => ({ purpose, note })), recovered, finish, question_type: question ? st.current!.type : null, question_purpose: question ? st.current!.purpose : null, receipt: turn.receipt ?? null, cite: turn.cite ?? null };
 }
 
 // ── 매칭 프로필(서버 상태에서 만든다 — LLM 요약이 아니다).
@@ -1162,7 +1178,7 @@ export function versionTrace() { return { agent_version: AGENT_VERSION, prompt_v
 // FI-018: 준비 판단(conversationReadiness)과 매칭 프로필이 같은 칸 모양을 쓴다.
 function slotLineage(st: AgentState, id: string) {
   const lineage = (i: Item) => ({ note: i.note, quote: i.quote, status: i.status, source_type: i.source_type ?? (i.source === "answer_raw" ? "USER_DIRECT" : "AI_EXTRACTED"), source_turn: i.turn, source_user_text: (() => { const t = st.turns.find((x) => x.n === i.turn); return t ? t.fix_text ?? t.user : null; })(), confirmed_at: i.confirmed_at ?? null, corrected_from: i.corrected_from ?? [], superseded_at: i.superseded_at ?? null, rejected_at: i.rejected_at ?? null });
-  return { status: st.slots[id].status, items: st.slots[id].items.filter((i) => i.status === "CONFIRMED").map(lineage), history: st.slots[id].items.filter((i) => i.status !== "CONFIRMED").map(lineage) };
+  return { status: st.slots[id].status, items: st.slots[id].items.filter((i) => i.status === "CONFIRMED").map(lineage), history: st.slots[id].items.filter((i) => i.status !== "CONFIRMED" && i.status !== "FORGOTTEN").map(lineage) }; // 지운 줄(FORGOTTEN)은 이력에도 보이지 않는다
 }
 export const profileSlots = (st: AgentState) => Object.fromEntries(PIDS.map((id) => [id, slotLineage(st, id)]));
 export function matchingProfile(st: AgentState) {
@@ -1199,6 +1215,104 @@ export function profileView(st: AgentState) {
   return out as typeof p;
 }
 
+// ── 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」(서버 고정 문장 · AI 0).
+const rcpt = (t: string) => String(t ?? "").replace(/\s+/g, " ").trim().slice(0, 40);
+// 받침에 맞는 조사(마지막 글자가 한글이 아니면 받침 없는 쪽).
+const batchim = (t: string) => { const c = t.charCodeAt(t.length - 1); return c >= 0xac00 && c <= 0xd7a3 ? (c - 0xac00) % 28 : 0; };
+const ro = (t: string) => (batchim(t) && batchim(t) !== 8 ? "으로" : "로");
+const ga = (t: string) => (batchim(t) ? "이" : "가");
+const neun = (t: string) => (batchim(t) ? "은" : "는");
+export function makeReceipt(before: string[], after: string[]): Receipt | null {
+  const b = [...new Set(before.map(rcpt).filter(Boolean))].slice(0, 2), a = [...new Set(after.map(rcpt).filter(Boolean))].slice(0, 2).filter((x) => !b.includes(x));
+  if (!b.length && !a.length) return null;
+  if ([...b, ...a].some((x) => SENSITIVE_TOPIC.test(x))) return { line: "알겠어요. 고친 내용으로 기억할게요.", before: b, after: a }; // 건강·성·돈 이야기는 글자를 되풀이하지 않는다(일반 문장)
+  const B = b.join(" · "), A = a.join(" · ");
+  const line = b.length && a.length ? `알겠어요. 「${B}」${ga(B)} 아니라 「${A}」${ro(A)} 기억할게요.` : a.length ? `알겠어요. 「${A}」${ro(A)} 기억할게요.` : `알겠어요. 「${B}」${neun(B)} 아니라고 기억할게요.`;
+  return { line, before: b, after: a };
+}
+export const citeLine = (after: string[]) => { if (after.some((x) => SENSITIVE_TOPIC.test(x))) return ""; const A = after.map(rcpt).filter(Boolean).slice(0, 2).join(" · "); return A ? `「${A}」${ro(A)} 알아들었어요.` : ""; }; // 민감 주제는 다음 질문에도 되풀이 0
+// 민감 주제(건강·성·금전 등)는 「ECHO가 아는 나」에서 글자를 다시 적지 않는다(지우기는 가능). 사실 판단이 아니라 되풀이 금지 규칙.
+export const SENSITIVE_TOPIC = /(건강|질병|질환|병원|진단|우울|불안|공황|복용|약을?\s*먹|성관계|섹스|성적|야한|몸\s*사진|돈|월급|연봉|수입|빚|대출|재산|투자|주식|코인)/;
+export interface KnownLine { key: string; text: string; quote: string | null; purpose: string | null; at: string | null; sensitive: boolean; from: string[]; origin: string }
+export interface KnownView { confirmed: KnownLine[]; guesses: KnownLine[]; corrected: KnownLine[]; rejected: KnownLine[]; confirmed_at: string | null; forgotten: number }
+const itemKey = (purpose: string, i: Item) => `item:${purpose}:${i.turn}:${i.note}`;
+// 화면 규칙(dedupeViewItems)과 같은 기준으로, 같은 턴·같은 원문의 원문 복사본을 숨긴다(상태별로 따로 — 지금 값끼리 · 밀린 값끼리).
+function dedupeHidden(items: Item[]): Item[] {
+  const out: Item[] = [];
+  for (const status of ["CONFIRMED", "SUPERSEDED", "RETRACTED", "DISPUTED"] as const) {
+    const group = items.filter((i) => i.status === status);
+    const kept = new Set(dedupeViewItems(group.map((i) => ({ note: i.note, quote: i.quote, source_turn: i.turn, ref: i }))).map((v) => v.ref));
+    for (const i of group) if (!kept.has(i)) out.push(i);
+  }
+  return out;
+}
+const knownLine = (key: string, text: string, origin: string, extra: Partial<KnownLine> = {}): KnownLine =>
+  ({ key, text, quote: null, purpose: null, at: null, from: [], origin, sensitive: SENSITIVE_TOPIC.test(`${text} ${extra.quote ?? ""}`), ...extra });
+// 고친 이력(corrected_from)에서 원문 복사본(어떤 옛 값의 원문 글자와 같은 것)은 빼고 뜻만 남긴다(「매일 연락」 하나 · 「매일 연락하는 게 좋아요」 복제 0).
+function tidyFrom(st: AgentState, from: string[]): string[] {
+  const raws = new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status !== "CONFIRMED" && bare(i.note) === bare(i.quote)).map((i) => bare(i.note))));
+  const kept = from.filter((f) => !raws.has(bare(f)));
+  return kept.length ? kept : from.slice(0, 1);
+}
+/** 네 칸: 내가 확인한 것 · AI 짐작(확정 아님) · 내가 고친 것 · 아니라고 한 것(다시 단정하지 않음). 거절된 AI 해석 원문은 보여 주되 사실로 쓰지 않는다(지금 값 CONFIRMED 가 아니다). */
+export function knownView(st: AgentState): KnownView {
+  const confirmed: KnownLine[] = [], guesses: KnownLine[] = [], corrected: KnownLine[] = [], rejected: KnownLine[] = [];
+  const hidden = new Set(PIDS.flatMap((id) => dedupeHidden(st.slots[id].items))); // 같은 말의 원문 복사본은 한 줄로
+  for (const id of PIDS) for (const i of st.slots[id].items) {
+    if (i.status === "FORGOTTEN" || hidden.has(i)) continue;
+    const src = i.source_type ?? (i.source === "answer_raw" ? "USER_DIRECT" : "AI_EXTRACTED");
+    const base = { quote: i.quote || null, purpose: id, at: i.confirmed_at ?? null };
+    if (i.status === "CONFIRMED") {
+      if (src === "USER_CORRECTED") corrected.push(knownLine(itemKey(id, i), i.note, "corrected", { ...base, from: tidyFrom(st, i.corrected_from ?? []) }));
+      else if (src === "AI_EXTRACTED" || src === "PHOTO_INFERRED") guesses.push(knownLine(itemKey(id, i), i.note, "ai_summary", base));
+      else confirmed.push(knownLine(itemKey(id, i), i.note, src === "USER_CONFIRMED" ? "user_confirmed" : "user_direct", base));
+    } else if (i.status === "RETRACTED" || i.status === "DISPUTED") rejected.push(knownLine(itemKey(id, i), i.note, i.status === "DISPUTED" ? "disputed" : "rejected", { ...base, at: i.rejected_at ?? null }));
+  }
+  st.inferred.forEach((t, k) => guesses.push(knownLine(`inf:${k}:${t.trait}`, t.trait, "ai_guess", { quote: t.basis || null, at: null })));
+  for (const c of st.rejected_choices ?? []) rejected.push(knownLine(`choice:${c}`, c, "rejected_choice"));
+  return { confirmed, guesses, corrected, rejected, confirmed_at: st.user_confirmed_at ?? null, forgotten: (st.forgotten ?? []).length };
+}
+/** 줄 하나 지우기(사용자 본인 · 서버가 처리). 지운 글자는 forgotten 에 남겨 AI 가 다시 만들지 않는다. 못 찾으면 false. */
+export function forgetKnown(st: AgentState, key: string): boolean {
+  const remember = (t: string) => { st.forgotten = [...new Set([...(st.forgotten ?? []), rcpt(t)])].slice(-50); };
+  if (key.startsWith("inf:")) {
+    const trait = key.split(":").slice(2).join(":"); const n = st.inferred.length;
+    st.inferred = st.inferred.filter((t) => t.trait !== trait);
+    if (st.inferred.length === n) return false; remember(trait); return true;
+  }
+  if (key.startsWith("choice:")) {
+    const c = key.slice("choice:".length); const n = (st.rejected_choices ?? []).length;
+    st.rejected_choices = (st.rejected_choices ?? []).filter((x) => x !== c);
+    if (st.rejected_choices.length === n) return false; remember(c); return true;
+  }
+  if (!key.startsWith("item:")) return false;
+  const [, purpose, turnStr, ...rest] = key.split(":"); const note = rest.join(":"); const turn = Number(turnStr);
+  if (!PIDS.includes(purpose)) return false;
+  const hit = st.slots[purpose].items.find((i) => i.turn === turn && i.note === note && i.status !== "FORGOTTEN");
+  if (!hit) return false;
+  hit.status = "FORGOTTEN"; remember(note);
+  // 검수 P1(2026-10-06): 같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)과 그 복사본에 기댄 정리는 화면에서 한 줄로 보였으므로 함께 지운다(dedupeViewItems 와 같은 기준 · 칸 무관).
+  //   아니면 지운 뒤 숨어 있던 복사본이 「내가 확인한 것」으로 다시 나타나고 매칭 재료에도 남는다.
+  const hb = bare(hit.quote), hn = bare(hit.note);
+  for (const id of PIDS) for (const j of st.slots[id].items) {
+    if (j === hit || j.status === "FORGOTTEN" || j.turn !== hit.turn) continue;
+    const jb = bare(j.quote), jn = bare(j.note);
+    const jRaw = !!jn && !!jb && (jn === jb || (jn.length >= 10 && jb.startsWith(jn)));
+    const hRaw = !!hn && !!hb && (hn === hb || (hn.length >= 10 && hb.startsWith(hn)));
+    if ((jRaw && !!hb && jb.includes(hb)) || (hRaw && !!jb && hb.includes(jb))) { j.status = "FORGOTTEN"; remember(j.note); }
+  }
+  for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
+  if (st.slots[purpose].status === "CONFIRMED" && !st.slots[purpose].items.some((i) => i.status === "CONFIRMED")) st.slots[purpose].status = "UNKNOWN";
+  return true;
+}
+/** 「맞아요」: 지금 보이는 AI 정리(AI_EXTRACTED · CONFIRMED)를 사용자가 확인한 값(USER_CONFIRMED)으로 올린다. 바뀐 줄 수를 돌려준다(0 이어도 확인 시각은 남긴다). */
+export function confirmKnown(st: AgentState): number {
+  let n = 0; const at = now();
+  for (const id of PIDS) for (const i of st.slots[id].items) if (i.status === "CONFIRMED" && (i.source_type ?? (i.source === "answer_raw" ? "USER_DIRECT" : "AI_EXTRACTED")) === "AI_EXTRACTED") { i.source_type = "USER_CONFIRMED"; i.confirmed_at = at; n++; }
+  st.user_confirmed_at = at;
+  return n;
+}
+
 // ── 매칭 단계로 넘기기. 후보를 만들지 않는다(가짜 후보 0). 연결(doit-connect)은 아직 이 프로필을 읽지 않는다 — 상태로 그대로 적는다.
 export function matchingHandoff(profile: MatchingProfile) {
   const criteria = Object.fromEntries(PIDS.map((id) => [id, (profile[id as keyof MatchingProfile] as { items: { note: string }[] }).items.map((i) => i.note)]));
@@ -1212,7 +1326,7 @@ export function matchingHandoff(profile: MatchingProfile) {
 }
 
 // 거절된 뜻(사용자가 틀렸다고 해 거둔 AI 정리). 지금 확인된 뜻과 같은 글자는 빼고(다시 확인된 뜻), 너무 짧은 조각은 막지 않는다.
-const rejectedForAi = (st: AgentState) => PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status !== "CONFIRMED").map((i) => i.note)).slice(-5);
+const rejectedForAi = (st: AgentState) => PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status !== "CONFIRMED" && i.status !== "FORGOTTEN").map((i) => i.note)).slice(-5);
 export function rejectedNotes(st: AgentState): string[] {
   const live = new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status === "CONFIRMED").map((i) => squash(i.note))));
   return [...new Set(PIDS.flatMap((id) => st.slots[id].items.filter((i) => i.status !== "CONFIRMED").map((i) => squash(i.note))))].filter((r) => r.length >= 3 && !live.has(r));

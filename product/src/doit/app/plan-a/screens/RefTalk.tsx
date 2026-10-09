@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { agentRef, refSeedBody, type RefLine } from "@/doit/lib/agentApi";
+import { agentHome, agentRef, agentSelfNote, refSeedBody, type FreeTalkStatus, type RefLine } from "@/doit/lib/agentApi";
+import { Link } from "react-router-dom";
 import { clearContentSeed, type ContentSeed } from "@/doit/lib/contentSeed";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
 import "./ref-talk.css";
@@ -9,8 +10,11 @@ import "./ref-talk.css";
 // - 서버는 이 이야기를 저장하지 않는다(사실·프로필·매칭 0). 앞 줄 8개만 함께 보낸다.
 // - 이야기 거리(결과 종류)는 서버가 여는 한 줄을 돌려준 뒤에 지운다(로그인 복귀·늦은 응답에도 유지).
 // - 실패하면 적은 말은 입력칸에 그대로 · 다시 보내기는 누를 때만(같은 말 = 같은 요청 → 서버가 한 번만 부름).
+// - 2026-10-06 대표 「사주·타로 정정 → 매칭 사용」: 해석을 부정하고 자기 말로 고치면 서버가 고정 영수증(「사주보다 당신 말이 맞아요…」)과 고친 문장(correction)을 준다.
+//   화면은 「이 말, 내 프로필에도 반영할까요?」를 한 번만 묻고, [반영할게요]일 때만 서버(agent_self_note)에 남긴다. 해석 원문은 어디에도 남지 않는다(매칭 사용 0 유지).
 
-type Line = RefLine & { question?: boolean };
+type Line = RefLine & { question?: boolean; receipt?: boolean };
+type Offer = { text: string; state: "ask" | "saving" | "saved" | "declined" | "failed" } | null;
 type Fail = { kind: "limit" | "busy" | "not_ready" | "paused" | "private" | "failed"; message: string } | null;
 const FAIL_MESSAGE: Record<NonNullable<Fail>["kind"], string> = {
   limit: "오늘 쓸 수 있는 대화량을 다 썼어요. 내일 다시 이어서 해 주세요.",
@@ -32,6 +36,9 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
   const [fail, setFail] = useState<Fail>(null);
   const [opened, setOpened] = useState(false);
   const [lastFail, setLastFail] = useState<{ text: string; fromDraft: boolean } | null>(null); // 실패한 그 요청을 「다시 보내기」로 그대로
+  const [offer, setOffer] = useState<Offer>(null); // 고친 문장을 프로필에도 반영할지 한 번 묻기(서버 correction 이 왔을 때만)
+  const [free, setFree] = useState<FreeTalkStatus | null>(null); // 2026-10-06 자유 대화 스위치(서버) — 켜져 있을 때만 「무엇이든 이야기하기」 안내
+  useEffect(() => { let live = true; agentHome(userId).then((r) => { if (live) setFree(r.free_talk); }).catch(() => undefined); return () => { live = false; }; }, [userId]);
   const busy = pending !== null;
   const endRef = useRef<HTMLDivElement | null>(null);
   const alive = useRef(true);
@@ -44,9 +51,10 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
     try {
       const r = await agentRef(userId, ref, history.map(({ role, text: t }) => ({ role, text: t })), text);
       if (!alive.current) return;
-      const next: Line[] = [...history, ...(text ? [{ role: "user" as const, text }] : []), { role: "echo", text: r.reply }];
+      const next: Line[] = [...history, ...(text ? [{ role: "user" as const, text }] : []), { role: "echo", text: r.reply, receipt: !!r.correction }];
       if (r.question) next.push({ role: "echo", text: r.question, question: true });
       setLines(next);
+      if (r.correction) setOffer({ text: r.correction.text, state: "ask" }); // 서버가 정정으로 받은 뒤에만 묻는다(화면이 먼저 정하지 않음)
       if (!text) { setOpened(true); clearContentSeed(); } // 서버가 받은 뒤에 이야기 거리를 지운다
       else if (fromDraft) setDraft("");
     } catch (e) {
@@ -61,6 +69,16 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
   useEffect(() => { void ask("", []); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- 처음 한 번만
 
   const send = (text: string, fromDraft = true) => { const t = text.trim(); if (!t || busy || !opened) return; void ask(t, lines, fromDraft); };
+  // [반영할게요] = 사용자가 직접 누른 그 한 번만 서버에 남긴다(고친 자기 문장만 · 해석 원문 0). 실패하면 적은 말은 그대로, 다시 누르면 새 요청.
+  const keep = async () => {
+    if (!offer || offer.state === "saving" || offer.state === "saved") return;
+    const mine = offer.text;
+    setOffer({ text: mine, state: "saving" });
+    // 검수 P2-9: 저장하는 사이 새 정정이 와서 offer 가 바뀌었으면 옛 문장 결과로 덮어쓰지 않는다
+    const settle = (state: NonNullable<Offer>["state"]) => setOffer((cur) => (cur && cur.text === mine ? { text: mine, state } : cur));
+    try { await agentSelfNote(userId, mine, "ref_correction"); if (alive.current) settle("saved"); }
+    catch (e) { if (!alive.current) return; if (e instanceof UnderstandingError && e.code === "NOT_ALLOWED") settle("declined"); else settle("failed"); }
+  };
   const leave = (to: "home" | "plan") => { clearContentSeed(); onLeave(to); };
 
   return (
@@ -68,13 +86,27 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
       <header className="echo-ref-head">
         <p className="echo-eyebrow">{seed.source === "TAROT" ? "타로 카드" : "사주"} 참고 이야기</p>
         <h1 id="echo-ref-title" className="echo-ref-title">ECHO와 이야기</h1>
-        <p className="echo-ref-note">ECHO는 먼저 묻지 않아요. 결과는 참고일 뿐이고, 여기서 한 말은 프로필이나 연결에 쓰이지 않아요.</p>
+        <p className="echo-ref-note">ECHO는 먼저 묻지 않아요. 결과는 참고일 뿐이고, 여기서 한 말은 프로필이나 연결에 쓰이지 않아요. 내가 직접 「반영할게요」를 누른 내 문장만 남아요.</p>
       </header>
 
       <div className="echo-ref-lines" aria-live="polite">
         {lines.map((l, i) => (
-          <p key={i} className={`echo-ref-line echo-ref-line--${l.role}${l.question ? " echo-ref-line--question" : ""}`}>{l.text}</p>
+          <p key={i} className={`echo-ref-line echo-ref-line--${l.role}${l.question ? " echo-ref-line--question" : ""}${l.receipt ? " echo-ref-line--receipt" : ""}`}>{l.text}</p>
         ))}
+        {offer && (
+          <div className="echo-ref-offer" role="group" aria-label="프로필 반영 확인">
+            {offer.state === "saved" ? <p>반영했어요. 「ECHO가 아는 나」에서 볼 수 있고, 거기서 지울 수도 있어요.</p>
+              : offer.state === "declined" ? <p>알겠어요. 여기서만 기억하고 프로필에는 넣지 않을게요.</p>
+              : <>
+                <p>이 말, 내 프로필에도 반영할까요? <b>「{offer.text}」</b></p>
+                {offer.state === "failed" && <p className="echo-ref-offer-fail">반영하지 못했어요. 다시 눌러 주세요.</p>}
+                <div className="echo-ref-offer-actions">
+                  <button type="button" className="echo-ref-chip" disabled={offer.state === "saving"} onClick={() => void keep()}>{offer.state === "saving" ? "반영하는 중" : "반영할게요"}</button>
+                  <button type="button" className="echo-ref-chip echo-ref-chip--quiet" disabled={offer.state === "saving"} onClick={() => setOffer({ ...offer, state: "declined" })}>여기서만 기억</button>
+                </div>
+              </>}
+          </div>
+        )}
         {busy && <p className="echo-ref-line echo-ref-line--echo echo-ref-typing" aria-label="ECHO가 답을 쓰고 있어요"><span /><span /><span /></p>}
         <div ref={endRef} />
       </div>
@@ -100,6 +132,10 @@ export function RefTalk({ userId, seed, onLeave }: { userId: string; seed: Conte
         <button type="button" className="echo-ref-chip" onClick={() => leave("plan")}>원하는 만남 알아보기</button>
         <button type="button" className="echo-ref-chip echo-ref-chip--quiet" onClick={() => leave("home")}>오늘은 여기까지</button>
       </div>
+      {/* C.9 결제 안내 노출 시점 = 정해진 흐름 끝(여기)에서 범위 밖 이야기로 넘어갈 때 · 서버 스위치가 켜져 있고 맛보기나 권한이 있을 때만 · 가격 숫자 0 */}
+      {free?.enabled && (free.entitled || (free.trial_left ?? 0) > 0) && (
+        <p className="echo-ref-note echo-talk-notice">여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요.{!free.entitled && ` 맛보기 ${free.trial_left}번 남았어요.`} <Link to="/doit/talk" className="echo-ref-chip">무엇이든 이야기하기</Link></p>
+      )}
     </section>
   );
 }

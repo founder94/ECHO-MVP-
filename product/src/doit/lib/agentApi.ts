@@ -35,6 +35,7 @@ export interface AgentSession {
   intro?: AgentIntro | null; // 서버 v1.6 · 대화가 끝났을 때만
   goal?: string | null; goal_label?: string | null; // 서버 v2.4 · 이 세션의 관계 목적(예전 세션은 null)
   run?: AgentRun | null; // 2026-10-03 서버 실행 기록(코드·수치만) — 다음 할 일(next)은 서버가 정한다. 화면은 그대로 보여 줄 뿐 바꾸지 않는다.
+  known?: AgentKnown | null; // 2026-10-06 「ECHO가 아는 나」(대화 중에도 · 예전 서버는 없음)
 }
 // 서버 실행 기록 모습(doit-agent run.ts runView). 화면이 계획·완료를 스스로 정하지 않는다 — next 를 그대로 따른다.
 export type AgentRunOutcome = 'needs_user' | 'in_progress' | 'done' | 'on_hold' | 'stopped';
@@ -74,7 +75,12 @@ function validRunTool(t: unknown): t is AgentRunTool {
 // 소개 초안(서버가 대화를 마칠 때 같은 호출에서 쓴다). status: ready = 쓸 문장 있음 · failed = 못 씀 · none = 들은 말이 없어 안 씀.
 export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string; lines: string[]; tries_left: number; used: 'as_is' | 'edited' | 'own' | null }
 export interface AgentRescue { options: string[]; symbols?: string[]; show: boolean; fallback: boolean } // symbols = 서버가 고른 생활형 심볼(보기와 같은 순서 · 빈 칸이면 점)
-export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean }
+// 2026-10-06 대표 「기억 영수증」: receipt = 서버가 정정을 저장한 뒤에만 주는 고정 문장(화면이 먼저 확정하지 않는다 · AI 0) · cite = 정정 직후 다음 질문 앞에 붙은 인용(서버가 붙임)
+export interface AgentReceipt { line: string; before: string[]; after: string[] }
+export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: AgentReceipt | null; cite?: string | null }
+// 「ECHO가 아는 나」 네 칸(서버 knownView). sensitive = 민감 주제(건강·성·금전 등)라 화면이 글자를 다시 적지 않는다(지우기는 가능).
+export interface KnownLine { key: string; text: string; quote: string | null; purpose: string | null; at: string | null; sensitive: boolean; from: string[]; origin: string }
+export interface AgentKnown { confirmed: KnownLine[]; guesses: KnownLine[]; corrected: KnownLine[]; rejected: KnownLine[]; confirmed_at: string | null; forgotten: number }
 
 export const AGENT_PURPOSE_LABELS: Record<string, string> = {
   relationship_intent: '원하는 만남', attraction_comfort: '편하거나 끌리는 사람', values_character: '사람을 볼 때 중요한 것',
@@ -100,6 +106,29 @@ function rememberedSession(userId: string): string | null {
 }
 export function forgetAgentSession(userId: string): void { rememberSession(userId, null); }
 
+// 2026-10-06 유료 자유 대화 상태(서버 agent_get 이 함께 준다 · 스위치 꺼짐이면 enabled=false 만). 화면은 이 값을 바꾸지 않는다.
+export interface FreeTalkStatus { enabled: boolean; entitled?: boolean; trial_left?: number; daily_left?: number }
+const validKnown = (k: unknown): k is AgentKnown => { const x = k as AgentKnown | null; return !!x && ['confirmed', 'guesses', 'corrected', 'rejected'].every((c) => Array.isArray((x as unknown as Record<string, unknown>)[c])); };
+// known = 「ECHO가 아는 나」(세션이 없어도 자기 문장은 온다 · 검수 P2-6)
+export async function agentHome(userId: string): Promise<{ session: AgentSession | null; free_talk: FreeTalkStatus; known: AgentKnown | null }> {
+  const sessionId = rememberedSession(userId);
+  const r = await serverFunctionRequest<{ session: AgentSession | null; free_talk?: FreeTalkStatus; known?: AgentKnown | null }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);
+  const session = r.session && validSession(r.session) ? r.session : null;
+  if (session) rememberSession(userId, session.id);
+  const f = r.free_talk && typeof r.free_talk === 'object' && typeof r.free_talk.enabled === 'boolean' ? r.free_talk : { enabled: false };
+  return { session, free_talk: f, known: validKnown(r.known) ? r.known : session?.known ?? null };
+}
+export interface FreeReply { reply: string; ai: boolean; trial_left: number | null; entitled: boolean; notice: string | null; guard: string | null }
+// 자유 대화 한 마디(서버 agent_free_talk · 답 글 저장 0 · 같은 요청 재전송 = 409 ALREADY_DONE → 새 요청으로). 실패 코드마다 화면 문구는 화면이 고른다.
+export async function agentFreeTalk(userId: string, history: RefLine[], text: string): Promise<FreeReply> {
+  const r = await write<{ reply: string; ai?: boolean; trial_left?: number; entitled?: boolean; notice?: string | null; guard?: string | null }>(userId, { action: 'agent_free_talk', history: history.slice(-8), text },
+    ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE', 'TRIAL_USED', 'FREE_TALK_DAILY', 'FREE_TALK_MONTH', 'FREE_TALK_OFF', 'FREE_TALK_PROVIDER']);
+  if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
+  return { reply: r.reply, ai: r.ai !== false, trial_left: typeof r.trial_left === 'number' ? r.trial_left : null, entitled: r.entitled === true, notice: typeof r.notice === 'string' && r.notice ? r.notice : null, guard: typeof r.guard === 'string' ? r.guard : null };
+}
+
+// 자유 대화 상태만(스위치·권한·맛보기 남은 수) — 대화 화면의 안내용(서버 스위치가 꺼져 있으면 enabled=false 하나)
+export async function agentFreeStatus(userId: string): Promise<FreeTalkStatus> { return (await agentHome(userId)).free_talk; }
 export async function agentGet(userId: string): Promise<AgentSession | null> {
   const sessionId = rememberedSession(userId);
   const r = await serverFunctionRequest<{ session: AgentSession | null }>('doit-agent', { action: 'agent_get', ...(sessionId ? { sessionId } : {}) }, userId);
@@ -168,12 +197,13 @@ async function fetchTarot(userId: string, key: string, cardName: string, purpose
 // 보내는 것 = 결과 종류(카드 이름 · 사주 세 갈래 키) + 이번 이야기의 앞 줄(최대 8) + 지금 말. 빈 말 = 여는 한 줄(모델 호출 0).
 export type RefSeedBody = { kind: 'card'; label: string } | { kind: 'pattern'; key: string };
 export interface RefLine { role: 'user' | 'echo'; text: string }
-export interface RefReply { reply: string; question: string | null }
+export interface RefReply { reply: string; question: string | null; correction?: { text: string } | null } // correction = 해석을 부정하고 자기 말로 고친 문장(2026-10-06 · 화면이 「프로필에도 반영할까요?」를 묻는다)
 export const refSeedBody = (seed: ContentSeed): RefSeedBody => seed.source === 'TAROT' ? { kind: 'card', label: seed.card } : { kind: 'pattern', key: seed.key };
 export async function agentRef(userId: string, ref: RefSeedBody, history: RefLine[], text: string): Promise<RefReply> {
   const r = await write<RefReply>(userId, { action: 'agent_ref', ref, history: history.slice(-8), text }, ['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE']);
   if (typeof r.reply !== 'string' || !r.reply.trim()) throw new UnderstandingError('AI_FORMAT', '답 모양이 잘못 왔어요.');
-  return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null };
+  const c = r.correction && typeof r.correction === 'object' && typeof (r.correction as { text?: unknown }).text === 'string' && (r.correction as { text: string }).text.trim() ? { text: (r.correction as { text: string }).text.trim().slice(0, 120) } : null;
+  return { reply: r.reply, question: typeof r.question === 'string' && r.question.trim() ? r.question : null, correction: c };
 }
 
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
@@ -195,6 +225,24 @@ export async function agentTurn(userId: string, sessionId: string, text: string,
 }
 
 // 2026-10-01 「잘 모르겠어요」 = 구조 요청(답 아님 · 저장 0). 서버가 지금 질문의 보기를 정해 돌려준다(이미 있으면 AI 호출 0).
+// 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」(모델 호출 0 · 서버가 상태를 바꾸고 저장한 뒤 돌려준다).
+//   agentConfirm = 「맞아요」(지금 보이는 AI 정리를 사용자 확인으로) · agentForget = 줄 하나 지우기(서버가 다시 만들지 않음) · agentSelfNote = 사주·타로 이어 대화에서 「프로필에도 반영」한 자기 문장
+export async function agentConfirm(userId: string, sessionId: string): Promise<AgentSession> {
+  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_confirm', sessionId });
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  return r.session;
+}
+export async function agentForget(userId: string, key: string, sessionId?: string | null): Promise<{ session: AgentSession | null; known: AgentKnown | null }> {
+  const r = await write<{ session: AgentSession | null; known?: AgentKnown | null }>(userId, { action: 'agent_forget', key, ...(sessionId ? { sessionId } : {}) }, ['NOT_FOUND']);
+  const session = r.session && validSession(r.session) ? r.session : null;
+  return { session, known: validKnown(r.known) ? r.known : session?.known ?? null };
+}
+export async function agentSelfNote(userId: string, text: string, origin: 'ref_correction' | 'self' = 'self'): Promise<{ session: AgentSession | null; duplicate: boolean }> {
+  const r = await write<{ session: AgentSession | null; duplicate?: boolean }>(userId, { action: 'agent_self_note', text, origin }, ['PRIVATE_DATA', 'BAD_REQUEST', 'NOT_ALLOWED']);
+  if (r.session !== null && !validSession(r.session)) throw new Error('INVALID_RESPONSE');
+  return { session: r.session, duplicate: r.duplicate === true };
+}
+
 export async function agentRescue(userId: string, sessionId: string): Promise<AgentSession> {
   const r = await write<{ session: AgentSession }>(userId, { action: 'agent_rescue', sessionId });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');

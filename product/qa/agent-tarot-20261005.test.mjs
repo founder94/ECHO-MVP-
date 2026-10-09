@@ -126,7 +126,7 @@ test('타로 ⑤ 지시문 = 미래·결혼·건강·투자·성격 단정 금�
   const helper = ix.slice(ix.indexOf('const paidOnce = async'), ix.indexOf('if (action === "agent_card")'));
   assert.ok(block.length > 0 && helper.length > 0, 'agent_card 블록 · 공통 보호');
   for (const t of ['paidOnce<CR.CardReading>', 'tag: "card", key: "card"', 'kind: "card_reading"']) assert.ok(block.includes(t), t);
-  for (const t of ['admitClaim(', 'paid: true, capped: dailyCapped', 'usageOnce(ctx, null, o.tag', 'finishClaim(admin, userId, claimId, attempt, { [o.key]:', 'aiReady(o.kind)']) assert.ok(helper.includes(t), t);
+  for (const t of ['admitClaim(', 'paid: true, capped: o.capped ?? dailyCapped', 'usageOnce(ctx, null, o.tag', 'finishClaim(admin, userId, claimId, attempt, { [o.key]:', 'aiReady(o.kind)']) assert.ok(helper.includes(t), t);
   assert.doesNotMatch(helper, /SESSION_ACTION|stored\.state|profile/, '공통 보호도 대화 상태·프로필 쓰기 0');
   assert.doesNotMatch(block, /SESSION_ACTION|stored\.state|profile/, '대화 상태·프로필 쓰기 0');
 });

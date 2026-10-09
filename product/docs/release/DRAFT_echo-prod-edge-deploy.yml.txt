@@ -1,0 +1,100 @@
+# ECHO 운영 서버 함수 배포(2026-10-06 대표 「PROD 최종 배포 승인 · 전부 배포」).
+# - 자동 실행 0: 대표가 Actions 에서 직접 실행(workflow_dispatch) + go 칸에 GO + 환경 ECHO-PROD 승인(필수 검토자) 일 때만 돈다.
+# - 대상은 운영 Supabase(zyyhhxyupizcqhxqnxuu)의 doit-agent · doit-connect 두 함수뿐. DB/SQL · Secret · 다른 함수 변경 0.
+# - 디스크의 파일 그대로 올린다(손으로 옮겨 적기 0) · verify_jwt 켬 유지 · 배포 뒤 로그인 없는 요청 = 401 · 사전 요청 = 200 확인.
+# - 비밀값: 저장소 Actions Secret `SUPABASE_ACCESS_TOKEN`(대표가 QA+운영 범위로 발급). 없으면 HOLD. 값은 출력하지 않는다.
+# - 되돌리기: Supabase 대시보드 → Edge Functions → 함수 → 이전 판(doit-agent v17 · doit-connect v9)으로 복원.
+name: echo-prod-edge-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions:
+        description: '운영에 올릴 함수(쉼표 구분) — 기본 doit-agent,doit-connect'
+        required: false
+        default: 'doit-agent,doit-connect'
+        type: string
+      go:
+        description: '운영 배포 승인 — 대표가 GO 라고 적어야 배포'
+        required: true
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-prod-edge-deploy
+  cancel-in-progress: false
+
+env:
+  PROD_REF: zyyhhxyupizcqhxqnxuu
+  QA_REF: mutniujeiyujhkobadkd
+  PROD_PUBLISHABLE: sb_publishable_ZLm0g3z7ad2-N0--kB5uFQ_sho1OGtn # 공개 키(브라우저에 들어가는 값 · 비밀 아님)
+
+jobs:
+  deploy:
+    name: 운영 서버 함수 배포(대표 GO · ECHO-PROD 승인)
+    if: github.event.inputs.go == 'GO' && github.actor == 'founder94'
+    runs-on: ubuntu-latest
+    environment: ECHO-PROD
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: 대상 잠금(운영 · 허용 함수만)
+        env:
+          FUNCS: ${{ github.event.inputs.functions }}
+        run: |
+          set -euo pipefail
+          [ "$PROD_REF" = "zyyhhxyupizcqhxqnxuu" ] || { echo "FAIL: 운영 프로젝트 id 가 다름"; exit 1; }
+          [ "$PROD_REF" != "$QA_REF" ] || { echo "FAIL: QA 와 같음"; exit 1; }
+          for f in $(tr ',' ' ' <<<"$FUNCS"); do
+            case "$f" in doit-agent|doit-connect) ;; *) echo "FAIL: 허용되지 않은 함수 $f"; exit 1;; esac
+            test -f "product/supabase/functions/$f/index.ts" || { echo "FAIL: $f 원본 없음"; exit 1; }
+          done
+          echo "대상: 운영($PROD_REF) · $FUNCS · 커밋 ${GITHUB_SHA::7}"
+      - name: 비밀값 확인(있음/없음만)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "HOLD: SUPABASE_ACCESS_TOKEN 없음(운영 변경 0)"; exit 1; }
+          echo "OK: SUPABASE_ACCESS_TOKEN 있음"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: 배포 전 운영 판 기록(되돌리기 기준)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions list --project-ref "$PROD_REF" | grep -E "NAME|doit-agent|doit-connect" || true
+      - name: 배포(디스크 파일 그대로 · verify_jwt 켬)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCS: ${{ github.event.inputs.functions }}
+        run: |
+          set -euo pipefail
+          W=$(mktemp -d); mkdir -p "$W/supabase/functions"
+          printf 'project_id = "echo-prod-edge"\n' > "$W/supabase/config.toml"
+          for f in $(tr ',' ' ' <<<"$FUNCS"); do
+            cp -r "product/supabase/functions/$f" "$W/supabase/functions/"
+            printf '\n[functions.%s]\nverify_jwt = true\n' "$f" >> "$W/supabase/config.toml"
+            (cd "$W/supabase/functions/$f" && sha256sum *.ts)
+          done
+          for f in $(tr ',' ' ' <<<"$FUNCS"); do
+            supabase functions deploy "$f" --project-ref "$PROD_REF" --workdir "$W" --use-api
+          done
+          supabase functions list --project-ref "$PROD_REF" | grep -E "NAME|doit-agent|doit-connect" || true
+      - name: 배포 뒤 확인(로그인 없음 = 401 · 사전 요청 = 200)
+        env:
+          FUNCS: ${{ github.event.inputs.functions }}
+        run: |
+          set -euo pipefail
+          sleep 5
+          for f in $(tr ',' ' ' <<<"$FUNCS"); do
+            URL="https://$PROD_REF.supabase.co/functions/v1/$f"
+            o=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://app.do-it.company' "$URL")
+            p=$(curl -s -o /tmp/p.json -w '%{http_code}' -X POST -H 'Origin: https://app.do-it.company' -H "apikey: $PROD_PUBLISHABLE" -H "Authorization: Bearer $PROD_PUBLISHABLE" -H 'content-type: application/json' --data '{"action":"agent_get"}' "$URL")
+            echo "$f: OPTIONS=$o POST(익명)=$p $(head -c 120 /tmp/p.json)"
+            [ "$o" = "200" ] || { echo "FAIL: $f 사전 요청이 200 이 아님"; exit 1; }
+            [ "$p" = "401" ] || { echo "FAIL: $f 로그인 없는 요청이 401 이 아님"; exit 1; }
+          done
+          echo "PASS: 운영 서버 함수 배포 · 로그인 검사 유지"

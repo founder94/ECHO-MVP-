@@ -48,7 +48,7 @@
 
 // deno-lint-ignore no-import-prefix
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { agentSources, AGENT_READY_MIN_CONFIRMED_AREAS, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
+import { agentSources, AGENT_CONFIRMED_MAX, AGENT_READY_MIN_CONFIRMED_AREAS, SELF_NOTE_SKIP, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
 import { createMeetRuntime, type CurrentMeetState } from "./meetRuntime.ts"; // 영상 → 각자 확인 → 만남(PR #99 meetApi + PR #100 실행 경계 · Codex 소유 · 기본 꺼짐)
 // MATCH_SOURCE=agent 일 때만 ECHO Agent 가 확정한 상태(agent_session profile · CONFIRMED 만)를 매칭 재료로 쓴다. 값이 없으면 지금과 같다(legacy).
 const MATCH_SOURCE = (Deno.env.get("MATCH_SOURCE") ?? "legacy").trim() === "agent" ? "agent" : "legacy";
@@ -354,6 +354,7 @@ interface Member {
   bio: string;
   phoneVerified: boolean;
   confirmed: string[];
+  corrected: string[]; // 2026-10-06 confirmed 중 내가 고친 값 — 추천 이유 「고쳐 주신 대로」(본인 화면만 · 상대 노출 0)
   answers: number;
   requiredPhotos: number;
   eligible: boolean;
@@ -424,7 +425,20 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
       // 한 사람에게 세션이 여러 줄이어도 전부 읽고 agentSources 가 사람마다 가장 최근 줄을 고른다(묶음 행 제한으로 최신 정정이 빠지지 않게).
       const sessions = await inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_request_events").select("id, user_id, created_at, updated_at, profile:response_payload->profile, phase:response_payload->state->phase")
         .eq("action", "agent_session").eq("status", "applied").in("user_id", part), after, size));
-      return agentSources(must(sessions, "agent_sessions_failed") as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+      const src = agentSources(must(sessions, "agent_sessions_failed") as unknown as AgentSessionRow[], (uid) => auth.get(uid)?.since ?? null);
+      // 2026-10-06 대표 「사주·타로 정정 → 매칭 사용」: 사용자가 [반영할게요]로 직접 남긴 자기 문장(agent_self_notes · 해석 원문 0)만 확정 재료에 더한다(고친 값으로 표시).
+      //   사주·타로 낱말이 든 문장은 재료에서 뺀다(READY_CONTENT_WORDS 와 같은 기준). 연결 준비(칸 수)에는 세지 않는다 — 대화 준비 판단은 Agent 공통 계약 그대로.
+      const notes = await inChunks<Json>(ids, (part, after, size) => afterId(admin.from("doit_request_events").select("id, user_id, created_at, updated_at, notes:response_payload->notes")
+        .eq("action", "agent_self_notes").eq("status", "applied").in("user_id", part), after, size));
+      for (const row of must(notes, "agent_self_notes_failed") as unknown as { user_id: string; notes: unknown }[]) {
+        const cur = src.get(String(row.user_id)); if (!cur || !Array.isArray(row.notes)) continue;
+        for (const n of row.notes as { text?: unknown }[]) {
+          const t = cleanText(typeof n?.text === "string" ? n.text : "");
+          if (!t || SELF_NOTE_SKIP(t) || cur.confirmed.includes(t) || cur.confirmed.length >= AGENT_CONFIRMED_MAX) continue;
+          cur.confirmed.push(t); cur.corrected.push(t);
+        }
+      }
+      return src;
     })()
     : new Map();
   const confirmed = new Map<string, string[]>();
@@ -441,6 +455,7 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     const phoneVerified = str(p.verification_status) === "verified" || !!auth.get(id)?.phoneConfirmed;
     const agent = agentSrc.get(id);
     const mine = MATCH_SOURCE === "agent" ? agent?.confirmed ?? [] : confirmed.get(id) ?? []; // FI-018 Agent 매칭에서는 Agent 확정 재료만
+    const corrected = MATCH_SOURCE === "agent" ? agent?.corrected ?? [] : [];
     const requiredPhotos = slots.get(id)?.size ?? 0;
     const bio = cleanText(p.bio);
     const missing: string[] = [];
@@ -459,7 +474,7 @@ async function loadMembers(admin: Db, onlyIds?: string[]): Promise<Member[]> {
     return {
       id, nickname: cleanText(p.nickname) || cleanText(p.display_name) || "이름 없음",
       purposeId: p.purpose_id ? String(p.purpose_id) : null, purposeLabel: p.purpose_label ? String(p.purpose_label) : null,
-      bio, phoneVerified, confirmed: mine, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
+      bio, phoneVerified, confirmed: mine, corrected, answers: answered, requiredPhotos, eligible: missing.length === 0, missing,
       readiness: { conversation, purpose: !!p.purpose_id, intro: !!bio, photos: Math.min(requiredPhotos, LIMITS.CONNECT_PHOTOS_NEEDED), photos_needed: LIMITS.CONNECT_PHOTOS_NEEDED, phone_verified: phoneVerified },
     };
   });
@@ -524,7 +539,7 @@ export async function inChunks<T>(ids: readonly string[], run: (part: string[], 
 }
 
 // 실패 단계 이름(고정 목록)과 DB 오류 코드만 들고 다니는 오류. 원문·요청 주소·id 는 담지 않는다.
-const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "blocks_failed", "auth_list_failed",
+const STAGES = ["profiles_failed", "photos_failed", "insights_failed", "records_failed", "agent_sessions_failed", "agent_self_notes_failed", "blocks_failed", "auth_list_failed",
   "connection_read_failed", "answers_read_failed", "mutual_read_failed", "candidate_read_failed", "candidate_write_failed", "mutual_claim_failed", "message_retry_read_failed", "outcomes_read_failed", "messages_read_failed"] as const;
 type Stage = (typeof STAGES)[number];
 class StageError extends Error {
@@ -760,12 +775,13 @@ async function prepareProposals(admin: Db, members: Member[], targets: string[] 
 }
 
 /** 추천 이유 — 사용자가 직접 확인한 말과 직접 고른 목적만으로(§15). 상대의 말·이름은 쓰지 않는다. 퍼센트·점수 표현 0. */
-function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null, confirmedNow: string[]): string[] {
+function reasonsFor(c: CandidateRow, userId: string, purposeLabel: string | null, confirmedNow: string[], correctedNow: string[] = []): string[] {
   // 후보를 만들 때 저장한 겹친 말 중, 지금도 내가 확정해 둔 말만(그 사이 정정·거절한 말은 이유로 쓰지 않는다).
   const mine = ((mySide(c, userId) === "a" ? c.common_a : c.common_b) ?? []).filter((t) => confirmedNow.includes(t));
   const out: string[] = [];
   if (purposeLabel) out.push(`두 분 모두 「${purposeLabel}」 만남을 원한다고 직접 골랐어요.`);
-  for (const t of mine.slice(0, LIMITS.REASONS_MAX - out.length)) out.push(`내가 직접 한 말 「${t}」 — 상대도 비슷한 이야기를 직접 했어요.`); // 조사(와/과)를 붙이지 않는다(받침에 따라 틀림)
+  // 2026-10-06 대표 「기억 영수증」: 내가 고친 말(USER_CORRECTED)이 이유에 들어가면 「고쳐 주신 대로」로 표시한다 — 내 화면의 내 말에만 붙는다(상대 화면은 상대 자신의 말만 본다).
+  for (const t of mine.slice(0, LIMITS.REASONS_MAX - out.length)) out.push(correctedNow.includes(t) ? `고쳐 주신 대로 「${t}」 — 상대도 비슷한 이야기를 직접 했어요.` : `내가 직접 한 말 「${t}」 — 상대도 비슷한 이야기를 직접 했어요.`); // 조사(와/과)를 붙이지 않는다(받침에 따라 틀림)
   if (!mine.length) out.push("아직 겹친 이야기는 없어요. 원하는 만남이 같아서 먼저 보여 드려요.");
   return out.slice(0, LIMITS.REASONS_MAX);
 }
@@ -1210,7 +1226,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         if (!eligible || !partnerNow?.eligible || partnerNow.purposeId !== me?.purposeId) continue; // 나·상대 모두 지금 자격 + 같은 목적일 때만(Codex v3 통합)
         const mine = mySide(c, userId) === "a" ? c.a_choice : c.b_choice;
         if (mine !== null && mine !== "yes") continue;
-        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null, me?.confirmed ?? []), my_choice: mine, waiting: mine === "yes" });
+        out.push({ id: c.id, created_at: c.created_at, purpose: me?.purposeLabel ?? null, reasons: reasonsFor(c, userId, me?.purposeLabel ?? null, me?.confirmed ?? [], me?.corrected ?? []), my_choice: mine, waiting: mine === "yes" });
       }
       logDiag({ action, eligible, prepared, shown: out.length });
       return json({ ok: true, eligible, missing: me?.missing ?? ["purpose"], readiness: me?.readiness ?? null, prepared, candidates: out }, 200, origin);
