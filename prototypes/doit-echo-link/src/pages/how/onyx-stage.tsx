@@ -14,6 +14,8 @@ export const OnyxStage = () => {
   const engine = useRef<OnyxHandle | null>(null);
   const [mode, setMode] = useState<OnyxMode>("watch");
   const [failed, setFailed] = useState(false);
+  // 손가락(휴대폰)인지 마우스(PC)인지에 따라 체험 안내를 고른다.
+  const [touch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
   // 엔진을 불러오는 동안 「직접 움직여 보기」를 누른 경우 — 다 불러온 뒤 그때의 모드로 시작한다(Codex 검수 P2).
   const modeRef = useRef<OnyxMode>(mode);
   modeRef.current = mode;
@@ -81,7 +83,7 @@ export const OnyxStage = () => {
             {mode === "play" ? c.stop : c.play}
           </button>
           <p className="onyx-hint" aria-live="polite">
-            {mode === "play" ? c.playing : c.watching}
+            {mode === "play" ? (touch ? c.playingTouch : c.playingMouse) : c.watching}
           </p>
         </div>
       )}
