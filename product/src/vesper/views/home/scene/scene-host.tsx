@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { SceneViewport } from "@vesper/components/common/scene-viewport";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
@@ -11,6 +11,7 @@ import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { getStableViewportHeight } from "@vesper/utils/stable-viewport";
 import { getParams } from "./adaptive";
 import { SceneCanvasLazy } from "./scene-canvas-lazy";
+import { SceneStill } from "./scene-still";
 import type { SceneMessage, SceneReply } from "./scene-protocol";
 
 /** Past this the scene is fully behind the *opaque* closing content (`frame-gate`). */
@@ -30,6 +31,34 @@ const canRenderInWorker = (): boolean =>
   typeof Worker !== "undefined" &&
   typeof OffscreenCanvas !== "undefined" &&
   "transferControlToOffscreen" in HTMLCanvasElement.prototype;
+
+/**
+ * 2026-10-10 출시 차단 P1(Codex G1): 그래픽(WebGL)을 아예 못 쓰는 기기에서는 r3f 의 renderer 생성 오류가
+ * 앱 전역 ErrorBoundary 까지 올라가 홈페이지 전체가 오류 화면이 되고 시작 버튼이 사라졌다.
+ * 장면 칸 안에서만 막는다: WebGL 이 없으면 처음부터, 생성·청크 로드가 실패하면 그때 정지 이미지(SceneStill)로 바꾼다.
+ * 전역 ErrorBoundary 는 그대로 둔다(다른 오류는 예전처럼 잡는다).
+ */
+const canUseWebGL = (): boolean => {
+  try {
+    const probe = document.createElement("canvas");
+    const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
+    if (!gl) return false;
+    (gl as WebGLRenderingContext).getExtension("WEBGL_lose_context")?.loseContext();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? <SceneStill /> : this.props.children;
+  }
+}
 
 /**
  * The widest viewport (the tablet tier, `adaptive.ts`) whose scene renders in
@@ -63,6 +92,8 @@ export const SceneHost = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Client-only (`scene-host-lazy`), so the viewport is known at first render.
   const [fallback, setFallback] = useState(() => !rendersInWorker());
+  // 페이지 스레드에서 그릴 수 있는지 — 페이지 스레드로 그릴 때만 한 번 본다(워커로 그리는 동안엔 검사용 그래픽 0).
+  const canMainThreadRender = useMemo(() => fallback && canUseWebGL(), [fallback]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -216,7 +247,13 @@ export const SceneHost = () => {
   return (
     <SceneViewport className="pointer-events-none">
       {fallback ? (
-        <SceneCanvasLazy />
+        canMainThreadRender ? (
+          <SceneBoundary>
+            <SceneCanvasLazy />
+          </SceneBoundary>
+        ) : (
+          <SceneStill />
+        )
       ) : (
         <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full" />
       )}
