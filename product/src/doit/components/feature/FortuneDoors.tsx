@@ -3,7 +3,7 @@ import './fortune-doors.css';
 
 // 2026-10-06 대표 「메인에는 사주 이미지 넣고 사용자가 버튼 누를 수 있게 · 타로 이미지는 타로 버튼」: 홈 아래 두 장의 그림 문.
 // 누르면 사주·타로 첫 화면을 건너뛰고 바로 입력/카드 고르기로(/doit/fortune?mode=…). 재미로 보는 콘텐츠 — 나의 이해·연결에 쓰지 않는다.
-// 그림 = 대표 제공(2026-10-06) · 사용권 확인 필요(보고서에 기재).
+// 그림 = 대표 제공(2026-10-06) · 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」로 다시 넣음(문 = Flora 유리 틀).
 export default function FortuneDoors() {
   return <section className="doit-fortune-doors" aria-labelledby="fortune-doors-title">
     <p className="doit-fortune-doors-kicker" id="fortune-doors-title">잠깐 쉬어 가요</p>

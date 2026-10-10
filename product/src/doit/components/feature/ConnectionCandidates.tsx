@@ -110,7 +110,7 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
 
   return <section className="doit-connect doit-candidates" aria-label="ECHO가 준비한 후보">
     {title
-      ? <p className="doit-candidates-title">{title}</p>
+      ? <><p className="doit-candidates-title">{title}</p>{fresh > 0 && <p className="echo-flora-hook-sub">추천은 시작일 뿐, 선택은 당신의 몫이에요.</p>}</>
       : <p className="doit-candidates-title doit-candidates-title--wait">아직 보여 드릴 사람은 없어요.</p>}
     {load.candidates.length > 0 && <GuideHint id="choice" />}
     {load.candidates.length === 0 && <p className="doit-connect-note">조건에 맞는 연결이 생기면 여기에서 먼저 보여 드릴게요. 내 이야기는 그 전까지 아무에게도 보이지 않아요.</p>}

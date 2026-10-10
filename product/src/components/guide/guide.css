@@ -30,9 +30,9 @@
 .echo-guide[data-theme="brand"] .echo-guide-head{background:rgb(8 9 12/.97)}
 .echo-guide[data-theme="brand"] .echo-guide-item{border-color:rgb(200 208 218/.24);background:rgb(255 255 255/.03)}
 /* 앱: 햄버거 창과 같은 불투명 파스텔 그라데이션(뒤 글자가 비치지 않게) + 흰 글자 */
-.echo-guide[data-theme="app"] .echo-guide-panel{background:linear-gradient(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%);color:#fff;border:1px solid rgb(255 255 255/.75);box-shadow:0 -14px 34px rgb(30 70 70/.22);text-shadow:0 1px 2px rgb(40 50 40/.28)}
+.echo-guide[data-theme="app"] .echo-guide-panel{background:rgb(3 5 10/.95);color:#fff;border:1px solid rgb(255 255 255/.16);box-shadow:0 -14px 34px rgb(0 0 0/.22);text-shadow:0 1px 2px rgb(40 50 40/.28)}
 .echo-guide[data-theme="app"] .echo-guide-head{background:linear-gradient(165deg,#3b5862,#33494f)}
-.echo-guide[data-theme="app"] .echo-guide-item{border-color:rgb(255 255 255/.55);background:rgb(30 42 48/.50)}
+.echo-guide[data-theme="app"] .echo-guide-item{border-color:rgb(255 255 255/.55);background:rgb(255 255 255/.06)}
 
 @media (min-width:900px){
   .echo-guide{justify-content:flex-end;align-items:stretch}
@@ -51,8 +51,10 @@ html.echo-guide-open body{overflow:hidden}
 }
 
 /* 기능 옆 짧은 도움말(처음 한 번) · 닫은 뒤의 작은 글자 링크 — 제자리에만(떠 있는 풍선 0) */
-.echo-guide-hint{margin:12px 0;padding:12px 14px;border-radius:14px;border:1px solid rgb(255 255 255/.55);background:rgb(30 42 48/.46);color:#fff}
+.echo-guide-hint{margin:12px 0;padding:12px 14px;border-radius:4px;border:1px solid rgb(255 255 255/.16);background:rgb(255 255 255/.06);color:#fff}
 .echo-guide-hint p{margin:0;font-size:15px;line-height:1.6}
 .echo-guide-hint-actions{display:flex;gap:16px;margin-top:6px}
 .echo-guide-link{min-height:44px;padding:0;border:0;background:transparent;color:inherit;font-size:14px;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .echo-guide-key-art{width:46px;height:auto;aspect-ratio:176/96;object-fit:cover;border-radius:8px}
+/* 2026-10-10 대표 「모바일웹 = Flora」: 앱 안의 이용 안내만 Flora 모서리(4px). 잠긴 홈페이지 안내 창 모양은 그대로. */
+.echo-guide[data-theme="app"] .echo-guide-panel,.echo-guide[data-theme="app"] .echo-guide-item{border-radius:4px}

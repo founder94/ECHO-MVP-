@@ -491,7 +491,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
                 </div>
               </div>
               {slotErrors[index] && <p role="alert" style={{ margin: 0, color: colors.danger, fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{slotErrors[index]}</p>}
-              {checks[index] && checks[index] !== "pending" && checks[index].reasons.length > 0 && <p role="status" style={{ margin: 0, color: "#d9c8a0", fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{checks[index].reasons.join(" ")}</p>}
+              {checks[index] && checks[index] !== "pending" && checks[index].reasons.length > 0 && <p role="status" style={{ margin: 0, color: "#dce8ff", fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{checks[index].reasons.join(" ")}</p>}
             </div>;
           })}
         </div>

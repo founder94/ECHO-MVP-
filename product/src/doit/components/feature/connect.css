@@ -4,7 +4,7 @@
 .doit-connect-form{display:flex;flex-direction:column;gap:10px;margin-top:22px}
 .doit-connect-form .doit-product-action{margin-top:6px}
 .doit-connect-label{font-size:12px;letter-spacing:.04em;color:#9aa4b4}
-.doit-connect-input{width:100%;box-sizing:border-box;min-height:52px;padding:14px 16px;border:1px solid #c2cad13d;border-radius:14px;background:#14171c;color:#f2f3f5;font-size:16px;line-height:1.6;resize:vertical}
+.doit-connect-input{width:100%;box-sizing:border-box;min-height:52px;padding:14px 16px;border:1px solid #c2cad13d;border-radius:4px;background:#14171c;color:#f2f3f5;font-size:16px;line-height:1.6;resize:vertical}
 .doit-connect-input:focus{outline:2px solid #e6ebf3;outline-offset:2px;border-color:transparent}
 .doit-connect-input--code{font-size:24px;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums}
 .doit-connect-row{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:4px}
@@ -14,29 +14,29 @@
 .doit-matches{margin:22px 0}
 .doit-matches-head{display:flex;align-items:center;justify-content:space-between}
 .doit-matches-head .doit-asleep-label{margin:0}
-.doit-match{margin:12px 0 18px;padding:22px 20px;border:1px solid #c2cad12d;border-radius:20px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
+.doit-match{margin:12px 0 18px;padding:22px 20px;border:1px solid #c2cad12d;border-radius:4px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
 .doit-match[data-state=closed]{opacity:.7}
 .doit-match-kicker{margin:0 0 8px;font-size:10px;letter-spacing:.14em;color:#9aa4b4}
 .doit-match-question{margin:0;font-size:18px;font-weight:700;line-height:1.6;color:#f2f3f5;word-break:keep-all;overflow-wrap:anywhere}
 .doit-match-partner{display:flex;gap:14px;align-items:flex-start;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #c2cbd514}
-.doit-match-partner img,.doit-match-photo-empty{flex:none;width:72px;height:96px;border-radius:14px;object-fit:cover;background:#22262d}
+.doit-match-partner img,.doit-match-photo-empty{flex:none;width:72px;height:96px;border-radius:4px;object-fit:cover;background:#22262d}
 .doit-match-partner strong{display:block;font-size:17px;color:#f2f3f5}
 .doit-match-partner span{display:block;margin-top:2px;font-size:12px;color:#9aa4b4}
 .doit-match-partner p{margin:8px 0 0;font-size:13px;line-height:1.75;color:#c5cbd5;word-break:keep-all;overflow-wrap:anywhere}
 .doit-match-answers p{margin:14px 0 0;font-size:14px;line-height:1.8;color:#dfe3ea;word-break:keep-all;overflow-wrap:anywhere}
 .doit-match-answers p>span{display:block;font-size:11px;letter-spacing:.06em;color:#9aa4b4}
 .doit-match-messages{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
-.doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:16px;background:#22262d;color:#e6e9ee;font-size:14px;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
+.doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:4px;background:#22262d;color:#e6e9ee;font-size:14px;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
 .doit-match-messages li[data-mine=true]{align-self:flex-end;background:#d9dde4;color:#15171b}
-.doit-match-leave{margin-top:12px;padding:14px 16px;border-radius:14px;background:#1c1f25}
+.doit-match-leave{margin-top:12px;padding:14px 16px;border-radius:4px;background:#1c1f25}
 .doit-match-leave p{margin:0 0 4px;font-size:13px;line-height:1.7;color:#c5cbd5}
 .doit-match-leave .doit-connect-link{margin-right:16px}
-.doit-match-consent{margin-top:18px;padding:18px 16px;border-radius:16px;background:#1c1f25}
+.doit-match-consent{margin-top:18px;padding:18px 16px;border-radius:4px;background:#1c1f25}
 .doit-match-consent ul{margin:0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:6px}
 .doit-match-consent li{font-size:13px;line-height:1.75;color:#c5cbd5;word-break:keep-all;overflow-wrap:anywhere}
 .doit-match-consent b{color:#eef0f3;font-weight:600}
 .doit-match-consent .doit-product-action{margin-top:16px}
-.doit-turns{display:block;margin:0 0 18px;padding:18px 20px;border:1px solid #c2cad12d;border-radius:18px;background:radial-gradient(ellipse at top left,#c7d0e014,transparent 70%),#14171c;color:#eef0f3;text-decoration:none}
+.doit-turns{display:block;margin:0 0 18px;padding:18px 20px;border:1px solid #c2cad12d;border-radius:4px;background:radial-gradient(ellipse at top left,#c7d0e014,transparent 70%),#14171c;color:#eef0f3;text-decoration:none}
 .doit-turns strong{display:block;font-size:16px;line-height:1.6;word-break:keep-all}
 .doit-turns span{display:block;margin-top:4px;font-size:13px;line-height:1.7;color:#aab0bc;word-break:keep-all}
 .doit-turns .doit-turns-go{display:block;margin-top:10px;font-style:normal;font-size:13px;font-weight:600;color:#e6ebf3;text-decoration:underline;text-underline-offset:4px}
@@ -44,7 +44,7 @@
 .doit-candidates{margin:22px 0}
 .doit-candidates-title{margin:0 0 6px;font-size:20px;font-weight:700;line-height:1.5;color:#f2f3f5;word-break:keep-all}
 .doit-candidates-title--wait{font-size:16px}
-.doit-candidate{margin:12px 0 14px;padding:20px;border:1px solid #c2cad12d;border-radius:20px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
+.doit-candidate{margin:12px 0 14px;padding:20px;border:1px solid #c2cad12d;border-radius:4px;background:radial-gradient(ellipse at top left,#c7d0e012,transparent 70%),#14171c}
 .doit-candidate[data-state=waiting]{opacity:.85}
 .doit-candidate-why{margin:0;font-size:15px;font-weight:600;color:#eef0f3}
 .doit-candidate-reasons{margin:10px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:6px}
@@ -52,18 +52,18 @@
 .doit-candidate-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px 18px;margin-top:16px}
 .doit-candidate-actions .doit-product-action{flex:1 1 100%}
 .doit-candidates .doit-product-action:disabled{opacity:.5;cursor:default}
-.doit-outcome{margin-top:18px;padding:16px;border-radius:16px;background:#1c1f25}
+.doit-outcome{margin-top:18px;padding:16px;border-radius:4px;background:#1c1f25}
 .doit-outcome fieldset{margin:0 0 12px;padding:0;border:0}
 .doit-outcome legend{margin-bottom:6px;font-size:13px;color:#dfe3ea}
 .doit-outcome-chips{display:flex;flex-wrap:wrap;gap:6px}
 .doit-outcome-chips button{min-height:40px;padding:8px 14px;border:1px solid #c2cad13d;border-radius:999px;background:transparent;color:#d9dee7;font-size:13px;cursor:pointer}
-.doit-outcome-chips button[aria-pressed=true]{background:rgb(255 255 255/.24);color:#fff;border-color:transparent;border:1px solid rgb(255 255 255/.7)}
+.doit-outcome-chips button[aria-pressed=true]{background:rgb(255 255 255/.24);color:#fff;border-color:transparent;border:1px solid rgb(255 255 255/.16)}
 .doit-outcome-chips button:disabled{opacity:.5;cursor:default}
 /* 2026-09-30 대표 「CLAUDE CODE FINAL MASTER」: 후보를 한 단계씩 여는 카드 · 서로 골랐을 때의 차분한 보상 · 첫 질문 안내 · 이어진 연결 표시 */
 .doit-candidate-found{margin:6px 0 0;font-size:17px;font-weight:600;line-height:1.5;color:#eef0f3;word-break:keep-all}
 .doit-candidate-teaser{margin:8px 0 14px;font-size:13px;line-height:1.7;color:#c5cbd5;word-break:keep-all}
 .doit-candidate[data-state=closed] .doit-product-action{margin-top:4px}
-.doit-mutual{margin:12px 0 16px;padding:24px 20px;border:1px solid #c2cad140;border-radius:20px;background:radial-gradient(ellipse at top,#dfe6f21c,transparent 70%),#14171c}
+.doit-mutual{margin:12px 0 16px;padding:24px 20px;border:1px solid #c2cad140;border-radius:4px;background:radial-gradient(ellipse at top,#dfe6f21c,transparent 70%),#14171c}
 .doit-mutual-title{margin:8px 0 6px;font-size:22px;font-weight:600;line-height:1.45;color:#f4f5f7;word-break:keep-all}
 .doit-mutual-body{margin:0 0 16px;font-size:14px;line-height:1.7;color:#c5cbd5;word-break:keep-all}
 .doit-match-intro{margin:0 0 12px;font-size:14px;line-height:1.7;color:#dfe3e9;word-break:keep-all}
@@ -75,7 +75,7 @@
    - 바탕(pastel-bg)은 그대로 · 어두운 판(#14171c·#1c1f25·#22262d) 0 → 대화 화면과 같은 투명 판 + 얇은 흰 테두리(--app-surface-border) + 흰 글자.
    - 유리(흐림)는 핵심 순간(서로 골랐어요) 하나에만 · 움직임은 opacity·transform 만 · 줄이기 설정이면 움직임 0.
    - .doit-app-pastel(앱 틀) 안에서만 — 다른 화면·전역 0. */
-.doit-app-pastel{--echo-dur-fast:180ms;--echo-dur-base:280ms;--echo-dur-medium:420ms;--echo-dur-slow:700ms;--echo-ease-standard:cubic-bezier(.2,0,0,1);--echo-ease-emphasized:cubic-bezier(.3,0,0,1);--echo-ease-decelerate:cubic-bezier(0,0,0,1);--echo-surface-soft:var(--echo-glass,rgb(30 42 48/.50));--echo-surface-line:#ffffff40}
+.doit-app-pastel{--echo-dur-fast:180ms;--echo-dur-base:280ms;--echo-dur-medium:420ms;--echo-dur-slow:700ms;--echo-ease-standard:cubic-bezier(.2,0,0,1);--echo-ease-emphasized:cubic-bezier(.3,0,0,1);--echo-ease-decelerate:cubic-bezier(0,0,0,1);--echo-surface-soft:var(--echo-glass,rgb(255 255 255/.06));--echo-surface-line:#ffffff40}
 .doit-app-pastel :is(.doit-candidate,.doit-match,.doit-turns){background:var(--echo-surface-soft);border-color:var(--app-surface-border);box-shadow:inset 0 1px 0 rgb(255 255 255/.28)}
 .doit-app-pastel :is(.doit-match-consent,.doit-match-leave,.doit-outcome){background:transparent;border:1px solid var(--echo-surface-line)}
 .doit-app-pastel .doit-connect-input{background:var(--echo-surface-soft);border-color:var(--app-surface-border);color:#fff}
@@ -92,7 +92,7 @@
 .doit-app-pastel .doit-match-messages li[data-mine=true]{background:rgb(255 255 255/.24);border-color:rgb(255 255 255/.7);color:#fff}
 .doit-app-pastel .doit-outcome-chips button{border-color:var(--app-surface-border);color:#fff}
 /* 서로 골랐어요: 이 화면의 유일한 유리 판(가벼운 흐림 하나) + 두 신호가 가운데로 모여 하나로 맞춰지는 정렬 */
-.doit-app-pastel .doit-mutual{background:var(--echo-glass,rgb(30 42 48/.50));border-color:rgb(255 255 255/.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgb(255 255 255/.4)}
+.doit-app-pastel .doit-mutual{background:var(--echo-glass,rgb(255 255 255/.06));border-color:rgb(255 255 255/.7);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 1px 0 rgb(255 255 255/.4)}
 .echo-mutual-align{position:relative;display:block;width:64px;height:22px;margin:2px 0 10px}
 .echo-mutual-align i{position:absolute;top:5px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgb(255 255 255/.22)}
 .echo-mutual-align i:first-child{left:0;animation:echo-align-left var(--echo-dur-slow,700ms) var(--echo-ease-emphasized,ease) both}
@@ -110,23 +110,23 @@
 @keyframes echo-focus{0%{transform:scale(.985);box-shadow:0 0 0 0 rgb(255 255 255/.5)}100%{transform:none;box-shadow:0 0 0 6px rgb(255 255 255/0)}}
 @media(prefers-reduced-motion:reduce){.echo-mutual-align i,.echo-signal-pulse,.doit-app-pastel .doit-candidate[data-state=choose] .doit-candidate-reasons,.doit-app-pastel .doit-match-partner,.doit-app-pastel .doit-match-messages li:last-child,.doit-app-pastel .doit-match[data-focus=true]{animation:none}.echo-mutual-align i:first-child{transform:translateX(20px)}.echo-mutual-align i:last-child{transform:translateX(-20px)}}
 /* 2026-10-01 대표 승인 「Primary CTA 스타일 변경」: 연결 흐름(후보 · 서로 선택 · 연결 · 첫 질문 · 공개 · 대화)의 주요 버튼만 흰 단색 판 + 깊은 청록 글씨.
-   대비: 흰 판 위 #0f4a4a ≈ 9.6:1 (전에는 파스텔 위 반투명 흰 판 + 흰 글씨 ≈ 1.3:1). 본문·보조 글씨의 흰색 체계와 보조 버튼은 그대로.
+   대비: 흰 판 위 #050b14 ≈ 9.6:1 (전에는 파스텔 위 반투명 흰 판 + 흰 글씨 ≈ 1.3:1). 본문·보조 글씨의 흰색 체계와 보조 버튼은 그대로.
    그라데이션·유리 0 · 그림자는 아주 얕게 하나 · 누름은 아주 작게(0.99) · 바탕 FINAL LOCK 그대로. echo-ui.css 의 버튼 3단계(!important)보다 이 범위가 더 구체적이라 이긴다. */
-.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary){background:#fff!important;border:1px solid #fff!important;color:#0f4a4a!important;-webkit-text-fill-color:#0f4a4a;box-shadow:0 1px 2px rgb(15 74 74/.08)!important;transition:transform .12s ease,background-color .12s ease}
-.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary) span{color:inherit!important;-webkit-text-fill-color:#0f4a4a}
-.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary):not(:disabled):active{background:#f2f6f6!important;transform:scale(.99)}
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary){background:#fff!important;border:1px solid #fff!important;color:#050b14!important;-webkit-text-fill-color:#050b14;box-shadow:0 1px 2px rgb(0 0 0/.08)!important;transition:transform .12s ease,background-color .12s ease}
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary) span{color:inherit!important;-webkit-text-fill-color:#050b14}
+.doit-app-pastel :is(.doit-connect,.doit-match) .doit-product-action:not(.doit-product-action--secondary):not(:disabled):active{background:#bbfc9e!important;transform:scale(.99)}
 
 /* 2026-10-01 SAFETY LAYER — 조용한 글자 버튼 줄(경찰 앱처럼 크지 않게). 후보 차단·신고 · 신고 사유 · 만나기 전 짧은 안내. */
 .doit-safety-open{display:inline-block;margin-top:10px;font-size:13px;opacity:.86}
-.doit-safety{margin-top:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
+.doit-safety{margin-top:12px;padding:12px 14px;border-radius:4px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
 .doit-safety .doit-connect-link{margin-right:16px}
 .doit-safety-reasons{display:flex;flex-wrap:wrap;gap:4px 16px;margin:4px 0 8px}
 .doit-safety-reasons .doit-connect-link{margin-right:0;min-height:44px}
-.doit-meet-safety{margin:4px 0 12px;padding:12px 14px;border-radius:14px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
+.doit-meet-safety{margin:4px 0 12px;padding:12px 14px;border-radius:4px;border:1px solid var(--echo-surface-line,rgb(255 255 255/.4))}
 .doit-meet-safety ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.7;word-break:keep-all}
 .doit-app-pastel :is(.doit-safety,.doit-meet-safety) :is(p,li,.doit-match-kicker){color:#fff}
 .doit-safety-also{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13px;color:inherit}
-.doit-safety-also input{width:18px;height:18px;accent-color:#0f4a4a}
+.doit-safety-also input{width:18px;height:18px;accent-color:#050b14}
 .doit-meet-safety--peek summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:600}
 .doit-app-pastel :is(.doit-safety-also,.doit-meet-safety--peek summary){color:#fff}
 /* 2026-10-02 PR #99 마지막 구간 — 기존 카드·버튼·칩을 그대로 쓰고 간격만 */

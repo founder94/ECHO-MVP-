@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 유리 리본 그림 → Flora 민들레 장면
 import { Link } from 'react-router-dom';
 import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
@@ -64,7 +65,7 @@ export default function Home() {
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro" aria-labelledby="echo-home-title">
           {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목(글은 그대로 — 대표 「글은 완성」) */}
-          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" /></div>
+          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><FloraBloom /></div>
           <p className="doit-product-kicker">DO IT · 만나기 전에</p>
           {OPEN_PERIOD.active && <p className="doit-open-period">{OPEN_PERIOD.home}</p>}
           {done

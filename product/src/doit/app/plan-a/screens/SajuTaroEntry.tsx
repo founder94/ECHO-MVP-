@@ -57,6 +57,8 @@ function PathCard({
   eyebrow,
   description,
   symbol,
+  image,
+  hook,
   delay,
   onClick,
 }: {
@@ -64,6 +66,10 @@ function PathCard({
   eyebrow: string;
   description: string;
   symbol: ReactNode;
+  /** 2026-10-10 대표 「사주 타로 첫화면에 타로 2번째 이미지 · 사주 7번째 이미지 박아」: 카드 맨 위 그림(대표 제공 · public/doit/art). */
+  image?: string;
+  /** 그림 아래 한 줄 후킹(대표 「후킹박고」) */
+  hook?: string;
   delay: number;
   onClick: () => void;
 }) {
@@ -102,17 +108,29 @@ function PathCard({
         }}
       />
 
-      <div
-        className="flex items-center justify-center rounded-2xl mb-5"
-        style={{
-          width: 52,
-          height: 52,
-          backgroundColor: colors.accentSoft,
-          border: `1px solid ${colors.borderStrong}`,
-        }}
-      >
-        {symbol}
-      </div>
+      {image ? (
+        <img
+          className="echo-fortune-art"
+          src={image}
+          alt=""
+          aria-hidden="true"
+          width="900"
+          height="1000"
+          decoding="async"
+        />
+      ) : (
+        <div
+          className="flex items-center justify-center rounded-2xl mb-5"
+          style={{
+            width: 52,
+            height: 52,
+            backgroundColor: colors.accentSoft,
+            border: `1px solid ${colors.borderStrong}`,
+          }}
+        >
+          {symbol}
+        </div>
+      )}
 
       <p
         style={{
@@ -146,6 +164,8 @@ function PathCard({
       >
         {description}
       </p>
+
+      {hook && <p className="echo-fortune-hookline">{hook}</p>}
 
       <div
         className="mt-auto pt-5 flex items-center gap-1.5"
@@ -232,6 +252,8 @@ export function SajuTaroEntry({
             eyebrow="FREE · 사주"
             label="무료 사주"
             description="태어난 시간을 바탕으로 지금의 흐름을 살펴봐요."
+            image="/doit/art/saju-start.webp"
+            hook="여덟 글자 · 다섯 기운 · 10년 흐름 · 올해와 이달까지, 그림으로 한눈에 펼쳐 드려요."
             symbol={
               <Star
                 size={22}
@@ -246,6 +268,8 @@ export function SajuTaroEntry({
             eyebrow="FREE · 타로"
             label="무료 타로"
             description="지금 마음에 가장 가까운 카드를 골라봐요."
+            image="/doit/art/tarot-start.webp"
+            hook="78장 중 손이 가는 한 장을 고르면, ECHO가 그 카드로 지금 마음을 읽어 드려요."
             symbol={
               <Sparkles
                 size={22}

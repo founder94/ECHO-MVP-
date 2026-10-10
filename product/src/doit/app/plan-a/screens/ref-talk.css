@@ -1,27 +1,27 @@
 /* 2026-10-05 참고 이야기(RefTalk) — 사주·타로 결과 뒤 ECHO 와 이야기. 이 화면(.echo-ref) 안에서만 · 전역 body/:root 0.
-   바탕·글꼴은 파스텔 대화 화면(.echo-dialogue--pastel) 그대로. 판 = 짙은 청록 유리(흰 글자 4.5:1 이상 · rgb(14 60 70/.70) = 5.05:1). */
+   바탕·글꼴은 파스텔 대화 화면(.echo-dialogue--pastel) 그대로. 판 = 짙은 청록 유리(흰 글자 4.5:1 이상 · rgb(255 255 255/.06) = 5.05:1). */
 .echo-dialogue.echo-ref{display:flex;flex-direction:column;gap:14px;min-height:100dvh;padding:calc(20px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));box-sizing:border-box}
 .echo-ref .echo-ref-head{text-align:center}
 .echo-ref .echo-ref-title{margin:4px 0 6px;font-size:24px;line-height:1.3;color:#fff;text-shadow:0 1px 3px rgb(16 60 70/.3)}
 .echo-ref .echo-ref-note{margin:0;font-size:13px;line-height:1.55;color:#fff;text-shadow:0 1px 3px rgb(16 60 70/.35)}
 .echo-ref .echo-ref-lines{flex:1;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:4px 0}
-.echo-ref .echo-ref-line{margin:0;max-width:86%;padding:12px 14px;border-radius:18px;font-size:15px;line-height:1.6;color:#fff;overflow-wrap:anywhere;white-space:pre-wrap}
-.echo-ref .echo-ref-line--echo{align-self:flex-start;background:rgb(14 60 70/.70);border:1px solid rgb(255 255 255/.5);border-bottom-left-radius:6px}
-.echo-ref .echo-ref-line--user{align-self:flex-end;background:rgb(14 60 70/.82);border:1px solid rgb(255 255 255/.62);border-bottom-right-radius:6px}
+.echo-ref .echo-ref-line{margin:0;max-width:86%;padding:12px 14px;border-radius:4px;font-size:15px;line-height:1.6;color:#fff;overflow-wrap:anywhere;white-space:pre-wrap}
+.echo-ref .echo-ref-line--echo{align-self:flex-start;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);border-bottom-left-radius:6px}
+.echo-ref .echo-ref-line--user{align-self:flex-end;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);border-bottom-right-radius:6px}
 .echo-ref .echo-ref-line--question{font-weight:600}
 .echo-ref .echo-ref-typing{display:flex;gap:5px;align-items:center;min-height:20px}
 .echo-ref .echo-ref-typing span{width:7px;height:7px;border-radius:50%;background:#fff;opacity:.6;animation:echo-ref-dot 1s infinite ease-in-out}
 .echo-ref .echo-ref-typing span:nth-child(2){animation-delay:.15s}.echo-ref .echo-ref-typing span:nth-child(3){animation-delay:.3s}
 @keyframes echo-ref-dot{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
 @media(prefers-reduced-motion:reduce){.echo-ref .echo-ref-typing span{animation:none;opacity:.8}}
-.echo-ref .echo-ref-fail{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:16px;background:rgb(14 60 70/.70);border:1px solid rgb(255 255 255/.5);color:#fff}
+.echo-ref .echo-ref-fail{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:4px;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);color:#fff}
 .echo-ref .echo-ref-fail p{margin:0;flex:1 1 180px;font-size:14px;line-height:1.5}
 .echo-ref .echo-ref-input{display:flex;gap:8px;align-items:flex-end}
-:root:root .echo-ref .echo-ref-input textarea{flex:1;min-height:52px;max-height:140px;resize:none;padding:12px 14px;border-radius:16px;background:rgb(14 60 70/.70)!important;border:1px solid rgb(255 255 255/.55)!important;color:#fff!important;-webkit-text-fill-color:#fff;font:inherit;font-size:16px;line-height:1.5}
+:root:root .echo-ref .echo-ref-input textarea{flex:1;min-height:52px;max-height:140px;resize:none;padding:12px 14px;border-radius:4px;background:rgb(255 255 255/.06)!important;border:1px solid rgb(255 255 255/.16)!important;color:#fff!important;-webkit-text-fill-color:#fff;font:inherit;font-size:16px;line-height:1.5}
 :root:root .echo-ref .echo-ref-input textarea::placeholder{color:rgb(255 255 255/.78);-webkit-text-fill-color:rgb(255 255 255/.78)}
-.echo-ref .echo-ref-send{min-width:72px;min-height:52px;border-radius:16px;border:1px solid rgb(255 255 255/.62);background:rgb(14 60 70/.82);color:#fff;font:inherit;font-weight:700}
+.echo-ref .echo-ref-send{min-width:72px;min-height:52px;border-radius:4px;border:1px solid rgb(255 255 255/.16);background:rgb(255 255 255/.06);color:#fff;font:inherit;font-weight:700}
 .echo-ref .echo-ref-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.echo-ref .echo-ref-chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgb(255 255 255/.55);background:rgb(14 60 70/.70);color:#fff;font:inherit;font-size:14px}
+.echo-ref .echo-ref-chip{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid rgb(255 255 255/.16);background:rgb(255 255 255/.06);color:#fff;font:inherit;font-size:14px}
 .echo-ref .echo-ref-chip--quiet{background:transparent;text-shadow:0 1px 3px rgb(16 60 70/.4)}
 .echo-ref :is(button,textarea):disabled{opacity:.55}
 .echo-ref :is(button,textarea):focus-visible{outline:2px solid #fff;outline-offset:2px}
@@ -29,7 +29,7 @@
 
 /* 2026-10-06 사주·타로 정정 영수증 + 「프로필에도 반영할까요?」 */
 .echo-ref .echo-ref-line--receipt{font-weight:600}
-.echo-ref .echo-ref-offer{margin:6px 0 10px;padding:12px 14px;border-radius:16px;background:rgb(14 60 70/.70);border:1px solid rgb(255 255 255/.5);color:#fff}
+.echo-ref .echo-ref-offer{margin:6px 0 10px;padding:12px 14px;border-radius:4px;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);color:#fff}
 .echo-ref .echo-ref-offer p{margin:0;font-size:14px;line-height:1.6}
 .echo-ref .echo-ref-offer b{font-weight:600}
 .echo-ref .echo-ref-offer-fail{margin-top:6px!important;font-size:13px!important;opacity:.9}

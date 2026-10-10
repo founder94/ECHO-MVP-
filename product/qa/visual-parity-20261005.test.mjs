@@ -3,7 +3,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 const read = (f) => readFileSync(f, 'utf8');
 const CSS = read('src/doit/components/feature/visual-parity.css');
@@ -28,25 +27,26 @@ test('전역 오염 0: 모든 규칙이 앱 화면 틀(.doit-app-pastel · .echo
   }
 });
 
-test('유리: 짙은 판(62%) → 비치는 유리(42%) + 흐림 · 정정 화면 바깥 판 0', () => {
-  assert.match(CSS, /--echo-glass:rgb\(8 22 28\/\.58\)/);
-  // 대비 계산: 파스텔 바탕(pastel-bg.css 의 모든 색) 위에 판을 겹친 색 vs 흰 글자 ≥ 4.5:1
-  const cols = [...new Set(read('src/doit/components/feature/pastel-bg.css').match(/#[0-9a-fA-F]{6}/g))].map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+// 2026-10-10 대표 「모바일웹 = Flora」: 판 = Flora 유리(흰 6%) · 바탕 = Flora 밤 들판(옛 파스텔 그림 삭제 → 그림 지문 검사 대신 Flora 땅색 기준).
+// 실측(390×844 · 6장면): 바탕 99.9% 밝기 0.0197 < Flora 「mid」(#0a2a7a). 그래서 ground·deep·mid 위에서 잰다.
+test('유리: Flora 유리(흰 6%) + 흐림 · 투명도 줄이기 = 거의 불투명한 밤 판 · 정정 화면 바깥 판 0', () => {
+  assert.match(CSS, /--echo-glass:rgb\(255 255 255\/\.06\)/);
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const field = read('src/doit/flora/FloraBackdrop.tsx').match(/const FIELD[^;]*;/)[0];
+  const cols = ['ground', 'deep', 'mid'].map((k) => hex(field.match(new RegExp(`${k}: "(#[0-9a-f]{6})"`))[1]));
   const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   for (const name of ['--echo-glass', '--echo-glass-soft', '--echo-glass-btn']) {
     const m = CSS.match(new RegExp(`${name}:rgb\\((\\d+) (\\d+) (\\d+)\\/(\\.\\d+)\\)`)); assert.ok(m, name);
     const g = [m[1], m[2], m[3]].map(Number), a = Number(m[4]);
-    // 바탕 = 대표 승인 그림(#131) + 대체 파스텔 색. 그림의 가장 밝은 점은 따로 재어 둔 값(그림이 바뀌면 지문이 달라져 이 검사가 다시 재라고 실패한다).
-    const BG_SHA = 'f52e14b6af9bc8f39019f7117d66f487a5668c74984f8d69408534e5c63cdca3', BRIGHTEST = [247, 253, 183];
-    assert.equal(createHash('sha256').update(readFileSync('public/doit/bg/echo-mobile-bg.webp')).digest('hex'), BG_SHA, '바탕 그림이 바뀜 → 가장 밝은 점을 다시 재고 판 투명도를 확인');
-    const worst = Math.min(...[...cols, BRIGHTEST].map((c) => { const mix = c.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
+    const worst = Math.min(...cols.map((c) => { const mix = c.map((v, i) => a * g[i] + (1 - a) * v); return 1.05 / (lum(mix) + 0.05); }));
     assert.ok(worst >= 4.5, `${name} 흰 글자 대비 ${worst.toFixed(2)}:1`);
   }
+  assert.match(CSS, /--echo-glass-line:rgb\(255 255 255\/\.16\)/, 'Flora 얇은 선');
   assert.match(CSS, /--echo-glass-blur:blur\(18px\)/);
   assert.match(CSS, /\.echo-done\.echo-check\{background:transparent!important;border:0!important/, '판 걷기는 정정·확인 카드만');
   assert.doesNotMatch(CSS, /\.echo-done\{background:transparent/, '정리·소개·음악 카드 판은 지우지 않음(Codex 4184387071)');
   assert.match(CSS, /\.echo-done:not\(\.echo-check\)\)\{background:var\(--echo-glass\)!important/);
-  assert.match(CSS, /prefers-reduced-transparency:reduce/, '투명도 줄이기 사용자는 더 진한 판');
+  assert.match(CSS, /prefers-reduced-transparency:reduce\)\{[^{]*\{--echo-glass:rgb\(1 11 36\/\.92\)/, '투명도 줄이기 사용자는 거의 불투명한 밤 판');
 });
 
 test('정정 네 버튼: 글·순서·하는 일 그대로(맞아요 → 조금 달라요 → 그게 아니에요 → 직접 설명할게요)', () => {
@@ -70,8 +70,11 @@ test('연결 대화: 「입력칸 · 보내기」 한 줄 · 이름표는 화면
   assert.match(CSS, /\.doit-match-send\{display:grid!important;grid-template-columns:1fr auto/);
 });
 
-test('이용 안내 열쇠 그림: 모바일만 유리 열쇠 그림 · 홈페이지는 예전 아이콘(모바일 그림이 홈페이지로 새지 않음)', () => {
-  assert.match(read('src/components/guide/GuideHost.tsx'), /s\.id === 'key' && \(theme === 'app' \? <img className="echo-guide-key-art" src="\/doit\/art\/key-glass\.webp"[^>]*\/> : <KeyIcon size=\{22\} \/>\)/);
+// 2026-10-10 대표 「모바일웹 = Flora · 기존 모바일 디자인 그림 지움」: 유리 열쇠 그림(key-glass.webp) 삭제 → 앱·홈페이지 모두 같은 열쇠 아이콘.
+test('이용 안내 열쇠 그림: 유리 열쇠 그림 0 · 앱·홈페이지 같은 열쇠 아이콘', () => {
+  const host = read('src/components/guide/GuideHost.tsx');
+  assert.match(host, /s\.id === 'key' && <KeyIcon size=\{22\} \/>/);
+  assert.doesNotMatch(host, /key-glass\.webp/);
 });
 
 test('홈·프로필(ref-parity)·연결(connect-ref): 흰 글자 밑 판은 공통 유리 토큰 · 옅은 청록/흰 빛 판 0(Codex 4183198245 · 4183643949)', () => {
@@ -82,9 +85,9 @@ test('홈·프로필(ref-parity)·연결(connect-ref): 흰 글자 밑 판은 공
   assert.match(rule(REF, '.doit-product-nav{'), /background:var\(--echo-glass\)!important/);
   assert.match(rule(REF, '.doit-product-story) .doit-product-action{'), /background:var\(--echo-glass-btn\)!important/);
   assert.match(rule(REF, '.doit-profile-photo-manage{'), /background:var\(--echo-glass-btn\)!important/);
-  // 상대 말풍선: 판을 밝히는 흰 빛 0 · 내 말풍선: 더 어둡게만(먹색)
-  assert.match(rule(CON, '.doit-match-messages li{'), /background:transparent/);
-  assert.match(rule(CON, '.doit-match-messages li[data-mine=true]{'), /background:rgb\(8 22 28\/\.\d+\)/);
+  // 상대 말풍선: 판 0 + Flora 얇은 선 · 내 말풍선: Flora 유리 10%(2026-10-10 · 예전 먹색) · 모서리 4px
+  assert.match(rule(CON, '.doit-match-messages li{'), /background:transparent;border:1px solid rgb\(255 255 255\/\.16\)/);
+  assert.match(rule(CON, '.doit-match-messages li[data-mine=true]{'), /border-radius:4px;background:rgb\(255 255 255\/\.10\)/);
 });
 
 test('시안 5·7 배치: 아직 안 연 후보 = 큰 그림 카드 · 한쪽 대기 = 두 사람 그림이 맨 위, 이어 본 이유는 보임(글·버튼 0 변경)', () => {

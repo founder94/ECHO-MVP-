@@ -164,7 +164,7 @@ export function TaroCardSelect({
         }}
         style={{
           background:
-            "radial-gradient(circle,rgba(205,174,117,.46),transparent 68%)",
+            "radial-gradient(circle,rgba(187,252,158,.46),transparent 68%)",
         }}
       />
 
@@ -193,7 +193,7 @@ export function TaroCardSelect({
                 y: 0,
               }}
             >
-              {/* 타로 시작 그림(2026-10-06 대표 지정 · public/doit/art/tarot-start.webp) */}
+              {/* 타로 시작 그림(2026-10-06 대표 지정 · 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」로 다시 넣음 · public/doit/art/tarot-start.webp) */}
               <img
                 className="doit-start-art"
                 src="/doit/art/tarot-start.webp"
@@ -294,7 +294,7 @@ export function TaroCardSelect({
               <p
                 className="mt-2 text-xs"
                 style={{
-                  color: "#d6ba78",
+                  color: "#bbfc9e",
                 }}
               >
                 {purpose}
@@ -335,7 +335,7 @@ export function TaroCardSelect({
                           "linear-gradient(145deg,#eed99f,#725b30,#eed99f)",
                         boxShadow:
                           picking === card.id
-                            ? "0 22px 44px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 34px rgba(238,217,159,.45)"
+                            ? "0 22px 44px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 34px rgba(159,194,255,.45)"
                             : "0 14px 30px var(--fortune-shadow, rgba(0,0,0,.5))",
                       }}
                     >
@@ -399,7 +399,7 @@ export function TaroCardSelect({
                     background:
                       "linear-gradient(145deg,#f6e2a6,#725b30,#f6e2a6)",
                     boxShadow:
-                      "0 26px 70px var(--fortune-shadow, rgba(0,0,0,.62)),0 0 45px rgba(205,174,117,.2)",
+                      "0 26px 70px var(--fortune-shadow, rgba(0,0,0,.62)),0 0 45px rgba(187,252,158,.2)",
                   }}
                 >
                   <TarotCardArt
@@ -438,7 +438,7 @@ export function TaroCardSelect({
                   <div
                     className="flex items-center gap-2 text-sm"
                     style={{
-                      color: "#e4cb8f",
+                      color: "#dce8ff",
                     }}
                   >
                     <MoonStar size={15} />

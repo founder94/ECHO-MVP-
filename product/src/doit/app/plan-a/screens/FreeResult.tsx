@@ -240,7 +240,7 @@ export function FreeResult({
                   background:
                     "linear-gradient(145deg,#f6e2a6,#725b30,#f6e2a6)",
                   boxShadow:
-                    "0 18px 48px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 30px rgba(205,174,117,.18)",
+                    "0 18px 48px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 30px rgba(187,252,158,.18)",
                 }}
               >
                 <TarotCardArt

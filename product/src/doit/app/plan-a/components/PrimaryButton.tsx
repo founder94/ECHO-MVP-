@@ -26,7 +26,7 @@ export function PrimaryButton({
       disabled={disabled}
       // 2026-09-28 대표 「BUTTON SYSTEM FINAL LOCK」: 채움 버튼 0 — 공통 유리 버튼(glass-button.css) 한 벌에서 파생.
       className={`echo-glass-btn ${solid ? "echo-glass-btn--primary echo-primary-button" : "echo-glass-btn--secondary echo-secondary-button"} w-full rounded-full px-6 flex items-center justify-center transition-opacity whitespace-nowrap`}
-      style={{ height: 54, fontFamily: "'Jua', 'Pretendard', sans-serif", fontSize: 15 }}
+      style={{ height: 54, fontFamily: "'Chakra Petch','Jua', 'Pretendard', sans-serif", fontSize: 15 }}
     >
       {children}
     </motion.button>

@@ -113,6 +113,9 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     <p className="echo-done-mark">ECHO가 이해한 나</p>
     {view.kind === 'review' && <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>}
 
+    {/* 2026-10-10 대표 「모바일웹 전부 최종 후킹」: 확인·수정 장면 확정 후킹(2026-10-09). 네 버튼·질문(CHECK_TITLE)은 그대로. */}
+    {view.kind === 'review' && !ok && <p className="echo-flora-hook">내 뜻과 다르면,<br />바로 고칠 수 있어요.</p>}
+    {view.kind === 'review' && !ok && <p className="echo-flora-hook-sub">당신이 직접 들려준 이야기가 이해와 추천의 기준이 됩니다.</p>}
     {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
     {/* 2026-10-04 이용 안내: 처음 한 번 짧은 도움말 → 그 뒤 「이 기능이 궁금해요」 (확인 단계에서만) */}
     {view.kind === 'review' && !ok && <GuideHint id="check" />}

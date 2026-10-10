@@ -1,31 +1,31 @@
 /* 무료 사주 결과 — 사주·타로 콘텐츠 테마(대표 2026-09-26 「Content Dark Exception」). 이 화면(.saju-page) 아래로만.
    글꼴·굵기 단계는 앱과 같은 한 벌(Pretendard · 제목 800 · 소제목 700 · 본문 600), 글자는 밝은 흰색(흐린 회색 0). 카드·버튼은 유리 + 얇은 흰 테두리. */
 /* 2026-10-01 대표 「MOBILE BACKGROUND FINAL LOCK」: 사주 화면도 같은 파스텔 바탕 위(어두운 세계 0) — 옛 남색 바탕은 지웠다. 조도·재질은 fortune-space.css. */
-.saju-page{min-height:100dvh;background:transparent;color:#fff;font-family:'Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:calc(env(safe-area-inset-top) + 56px) 0 calc(env(safe-area-inset-bottom) + 32px)}
+.saju-page{min-height:100dvh;background:transparent;color:#fff;font-family:'Chakra Petch','Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:calc(env(safe-area-inset-top) + 56px) 0 calc(env(safe-area-inset-bottom) + 32px)}
 .saju-page *{font-family:inherit}
 .saju-inner{max-width:440px;margin:0 auto;padding:0 20px;overflow-wrap:anywhere;word-break:keep-all}
-.saju-kicker{margin:0 0 8px;font-size:13px;font-weight:700;color:#e8d7a8}
+.saju-kicker{margin:0 0 8px;font-size:13px;font-weight:700;color:#dce8ff}
 .saju-title{margin:0 0 8px;font-size:28px;line-height:1.35;font-weight:800;color:#fff}
 .saju-h2{margin:0 0 14px;font-size:19px;line-height:1.4;font-weight:700;color:#fff}
 .saju-body{margin:0 0 10px;font-size:15px;line-height:1.75;font-weight:600;color:rgb(255 255 255/.94)}
 .saju-cap{margin:8px 0 0;font-size:12.5px;line-height:1.6;font-weight:600;color:rgb(255 255 255/.82)}
-.saju-card{margin:18px 0 0;padding:20px 18px;border:1px solid rgb(255 255 255/.28);border-radius:20px;background:rgb(255 255 255/.06)}
+.saju-card{margin:18px 0 0;padding:20px 18px;border:1px solid rgb(255 255 255/.28);border-radius:4px;background:rgb(255 255 255/.06)}
 .saju-pillars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;text-align:center}
 .saju-pillar-body{display:grid;gap:6px;margin-top:6px}
-.saju-pillar.is-empty .saju-pillar-body{min-height:120px;place-items:center;border:1px dashed rgb(255 255 255/.4);border-radius:12px;font-weight:700}
-.saju-char{display:grid;gap:2px;padding:8px 2px;border:1.5px solid;border-radius:12px;background:rgb(255 255 255/.05)}
+.saju-pillar.is-empty .saju-pillar-body{min-height:120px;place-items:center;border:1px dashed rgb(255 255 255/.4);border-radius:4px;font-weight:700}
+.saju-char{display:grid;gap:2px;padding:8px 2px;border:1.5px solid;border-radius:4px;background:rgb(255 255 255/.05)}
 .saju-char b{font-size:24px;line-height:1.2;font-weight:700}
 .saju-char small{font-size:11.5px;font-weight:600;color:rgb(255 255 255/.9)}
 .saju-elements{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
 .saju-element{display:grid;justify-items:center;gap:6px;font-size:14px;font-weight:700}
 .saju-dot{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;color:#10131b;font-size:17px;font-weight:800}
 .saju-cycles{list-style:none;margin:10px 0 0;padding:0 0 4px;display:flex;gap:8px;overflow-x:auto}
-.saju-cycles li{flex:none;display:grid;gap:2px;min-width:66px;padding:10px 8px;border:1px solid rgb(255 255 255/.28);border-radius:14px;text-align:center}
+.saju-cycles li{flex:none;display:grid;gap:2px;min-width:66px;padding:10px 8px;border:1px solid rgb(255 255 255/.28);border-radius:4px;text-align:center}
 .saju-cycles li b{font-size:18px;font-weight:700}
 .saju-cycles li span,.saju-cycles li small{font-size:12px;font-weight:600}
-.saju-cycles li.is-now{border:2px solid #e8d7a8;background:rgb(232 215 168/.14)}
+.saju-cycles li.is-now{border:2px solid #dce8ff;background:rgb(159 194 255/.14)}
 .saju-years{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
-.saju-years button{flex:none;display:grid;gap:2px;min-width:62px;min-height:52px;padding:8px;border:1px solid rgb(255 255 255/.3);border-radius:14px;background:transparent;color:#fff;cursor:pointer}
+.saju-years button{flex:none;display:grid;gap:2px;min-width:62px;min-height:52px;padding:8px;border:1px solid rgb(255 255 255/.3);border-radius:4px;background:transparent;color:#fff;cursor:pointer}
 .saju-years button b{font-size:14px;font-weight:700}.saju-years button small{font-size:12px;font-weight:600}
 .saju-years button[aria-pressed="true"]{border:2px solid #fff;background:rgb(255 255 255/.16)}
 .saju-topic{border-top:1px solid rgb(255 255 255/.2)}
@@ -34,9 +34,9 @@
 .saju-note{margin-top:16px}
 .saju-actions{display:grid;gap:10px;margin-top:20px}
 .saju-actions--row{grid-template-columns:1fr 1fr;margin-top:8px}
-.saju-primary,.saju-secondary{min-height:52px;border-radius:16px;font-size:15px;font-weight:700;color:#fff;cursor:pointer}
-.saju-primary{border:1px solid #fff;background:rgb(255 255 255/.2)}
-.saju-secondary{border:1px solid rgb(255 255 255/.55);background:transparent}
+.saju-primary,.saju-secondary{min-height:52px;border-radius:4px;font-size:15px;font-weight:700;color:#fff;cursor:pointer}
+.saju-primary{border:1px solid rgb(255 255 255/.16);background:rgb(255 255 255/.2)}
+.saju-secondary{border:1px solid rgb(255 255 255/.16);background:transparent}
 .saju-secondary[aria-pressed="true"]{border:2px solid #fff;background:rgb(255 255 255/.16)}
 .saju-secondary[aria-pressed="true"]::before{content:"✓ "}
 .saju-text{min-height:44px;border:0;background:transparent;color:#fff;font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
@@ -53,7 +53,7 @@
 .saju-next{margin:14px 0 0;font-size:13px;font-weight:700;color:rgb(255 255 255/.86);text-align:center}
 .saju-col{display:grid;gap:6px;align-content:start}
 .saju-col>.saju-cap{margin:0}
-.saju-tile{display:grid;justify-items:center;gap:1px;padding:8px 2px;border-radius:12px;box-shadow:0 2px 8px rgb(0 0 0/.18)}
+.saju-tile{display:grid;justify-items:center;gap:1px;padding:8px 2px;border-radius:4px;box-shadow:0 2px 8px rgb(0 0 0/.18)}
 .saju-tile b{font-size:24px;line-height:1.15;font-weight:800}
 .saju-tile i{font-style:normal;font-size:12px;font-weight:700}
 .saju-tile small{font-size:10.5px;font-weight:700;opacity:.92}
@@ -61,3 +61,45 @@
 .saju-tile.is-empty{min-height:120px;place-items:center;border:1px dashed rgb(255 255 255/.5);background:transparent;box-shadow:none;font-weight:700}
 .saju-cycles li .saju-tile{padding:4px 2px}.saju-cycles li .saju-tile b{font-size:18px}
 .saju-wheel{display:block;width:100%;max-width:260px;margin:0 auto}
+/* 2026-10-10 대표 「사주 예시처럼 후킹박고 자세하게」: 원국 표(지장간·12운성) · 대운·연운·월운 칸 줄 · 오행 상생상극 그림 · 읽는 법 */
+.saju-hook{margin:0 0 10px;padding-left:12px;box-shadow:inset 2px 0 0 #bbfc9e;font-size:16px;line-height:1.6;color:rgba(255,255,255,.92)}
+.saju-hero-tiles{display:flex;justify-content:center;gap:8px;margin:6px 0 10px}
+.saju-hero-tiles .saju-tile{width:64px}
+.saju-board-title{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.saju-board-title .saju-body{margin:0}
+.saju-chips{display:flex;gap:6px}
+.saju-chips span{padding:3px 9px;border-radius:2px;font-size:12px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.saju-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;text-align:center}
+.saju-board-col{display:grid;gap:4px;align-content:start;padding:6px 4px 8px;border-radius:4px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.saju-board-col.is-day{box-shadow:inset 0 0 0 1.5px #bbfc9e}
+.saju-board-head{margin:0;font-size:12px;color:rgba(255,255,255,.7)}
+.saju-board-god{margin:0;font-size:11.5px;color:rgba(255,255,255,.88)}
+.saju-board-stage{margin:2px 0 0;font-size:12.5px;color:#bbfc9e}
+.saju-board-empty{display:grid;place-items:center;min-height:150px;border:1px dashed rgba(255,255,255,.35);border-radius:4px;color:rgba(255,255,255,.62)}
+.saju-cell{position:relative;display:grid;place-items:center;aspect-ratio:1/1;border-radius:4px}
+.saju-cell b{font-size:clamp(22px,7vw,30px);line-height:1;font-weight:500}
+.saju-cell i{position:absolute;right:4px;bottom:3px;font-style:normal;font-size:10.5px;opacity:.9}
+.saju-cell.is-me{box-shadow:0 0 0 2px #bbfc9e}
+.saju-cell.is-small b{font-size:18px}
+.saju-cell.is-small i{font-size:9px;right:3px;bottom:2px}
+.saju-hidden{display:flex;justify-content:center;gap:2px}
+.saju-hidden span{display:grid;gap:0;min-width:0;flex:1;max-width:26px;padding:2px 0;border-radius:2px;line-height:1.1}
+.saju-hidden b{font-size:12px;font-weight:500}
+.saju-hidden small{font-size:8.5px;opacity:.9;word-break:keep-all}
+.saju-flow{display:flex;gap:4px;overflow-x:auto;padding:4px 2px 8px;margin:6px 0 10px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.saju-flow-col{flex:none;width:58px;display:grid;gap:3px;justify-items:stretch;padding:6px 4px;border:0;border-radius:4px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#fff;font:inherit;text-align:center;scroll-snap-align:center}
+.saju-flow-item{flex:none;display:flex}
+button.saju-flow-col{cursor:pointer}
+.saju-flow-col.is-now{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7)}
+.saju-flow-col.is-picked{box-shadow:inset 0 0 0 1.5px #bbfc9e;background:rgba(187,252,158,.08)}
+.saju-flow-top{display:grid;line-height:1.2}
+.saju-flow-top b{font-size:13px;font-weight:500}
+.saju-flow-top small{font-size:10px;color:rgba(255,255,255,.62)}
+.saju-flow-god{font-size:10.5px;color:rgba(255,255,255,.88)}
+.saju-flow-stage{font-size:11px;color:#bbfc9e}
+.saju-cycle{display:block;width:100%;max-width:320px;height:auto;margin:4px auto 8px}
+.saju-howto{margin-top:12px;padding:10px 12px;border-radius:4px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.saju-howto summary{cursor:pointer;font-size:13.5px;color:#bbfc9e;min-height:32px;display:flex;align-items:center}
+.saju-howto .saju-cap b{color:rgba(255,255,255,.92);font-weight:500}
+/* 기운 칸 글자색은 칸마다 정한 색(흙·쇠 칸은 짙은 글자) — 앱 공통 「글자 흰색」 규칙이 덮지 않게 */
+:root:root:root:root .saju-page :is(.saju-cell,.saju-hidden span,.saju-tile),:root:root:root:root .saju-page :is(.saju-cell,.saju-hidden span,.saju-tile) :is(b,i,small){color:var(--el-fg)!important;-webkit-text-fill-color:var(--el-fg)!important}

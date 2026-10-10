@@ -1,49 +1,5 @@
-/* 2026-10-05 대표 「배경색부터 내가 보낸 사진 똑같이」: 색 값만 새 기준 시안(「ECHO · 모바일 최종 디자인 기준」·「문구·서체 검수안」 휴대폰 18대)에서 칸마다 실측해 바꿨다.
-   왼쪽 = 민트 → 노랑 → 피치·주황 · 오른쪽 = 시안 → 하늘 → 연보라 → 분홍(예전의 오른쪽 아래 청록·올리브·갈색 0). 구조·흐림·움직임은 그대로.
-   2026-10-01 대표 「MOBILE BACKGROUND FINAL LOCK」: 모든 파스텔 모바일 화면의 단 하나의 바탕(CANONICAL). 색 흐름 = 위 Aqua/Cyan+Pastel Blue → 가운데 Mint/Green+Aqua → 아래 Soft Yellow → Coral/Peach.
-   띠(밴드)는 40px 흐림으로 섞여 경계가 보이지 않는다(qa/background-lock-20261001.test.mjs). 화면별 새 바탕 0.
-   상태 변화는 색 바꾸기가 아니라 밝기·깊이·초점·유리·움직임 토큰으로만: --echo-pastel-light(밝기) · --echo-pastel-sat(채도) · --echo-pastel-drift(움직임 속도) (pastel-states.css).
-   색 값은 대표가 보낸 기준 이미지(2026-10-01 「이 색감」 · 휴대폰 4대 화면)를 칸마다 실측해 옮겼다: 위 시안→하늘→파스텔 블루, 왼쪽 민트→노랑→코랄, 오른쪽은 아쿠아가 더 길게 내려와 피치로(대각선 흐름).
-   예전 색(위 초록 우세 · 오른쪽 아래 갈색)과 구조·흐림·움직임은 같고 색 값만 바뀌었다(되돌리기 = 이 파일의 이전 커밋).
-   파스텔 배경 — 대화 화면과 사용자 앱 화면이 함께 쓰는 한 벌(2026-09-25 대표 MASTER §12 「사용자 APP 전면 파스텔 통일」).
-   전에는 core-conversation.css 안에 대화 화면(.echo-dialogue--pastel) 전용으로 있었다. 규칙·색·흐림·움직임은 글자 하나 바꾸지 않고 옮겼고,
-   선택자만 :is(대화 화면, .doit-app-pastel) 로 넓혔다(:is 의 세기는 가장 센 쪽 = 전과 같다 → 대화 화면 모습 변화 0).
-   .doit-app-pastel 은 하단 탭이 있는 앱 화면(MobileLayout)과 시작 흐름 화면의 맨 바깥에만 붙인다. 히어로(우주)·관리자 화면·전역(body/:root)은 0.
-   색의 출처·흐림 이유 등 자세한 설명은 core-conversation.css 의 「2026-09-24 대화 화면 파스텔 배경」 주석. */
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel){--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
-/* 2026-09-25 대표 Galaxy 「중간 검정 전환·뒤로 버튼 뒤 검정 금지」: 고정 바탕(::before)이 휴대폰 주소창이 접히고 펴지는 동안·끝까지 당길 때 잠깐 비면
-   아래 검은 바탕이 보였다. 같은 색 줄기(위 초록 → 아래 산호)를 스크롤되는 바탕으로 한 겹 깔아, 비는 순간에도 검정이 아니라 파스텔이 보이게 한다.
-   평소에는 고정 바탕이 위를 덮어 화면 차이가 없다(검사: 멈춘 화면 픽셀 비교). */
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel){--pastel-underlay:linear-gradient(180deg,#5fd6d6 0%,#9fe2e0 14%,#c8e1c8 26%,#e6d6c0 40%,#eab7ae 55%,#f0ae9f 70%,#f5ae93 85%,#f8a493 100%);background:var(--pastel-underlay)}
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before,
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{content:"";position:fixed;inset:0;pointer-events:none}
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{inset:-80px} /* 바탕 흐림 40px 가 화면 가장자리에서 비지 않게 넉넉히 — 색 칸 위치는 화면 기준(80px + vw/vh)으로 잡는다 */
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{
-  z-index:-2;
-  background:
-    radial-gradient(circle calc(28rem*.7071) at calc(-6% + 14rem) calc(-8% + 14rem),rgba(255,255,255,.2) 0%,rgba(255,255,255,.2) 18%,transparent 70%),
-    radial-gradient(circle calc(24rem*.7071) at calc(105% - 12rem) calc(15% + 12rem),rgba(150,225,255,.16) 0%,rgba(150,225,255,.16) 18%,transparent 70%),
-    radial-gradient(circle calc(30rem*.7071) at calc(10% + 15rem) calc(95% - 15rem),rgba(255,226,170,.12) 0%,rgba(255,226,170,.12) 18%,transparent 70%),
-    radial-gradient(circle calc(20rem*.7071) at calc(85% - 10rem) calc(45% + 10rem),rgba(240,160,210,.16) 0%,rgba(240,160,210,.16) 18%,transparent 70%),
-    radial-gradient(circle calc(26rem*.7071) at calc(104% - 13rem) calc(108% - 13rem),rgba(255,160,170,.14) 0%,rgba(255,160,170,.14) 18%,transparent 70%),
-    radial-gradient(circle calc(32rem*.7071) at calc(-8% + 16rem) calc(75% - 16rem),rgba(200,230,255,.08) 0%,rgba(200,230,255,.08) 18%,transparent 70%),
-    linear-gradient(90deg,#5fd6d6 calc(80px + 0vw),#66d6e2 calc(80px + 25vw),#7ad9ec calc(80px + 50vw),#62d2ec calc(80px + 75vw),#4fcde8 calc(80px + 100vw)) 0 0/100% calc(80px + 5vh + 1px) no-repeat,
-    linear-gradient(90deg,#9ee2d6 calc(80px + 0vw),#9fe2e0 calc(80px + 25vw),#a8e3ee calc(80px + 50vw),#86d8ee calc(80px + 75vw),#66d6ec calc(80px + 100vw)) 0 calc(80px + 5vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#cde0aa calc(80px + 0vw),#c4e2c8 calc(80px + 25vw),#c0e3e6 calc(80px + 50vw),#a3d5ee calc(80px + 75vw),#8ccfee calc(80px + 100vw)) 0 calc(80px + 15vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#efd897 calc(80px + 0vw),#e8d9b6 calc(80px + 25vw),#d9dbe0 calc(80px + 50vw),#b3cbe8 calc(80px + 75vw),#85c3ee calc(80px + 100vw)) 0 calc(80px + 25vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#ecc490 calc(80px + 0vw),#eac7ad calc(80px + 25vw),#e0c8cf calc(80px + 50vw),#c4b9de calc(80px + 75vw),#a4b2da calc(80px + 100vw)) 0 calc(80px + 35vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#e9b49a calc(80px + 0vw),#eab8ab calc(80px + 25vw),#e5b7c0 calc(80px + 50vw),#d5abc9 calc(80px + 75vw),#c8a2c6 calc(80px + 100vw)) 0 calc(80px + 45vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#f0b2a2 calc(80px + 0vw),#efb2a8 calc(80px + 25vw),#ebabb3 calc(80px + 50vw),#e1a3b6 calc(80px + 75vw),#da9cb2 calc(80px + 100vw)) 0 calc(80px + 55vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#f3b394 calc(80px + 0vw),#f2b09e calc(80px + 25vw),#eea8a8 calc(80px + 50vw),#e7a1ac calc(80px + 75vw),#e39fae calc(80px + 100vw)) 0 calc(80px + 65vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#f5b789 calc(80px + 0vw),#f6b292 calc(80px + 25vw),#f5ab9a calc(80px + 50vw),#f2a8a2 calc(80px + 75vw),#f2a8a2 calc(80px + 100vw)) 0 calc(80px + 75vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#f7b088 calc(80px + 0vw),#f6a890 calc(80px + 25vw),#f4a198 calc(80px + 50vw),#f19ba1 calc(80px + 75vw),#ee96a6 calc(80px + 100vw)) 0 calc(80px + 85vh)/100% calc(10vh + 1px) no-repeat,
-    linear-gradient(90deg,#fbab88 calc(80px + 0vw),#f9a58e calc(80px + 25vw),#f79f96 calc(80px + 50vw),#f69ba0 calc(80px + 75vw),#f69aa4 calc(80px + 100vw)) 0 100%/100% calc(80px + 5vh + 1px) no-repeat;
-  filter:blur(40px) saturate(var(--echo-pastel-sat,1)) brightness(var(--echo-pastel-light,1));
-  animation:float-bg var(--echo-pastel-drift,20s) ease-in-out infinite;
-  transition:filter var(--echo-pastel-shift,.6s) ease;
-}
-/* 2026-10-05 대표 「디자인 전체 배경이랑 그냥 이대로 똑같이 박으라고」 + 배경 원본 그림 전달(「이거면되?」): 시안 배경 그림을 그대로 깐다.
-   그림(public/doit/bg/echo-mobile-bg.webp, 853×1844 · 22KB)은 흐림 없이 화면에 꽉 차게(cover) 고정한다. 위 색 띠(::before)는 그림이 오기 전·못 왔을 때의 대신 바탕으로 남긴다.
-   덮개(--echo-pastel-veil)는 그림 위 한 겹으로 그대로 · 밝기·채도 토큰(pastel-states.css)도 그림에 그대로 걸린다. 그림은 움직이지 않는다(시안과 같게). */
-:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::after{z-index:-1;background:linear-gradient(rgb(9 10 12/var(--echo-pastel-veil)),rgb(9 10 12/var(--echo-pastel-veil))),url(/doit/bg/echo-mobile-bg.webp) center top/cover no-repeat;filter:saturate(var(--echo-pastel-sat,1)) brightness(var(--echo-pastel-light,1));transition:filter var(--echo-pastel-shift,.6s) ease}
-@media(prefers-reduced-motion:reduce){:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel)::before{animation:none}}
+/* 2026-10-10 대표 「기존 모바일 디자인 데이터에서 지우고 Flora 코드·시안 그대로」: 파스텔 바탕(색 띠 11줄 · 흐림 40px · 시안 그림 echo-mobile-bg.webp)을 지웠다.
+   이 파일 이름은 여섯 곳(core-conversation · app-pastel · pastel-states · visual-parity · route-fallback · themeColor)이 불러오므로 남기고, 내용만 Flora 바탕으로 바꾼다.
+   앱 바탕 = Flora 「Kindle」 밤 들판: 움직이는 캔버스는 src/doit/flora/FloraBackdrop.tsx, 이 파일은 캔버스가 없을 때의 같은 땅색(#010b24)만.
+   되돌리기 = 이 파일·public/doit/bg/echo-mobile-bg.webp 의 이전 커밋(echo-qa 6b3d381). */
+:is(.echo-dialogue.echo-dialogue--pastel,.doit-app-pastel){--pastel-underlay:#010b24;--echo-pastel-veil:0;position:relative;isolation:isolate;background:transparent}
