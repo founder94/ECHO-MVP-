@@ -378,18 +378,18 @@ await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·
   expect(await p.locator('.echo-zzarit').count() === 0, '새로고침에 다시 뜸'); expect((await text(p)).includes('ECHO가 하나만 물어볼게요.'), '연결로 이어지지 않음');
   return '1회 · 새로고침 0';
 });
-// 2026-10-10 대표 「Lattice 효과」(Codex #158 P2): 예전 전류 줄(.echo-zzarit-current) → 가운데 Lattice 빛의 통로 하나 · 버튼 「첫 대화 시작하기」
-await run(51, 'ZZARIT Lattice: 가운데 통로 하나(캔버스 또는 WebGL 없을 때 은은한 빛) · CSS 움직임 0 · 위 글 / 통로 / 아래 버튼 순서 · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+// 2026-10-10 대표 「B로 채택」: 가운데 = Storm 두 구슬 + 전류(FxStage storm-pair) 하나 · 버튼 「첫 대화 시작하기」
+await run(51, 'ZZARIT 두 구슬: 가운데 그림 하나(캔버스 또는 WebGL 없을 때 은은한 빛) · CSS 움직임 0 · 위 글 / 그림 / 아래 버튼 순서 · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await go(p); await p.waitForTimeout(1500);
   const m = await p.evaluate(() => {
-    const z = document.querySelector('.echo-zzarit'); const stage = z?.querySelector('.doit-erl-stage');
+    const z = document.querySelector('.echo-zzarit'); const stage = z?.querySelector('.doit-fx--storm-pair');
     const top = (sel) => z?.querySelector(sel)?.getBoundingClientRect().top ?? -1;
     return {
-      stages: z?.querySelectorAll('.doit-erl-stage').length ?? 0,
-      drawn: !!stage?.querySelector('canvas.doit-erl-canvas, .doit-erl-fallback'),
+      stages: z?.querySelectorAll('.doit-fx--storm-pair').length ?? 0,
+      drawn: !!stage?.querySelector('canvas.doit-fx-canvas, .doit-fx-fallback'),
       width: stage?.getBoundingClientRect().width ?? 0,
       css: z?.getAnimations({ subtree: true }).length ?? -1,
-      order: [top('.echo-zzarit-title'), top('.doit-erl-stage'), top('.echo-zzarit-cta')],
+      order: [top('.echo-zzarit-title'), top('.doit-fx--storm-pair'), top('.echo-zzarit-cta')],
       focus: document.activeElement?.textContent ?? '',
     };
   });

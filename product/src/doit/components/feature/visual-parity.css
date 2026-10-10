@@ -35,9 +35,11 @@
 :root:root .echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo{margin-top:20px}
 :root:root .echo-chat .echo-chat-log .echo-question-card.echo-bubble--echo::after{content:"ECHO";position:absolute;left:2px;top:-20px;font-size:12px;font-weight:400;letter-spacing:.04em;color:#fff}
 
-/* ── 맨 위: 오른쪽 위 메뉴는 머리줄과 같은 줄 · 동그라미 판 없이 줄 세 개만(시안) ── */
+/* ── 맨 위: 오른쪽 위 메뉴는 머리줄과 같은 줄 · 줄 세 개(시안) ──
+   2026-10-10 대표 승인(「오류 버그까지」): 화면을 내리면 이 버튼이 글자 위로 지나가 「새로 보기」 등이 겹쳐 읽혔다 →
+   밤하늘색 옅은 동그라미 + 흐림을 깔아 아래 글이 비쳐도 겹쳐 읽히지 않게(테두리·그림자 0). */
 :root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) ~ .echo-corner-button,
-:root:root body:has(:is(.doit-app-pastel,.echo-dialogue--pastel)) .echo-corner-button{top:calc(env(safe-area-inset-top) + 16px);background:transparent;border-color:transparent;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+:root:root body:has(:is(.doit-app-pastel,.echo-dialogue--pastel)) .echo-corner-button{top:calc(env(safe-area-inset-top) + 16px);background:rgb(1 11 36/.72);border-color:transparent;box-shadow:none;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 /* 앱 홈 등 윗줄: 짙은 청록 띠 → 배경이 비치는 옅은 유리 */
 :root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(255 255 255/.06)!important;border-color:transparent!important;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2)}
 /* 아래 탭은 스크롤한 글이 뒤로 지나가므로 조금 더 진하게(글이 겹쳐 읽히지 않게) */

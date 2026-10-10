@@ -36,15 +36,15 @@ test('바깥 주소 0 — CDN·Draco 해제기·외부 글꼴 없이 우리 주�
   }
 });
 
-test('자리: 기다리는 화면에만 — 대화(DNA) · 타로 해석(유리) · 아직 사람 없음(지구). 찌릿은 대표 확인 전이라 그대로', () => {
+test('자리: 기다리는 화면 — 대화(DNA) · 타로 해석(유리) · 아직 사람 없음(지구) · 찌릿 = Storm 두 구슬(대표 B안)', () => {
   const agent = read('src/doit/components/feature/AgentConversation.tsx');
   assert.equal((agent.match(/<FxStage fx="dna"/g) || []).length, 2, '대화 불러오기 · 시작 준비');
   assert.match(read('src/doit/components/feature/CoreConversation.tsx'), /\{busy && <div className="doit-fx-wait"><FxStage fx="dna" delayMs=\{700\} \/><div className="echo-thinking" role="status"><SymbolLoader size=\{64\} \/>/);
   assert.match(read('src/doit/app/plan-a/screens/FreeResult.tsx'), /mode === "taro" && tarotLoading && \(\s*<div className="doit-fx-wait">\s*<FxStage fx="glass"/);
   assert.match(read('src/doit/components/feature/ConnectionCandidates.tsx'), /load\.candidates\.length === 0 && <div className="doit-fx-wait"><FxStage fx="planet" \/>/);
   const zz = read('src/doit/components/feature/ZzaritMoment.tsx');
-  assert.match(zz, /LatticeStage/, '찌릿 화면은 대표 승인 Lattice 그대로');
-  assert.doesNotMatch(zz, /FxStage|storm/, '찌릿 예시(Storm 두 구슬)는 대표 확인 전 — 앱에 붙이지 않음');
+  assert.match(zz, /<FxStage fx="storm-pair" className="echo-zzarit-stage" \/>/, '찌릿 = 대표 B안(2026-10-10 「B로 채택」)');
+  assert.doesNotMatch(zz, /LatticeStage/, 'A안 Lattice 는 찌릿에서 빠짐');
   // 심볼은 그대로 남는다(대표 「심볼만 살려」)
   assert.ok((agent.match(/<SymbolLoader size=\{64\} \/>/g) || []).length >= 2);
 });

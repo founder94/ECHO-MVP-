@@ -1,5 +1,6 @@
 /* 찌릿(2026-10-04) · 2026-10-10 대표 「모바일웹 = Flora · Lattice 효과」. .echo-zzarit 아래로만 — 전역·배경·다른 화면 0.
-   찌릿 화면: 위 글(찌릿! · 후킹 · 설명) / 가운데 Einstein–Rosen Lattice(src/doit/flora/LatticeStage.tsx · 자리 규칙은 flora-theme.css) / 아래 버튼.
+   찌릿 화면: 위 글(찌릿! · 후킹 · 설명) / 가운데 Storm 두 구슬 + 전류(2026-10-10 대표 B안 · src/doit/fx/FxStage.tsx) / 아래 버튼.
+   A안 Lattice(src/doit/flora/LatticeStage.tsx)는 파일만 남겨 둔다(되돌리기 = ZzaritMoment 한 줄).
    예전 두 익명 노드 사이 청록·흰색 전류(0.75초)는 Lattice 로 바뀌어 지웠다(되돌리기 = echo-qa 6b3d381).
    선택 대기(WaitingMark): 익명 노드 둘 + 점선(아직 이어지지 않음) · 움직임 0 · 상대 정보 0. */
 .echo-zzarit{position:relative;overflow:hidden;isolation:isolate;text-align:center;display:grid;justify-items:center;gap:0}
@@ -8,6 +9,8 @@
   background:rgb(255 255 255/.06);box-shadow:inset 0 0 0 1px rgb(255 255 255/.16)}
 .echo-zzarit-node svg{width:34px;height:34px;opacity:.92}
 .echo-zzarit-title{margin:0 0 6px}
+/* 2026-10-10 대표 B안: 가운데 Storm 두 구슬 + 전류(FxStage storm-pair · 크기는 fx.css). 위 글·아래 버튼과 띄움 */
+.echo-zzarit-stage{margin:14px 0 18px}
 .echo-zzarit-cta{justify-self:stretch;scroll-margin-bottom:calc(112px + env(safe-area-inset-bottom))}
 /* 내 연결 안에서 열릴 때 카드 안의 카드(이중 판) 0 — 바깥 연결 판은 비우고 찌릿 판 하나만 */
 .doit-match[data-state="zzarit"]{background:none!important;border:0!important;padding:0!important;box-shadow:none!important}

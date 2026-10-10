@@ -46,15 +46,18 @@ test('찌릿 연출: 확정 문구 4개 · 가운데 Lattice 하나 · 움직임
   for (const t of ["eyebrow: '찌릿! 텔레파시가 통했어요'", "title: ['서로의 선택이,', '하나의 대화로.']", "body: '두 분 모두 연결을 선택했어요.'", "next: '첫 대화 시작하기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
   assert.doesNotMatch(ZCSS, /infinite|@keyframes/, '이 화면 CSS 움직임 0(움직임은 Lattice 하나)');
-  assert.equal((Z.match(/<LatticeStage /g) ?? []).length, 1);
-  assert.match(Z, /<LatticeStage play=\{reduce \? 'still' : 'live'\} \/>/, '움직임 줄이기 = 멈춘 한 장');
+  // 2026-10-10 대표 「B로 채택」: 가운데 = Storm 두 구슬 + 전류(FxStage storm-pair) 하나
+  assert.equal((Z.match(/<FxStage /g) ?? []).length, 1);
+  assert.match(Z, /<FxStage fx="storm-pair" className="echo-zzarit-stage" \/>/);
+  assert.doesNotMatch(Z, /delayMs/, '찌릿은 기다림이 아님 — 바로 보인다');
   // 순서: 위 글 → 가운데 효과 → 아래 버튼(글·버튼이 효과 위에 겹치지 않음)
-  const order = ['echo-zzarit-eyebrow', 'echo-zzarit-title', 'echo-zzarit-body', '<LatticeStage', 'echo-zzarit-cta'].map((k) => Z.indexOf(k));
+  const order = ['echo-zzarit-eyebrow', 'echo-zzarit-title', 'echo-zzarit-body', '<FxStage', 'echo-zzarit-cta'].map((k) => Z.indexOf(k));
   assert.deepEqual([...order].sort((x, y) => x - y), order);
-  const stage = read('src/doit/flora/LatticeStage.tsx');
-  assert.match(stage, /import\("\.\/erl-engine"\)/, '엔진은 이 화면이 열릴 때만 불러온다');
-  assert.match(stage, /\{failed \? <div className="doit-erl-fallback" \/> : <canvas/, 'WebGL 실패 = 은은한 빛만 · 화면은 그대로');
-  assert.match(read('src/doit/flora/erl-engine.ts'), /const want = play === "live" && !document\.hidden && inView;/, '화면 밖·탭 숨김이면 멈춤');
+  const stage = read('src/doit/fx/FxStage.tsx');
+  assert.match(stage, /case "storm-pair": return import\("\.\/storm"\)/, '엔진은 이 화면이 열릴 때만 불러온다');
+  assert.match(stage, /sceneShouldFreeze\(readTier\(\)\) \? "still" : "live"/, '움직임 줄이기·절전 = 멈춘 한 장');
+  assert.match(stage, /state === "failed" \? <div className="doit-fx-fallback" \/> : <canvas/, 'WebGL 실패 = 은은한 빛만 · 화면은 그대로');
+  assert.match(read('src/doit/fx/house.ts'), /const want = !still && !document\.hidden && inView;/, '화면 밖·탭 숨김이면 멈춤');
   assert.match(Z, /if \(!reduce\) \{ try \{ navigator\.vibrate\?\.\(12\); \}/, '진동은 짧게 · 줄이기 설정이면 0');
   assert.doesNotMatch(Z, /Audio|\.play\(/, '소리 0');
   assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b|<img/, '상대 사진·이름 0');

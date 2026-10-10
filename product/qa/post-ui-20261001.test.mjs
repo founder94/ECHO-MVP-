@@ -33,9 +33,9 @@ test('기다림 = 숨 쉬는 점(돌아가는 표시 0) · 서로 골랐어요 =
   // 2026-10-01 ZZARIT 로 바뀜: 두 신호 맞춤은 ZzaritMoment 안에만, 그 화면은 서버 mutual + match_id 뒤에만 연다.
   const mutualAt = CAND.indexOf('if (mutual) return');
   assert.ok(CAND.indexOf('<ZzaritMoment') > mutualAt, 'ZZARIT 은 서버 mutual 화면 안에만');
-  // 2026-10-10 대표 「Lattice 효과」: 찌릿 = 두 사람을 잇는 빛의 통로(LatticeStage) 하나 · 기다림 = 익명 노드 둘 + 점선(아직 이어지지 않음)
+  // 2026-10-10 대표 「B로 채택」: 찌릿 = 두 구슬 + 전류(FxStage storm-pair) 하나 · 기다림 = 익명 노드 둘 + 점선(아직 이어지지 않음)
   const Z = read('src/doit/components/feature/ZzaritMoment.tsx');
-  assert.match(Z, /<LatticeStage play=/);
+  assert.match(Z, /<FxStage fx="storm-pair"/);
   assert.match(Z, /<AnonNode \/>\s*<span className="echo-wait-link" \/>\s*<AnonNode \/>/);
 });
 
