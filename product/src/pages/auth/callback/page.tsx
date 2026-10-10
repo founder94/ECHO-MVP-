@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { consumeReturnPath } from '@/lib/auth/returnPath';
 
-// Google OAuth 콜백: Supabase 클라이언트(detectSessionInUrl)가 주소의 세션 정보를 복원한다.
+// Google OAuth 콜백: SDK가 이 주소에서 시작한 PKCE verifier로 인증 코드를 교환한다.
 // 이 화면은 세션이 생기면 안전한 내부 경로로 돌려보내고, 취소·실패면 명시적으로 알린다.
 type Phase = 'waiting' | 'failed';
 

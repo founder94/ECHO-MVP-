@@ -55,14 +55,13 @@ test('짧은 도움말: 처음 한 번 → 그 뒤 작은 링크 · 이 기기�
 });
 
 test('홈페이지: 메뉴·바닥글에 「이용 안내」 · 「웹 설치하기」 = 설치 항목 문장 · 검정 테마 · 설치는 앱 주소에서만', () => {
-  assert.match(HOME, /<button type="button" onClick=\{\(\) => \{ close\(\); openGuide\(undefined, menuBtnRef\.current\); \}\}>이용 안내<\/button>/);
-  assert.match(HOME, /<button type="button" className="bh-legal-link" onClick=\{\(\) => openGuide\(\)\}>이용 안내<\/button>/);
-  // 2026-10-05 대표 「웹 설치하기는 룩킹 넣고 채우고」: 메뉴의 설치 = 홈페이지 안 웹 설치하기 구간 · 방법 문장은 이용 안내 설치 항목과 같은 것
-  assert.match(HOME, /<a href="#bh-install" onClick=\{close\}>\{BRAND_HOME_COPY\.install\}<\/a>/, '「웹 설치하기」는 메뉴에서');
-  assert.match(HOME, /const INSTALL = GUIDE_SECTIONS\.find\(\(s\) => s\.id === 'install'\);/);
+  // 2026-10-09 대표 「기존 홈페이지는 다 삭제」: 설치 카드 0 → 「웹 설치하기」는 바닥글에서 앱 주소로(이용 안내 설치 항목과 같은 곳) · 방법 문장은 이용 안내 설치 항목에.
+  // 2026-10-09 대표 「글씨는 내가 준 코드 원본 그대로 우선」: 홈페이지 메뉴·바닥글은 원본 Vesper 글 → 「이용 안내」·「웹 설치하기」 링크는 다음 단계(글 넣기)에서. 이용 안내 창(GuideHost)은 그대로 둔다.
+  assert.match(read('src/vesper/data/mocks/home.ts'), /\{ label: HOME_V2\.install, href: appUrl\(INSTALL_PATH\) \}/, '「웹 설치하기」는 바닥글에서 앱 주소로');
+  assert.match(read('src/vesper/views/home/sections/site-footer.tsx'), /onClick=\{\(\) => openGuide\(\)\}/, '바닥글 「이용 안내」');
   assert.match(HOME, /<GuideHost theme="brand"/);
   assert.match(HOME, /이 회사 홈페이지는 설치하지 않아도 돼요\./);
-  assert.match(HOME, /\{BRAND_HOME_COPY\.start\}/, '모바일 시작하기는 주 행동 그대로');
+  assert.match(read('src/vesper/views/home/send-request.tsx'), /\{HOME_V2\.start\}/, '주요 버튼 = ECHO 시작하기');
 });
 
 test('앱: 안내 창 하나(앱 테마) · 설치 항목 = 실제 설치 카드 · 기능 옆 도움말(이야기·확인·후보·찌릿)', () => {

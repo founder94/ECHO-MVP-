@@ -8,6 +8,8 @@ import { getSupabase } from "@/doit/lib/supabase";
 import "@/doit/doit.css";
 import "@/doit/components/feature/mobile-polish.css"; // 2026-10-05 모바일 글자·정렬·대비 마무리(앱 화면 전용 · 홈페이지 빌드 0)
 import "@/doit/components/feature/visual-parity.css"; // 2026-10-05 승인 시안과 시각 일치(앱 화면 전용 · mobile-polish 뒤)
+import "@/doit/components/feature/flora-theme.css"; // 2026-10-10 대표 「모바일웹 = Flora」: 겉모습 맨 마지막 층(바탕·판·버튼·글자)
+import FloraBackdrop from "@/doit/flora/FloraBackdrop";
 
 // DO IT(A 구조 · "당신이 잠든 사이에") 서브앱의 뿌리.
 // - /doit/* 아래 모든 화면은 이 레이아웃 안에서 렌더링된다.
@@ -23,6 +25,8 @@ export default function DoitApp() {
 
   return (
     <div className="doit-root">
+      <FloraBackdrop />
+      <div className="doit-flora-stage">
       <AuthProvider>
         <KeyWalletProvider>
           <PurposeProvider>
@@ -33,6 +37,7 @@ export default function DoitApp() {
           </PurposeProvider>
         </KeyWalletProvider>
       </AuthProvider>
+      </div>
     </div>
   );
 }

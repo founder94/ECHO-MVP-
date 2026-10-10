@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 유리 리본 그림 → Flora 민들레 장면
 import {
   AnimatePresence,
   motion,
@@ -85,7 +86,7 @@ export function PurposeSelect({
       <div className="flex-1 overflow-y-auto">
         <div className="px-6 pt-8 pb-4">
           {/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작): ECHO 글자 + 유리 리본(대표가 보낸 모션 디자인 시안의 리본을 잘라 씀) */}
-          <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" fetchPriority="high" /><DoItSymbol3D size={112} className="echo-ref-symbol" /></div>
+          <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><FloraBloom /><DoItSymbol3D size={112} className="echo-ref-symbol" /></div>
           <motion.div
             initial={{
               opacity: 0,

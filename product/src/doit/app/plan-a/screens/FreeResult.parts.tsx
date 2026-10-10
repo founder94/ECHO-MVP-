@@ -78,11 +78,11 @@ export const FIVE_ELEMENTS = [
   },
   {
     name: "화",
-    color: "#c86f59",
+    color: "#9fc2ff",
   },
   {
     name: "토",
-    color: "#b89861",
+    color: "#bbfc9e",
   },
   {
     name: "금",

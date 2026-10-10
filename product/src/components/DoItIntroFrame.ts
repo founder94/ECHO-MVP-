@@ -1,3 +1,4 @@
+import { mulberry32 } from '../lib/seededRandom';
 import { createElement as h, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react';
 import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from '@/components/symbolAssets';
 import { METAL_TEXT_GRADIENT } from '@/components/metalSilver';
@@ -19,14 +20,7 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const LATE_REVEAL_FROM = 72;
 
 // 결정적 의사난수(고정 시드) — 별 배치가 매번 동일해 새로고침에도 안정적이다.
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+
 
 // 별: 고정 시드, 대부분 1px·일부 2px, 낮은 밝기, 아주 느린 밝기 변화.
 const STARS: Array<{ x: number; y: number; size: number; delay: number; dur: number; base: number }> = (() => {
@@ -93,7 +87,7 @@ export default function DoItIntroFrame({
     style: {
       position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden',
       boxSizing: 'border-box', lineHeight: 1.5,
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+      fontFamily: '"Jua", "Pretendard", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
       background: 'radial-gradient(120% 120% at 50% 45%, #08070C 0%, #060509 58%, #040308 100%)',
     },
   },
@@ -141,7 +135,7 @@ export default function DoItIntroFrame({
       role: 'progressbar', 'aria-label': 'DO IT 시작 화면',
       'aria-valuemin': 1, 'aria-valuemax': 100, 'aria-valuenow': shown,
       style: {
-        textAlign: 'left', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+        textAlign: 'left', fontWeight: 400, fontVariantNumeric: 'tabular-nums',
         lineHeight: 1, whiteSpace: 'nowrap', color: numberColor(progress),
         fontSize: 'clamp(52px, 14vw, 110px)', letterSpacing: '-0.03em',
         // 메탈 실버 글자: 금속 반사 띠를 글자에 입히고, 진행될수록 빛이 옆으로 흐르며 밝아진다.

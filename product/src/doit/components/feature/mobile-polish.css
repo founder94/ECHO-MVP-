@@ -6,7 +6,7 @@
    - 글자 단계(공통 토큰): 제목 22~24px/700 · 본문·입력 16px/500 · 보조 14px · 가장 작은 글 13px(아래 탭 이름만 12px) · 줄 높이 본문 1.6 · 제목 1.34
      굵기: 제목 800 → 700, 긴 읽기 글 600 → 500(Pretendard 500 은 설치된 글꼴 묶음에 있다), 버튼·강조 700 그대로. 300·400 아래 가는 글자 0.
    - 한글 자간: 작은 머리말의 넓은 자간(.14~.2em)을 .04em 으로. 줄바꿈은 낱말 단위(keep-all) · 긴 주소는 칸 안에서 끊는다.
-   - 대비: 흰 글자 뒤 판 = 짙은 청록 유리 rgb(6 52 60/.62) — 파스텔 16색 어디 위에서도 흰 글자 4.9:1 이상(WCAG AA 4.5:1, 계산값).
+   - 대비: 흰 글자 뒤 판 = 짙은 청록 유리 rgb(255 255 255/.06) — 파스텔 16색 어디 위에서도 흰 글자 4.9:1 이상(WCAG AA 4.5:1, 계산값).
      판 없이 파스텔 위에 바로 놓인 글자에는 아주 옅은 청록 음영(글자 둘레)만 준다(§6 「필요한 음영」). 흰 주요 버튼 글자는 음영 0.
    - 누르는 칸 44px 이상 · 아래 탭은 짙은 청록 유리(뒤 글자가 비치지 않게). */
 
@@ -17,11 +17,12 @@
   --echo-fs-caption:13px;
   --echo-lh-body:1.6;
   --echo-lh-title:1.34;
-  --echo-fw-body:500;
-  --echo-fw-strong:700;
-  --echo-fw-title:700;
-  --echo-glass:rgb(6 52 60/.62);
-  --echo-glass-soft:rgb(10 62 70/.62);
+  /* 2026-10-09 주아체 400 하나(Codex 16차): 요청 굵기 토큰도 400 — var() 실계산값 정합. */
+  --echo-fw-body:400;
+  --echo-fw-strong:400;
+  --echo-fw-title:400;
+  --echo-glass:rgb(255 255 255/.06);
+  --echo-glass-soft:rgb(255 255 255/.10);
   --echo-shade:0 1px 2px rgb(4 40 46/.42),0 0 14px rgb(4 40 46/.2);
   --conversation-text-halo:var(--echo-shade);
   --conversation-text-placeholder:rgb(255 255 255/.86);
@@ -37,7 +38,7 @@
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,[role="button"],.doit-product-action,.echo-primary,.echo-secondary) *{font-weight:inherit!important}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,.doit-product-title,.echo-done-title){font-weight:var(--echo-fw-title)!important;font-size:var(--echo-fs-title)!important;line-height:var(--echo-lh-title)!important;letter-spacing:-.01em}
 /* 질문 말풍선 글 = 읽는 글(굵게 박지 않는다) */
-:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question{font-weight:600!important;font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
+:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question{font-weight:400!important;font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-lead,.doit-product-description,.doit-candidate-teaser,.doit-mutual-body){font-size:var(--echo-fs-body)!important;line-height:var(--echo-lh-body)}
 
 /* 작은 머리말 · 보조 글: 10~12px → 13~14px, 자간은 조금만 */
@@ -59,16 +60,16 @@
 
 /* 윗줄·아래 탭: 짙은 청록 유리(윗줄 흰 글자 6.5:1 · 탭 7.5:1, 계산값) — 스크롤한 글이 비쳐 겹쳐 읽히지 않게 */
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-product-topbar{background:rgb(8 74 80/.82)!important}
-:root .doit-app-pastel .doit-product-nav{background:rgb(6 52 60/.78)!important;border-color:rgb(255 255 255/.25)!important}
+:root .doit-app-pastel .doit-product-nav{background:rgb(255 255 255/.06)!important;border-color:rgb(255 255 255/.25)!important}
 :root .doit-app-pastel .doit-product-nav a{color:rgb(255 255 255/.86)!important;min-height:56px}
 :root .doit-app-pastel .doit-product-nav a[aria-current="page"]{color:#fff!important}
 :root .doit-app-pastel .doit-product-nav a span.whitespace-nowrap{font-size:12px!important}
 
 /* ── 말풍선(ECHO 대화 · 연결 대화): 내 말 = 오른쪽 · ECHO/상대 = 왼쪽, 서로 다른 유리 · 16px ── */
-:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-bubble--me{background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);font-weight:500!important;max-width:82%;margin-left:auto}
+:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-bubble--me{background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);font-weight:400!important;max-width:82%;margin-left:auto}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question-card.echo-bubble--echo{background:var(--echo-glass);border-color:rgb(255 255 255/.4);max-width:calc(100% - 34px)}
-:root .doit-app-pastel .doit-match-messages li{max-width:82%;font-size:var(--echo-fs-body);line-height:1.55;background:var(--echo-glass);border:1px solid rgb(255 255 255/.4);border-radius:18px 18px 18px 6px;align-self:flex-start}
-:root .doit-app-pastel .doit-match-messages li[data-mine=true]{align-self:flex-end;background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);border-radius:18px 18px 6px 18px}
+:root .doit-app-pastel .doit-match-messages li{max-width:82%;font-size:var(--echo-fs-body);line-height:1.55;background:var(--echo-glass);border:1px solid rgb(255 255 255/.16);border-radius:4px 18px 18px 6px;align-self:flex-start}
+:root .doit-app-pastel .doit-match-messages li[data-mine=true]{align-self:flex-end;background:var(--echo-glass-soft);border:1.5px solid rgb(255 255 255/.75);border-radius:4px 18px 6px 18px}
 
 /* ── 누르는 칸 44px · 정렬 ── */
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-dialogue-header>span{font-size:12px;letter-spacing:.08em}
@@ -89,10 +90,10 @@
 :root .doit-app-pastel .doit-settings-signature{font-size:12px;letter-spacing:.12em;color:#fff}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-dialogue-header>span{font-size:13px}
 /* 앱 홈 아래쪽(노랑·코랄 위): 「내가 남긴 이야기」·「나의 이해」를 같은 유리 판에 — 흰 글자가 배경에 묻히지 않게(위치·순서·문구 그대로) */
-:root .doit-app-pastel :is(.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state){background:var(--echo-glass);border:1px solid rgb(255 255 255/.5);border-radius:20px;padding:20px;margin-top:16px}
-:root .doit-app-pastel .doit-understanding-footer{background:var(--echo-glass);border:1px solid rgb(255 255 255/.5);border-radius:20px;padding:12px 20px 20px;margin-top:20px}
+:root .doit-app-pastel :is(.doit-understanding-latest,.doit-understanding-summary,.doit-understanding-empty-state){background:var(--echo-glass);border:1px solid rgb(255 255 255/.16);border-radius:4px;padding:20px;margin-top:16px}
+:root .doit-app-pastel .doit-understanding-footer{background:var(--echo-glass);border:1px solid rgb(255 255 255/.16);border-radius:4px;padding:12px 20px 20px;margin-top:20px}
 /* 약관 동의 체크 목록: 둥근 유리 판 한 장(안쪽 여백 포함) */
-:root .doit-app-pastel .legal-consent{background:var(--echo-glass);border:1px solid rgb(255 255 255/.5);border-radius:18px;padding:16px}
+:root .doit-app-pastel .legal-consent{background:var(--echo-glass);border:1px solid rgb(255 255 255/.16);border-radius:4px;padding:16px}
 /* 대화 머리줄: 링크 글자가 두 줄로 꺾이지 않게 · 큰 글자에서도 한 줄 */
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-dialogue-header>:is(a,span){white-space:nowrap}
 :root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-dialogue-header>span{min-width:0;overflow:hidden;text-overflow:ellipsis}

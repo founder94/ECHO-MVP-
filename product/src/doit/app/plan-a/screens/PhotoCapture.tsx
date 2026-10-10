@@ -17,7 +17,7 @@ import {
 } from "@/doit/lib/photoStorage";
 
 import { MAX_UPLOAD_PHOTO_BYTES, prepareAlbumPhoto, RecentPhotoError, type PreparedAlbumPhoto } from "@/doit/lib/recentPhoto";
-import { PHOTO_AI_CHECK_ENABLED, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
+import { PHOTO_AI_CHECK_ENABLED, PHOTO_BASE_COUNT, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, isExtraSlot, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
 
 const MAX_PHOTO_BYTES = MAX_UPLOAD_PHOTO_BYTES;
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
@@ -49,7 +49,7 @@ function PhotoDialog({ title, busy, onClose, children }: { title: string; busy?:
 }
 
 // 2026-09-21 대표 확정: 필수 3장(전신·패션·취미) + 자유 3장. 슬롯 = 종류(photoPolicy.ts 가 정본).
-const SLOTS = PHOTO_SLOTS.map((spec) => ({ label: spec.required ? `${spec.label} (필수)` : `${spec.label} (선택)`, hint: spec.hint, required: spec.required }));
+const SLOTS = PHOTO_SLOTS.map((spec) => ({ label: spec.required ? `${spec.label} (필수)` : isExtraSlot(spec.slot) ? spec.label : `${spec.label} (선택)`, hint: spec.hint, required: spec.required }));
 
 interface Props {
   userId: string | null;
@@ -87,6 +87,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   const [saved, setSaved] = useState<Record<number, RestoredPhoto>>({});
   const [primarySlot, setPrimarySlot] = useState<number | null>(null);
   const [primaryBusy, setPrimaryBusy] = useState(false);
+  const [pendingPrimary, setPendingPrimary] = useState<number | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [camera, setCamera] = useState<PhotoTarget | null>(null);
@@ -154,29 +155,31 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
     async (slot: number) => {
       if (!userId || primaryInFlightRef.current || saveInFlightRef.current || saveBusy || album || sourceChoice || camera) return;
       primaryInFlightRef.current = true;
-      const previous = primarySlot;
-      setPrimarySlot(slot);
+      // 2026-10-10 Codex B03: 고르는 중(pending)과 확정 대표를 나눈다 — 서버 확인(ACK) 전에는 「대표」 배지·완료 판단을 바꾸지 않고,
+      //   확인되면 primarySlot 과 saved[].isPrimary 를 함께 바꿔 대표 1장 · 필수 3장이면 같은 화면에서 「프로필 확인하기」.
+      setPendingPrimary(slot);
       setActionError(null);
       setPrimaryBusy(true);
       try {
         const err = await setPrimaryPhoto(userId, slot);
         if (!mountedRef.current) return;
         if (err) {
-          setPrimarySlot(previous);
           setActionError("대표 사진을 저장하지 못했어요. 다시 선택해 주세요.");
           await loadSaved();
+        } else {
+          setPrimarySlot(slot);
+          setSaved((prev) => Object.fromEntries(Object.entries(prev).map(([k, p]) => [k, { ...p, isPrimary: p.slot === slot }])) as typeof prev);
         }
       } catch {
         if (!mountedRef.current) return;
-        setPrimarySlot(previous);
         setActionError("대표 사진을 저장하지 못했어요. 다시 선택해 주세요.");
         await loadSaved();
       } finally {
         primaryInFlightRef.current = false;
-        if (mountedRef.current) setPrimaryBusy(false);
+        if (mountedRef.current) { setPrimaryBusy(false); setPendingPrimary(null); }
       }
     },
-    [userId, saveBusy, primarySlot, loadSaved, album, sourceChoice, camera],
+    [userId, saveBusy, loadSaved, album, sourceChoice, camera],
   );
 
   const savePhoto = useCallback(
@@ -476,22 +479,24 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
               <div className="relative flex flex-col overflow-hidden rounded-2xl" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.7)" }}>
                 <button type="button" disabled={saveBusy || primaryBusy} onClick={() => openSourceChoice(index, mode)} aria-label={`${slot.label} ${preview ? "바꾸기" : "추가하기"}`} className="relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-3 overflow-hidden text-center disabled:cursor-wait">
                   {preview ? <img src={preview} alt={slot.label} className="absolute inset-0 h-full w-full object-cover" /> : <><ImagePlus size={25} color="#b7bfca" /><span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>{slot.label}</span><span style={{ fontSize: 10, color: colors.textMuted }}>{slot.hint}</span></>}
+                  {/* 추가 사진 칸: 다른 사람에게는 사진 전체가 살짝 흐리게(35% 막) 보인다는 것을 올리는 사람이 먼저 알게(2026-10-10 대표 승인 후킹 ④). */}
+                  {isExtraSlot(index) && <span className="absolute inset-x-0 bottom-0 px-2 py-1.5 text-left" style={{ background: "linear-gradient(to top, rgba(10,12,16,.78), rgba(10,12,16,0))", color: "#fff", fontSize: 10, fontWeight: 700 }}>🔒 상대에겐 살짝 흐리게 · 한 장은 맛보기</span>}
                   {isPrimary && <span className="absolute left-2 top-2 rounded-full px-2 py-1" style={{ background: "#e5e8ed", color: "#171a20", fontSize: 10, fontWeight: 600 }}>대표</span>}
                   {savedPhoto && checks[index] && <span className="absolute right-2 top-2 rounded-full px-2 py-1" style={{ background: checks[index] === "pending" ? "#2a2f3a" : checks[index].verdict === "ok" ? "#1f3b2a" : checks[index].verdict === "rejected" ? "#4a1f1f" : "#3b331f", color: "#e5e8ed", fontSize: 10, fontWeight: 600 }}>{checks[index] === "pending" ? "AI 확인 중" : VERDICT_LABEL[checks[index].verdict]}</span>}
                   {busy && <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 " style={{ background: "rgba(255,255,255,.28)", backdropFilter: "blur(6px)" }} role="status"><Loader2 size={20} color="#fff" className="animate-spin" /><span style={{ color: "#fff", fontSize: 11 }}>사진 준비·저장 중</span></span>}
                 </button>
                 <div className="flex items-center justify-between gap-1 px-2 py-1" style={{ borderTop: `1px solid ${colors.border}` }}>
-                  {savedPhoto && <button type="button" disabled={saveBusy || primaryBusy} onClick={() => void choosePrimary(index)} aria-label={isPrimary ? `${slot.label}, 대표 사진` : `${slot.label}, 대표 사진으로 지정`} aria-pressed={isPrimary} className="flex h-11 w-10 items-center justify-center disabled:opacity-40"><Star size={16} fill={isPrimary ? "#dce2ea" : "none"} color={isPrimary ? "#dce2ea" : colors.textMuted} /></button>}
+                  {savedPhoto && !isExtraSlot(index) && <button type="button" disabled={saveBusy || primaryBusy} onClick={() => void choosePrimary(index)} aria-label={isPrimary ? `${slot.label}, 대표 사진` : `${slot.label}, 대표 사진으로 지정`} aria-pressed={isPrimary} className="flex h-11 w-10 items-center justify-center disabled:opacity-40"><Star size={16} fill={isPrimary || pendingPrimary === index ? "#dce2ea" : "none"} color={isPrimary || pendingPrimary === index ? "#dce2ea" : colors.textMuted} /></button>}
                   <button type="button" disabled={saveBusy || primaryBusy} onClick={() => openSourceChoice(index, mode)} className="min-h-11 flex-1 px-1 text-center disabled:opacity-40" style={{ fontSize: 12, color: "#d7dce5", fontWeight: 600 }}>{preview ? "사진 바꾸기" : "사진 추가하기"}</button>
                 </div>
               </div>
               {slotErrors[index] && <p role="alert" style={{ margin: 0, color: colors.danger, fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{slotErrors[index]}</p>}
-              {checks[index] && checks[index] !== "pending" && checks[index].reasons.length > 0 && <p role="status" style={{ margin: 0, color: "#d9c8a0", fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{checks[index].reasons.join(" ")}</p>}
+              {checks[index] && checks[index] !== "pending" && checks[index].reasons.length > 0 && <p role="status" style={{ margin: 0, color: "#dce8ff", fontSize: 11, lineHeight: 1.65, wordBreak: "keep-all" }}>{checks[index].reasons.join(" ")}</p>}
             </div>;
           })}
         </div>
         <p style={{ color: colors.textFaint, fontSize: 12, textAlign: "center", marginTop: 16 }}>
-          필수 {filledCount} / {PHOTO_REQUIRED_COUNT} 완료 · 전체 {savedList.length} / {PHOTO_SLOT_COUNT}장
+          필수 {filledCount} / {PHOTO_REQUIRED_COUNT} 완료 · 기본 {savedList.filter((p) => !isExtraSlot(p.slot)).length} / {PHOTO_BASE_COUNT}장 · 추가 {savedList.filter((p) => isExtraSlot(p.slot)).length}장
         </p>
 
         <div
@@ -503,7 +508,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         >
           <Star size={14} color={colors.accent} className="mt-0.5 shrink-0" />
           <p style={{ color: colors.textFaint, fontSize: 12, lineHeight: 1.6 }}>
-            별표는 대표 사진이에요. 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
+            별표는 대표 사진이에요. 기본 사진은 다섯 장이고, 마지막 「추가 사진」은 상대에게 사진 전체가 살짝 흐리게 보여요(한 장은 맛보기로 선명하게 · 나머지는 KEY로 선명하게 볼 수 있게 할 예정 · 준비 중). 흐리게 보이는 게 싫으면 추가 사진은 올리지 않아도 돼요. 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
             {PHOTO_AI_CHECK_ENABLED ? " AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요." : " 사진은 AI가 따로 판별하지 않아요. 본인 여부와 실제 촬영일도 확인하지 않아요."}
           </p>
         </div>

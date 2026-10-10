@@ -89,7 +89,7 @@ export function SajuInput({
             FREE · 기본 사주
           </p>
 
-          {/* 사주 시작 그림(2026-10-06 대표 지정 · public/doit/art/saju-start.webp) */}
+          {/* 사주 시작 그림(2026-10-06 대표 지정 · 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」로 다시 넣음 · public/doit/art/saju-start.webp) */}
           <img
             className="doit-start-art"
             src="/doit/art/saju-start.webp"
@@ -228,11 +228,11 @@ export function SajuInput({
                     ...fieldStyle,
                     borderColor:
                       calendar === value
-                        ? "var(--fortune-selected-line, #c7aa69)"
+                        ? "var(--fortune-selected-line, #bbfc9e)"
                         : colors.borderStrong,
                     color:
                       calendar === value
-                        ? "var(--fortune-selected-text, #efd99f)"
+                        ? "var(--fortune-selected-text, #dce8ff)"
                         : surfaces.onPage,
                   }}
                 >
@@ -309,7 +309,7 @@ export function SajuInput({
               className="mt-2 flex items-center gap-2 text-xs"
               style={{
                 color: unknown
-                  ? "var(--fortune-selected-text, #e4cb8f)"
+                  ? "var(--fortune-selected-text, #dce8ff)"
                   : surfaces.onPage,
               }}
             >
@@ -317,10 +317,10 @@ export function SajuInput({
                 className="flex h-5 w-5 items-center justify-center rounded-md border"
                 style={{
                   borderColor: unknown
-                    ? "var(--fortune-selected-line, #c7aa69)"
+                    ? "var(--fortune-selected-line, #bbfc9e)"
                     : colors.borderStrong,
                   background: unknown
-                    ? "rgba(199,170,105,.16)"
+                    ? "rgba(187,252,158,.16)"
                     : "transparent",
                 }}
               >
@@ -399,7 +399,7 @@ export function SajuInput({
                 background:
                   "linear-gradient(145deg,rgba(205,174,117,.13),rgba(255,255,255,.025))",
                 border:
-                  "1px solid rgba(205,174,117,.35)",
+                  "1px solid rgba(187,252,158,.35)",
               }}
             >
               <p

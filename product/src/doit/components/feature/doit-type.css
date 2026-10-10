@@ -17,7 +17,7 @@
 .doit-understanding-page .doit-product-title,
 .doit-product .doit-product-title,
 .doit-understanding-latest blockquote {
-  font-family: "Gowun Batang", "Noto Serif KR", "AppleMyungjo", "Nanum Myeongjo", serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   font-weight: 400;
   letter-spacing: -0.02em;
 }
@@ -27,8 +27,8 @@
 .echo-dialogue .echo-done-lead,
 .doit-install h2,
 .doit-understanding-page .doit-understanding-notice h2 {
-  font-family: "Gowun Batang", "Noto Serif KR", "AppleMyungjo", serif;
-  font-weight: 700;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
+  font-weight: 400;
   letter-spacing: -0.01em;
 }
 
@@ -44,7 +44,7 @@
 .doit-understanding-page .doit-understanding-empty,
 .doit-install p,
 .doit-install .doit-install-steps {
-  font-family: "Gowun Dodum", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   font-weight: 400;
 }
 /* 돋움 문장 안의 강조는 같은 집안 바탕체 굵게(돋움은 굵은 글자가 없어 흉내 굵기가 뭉개진다) */
@@ -53,8 +53,8 @@
 .doit-install p b,
 .doit-install .doit-install-steps b,
 .doit-install .doit-install-steps strong {
-  font-family: "Gowun Batang", "Noto Serif KR", serif;
-  font-weight: 700;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
+  font-weight: 400;
 }
 
 /* 작은 머리말 — 한글에 넓은 자간(.15em)을 주면 틀에 찍은 느낌이 난다. 조금만 띄운다. */

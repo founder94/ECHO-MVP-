@@ -4,19 +4,19 @@
    - 대화: 내 말 = 오른쪽 짙은 유리 · 상대 말 = 왼쪽 테두리 말풍선 · 입력줄 = 둥근 유리 한 줄.
    2026-10-05 21:22 KST 대표 「네가 고쳐!」: 이 파일은 PR #138 담당(#131 댓글 5994360174). */
 .doit-app-pastel .doit-candidates .doit-candidates-title{margin:6px 0 14px;font-size:24px!important;line-height:1.35;text-align:center}
-.doit-app-pastel .doit-candidates .doit-candidate{padding:18px 16px 16px;border-radius:22px;background:rgb(30 42 48/.54);border:1px solid rgb(255 255 255/.6);text-align:center}
+.doit-app-pastel .doit-candidates .doit-candidate{padding:18px 16px 16px;border-radius:4px;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);text-align:center}
 .doit-app-pastel .doit-candidates .doit-candidate .doit-match-kicker{margin:0;font-size:12px;letter-spacing:.04em;opacity:.9}
 .doit-app-pastel .doit-candidates .doit-candidate-found{margin:6px 0 0;font-size:18px!important}
-.doit-app-pastel .doit-candidates .doit-candidate-quote{display:grid;place-items:center;min-height:120px;margin:14px 0 4px;padding:18px 16px;border-radius:18px;background:linear-gradient(160deg,rgb(255 255 255/.22),rgb(255 255 255/.06));border:1px solid rgb(255 255 255/.5);font-size:18px!important;font-weight:700!important;line-height:1.5;color:#fff;word-break:keep-all}
+.doit-app-pastel .doit-candidates .doit-candidate-quote{display:grid;place-items:center;min-height:120px;margin:14px 0 4px;padding:18px 16px;border-radius:4px;background:linear-gradient(160deg,rgb(255 255 255/.22),rgb(255 255 255/.06));border:1px solid rgb(255 255 255/.16);font-size:18px!important;font-weight:700!important;line-height:1.5;color:#fff;word-break:keep-all}
 .doit-app-pastel .doit-candidates .doit-candidate-quote span span{font-size:22px;line-height:1;opacity:.85;margin:0 4px}
 .doit-app-pastel .doit-candidates .doit-candidate-teaser{margin:8px 0 12px}
-.doit-app-pastel .doit-candidates .doit-candidate-reasons{margin:12px 0 0;padding:12px 14px 12px 30px;border-radius:16px;background:rgb(30 42 48/.51);text-align:left}
+.doit-app-pastel .doit-candidates .doit-candidate-reasons{margin:12px 0 0;padding:12px 14px 12px 30px;border-radius:4px;background:rgb(255 255 255/.06);text-align:left}
 .doit-app-pastel .doit-candidates .doit-candidate-reasons li{color:#fff!important;-webkit-text-fill-color:#fff;opacity:1;font-size:15px}
 .doit-app-pastel .doit-candidates .doit-candidate-why{margin-top:12px}
 .doit-app-pastel .doit-candidates .doit-candidate-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-product-action{grid-column:1/-1;justify-content:center;min-height:52px;border-radius:14px}
-.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-connect-link{display:grid;place-items:center;min-height:48px;margin:0;border-radius:14px;background:rgb(30 42 48/.66);border:1px solid rgb(255 255 255/.55);color:#fff;text-decoration:none;font-size:15px}
-.doit-app-pastel .doit-candidates .doit-candidate[data-state=closed] .doit-product-action{justify-content:center;width:100%;min-height:52px;border-radius:14px}
+.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-product-action{grid-column:1/-1;justify-content:center;min-height:52px;border-radius:4px}
+.doit-app-pastel .doit-candidates .doit-candidate-actions .doit-connect-link{display:grid;place-items:center;min-height:48px;margin:0;border-radius:4px;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.16);color:#fff;text-decoration:none;font-size:15px}
+.doit-app-pastel .doit-candidates .doit-candidate[data-state=closed] .doit-product-action{justify-content:center;width:100%;min-height:52px;border-radius:4px}
 .doit-app-pastel .doit-candidates .doit-safety-open{margin-top:12px}
 .doit-app-pastel .doit-candidates>.doit-connect-note{text-align:center}
 
@@ -24,16 +24,16 @@
 .doit-app-pastel .doit-matches .doit-match-messages{display:flex;flex-direction:column;gap:10px;padding:0;list-style:none}
 /* 2026-10-05 Codex 4183643949: 상대 말풍선의 흰 빛(18%)이 유리 판을 밝혀 흰 글자 3.35:1 → 빛 0(판 그대로 = 4.73:1 이상) · 테두리로 구분.
    내 말은 판 위에 먹색을 더 얹어(더 어둡게만) 구분. 바깥 판은 visual-parity.css 의 공통 유리. */
-.doit-app-pastel .doit-matches .doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:6px 18px 18px 18px;background:transparent;border:1px solid var(--echo-glass-line,rgb(255 255 255/.42))}
-.doit-app-pastel .doit-matches .doit-match-messages li[data-mine=true]{align-self:flex-end;border-radius:18px 18px 6px 18px;background:rgb(8 22 28/.42)}
+.doit-app-pastel .doit-matches .doit-match-messages li{max-width:82%;padding:10px 14px;border-radius:4px;background:transparent;border:1px solid rgb(255 255 255/.16)}
+.doit-app-pastel .doit-matches .doit-match-messages li[data-mine=true]{align-self:flex-end;border-radius:4px;background:rgb(255 255 255/.10)}
 /* 7번 대기: 「선택을 보냈어요」 줄 — 숨 쉬는 점을 글 바로 앞에(가운데 정렬) */
 .doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting{display:block;text-align:center}
 .doit-app-pastel .doit-candidates .doit-connect-note.echo-waiting .echo-signal-pulse{display:inline-block;margin:0 8px 2px 0}
 
 /* 대표 디자인 그림 교체(2026-10-04): 후보 카드 = 「모바일 최종 디자인 기준」 5번 전시장 그림 위에 서버가 준 목적 한 줄(사람 사진 아님 · 분위기 그림)
    · 후보 없음 = 「모션 디자인 시안」 02 서로 가까워지다 리본 */
-.doit-app-pastel .doit-candidates .doit-candidate-quote{position:relative;align-content:end;justify-items:start;min-height:170px;padding:16px;text-align:left;background:linear-gradient(180deg,rgb(8 40 46/0) 35%,rgb(8 40 46/.72)),url(/doit/art/candidate-gallery.webp) center/cover no-repeat;border:1px solid rgb(255 255 255/.6);overflow:hidden}
-.doit-app-pastel .doit-candidates .doit-candidates-title--wait::before{content:"";display:block;width:100%;max-width:320px;margin:0 auto 12px;aspect-ratio:468/205;background:url(/doit/art/ribbon-02.webp) center/cover no-repeat;border-radius:18px;-webkit-mask-image:radial-gradient(closest-side,#000 70%,transparent);mask-image:radial-gradient(closest-side,#000 70%,transparent)}
+.doit-app-pastel .doit-candidates .doit-candidate-quote{position:relative;align-content:end;justify-items:start;min-height:0;padding:16px;text-align:left;background:linear-gradient(180deg,rgb(8 40 46/0) 35%,rgb(8 40 46/.72));border:1px solid rgb(255 255 255/.16);overflow:hidden}
+/* 2026-10-10 대표 「모바일웹 = Flora」: 기다림 리본 그림(ribbon-02) 지움 */
 
 /* 2026-10-05 대표 「네가 고쳐!」 — 시안 5(후보)·7(한쪽 대기) 배치. 글·순서·서버 동작·버튼 0 변경(생김새·놓는 순서만).
    5 후보(아직 안 연 카드): 그림 카드가 화면의 주인공 — 크게 · 따옴표 글 크게 · 안내 한 줄 가운데. */

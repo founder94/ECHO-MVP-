@@ -33,7 +33,8 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   const journey = read('src/doit/pages/do-it/start-journey/page.tsx');
   assert.match(journey, /if \(leaving\) \{[\s\S]{0,260}echo-dialogue echo-dialogue--pastel[\s\S]{0,120}첫 질문을 꺼내고 있어요/, '첫 질문 직전 전환 화면');
   // 2026-10-05 대표 실기기 「승인 시안과 다름」: 심볼·작은 머리글 → 시안 1번 유리 리본 · 가운데 제목(파스텔 루트는 그대로)
-  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="\/doit\/echo-ribbon\.webp" alt=""[^>]*\/><\/div><p className="echo-eyebrow">무엇부터 할까요<\/p><h1>오늘은<br \/>무엇부터 할까요\?<\/h1>/, '「무엇부터 할까요」 선택 화면');
+  // 2026-10-10 대표 「모바일웹 = Flora」: 유리 리본 그림 → Flora 민들레(FloraBloom). 자리·제목·글은 그대로.
+  assert.match(journey, /<section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><FloraBloom \/><\/div><p className="echo-eyebrow">무엇부터 할까요<\/p><h1>오늘은<br \/>무엇부터 할까요\?<\/h1>/, '「무엇부터 할까요」 선택 화면');
   assert.ok((journey.match(/className="doit-app-pastel/g) ?? []).length >= 6, '불러오기·오류·목적·프로필 작성·사진·확인 단계');
   assert.doesNotMatch(journey, /#090a0c/, '시작 흐름에 검정 바탕 0');
   assert.match(read('src/doit/app/plan-a/screens/SignupConsent.tsx'), /echo-dialogue echo-dialogue--pastel/, '가입 안내도 파스텔');
@@ -43,7 +44,7 @@ test('파스텔 규칙은 대화 경로 루트(.echo-dialogue--pastel) 아래로
   // 바탕 규칙 파일: 선택자는 대화 화면 루트 또는 앱 틀(.doit-app-pastel)뿐
   let k = 0;
   for (const m of bgRules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of splitTop(m[1])) { const t = sel.trim(); if (!t) continue; k++; assert.match(t, /^:is\(\.echo-dialogue\.echo-dialogue--pastel,\.doit-app-pastel\)/, t); }
-  assert.ok(k >= 4);
+  assert.ok(k >= 1); // 2026-10-10 Flora: 바탕 파일은 땅색 한 규칙만(띠·흐림·움직임 규칙 삭제)
   for (const m of appRules.matchAll(/([^{}]+)\{[^}]*\}/g)) for (const sel of splitTop(m[1])) { const t = sel.trim(); if (!t) continue; assert.match(t, /^(\.doit-app-pastel\b|\.doit-root \.doit-product\.doit-app-pastel\b)/, t); }
 });
 
@@ -58,12 +59,19 @@ test('배경만: 바깥 사진·날씨·입자 0 · 글꼴·크기·배치 규�
   assert.match(bg, /--echo-pastel-veil:0;/, '대표 결정: 캡처 색 그대로(덮개 0)');
 });
 
-test('움직임은 옛 float-bg 하나 · 움직임 줄이기면 멈춤', () => {
-  // 2026-10-01 BACKGROUND FINAL LOCK: 속도만 상태 토큰(--echo-pastel-drift)으로 — 기본값은 그대로 20초
-  assert.equal((bg.match(/animation:float-bg var\(--echo-pastel-drift,20s\) ease-in-out infinite/g) ?? []).length, 1);
-  assert.match(bg, /@media\(prefers-reduced-motion:reduce\)\{:is\(\.echo-dialogue\.echo-dialogue--pastel,\.doit-app-pastel\)::before\{animation:none\}\}/);
+test('움직임은 Flora 바탕 캔버스 하나 · 움직임 줄이기면 멈춘 한 장 · 파스텔 float-bg 0', () => {
+  // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 바탕의 20초 흐름(float-bg)을 지우고 Flora Kindle 캔버스 하나가 움직인다.
+  assert.doesNotMatch(bgRules, /animation:/, '바탕 규칙 파일에 움직임 0');
+  const fb = read('src/doit/flora/FloraBackdrop.tsx');
+  assert.match(fb, /const reduced = window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)\.matches;/);
+  assert.match(fb, /if \(reduced\) field\.render\(/, '움직임 줄이기 = 한 장만 그림');
+  assert.match(fb, /if \(!reduced\) raf = requestAnimationFrame\(frame\);/);
+  assert.match(read('src/doit/flora/scene/device.ts'), /export const sceneShouldFreeze = \(tier: DeviceTier\): boolean =>\s*prefersReducedMotion\(\)/, '민들레도 움직임 줄이기면 다 자란 한 장');
+  const bloom = read('src/doit/flora/FloraBloom.tsx');
+  assert.match(bloom, /frozen = sceneShouldFreeze\(tier\);/);
+  assert.match(bloom, /if \(frozen\) \{ scene\.settle\(\); return; \}/);
+  assert.match(bloom, /scene\.resize\(\); if \(frozen\) scene\.settle\(\);/, '멈춘 한 장도 크기가 바뀌면 다시 그림');
   assert.match(css, /@import "\.\/pastel-bg\.css";/, '대화 화면이 바탕 한 벌을 불러온다');
-  assert.match(read('src/index.css'), /@keyframes float-bg/);
 });
 
 test('글자색 = 대표 이미지 글씨색 #fff 하나로 통일(대표 2026-09-25 「그냥 이미지 글씨색 똑같이」): 남색 0 · 검은 그림자 0', () => {

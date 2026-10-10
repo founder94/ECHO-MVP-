@@ -24,7 +24,7 @@ export function spriteStyle(card: TarotCard): CSSProperties {
   };
 }
 
-export const SERIF = '"Noto Serif KR", "Nanum Myeongjo", Georgia, serif';
+export const SERIF = '"Jua", "Pretendard", system-ui, sans-serif'; // 2026-10-09 대표 승인: 주아체 하나
 
 // 다크 스페이스 배경(이미지 아님, CSS 그라디언트). 별 + 골드 은은한 글로우.
 export const SPACE_BG: CSSProperties = {

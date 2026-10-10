@@ -1,11 +1,14 @@
 import GuideHint from '@/components/guide/GuideHint';
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 리본 그림 → Flora 민들레
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Mic, Plus, RotateCcw, Send, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
+import FxStage, { WaitHook } from '@/doit/fx/FxStage';
+import { DNA_HOOKS } from '@/doit/fx/hooks';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
-import { DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeTalkStatus } from '@/doit/lib/agentApi';
+import { agentRecall, type AgentMemory, DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeTalkStatus } from '@/doit/lib/agentApi';
 import './core-conversation.css';
 import './chat-ref.css';
 import AgentChoiceLayer from './AgentChoiceLayer';
@@ -54,6 +57,8 @@ const VOICE_STATE: Record<VoicePhase, [string, string]> = {
 // 대표 지시(2026-09-25 「기존 UI/브랜딩/레이아웃 변경 금지」·「UI FINAL LOCK · 시작하기 선택창」): 기존 대화 화면(CoreConversation)의 배치·클래스를 그대로 쓴다.
 // 새로 더한 것은 「시작하기」 직후 한 번 뜨는 무채색 선택창(agent-choice.css) 하나뿐이다.
 export default function AgentConversation({ userId, firstAnswer, purposeLabel = null, goal = null, onRestart, onContinue }: Props) {
+  const [memory, setMemory] = useState<AgentMemory | null>(null);
+  const [memoryQuery, setMemoryQuery] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false); // 「+」 더 보기(2026-10-04 모바일 기준 디자인)
   const [session, setSession] = useState<AgentSession | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -64,6 +69,15 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // 위기 신호 안전 안내(서버 고정 문장) — 대화 화면·불러오는 중·다시 불러오기 실패 화면 모두에 보인다(2026-10-10 · Codex P1/P2).
+  //   at = 안내를 받을 때의 대화 길이 — 그 뒤 대화가 이어지면(말이 늘면) 저절로 사라진다(보낼 때마다 따로 지우지 않음).
+  const [safety, setSafety] = useState<{ line: string; at: number } | null>(null);
+  const showSafety = (line: string, s: AgentSession | null) => setSafety({ line, at: s?.messages.length ?? -1 });
+  const safetyLine = safety && (!session || session.messages.length === safety.at || safety.at < 0) ? <p className="echo-notice" role="alert">{safety.line}</p> : null;
+  // 다시 불러온 지금 회차가 도착하면 그 길이를 기준으로 삼는다(그 뒤 대화가 이어지면 사라짐).
+  useEffect(() => { if (safety && safety.at < 0 && session) setSafety({ line: safety.line, at: session.messages.length }); }, [safety, session]);
+  // 세션이 지난 회차·없음(서버 session: null): 옛 세션을 먼저 지우고 지금 회차를 다시 불러온다 — 불러오기에 실패해도 옛 대화로 이어 보내지 않게
+  const reloadRound = () => { setSession(null); setLoaded(false); return load(); };
   // 2026-10-06 유료 자유 대화 안내: 서버 스위치가 켜져 있을 때만(기본 꺼짐 → 상태 enabled=false → 안내 0) · 정해진 흐름에서 ECHO에게 다른 걸 물었을 때(말 종류 ask) 한 번.
   const [freeStatus, setFreeStatus] = useState<FreeTalkStatus | null>(null);
   const [freeOffer, setFreeOffer] = useState(false);
@@ -138,6 +152,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed(), goal });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
+    if (s.crisisLine) showSafety(s.crisisLine, s); // 위기 신호: 서버 안전 안내를 그대로(첫 답은 쓰지 않음)
   });
 
   // spokenTurn = 말로 대화하기 마이크로 들은 말(글로 적은 말과 같은 서버·같은 기억·같은 정정/거절 규칙으로 간다).
@@ -151,12 +166,19 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     void run(VOICE_CONVERSATION_ENABLED && session.mode === 'VOICE' ? '이해하는 중이에요' : '다음 질문을 고르고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
+      if (r.turn.kind === 'crisis') {
+        showSafety(r.turn.reply, r.session); setDraft('');
+        if (r.session) setSession(r.session); else await reloadRound(); // 지난 회차·없음: 지금 회차를 다시 불러온다(안내는 그대로)
+        return;
+      }
+      if (!r.session) return;
       speakNew(session, r.session, spoke); setSession(r.session);
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
       // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤 준 고정 문장(turn.receipt)을 그대로 — 버튼 정정이든 자유 입력 정정(「아닌데, …」)이든 같은 줄(화면이 먼저 만들지 않음)
-      setFreeOffer(r.turn.kind === 'ask');
+      setMemory(r.turn.memory ?? null); setMemoryQuery(t);
+      setFreeOffer(r.turn.kind === 'ask' && !r.turn.memory);
       if (correctionMode) { setEditingPrevious(false); setNotice(r.turn.receipt?.line ?? (r.turn.reply || '고친 말로 다시 이어갈게요.')); }
       else if (r.turn.receipt?.line) setNotice(r.turn.receipt.line);
       else if (r.turn.after && r.turn.reply) setNotice(r.turn.reply);
@@ -239,22 +261,24 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
 
   if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!loadError}>
     {header}
-    {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div>}
+    {safetyLine}
+    {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="doit-fx-wait"><FxStage fx="dna" delayMs={500} /><div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div><WaitHook lines={DNA_HOOKS} delayMs={500} /></div>}
   </section>;
 
   // ── 시작 전(대표 「UI FINAL LOCK · 시작하기 선택창」 2026-09-25): 기존 컬러 대화 화면은 그대로 두고, 그 위에 무채색 선택창 하나만 띄운다.
   //   대화 방식(글/말) + 말투(기본 = 편한 존댓말)를 고르면 창이 닫히고, 같은 화면에서 그 선택으로 대화를 시작한다. 새 페이지 이동 0.
   if (!session) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!!busy}>
     {header}
-    <img className="echo-chat-art" src="/doit/art/ribbon-01.webp" alt="" aria-hidden="true" width="940" height="410" decoding="async" />
+    <div className="echo-ref-hero echo-chat-hero" aria-hidden="true"><FloraBloom /></div>
     <p className="echo-eyebrow">만나기 전에</p>
     {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
     {/* 2026-10-05 시안 일치: 목적은 작은 칩 · 제목은 따로(목적 문장과 제목이 한 문장처럼 붙어 읽히던 것) — 글은 그대로 */}
     {(session?.goal_label ?? purposeLabel) && <p className="echo-purpose-chip">{session?.goal_label ?? purposeLabel}</p>}
     <h1>편하게 몇 가지만<br />물어볼게요.</h1>
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
+    {safetyLine}
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
-    {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
+    {busy && <div className="doit-fx-wait"><FxStage fx="dna" delayMs={500} /><div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div><WaitHook lines={DNA_HOOKS} delayMs={500} /></div>}
     {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { if (choice.mode === 'VOICE') unlockSpeech(); setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
   </section>;
 
@@ -310,7 +334,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       {/* 2026-09-26 대표 실기기 FAIL USER_CONTEXT_NOT_ACKNOWLEDGED: 받아주기 말은 작은 회색 줄이 아니라 또렷한 ECHO 말풍선으로(문장은 서버가 준 그대로). */}
       {question && !editingPrevious && ack && <p className="echo-bubble echo-bubble--echo echo-ack-bubble"><span className="echo-sr">ECHO: </span>{ack}</p>}
       {question && !editingPrevious && <div className="echo-question-card echo-bubble--echo">
-        <p className="echo-question">{question}</p>
+        <p className="echo-question" data-testid="agent-question">{question}</p>
         {/* 실제 사용자 피드백(2026-09-25 「예시같은게 있어도 좋을것 같구」): 예시는 늘 펼치지 않고, 누를 때만 한 줄로 보인다. 답을 대신 써 주지 않는다(범위만). */}
         {session.current_hint && (hintFor === question
           ? <p className="echo-fine" role="note">{session.current_hint}</p>
@@ -339,6 +363,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         </div>}
       </div>}
       {busy && <div className="echo-thinking echo-typing" role="status"><span className="echo-typing-dots" aria-hidden="true"><i /><i /><i /></span><p>{busy}</p></div>}
+      {safetyLine}
       {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
       {freeOffer && freeStatus?.enabled && (freeStatus.entitled || (freeStatus.trial_left ?? 0) > 0) && !busy && !done && <p className="echo-notice" role="note">{freeStatus.entitled ? '여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요.' : `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요. 맛보기 ${freeStatus.trial_left ?? 0}번 남았어요.`} <Link className="echo-text-button" to="/doit/talk">무엇이든 이야기하기</Link></p>}
       {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
@@ -355,8 +380,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       : <p className="echo-notice" role="status">이 브라우저는 말 듣기를 지원하지 않아요. 아래 칸에 글로 적어 주세요.</p>)}
     {voiceUi && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
     {/* 2026-10-04 모바일 기준 디자인 4번(정정·확인): 다 들은 뒤 첫 화면은 「이렇게 이해했는데, 맞나요?」 하나. 정리·다음 행동은 확인한 뒤에. */}
-    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
-    {done && (profileOk || !profile) && <img className="echo-chat-art" src="/doit/art/ribbon-03.webp" alt="" aria-hidden="true" width="970" height="410" decoding="async" />}
+    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} onCrisis={(line, stale) => { showSafety(line, stale ? null : session); if (stale) void reloadRound(); }} />}
+    {done && (profileOk || !profile) && <div className="echo-ref-hero echo-chat-hero" aria-hidden="true"><FloraBloom /></div>}
     {done && (profileOk || !profile) && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
       <p className="echo-done-lead">{session.closing ?? '말해 준 내용을 정리해 뒀어요.'}</p>
@@ -381,6 +406,21 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {((toolsOpen && !done) || (done && (profileOk || !profile))) && <div className="echo-chat-tools" id="echo-chat-tools" role="group" aria-label="더 보기">
       {!done && myAnswers.length > 0 && !editingPrevious && <button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(true); setDraft(myAnswers.at(-1) ?? ''); setNotice(null); setHintFor(null); setToolsOpen(false); }}><ArrowLeft size={15} aria-hidden="true" /> 직전 답 고치기</button>}
       {!done && !editingPrevious && !rescueOpen && <button type="button" className="echo-text-button echo-stop-link" disabled={!!busy} onClick={() => { setToolsOpen(false); send(STOP_TEXT); }}>오늘은 여기까지 할게요</button>}
+      <form className="echo-history" onSubmit={event => { event.preventDefault(); if (busy || !memoryQuery.trim()) return; void run('기록을 찾고 있어요', async () => { const r = await agentRecall(userId, memoryQuery, 'history'); if (alive.current) { setMemory(r.memory); setNotice(r.reply); } }); }}>
+        <label htmlFor="echo-memory-query">예전에 남긴 말 찾아보기</label>
+        <input id="echo-memory-query" maxLength={1000} disabled={!!busy} value={memoryQuery} onChange={event => { setMemoryQuery(event.target.value); setMemory(null); }} placeholder="찾고 싶은 내용을 적어 주세요" />
+        <button type="submit" className="echo-secondary" disabled={!!busy || !memoryQuery.trim()}>원문 찾기</button>
+        <p className="echo-fine">저장된 내 대화만 찾아요. 예전 말은 현재 프로필로 자동 반영하지 않아요.</p>
+      </form>
+      {memory && <section className="echo-history" aria-label="찾은 원문 기록">
+        {memory.notice && <p className="echo-fine">{memory.notice}</p>}
+        <ol>{memory.evidence.map(item => <li key={`${item.source_id}:${item.session_id}:${item.revision}:${item.turn}`}>
+          <blockquote>{item.quote}</blockquote>
+          <p className="echo-fine">{item.validity === 'CURRENT_CONFIRMED' ? '현재 확인된 정보' : item.validity === 'HISTORICAL_ONLY' ? '과거 이력 · 현재 사실로 쓰지 않아요' : '아직 확인하지 않은 기록'} · 원문 {item.turn}번째 · 수정 {item.revision}</p>
+        </li>)}</ol>
+        {!memory.evidence.length && <p className="echo-fine">{memory.status === 'READ_FAILED' ? '기록을 불러오지 못했어요. 다시 확인해 주세요.' : '확인할 원문이 없어요.'}</p>}
+      </section>}
+      {memory?.next && <button type="button" className="echo-secondary" disabled={!!busy} onClick={() => { const cursor = memory.next!; void run('기록을 더 찾고 있어요', async () => { const r = await agentRecall(userId, memoryQuery, memory.intent ?? 'history', cursor); if (alive.current) { setMemory(r.memory); setNotice(r.reply); } }); }}>기록 더 찾기</button>}
       {/* 끝난 뒤에는 입력칸이 없으니 지난 말은 읽기만(누르면 입력칸에 넣는 버튼은 진행 중에만 · Codex 4179170288). */}
       {myAnswers.length > 0 && <details className="echo-history"><summary>이번에 한 말 {myAnswers.length}개</summary><ol>{myAnswers.map((text, k) => <li key={k}>{done ? text : <button type="button" disabled={!!busy} onClick={() => { setDraft(text); setToolsOpen(false); }}>{text}</button>}</li>)}</ol></details>}
       <button className="echo-secondary" disabled={!!busy} onClick={onContinue}>사진과 소개 채우기 <ChevronRight size={18} /></button>

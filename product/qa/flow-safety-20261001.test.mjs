@@ -41,21 +41,27 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
   assert.match(z, /if \(localStorage\.getItem\(ZZARIT_KEY\(matchId\)\)\) return false;\s*localStorage\.setItem\(ZZARIT_KEY\(matchId\), '1'\);/);
 });
 
-test('찌릿 연출(2026-10-04 대표): 문구 3개 · 두 익명 노드 사이 청록·흰색 전류 0.6~0.9초 한 번 · 반복·번쩍임 0 · 하트·폭죽·네온 0 · 움직임 줄이기 = 정적 연결선 · 상대 정보 0', () => {
-  for (const t of ["title: '찌릿! 텔레파시가 통했어요'", "body: '두 분 모두 대화를 원했어요.'", "next: '다음 단계 보기'"]) assert.ok(Z.includes(t), t);
+// 2026-10-10 대표 「모바일웹 전부 최종 후킹 · Lattice 효과 넣어라」: 2026-10-04 전류 연출 → Einstein–Rosen Lattice(빛의 통로). 문구는 2026-10-09 「추가 효과 배치」 §2 확정본.
+test('찌릿 연출: 확정 문구 4개 · 가운데 두 구슬(B안) 하나 · 움직임 줄이기 = 멈춘 한 장 · 하트·폭죽·네온·소리 0 · 상대 정보 0', () => {
+  for (const t of ["eyebrow: '찌릿! 텔레파시가 통했어요'", "title: ['서로의 선택이,', '하나의 대화로.']", "body: '두 분 모두 연결을 선택했어요.'", "next: '첫 대화 시작하기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
-  assert.doesNotMatch(ZCSS, /infinite/, '반복 0');
-  const cur = ZCSS.match(/\.echo-zzarit-current\{[^}]*animation:echo-zz-current ([.\d]+)s [^ ]+ ([.\d]+)s both\}/);
-  assert.ok(cur, '전류 한 번');
-  assert.ok(Number(cur[1]) >= 0.6 && Number(cur[1]) <= 0.9, `전류 길이 ${cur[1]}s`);
-  assert.match(ZCSS, /#7ff3e6/, '청록'); assert.match(ZCSS, /#ffffff/, '흰색');
-  for (const k of ZCSS.matchAll(/@keyframes [\w-]+\{([^@]*?)\}\}/g)) assert.doesNotMatch(k[1], /width|height|top|left:|margin|filter/, '움직임은 opacity·transform 만');
-  assert.match(ZCSS, /@media\(prefers-reduced-motion:reduce\)\{[^@]*animation:none/);
+  assert.doesNotMatch(ZCSS, /infinite|@keyframes/, '이 화면 CSS 움직임 0(움직임은 Lattice 하나)');
+  // 2026-10-10 대표 「B로 채택」: 가운데 = Storm 두 구슬 + 전류(FxStage storm-pair) 하나
+  assert.equal((Z.match(/<FxStage /g) ?? []).length, 1);
+  assert.match(Z, /<FxStage fx="storm-pair" className="echo-zzarit-stage" \/>/);
+  assert.doesNotMatch(Z, /delayMs/, '찌릿은 기다림이 아님 — 바로 보인다');
+  // 순서: 위 글 → 가운데 효과 → 아래 버튼(글·버튼이 효과 위에 겹치지 않음)
+  const order = ['echo-zzarit-eyebrow', 'echo-zzarit-title', 'echo-zzarit-body', '<FxStage', 'echo-zzarit-cta'].map((k) => Z.indexOf(k));
+  assert.deepEqual([...order].sort((x, y) => x - y), order);
+  const stage = read('src/doit/fx/FxStage.tsx');
+  assert.match(stage, /case "storm-pair": return import\("\.\/storm"\)/, '엔진은 이 화면이 열릴 때만 불러온다');
+  assert.match(stage, /sceneShouldFreeze\(readTier\(\)\) \? "still" : "live"/, '움직임 줄이기·절전 = 멈춘 한 장');
+  assert.match(stage, /state === "failed" \? <div className="doit-fx-fallback" \/> : <canvas/, 'WebGL 실패 = 은은한 빛만 · 화면은 그대로');
+  assert.match(read('src/doit/fx/house.ts'), /const want = !halted && !still && !document\.hidden && inView;/, '화면 밖·탭 숨김이면 멈춤');
   assert.match(Z, /if \(!reduce\) \{ try \{ navigator\.vibrate\?\.\(12\); \}/, '진동은 짧게 · 줄이기 설정이면 0');
   assert.doesNotMatch(Z, /Audio|\.play\(/, '소리 0');
-  assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b|<img/, '익명 노드(상대 사진·이름 0)');
+  assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b|<img/, '상대 사진·이름 0');
   assert.doesNotMatch(Z, /setTimeout\([^)]*focus/, '다음 버튼은 연출을 기다리지 않음');
-  assert.doesNotMatch(Z, /nickname|photo|partner|bio/, '상대 정보 0');
 });
 
 test('안전 문구: 정해진 세 문장 · 「완벽하게 보호」 같은 약속 0', () => {

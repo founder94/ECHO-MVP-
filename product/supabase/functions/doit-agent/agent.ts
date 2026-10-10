@@ -1,3 +1,4 @@
+import { allowedRecent, withheld } from "./history-retrieval.ts";
 // ECHO Conversation Agent v1.2 — 운영판(2026-09-25, 대표 「ECHO Agent v1.1 FINAL FULL 구현·관리자·배포 통합명세서」 + 「구현 → 운영배포 → 운영검증」).
 // 시험판 product/spike/agent-v1-20260925/agent.mjs(v1.1)를 옮겼다. 바꾼 것:
 //   ① 말투 예시 문장 삭제 — 실제 AI 재생에서 모델이 예시 「그렇군요, 편한 게 제일 중요하네요」를 그대로 베껴 썼다.
@@ -83,7 +84,7 @@ const softEnd = (x: string) => x.replace(/(?:는)?군요(?=[.!]?$)/, "네요"); 
 // 물음표 없이 마침표로 끝난 질문 문장(실제 AI run gf: 「그럼 … 어떤 주제로 이야기하는 걸 좋아하세요.」). 받아주기 칸에는 질문을 두지 않는다.
 export const ASKS = /(어떤|무슨|뭐|뭘|무엇|언제|어디|얼마나|어느|누구|몇)[^.!?]*(세요|나요|까요|가요|는지요|인가요)\s*[.!]?$/; // 「~예요·~해요」는 받아주기 문장에도 흔해 넣지 않는다
 // 방금 답에서 이어지는 질문인지(재시도 신호만 · 질문을 버리지 않는다): 답의 낱말 앞 두 글자 중 흔한 말을 뺀 것이 질문에 하나라도 있으면 이어진 것으로 본다.
-const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나"]);
+const ANCHOR_STOP = new Set(["좋아", "좋겠", "좋은", "싫어", "싫은", "그냥", "사람", "친구", "연애", "같이", "하는", "있는", "있으", "없어", "나는", "저는", "제가", "내가", "너무", "진짜", "조금", "많이", "그런", "이런", "저런", "그게", "이게", "편이", "해요", "하고", "그리", "그래", "아니", "정말", "생각", "좋다", "만나", "싶어", "싶은", "싶다", "싶고", "싫고", "싫다", "원해", "원하"]); // 2026-10-10: 바람·싫음 낱말(싶어·싫고·원해)은 어느 질문에나 들어가 「이어진 질문」으로 잘못 통과시켰다
 export function anchorWords(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).filter((w) => /^[가-힣A-Za-z]{2,}/.test(w)).map((w) => w.slice(0, 2)).filter((w) => !ANCHOR_STOP.has(w)))]; }
 export function anchorTokens(latest: string): string[] { return [...new Set(String(latest ?? "").split(/[\s,.!?~…]+/).map((w) => w.replace(/[^가-힣A-Za-z]/g, "")).filter((w) => w.length >= 2 && !ANCHOR_STOP.has(w.slice(0, 2))))].sort((a, b) => b.length - a.length); }
 const SURVEY_QUESTION_WORDS = ["활동", "빈도", "방식", "선호", "편안함", "가치", "성향", "중요성", "중요하게", "유형", "기분"]; // v2.5.5 「놀 때 어떤 기분이 드나요?」(QA 장면 B) = 상담 말투 · 2026-09-30 대표 마감 지시 §3 「유형·가치·중요하게 생각」
@@ -206,7 +207,12 @@ export const metaQuote = (q: string | null | undefined) => META_QUOTE.test(Strin
 //   버튼 글자의 낱말을 다음 질문에 잇게 하지 않는다(낱말 잇기 검사 · user_words · 「글자 그대로 넣으라」 다시 청하기 0) — 목적의 뜻으로 묻는다.
 // 2026-10-05 Codex P2: 앱은 목적 타일에 한 줄을 붙여 「목적. 한 줄」로 보낸다 — 문장 끝 뒤에 이어진 글이 있으면 사용자가 친 글이 섞인 답이라 버튼 글자로 보지 않는다(그 한 줄에 다음 질문을 잇는다).
 const TYPED_TAIL = /[.!?。？！]\s*\S/;
-export const buttonInput = (ai: string | null | undefined, choice = false, latest = "") => choice || (ai === FIRST_QUESTION && !TYPED_TAIL.test(latest.trim()));
+// 2026-10-10 MVP 마감(실서버 「질문이 방금 답과 이어지지 않음」): 세션에 고른 목적 글자(goal_label)가 있으면 그 글자와 같을 때만 버튼으로 본다.
+//   마침표 없이 친 글(「천천히 대화하면서 스며드는 친구」)을 버튼으로 잘못 보면 낱말 잇기 검사가 꺼지고 「그 낱말로 묻지 말라」가 붙어 엉뚱한 질문이 나왔다.
+//   목적 글자가 없는 예전 세션만 예전 판단(문장 끝 뒤 이어진 글 유무)을 쓴다.
+const bareLabel = (t: string) => t.replace(/[\s.!?。？！~]+/g, "");
+export const buttonInput = (ai: string | null | undefined, choice = false, latest = "", goalLabel: string | null = null) =>
+  choice || (ai === FIRST_QUESTION && (goalLabel?.trim() ? bareLabel(latest) === bareLabel(goalLabel) : !TYPED_TAIL.test(latest.trim())));
 const sentences = (t: string) => t.split(/(?<=[.!?。])\s+/).map((x) => x.trim()).filter(Boolean);
 // 받아주기 정리: 상담 말투 문장 · 다음 질문을 되풀이한 문장(물음표를 마침표로 바꾼 질문 등)은 뺀다.
 // v2.5.5 받아주기 안에 숨은 질문(QA 장면 B 「어떤 고양이가 제일 마음에 들어요.」 · 물음표 없이 「~요.」로 끝남)도 뺀다 — 한 턴에 질문은 하나.
@@ -578,6 +584,8 @@ export interface AgentState {
   goal?: GoalId; goal_label?: string | null; // v2.4 세션의 관계 목적(예전 대화에는 없다 → open)
   // 2026-10-06 대표 「기억 영수증」: forgotten = 「ECHO가 아는 나」에서 사용자가 지운 줄(글자 그대로 · AI 가 다시 만들지 않는다) · user_confirmed_at = 「맞아요」로 지금 이해 전체를 확인한 시각 · last_receipt = 마지막 정정 영수증
   forgotten?: string[]; user_confirmed_at?: string | null; last_receipt?: (Receipt & { turn: number }) | null;
+  // 2026-10-10: forgotten_lines = 사용자가 지운 「줄」 수(화면 「지운 줄 N개」). forgotten 은 같이 숨긴 원문 복사본까지 담아 줄 수보다 클 수 있다.
+  forgotten_lines?: number;
 }
 // 2026-10-06 기억 영수증(서버 고정 문장 · AI 0): before = 이번 말로 밀리거나 거둔 옛 뜻 · after = 이번 말에서 새로 받은 뜻.
 export interface Receipt { line: string; before: string[]; after: string[] }
@@ -724,7 +732,7 @@ function ask(st: AgentState, type: Asked["type"], purpose: string, text: string)
 
 export function turnInput(st: AgentState, latest: string, opts: { button?: boolean } = {}): Json {
   return {
-    recent: st.turns.slice(-RECENT_TURNS).map((t) => ({ n: t.n, ai: t.ai, user: t.user })),
+    recent: allowedRecent(st, RECENT_TURNS).map((t) => ({ n: t.n, ai: t.ai, user: t.user })),
     session_goal: { id: isGoal(st.goal) ? st.goal : "open", name: goalOf(st).name, avoid_words: avoidText(st) },
     current_question: st.current ? { purpose: st.current.purpose, label: dimLabel(st, st.current.purpose), text: st.current.text, type: st.current.type, shown_again: (st.current.keeps ?? 0) > 0, helps: st.current.helps ?? 0 } : null,
     latest,
@@ -743,7 +751,7 @@ export function turnInput(st: AgentState, latest: string, opts: { button?: boole
     ...(conditionalAnswer(latest) ? { latest_is_conditional: true } : {}),
     // 2026-10-05 처음 세 질문(보기와 함께 · 만남 준비 질문 0) · 방금 말이 누른 버튼 글자(낱말 따오기 0)
     ...(objectiveFirstNext(st) ? { objective_first: true } : {}),
-    ...(opts.button ?? buttonInput(st.current?.text, false, latest) ? { latest_is_button: true } : {}),
+    ...(opts.button ?? buttonInput(st.current?.text, false, latest, st.goal_label) ? { latest_is_button: true } : {}),
   };
 }
 
@@ -980,7 +988,10 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     }
   }
   if (SAVABLE.has(out.kind)) {
-    for (const t of out.inferred) st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    for (const t of out.inferred) {
+      if ((st.forgotten ?? []).some((f) => nearSame(f, t.trait))) continue; // 2026-10-09 지운 「AI 짐작」은 다시 올리지 않는다(화면 「지운 줄은 다시 만들지 않아요」와 일치)
+      st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    }
     if (out.declared && inText(out.declared.quote)) {
       if (MBTI.test(out.declared.mbti)) st.declared.mbti = out.declared.mbti.toUpperCase();
       if (BLOOD.test(out.declared.blood_type)) st.declared.blood_type = out.declared.blood_type.toUpperCase().replace(/형$/, "");
@@ -1270,20 +1281,22 @@ export function knownView(st: AgentState): KnownView {
   }
   st.inferred.forEach((t, k) => guesses.push(knownLine(`inf:${k}:${t.trait}`, t.trait, "ai_guess", { quote: t.basis || null, at: null })));
   for (const c of st.rejected_choices ?? []) rejected.push(knownLine(`choice:${c}`, c, "rejected_choice"));
-  return { confirmed, guesses, corrected, rejected, confirmed_at: st.user_confirmed_at ?? null, forgotten: (st.forgotten ?? []).length };
+  return { confirmed, guesses, corrected, rejected, confirmed_at: st.user_confirmed_at ?? null, forgotten: st.forgotten_lines ?? (st.forgotten ?? []).length };
 }
 /** 줄 하나 지우기(사용자 본인 · 서버가 처리). 지운 글자는 forgotten 에 남겨 AI 가 다시 만들지 않는다. 못 찾으면 false. */
 export function forgetKnown(st: AgentState, key: string): boolean {
   const remember = (t: string) => { st.forgotten = [...new Set([...(st.forgotten ?? []), rcpt(t)])].slice(-50); };
+  // 지운 줄 수는 한 번 지울 때 1(같이 숨긴 복사본은 세지 않음) · 예전 상태는 지금까지의 글자 수에서 이어 센다.
+  const lines = st.forgotten_lines ?? (st.forgotten ?? []).length; const counted = () => { st.forgotten_lines = lines + 1; return true; };
   if (key.startsWith("inf:")) {
     const trait = key.split(":").slice(2).join(":"); const n = st.inferred.length;
     st.inferred = st.inferred.filter((t) => t.trait !== trait);
-    if (st.inferred.length === n) return false; remember(trait); return true;
+    if (st.inferred.length === n) return false; remember(trait); return counted();
   }
   if (key.startsWith("choice:")) {
     const c = key.slice("choice:".length); const n = (st.rejected_choices ?? []).length;
     st.rejected_choices = (st.rejected_choices ?? []).filter((x) => x !== c);
-    if (st.rejected_choices.length === n) return false; remember(c); return true;
+    if (st.rejected_choices.length === n) return false; remember(c); return counted();
   }
   if (!key.startsWith("item:")) return false;
   const [, purpose, turnStr, ...rest] = key.split(":"); const note = rest.join(":"); const turn = Number(turnStr);
@@ -1291,6 +1304,8 @@ export function forgetKnown(st: AgentState, key: string): boolean {
   const hit = st.slots[purpose].items.find((i) => i.turn === turn && i.note === note && i.status !== "FORGOTTEN");
   if (!hit) return false;
   hit.status = "FORGOTTEN"; remember(note);
+  // Derived drafts may still contain the removed meaning. Invalidate them, retain original history.
+  st.summary = []; st.closing = null; st.intro = null; st.last_receipt = null;
   // 검수 P1(2026-10-06): 같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)과 그 복사본에 기댄 정리는 화면에서 한 줄로 보였으므로 함께 지운다(dedupeViewItems 와 같은 기준 · 칸 무관).
   //   아니면 지운 뒤 숨어 있던 복사본이 「내가 확인한 것」으로 다시 나타나고 매칭 재료에도 남는다.
   const hb = bare(hit.quote), hn = bare(hit.note);
@@ -1303,7 +1318,7 @@ export function forgetKnown(st: AgentState, key: string): boolean {
   }
   for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
   if (st.slots[purpose].status === "CONFIRMED" && !st.slots[purpose].items.some((i) => i.status === "CONFIRMED")) st.slots[purpose].status = "UNKNOWN";
-  return true;
+  return counted();
 }
 /** 「맞아요」: 지금 보이는 AI 정리(AI_EXTRACTED · CONFIRMED)를 사용자가 확인한 값(USER_CONFIRMED)으로 올린다. 바뀐 줄 수를 돌려준다(0 이어도 확인 시각은 남긴다). */
 export function confirmKnown(st: AgentState): number {
@@ -1381,8 +1396,8 @@ function finishWith(st: AgentState, raw: unknown) {
   const closing = o ? str(o.closing) : "";
   // v2.4 다른 목적의 말이 든 문장은 뺀다(친구 대화의 마무리에 연애 말 0).
   const cleanClosing = closing.split(/(?<=[.!?。])\s+/).filter((x) => !goalResidue(st, x) && !askedEcho(st, x)).join(" ").trim();
-  st.closing = cleanClosing && !BANNED_WORDS.test(cleanClosing) && !leaksId(cleanClosing) ? cleanClosing : null;
-  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text) && !askedEcho(st, x.text)) : [];
+  st.closing = cleanClosing && !BANNED_WORDS.test(cleanClosing) && !leaksId(cleanClosing) && !withheld(st, cleanClosing) ? cleanClosing : null;
+  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text) && !askedEcho(st, x.text) && !withheld(st, x.text)) : [];
   st.phase = "done"; st.current = null;
   const profile = matchingProfile(st);
   return { closing: st.closing, summary: st.summary, profile, handoff: matchingHandoff(profile) };
@@ -1446,7 +1461,7 @@ export const RETRY_FEEDBACK: Record<string, string> = {
   logistics: "장소·카페·술·약속·날짜·시간·연락 빈도 같은 만남 준비 질문은 이 대화에서 이미 했다(logistics_done). 이 대화의 목적(session_goal)에 맞게, 그 사람과 나누고 싶은 이야기·마음이 가는 순간·불편한 것 쪽으로 방금 말에 이어 묻는다.",
 };
 // v2.4.1 한 번의 다시 청하기에 걸린 이유를 모두 알린다(이유 하나만 알려 두 번째에 다른 약속이 깨지는 것을 줄인다).
-export function retryReasons(st: AgentState, out: Parsed, left: string[], after: boolean, latest = "", button = buttonInput(st.current?.text, false, latest)): string[] {
+export function retryReasons(st: AgentState, out: Parsed, left: string[], after: boolean, latest = "", button = buttonInput(st.current?.text, false, latest, st.goal_label)): string[] {
   const first = retryReason(st, out, left, after, latest, button);
   if (!first) return [];
   const all = [first];
@@ -1468,7 +1483,7 @@ export function retryReasons(st: AgentState, out: Parsed, left: string[], after:
 }
 // 답을 받았는데 받아주기가 정리 뒤 비는 경우(질문을 받아주기 칸에 쓴 경우 등).
 const emptyAck = (out: Parsed) => out.kind === "answer" && !tidyReply(out.reply.replace(/[?？]/g, "."), out.next.question || null);
-export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean, latest = "", button = buttonInput(st.current?.text, false, latest)): string {
+export function retryReason(st: AgentState, out: Parsed, left: string[], after: boolean, latest = "", button = buttonInput(st.current?.text, false, latest, st.goal_label)): string {
   if (/[?？]/.test(out.reply) || sentences(out.reply).some((x) => ASKS.test(x))) return "reply_question";
   if (!after && GOAL_MISMATCH.test(latest) && st.current && out.next.purpose === st.current.purpose && out.next.question) return "goal_axis";
   if (after || out.kind === "stop") return "";
@@ -1597,8 +1612,8 @@ export async function enforceChoiceContract(st: AgentState, llm: Llm, obs: Obs, 
   const latest = prev?.user ?? "";
   const ok = (t: string) => !!t && !refersToChoices(t) && /[?？]\s*$/.test(t) && !questionBlocked(st, t) && !leaksId(t) && !logisticsFlaw(st, t, true) && !metaQuote(t);
   let next = "";
-  const r = await rewriteQuestion(st, latest, st.current.purpose, [q], llm, obs, { question: q, why: FLAW_WHY.choice_ref }, false, false, buttonInput(prev?.ai, !!prev?.choice, latest), true).catch(() => ({ question: "", choices: [] as string[] }));
-  const button = buttonInput(prev?.ai, !!prev?.choice, latest);
+  const r = await rewriteQuestion(st, latest, st.current.purpose, [q], llm, obs, { question: q, why: FLAW_WHY.choice_ref }, false, false, buttonInput(prev?.ai, !!prev?.choice, latest, st.goal_label), true).catch(() => ({ question: "", choices: [] as string[] }));
+  const button = buttonInput(prev?.ai, !!prev?.choice, latest, st.goal_label);
   // 2026-10-05 Codex P2: 바꿔 쓴 질문도 보통 다시 쓰기와 같은 검사(questionFlaw 전부 — 물음표 두 개 · 설문형 · 나뉜 답 한쪽 등)를 거친다.
   if (ok(r.question) && !questionFlaw(st, latest, r.question, true, q, button)) { next = r.question; obs.retry.push("choice_ref_rewrite"); }
   if (!next) { const f = splitFallback(st, latest, conditionalAnswer(latest), true); if (f && ok(f.text)) { next = f.text; if (f.once) st.fill_fallback_used = true; obs.retry.push("choice_ref_fallback"); } }
@@ -1628,7 +1643,7 @@ const rewritePromptFor = (input: Record<string, unknown>) => { const extra = fla
 const FLAW_WHY: Record<string, string> = { meta_quote: "버튼 글자·사용자 말의 낱말을 「~라는 말」처럼 따와 말 자체를 물었다 — 낱말 말고 그 뜻에 맞는 사람·관계 이야기를 묻는다", logistics_early: "대화의 처음 질문인데 연락·카톡·장소·카페·술·약속·날짜·시간 같은 만남 준비를 물었다 — 그 사람과 바라는 관계를 묻는다", covered: "사용자가 이미 말한 연락·만남 속도(얼마나 자주·천천히)를 다시 물었다 — 속도·횟수 말고 다른 장면(곳·처음 만남·좋고 싫은 것)을 묻는다", format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", same_direction: "방금 모르겠다고 한 질문과 같은 장면(같은 낱말)을 다시 물었다 · 전혀 다른 장면으로", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다", choice_ref: "「이런 것 중」「다음 중」처럼 보기를 가리켰는데 쓸 만한 보기가 없었다 — 보기를 가리키지 않는 질문으로 쓰거나, 서로 다른 보기 2~4개를 함께 낸다", conditional: "사용자가 경우에 따라 다르게 답했는데(「~면 …, ~면 …」) 한쪽 경우만 골라 물었다 — 두 경우를 모두 담거나 그 나뉨 자체를 묻는다", logistics: "장소·카페·술·약속·날짜·시간·연락 빈도 같은 만남 준비 이야기는 이미 물었다 — 이 대화의 목적(session_goal) 쪽 장면으로 묻는다" };
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false, button = false, replacing = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
-  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered || button ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "", ...(logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS ? { logistics_done: true } : {}), ...(objectiveFirstNext(st, replacing) ? { objective_first: true } : {}), ...(button ? { latest_is_button: true } : {}) }; // 2026-10-04 · 2026-10-05 처음 세 질문 · 누른 버튼 글자
+  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: allowedRecent(st, 3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered || button ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "", ...(logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS ? { logistics_done: true } : {}), ...(objectiveFirstNext(st, replacing) ? { objective_first: true } : {}), ...(button ? { latest_is_button: true } : {}) }; // 2026-10-04 · 2026-10-05 처음 세 질문 · 누른 버튼 글자
   const rewritePrompt = rewritePromptFor(input); // 2026-10-05 켜진 칸(objective_first · latest_is_button · logistics_done)의 지시 줄만 붙인다
   try { raw = await call(llm, obs, "question", unanswered ? `${rewritePrompt}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. 질문은 보기 가운데 가까운 것을 고를 수 있는 모양(「그럼 이런 느낌 중엔 뭐가 가까워요?」처럼)이고, choices 는 서로 다른 실제 장면 2~4개(각 ${CHOICE_MAX}자 이내, 물음표 없이 · 예: 「카페에서 수다」「같이 산책」「취미 같이 하기」). 네/아니요 보기와 「잘 모르겠어요」 같은 도움말은 넣지 않는다.` : `${rewritePrompt}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. choices 는 이 질문에 바로 답이 되는 일상 말 보기 2~4개(각 ${CHOICE_MAX}자 이내, 물음표 없이). 질문 문장은 그대로 주관식으로 쓴다. 네/아니요 보기와 「잘 모르겠어요」 같은 도움말은 넣지 않는다.`, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
   const o = parseJson(raw);
@@ -1690,7 +1705,7 @@ export async function runTurn(st: AgentState, latest: string, llm: Llm, opts: { 
   }
   const isChoice = !after && !ui && !forced && validChoice(st, opts.choice, text);
   // 2026-10-05 방금 말이 누른 버튼 글자(목적 타일 · 고른 보기)인지 — 낱말 잇기 검사·「글자 그대로 넣으라」 다시 청하기를 하지 않는다(「원해요 라는 말이 들어가면 …?」 원인).
-  const button = !after && !ui && !forced && buttonInput(st.current?.text, isChoice, work);
+  const button = !after && !ui && !forced && buttonInput(st.current?.text, isChoice, work, st.goal_label);
   let out: Parsed | null = null; let previous: Json | null = null; let ackBackup = "";
   const tried: Parsed["next"][] = []; // v2.5.4 앞선 시도의 질문(질문만 다시 청해도 못 만들 때 규칙을 지킨 것을 쓴다)
   for (let i = 0; i < MAX_CALLS_PER_TURN; i++) {

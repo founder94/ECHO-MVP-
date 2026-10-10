@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 
 // 대표 2026-09-26 PRE-DEPLOY FINAL FIX
 // #1 앱 공유 정보(canonical·og·twitter)는 https://app.do-it.company 기준.
-// #2 앱 첫 바탕색은 검정(#08070c)이 아니라 실제 파스텔 토큰(pastel-bg.css --pastel-underlay 첫 색).
+// #2 앱 첫 바탕색은 검정(#08070c)이 아니라 실제 앱 바탕 토큰(pastel-bg.css --pastel-underlay 첫 색).
+// 2026-10-10 대표 「모바일웹 = Flora」: 그 토큰은 Flora 밤하늘 한 색(#010b24)이 되었다(파스텔 띠 그라데이션 삭제).
 // 브랜드 사이트(do-it.company)는 그대로다 — 원본 index.html 은 브랜드 값을 유지하고, 앱 빌드에서만 바꾼다.
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(path.join(root, p), 'utf8');
 
-const pastelFirst = () => read('src/doit/components/feature/pastel-bg.css').match(/--pastel-underlay:\s*linear-gradient\(180deg,\s*(#[0-9a-f]{6}) 0%/i)?.[1]?.toLowerCase();
+const pastelFirst = () => read('src/doit/components/feature/pastel-bg.css').match(/--pastel-underlay:\s*(#[0-9a-f]{6})/i)?.[1]?.toLowerCase();
 
 test('앱 첫 바탕색은 지어낸 색이 아니라 파스텔 토큰의 첫 색이다', () => {
   const token = pastelFirst();
@@ -40,7 +41,7 @@ test('시작 주소(/do-it/intro)의 React 전 첫 바탕만 네이비 — React
   assert.match(vite, /var p=location\.pathname/);
   assert.match(vite, /p\.indexOf\("\/do-it\/intro"\)===0/);
   assert.match(read('src/components/ThemeColorSync.tsx'), /classList\.remove\(APP_LAUNCH_CLASS\)/);
-  assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#5fd6d6';/);
+  assert.match(read('src/lib/themeColor.ts'), /export const APP_PASTEL = '#010b24';/);
 });
 
 test('2026-09-30 온보딩 전 스플래시: 페이지를 연 때부터 실제 이미지 준비 뒤 최소 1.5초 · 흐려지며 사라짐 · 온보딩 경로에서만 · 라우팅 변경 0', () => {
@@ -100,5 +101,5 @@ test('화면 조각을 기다리는 화면도 파스텔 앱 경로에서는 파�
   assert.match(fallback, /const pastel = IS_APP_SITE && themeColorFor\(window\.location\.pathname\) === APP_PASTEL;/);
   const css = read('src/components/route-fallback.css');
   const token = pastelFirst();
-  assert.match(css, new RegExp(`\\.echo-route-fallback--pastel\\{background:linear-gradient\\(180deg,${token} 0%`));
+  assert.match(css, new RegExp(`\\.echo-route-fallback--pastel\\{background:${token}[;}]`));
 });

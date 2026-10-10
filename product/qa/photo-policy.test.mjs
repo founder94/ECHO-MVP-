@@ -20,8 +20,14 @@ const policy = load('src/doit/lib/photoPolicy.ts', {
   '@/doit/lib/photoStorage': { PHOTO_SLOT_COUNT: 6 },
 });
 
-test('칸 6개 = 필수 3(전신·패션·취미) + 자유 3. 슬롯 번호가 곧 종류다', () => {
+test('칸 6개 = 기본 5(필수 3 + 자유 2) + 추가 사진 1. 슬롯 번호가 곧 종류다', () => {
   assert.equal(policy.PHOTO_SLOTS.length, 6);
+  assert.equal(policy.PHOTO_BASE_COUNT, 5);
+  assert.equal(policy.EXTRA_PHOTO_FADE_PERCENT, 35, '대표 2026-10-10: 사진 전체 35% 막');
+  assert.equal(policy.EXTRA_PHOTO_VISIBLE_PERCENT, undefined, '예전 위 65% 값 0');
+  assert.equal(policy.PHOTO_SLOTS[5].label, '추가 사진');
+  assert.deepEqual([0,1,2,3,4,5,6].map(policy.isExtraSlot), [false,false,false,false,false,true,true]);
+  assert.equal(policy.isExtraSlot(1.5), false);
   assert.deepEqual([...policy.PHOTO_REQUIRED_SLOTS], [0, 1, 2]);
   assert.equal(policy.PHOTO_REQUIRED_COUNT, 3);
   assert.equal(policy.categoryForSlot(0), 'full_body');

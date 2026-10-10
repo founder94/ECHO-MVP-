@@ -1,0 +1,57 @@
+/* GetLayers 「Vesper」 globals.css 를 Tailwind v3 틀에 맞게 옮긴 것(2026-10-08 대표 「색·글씨체·3D 효과 코드 그대로」).
+   토큰(@theme)은 tailwind.config.ts theme.extend 로, 나머지(변수·글꼴·바탕·루트 글자 크기)는 여기. 홈페이지(html.vesper)에만 적용. */
+/* 2026-10-09 대표 승인: 홈페이지 글꼴 = 주아체(Jua) 하나(400) — src/fonts/jua.css(index.css 가 받음). General Sans·Mulish·Onest 는 쓰지 않는다. */
+
+
+:root {
+  --font-onest: 'Jua';
+  --font-general-sans: 'Jua';
+  --font-mulish: 'Jua';
+
+  --background: #170a2b;
+  --foreground: #fdfdfd;
+  --void: #170a2b;
+  --chalk: #fdfdfd;
+  --signal: #6cf3a3;
+  --surface: #100823;
+  --surface-raised: #17102e;
+  --glow-signal: 0 0 10px rgba(108, 243, 163, 0.6);
+  --glow-chalk: 0 0 12px rgba(255, 255, 255, 0.6);
+  --glass-panel: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 24px 60px -24px rgba(0, 0, 0, 0.85);
+  --glass-blur: 14px;
+  --hud-tracking: 0.08em;
+  --brand-tracking: 0.22em;
+  --body-tracking: 0em;
+  --indicator-tracking: 0.04em;
+  --hud-section-width: 40rem;
+  --hud-copy-width: 26.25rem;
+  --content-width: 72rem;
+  --content-copy-width: 34rem;
+  --menu-link-size: clamp(2.5rem, 11vw, 4rem);
+  --menu-glow: radial-gradient(120% 70% at 100% 0%, rgba(108, 243, 163, 0.1), transparent 60%);
+}
+
+html.vesper { font-size: 16px; font-synthesis: none; overflow-anchor: none; scroll-behavior: auto; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overflow-x: clip; }
+html.vesper body { background: var(--background); color: var(--foreground); overscroll-behavior-y: none; overflow-x: clip; font-family: 'Jua', 'Pretendard', ui-sans-serif, system-ui, sans-serif; /* 주아체에 없는 글자(특수기호 등)만 Pretendard·시스템 글꼴로 */ }
+html.vesper body::-webkit-scrollbar { width: 0; }
+@media (max-width: 1920px) { html.vesper { font-size: 0.833333vw; } }
+@media (max-width: 1440px) { html.vesper { font-size: 1.111111vw; } }
+@media (max-width: 1023.98px) { html.vesper { font-size: 16px; } }
+
+/* 원본 @utility */
+.text-shadow-title { text-shadow: 0 0 30px rgba(255, 255, 255, 0.08); }
+
+/* 2026-10-09 대표 승인: 설명·FAQ 글이 흰 카드 없이 장면 위에 바로 놓인다 — 가장 밝은 순간에도 읽히도록 아주 옅은 글자 그림자만(큰 검은 판·강한 유리 블러 0). */
+html.vesper .vesper-soft { text-shadow: 0 1px 2px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.35); }
+/* 은하 띠처럼 가장 밝은 순간에도 본문이 읽히도록, 글 덩어리 뒤에 경계 없는 낮은 농도(38%)의 어두운 타원 그라데이션만 깐다 — 판·블러 0, 장면은 그대로 비친다. */
+/* 2026-10-09(PC 움직임 줄이기 검사 · Codex 17차): 앱 전역 html { scroll-behavior: smooth }(index.css)가 Lenis 와 겹쳐, 같은 페이지 #how 클릭 뒤 브라우저의 부드러운 해시 이동이 Lenis 위치를 무시하고 문서 끝까지 갔다(진단: 호출 없이 5531→9084) → 홈페이지는 auto(Lenis 권장 · 실측 5531 고정).
+   브라우저 「스크롤 고정」(overflow-anchor)이 문(HydrateNear) 열림으로 아래 블록 높이가 바뀔 때 화면을 끌고 가 #how 를 지나쳤다 → html.vesper 에서 끔(Lenis 권장 설정과 같음).
+   앵커 도착 지점 = 고정 머리글 아래(브라우저 자체 해시 이동용 · JS 이동은 anchorOffset()). */
+html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(0.694vw + 3.542vw + 8px); }
+@media (max-width: 1023.98px) { html.vesper :is(#how, #choice, #faq, #contact, #financial, #top) { scroll-margin-top: calc(1rem + 3.5rem + 8px); } }
+html.vesper .vesper-veil { position: relative; }
+/* 첫 화면 작은 스크롤 안내 — 가는 세로선이 아래로 흐른다(움직임 줄이기면 정지). */
+@keyframes vesper-scroll-hint { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 50.01% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+html.vesper .vesper-scroll-hint { animation: vesper-scroll-hint 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { html.vesper .vesper-scroll-hint { animation: none; } }
+html.vesper .vesper-veil::before { content: ""; position: absolute; inset: -2.5rem -2rem; z-index: -1; pointer-events: none; background: rgb(0 0 0 / 0.38); -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, #000 50%, transparent 100%); }

@@ -249,7 +249,7 @@ export default function PhotoPage() {
 
         <h1
           className="mt-7 text-[26px] leading-[1.3] text-[#F5F3EF]"
-          style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}
+          style={{ fontFamily: '"Jua", "Pretendard", system-ui, sans-serif' }}
         >
           있는 그대로의 나를
           <br />

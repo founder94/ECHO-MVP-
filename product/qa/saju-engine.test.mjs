@@ -98,3 +98,42 @@ test('화면·정책: 예시 명식·「준비 중」 문구 0 · 저장/전송 
   const engine = read('src/doit/lib/saju/engine.ts').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(engine, /openai|fetch|supabase|import /, '엔진은 외부 호출·의존성 0');
 });
+
+// 2026-10-10 대표가 보낸 만세력 예시(1994-10-10 · 일주 己巳)의 값과 같은지 — 지장간 · 12운성 · 연운 10해 · 월운 12달.
+test('대표 예시(1994-10-10 己巳일주): 지장간 · 12운성 · 연운 · 월운이 예시 값과 같다', () => {
+  const r = E.calculateSaju({ date: '1994-10-10', time: '22:00', gender: 'female', calendar: 'solar' }, new Date('2026-10-10T03:00:00Z'));
+  const f = r.four_pillars; const ds = f.day.stem;
+  assert.deepEqual([f.year.hanja, f.month.hanja, f.day.hanja], ['甲戌', '甲戌', '己巳']);
+  const hid = (b) => E.hiddenStemsOf(b).map((s) => E.STEMS[s]).join('');
+  assert.deepEqual([hid(f.day.branch), hid(f.month.branch)], ['戊庚丙', '辛丁戊']);
+  assert.equal(hid(1), '癸辛己'); assert.equal(hid(2), '戊丙甲'); assert.equal(hid(6), '丙己丁');
+  for (let b = 0; b < 12; b++) { const h = E.hiddenStemsOf(b); assert.equal(E.tenGodOfBranch(0, b), E.tenGodOf(0, h[h.length - 1]), `본기 = 마지막 지장간 ${b}`); }
+  assert.deepEqual([E.twelveStageOf(ds, f.year.branch), E.twelveStageOf(ds, f.month.branch), E.twelveStageOf(ds, f.day.branch)], ['양', '양', '제왕']);
+  assert.equal(E.twelveStageOf(0, 11), '장생', '甲 장생 = 亥'); assert.equal(E.twelveStageOf(1, 6), '장생', '乙 장생 = 午(역행)');
+  const years = E.yearlyFlow(ds, 1994, 2025, 10);
+  assert.deepEqual(years.map((c) => c.pillar.hanja + c.stage), ['乙巳제왕', '丙午건록', '丁未관대', '戊申목욕', '己酉장생', '庚戌양', '辛亥태', '壬子절', '癸丑묘', '甲寅사']);
+  assert.equal(years[1].stemGod, '정인'); assert.equal(years[1].sub, '32세');
+  const months = E.monthlyFlow(ds, 2026);
+  assert.deepEqual(months.map((c) => c.label + c.pillar.hanja), ['2월庚寅', '3월辛卯', '4월壬辰', '5월癸巳', '6월甲午', '7월乙未', '8월丙申', '9월丁酉', '10월戊戌', '11월己亥', '12월庚子', '1월辛丑']);
+  assert.deepEqual(months.slice(0, 4).map((c) => `${c.stemGod}/${c.branchGod}`), ['상관/정관', '식신/편관', '정재/겁재', '편재/정인']);
+  // 지금 칸: 1월은 앞 해 줄의 丑월(마지막 칸) — 2027년 1월 = 2026년 줄 11번(辛丑), 2027년 줄(=2028년 1월) 아님
+  // 절입 기준(원국 월주와 같은 태양 황경): 입춘 전 1월·2월 초는 앞 해 줄의 丑월 · 각 달 절입 전 며칠은 앞 달
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2027, 0, 15, 3))), { year: 2026, index: 11 });
+  assert.equal(E.monthlyFlow(ds, E.monthFlowNow(new Date(Date.UTC(2027, 0, 15, 3))).year)[11].pillar.hanja, '辛丑');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 1, 1, 3))), { year: 2025, index: 11 }, '2026-02-01 = 입춘 전 → 2025 줄 丑월');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 1, 20, 3))), { year: 2026, index: 0 });
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 9, 3, 3))), { year: 2026, index: 7 }, '10월 3일 = 한로(10/8 무렵) 전 → 酉월');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 9, 10, 3))), { year: 2026, index: 8 });
+  // 원국 계산과 같은 경계: 같은 순간의 월주와 월운 칸 지지가 같다
+  for (const iso of ['2026-02-03T12:00:00Z', '2026-02-05T12:00:00Z', '2026-07-06T12:00:00Z', '2026-07-08T12:00:00Z', '2026-12-06T12:00:00Z', '2026-12-08T12:00:00Z']) {
+    const d = new Date(iso); const f = E.monthFlowNow(d);
+    assert.equal(E.monthlyFlow(ds, f.year)[f.index].pillar.branch, (2 + f.index) % 12, iso);
+  }
+  assert.deepEqual(r.major_cycles.cycles.slice(0, 4).map((c) => c.pillar.hanja + E.twelveStageOf(ds, c.pillar.branch)), ['癸酉장생', '壬申목욕', '辛未관대', '庚午건록']);
+});
+
+test('대운 칸: 첫 대운이 시작되기 전이면 「지금」 테두리 칸이 없다(앞 칸을 지금으로 표시하지 않음)', () => {
+  const src = read('src/doit/app/plan-a/screens/SajuResult.tsx');
+  assert.match(src, /<FlowGrid label="대운 10년 흐름" cells=\{cycleCells\} nowIndex=\{cf\.cycle \? cf\.cycle\.order - 1 : -1\} \/>/);
+  assert.match(read('src/doit/app/plan-a/screens/SajuDetail.tsx'), /i === nowIndex \? " is-now" : ""/);
+});

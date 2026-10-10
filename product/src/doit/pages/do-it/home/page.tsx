@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 유리 리본 그림 → Flora 민들레 장면
 import { Link } from 'react-router-dom';
 import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
@@ -10,6 +11,7 @@ import { ECHO_AGENT_ENABLED, agentGet, type AgentSession } from '@/doit/lib/agen
 import InstallAppCard from '@/doit/components/feature/InstallAppCard';
 import ConnectionTurnsCard from '@/doit/components/feature/ConnectionTurnsCard';
 import RestartConversationButton from '@/doit/components/feature/RestartConversationButton';
+import FortuneDoors from '@/doit/components/feature/FortuneDoors';
 import '@/doit/components/feature/understanding-pages.css';
 import '@/doit/components/feature/start-ref.css';
 import { splitCurrent } from '@/doit/lib/understandingView';
@@ -63,7 +65,7 @@ export default function Home() {
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro" aria-labelledby="echo-home-title">
           {/* 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목(글은 그대로 — 대표 「글은 완성」) */}
-          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" /></div>
+          <div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><FloraBloom /></div>
           <p className="doit-product-kicker">DO IT · 만나기 전에</p>
           {OPEN_PERIOD.active && <p className="doit-open-period">{OPEN_PERIOD.home}</p>}
           {done
@@ -134,6 +136,7 @@ export default function Home() {
             {pendingCount > 0 && <Link className="doit-understanding-pending-link" to="/doit/conversation">아직 확인 안 한 말 {pendingCount}개 <span aria-hidden="true">→</span></Link>}
           </>
         )}
+        <FortuneDoors />
         <div className="doit-understanding-footer">
           <Link className="doit-understanding-text-link" to="/doit/connections">연결까지 남은 것 보기 <span aria-hidden="true">↗</span></Link>
           <Link className="doit-understanding-text-link" to="/doit/profile">내 프로필 보기 <span aria-hidden="true">↗</span></Link>

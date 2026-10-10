@@ -12,12 +12,13 @@ const compile = (f) => ts.transpileModule(readFileSync(new URL(f, FN), 'utf8'), 
 
 function load() {
   const agent = { exports: {} };
-  vm.runInNewContext(compile('doit-agent/agent.ts'), { module: agent, exports: agent.exports, console }, { filename: 'agent.ts' });
+  const history = {exports:{}}; vm.runInNewContext(compile('doit-agent/history-retrieval.ts'), {module:history,exports:history.exports});
+  vm.runInNewContext(compile('doit-agent/agent.ts'), { module: agent, exports: agent.exports, console, require:n=>{if(n==='./history-retrieval.ts')return history.exports;throw new Error(n);} }, { filename: 'agent.ts' });
   const logic = { exports: {} };
   vm.runInNewContext(compile('admin-web/logic.ts'), { module: logic, exports: logic.exports, require: (n) => { if (n === '../doit-agent/agent.ts') return agent.exports; throw new Error(n); } }, { filename: 'logic.ts' });
   const idx = { exports: {} };
-  vm.runInNewContext(compile('admin-web/index.ts'), { module: idx, exports: idx.exports, console, Deno: { env: { get: () => '' } }, Response, Request, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, fetch: async () => new Response(JSON.stringify({ external: { google: true } }), { status: 200 }),
-    require: (n) => { if (n === '../doit-agent/agent.ts') return agent.exports; if (n === './logic.ts') return logic.exports; if (n.startsWith('npm:@supabase')) return { createClient: () => { throw new Error('no real client in test'); } }; throw new Error(n); } }, { filename: 'index.ts' });
+  vm.runInNewContext(compile('admin-web/index.ts'), { module: idx, exports: idx.exports, console, Deno: { env: { get: k => k === 'CORS_ALLOWED_ORIGINS' ? 'http://localhost:5173' : undefined } }, Response, Request, JSON, Date, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, fetch: async () => new Response(JSON.stringify({ external: { google: true } }), { status: 200 }),
+    require: (n) => { if (n.startsWith('../_shared/')) { const mod={exports:{}};vm.runInNewContext(compile('admin-web/'+n),{module:mod,exports:mod.exports,TextDecoder,Uint8Array,Error,Number,JSON});return mod.exports; } if (n === '../doit-agent/agent.ts') return agent.exports; if (n === './logic.ts') return logic.exports; if (n.startsWith('npm:@supabase')) return { createClient: () => { throw new Error('no real client in test'); } }; throw new Error(n); } }, { filename: 'index.ts' });
   return { handle: idx.exports.handle, L: logic.exports, A: agent.exports };
 }
 

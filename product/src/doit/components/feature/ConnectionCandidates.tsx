@@ -1,4 +1,6 @@
 import GuideHint from '@/components/guide/GuideHint';
+import FxStage, { WaitHook } from '@/doit/fx/FxStage';
+import { PLANET_HOOKS } from '@/doit/fx/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, reportSubmission, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
@@ -110,9 +112,11 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
 
   return <section className="doit-connect doit-candidates" aria-label="ECHO가 준비한 후보">
     {title
-      ? <p className="doit-candidates-title">{title}</p>
+      ? <><p className="doit-candidates-title">{title}</p>{fresh > 0 && <p className="echo-flora-hook-sub">추천은 시작일 뿐, 선택은 당신의 몫이에요.</p>}</>
       : <p className="doit-candidates-title doit-candidates-title--wait">아직 보여 드릴 사람은 없어요.</p>}
     {load.candidates.length > 0 && <GuideHint id="choice" />}
+    {/* 2026-10-10 대표 전달 효과: 아직 보여 드릴 사람이 없을 때(잠든 사이 기다림) — 지구가 떠올라 천천히 돈다. 땅 위 신호 고리는 장식(실제 사람·위치 아님). */}
+    {load.candidates.length === 0 && <div className="doit-fx-wait"><FxStage fx="planet" /><WaitHook lines={PLANET_HOOKS} /></div>}
     {load.candidates.length === 0 && <p className="doit-connect-note">조건에 맞는 연결이 생기면 여기에서 먼저 보여 드릴게요. 내 이야기는 그 전까지 아무에게도 보이지 않아요.</p>}
     {load.candidates.map((c, i) => {
       const open = c.waiting || !!opened[c.id];

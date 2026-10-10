@@ -49,9 +49,10 @@ function SlotLine({ session, id, quotes }: { session: AgentSession; id: string; 
   </li>;
 }
 
-interface Props { userId: string; session: AgentSession; onSession: (s: AgentSession) => void; onConfirmed: (ok: boolean) => void }
+// onCrisis = 고치는 말에 위기 신호가 있어 서버가 안전 안내만 준 경우(stale = 세션이 지난 회차·없음 → 부모가 지금 회차를 다시 불러온다).
+interface Props { userId: string; session: AgentSession; onSession: (s: AgentSession) => void; onConfirmed: (ok: boolean) => void; onCrisis: (line: string, stale: boolean) => void }
 
-export default function AgentProfileCheck({ userId, session, onSession, onConfirmed }: Props) {
+export default function AgentProfileCheck({ userId, session, onSession, onConfirmed, onCrisis }: Props) {
   const [view, setView] = useState<View>({ kind: 'review' });
   const [ok, setOk] = useState(() => profileConfirmed(session));
   const [busy, setBusy] = useState(false);
@@ -81,6 +82,9 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     try {
       const r = await agentTurn(userId, session.id, t, { purpose }); // 정정 버튼 = 정정(칸은 사용자가 고른 것 · 서버가 확정)
       if (!alive.current) return;
+      // 위기 신호: 정정으로 다루지 않고 부모가 안전 안내를 보인다(세션이 없으면 지금 회차를 다시 불러옴) · Codex P1
+      if (r.turn.kind === 'crisis') { if (r.session) onSession(r.session); onCrisis(r.turn.reply, !r.session); setView({ kind: 'review' }); return; }
+      if (!r.session) throw new Error('INVALID_RESPONSE');
       onSession(r.session);
       if (r.turn.reply) setReply(r.turn.reply);
       if (r.turn.receipt?.line) setReceipt(r.turn.receipt); // 서버가 저장을 마쳤다는 응답 뒤에만
@@ -109,6 +113,9 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     <p className="echo-done-mark">ECHO가 이해한 나</p>
     {view.kind === 'review' && <p className="echo-context">ECHO가 대화를 바탕으로 작성한 초안이에요. 내가 말하지 않은 건 채우지 않았어요.</p>}
 
+    {/* 2026-10-10 대표 「모바일웹 전부 최종 후킹」: 확인·수정 장면 확정 후킹(2026-10-09). 네 버튼·질문(CHECK_TITLE)은 그대로. */}
+    {view.kind === 'review' && !ok && <p className="echo-flora-hook">내 뜻과 다르면,<br />바로 고칠 수 있어요.</p>}
+    {view.kind === 'review' && !ok && <p className="echo-flora-hook-sub">당신이 직접 들려준 이야기가 이해와 추천의 기준이 됩니다.</p>}
     {view.kind === 'review' && !ok && <p className="echo-done-title">{CHECK_TITLE}</p>}
     {/* 2026-10-04 이용 안내: 처음 한 번 짧은 도움말 → 그 뒤 「이 기능이 궁금해요」 (확인 단계에서만) */}
     {view.kind === 'review' && !ok && <GuideHint id="check" />}
@@ -151,7 +158,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       </div>
     </> : <>
       {/* 기억 영수증: 서버 고정 문장(저장 성공 뒤에만 · AI 0) */}
-      {receipt && <p className="echo-done-lead echo-receipt" role="status"><Check size={16} aria-hidden="true" /> {receipt.line}</p>}
+      {receipt && <p className="echo-done-lead echo-receipt" role="status" data-testid="memory-receipt"><Check size={16} aria-hidden="true" /> {receipt.line}</p>}
       {reply && <p className="echo-done-lead">{reply}</p>}
       {view.changed ? <>
         {list(view.purpose ? [view.purpose] : ORDER)}

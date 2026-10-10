@@ -77,7 +77,7 @@ export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string;
 export interface AgentRescue { options: string[]; symbols?: string[]; show: boolean; fallback: boolean } // symbols = 서버가 고른 생활형 심볼(보기와 같은 순서 · 빈 칸이면 점)
 // 2026-10-06 대표 「기억 영수증」: receipt = 서버가 정정을 저장한 뒤에만 주는 고정 문장(화면이 먼저 확정하지 않는다 · AI 0) · cite = 정정 직후 다음 질문 앞에 붙은 인용(서버가 붙임)
 export interface AgentReceipt { line: string; before: string[]; after: string[] }
-export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: AgentReceipt | null; cite?: string | null }
+export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: AgentReceipt | null; cite?: string | null; memory?: AgentMemory }
 // 「ECHO가 아는 나」 네 칸(서버 knownView). sensitive = 민감 주제(건강·성·금전 등)라 화면이 글자를 다시 적지 않는다(지우기는 가능).
 export interface KnownLine { key: string; text: string; quote: string | null; purpose: string | null; at: string | null; sensitive: boolean; from: string[]; origin: string }
 export interface AgentKnown { confirmed: KnownLine[]; guesses: KnownLine[]; corrected: KnownLine[]; rejected: KnownLine[]; confirmed_at: string | null; forgotten: number }
@@ -209,24 +209,60 @@ export async function agentRef(userId: string, ref: RefSeedBody, history: RefLin
 // firstAnswer = 첫 질문(목적 타일 화면)의 답: 고른 만남 + 한 줄. 없으면 서버가 첫 질문을 만든다.
 // seed = 사주·타로 결과에서 들어왔을 때의 이야기 거리(결과 종류만 · 사용자 사실 아님). 서버가 모르면 무시하고 보통 대화로 시작한다.
 // goal = 고른 만남(목적 타일 id) — 서버는 같은 목적의 세션만 이어받는다(v2.4).
-export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string; seed?: ContentSeed | null; goal?: { id: string; label: string } | null }): Promise<AgentSession> {
-  const r = await write<{ session: AgentSession }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}), ...(input.seed ? { seed: input.seed } : {}), ...(input.goal ? { goal: input.goal.id, goalLabel: input.goal.label } : {}) });
+// crisis = 첫 답에 위기 신호가 있어 서버가 그 말을 쓰지 않고 안전 안내(reply)를 함께 준 경우(2026-10-10).
+export async function agentStart(userId: string, input: { tone: AgentTone; mode: AgentMode; firstAnswer?: string; seed?: ContentSeed | null; goal?: { id: string; label: string } | null }): Promise<AgentSession & { crisisLine?: string }> {
+  const r = await write<{ session: AgentSession; crisis?: boolean; reply?: string }>(userId, { action: 'agent_start', tone: input.tone, mode: input.mode, ...(input.firstAnswer ? { firstAnswer: input.firstAnswer } : {}), ...(input.seed ? { seed: input.seed } : {}), ...(input.goal ? { goal: input.goal.id, goalLabel: input.goal.label } : {}) });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   rememberSession(userId, r.session.id);
-  return r.session;
+  return r.crisis && typeof r.reply === 'string' ? { ...r.session, crisisLine: r.reply } : r.session;
 }
 
 // correction = 「ECHO가 이해한 나」에서 누른 정정(칸 id · 다시 말하기는 null). 서버가 정정으로 확정한다(문장으로 추측하지 않음 · 2026-09-27 P0-5).
 // rescue.choice = 누른 보기(서버가 지금 질문의 승인 보기인지 다시 확인하고 사용자 직접 답으로 저장) · rescue.rescueOpen = 보기가 펼쳐져 있었음.
-export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }, rescue?: { choice?: string; rescueOpen?: boolean }): Promise<{ session: AgentSession; turn: AgentTurn }> {
-  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}), ...(rescue?.choice ? { choice: rescue.choice } : {}), ...(rescue?.rescueOpen ? { rescueOpen: true } : {}) });
-  if (!validSession(r.session) || !r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
+// session = null 은 위기 안전 안내만 온 경우(세션이 지난 회차·없음 → 화면이 지금 회차를 다시 불러온다 · 2026-10-10).
+export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }, rescue?: { choice?: string; rescueOpen?: boolean }): Promise<{ session: AgentSession | null; turn: AgentTurn }> {
+  const r = await write<{ session: AgentSession | null; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}), ...(rescue?.choice ? { choice: rescue.choice } : {}), ...(rescue?.rescueOpen ? { rescueOpen: true } : {}) });
+  if (!r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
+  if (r.session === null && r.turn.kind === 'crisis') return r;
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r;
 }
 
 // 2026-10-01 「잘 모르겠어요」 = 구조 요청(답 아님 · 저장 0). 서버가 지금 질문의 보기를 정해 돌려준다(이미 있으면 AI 호출 0).
 // 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」(모델 호출 0 · 서버가 상태를 바꾸고 저장한 뒤 돌려준다).
 //   agentConfirm = 「맞아요」(지금 보이는 AI 정리를 사용자 확인으로) · agentForget = 줄 하나 지우기(서버가 다시 만들지 않음) · agentSelfNote = 사주·타로 이어 대화에서 「프로필에도 반영」한 자기 문장
+export interface AgentMemory { intent?: 'current' | 'history'; status: 'FOUND' | 'NOT_FOUND' | 'PARTIAL' | 'READ_FAILED'; complete: boolean; notice: string; next: { offset: number; match: number } | null; evidence: { source_id: string; session_id: string; revision: number; turn: number; quote: string; validity: 'CURRENT_CONFIRMED' | 'UNCONFIRMED' | 'HISTORICAL_ONLY'; matching_promotion: false }[] }
+export async function agentRecall(userId: string, query: string, intent: 'current' | 'history' = 'history', cursor?: AgentMemory['next']): Promise<{ memory: AgentMemory; reply: string }> {
+  const result = await serverFunctionRequest<{ memory: AgentMemory; reply: string }>('doit-agent', { action: 'agent_recall', query, intent, ...(cursor ? { cursor } : {}) }, userId);
+  const m = result.memory;
+  if (typeof result.reply !== 'string' || !m || !['FOUND', 'NOT_FOUND', 'PARTIAL', 'READ_FAILED'].includes(m.status)
+    || typeof m.complete !== 'boolean' || (m.notice != null && typeof m.notice !== 'string')
+    || !Array.isArray(m.evidence) || !m.evidence.every(item => !!item && typeof item.source_id === 'string'
+      && typeof item.session_id === 'string' && Number.isSafeInteger(item.revision) && item.revision >= 0
+      && Number.isSafeInteger(item.turn) && item.turn >= 0 && typeof item.quote === 'string'
+      && ['CURRENT_CONFIRMED', 'UNCONFIRMED', 'HISTORICAL_ONLY'].includes(item.validity) && item.matching_promotion === false)
+    || (m.next != null && (!Number.isSafeInteger(m.next.offset) || m.next.offset < 0 || !Number.isSafeInteger(m.next.match) || m.next.match < 0))) {
+    throw new Error('INVALID_RESPONSE');
+  }
+  return result;
+}
+// Existing PR149 preview imports: adapt to current QA APIs without reviving its old server actions.
+export interface MemoryLine { id: string; text: string; hidden: boolean; can_forget: boolean }
+export interface MemoryView { confirmed: MemoryLine[]; guessed: MemoryLine[]; corrected: MemoryLine[]; rejected: MemoryLine[] }
+function memoryView(known: AgentKnown | null): MemoryView | null {
+  if (!known) return null;
+  const lines = (v: KnownLine[], canForget: boolean) => v.map(l => ({ id: l.key, text: l.sensitive ? '' : l.text, hidden: l.sensitive, can_forget: canForget }));
+  return { confirmed: lines(known.confirmed, true), guessed: lines(known.guesses, true), corrected: lines(known.corrected, true), rejected: lines(known.rejected, false) };
+}
+export async function agentMemory(userId: string): Promise<MemoryView | null> { return memoryView((await agentHome(userId)).known); }
+export async function agentMemoryForget(userId: string, key: string): Promise<MemoryView> {
+  const r = await agentForget(userId, key, rememberedSession(userId)); const m = memoryView(r.known);
+  if (!m) throw new Error('INVALID_RESPONSE'); return m;
+}
+export type FreeStatus = FreeTalkStatus;
+export async function agentFree(userId: string, history: RefLine[], text: string): Promise<FreeReply & { blocked: string | null; crisis: boolean }> {
+  const r = await agentFreeTalk(userId, history, text); return { ...r, blocked: r.guard, crisis: r.guard === 'crisis' };
+}
 export async function agentConfirm(userId: string, sessionId: string): Promise<AgentSession> {
   const r = await write<{ session: AgentSession }>(userId, { action: 'agent_confirm', sessionId });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import FxStage, { WaitHook } from "@/doit/fx/FxStage";
+import { TAROT_HOOKS } from "@/doit/fx/hooks";
 import {
   AnimatePresence,
   motion,
@@ -240,7 +242,7 @@ export function FreeResult({
                   background:
                     "linear-gradient(145deg,#f6e2a6,#725b30,#f6e2a6)",
                   boxShadow:
-                    "0 18px 48px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 30px rgba(205,174,117,.18)",
+                    "0 18px 48px var(--fortune-shadow, rgba(0,0,0,.55)),0 0 30px rgba(187,252,158,.18)",
                 }}
               >
                 <TarotCardArt
@@ -270,6 +272,14 @@ export function FreeResult({
             이 결과는 미래를 단정하지 않아요. 지금의
             마음과 선택을 돌아보는 참고로 봐주세요.
           </p>
+
+          {/* 2026-10-10 대표 전달 효과: 해석을 기다리는 동안 유리 카드 바람개비 + 한 줄 안내(짧게 끝나면 안 띄움) */}
+          {mode === "taro" && tarotLoading && (
+            <div className="doit-fx-wait">
+              <FxStage fx="glass" delayMs={300} />
+              <WaitHook lines={TAROT_HOOKS} delayMs={300} />
+            </div>
+          )}
 
           {mode === "taro" && tarotError && (
             <p

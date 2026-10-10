@@ -6,8 +6,12 @@
 //   · 매칭에 쓰는 답 = 기존 RPC doit_apply_record_create 로 doit_records 에(소개 초안·연결 화면이 그대로 읽는다)
 // - 모델 = 서버 선택 규칙(modelRouter.ts · AI_POLICY). 정책이 없으면 기존 승인 모델(resolveModel(OPENAI_MODEL) · 운영 Secret 그대로 · 새 키 0). 호출 주소는 환경변수로 바꿀 수 없다(providers.ts 고정).
 // - 로그에는 코드·개수·시간만 남긴다(사용자 원문·토큰·키 0).
+import { readJsonObject, RequestProblem } from "../_shared/read-json-limited.ts";
+import { browserOriginAllowed, browserCorsHeaders } from "../_shared/browser-cors.ts";
+import { durableRateDecision } from "../_shared/durable-rate-limit.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import * as A from "./agent.ts";
+import * as H from "./history-retrieval.ts";
 import * as CR from "./card-reading.ts"; // 카드 해석(대화 상태·매칭과 분리 · agent_card 한 곳에서만 씀)
 import * as RT from "./reference-talk.ts"; // 참고 이야기(대화 상태·매칭과 분리 · agent_ref 한 곳에서만 씀)
 import * as CB from "./company-budget.ts"; // 회사 한 달 AI 예산 장부(환경값으로 켤 때만 · 기본 꺼짐)
@@ -43,7 +47,7 @@ const LOCK_ACTION = "agent_admission";
 const LOCK_LEASE_MS = 5_000; // 잠금을 쥔 채 끊긴 일꾼이 있어도 이 시간 뒤엔 다른 요청이 잡는다(쥐는 동안 하는 일 = 세기·자리 잡기 몇 번의 조회)
 const LOCK_TRIES = 80;
 const LOCK_WAIT_MS = 25;
-const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref", "agent_confirm", "agent_forget", "agent_self_note", "agent_free_talk", "admin_free_summary"]);
+const ACTIONS = new Set(["agent_get", "agent_start", "agent_turn", "agent_rescue", "agent_intro", "agent_intro_mark", "agent_run", "admin_sessions", "admin_session", "agent_card", "agent_ref", "agent_confirm", "agent_forget", "agent_self_note", "agent_free_talk", "admin_free_summary", "agent_recall"]);
 // 2026-10-06 대표 「기억 영수증」: agent_confirm = 「맞아요」(지금 이해를 사용자 확인으로) · agent_forget = 「ECHO가 아는 나」 줄 지우기 · agent_self_note = 사주·타로 이어 대화에서 사용자가 「프로필에도 반영」을 고른 자기 문장(해석 원문 0)
 const SELF_NOTES_ACTION = "agent_self_notes"; const SELF_NOTES_MAX = 30; const SELF_NOTE_MAX = 200;
 interface SelfNote { text: string; at: string; origin: "ref_correction" | "self"; id?: string } // id = 지우기 열쇠(검수 P2-12 · 같은 밀리초 두 줄 구분)
@@ -61,11 +65,8 @@ function resolveModel(raw: string | undefined): string {
 }
 
 const ALLOWED_ORIGINS = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const corsHeaders = (origin: string | null): Record<string, string> => ({
-  "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS.length === 0 ? "*" : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-});
+const corsHeaders = (origin: string | null): Record<string, string> => browserCorsHeaders(origin, ALLOWED_ORIGINS);
+
 const json = (data: unknown, status = 200, origin: string | null = null) =>
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json" } });
 const fail = (code: string, error: string, status: number, origin: string | null) => json({ ok: false, code, error }, status, origin);
@@ -268,7 +269,7 @@ type TurnOut = { kind: string; reply: string; question: string | null; saved: bo
 interface Stored { agent: string; state: A.AgentState; round_since: string | null; profile?: A.MatchingProfile | null; handoff?: Json | null; run?: R.Run | null; last_turns?: { rid: string; turn: TurnOut }[]; intro_claim?: { id: string; attempt: number } | null }
 
 // 화면에 줄 모습. 내부 상태(추측·되묻기 수 등)는 주지 않는다.
-export function sessionView(id: string, stored: Stored, extras: { self_notes?: SelfNote[] } = {}) {
+export function sessionView(id: string, stored: Stored, extras: { self_notes?: SelfNote[]; self_forgotten?: number } = {}) {
   const st = stored.state;
   const messages: { role: "ai" | "user"; text: string }[] = [];
   st.turns.forEach((t, k) => {
@@ -296,11 +297,12 @@ export function sessionView(id: string, stored: Stored, extras: { self_notes?: S
     // 2026-10-03 실행 기록(목표 · 계획 단계 · 도구 결과 · 대기 이유 · 예산) — 코드·수치만. 예전 대화는 지금 상태로 계산해 보여 준다(저장 0).
     run: R.runView(stored.run ?? R.syncRun(null, st, new Date().toISOString())),
     // 2026-10-06 「ECHO가 아는 나」 네 칸(대화 중에도) — 사주·타로 이어 대화에서 반영한 자기 문장(self_notes)은 「내가 고친 것」에 함께.
-    known: knownWith(st, extras.self_notes ?? []),
+    known: knownWith(st, extras.self_notes ?? [], extras.self_forgotten ?? 0),
   };
 }
-function knownWith(st: A.AgentState, notes: SelfNote[]): A.KnownView {
-  const k = A.knownView(st);
+// selfForgotten = 사용자가 지운 자기 문장 줄 수(자기 문장 보관 줄에 따로 셈 · 2026-10-10 Codex P2) → 「지운 줄 N개」에 더한다
+function knownWith(st: A.AgentState, notes: SelfNote[], selfForgotten = 0): A.KnownView {
+  const k = A.knownView(st); k.forgotten += selfForgotten;
   for (const n of notes) k.corrected.push({ key: `self:${n.id ?? n.at}`, text: n.text, quote: null, purpose: null, at: n.at, sensitive: A.SENSITIVE_TOPIC.test(n.text), from: [], origin: n.origin === "ref_correction" ? "self_note_ref" : "self_note" });
   return k;
 }
@@ -330,26 +332,29 @@ async function freeStatus(admin: Db, userId: string, cfg: FT.FreeTalkConfig, app
   const trials_used = (e2 || e3) ? cfg.trials : (trialRows ?? 0) + (trialUnsure ?? 0); // 세지 못하면 닫힌 쪽(맛보기 0)
   const daily_used = month.filter((r) => r.created_at && Date.parse(r.created_at) >= since).length;
   let usd = 0, unknown = false;
-  for (const r of month) { const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) usd += c; else if (r.status === "applied") unknown = true; }
+  for (const r of month) { const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) usd += c; else if (r.status === "applied") { unknown = true; usd += cfg.maxCostUsd; } } // 2026-10-09 금액 모름 = 요청당 상한으로 센다(0원으로 세면 월 상한을 넘길 수 있다)
   const month_krw = cfg.krwPerUsd == null ? null : Math.ceil(usd * cfg.krwPerUsd);
   // 회사 전체 이번 달(모든 사용자 · 금액만 · 원문 0) — 못 읽으면 닫힌 쪽(company_krw = null → 상한 판정에서 503)
   const { data: co, error: e4 } = await admin.from("doit_request_events").select("status, error_code, free:response_payload->free").eq("action", CLAIM_ACTION).like("payload_hash", "free:%").gte("created_at", monthStart).limit(5000);
   let coUsd = 0;
-  for (const r of (e4 ? [] : (co ?? [])) as unknown as FreeRow[]) { if (!counts(r)) continue; const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) coUsd += c; }
+  for (const r of (e4 ? [] : (co ?? [])) as unknown as FreeRow[]) { if (!counts(r)) continue; const c = r.free?.cost_usd; if (typeof c === "number" && Number.isFinite(c)) coUsd += c; else if (r.status === "applied") coUsd += cfg.maxCostUsd; }
   const company_krw = e4 || cfg.krwPerUsd == null ? null : Math.ceil(coUsd * cfg.krwPerUsd);
   return { entitled, trials_used, trial_left: Math.max(0, cfg.trials - trials_used), daily_used, daily_left: error ? 0 : Math.max(0, cfg.daily - daily_used), month_krw, month_turns: month.length, company_krw, unknown: unknown || error != null }; // 읽기 오류 = 닫힌 쪽
 }
 // 자기 문장 보관 줄(사용자마다 하나 · request_id 는 사용자 id 에서 만든다). 세션과 따로 — 대화가 없어도 남는다.
-async function selfNotesRow(admin: Db, userId: string): Promise<{ id: string; rev: number; notes: SelfNote[] }> {
+async function selfNotesRow(admin: Db, userId: string): Promise<{ id: string; rev: number; notes: SelfNote[]; forgotten: number }> {
   const id = await derivedUuid(`${userId}:self_notes`);
-  const { data } = await admin.from("doit_request_events").select("request_id, applied_revision, response_payload").eq("user_id", userId).eq("request_id", id).eq("action", SELF_NOTES_ACTION).maybeSingle();
+  const { data, error } = await admin.from("doit_request_events").select("request_id, applied_revision, response_payload").eq("user_id", userId).eq("request_id", id).eq("action", SELF_NOTES_ACTION).maybeSingle();
+  if (error) throw new Error("MEMORY_READ_FAILED");
   const raw = (data?.response_payload as Json | null)?.notes;
   const notes = Array.isArray(raw) ? (raw as unknown[]).filter((n): n is SelfNote => !!n && typeof (n as SelfNote).text === "string" && typeof (n as SelfNote).at === "string").slice(0, SELF_NOTES_MAX) : [];
-  return { id, rev: data ? Number(data.applied_revision ?? 0) : -1, notes };
+  const f = Number((data?.response_payload as Json | null)?.forgotten ?? 0);
+  return { id, rev: data ? Number(data.applied_revision ?? 0) : -1, notes, forgotten: Number.isInteger(f) && f > 0 ? f : 0 };
 }
-async function saveSelfNotes(admin: Db, userId: string, row: { id: string; rev: number }, notes: SelfNote[]): Promise<boolean> {
-  if (row.rev < 0) { const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: row.id, action: SELF_NOTES_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: { notes } }); return !error; }
-  const { data, error } = await admin.from("doit_request_events").update({ response_payload: { notes }, applied_revision: row.rev + 1 }).eq("user_id", userId).eq("request_id", row.id).eq("action", SELF_NOTES_ACTION).eq("applied_revision", row.rev).select("request_id");
+// forgotten = 지운 자기 문장 줄 수 — 넘기지 않으면 지금 값을 그대로 둔다(문장 추가가 수를 지우지 않게)
+async function saveSelfNotes(admin: Db, userId: string, row: { id: string; rev: number; forgotten: number }, notes: SelfNote[], forgotten = row.forgotten): Promise<boolean> {
+  if (row.rev < 0) { const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: row.id, action: SELF_NOTES_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: { notes, forgotten } }); return !error; }
+  const { data, error } = await admin.from("doit_request_events").update({ response_payload: { notes, forgotten }, applied_revision: row.rev + 1 }).eq("user_id", userId).eq("request_id", row.id).eq("action", SELF_NOTES_ACTION).eq("applied_revision", row.rev).select("request_id");
   return !error && !!data && data.length > 0;
 }
 
@@ -366,15 +371,17 @@ async function currentSession(admin: Db, userId: string, since: string | null, g
   let q = admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
     .eq("user_id", userId).eq("action", SESSION_ACTION).eq("status", "applied");
   if (since) q = q.gte("created_at", since);
-  const { data } = await q.order("created_at", { ascending: false }).limit(goal ? 20 : 1);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(goal ? 20 : 1);
+  if (error) throw new Error("MEMORY_READ_FAILED");
   const rows = ((data ?? []) as SessionRow[]).filter((r) => r.response_payload && typeof r.response_payload === "object");
   if (!goal) return rows[0] ?? null;
   return rows.find((r) => ((r.response_payload as unknown as Stored).state?.goal ?? "open") === goal) ?? null;
 }
 // 기기가 기억한 세션 id 로 읽기(그 계정 · 이번 회차 세션일 때만). 없거나 다른 회차면 null.
 async function sessionById(admin: Db, userId: string, id: string, since: string | null): Promise<SessionRow | null> {
-  const { data } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
+  const { data, error } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
     .eq("user_id", userId).eq("request_id", id).eq("action", SESSION_ACTION).eq("status", "applied").maybeSingle();
+  if (error) throw new Error("MEMORY_READ_FAILED");
   const row = data as SessionRow | null;
   if (!row || !row.response_payload || typeof row.response_payload !== "object") return null;
   if (since && String(row.created_at) < since) return null;
@@ -470,12 +477,18 @@ const haltFail = (why: Halt, origin: string | null) => why === "company" ? fail(
   : why === "request" ? fail("AI_ERROR", "AI 가 답을 만들지 못했어요. 적은 말은 그대로 있으니 다시 보내 주세요.", 502, origin) : fail("CANCELLED", "요청이 취소됐어요. 다시 보내 주세요.", 499, origin);
 
 // 한 턴(또는 시작의 첫 답)을 돌리고 결과를 저장한다. 판 번호가 바뀌었으면(다른 창에서 먼저 저장) 저장하지 않고 409.
-async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null; claim?: { id: string; turnRow: boolean; attempt?: number } }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
+async function runAndSave(ctx: { admin: Db; userId: string; llm: A.Llm; router: ModelRouter; origin: string | null; memoryRow?: H.Row; claim?: { id: string; turnRow: boolean; attempt?: number } }, sessionId: string, stored: Stored, rev: number, text: string, requestId: string, fresh: boolean, ui: A.UiCorrection | null = null, rescue: { choice?: unknown; rescueOpen?: boolean } = {}) {
   const t0 = Date.now();
   const st = stored.state;
   const before = st.turns.length;
   ctx.router.limitTo(R.remainingBudget(stored.run)); // 이번 요청(재시도·전환 포함)도 대화에 남은 예산 안에서만
-  const { obs, response } = await A.runTurn(st, text, ctx.llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
+  const llm: A.Llm = ctx.memoryRow ? async (kind, system, input) => {
+    if (kind !== "turn") return ctx.llm(kind, system, input);
+    const memory = H.recallRows([{ ...ctx.memoryRow!, action: SESSION_ACTION, status: "applied" }], ctx.userId, text, "current", sessionId);
+    // Empty recall must not spend extra tokens or alter retry/fallback admission.
+    return ctx.llm(kind, system, memory.evidence.length ? H.attachRecall(input as Record<string, unknown>, memory) : input);
+  } : ctx.llm;
+  const { obs, response } = await A.runTurn(st, text, llm, { ui, ...rescue }); // v2.2.1 P0-5: 화면 정정 표시는 서버가 정정으로 확정 · 2026-10-01 고른 보기·펼친 보기
   const halt = haltedBy(ctx.router);
   if (response.error) {
     const ai = ctx.router.summary();
@@ -601,6 +614,7 @@ async function candidatesTool(baseUrl: string, anonKey: string, authHeader: stri
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get("origin");
   let budgetDone: (() => Promise<void>) | null = null; // 회사 예산 예약을 잡은 요청이면 응답 전에 정산
+  if (!browserOriginAllowed(origin, ALLOWED_ORIGINS)) return fail("FORBIDDEN", "허용되지 않은 요청이에요.", 403, origin);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail("BAD_REQUEST", "잘못된 요청이에요.", 405, origin);
   try {
@@ -615,23 +629,46 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (authError || !user) return fail("UNAUTHORIZED", "로그인이 필요해요.", 401, origin);
     const admin: Db = createClient(url, serviceKey, { auth: { persistSession: false } });
     const userId = user.id;
-    if (rateLimited(userId)) return fail("RATE_LIMITED", "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.", 429, origin);
+    const rate = await durableRateDecision(admin, userId, "agent", Deno.env.get("ECHO_DURABLE_RATE_LIMIT_ENABLED") === "true");
+    if (rate === "unavailable") return fail("ERROR", "요청 제한을 확인하지 못했어요.", 503, origin);
+    if (rate === "limited") return fail("RATE_LIMITED", "잠시 후 다시 시도해 주세요.", 429, origin);
+    if (rate === "disabled" && rateLimited(userId)) return fail("RATE_LIMITED", "요청이 너무 잦아요. 잠시 후 다시 시도해 주세요.", 429, origin);
 
-    const body = (await req.json().catch(() => null)) as Json | null;
+    let body: Json;
+    try { body = await readJsonObject(req, BODY_MAX_BYTES); }
+    catch (error) {
+      if (error instanceof RequestProblem) return fail(error.code, error.message, error.status, origin);
+      return fail("BAD_REQUEST", "요청을 읽지 못했어요.", 400, origin);
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail("BAD_REQUEST", "요청 형식이 잘못됐어요.", 400, origin);
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return fail("BAD_REQUEST", "알 수 없는 요청이에요.", 400, origin);
     const since = roundStartOf(user);
 
+    if (action === "agent_recall") {
+      const query = typeof body.query === "string" ? body.query.trim() : "";
+      if (!query || query.length > TEXT_MAX || A.PRIVATE_DATA.test(query)) return fail("BAD_REQUEST", "찾고 싶은 이야기를 연락처 없이 적어 주세요.", 400, origin);
+      const intent = body.intent === "history" ? "history" : "current";
+      const cursor = body.cursor as { offset?: number; match?: number } | null;
+      if (cursor != null && (typeof cursor !== "object" || Array.isArray(cursor) || Object.keys(cursor).some(k => k !== "offset" && k !== "match") || Object.values(cursor).some(v => typeof v !== "number" || !Number.isSafeInteger(v) || v < 0))) return fail("BAD_REQUEST", "기록을 처음부터 다시 찾아 주세요.", 400, origin);
+      const want = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
+      const current = want ? await sessionById(admin, userId, want, since) : await currentSession(admin, userId, since);
+      if (want && !current) return fail("NOT_FOUND", "이 대화를 찾지 못했어요.", 404, origin);
+      if (cursor && ((cursor.offset ?? 0) > 1000000 || (cursor.match ?? 0) > 100000 || intent === 'current' && (cursor.offset ?? 0) !== 0)) return fail("BAD_REQUEST", "기록을 처음부터 다시 찾아 주세요.", 400, origin);
+      const memory = { ...await H.readRecall(admin, userId, query, intent, current?.request_id ?? null, cursor ?? {}), intent };
+      if (memory.status === "READ_FAILED") return fail("MEMORY_READ_FAILED", memory.notice, 503, origin);
+      return json({ ok: true, memory, reply: H.answer(memory) }, 200, origin);
+    }
+
     if (action === "agent_get") {
       // v2.3: 기기가 기억한 세션 id 가 있으면 그 세션(다른 기기의 다른 목적 세션을 섞어 보이지 않는다). 없으면 예전처럼 가장 최근 세션.
       const want = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       const row = (want ? await sessionById(admin, userId, want, since) : null) ?? await currentSession(admin, userId, since);
-      const notes = (await selfNotesRow(admin, userId)).notes;
+      const { notes, forgotten: selfForgotten } = await selfNotesRow(admin, userId);
       const ftCfg = FT.freeTalkConfig((k) => Deno.env.get(k));
       const free_talk = ftCfg.enabled ? await (async () => { const f = await freeStatus(admin, userId, ftCfg, (user.app_metadata ?? null) as Record<string, unknown> | null); return { enabled: true, entitled: f.entitled, trial_left: f.trial_left, daily_left: f.daily_left }; })() : { enabled: false };
       // 검수 P2-6: 대화 세션이 없어도(사주·타로 [반영할게요]만 한 사람) 자기 문장은 보고 지울 수 있어야 한다 → known 을 따로도 준다
-      return json({ ok: true, session: row ? sessionView(row.request_id, row.response_payload as unknown as Stored, { self_notes: notes }) : null, self_notes: notes.length, known: knownWith(row ? (row.response_payload as unknown as Stored).state : A.newState(), notes), free_talk }, 200, origin);
+      return json({ ok: true, session: row ? sessionView(row.request_id, row.response_payload as unknown as Stored, { self_notes: notes, self_forgotten: selfForgotten }) : null, self_notes: notes.length, known: knownWith(row ? (row.response_payload as unknown as Stored).state : A.newState(), notes, selfForgotten), free_talk }, 200, origin);
     }
 
     // 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」 — 모델 호출 0 · 턴 기록 0 · 상태만 판 번호로 저장(동시 쓰기 = 409).
@@ -644,9 +681,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const at = key.slice("self:".length);
         const left = row.notes.filter((n) => (n.id ?? n.at) !== at);
         if (left.length === row.notes.length) return fail("NOT_FOUND", "지울 줄을 찾지 못했어요.", 404, origin);
-        if (!(await saveSelfNotes(admin, userId, row, left))) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
+        const gone = row.forgotten + 1;
+        if (!(await saveSelfNotes(admin, userId, row, left, gone))) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
         const sess = (typeof body.sessionId === "string" && UUID.test(body.sessionId) ? await sessionById(admin, userId, body.sessionId, since) : null) ?? await currentSession(admin, userId, since);
-        return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: left }) : null, known: knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), left) }, 200, origin);
+        return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: left, self_forgotten: gone }) : null, known: knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), left, gone) }, 200, origin);
       }
       const want = typeof body.sessionId === "string" && UUID.test(body.sessionId) ? body.sessionId : "";
       const row = (want ? await sessionById(admin, userId, want, since) : null) ?? await currentSession(admin, userId, since);
@@ -659,9 +697,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const { data, error } = await admin.from("doit_request_events").update({ response_payload: stored, applied_revision: rev + 1 })
         .eq("user_id", userId).eq("request_id", row.request_id).eq("action", SESSION_ACTION).eq("applied_revision", rev).select("request_id");
       if (error || !data || !data.length) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
-      const notes = (await selfNotesRow(admin, userId)).notes;
+      const mine = await selfNotesRow(admin, userId);
       logDiag({ step: action, changed, phase: st.phase });
-      return json({ ok: true, session: sessionView(row.request_id, stored, { self_notes: notes }), changed }, 200, origin);
+      return json({ ok: true, session: sessionView(row.request_id, stored, { self_notes: mine.notes, self_forgotten: mine.forgotten }), changed }, 200, origin);
     }
     if (action === "agent_self_note") {
       const text = typeof body.text === "string" ? body.text.replace(/\s+/g, " ").trim() : "";
@@ -669,14 +707,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (text.length < 2 || text.length > SELF_NOTE_MAX) return fail("BAD_REQUEST", "두 글자 이상, 200자 안쪽으로 적어 주세요.", 400, origin);
       if (A.PRIVATE_DATA.test(text)) return fail("PRIVATE_DATA", "연락처·번호·링크는 여기에 적지 않아요.", 422, origin);
       const row = await selfNotesRow(admin, userId);
-      if (row.notes.some((n) => n.text === text)) { const sess = await currentSession(admin, userId, since); return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: row.notes }) : null, duplicate: true }, 200, origin); }
+      if (row.notes.some((n) => n.text === text)) { const sess = await currentSession(admin, userId, since); return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: row.notes, self_forgotten: row.forgotten }) : null, duplicate: true }, 200, origin); }
       // 검수 P2-8: 금지어·민감 주제·위기 문장은 자기 문장으로 받지 않는다(매칭 재료로 새지 않게 · 안내 한 줄)
       if (/(데이팅|소개팅|궁합|점술|심리치료|성격검사)/.test(text) || A.SENSITIVE_TOPIC.test(text) || RT.crisisSignal(text)) return fail("NOT_ALLOWED", "이 문장은 프로필에 넣지 않을게요. 건강·돈·성·위기 같은 민감한 내용은 여기서만 기억해요.", 422, origin);
-      const notes = [...row.notes, { text, at: new Date().toISOString(), origin: origin_, id: crypto.randomUUID() }].slice(-SELF_NOTES_MAX);
+      // Never silently overwrite the first explicitly saved note. Capacity is disclosed.
+      if (row.notes.length >= SELF_NOTES_MAX) return fail("MEMORY_FULL", "보관 공간이 찼어요. 기존 내용을 확인해 주세요. 먼저 저장한 말은 그대로 있어요.", 409, origin);
+      const notes = [...row.notes, { text, at: new Date().toISOString(), origin: origin_, id: crypto.randomUUID() }];
       if (!(await saveSelfNotes(admin, userId, row, notes))) return fail("REQUEST_CONFLICT", "다른 화면에서 먼저 바뀌었어요. 새로 불러올게요.", 409, origin);
       const sess = await currentSession(admin, userId, since);
       logDiag({ step: action, origin: origin_, count: notes.length });
-      return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: notes }) : null, known: knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), notes), note: { text, at: notes.at(-1)!.at } }, 200, origin);
+      return json({ ok: true, session: sess ? sessionView(sess.request_id, sess.response_payload as unknown as Stored, { self_notes: notes, self_forgotten: row.forgotten }) : null, known: knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), notes, row.forgotten), note: { text, at: notes.at(-1)!.at } }, 200, origin);
     }
 
     // 2026-10-06 관리자: 유료 자유 대화 이번 달 요약(수치만 · 글 0 · 모델 0). 관리자 역할은 서버가 다시 확인한다.
@@ -898,7 +938,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       router.limitTo({ calls: cfg.maxCalls, tokens: tokenCap }); // 요청당 호출 3 · 토큰 8,000 과 금액 0.01달러 중 작은 쪽(재시도 포함)
       // 답변 재료 = 본인 「아는 나」(확인·고친 것·거절 의미·짐작 표시)만 — 다른 사용자 0
       const sess = await currentSession(admin, userId, since);
-      const known = knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), (await selfNotesRow(admin, userId)).notes);
+      const mine = await selfNotesRow(admin, userId);
+      const known = knownWith(sess ? (sess.response_payload as unknown as Stored).state : A.newState(), mine.notes, mine.forgotten);
       const talkHistory = history.filter((l) => !(l.role === "user" && RT.crisisSignal(l.text)));
       const tag = mode === "trial" ? "free:trial" : "free:paid";
       return await paidOnce<FT.FreeReply>({ tag: "free", key: "free", hash: `${tag}:${await sha256(`free:${JSON.stringify(history)}:${text}`)}`, kind: "free_talk",
@@ -914,6 +955,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const goal = A.isGoal(body.goal) ? body.goal : null;
       const goalLabel = goal && typeof body.goalLabel === "string" ? body.goalLabel.trim().slice(0, 40) || null : null;
       if (body.goal != null && !goal) return fail("BAD_REQUEST", "고른 만남을 다시 골라 주세요.", 400, origin);
+      const firstRaw = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
+      // 2026-10-10 MVP 마감(제품 기준 「위기 신호 → 분석·질문 생성 멈춤 · 안전 안내 · 원문은 개인화 재료로 쓰지 않음」):
+      //   첫 답이 위기 신호면 그 말은 모델·저장에 쓰지 않는다. 안전 안내는 AI 상태(설정·하루 한도·첫 질문 만들기 실패)와 무관하게
+      //   늘 함께 준다(Codex P1 4235756227 · cf2c58e 리뷰) — 모델 없이 고정 첫 질문으로 세션을 열고, 같은 요청 재전송·이미 있는 세션에도 다시 붙인다.
+      const startCrisis = !!firstRaw && RT.crisisSignal(firstRaw);
+      const crisisExtra = startCrisis ? { crisis: true, reply: RT.CRISIS_LINE } : {};
       const existing = await currentSession(admin, userId, since, goal);
       if (existing) {
         // Codex P2(4183520284): 이 요청이 만든 세션인데 마무리만 못 했으면(503) 그 유료 자리를 여기서 끝낸다(하루 한도 이중 셈 0)
@@ -922,13 +969,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const done = await reconcilePaid(ctx, { claimId: await derivedUuid(`${requestId}:claim:start`), claimTarget: null, usageTarget: existing.request_id, why: "opening", ...(existing.request_id === firstSid ? { turnRowId: requestId } : {}) });
           if (done === false) return unconfirmed(origin);
         }
-        return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
+        return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true, ...crisisExtra }, 200, origin);
       }
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
-      const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
+      const first = startCrisis ? "" : firstRaw;
       const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
+      if (startCrisis) {
+        // 모델 0 · 비용 자리 0: 고정 첫 질문(seedFirstQuestion)으로 세션만 열고 안전 안내를 함께 돌려준다(AI 장애·한도와 무관).
+        A.seedFirstQuestion(stored.state);
+        stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: 0, tokens_in: 0, tokens_out: 0, tokens_unconfirmed: 0 });
+        const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
+        if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
+        logDiag({ step: "opening", code: "crisis" });
+        return json({ ok: true, session: sessionView(requestId, stored), ...crisisExtra }, 200, origin);
+      }
       if (first) A.seedFirstQuestion(stored.state);
       // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
       const startPaid = !first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }));
@@ -1178,6 +1234,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const text = ui ? ui.text : typeof body.text === "string" ? body.text.trim() : "";
     if (!sessionId || !text) return fail("BAD_REQUEST", "보낼 말을 적어 주세요.", 400, origin);
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
+    // 2026-10-10 MVP 마감: 위기 신호 → 분석·질문 생성을 멈추고 안전 안내(모델 0 · 저장 0 · 턴 기록 0 · 세션 그대로 = 강제 종료 아님).
+    //   원문은 저장하지 않으므로 이후 대화·프로필·추천 재료가 되지 않는다. 같은 세션에서 다른 말을 보내면 평소대로 이어진다.
+    //   안전 안내는 세션을 못 찾거나 다른 기기에서 새 회차를 시작해 이 세션이 지난 회차여도 늘 준다. 다만 그 경우 세션은 돌려주지 않는다
+    //   (session: null — 화면이 지금 회차를 다시 불러온다 · 지난 회차 대화가 되살아나지 않게 · Codex P2 4235803973).
+    if (RT.crisisSignal(text)) {
+      const { data: cur } = await admin.from("doit_request_events").select("request_id, created_at, response_payload")
+        .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
+      const curStored = cur?.response_payload ? cur.response_payload as unknown as Stored : null;
+      const inRound = !!curStored && !(since && (curStored.round_since ?? null) !== since && String(cur!.created_at) < since);
+      logDiag({ step: "turn", code: "crisis", session: inRound ? "current" : "reload" });
+      return json({ ok: true, session: inRound ? sessionView(sessionId, curStored!) : null, crisis: true,
+        turn: { kind: "crisis", reply: RT.CRISIS_LINE, question: null, saved: false, finish: false, after: true, receipt: null } }, 200, origin);
+    }
     const turnHash = await sha256(`${sessionId}:${text}`);
     // 같은 요청 id 가 이미 있으면: 끝난 턴 = 저장된 결과(모델 0) · 그 밖(처리 중 · 놓은 자리 · 결과 모름 · 다른 요청)은 아래 자리 잡기(admitClaim)가 정한다
     if (prior) {
@@ -1188,8 +1257,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
       if (prior.action !== CLAIM_ACTION) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
     }
-    const { data: row } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
-      .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
+    const { data: row, error: memoryReadError } = await admin.from("doit_request_events").select("request_id, user_id, created_at, updated_at, applied_revision, response_payload")
+      .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).eq("status", "applied").maybeSingle();
+    if (memoryReadError) return fail("MEMORY_READ_FAILED", "대화 기록을 읽지 못했어요. 다시 확인해 주세요.", 503, origin);
     if (!row || !row.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
     const stored = row.response_payload as unknown as Stored;
     if (since && (stored.round_since ?? null) !== since && String(row.created_at) < since) return fail("ROUND_CHANGED", "처음부터 다시 시작한 대화예요. 새로 불러올게요.", 409, origin);
@@ -1201,6 +1271,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const baseTurns = (prior?.action === CLAIM_ACTION ? (prior.response_payload as Json | null)?.base_turns : null);
     if (typeof baseTurns === "number" && stored.state.turns.length > baseTurns) return fail("STATE_CHANGED", "그사이 대화가 이어졌어요. 새로 불러올게요.", 409, origin);
     // 같은 요청 재전송은 위에서 저장된 결과로(모델 0). 모델이 필요 없는 입력(개인정보 안내 · 마친 대화 상한 · 보기 모두 아님)은 AI 사전 확인 없이 평소 응답.
+    // Exact original recall is read-only/model-free. A memory question never becomes a preference.
+    if (!ui && !body.choice && H.memoryQuestion(text)) {
+      const intent = H.memoryIntent(text);
+      const memory = { ...await H.readRecall(admin, userId, text, intent, sessionId), intent };
+      if (memory.status === "READ_FAILED") return fail("MEMORY_READ_FAILED", memory.notice, 503, origin);
+      return json({ ok: true, session: sessionView(sessionId, stored), turn: { kind: "ask", reply: H.answer(memory), question: stored.state.current?.text ?? null, saved: false, finish: false, after: true, memory }, memory }, 200, origin);
+    }
     const turnOpts = { ui, choice: typeof body.choice === "string" ? body.choice.slice(0, 40) : undefined, rescueOpen: body.rescueOpen === true };
     const needsModel = await callsModel(stored, (st, llm) => A.runTurn(st, text, llm, turnOpts));
     if (needsModel) {
@@ -1212,7 +1289,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (admit.res) return admit.res;
     if (admit.done) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
     try {
-      return await runAndSave({ ...ctx, claim: { id: requestId, turnRow: true, attempt: admit.attempt } }, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: turnOpts.choice, rescueOpen: turnOpts.rescueOpen });
+      return await runAndSave({ ...ctx, memoryRow: row as H.Row, claim: { id: requestId, turnRow: true, attempt: admit.attempt } }, sessionId, stored, Number(row.applied_revision ?? 0), text, requestId, false, ui, { choice: turnOpts.choice, rescueOpen: turnOpts.rescueOpen });
     } catch (e) {
       await settleClaim(admin, userId, requestId, needsModel ? TURN_UNCERTAIN : "FAILED", admit.attempt); // 결과를 모름 — 유료 자리는 하루 한도에 계속 세고, 임대 시간 뒤에만 다시 잡는다
       throw e;

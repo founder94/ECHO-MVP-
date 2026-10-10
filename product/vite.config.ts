@@ -1,14 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import AutoImport from "unplugin-auto-import/vite";
 import { brandOriginProblem } from "./scripts/brand-origin-guard.mjs";
-// import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
 
 const base = process.env.BASE_PATH || "/";
 const isPreview = process.env.IS_PREVIEW ? true : false;
-//const proxyPlugins = isPreview ? [readdyJsxRuntimeProxyPlugin()] : [];
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, "");
@@ -36,7 +35,8 @@ export default defineConfig(({ mode }) => {
     if (problem) throw new Error(`BRAND build blocked: ${problem}`);
   }
   // 앱 첫 바탕색 = 파스텔 줄기 첫 색(src/doit/components/feature/pastel-bg.css --pastel-underlay 0%). manifest·theme-color 와 같은 값.
-  const APP_START_COLOR = "#5fd6d6";
+  // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 첫 색 → Flora 밤 #010b24(src/lib/themeColor.ts APP_PASTEL 과 같은 값).
+  const APP_START_COLOR = "#010b24";
   // 2026-09-29 대표 「시작 화면 배경 변경」(대표 선택 이미지 실측 · 딥 네이비): 앱 아이콘 → 시작 화면(Android 는 manifest background_color 로 그림) → 온보딩(/do-it/intro) 첫 바탕.
   // 파스텔 앱 화면(/doit)의 첫 바탕(APP_START_COLOR)은 그대로 둔다. src/lib/themeColor.ts APP_LAUNCH_COLOR 와 같은 값.
   const APP_LAUNCH_COLOR = "#041433";
@@ -119,11 +119,25 @@ export default defineConfig(({ mode }) => {
     },
     // 브랜드 빌드의 _redirects: 제품 경로는 서버에서 바로 앱 주소로 보낸다(화면 로드 전).
     writeBundle(options: { dir?: string }) {
+      if (options.dir) {
+        // Keep the common security policy in every role. Authorize only exact
+        // build-owned inline bootstrap bytes, never all inline JavaScript.
+        const builtHtml = readFileSync(resolve(options.dir, "index.html"), "utf8");
+        const hashes = [...builtHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+          .filter((m) => m[1].trim())
+          .map((m) => `'sha256-${createHash("sha256").update(m[1]).digest("base64")}'`);
+        let headers = readFileSync(resolve(import.meta.dirname, "public/_headers"), "utf8");
+        if (hashes.length) headers = headers.replace("script-src 'self'", `script-src 'self' ${[...new Set(hashes)].join(" ")}`);
+        if (siteRole === "admin") {
+          headers = headers.replace(/Referrer-Policy: [^\n]+/, "Referrer-Policy: no-referrer")
+            .trimEnd() + "\n  X-Robots-Tag: noindex, nofollow\n  Cache-Control: no-store\n";
+        }
+        writeFileSync(resolve(options.dir, "_headers"), headers);
+      }
       // 관리자 빌드: 모든 경로 = 관리자 화면 하나 · 검색 제외 · 다른 사이트 안에 넣기 금지. 앱·브랜드용 공용 파일(설치 설정·앱 아이콘·브랜드 그림)은 빼낸다.
       if (siteRole === "admin" && options.dir) {
         for (const extra of ["manifest.webmanifest", "pwa", "brand"]) rmSync(resolve(options.dir, extra), { recursive: true, force: true });
         writeFileSync(resolve(options.dir, "_redirects"), "/*    /index.html   200\n");
-        writeFileSync(resolve(options.dir, "_headers"), ["/*", "  X-Frame-Options: DENY", "  X-Content-Type-Options: nosniff", "  Referrer-Policy: no-referrer", "  X-Robots-Tag: noindex, nofollow", "  Cache-Control: no-store", ""].join("\n"));
         return;
       }
       if (siteRole !== "brand" || !options.dir) return;
@@ -146,7 +160,6 @@ export default defineConfig(({ mode }) => {
     __READDY_AI_DOMAIN__: JSON.stringify(process.env.READDY_AI_DOMAIN || ""),
   },
   plugins: [
-    // ...proxyPlugins,
     siteRolePlugin,
     react(),
     AutoImport({
@@ -208,6 +221,12 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "./src"),
+      // 2026-10-08 GetLayers 「Vesper」 원본 코드(src/vesper) — 원본의 @/ 는 @vesper/ 로, Next 전용 모듈은 shims 로.
+      "@vesper": resolve(import.meta.dirname, "./src/vesper"),
+      "next/image": resolve(import.meta.dirname, "./src/vesper/shims/next-image.tsx"),
+      "next/link": resolve(import.meta.dirname, "./src/vesper/shims/next-link.tsx"),
+      "next/dynamic": resolve(import.meta.dirname, "./src/vesper/shims/next-dynamic.tsx"),
+      "next/navigation": resolve(import.meta.dirname, "./src/vesper/shims/next-navigation.ts"),
     },
   },
   server: {

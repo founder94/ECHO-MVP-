@@ -107,7 +107,7 @@ export default function DoItHeroPage() {
         {/* 제목 — 정확히 두 줄 */}
         <h1
           style={{
-            fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+            fontFamily: "'Jua', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
             fontWeight: 800,
             lineHeight: 1.18,
             letterSpacing: '-0.04em',
