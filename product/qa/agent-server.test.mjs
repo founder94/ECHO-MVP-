@@ -15,8 +15,10 @@ function fakeDb(state) {
   const table = (n) => (state.tables[n] ??= []);
   const q = (name) => {
     let filters = []; let op = 'select'; let patch = null; let order = null; let lim = null; let returning = false;
-    const rows = () => { let r = table(name).filter((row) => filters.every((f) => f(row))); if (order) r = r.slice().sort((a, b) => (a[order.col] < b[order.col] ? -1 : a[order.col] > b[order.col] ? 1 : 0) * (order.asc ? 1 : -1)); if (lim != null) r = r.slice(0, lim); return r; };
+    let range = null;
+    const rows = () => { let r = table(name).filter((row) => filters.every((f) => f(row))); if (order) r = r.slice().sort((a, b) => (a[order.col] < b[order.col] ? -1 : a[order.col] > b[order.col] ? 1 : 0) * (order.asc ? 1 : -1)); if (range) r = r.slice(range[0], range[1]+1); if (lim != null) r = r.slice(0, lim); return r; };
     const run = () => {
+      if (state.failReads?.includes(name) && op === 'select') return {data:null,error:{code:'SYNTHETIC_READ_FAILURE'},count:null};
       if (op === 'update') { const hit = rows(); for (const r of hit) Object.assign(r, structuredClone(patch)); return { data: returning ? hit.map((r) => ({ ...r })) : null, error: null }; }
       const all = rows(); return { data: all.map((r) => structuredClone(r)), error: null, count: all.length };
     };
@@ -26,6 +28,7 @@ function fakeDb(state) {
       gte: (col, v) => { filters.push((r) => String(r[col] ?? '') >= String(v)); return c; },
       in: (col, vals) => { filters.push((r) => vals.includes(r[col])); return c; },
       order: (col, o) => { order = { col, asc: o?.ascending !== false }; return c; },
+      range: (a,b) => { range = [a,b]; return c; },
       limit: (n) => { lim = n; return c; },
       update: (p) => { op = 'update'; patch = p; return c; },
       maybeSingle: () => Promise.resolve({ data: run().data?.[0] ?? null, error: null }),
@@ -46,6 +49,7 @@ function fakeDb(state) {
       },
     }),
     rpc: async (fn, args) => {
+      if (state.securityRateRpc) return state.securityRateRpc(fn, args);
       assert.equal(fn, 'doit_apply_record_create');
       const recs = table('doit_records');
       const dup = recs.find((r) => r.user_id === args.p_user_id && r.request_id === args.p_request_id);
@@ -57,9 +61,20 @@ function fakeDb(state) {
 }
 
 function load(state) {
-  const compile = (f) => ts.transpileModule(readFileSync(new URL(f, DIR), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const compile = (f) => ts.transpileModule(readFileSync(new URL(f, new URL(DIR.href.replace(/\/+$/, '/'))), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const sharedSecurity = new Map();
+  const loadSharedSecurity = (name) => {
+    if (!sharedSecurity.has(name)) {
+      const mod = { exports: {} };
+      vm.runInNewContext(compile(name), { module: mod, exports: mod.exports, TextDecoder, Uint8Array, Error, Number, JSON }, { filename: name });
+      sharedSecurity.set(name, mod.exports);
+    }
+    return sharedSecurity.get(name);
+  };
+  const historyMod = { exports: {} };
+  vm.runInNewContext(compile('history-retrieval.ts'), { module: historyMod, exports: historyMod.exports, console, Date, Number, String, Array, Object, Set, Error }, { filename: 'history-retrieval.ts' });
   const agentMod = { exports: {} };
-  vm.runInNewContext(compile('agent.ts'), { module: agentMod, exports: agentMod.exports, console }, { filename: 'agent.ts' });
+  vm.runInNewContext(compile('agent.ts'), { module: agentMod, exports: agentMod.exports, console, require: n => { if(n==='./history-retrieval.ts') return historyMod.exports; throw new Error(n); } }, { filename: 'agent.ts' });
   const failureMod = { exports: {} };
   vm.runInNewContext(compile('failure-intelligence.ts'), { module: failureMod, exports: failureMod.exports, console }, { filename: 'failure-intelligence.ts' });
   // 2026-10-03 3개 제공사 통합: 모델 호출은 providers.ts(연결부) → modelRouter.ts(서버 선택 규칙). 환경 = OpenAI 키만 → 기본 정책(지금 운영 그대로).
@@ -89,7 +104,7 @@ function load(state) {
     module: { exports: {} }, exports: {}, console: { log: (s) => logs.push(String(s)), error: (s) => logs.push(String(s)) },
     // state.env 로 요청마다 환경을 바꿀 수 있다(2026-10-03 AI_POLICY · 제공사 키 있는지 — 값은 가짜).
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: '', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's', ...(state.env ?? {}) })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; if (name === './free-talk.ts') return freeMod.exports; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('../_shared/')) return loadSharedSecurity(name); if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; if (name === './agent.ts') return agentMod.exports; if (name === './history-retrieval.ts') return historyMod.exports; if (name === './failure-intelligence.ts') return failureMod.exports; if (name === './modelRouter.ts') return routerMod.exports; if (name === './run.ts') return runMod.exports; if (name === './card-reading.ts') return cardMod.exports; if (name === './reference-talk.ts') return refMod.exports; if (name === './company-budget.ts') return cbMod.exports; if (name === './free-talk.ts') return freeMod.exports; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (url, init) => {
       // 2026-10-03 실행 단계의 도구(연결 서버 my_candidates) — state.connect 가 정한 응답(없으면 연결 실패)
       if (String(url).endsWith('/functions/v1/doit-connect')) {
@@ -147,7 +162,7 @@ function load(state) {
     crypto: globalThis.crypto, TextEncoder, Response, AbortController, setTimeout, clearTimeout, structuredClone, Date, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, RegExp, URL,
   };
   vm.runInNewContext(compile('index.ts'), sandbox, { filename: 'index.ts' });
-  return { call: async (body, { auth = true, signal } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body), ...(signal ? { signal } : {}) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
+  return { raw: handler, call: async (body, { auth = true, signal } = {}) => { const res = await handler(new Request('http://x', { method: 'POST', headers: auth ? { Authorization: 'Bearer t', 'content-type': 'application/json' } : { 'content-type': 'application/json' }, body: JSON.stringify(body), ...(signal ? { signal } : {}) })); return { status: res.status, body: await res.json() }; }, logs, agent: agentMod.exports };
 }
 
 // 2026-10-03 Codex 리뷰 P1: 실패한 턴도 시도 수·사용량을 대화 예산(run.budget)에 남긴다 → 「상태 그대로」 = 예산 밖의 모든 것(대화 상태·프로필) 그대로 + 예산은 늘기만.
@@ -353,7 +368,7 @@ test('소스 규칙: 호출 주소 고정 · 모델은 기존 resolveModel(정�
   assert.match(src, /routerFromEnv\(\(k\) => Deno\.env\.get\(k\), A\.AGENT_PARAMS, AI_HEALTH, fetch, resolveModel, signal\)/);
   assert.match(src, /routerForRequest\(req\.signal\)/, '사용자 요청이 끊기면 모델 호출도 끊음');
   const envs = [...src.matchAll(/Deno\.env\.get\("([A-Z_]+)"\)/g)].map((m) => m[1]).sort();
-  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
+  assert.deepEqual([...new Set(envs)], ['CORS_ALLOWED_ORIGINS', 'ECHO_DURABLE_RATE_LIMIT_ENABLED', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_URL']);
   for (const m of src.matchAll(/logDiag\(\{([^}]*)\}/g)) assert.ok(!/\btext\b(?!4)|user_raw|original/.test(m[1].replace(/text4/g, '')), `로그에 원문 칸 없음: ${m[1]}`);
 });
 

@@ -15,7 +15,7 @@ const C = {
 
 // ── DESIGN TEAM EDIT ZONE ─────────────────────────────
 const MAX_NOTIFICATIONS = 50;
-const AUTO_CLEAR_AGE_MS = 24 * 60 * 60 * 1000; // 24h
+ // 24h
 // ───────────────────────────────────────────────────────
 
 interface RealtimeNotification {

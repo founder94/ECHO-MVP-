@@ -68,10 +68,31 @@ export const FREE_SYSTEM = `너는 ECHO 야. 사용자가 전에 확인하거나
 - 「데이팅·소개팅·궁합·점술·심리치료·성격검사」 낱말을 쓰지 않는다.`;
 const BANNED = /(데이팅|소개팅|궁합|점술|심리치료|성격검사)/;
 export interface FreeReply { reply: string }
-export function parseFree(raw: string): FreeReply | null {
+// 2026-10-10 Codex P2(4236681722): 「~를 기억해 두면 도움이 돼요」 같은 보통 조언까지 기억 주장으로 보아 502 가 났다 →
+//   ECHO 가 사용자의 지난 말을 기억한다고 주장하는 꼴(1인칭 · 「기억해요·기억하고 있어요·기억해 뒀어요·기억하기로는」)만.
+// 2026-10-10 Codex P2(4237121062): 꾸밈 없는 「기억해요」는 「오늘 느낀 편안함을 기억해요」 같은 권유에도 쓰인다 → 빼고,
+//   사용자가 했던 말을 가리키는 기억(「말씀하신 … 기억해요」 · 「그 얘기 기억하고 있어요」)만. 「기억해 두면·두세요」 권유는 기억 주장 아님.
+// 2026-10-10 Codex P1(4237313916): 「지난번에는 매일 연락이 좋다고 했어요」처럼 맨 「했어요」와 「~다고 했어요」(옮겨 말하기)도
+//   사용자의 지난 말을 주장하는 꼴 → 인용 필요. 이번 차례 말을 되짚는 「방금 ~다고 했어요」만 예외(「지금까지 ~다고 했어요」는 지난 말이라 예외 아님).
+// 「잠들기 전에 산책했어요?」처럼 「~기 전에」(무엇을 하기 앞서)는 지난 말이 아니라 보통 물음 → 지난 때 말에서 뺀다.
+// 2026-10-10 Codex P1(8차 · 1b521f0): 꾸미는 꼴 「말한·말하신·얘기한·하신·적은」과 「~다고 한 것·거·적」도 지난 말 주장(「저번에 … 좋다고 말한 것 같아요」).
+const PAST_CLAIM = /(?:(?<!기\s?)전에|예전에|처음에|지난|저번|이전에|그때|어제|아까).{0,24}(?:말했|말씀|하셨|했었|했어|했죠|했잖|했다|했던|정했|기억|적었|적으셨|얘기했|이야기했|말한|말하신|얘기한|이야기한|하신|적은)|(?<!방금[^.!?]{0,20})(?:다|라|자|냐|까)고\s*(?:했|하셨|말했|말씀하|얘기했|이야기했|적었|적으셨|말한|말하신|얘기한|이야기한|하신|한\s*(?:것|거|적))|(?:제가|저는|내가|나는)\s*(?:\S+\s*){0,3}?기억(?:하고|해|하는|하던|나)|(?:말씀|말하신|말한|말했|얘기|이야기|하신|하셨|했던|적어\s*주신|알려\s*주신).{0,20}기억(?:해|하고|나)(?!\s*(?:두면|두세요|두시면|두어|둬|보세요|보면|주세요))|기억(?:하고\s*있|해\s*뒀|해\s*두었|하기로는)|you (?:previously|earlier|once) (?:said|told)|I remember/i;
+export function parseFree(raw: string, known?: KnownView): FreeReply | null {
   const o = parseJson(raw) as Record<string, unknown> | null;
   const reply = (typeof o?.reply === "string" ? o.reply : "").trim();
   if (!reply || reply.length > 600 || BANNED.test(reply) || PRIVATE_DATA.test(reply)) return null;
+  // A citation is a memory claim even when its prose avoids a past-tense phrase.
+  // Explicit empty/malformed citations fail closed; ordinary uncited conversation is unchanged.
+  if (PAST_CLAIM.test(reply) || Object.hasOwn(o!, 'memory_citations')) {
+    const rejected = (known?.rejected ?? []).map(l => l.text.replace(/\s+/g, '')).filter(Boolean);
+    const sources = [...(known?.confirmed ?? []), ...(known?.corrected ?? [])].filter(l => !l.sensitive && !SENSITIVE_TOPIC.test(l.text) && !rejected.some(t => (l.quote || l.text).replace(/\s+/g, '').includes(t)));
+    const citations = o?.memory_citations;
+    if (!Array.isArray(citations) || !citations.length || citations.some(c => !c || typeof c !== 'object' || typeof (c as Record<string, unknown>).key !== 'string' || typeof (c as Record<string, unknown>).quote !== 'string' || !sources.some(s => s.key === (c as Record<string, unknown>).key && (s.quote || s.text) === (c as Record<string, unknown>).quote && reply.includes((c as Record<string, unknown>).quote as string)))) return null;
+    // A valid quote elsewhere in the reply must not launder an extra invented number/decision.
+    const quotes = [...new Set(citations.map(c => (c as Record<string, unknown>).quote as string))];
+    return { reply: '직접 남긴 말에서 확인했어요. ' + quotes.map(q => `「${q}」`).join(' · ') };
+  }
+  if ((known?.rejected ?? []).some(l => l.text && reply.replace(/\s+/g, '').includes(l.text.replace(/\s+/g, '')))) return null;
   return { reply };
 }
 // 답변 재료: 본인 known 만(민감 주제 줄은 글자 대신 「민감한 주제(되풀이 안 함)」) · 다른 사용자 0.
@@ -80,6 +101,7 @@ export function freeInput(known: KnownView, history: FreeLine[], latest: string)
   return {
     known: { confirmed: known.confirmed.map(line).slice(0, 12), corrected: known.corrected.map(line).slice(0, 8), rejected: known.rejected.map(line).slice(0, 8), guesses: known.guesses.map(line).slice(0, 6) },
     history, latest,
+    memory_sources: [...known.confirmed.slice(0, 12), ...known.corrected.slice(0, 8)].filter(l => !l.sensitive && !SENSITIVE_TOPIC.test(l.text)).map(l => ({ key: l.key, quote: l.quote || l.text })),
   };
 }
 export type FreeGuard = { kind: "crisis" | "private" | "sexual" | "roleplay" | "injection"; reply: string; status: number; code: string } | null;
@@ -94,8 +116,8 @@ export function freeGuard(text: string): FreeGuard {
   return null;
 }
 export async function freeTalk(known: KnownView, history: FreeLine[], text: string, llm: Llm, obs: Obs): Promise<FreeReply | null> {
-  const raw = await call(llm, obs, "free_talk", FREE_SYSTEM, freeInput(known, history, text));
-  return parseFree(raw);
+  const raw = await call(llm, obs, "free_talk", FREE_SYSTEM + '\n이전 대화를 기억한다고 말하려면 memory_sources의 key·quote를 그대로 memory_citations:[{key,quote}]에 쓰고 quote를 답에도 정확히 인용한다. 근거가 없으면 기억을 주장하지 않는다.', freeInput(known, history, text));
+  return parseFree(raw, known);
 }
 // 결제 안내 문장(가격 숫자 0 · 재촉·죄책감 0). n = 남은 맛보기.
 export const trialNotice = (n: number) => n > 0 ? `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기해요. 맛보기 ${n}번 남았어요.` : "맛보기를 다 썼어요. 이어서 이야기하려면 「나를 기억하는 ECHO와 무엇이든 대화」를 열어 주세요.";

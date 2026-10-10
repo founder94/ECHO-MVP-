@@ -45,12 +45,13 @@ test('① 스위치 기본 꺼짐: 503 FREE_TALK_OFF · 모델 호출 0 · agent
   assert.deepEqual(g.body.free_talk, { enabled: false });
 });
 
+// 가짜 AI 답은 인용 없는 「~다고 했죠」(지난 말 주장 · Codex P1 4237313916 로 거절 대상)를 쓰지 않는다.
 test('② 맛보기 3회(계정당 평생) → 4번째 402 TRIAL_USED · 답 글 저장 0 · 자리 지문 free:trial · AI 표시 · 안내 문장에 가격 숫자 0', async () => {
   const { s, h } = await started();
   const g = await h.call({ action: 'agent_get' });
   assert.deepEqual(g.body.free_talk, { enabled: true, entitled: false, trial_left: 3, daily_left: 30 });
   for (let i = 3; i >= 1; i--) {
-    s.ai.push({ reply: `편한 친구를 원한다고 했죠. 오늘은 어떤 하루였어요.` });
+    s.ai.push({ reply: `편한 친구 이야기, 좋아요. 오늘은 어떤 하루였어요.` });
     const r = await talk(h, `자유 이야기 ${i}`);
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.ai, true); assert.equal(r.body.trial_left, i - 1); assert.equal(r.body.entitled, false);
@@ -105,7 +106,7 @@ test('⑤ 모델: free_talk 첫 후보가 OpenAI 가 아니면 부르지 않는�
   const { s: s2, h: h2 } = await started();
   s2.ai.push({ reply: '소개팅 해 보세요.' });
   const bad = await talk(h2, '뭐 할까'); assert.equal(bad.status, 502); assert.equal(bad.body.code, 'AI_FORMAT', '금지어 답 = 성공 0');
-  s2.ai.push({ reply: '편한 친구를 원한다고 했으니, 오늘은 그 마음부터 돌아봐도 좋겠어요.' });
+  s2.ai.push({ reply: '오늘은 편한 친구라는 마음부터 돌아봐도 좋겠어요.' });
   const ok = await talk(h2, '뭐 할까');
   assert.equal(ok.status, 200);
   const sys = s2.aiCalls.at(-1).system;
@@ -168,7 +169,7 @@ test('⑪ 회사 월 상한(FREE_TALK_COMPANY_MONTH_KRW): 다른 사용자 사�
   // 상한 아래면 정상
   const { s: s2, h: h2 } = await started({ ...ON, FREE_TALK_COMPANY_MONTH_KRW: '5000' });
   s2.tables.doit_request_events.push({ user_id: ID.other, request_id: 'co-2', action: 'agent_turn_claim', status: 'applied', payload_hash: 'free:paid:zzz', created_at: now, updated_at: now, response_payload: { free: { done: true, mode: 'paid', cost_usd: 0.8, tokens: { in: 1000, out: 100, calls: 1 } } } });
-  s2.ai.push({ reply: '편한 친구를 원한다고 했죠. 오늘은 어떤 하루였어요.' });
+  s2.ai.push({ reply: '편한 친구 이야기, 좋아요. 오늘은 어떤 하루였어요.' });
   const ok = await talk(h2, '안녕'); assert.equal(ok.status, 200, JSON.stringify(ok.body));
 });
 
@@ -176,7 +177,7 @@ test('⑫ 계정 메타(app_metadata.doit_free_talk) 권한 = 유료(맛보기 �
   const { s, h } = await started();
   s.authUser.app_metadata = { doit_free_talk: true };
   const g = await h.call({ action: 'agent_get' }); assert.equal(g.body.free_talk.entitled, true);
-  s.ai.push({ reply: '편한 친구를 원한다고 했죠. 오늘은 어떤 하루였어요.' });
+  s.ai.push({ reply: '편한 친구 이야기, 좋아요. 오늘은 어떤 하루였어요.' });
   const r = await talk(h, '요즘 어때'); assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.entitled, true); assert.equal(r.body.notice, null);
   assert.ok(claims(s).every((x) => x.payload_hash.startsWith('free:paid:')));
   const no = await h.call({ action: 'admin_free_summary' }); assert.equal(no.status, 403);
@@ -187,4 +188,23 @@ test('⑫ 계정 메타(app_metadata.doit_free_talk) 권한 = 유료(맛보기 �
   assert.ok(!JSON.stringify(sum.body).includes('요즘 어때'), '원문 0');
   const off = newState('admin'); off.env = {}; const ho = load(off);
   const so = await ho.call({ action: 'admin_free_summary' }); assert.equal(so.status, 200); assert.equal(so.body.enabled, false); assert.equal(so.body.price_known, false);
+});
+
+test('⑬ 2026-10-09 금액을 모르는 자리(cost_usd 없음)는 0원이 아니라 요청당 상한(FREE_TALK_MAX_COST_USD)으로 센다 — 한 사람 월·회사 월 상한이 새지 않게', async () => {
+  const now = new Date().toISOString();
+  const seed = (s, user, n) => { for (let i = 0; i < n; i++) s.tables.doit_request_events.push({ user_id: user, request_id: `unk-${user.slice(0, 2)}-${i}`, action: 'agent_turn_claim', status: 'applied', payload_hash: 'free:paid:unk', created_at: now, updated_at: now, response_payload: { free: { done: true, mode: 'paid', cost_usd: null, tokens: { in: 0, out: 0, calls: 1 } } } }); };
+  // 한 사람 월 100원 · 금액 모름 8번 = 8 × 0.01달러 × 1,400 = 112원 ≥ 100 → 429 · 모델 0
+  const { s, h } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_MONTH_KRW: '100' });
+  seed(s, ID.user, 8);
+  const c = calls(s);
+  const r = await talk(h, '안녕'); assert.equal(r.status, 429, JSON.stringify(r.body)); assert.equal(r.body.code, 'FREE_TALK_MONTH'); assert.equal(calls(s), c);
+  // 회사 월 1,000원 · 다른 사용자의 금액 모름 72번 = 1,008원 ≥ 1,000 → 503 · 모델 0
+  const { s: s2, h: h2 } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_COMPANY_MONTH_KRW: '1000' });
+  seed(s2, ID.other, 72);
+  const c2 = calls(s2);
+  const r2 = await talk(h2, '안녕'); assert.equal(r2.status, 503, JSON.stringify(r2.body)); assert.equal(r2.body.code, 'FREE_TALK_COMPANY'); assert.equal(calls(s2), c2);
+  // 상한 아래(금액 모름 1번 = 14원)면 정상
+  const { s: s3, h: h3 } = await started({ ...ON, FREE_TALK_TEST_USERS: ID.user, FREE_TALK_MONTH_KRW: '100' });
+  seed(s3, ID.user, 1); s3.ai.push({ reply: '좋아요.' });
+  const ok = await talk(h3, '안녕'); assert.equal(ok.status, 200, JSON.stringify(ok.body));
 });

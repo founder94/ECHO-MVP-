@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { AGENT_DEP, AGENT_DEP_URL } from './agent-deps.mjs';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const ui = read('src/doit/components/feature/AgentConversation.tsx');
@@ -88,7 +89,7 @@ test('MUSIC: 고르기 전·불러오는 중을 0:00/0:00 대신 글로 · 말�
 
 // 골든 테스트(서버 로직 · 가짜 AI 출력): 목적 + 자유 입력이 한 턴으로 같이 AI 에 가고, 받아주기 뒤 Q2 로 간다.
 const src = read('supabase/functions/doit-agent/agent.ts');
-const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(AGENT_DEP, AGENT_DEP_URL);
 const file = path.join(mkdtempSync(path.join(tmpdir(), 'golden-')), 'agent.mjs');
 writeFileSync(file, js);
 const A = await import(pathToFileURL(file).href);

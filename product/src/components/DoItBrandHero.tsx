@@ -37,7 +37,7 @@ export default function DoItBrandHero({ onStart }: Props) {
         <nav aria-label="홈페이지 메뉴">
           <a href="#doit-stories">우리의 생각</a>
           {!loading && user ? (
-            // 로그인 상태는 브랜드·앱이 도메인 쿠키로 공유한다(sessionStorage.ts). 여기서 로그아웃하면 앱도 로그아웃된다.
+            // 로그인은 각 주소의 세션으로 분리한다. 앱 로그인 상태를 브랜드에서 보장하지 않는다.
             <button type="button" className="doit-brand-session" onClick={() => { void handleSignOut(); }} disabled={signingOut} aria-busy={signingOut}>
               {signingOut ? '로그아웃 중' : '로그아웃'} <span aria-hidden="true">↗</span>
             </button>

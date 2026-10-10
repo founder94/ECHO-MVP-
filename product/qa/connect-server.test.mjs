@@ -105,7 +105,7 @@ function loadServer(state, ai = () => ({ question: '둘이 같이 걷는다면 �
   function local(file) {
     const mod = { exports: {} };
     const code = ts.transpileModule(readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-    vm.runInNewContext(code, { exports: mod.exports, module: mod, require: (n) => { if (n.startsWith('.')) return local(path.join(path.dirname(file), n)); throw new Error(`Unexpected dependency ${n}`); } }, { filename: file });
+    vm.runInNewContext(code, { exports: mod.exports, module: mod, TextDecoder, Uint8Array, Error, Number, JSON, require: (n) => { if (n.startsWith('.')) return local(path.join(path.dirname(file), n)); throw new Error(`Unexpected dependency ${n}`); } }, { filename: file });
     return mod.exports;
   }
   vm.runInNewContext(compiled, sandbox, { filename: 'doit-connect.ts' });

@@ -17,12 +17,14 @@
          (앞서 받으면 화면을 그리는 코드와 온보딩 심볼이 밀려 심볼이 늦게 뜬다.) -->
     <link rel="preload" as="image" href="/brand/doit-earth-original.png" fetchpriority="low" />
   <!-- 2026-10-09 대표 승인: 글꼴은 주아체(Jua) 하나 — src/fonts/jua.css(저장소 안 public/fonts/jua). 구글 글꼴 링크 0. 아이콘 글꼴(font-awesome·remixicon)만 그대로. -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" media="print" data-echo-deferred-font href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" media="print" data-echo-deferred-font href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css">
+  <!-- 화면 안 직접 스크립트(onload) 0 — CSP script-src 'self'. 아이콘 글꼴은 /font-styles.js 가 뒤에서 받는다(PR #149 보안 보강). -->
   <style>
     html, body, #root { min-height: 100%; margin: 0; }
     body { background: #08070c; }
   </style>
+    <script src="/font-styles.js" defer></script>
   </head>
   <body>
     <div id="root"></div>

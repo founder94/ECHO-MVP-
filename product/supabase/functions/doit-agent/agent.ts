@@ -1,3 +1,4 @@
+import { allowedRecent, withheld } from "./history-retrieval.ts";
 // ECHO Conversation Agent v1.2 — 운영판(2026-09-25, 대표 「ECHO Agent v1.1 FINAL FULL 구현·관리자·배포 통합명세서」 + 「구현 → 운영배포 → 운영검증」).
 // 시험판 product/spike/agent-v1-20260925/agent.mjs(v1.1)를 옮겼다. 바꾼 것:
 //   ① 말투 예시 문장 삭제 — 실제 AI 재생에서 모델이 예시 「그렇군요, 편한 게 제일 중요하네요」를 그대로 베껴 썼다.
@@ -731,7 +732,7 @@ function ask(st: AgentState, type: Asked["type"], purpose: string, text: string)
 
 export function turnInput(st: AgentState, latest: string, opts: { button?: boolean } = {}): Json {
   return {
-    recent: st.turns.slice(-RECENT_TURNS).map((t) => ({ n: t.n, ai: t.ai, user: t.user })),
+    recent: allowedRecent(st, RECENT_TURNS).map((t) => ({ n: t.n, ai: t.ai, user: t.user })),
     session_goal: { id: isGoal(st.goal) ? st.goal : "open", name: goalOf(st).name, avoid_words: avoidText(st) },
     current_question: st.current ? { purpose: st.current.purpose, label: dimLabel(st, st.current.purpose), text: st.current.text, type: st.current.type, shown_again: (st.current.keeps ?? 0) > 0, helps: st.current.helps ?? 0 } : null,
     latest,
@@ -987,7 +988,10 @@ export function applyTurn(st: AgentState, latest: string, llmOut: Parsed, opts: 
     }
   }
   if (SAVABLE.has(out.kind)) {
-    for (const t of out.inferred) st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    for (const t of out.inferred) {
+      if ((st.forgotten ?? []).some((f) => nearSame(f, t.trait))) continue; // 2026-10-09 지운 「AI 짐작」은 다시 올리지 않는다(화면 「지운 줄은 다시 만들지 않아요」와 일치)
+      st.inferred.push({ trait: t.trait, basis: t.basis, turn: turn.n, status: "INFERRED", source_type: "AI_INFERRED" });
+    }
     if (out.declared && inText(out.declared.quote)) {
       if (MBTI.test(out.declared.mbti)) st.declared.mbti = out.declared.mbti.toUpperCase();
       if (BLOOD.test(out.declared.blood_type)) st.declared.blood_type = out.declared.blood_type.toUpperCase().replace(/형$/, "");
@@ -1300,6 +1304,8 @@ export function forgetKnown(st: AgentState, key: string): boolean {
   const hit = st.slots[purpose].items.find((i) => i.turn === turn && i.note === note && i.status !== "FORGOTTEN");
   if (!hit) return false;
   hit.status = "FORGOTTEN"; remember(note);
+  // Derived drafts may still contain the removed meaning. Invalidate them, retain original history.
+  st.summary = []; st.closing = null; st.intro = null; st.last_receipt = null;
   // 검수 P1(2026-10-06): 같은 사용자 말의 원문 복사본(USER_DIRECT · 글자 = 자기 원문)과 그 복사본에 기댄 정리는 화면에서 한 줄로 보였으므로 함께 지운다(dedupeViewItems 와 같은 기준 · 칸 무관).
   //   아니면 지운 뒤 숨어 있던 복사본이 「내가 확인한 것」으로 다시 나타나고 매칭 재료에도 남는다.
   const hb = bare(hit.quote), hn = bare(hit.note);
@@ -1390,8 +1396,8 @@ function finishWith(st: AgentState, raw: unknown) {
   const closing = o ? str(o.closing) : "";
   // v2.4 다른 목적의 말이 든 문장은 뺀다(친구 대화의 마무리에 연애 말 0).
   const cleanClosing = closing.split(/(?<=[.!?。])\s+/).filter((x) => !goalResidue(st, x) && !askedEcho(st, x)).join(" ").trim();
-  st.closing = cleanClosing && !BANNED_WORDS.test(cleanClosing) && !leaksId(cleanClosing) ? cleanClosing : null;
-  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text) && !askedEcho(st, x.text)) : [];
+  st.closing = cleanClosing && !BANNED_WORDS.test(cleanClosing) && !leaksId(cleanClosing) && !withheld(st, cleanClosing) ? cleanClosing : null;
+  st.summary = Array.isArray(o?.summary) ? (o!.summary as Json[]).map((x) => ({ purpose: str(x?.purpose), text: str(x?.text) })).filter((x) => PIDS.includes(x.purpose) && x.text && !BANNED_WORDS.test(x.text) && !goalResidue(st, x.text) && !askedEcho(st, x.text) && !withheld(st, x.text)) : [];
   st.phase = "done"; st.current = null;
   const profile = matchingProfile(st);
   return { closing: st.closing, summary: st.summary, profile, handoff: matchingHandoff(profile) };
@@ -1637,7 +1643,7 @@ const rewritePromptFor = (input: Record<string, unknown>) => { const extra = fla
 const FLAW_WHY: Record<string, string> = { meta_quote: "버튼 글자·사용자 말의 낱말을 「~라는 말」처럼 따와 말 자체를 물었다 — 낱말 말고 그 뜻에 맞는 사람·관계 이야기를 묻는다", logistics_early: "대화의 처음 질문인데 연락·카톡·장소·카페·술·약속·날짜·시간 같은 만남 준비를 물었다 — 그 사람과 바라는 관계를 묻는다", covered: "사용자가 이미 말한 연락·만남 속도(얼마나 자주·천천히)를 다시 물었다 — 속도·횟수 말고 다른 장면(곳·처음 만남·좋고 싫은 것)을 묻는다", format: "물음표 하나로 끝나는 한 문장이 아니었다", blocked: "이미 한 질문과 같거나 비슷했다", survey_tone: "설문 단어(활동·빈도·방식·선호 등)가 들어갔다", generic_person: "「어떤 친구/사람…」으로 사람 유형을 다시 물었다", same_direction: "방금 모르겠다고 한 질문과 같은 장면(같은 낱말)을 다시 물었다 · 전혀 다른 장면으로", unsure_paste: "사용자의 「모르겠어요」를 질문에 옮겨 붙였다", echo: "방금 답을 거의 그대로 되물었다(새로 묻는 장면이 없다)", stiff_question: "34자를 넘었거나 「어떤 주제로·어떤 얘기·어떤 대화·어떤 활동·얼마나 자주」처럼 정보 종류를 물었다", not_anchored: "방금 말의 낱말·장면과 이어지지 않았다", empty: "질문이 비었다", choice_ref: "「이런 것 중」「다음 중」처럼 보기를 가리켰는데 쓸 만한 보기가 없었다 — 보기를 가리키지 않는 질문으로 쓰거나, 서로 다른 보기 2~4개를 함께 낸다", conditional: "사용자가 경우에 따라 다르게 답했는데(「~면 …, ~면 …」) 한쪽 경우만 골라 물었다 — 두 경우를 모두 담거나 그 나뉨 자체를 묻는다", logistics: "장소·카페·술·약속·날짜·시간·연락 빈도 같은 만남 준비 이야기는 이미 물었다 — 이 대화의 목적(session_goal) 쪽 장면으로 묻는다" };
 async function rewriteQuestion(st: AgentState, latest: string, purpose: string, bad: string[], llm: Llm, obs: Obs, rejected: { question: string; why: string } | null = null, unanswered = false, corrected = false, button = false, replacing = false): Promise<{ question: string; choices: string[] }> {
   let raw: string;
-  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: st.turns.slice(-3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered || button ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "", ...(logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS ? { logistics_done: true } : {}), ...(objectiveFirstNext(st, replacing) ? { objective_first: true } : {}), ...(button ? { latest_is_button: true } : {}) }; // 2026-10-04 · 2026-10-05 처음 세 질문 · 누른 버튼 글자
+  const input = { ...(rejected ? { rejected } : {}), ...(corrected ? { note: `사용자가 방금 앞 답을 고쳤다(latest 가 새 답). 고치기 전 답에서 나온 질문 「${st.current?.text ?? st.asked.at(-1)?.text ?? ""}」과 asked_before 질문의 틀에 새 값만 바꿔 넣지 않는다(「…이 좋으면 …가 편해요?」 같은 같은 모양 금지). asked_before 에 없던 다른 장면(처음 연락·만나는 곳·때 등) 하나를 다른 문장 모양으로 묻는다.` } : {}), ...(unanswered ? { note: "사용자가 방금 질문에 잘 모르겠다·넘기자고 했다. 방금 질문(asked_before 마지막)과 다른 장면으로, 더 쉽게 답할 수 있게 묻는다(둘 중 하나 고르기도 좋다). latest 는 그보다 앞선 사용자 말이다." } : {}), latest, recent_user: allowedRecent(st, 3).map((t) => t.user), session_goal: goalOf(st).name, avoid_words: avoidText(st), want_to_learn: dimLabel(st, purpose), user_words: unanswered || button ? [] : anchorTokens(latest).slice(0, 5), heard: heard(st), asked_before: st.asked.map((a) => a.text), bad_tries: bad.slice(-3), tone: TONES[st.tone]?.label ?? "", ...(logisticsAsked(st) >= MAX_LOGISTICS_QUESTIONS ? { logistics_done: true } : {}), ...(objectiveFirstNext(st, replacing) ? { objective_first: true } : {}), ...(button ? { latest_is_button: true } : {}) }; // 2026-10-04 · 2026-10-05 처음 세 질문 · 누른 버튼 글자
   const rewritePrompt = rewritePromptFor(input); // 2026-10-05 켜진 칸(objective_first · latest_is_button · logistics_done)의 지시 줄만 붙인다
   try { raw = await call(llm, obs, "question", unanswered ? `${rewritePrompt}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. 질문은 보기 가운데 가까운 것을 고를 수 있는 모양(「그럼 이런 느낌 중엔 뭐가 가까워요?」처럼)이고, choices 는 서로 다른 실제 장면 2~4개(각 ${CHOICE_MAX}자 이내, 물음표 없이 · 예: 「카페에서 수다」「같이 산책」「취미 같이 하기」). 네/아니요 보기와 「잘 모르겠어요」 같은 도움말은 넣지 않는다.` : `${rewritePrompt}\n- 이번에는 {"question": "...", "choices": ["..", ".."]} 로 낸다. choices 는 이 질문에 바로 답이 되는 일상 말 보기 2~4개(각 ${CHOICE_MAX}자 이내, 물음표 없이). 질문 문장은 그대로 주관식으로 쓴다. 네/아니요 보기와 「잘 모르겠어요」 같은 도움말은 넣지 않는다.`, input); } catch { obs.retry.push("question_rewrite_failed"); return { question: "", choices: [] }; }
   const o = parseJson(raw);

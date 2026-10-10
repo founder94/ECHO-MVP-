@@ -46,9 +46,13 @@ test('대화 화면: 결과에서 왔으면(이 계정의 이야기 거리) 목�
 
 test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질문을 만들지 않음) · 여는 한 줄 받은 뒤에 이야기 거리 지움 · 실패 = 적은 말 보존 · 다시 보내기는 누를 때만', () => {
   assert.match(TALK, /const r = await agentRef\(userId, ref, history\.map/);
-  assert.match(TALK, /\{ role: "echo", text: r\.reply, receipt: !!r\.correction \}/); // 2026-10-06 정정 영수증 줄 표시(글은 서버 것 그대로)
+  assert.match(TALK, /\{ role: "echo", text: r\.reply, receipt: !!r\.correction \}/);
   assert.match(TALK, /if \(r\.question\) next\.push\(\{ role: "echo", text: r\.question, question: true \}\);/);
-  assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 2, '화면에 박힌 ECHO 말 0');
+  // Current server contract: reply + optional question; correction.text is an
+  // offer, not the removed fix.receipt field. Saving still needs an explicit click.
+  assert.equal((TALK.match(/role: "echo", text: /g) ?? []).length, 2, 'ECHO lines come only from server reply/question');
+  assert.match(TALK, /if \(r\.correction\) setOffer\(\{ text: r\.correction\.text, state: "ask" \}\)/);
+  assert.match(src('supabase/functions/doit-agent/index.ts'), /correction: \{ text: d\.text \}/, 'check the actual server response contract');
   assert.match(TALK, /if \(!text\) \{ setOpened\(true\); clearContentSeed\(\); \}/);
   assert.match(TALK, /if \(text && fromDraft\) setDraft\(text\); \/\/ 적은 말 보존/);
   // 검수(P2): 「질문 하나 받아 보기」는 입력칸 글을 지우거나 바꾸지 않고, 실패하면 「다시 보내기」가 그 요청을 그대로 다시 보낸다
@@ -62,7 +66,9 @@ test('참고 이야기 화면: 말은 서버가 줌(화면이 받아주기·질�
   assert.match(TALK, /code === "AI_COMPANY_BUDGET" \? "paused"/);
   assert.match(TALK, /code === "PRIVATE_DATA" \? "private"/); // Codex P1(4187208757): 서버가 보내지 않은 말 → 적은 말 보존 · 「다시 보내기」 0(고쳐 보내야 함)
   assert.match(TALK, /\(fail\.kind === "failed" \|\| fail\.kind === "busy"\) && \(/);
-  assert.doesNotMatch(TALK, /localStorage|profile|matching|agentTurn|agentStart/, '저장·대화 서버·매칭 0');
+  assert.doesNotMatch(TALK, /localStorage|agentTurn|agentStart/, 'no automatic conversation/profile promotion');
+  assert.match(TALK, /await agentSelfNote\(userId, mine, "ref_correction"\)/, 'explicit keep sends only the corrected user sentence');
+  assert.match(TALK, /onClick=\{\(\) => void keep\(\)\}/, 'saving requires an explicit UI action; browser behavior is covered by e2e');
   assert.match(API, /write<RefReply>\(userId, \{ action: 'agent_ref', ref, history: history\.slice\(-8\), text \}, \['AI_FORMAT', 'AI_ERROR', 'PRIVATE_DATA', 'ALREADY_DONE'\]\)/);
   assert.match(API, /seed\.source === 'TAROT' \? \{ kind: 'card', label: seed\.card \} : \{ kind: 'pattern', key: seed\.key \}/);
 });

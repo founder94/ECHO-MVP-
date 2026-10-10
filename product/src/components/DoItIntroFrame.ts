@@ -1,3 +1,4 @@
+import { mulberry32 } from '../lib/seededRandom';
 import { createElement as h, type CSSProperties, type ReactNode, type SyntheticEvent } from 'react';
 import { SYMBOL_DISPLAY_SRC, fallbackToOriginal } from '@/components/symbolAssets';
 import { METAL_TEXT_GRADIENT } from '@/components/metalSilver';
@@ -19,14 +20,7 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const LATE_REVEAL_FROM = 72;
 
 // 결정적 의사난수(고정 시드) — 별 배치가 매번 동일해 새로고침에도 안정적이다.
-function mulberry32(seed: number) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+
 
 // 별: 고정 시드, 대부분 1px·일부 2px, 낮은 밝기, 아주 느린 밝기 변화.
 const STARS: Array<{ x: number; y: number; size: number; delay: number; dur: number; base: number }> = (() => {

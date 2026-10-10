@@ -155,7 +155,7 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
       </div>
     </> : <>
       {/* 기억 영수증: 서버 고정 문장(저장 성공 뒤에만 · AI 0) */}
-      {receipt && <p className="echo-done-lead echo-receipt" role="status"><Check size={16} aria-hidden="true" /> {receipt.line}</p>}
+      {receipt && <p className="echo-done-lead echo-receipt" role="status" data-testid="memory-receipt"><Check size={16} aria-hidden="true" /> {receipt.line}</p>}
       {reply && <p className="echo-done-lead">{reply}</p>}
       {view.changed ? <>
         {list(view.purpose ? [view.purpose] : ORDER)}

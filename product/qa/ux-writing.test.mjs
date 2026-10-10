@@ -78,6 +78,9 @@ test('글꼴 — 2026-10-09 대표 승인: 앱 화면 글은 주아체(Jua) 하�
   const html = read('index.html');
   assert.doesNotMatch(html, /fonts\.googleapis\.com/, '구글 글꼴 링크 0 — 주아체는 src/fonts/jua.css(public/fonts/jua)');
   assert.match(read('src/index.css'), /@import '\.\/fonts\/jua\.css';/);
+  // PR #149 보안 보강: 화면 안 직접 스크립트(onload 등) 0 — 아이콘 글꼴은 data-echo-deferred-font + /font-styles.js 로 뒤에서 받는다.
+  assert.doesNotMatch(html, /\son[a-z]+=/i);
+  assert.match(html, /<script src="\/font-styles\.js" defer><\/script>/);
   // 구글 폰트가 막혀도 제품 화면이 멈추지 않도록, 화면 조각 스타일 안에서 글꼴을 @import 하지 않는다.
   assert.doesNotMatch(read('src/doit/doit.css'), /@import url\('https:\/\/fonts\.googleapis\.com/);
   // 한글 머리말 자간을 넓게 두지 않는다.

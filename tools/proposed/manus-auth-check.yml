@@ -1,0 +1,48 @@
+# Reviewable proposal only. Move into .github/workflows only through the permitted workflow owner.
+# No push/comment/schedule triggers, no paid tasks, no deployments, no secret administration.
+name: Manus authentication check
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Reviewed full commit SHA containing the probe
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: manus-auth-check
+  cancel-in-progress: false
+jobs:
+  auth:
+    if: github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Validate exact source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        shell: bash
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Validate reviewed executable bytes before secret injection
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          printf '%s\n' 'beeb8b8db8dcb2151f9ed08590ab74d75836099d0e578af5c8a96360b1499069  tools/manus/auth-probe.cjs' '59b016e7afec94c9b73e7149565ca5d08ad7290ebfc761a628cf9fd591a39217  tools/manus/client.cjs' | sha256sum -c -
+      - name: Read-only authentication
+        env:
+          MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
+        shell: bash
+        run: |
+          if [ -z "$MANUS_API_KEY" ]; then
+            printf '%s\n' '{"credential_present":false,"authentication":"NOT_RUN","paid_tasks":0}'
+            exit 1
+          fi
+          node tools/manus/auth-probe.cjs

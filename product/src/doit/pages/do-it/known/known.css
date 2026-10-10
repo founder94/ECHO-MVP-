@@ -1,0 +1,15 @@
+/* 「ECHO가 아는 나」 — 이 화면(.doit-known) 아래로만. 전역 변경 0. */
+.doit-known{padding:16px 0 40px;color:#fff;word-break:keep-all}
+.doit-known-title{margin:0 0 6px;font-size:22px;font-weight:800;line-height:1.4}
+.doit-known-lead{margin:0 0 16px;font-size:14px;line-height:1.7;font-weight:600;opacity:.92}
+.doit-known-empty,.doit-known-note{font-size:14px;font-weight:600;line-height:1.7}
+.doit-known-empty a,.doit-known-empty button{color:#fff;text-decoration:underline;background:none;border:0;font:inherit;cursor:pointer}
+.doit-known-group{margin:14px 0 0;padding:16px;border:1px solid rgb(255 255 255/.6);border-radius:18px;background:rgb(255 255 255/.08)}
+.doit-known-group h2{margin:0;font-size:16px;font-weight:800;display:flex;gap:8px;align-items:center}
+.doit-known-group h2 span{font-size:12px;padding:2px 8px;border-radius:999px;background:rgb(255 255 255/.18)}
+.doit-known-group-note{margin:4px 0 10px;font-size:12.5px;line-height:1.6;opacity:.88}
+.doit-known-group ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.doit-known-group li{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;background:rgb(10 14 20/.22);font-size:14px;line-height:1.6;font-weight:600}
+.doit-known-group li button{flex:none;min-height:36px;padding:4px 12px;border:1px solid rgb(255 255 255/.7);border-radius:999px;background:transparent;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer}
+.doit-known-hidden{opacity:.75;font-style:italic}
+.doit-known-none{margin:0;font-size:13px;opacity:.8}

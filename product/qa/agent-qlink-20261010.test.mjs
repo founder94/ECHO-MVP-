@@ -17,8 +17,10 @@ writeFileSync(file, helper);
 const { load, newState, T, Q, X, rid } = await import(file.href);
 const ts = (await import(pathToFileURL(path.resolve('node_modules/typescript/lib/typescript.js')).href)).default;
 const adir = mkdtempSync(path.join(tmpdir(), 'qlink-a-'));
-const emit = (p, out) => { const f = path.join(adir, out); writeFileSync(f, ts.transpileModule(readFileSync(new URL(`../${p}`, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText); return pathToFileURL(f).href; };
+// 같은 폴더의 .ts 가져오기(예: agent.ts → ./history-retrieval.ts)는 함께 옮긴 .mjs 를 보게 바꾼다.
+const emit = (p, out) => { const f = path.join(adir, out); writeFileSync(f, ts.transpileModule(readFileSync(new URL(`../${p}`, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(/from "\.\/([\w-]+)\.ts"/g, 'from "./$1.mjs"')); return pathToFileURL(f).href; };
 emit('supabase/functions/doit-agent/matching.ts', 'matching.mjs');
+emit('supabase/functions/doit-agent/history-retrieval.ts', 'history-retrieval.mjs');
 const A = await import(emit('supabase/functions/doit-agent/agent.ts', 'agent.mjs'));
 
 const LABEL = '친구를 만나고 싶어요';

@@ -47,6 +47,9 @@
 // - 로그에 사용자 원문·번호·토큰을 남기지 않는다(코드와 개수만).
 
 // deno-lint-ignore no-import-prefix
+import { readJsonObject, RequestProblem } from "../_shared/read-json-limited.ts";
+import { browserOriginAllowed, browserCorsHeaders } from "../_shared/browser-cors.ts";
+import { durableRateDecision } from "../_shared/durable-rate-limit.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { agentSources, AGENT_CONFIRMED_MAX, AGENT_READY_MIN_CONFIRMED_AREAS, SELF_NOTE_SKIP, type AgentSessionRow } from "./agentSource.ts"; // Matching Integration(2026-09-27 · 기본 꺼짐)
 import { createMeetRuntime, type CurrentMeetState } from "./meetRuntime.ts"; // 영상 → 각자 확인 → 만남(PR #99 meetApi + PR #100 실행 경계 · Codex 소유 · 기본 꺼짐)
@@ -122,15 +125,8 @@ const FIRST_QUESTION_FALLBACK = "처음 만난 사람에게 가장 먼저 들려
 
 const ALLOWED_ORIGINS = (Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "")
   .split(",").map((s) => s.trim()).filter(Boolean);
-const corsHeaders = (origin: string | null): Record<string, string> => {
-  const allowOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin
-    : ALLOWED_ORIGINS.length === 0 ? "*" : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
-};
+const corsHeaders = (origin: string | null): Record<string, string> => browserCorsHeaders(origin, ALLOWED_ORIGINS);
+
 const json = (data: unknown, status = 200, origin: string | null = null) =>
   // 사람마다 다른 응답(상대 정보·이야기) — 중간 저장소·브라우저 캐시에 남기지 않는다(Codex v3 · 2026-10-02 통합).
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json", "Cache-Control": "private, no-store", "Vary": "Origin, Authorization" } });
@@ -939,6 +935,7 @@ function meetRuntime(admin: Db) {
 Deno.serve(async (req: Request): Promise<Response> => {
   const startedAt = Date.now();
   const origin = req.headers.get("origin");
+  if (!browserOriginAllowed(origin, ALLOWED_ORIGINS)) return fail("FORBIDDEN", "허용되지 않은 요청이에요.", 403, origin);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail(CODES.BAD_REQUEST, "잘못된 요청이에요.", 405, origin);
 
@@ -961,9 +958,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // 위에서 Auth 서버가 확인한 사람 그대로(다시 묻지 않음) — meetRuntime 은 이 값만 신원으로 쓴다(본문 user_id·role 무시).
     const verifiedAuth = { getUser: async () => ({ data: { user }, error: null }) };
 
-    if (rateLimited(userId)) return fail(CODES.RATE_LIMITED, "요청이 너무 잦아요. 잠시 뒤 다시 해 주세요.", 429, origin);
+    const rate = await durableRateDecision(admin, userId, "connect", Deno.env.get("ECHO_DURABLE_RATE_LIMIT_ENABLED") === "true");
+    if (rate === "unavailable") return fail("ERROR", "요청 제한을 확인하지 못했어요.", 503, origin);
+    if (rate === "limited") return fail("RATE_LIMITED", "잠시 후 다시 시도해 주세요.", 429, origin);
+    if (rate === "disabled" && rateLimited(userId)) return fail(CODES.RATE_LIMITED, "요청이 너무 잦아요. 잠시 뒤 다시 해 주세요.", 429, origin);
 
-    const body = (await req.json().catch(() => null)) as Json | null;
+    let body: Json;
+    try { body = await readJsonObject(req, LIMITS.BODY_MAX_BYTES); }
+    catch (error) {
+      if (error instanceof RequestProblem) return fail(error.code, error.message, error.status, origin);
+      return fail("BAD_REQUEST", "요청을 읽지 못했어요.", 400, origin);
+    }
     if (!body || typeof body !== "object" || Array.isArray(body)) return fail(CODES.BAD_REQUEST, "요청 형식이 잘못됐어요.", 400, origin);
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return fail(CODES.BAD_REQUEST, "알 수 없는 요청이에요.", 400, origin);

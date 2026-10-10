@@ -1,0 +1,17 @@
+/* 무엇이든 이야기 — 이 화면(.doit-free) 아래로만. 전역 변경 0. */
+.doit-free{padding:16px 0 40px;color:#fff;word-break:keep-all}
+.doit-free-title{margin:0 0 6px;font-size:21px;font-weight:800;line-height:1.4}
+.doit-free-lead,.doit-free-note,.doit-free-fail{margin:0 0 12px;font-size:14px;line-height:1.7;font-weight:600}
+.doit-free-note a{color:#fff;text-decoration:underline}
+.doit-free-badge{display:inline-block;margin:0 0 12px;padding:4px 12px;border-radius:999px;background:rgb(255 255 255/.18);font-size:13px;font-weight:800}
+.doit-free-lines{display:grid;gap:10px;margin:8px 0 12px}
+.doit-free-line{max-width:88%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.7;font-weight:600}
+.doit-free-line p{margin:0}
+.doit-free-line--user{justify-self:end;background:rgb(8 22 28/.42)}
+.doit-free-line--echo{justify-self:start;border:1px solid rgb(255 255 255/.6);background:rgb(255 255 255/.08)}
+.doit-free-ai{display:block;margin-bottom:2px;font-size:11px;font-weight:800;opacity:.8}
+.doit-free-input{display:flex;gap:8px;align-items:flex-end}
+.doit-free-input textarea{flex:1;min-height:52px;padding:10px 12px;border:1px solid rgb(255 255 255/.7);border-radius:14px;background:rgb(255 255 255/.08);color:#fff;font:inherit;font-size:15px}
+.doit-free-input button{min-height:52px;padding:0 16px;border:1px solid #fff;border-radius:14px;background:rgb(255 255 255/.2);color:#fff;font-weight:800}
+.doit-free-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.doit-free-fine{margin:16px 0 0;font-size:12px;line-height:1.7;opacity:.85}
