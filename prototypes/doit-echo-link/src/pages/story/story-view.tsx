@@ -122,7 +122,9 @@ export const StoryView = () => {
   // 실제 ECHO 로 가져가려면 사용자가 직접 복사해 붙여 넣는다(자동 전송 0 · 2026-10-10).
   const [copyState, setCopyState] = useState<"ok" | "fail" | null>(null);
   const copyText = useCallback(() => {
-    const body = (lines && lines.length && linesFor === text ? lines.join(" ") : text).trim();
+    // 같은 원문에서 만든 문장 목록은 비어 있어도(전부 뺌) 그대로 따른다(Codex P2 — 뺀 글이 복사로 되살아나지 않게).
+    const body = (lines !== null && linesFor === text ? lines.join(" ") : text).trim();
+    if (!body) return;
     if (!navigator.clipboard) { setCopyState("fail"); return; }
     navigator.clipboard.writeText(body).then(() => setCopyState("ok"), () => setCopyState("fail"));
   }, [lines, linesFor, text]);
@@ -308,7 +310,7 @@ export const StoryView = () => {
             <a className="story-primary" href={echoAppUrl("/doit/start-journey")}>
               {c.next.toApp}
             </a>
-            {text.trim() ? (
+            {(lines !== null && linesFor === text ? lines.join("") : text).trim() ? (
               <button type="button" className="story-secondary" onClick={copyText}>
                 {c.next.copy}
               </button>

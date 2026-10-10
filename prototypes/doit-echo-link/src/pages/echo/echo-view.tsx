@@ -46,7 +46,7 @@ import {
 const FOCUS = { tension: 170, friction: 28 };
 
 /** 원본 HeroIntro 자리: 도입 설명 + 이야기 시작 버튼(같은 CtaButton). */
-const EchoIntro = ({ startHref }: { startHref: string }) => {
+const EchoIntro = ({ startHref, loginHref }: { startHref: string; loginHref: string }) => {
   const live = useArrived();
   const [{ sharp }] = useSpring(() => ({ sharp: live ? 1 : 0, delay: live ? 420 : 0, config: FOCUS }), [live]);
   return (
@@ -63,6 +63,10 @@ const EchoIntro = ({ startHref }: { startHref: string }) => {
           className="w-[15.5rem] max-phone:w-full"
           plateClassName="w-[12.3125rem] max-phone:w-auto max-phone:flex-1 max-phone:text-[16px] pl-5"
         />
+        {/* 휴대폰: 기존 이용자 패널(ReturningPanel)이 숨겨지므로 로그인 길을 버튼 아래에 둔다(Codex P2 — 휴대폰 기존 사용자 복귀). */}
+        <a href={loginHref} className="max-phone:inline-flex text-panel-note max-phone:text-[15px] text-foreground-desc hidden min-h-11 items-center font-semibold underline underline-offset-4">
+          {echoIntro.returning.title} {echoIntro.returning.login} →
+        </a>
       </animated.div>
     </div>
   );
@@ -120,7 +124,7 @@ export const EchoView = () => {
             <ScreenFade {...heroWindow} scrim="hero" curtain={0} exit="inverse">
               <div className="max-phone:absolute max-phone:top-[7.15625rem] max-phone:left-5 max-phone:flex max-phone:w-[21.875rem] max-phone:flex-col max-phone:gap-8 contents">
                 <HeroHeadline id="hero-title" lines={echoIntro.headline} />
-                <EchoIntro startHref={startHref} />
+                <EchoIntro startHref={startHref} loginHref={loginHref} />
               </div>
               <ReturningPanel loginHref={loginHref} storyHref={storyHref} />
             </ScreenFade>
