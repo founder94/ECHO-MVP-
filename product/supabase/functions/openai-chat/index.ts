@@ -445,6 +445,12 @@ Deno.serve(async (req) => {
     return makeBadRequestResponse(corsHeaders);
   }
 
+  // 2026-10-10 대표 「사주 결과의 AI 글 칸만 끄고 대화 버튼은 그대로 둬」: 사주 이야기(AI 글)는 기본으로 끈다.
+  // 서버 비밀값 SAJU_STORY_ENABLED=true 일 때만 연다. 꺼져 있으면 AI·호출 기록 0 으로 바로 돌려보낸다(화면은 규칙 해설만).
+  if (body.type === "saju_reading" && Deno.env.get("SAJU_STORY_ENABLED") !== "true") {
+    return json(404, { error: "SAJU_STORY_DISABLED" }, corsHeaders);
+  }
+
   // DB 기반 호출 제한 (3초 쿨다운 / 하루 15회) → 초과 시 429
   const day = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
   const rateKey = await rateKeyFor(req, day);

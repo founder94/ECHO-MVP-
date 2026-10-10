@@ -8,8 +8,9 @@ import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 
 // 「ECHO가 들려주는 이야기」(2026-10-06 대표 「사람냄새나게」): 규칙 해설 아래, 누를 때만 AI 가 말하듯 풀어 준다.
 // 2026-10-06 운영 openai-chat v7(saju_reading) 배포 · 대표 「사주말투 좋고 … ai와 대화시작으로 플로우 이어가게」 → 기본으로 켠다.
-// 끄려면 빌드 스위치 VITE_SAJU_STORY_ENABLED=false. 서버가 없거나 실패하면 규칙 해설은 그대로 두고 「지금은 이야기를 만들지 못했어요」만 보인다.
-const SAJU_STORY_ENABLED = import.meta.env.VITE_SAJU_STORY_ENABLED !== "false";
+// 2026-10-10 대표 「사주 결과의 AI 글 칸만 끄고 대화 버튼은 그대로 둬」 → 기본으로 끈다(서버도 SAJU_STORY_ENABLED=true 일 때만 받음).
+// 다시 켜려면 빌드 스위치 VITE_SAJU_STORY_ENABLED=true. 끄면 규칙 해설 + 「정리」 칸의 「ECHO랑 이야기해볼래요」(대화로 이어 감)만 보인다.
+const SAJU_STORY_ENABLED = import.meta.env.VITE_SAJU_STORY_ENABLED === "true";
 type StoryState = { kind: "idle" } | { kind: "loading" } | { kind: "done"; story: SajuStory } | { kind: "error" };
 
 function SajuStoryCard({ facts, onTalk }: { facts: ReturnType<typeof sajuStoryFacts>; onTalk: () => void }) {

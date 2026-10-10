@@ -12,7 +12,7 @@ const USER = '10000000-0000-4000-8000-00000000000a';
 const S1 = '11111111-1111-4111-8111-111111111111', S2 = '22222222-2222-4222-8222-222222222222';
 const FACTS = { dayMaster: '갑목', elements: { 목: 3, 화: 1, 토: 2, 금: 1, 수: 1 } };
 
-function load({ ai } = {}) {
+function load({ ai, env = {} } = {}) {
   const st = { keys: [], ips: [], prompts: [], counts: new Map() };
   const db = {
     auth: { getUser: async (t) => (t === 'user-token' ? { data: { user: { id: USER } }, error: null } : { data: { user: null }, error: { message: 'bad' } }) },
@@ -28,7 +28,7 @@ function load({ ai } = {}) {
   vm.runInNewContext(code, {
     exports: {}, console, crypto: globalThis.crypto, TextEncoder, Uint8Array, setTimeout, clearTimeout, AbortController, Request, Response, Headers, URL, JSON, Promise, Map, Set, Array, Object, Number, String, Date, Error, RegExp,
     fetch: fetchFake,
-    Deno: { env: { get: (k) => ({ SUPABASE_URL: 'http://db', SUPABASE_SERVICE_ROLE_KEY: 's', OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm' })[k] }, serve: (h) => { handler = h; } },
+    Deno: { env: { get: (k) => ({ SUPABASE_URL: 'http://db', SUPABASE_SERVICE_ROLE_KEY: 's', OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SAJU_STORY_ENABLED: 'true', ...env })[k] }, serve: (h) => { handler = h; } },
     require: (n) => { if (n.startsWith('npm:@supabase/supabase-js')) return { createClient: () => db }; throw new Error(n); },
   }, { filename: 'openai-chat.ts' });
   const call = async (payload, { token, session = S1, ip = '203.0.113.7', origin = 'https://app.do-it.company' } = {}) => {
@@ -158,6 +158,17 @@ test('Codex PR #141 4500978 P2: 「시간이 걸릴」 같은 평범한 말은 �
   }
 });
 
+test('대표 2026-10-10 「사주 결과의 AI 글 칸만 끄고」: 서버 스위치가 없으면 사주 이야기는 404 · AI 호출 0 · 호출 기록 0 · 타로는 그대로', async () => {
+  for (const env of [{ SAJU_STORY_ENABLED: undefined }, { SAJU_STORY_ENABLED: 'false' }, { SAJU_STORY_ENABLED: 'TRUE' }]) {
+    const { st, call } = load({ env, ai: () => { throw new Error('AI 를 부르면 안 됨'); } });
+    const r = await call({ type: 'saju_reading', facts: FACTS }, { token: 'user-token' });
+    assert.equal(r.status, 404, JSON.stringify(env)); assert.equal(r.body.error, 'SAJU_STORY_DISABLED');
+    assert.equal(st.prompts.length, 0); assert.equal(st.keys.length, 0, '호출 횟수 기록도 남기지 않음');
+  }
+  const { call } = load({ env: { SAJU_STORY_ENABLED: undefined } });
+  assert.equal((await call(TAROT, { token: 'user-token' })).status, 200, '타로 해석은 영향 없음');
+});
+
 test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰는 하루 상한(150)에서 막힘', async () => {
   const { st, call } = load();
   let last;
@@ -170,7 +181,8 @@ test('로그인하지 않은 요청은 주소를 바꿔도 모두가 함께 쓰�
 
 test('화면: 기본으로 켬(끄기 스위치 있음) · 이야기 뒤 ECHO 대화로 이어 감 · 생일·시간은 보내지 않는다고 알림 · 실패하면 규칙 해설 그대로', () => {
   const ui = readFileSync('src/doit/app/plan-a/screens/SajuResult.tsx', 'utf8');
-  assert.match(ui, /const SAJU_STORY_ENABLED = import\.meta\.env\.VITE_SAJU_STORY_ENABLED !== "false";/, '운영 서버 배포 뒤 기본으로 켬 · 끄기 스위치 유지');
+  assert.match(ui, /const SAJU_STORY_ENABLED = import\.meta\.env\.VITE_SAJU_STORY_ENABLED === "true";/, '대표 2026-10-10: AI 글 칸 기본 끔 · 켜기 스위치만 유지');
+  assert.match(ui, /onClick=\{\(\) => onTalk\(sajuSeedKey\(r\)\)\}>ECHO랑 이야기해볼래요<\/button>/, '대화로 이어 가는 버튼은 AI 글 칸 밖에 그대로');
   assert.match(ui, /\{SAJU_STORY_ENABLED && <SajuStoryCard facts=\{sajuStoryFacts\(r\)\} onTalk=\{\(\) => onTalk\(sajuSeedKey\(r\)\)\} \/>\}/);
   assert.match(ui, /좀 더 알고 싶으시면, ECHO와 이야기를 이어 가 봐요\./);
   assert.match(ui, /onClick=\{onTalk\}>ECHO와 대화 시작하기<\/button>/, '이야기 다음 걸음 = ECHO 대화(기존 대화 길과 같음)');
