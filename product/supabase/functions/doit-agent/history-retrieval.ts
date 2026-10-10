@@ -35,11 +35,24 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
   if (!num(match) || !num(offset) || match > 100000 || offset > 1000000) throw new Error("MEMORY_CURSOR");
   const terms = words(query); const hits: { e: Evidence; score: number; date: string }[] = [];
   if (!terms.length) return empty("NOT_FOUND", "찾고 싶은 이야기를 조금 더 구체적으로 적어 주세요.");
-  for (const row of rows) {
+  for (const row of rows) if (row.user_id !== userId || row.action !== "agent_session" || row.status !== "applied") throw new Error("MEMORY_SCOPE");
+  // 2026-10-10 Codex MEM-F02 · 대표 승인(같은 목적 안에서만): 「지금」 기억은 지금 대화와 같은 목적(goal)의 다른 대화에서 확정한 말도 찾는다.
+  //   다른 목적 대화는 섞지 않는다(2026-09-28 세션 격리). 같은 칸(slot)을 뒤 대화에서 다시 확정했으면 앞 대화의 그 칸은 지금 값이 아니다(최신 우선).
+  //   뒤 대화에서 지우거나 아니라고 한 말은 그 앞 대화들에서도 다시 나오지 않는다. 읽기만 함 — 지난 대화를 이어받거나 상태를 바꾸지 않는다.
+  const cur = intent === "current" ? rows.find(r => r.request_id === currentId) : undefined;
+  if (cur && (!cur.response_payload?.state || !Array.isArray(cur.response_payload.state.turns) || !num(cur.applied_revision))) throw new Error("MEMORY_RECORD");
+  const goalOf = (st: State) => st.goal ?? "open";
+  const scope = intent === "history" ? rows : !cur ? [] : rows.filter(r => r === cur || (!!r.response_payload?.state && Array.isArray(r.response_payload.state.turns) && num(r.applied_revision) && goalOf(r.response_payload.state) === goalOf(cur.response_payload!.state!)));
+  const when = (r: Row) => time(r.created_at) ?? "";
+  // 지운 줄은 원문(quote)까지, 물린 해석(RETRACTED·DISPUTED)은 AI 해석(note)만 — 같은 대화 안의 가림은 아래 withheld 가 이미 한다.
+  const negatives = intent === "current" ? scope.flatMap(r => { const st = r.response_payload!.state!; return [...(st.forgotten ?? []), ...(st.forgotten_traits ?? []), ...(st.disputed ?? []), ...items(st).flatMap(i => i.status === "FORGOTTEN" ? [i.note ?? "", i.quote ?? ""] : i.status === "RETRACTED" || i.status === "DISPUTED" ? [i.note ?? ""] : [])].filter(Boolean).map(t => ({ t, at: when(r), from: r })); }) : [];
+  const latestSlot = new Map<string, string>();
+  if (intent === "current") for (const r of scope) for (const [key, slot] of Object.entries(r.response_payload!.state!.slots ?? {})) if ((slot.items ?? []).some(i => i.status === "CONFIRMED" && direct(i)) && when(r) > (latestSlot.get(key) ?? "")) latestSlot.set(key, when(r));
+  for (const row of scope) {
     const st = row.response_payload?.state;
-    if (row.user_id !== userId || row.action !== "agent_session" || row.status !== "applied") throw new Error("MEMORY_SCOPE");
     if (!st || !Array.isArray(st.turns) || !num(row.applied_revision)) throw new Error("MEMORY_RECORD");
-    if (intent === "current" && row.request_id !== currentId) continue;
+    const other = intent === "current" && row !== cur;
+    const stale = new Set(other ? Object.entries(st.slots ?? {}).filter(([key]) => (latestSlot.get(key) ?? "") > when(row)).flatMap(([, slot]) => slot.items ?? []) : []);
     const all = items(st);
     for (const turn of st.turns) {
       if (!num(turn.n) || !turn.user || CONTROL.has(turn.kind) || PRIVATE.test(turn.user)) continue;
@@ -47,8 +60,10 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
       // 2026-10-10 Codex P2(4236595819): 한 턴에서 여러 줄이 나왔을 때 한 줄만 지워도 턴 전체를 건너뛰었다 → 지운 줄(FORGOTTEN · 지운 글자와 겹치는 원문)만 빼고
       //   아직 확인된 다른 줄은 찾는다. 줄로 나뉘지 않은 원문 통째 대신 쓰기는 그 턴에 지운 것이 있으면 하지 않는다(지운 말이 원문으로 되살아나지 않게).
       const gone = (q: string) => [...(st.forgotten ?? []), ...(st.forgotten_traits ?? [])].some(t => has(q, t));
-      const userItems = linked.filter(i => direct(i) && i.status !== "FORGOTTEN" && typeof i.quote === "string" && i.quote.length && !gone(i.quote));
+      const userItems = linked.filter(i => direct(i) && i.status !== "FORGOTTEN" && typeof i.quote === "string" && i.quote.length && !gone(i.quote) && !stale.has(i));
       if (!userItems.length && forgotten(st, turn)) continue;
+      // 다른 대화의 말은 확정된 사용자 직접 말만(원문 통째 대신 쓰기 · 미확정 0).
+      if (other && !userItems.length) continue;
       if (intent === "current" && !userItems.length && deniedTurn(st, turn)) continue;
       const entries = userItems.length ? userItems.map(i => ({ i, quote: i.quote! })) : [{ i: null, quote: turn.fix_text || turn.user }];
       const seen = new Set<string>();
@@ -57,6 +72,7 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
         seen.add(quote);
         const invalid = !!turn.superseded || !!i && i.status !== "CONFIRMED";
         if (intent === "current" && (invalid || (st.disputed ?? []).some(t => has(quote, t)) || withheld(st, quote))) continue; // 2026-10-09 지금 대화 = allowedRecent 와 같은 가림(아니라고 한 뜻·지운 말)
+        if (intent === "current" && (other && !(i && i.status === "CONFIRMED") || negatives.some(n => n.from !== row && n.at >= when(row) && has(quote, n.t)))) continue;
         const score = terms.reduce((n, w) => n + (has(quote, w) ? Math.min(w.length, 8) : 0), 0);
         if (!score) continue;
         const confirmed = time(i?.confirmed_at), date = time(row.created_at);
@@ -64,7 +80,7 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
       }
     }
   }
-  hits.sort((a, b) => intent === "history" ? a.date.localeCompare(b.date) || a.e.turn - b.e.turn || b.score - a.score : b.score - a.score || b.e.turn - a.e.turn);
+  hits.sort((a, b) => intent === "history" ? a.date.localeCompare(b.date) || a.e.turn - b.e.turn || b.score - a.score : b.score - a.score || b.date.localeCompare(a.date) || b.e.turn - a.e.turn);
   const evidence: Evidence[] = []; let chars = 0, index = match;
   for (; index < hits.length && evidence.length < 6; index++) { const e = hits[index].e; if (chars + e.quote.length > 6000) break; evidence.push(e); chars += e.quote.length; }
   const next = index < hits.length ? { offset, match: index } : opts.rowMore ? { offset: offset + rows.length, match: 0 } : null;
@@ -78,7 +94,19 @@ export async function readRecall(db: Db, userId: string, query: string, intent: 
   if (!num(offset) || !num(match) || offset > 1000000 || match > 100000 || intent === "current" && offset !== 0) throw new Error("MEMORY_CURSOR");
   try {
     let q = db.from("doit_request_events").select("request_id,user_id,action,status,created_at,applied_revision,response_payload").eq("user_id", userId).eq("action", "agent_session").eq("status", "applied");
-    if (intent === "current") { if (!currentId) return empty("NOT_FOUND", "현재 대화에서 확인할 기록을 찾지 못했어요."); q = q.eq("request_id", currentId); }
+    if (intent === "current") {
+      if (!currentId) return empty("NOT_FOUND", "현재 대화에서 확인할 기록을 찾지 못했어요.");
+      // 지금 대화 + 최근 대화 50개(같은 목적만 recallRows 가 고름). 지금 대화가 그 안에 없으면 따로 읽는다.
+      const { data, error } = await q.order("created_at", { ascending: false }).range(0, 49);
+      if (error || !Array.isArray(data)) return empty("READ_FAILED", "기록을 읽지 못했어요. 다시 확인해 주세요.");
+      let rows = data as Row[];
+      if (!rows.some(r => r.request_id === currentId)) {
+        const one = await db.from("doit_request_events").select("request_id,user_id,action,status,created_at,applied_revision,response_payload").eq("user_id", userId).eq("action", "agent_session").eq("status", "applied").eq("request_id", currentId);
+        if (one.error || !Array.isArray(one.data)) return empty("READ_FAILED", "기록을 읽지 못했어요. 다시 확인해 주세요.");
+        rows = [...rows, ...one.data];
+      }
+      return recallRows(rows, userId, query, intent, currentId, { offset: 0, match });
+    }
     const { data, error } = await q.order("created_at", { ascending: true }).order("request_id", { ascending: true }).range(offset, offset + 49);
     if (error || !Array.isArray(data)) return empty("READ_FAILED", "기록을 읽지 못했어요. 다시 확인해 주세요.");
     return recallRows(data, userId, query, intent, currentId, { offset, match, rowMore: intent === "history" && data.length === 50 });

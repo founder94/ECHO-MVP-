@@ -42,7 +42,7 @@ export default function GradePage() {
           <span className="text-[11px] tracking-[.2em] text-[#6B7280]">등급과 활동</span>
         </div>
 
-        <h1 className="mt-7 text-[26px] leading-[1.3] text-[#F5F3EF]" style={{ fontFamily: '"Noto Serif KR", Georgia, serif' }}>
+        <h1 className="mt-7 text-[26px] leading-[1.3] text-[#F5F3EF]" style={{ fontFamily: '"Jua", "Pretendard", system-ui, sans-serif' }}>
           신뢰는 돈이 아니라
           <br />
           행동으로 쌓여요

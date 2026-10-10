@@ -46,7 +46,8 @@ const autoImportGlobals = {
 }
 
 export default [
-  { ignores: ['dist', 'node_modules'] },
+  // src/vesper = GetLayers 「Vesper」 원본 코드(2026-10-08 대표 「코드 그대로」) — 우리 lint 규칙 밖(원본은 자체 eslint 로 통과한 코드).
+  { ignores: ['dist', 'node_modules', 'src/vesper/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

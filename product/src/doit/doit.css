@@ -13,9 +13,9 @@
   --dark: #222422;
   --signal: #FF5A1F;
 
-  --font-heading: "Fraunces", "Gothic A1", serif;
-  --font-body: "Gothic A1", system-ui, sans-serif;
-  --font-label: "Gothic A1", system-ui, sans-serif;
+  --font-heading: "Jua", "Pretendard", system-ui, sans-serif;
+  --font-body: "Jua", "Pretendard", system-ui, sans-serif;
+  --font-label: "Jua", "Pretendard", system-ui, sans-serif;
 
   --background-50: 0.99 0.005 80;
   --background-100: 0.97 0.01 80;
@@ -87,7 +87,7 @@
   /* A의 html, body 규칙을 뿌리 요소로 옮김 */
   background: var(--ink);
   color: var(--paper);
-  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-family: "Jua", "Pretendard", system-ui, sans-serif;
   min-height: 100dvh;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
@@ -110,7 +110,7 @@
 .doit-root .font-heading { font-family: var(--font-heading); }
 .doit-root .font-body { font-family: var(--font-body); }
 .doit-root .font-label { font-family: var(--font-label); }
-.doit-root .font-sans { font-family: "Instrument Sans", system-ui, sans-serif; }
+.doit-root .font-sans { font-family: "Jua", "Pretendard", system-ui, sans-serif; }
 
 .doit-root .skip-link {
   position: absolute;
@@ -120,28 +120,28 @@
   background: var(--signal);
   color: var(--ink);
   padding: 12px 20px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Jua", "Pretendard", system-ui, sans-serif;
   font-size: 12px;
   text-transform: uppercase;
 }
 .doit-root .skip-link:focus { left: 12px; top: 12px; }
 
 .doit-root .type-display {
-  font-family: "Archivo Black", Impact, sans-serif;
+  font-family: "Jua", "Pretendard", system-ui, sans-serif;
   letter-spacing: -0.06em;
   line-height: 0.82;
   text-transform: uppercase;
 }
 
 .doit-root .type-mono {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "Jua", "Pretendard", system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .doit-root .type-label {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "Jua", "Pretendard", system-ui, sans-serif;
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;

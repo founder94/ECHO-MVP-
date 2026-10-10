@@ -111,12 +111,12 @@ test('홈페이지 배경 사진 4장 — 사이트 안 파일, 꾸밈이라 읽
   assert.doesNotMatch(read('src/components/DoItBrandHero.tsx'), /\/brand\/scenes\//);
 });
 
-test('글꼴은 이야기 01~09 와 같은 Pretendard 를 굵게 — 가는 바탕체·은빛 그라데이션 글자 없음', () => {
+test('글꼴은 주아체(Jua) 하나(2026-10-09 대표 승인) — 가는 바탕체·은빛 그라데이션 글자 없음', () => {
   const css = read('src/pages/do-it/landing/components/brand-sections.css').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.doesNotMatch(css, /Gowun/);
   assert.doesNotMatch(css, /background-clip:text/);
   assert.match(css, /\.doit-brand-section-title\{[^}]*font-weight:800/);
-  assert.match(css, /\.doit-brand-section\{[^}]*font-family:"Pretendard"/);
+  assert.match(css, /\.doit-brand-section\{[^}]*font-family:"Jua","Pretendard"/);
 });
 
 test('회사 소개 — 홈페이지에만, 바닥글 바로 위, 약관·문의 연결, 없는 기능 약속 없음', () => {

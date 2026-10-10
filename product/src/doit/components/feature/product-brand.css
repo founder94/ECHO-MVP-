@@ -24,7 +24,7 @@
 .doit-product-story{padding:32px 0 20px;animation:doit-product-arrive .7s ease-out both}
 .doit-open-period{font:500 12px/1.6 var(--font-body,system-ui);color:#6b7280;margin:-8px 0 16px}
 .doit-product-kicker{font:500 10px/1.5 var(--font-label,system-ui);letter-spacing:.18em;text-transform:uppercase;color:#a1a5ae;margin:0 0 17px}
-.doit-product-title{font-family:var(--font-heading,"Gothic A1",sans-serif);font-size:clamp(27px,7.4vw,32px);font-weight:600;letter-spacing:-.055em;line-height:1.48;color:#f2f1ef;margin:0;word-break:keep-all;overflow-wrap:anywhere}
+.doit-product-title{font-family:var(--font-heading,"Jua",sans-serif);font-size:clamp(27px,7.4vw,32px);font-weight:600;letter-spacing:-.055em;line-height:1.48;color:#f2f1ef;margin:0;word-break:keep-all;overflow-wrap:anywhere}
 .doit-product-description{font-weight:500;font-size:14px;line-height:1.9;color:#adb1ba;margin:20px 0 0;word-break:keep-all;overflow-wrap:anywhere}
 .doit-product-stage{position:relative;height:240px;display:grid;place-items:center;perspective:800px;isolation:isolate;mix-blend-mode:screen}
 .doit-product-stage:before{content:"";position:absolute;width:220px;height:92px;border-radius:50%;background:radial-gradient(ellipse,#c7cfdf18,transparent 67%);transform:translateY(57px) rotate(-12deg);pointer-events:none}
@@ -41,7 +41,7 @@
 .doit-profile-card{position:relative;margin-top:24px;padding:28px 24px;border-radius:22px;border:1px solid #ffffff22;background:radial-gradient(ellipse at top right,#b7c6dc13,transparent 75%),linear-gradient(145deg,#1b1d22,#101114);box-shadow:0 22px 50px #0003;overflow:hidden}
 .doit-profile-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:32px}
 .doit-profile-card-head .doit-official-symbol{width:58px;height:58px;margin:-12px}
-.doit-profile-name{font:600 28px/1.45 var(--font-heading,"Gothic A1",sans-serif);letter-spacing:-.04em;overflow-wrap:anywhere;margin:0;color:#f2f1ef}
+.doit-profile-name{font:600 28px/1.45 var(--font-heading,"Jua",sans-serif);letter-spacing:-.04em;overflow-wrap:anywhere;margin:0;color:#f2f1ef}
 .doit-nickname-edit{display:inline-flex;align-items:center;min-height:44px;margin-top:4px;padding:8px 0;border:0;background:none;color:#d6d9df;text-decoration:underline;text-underline-offset:4px;font-size:13px;cursor:pointer}
 .doit-nickname-form{display:grid;gap:12px;margin-top:14px}
 .doit-nickname-form label{font-size:13px;color:#d6d9df}
@@ -57,11 +57,11 @@
 .doit-profile-facts dt{font-size:12px;line-height:1.8;color:#9ba2ae}
 .doit-profile-facts dd{margin:0;font-size:13px;line-height:1.8;color:#e1e2e5;word-break:keep-all;overflow-wrap:anywhere}
 .doit-profile-section-label{font-size:11px;letter-spacing:.12em;color:#9da3ad;margin:30px 0 0}
-.doit-profile-review{min-height:100dvh;background:#090a0c;color:#f2f1ef;padding:28px 24px calc(36px + env(safe-area-inset-bottom));font-family:var(--font-body,"Gothic A1",sans-serif)}
+.doit-profile-review{min-height:100dvh;background:#090a0c;color:#f2f1ef;padding:28px 24px calc(36px + env(safe-area-inset-bottom));font-family:var(--font-body,"Jua",sans-serif)}
 .doit-profile-review-inner{width:100%;max-width:400px;margin:auto}
 .doit-profile-review-brand{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.18em;color:#b7bbc4;margin-bottom:34px}
 .doit-profile-review-brand .doit-official-symbol{width:38px;height:38px}
-.doit-profile-review .doit-product-title{font-family:"Noto Serif KR","Nanum Myeongjo","AppleMyungjo",Georgia,serif}
+.doit-profile-review .doit-product-title{font-family:"Jua", "Pretendard", system-ui, sans-serif}
 .doit-profile-review .doit-product-action{justify-content:center}
 .doit-product-error{color:#efb7b7;font-size:13px;line-height:1.8}
 @keyframes doit-product-arrive{from{transform:translateY(8px)}to{transform:none}}

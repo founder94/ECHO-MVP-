@@ -32,6 +32,11 @@
     "noUncheckedSideEffectImports": false,
     "paths": {
       "@/*": ["./src/*"],
+      "@vesper/*": ["./src/vesper/*"],
+      "next/image": ["./src/vesper/shims/next-image.tsx"],
+      "next/link": ["./src/vesper/shims/next-link.tsx"],
+      "next/dynamic": ["./src/vesper/shims/next-dynamic.tsx"],
+      "next/navigation": ["./src/vesper/shims/next-navigation.ts"],
     }
   },
   "include": ["src", "vite-env.d.ts"]

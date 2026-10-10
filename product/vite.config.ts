@@ -220,6 +220,12 @@ export default defineConfig(({ mode }) => {
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "./src"),
+      // 2026-10-08 GetLayers 「Vesper」 원본 코드(src/vesper) — 원본의 @/ 는 @vesper/ 로, Next 전용 모듈은 shims 로.
+      "@vesper": resolve(import.meta.dirname, "./src/vesper"),
+      "next/image": resolve(import.meta.dirname, "./src/vesper/shims/next-image.tsx"),
+      "next/link": resolve(import.meta.dirname, "./src/vesper/shims/next-link.tsx"),
+      "next/dynamic": resolve(import.meta.dirname, "./src/vesper/shims/next-dynamic.tsx"),
+      "next/navigation": resolve(import.meta.dirname, "./src/vesper/shims/next-navigation.ts"),
     },
   },
   server: {
