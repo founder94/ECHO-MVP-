@@ -3,6 +3,8 @@ import { ArrowUp, Check, ChevronRight, PencilLine, RotateCcw } from 'lucide-reac
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
+import FxStage, { WaitHook } from '@/doit/fx/FxStage';
+import { DNA_HOOKS } from '@/doit/fx/hooks';
 import { useUnderstanding } from '@/doit/hooks/useUnderstanding';
 import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingRequest, understandingRequest } from '@/doit/lib/understandingApi';
 import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecentTurn, type CoreRecord } from '@/doit/lib/coreConversation';
@@ -454,7 +456,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
     {/* v16 빠져나갈 문: 답이 아니라고 읽은 말을 사용자가 답으로 남긴다. */}
     {unsaved && !finished && !editor && <div className="echo-unsaved" role="status"><p className="echo-fine">방금 말은 답으로 저장하지 않았어요.</p><button className="echo-text-button" disabled={!!busy} onClick={() => { const kept = unsaved; void run('답으로 남기고 있어요', () => sendText(kept.text, kept.answered ?? undefined, true)); }}>이 말은 답으로 남길게요</button></div>}
     {error && <div className="echo-error" role="alert"><p>{error}</p>{!loaded && <button disabled={!!busy} onClick={() => void run('다시 불러오고 있어요', load)}>다시 불러오기</button>}</div>}
-    {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
+    {busy && <div className="doit-fx-wait"><FxStage fx="dna" delayMs={700} /><div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div><WaitHook lines={DNA_HOOKS} delayMs={700} /></div>}
     {/* v15 지친 말: 기록하지 않았다. 다른 질문을 받거나 오늘은 여기까지(홈). */}
     {pause && !finished && <div className="echo-pause" role="status"><p className="echo-context">{pause}</p><div className="echo-reactions">{active && <button disabled={!!busy} onClick={() => void run('다른 질문을 고르고 있어요', async () => { await requestNext(active.id, { skip: true }); if (alive.current) setPause(null); })}>다른 질문 받기</button>}<button disabled={!!busy} onClick={() => setPause(null)}>계속 답할게요</button></div><Link className="echo-secondary" to="/doit/home">오늘은 여기까지 할게요 <ChevronRight size={18} /></Link></div>}
     {/* v14.1 다섯 가지를 다 들었으면 여기서 끝낸다. 더 묻지 않는다. v15 통합 카드를 다 정한 뒤에 다음 할 일을 보인다. */}

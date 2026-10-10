@@ -1,0 +1,18 @@
+/* 대표 전달 효과 그림 칸(FxStage) — Flora 값(모서리 4px · 흰 10% 실선 · 밤 #010b24). 글자는 칸 밖에. */
+.doit-fx{position:relative;width:100%;height:220px;border-radius:4px;overflow:hidden;background:#010b24;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);isolation:isolate;touch-action:pan-y}
+.doit-fx--glass{height:240px;background:#e9ecf1}
+.doit-fx--planet{height:260px}
+.doit-fx--storm-pair{height:220px}
+.doit-fx-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .6s cubic-bezier(.22,1,.36,1)}
+/* 원본 유리 카드: 2.4초에 걸쳐 0.3초 뒤부터 서서히(원본 CSS fade-in 과 같은 시간) */
+.doit-fx--glass .doit-fx-canvas{transition:opacity 2.4s ease .3s}
+.doit-fx[data-state="ready"] .doit-fx-canvas{opacity:1}
+.doit-fx-fallback{position:absolute;inset:0;background:radial-gradient(60% 55% at 50% 50%,rgba(187,252,158,.14),transparent 70%),#010b24}
+.doit-fx--glass .doit-fx-fallback{background:linear-gradient(#f6f8fb,#d7dce4)}
+.doit-fx-hook{margin:12px 0 0;text-align:center;font-size:14px;line-height:1.6;color:rgba(255,255,255,.88);word-break:keep-all;text-wrap:balance;animation:doit-fx-hook-in .5s cubic-bezier(.22,1,.36,1)}
+@keyframes doit-fx-hook-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* 기다림 묶음: 그림 칸 + 심볼·상태 글 + 한 줄 안내 */
+.doit-fx-wait{display:grid;gap:10px;margin:20px 0}
+.doit-fx-wait:empty{display:none} /* 짧은 기다림(그림·안내 아직 안 뜸) = 빈 자리·여백 0 */
+.doit-fx-wait .echo-thinking{margin:0;justify-content:center}
+@media (prefers-reduced-motion:reduce){.doit-fx-canvas,.doit-fx--glass .doit-fx-canvas{transition:none}.doit-fx-hook{animation:none}}

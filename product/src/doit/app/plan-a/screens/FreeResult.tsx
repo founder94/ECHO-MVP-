@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import FxStage, { WaitHook } from "@/doit/fx/FxStage";
+import { TAROT_HOOKS } from "@/doit/fx/hooks";
 import {
   AnimatePresence,
   motion,
@@ -270,6 +272,14 @@ export function FreeResult({
             이 결과는 미래를 단정하지 않아요. 지금의
             마음과 선택을 돌아보는 참고로 봐주세요.
           </p>
+
+          {/* 2026-10-10 대표 전달 효과: 해석을 기다리는 동안 유리 카드 바람개비 + 한 줄 안내(짧게 끝나면 안 띄움) */}
+          {mode === "taro" && tarotLoading && (
+            <div className="doit-fx-wait">
+              <FxStage fx="glass" delayMs={300} />
+              <WaitHook lines={TAROT_HOOKS} delayMs={300} />
+            </div>
+          )}
 
           {mode === "taro" && tarotError && (
             <p

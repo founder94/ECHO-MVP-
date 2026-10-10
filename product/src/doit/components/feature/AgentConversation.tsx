@@ -5,6 +5,8 @@ import { ArrowLeft, Check, ChevronLeft, ChevronRight, Mic, Plus, RotateCcw, Send
 import { Link } from 'react-router-dom';
 import DoItSymbol from '@/components/DoItSymbol';
 import SymbolLoader from '@/components/SymbolLoader';
+import FxStage, { WaitHook } from '@/doit/fx/FxStage';
+import { DNA_HOOKS } from '@/doit/fx/hooks';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { agentRecall, type AgentMemory, DEFAULT_AGENT_TONE, agentFreeStatus, agentGet, agentRescue, agentStart, agentTurn, type AgentMode, type AgentSession, type AgentTone, type FreeTalkStatus } from '@/doit/lib/agentApi';
 import './core-conversation.css';
@@ -260,7 +262,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!loadError}>
     {header}
     {safetyLine}
-    {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div>}
+    {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="doit-fx-wait"><FxStage fx="dna" delayMs={500} /><div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div><WaitHook lines={DNA_HOOKS} delayMs={500} /></div>}
   </section>;
 
   // ── 시작 전(대표 「UI FINAL LOCK · 시작하기 선택창」 2026-09-25): 기존 컬러 대화 화면은 그대로 두고, 그 위에 무채색 선택창 하나만 띄운다.
@@ -276,7 +278,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
     {safetyLine}
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
-    {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
+    {busy && <div className="doit-fx-wait"><FxStage fx="dna" delayMs={500} /><div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div><WaitHook lines={DNA_HOOKS} delayMs={500} /></div>}
     {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { if (choice.mode === 'VOICE') unlockSpeech(); setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
   </section>;
 
