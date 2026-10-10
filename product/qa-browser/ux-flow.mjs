@@ -92,6 +92,8 @@ async function newPage(browser, vp, server) {
     if (u.pathname === '/functions/v1/doit-agent') {
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204 });
       const body = JSON.parse(req.postData() ?? '{}'); server.st.calls.push({ fn: 'agent', ...body });
+      // 2026-10-10 기다림 효과 검사: 서버가 느린 경우(대화 불러오기·타로 해석 대기 화면을 붙잡아 둔다)
+      if (server.st.agentDelay) await new Promise(r => setTimeout(r, server.st.agentDelay));
       // 2026-10-05 참고 이야기(agent_ref): 빈 말 = 여는 한 줄 · 「질문 하나 해줘」 = 질문 한 개 · server.st.refFail 번 만큼 502
       if (body.action === 'agent_ref') {
         if (server.st.refFail > 0 && body.text) { server.st.refFail -= 1; return route.fulfill({ status: 502, json: { ok: false, code: 'AI_ERROR', message: '답을 만들지 못했어요.' } }); }
@@ -661,6 +663,36 @@ await run(49, 'MEET 360px 넘침 0', W360, { matches: talkMatch(), meet: { state
   await go(p); await p.waitForTimeout(400); expect(await overflow(p) <= 0, '가로 넘침');
   const low = await p.evaluate(() => [...document.querySelectorAll('.doit-meet button')].filter(b => b.getBoundingClientRect().height < 40).length); expect(low === 0, `작은 버튼 ${low}`);
   await p.locator('.doit-meet').screenshot({ path: 'uxshots/49-meet-360.png' }); return '넘침 0';
+});
+
+// ── 2026-10-10 대표 전달 효과(기다리는 자리) — 그림 칸이 실제로 그려지는지 · 한 줄 안내 · 넘침 0 · JS 오류 0 ──
+const fxReady = async (p, kind) => { await p.locator(`.doit-fx--${kind}`).waitFor({ timeout: 20000 }); await p.waitForFunction((k) => ['ready', 'failed'].includes(document.querySelector(`.doit-fx--${k}`)?.dataset.state ?? ''), kind, { timeout: 60000 }); return p.locator(`.doit-fx--${kind}`).getAttribute('data-state'); };
+await run(160, 'FX 지구: 아직 보여 드릴 사람이 없을 때 = 지구 + 승인 문구 한 줄 · 넘침 0', IPHONE, { candidates: [] }, async (p) => {
+  await go(p); const st = await fxReady(p, 'planet'); expect(st === 'ready', `그림 상태 ${st}`); await p.waitForTimeout(2600);
+  const t = await text(p); expect(t.includes('당신이 잠든 사이, AI가 먼저 만나봅니다.') && t.includes('아직 보여 드릴 사람은 없어요.'), '안내 문구');
+  expect(await overflow(p) <= 0, '가로 넘침'); const b = await p.locator('.doit-fx--planet').boundingBox(); expect(b.width > 300 && b.height >= 250, `칸 ${b.width}x${b.height}`);
+  await p.screenshot({ path: 'uxshots/160-fx-planet.png', fullPage: true }); return `지구 ${Math.round(b.width)}x${Math.round(b.height)}`;
+});
+await run(161, 'FX DNA: 대화를 불러오는 동안 = 나선 + 심볼 + 한 줄 안내 · 짧으면 안 띄움', IPHONE, { agent: { session: AGENT_SESSION }, agentDelay: 15000 }, async (p) => {
+  await p.goto(`${BASE}/doit/conversation`, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(250); expect(await p.locator('.doit-fx--dna').count() === 0, '0.5초 안에는 안 띄움(번쩍임 0)');
+  const st = await fxReady(p, 'dna'); expect(st === 'ready', `그림 상태 ${st}`); await p.waitForTimeout(2000);
+  const t = await text(p); expect(t.includes('대화를 불러오고 있어요') && /당신의 이야기를 한 가닥씩 엮고 있어요\.|고쳐 준 말은 다음 질문에 그대로 이어져요\.|‘모르겠어요’도 괜찮은 답이에요\./.test(t), '상태 글 + 안내(3초마다 바뀜)');
+  expect(await p.locator('.doit-fx-wait .echo-thinking svg, .doit-fx-wait .echo-thinking canvas, .doit-fx-wait .echo-thinking img').count() >= 1, '심볼 그대로');
+  expect(await overflow(p) <= 0, '가로 넘침'); await p.screenshot({ path: 'uxshots/161-fx-dna.png' }); return '나선 + 심볼';
+});
+await run(162, 'FX 유리 카드: 타로 해석을 기다리는 동안 = 바람개비 + 한 줄 안내', IPHONE, { agentDelay: 20000 }, async (p) => {
+  await p.goto(`${BASE}/doit/fortune?mode=taro`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+  await p.locator('button.echo-glass-btn--choice').first().click(); await p.getByRole('button', { name: /새 카드 뽑기/ }).first().click(); await p.waitForTimeout(800);
+  await p.locator('button[aria-label^="펼친"]').first().click(); await p.waitForTimeout(1500);
+  await p.getByRole('button', { name: /카드 이야기 듣기/ }).click();
+  const st = await fxReady(p, 'glass'); expect(st === 'ready', `그림 상태 ${st}`); await p.waitForTimeout(3000);
+  const t = await text(p); expect(t.includes('AI가 카드를 해석하고 있어요') && /카드가 당신의 질문 쪽으로 돌아서고 있어요\.|해석은 미래를 정하지 않아요\./.test(t), '상태 글 + 안내(3초마다 바뀜)');
+  expect(await overflow(p) <= 0, '가로 넘침'); await p.locator('.doit-fx--glass').scrollIntoViewIfNeeded(); await p.screenshot({ path: 'uxshots/162-fx-glass.png' }); return '유리 카드';
+});
+await run(163, 'FX 움직임 줄이기: 지구도 한 장(still)으로 그려짐 · 오류 0', IPHONE, { candidates: [] }, async (p) => {
+  await p.emulateMedia({ reducedMotion: 'reduce' }); await go(p); const st = await fxReady(p, 'planet'); expect(st === 'ready', `그림 상태 ${st}`);
+  await p.screenshot({ path: 'uxshots/163-fx-still.png', fullPage: true }); return '한 장';
 });
 
 // 회귀: Google G · 로그인 문구

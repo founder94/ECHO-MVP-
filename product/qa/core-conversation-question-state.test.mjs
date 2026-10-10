@@ -96,6 +96,9 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
     'react-router-dom': { Link: 'link' },
     '@/components/DoItSymbol': { default: 'brand-symbol' },
     '@/components/SymbolLoader': { default: 'symbol-loader' },
+    // 2026-10-10 기다림 효과(그림 칸 · 한 줄 안내)는 화면 장식 — 이 검사는 질문 상태만 본다.
+    '@/doit/fx/FxStage': { default: 'fx-stage', WaitHook: 'wait-hook' },
+    '@/doit/fx/hooks': { DNA_HOOKS: ['…'] },
     '@/doit/lib/introDraft': { draftToIntro: (lines) => lines.map((line) => line.text.trim()).filter(Boolean).join(' ').slice(0, 200) },
     '@/doit/hooks/useUnderstanding': { useUnderstanding: () => ({ reload: async () => undefined }) },
     '@/doit/lib/understandingApi': {
