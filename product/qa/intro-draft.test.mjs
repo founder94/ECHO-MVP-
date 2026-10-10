@@ -37,7 +37,8 @@ test('소개란 상한은 화면·도우미·서버가 같은 200자', () => {
 test('「AI가 대신 작성하기」 버튼 — 빈 소개란은 바로 채우고, 이미 적은 글은 덮어쓰지 않는다', () => {
   const s = read(BUILD);
   assert.match(s, /"AI가 대신 작성하기"/);
-  assert.match(s, /if \(intro\.trim\(\)\) \{ setDraftState\(\{ kind: "preview", text \}\); return; \}/, '적은 글이 있으면 미리보기만');
+  // 2026-10-10 Codex B01: 요청 시작 때 값(closure)이 아니라 응답 도착 때의 최신 글 + 요청 뒤 편집 여부로 판단 — 적은 글·지운 선택 모두 지킴
+  assert.match(s, /if \(introRef\.current\.trim\(\) \|\| introEdits\.current !== editsAtStart\) \{ setDraftState\(\{ kind: "preview", text \}\); return; \}/, '적은 글이 있거나 요청 뒤 고쳤으면 미리보기만');
   assert.match(s, /이 글로 바꾸기/);
   assert.match(s, /지금 글 그대로 두기/);
   assert.match(s, /draftState\.kind === "busy" \|\| saving/, '쓰는 중·저장 중에는 버튼 잠금');

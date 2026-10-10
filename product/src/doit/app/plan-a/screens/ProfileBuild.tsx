@@ -142,18 +142,24 @@ export function ProfileBuild({
   );
 
   const [draftState, setDraftState] = useState<DraftState>({ kind: "idle" });
+  // 2026-10-10 Codex B01: AI 소개 요청이 끝났을 때는 요청을 시작한 때가 아니라 「지금」 소개 칸을 본다.
+  //   요청 뒤 사용자가 직접 쓰거나 지웠으면(편집 번호가 바뀜) 그 선택을 지키고 AI 글은 후보(preview)로만 보여 준다.
+  const introRef = useRef(intro);
+  const introEdits = useRef(0);
+  const editIntro = (v: string) => { introRef.current = v; introEdits.current += 1; setIntro(v); };
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   async function requestDraft() {
     if (!onDraftIntro || draftState.kind === "busy") return;
     setDraftState({ kind: "busy" });
+    const editsAtStart = introEdits.current;
     try {
       const text = (await onDraftIntro()).slice(0, INTRO_MAX);
       if (!alive.current) return;
       if (!text.trim()) { setDraftState({ kind: "error", message: DRAFT_FAIL_MESSAGE, needAnswers: false }); return; }
-      if (intro.trim()) { setDraftState({ kind: "preview", text }); return; }
-      setIntro(text);
+      if (introRef.current.trim() || introEdits.current !== editsAtStart) { setDraftState({ kind: "preview", text }); return; }
+      editIntro(text);
       setDraftState({ kind: "filled" });
     } catch (e) {
       if (!alive.current) return;
@@ -166,8 +172,11 @@ export function ProfileBuild({
 
   const canNext = nickname.trim().length > 0;
 
+  // 2026-10-10 Codex B02: 저장 중에는 입력·후보 반영을 잠그고(제출한 글 = 화면 글), AI 소개를 만드는 중에는 저장하지 않는다
+  //   (늦게 온 AI 글이 저장 뒤 화면만 바꿔 저장 안 된 글이 남는 경쟁 0).
+  const drafting = draftState.kind === "busy";
   function handleNext() {
-    if (saving) return;
+    if (saving || drafting) return;
     onNext({
       nickname: nickname.trim(),
       intro: intro.trim(),
@@ -260,6 +269,8 @@ export function ProfileBuild({
                 onChange={(e) =>
                   setNickname(e.target.value)
                 }
+                readOnly={saving}
+                aria-readonly={saving || undefined}
                 maxLength={20}
                 placeholder="사람들에게 보일 이름"
                 style={inputStyle}
@@ -277,8 +288,10 @@ export function ProfileBuild({
                 id="profile-intro"
                 value={intro}
                 onChange={(e) =>
-                  setIntro(e.target.value)
+                  editIntro(e.target.value)
                 }
+                readOnly={saving}
+                aria-readonly={saving || undefined}
                 maxLength={INTRO_MAX}
                 rows={5}
                 placeholder="나를 한 문장으로 소개해 보세요."
@@ -326,7 +339,8 @@ export function ProfileBuild({
                       <div className="mt-3 flex gap-2">
                         <button
                           type="button"
-                          onClick={() => { setIntro(draftState.text); setDraftState({ kind: "filled" }); }}
+                          disabled={saving}
+                          onClick={() => { editIntro(draftState.text); setDraftState({ kind: "filled" }); }}
                           className="echo-glass-btn echo-glass-btn--primary flex-1 rounded-xl min-h-11 px-3"
                           style={{ fontSize: 13, fontWeight: 700 }}
                         >
@@ -380,6 +394,8 @@ export function ProfileBuild({
                 onChange={(e) =>
                   setRegion(e.target.value)
                 }
+                readOnly={saving}
+                aria-readonly={saving || undefined}
                 maxLength={30}
                 placeholder="예: 서울 · 강남"
                 style={inputStyle}
@@ -398,6 +414,7 @@ export function ProfileBuild({
                     <button
                       key={rhythm}
                       type="button"
+                      disabled={saving}
                       onClick={() =>
                         setLifeRhythm(
                           active ? "" : rhythm,
@@ -544,7 +561,7 @@ export function ProfileBuild({
 
         <PrimaryButton
           onClick={handleNext}
-          disabled={!canNext || saving}
+          disabled={!canNext || saving || drafting}
         >
           {saving ? "저장 중…" : "소개 저장하고 사진 등록하기"}
         </PrimaryButton>
