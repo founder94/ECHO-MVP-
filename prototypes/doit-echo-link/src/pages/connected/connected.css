@@ -1,0 +1,54 @@
+/* 첫 대화 진입 — ECHO(Flora) 쪽 글자 기준: 제목 #FFFFFF · 설명 #F2F4F8 · 보조 #DCE3ED. 배경은 원본 효과의 검정. */
+@import "@fontsource/chakra-petch/500.css";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+:root { --title: #ffffff; --desc: #f2f4f8; --note: #dce3ed; --accent: #bbfc9e; --on-accent: #050505; --gutter: 20px; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: #000; color: var(--desc);
+  font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  word-break: keep-all; overflow-wrap: break-word;
+}
+.cn-page { min-height: 100dvh; display: flex; flex-direction: column; }
+.cn-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(var(--gutter), env(safe-area-inset-right)) 0 max(var(--gutter), env(safe-area-inset-left));
+}
+.cn-brand { display: inline-flex; align-items: center; gap: 0.75rem; font-family: "Chakra Petch", sans-serif; font-weight: 500; font-size: 18px; letter-spacing: 0.12em; color: var(--title); }
+.cn-operator { display: inline-flex; align-items: center; gap: 6px; font-family: "Pretendard Variable", sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--note); }
+.cn-operator img { height: 15px; width: auto; }
+.cn-back { display: inline-flex; align-items: center; min-height: 44px; color: var(--note); font-size: 14px; font-weight: 500; text-decoration: none; }
+.cn-back:focus-visible, .cn-start:focus-visible, .cn-preview a:focus-visible, .cn-preview button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+.cn-preview { margin: 0.75rem var(--gutter) 0; padding: 0.75rem 0.9rem; border-radius: 12px; background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14); font-size: 13px; font-weight: 500; color: var(--note); }
+.cn-preview-badge { margin: 0 0 0.5rem; }
+.cn-preview-states { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cn-preview-states a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 0.75rem; border-radius: 999px; color: var(--desc); text-decoration: none; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22); }
+.cn-preview-states a[aria-current="page"] { background: var(--desc); color: #000; }
+.cn-preview-note { margin: 0.5rem 0 0; }
+.cn-preview-note button { min-height: 36px; padding: 0 0.6rem; border: 0; border-radius: 8px; background: rgb(255 255 255 / 0.12); color: var(--desc); font: inherit; cursor: pointer; }
+
+/* 위(글) · 가운데(효과) · 아래(버튼) — 세 층이 겹치지 않는다. */
+.cn-main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.cn-top { padding: 1.75rem var(--gutter) 0; text-align: center; }
+.cn-hook { margin: 0; color: var(--title); font-weight: 500; font-size: clamp(30px, 8.4vw, 52px); line-height: 1.2; letter-spacing: -0.02em; }
+.cn-line { display: block; }
+.cn-desc { margin: 0.9rem 0 0; color: var(--desc); font-size: clamp(16px, 4.4vw, 19px); font-weight: 600; line-height: 1.55; }
+.erl-stage { position: relative; flex: 1 1 auto; min-height: 240px; margin: 1.25rem 0; }
+.erl-canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.erl-fallback { position: absolute; inset: 0; background: radial-gradient(60% 45% at 50% 50%, rgb(88 120 255 / 0.18), transparent 70%); }
+.cn-bottom { padding: 0 var(--gutter) calc(1.5rem + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.cn-start {
+  width: min(100%, 22rem); min-height: 52px; border: 0; border-radius: 14px; cursor: pointer;
+  background: var(--accent); color: var(--on-accent); font: inherit; font-size: 17px; font-weight: 600;
+}
+.cn-notice { margin: 0; font-size: 14px; font-weight: 500; color: var(--note); }
+.cn-main-plain { justify-content: center; }
+.cn-status { padding: 2rem var(--gutter); text-align: center; }
+.cn-status-title { margin: 0; color: var(--title); font-weight: 500; font-size: clamp(24px, 6.4vw, 36px); line-height: 1.3; }
+@media (min-width: 900px) {
+  :root { --gutter: 40px; }
+  .cn-top { padding-top: 2.5rem; }
+  .cn-line { white-space: nowrap; }
+}

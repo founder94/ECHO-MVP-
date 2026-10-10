@@ -1,0 +1,861 @@
+/* `source("../")` limits class detection to `src/` (this file lives in src/app).
+   Without it Tailwind v4 scans the whole repo — including obsidian/ and .claude/,
+   where documented class *patterns* like duration-[var(--duration-*)] parse as
+   real candidates and emit CSS warnings. Docs are not a source of utilities. */
+/* ECHO 도입 — Flora 원본 globals.css 를 그대로 쓰고 글꼴 변수·한글 보완만 덧붙인다. */
+@import "@fontsource/chakra-petch/400.css";
+@import "@fontsource/chakra-petch/500.css";
+@import "@fontsource/onest/400.css";
+@import "@fontsource/onest/500.css";
+@import "@fontsource/my-soul/400.css";
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "tailwindcss" source(none);
+@source "../../flora";
+@source "./";
+
+/* A short screen is its own kind of device, and the width says nothing about
+   it: a phone turned sideways is 844 across and 390 down. Only the preloader
+   asks — it is the one screen whose composition is hung off the height. */
+@custom-variant short (@media (max-height: 640px));
+
+/* ---------------------------------------------------------------------------
+   TIER 1 — PRIMITIVES  (`--raw-*`)
+   Raw literal values. The only tier allowed to contain a hex/px/ms literal.
+   Never referenced in markup, never bound into @theme. Rename freely.
+   Grammar: --raw-<category>-<name>[-<shade>]
+   See obsidian/frontend/design-system.md → "Token naming convention".
+   --------------------------------------------------------------------------- */
+:root {
+  --raw-color-white: #ffffff;
+  --raw-color-neutral-100: #ededed;
+  --raw-color-neutral-900: #171717;
+  --raw-color-neutral-950: #0a0a0a;
+
+  --raw-duration-fast: 150ms;
+  --raw-duration-normal: 250ms;
+
+  /* Dandelion palette — the hero scene (obsidian/frontend/dandelion-scene.md).
+     Sampled from the reference photograph: near-black ground, cool white pappus,
+     warm seed grains, a green stem, and the brown receptacle the rays
+     converge on. */
+  --raw-color-dandelion-white: #ffffff;
+  --raw-color-dandelion-tan: #c8b189;
+  --raw-color-dandelion-brown: #6b4a28;
+  --raw-color-leaf-500: #63a65e;
+  /* The core burning at the centre of the head. */
+  --raw-color-gold-200: #ffd79a;
+  --raw-color-amber-400: #ffa724;
+  /* The gradient the flower stands on — currently Kindle, a fire front creeping
+     across a field. A night-blue burn: the unlit ground, the char behind the
+     front, the ember line, and the licks above it. See
+     obsidian/frontend/backdrop-gradient.md. */
+  --raw-color-night-950: #010b24;
+  --raw-color-night-900: #061a4d;
+  --raw-color-night-800: #0a2a7a;
+  --raw-color-azure-500: #2e6bff;
+  --raw-color-azure-200: #9fc2ff;
+  /* The flower that opens once the core has gone. */
+  --raw-color-petal-200: #bcd8ff;
+  --raw-color-sky-300: #9fd0fe;
+  --raw-color-ice-100: #c8e9fe;
+  --raw-color-petal-800: #3a63d6;
+  --raw-color-sage-500: #7d9c8e;
+
+  /* Hero interface — Figma "01 Hero" (4337:5410). The overlay is glass over the
+     scene: one lime accent, an ink it prints on, and a ladder of white alphas
+     for every surface, hairline and text level the frame uses. */
+  --raw-color-lime-300: #bbfc9e;
+  --raw-color-lime-300-a85: rgba(187, 252, 158, 0.85);
+  --raw-color-ink-950: #050b14;
+  --raw-color-white-a05: rgba(255, 255, 255, 0.05);
+  --raw-color-white-a06: rgba(255, 255, 255, 0.06);
+  --raw-color-white-a16: rgba(255, 255, 255, 0.16);
+  --raw-color-white-a22: rgba(255, 255, 255, 0.22);
+  --raw-color-white-a62: rgba(255, 255, 255, 0.62);
+  --raw-color-white-a70: rgba(255, 255, 255, 0.7);
+  --raw-color-white-a80: rgba(255, 255, 255, 0.8);
+  --raw-color-white-a88: rgba(255, 255, 255, 0.88);
+  --raw-color-white-a90: rgba(255, 255, 255, 0.9);
+  --raw-color-white-a92: rgba(255, 255, 255, 0.92);
+  --raw-color-white-a96: rgba(255, 255, 255, 0.96);
+  --raw-color-white-a55: rgba(255, 255, 255, 0.55);
+  --raw-color-white-a18: rgba(255, 255, 255, 0.18);
+  --raw-color-white-a08: rgba(255, 255, 255, 0.08);
+  --raw-color-white-a05b: rgba(255, 255, 255, 0.05);
+  --raw-color-white-a78: rgba(255, 255, 255, 0.78);
+  --raw-color-white-a40: rgba(255, 255, 255, 0.4);
+  --raw-color-white-a38: rgba(255, 255, 255, 0.38);
+  --raw-color-white-a12: rgba(255, 255, 255, 0.12);
+  --raw-color-black-a50: rgba(0, 0, 0, 0.5);
+  --raw-color-black-a60: rgba(0, 0, 0, 0.6);
+  --raw-color-black-a30: rgba(0, 0, 0, 0.3);
+  /* The preloader — Figma 4264:3434 / 3446 / 3458. A night field, and the
+     keyhole of light that closes over it as the page loads. */
+  --raw-color-night: #03050a;
+  /* Flat black, for the preloader's field: the page behind it is a night blue,
+     and the keyhole only reads as a hole if what shows through it is lighter
+     than what surrounds it. */
+  --raw-color-void: #000000;
+  --raw-color-keyhole-top: #f3f8fc;
+  --raw-color-keyhole-bottom: #6e97eb;
+  --raw-color-keyhole-glow: rgba(118, 158, 236, 0.16);
+  --raw-color-seed: rgba(255, 255, 255, 0.55);
+  --raw-color-black-a35: rgba(0, 0, 0, 0.35);
+  --raw-color-black-a40: rgba(0, 0, 0, 0.4);
+  --raw-color-black-a60: rgba(0, 0, 0, 0.6);
+  --raw-color-black-a75: rgba(0, 0, 0, 0.75);
+  --raw-color-black-a80: rgba(0, 0, 0, 0.8);
+  --raw-color-black-a90: rgba(0, 0, 0, 0.9);
+
+  /* The leak's copy is white, shaded by a mask rather than filled with a
+     gradient: `background-clip: text` clips to a descendant's glyphs as well as
+     its own, so a phrase fading in inside it would never leave the paint. A
+     mask multiplies what the phrase already is. */
+  --raw-mask-copy-fading: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.82),
+    rgba(0, 0, 0, 0.6)
+  );
+  --raw-mask-copy-rising: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.6),
+    rgba(0, 0, 0, 1)
+  );
+  --raw-mask-accent-rising: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.62),
+    rgba(0, 0, 0, 1)
+  );
+
+  /* The islands' hairline is an inset shadow, not a border: a border would push
+     their padded content in by its own width and every absolute coordinate
+     inside the relay panel with it, which is exactly the 1px the frame does not
+     have to give. */
+  --raw-shadow-hairline-a10: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --raw-shadow-hairline-a12: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --raw-shadow-hairline-a16: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  /* The count chip keeps its edge when the lime fill leaves it. */
+  --raw-shadow-hairline-accent: inset 0 0 0 1px var(--raw-color-lime-300);
+
+  /* Type sizes, as rem against the 1440 design base (16px = 1rem) so the
+     adaptive grid scales the whole frame with the viewport. */
+  --raw-text-display: 5.625rem; /* 90px */
+  --raw-text-lead: 1.0625rem; /* 17px */
+  --raw-text-wordmark: 0.9375rem; /* 15px */
+  --raw-text-wordmark-swash: 1.3125rem; /* 21px — the script S runs larger */
+  --raw-text-label: 0.875rem; /* 14px */
+  --raw-text-panel: 0.8125rem; /* 13px */
+  --raw-text-meta: 0.75rem; /* 12px */
+  --raw-text-stat: 0.6875rem; /* 11px */
+  --raw-text-hop: 0.625rem; /* 10px */
+  /* The story's two voices (4204:3135, 4208:743): the one being spoken, and
+     the aside beside it. Which corner each takes is the screen's business. */
+  --raw-text-copy-aside: 1.5rem; /* 24px */
+  --raw-text-copy-voice: 3rem; /* 48px */
+  /* The values drifting past the beam — "04 Fluff" (4279:4269). */
+  --raw-text-stream: 2.375rem; /* 38px */
+  /* The line the beam splits in two, under the stream — its own size on every
+     frame, and not the story's. */
+  --raw-text-split: 1.5rem; /* 24px */
+  /* "07 Connect" (4209:752) — the closing screen and its footer. */
+  --raw-text-closing: 5rem; /* 80px */
+  /* The aside beside the closing heading — the one place the design sets this
+     copy to its own size rather than the story's. */
+  --raw-text-closing-aside: 1.5rem; /* 24px */
+  --raw-text-link: 1rem; /* 16px */
+  --raw-text-foot: 0.75rem; /* 12px */
+
+  --raw-leading-headline: 0.92;
+  /* The step from the hero's first line to its second. It is the leading on
+     the wide frames and tighter on two of the narrow ones, where the design
+     pulls the pair together — so it is its own reading, not the leading. */
+  --raw-leading-headline-step: 0.92;
+  --raw-leading-lead: 1.5;
+  --raw-leading-tight: 1.2;
+  --raw-leading-snug: 1.1;
+  /* The font's own, which is what the design's 24px pair is set solid at. */
+  --raw-leading-normal: normal;
+  --raw-leading-aside: 1.15;
+  /* The swash's own inline box, flattened — see `SwashText`. */
+  --raw-leading-swash: 0;
+
+  --raw-tracking-display: -0.03em;
+  --raw-tracking-lead: 0.01em;
+  --raw-tracking-label: 0.08em;
+  --raw-tracking-panel: 0.02em;
+  --raw-tracking-status: 0.06em;
+  --raw-tracking-hop: 0.1em;
+  --raw-tracking-voice: -0.020833em; /* -1px at 48 */
+  --raw-tracking-closing: -0.03em; /* -2.4px at 80 */
+  --raw-tracking-foot: 0.13333em; /* 1.6px at 12 */
+  --raw-tracking-mark: 0.016em; /* 0.192px at 12 */
+  --raw-tracking-aside: -0.041666em; /* the same -1px at 24 */
+  /* The script S is tucked under the letter before it — the design kerns both
+     sides of the pair by the same amount at every size. */
+  --raw-tracking-swash: -0.11em;
+  --raw-tracking-swash-lead: -0.01em;
+  /* Where the design leaves that rule and kerns the pair by hand: the letter
+     in front pulls the swash the same way under itself everywhere, and the
+     swash then gives back only what the letter after it asks for — a reading
+     the design takes by eye, size by size and word by word. */
+  --raw-tracking-swash-tuck: -0.1em;
+  /* The hero heading's own pair: the design re-reads it on every frame. */
+  --raw-tracking-display-tuck: -0.11em; /* -9.9px at 90 */
+  --raw-tracking-display-swash: 0.077778em; /* +7px at 90 — "firSt." */
+  --raw-tracking-closing-swash: 0.075em; /* +6px at 80 — "firSt" */
+  --raw-tracking-closing-swash-else: 0.05em; /* +4px at 80 — "elSe" */
+  --raw-tracking-voice-swash: 0.041666em; /* +2px at 48 */
+  --raw-tracking-aside-swash: 0.083333em; /* +2px at 24 */
+
+  /* The keyhole is measured against the viewport rather than the grid: it is
+     the scene's own shape, not a block of the layout, and it has to keep its
+     proportion on a frame of any height. 248.8 of the 800 the design draws. */
+  --raw-size-keyhole: 31.1vh;
+  --raw-blur-keyhole: 0.055;
+
+  --raw-blur-glass: 4px;
+  --raw-radius-panel: 0.25rem; /* 4px */
+  --raw-radius-chip: 0.125rem; /* 2px */
+  /* The bands that sit the interface off the scene, top and bottom. */
+  /* The bands are drawn to each frame: top and bottom separately, and each
+     screen's own — they are that frame's darkening, and a narrower screen
+     needs a different measure of it. Every frame at 1440 draws 259. */
+  --raw-size-scrim-hero-top: 16.1875rem; /* 259px */
+  --raw-size-scrim-hero-bottom: 16.1875rem;
+  --raw-size-scrim-veil-top: 16.1875rem;
+  --raw-size-scrim-veil-bottom: 16.1875rem;
+  --raw-size-scrim-haze-top: 16.1875rem;
+  --raw-size-scrim-haze-bottom: 16.1875rem;
+}
+
+/* ---------------------------------------------------------------------------
+   TIER 2 — SEMANTIC  (role names, no namespace prefix)
+   Purpose, not appearance. Always `var(--raw-*)` — never a literal.
+   This is the themeable layer: dark mode overrides happen HERE, which is why
+   these are separate from the @theme bindings below (see the note there).
+   Grammar: --<role>[-<variant>][-<state>]
+   --------------------------------------------------------------------------- */
+:root {
+  --background: var(--raw-color-white);
+  --foreground: var(--raw-color-neutral-900);
+
+  --duration-fast: var(--raw-duration-fast);
+  --duration-normal: var(--raw-duration-normal);
+
+  /* Scene roles. The WebGL scene reads these at construction (src/lib/scene/
+     tokens.ts), so a re-theme stays a one-line change here. They do not flip
+     with the colour scheme: the flower is lit against its own night. */
+  /* The clear colour behind the flower. It is the gradient's own ground, so
+     that the two canvases agree and nothing flashes before WebGL starts — and
+     because the scene is composited onto the gradient with `screen`, where a
+     colour this dark is very nearly neutral. */
+  --scene-backdrop: var(--raw-color-night-950);
+  --scene-foreground: var(--raw-color-white);
+  --scene-fluff: var(--raw-color-dandelion-white);
+  --scene-fluff-edge: var(--raw-color-sky-300);
+  --scene-fluff-young: var(--raw-color-gold-200);
+  --scene-seed-body: var(--raw-color-dandelion-tan);
+  --scene-seed-core: var(--raw-color-dandelion-brown);
+  --scene-stem: var(--raw-color-leaf-500);
+  --scene-glow: var(--raw-color-amber-400);
+  /* The pollen adrift around the head. It came off the amber core but it does
+     not read as embers: it is lit by the same cold sky the pappus is, so it
+     takes an ice blue of its own. This is exactly why it is a separate role. */
+  --scene-pollen: var(--raw-color-ice-100);
+  --scene-petal-light: var(--raw-color-petal-200);
+  --scene-petal-deep: var(--raw-color-petal-800);
+  --scene-bloom-stem: var(--raw-color-sage-500);
+  /* The closing iris: its outer fibres take a soft gradient from the lime the
+     interface prints in to the sky the pappus cooled to, so the last figure is
+     lit in the page's own two colours. */
+  --scene-iris-lime: var(--raw-color-lime-300);
+  --scene-iris-sky: var(--raw-color-sky-300);
+  /* Backdrop roles, read by src/lib/scene/backdrop/backdrop-gradient.ts. The
+     ramp is walked perceptually and the stops are placed against each other, so
+     these are the only place to recolour the gradient — never the shader. */
+  --scene-field-ground: var(--raw-color-night-950);
+  --scene-field-deep: var(--raw-color-night-900);
+  --scene-field-mid: var(--raw-color-night-800);
+  --scene-field-hot: var(--raw-color-azure-500);
+  --scene-field-light: var(--raw-color-azure-200);
+
+  /* Hero interface roles. The frame is lit against its own night like the scene
+     is, so these do not flip with the colour scheme either.
+     Tailwind owns --text-* / --leading-* / --tracking-* / --radius-*, so the
+     semantic tier names those --type-* / --line-* / --letter-spacing-* /
+     --corner-*. */
+  --accent: var(--raw-color-lime-300);
+  --on-accent: var(--raw-color-ink-950);
+  --surface-glass: var(--raw-color-white-a06);
+  --surface-glass-subtle: var(--raw-color-white-a05);
+  --surface-solid: var(--raw-color-white);
+  --hairline-glass: var(--raw-shadow-hairline-a10);
+  --hairline-glass-strong: var(--raw-shadow-hairline-a12);
+  /* The menu button the narrow frames put in the header's right corner. */
+  --hairline-glass-edge: var(--raw-shadow-hairline-a16);
+  --hairline-accent: var(--raw-shadow-hairline-accent);
+  --divider: var(--raw-color-white-a16);
+  --track: var(--raw-color-white-a22);
+  --track-travelled: var(--raw-color-lime-300-a85);
+  --foreground-lead: var(--raw-color-white-a88);
+  --foreground-panel: var(--raw-color-white-a90);
+  --foreground-strong: var(--raw-color-white-a92);
+  --foreground-nav: var(--raw-color-white-a80);
+  --foreground-subtle: var(--raw-color-white-a70);
+  --foreground-muted: var(--raw-color-white-a62);
+  /* The footer's own levels: a heading over its links, and the small print. */
+  --foreground-quiet: var(--raw-color-white-a40);
+  --foreground-faint: var(--raw-color-white-a38);
+  --rule: var(--raw-color-white-a12);
+  --scrim-hero-top: var(--raw-color-black-a50);
+  --scrim-hero-bottom: var(--raw-color-black-a60);
+  /* A screen's bands are as deep as the frame of the scene behind them asks
+     for: the leak stands against the brightest of them, the stem against a
+     golden field that needs barely any help. */
+  --scrim-veil-top: var(--raw-color-black-a90);
+  --scrim-veil-bottom: var(--raw-color-black-a90);
+  --preloader-field: var(--raw-color-void);
+  --keyhole-top: var(--raw-color-keyhole-top);
+  --keyhole-bottom: var(--raw-color-keyhole-bottom);
+  --keyhole-glow: var(--raw-color-keyhole-glow);
+  --seed: var(--raw-color-seed);
+
+  --scrim-haze-top: var(--raw-color-black-a30);
+  --scrim-haze-bottom: var(--raw-color-black-a30);
+
+  /* The cards that leave with the petals. They are painted into the scene's
+     own textures (src/lib/scene/dandelion/fly-cards.ts), which is why these
+     are read rather than bound into a utility. */
+  --card-surface: var(--raw-color-white-a08);
+  --card-border: var(--raw-color-white-a18);
+  --card-value: var(--raw-color-white-a96);
+  --card-label: var(--raw-color-white-a55);
+  /* The cloud of readings behind them, drawn faint and unbordered. */
+  --card-surface-ghost: var(--raw-color-white-a05b);
+  --card-value-ghost: var(--raw-color-white-a78);
+  --card-label-ghost: var(--raw-color-white-a40);
+
+  /* Shaded by how far through the copy the reader is: what has already leaked
+     fades away above, what is still to come gains its light on the way down. */
+  --copy-veil-fading: var(--raw-mask-copy-fading);
+  --copy-veil-rising: var(--raw-mask-copy-rising);
+  --accent-veil-rising: var(--raw-mask-accent-rising);
+
+  --type-display: var(--raw-text-display);
+  --type-lead: var(--raw-text-lead);
+  --type-wordmark: var(--raw-text-wordmark);
+  --type-wordmark-swash: var(--raw-text-wordmark-swash);
+  --type-label: var(--raw-text-label);
+  --type-panel: var(--raw-text-panel);
+  --type-meta: var(--raw-text-meta);
+  --type-stat: var(--raw-text-stat);
+  --type-hop: var(--raw-text-hop);
+  --type-copy-aside: var(--raw-text-copy-aside);
+  --type-copy-voice: var(--raw-text-copy-voice);
+  --type-closing-aside: var(--raw-text-closing-aside);
+  --type-split: var(--raw-text-split);
+  --type-stream: var(--raw-text-stream);
+  --type-closing: var(--raw-text-closing);
+  --type-link: var(--raw-text-link);
+  --type-foot: var(--raw-text-foot);
+
+  --line-headline: var(--raw-leading-headline);
+  --line-lead: var(--raw-leading-lead);
+  --line-tight: var(--raw-leading-tight);
+  --line-nav: var(--raw-leading-snug);
+  --line-stream: var(--raw-leading-snug);
+  --line-note: var(--raw-leading-normal);
+  --line-aside: var(--raw-leading-aside);
+  --line-swash: var(--raw-leading-swash);
+  --line-headline-step: var(--raw-leading-headline-step);
+
+  --letter-spacing-display: var(--raw-tracking-display);
+  --letter-spacing-lead: var(--raw-tracking-lead);
+  --letter-spacing-label: var(--raw-tracking-label);
+  --letter-spacing-panel: var(--raw-tracking-panel);
+  --letter-spacing-status: var(--raw-tracking-status);
+  --letter-spacing-hop: var(--raw-tracking-hop);
+  --letter-spacing-voice: var(--raw-tracking-voice);
+  --letter-spacing-closing: var(--raw-tracking-closing);
+  --letter-spacing-foot: var(--raw-tracking-foot);
+  --letter-spacing-mark: var(--raw-tracking-mark);
+  --letter-spacing-aside: var(--raw-tracking-aside);
+  --letter-spacing-swash: var(--raw-tracking-swash);
+  --letter-spacing-swash-lead: var(--raw-tracking-swash-lead);
+  --letter-spacing-swash-tuck: var(--raw-tracking-swash-tuck);
+  --letter-spacing-display-tuck: var(--raw-tracking-display-tuck);
+  --letter-spacing-display-swash: var(--raw-tracking-display-swash);
+  --letter-spacing-closing-swash: var(--raw-tracking-closing-swash);
+  --letter-spacing-closing-swash-else: var(--raw-tracking-closing-swash-else);
+  --letter-spacing-voice-swash: var(--raw-tracking-voice-swash);
+  --letter-spacing-aside-swash: var(--raw-tracking-aside-swash);
+
+  --glass-blur: var(--raw-blur-glass);
+  /* Never wider than the frame it stands in. */
+  --keyhole-size: min(var(--raw-size-keyhole), 62vw);
+  --corner-panel: var(--raw-radius-panel);
+  --corner-chip: var(--raw-radius-chip);
+  --scrim-height-hero-top: var(--raw-size-scrim-hero-top);
+  --scrim-height-hero-bottom: var(--raw-size-scrim-hero-bottom);
+  --scrim-height-veil-top: var(--raw-size-scrim-veil-top);
+  --scrim-height-veil-bottom: var(--raw-size-scrim-veil-bottom);
+  --scrim-height-haze-top: var(--raw-size-scrim-haze-top);
+  --scrim-height-haze-bottom: var(--raw-size-scrim-haze-bottom);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--raw-color-neutral-950);
+    --foreground: var(--raw-color-neutral-100);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THE NARROW FRAMES — 1024 (4382:985 …), 768 (4382:1044 …), 390 (4382:1106 …).
+
+   Everything that is only a measure scales with the grid, so the frames differ
+   here in what the design actually re-drew: type sizes it re-set, and the
+   readings it took again by eye. Each range restates only what the one above
+   it got wrong, and each value is read against its own frame's base — 16px is
+   1rem at 1024, at 768 and at 390 exactly as it is at 1440. Layout that moves
+   rather than scales is a `max-laptop:` / `max-tablet:` / `max-phone:` variant
+   in the markup, where the block it belongs to can be read whole.
+   --------------------------------------------------------------------------- */
+@media (max-width: 1214px) {
+  :root {
+    --raw-text-display: 4.375rem; /* 70px */
+    --raw-text-panel: 0.75rem; /* 12px */
+    --raw-text-meta: 0.6875rem; /* 11px */
+    --raw-text-stat: 0.625rem; /* 10px */
+    --raw-leading-headline-step: 0.857142; /* 60 of the 70 */
+    --raw-tracking-display-tuck: -0.141428em; /* -9.9px at 70 */
+    --raw-tracking-display-swash: -0.141428em; /* the pair kerned both sides */
+
+    --raw-text-copy-voice: 2.5rem; /* 40px */
+    --raw-text-stream: 1.75rem; /* 28px */
+    --raw-text-split: 1.125rem; /* 18px */
+    --raw-text-closing: 4.375rem; /* 70px */
+    --raw-text-closing-aside: 1.0625rem; /* 17px — and down */
+
+    --raw-size-scrim-hero-top: 14.875rem; /* 238px */
+    --raw-size-scrim-hero-bottom: 14.875rem;
+    --raw-size-scrim-veil-top: 14.875rem;
+    --raw-size-scrim-veil-bottom: 14.875rem;
+    --raw-size-scrim-haze-top: 14.1640625rem; /* 226.625px */
+    --raw-size-scrim-haze-bottom: 14.1640625rem;
+    --scrim-hero-bottom: var(--raw-color-black-a40);
+    --scrim-veil-top: var(--raw-color-black-a60);
+    --scrim-veil-bottom: var(--raw-color-black-a60);
+  }
+}
+
+@media (max-width: 887px) {
+  :root {
+    --raw-text-display: 5.85325rem; /* 93.652px */
+    --raw-leading-headline-step: 0.92;
+    --raw-tracking-display-tuck: -0.185419em; /* -17.3652px at 93.652 */
+    --raw-tracking-display-swash: 0.053389em; /* +5px */
+
+    --raw-text-copy-voice: 2.875rem; /* 46px */
+    --raw-text-stream: 2.25rem; /* 36px */
+    --raw-text-split: 1.25rem; /* 20px */
+    --raw-text-closing: 5rem; /* 80px */
+
+    --raw-size-scrim-hero-top: 25rem; /* 400px */
+    --raw-size-scrim-hero-bottom: 19.125rem; /* 306px */
+    --raw-size-scrim-veil-top: 18.2109375rem; /* 291.375px */
+    --raw-size-scrim-veil-bottom: 18.2109375rem;
+    --raw-size-scrim-haze-top: 18.2109375rem;
+    --raw-size-scrim-haze-bottom: 10.6875rem; /* 171px */
+    --scrim-hero-top: var(--raw-color-black-a35);
+    --scrim-veil-top: var(--raw-color-black-a80);
+    --scrim-veil-bottom: var(--raw-color-black-a80);
+  }
+}
+
+/* Sideways, or a short window. The keyhole is measured against the height, so
+   it shrinks on its own — but the copy above it and the bar below it are not,
+   and on 390 of height the three would meet. It gives up a third. */
+@media (max-height: 640px) {
+  :root {
+    --raw-size-keyhole: 21vh;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --raw-text-display: 3.133938rem; /* 50.143px */
+    --raw-text-panel: 0.8125rem; /* 13px */
+    --raw-text-meta: 0.75rem; /* 12px */
+    --raw-text-stat: 0.6875rem; /* 11px */
+    --raw-leading-headline-step: 0.855147; /* 42.88 of the 50.143 */
+    --raw-tracking-display-tuck: -0.179484em; /* -9px at 50.143 */
+    --raw-tracking-display-swash: 0.039886em; /* +2px */
+
+    --raw-text-copy-aside: 1.25rem; /* 20px */
+    --raw-text-copy-voice: 2rem; /* 32px */
+    --raw-text-stream: 1.5625rem; /* 25px */
+    --raw-text-split: 1.125rem; /* 18px */
+    --raw-text-closing: 3.125rem; /* 50px */
+
+    --raw-size-scrim-hero-top: 39.375rem; /* 630px */
+    --raw-size-scrim-hero-bottom: 15.375rem; /* 246px */
+    --raw-size-scrim-veil-top: 18.9375rem; /* 303px */
+    --raw-size-scrim-veil-bottom: 18.9375rem;
+    --raw-size-scrim-haze-top: 17.0778125rem; /* 273.245px */
+    --raw-size-scrim-haze-bottom: 10.75rem; /* 172px */
+    --scrim-hero-top: var(--raw-color-black-a40);
+    --scrim-hero-bottom: var(--raw-color-black-a30);
+    --scrim-veil-top: var(--raw-color-black-a75);
+    --scrim-veil-bottom: var(--raw-color-black-a75);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   THEME BINDINGS — map semantic tokens into Tailwind namespaces.
+   Every entry is exactly `--<tw-namespace>-<role>: var(--<role>)`.
+   `inline` is required: it inlines the var() into each utility, so the
+   dark-mode overrides on the Tier 2 tokens above cascade. Binding a literal
+   here instead would freeze the value and break theming.
+
+   Only these namespaces generate utilities (verified against tailwindcss
+   v4.3.3): --color-* --spacing-* --radius-* --leading-* --tracking-* --text-*
+   --font-* --ease-* --breakpoint-* --container-* --shadow-* --blur-* --animate-*
+   NOTE: there is NO --duration-* namespace in v4 — `duration-fast` compiles to
+   nothing. Durations stay Tier 2 only and are used as duration-[var(--duration-fast)].
+   --------------------------------------------------------------------------- */
+@theme inline {
+  /* Where the layout hands over from one drawn frame to the next. Tailwind's
+     default breakpoints are in rem, which a media query resolves against the
+     browser's initial 16px rather than our `vw` root — workable, but these are
+     named for the frames they switch to and read as such in the markup.
+
+     They are not the frames' own widths but the handovers between them, one
+     past each — `max-laptop:` is "1214 and under", which is where the 1024
+     layout starts. They must stay in step with the root-size ranges in the
+     grid rule below; the two together are one decision. */
+  --breakpoint-laptop: 1215px;
+  --breakpoint-tablet: 888px;
+  --breakpoint-phone: 601px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-scene-backdrop: var(--scene-backdrop);
+  --color-scene-foreground: var(--scene-foreground);
+  --color-scene-fluff: var(--scene-fluff);
+  --color-scene-seed-body: var(--scene-seed-body);
+  --color-scene-stem: var(--scene-stem);
+  --font-sans: var(--font-onest);
+  /* The frame is set in Chakra Petch; every S is a My Soul swash (SwashText). */
+  --font-display: var(--font-chakra-petch);
+  --font-script: var(--font-my-soul);
+
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-glass-subtle: var(--surface-glass-subtle);
+  --color-surface-solid: var(--surface-solid);
+  --color-divider: var(--divider);
+  --color-track: var(--track);
+  --color-track-travelled: var(--track-travelled);
+  --color-foreground-lead: var(--foreground-lead);
+  --color-foreground-panel: var(--foreground-panel);
+  --color-foreground-strong: var(--foreground-strong);
+  --color-foreground-nav: var(--foreground-nav);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-quiet: var(--foreground-quiet);
+  --color-foreground-faint: var(--foreground-faint);
+  --color-rule: var(--rule);
+  --color-preloader-field: var(--preloader-field);
+  --color-keyhole-top: var(--keyhole-top);
+  --color-keyhole-bottom: var(--keyhole-bottom);
+  --color-keyhole-glow: var(--keyhole-glow);
+  --color-seed: var(--seed);
+
+  --color-scrim-hero-top: var(--scrim-hero-top);
+  --color-scrim-hero-bottom: var(--scrim-hero-bottom);
+  --color-scrim-veil-top: var(--scrim-veil-top);
+  --color-scrim-veil-bottom: var(--scrim-veil-bottom);
+  --color-scrim-haze-top: var(--scrim-haze-top);
+  --color-scrim-haze-bottom: var(--scrim-haze-bottom);
+
+  --shadow-glass: var(--hairline-glass);
+  --shadow-glass-strong: var(--hairline-glass-strong);
+  --shadow-glass-edge: var(--hairline-glass-edge);
+  --shadow-accent-edge: var(--hairline-accent);
+  --blur-glass: var(--glass-blur);
+  --radius-panel: var(--corner-panel);
+  --radius-chip: var(--corner-chip);
+  --spacing-scrim-hero-top: var(--scrim-height-hero-top);
+  --spacing-scrim-hero-bottom: var(--scrim-height-hero-bottom);
+  --spacing-scrim-veil-top: var(--scrim-height-veil-top);
+  --spacing-scrim-veil-bottom: var(--scrim-height-veil-bottom);
+  --spacing-scrim-haze-top: var(--scrim-height-haze-top);
+  --spacing-scrim-haze-bottom: var(--scrim-height-haze-bottom);
+
+  --text-display: var(--type-display);
+  --text-lead: var(--type-lead);
+  --text-wordmark: var(--type-wordmark);
+  --text-wordmark-swash: var(--type-wordmark-swash);
+  --text-label: var(--type-label);
+  --text-panel: var(--type-panel);
+  --text-meta: var(--type-meta);
+  --text-stat: var(--type-stat);
+  --text-hop: var(--type-hop);
+  --text-copy-aside: var(--type-copy-aside);
+  --text-copy-voice: var(--type-copy-voice);
+  --text-closing-aside: var(--type-closing-aside);
+  --text-split: var(--type-split);
+  --text-stream: var(--type-stream);
+  --text-closing: var(--type-closing);
+  --text-link: var(--type-link);
+  --text-foot: var(--type-foot);
+
+  --leading-headline: var(--line-headline);
+  --leading-lead: var(--line-lead);
+  --leading-tight: var(--line-tight);
+  --leading-nav: var(--line-nav);
+  --leading-stream: var(--line-stream);
+  --leading-note: var(--line-note);
+  --leading-aside: var(--line-aside);
+  --leading-swash: var(--line-swash);
+  --leading-headline-step: var(--line-headline-step);
+
+  --tracking-display: var(--letter-spacing-display);
+  --tracking-lead: var(--letter-spacing-lead);
+  --tracking-label: var(--letter-spacing-label);
+  --tracking-panel: var(--letter-spacing-panel);
+  --tracking-status: var(--letter-spacing-status);
+  --tracking-hop: var(--letter-spacing-hop);
+  --tracking-voice: var(--letter-spacing-voice);
+  --tracking-closing: var(--letter-spacing-closing);
+  --tracking-foot: var(--letter-spacing-foot);
+  --tracking-mark: var(--letter-spacing-mark);
+  --tracking-aside: var(--letter-spacing-aside);
+  --tracking-swash: var(--letter-spacing-swash);
+  --tracking-swash-lead: var(--letter-spacing-swash-lead);
+  --tracking-swash-tuck: var(--letter-spacing-swash-tuck);
+  --tracking-display-tuck: var(--letter-spacing-display-tuck);
+  --tracking-display-swash: var(--letter-spacing-display-swash);
+  --tracking-closing-swash: var(--letter-spacing-closing-swash);
+  --tracking-closing-swash-else: var(--letter-spacing-closing-swash-else);
+  --tracking-voice-swash: var(--letter-spacing-voice-swash);
+  --tracking-aside-swash: var(--letter-spacing-aside-swash);
+
+  /* Leading floor for clipped TextEngine reveals — see
+     obsidian/frontend/text-engine.md → "Alignment & line-height". */
+  --leading-display: 1.1;
+
+  --ease-entrance: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* The starter shipped this as a centring flexbox with a fixed 100vh height,
+   which only suited the empty home view: a flex container with
+   `align-items: center` shrink-wraps its children, so full-bleed sections never
+   reached the viewport width. Page layout is the sections' business. */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  width: 100%;
+  min-height: 100lvh;
+}
+
+@layer base {
+  /* Adaptive scaling grid — scales the root font-size with the viewport so a
+     rem-based layout stays proportional. Each breakpoint divides FONT_BASE
+     (16px) by the design base width its range was laid out at:
+       font-size: 16 * 100 / baseWidth  (vw)
+     Keep in sync with src/components/common/grid/grid.config.ts.
+
+     The design is drawn at 1440 and there is no wider frame, so 1440 is also
+     the base **above** it: the whole composition grows with the viewport and
+     every margin keeps its share of the width — a 1360 row is 94.4 % of the
+     screen at 2560 exactly as it is at 1440. The starter divided this range by
+     1920 instead, which shrank a 1440 design into the middle of a wide screen
+     and pushed the header's 40 out to 280. No `px` fallback either: a fixed
+     root size is only right for a viewport the design was drawn at. */
+  html {
+    font-size: 1.111111vw; /* 16 * 100 / 1440 */
+  }
+
+  /* Where one frame hands over to the next is the **geometric** middle of the
+     two, not the width of either: a range is only ever asked to stretch or
+     shrink by the same ratio from both ends, and no viewport is left carrying
+     a layout at half its size. 1440↔1024 meet at 1214, 1024↔768 at 887, and
+     768↔390 — the widest gap the design leaves — at 600, biased toward the
+     phone because a phone layout grown by half still reads as a phone, while
+     a tablet layout shrunk by a quarter reads as a mistake.
+
+     Each of the four drawn widths therefore falls squarely inside its own
+     range and is rendered at exactly 16px: 1440 above 1214, 1024 between 888
+     and 1214, 768 between 601 and 887, 390 below 601. Nothing here changes
+     what any of them looks like.
+
+     The layout variants in the markup switch on the same widths — see the
+     `--breakpoint-*` block — because a 1440 layout under a 1024 root would be
+     a composition 1.4 times wider than the screen it is standing on. */
+  @media (max-width: 1214px) {
+    html {
+      font-size: 1.5625vw; /* 16 * 100 / 1024 */
+    }
+  }
+
+  @media (max-width: 887px) {
+    html {
+      font-size: 2.083333vw; /* 16 * 100 / 768 */
+    }
+  }
+
+  @media (max-width: 600px) {
+    html {
+      font-size: 4.102564vw; /* 16 * 100 / 390 */
+    }
+  }
+}
+
+@layer utilities {
+}
+
+@layer components {
+}
+
+/* The one hover every link on the page shares: the lime runs through the
+   letters themselves, left to right, rather than under them.
+
+   Registered as a **utility**, not a component: a component sits in a lower
+   layer than `text-*`, so any colour utility on the same element beat its
+   `color: transparent` — the fill then had nothing to show through, and where
+   no colour utility was set the word vanished instead. As a utility it wins,
+   and the resting colour comes from `--ink-from` rather than from a class,
+   since `currentColor` is transparent once the clip is on.
+
+   Written out rather than assembled from arbitrary values because the
+   `background` shorthand resets `background-clip`. */
+@utility ink-fill {
+  --ink-from: currentColor;
+  background-image: linear-gradient(
+    90deg,
+    var(--color-accent) 50%,
+    var(--ink-from) 50%
+  );
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: background-position var(--duration-normal) var(--ease-entrance);
+
+  &:hover {
+    background-position: 0 0;
+  }
+
+  .group:hover & {
+    background-position: 0 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 1ms;
+  }
+}
+
+/**
+ * The call to action's plate — the same lime, running over the box rather than
+ * through the letters.
+ *
+ * The button is the page's own sentence as an object: a plate, and a square
+ * that collects a packet and sends it. Under the pointer the lime crosses the
+ * plate from the left and arrives at the square, which is the path being
+ * travelled — the same reading as the lit stretch of the relay panel's track.
+ * The label is set in the colour the accent is meant to carry, so it is legible
+ * at both ends of the sweep and nothing about it has to change on the way.
+ */
+@utility plate-fill {
+  --plate-from: var(--color-surface-solid);
+  background-image: linear-gradient(
+    90deg,
+    var(--color-accent) 50%,
+    var(--plate-from) 50%
+  );
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  transition: background-position var(--duration-normal) var(--ease-entrance);
+
+  &:hover {
+    background-position: 0 0;
+  }
+
+  .group:hover &,
+  .group:focus-visible & {
+    background-position: 0 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 1ms;
+  }
+}
+
+/* The consent banner is server-rendered (it paints with the page). Hidden before
+   paint for a visitor who already chose (`consent-flag.ts`) and on the robot
+   form, which has no visitor to ask (D-016). */
+html:has(meta[name="x-robot-view"]) .robot-hidden-unused {
+  display: none;
+}
+
+/* ── 연결 시안 추가(ECHO) ─────────────────────────────────────────── */
+:root {
+  /* Flora 원본 글꼴(라틴) + 한글 Pretendard(실제 굵기). next/font 가 주던 변수를 여기서 정한다. */
+  --font-onest: "Onest", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --font-chakra-petch: "Chakra Petch", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --font-my-soul: "My Soul", cursive;
+}
+html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
+body { word-break: keep-all; overflow-wrap: break-word; }
+@view-transition { navigation: auto; }
+
+@theme inline {
+  /* 한글 도입 설명·패널 글(원본 lead 는 라틴 대문자용 크기라 한글에 맞춘 단계를 둔다). 휴대폰 본문 16px 이상. */
+  --text-lead-ko: clamp(16px, 1.25rem, 22px);
+  --leading-lead-ko: 1.6;
+  --text-operator: clamp(12px, 0.8125rem, 14px);
+  --text-panel-title: clamp(15px, 1rem, 18px);
+  --text-panel-link: clamp(15px, 1rem, 18px);
+  --text-panel-note: clamp(13px, 0.875rem, 16px);
+}
+
+/* 한글 제목 폭 보정(원본 크기는 라틴 대문자 기준이라 한글 10자 제목이 768·390 프레임에서 화면 밖으로 나갔다).
+   작은 글은 13px 아래로 내려가지 않게(대표 지시 §6 · 바닥글·로딩 표기). */
+:root { --raw-text-foot: 0.8125rem; --raw-text-meta: 0.8125rem; }
+@media (max-width: 887px) { :root { --raw-text-display: 3.75rem; } }
+@media (max-width: 600px) { :root { --raw-text-display: 2.3rem; --raw-text-closing: 2.75rem; } }
+
+/* ── 대표 「디자인 최종 수정 지시」(2026-10-09) ────────────────────────────
+   §2 제목은 흰색. 라임(--accent)은 버튼·화살표·작은 강조에 그대로 두고, 제목 색만 따로 뗀다
+      — --accent 를 바꾸면 버튼 판·입자·키홀까지 함께 바뀐다.
+   §3 서브 문구: 주요 설명 #F2F4F8 · 작은 보조 #DCE3ED · 읽는 상태의 반투명 제거. */
+:root {
+  --title: #ffffff;
+  --foreground-desc: #f2f4f8;
+  --foreground-note: #dce3ed;
+  /* 원본의 흰색 반투명 단계(0.88·0.80·0.40·0.38)는 글자에 쓰이던 것만 불투명 색으로 바꾼다. */
+  --foreground-lead: var(--foreground-desc);
+  --foreground-nav: var(--foreground-note);
+  --foreground-quiet: var(--foreground-note);
+  --foreground-faint: var(--foreground-note);
+  /* 설명 단(왼쪽 위)은 아래로 갈수록 0.6 까지 옅어지던 막을 없앤다. 대기 중인 큰 문장(오른쪽 아래)의
+     "다가오는" 느낌은 남기되, 위쪽 0.6 → 0.9 로 올려 제목이 묻히지 않게 한다. */
+  --copy-veil-fading: linear-gradient(to bottom, #000, #000);
+  --copy-veil-rising: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), #000);
+  /* 꽃 장면 갈라진 문장(나와 맞는 가능성을 / 살펴보세요.)은 위쪽 0.62 막 → 0.9 */
+  --accent-veil-rising: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), #000);
+}
+@theme inline {
+  --color-title: var(--title);
+  --color-foreground-desc: var(--foreground-desc);
+  --color-foreground-note: var(--foreground-note);
+  /* 읽는 설명(한글) 행간 1.5–1.65 · 휴대폰 16px 이상 */
+  --leading-desc-ko: 1.55;
+  --text-desc-ko: clamp(16px, 1.25rem, 22px);
+}

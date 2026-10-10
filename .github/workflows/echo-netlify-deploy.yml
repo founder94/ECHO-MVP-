@@ -106,6 +106,14 @@ jobs:
           env $common VITE_SITE_ROLE=admin npx vite build --outDir ../dist/admin --emptyOutDir
           # 브랜드는 앱 설치 대상이 아니다(쓰지 않는 설치 파일 빼기)
           grep -q 'manifest.webmanifest\|/pwa/' ../dist/brand/index.html || rm -rf ../dist/brand/manifest.webmanifest ../dist/brand/pwa
+          # 2026-10-10 대표 홈페이지 완성 LOCK(docs/HOMEPAGE_WEB_FINAL_LOCK_2026-10-10.md): 시험 사이트(QA brand)의 / 를 그 홈페이지로.
+          # 약관·개인정보·제품 경로→앱 규칙은 기존 brand 빌드 그대로(spa.html). 운영 brand 는 대표 승인 전까지 기존 그대로.
+          if [ "$T" = qa ]; then
+            (cd ../prototypes/doit-echo-link && npm ci --no-audit --no-fund && npx tsc -b --noEmit \
+              && VITE_ECHO_APP_URL="$APP_O" npx vite build --outDir ../../dist/brand-home --emptyOutDir)
+            node scripts/merge-brand-home.mjs ../dist/brand ../dist/brand-home
+            rm -rf ../dist/brand-home
+          fi
       - name: 빌드 검사(역할 분리 · 운영/QA 주소 혼입 0 · 소스맵 0)
         run: |
           set -euo pipefail
@@ -118,6 +126,7 @@ jobs:
             if [ "$T" = qa ]; then [ "$(c zyyhhxyupizcqhxqnxuu dist/$r)" = 0 ] || { echo "FAIL $r QA 빌드에 운영 Supabase"; fail=1; }
             else [ "$(c mutniujeiyujhkobadkd dist/$r)" = 0 ] && [ "$(c netlify.app dist/$r)" = 0 ] || { echo "FAIL $r 운영 빌드에 QA 주소"; fail=1; }; fi
           done
+          if [ "$T" = qa ]; then [ -f dist/brand/spa.html ] && [ -f dist/brand/how/index.html ] && [ -f dist/brand/echo/index.html ] && grep -q 'spa.html' dist/brand/_redirects && grep -q "worker-src 'self' blob:" dist/brand/_headers || { echo "FAIL QA 브랜드 홈페이지 얹기"; fail=1; }; fi
           [ "$(c doit-connect dist/brand)" = 0 ] && [ "$(c DoitApp dist/brand)" = 0 ] && [ "$(c admin-web dist/brand)" = 0 ] || { echo "FAIL 브랜드에 앱·관리자 코드"; fail=1; }
           [ "$(c admin-web dist/app)" = 0 ] || { echo "FAIL 앱에 관리자 코드"; fail=1; }
           [ "$(c DoitApp dist/admin)" = 0 ] && grep -q noindex dist/admin/index.html || { echo "FAIL 관리자 분리/검색 제외"; fail=1; }

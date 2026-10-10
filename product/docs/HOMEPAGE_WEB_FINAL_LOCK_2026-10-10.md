@@ -21,3 +21,10 @@
 ## 3. 참고 — 시험 사이트(QA brand)
 - 지금 시험 사이트(brand)에 게시된 홈페이지는 이전 Vesper 기반(`product/src/vesper`)이다. 이 LOCK 의 기준은 대표가 검토한 위 미리보기(Clarix)다.
 - 시험 사이트를 이 기준으로 바꾸는 일은 별도 단계(대표 확인 뒤)로 진행한다. 운영 배포는 대표 승인 대상.
+
+## 4. 시험 사이트(QA brand) 연결 — 2026-10-10 (대표 「우리 홈페이지 모바일은 배포 가능한 상태야?」 뒤)
+- `echo-netlify-deploy.yml` 의 QA brand 빌드에서만: 기존 brand 빌드 → 이 홈페이지(`prototypes/doit-echo-link`, `VITE_ECHO_APP_URL` = QA 앱 주소) 빌드 → `product/scripts/merge-brand-home.mjs` 로 얹기.
+- 결과: `/` · `/how/` · `/echo/` · `/echo/story/` · `/echo/connected/` = 이 홈페이지(디자인·문구 변경 0) · `/legal/terms` · `/legal/privacy` · `/do-it/intro` · 없는 주소 = 기존 brand 화면(`spa.html`) · 제품 경로 → 앱 주소 302 그대로 · 예전 홈 주소(`/do-it/landing` · `/do-it/hero`) → `/`.
+- 운영(do-it.company) brand 빌드는 바꾸지 않았다 — 운영 전환은 대표 승인 뒤 같은 단계를 운영에도 켠다(워크플로 한 줄).
+- 고친 결함 1건: 앱 주소 기본값이 `?.replace() || 기본값` 형태라 빌드 값을 줘도 QA 주소가 묶음에 남음 → 삼항으로(운영 빌드 「QA 주소 혼입 0」 검사 통과 형태).
+- 로컬 확인(PC 크롬 흉내 · 실기기 아님): 390(iPhone UA)·360(삼성 인터넷 UA)·1440 — 6개 주소 모두 열림 · 가로 넘침 0 · 페이지 오류 0 · 400번대 응답 0 · ECHO 쪽 「시작」 링크 = QA 앱.
