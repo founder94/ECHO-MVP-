@@ -114,7 +114,7 @@ export const StarFall = ({ intensity }: StarFallProps) => {
 
     // Codex 10차(39ca6cf): 움직임 줄이기·이용 안내 열림이면 한 장만 그리고 멈춤(WebGL 루프와 같은 규칙).
     let stillDrawn = false;
-    return subscribeToTicker(() => {
+    const unsubscribe = subscribeToTicker(() => {
       const now = performance.now();
       const delta = Math.min((now - last) / 1000, 0.05);
       last = now;
@@ -176,6 +176,11 @@ export const StarFall = ({ intensity }: StarFallProps) => {
 
       ctx.globalCompositeOperation = "source-over";
     }, () => 0);
+    // 2026-10-10 Codex P2(4236779305): 떠날 때 resize 듣기도 같이 지운다(다시 올 때마다 쌓이지 않게).
+    return () => {
+      unsubscribe();
+      window.removeEventListener("resize", resize);
+    };
   }, [intensity]);
 
   useEffect(() => {

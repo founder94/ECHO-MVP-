@@ -33,3 +33,9 @@ test('Codex HOME-W01: 워커를 만든 뒤 첫 init 전송이 실패해도 그 �
   assert.match(s, /worker = created = new Worker\(/);
   assert.match(s, /\} catch \{\s*created\?\.terminate\(\);\s*setFallback\(true\);/);
 });
+
+test('Codex P2 4236779305: 로더 별 떨어짐은 떠날 때 resize 듣기를 지운다', () => {
+  const s = read('src/vesper/views/home/loader/star-fall.tsx');
+  assert.match(s, /window\.addEventListener\("resize", resize/);
+  assert.match(s, /return \(\) => \{\s*unsubscribe\(\);\s*window\.removeEventListener\("resize", resize\);\s*\};\s*\}, \[intensity\]\);/);
+});
