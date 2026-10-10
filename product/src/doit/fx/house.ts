@@ -300,7 +300,9 @@ export function createHouse(
   }
 
   /* RESIZE — [통합] 효과 영역 크기 */
+  let sidePassesDirty = true; // TORUS·BLOOM 합성기를 다시 그려야 하는지(아래 draw)
   const resize = () => {
+    sidePassesDirty = true;
     const { w, h } = size();
     renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
@@ -336,9 +338,18 @@ export function createHouse(
     updatePointer();
     impl.update(pCurrent, now, dt, still);
   };
+  // [통합] 원본 4개도 TORUS·BLOOM 층에 올린 물체가 없다(카메라만 켬) → 두 합성기 결과는 늘 같은 검은 배경 한 장.
+  // 같은 그림을 매 프레임 다시 그리지 않는다: 처음 · 크기 바뀜 · 그 층에 물체가 생겼을 때만(화면 결과 같음 · 휴대폰 GPU 절약 · Codex #159 P2).
+  // (sidePassesDirty 는 resize 위에서 선언 — 크기가 바뀌면 다시 그림)
+  const layerInUse = (layer: number) => {
+    let used = false;
+    scene.traverse((o) => { if (!used && o !== camera && o.layers.isEnabled(layer)) used = true; });
+    return used;
+  };
   const draw = () => {
-    camera.layers.set(LAYERS.TORUS_SCENE); torusComposer.render();
-    camera.layers.set(LAYERS.BLOOM_SCENE); bloomComposer.render();
+    if (sidePassesDirty || layerInUse(LAYERS.TORUS_SCENE)) { camera.layers.set(LAYERS.TORUS_SCENE); torusComposer.render(); }
+    if (sidePassesDirty || layerInUse(LAYERS.BLOOM_SCENE)) { camera.layers.set(LAYERS.BLOOM_SCENE); bloomComposer.render(); }
+    sidePassesDirty = false;
     camera.layers.set(LAYERS.ENTIRE_SCENE); finalComposer.render();
   };
 

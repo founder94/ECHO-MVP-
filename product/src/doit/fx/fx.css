@@ -13,5 +13,6 @@
 @keyframes doit-fx-hook-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 /* 기다림 묶음: 그림 칸 + 심볼·상태 글 + 한 줄 안내 */
 .doit-fx-wait{display:grid;gap:10px;margin:20px 0}
+.doit-fx-wait:empty{display:none} /* 짧은 기다림(그림·안내 아직 안 뜸) = 빈 자리·여백 0 */
 .doit-fx-wait .echo-thinking{margin:0;justify-content:center}
 @media (prefers-reduced-motion:reduce){.doit-fx-canvas,.doit-fx--glass .doit-fx-canvas{transition:none}.doit-fx-hook{animation:none}}

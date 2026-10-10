@@ -277,7 +277,7 @@ export function FreeResult({
           {mode === "taro" && tarotLoading && (
             <div className="doit-fx-wait">
               <FxStage fx="glass" delayMs={300} />
-              <WaitHook lines={TAROT_HOOKS} />
+              <WaitHook lines={TAROT_HOOKS} delayMs={300} />
             </div>
           )}
 

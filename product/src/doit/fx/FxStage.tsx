@@ -76,14 +76,22 @@ export default function FxStage({ fx, delayMs = 0, className = "" }: { fx: FxKin
 }
 
 /** 기다리는 동안 한 줄씩 바뀌는 안내(후킹). 사실인 말만 — 정해진 문장 목록(서버 대화 질문과 무관한 화면 안내). 읽어 주기는 첫 줄만(바뀔 때마다 읽지 않음). */
-export function WaitHook({ lines, everyMs = 3200 }: { lines: readonly string[]; everyMs?: number }) {
+// delayMs: 옆 그림 칸(FxStage)과 같은 시간 — 짧게 끝나는 기다림이면 안내 글도 안 띄운다(번쩍임 0 · Codex #159 P2).
+export function WaitHook({ lines, everyMs = 3200, delayMs = 0 }: { lines: readonly string[]; everyMs?: number; delayMs?: number }) {
   const [i, setI] = useState(0);
+  const [armed, setArmed] = useState(delayMs <= 0);
   useEffect(() => {
-    if (lines.length < 2) return;
+    if (armed) return;
+    const t = window.setTimeout(() => setArmed(true), delayMs);
+    return () => window.clearTimeout(t);
+  }, [armed, delayMs]);
+  useEffect(() => {
+    if (!armed || lines.length < 2) return;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) return;
     const t = window.setInterval(() => setI((n) => (n + 1) % lines.length), everyMs);
     return () => window.clearInterval(t);
-  }, [lines, everyMs]);
+  }, [armed, lines, everyMs]);
+  if (!armed) return null;
   return <p className="doit-fx-hook" aria-hidden={i > 0 ? "true" : undefined} key={i}>{lines[i]}</p>;
 }

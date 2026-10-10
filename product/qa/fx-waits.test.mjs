@@ -70,6 +70,15 @@ test('가벼움·움직임 줄이기·실패 대체', () => {
   assert.match(planet, /failed: \(\) => loadFailed,/);
   assert.match(house, /if \(!impl\.failed\?\.\(\)\) return false;\s*halted = true;\s*running = false;\s*cancelAnimationFrame\(raf\);\s*opts\.onFail\?\.\(\);/);
   assert.match(stage, /m\.createPlanet\(c, h, \{ play, onReady, onFail \}\)/);
+  // Codex #159 P2(4차) ④: 안내 글도 그림 칸과 같은 시간 뒤에(짧은 기다림 = 글·여백 0)
+  assert.match(stage, /if \(!armed\) return null;\s*return <p className="doit-fx-hook"/);
+  assert.match(read('src/doit/app/plan-a/screens/FreeResult.tsx'), /<FxStage fx="glass" delayMs=\{300\} \/>\s*<WaitHook lines=\{TAROT_HOOKS\} delayMs=\{300\} \/>/);
+  assert.match(read('src/doit/components/feature/CoreConversation.tsx'), /<WaitHook lines=\{DNA_HOOKS\} delayMs=\{700\} \/>/);
+  assert.equal((read('src/doit/components/feature/AgentConversation.tsx').match(/<WaitHook lines=\{DNA_HOOKS\} delayMs=\{500\} \/>/g) || []).length, 2);
+  assert.match(read('src/doit/fx/fx.css'), /\.doit-fx-wait:empty\{display:none\}/);
+  // ⑤ 원본도 비어 있는 TORUS·BLOOM 합성기는 처음·크기 바뀜·그 층에 물체가 생길 때만 다시 그림(결과 같음 · GPU 절약)
+  assert.match(house, /if \(sidePassesDirty \|\| layerInUse\(LAYERS\.TORUS_SCENE\)\) \{ camera\.layers\.set\(LAYERS\.TORUS_SCENE\); torusComposer\.render\(\); \}/);
+  assert.match(house, /const resize = \(\) => \{\s*sidePassesDirty = true;/);
   // 상자 크기 고정(글자가 효과 위에 얹히지 않음 · 가로 넘침 0)
   const css = read('src/doit/fx/fx.css');
   assert.match(css, /\.doit-fx\{position:relative;width:100%;height:220px;/);
