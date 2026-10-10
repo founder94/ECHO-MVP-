@@ -98,3 +98,23 @@ test('화면·정책: 예시 명식·「준비 중」 문구 0 · 저장/전송 
   const engine = read('src/doit/lib/saju/engine.ts').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(engine, /openai|fetch|supabase|import /, '엔진은 외부 호출·의존성 0');
 });
+
+// 2026-10-10 대표가 보낸 만세력 예시(1994-10-10 · 일주 己巳)의 값과 같은지 — 지장간 · 12운성 · 연운 10해 · 월운 12달.
+test('대표 예시(1994-10-10 己巳일주): 지장간 · 12운성 · 연운 · 월운이 예시 값과 같다', () => {
+  const r = E.calculateSaju({ date: '1994-10-10', time: '22:00', gender: 'female', calendar: 'solar' }, new Date('2026-10-10T03:00:00Z'));
+  const f = r.four_pillars; const ds = f.day.stem;
+  assert.deepEqual([f.year.hanja, f.month.hanja, f.day.hanja], ['甲戌', '甲戌', '己巳']);
+  const hid = (b) => E.hiddenStemsOf(b).map((s) => E.STEMS[s]).join('');
+  assert.deepEqual([hid(f.day.branch), hid(f.month.branch)], ['戊庚丙', '辛丁戊']);
+  assert.equal(hid(1), '癸辛己'); assert.equal(hid(2), '戊丙甲'); assert.equal(hid(6), '丙己丁');
+  for (let b = 0; b < 12; b++) { const h = E.hiddenStemsOf(b); assert.equal(E.tenGodOfBranch(0, b), E.tenGodOf(0, h[h.length - 1]), `본기 = 마지막 지장간 ${b}`); }
+  assert.deepEqual([E.twelveStageOf(ds, f.year.branch), E.twelveStageOf(ds, f.month.branch), E.twelveStageOf(ds, f.day.branch)], ['양', '양', '제왕']);
+  assert.equal(E.twelveStageOf(0, 11), '장생', '甲 장생 = 亥'); assert.equal(E.twelveStageOf(1, 6), '장생', '乙 장생 = 午(역행)');
+  const years = E.yearlyFlow(ds, 1994, 2025, 10);
+  assert.deepEqual(years.map((c) => c.pillar.hanja + c.stage), ['乙巳제왕', '丙午건록', '丁未관대', '戊申목욕', '己酉장생', '庚戌양', '辛亥태', '壬子절', '癸丑묘', '甲寅사']);
+  assert.equal(years[1].stemGod, '정인'); assert.equal(years[1].sub, '32세');
+  const months = E.monthlyFlow(ds, 2026);
+  assert.deepEqual(months.map((c) => c.label + c.pillar.hanja), ['2월庚寅', '3월辛卯', '4월壬辰', '5월癸巳', '6월甲午', '7월乙未', '8월丙申', '9월丁酉', '10월戊戌', '11월己亥', '12월庚子', '1월辛丑']);
+  assert.deepEqual(months.slice(0, 4).map((c) => `${c.stemGod}/${c.branchGod}`), ['상관/정관', '식신/편관', '정재/겁재', '편재/정인']);
+  assert.deepEqual(r.major_cycles.cycles.slice(0, 4).map((c) => c.pillar.hanja + E.twelveStageOf(ds, c.pillar.branch)), ['癸酉장생', '壬申목욕', '辛未관대', '庚午건록']);
+});

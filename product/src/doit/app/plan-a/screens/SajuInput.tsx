@@ -89,7 +89,17 @@ export function SajuInput({
             FREE · 기본 사주
           </p>
 
-{/* 2026-10-10 대표 「기존 디자인 다 삭제 · 심볼만 살려」: 시작 그림 삭제(뒤 바탕 = Flora 밤 들판) */}
+          {/* 사주 시작 그림(2026-10-06 대표 지정 · 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」로 다시 넣음 · public/doit/art/saju-start.webp) */}
+          <img
+            className="doit-start-art"
+            src="/doit/art/saju-start.webp"
+            alt=""
+            aria-hidden="true"
+            width="900"
+            height="1002"
+            decoding="async"
+            style={startArtStyle}
+          />
 
           <h1
             style={{

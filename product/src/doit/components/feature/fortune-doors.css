@@ -10,3 +10,7 @@
 .doit-app-pastel .doit-fortune-door-text small{font-size:12px;line-height:1.4;color:#dce3ed;word-break:keep-all}
 .doit-app-pastel .doit-fortune-door:focus-visible{outline:2px solid #bbfc9e;outline-offset:2px}
 .doit-app-pastel .doit-fortune-doors-note{margin:8px 2px 0;font-size:12px;color:#dce3ed;text-align:center}
+/* 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」: 문 위쪽에 대표 제공 그림 · 글은 그림 아래(Flora 유리 틀 그대로). */
+.doit-app-pastel .doit-fortune-door{flex-direction:column;align-items:stretch;padding:0;overflow:hidden}
+.doit-app-pastel .doit-fortune-door img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover}
+.doit-app-pastel .doit-fortune-door-text{padding:12px}

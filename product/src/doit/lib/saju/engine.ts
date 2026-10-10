@@ -199,3 +199,47 @@ export const lichunOf = (year: number) => termInstant(315, Date.UTC(year, 1, 4))
 
 export const elementOfStem = (s: number) => STEM_ELEMENT[s];
 export const elementOfBranch = (b: number) => BRANCH_ELEMENT[b];
+
+// ── 2026-10-10 대표 「사주 예시처럼 자세하게」: 지장간 · 12운성 · 월운 · 연운 10년(기존 계산값은 그대로 두고 덧붙임) ──
+/** 지지 속에 숨은 천간(지장간) — 여기·중기·본기 순(子=壬癸 · 寅=戊丙甲 · 戌=辛丁戊 …). 마지막이 본기(BRANCH_MAIN_STEM 과 같음). */
+export const HIDDEN_STEMS: readonly (readonly number[])[] = [
+  [8, 9], [9, 7, 5], [4, 2, 0], [0, 1], [1, 9, 4], [4, 6, 2], [2, 5, 3], [3, 1, 5], [4, 8, 6], [6, 7], [7, 3, 4], [4, 0, 8],
+];
+export const hiddenStemsOf = (branch: number): readonly number[] => HIDDEN_STEMS[mod(branch, 12)];
+
+export type TwelveStage = '장생' | '목욕' | '관대' | '건록' | '제왕' | '쇠' | '병' | '사' | '묘' | '절' | '태' | '양';
+export const TWELVE_STAGES: readonly TwelveStage[] = ['장생', '목욕', '관대', '건록', '제왕', '쇠', '병', '사', '묘', '절', '태', '양'];
+// 천간별 장생 자리(양간은 순행 · 음간은 역행): 甲亥 乙午 丙寅 丁酉 戊寅 己酉 庚巳 辛子 壬申 癸卯
+const CHANGSHENG_BRANCH = [11, 6, 2, 9, 2, 9, 5, 0, 8, 3];
+/** 12운성: 일간(dayStem)이 지지(branch)에서 어느 단계인지 */
+export function twelveStageOf(dayStem: number, branch: number): TwelveStage {
+  const start = CHANGSHENG_BRANCH[mod(dayStem, 10)];
+  const step = dayStem % 2 === 0 ? mod(branch - start, 12) : mod(start - branch, 12);
+  return TWELVE_STAGES[step];
+}
+/** 지지의 십신(본기 기준) */
+export const tenGodOfBranch = (dayStem: number, branch: number): TenGod => tenGodOf(dayStem, BRANCH_MAIN_STEM[mod(branch, 12)]);
+
+export interface FlowCell { label: string; sub: string; pillar: Pillar; stemGod: TenGod; branchGod: TenGod; stage: TwelveStage }
+const cellOf = (dayStem: number, p: Pillar, label: string, sub: string): FlowCell =>
+  ({ label, sub, pillar: p, stemGod: tenGodOf(dayStem, p.stem), branchGod: tenGodOfBranch(dayStem, p.branch), stage: twelveStageOf(dayStem, p.branch) });
+
+/** 연운: from 년부터 n해(나이는 한국식 세는 나이가 아니라 만 나이 = 해 - 태어난 해) */
+export function yearlyFlow(dayStem: number, birthYear: number, from: number, n = 10): FlowCell[] {
+  const out: FlowCell[] = [];
+  for (let yy = from; yy < from + n; yy++) out.push(cellOf(dayStem, pillarOf(yy - 4), String(yy), `${yy - birthYear}세`));
+  return out;
+}
+
+/** 월운: 그 해 절기 달(寅월=양력 2월 무렵 ~ 丑월=다음 해 1월 무렵) 12개 */
+export function monthlyFlow(dayStem: number, year: number): FlowCell[] {
+  const yearStem = pillarOf(year - 4).stem;
+  const start = mod((yearStem % 5) * 2 + 2, 10); // 甲己년 → 丙寅
+  const out: FlowCell[] = [];
+  for (let k = 0; k < 12; k++) {
+    const p = pillarOf(indexOf(mod(start + k, 10), mod(2 + k, 12)));
+    const solarMonth = ((k + 1) % 12) + 1; // 寅=2월 … 子=12월 · 丑=1월
+    out.push(cellOf(dayStem, p, `${solarMonth}월`, k === 11 ? `${year + 1}` : String(year)));
+  }
+  return out;
+}

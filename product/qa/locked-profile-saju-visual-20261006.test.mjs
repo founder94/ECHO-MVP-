@@ -119,13 +119,13 @@ test('사주 결과: 기운 색 타일 · 다섯 기운 바퀴 · 장 번호 · 
   for (const k of ['.saju-tile', '.saju-wheel', '.saju-hero', '.saju-step', '.saju-col']) assert.ok(css.includes(k), k);
 });
 
-// 2026-10-10 대표 「기존 디자인 다 삭제 · 심볼만 살려」: 문 그림 두 장 삭제 → Flora 유리 문(글만). 바로 입력 화면 이동은 그대로.
-test('홈: 사주·타로 문 → 바로 입력 화면(mode 주소) · 그림 0(Flora 유리 문)', () => {
+// 2026-10-10 대표 「사주 타로 첫화면에 이미지 박아」: 문 그림 두 장 다시(문 틀은 Flora 유리). 바로 입력 화면 이동은 그대로.
+test('홈: 사주·타로 그림 문 → 바로 입력 화면(mode 주소) · 이미지 파일 있음 · Flora 유리 틀', () => {
   const d = read('src/doit/components/feature/FortuneDoors.tsx');
   assert.ok(d.includes('/doit/fortune?mode=saju') && d.includes('/doit/fortune?mode=taro'));
   assert.ok(d.includes('나의 이해나 연결에는 쓰지 않아요'));
-  for (const f of ['public/doit/art/saju-start.webp', 'public/doit/art/tarot-start.webp']) assert.ok(!existsSync(path.join(root, f)), `${f} 삭제`);
-  assert.doesNotMatch(d, /<img/);
+  for (const f of ['public/doit/art/saju-start.webp', 'public/doit/art/tarot-start.webp']) assert.ok(existsSync(path.join(root, f)), f);
+  assert.equal((d.match(/<img /g) ?? []).length, 2);
   assert.match(read('src/doit/components/feature/fortune-doors.css'), /\.doit-fortune-door\{[^}]*border-radius:4px;background:rgb\(255 255 255\/\.06\)/);
   assert.ok(read('src/doit/pages/do-it/home/page.tsx').includes('<FortuneDoors'));
   const f = read('src/doit/pages/do-it/fortune/page.tsx');
