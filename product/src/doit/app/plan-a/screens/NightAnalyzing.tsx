@@ -42,7 +42,7 @@ export function NightAnalyzing({
           <div className="relative mb-7 flex h-52 w-52 items-center justify-center">
             <motion.div
               className="absolute inset-2 rounded-full border"
-              style={{ borderColor: "rgba(234,212,158,.16)" }}
+              style={{ borderColor: "rgba(159,194,255,.16)" }}
               animate={{ rotate: 360 }}
               transition={{
                 duration: 18,
@@ -59,10 +59,10 @@ export function NightAnalyzing({
                     top: item < 2 ? "18%" : "78%",
                     background:
                       item === 0
-                        ? "#ead49e"
+                        ? "#dce8ff"
                         : "rgba(255,255,255,.58)",
                     boxShadow:
-                      "0 0 18px rgba(234,212,158,.42)",
+                      "0 0 18px rgba(159,194,255,.42)",
                   }}
                   animate={{
                     scale: [0.7, 1.35, 0.7],
@@ -105,14 +105,14 @@ export function NightAnalyzing({
                 width: 88,
                 height: 88,
                 background:
-                  "radial-gradient(circle, rgba(234,212,158,.18) 0%, rgba(255,255,255,0.03) 70%)",
+                  "radial-gradient(circle, rgba(159,194,255,.18) 0%, rgba(255,255,255,0.03) 70%)",
                 border:
-                  "1px solid rgba(234,212,158,.28)",
+                  "1px solid rgba(159,194,255,.28)",
                 boxShadow:
-                  "0 0 54px rgba(210,176,109,.13)",
+                  "0 0 54px rgba(187,252,158,.13)",
               }}
             >
-              <Moon size={32} color="#ead49e" />
+              <Moon size={32} color="#dce8ff" />
             </motion.div>
 
             <motion.div
@@ -128,7 +128,7 @@ export function NightAnalyzing({
             >
               <Sparkles
                 size={18}
-                color="rgba(234,212,158,.75)"
+                color="rgba(159,194,255,.75)"
               />
             </motion.div>
           </div>

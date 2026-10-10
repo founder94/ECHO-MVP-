@@ -3,15 +3,16 @@
    - 다른 방 느낌은 네 가지로만: 빛(위에서 내려오는 옅은 저녁빛 + 아주 얕은 막) · 깊이(카드의 따뜻한 그림자) · 재질(얇은 결) · 글자(명조 제목 — 화면이 이미 쓰는 serif).
    - 판·입력칸 = 앱과 같은 투명 판 + 얇은 흰 테두리 · 글자 흰색(파스텔 위 대비는 앱과 같은 기준).
    - 움직임 0 추가(바탕의 기존 흐름만) · 흐림 추가 0 · 전역(body·:root) 0. */
-.echo-fortune-space{--echo-pastel-veil:.10;--app-page:transparent;--app-surface:rgb(255 255 255/.10);--app-surface-border:#f4ead2b3;--app-on-page:#fff;--fortune-bar:rgb(255 255 255/.14);--fortune-shadow:rgb(92 64 30/.28);--fortune-selected-text:#fff;--fortune-selected-line:#fff;min-height:100dvh;color:#fff}
+.echo-fortune-space{--echo-pastel-veil:0;--app-page:transparent;--app-surface:rgb(255 255 255/.10);--app-surface-border:rgb(255 255 255/.16);--app-on-page:#fff;--fortune-bar:rgb(255 255 255/.14);--fortune-shadow:rgb(1 11 36/.5);--fortune-selected-text:#fff;--fortune-selected-line:#fff;min-height:100dvh;color:#fff}
 /* 빛: 화면 위쪽에서 내려오는 따뜻한 빛 한 줄기(고정 · 그림 한 장 · 움직임 0) */
-.echo-fortune-light{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 60% at 50% -10%,rgb(255 244 214/.34) 0%,rgb(255 244 214/0) 60%),repeating-linear-gradient(115deg,rgb(255 255 255/.035) 0 2px,transparent 2px 7px)}
+/* 2026-10-10 대표 「기존 디자인 다 삭제 · 심볼만」: 위에서 내려오던 따뜻한 빛·결 무늬 삭제 — 바탕은 앱과 같은 Flora 밤 들판. */
+.echo-fortune-light{display:none}
 .echo-fortune-space>:not(.echo-fortune-light){position:relative;z-index:1}
 /* 2026-10-01 DESIGN 100%: 감성 포스터용 명조 제목은 쓰지 않는다 — 제목도 앱과 같은 Pretendard 한 벌(echo-ui.css). */
 /* plan-a 화면의 바깥 판(바탕색 = surfaces.page)이 파스텔을 덮지 않게 · saju 결과 화면의 남색 바탕도 같은 공간으로 */
 .echo-fortune-space .saju-page{background:transparent}
-.echo-fortune-space :is(.saju-card,.saju-char){background:rgb(255 255 255/.10);border-color:#f4ead2b3}
-.echo-fortune-space .saju-kicker{color:#fff6dc}
+.echo-fortune-space :is(.saju-card,.saju-char){background:rgb(255 255 255/.10);border-color:rgb(255 255 255/.16)}
+.echo-fortune-space .saju-kicker{color:#bbfc9e}
 /* 2026-10-01 DESIGN 100% 검수: 사주·타로 화면 위 여백이 휴대폰 상단(safe-area)을 빼지 않아, 같은 safe-area 를 쓰는 「뒤로」 알약(safe-area + 8px · 높이 32px)이
    iPhone 앱(PWA)에서 첫 줄(FREE · 기본 사주 / 제목)을 가렸다. 바깥 공간에 safe-area + 16px 를 더해 알약 아래로 내린다(알약과 첫 줄 사이 ≥ 12px).
    사주 결과(.saju-page)는 원래 자기 safe-area 여백을 가지므로 그만큼 빼서 두 번 더하지 않는다. */

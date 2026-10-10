@@ -43,15 +43,14 @@ test('색 흐름(Flora 원본 --scene-field-*): 땅 #010b24 → 깊은 남색 �
   for (let i = 1; i < L.length; i++) assert.ok(L[i] > L[i - 1], `밝기 순서 ${i}`);
 });
 
-test('옛 파스텔 바탕 그림·리본 그림 0: 파일도 참조도 없다(사주·타로 시작 그림만 남김)', () => {
-  const gone = ['public/doit/bg/echo-mobile-bg.webp', 'public/doit/echo-ribbon.webp', ...['ribbon-01', 'ribbon-02', 'ribbon-03', 'candidate-gallery', 'wait-avatars', 'wait-ribbons', 'zzarit-current', 'key-glass'].map((n) => `public/doit/art/${n}.webp`)];
+test('옛 파스텔 바탕 그림·리본 그림·사주/타로 시작 그림 0: 파일도 참조도 없다(2026-10-10 「심볼만 살려」)', () => {
+  const gone = ['public/doit/bg/echo-mobile-bg.webp', 'public/doit/echo-ribbon.webp', ...['ribbon-01', 'ribbon-02', 'ribbon-03', 'candidate-gallery', 'wait-avatars', 'wait-ribbons', 'zzarit-current', 'key-glass', 'saju-start', 'tarot-start'].map((n) => `public/doit/art/${n}.webp`)];
   for (const f of gone) assert.throws(() => statSync(f), f);
   const walk = (d) => readdirSync(d).flatMap((n) => { const p = path.join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
   for (const f of walk('src').filter((f) => /\.(tsx?|css)$/.test(f))) {
     const code = strip(read(f)).replace(/^\s*\/\/.*$/gm, '');
-    assert.doesNotMatch(code, /echo-mobile-bg\.webp|echo-ribbon\.webp|\/doit\/art\/(ribbon-0\d|candidate-gallery|wait-avatars|wait-ribbons|zzarit-current|key-glass)\.webp/, f);
+    assert.doesNotMatch(code, /echo-mobile-bg\.webp|echo-ribbon\.webp|\/doit\/art\/(ribbon-0\d|candidate-gallery|wait-avatars|wait-ribbons|zzarit-current|key-glass|saju-start|tarot-start)\.webp/, f);
   }
-  statSync('public/doit/art/saju-start.webp'); statSync('public/doit/art/tarot-start.webp');
 });
 
 test('스크롤 바탕(밑깔림) 네 곳이 같은 땅색 = 앱 첫 바탕색(#010b24)', () => {

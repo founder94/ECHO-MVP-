@@ -89,17 +89,7 @@ export function SajuInput({
             FREE · 기본 사주
           </p>
 
-          {/* 사주 시작 그림(2026-10-06 대표 지정 · public/doit/art/saju-start.webp) */}
-          <img
-            className="doit-start-art"
-            src="/doit/art/saju-start.webp"
-            alt=""
-            aria-hidden="true"
-            width="900"
-            height="1002"
-            decoding="async"
-            style={startArtStyle}
-          />
+{/* 2026-10-10 대표 「기존 디자인 다 삭제 · 심볼만 살려」: 시작 그림 삭제(뒤 바탕 = Flora 밤 들판) */}
 
           <h1
             style={{
@@ -228,11 +218,11 @@ export function SajuInput({
                     ...fieldStyle,
                     borderColor:
                       calendar === value
-                        ? "var(--fortune-selected-line, #c7aa69)"
+                        ? "var(--fortune-selected-line, #bbfc9e)"
                         : colors.borderStrong,
                     color:
                       calendar === value
-                        ? "var(--fortune-selected-text, #efd99f)"
+                        ? "var(--fortune-selected-text, #dce8ff)"
                         : surfaces.onPage,
                   }}
                 >
@@ -309,7 +299,7 @@ export function SajuInput({
               className="mt-2 flex items-center gap-2 text-xs"
               style={{
                 color: unknown
-                  ? "var(--fortune-selected-text, #e4cb8f)"
+                  ? "var(--fortune-selected-text, #dce8ff)"
                   : surfaces.onPage,
               }}
             >
@@ -317,10 +307,10 @@ export function SajuInput({
                 className="flex h-5 w-5 items-center justify-center rounded-md border"
                 style={{
                   borderColor: unknown
-                    ? "var(--fortune-selected-line, #c7aa69)"
+                    ? "var(--fortune-selected-line, #bbfc9e)"
                     : colors.borderStrong,
                   background: unknown
-                    ? "rgba(199,170,105,.16)"
+                    ? "rgba(187,252,158,.16)"
                     : "transparent",
                 }}
               >
@@ -399,7 +389,7 @@ export function SajuInput({
                 background:
                   "linear-gradient(145deg,rgba(205,174,117,.13),rgba(255,255,255,.025))",
                 border:
-                  "1px solid rgba(205,174,117,.35)",
+                  "1px solid rgba(187,252,158,.35)",
               }}
             >
               <p

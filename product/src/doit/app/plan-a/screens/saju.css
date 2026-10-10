@@ -4,7 +4,7 @@
 .saju-page{min-height:100dvh;background:transparent;color:#fff;font-family:'Chakra Petch','Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:calc(env(safe-area-inset-top) + 56px) 0 calc(env(safe-area-inset-bottom) + 32px)}
 .saju-page *{font-family:inherit}
 .saju-inner{max-width:440px;margin:0 auto;padding:0 20px;overflow-wrap:anywhere;word-break:keep-all}
-.saju-kicker{margin:0 0 8px;font-size:13px;font-weight:700;color:#e8d7a8}
+.saju-kicker{margin:0 0 8px;font-size:13px;font-weight:700;color:#dce8ff}
 .saju-title{margin:0 0 8px;font-size:28px;line-height:1.35;font-weight:800;color:#fff}
 .saju-h2{margin:0 0 14px;font-size:19px;line-height:1.4;font-weight:700;color:#fff}
 .saju-body{margin:0 0 10px;font-size:15px;line-height:1.75;font-weight:600;color:rgb(255 255 255/.94)}
@@ -23,7 +23,7 @@
 .saju-cycles li{flex:none;display:grid;gap:2px;min-width:66px;padding:10px 8px;border:1px solid rgb(255 255 255/.28);border-radius:4px;text-align:center}
 .saju-cycles li b{font-size:18px;font-weight:700}
 .saju-cycles li span,.saju-cycles li small{font-size:12px;font-weight:600}
-.saju-cycles li.is-now{border:2px solid #e8d7a8;background:rgb(232 215 168/.14)}
+.saju-cycles li.is-now{border:2px solid #dce8ff;background:rgb(159 194 255/.14)}
 .saju-years{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
 .saju-years button{flex:none;display:grid;gap:2px;min-width:62px;min-height:52px;padding:8px;border:1px solid rgb(255 255 255/.3);border-radius:4px;background:transparent;color:#fff;cursor:pointer}
 .saju-years button b{font-size:14px;font-weight:700}.saju-years button small{font-size:12px;font-weight:600}
