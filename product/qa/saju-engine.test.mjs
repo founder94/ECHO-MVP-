@@ -117,9 +117,17 @@ test('대표 예시(1994-10-10 己巳일주): 지장간 · 12운성 · 연운 ·
   assert.deepEqual(months.map((c) => c.label + c.pillar.hanja), ['2월庚寅', '3월辛卯', '4월壬辰', '5월癸巳', '6월甲午', '7월乙未', '8월丙申', '9월丁酉', '10월戊戌', '11월己亥', '12월庚子', '1월辛丑']);
   assert.deepEqual(months.slice(0, 4).map((c) => `${c.stemGod}/${c.branchGod}`), ['상관/정관', '식신/편관', '정재/겁재', '편재/정인']);
   // 지금 칸: 1월은 앞 해 줄의 丑월(마지막 칸) — 2027년 1월 = 2026년 줄 11번(辛丑), 2027년 줄(=2028년 1월) 아님
-  assert.deepEqual(E.monthFlowNow(new Date(2027, 0, 15)), { year: 2026, index: 11 });
-  assert.equal(E.monthlyFlow(ds, E.monthFlowNow(new Date(2027, 0, 15)).year)[11].pillar.hanja, '辛丑');
-  assert.deepEqual(E.monthFlowNow(new Date(2026, 1, 20)), { year: 2026, index: 0 });
-  assert.deepEqual(E.monthFlowNow(new Date(2026, 9, 10)), { year: 2026, index: 8 });
+  // 절입 기준(원국 월주와 같은 태양 황경): 입춘 전 1월·2월 초는 앞 해 줄의 丑월 · 각 달 절입 전 며칠은 앞 달
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2027, 0, 15, 3))), { year: 2026, index: 11 });
+  assert.equal(E.monthlyFlow(ds, E.monthFlowNow(new Date(Date.UTC(2027, 0, 15, 3))).year)[11].pillar.hanja, '辛丑');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 1, 1, 3))), { year: 2025, index: 11 }, '2026-02-01 = 입춘 전 → 2025 줄 丑월');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 1, 20, 3))), { year: 2026, index: 0 });
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 9, 3, 3))), { year: 2026, index: 7 }, '10월 3일 = 한로(10/8 무렵) 전 → 酉월');
+  assert.deepEqual(E.monthFlowNow(new Date(Date.UTC(2026, 9, 10, 3))), { year: 2026, index: 8 });
+  // 원국 계산과 같은 경계: 같은 순간의 월주와 월운 칸 지지가 같다
+  for (const iso of ['2026-02-03T12:00:00Z', '2026-02-05T12:00:00Z', '2026-07-06T12:00:00Z', '2026-07-08T12:00:00Z', '2026-12-06T12:00:00Z', '2026-12-08T12:00:00Z']) {
+    const d = new Date(iso); const f = E.monthFlowNow(d);
+    assert.equal(E.monthlyFlow(ds, f.year)[f.index].pillar.branch, (2 + f.index) % 12, iso);
+  }
   assert.deepEqual(r.major_cycles.cycles.slice(0, 4).map((c) => c.pillar.hanja + E.twelveStageOf(ds, c.pillar.branch)), ['癸酉장생', '壬申목욕', '辛未관대', '庚午건록']);
 });

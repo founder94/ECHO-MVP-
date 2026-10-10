@@ -171,7 +171,7 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
     <section className="saju-card" aria-label="연도별 흐름">
       <p className="saju-step">6 · 올해와 다음 해</p>
       <h2 className="saju-h2">연도별 흐름</h2>
-      <p className="saju-cap">궁금한 해를 눌러 보세요.</p>
+      <p className="saju-cap">궁금한 해를 눌러 보세요. 칸의 나이는 그해 생일이 지난 뒤의 만 나이예요.</p>
       <FlowGrid label="연운 · 연도 고르기" cells={yearCells} nowIndex={1} picked={yearIdx} onPick={(i) => setPickedYear(Number(yearCells[i].label))} />
       <p className="saju-body">{cellLine(yearCells[yearIdx], `${yearCells[yearIdx].label}년`)}</p>
       {picked.year === Number(yearCells[yearIdx].label) && <p className="saju-body">{groupFlow(picked.tenGod)}</p>}
