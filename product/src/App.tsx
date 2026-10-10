@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ConsentGate from "./components/legal/ConsentGate";
 import AppBackButton from "./components/AppBackButton";
+import RouteScrollReset from "./components/RouteScrollReset";
 import AppCornerMenu from "./components/AppCornerMenu";
 import ThemeColorSync from "./components/ThemeColorSync";
 import InstallIntentSheet from "./components/InstallIntentSheet";
@@ -23,6 +24,7 @@ function App() {
           <AuthProvider>
             <BrowserRouter basename={__BASE_PATH__}>
               <ThemeColorSync />
+              <RouteScrollReset />
               <ConsentGate />
               <AppBackButton />
               <AppCornerMenu />

@@ -148,6 +148,26 @@
   min-height: 100dvh;
 }
 
+/* 2026-10-10 기기 호환: 아래쪽 버튼이 있는 전체 화면. 100vh 는 주소창이 보일 때(Samsung Internet·Chrome·iOS Safari)
+   화면보다 길어 아래 버튼이 가려지므로, 주소창이 펼쳐진 「작은 화면」 높이(100svh)를 쓴다. svh 를 모르는 브라우저는 100vh.
+   (Tailwind 의 min-h-screen + min-h-[100svh] 는 만들어지는 순서상 100vh 가 이겨서 직접 둔다.
+    같은 칸에 두 줄로 두면 빌드의 CSS 줄이기가 앞줄(100vh)을 지우므로 @supports 로 나눈다.) */
+.echo-min-h-svh {
+  min-height: 100vh;
+}
+@supports (min-height: 100svh) {
+  .echo-min-h-svh {
+    min-height: 100svh;
+  }
+}
+
+/* 2026-10-10 기기 호환: 대화 화면(.echo-chat)에서 위로 끌어 올리다 화면 전체가 새로고침(당겨서 새로고침)되며 적던 말·자리가 날아가던 것을 막는다.
+   스크롤은 문서(html)가 하므로 .doit-root 의 overscroll-behavior 는 듣지 않는다 → 대화 화면이 있을 때만 html 에 건다.
+   위아래 스크롤은 그대로(끝에서 튕김·새로고침만 막음) · :has 를 모르는 브라우저는 예전 그대로. */
+html:has(.echo-dialogue.echo-chat) {
+  overscroll-behavior-y: none;
+}
+
 /* 2026-09-16 iPhone 대응: iOS Safari 는 글자 크기 16px 미만인 입력칸에 초점이 가면 화면을 자동 확대하고 되돌리지 않는다.
    모바일 폭에서만 입력칸 글자를 16px 로 맞춘다(색·여백·테두리는 그대로). */
 @media (max-width: 767px) {

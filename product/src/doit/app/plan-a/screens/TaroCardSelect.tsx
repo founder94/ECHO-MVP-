@@ -147,7 +147,7 @@ export function TaroCardSelect({
 
   return (
     <div
-      className="relative flex min-h-screen flex-col overflow-hidden"
+      className="relative flex echo-min-h-svh flex-col overflow-hidden"
       style={{
         backgroundColor: surfaces.page,
       }}
@@ -523,7 +523,7 @@ export function TaroCardSelect({
       </div>
 
       <div
-        className="relative z-10 flex flex-col gap-3 px-6 py-5"
+        className="relative z-10 flex flex-col gap-3 px-6 pt-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))]"
         style={{
           borderTop: `1px solid ${colors.border}`,
           background:

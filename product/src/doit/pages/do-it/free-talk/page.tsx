@@ -4,6 +4,7 @@ import MobileLayout from "@/doit/components/feature/MobileLayout";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { agentFree, agentFreeStatus, type FreeStatus, type RefLine } from "@/doit/lib/agentApi";
 import { UnderstandingError } from "@/doit/lib/understandingApi";
+import { draftKey, useDraftPersist } from "@/hooks/useDraftPersist";
 import "./free-talk.css";
 
 // 「나를 기억하는 ECHO와 무엇이든 대화」(2026-10-06 대표 승인 C). 서버 스위치 기본 끔 — 꺼져 있으면 「아직 열리지 않았어요」만.
@@ -25,6 +26,8 @@ export default function FreeTalk() {
   const [status, setStatus] = useState<FreeStatus | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [draft, setDraft] = useState("");
+  // 2026-10-10 기기 호환: 적던 말 지키기(다른 앱을 연 사이 Android 가 탭을 내려놓아도 돌아오면 그대로) — 이 탭 sessionStorage 에만(서버 저장 0) · 보내기에 성공하면 지운다.
+  const clearDraft = useDraftPersist(draftKey("free-talk", user?.id), draft, (saved) => setDraft((prev) => (prev.trim() ? prev : saved)));
   const [busy, setBusy] = useState(false);
   const [fail, setFail] = useState<{ message: string; stop: boolean } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +41,7 @@ export default function FreeTalk() {
     try {
       const r = await agentFree(user.id, lines.filter((l) => !l.blocked).map(({ role, text }) => ({ role, text })), t);
       setLines((prev) => [...prev, { role: "user", text: t, blocked: !!r.blocked }, { role: "echo", text: r.reply, blocked: !!r.blocked }]);
-      setDraft("");
+      setDraft(""); clearDraft();
       if (!r.blocked && status && !status.entitled && typeof status.trial_left === "number") setStatus({ ...status, trial_left: Math.max(0, status.trial_left - 1) });
     } catch (e) {
       const code = e instanceof UnderstandingError ? e.code : "";

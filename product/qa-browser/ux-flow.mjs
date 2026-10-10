@@ -58,9 +58,26 @@ function makeServer(init) {
   return { st, connect };
 }
 
+// 2026-10-10 대표 「ECHO 1.0 · iPhone + Samsung FINAL LOCK」: UX_DEVICE=<이름> 이면 같은 검사를 그 기기 크기·브라우저 이름표(UA)로 돌린다.
+// PC 크롬 안의 흉내일 뿐 — 실기기 PASS 가 아니다(아이폰은 WebKit 엔진도 다름). 기본(없음) = 예전 그대로 390×844.
+const SAMSUNG_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36';
+const CHROME_ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-F946N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36';
+const DEVICES = {
+  'galaxy-s24': { vp: { width: 360, height: 780 }, dpr: 3, ua: SAMSUNG_UA },
+  'galaxy-s24-ultra': { vp: { width: 384, height: 832 }, dpr: 3.75, ua: SAMSUNG_UA },
+  'fold-cover': { vp: { width: 344, height: 882 }, dpr: 2.625, ua: CHROME_ANDROID_UA },
+  'fold-cover-narrow': { vp: { width: 280, height: 653 }, dpr: 3, ua: CHROME_ANDROID_UA },
+  'fold-open': { vp: { width: 690, height: 829 }, dpr: 2.625, ua: CHROME_ANDROID_UA },
+  'flip': { vp: { width: 360, height: 880 }, dpr: 3, ua: SAMSUNG_UA },
+};
+const DEVICE = process.env.UX_DEVICE ? DEVICES[process.env.UX_DEVICE] : null;
+if (process.env.UX_DEVICE && !DEVICE) throw new Error(`UX_DEVICE 모름: ${process.env.UX_DEVICE} (${Object.keys(DEVICES).join(', ')})`);
+
 async function newPage(browser, vp, server) {
+  // 기기 지정이 있으면 기본 휴대폰 크기(IPHONE) 검사만 그 기기로 바꾼다(폭을 따로 정한 검사는 그대로).
+  if (DEVICE && vp === IPHONE) vp = DEVICE.vp;
   // UX_VIDEO=<폴더>: 장면을 영상으로도 남긴다(대표 보고용 녹화 · 검사 판정과 무관).
-  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ...(process.env.UX_VIDEO ? { recordVideo: { dir: process.env.UX_VIDEO, size: vp } } : {}) });
+  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: DEVICE?.dpr ?? 2, ...(DEVICE ? { userAgent: DEVICE.ua } : {}), ...(process.env.UX_VIDEO ? { recordVideo: { dir: process.env.UX_VIDEO, size: vp } } : {}) });
   const user = { ...USER, user_metadata: { ...(server.st.userMeta ?? USER.user_metadata) } };
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify({ ...SESSION, user })]);
   // UX_OFFLINE=1: 바깥 인터넷이 막힌 검사 환경 — 바깥 글꼴·아이콘 요청을 바로 끊는다(기다리다 networkidle 시간 초과 방지 · 화면 동작 영향 0).

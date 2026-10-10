@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useBackClose } from '@/hooks/useBackClose';
 import { AGENT_TONES, DEFAULT_AGENT_TONE, type AgentMode, type AgentTone } from '@/doit/lib/agentApi';
 import { VOICE_CONVERSATION_ENABLED, canSpeak, type AgentChoice } from '@/doit/lib/agentChoice';
 import { canListen } from '@/doit/lib/voiceInput';
@@ -9,6 +10,8 @@ import './agent-choice.css';
 // MASTER §4: 주요 버튼은 [말로 시작하기] [글로 시작하기] 두 개 — 누르면 바로 시작한다. 말투는 기본 「편한 존댓말」이고 필요할 때만 펼친다.
 // 히어로와 대화 화면이 같은 부품을 쓴다(선택창이 두 모양이 되지 않게).
 export default function AgentChoiceLayer({ onConfirm, onClose, initial }: { onConfirm: (choice: AgentChoice) => void; onClose?: () => void; initial?: Partial<AgentChoice> }) {
+  // 2026-10-10 기기 호환: 닫을 수 있는 창(히어로)에서는 휴대폰 「뒤로」가 이 창만 닫는다. 닫기가 없는 대화 화면 선택창은 원래 뒤로 그대로.
+  useBackClose(true, onClose);
   const [tone, setTone] = useState<AgentTone>(initial?.tone ?? DEFAULT_AGENT_TONE);
   const [toneOpen, setToneOpen] = useState(false);
   const toneLabel = AGENT_TONES.find(t => t.id === tone)?.label ?? '';

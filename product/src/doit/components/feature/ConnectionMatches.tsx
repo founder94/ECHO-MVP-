@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { UnderstandingError } from '@/doit/lib/understandingApi';
 import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, reportSubmission, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
+import { fitTextarea, keepInputVisible } from '@/lib/keyboard';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 import './connect-ref.css';
@@ -83,6 +84,9 @@ interface MatchCardProps {
 
 function MatchCard({ focused, match, userId, consented, onConsented, onConsentLost, onChanged, onSafety }: MatchCardProps) {
   const [draft, setDraft] = useState('');
+  // 2026-10-10 기기 호환: field-sizing 을 모르는 브라우저(iOS Safari 등)에서도 이야기 입력줄이 글 높이에 맞게 늘고, 보낸 뒤 비면 다시 줄어든다.
+  const messageRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => { fitTextarea(messageRef.current); }, [draft]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<false | 'menu' | 'report'>(false);
@@ -147,7 +151,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const stage = !match.my_answer ? 'ask' : !match.revealed ? 'wait' : 'talk';
 
   // 휴대폰 글자판이 입력칸을 가리지 않게: 입력칸을 누르면 화면 가운데로 올린다(글자판이 뜬 뒤 한 번 더).
-  const keepVisible = (el: HTMLElement) => { el.scrollIntoView({ block: 'center' }); window.visualViewport?.addEventListener('resize', () => el.scrollIntoView({ block: 'center' }), { once: true }); };
+  // 2026-10-10 기기 호환: 예전 한 번 듣기({once:true})는 글자판이 안 뜨면 남아 있다가 나중에 사라진 칸을 움직였다 → 1초·초점 빠짐에 지워지는 keepInputVisible.
+  const keepVisible = keepInputVisible;
 
   if (zzarit) return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="zzarit">
     <ZzaritMoment onStart={() => setZzarit(false)} />
@@ -197,7 +202,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </ol>
       <form className="doit-connect-form doit-match-send" onSubmit={e => void submit(e, 'message')}>
         <label className="doit-connect-label" htmlFor={`message-${match.id}`}>이어서 이야기하기</label>
-        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={1} placeholder="편하게 이야기해 주세요." onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
+        <textarea ref={messageRef} id={`message-${match.id}`} className="doit-connect-input" rows={1} placeholder="편하게 이야기해 주세요." onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>

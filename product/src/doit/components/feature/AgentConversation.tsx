@@ -20,6 +20,8 @@ import { VOICE_CONVERSATION_ENABLED, takeAgentChoice, type AgentChoice } from '@
 import { VOICE_INPUT_ERROR_TEXT, useVoiceInput, useVoiceTurn } from '@/doit/lib/voiceInput';
 import { announceVoiceActive, canSpeak, speakText, stopSpeaking, unlockSpeech } from '@/doit/lib/voiceOutput';
 import { takeContentSeed } from '@/doit/lib/contentSeed';
+import { draftKey, useDraftPersist } from '@/hooks/useDraftPersist';
+import { fitTextarea } from '@/lib/keyboard';
 
 interface Props {
   userId: string;
@@ -103,6 +105,26 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const heroStarted = useRef(false);
   const [heroChoice, setHeroChoice] = useState<AgentChoice | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; stopSpeaking(); }; }, []);
+  // 2026-10-10 기기 호환: 적던 말 지키기(사진·다른 앱을 연 사이 Android 가 탭을 내려놓아도 돌아오면 그대로) — 이 탭 sessionStorage · 사용자+대화별.
+  //   직전 답 고치기 글은 새 말이 아니라 저장하지 않는다. 보내기에 성공하면 지운다.
+  const clearDraft = useDraftPersist(session ? draftKey('agent', userId, session.id) : null, draft, saved => setDraft(prev => (prev.trim() ? prev : saved.slice(0, TEXT_MAX))), !editingPrevious);
+  // field-sizing 을 모르는 브라우저(iOS Safari 등)에서도 입력줄이 글 높이에 맞게 늘고(최대 140px) 보낸 뒤 줄어든다.
+  useEffect(() => { fitTextarea(draftRef.current); }, [draft, session?.id]);
+  // 새 말이 오면(대화 한 차례) 가장 최근 말풍선(지금 질문)을 화면 안으로 — 기기 설정 prefers-reduced-motion 이면 미끄러짐 없이 바로.
+  const chatLogRef = useRef<HTMLDivElement | null>(null);
+  const messageCount = session?.messages.length ?? -1;
+  const seenCountRef = useRef(-1);
+  useEffect(() => {
+    const before = seenCountRef.current;
+    seenCountRef.current = messageCount;
+    if (before < 0 || messageCount <= before) return;
+    const log = chatLogRef.current;
+    const latest = log?.querySelector<HTMLElement>('.echo-question-card') ?? (log?.lastElementChild as HTMLElement | null);
+    if (!latest) return;
+    let reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { reduce = false; }
+    latest.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }, [messageCount]);
   // ECHO 대답을 기기 목소리로 읽는다. 못 읽으면 숨기지 않고 그렇다고 알린다(글은 화면에 그대로 있다).
   const say = useCallback((text: string) => {
     setVoiceNote(null);
@@ -175,6 +197,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       speakNew(session, r.session, spoke); setSession(r.session);
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
+      if (choice || (draftRef.current?.value ?? '').trim() === t) clearDraft();
       setPick(null);
       // 2026-10-06 기억 영수증: 서버가 정정을 저장한 뒤 준 고정 문장(turn.receipt)을 그대로 — 버튼 정정이든 자유 입력 정정(「아닌데, …」)이든 같은 줄(화면이 먼저 만들지 않음)
       setMemory(r.turn.memory ?? null); setMemoryQuery(t);
@@ -320,7 +343,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     </header>
     {/* 2026-10-04 이용 안내: 첫 질문에서만 짧은 도움말(입력칸을 가리지 않는 제자리 한 줄) */}
     {!done && myAnswers.length === 0 && <GuideHint id="talk" />}
-    <div className="echo-chat-log">
+    <div className="echo-chat-log" ref={chatLogRef}>
     {editingPrevious && !done && <div className="echo-notice" role="status"><ArrowLeft size={15} aria-hidden="true" /><span>직전 답으로 돌아왔어요. 고치면 그 뒤 질문도 고친 답 기준으로 다시 정해요.</span><button type="button" className="echo-text-button" disabled={!!busy} onClick={() => { setEditingPrevious(false); setDraft(''); }}>취소</button></div>}
     {editingPrevious && !done && previousQuestion && <div className="echo-question-card echo-bubble--echo"><p className="echo-question">{previousQuestion}</p>
       {prevChoice && prevChoice.options.length > 0 && <div className="echo-rescue" role="group" aria-label="고른 답 바꾸기">

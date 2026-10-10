@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useBackClose } from "@/hooks/useBackClose";
 
 interface OverlayProps {
   open: boolean;
@@ -18,11 +19,13 @@ function Overlay({ onClose }: { onClose: () => void }) {
 }
 
 export function BottomSheet({ open, onClose, title, children }: OverlayProps) {
+  // 2026-10-10 기기 호환: 휴대폰 「뒤로」는 이 창만 닫는다(화면을 떠나지 않음).
+  useBackClose(open, onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <Overlay onClose={onClose} />
-      <div className="relative w-full max-w-md animate-fade-up rounded-t-3xl border-t border-background-200 bg-background-50 px-5 pb-8 pt-3">
+      <div className="relative w-full max-w-md animate-fade-up rounded-t-3xl border-t border-background-200 bg-background-50 px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] pt-3">
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-background-300" />
         {title && (
           <h3 className="mb-3 font-heading text-lg font-semibold text-foreground-950">
@@ -36,6 +39,7 @@ export function BottomSheet({ open, onClose, title, children }: OverlayProps) {
 }
 
 export function Modal({ open, onClose, title, children }: OverlayProps) {
+  useBackClose(open, onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
