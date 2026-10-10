@@ -31,7 +31,7 @@ test('홈페이지(2026-10-09 대표 「최신 채택안」): 데스크톱 = 원
   order.forEach((v, i) => assert.ok(v > 0, String(i)));
   assert.deepEqual([...order].sort((a, b) => a - b), order, '데스크톱 순서');
   assert.match(STAGE, /const mobile = useWindowWidth\(\) < MOBILE_MAX_WIDTH;/, '1024 미만 = 모바일 문서');
-  assert.match(STAGE, /\{robot \? <SceneStill \/> : <SceneHostLazy \/>\}\n\s*\{!robot && <Loader copy=\{loader\} onReady=\{handleReady\} \/>\}\n[\s\S]{0,400}\{!robot && <HeroLattice \/>\}\n\s*\{mobile \? \(\n\s*<MobileStage/, '장면 캔버스·로더·격자는 한 벌(Codex 12차), 문서만 둘');
+  assert.match(STAGE, /\{robot \? \(\n\s*<SceneStill \/>\n\s*\) : \([\s\S]{0,200}?<SceneBoundary>\n\s*<SceneHostLazy \/>\n\s*<\/SceneBoundary>\n\s*\)\}\n\s*\{!robot && <Loader copy=\{loader\} onReady=\{handleReady\} \/>\}\n[\s\S]{0,400}\{!robot && <HeroLattice \/>\}\n\s*\{mobile \? \(\n\s*<MobileStage/, '장면 캔버스·로더·격자는 한 벌(Codex 12차), 문서만 둘');
   assert.doesNotMatch(V('views/home/mobile-stage.tsx'), /HeroLattice/, '격자는 모바일 문서 안에 따로 없음');
   assert.match(V('components/common/hydrate-near.tsx'), /const dropPendingGate = \(id: string\) => \{/, '열리지 않은 문은 자리표가 내려가면 버림(Codex 12차 P1)');
   assert.match(V('utils/scroll-to.ts'), /const target = document\.getElementById\(id\) \?\? el;/, '해시 이동은 50ms 뒤 다시 찾음(Codex 12차)');
