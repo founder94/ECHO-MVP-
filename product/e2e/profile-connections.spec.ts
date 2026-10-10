@@ -95,7 +95,7 @@ test('J09 mutual effect follows server confirmation; still no premature photo or
   seed.mutual = true;
   await connections(page); await choose(page);
   await expect(page.getByText('찌릿! 텔레파시가 통했어요')).toBeVisible();
-  await page.getByRole('button', { name: '다음 단계 보기' }).click();
+  await page.getByRole('button', { name: '첫 대화 시작하기' }).click();
   await expect(page.getByLabel('내 답', { exact: true })).toBeVisible();
   await expect(page.getByLabel('이어서 이야기하기', { exact: true })).toHaveCount(0);
   await expect(page.getByText(partner.nickname, { exact: true })).toHaveCount(0);
