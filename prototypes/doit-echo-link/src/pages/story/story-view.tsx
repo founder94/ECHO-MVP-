@@ -105,7 +105,10 @@ export const StoryView = () => {
   useEffect(() => {
     const t = window.setTimeout(() => {
       if (text.trim()) {
-        saveDraft({ text, lines: lines ?? undefined });
+        // 문장 수정은 그 수정을 만든 원문일 때만 함께 저장(Codex 검수 P2 — 원문을 고친 뒤 옛 문장 목록이 새 원문에 붙어
+        // 새로 쓴 문장이 확인 화면에서 빠지던 문제).
+        const fresh = lines !== null && linesFor === text;
+        saveDraft({ text, lines: fresh ? lines : undefined });
         setSaved(true);
       } else {
         // 글을 모두 지우면 저장된 임시 글도 지운다 — 다시 열었을 때 지운 글이 되살아나지 않게(Codex 검수 P2).
@@ -114,15 +117,15 @@ export const StoryView = () => {
       }
     }, 400);
     return () => window.clearTimeout(t);
-  }, [text, lines]);
+  }, [text, lines, linesFor]);
 
   // 실제 ECHO 로 가져가려면 사용자가 직접 복사해 붙여 넣는다(자동 전송 0 · 2026-10-10).
   const [copyState, setCopyState] = useState<"ok" | "fail" | null>(null);
   const copyText = useCallback(() => {
-    const body = (lines && lines.length ? lines.join(" ") : text).trim();
+    const body = (lines && lines.length && linesFor === text ? lines.join(" ") : text).trim();
     if (!navigator.clipboard) { setCopyState("fail"); return; }
     navigator.clipboard.writeText(body).then(() => setCopyState("ok"), () => setCopyState("fail"));
-  }, [lines, text]);
+  }, [lines, linesFor, text]);
 
   // 단계가 바뀌면 맨 위로 — 새 화면의 제목부터 읽히도록.
   useEffect(() => {
