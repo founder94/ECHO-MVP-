@@ -20,3 +20,8 @@ test('ordinary advice with 기억해 is not a memory claim; first-person claims 
  assert.ok(F.parseFree(JSON.stringify({reply:'그 마음을 기억하는 것만으로도 충분해요.'}),known));
  for(const r of ['말씀하신 산책 얘기 기억해요.','제가 기억하기로는 주말을 좋아하셨어요.','그 얘기 기억하고 있어요.']) assert.equal(F.parseFree(JSON.stringify({reply:r}),known),null,r);
 });
+// 2026-10-10 Codex P1(4237313916): 맨 「했어요」·옮겨 말하기(「~다고 했어요/하셨죠」)도 지난 말 주장 → 인용 없으면 거절. 이번 차례·보통 문장은 그대로.
+test('bare 했어요 and reported-speech memory claims need a citation',()=>{
+ for(const r of ['지난번에는 매일 연락이 좋다고 했어요.','저번에 산책이 좋다고 하셨죠.','주말이 편하다고 했어요.','전에 회사 목표를 500억이라고 적으셨어요.','어제 그 얘기 했잖아요.','지금까지 주말이 좋다고 했어요.']) assert.equal(F.parseFree(JSON.stringify({reply:r}),known),null,r);
+ for(const r of ['방금 피곤하다고 했어요. 오늘은 쉬어 가요.','좋다고 하는 사람도 많아요.','오늘 이야기부터 편하게 이어가요.','그렇게 느끼는 건 자연스러워요.']) assert.ok(F.parseFree(JSON.stringify({reply:r}),known),r);
+});
