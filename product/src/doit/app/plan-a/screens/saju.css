@@ -88,6 +88,7 @@
 .saju-hidden small{font-size:8.5px;opacity:.9;word-break:keep-all}
 .saju-flow{display:flex;gap:4px;overflow-x:auto;padding:4px 2px 8px;margin:6px 0 10px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
 .saju-flow-col{flex:none;width:58px;display:grid;gap:3px;justify-items:stretch;padding:6px 4px;border:0;border-radius:4px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:#fff;font:inherit;text-align:center;scroll-snap-align:center}
+.saju-flow-item{flex:none;display:flex}
 button.saju-flow-col{cursor:pointer}
 .saju-flow-col.is-now{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.7)}
 .saju-flow-col.is-picked{box-shadow:inset 0 0 0 1.5px #bbfc9e;background:rgba(187,252,158,.08)}

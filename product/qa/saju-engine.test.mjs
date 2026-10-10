@@ -116,5 +116,10 @@ test('대표 예시(1994-10-10 己巳일주): 지장간 · 12운성 · 연운 ·
   const months = E.monthlyFlow(ds, 2026);
   assert.deepEqual(months.map((c) => c.label + c.pillar.hanja), ['2월庚寅', '3월辛卯', '4월壬辰', '5월癸巳', '6월甲午', '7월乙未', '8월丙申', '9월丁酉', '10월戊戌', '11월己亥', '12월庚子', '1월辛丑']);
   assert.deepEqual(months.slice(0, 4).map((c) => `${c.stemGod}/${c.branchGod}`), ['상관/정관', '식신/편관', '정재/겁재', '편재/정인']);
+  // 지금 칸: 1월은 앞 해 줄의 丑월(마지막 칸) — 2027년 1월 = 2026년 줄 11번(辛丑), 2027년 줄(=2028년 1월) 아님
+  assert.deepEqual(E.monthFlowNow(new Date(2027, 0, 15)), { year: 2026, index: 11 });
+  assert.equal(E.monthlyFlow(ds, E.monthFlowNow(new Date(2027, 0, 15)).year)[11].pillar.hanja, '辛丑');
+  assert.deepEqual(E.monthFlowNow(new Date(2026, 1, 20)), { year: 2026, index: 0 });
+  assert.deepEqual(E.monthFlowNow(new Date(2026, 9, 10)), { year: 2026, index: 8 });
   assert.deepEqual(r.major_cycles.cycles.slice(0, 4).map((c) => c.pillar.hanja + E.twelveStageOf(ds, c.pillar.branch)), ['癸酉장생', '壬申목욕', '辛未관대', '庚午건록']);
 });

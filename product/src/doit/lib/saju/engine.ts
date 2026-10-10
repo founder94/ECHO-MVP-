@@ -232,6 +232,12 @@ export function yearlyFlow(dayStem: number, birthYear: number, from: number, n =
 }
 
 /** 월운: 그 해 절기 달(寅월=양력 2월 무렵 ~ 丑월=다음 해 1월 무렵) 12개 */
+/** 오늘이 월운 칸 줄(monthlyFlow)의 몇 해·몇 번째 칸인지 — 1월은 앞 해 줄의 丑월(마지막 칸). 절입(달마다 4~8일 무렵) 전 며칠은 한 칸 차이 날 수 있음 */
+export function monthFlowNow(now: Date): { year: number; index: number } {
+  const m = now.getMonth();
+  return { year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(), index: (m + 11) % 12 };
+}
+
 export function monthlyFlow(dayStem: number, year: number): FlowCell[] {
   const yearStem = pillarOf(year - 4).stem;
   const start = mod((yearStem % 5) * 2 + 2, 10); // 甲己년 → 丙寅

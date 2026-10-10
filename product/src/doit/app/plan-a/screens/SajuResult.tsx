@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, monthlyFlow, tenGodOfBranch, twelveStageOf, yearlyFlow, type FlowCell, type SajuInput } from "@/doit/lib/saju/engine";
+import { ELEMENT_ORDER, STEMS_KO, BRANCHES_KO, SajuError, calculateSaju, elementOfBranch, elementOfStem, monthFlowNow, monthlyFlow, tenGodOfBranch, twelveStageOf, yearlyFlow, type FlowCell, type SajuInput } from "@/doit/lib/saju/engine";
 import { ElementCycle, FlowGrid, PillarBoard } from "./SajuDetail";
 import { GOD_MEANING, STAGE_MEANING, cellLine } from "@/doit/lib/saju/words";
 import { currentFlow, groupFlow, sajuSeedKey, summaryLines, topics } from "@/doit/lib/saju/explain";
@@ -103,8 +103,9 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
   const cycleCells: FlowCell[] = (r.major_cycles?.cycles ?? []).map((c) => ({ label: String(c.startAge), sub: `${c.startYear}`, pillar: c.pillar, stemGod: c.tenGod, branchGod: tenGodOfBranch(ds, c.pillar.branch), stage: twelveStageOf(ds, c.pillar.branch) }));
   const yearCells = yearlyFlow(ds, birthYear, nowYear - 1, 10);
   const yearIdx = Math.max(0, yearCells.findIndex((c) => c.label === String(pickedYear)));
-  const monthCells = monthlyFlow(ds, nowYear);
-  const nowMonthIdx = (new Date().getMonth() + 11) % 12; // 寅월(2월)=0 … 丑월(1월)=11 · 절입(달마다 4~8일 무렵) 전 며칠은 한 칸 차이 날 수 있음
+  const monthNow = monthFlowNow(new Date()); // 1월이면 앞 해 줄의 丑월 칸
+  const monthCells = monthlyFlow(ds, monthNow.year);
+  const nowMonthIdx = monthNow.index;
   const monthIdx = pickedMonth ?? nowMonthIdx;
   const dayName = `${r.four_pillars.day.hangul}일주`;
 
@@ -179,7 +180,7 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
 
     <section className="saju-card" aria-label="월별 흐름">
       <p className="saju-step">6-2 · 올해 열두 달</p>
-      <h2 className="saju-h2">{nowYear}년 달마다 흐름(월운)</h2>
+      <h2 className="saju-h2">{monthNow.year}년 달마다 흐름(월운)</h2>
       <p className="saju-cap">사주의 달은 절기로 바뀌어요(2월 입춘 무렵이 새해 첫 달). 궁금한 달을 눌러 보세요.</p>
       <FlowGrid label="월운 · 달 고르기" cells={monthCells} nowIndex={nowMonthIdx} picked={monthIdx} onPick={setPickedMonth} />
       <p className="saju-body">{cellLine(monthCells[monthIdx], `${monthCells[monthIdx].label}은`)}</p>

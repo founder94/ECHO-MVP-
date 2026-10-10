@@ -57,7 +57,7 @@ export function FlowGrid({ cells, nowIndex, label, onPick, picked }: {
       </>;
       const cls = `saju-flow-col${i === nowIndex ? " is-now" : ""}${picked === i ? " is-picked" : ""}`;
       return onPick
-        ? <button key={i} type="button" role="listitem" className={cls} aria-pressed={picked === i} onClick={() => onPick(i)}>{body}</button>
+        ? <div key={i} role="listitem" className="saju-flow-item"><button type="button" className={cls} aria-pressed={picked === i} onClick={() => onPick(i)}>{body}</button></div>
         : <div key={i} role="listitem" className={cls}>{body}</div>;
     })}
   </div>;
