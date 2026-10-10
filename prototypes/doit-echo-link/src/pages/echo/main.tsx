@@ -7,7 +7,9 @@ import { ScrollLayout } from "@flora/layouts/scroll-layout";
 
 import { EchoView } from "./echo-view";
 import "./echo.css";
+import { installExternalLinks } from "@shared/echo-app";
 
+installExternalLinks();
 const root = document.getElementById("root");
 if (root) {
   createRoot(root).render(

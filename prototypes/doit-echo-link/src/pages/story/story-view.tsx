@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { echoAppUrl } from "@shared/echo-app";
 import { pageUrl, publicUrl } from "@shared/paths";
 import { clearDraft, loadDraft, saveDraft, splitSentences } from "@shared/story-draft";
 
@@ -114,6 +115,14 @@ export const StoryView = () => {
     }, 400);
     return () => window.clearTimeout(t);
   }, [text, lines]);
+
+  // 실제 ECHO 로 가져가려면 사용자가 직접 복사해 붙여 넣는다(자동 전송 0 · 2026-10-10).
+  const [copyState, setCopyState] = useState<"ok" | "fail" | null>(null);
+  const copyText = useCallback(() => {
+    const body = (lines && lines.length ? lines.join(" ") : text).trim();
+    if (!navigator.clipboard) { setCopyState("fail"); return; }
+    navigator.clipboard.writeText(body).then(() => setCopyState("ok"), () => setCopyState("fail"));
+  }, [lines, text]);
 
   // 단계가 바뀌면 맨 위로 — 새 화면의 제목부터 읽히도록.
   useEffect(() => {
@@ -280,7 +289,7 @@ export const StoryView = () => {
                   <p className="story-flow-name">{f.name}</p>
                   <p className="story-flow-desc">{f.desc}</p>
                 </div>
-                <span className="story-pending-badge">{c.notRun}</span>
+                <span className="story-pending-badge">{c.inApp}</span>
               </li>
             ))}
           </ol>
@@ -290,7 +299,17 @@ export const StoryView = () => {
             {c.next.connectedPreview}
           </a>
           <LocalNotice />
+          <p className="story-card-note" style={{ whiteSpace: "pre-line" }}>{c.next.handoffNote}</p>
+          {copyState ? <p className="story-hint" role="status">{copyState === "ok" ? c.next.copied : c.next.copyFailed}</p> : null}
           <div className="story-actions story-actions-stack">
+            <a className="story-primary" href={echoAppUrl("/doit/start-journey")}>
+              {c.next.toApp}
+            </a>
+            {text.trim() ? (
+              <button type="button" className="story-secondary" onClick={copyText}>
+                {c.next.copy}
+              </button>
+            ) : null}
             <button type="button" className="story-secondary" onClick={() => go("write")}>
               {c.next.edit}
             </button>

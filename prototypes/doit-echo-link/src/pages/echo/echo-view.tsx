@@ -14,6 +14,7 @@ import { ConnectScreen } from "@flora/views/home/connect-screen";
 import { HeroHeadline } from "@flora/views/home/hero-headline";
 import { HeroNav } from "@flora/views/home/hero-nav";
 import { Preloader } from "@flora/views/home/preloader";
+import { echoAppUrl } from "@shared/echo-app";
 import { cameFromHome } from "@shared/handoff";
 import { pageUrl } from "@shared/paths";
 import { hasDraft } from "@shared/story-draft";
@@ -39,13 +40,13 @@ import {
  * 바뀐 것은 글과 버튼이 가는 곳뿐이다.
  *
  * 홈페이지 CTA 로 들어온 방문(?from=home 또는 이 탭의 기록)은 키홀 로딩을 건너뛰고 첫 화면에서 바로
- * 「모바일로 시작하기」를 누를 수 있다(대표 지시 §7). 처음 온 방문은 키홀·성장 연출을 그대로 본다.
+ * 「모바일로 시작하기」(= 실제 ECHO 앱)를 누를 수 있다(대표 지시 §7). 처음 온 방문은 키홀·성장 연출을 그대로 본다.
  */
 
 const FOCUS = { tension: 170, friction: 28 };
 
 /** 원본 HeroIntro 자리: 도입 설명 + 이야기 시작 버튼(같은 CtaButton). */
-const EchoIntro = ({ storyHref }: { storyHref: string }) => {
+const EchoIntro = ({ startHref }: { startHref: string }) => {
   const live = useArrived();
   const [{ sharp }] = useSpring(() => ({ sharp: live ? 1 : 0, delay: live ? 420 : 0, config: FOCUS }), [live]);
   return (
@@ -57,7 +58,7 @@ const EchoIntro = ({ storyHref }: { storyHref: string }) => {
       <animated.div className="flex flex-col gap-3" style={{ opacity: sharp, filter: sharp.to((v) => `blur(${(1 - v) * 7}px)`) }}>
         <p className="text-panel-note max-phone:text-[15px] text-foreground-desc m-0 w-fit rounded-full bg-[#010b24]/80 px-3.5 py-1.5 font-semibold leading-desc-ko">{echoIntro.hook}</p>
         <CtaButton
-          href={storyHref}
+          href={startHref}
           label={echoIntro.cta}
           className="w-[15.5rem] max-phone:w-full"
           plateClassName="w-[12.3125rem] max-phone:w-auto max-phone:flex-1 max-phone:text-[16px] pl-5"
@@ -68,10 +69,11 @@ const EchoIntro = ({ storyHref }: { storyHref: string }) => {
 };
 
 /**
- * 원본 HeroPanel(중계 패널 · 가짜 실시간 값) 자리: 기존 이용자 경로.
- * 이 기기에 임시 글이 있으면 「이어서 쓰기」, 로그인은 연결되지 않았다고 그대로 말한다.
+ * 원본 HeroPanel(중계 패널 · 가짜 실시간 값) 자리: 기존 이용자 경로(2026-10-10 실제 앱 연결).
+ * 로그인하면 실제 앱이 계정의 진행 상태(목적·프로필·대화·연결)를 읽어 끝낸 단계를 다시 시키지 않고 이어간다.
+ * 이 기기에 시안 때 적어 둔 글이 있으면 그 글을 볼 수 있는 길만 남긴다(자동으로 서버에 보내지 않음).
  */
-const ReturningPanel = ({ storyHref }: { storyHref: string }) => {
+const ReturningPanel = ({ loginHref, storyHref }: { loginHref: string; storyHref: string }) => {
   const live = useArrived();
   const [{ on }] = useSpring(() => ({ on: live ? 1 : 0, delay: live ? 300 : 0, config: FOCUS }), [live]);
   const [draft] = useState(hasDraft);
@@ -84,14 +86,15 @@ const ReturningPanel = ({ storyHref }: { storyHref: string }) => {
     >
       <span aria-hidden className="bg-accent rounded-l-panel absolute inset-y-px left-0 w-[0.1875rem]" />
       <p className="text-panel-title text-scene-foreground m-0 font-semibold">{r.title}</p>
+      <a href={loginHref} className="text-panel-link text-accent font-semibold underline-offset-4 hover:underline">
+        {r.login} →
+      </a>
+      <p className="text-panel-note text-foreground-note m-0 font-medium leading-desc-ko">{r.loginHint}</p>
       {draft ? (
-        <a href={storyHref} className="text-panel-link text-accent font-semibold underline-offset-4 hover:underline">
-          {r.resume} →
+        <a href={storyHref} className="text-panel-note text-foreground-note font-medium underline underline-offset-4">
+          {r.draft}
         </a>
-      ) : (
-        <p className="text-panel-note text-foreground-note m-0 font-medium leading-desc-ko">{r.noDraft}</p>
-      )}
-      <p className="text-panel-note text-foreground-note m-0 font-medium leading-desc-ko">{r.login}</p>
+      ) : null}
     </animated.aside>
   );
 };
@@ -99,6 +102,9 @@ const ReturningPanel = ({ storyHref }: { storyHref: string }) => {
 export const EchoView = () => {
   const fromHome = useMemo(cameFromHome, []);
   const storyHref = pageUrl("story");
+  // 「모바일로 시작하기」 = 실제 ECHO 앱(가입·기존 사용자 이어가기 · Agent 대화 · 추천 · 서로 선택 · 대화). 시안 이야기 쓰기 쪽이 아니다.
+  const startHref = echoAppUrl("/doit/start-journey");
+  const loginHref = echoAppUrl("/login");
   const homeHref = pageUrl("home");
 
   return (
@@ -114,9 +120,9 @@ export const EchoView = () => {
             <ScreenFade {...heroWindow} scrim="hero" curtain={0} exit="inverse">
               <div className="max-phone:absolute max-phone:top-[7.15625rem] max-phone:left-5 max-phone:flex max-phone:w-[21.875rem] max-phone:flex-col max-phone:gap-8 contents">
                 <HeroHeadline id="hero-title" lines={echoIntro.headline} />
-                <EchoIntro storyHref={storyHref} />
+                <EchoIntro startHref={startHref} />
               </div>
-              <ReturningPanel storyHref={storyHref} />
+              <ReturningPanel loginHref={loginHref} storyHref={storyHref} />
             </ScreenFade>
 
             {/* 2 · Leak 자리 */}
@@ -148,7 +154,7 @@ export const EchoView = () => {
 
             {/* 6 · Connect 자리 — 이야기 시작 CTA + 운영사 표기 */}
             <ScreenFade {...echoConnect.window} entry="own">
-              <ConnectScreen {...echoConnect} cta={{ label: echoIntro.cta, href: storyHref }} operator={`${ECHO} ${OPERATOR}`} />
+              <ConnectScreen {...echoConnect} cta={{ label: echoIntro.cta, href: startHref }} operator={`${ECHO} ${OPERATOR}`} />
             </ScreenFade>
 
             <ScreenFade leave={navLeave} curtain={0}>
@@ -157,10 +163,10 @@ export const EchoView = () => {
                 operator={OPERATOR}
                 links={[
                   { label: echoIntro.backHome, href: homeHref },
-                  { label: echoIntro.cta, href: storyHref },
+                  { label: echoIntro.cta, href: startHref },
                 ]}
-                connect={{ label: echoIntro.cta, href: storyHref, count: "" }}
-                menu={{ cta: { label: echoIntro.cta, href: storyHref }, social: [] }}
+                connect={{ label: echoIntro.cta, href: startHref, count: "" }}
+                menu={{ cta: { label: echoIntro.cta, href: startHref }, social: [] }}
                 leave={navLeave}
               />
             </ScreenFade>

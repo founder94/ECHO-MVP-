@@ -9,6 +9,8 @@ export const storyCopy = {
   progressLabel: "진행 단계",
   steps: ["내 이야기", "확인·수정", "다음 단계"],
   notRun: "시안에서는 실행되지 않아요",
+  /** 2026-10-10 실제 앱 연결: 아래 흐름은 실제 ECHO 앱에서 진행된다(이 쪽은 여전히 서버 미연결). */
+  inApp: "실제 ECHO에서 진행돼요",
   localNotice:
     "이 시안은 AI·서버에 연결되어 있지 않아요.\n쓴 글은 이 기기(브라우저)에만 임시로 저장되고 밖으로 보내지 않아요.",
   write: {
@@ -53,5 +55,11 @@ export const storyCopy = {
     toIntro: "ECHO 소개로",
     toHome: "DOIT COMPANY 홈페이지로",
     connectedPreview: "서로 선택이 확인된 뒤의 첫 대화 장면 미리보기(시안)",
+    toApp: "실제 ECHO에서 이어가기",
+    copy: "적은 글 복사하기",
+    copied: "복사했어요. ECHO 대화 첫 답에 붙여 넣을 수 있어요.",
+    copyFailed: "복사하지 못했어요. 글을 길게 눌러 직접 복사해 주세요.",
+    /* 기존 안내(「밖으로 보내지 않아요」)와 충돌하지 않게 — 자동 전송 0, 사용자가 직접 붙여 넣을 때만 서버로 간다. */
+    handoffNote: "여기 적은 글은 자동으로 보내지 않아요.\n실제 ECHO에서 직접 붙여 넣을 때만 ECHO Agent에게 전달돼요.",
   },
 } as const;
