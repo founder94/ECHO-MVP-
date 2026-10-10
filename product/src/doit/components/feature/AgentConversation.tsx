@@ -138,6 +138,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed(), goal });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
+    if (s.crisisLine) setNotice(s.crisisLine); // 위기 신호: 서버 안전 안내를 그대로(첫 답은 쓰지 않음)
   });
 
   // spokenTurn = 말로 대화하기 마이크로 들은 말(글로 적은 말과 같은 서버·같은 기억·같은 정정/거절 규칙으로 간다).

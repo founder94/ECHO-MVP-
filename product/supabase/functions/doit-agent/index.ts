@@ -927,7 +927,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
-      const first = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
+      const firstRaw = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
+      // 2026-10-10 MVP 마감(제품 기준 「위기 신호 → 분석·질문 생성 멈춤 · 안전 안내 · 원문은 개인화 재료로 쓰지 않음」):
+      //   첫 답이 위기 신호면 그 말은 모델·저장에 쓰지 않고(첫 답 없이 시작) 응답에 안전 안내를 함께 준다(강제 종료 아님).
+      const startCrisis = !!firstRaw && RT.crisisSignal(firstRaw);
+      const first = startCrisis ? "" : firstRaw;
       const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
       if (first) A.seedFirstQuestion(stored.state);
       // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
@@ -974,7 +978,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (error) { await settleStart(keptOr(usageOk, "LOST_RACE")); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin); }
       if (startClaim) { if (!usageOk) await settleStart(TURN_UNCERTAIN); else if (!(await finishClaim(admin, userId, startClaim, startAttempt))) return unconfirmed(origin); } // Codex P1(4182156210): 사용 기록이 남은 뒤에만 자리를 끝냄
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
-      return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
+      return json({ ok: true, session: sessionView(requestId, stored), ...(startCrisis ? { crisis: true, reply: RT.CRISIS_LINE } : {}) }, 200, origin);
       } catch (e) { await settleStart(TURN_UNCERTAIN); throw e; }
     }
 
@@ -1178,6 +1182,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const text = ui ? ui.text : typeof body.text === "string" ? body.text.trim() : "";
     if (!sessionId || !text) return fail("BAD_REQUEST", "보낼 말을 적어 주세요.", 400, origin);
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
+    // 2026-10-10 MVP 마감: 위기 신호 → 분석·질문 생성을 멈추고 안전 안내(모델 0 · 저장 0 · 턴 기록 0 · 세션 그대로 = 강제 종료 아님).
+    //   원문은 저장하지 않으므로 이후 대화·프로필·추천 재료가 되지 않는다. 같은 세션에서 다른 말을 보내면 평소대로 이어진다.
+    if (RT.crisisSignal(text)) {
+      const { data: cur } = await admin.from("doit_request_events").select("request_id, response_payload")
+        .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
+      if (!cur || !cur.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
+      logDiag({ step: "turn", code: "crisis" });
+      return json({ ok: true, session: sessionView(sessionId, cur.response_payload as unknown as Stored), crisis: true,
+        turn: { kind: "crisis", reply: RT.CRISIS_LINE, question: null, saved: false, finish: false, after: true, receipt: null } }, 200, origin);
+    }
     const turnHash = await sha256(`${sessionId}:${text}`);
     // 같은 요청 id 가 이미 있으면: 끝난 턴 = 저장된 결과(모델 0) · 그 밖(처리 중 · 놓은 자리 · 결과 모름 · 다른 요청)은 아래 자리 잡기(admitClaim)가 정한다
     if (prior) {
