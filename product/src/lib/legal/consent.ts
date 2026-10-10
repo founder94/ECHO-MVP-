@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { LEGAL_VERSION } from './documents';
+import { saveRoundtripValue, takeRoundtripValue } from '@/lib/auth/roundtripStorage';
 
 export const CONSENT_VERSION = LEGAL_VERSION;
 
@@ -53,21 +54,18 @@ export function readConsentMetadata(meta: unknown): ConsentMetadata | null {
   return { consent_version: m.consent_version, consented_at: m.consented_at, marketing_opt_in: m.marketing_opt_in === true };
 }
 
-// Google 가입처럼 외부 페이지를 거쳐 돌아오는 경우: 이동 전에 동의를 이 기기 세션에 잠깐 둔다.
+// Google 가입처럼 외부 페이지를 거쳐 돌아오는 경우: 이동 전에 동의를 이 기기에 잠깐 둔다.
+// 2026-10-10: 다른 탭·창으로 돌아와도 읽히게 localStorage + 10분 만료(roundtripStorage). 저장 불가여도 흐름을 막지 않는다 —
+// 돌아온 뒤 동의 화면(ConsentGate)이 다시 받는다.
 const PENDING_KEY = 'echo:consent-pending';
 
 export function rememberPendingConsent(choice: ConsentChoice): void {
-  try {
-    sessionStorage.setItem(PENDING_KEY, JSON.stringify(consentMetadata(choice)));
-  } catch {
-    // 저장 불가여도 흐름을 막지 않는다. 돌아온 뒤 동의 화면(ConsentGate)이 다시 받는다.
-  }
+  saveRoundtripValue(PENDING_KEY, JSON.stringify(consentMetadata(choice)));
 }
 
 export function consumePendingConsent(): ConsentMetadata | null {
   try {
-    const raw = sessionStorage.getItem(PENDING_KEY);
-    sessionStorage.removeItem(PENDING_KEY);
+    const raw = takeRoundtripValue(PENDING_KEY);
     if (!raw) return null;
     const parsed = readConsentMetadata(JSON.parse(raw));
     return parsed && parsed.consent_version === CONSENT_VERSION ? parsed : null;

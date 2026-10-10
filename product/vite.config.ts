@@ -119,6 +119,8 @@ export default defineConfig(({ mode }) => {
     },
     // 브랜드 빌드의 _redirects: 제품 경로는 서버에서 바로 앱 주소로 보낸다(화면 로드 전).
     writeBundle(options: { dir?: string }) {
+      // 2026-10-10 서비스 워커(public/sw.js)는 앱 빌드에서만 내보낸다(브랜드·관리자·통합 빌드에는 파일도 두지 않는다).
+      if (siteRole !== "app" && options.dir) rmSync(resolve(options.dir, "sw.js"), { force: true });
       if (options.dir) {
         // Keep the common security policy in every role. Authorize only exact
         // build-owned inline bootstrap bytes, never all inline JavaScript.
@@ -137,7 +139,7 @@ export default defineConfig(({ mode }) => {
       // 관리자 빌드: 모든 경로 = 관리자 화면 하나 · 검색 제외 · 다른 사이트 안에 넣기 금지. 앱·브랜드용 공용 파일(설치 설정·앱 아이콘·브랜드 그림)은 빼낸다.
       if (siteRole === "admin" && options.dir) {
         for (const extra of ["manifest.webmanifest", "pwa", "brand"]) rmSync(resolve(options.dir, extra), { recursive: true, force: true });
-        writeFileSync(resolve(options.dir, "_redirects"), "/*    /index.html   200\n");
+        writeFileSync(resolve(options.dir, "_redirects"), "/assets/*  /404.html  404\n/*    /index.html   200\n");
         return;
       }
       if (siteRole !== "brand" || !options.dir) return;
@@ -147,7 +149,8 @@ export default defineConfig(({ mode }) => {
         "/payment/*", "/payment", "/report", "/locker", "/next-journey", "/admin/*", "/admin",
         "/do-it/intro", "/do-it/fortune", "/do-it/photo", "/do-it/grade",
       ].map((p) => `${p}  ${appOrigin}${p.replace("*", ":splat")}  302`);
-      writeFileSync(resolve(options.dir, "_redirects"), [...rules, "/*    /index.html   200", ""].join("\n"));
+      // 사라진 옛 코드 조각(/assets/*)은 화면 대신 404(public/_redirects 와 같은 규칙).
+      writeFileSync(resolve(options.dir, "_redirects"), [...rules, "/assets/*  /404.html  404", "/*    /index.html   200", ""].join("\n"));
     },
   };
 

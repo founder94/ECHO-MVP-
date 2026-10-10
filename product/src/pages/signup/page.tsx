@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import GoogleGIcon from '@/components/GoogleGIcon';
+import InAppGoogleGate from '@/components/auth/InAppGoogleGate';
 import { GOOGLE_LOGIN_ENABLED } from '@/lib/authProviders';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -240,26 +241,28 @@ export default function Signup() {
                 )}
               </button>
 
-              {/* Google · 제공자가 꺼진 환경(QA)에서는 숨김 */}
+              {/* Google · 제공자가 꺼진 환경(QA)에서는 숨김 · 앱 안 브라우저(카카오톡 등)에서는 Google 이 막으므로 밖에서 열기 안내로 바꾼다 */}
               {GOOGLE_LOGIN_ENABLED && (
-                <button
-                  type="button"
-                  onClick={handleGoogle}
-                  disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
-                  className="echo-glass-btn echo-glass-btn--secondary w-full py-3 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {googleStatus === 'google' ? (
-                    <>
-                      <i className="ri-loader-4-line animate-spin" />
-                      Google로 이동 중...
-                    </>
-                  ) : (
-                    <>
-                      <GoogleGIcon />
-                      Google로 시작하기
-                    </>
-                  )}
-                </button>
+                <InAppGoogleGate>
+                  <button
+                    type="button"
+                    onClick={handleGoogle}
+                    disabled={googleStatus !== 'idle' || formStatus === 'submitting' || !consentReady}
+                    className="echo-glass-btn echo-glass-btn--secondary w-full py-3 rounded-xl text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {googleStatus === 'google' ? (
+                      <>
+                        <i className="ri-loader-4-line animate-spin" />
+                        Google로 이동 중...
+                      </>
+                    ) : (
+                      <>
+                        <GoogleGIcon />
+                        Google로 시작하기
+                      </>
+                    )}
+                  </button>
+                </InAppGoogleGate>
               )}
 
               {/* Login link */}

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type Session, type User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured } from "@/doit/lib/supabase";
 import { getAnonSessionId } from "@/doit/lib/openai";
 import { forgetTarotReadings } from "@/doit/lib/agentApi";
@@ -79,7 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
+    // 2026-10-10 갤럭시·아이폰 호환: 다시 열 때 연결이 아직 안 돼 세션 갱신이 실패하면(다시 시도할 수 있는 네트워크 오류)
+    // 로그아웃으로 보지 않고 불러오는 중으로 둔 채 SDK 의 다음 알림(TOKEN_REFRESHED·SIGNED_IN·SIGNED_OUT)을 기다린다.
+    // 오류가 없으면 예전과 같다.
+    let waitingForNetwork = false;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!data?.session && isAuthRetryableFetchError(error)) {
+        waitingForNetwork = true;
+        return;
+      }
       setSession(data?.session ?? null);
       setLoading(false);
       // A. 초기 getSession 성공 시 익명 세션 연결(콜백 복귀 등으로 이벤트를 놓친 경우 보완)
@@ -89,6 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      if (waitingForNetwork) {
+        // 같은 실패의 되풀이(처음 세션 없음)는 건너뛰고, 그 밖의 알림이 오면 대기를 끝낸다.
+        if (event === "INITIAL_SESSION" && !next) return;
+        waitingForNetwork = false;
+        setLoading(false);
+      }
       setSession(next);
       // B. SIGNED_IN / C. USER_UPDATED 시 익명 세션 ID를 프로필에 연결
       if ((event === "SIGNED_IN" || event === "USER_UPDATED") && next?.user) {
