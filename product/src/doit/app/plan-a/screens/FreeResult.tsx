@@ -155,7 +155,7 @@ export function FreeResult({
 
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="flex flex-col echo-min-h-svh"
       style={{
         backgroundColor: surfaces.page,
       }}
@@ -567,7 +567,7 @@ export function FreeResult({
       </div>
 
       <div
-        className="px-6 pt-4 pb-6 flex flex-col gap-3"
+        className="px-6 pt-4 pb-[calc(24px+env(safe-area-inset-bottom,0px))] flex flex-col gap-3"
         style={{
           borderTop: `1px solid ${colors.border}`,
         }}

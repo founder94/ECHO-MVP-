@@ -57,7 +57,8 @@
 .doit-profile-facts dt{font-size:12px;line-height:1.8;color:#9ba2ae}
 .doit-profile-facts dd{margin:0;font-size:13px;line-height:1.8;color:#e1e2e5;word-break:keep-all;overflow-wrap:anywhere}
 .doit-profile-section-label{font-size:11px;letter-spacing:.12em;color:#9da3ad;margin:30px 0 0}
-.doit-profile-review{min-height:100dvh;background:#090a0c;color:#f2f1ef;padding:28px 24px calc(36px + env(safe-area-inset-bottom));font-family:var(--font-body,"Chakra Petch", "Jua",sans-serif)}
+/* 2026-10-10 기기 호환: 설치 앱 상단(safe-area) 아래로 첫 줄을 내린다 — 일반 브라우저는 0 이라 그대로. */
+.doit-profile-review{min-height:100dvh;background:#090a0c;color:#f2f1ef;padding:calc(28px + env(safe-area-inset-top,0px)) 24px calc(36px + env(safe-area-inset-bottom));font-family:var(--font-body,"Chakra Petch", "Jua",sans-serif)}
 .doit-profile-review-inner{width:100%;max-width:400px;margin:auto}
 .doit-profile-review-brand{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.18em;color:#b7bbc4;margin-bottom:34px}
 .doit-profile-review-brand .doit-official-symbol{width:38px;height:38px}

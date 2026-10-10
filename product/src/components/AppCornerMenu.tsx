@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { IS_BRAND_SITE } from '@/lib/siteRole';
 import { visibleInRelease } from '@/doit/lib/releaseScope';
 import { openGuide } from '@/lib/guide/bus';
+import { useBackClose } from '@/hooks/useBackClose';
 import './app-corner-menu.css';
 
 // 2026-09-28 대표 「FINAL MASTER」 §13·§14: 햄버거(메뉴·설정)는 처음 시작부터 모든 제품 화면의 오른쪽 맨 위, 한 자리에 하나.
@@ -52,6 +53,8 @@ export default function AppCornerMenu() {
     return () => document.removeEventListener('touchstart', noop);
   }, []);
   useEffect(() => { setOpen(false); setError(null); }, [location.pathname, location.hash]);
+  // 2026-10-10 기기 호환: 메뉴가 열려 있을 때 휴대폰 「뒤로」는 메뉴만 닫는다(화면을 떠나지 않음).
+  useBackClose(open && !IS_BRAND_SITE && !HIDDEN_PATH.test(location.pathname), () => setOpen(false));
   useEffect(() => {
     if (!open) return;
     firstItem.current?.focus();

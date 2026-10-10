@@ -107,7 +107,7 @@ test('Codex P2(4183198245): #131 모양 파일(brand-parity)의 판 = 흰 글자
 
 test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · Flora 유리 판(4.5:1) · 얇은 유리 입력 줄 · 입력 항목·글 그대로', () => {
   const pb = src('src/doit/app/plan-a/screens/ProfileBuild.tsx');
-  assert.match(pb, /className="echo-prep flex flex-col min-h-screen"/);
+  assert.match(pb, /className="echo-prep flex flex-col echo-min-h-svh"/); // 2026-10-10 기기 호환: 100vh → 100svh(100vh 폴백) · 모양 그대로
   assert.equal((pb.match(/echo-prep-panel/g) ?? []).length, 3);
   for (const t of ['이제, 실제 나를 보여줄', '닉네임 *', 'id="profile-intro"', '나를 소개할 정보를 입력해요']) assert.ok(pb.includes(t), t);
   const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');

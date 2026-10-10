@@ -4,6 +4,7 @@ import MobileLayout from '@/doit/components/feature/MobileLayout';
 import { useAuth } from '@/doit/hooks/useAuth';
 import { ECHO_AGENT_ENABLED, agentFreeTalk, agentHome, type FreeTalkStatus, type RefLine } from '@/doit/lib/agentApi';
 import { UnderstandingError } from '@/doit/lib/understandingApi';
+import { draftKey, useDraftPersist } from '@/hooks/useDraftPersist';
 import '@/doit/app/plan-a/screens/ref-talk.css';
 
 // 「나를 기억하는 ECHO와 무엇이든 대화」(2026-10-06 대표 승인 C): 유료 자유 대화 화면.
@@ -34,6 +35,8 @@ export default function TalkPage() {
   const [retry, setRetry] = useState(0);
   const [lines, setLines] = useState<Line[]>([]);
   const [draft, setDraft] = useState('');
+  // 2026-10-10 기기 호환: 적던 말 지키기(다른 앱을 연 사이 Android 가 탭을 내려놓아도 돌아오면 그대로) — 이 탭 sessionStorage 에만(서버 저장 0) · 보내기에 성공하면 지운다.
+  const clearDraft = useDraftPersist(draftKey('talk', userId), draft, (saved) => setDraft((prev) => (prev.trim() ? prev : saved)));
   const [busy, setBusy] = useState(false);
   const [fail, setFail] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export default function TalkPage() {
       const r = await agentFreeTalk(userId, lines.map(({ role, text }) => ({ role, text })), t);
       if (!alive.current) return;
       setLines((prev) => [...prev, { role: 'user', text: t }, { role: 'echo', text: r.reply, ai: r.ai, guard: !!r.guard }]);
-      setDraft('');
+      setDraft(''); clearDraft();
       if (r.notice) setNotice(r.notice);
       if (r.trial_left !== null || r.entitled) setStatus((s) => ({ ...(s ?? { enabled: true }), enabled: true, entitled: r.entitled, trial_left: r.trial_left ?? s?.trial_left }));
     } catch (e) {

@@ -331,7 +331,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   if (!userId) {
     return (
       <div
-        className="flex flex-col min-h-screen"
+        className="flex flex-col echo-min-h-svh"
         style={{ backgroundColor: surfaces.page }}
       >
         <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
@@ -426,7 +426,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
 
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="flex flex-col echo-min-h-svh"
       style={{ backgroundColor: surfaces.page }}
     >
       <div className="flex-1 overflow-y-auto px-6 pt-12 pb-4">

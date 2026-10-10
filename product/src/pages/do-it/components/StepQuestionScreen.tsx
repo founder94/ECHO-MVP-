@@ -13,6 +13,7 @@ import {
   submitAnswer,
   type FlowState,
 } from '@/lib/echo/api';
+import { draftKey, useDraftPersist } from '@/hooks/useDraftPersist';
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -37,6 +38,8 @@ export default function StepQuestionScreen({ expectedStatus }: StepQuestionScree
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // 2026-10-10 기기 호환: 적던 답 지키기(다른 앱을 연 사이 Android 가 탭을 내려놓아도 돌아오면 그대로) — 이 탭 sessionStorage · 사용자+대화+단계별 · 서버가 받으면 지운다.
+  const clearDraft = useDraftPersist(conversationId ? draftKey(`step-${expectedStatus}`, user?.id, conversationId) : null, answer, (saved) => setAnswer((prev) => (prev.trim() ? prev : saved)));
 
   const initRef = useRef(false);
   const askTokenRef = useRef('');
@@ -111,6 +114,7 @@ export default function StepQuestionScreen({ expectedStatus }: StepQuestionScree
 
   // 서버가 승인한 상태로만 이동한다. 알 수 없는 상태면 이동하지 않고 오류를 보여준다.
   const goToServerState = (state: FlowState) => {
+    clearDraft();
     if (state.status === expectedStatus) {
       tokenRef.current = '';
       askTokenRef.current = '';

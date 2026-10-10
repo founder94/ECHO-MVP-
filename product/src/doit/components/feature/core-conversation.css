@@ -2,7 +2,8 @@
 @import "./doit-type.css";
 @import "./pastel-bg.css";
 @import "./echo-ui.css"; /* 2026-09-26 ECHO UI 한 벌(글꼴·굵기·유리 버튼) — 문서 끝에 온 규칙처럼 이 뒤 규칙이 우선한다 */
-.echo-dialogue{max-width:620px;margin:auto;padding:28px 24px 56px;color:#f2f1ef;background:#090a0c;min-height:100dvh;font-family:var(--font-body,"Chakra Petch", "Jua",sans-serif)}
+/* 2026-10-10 기기 호환: 설치 앱(iPhone 상태 표시줄·Android 가장자리까지)에서 첫 줄이 상단에 가리지 않게 위 여백에 safe-area 를 더한다(fortune-space.css 와 같은 방식 · 일반 브라우저는 0 이라 그대로). */
+.echo-dialogue{max-width:620px;margin:auto;padding:calc(28px + env(safe-area-inset-top,0px)) 24px 56px;color:#f2f1ef;background:#090a0c;min-height:100dvh;font-family:var(--font-body,"Chakra Petch", "Jua",sans-serif)}
 .echo-dialogue *{box-sizing:border-box}.echo-dialogue-header{display:flex;align-items:center;gap:10px;margin-bottom:52px}.echo-dialogue .doit-official-symbol{width:36px;height:36px}.echo-dialogue-header>span{font-size:10px;letter-spacing:.15em;color:#a9adb5}.echo-dialogue-header>a{margin-left:auto;font-size:11px;color:#c2c7cf;text-decoration:none}
 .echo-eyebrow{color:#a0a6b2;font-size:10px;font-weight:600;letter-spacing:.15em;margin:0 0 15px}.echo-dialogue h1{font-family:"Chakra Petch", "Jua","Pretendard",system-ui,sans-serif;font-size:clamp(28px,7.5vw,38px);line-height:1.55;font-weight:500;letter-spacing:-.045em;margin:0;word-break:keep-all}.echo-lead{font-size:14px;line-height:1.95;color:#b5bac3;font-weight:500;max-width:420px;margin:22px 0 36px;word-break:keep-all}
 .echo-history{font-size:12px;color:#aeb4bf;padding:16px 0}.echo-history summary,.echo-memory summary{cursor:pointer;min-height:36px}.echo-history ol{padding:0;list-style:none;max-height:200px;overflow:auto}.echo-history button{border:0;background:none;color:#c3c8d0;padding:10px 0;text-align:left;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -23,7 +24,7 @@
 .echo-dialogue .echo-leaving .echo-thinking-orbit .doit-official-symbol{width:50px;height:50px}
 .echo-dialogue .echo-leaving p{margin:0;color:#c4cfdf;font-size:13px;line-height:1.9}
 .echo-restart{margin-top:18px;padding:18px 20px;border:1px solid #c2cad12d;border-radius:4px;background:#14171c}.echo-restart .echo-reactions{margin-top:14px}.echo-history--past{opacity:.72}.echo-history--past summary{color:#9aa4b4}
-@media(min-width:768px){.echo-dialogue{padding:44px 40px 72px}.echo-dialogue-header{margin-bottom:68px}}@media(prefers-reduced-motion:reduce){.echo-dialogue *{transition:none!important;animation:none!important}}
+@media(min-width:768px){.echo-dialogue{padding:calc(44px + env(safe-area-inset-top,0px)) 40px 72px}.echo-dialogue-header{margin-bottom:68px}}@media(prefers-reduced-motion:reduce){.echo-dialogue *{transition:none!important;animation:none!important}}
 /* v13: 첫 질문(목적 타일) · 소개 초안 — .echo-dialogue 아래로만 적용 */
 .echo-opening-tiles{display:grid;grid-template-columns:1fr;gap:10px;margin:24px 0 8px}
 .echo-opening-tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;width:100%;min-height:64px;padding:16px 18px;border-radius:4px;border:1px solid #c3ccda38;background:#171a20;color:#dbe0e7;text-align:left;transition:border-color .18s,background .18s}
