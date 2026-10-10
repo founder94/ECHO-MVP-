@@ -25,15 +25,17 @@ export default function ProfileAsOthersSee({ userId }: { userId: string | null }
   const loadError = mine === "error";
   const photos = mine === "error" ? null : mine;
   const failed = failedState.owner === userId ? failedState.slots : [];
+  // Codex 1add81c: 사진 한 장만 실패해도 다시 받을 길이 있어야 한다 — 실패 칸에 「다시 불러오기」, 누르면 실패 표시를 비우고 주소를 새로 받는다.
+  const retry = () => { setFailed({ owner: null, slots: [] }); setAttempt((n) => n + 1); };
   const markFailed = (slot: number) => setFailed((f) => ({ owner: userId, slots: f.owner === userId ? [...f.slots, slot] : [slot] }));
   const list = (photos ?? []).slice().sort((a, b) => a.slot - b.slot);
   const extra = list.filter((p) => isExtraSlot(p.slot) && !p.isPrimary).length;
   return <section className="doit-as-others" aria-label="다른 사람에게 보이는 내 프로필">
     <div className="doit-profile-photos-heading"><h2>다른 사람에게는 이렇게 보여요</h2><span>미리보기</span></div>
-    {loadError ? <div className="doit-profile-photos-empty" role="status"><p>사진을 불러오지 못했어요.</p><span>저장된 사진은 그대로 두었어요.</span><button type="button" onClick={() => setAttempt((n) => n + 1)}>다시 불러오기</button></div> :
+    {loadError ? <div className="doit-profile-photos-empty" role="status"><p>사진을 불러오지 못했어요.</p><span>저장된 사진은 그대로 두었어요.</span><button type="button" onClick={retry}>다시 불러오기</button></div> :
       photos === null ? <p className="doit-profile-photo-note" role="status">불러오고 있어요.</p> :
       list.length === 0 ? <p className="doit-profile-photo-note">사진을 올리면 여기서 상대에게 보이는 모습을 미리 볼 수 있어요.</p> :
-      <div className="doit-as-others-grid">{list.map((p) => failed.includes(p.slot) ? <div key={p.photoId} className="doit-faded" /> :
+      <div className="doit-as-others-grid">{list.map((p) => failed.includes(p.slot) ? <div key={p.photoId} className="doit-faded doit-profile-photos-empty" role="status"><p>사진을 불러오지 못했어요.</p><button type="button" onClick={retry}>다시 불러오기</button></div> :
         isExtraSlot(p.slot) && !p.isPrimary
           ? <FadedExtraPhoto key={p.photoId} src={p.url} alt="추가 사진(상대에게는 위쪽만 보임)" onError={() => markFailed(p.slot)} />
           : <div key={p.photoId} className="doit-faded"><img src={p.url} alt={`프로필 사진 ${p.slot + 1}`} loading="lazy" referrerPolicy="no-referrer" onError={() => markFailed(p.slot)} /></div>)}

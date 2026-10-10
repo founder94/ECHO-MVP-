@@ -144,4 +144,19 @@ test('Codex P1: 계정이 바뀌면 앞 계정 사진이 한 장도 보이지 �
   pending.C([{ photoId: 'c1', slot: 0, url: 'https://x/C.jpg', isPrimary: true }]);
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(srcs(render('C')), ['https://x/C.jpg']);
+
+  // Codex 1add81c P2: 목록은 받았는데 사진 한 장이 실패 → 그 칸에 「다시 불러오기」 → 누르면 주소를 새로 받고 실패 표시가 사라짐
+  const imgs = (n, out = []) => { if (!n || typeof n !== 'object') return out; if (Array.isArray(n)) { n.forEach((x) => imgs(x, out)); return out; } if (n.p?.onError) out.push(n); imgs(n.p?.children, out); return out; };
+  imgs(render('C'))[0].p.onError();
+  const broken = render('C');
+  assert.deepEqual(srcs(broken), [], '실패한 칸은 그림 대신 안내');
+  const again = buttons(broken).find((b) => texts(b).join('').includes('다시 불러오기'));
+  assert.ok(again, '사진 한 장 실패에도 다시 불러오기');
+  delete pending.C;
+  again.p.onClick();
+  render('C');
+  assert.equal(typeof pending.C, 'function', '주소를 새로 받음');
+  pending.C([{ photoId: 'c1', slot: 0, url: 'https://x/C2.jpg', isPrimary: true }]);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(srcs(render('C')), ['https://x/C2.jpg']);
 });
