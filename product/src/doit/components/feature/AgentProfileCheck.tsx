@@ -49,9 +49,10 @@ function SlotLine({ session, id, quotes }: { session: AgentSession; id: string; 
   </li>;
 }
 
-interface Props { userId: string; session: AgentSession; onSession: (s: AgentSession) => void; onConfirmed: (ok: boolean) => void }
+// onCrisis = 고치는 말에 위기 신호가 있어 서버가 안전 안내만 준 경우(stale = 세션이 지난 회차·없음 → 부모가 지금 회차를 다시 불러온다).
+interface Props { userId: string; session: AgentSession; onSession: (s: AgentSession) => void; onConfirmed: (ok: boolean) => void; onCrisis: (line: string, stale: boolean) => void }
 
-export default function AgentProfileCheck({ userId, session, onSession, onConfirmed }: Props) {
+export default function AgentProfileCheck({ userId, session, onSession, onConfirmed, onCrisis }: Props) {
   const [view, setView] = useState<View>({ kind: 'review' });
   const [ok, setOk] = useState(() => profileConfirmed(session));
   const [busy, setBusy] = useState(false);
@@ -81,6 +82,9 @@ export default function AgentProfileCheck({ userId, session, onSession, onConfir
     try {
       const r = await agentTurn(userId, session.id, t, { purpose }); // 정정 버튼 = 정정(칸은 사용자가 고른 것 · 서버가 확정)
       if (!alive.current) return;
+      // 위기 신호: 정정으로 다루지 않고 부모가 안전 안내를 보인다(세션이 없으면 지금 회차를 다시 불러옴) · Codex P1
+      if (r.turn.kind === 'crisis') { if (r.session) onSession(r.session); onCrisis(r.turn.reply, !r.session); setView({ kind: 'review' }); return; }
+      if (!r.session) throw new Error('INVALID_RESPONSE');
       onSession(r.session);
       if (r.turn.reply) setReply(r.turn.reply);
       if (r.turn.receipt?.line) setReceipt(r.turn.receipt); // 서버가 저장을 마쳤다는 응답 뒤에만
