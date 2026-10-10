@@ -95,7 +95,8 @@ test('사주·타로 분리: 사주·타로 화면·계산 코드는 사용자 �
   // 타로 해석은 openai-chat 하나 — 이 서버 함수는 호출 제한 기록 외에 아무것도 저장하지 않는다
   const oc = read('supabase/functions/openai-chat/index.ts');
   assert.doesNotMatch(oc, /\.from\(|\.insert\(|\.upsert\(/, 'openai-chat 저장 0');
-  assert.match(oc, /openai_rate_limit_allow/);
+  // 2026-10-09 PR149 보안 보강으로 openai-chat 은 꺼짐(모든 요청 410 · AI·DB 호출 0) — 호출 제한 기록마저 없어져 「저장 0」이 더 강해졌다
+  assert.match(oc, /Deno\.serve\(\(req: Request\) => \{[\s\S]*?status: 410/); assert.doesNotMatch(oc, /fetch\(/, 'openai-chat 모델 호출 0');
   // [비슷해요]/[조금 달라요]는 화면 상태(useState)뿐
   assert.match(read('src/doit/app/plan-a/screens/SajuResult.tsx'), /const \[fit, setFit\] = useState/);
   assert.match(read('src/doit/app/plan-a/screens/FreeResult.tsx'), /useState<\s*null \| "similar" \| "different"\s*>/);
