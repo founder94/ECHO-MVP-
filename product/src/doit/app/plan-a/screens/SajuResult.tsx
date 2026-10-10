@@ -162,7 +162,7 @@ export function SajuResult({ input, onEdit, onExit, onTalk }: Props) {
       <h2 className="saju-h2">10년 흐름</h2>
       {r.major_cycles ? <>
         <p className="saju-cap">{r.major_cycles.startAgeText}부터 10년마다 바뀌어요 · {r.major_cycles.direction === "forward" ? "순행" : "역행"}</p>
-        <FlowGrid label="대운 10년 흐름" cells={cycleCells} nowIndex={Math.max(0, (cf.cycle?.order ?? 1) - 1)} />
+        <FlowGrid label="대운 10년 흐름" cells={cycleCells} nowIndex={cf.cycle ? cf.cycle.order - 1 : -1} />
         {cf.cycle && <p className="saju-body">{cellLine(cycleCells[cf.cycle.order - 1], `지금 대운(${cf.cycle.startAge}세부터 10년)은`)}</p>}
         <p className="saju-cap">숫자는 그 대운이 시작되는 나이, 테두리 칸이 지금이에요. 옆으로 밀어 앞뒤 10년을 볼 수 있어요.</p>
       </> : <p className="saju-body">성별을 고르지 않아 계산하지 않았어요. 다시 입력에서 고를 수 있어요.</p>}

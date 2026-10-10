@@ -131,3 +131,9 @@ test('대표 예시(1994-10-10 己巳일주): 지장간 · 12운성 · 연운 ·
   }
   assert.deepEqual(r.major_cycles.cycles.slice(0, 4).map((c) => c.pillar.hanja + E.twelveStageOf(ds, c.pillar.branch)), ['癸酉장생', '壬申목욕', '辛未관대', '庚午건록']);
 });
+
+test('대운 칸: 첫 대운이 시작되기 전이면 「지금」 테두리 칸이 없다(앞 칸을 지금으로 표시하지 않음)', () => {
+  const src = read('src/doit/app/plan-a/screens/SajuResult.tsx');
+  assert.match(src, /<FlowGrid label="대운 10년 흐름" cells=\{cycleCells\} nowIndex=\{cf\.cycle \? cf\.cycle\.order - 1 : -1\} \/>/);
+  assert.match(read('src/doit/app/plan-a/screens/SajuDetail.tsx'), /i === nowIndex \? " is-now" : ""/);
+});
