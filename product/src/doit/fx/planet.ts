@@ -137,7 +137,7 @@ function firstMesh(obj: THREE.Object3D): THREE.Mesh | null {
   return found;
 }
 
-export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; onReady?: () => void }): FxHandle | null {
+export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; onReady?: () => void; onFail?: () => void }): FxHandle | null {
   return createHouse(canvas, host, {
     bgColor: CONFIG.bgColor, flameColor: CONFIG.flameColor, flameColor2: CONFIG.flameColor2, flameAmt: CONFIG.flameAmt,
     atmoColor: CONFIG.atmoColor, atmoCount: CONFIG.atmoCount, atmoSize: CONFIG.atmoSize, atmoSpeed: CONFIG.atmoSpeed, atmoAlpha: 0.55,
@@ -162,6 +162,8 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
     let entryActive = false;
     let entryT = 0;
     let loaded = false;
+    let loadFailed = false; // [통합] 모형 404·끊김·깨짐 → 은은한 빛으로(투명 칸 + GPU 계속 돌기 0)
+    const fail = () => { if (!disposed) loadFailed = true; };
     const ENTRY_DUR = 1.9;
     const ENTRY_START_Y = -6.5;
     const res = () => { const { w, h } = size(); return new THREE.Vector2(w * dpr, h * dpr); };
@@ -413,7 +415,7 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
       gltfLoader.load(`${ASSET}/planet.glb`, (gltf) => {
         if (disposed) return;
         const mesh = firstMesh(gltf.scene);
-        if (!mesh) return;
+        if (!mesh) { fail(); return; }
         mesh.geometry.computeBoundingSphere();
         const r = mesh.geometry.boundingSphere ? mesh.geometry.boundingSphere.radius : 1;
         const s = CONFIG.planetRadius / r;
@@ -437,11 +439,12 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
         cloudGroup.visible = true;
         entryActive = true; entryT = 0;
         loaded = true;
-      });
-    });
+      }, undefined, fail);
+    }, undefined, fail);
 
     return {
       ready: () => loaded && !entryActive,
+      failed: () => loadFailed,
       update: (_scroll, _now, dt, still) => {
         planetTime.value += dt / 12;
         cloudTime.value += dt / 20;
@@ -465,5 +468,5 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
       resize: (w, h) => { for (const u of resUniforms) u.value.set(w * dpr, h * dpr); },
       dispose: () => { disposed = true; for (const d of disposables) d.dispose(); },
     };
-  }, { play: opts.play, interactive: false, onReady: opts.onReady });
+  }, { play: opts.play, interactive: false, onReady: opts.onReady, onFail: opts.onFail });
 }

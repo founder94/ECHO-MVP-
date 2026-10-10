@@ -42,7 +42,7 @@ test('ZZARIT: 서버 mutual + match_id 뒤에만 · 그 연결에서 한 번만(
 });
 
 // 2026-10-10 대표 「모바일웹 전부 최종 후킹 · Lattice 효과 넣어라」: 2026-10-04 전류 연출 → Einstein–Rosen Lattice(빛의 통로). 문구는 2026-10-09 「추가 효과 배치」 §2 확정본.
-test('찌릿 연출: 확정 문구 4개 · 가운데 Lattice 하나 · 움직임 줄이기 = 멈춘 한 장 · 하트·폭죽·네온·소리 0 · 상대 정보 0', () => {
+test('찌릿 연출: 확정 문구 4개 · 가운데 두 구슬(B안) 하나 · 움직임 줄이기 = 멈춘 한 장 · 하트·폭죽·네온·소리 0 · 상대 정보 0', () => {
   for (const t of ["eyebrow: '찌릿! 텔레파시가 통했어요'", "title: ['서로의 선택이,', '하나의 대화로.']", "body: '두 분 모두 연결을 선택했어요.'", "next: '첫 대화 시작하기'"]) assert.ok(Z.includes(t), t);
   assert.doesNotMatch(noComments(Z + ZCSS), /heart|하트|confetti|폭죽|neon|🎉|💖|❤/i);
   assert.doesNotMatch(ZCSS, /infinite|@keyframes/, '이 화면 CSS 움직임 0(움직임은 Lattice 하나)');
@@ -57,7 +57,7 @@ test('찌릿 연출: 확정 문구 4개 · 가운데 Lattice 하나 · 움직임
   assert.match(stage, /case "storm-pair": return import\("\.\/storm"\)/, '엔진은 이 화면이 열릴 때만 불러온다');
   assert.match(stage, /sceneShouldFreeze\(readTier\(\)\) \? "still" : "live"/, '움직임 줄이기·절전 = 멈춘 한 장');
   assert.match(stage, /state === "failed" \? <div className="doit-fx-fallback" \/> : <canvas/, 'WebGL 실패 = 은은한 빛만 · 화면은 그대로');
-  assert.match(read('src/doit/fx/house.ts'), /const want = !still && !document\.hidden && inView;/, '화면 밖·탭 숨김이면 멈춤');
+  assert.match(read('src/doit/fx/house.ts'), /const want = !halted && !still && !document\.hidden && inView;/, '화면 밖·탭 숨김이면 멈춤');
   assert.match(Z, /if \(!reduce\) \{ try \{ navigator\.vibrate\?\.\(12\); \}/, '진동은 짧게 · 줄이기 설정이면 0');
   assert.doesNotMatch(Z, /Audio|\.play\(/, '소리 0');
   assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b|<img/, '상대 사진·이름 0');

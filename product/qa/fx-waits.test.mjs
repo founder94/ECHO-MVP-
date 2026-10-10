@@ -56,9 +56,20 @@ test('가벼움·움직임 줄이기·실패 대체', () => {
   assert.match(stage, /state === "failed" \? <div className="doit-fx-fallback" \/>/, 'WebGL 안 되면 은은한 빛');
   assert.match(stage, /if \(!armed\) return null;/, '짧은 기다림은 안 띄움(번쩍임 0)');
   const house = read('src/doit/fx/house.ts');
-  assert.match(house, /const want = !still && !document\.hidden && inView;/, '탭 숨김·화면 밖이면 멈춤');
+  assert.match(house, /const want = !halted && !still && !document\.hidden && inView;/, '탭 숨김·화면 밖이면 멈춤');
   assert.match(house, /renderer\.forceContextLoss\(\);/, '나갈 때 GPU 자원 풀기');
   assert.match(read('src/doit/fx/glass.ts'), /renderer\.forceContextLoss\(\);/);
+  // Codex #159 P2 ①: 칸이 화면에 들어온 뒤에야 엔진·모형을 받는다(아래에 있는 칸이 먼저 받지 않음)
+  assert.match(stage, /io = new IntersectionObserver\(\(entries\) => \{\s*if \(!entries\.some\(\(e\) => e\.isIntersecting\)\) return;\s*io\?\.disconnect\(\); io = null;\s*start\(\);/);
+  // ② still: 모형이 늦게 와도(몇 초 이상) 끝까지 기다렸다 한 장 — 횟수 한도로 포기해 투명 칸이 되지 않게
+  assert.doesNotMatch(house, /stillTries/);
+  assert.match(house, /if \(impl\.ready && !impl\.ready\(\)\) \{ raf = requestAnimationFrame\(stillFrame\); return; \}\s*draw\(\);\s*fireReady\(\);/);
+  // ③ 모형 404·끊김 → 반복 멈춤 + 은은한 빛(투명 칸 + GPU 계속 0)
+  const planet = read('src/doit/fx/planet.ts');
+  assert.equal((planet.match(/\}, undefined, fail\);/g) || []).length, 2, 'GLB 두 개 모두 실패 콜백');
+  assert.match(planet, /failed: \(\) => loadFailed,/);
+  assert.match(house, /if \(!impl\.failed\?\.\(\)\) return false;\s*halted = true;\s*running = false;\s*cancelAnimationFrame\(raf\);\s*opts\.onFail\?\.\(\);/);
+  assert.match(stage, /m\.createPlanet\(c, h, \{ play, onReady, onFail \}\)/);
   // 상자 크기 고정(글자가 효과 위에 얹히지 않음 · 가로 넘침 0)
   const css = read('src/doit/fx/fx.css');
   assert.match(css, /\.doit-fx\{position:relative;width:100%;height:220px;/);

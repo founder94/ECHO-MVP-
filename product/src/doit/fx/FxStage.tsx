@@ -15,13 +15,14 @@ import "./fx.css";
  */
 export type FxKind = "dna" | "glass" | "planet" | "storm" | "storm-pair";
 
-const load = (fx: FxKind) => {
+type Create = (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void, onFail: () => void) => FxHandle | null;
+const load = (fx: FxKind): Promise<Create> => {
   switch (fx) {
-    case "dna": return import("./dna").then((m) => (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void) => { const r = m.createDna(c, h, { play, progress: { max: 0.35, seconds: 24 } }); onReady(); return r; });
-    case "glass": return import("./glass").then((m) => (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void) => m.createGlass(c, h, { play, onReady }));
-    case "planet": return import("./planet").then((m) => (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void) => m.createPlanet(c, h, { play, onReady }));
-    case "storm": return import("./storm").then((m) => (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void) => { const r = m.createStorm(c, h, { play }); onReady(); return r; });
-    case "storm-pair": return import("./storm").then((m) => (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void) => { const r = m.createStorm(c, h, { play, layout: "pair" }); onReady(); return r; });
+    case "dna": return import("./dna").then((m) => (c, h, play, onReady) => { const r = m.createDna(c, h, { play, progress: { max: 0.35, seconds: 24 } }); onReady(); return r; });
+    case "glass": return import("./glass").then((m) => (c, h, play, onReady) => m.createGlass(c, h, { play, onReady }));
+    case "planet": return import("./planet").then((m) => (c, h, play, onReady, onFail) => m.createPlanet(c, h, { play, onReady, onFail }));
+    case "storm": return import("./storm").then((m) => (c, h, play, onReady) => { const r = m.createStorm(c, h, { play }); onReady(); return r; });
+    case "storm-pair": return import("./storm").then((m) => (c, h, play, onReady) => { const r = m.createStorm(c, h, { play, layout: "pair" }); onReady(); return r; });
   }
 };
 
@@ -44,14 +45,26 @@ export default function FxStage({ fx, delayMs = 0, className = "" }: { fx: FxKin
     let cancelled = false;
     let handle: FxHandle | null = null;
     const play: FxPlay = sceneShouldFreeze(readTier()) ? "still" : "live";
-    load(fx)
-      .then((create) => {
-        if (cancelled) return;
-        handle = create(canvas, host, play, () => { if (!cancelled) setState("ready"); });
-        if (!handle) setState("failed");
-      })
-      .catch(() => { if (!cancelled) setState("failed"); });
-    return () => { cancelled = true; handle?.dispose(); };
+    const start = () => {
+      load(fx)
+        .then((create) => {
+          if (cancelled) return;
+          handle = create(canvas, host, play, () => { if (!cancelled) setState("ready"); }, () => { if (!cancelled) setState("failed"); });
+          if (!handle) setState("failed");
+        })
+        .catch(() => { if (!cancelled) setState("failed"); });
+    };
+    // 엔진·모형은 이 칸이 실제로 화면에 들어올 때 처음 불러온다(아래에 있으면 내려야 받음 · Codex #159 P2)
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver === "function") {
+      io = new IntersectionObserver((entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io?.disconnect(); io = null;
+        start();
+      });
+      io.observe(host);
+    } else start();
+    return () => { cancelled = true; io?.disconnect(); handle?.dispose(); };
   }, [armed, fx]);
 
   if (!armed) return null;

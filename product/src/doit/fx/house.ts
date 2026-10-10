@@ -125,6 +125,8 @@ export type SceneImpl = {
   resize?: (w: number, h: number) => void;
   /** still 로 그릴 수 있게 준비됐는지(Planet: 모형을 다 불러왔는지) */
   ready?: () => boolean;
+  /** 그릴 재료를 끝내 못 불러왔는지(Planet: 모형 404·끊김·깨짐) — 참이면 반복을 멈추고 onFail(부르는 쪽이 은은한 빛) */
+  failed?: () => boolean;
   dispose: () => void;
 };
 
@@ -137,6 +139,7 @@ export type HouseOptions = {
   /** 포인터로 장면을 흔들 수 있는지(기다림 화면은 켬) */
   interactive?: boolean;
   onReady?: () => void;
+  onFail?: () => void;
 };
 
 const canWebGL = () => {
@@ -343,27 +346,39 @@ export function createHouse(
   let running = false;
   let inView = true;
   let readyFired = false;
+  let halted = false; // 재료를 못 불러와 멈춤 — 다시 켜지 않는다
   const fireReady = () => {
     if (readyFired || (impl.ready && !impl.ready())) return;
     readyFired = true;
     opts.onReady?.();
   };
+  const halt = () => {
+    if (halted) return false;
+    if (!impl.failed?.()) return false;
+    halted = true;
+    running = false;
+    cancelAnimationFrame(raf);
+    opts.onFail?.();
+    return true;
+  };
   const frame = () => {
+    if (halt()) return;
     raf = requestAnimationFrame(frame);
     update();
     draw();
     fireReady();
   };
-  // still: 모형을 다 불러올 때까지만 몇 장 그리고 멈춘다
-  let stillTries = 0;
+  // still: 재료(모형)가 다 올 때까지 그리지 않고 기다렸다가(값만 갱신 · 몇 초가 걸려도 끝까지) 다 오면 한 장 그리고 멈춘다.
+  // 끝내 못 불러오면 failed → onFail. 탭이 숨으면 브라우저가 반복을 쉬게 한다.
   const stillFrame = () => {
+    if (halt()) return;
     update();
+    if (impl.ready && !impl.ready()) { raf = requestAnimationFrame(stillFrame); return; }
     draw();
-    if ((impl.ready && !impl.ready()) && stillTries++ < 600) { raf = requestAnimationFrame(stillFrame); return; }
     fireReady();
   };
   const sync = () => {
-    const want = !still && !document.hidden && inView;
+    const want = !halted && !still && !document.hidden && inView;
     if (want && !running) {
       running = true;
       last = performance.now() / 1000;
@@ -375,7 +390,7 @@ export function createHouse(
   };
   const io = new IntersectionObserver((entries) => { inView = entries.some((e) => e.isIntersecting); sync(); });
   io.observe(host);
-  const ro = new ResizeObserver(() => { resize(); if (!running) { update(); draw(); } });
+  const ro = new ResizeObserver(() => { resize(); if (!running && !halted && (!impl.ready || impl.ready())) { update(); draw(); } });
   ro.observe(host);
   if (opts.interactive && !still) {
     host.addEventListener("pointermove", onMove, { passive: true });

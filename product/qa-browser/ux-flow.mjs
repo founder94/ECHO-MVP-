@@ -694,6 +694,13 @@ await run(163, 'FX 움직임 줄이기: 지구도 한 장(still)으로 그려짐
   await p.emulateMedia({ reducedMotion: 'reduce' }); await go(p); const st = await fxReady(p, 'planet'); expect(st === 'ready', `그림 상태 ${st}`);
   await p.screenshot({ path: 'uxshots/163-fx-still.png', fullPage: true }); return '한 장';
 });
+// Codex #159 P2: 지구 모형이 404·끊김이면 투명 칸으로 남지 않고 은은한 빛(대체)으로 · 글은 그대로
+await run(164, 'FX 지구 모형 못 받음(404) = 은은한 빛 대체 · 글 그대로', IPHONE, { candidates: [] }, async (p) => {
+  await p.route(/\/doit\/fx\/planet\.glb$/, (r) => r.fulfill({ status: 404, body: '' }));
+  await go(p); const st = await fxReady(p, 'planet'); expect(st === 'failed', `그림 상태 ${st}`);
+  expect(await p.locator('.doit-fx--planet .doit-fx-fallback').count() === 1, '대체 빛 없음');
+  expect((await text(p)).includes('당신이 잠든 사이, AI가 먼저 만나봅니다.'), '안내 문구'); return '404 → 대체 빛';
+});
 
 // 회귀: Google G · 로그인 문구
 await run(29, '회귀: 로그인 Google G + 「Google로 시작하기」', IPHONE, {}, async (p) => {
