@@ -914,6 +914,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const goal = A.isGoal(body.goal) ? body.goal : null;
       const goalLabel = goal && typeof body.goalLabel === "string" ? body.goalLabel.trim().slice(0, 40) || null : null;
       if (body.goal != null && !goal) return fail("BAD_REQUEST", "고른 만남을 다시 골라 주세요.", 400, origin);
+      const firstRaw = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
+      // 2026-10-10 MVP 마감(제품 기준 「위기 신호 → 분석·질문 생성 멈춤 · 안전 안내 · 원문은 개인화 재료로 쓰지 않음」):
+      //   첫 답이 위기 신호면 그 말은 모델·저장에 쓰지 않는다. 안전 안내는 AI 상태(설정·하루 한도·첫 질문 만들기 실패)와 무관하게
+      //   늘 함께 준다(Codex P1 4235756227 · cf2c58e 리뷰) — 모델 없이 고정 첫 질문으로 세션을 열고, 같은 요청 재전송·이미 있는 세션에도 다시 붙인다.
+      const startCrisis = !!firstRaw && RT.crisisSignal(firstRaw);
+      const crisisExtra = startCrisis ? { crisis: true, reply: RT.CRISIS_LINE } : {};
       const existing = await currentSession(admin, userId, since, goal);
       if (existing) {
         // Codex P2(4183520284): 이 요청이 만든 세션인데 마무리만 못 했으면(503) 그 유료 자리를 여기서 끝낸다(하루 한도 이중 셈 0)
@@ -922,17 +928,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
           const done = await reconcilePaid(ctx, { claimId: await derivedUuid(`${requestId}:claim:start`), claimTarget: null, usageTarget: existing.request_id, why: "opening", ...(existing.request_id === firstSid ? { turnRowId: requestId } : {}) });
           if (done === false) return unconfirmed(origin);
         }
-        return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true }, 200, origin);
+        return json({ ok: true, session: sessionView(existing.request_id, existing.response_payload as unknown as Stored), existing: true, ...crisisExtra }, 200, origin);
       }
       if (prior) return fail("REQUEST_CONFLICT", "같은 요청 식별값이 이미 쓰였어요.", 409, origin);
       const tone = A.isTone(body.tone) ? body.tone : A.DEFAULT_TONE;
       const mode = body.mode === "VOICE" ? "VOICE" : "TEXT";
-      const firstRaw = typeof body.firstAnswer === "string" ? body.firstAnswer.trim().slice(0, TEXT_MAX) : "";
-      // 2026-10-10 MVP 마감(제품 기준 「위기 신호 → 분석·질문 생성 멈춤 · 안전 안내 · 원문은 개인화 재료로 쓰지 않음」):
-      //   첫 답이 위기 신호면 그 말은 모델·저장에 쓰지 않고(첫 답 없이 시작) 응답에 안전 안내를 함께 준다(강제 종료 아님).
-      const startCrisis = !!firstRaw && RT.crisisSignal(firstRaw);
       const first = startCrisis ? "" : firstRaw;
       const stored: Stored = { agent: A.AGENT_VERSION, state: A.newState({ tone, mode, goal: goal ?? "open", goalLabel }), round_since: since, profile: null, handoff: null };
+      if (startCrisis) {
+        // 모델 0 · 비용 자리 0: 고정 첫 질문(seedFirstQuestion)으로 세션만 열고 안전 안내를 함께 돌려준다(AI 장애·한도와 무관).
+        A.seedFirstQuestion(stored.state);
+        stored.run = R.syncRun(null, stored.state, new Date().toISOString(), { calls: 0, tokens_in: 0, tokens_out: 0, tokens_unconfirmed: 0 });
+        const { error } = await admin.from("doit_request_events").insert({ user_id: userId, request_id: requestId, action: SESSION_ACTION, status: "applied", payload_hash: "", applied_revision: 1, response_payload: stored });
+        if (error) return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin);
+        logDiag({ step: "opening", code: "crisis" });
+        return json({ ok: true, session: sessionView(requestId, stored), ...crisisExtra }, 200, origin);
+      }
       if (first) A.seedFirstQuestion(stored.state);
       // 이미 있는 세션은 위에서 돌려줌(모델 0). 새로 만들 때: 첫 질문 만들기 = 모델 호출 · 첫 답은 모델이 필요할 때만(개인정보 안내 등 = 모델 0) AI 사전 확인
       const startPaid = !first || await callsModel(stored, (st, llm) => A.runTurn(st, first, llm, { ui: null }));
@@ -978,7 +989,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       if (error) { await settleStart(keptOr(usageOk, "LOST_RACE")); return fail("REQUEST_CONFLICT", "대화를 시작하지 못했어요. 다시 눌러 주세요.", 409, origin); }
       if (startClaim) { if (!usageOk) await settleStart(TURN_UNCERTAIN); else if (!(await finishClaim(admin, userId, startClaim, startAttempt))) return unconfirmed(origin); } // Codex P1(4182156210): 사용 기록이 남은 뒤에만 자리를 끝냄
       logDiag({ step: "opening", calls: obs.calls.length, model: obs.calls.find((c) => c.model)?.model ?? null, provider: router.summary().provider, fallback: router.summary().fallback, policy: router.policy.version });
-      return json({ ok: true, session: sessionView(requestId, stored), ...(startCrisis ? { crisis: true, reply: RT.CRISIS_LINE } : {}) }, 200, origin);
+      return json({ ok: true, session: sessionView(requestId, stored) }, 200, origin);
       } catch (e) { await settleStart(TURN_UNCERTAIN); throw e; }
     }
 

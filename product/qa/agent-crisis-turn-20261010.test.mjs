@@ -45,15 +45,32 @@ test('agent_turn 위기 신호 → 안전 안내 · 모델 0 · 상태·판 번�
   assert.equal(next.status, 200); assert.equal(next.body.turn.saved, true);
 });
 
-test('agent_start 첫 답 위기 신호 → 첫 답은 쓰지 않고(저장·모델 재료 0) 안전 안내와 함께 평소 첫 질문으로 시작', async () => {
+test('agent_start 첫 답 위기 신호 → 모델 0 · 첫 답 저장 0 · 고정 첫 질문으로 시작 + 안전 안내(AI 실패가 줄 서 있어도 200)', async () => {
+  // Codex P1(PR #153 cf2c58e 리뷰): AI 설정·한도·첫 질문 만들기 실패와 무관하게 안전 안내가 나가야 한다 → 실패 응답을 줄 세워 둔다
   const s = newState(); const h = load(s);
-  s.ai.push({ reply: '반가워요', question: '어떤 만남을 찾아요?' }); // 첫 질문 만들기(opening) 가짜 응답 — 첫 답 없이 시작했다는 뜻
+  s.ai.push('HTTP500', 'HTTP500', 'HTTP500');
   const r = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: CRISIS });
-  assert.equal(r.status, 200);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.crisis, true);
   assert.match(r.body.reply, /109/);
+  assert.equal(s.providerCalls?.length ?? 0, 0, '모델 호출 0');
   assert.ok(!r.body.session.messages.some((m) => m.role === 'user'), '첫 답이 대화에 들어가지 않음');
-  const all = JSON.stringify(s.tables.doit_request_events);
-  assert.ok(!all.includes('죽고 싶'), '어디에도 원문 저장 0');
-  assert.equal(r.body.session.current_question, '어떤 만남을 찾아요?', '첫 답 없는 평소 시작(opening) 경로')
+  assert.equal(r.body.session.current_question, '어떤 만남을 원하세요?', '고정 첫 질문(모델 없이)으로 시작');
+  assert.ok(!JSON.stringify(s.tables.doit_request_events).includes('죽고 싶'), '어디에도 원문 저장 0');
+  assert.ok(!s.tables.doit_request_events.some((x) => x.action === 'agent_turn_claim'), '비용 자리 잡기 0');
+});
+
+test('agent_start 위기 첫 답을 같은 요청으로 다시 보내도(응답 유실 후 재전송) 안전 안내가 다시 붙는다', async () => {
+  // Codex P1(PR #153 4235756227)
+  const s = newState(); const h = load(s);
+  const requestId = rid();
+  const a = await h.call({ action: 'agent_start', requestId, tone: 'polite', mode: 'TEXT', firstAnswer: CRISIS });
+  assert.equal(a.status, 200);
+  const b = await h.call({ action: 'agent_start', requestId, tone: 'polite', mode: 'TEXT', firstAnswer: CRISIS });
+  assert.equal(b.status, 200, JSON.stringify(b.body));
+  assert.equal(b.body.existing, true);
+  assert.equal(b.body.session.id, a.body.session.id, '같은 세션');
+  assert.equal(b.body.crisis, true, '재전송에도 안전 안내');
+  assert.match(b.body.reply, /109/);
+  assert.equal(s.tables.doit_request_events.filter((x) => x.action === 'agent_session').length, 1, '세션 1개');
 });
