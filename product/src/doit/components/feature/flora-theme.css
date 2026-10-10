@@ -121,7 +121,8 @@
 :root:root:root .doit-root .echo-flora-hook-sub{margin:0 0 14px;font-size:15px;line-height:1.6;color:var(--flora-sub)!important;text-wrap:pretty;word-break:keep-all}
 
 /* 굵기 = Flora 원본: 글 400 · 라벨·제목·버튼 500. 주아체는 한 굵기라 가짜 굵기 없이 그대로(font-synthesis:none). */
-:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :not(i):not([class^="ri-"]):not([class*=" ri-"]):not([class*="fa-"]){font-weight:400!important}
+/* Codex #158 P2: 아래 500 규칙이 이기도록 이 넓은 규칙의 :not 묶음은 :where 로(특이도 0) */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :where(:not(i):not([class^="ri-"]):not([class*=" ri-"]):not([class*="fa-"])){font-weight:400!important}
 :root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,h2,h3,h4,label,button,a,summary,strong,b,.doit-product-kicker,.doit-profile-section-label,.doit-asleep-label,.doit-product-nav a){font-weight:500!important}
 /* 대화 화면: ECHO 표시는 Flora 빛(흰색→#9fc2ff), 말풍선은 4px 모서리 */
 :root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question-card.echo-bubble--echo::before{background:radial-gradient(circle at 42% 38%,#fff 0,#dce8ff 38%,#9fc2ff 72%,#3c64c8 100%)!important;box-shadow:0 0 0 1px rgb(255 255 255/.28),0 0 18px rgb(159 194 255/.55)!important}
@@ -136,3 +137,6 @@
 /* 사주·타로 첫 화면 카드 그림(대표 제공 · 2026-10-10 「첫화면에 이미지 박아」): 카드 맨 위를 꽉 채우고, 글은 그 아래. */
 :root:root:root .doit-root .echo-fortune-art{display:block;width:calc(100% + 48px);max-width:none;margin:-28px -24px 18px;aspect-ratio:16/10;object-fit:cover;border-radius:4px 4px 0 0}
 :root:root:root .doit-root .echo-fortune-hookline{margin:12px 0 0;font-size:14px;line-height:1.6;color:var(--flora-strong)!important;word-break:keep-all;padding-left:10px;box-shadow:inset 2px 0 0 #bbfc9e}
+/* Codex #158 P2: 버튼 둘이 옆으로 나란히 선 좁은 자리(예: 프로필 준비 「이 글로 바꾸기 / 지금 글 그대로 두기」)에서는 라임 사각을 빼고 흰 판만 — 글이 잘리지 않게. */
+:root:root:root .doit-root :is(.flex:not(.flex-col),[class*="grid-cols-2"],.saju-actions--row)>:is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary){border-right:0!important;justify-content:center;text-align:center;padding-left:10px!important;padding-right:10px!important;white-space:normal}
+:root:root:root .doit-root :is(.flex:not(.flex-col),[class*="grid-cols-2"],.saju-actions--row)>:is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary)::after{display:none!important}

@@ -193,12 +193,12 @@ await run(9, '선택 후 대기(다시 열어도 유지)', IPHONE, { candidates:
 });
 await run(10, 'mutual (서버가 mutual 이라고 답할 때만)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(600);
-  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('두 분 모두 대화를 원했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
+  const t = await text(p); expect(t.includes('찌릿! 텔레파시가 통했어요') && t.includes('두 분 모두 연결을 선택했어요.'), 'ZZARIT 문구'); expect(!/하늘|축하/.test(t), '상대 정보·과한 축하');
   await p.waitForTimeout(900); await p.screenshot({ path: 'uxshots/10-mutual.png' }); return 'ZZARIT · 상대 정보 0';
 });
 await run(11, 'connection (서버 match_id 로 이동)', IPHONE, { candidates: [cand('c1')], partnerYes: ['c1'] }, async (p) => {
   await go(p); await p.getByRole('button', { name: /더 알아보기/ }).click(); await p.getByRole('button', { name: /이어지고 싶어요/ }).click(); await p.waitForTimeout(500);
-  await p.getByRole('button', { name: /다음 단계 보기/ }).click(); await p.waitForTimeout(1200);
+  await p.getByRole('button', { name: /첫 대화 시작하기/ }).click(); await p.waitForTimeout(1200);
   const focused = await p.evaluate((id) => document.activeElement?.id === `match-${id}`, MID);
   expect(focused, '그 연결로 이동 안 됨'); return `#match-${MID.slice(0, 8)} 포커스`;
 });
@@ -290,7 +290,7 @@ await run(30, 'back guard: 폰 뒤로 → 직전 답 고치기 → 서버 재계
 // 31·32 via_mutual(2026-10-01): 먼저 고른 사람도 서버가 via_mutual=true 를 줄 때만 「상대도 당신이 궁금했대요」.
 await run(31, 'via_mutual=true: 먼저 고른 사람도 ZZARIT 한 번 → 서로 골랐다는 문구', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await go(p); expect((await text(p)).includes('찌릿! 텔레파시가 통했어요'), '기다리던 사람 ZZARIT 없음');
-  await p.getByRole('button', { name: /다음 단계 보기/ }).click(); await p.waitForTimeout(300); const t = await text(p);
+  await p.getByRole('button', { name: /첫 대화 시작하기/ }).click(); await p.waitForTimeout(300); const t = await text(p);
   expect(t.includes('상대도 당신이 궁금했대요.'), 'via_mutual 문구 없음'); expect(t.includes('ECHO가 하나만 물어볼게요.'), '첫 질문 안내');
   await p.screenshot({ path: 'uxshots/31-via-mutual.png' }); return '서버 via_mutual=true → 문구 1';
 });
@@ -376,15 +376,26 @@ await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·
   expect(await p.locator('.echo-zzarit').count() === 0, '새로고침에 다시 뜸'); expect((await text(p)).includes('ECHO가 하나만 물어볼게요.'), '연결로 이어지지 않음');
   return '1회 · 새로고침 0';
 });
-await run(51, 'ZZARIT 전류 0.6~0.9초 한 번 → 정지 · 연결선 은은하게 남음(.45) · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
-  await go(p); await p.waitForTimeout(100);
-  // 전류는 0.9초 안에 끝나 화면 준비(networkidle + 0.6초) 뒤에는 이미 멈춰 있을 수 있다 — 실행 중 여부 대신 애니메이션이 있었는지(fill: both 로 남음)를 센다
-  const during = await p.evaluate(() => document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).length);
-  await p.waitForTimeout(1400);
-  const after = await p.evaluate(() => ({ run: document.querySelector('.echo-zzarit').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, line: getComputedStyle(document.querySelector('.echo-zzarit-current')).opacity, ms: document.querySelector('.echo-zzarit-current').getAnimations()[0]?.effect?.getTiming().duration ?? null, focus: document.activeElement?.textContent }));
-  expect(during > 0 && after.run === 0, `움직임 ${during}→${after.run}`); expect(after.ms >= 600 && after.ms <= 900, `전류 길이 ${after.ms}ms`); expect(Math.abs(Number(after.line) - .45) < .02, `연결선 ${after.line}`);
-  expect(/다음 단계 보기/.test(after.focus ?? ''), '버튼 포커스');
-  await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `실행 중 ${during} → 1.5초 뒤 0 · 연결선 ${after.line}`;
+// 2026-10-10 대표 「Lattice 효과」(Codex #158 P2): 예전 전류 줄(.echo-zzarit-current) → 가운데 Lattice 빛의 통로 하나 · 버튼 「첫 대화 시작하기」
+await run(51, 'ZZARIT Lattice: 가운데 통로 하나(캔버스 또는 WebGL 없을 때 은은한 빛) · CSS 움직임 0 · 위 글 / 통로 / 아래 버튼 순서 · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
+  await go(p); await p.waitForTimeout(1500);
+  const m = await p.evaluate(() => {
+    const z = document.querySelector('.echo-zzarit'); const stage = z?.querySelector('.doit-erl-stage');
+    const top = (sel) => z?.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+    return {
+      stages: z?.querySelectorAll('.doit-erl-stage').length ?? 0,
+      drawn: !!stage?.querySelector('canvas.doit-erl-canvas, .doit-erl-fallback'),
+      width: stage?.getBoundingClientRect().width ?? 0,
+      css: z?.getAnimations({ subtree: true }).length ?? -1,
+      order: [top('.echo-zzarit-title'), top('.doit-erl-stage'), top('.echo-zzarit-cta')],
+      focus: document.activeElement?.textContent ?? '',
+    };
+  });
+  expect(m.stages === 1 && m.drawn, `통로 ${m.stages} · 그림 ${m.drawn}`); expect(m.width > 200, `통로 폭 ${m.width}`);
+  expect(m.css === 0, `CSS 움직임 ${m.css}`);
+  expect(m.order[0] < m.order[1] && m.order[1] < m.order[2], `순서 ${m.order.join(',')}`);
+  expect(/첫 대화 시작하기/.test(m.focus), '버튼 포커스');
+  await p.screenshot({ path: 'uxshots/51-zzarit-end.png' }); return `통로 폭 ${Math.round(m.width)} · CSS 움직임 0 · 순서 맞음`;
 });
 await run(52, 'ZZARIT 움직임 줄이기: 처음부터 정지 화면 · 진동 0', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await p.emulateMedia({ reducedMotion: 'reduce' }); await p.addInitScript(() => { window.__vib = 0; navigator.vibrate = () => { window.__vib++; return true; }; });
