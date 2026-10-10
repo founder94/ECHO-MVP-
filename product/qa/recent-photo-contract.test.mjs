@@ -171,6 +171,7 @@ function photoScreen({ checkKind = 'needs-confirmation', existing = null, failUp
       if (name.endsWith('/theme')) return { colors: {}, serif: 'serif', surfaces: {} };
       if (name.endsWith('/PrimaryButton')) return { PrimaryButton: 'primary-button' };
       if (name.endsWith('/CameraSheet')) return { CameraSheet: 'camera-sheet' };
+      if (name === '@/hooks/useBackClose') return { useBackClose: () => {} }; // 휴대폰 「뒤로」 닫기(2026-10-10 기기 호환) — 이 검사와 무관
       if (name.endsWith('/recentPhoto')) return { MAX_UPLOAD_PHOTO_BYTES: api.MAX_UPLOAD_PHOTO_BYTES, RecentPhotoError: api.RecentPhotoError, prepareAlbumPhoto: async () => ({ blob: photoBlob, dateCheck: { kind: checkKind } }) };
       // 2026-09-21 사진 정책(필수 3장·종류·AI 판별)은 qa/photo-policy.test.mjs 가 따로 검사한다. 여기서는 최소 흉내만 낸다.
       if (name.endsWith('/photoPolicy')) return {

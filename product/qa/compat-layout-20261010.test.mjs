@@ -184,3 +184,10 @@ test('금지어·가격 0(이번 변경 파일)', () => {
   assert.doesNotMatch(all, /데이팅|소개팅|궁합|점술|심리치료|성격검사/);
   assert.doesNotMatch(all, /[0-9,]+\s*원\b|₩/);
 });
+
+test('사진 창·카메라 창도 휴대폰 「뒤로」로 그 창만 닫힘(useBackClose) · 저장 중엔 닫지 않음', () => {
+  const pc = readFileSync(new URL('../src/doit/app/plan-a/screens/PhotoCapture.tsx', import.meta.url), 'utf8');
+  assert.match(pc, /useBackClose\(true, \(\) => \{ if \(!busyRef\.current\) onClose\(\); \}\);/);
+  const cam = readFileSync(new URL('../src/doit/app/plan-a/components/CameraSheet.tsx', import.meta.url), 'utf8');
+  assert.match(cam, /useBackClose\(true, onClose\);/);
+});

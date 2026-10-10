@@ -5,6 +5,7 @@ import { PhotoDrafts } from "@/pages/do-it/photo/photoDrafts";
 import { colors, serif, surfaces } from "@/doit/app/plan-a/theme";
 import { PrimaryButton } from "@/doit/app/plan-a/components/PrimaryButton";
 import { CameraSheet } from "@/doit/app/plan-a/components/CameraSheet";
+import { useBackClose } from "@/hooks/useBackClose";
 import {
   SupabasePhotoAdapter,
   restorePhotos,
@@ -32,6 +33,10 @@ const offlineAware = (message: string) => (typeof navigator !== "undefined" && n
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
 
 function PhotoDialog({ title, busy, onClose, children }: { title: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
+  // 2026-10-10 기기 호환: 휴대폰 「뒤로」는 이 창만 닫는다(저장 중이면 닫지 않음 — 닫기 버튼과 같은 규칙).
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  useBackClose(true, () => { if (!busyRef.current) onClose(); });
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;

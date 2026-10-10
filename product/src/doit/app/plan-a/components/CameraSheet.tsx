@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraController, CameraError } from "@/pages/do-it/photo/camera";
 import { correctBlob } from "@/doit/lib/photoCorrect";
+import { useBackClose } from "@/hooks/useBackClose";
 import { colors, serif } from "@/doit/app/plan-a/theme";
 
 const MAX_CAPTURE_PIXELS = 12 * 1024 * 1024; // 12MP 카메라 상한
@@ -35,6 +36,8 @@ interface Props {
 
 // 기존 CameraController + correctBlob 로직을 재사용한 plan-a 스타일 카메라 시트.
 export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
+  // 2026-10-10 기기 호환: 휴대폰 「뒤로」는 카메라 창만 닫는다(부르는 쪽 onClose 가 저장 중이면 무시).
+  useBackClose(true, onClose);
   const [cameraState, setCameraState] = useState<CameraState>("idle");
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [rotation, setRotation] = useState(0);
