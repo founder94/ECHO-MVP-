@@ -46,7 +46,8 @@ const OBSERVER = { threshold: 0.3 };
 type Trigger = { on: "preloader" } | { on: "inview" } | { on: "stage"; id: string };
 type Tag = "h1" | "h2" | "h3" | "div";
 
-const WEIGHT = { medium: "font-medium", regular: "font-normal text-ink" } as const;
+// 대표 지시(10-10 「더 진하게 · 더 두껍게」): 제목 바탕 600 · 강조 마디 700/800 — 차례(바탕 < regular < medium)는 원본 그대로.
+const WEIGHT = { medium: "font-extrabold", regular: "font-bold text-ink" } as const;
 
 /** A character's look at progress (0 hidden → 1 at rest) per curve. */
 const look = (t: number, b: number, o: number) => ({

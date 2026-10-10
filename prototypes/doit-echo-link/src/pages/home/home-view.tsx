@@ -22,10 +22,10 @@ import { ANIMATED_VIEWPORTS, SCENE_AT, homeCopy as c } from "./content";
  * - 본문 색 #111 · 보조 #202020 · 제목 #050505 · 정착 opacity 1 · 본문 500 · 글 뒤 막 없음(글자 윤곽 빛만 · .scrim-soft).
  */
 
-const HI_TOP = "flex justify-between text-label font-medium uppercase tracking-label text-ink-2";
-const BODY = "text-body font-medium leading-body text-ink-1 keep-all";
+const HI_TOP = "flex justify-between text-label font-semibold uppercase tracking-label text-ink-2";
+const BODY = "text-body font-semibold leading-body text-ink-1 keep-all";
 const DISPLAY =
-  "m-0 font-light text-display leading-display tracking-tight2 text-ink keep-all whitespace-nowrap max-md:whitespace-normal";
+  "m-0 font-semibold text-display leading-display tracking-tight2 text-ink keep-all whitespace-nowrap max-md:whitespace-normal";
 const LINE = "h-px bg-spectrum";
 /** 서비스로 넘어가는 주요 버튼 — 진한 채움 · 흰 글 · 높이 56px · 휴대폰은 폭 전체(누르기 쉽게, home.css .go-mobile). */
 const CTA = "go-mobile";
@@ -89,12 +89,13 @@ export const HomeView = () => {
               <span className="text-brand font-semibold tracking-brand text-ink">{c.brand.name}</span>
             </a>
           </PreloadRevealDiv>
+          {/* 대표 지시(10-10 「배경색이랑 겹칠 것 같은 부분 수정」): PC 에서 첫 제목이 인형 뒤(z 2)라 글자 일부가 가려졌다 — 휴대폰처럼 앞(z 4)으로. */}
           <SplitTitle
             tag="h1"
             trigger={{ on: "preloader" }}
             pace="hero"
             lines={c.hero.title}
-            className="halo pointer-events-none absolute top-[43%] left-12.5 z-2 m-0 -translate-y-1/2 font-light text-hero leading-hero whitespace-nowrap text-ink keep-all portrait:z-4 max-md:left-gutter max-md:top-[30%] max-md:whitespace-normal max-md:pr-gutter"
+            className="halo pointer-events-none absolute top-[43%] left-12.5 z-4 m-0 -translate-y-1/2 font-semibold text-hero leading-hero whitespace-nowrap text-ink keep-all max-md:left-gutter max-md:top-[30%] max-md:whitespace-normal max-md:pr-gutter"
           />
           <PreloadRevealNav
             from="top"
@@ -154,7 +155,7 @@ export const HomeView = () => {
                   <div
                     key={word}
                     id={`word${i + 1}`}
-                    className="absolute top-1/2 left-1/2 m-0 px-[0.2em] py-0 font-medium text-word whitespace-nowrap text-ink opacity-0 [transform:translate3d(-50%,-50%,0)_rotateY(0deg)]"
+                    className="absolute top-1/2 left-1/2 m-0 px-[0.2em] py-0 font-bold text-word whitespace-nowrap text-ink opacity-0 [transform:translate3d(-50%,-50%,0)_rotateY(0deg)]"
                   >
                     {Array.from(word).map((ch, j) => (
                       <span key={j} className="-mx-[0.04em] inline-block px-[0.04em]">
@@ -184,16 +185,16 @@ export const HomeView = () => {
                   id="phase3-title"
                   trigger={{ on: "stage", id: "phase3-title" }}
                   lines={c.glass.title}
-                  className="m-0 max-w-none font-light text-display leading-display tracking-tight2 text-ink keep-all"
+                  className="halo m-0 max-w-none font-semibold text-display leading-display tracking-tight2 text-ink keep-all"
                 />
                 <div className="flex items-end justify-between gap-8 max-lg:flex-col-reverse max-lg:items-start">
-                  <div className="text-label font-medium text-ink-2">{c.glass.label}</div>
+                  <div className="text-label font-semibold text-ink-2">{c.glass.label}</div>
                   <ol className="m-0 flex list-none items-end gap-15 p-0 max-lg:gap-8 max-md:w-full max-md:flex-col max-md:items-stretch max-md:gap-4">
                     {c.glass.steps.map((s) => (
                       <li key={s.index} className="stat-rule relative flex flex-col gap-3 pl-stat-pad max-md:flex-row max-md:items-baseline max-md:gap-4">
-                        <div className="font-light text-stat leading-none text-ink max-md:w-stat-num max-md:shrink-0 max-md:text-stat-sm">{s.index}</div>
+                        <div className="font-semibold text-stat leading-none text-ink max-md:w-stat-num max-md:shrink-0 max-md:text-stat-sm">{s.index}</div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-step font-semibold text-ink">{s.name}</span>
+                          <span className="text-step font-bold text-ink">{s.name}</span>
                           <span className={`${BODY} text-step-desc`}>{s.desc}</span>
                         </div>
                       </li>
@@ -247,7 +248,7 @@ export const HomeView = () => {
               id="phase6-title"
               trigger={{ on: "stage", id: "phase6-title" }}
               lines={c.finale.title}
-              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-light max-md:font-normal text-finale leading-hero whitespace-nowrap text-ink keep-all max-md:text-[min(30px,calc((100vw-32px)/15))]"
+              className="halo pointer-events-none absolute top-[28vh] left-0 m-0 w-full -translate-y-1/2 px-gutter text-center font-semibold text-finale leading-hero whitespace-nowrap text-ink keep-all max-md:text-[min(30px,calc((100vw-32px)/15))]"
             />
           </div>
         </main>
@@ -258,12 +259,12 @@ export const HomeView = () => {
         <div id="phase6-footer" className="pointer-events-none fixed top-0 left-0 z-4 h-screen w-full [transform:translateY(100vh)] [&_*]:pointer-events-auto">
           <footer className="absolute right-12.5 bottom-10 left-12.5 flex flex-col overflow-hidden rounded-4xl border border-ink/15 bg-transparent p-12 text-ink max-md:right-gutter max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:left-gutter max-md:p-6">
             <div className="flex items-end justify-between gap-10 max-md:flex-col max-md:items-start max-md:gap-6">
-              <div className="scrim-soft flex flex-col">
-                <h2 className="m-0 mb-4 text-service font-semibold tracking-tight2 text-ink">{c.footer.service}</h2>
+              <div className="scrim-strong flex flex-col">
+                <h2 className="m-0 mb-4 text-service font-extrabold tracking-tight2 text-ink">{c.footer.service}</h2>
                 <Lines lines={c.footer.text} className={`${BODY} m-0`} />
               </div>
-              <div className="scrim-soft flex flex-col items-start gap-3 max-md:w-full">
-                <p className="m-0 text-[15px] font-semibold text-ink-1">{c.footer.hook}</p>
+              <div className="scrim-strong flex flex-col items-start gap-3 max-md:w-full">
+                <p className="m-0 text-[16px] font-bold text-ink">{c.footer.hook}</p>
                 <a href={serviceHref} onClick={goToService} className={CTA}>
                   {c.footer.cta}
                   <span aria-hidden="true" className="go-mobile-arrow">
@@ -273,12 +274,12 @@ export const HomeView = () => {
               </div>
             </div>
             <div className="mt-10 mb-5 h-px bg-veil-15 max-md:mt-6 max-md:mb-4" />
-            <div className="scrim-soft flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
-              <span className="flex items-center gap-2 text-sign font-semibold text-ink-1">
+            <div className="scrim-strong flex items-center justify-between gap-4 max-md:flex-col max-md:items-start max-md:gap-2">
+              <span className="flex items-center gap-2 text-sign font-bold text-ink">
                 <Symbol className="h-6 w-auto" />
                 {c.footer.sign}
               </span>
-              <span className="text-sign font-medium text-ink-2">{c.footer.copyright}</span>
+              <span className="text-sign font-semibold text-ink-2">{c.footer.copyright}</span>
             </div>
           </footer>
         </div>

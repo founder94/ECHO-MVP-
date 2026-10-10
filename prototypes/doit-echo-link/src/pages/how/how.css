@@ -1,10 +1,11 @@
-/* 우리가 만드는 방식 — DOIT COMPANY 밝은 화면(홈페이지 글자 기준: 제목 #050505 · 본문 #111 · 보조 #202020). */
+/* 대표 지시(10-10 「더 진하게 · 더 두껍게」): 제목 800 · 설명 600 · 보조 글 한 단계 진하게.
+   우리가 만드는 방식 — DOIT COMPANY 밝은 화면(홈페이지 글자 기준: 제목 #050505 · 본문 #111 · 보조 #202020). */
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 
 :root {
   --ink: #050505;
-  --ink-1: #111111;
-  --ink-2: #202020;
+  --ink-1: #050505;
+  --ink-2: #111111;
   --page: #f6fafe;
   --gutter: 16px;
 }
@@ -35,18 +36,18 @@ body {
   flex: 1; display: flex; flex-direction: column; gap: 1.75rem;
   padding: 2rem var(--gutter) calc(2rem + env(safe-area-inset-bottom));
 }
-.how-label { margin: 0 0 1rem; font-size: 14px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-2); }
-.how-hook { margin: 0; font-weight: 500; font-size: clamp(23px, 6.6vw, 56px); line-height: 1.22; letter-spacing: -0.02em; color: var(--ink); }
-.how-desc { margin: 1.25rem 0 0; font-size: clamp(16px, 4.3vw, 19px); font-weight: 500; line-height: 1.6; color: var(--ink-1); }
+.how-label { margin: 0 0 1rem; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-1); }
+.how-hook { margin: 0; font-weight: 800; font-size: clamp(23px, 6.6vw, 56px); line-height: 1.22; letter-spacing: -0.02em; color: var(--ink); }
+.how-desc { margin: 1.25rem 0 0; font-size: clamp(16px, 4.3vw, 19px); font-weight: 600; line-height: 1.6; color: var(--ink); }
 .how-line { display: block; text-wrap: balance; }
 
 /* 홈 → ECHO 버튼: 투명 글라스(대표 지시 2026-10-10 「이하동문」) — 뒤 화면이 버튼의 배경. 진한 채움·뒤 흐림 없음,
    테와 반사선으로 「버튼」임을 보인다. 높이 56px 유지. */
-.how-cta-hook { margin: 0 0 0.75rem; font-size: 15px; font-weight: 600; color: var(--ink-1); }
+.how-cta-hook { margin: 0 0 0.75rem; font-size: 16px; font-weight: 700; color: var(--ink); }
 .how-cta {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.75rem; min-height: 56px;
   padding: 0 2.5rem; border-radius: 999px; background: rgb(255 255 255 / 0.08); color: var(--ink);
-  text-decoration: none; font-weight: 600; font-size: 17px;
+  text-decoration: none; font-weight: 700; font-size: 17px;
   box-shadow: inset 0 0 0 1px rgb(12 22 44 / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.65);
   -webkit-tap-highlight-color: transparent;
 }
@@ -85,7 +86,7 @@ body {
   background: #fff; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
 }
 .onyx-toggle[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
-.onyx-hint { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--ink-2); flex: 1 1 14rem; }
+.onyx-hint { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; color: var(--ink-1); flex: 1 1 14rem; }
 
 /* PC: 왼쪽 설명 / 오른쪽 효과 */
 @media (min-width: 900px) {
