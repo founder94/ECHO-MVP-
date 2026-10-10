@@ -11,3 +11,9 @@ test('citation payload without a past-tense phrase cannot cite a foreign source'
 test('citation payload without a past-tense phrase cannot alter a stored amount',()=>{assert.equal(F.parseFree(JSON.stringify({reply:'회사 목표는 5,000억 원이에요.',memory_citations:[{key:'user:1',quote:'회사 목표는 5,000억 원'}]}),known),null);});
 test('citation payload cannot launder an invented decision by avoiding a memory phrase',()=>{const r=F.parseFree(JSON.stringify({reply:'「회사 목표는 500억 원」이고 최종 목표는 5,000억 원이에요.',memory_citations:[{key:'user:1',quote:'회사 목표는 500억 원'}]}),known);assert.ok(r);assert.equal(r.reply.includes('5,000'),false);assert.ok(r.reply.includes('500억'));});
 test('explicit malformed or empty citation payload is rejected even without a memory phrase',()=>{for(const memory_citations of [null,[],{},'user:1'])assert.equal(F.parseFree(JSON.stringify({reply:'회사 목표는 5,000억 원이에요.',memory_citations}),known),null);});
+// 2026-10-10 Codex P2(4236681722): 「~를 기억해 두면」 같은 보통 조언은 기억 주장이 아니다(인용 없어도 통과) · ECHO 의 1인칭 기억 주장은 인용 필요
+test('ordinary advice with 기억해 is not a memory claim; first-person claims still need citations',()=>{
+ assert.ok(F.parseFree(JSON.stringify({reply:'오늘 느낀 편안함을 기억해 두면 다음 만남에도 도움이 돼요.'}),known));
+ assert.ok(F.parseFree(JSON.stringify({reply:'그 마음을 기억하는 것만으로도 충분해요.'}),known));
+ for(const r of ['말씀하신 산책 얘기 기억해요.','제가 기억하기로는 주말을 좋아하셨어요.','그 얘기 기억하고 있어요.']) assert.equal(F.parseFree(JSON.stringify({reply:r}),known),null,r);
+});

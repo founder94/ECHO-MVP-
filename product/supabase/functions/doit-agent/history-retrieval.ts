@@ -21,7 +21,9 @@ export const memoryIntent = (text: string): "history" | "current" => /처음|최
 const ASKING = /[?？]\s*$|(?:나요|까요|었나|였나|었지|였지|던가|더라|했지|인가요|인지)\s*[.!~]?\s*$|알려\s*(?:줘|주세요|줄래|줄\s*수)|말해\s*(?:줘|주세요|줄래)/u;
 const MEMORY_ASK = /기억(?:해|하|나|한|하는|해요|하고)|(?:처음|최초|예전|이전|현재|지금).*(?:말했|말한|정한|목표|결정)/u;
 const DESCRIBES_OTHER = /기억(?:을\s*잘\s*)?(?:하는|해\s*주는|해주는)\s*(?:사람|친구|분|상대|사이)/u;
-export const memoryQuestion = (text: string) => ASKING.test(text.trim()) && MEMORY_ASK.test(text) && !DESCRIBES_OTHER.test(text);
+// 2026-10-10 Codex P1(4236681719): 「작은 것도 기억해 주는 친구가 좋다고 내가 말했지?」처럼 지난 말을 되묻는 진짜 기억 질문은 「기억해 주는 친구」가 들어 있어도 기억 찾기.
+const SELF_RECALL = /(?:내가|제가|나|저)\s*(?:\S+\s*){0,4}?(?:말했|말한|얘기했|이야기했|했었|정했)|기억(?:나|해|하)(?:\s*(?:니|나요|요|지|세요))?\s*[?？]\s*$/u;
+export const memoryQuestion = (text: string) => ASKING.test(text.trim()) && MEMORY_ASK.test(text) && (!DESCRIBES_OTHER.test(text) || SELF_RECALL.test(text));
 function words(query: string) { return [...new Set(query.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])].map(w => w.replace(/(?:였나요|인가요|이었나요|했나요|였는지|이었는지|했는지|의|은|는|이|가|을|를)$/u, "")).filter(w => w.length >= 2); }
 function forgotten(st: State, turn: Turn) { return items(st).some(i => i.turn === turn.n && i.status === "FORGOTTEN") || (st.forgotten ?? []).some(t => has(turn.user, t)) || (st.forgotten_traits ?? []).some(t => has(turn.user, t)); }
 // 2026-10-09 Codex P1: AI 가 바꿔 말한 해석(원문의 글자 조각이 아님)을 사용자가 「아니에요」로 물리면 글자 비교(withheld)로는 못 가린다 → 그 턴에 물린·고쳐진 해석이 있고 확인된 사용자 직접 말이 없으면 원문 통째로 다시 쓰지 않는다.

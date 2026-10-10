@@ -61,3 +61,8 @@ test('recallRows: deleting one line of a multi-fact turn keeps the other confirm
  const raw=structuredClone(row);raw.response_payload.state.slots.a.items=[{turn:1,quote:'주말마다 등산을 다니고',note:'주말 등산',status:'FORGOTTEN',source_type:'USER_DIRECT'}];
  assert.equal(H.recallRows([raw],'u1','고양이','history','s1').evidence.length,0);
 });
+// 2026-10-10 Codex P1(4236681719): 지난 말을 되묻는 진짜 기억 질문은 「기억해 주는 친구」가 들어 있어도 기억 찾기
+test('memoryQuestion: a real recall of a remembered-person preference is still recall',()=>{
+ for(const t of ['작은 것도 기억해 주는 친구가 좋다고 내가 말했지?','기억하는 사람이 좋다고 제가 예전에 말했나요?']) assert.equal(H.memoryQuestion(t),true,t);
+ for(const t of ['뭐든 잘 기억하는 사람이 좋아요','작은 것도 기억해 주는 친구가 좋아요','기억하는 사람이 좋아요?']) assert.equal(H.memoryQuestion(t),false,t);
+});
