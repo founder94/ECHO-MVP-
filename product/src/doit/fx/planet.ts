@@ -443,7 +443,8 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
     }, undefined, fail);
 
     return {
-      ready: () => loaded && !entryActive,
+      // 움직임: 모형이 오면 바로 보여 떠오르는 장면을 보이게(Codex #159 P2) · 한 장(still): 다 떠오른 자리에서만
+      ready: () => loaded && (opts.play === "live" || !entryActive),
       failed: () => loadFailed,
       update: (_scroll, _now, dt, still) => {
         planetTime.value += dt / 12;

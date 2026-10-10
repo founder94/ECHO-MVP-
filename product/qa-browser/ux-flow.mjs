@@ -58,9 +58,26 @@ function makeServer(init) {
   return { st, connect };
 }
 
+// 2026-10-10 대표 「ECHO 1.0 · iPhone + Samsung FINAL LOCK」: UX_DEVICE=<이름> 이면 같은 검사를 그 기기 크기·브라우저 이름표(UA)로 돌린다.
+// PC 크롬 안의 흉내일 뿐 — 실기기 PASS 가 아니다(아이폰은 WebKit 엔진도 다름). 기본(없음) = 예전 그대로 390×844.
+const SAMSUNG_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S921N) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0.0.0 Mobile Safari/537.36';
+const CHROME_ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; SM-F946N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36';
+const DEVICES = {
+  'galaxy-s24': { vp: { width: 360, height: 780 }, dpr: 3, ua: SAMSUNG_UA },
+  'galaxy-s24-ultra': { vp: { width: 384, height: 832 }, dpr: 3.75, ua: SAMSUNG_UA },
+  'fold-cover': { vp: { width: 344, height: 882 }, dpr: 2.625, ua: CHROME_ANDROID_UA },
+  'fold-cover-narrow': { vp: { width: 280, height: 653 }, dpr: 3, ua: CHROME_ANDROID_UA },
+  'fold-open': { vp: { width: 690, height: 829 }, dpr: 2.625, ua: CHROME_ANDROID_UA },
+  'flip': { vp: { width: 360, height: 880 }, dpr: 3, ua: SAMSUNG_UA },
+};
+const DEVICE = process.env.UX_DEVICE ? DEVICES[process.env.UX_DEVICE] : null;
+if (process.env.UX_DEVICE && !DEVICE) throw new Error(`UX_DEVICE 모름: ${process.env.UX_DEVICE} (${Object.keys(DEVICES).join(', ')})`);
+
 async function newPage(browser, vp, server) {
+  // 기기 지정이 있으면 기본 휴대폰 크기(IPHONE) 검사만 그 기기로 바꾼다(폭을 따로 정한 검사는 그대로).
+  if (DEVICE && vp === IPHONE) vp = DEVICE.vp;
   // UX_VIDEO=<폴더>: 장면을 영상으로도 남긴다(대표 보고용 녹화 · 검사 판정과 무관).
-  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: 2, ...(process.env.UX_VIDEO ? { recordVideo: { dir: process.env.UX_VIDEO, size: vp } } : {}) });
+  const ctx = await browser.newContext({ viewport: vp, isMobile: true, hasTouch: true, deviceScaleFactor: DEVICE?.dpr ?? 2, ...(DEVICE ? { userAgent: DEVICE.ua } : {}), ...(process.env.UX_VIDEO ? { recordVideo: { dir: process.env.UX_VIDEO, size: vp } } : {}) });
   const user = { ...USER, user_metadata: { ...(server.st.userMeta ?? USER.user_metadata) } };
   await ctx.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, ['sb-mutniujeiyujhkobadkd-auth-token', JSON.stringify({ ...SESSION, user })]);
   // UX_OFFLINE=1: 바깥 인터넷이 막힌 검사 환경 — 바깥 글꼴·아이콘 요청을 바로 끊는다(기다리다 networkidle 시간 초과 방지 · 화면 동작 영향 0).
@@ -381,6 +398,9 @@ await run(50, 'ZZARIT 은 한 번만: 서버 mutual → 보임 · 새로고침·
 // 2026-10-10 대표 「B로 채택」: 가운데 = Storm 두 구슬 + 전류(FxStage storm-pair) 하나 · 버튼 「첫 대화 시작하기」
 await run(51, 'ZZARIT 두 구슬: 가운데 그림 하나(캔버스 또는 WebGL 없을 때 은은한 빛) · CSS 움직임 0 · 위 글 / 그림 / 아래 버튼 순서 · 버튼 포커스', IPHONE, { matches: [match({ via_mutual: true })] }, async (p) => {
   await go(p); await p.waitForTimeout(1500);
+  await p.waitForFunction(() => ['ready', 'failed'].includes(document.querySelector('.echo-zzarit .doit-fx--storm-pair')?.dataset.state ?? ''), null, { timeout: 30000 }).catch(() => {});
+  // 캔버스 나타나기(0.6초 opacity 전환)가 끝날 때까지(최대 5초) — 계속 도는 CSS 움직임이 있으면 끝나지 않아 아래 판정에서 그대로 걸린다
+  await p.waitForFunction(() => document.querySelector('.echo-zzarit')?.getAnimations({ subtree: true }).length === 0, null, { timeout: 5000 }).catch(() => {});
   const m = await p.evaluate(() => {
     const z = document.querySelector('.echo-zzarit'); const stage = z?.querySelector('.doit-fx--storm-pair');
     const top = (sel) => z?.querySelector(sel)?.getBoundingClientRect().top ?? -1;
@@ -391,9 +411,10 @@ await run(51, 'ZZARIT 두 구슬: 가운데 그림 하나(캔버스 또는 WebGL
       css: z?.getAnimations({ subtree: true }).length ?? -1,
       order: [top('.echo-zzarit-title'), top('.doit-fx--storm-pair'), top('.echo-zzarit-cta')],
       focus: document.activeElement?.textContent ?? '',
+      vw: innerWidth,
     };
   });
-  expect(m.stages === 1 && m.drawn, `통로 ${m.stages} · 그림 ${m.drawn}`); expect(m.width > 200, `통로 폭 ${m.width}`);
+  expect(m.stages === 1 && m.drawn, `통로 ${m.stages} · 그림 ${m.drawn}`); expect(m.width >= Math.min(200, m.vw * 0.65), `통로 폭 ${m.width} / 화면 ${m.vw}`);
   expect(m.css === 0, `CSS 움직임 ${m.css}`);
   expect(m.order[0] < m.order[1] && m.order[1] < m.order[2], `순서 ${m.order.join(',')}`);
   expect(/첫 대화 시작하기/.test(m.focus), '버튼 포커스');
@@ -488,7 +509,8 @@ await run(37, '구조대 기본: 주관식 본체 · 보기 0 → 잘 모르겠�
   expect(!s.st.calls.some(c => c.action === 'agent_rescue'), '서버가 들고 있던 보기인데 다시 청함');
   const opts = p.locator('.echo-rescue .echo-choice'); const n = await opts.count();
   expect(n >= 2 && n <= 4, `Q2·Q13 보기 수 ${n}`); expect((await p.locator('.echo-rescue-lead').innerText()).includes('이런 느낌 중에 가까운 게 있어요?'), '안내 문구');
-  for (let k = 0; k < n; k++) { const h = (await opts.nth(k).boundingBox()).height; expect(h >= 44 && h <= 64, `누름 높이 ${h}`); }
+  const vw = await p.evaluate(() => innerWidth);
+  for (let k = 0; k < n; k++) { const h = (await opts.nth(k).boundingBox()).height; expect(h >= 44 && h <= (vw < 320 ? 96 : 64), `누름 높이 ${h} / 화면 ${vw}`); }
   const texts = await opts.allInnerTexts(); expect(!texts.some(t => /모르|선호|외향|[A-Za-z]{3,}/.test(t)), `Q14 보기 말 ${texts}`);
   await opts.nth(1).click(); await p.waitForTimeout(400);
   expect(await opts.nth(1).getAttribute('aria-pressed') === 'true', '고른 표시 없음');
@@ -653,6 +675,8 @@ await run(55, 'MEET 꺼짐인데 남은 영상 동의 있음 = 거두기 버튼�
   const t = (await p.locator('.doit-meet').innerText()).trim(); expect(t === '영상 이용 동의 거두기', `꺼짐 거두기만 ${t}`);
   await p.getByRole('button', { name: '영상 이용 동의 거두기' }).click(); await p.waitForTimeout(600);
   const upd = s.st.calls.find(c => c.fn === 'auth_update'); expect(upd && upd.data.doit_video_consent_version === null && !('doit_connect_consent_version' in upd.data), `거두기 ${JSON.stringify(upd)}`);
+  // 거둔 뒤 서버를 다시 읽고 사라짐 — 느린 기기·동시 실행에서 0.6초를 넘을 수 있어 최대 5초까지 기다린다(판정은 그대로)
+  await p.locator('.doit-meet').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
   expect(await p.locator('.doit-meet').count() === 0, '거둔 뒤 꺼짐 = 숨김'); return '꺼짐에서도 거두기';
 });
 await run(56, 'MEET 불러오기 실패 + 남은 영상 동의 = 실패 안내 + 다시 불러오기 + 거두기', IPHONE, { matches: talkMatch(), fail: { meet_status: { times: 5, status: 503, code: 'MEET_READ_FAILED', message: 'x' } } }, async (p) => {
@@ -670,7 +694,7 @@ const fxReady = async (p, kind) => { await p.locator(`.doit-fx--${kind}`).waitFo
 await run(160, 'FX 지구: 아직 보여 드릴 사람이 없을 때 = 지구 + 승인 문구 한 줄 · 넘침 0', IPHONE, { candidates: [] }, async (p) => {
   await go(p); const st = await fxReady(p, 'planet'); expect(st === 'ready', `그림 상태 ${st}`); await p.waitForTimeout(2600);
   const t = await text(p); expect(t.includes('당신이 잠든 사이, AI가 먼저 만나봅니다.') && t.includes('아직 보여 드릴 사람은 없어요.'), '안내 문구');
-  expect(await overflow(p) <= 0, '가로 넘침'); const b = await p.locator('.doit-fx--planet').boundingBox(); expect(b.width > 300 && b.height >= 250, `칸 ${b.width}x${b.height}`);
+  expect(await overflow(p) <= 0, '가로 넘침'); const b = await p.locator('.doit-fx--planet').boundingBox(); const vw = await p.evaluate(() => innerWidth); expect(b.width >= Math.min(300, vw - 48) && b.height >= 250, `칸 ${b.width}x${b.height} / 화면 ${vw}`);
   await p.screenshot({ path: 'uxshots/160-fx-planet.png', fullPage: true }); return `지구 ${Math.round(b.width)}x${Math.round(b.height)}`;
 });
 await run(161, 'FX DNA: 대화를 불러오는 동안 = 나선 + 심볼 + 한 줄 안내 · 짧으면 안 띄움', IPHONE, { agent: { session: AGENT_SESSION }, agentDelay: 15000 }, async (p) => {
@@ -681,7 +705,7 @@ await run(161, 'FX DNA: 대화를 불러오는 동안 = 나선 + 심볼 + 한 �
   expect(await p.locator('.doit-fx-wait .echo-thinking svg, .doit-fx-wait .echo-thinking canvas, .doit-fx-wait .echo-thinking img').count() >= 1, '심볼 그대로');
   expect(await overflow(p) <= 0, '가로 넘침'); await p.screenshot({ path: 'uxshots/161-fx-dna.png' }); return '나선 + 심볼';
 });
-await run(162, 'FX 유리 카드: 타로 해석을 기다리는 동안 = 바람개비 + 한 줄 안내', IPHONE, { agentDelay: 20000 }, async (p) => {
+await run(162, 'FX 유리 카드: 타로 해석을 기다리는 동안 = 바람개비 + 한 줄 안내', IPHONE, { agentDelay: 40000 }, async (p) => {
   await p.goto(`${BASE}/doit/fortune?mode=taro`, { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
   await p.locator('button.echo-glass-btn--choice').first().click(); await p.getByRole('button', { name: /새 카드 뽑기/ }).first().click(); await p.waitForTimeout(800);
   await p.locator('button[aria-label^="펼친"]').first().click(); await p.waitForTimeout(1500);

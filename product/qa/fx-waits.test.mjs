@@ -79,6 +79,14 @@ test('가벼움·움직임 줄이기·실패 대체', () => {
   // ⑤ 원본도 비어 있는 TORUS·BLOOM 합성기는 처음·크기 바뀜·그 층에 물체가 생길 때만 다시 그림(결과 같음 · GPU 절약)
   assert.match(house, /if \(sidePassesDirty \|\| layerInUse\(LAYERS\.TORUS_SCENE\)\) \{ camera\.layers\.set\(LAYERS\.TORUS_SCENE\); torusComposer\.render\(\); \}/);
   assert.match(house, /const resize = \(\) => \{\s*sidePassesDirty = true;/);
+  // ⑥ 휴대폰 렌더 예산 = 저장소 공통 기준(손가락 화면 배율 1 · 초당 30장) — house·glass 둘 다
+  for (const src of [house, read('src/doit/fx/glass.ts')]) {
+    assert.match(src, /import \{ clampPixelRatio, frameBudget, readTier \} from "@\/doit\/flora\/scene\/device";/);
+    assert.match(src, /if \(budget > 0 && now - drawnAt < budget - 4\) return;/);
+    assert.doesNotMatch(code(src), /Math\.min\(window\.devicePixelRatio/);
+  }
+  // ⑦ 지구: 움직임이면 모형이 오자마자 보여 떠오르는 장면이 보임 · still 은 다 떠오른 자리에서만
+  assert.match(read('src/doit/fx/planet.ts'), /ready: \(\) => loaded && \(opts\.play === "live" \|\| !entryActive\),/);
   // 상자 크기 고정(글자가 효과 위에 얹히지 않음 · 가로 넘침 0)
   const css = read('src/doit/fx/fx.css');
   assert.match(css, /\.doit-fx\{position:relative;width:100%;height:220px;/);

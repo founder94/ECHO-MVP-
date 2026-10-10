@@ -20,6 +20,7 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { CopyShader } from "three/examples/jsm/shaders/CopyShader.js";
 import { GammaCorrectionShader } from "three/examples/jsm/shaders/GammaCorrectionShader.js";
+import { clampPixelRatio, frameBudget, readTier } from "@/doit/flora/scene/device";
 
 export type FxPlay = "live" | "still";
 
@@ -166,8 +167,11 @@ export function createHouse(
   } catch {
     return null;
   }
-  // [통합] 휴대폰 3배 화면에서 합성기 3개 × 반투명 점은 너무 무겁다 → 2 로 묶는다(점 크기 셰이더는 원본 그대로).
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // [통합] 휴대폰 렌더 예산 = 저장소 공통 기준(flora/scene/device.ts): 손가락 화면은 화면 배율 1 · 초당 30장(Codex #159 P2 · Galaxy A 발열).
+  // 점 크기는 (높이 × dpr ÷ 900) 비율이라 배율이 바뀌어도 보이는 크기는 같다(셰이더 원본 그대로).
+  const tier = readTier();
+  const dpr = clampPixelRatio(tier);
+  const budget = frameBudget(tier);
   renderer.setPixelRatio(dpr);
   if (config.outputSRGB) renderer.outputColorSpace = THREE.SRGBColorSpace;
   else renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // [통합] r143 WebGL1Renderer 기본(선형 출력)과 같게
@@ -372,9 +376,12 @@ export function createHouse(
     opts.onFail?.();
     return true;
   };
-  const frame = () => {
+  let drawnAt = 0;
+  const frame = (now: number) => {
     if (halt()) return;
     raf = requestAnimationFrame(frame);
+    if (budget > 0 && now - drawnAt < budget - 4) return; // 손가락 화면 = 초당 30장(FloraBloom 과 같은 방식)
+    drawnAt = now;
     update();
     draw();
     fireReady();

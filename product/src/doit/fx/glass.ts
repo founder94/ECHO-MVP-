@@ -13,6 +13,7 @@
  */
 import * as THREE from "three";
 import type { FxHandle, FxPlay } from "./house";
+import { clampPixelRatio, frameBudget, readTier } from "@/doit/flora/scene/device";
 
 export const GLASS_CONFIG = {
   // glass (drei MeshTransmissionMaterial)
@@ -409,7 +410,10 @@ export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: 
   let renderer: THREE.WebGLRenderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch { return null; }
   const size = () => { const r = host.getBoundingClientRect(); return { w: Math.max(1, Math.round(r.width)), h: Math.max(1, Math.round(r.height)) }; };
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // 1.5 not 2 — this scene is fill-bound (원본)
+  // 1.5 not 2 — this scene is fill-bound (원본). [통합] 손가락 화면은 저장소 공통 기준(배율 1 · 초당 30장 · Codex #159 P2)
+  const tier = readTier();
+  const budget = frameBudget(tier);
+  renderer.setPixelRatio(Math.min(clampPixelRatio(tier), 1.5));
   const s0 = size();
   renderer.setSize(s0.w, s0.h, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -509,8 +513,11 @@ export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: 
 
   const still = opts.play === "still";
   let raf = 0, running = false, inView = true, readyFired = false;
-  const frame = () => {
+  let drawnAt = 0;
+  const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
+    if (budget > 0 && now - drawnAt < budget - 4) return; // 손가락 화면 = 초당 30장
+    drawnAt = now;
     step(false);
     if (!readyFired) { readyFired = true; opts.onReady?.(); }
   };
