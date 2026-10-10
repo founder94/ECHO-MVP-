@@ -25,3 +25,8 @@ test('bare 했어요 and reported-speech memory claims need a citation',()=>{
  for(const r of ['지난번에는 매일 연락이 좋다고 했어요.','저번에 산책이 좋다고 하셨죠.','주말이 편하다고 했어요.','전에 회사 목표를 500억이라고 적으셨어요.','어제 그 얘기 했잖아요.','지금까지 주말이 좋다고 했어요.']) assert.equal(F.parseFree(JSON.stringify({reply:r}),known),null,r);
  for(const r of ['방금 피곤하다고 했어요. 오늘은 쉬어 가요.','좋다고 하는 사람도 많아요.','오늘 이야기부터 편하게 이어가요.','그렇게 느끼는 건 자연스러워요.']) assert.ok(F.parseFree(JSON.stringify({reply:r}),known),r);
 });
+test('Codex 8차(1b521f0) P1: 꾸미는 꼴(말한·말하신·얘기한·하신·~다고 한 것)도 출처 없으면 거절 · 보통 말은 그대로',()=>{
+  for(const r of ['저번에 매일 연락이 좋다고 말한 것 같아요.','지난번에 얘기한 산책 말이에요.','전에 말하신 주말 계획 좋네요.','매일 연락이 좋다고 하신 거 맞죠?','편한 친구가 좋다고 한 거 기억나요.','처음에 적은 목표가 멋져요.']) assert.equal(F.parseFree(JSON.stringify({reply:r}),known),null,r);
+  for(const r of ['좋다고 한 사람도 많아요. 당신은 어때요?','오늘 한 이야기 중에 뭐가 제일 좋았어요?','그 마음을 기억하는 것만으로도 충분해요.','잠들기 전에 산책했어요? 좋은 습관이네요.','만나기 전에 뭐 했어요?']) assert.ok(F.parseFree(JSON.stringify({reply:r}),known),r);
+  assert.equal(F.parseFree(JSON.stringify({reply:'전에 산책 좋다고 했어요.'}),known),null,'맨 「전에」+했어요 는 그대로 지난 말 주장');
+});
