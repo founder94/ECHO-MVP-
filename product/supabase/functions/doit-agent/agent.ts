@@ -579,6 +579,8 @@ export interface AgentState {
   goal?: GoalId; goal_label?: string | null; // v2.4 세션의 관계 목적(예전 대화에는 없다 → open)
   // 2026-10-06 대표 「기억 영수증」: forgotten = 「ECHO가 아는 나」에서 사용자가 지운 줄(글자 그대로 · AI 가 다시 만들지 않는다) · user_confirmed_at = 「맞아요」로 지금 이해 전체를 확인한 시각 · last_receipt = 마지막 정정 영수증
   forgotten?: string[]; user_confirmed_at?: string | null; last_receipt?: (Receipt & { turn: number }) | null;
+  // 2026-10-10: forgotten_lines = 사용자가 지운 「줄」 수(화면 「지운 줄 N개」). forgotten 은 같이 숨긴 원문 복사본까지 담아 줄 수보다 클 수 있다.
+  forgotten_lines?: number;
 }
 // 2026-10-06 기억 영수증(서버 고정 문장 · AI 0): before = 이번 말로 밀리거나 거둔 옛 뜻 · after = 이번 말에서 새로 받은 뜻.
 export interface Receipt { line: string; before: string[]; after: string[] }
@@ -1274,20 +1276,22 @@ export function knownView(st: AgentState): KnownView {
   }
   st.inferred.forEach((t, k) => guesses.push(knownLine(`inf:${k}:${t.trait}`, t.trait, "ai_guess", { quote: t.basis || null, at: null })));
   for (const c of st.rejected_choices ?? []) rejected.push(knownLine(`choice:${c}`, c, "rejected_choice"));
-  return { confirmed, guesses, corrected, rejected, confirmed_at: st.user_confirmed_at ?? null, forgotten: (st.forgotten ?? []).length };
+  return { confirmed, guesses, corrected, rejected, confirmed_at: st.user_confirmed_at ?? null, forgotten: st.forgotten_lines ?? (st.forgotten ?? []).length };
 }
 /** 줄 하나 지우기(사용자 본인 · 서버가 처리). 지운 글자는 forgotten 에 남겨 AI 가 다시 만들지 않는다. 못 찾으면 false. */
 export function forgetKnown(st: AgentState, key: string): boolean {
   const remember = (t: string) => { st.forgotten = [...new Set([...(st.forgotten ?? []), rcpt(t)])].slice(-50); };
+  // 지운 줄 수는 한 번 지울 때 1(같이 숨긴 복사본은 세지 않음) · 예전 상태는 지금까지의 글자 수에서 이어 센다.
+  const lines = st.forgotten_lines ?? (st.forgotten ?? []).length; const counted = () => { st.forgotten_lines = lines + 1; return true; };
   if (key.startsWith("inf:")) {
     const trait = key.split(":").slice(2).join(":"); const n = st.inferred.length;
     st.inferred = st.inferred.filter((t) => t.trait !== trait);
-    if (st.inferred.length === n) return false; remember(trait); return true;
+    if (st.inferred.length === n) return false; remember(trait); return counted();
   }
   if (key.startsWith("choice:")) {
     const c = key.slice("choice:".length); const n = (st.rejected_choices ?? []).length;
     st.rejected_choices = (st.rejected_choices ?? []).filter((x) => x !== c);
-    if (st.rejected_choices.length === n) return false; remember(c); return true;
+    if (st.rejected_choices.length === n) return false; remember(c); return counted();
   }
   if (!key.startsWith("item:")) return false;
   const [, purpose, turnStr, ...rest] = key.split(":"); const note = rest.join(":"); const turn = Number(turnStr);
@@ -1309,7 +1313,7 @@ export function forgetKnown(st: AgentState, key: string): boolean {
   }
   for (const id of PIDS) if (st.slots[id].status === "CONFIRMED" && !st.slots[id].items.some((i) => i.status === "CONFIRMED")) st.slots[id].status = "UNKNOWN";
   if (st.slots[purpose].status === "CONFIRMED" && !st.slots[purpose].items.some((i) => i.status === "CONFIRMED")) st.slots[purpose].status = "UNKNOWN";
-  return true;
+  return counted();
 }
 /** 「맞아요」: 지금 보이는 AI 정리(AI_EXTRACTED · CONFIRMED)를 사용자가 확인한 값(USER_CONFIRMED)으로 올린다. 바뀐 줄 수를 돌려준다(0 이어도 확인 시각은 남긴다). */
 export function confirmKnown(st: AgentState): number {

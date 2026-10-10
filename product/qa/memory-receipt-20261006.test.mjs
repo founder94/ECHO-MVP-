@@ -123,6 +123,19 @@ test('⑥ P1 지우기: 같은 말의 원문 복사본도 함께 FORGOTTEN — �
   assert.ok(st.slots.relationship_style.items.every((i) => i.status === 'FORGOTTEN'));
   assert.equal(M.sourceFromProfile(A.matchingProfile(st), 'done', null).confirmed.length, 0, '매칭 재료 0');
   assert.equal(st.slots.relationship_style.status, 'UNKNOWN');
+  // 2026-10-10 QA 실서버 ⑥: 한 줄을 지우면 화면 「지운 줄」은 1 — 같이 숨긴 복사본은 세지 않는다(재등장 막기용 글자는 2개 그대로)
+  assert.equal(k2.forgotten, 1, '지운 줄 수 = 1');
+  assert.equal(st.forgotten.length, 2, '정리 + 원문 복사본 글자 둘 다 기억(재등장 0)');
+});
+
+test('⑥-2 지운 줄 수: 예전 상태(줄 수 없음)는 지금까지 글자 수에서 이어 센다 · 못 찾은 지우기는 세지 않음', () => {
+  const st = base(); st.forgotten = ['예전에 지운 줄']; delete st.forgotten_lines;
+  assert.equal(A.knownView(st).forgotten, 1, '예전 상태 = 글자 수');
+  assert.equal(A.forgetKnown(st, 'item:relationship_intent:99:없는 줄'), false);
+  assert.equal(A.knownView(st).forgotten, 1, '못 찾음 = 그대로');
+  const guess = A.knownView(st).guesses.find((l) => l.text === '친구 같은 만남');
+  assert.equal(A.forgetKnown(st, guess.key), true);
+  assert.equal(A.knownView(st).forgotten, 2);
 });
 
 test('⑦ P2 인용은 정정 직후 한 번만 — 다음 턴(모르겠다)의 질문에는 인용 0 · 영수증 없는 정정은 옛 영수증 재료 0', () => {

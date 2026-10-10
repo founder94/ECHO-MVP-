@@ -66,6 +66,15 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // 위기 신호 안전 안내(서버 고정 문장) — 대화 화면·불러오는 중·다시 불러오기 실패 화면 모두에 보인다(2026-10-10 · Codex P1/P2).
+  //   at = 안내를 받을 때의 대화 길이 — 그 뒤 대화가 이어지면(말이 늘면) 저절로 사라진다(보낼 때마다 따로 지우지 않음).
+  const [safety, setSafety] = useState<{ line: string; at: number } | null>(null);
+  const showSafety = (line: string, s: AgentSession | null) => setSafety({ line, at: s?.messages.length ?? -1 });
+  const safetyLine = safety && (!session || session.messages.length === safety.at || safety.at < 0) ? <p className="echo-notice" role="alert">{safety.line}</p> : null;
+  // 다시 불러온 지금 회차가 도착하면 그 길이를 기준으로 삼는다(그 뒤 대화가 이어지면 사라짐).
+  useEffect(() => { if (safety && safety.at < 0 && session) setSafety({ line: safety.line, at: session.messages.length }); }, [safety, session]);
+  // 세션이 지난 회차·없음(서버 session: null): 옛 세션을 먼저 지우고 지금 회차를 다시 불러온다 — 불러오기에 실패해도 옛 대화로 이어 보내지 않게
+  const reloadRound = () => { setSession(null); setLoaded(false); return load(); };
   // 2026-10-06 유료 자유 대화 안내: 서버 스위치가 켜져 있을 때만(기본 꺼짐 → 상태 enabled=false → 안내 0) · 정해진 흐름에서 ECHO에게 다른 걸 물었을 때(말 종류 ask) 한 번.
   const [freeStatus, setFreeStatus] = useState<FreeTalkStatus | null>(null);
   const [freeOffer, setFreeOffer] = useState(false);
@@ -140,6 +149,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     const s = await agentStart(userId, { tone: choice.tone, mode: VOICE_CONVERSATION_ENABLED ? choice.mode : 'TEXT', ...(firstAnswer ? { firstAnswer } : {}), seed: takeContentSeed(), goal });
     if (!alive.current) return;
     speakNew(null, s); setSession(s);
+    if (s.crisisLine) showSafety(s.crisisLine, s); // 위기 신호: 서버 안전 안내를 그대로(첫 답은 쓰지 않음)
   });
 
   // spokenTurn = 말로 대화하기 마이크로 들은 말(글로 적은 말과 같은 서버·같은 기억·같은 정정/거절 규칙으로 간다).
@@ -153,6 +163,12 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     void run(VOICE_CONVERSATION_ENABLED && session.mode === 'VOICE' ? '이해하는 중이에요' : '다음 질문을 고르고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
+      if (r.turn.kind === 'crisis') {
+        showSafety(r.turn.reply, r.session); setDraft('');
+        if (r.session) setSession(r.session); else await reloadRound(); // 지난 회차·없음: 지금 회차를 다시 불러온다(안내는 그대로)
+        return;
+      }
+      if (!r.session) return;
       speakNew(session, r.session, spoke); setSession(r.session);
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
@@ -242,6 +258,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
 
   if (!loaded) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!loadError}>
     {header}
+    {safetyLine}
     {loadError ? <div className="echo-error" role="alert"><p>{loadError}</p><button onClick={() => void load()}>다시 불러오기</button></div> : <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>대화를 불러오고 있어요</p></div>}
   </section>;
 
@@ -256,6 +273,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {(session?.goal_label ?? purposeLabel) && <p className="echo-purpose-chip">{session?.goal_label ?? purposeLabel}</p>}
     <h1>편하게 몇 가지만<br />물어볼게요.</h1>
     <p className="echo-lead">짧아도 괜찮아요. 떠오르는 대로 적어 주세요.</p>
+    {safetyLine}
     {error && <div className="echo-error" role="alert"><p>{error}</p><button disabled={!!busy} onClick={() => start()}>다시 시작하기</button><button disabled={!!busy} onClick={() => { setError(null); setChoosing(true); }}>말투 다시 고르기</button></div>}
     {busy && <div className="echo-thinking" role="status"><SymbolLoader size={64} /><p>{busy}</p></div>}
     {choosing && !busy && <AgentChoiceLayer initial={{ tone, mode }} onConfirm={choice => { if (choice.mode === 'VOICE') unlockSpeech(); setTone(choice.tone); setMode(choice.mode); setChoosing(false); start(choice); }} />}
@@ -342,6 +360,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
         </div>}
       </div>}
       {busy && <div className="echo-thinking echo-typing" role="status"><span className="echo-typing-dots" aria-hidden="true"><i /><i /><i /></span><p>{busy}</p></div>}
+      {safetyLine}
       {notice && <p className="echo-notice" role="status"><Check size={16} />{notice}</p>}
       {freeOffer && freeStatus?.enabled && (freeStatus.entitled || (freeStatus.trial_left ?? 0) > 0) && !busy && !done && <p className="echo-notice" role="note">{freeStatus.entitled ? '여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요.' : `여기부터는 ECHO가 당신을 기억한 채로, 무엇이든 이야기할 수 있어요. 맛보기 ${freeStatus.trial_left ?? 0}번 남았어요.`} <Link className="echo-text-button" to="/doit/talk">무엇이든 이야기하기</Link></p>}
       {error && <div className="echo-error" role="alert"><p>{error}</p></div>}
@@ -358,7 +377,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
       : <p className="echo-notice" role="status">이 브라우저는 말 듣기를 지원하지 않아요. 아래 칸에 글로 적어 주세요.</p>)}
     {voiceUi && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
     {/* 2026-10-04 모바일 기준 디자인 4번(정정·확인): 다 들은 뒤 첫 화면은 「이렇게 이해했는데, 맞나요?」 하나. 정리·다음 행동은 확인한 뒤에. */}
-    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} />}
+    {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} onCrisis={(line, stale) => { showSafety(line, stale ? null : session); if (stale) void reloadRound(); }} />}
     {done && (profileOk || !profile) && <img className="echo-chat-art" src="/doit/art/ribbon-03.webp" alt="" aria-hidden="true" width="970" height="410" decoding="async" />}
     {done && (profileOk || !profile) && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
