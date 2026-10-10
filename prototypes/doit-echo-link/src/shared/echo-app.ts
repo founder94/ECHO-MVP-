@@ -9,7 +9,10 @@
  */
 const DEFAULT_APP = "https://echo-app-qa.netlify.app";
 
-export const ECHO_APP_ORIGIN: string = (import.meta.env.VITE_ECHO_APP_URL as string | undefined)?.replace(/\/+$/, "") || DEFAULT_APP;
+// 2026-10-10 시험 사이트(brand) 연결: 빌드 값이 있으면 기본값(QA 주소)이 묶음에 아예 남지 않도록 삼항으로 둔다
+// (`?.replace() || 기본값` 은 압축기가 접지 못해 운영 빌드에도 QA 주소가 남는다 — 배포 검사 「운영 빌드에 QA 주소」).
+const FROM_BUILD = import.meta.env.VITE_ECHO_APP_URL as string | undefined;
+export const ECHO_APP_ORIGIN: string = FROM_BUILD ? FROM_BUILD.replace(/\/+$/, "") : DEFAULT_APP;
 
 /** 실제 앱 안의 경로. start = 새 사용자는 시작, 로그인한 사용자는 저장된 단계부터 이어감(앱의 start-journey). */
 export const echoAppUrl = (path: "/doit/start-journey" | "/login"): string => `${ECHO_APP_ORIGIN}${path}`;
