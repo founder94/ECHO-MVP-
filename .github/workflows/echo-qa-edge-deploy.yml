@@ -86,6 +86,10 @@ jobs:
           mkdir -p "$W/supabase/functions"
           cp -r "product/supabase/functions/$FUNCTION" "$W/supabase/functions/"
           [ "$FUNCTION" = "doit-agent" ] || cp -r "product/supabase/functions/doit-agent" "$W/supabase/functions/" # ../doit-agent/agent.ts 가져오기용(배포는 $FUNCTION 하나)
+          # 2026-10-10 (PR #149 뒤 QA 배포 실패 · Module not found _shared/read-json-limited.ts): 두 함수가 함께 쓰는 기존 공용 폴더도 그대로 올린다(새 모듈 0).
+          [ -d product/supabase/functions/_shared ] && cp -r "product/supabase/functions/_shared" "$W/supabase/functions/"
+          # 올리기 전에: 임시 묶음 안의 상대 경로 import 가 모두 있는지(하나라도 없으면 배포하지 않음).
+          node product/scripts/check-edge-imports.mjs "$W/supabase/functions"
           printf 'project_id = "echo-qa-edge"\n\n[functions.%s]\nverify_jwt = true\n' "$FUNCTION" > "$W/supabase/config.toml"
           (cd "$W/supabase/functions/$FUNCTION" && sha256sum *.ts)
           supabase functions deploy "$FUNCTION" --project-ref "$QA_REF" --workdir "$W" --use-api
