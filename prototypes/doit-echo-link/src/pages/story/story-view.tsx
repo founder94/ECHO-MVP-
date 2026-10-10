@@ -102,22 +102,28 @@ export const StoryView = () => {
   }, []);
 
   // 쓰는 동안 계속 임시 저장(잠깐 멈춘 뒤 한 번).
+  //  - 문장 수정은 그 수정을 만든 원문일 때만 함께 저장(Codex P2 — 옛 문장 목록이 새 원문에 붙어 새 문장이 빠지던 문제)
+  //  - 글을 모두 지우면 저장된 임시 글도 지움(Codex P2 — 지운 글이 되살아나지 않게)
+  //  - 쪽을 떠날 때(pagehide)는 기다리지 않고 바로 저장(Codex P2 — 0.4초 안에 떠나면 마지막 편집이 사라지던 문제)
+  const latest = useRef({ text, lines, linesFor });
+  latest.current = { text, lines, linesFor };
+  const persist = useCallback(() => {
+    const { text: t, lines: l, linesFor: f } = latest.current;
+    if (t.trim()) {
+      saveDraft({ text: t, lines: l !== null && f === t ? l : undefined });
+      return true;
+    }
+    clearDraft();
+    return false;
+  }, []);
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      if (text.trim()) {
-        // 문장 수정은 그 수정을 만든 원문일 때만 함께 저장(Codex 검수 P2 — 원문을 고친 뒤 옛 문장 목록이 새 원문에 붙어
-        // 새로 쓴 문장이 확인 화면에서 빠지던 문제).
-        const fresh = lines !== null && linesFor === text;
-        saveDraft({ text, lines: fresh ? lines : undefined });
-        setSaved(true);
-      } else {
-        // 글을 모두 지우면 저장된 임시 글도 지운다 — 다시 열었을 때 지운 글이 되살아나지 않게(Codex 검수 P2).
-        // (입력할 때마다 saved 는 false 가 되므로 그 값으로 가르지 않는다.)
-        clearDraft();
-      }
-    }, 400);
-    return () => window.clearTimeout(t);
-  }, [text, lines, linesFor]);
+    const timer = window.setTimeout(() => { if (persist()) setSaved(true); }, 400);
+    return () => window.clearTimeout(timer);
+  }, [text, lines, linesFor, persist]);
+  useEffect(() => {
+    window.addEventListener("pagehide", persist);
+    return () => window.removeEventListener("pagehide", persist);
+  }, [persist]);
 
   // 실제 ECHO 로 가져가려면 사용자가 직접 복사해 붙여 넣는다(자동 전송 0 · 2026-10-10).
   const [copyState, setCopyState] = useState<"ok" | "fail" | null>(null);
