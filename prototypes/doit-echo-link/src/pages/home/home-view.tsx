@@ -19,7 +19,7 @@ import { ANIMATED_VIEWPORTS, SCENE_AT, homeCopy as c } from "./content";
  * 원본과 다른 점(대표 지시서 기준):
  * - 휴대폰도 같은 고정 층 + 세로 화면 변형(portrait:)으로 장면 전체를 재생(정지 사진 0 · mobile-flow.ts).
  * - 고객사 로고 띠·숫자 통계·이메일 칸·바닥글 링크 묶음 삭제(사실이 아닌 것으로 보일 수 있음).
- * - 본문 색 #111 · 보조 #202020 · 제목 #050505 · 정착 opacity 1 · 본문 500 · 국소 밝은 막(.scrim-soft).
+ * - 본문 색 #111 · 보조 #202020 · 제목 #050505 · 정착 opacity 1 · 본문 500 · 글 뒤 막 없음(글자 윤곽 빛만 · .scrim-soft).
  */
 
 const HI_TOP = "flex justify-between text-label font-medium uppercase tracking-label text-ink-2";
@@ -178,7 +178,7 @@ export const HomeView = () => {
               className="pointer-events-auto absolute top-1/2 left-1/2 h-[calc(100%-8rem)] w-[calc(100%-8rem)] overflow-hidden rounded-none [transform:translate(-50%,-50%)_scale(0.65)] max-lg:h-[calc(100%-5rem)] max-lg:w-[calc(100%-4rem)] max-md:h-[calc(100%-3rem)] max-md:w-[calc(100%-2rem)]"
             >
               <img src={publicUrl("assets/gradient.jpg")} alt="" className="absolute top-0 left-0 z-1 h-full w-full object-cover opacity-50" />
-              <div className="glass-read absolute top-0 left-0 z-2 flex h-full w-full flex-col justify-between p-8 text-ink max-md:p-5">
+              <div className="scrim-soft absolute top-0 left-0 z-2 flex h-full w-full flex-col justify-between p-8 text-ink max-md:p-5">
                 <SplitTitle
                   tag="h2"
                   id="phase3-title"
@@ -242,10 +242,6 @@ export const HomeView = () => {
           {/* ⑦ 마지막 장면 제목 — 모델 뒤 */}
           {/* 원본은 이 제목이 모델 뒤(z 2)였으나, 마지막에 흩어지는 D 입자와 모델에 가려 읽히지 않아 앞(z 4)으로 올린다(대표 지시 §6). */}
           <div id="phase6-container" className="will-change-[transform,opacity] pointer-events-none fixed top-0 left-0 z-4 flex h-screen w-full items-center justify-center opacity-0">
-            <div
-              aria-hidden="true"
-              className="scrim-soft finale-plate pointer-events-none absolute top-[28vh] left-1/2 block h-[1.3em] w-[15em] max-w-[calc(100%-2.5rem)] -translate-x-1/2 -translate-y-1/2 text-finale max-md:text-[min(30px,calc((100vw-32px)/15))]"
-            />
             <SplitTitle
               tag="h2"
               id="phase6-title"
@@ -258,7 +254,7 @@ export const HomeView = () => {
 
         {/* 바닥글 — 마지막에 아래에서 올라온다. 서비스로 들어가는 주요 CTA.
             대표 지시(2026-10-09 「ECHO 창을 투명하게 · 뒤 배경이 보이게」): 흰 유리 판(채움·흐림·그림자)을 없애고
-            얇은 테두리만 남긴다. 글자는 글자 뒤에만 깔리는 옅은 막(.scrim-soft)으로 읽힌다. */}
+            얇은 테두리만 남긴다. 글 뒤 막 없이 글자 윤곽 빛(.scrim-soft)만 — 배경이 그대로 보인다. */}
         <div id="phase6-footer" className="pointer-events-none fixed top-0 left-0 z-4 h-screen w-full [transform:translateY(100vh)] [&_*]:pointer-events-auto">
           <footer className="absolute right-12.5 bottom-10 left-12.5 flex flex-col overflow-hidden rounded-4xl border border-ink/15 bg-transparent p-12 text-ink max-md:right-gutter max-md:bottom-[max(1rem,env(safe-area-inset-bottom))] max-md:left-gutter max-md:p-6">
             <div className="flex items-end justify-between gap-10 max-md:flex-col max-md:items-start max-md:gap-6">

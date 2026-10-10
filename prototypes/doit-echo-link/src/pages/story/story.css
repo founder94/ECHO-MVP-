@@ -884,10 +884,18 @@ body {
   position: fixed; left: 0; right: 0; bottom: var(--kb, 0px); z-index: 10;
   display: flex; gap: 0.6rem; justify-content: center;
   padding: 0.75rem max(1.25rem, env(safe-area-inset-right)) calc(0.75rem + env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
-  background: linear-gradient(180deg, rgb(1 11 36 / 0), rgb(1 11 36 / 0.92) 28%);
+  /* 대표 실기기 화면(2026-10-10): 반투명 띠 뒤로 안내 글이 비쳐 버튼 글자와 겹쳐 보였다 → 버튼 줄 바탕은 불투명,
+     위쪽 경계만 짧게 흐리게(::before). */
+  background: #010b24;
+  box-shadow: 0 -1px 0 rgb(255 255 255 / 0.08);
+}
+.story-actions::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 1.5rem; pointer-events: none;
+  background: linear-gradient(180deg, rgb(1 11 36 / 0), #010b24);
 }
 .story-actions > * { flex: 1 1 0; max-width: 20rem; }
-.story-actions-stack { position: static; flex-direction: column; align-items: stretch; padding: 1.5rem 0 calc(1rem + env(safe-area-inset-bottom)); background: none; }
+.story-actions-stack { position: static; flex-direction: column; align-items: stretch; padding: 1.5rem 0 calc(1rem + env(safe-area-inset-bottom)); background: none; box-shadow: none; }
+.story-actions-stack::before { content: none; }
 .story-actions-stack > * { max-width: none; }
 .story-main:has(.story-actions-stack) { padding-bottom: 1rem; }
 .story-primary, .story-secondary {
@@ -896,7 +904,8 @@ body {
   font: inherit; font-size: 16px; font-weight: 600; text-decoration: none; cursor: pointer;
 }
 .story-primary { border: 0; background: var(--accent); color: var(--on-accent); }
-.story-primary[aria-disabled="true"] { opacity: 0.55; }
+/* 비활성은 투명도 대신 불투명한 흐린 색 — 뒤 글자가 비치지 않게. */
+.story-primary[aria-disabled="true"] { background: #5d7a57; color: rgb(5 5 5 / 0.85); }
 .story-secondary { border: 0; background: var(--surface-glass); box-shadow: var(--hairline-glass-strong); color: #fff; -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur)); }
 
 .story-card { margin-top: 1.25rem; padding: 1.1rem 1.1rem 1.2rem; border-radius: var(--corner-panel); background: var(--surface-glass); box-shadow: var(--hairline-glass); }

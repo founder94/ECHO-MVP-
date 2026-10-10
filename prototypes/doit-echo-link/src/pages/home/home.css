@@ -443,41 +443,12 @@ html { font-synthesis: none; -webkit-text-size-adjust: 100%; }
   .sentence { display: block; text-wrap: balance; }
   @media (width >= 48rem) { .sentence { white-space: nowrap; } }
 
-  /* 읽는 글 뒤에만 까는 부드러운 밝은 막(대표 지시 §6-2). 화면 전체를 덮는 흰 상자가 아니라
-     글 영역 가장자리로 갈수록 사라지는 타원. 움직이는 모델·격자 위에서도 본문 대비를 지킨다. */
-  .scrim-soft { position: relative; isolation: isolate; --scrim-x: 3rem; --scrim-y: 2.5rem; }
-  /* 막 모양: 글 상자를 따르고 가장자리만 옅어지는 사각형(대표 지시 「문장 하나 = 한 줄」로 설명 줄이 길어지자
-     타원 막이 긴 줄의 양 끝을 못 덮어 PC ② 2.7:1 · ⑤ 5:1 로 떨어졌다). 좌우 여백은 화면 여백보다 작게(가로 넘침 0). */
-  .scrim-soft::before {
-    content: "";
-    position: absolute;
-    inset: calc(-1 * var(--scrim-y)) calc(-1 * var(--scrim-x));
-    z-index: -1;
-    pointer-events: none;
-    background: rgb(246 250 254 / 0.9);
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--scrim-x), #000 calc(100% - var(--scrim-x)), transparent),
-      linear-gradient(to bottom, transparent, #000 var(--scrim-y), #000 calc(100% - var(--scrim-y)), transparent);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent, #000 var(--scrim-x), #000 calc(100% - var(--scrim-x)), transparent),
-      linear-gradient(to bottom, transparent, #000 var(--scrim-y), #000 calc(100% - var(--scrim-y)), transparent);
-    mask-composite: intersect;
-    filter: blur(2px);
-  }
-  /* 휴대폰: 화면 여백 16px 안에 머물게 좌우 0.75rem(12px). */
-  @media (width < 48rem) {
-    .scrim-soft { --scrim-x: 0.75rem; --scrim-y: 2rem; }
-  }
-  /* 마지막 장면 한 줄 제목 뒤 막: 휴대폰 2.3:1 · PC 2.58:1(모델·입자가 지나갈 때) → 제목 폭만큼 옅은 막. */
-  .finale-plate { --scrim-x: 0.75em; --scrim-y: 0.6em; }
-  @media (width < 48rem) { .finale-plate { --scrim-x: 0.75rem; } }
-  /* 유리 카드 안 글: 그라디언트 그림 위 밝은 바탕 한 겹(카드 자체가 유리라 상자 추가 없음). */
-  .glass-read::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(180deg, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0.5));
-  }
+  /* 대표 지시(2026-10-10 「글 뒤 배경을 가리지 말고 홈페이지 배경이 그대로 보이게 — 전부 통일」):
+     글 뒤에 깔던 밝은 막(.scrim-soft::before)·마지막 제목 뒤 판(.finale-plate)·유리 카드 안 흰 겹(.glass-read)을 모두 없앤다.
+     상자·막 대신 글자 윤곽에만 아주 얇은 빛(text-shadow)을 둔다 — 글자 바로 옆 몇 px 만 밝아지고 배경은 그대로 보인다. */
+  .scrim-soft { text-shadow: 0 0 1px rgb(246 250 254), 0 0 2px rgb(246 250 254), 0 0 5px rgb(246 250 254 / 0.9), 0 0 10px rgb(246 250 254 / 0.6); }
+  /* 버튼(진한 채움)·심볼 이미지는 빛 없이 원래대로. */
+  .scrim-soft a.go-mobile, .scrim-soft .go-mobile * { text-shadow: none; }
 
   /* 밝은 배경 위 D 심볼: 흰 면이 배경에 묻히지 않게 어두운 측면 + 국소 그림자로 윤곽(두꺼운 외곽선 없음). */
   .symbol-on-light { filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.28)) drop-shadow(0 4px 10px rgb(0 0 0 / 0.12)); }
