@@ -51,6 +51,14 @@ export default function FloraBloom({ className = "" }: { className?: string }) {
     // Codex #158 P2: 멈춘 장면(움직임 줄이기·절전)도 화면 크기가 바뀌면 다시 맞추고 다 자란 한 장을 다시 그린다.
     const onResize = () => { if (!scene) return; scene.resize(); if (frozen) scene.settle(); };
     window.addEventListener("resize", onResize);
+    // GPU 가 문맥을 잃으면 그리기를 멈추고 그림 칸만 비운다(WebGL 을 못 쓸 때와 같은 대체 · 화면은 그대로).
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      cancelAnimationFrame(raf);
+      disposed = true;
+      canvas.style.display = "none";
+    };
+    canvas.addEventListener("webglcontextlost", onLost);
 
     void Promise.all([import("./scene/dandelion/dandelion-scene"), loadParticles()]).then(([{ DandelionScene }, particles]) => {
       if (disposed) return;
@@ -96,6 +104,7 @@ export default function FloraBloom({ className = "" }: { className?: string }) {
       cancelAnimationFrame(raf);
       io.disconnect();
       window.removeEventListener("resize", onResize);
+      canvas.removeEventListener("webglcontextlost", onLost);
       scene?.dispose();
     };
   }, []);

@@ -2,7 +2,7 @@ import GuideHint from '@/components/guide/GuideHint';
 import FxStage, { WaitHook } from '@/doit/fx/FxStage';
 import { PLANET_HOOKS } from '@/doit/fx/hooks';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { UnderstandingError } from '@/doit/lib/understandingApi';
+import { UnderstandingError, offlineAware } from '@/doit/lib/understandingApi';
 import { REPORT_REASONS, chooseCandidate, fetchMyCandidates, reportCandidate, reportSubmission, type CandidateChoice, type MyCandidate, type MyCandidates, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment, { WaitingMark } from './ZzaritMoment';
@@ -22,6 +22,9 @@ type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: '
 type Mutual = { matchId: string };
 type Safety = { id: string; step: 'menu' | 'report' };
 
+// 앱·탭으로 돌아옴 · 인터넷 다시 연결 = 한 번 새로 읽기(읽는 중이거나 방금 읽었으면 건너뜀 — 겹친 요청 0).
+const RESUME_GAP_MS = 2_000;
+
 const CHOICE_LABEL: Record<CandidateChoice, string> = { yes: '이어지고 싶어요', no: '이번에는 넘길게요', hide: '숨기기' };
 
 export default function ConnectionCandidates({ userId, onOpened, onServerState, reload = 0 }: { userId: string; onOpened: (matchId: string | null) => void; onServerState?: (state: MyCandidates) => void; reload?: number }) {
@@ -35,20 +38,36 @@ export default function ConnectionCandidates({ userId, onOpened, onServerState, 
   const [stale, setStale] = useState(false); // 「후보 열기」 뒤 다시 읽기가 실패해 지난 목록을 보여 주는 중
   const seq = useRef(0);
   const shown = useRef(false); // 목록을 한 번이라도 보여 줬는지(실패해도 지난 목록은 지우지 않는다)
+  const inFlight = useRef(false);
+  const lastRun = useRef(0);
 
   // explicit = 실행 단계 「후보 열기」 뒤 다시 읽기. 실패하면 지난 목록을 지우지 않고 실패를 알린다(Codex PR #122 2026-10-04).
   const refresh = useCallback(async (explicit = false) => {
     const mine = ++seq.current;
+    inFlight.current = true;
+    lastRun.current = Date.now();
     try {
       const out = await fetchMyCandidates(userId);
       if (mine === seq.current) { shown.current = true; setStale(false); setLoad({ kind: 'ready', eligible: out.eligible, candidates: out.candidates }); onServerState?.(out); } // FI-018 연결 준비 칸도 같은 서버 응답으로
     } catch {
       if (mine !== seq.current) return;
       // 불러오기 실패에는 저장 실패 문구(서버 창구의 기본 문구 「저장 결과를 확인하지 못했어요…」)를 쓰지 않는다(QA 브라우저 검사 20).
-      if (!shown.current) setLoad({ kind: 'error', message: '불러오지 못했어요. 다시 확인해 볼게요.' });
+      if (!shown.current) setLoad({ kind: 'error', message: offlineAware('불러오지 못했어요. 다시 확인해 볼게요.') });
       else if (explicit) setStale(true);
+    } finally {
+      if (mine === seq.current) inFlight.current = false;
     }
   }, [userId, onServerState]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState !== 'visible' || inFlight.current || busy || Date.now() - lastRun.current < RESUME_GAP_MS) return;
+      void refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
+    return () => { document.removeEventListener('visibilitychange', resume); window.removeEventListener('online', resume); };
+  }, [refresh, busy]);
 
   useEffect(() => { void refresh(reload > 0); }, [refresh, reload]); // reload = 실행 단계 「후보 열기」 뒤 다시 읽기(같은 화면 · 다시 만들지 않음)
 

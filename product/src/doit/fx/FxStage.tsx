@@ -18,11 +18,12 @@ export type FxKind = "dna" | "glass" | "planet" | "storm" | "storm-pair";
 type Create = (c: HTMLCanvasElement, h: HTMLElement, play: FxPlay, onReady: () => void, onFail: () => void) => FxHandle | null;
 const load = (fx: FxKind): Promise<Create> => {
   switch (fx) {
-    case "dna": return import("./dna").then((m) => (c, h, play, onReady) => { const r = m.createDna(c, h, { play, progress: { max: 0.35, seconds: 24 } }); onReady(); return r; });
-    case "glass": return import("./glass").then((m) => (c, h, play, onReady) => m.createGlass(c, h, { play, onReady }));
+    // onFail = 재료를 못 불러옴 · GPU 문맥 잃음(webglcontextlost) → 그림 칸만 은은한 빛
+    case "dna": return import("./dna").then((m) => (c, h, play, onReady, onFail) => { const r = m.createDna(c, h, { play, progress: { max: 0.35, seconds: 24 }, onFail }); onReady(); return r; });
+    case "glass": return import("./glass").then((m) => (c, h, play, onReady, onFail) => m.createGlass(c, h, { play, onReady, onFail }));
     case "planet": return import("./planet").then((m) => (c, h, play, onReady, onFail) => m.createPlanet(c, h, { play, onReady, onFail }));
-    case "storm": return import("./storm").then((m) => (c, h, play, onReady) => { const r = m.createStorm(c, h, { play }); onReady(); return r; });
-    case "storm-pair": return import("./storm").then((m) => (c, h, play, onReady) => { const r = m.createStorm(c, h, { play, layout: "pair" }); onReady(); return r; });
+    case "storm": return import("./storm").then((m) => (c, h, play, onReady, onFail) => { const r = m.createStorm(c, h, { play, onFail }); onReady(); return r; });
+    case "storm-pair": return import("./storm").then((m) => (c, h, play, onReady, onFail) => { const r = m.createStorm(c, h, { play, layout: "pair", onFail }); onReady(); return r; });
   }
 };
 
