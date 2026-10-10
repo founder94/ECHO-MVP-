@@ -87,6 +87,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
   const [saved, setSaved] = useState<Record<number, RestoredPhoto>>({});
   const [primarySlot, setPrimarySlot] = useState<number | null>(null);
   const [primaryBusy, setPrimaryBusy] = useState(false);
+  const [pendingPrimary, setPendingPrimary] = useState<number | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [camera, setCamera] = useState<PhotoTarget | null>(null);
@@ -154,29 +155,31 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
     async (slot: number) => {
       if (!userId || primaryInFlightRef.current || saveInFlightRef.current || saveBusy || album || sourceChoice || camera) return;
       primaryInFlightRef.current = true;
-      const previous = primarySlot;
-      setPrimarySlot(slot);
+      // 2026-10-10 Codex B03: 고르는 중(pending)과 확정 대표를 나눈다 — 서버 확인(ACK) 전에는 「대표」 배지·완료 판단을 바꾸지 않고,
+      //   확인되면 primarySlot 과 saved[].isPrimary 를 함께 바꿔 대표 1장 · 필수 3장이면 같은 화면에서 「프로필 확인하기」.
+      setPendingPrimary(slot);
       setActionError(null);
       setPrimaryBusy(true);
       try {
         const err = await setPrimaryPhoto(userId, slot);
         if (!mountedRef.current) return;
         if (err) {
-          setPrimarySlot(previous);
           setActionError("대표 사진을 저장하지 못했어요. 다시 선택해 주세요.");
           await loadSaved();
+        } else {
+          setPrimarySlot(slot);
+          setSaved((prev) => Object.fromEntries(Object.entries(prev).map(([k, p]) => [k, { ...p, isPrimary: p.slot === slot }])) as typeof prev);
         }
       } catch {
         if (!mountedRef.current) return;
-        setPrimarySlot(previous);
         setActionError("대표 사진을 저장하지 못했어요. 다시 선택해 주세요.");
         await loadSaved();
       } finally {
         primaryInFlightRef.current = false;
-        if (mountedRef.current) setPrimaryBusy(false);
+        if (mountedRef.current) { setPrimaryBusy(false); setPendingPrimary(null); }
       }
     },
-    [userId, saveBusy, primarySlot, loadSaved, album, sourceChoice, camera],
+    [userId, saveBusy, loadSaved, album, sourceChoice, camera],
   );
 
   const savePhoto = useCallback(
@@ -481,7 +484,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
                   {busy && <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 " style={{ background: "rgba(255,255,255,.28)", backdropFilter: "blur(6px)" }} role="status"><Loader2 size={20} color="#fff" className="animate-spin" /><span style={{ color: "#fff", fontSize: 11 }}>사진 준비·저장 중</span></span>}
                 </button>
                 <div className="flex items-center justify-between gap-1 px-2 py-1" style={{ borderTop: `1px solid ${colors.border}` }}>
-                  {savedPhoto && <button type="button" disabled={saveBusy || primaryBusy} onClick={() => void choosePrimary(index)} aria-label={isPrimary ? `${slot.label}, 대표 사진` : `${slot.label}, 대표 사진으로 지정`} aria-pressed={isPrimary} className="flex h-11 w-10 items-center justify-center disabled:opacity-40"><Star size={16} fill={isPrimary ? "#dce2ea" : "none"} color={isPrimary ? "#dce2ea" : colors.textMuted} /></button>}
+                  {savedPhoto && <button type="button" disabled={saveBusy || primaryBusy} onClick={() => void choosePrimary(index)} aria-label={isPrimary ? `${slot.label}, 대표 사진` : `${slot.label}, 대표 사진으로 지정`} aria-pressed={isPrimary} className="flex h-11 w-10 items-center justify-center disabled:opacity-40"><Star size={16} fill={isPrimary || pendingPrimary === index ? "#dce2ea" : "none"} color={isPrimary || pendingPrimary === index ? "#dce2ea" : colors.textMuted} /></button>}
                   <button type="button" disabled={saveBusy || primaryBusy} onClick={() => openSourceChoice(index, mode)} className="min-h-11 flex-1 px-1 text-center disabled:opacity-40" style={{ fontSize: 12, color: "#d7dce5", fontWeight: 600 }}>{preview ? "사진 바꾸기" : "사진 추가하기"}</button>
                 </div>
               </div>

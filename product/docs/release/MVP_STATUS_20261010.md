@@ -20,7 +20,7 @@ Codex 와 Claude 가 이 표를 기준으로 구현·검수하고, 결과는 이
 | ECHO 소개 「모바일로 시작하기」 → 실제 앱 | PR #152 `57001fd`: `/doit/start-journey`(QA 앱) | 실제 연동(링크) | 이동 주소 통과 · 컨테이너 브라우저에서 QA 앱 화면 그리기 = **확인 불가**(프록시가 앱 파일 일부를 끊음) |
 | 가입·로그인(이메일·Google) | Supabase Auth | 실제 연동 | 두 계정 실제 가입·로그인 통과(아래 E2E) |
 | 기존 사용자 복귀 | `start-journey/page.tsx:172-255`(목적·프로필·사진·대화 상태로 이어감) | 실제 연동 | 실제 계정 재로그인 → 기존 목적·사진 3장 그대로 통과(E2E a/b) |
-| 목적·프로필·사진 3장 | `profiles` · `profile_photos` · Storage | 실제 연동 | 통과(E2E) |
+| 목적·프로필·사진 3장 | `profiles` · `profile_photos` · Storage | 실제 연동 | 통과(E2E) · **화면 경계 결함 3건(Codex B01–B03) → 이 PR 에서 수정**: 늦은 AI 소개가 직접 쓴 글을 덮음 · 저장 중 입력 허용 · 대표 사진 확인(ACK) 뒤 완료 버튼 미갱신. 소스 대조 검사 수정 전 0/3 → 수정 후 3/3 |
 | ECHO Agent 대화 | `doit-agent` agent_start/turn(서버 상태·판 번호 · 고정 질문 배열 0 · 첫 질문만 고정) | 실제 연동 | 실제 AI 28 통과 / **1 목표 미달**(아래 4) |
 | 확인·정정 4버튼 · 거절 무효화 | `AgentProfileCheck.tsx` · agent_confirm · correction · RETRACTED/DISPUTED | 실제 연동 | 실제 AI: 최신 정정 우선 · 거절 뜻 재등장 0 통과 · 「그런 뜻 아니야」 1건은 AI 가 해석을 안 보여 판정 불가(INVALID — 통과 아님) |
 | 위기 신호 → 안전 안내 | agent_ref · free_talk · self_note 에만 있었음 | **결함 → 이 PR 에서 수정** | 본 대화(agent_start 첫 답 · agent_turn)에 가드 추가 · 모의 검사 수정 전 0/2 → 수정 후 2/2 · QA 배포 후 실서버 재검사 필요 |
@@ -42,7 +42,8 @@ Codex 와 Claude 가 이 표를 기준으로 구현·검수하고, 결과는 이
 | `qa-real/qa-core-live.mjs`(실제 AI · 정정·거절·목적 격리) | 28 통과 / 1 실패(목표 미달) / 1 판정 불가 |
 | `qa-real/qa-rescue-live.mjs`(실제 AI · 보기·도움) | 22 통과 / 0 실패 |
 | `qa-real/qa-safety-e2e.mjs`(여러 계정 · 차단·신고·권한) | 96 통과 / 0 실패 |
-| 단위 전체 `node --test qa/*.test.mjs qa/*.test.ts qa-independent/*.test.mjs`(이 PR) | 1428 중 1423 통과 · 0 실패 |
+| 단위 전체 `node --test qa/*.test.mjs qa/*.test.ts qa-independent/*.test.mjs`(이 PR · B01–B03 포함) | 1431 중 1426 통과 · 0 실패 |
+| `npm run build:app`(QA 공개 주소·공개 키로) | 통과 |
 | type-check · lint(이 PR) | 통과 |
 
 ## 4. 남은 문제 · 확인 불가 · 승인 대기
