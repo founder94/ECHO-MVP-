@@ -171,13 +171,13 @@ export const HomeView = () => {
           <section
             id="glass-container"
             aria-label={c.glass.label}
-            className="pointer-events-none fixed bottom-0 left-0 z-10 box-content h-screen w-full border-t border-glass-40 bg-glass-15 backdrop-blur-veil [transform:translateY(100vh)]"
+            className="pointer-events-none fixed bottom-0 left-0 z-10 box-content h-screen w-full bg-transparent [transform:translateY(100vh)]"
           >
             <div
               id="glass-gradient"
-              className="pointer-events-auto absolute top-1/2 left-1/2 h-[calc(100%-8rem)] w-[calc(100%-8rem)] overflow-hidden rounded-none [transform:translate(-50%,-50%)_scale(0.65)] max-lg:h-[calc(100%-5rem)] max-lg:w-[calc(100%-4rem)] max-md:h-[calc(100%-3rem)] max-md:w-[calc(100%-2rem)]"
+              className="glass-clear pointer-events-auto absolute top-1/2 left-1/2 h-[calc(100%-8rem)] w-[calc(100%-8rem)] overflow-hidden rounded-none [transform:translate(-50%,-50%)_scale(0.65)] max-lg:h-[calc(100%-5rem)] max-lg:w-[calc(100%-4rem)] max-md:h-[calc(100%-3rem)] max-md:w-[calc(100%-2rem)]"
             >
-              <img src={publicUrl("assets/gradient.jpg")} alt="" className="absolute top-0 left-0 z-1 h-full w-full object-cover opacity-50" />
+              {/* 대표 지시(2026-10-10 「투명 글라스 · 홈페이지 점들이 보이게」): 보라 그라데이션 그림·뒤 흐림을 걷어내고 얇은 유리 테만 — 점 무늬가 그대로 비친다. */}
               <div className="scrim-soft absolute top-0 left-0 z-2 flex h-full w-full flex-col justify-between p-8 text-ink max-md:p-5">
                 <SplitTitle
                   tag="h2"
