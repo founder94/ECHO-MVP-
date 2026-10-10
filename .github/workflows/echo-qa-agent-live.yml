@@ -28,6 +28,8 @@ permissions:
 
 jobs:
   core_live:
+    # sweep=yes 로 수동 실행하면 버튼 검사만(실제 AI 서버 검사는 push 때·sweep=no 때 — 같은 호출을 두 번 내지 않음)
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.sweep != 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ECHO-QA
@@ -71,6 +73,7 @@ jobs:
           QA_ANON="$(sed -n 's/^  QA_SUPABASE_ANON: //p' ../.github/workflows/echo-netlify-deploy.yml)"
           [ -n "$QA_ANON" ] || { echo 'QA public key missing'; exit 1; }
           export QA_ANON
+          mkdir -p qa-sweep-out
           node qa-real/qa-live-sweep.mjs qa-sweep-out | tee qa-sweep-out/result.txt
           ! grep -q '^FAIL' qa-sweep-out/result.txt
       - uses: actions/upload-artifact@v4
