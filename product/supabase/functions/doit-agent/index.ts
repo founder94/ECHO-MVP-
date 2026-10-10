@@ -1195,12 +1195,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (text.length > TEXT_MAX) return fail("TOO_LARGE", `한 번에 ${TEXT_MAX}자까지 보낼 수 있어요.`, 400, origin);
     // 2026-10-10 MVP 마감: 위기 신호 → 분석·질문 생성을 멈추고 안전 안내(모델 0 · 저장 0 · 턴 기록 0 · 세션 그대로 = 강제 종료 아님).
     //   원문은 저장하지 않으므로 이후 대화·프로필·추천 재료가 되지 않는다. 같은 세션에서 다른 말을 보내면 평소대로 이어진다.
+    //   안전 안내는 세션을 못 찾거나 다른 기기에서 새 회차를 시작해 이 세션이 지난 회차여도 늘 준다. 다만 그 경우 세션은 돌려주지 않는다
+    //   (session: null — 화면이 지금 회차를 다시 불러온다 · 지난 회차 대화가 되살아나지 않게 · Codex P2 4235803973).
     if (RT.crisisSignal(text)) {
-      const { data: cur } = await admin.from("doit_request_events").select("request_id, response_payload")
+      const { data: cur } = await admin.from("doit_request_events").select("request_id, created_at, response_payload")
         .eq("user_id", userId).eq("request_id", sessionId).eq("action", SESSION_ACTION).maybeSingle();
-      if (!cur || !cur.response_payload) return fail("NOT_FOUND", "대화를 찾지 못했어요. 새로 불러올게요.", 404, origin);
-      logDiag({ step: "turn", code: "crisis" });
-      return json({ ok: true, session: sessionView(sessionId, cur.response_payload as unknown as Stored), crisis: true,
+      const curStored = cur?.response_payload ? cur.response_payload as unknown as Stored : null;
+      const inRound = !!curStored && !(since && (curStored.round_since ?? null) !== since && String(cur!.created_at) < since);
+      logDiag({ step: "turn", code: "crisis", session: inRound ? "current" : "reload" });
+      return json({ ok: true, session: inRound ? sessionView(sessionId, curStored!) : null, crisis: true,
         turn: { kind: "crisis", reply: RT.CRISIS_LINE, question: null, saved: false, finish: false, after: true, receipt: null } }, 200, origin);
     }
     const turnHash = await sha256(`${sessionId}:${text}`);

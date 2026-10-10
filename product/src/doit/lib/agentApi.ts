@@ -219,9 +219,12 @@ export async function agentStart(userId: string, input: { tone: AgentTone; mode:
 
 // correction = 「ECHO가 이해한 나」에서 누른 정정(칸 id · 다시 말하기는 null). 서버가 정정으로 확정한다(문장으로 추측하지 않음 · 2026-09-27 P0-5).
 // rescue.choice = 누른 보기(서버가 지금 질문의 승인 보기인지 다시 확인하고 사용자 직접 답으로 저장) · rescue.rescueOpen = 보기가 펼쳐져 있었음.
-export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }, rescue?: { choice?: string; rescueOpen?: boolean }): Promise<{ session: AgentSession; turn: AgentTurn }> {
-  const r = await write<{ session: AgentSession; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}), ...(rescue?.choice ? { choice: rescue.choice } : {}), ...(rescue?.rescueOpen ? { rescueOpen: true } : {}) });
-  if (!validSession(r.session) || !r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
+// session = null 은 위기 안전 안내만 온 경우(세션이 지난 회차·없음 → 화면이 지금 회차를 다시 불러온다 · 2026-10-10).
+export async function agentTurn(userId: string, sessionId: string, text: string, correction?: { purpose: string | null }, rescue?: { choice?: string; rescueOpen?: boolean }): Promise<{ session: AgentSession | null; turn: AgentTurn }> {
+  const r = await write<{ session: AgentSession | null; turn: AgentTurn }>(userId, { action: 'agent_turn', sessionId, text, ...(correction ? { correction } : {}), ...(rescue?.choice ? { choice: rescue.choice } : {}), ...(rescue?.rescueOpen ? { rescueOpen: true } : {}) });
+  if (!r.turn || typeof r.turn.kind !== 'string') throw new Error('INVALID_RESPONSE');
+  if (r.session === null && r.turn.kind === 'crisis') return r;
+  if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');
   return r;
 }
 

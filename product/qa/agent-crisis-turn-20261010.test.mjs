@@ -74,3 +74,21 @@ test('agent_start 위기 첫 답을 같은 요청으로 다시 보내도(응답 
   assert.match(b.body.reply, /109/);
   assert.equal(s.tables.doit_request_events.filter((x) => x.action === 'agent_session').length, 1, '세션 1개');
 });
+
+test('지난 회차·없는 세션에 위기 말을 보내도 안전 안내는 나가고, 지난 회차 세션은 돌려주지 않는다(session: null)', async () => {
+  // Codex P2(PR #153 4235803973): 다른 기기에서 새 회차를 시작한 뒤 옛 탭이 위기 말을 보내는 경우
+  const s = newState(); const h = load(s);
+  s.ai.push(T({ extracted: [X('relationship_intent', '편한 친구', '친구. 편하게 만나고 싶어요')], ...Q('attraction_comfort', '어떤 사람이 편해요?') }));
+  const a = await h.call({ action: 'agent_start', requestId: rid(), tone: 'polite', mode: 'TEXT', firstAnswer: '친구. 편하게 만나고 싶어요' });
+  assert.equal(a.status, 200);
+  s.authUser.user_metadata = { doit_round_started_at: new Date(Date.now() + 60_000).toISOString() };
+  const calls = s.providerCalls?.length ?? 0;
+  const r = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: a.body.session.id, text: CRISIS });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.crisis, true); assert.match(r.body.turn.reply, /109/);
+  assert.equal(r.body.session, null, '지난 회차 세션 반환 0');
+  assert.equal(s.providerCalls?.length ?? 0, calls, '모델 0');
+  // 없는 세션 id 도 같은 처리(404 대신 안내)
+  const none = await h.call({ action: 'agent_turn', requestId: rid(), sessionId: '00000000-0000-4000-8000-000000000000', text: CRISIS });
+  assert.equal(none.status, 200); assert.equal(none.body.session, null); assert.equal(none.body.crisis, true);
+});

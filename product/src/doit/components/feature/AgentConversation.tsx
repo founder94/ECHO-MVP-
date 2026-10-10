@@ -152,7 +152,8 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     void run(VOICE_CONVERSATION_ENABLED && session.mode === 'VOICE' ? '이해하는 중이에요' : '다음 질문을 고르고 있어요', async () => {
       const r = await agentTurn(userId, session.id, t.slice(0, TEXT_MAX), correctionMode ? { purpose: null } : undefined, correctionMode ? undefined : { ...(choice ? { choice } : {}), rescueOpen });
       if (!alive.current) return;
-      speakNew(session, r.session, spoke); setSession(r.session);
+      if (r.session) { speakNew(session, r.session, spoke); setSession(r.session); }
+      else await load(); // 위기 안전 안내만 온 경우(이 세션이 지난 회차·없음): 지금 회차를 다시 불러오고 안내는 아래에서 그대로 보여 준다
       // 2026-10-05 Codex P2: 보기를 보낸 뒤에는 그 질문에 적어 두었던 글도 비운다(다음 질문의 답으로 잘못 보내지지 않게) · 고르는 동안에는 그대로 둔다
       setDraft(prev => (choice || prev.trim() === t ? '' : prev));
       setPick(null);
