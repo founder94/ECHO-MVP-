@@ -57,7 +57,9 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
   // Read by the star field every frame — never through React, so the field is
   // free to run at whatever rate the ticker gives it.
 
+  // 2026-10-10 Codex P2(4236801008): 다 채운 뒤(done)에는 진행률 구독을 끊는다 — 숨긴 뒤에도 매 장면 setState 가 돌지 않게.
   useEffect(() => {
+    if (done) return;
     startedAt.current ??= performance.now();
 
     return subscribeToTicker(
@@ -83,7 +85,7 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
       },
       () => 0,
     );
-  }, []);
+  }, [done]);
 
   // Ramp the star field: it accelerates with the bar, then warps out on exit.
   useEffect(() => {
@@ -91,8 +93,9 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
     intensityRef.current = percent / 100;
   }, [percent, done]);
 
+  // 퇴장 세기 구독은 막이 숨을 때(hidden)까지만.
   useEffect(() => {
-    if (!done) return;
+    if (!done || hidden) return;
     const start = performance.now();
     const stop = subscribeToTicker(
       () => {
@@ -102,7 +105,7 @@ export const Loader = ({ copy, onReady }: LoaderProps) => {
       () => 0,
     );
     return stop;
-  }, [done]);
+  }, [done, hidden]);
 
   useEffect(() => {
     if (!done) return;

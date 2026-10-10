@@ -39,3 +39,11 @@ test('Codex P2 4236779305: 로더 별 떨어짐은 떠날 때 resize 듣기를 �
   assert.match(s, /window\.addEventListener\("resize", resize/);
   assert.match(s, /return \(\) => \{\s*unsubscribe\(\);\s*window\.removeEventListener\("resize", resize\);\s*\};\s*\}, \[intensity\]\);/);
 });
+
+test('Codex P2 4236801008: 로더는 다 채운 뒤 진행률 구독을, 숨긴 뒤 퇴장 구독을 끊는다', () => {
+  const s = read('src/vesper/views/home/loader/loader.tsx');
+  assert.match(s, /useEffect\(\(\) => \{\s*if \(done\) return;\s*startedAt\.current \?\?= performance\.now\(\);/);
+  assert.match(s, /\(\) => 0,\s*\);\s*\}, \[done\]\);/);
+  assert.match(s, /if \(!done \|\| hidden\) return;/);
+  assert.match(s, /return stop;\s*\}, \[done, hidden\]\);/);
+});
