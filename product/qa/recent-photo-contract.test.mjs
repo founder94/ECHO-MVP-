@@ -176,7 +176,7 @@ function photoScreen({ checkKind = 'needs-confirmation', existing = null, failUp
       if (name.endsWith('/photoPolicy')) return {
         PHOTO_SLOTS: [0, 1, 2, 3, 4, 5].map((slot) => ({ slot, category: slot < 3 ? ['full_body', 'fashion', 'hobby'][slot] : 'free', required: slot < 3, label: ['전신', '패션', '취미', '자유 1', '자유 2', '추가 사진'][slot], hint: '' })),
         PHOTO_REQUIRED_COUNT: 3,
-        PHOTO_BASE_COUNT: 5, EXTRA_PHOTO_VISIBLE_PERCENT: 65, isExtraSlot: (slot) => slot >= 5,
+        PHOTO_BASE_COUNT: 5, EXTRA_PHOTO_FADE_PERCENT: 35, isExtraSlot: (slot) => slot >= 5,
         VERDICT_LABEL: { ok: 'ok', review: 'review', rejected: 'rejected', unchecked: 'unchecked' },
         photoSetComplete: (photos) => [0, 1, 2].every((slot) => photos.some((p) => p.slot === slot)) && photos.some((p) => p.isPrimary),
         requiredFilledCount: (photos) => [0, 1, 2].filter((slot) => photos.some((p) => p.slot === slot)).length,

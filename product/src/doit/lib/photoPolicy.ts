@@ -1,5 +1,5 @@
 // 프로필 사진 정책 (대표 확정 2026-09-21 · 기준 = 신뢰·정확성)
-// - 필수 3장: 전신 / 패션 / 취미 + 자유 2장 = 기본 5칸. 6번째 칸 = 추가 사진(다른 사람에게 65%만 보임). DB 슬롯 1~6 그대로.
+// - 필수 3장: 전신 / 패션 / 취미 + 자유 2장 = 기본 5칸. 6번째 칸 = 추가 사진(다른 사람에게는 사진 전체에 35% 막 — 2026-10-10 대표 확정). DB 슬롯 1~6 그대로.
 // - 슬롯 번호가 곧 종류다(1=전신, 2=패션, 3=취미, 4~5=자유, 6=추가). DB 칸을 늘리지 않는다.
 // - 최근 2개월: 사진 정보(EXIF) 확인 + 없으면 본인 확인(recentPhoto.ts, 기존).
 // - AI 판별(doit-photo-check 서버 함수): 사람이 있는지·한 명인지·종류가 맞는지·화면을 찍은 사진인지·안전한지.
@@ -27,16 +27,17 @@ export const PHOTO_SLOTS: readonly PhotoSlotSpec[] = [
   { slot: 2, category: 'hobby', required: true, label: '취미', hint: '내가 좋아하는 활동을 하는 모습' },
   { slot: 3, category: 'free', required: false, label: '자유 1', hint: '더 보여 주고 싶은 나' },
   { slot: 4, category: 'free', required: false, label: '자유 2', hint: '내 하루의 한 장면' },
-  // 2026-10-06 대표 「다섯 장만 올릴 수 있게 · 여섯 번째부터는 추가 사진 65 보이고 35 흐리게 · 1단계 승인」:
-  // 기본 프로필 = 1~5번 칸. 6번째 칸부터는 「추가 사진」 — 다른 사람에게는 위쪽 65%만 보이고 아래 35%는 흐리게 잠긴다.
+  // 2026-10-06 대표 「다섯 장만 올릴 수 있게 · 여섯 번째부터는 추가 사진」 · 2026-10-10 대표 정정 「35%는 사진 전체를 잠재적 페이드로」:
+  // 기본 프로필 = 1~5번 칸. 6번째 칸부터는 「추가 사진」 — 다른 사람에게는 사진 전체가 35% 세기의 막(은은한 흐림 + 옅은 어둠)으로 보이고, KEY 로 열면 선명해진다.
   // DB 슬롯은 1~6 그대로(6번 = 첫 추가 사진). 7번째부터는 DB·저장소 변경이 필요해 초안만(supabase/drafts/PENDING_20261006_extra_photos_story_keys.sql).
-  { slot: 5, category: 'free', required: false, label: '추가 사진', hint: '상대에게는 위쪽만 보여요' },
+  { slot: 5, category: 'free', required: false, label: '추가 사진', hint: '상대에게는 살짝 흐리게 보여요' },
 ] as const;
 
 // 기본 프로필 사진 수(다른 사람에게 그대로 보이는 칸).
 export const PHOTO_BASE_COUNT = 5;
-// 추가 사진: 다른 사람에게 보이는 위쪽 비율(%) — 나머지는 흐리게 잠긴다.
-export const EXTRA_PHOTO_VISIBLE_PERCENT = 65;
+// 추가 사진: 사진 전체에 씌우는 막의 세기(%) — 2026-10-10 대표 「사진 전체 35% 막」 승인.
+// (예전 「위 65% 보임 · 아래 35% 흐림」은 대표 뜻을 잘못 읽은 것 — 2026-10-10 정정.) 분위기·장면은 보이고 자세한 부분만 흐리다.
+export const EXTRA_PHOTO_FADE_PERCENT = 35;
 export function isExtraSlot(slot: number): boolean {
   return Number.isInteger(slot) && slot >= PHOTO_BASE_COUNT;
 }

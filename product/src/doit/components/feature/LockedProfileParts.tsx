@@ -1,24 +1,42 @@
 import { useState } from "react";
 import { Lock } from "lucide-react";
-import { EXTRA_PHOTO_VISIBLE_PERCENT } from "@/doit/lib/photoPolicy";
+import { EXTRA_PHOTO_FADE_PERCENT } from "@/doit/lib/photoPolicy";
 import { UNLOCK_LIVE, keyCostBadge, unlockLabel } from "@/doit/lib/unlockPrices";
 import { OPEN_PERIOD } from "@/doit/lib/openPeriod";
 import "./locked-profile.css";
 
-// 다른 사람의 프로필에서 KEY 로 여는 두 가지(2026-10-06 대표 「스토리는 버튼 안에 자물쇠 · 추가 사진은 65 보이고 35 흐리게 · 몇 KEY 인지 훅킹」).
+// 다른 사람의 프로필에서 KEY 로 여는 두 가지(2026-10-06 대표 「스토리는 버튼 안에 자물쇠 · 몇 KEY 인지 훅킹」 · 2026-10-10 대표 승인 「사진 전체 35% 막 + 후킹 4가지 + 스토리 12 · 추가 사진 8」).
 // - 지금은 서버 KEY 원장이 없어 실제로 열리지 않는다(UNLOCK_LIVE=false). 누르면 KEY 로 열린다는 것과 「준비 중」만 알려 준다 — KEY 를 빼지 않는다. 개수는 대표 확인 뒤에만(UNLOCK_PRICES_APPROVED).
 // - 안내 문장은 궁금하게 만들되 거짓 약속·불안 자극은 하지 않는다(「놓치면 끝」 같은 말 금지).
 
-// 추가 사진: 위쪽 65%는 그대로, 아래 35%는 흐림 + 어두운 막. 흐린 부분도 같은 사진이라 「다음 장면」이 궁금해진다.
-export function FadedExtraPhoto({ src, alt, onError }: { src: string; alt: string; onError?: () => void }) {
+// 추가 사진(2026-10-10 대표 승인 「사진 전체 35% 막 + 후킹」):
+// - 사진 전체에 35% 세기의 막(은은한 흐림 + 옅은 어둠). 장면·분위기는 보이고 자세한 부분만 흐리다 → 「선명하게 보고 싶다」.
+// - 막 가운데 한 줄 힌트(teaser): 사진 올린 사람이 직접 적은 한 줄. 없으면 표시하지 않는다(지어낸 문장 0).
+// - 맛보기: 한 사람당 한 장은 KEY 없이 선명하게(canTaste). 화면 상태로만 기억 — 영구 기록은 서버 원장 뒤.
+// - 막은 화면 장식일 뿐 보안이 아니다(원본 주소는 같다). 실제 판매 전에는 서버가 흐린 사본을 따로 만들어 보내야 한다(별건 · 대표 승인).
+export function FadedExtraPhoto({ src, alt, onError, teaser, tasted = false, canTaste = false, onTaste }: {
+  src: string; alt: string; onError?: () => void; teaser?: string | null; tasted?: boolean; canTaste?: boolean; onTaste?: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  return <div className="doit-faded" style={{ ["--doit-visible" as string]: `${EXTRA_PHOTO_VISIBLE_PERCENT}%` }}>
+  if (tasted) {
+    return <div className="doit-faded">
+      <img src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={onError} />
+      <span className="doit-faded-tasted">맛보기로 선명하게</span>
+    </div>;
+  }
+  const line = teaser?.trim();
+  return <div className="doit-faded doit-faded--veiled" style={{ ["--doit-fade" as string]: String(EXTRA_PHOTO_FADE_PERCENT / 100) }}>
     <img src={src} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={onError} />
-    <div className="doit-faded-veil" aria-hidden="true"><img src={src} alt="" referrerPolicy="no-referrer" /></div>
+    <div className="doit-faded-veil" aria-hidden="true" />
+    {line && <p className="doit-faded-teaser">{line}</p>}
     <button type="button" className="doit-faded-lock" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-      <Lock size={13} strokeWidth={2.2} aria-hidden="true" /> {keyCostBadge("extraPhoto")}<span className="doit-sr">로 아래까지 보기</span>
+      <Lock size={13} strokeWidth={2.2} aria-hidden="true" /> {keyCostBadge("extraPhoto")}<span className="doit-sr">로 선명하게 보기</span>
     </button>
-    {open && <p className="doit-unlock-hint" role="status">{UNLOCK_LIVE ? unlockLabel("extraPhoto") : `${unlockLabel("extraPhoto")} · 아직 KEY를 쓰지 않아요`}</p>}
+    {open && <div className="doit-unlock-hint" role="status">
+      <p>{UNLOCK_LIVE ? unlockLabel("extraPhoto") : `${unlockLabel("extraPhoto")} · 아직 KEY를 쓰지 않아요`}</p>
+      {canTaste && onTaste && <button type="button" className="doit-faded-taste" onClick={() => { setOpen(false); onTaste(); }}>맛보기로 선명하게 보기</button>}
+      {!canTaste && <p className="doit-faded-taste-used">맛보기는 한 사람당 한 장이에요.</p>}
+    </div>}
   </div>;
 }
 
