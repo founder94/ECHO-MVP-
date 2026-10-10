@@ -102,10 +102,12 @@ export const SceneHost = () => {
     // same point.
     const begin = () => {
       if (disposed) return;
+      // 2026-10-10 Codex HOME-W01: 워커를 만든 뒤 첫 init 전송이 실패해도 워커가 남지 않게 만든 즉시 정리 길을 둔다.
+      let created: Worker | null = null;
       let worker: Worker;
       try {
         const offscreen = canvas.transferControlToOffscreen();
-        worker = new Worker(new URL("./scene.worker.tsx", import.meta.url), {
+        worker = created = new Worker(new URL("./scene.worker.tsx", import.meta.url), {
           type: "module",
         });
         const init: SceneMessage = {
@@ -122,6 +124,7 @@ export const SceneHost = () => {
         };
         worker.postMessage(init, [offscreen]);
       } catch {
+        created?.terminate();
         setFallback(true);
         return;
       }

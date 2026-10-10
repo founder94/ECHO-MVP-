@@ -26,3 +26,10 @@ test('전역 ErrorBoundary 는 그대로 둔다(다른 오류는 예전처럼 �
   assert.match(read('src/App.tsx'), /ErrorBoundary/);
   assert.match(read('src/components/ErrorBoundary.tsx'), /getDerivedStateFromError/);
 });
+
+test('Codex HOME-W01: 워커를 만든 뒤 첫 init 전송이 실패해도 그 워커를 닫는다', () => {
+  const s = read('src/vesper/views/home/scene/scene-host.tsx');
+  assert.match(s, /let created: Worker \| null = null;/);
+  assert.match(s, /worker = created = new Worker\(/);
+  assert.match(s, /\} catch \{\s*created\?\.terminate\(\);\s*setFallback\(true\);/);
+});
