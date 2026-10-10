@@ -3,7 +3,7 @@
    버튼은 메탈 실버(앱의 metal-silver.css 와 같은 금속판). */
 .doit-editorial .doit-brand-section-kicker{display:flex;align-items:center;gap:18px;margin:0 0 28px;font-size:13px;font-weight:600;letter-spacing:.02em;color:#aab1bb}
 .doit-editorial .doit-brand-section-kicker::before{content:"";display:block;width:56px;height:1px;background:#ffffff8c}
-.doit-editorial .doit-brand-section-title{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;font-weight:800;font-size:clamp(32px,6vw,64px);line-height:1.26;letter-spacing:-.045em;color:#fff;word-break:keep-all;text-wrap:balance}
+.doit-editorial .doit-brand-section-title{margin:0;font-family:"Jua","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;font-weight:800;font-size:clamp(32px,6vw,64px);line-height:1.26;letter-spacing:-.045em;color:#fff;word-break:keep-all;text-wrap:balance}
 .doit-editorial .doit-brand-section-lead{max-width:600px;margin:28px 0 0;font-size:clamp(16px,1.6vw,18px);font-weight:500;line-height:1.85;letter-spacing:-.015em;color:#c3c8cf;word-break:keep-all}
 .doit-editorial .doit-brand-soon{display:inline-block;margin-left:4px;padding:2px 9px;border:1px solid #ffffff40;border-radius:999px;font-style:normal;font-size:11px;font-weight:600;letter-spacing:0;color:#d3d7dd;vertical-align:4px}
 
@@ -48,7 +48,7 @@
 
 /* 우주 배경 이어 가기(2026-09-23 대표 "지구본·우주·우주인·브랜드 문구·DOIT 유지하고 그대로 브랜딩용으로").
    새 구간이 그냥 까만 면으로 끊겨 보이지 않도록, 온보딩·히어로와 같은 옅은 별빛을 깐다. 그림 파일 없이 CSS 점으로만. */
-.doit-editorial .doit-brand-section{position:relative;padding:clamp(88px,14vw,160px) max(24px,7vw);background:#000;color:#f2f3f5;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;isolation:isolate;overflow:hidden}
+.doit-editorial .doit-brand-section{position:relative;padding:clamp(88px,14vw,160px) max(24px,7vw);background:#000;color:#f2f3f5;font-family:"Jua","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;isolation:isolate;overflow:hidden}
 .doit-editorial .doit-brand-section::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.55;
   background-image:
     radial-gradient(1px 1px at 8% 14%,#ffffffcc 50%,transparent 51%),

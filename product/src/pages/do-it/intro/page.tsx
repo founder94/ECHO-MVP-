@@ -151,6 +151,8 @@ export default function DoItIntroPage() {
   // 이미지가 실제로 로드되지 않았는데 "캐시 준비/로드 완료"로 기록하지 않는다(진행률은 브랜드 연출 진행률).
   // 이 화면에 실제로 필요한 그림은 심볼이다. 다음 화면 배경이 회선을 먼저 차지하지 않도록 조금 뒤에 받는다.
   useEffect(() => {
+    // 홈페이지(brand) 쪽 인트로 다음은 Vesper 홈 — 옛 지구 그림은 쓰지 않으니 앱 쪽에서만 미리 읽는다(Codex 10차).
+    if (!IS_APP_SITE) return;
     const timer = window.setTimeout(() => {
       try {
         const img = new Image();
