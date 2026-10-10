@@ -14,6 +14,9 @@ export const OnyxStage = () => {
   const engine = useRef<OnyxHandle | null>(null);
   const [mode, setMode] = useState<OnyxMode>("watch");
   const [failed, setFailed] = useState(false);
+  // 엔진을 불러오는 동안 「직접 움직여 보기」를 누른 경우 — 다 불러온 뒤 그때의 모드로 시작한다(Codex 검수 P2).
+  const modeRef = useRef<OnyxMode>(mode);
+  modeRef.current = mode;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -28,7 +31,7 @@ export const OnyxStage = () => {
         import("@fx/onyx/onyx-engine")
           .then(({ createOnyx }) => {
             if (cancelled) return;
-            const handle = createOnyx(canvas, host, { reducedMotion: reduced, mode: "watch" });
+            const handle = createOnyx(canvas, host, { reducedMotion: reduced, mode: modeRef.current });
             if (!handle) setFailed(true);
             engine.current = handle;
           })

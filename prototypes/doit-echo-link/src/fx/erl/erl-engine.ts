@@ -487,7 +487,7 @@ export const createLattice = (canvas: HTMLCanvasElement, host: HTMLElement, play
     draw();
   };
   const sync = () => {
-    const want = play === "live" && !document.hidden;
+    const want = play === "live" && !document.hidden && inView;
     if (want && !running) {
       running = true;
       last = performance.now() / 1000; // 숨었던 동안의 시간을 한꺼번에 흘리지 않는다(dt 는 0.05 로도 묶여 있다)
@@ -497,6 +497,13 @@ export const createLattice = (canvas: HTMLCanvasElement, host: HTMLElement, play
       cancelAnimationFrame(raf);
     }
   };
+  // [통합] 효과 영역이 화면 밖(짧은·가로 화면에서 위/아래로 벗어남)이면 그리기를 멈춘다(Codex 검수 P2).
+  let inView = true;
+  const io = new IntersectionObserver((entries) => {
+    inView = entries.some((e) => e.isIntersecting);
+    sync();
+  });
+  io.observe(host);
   const ro = new ResizeObserver(() => {
     resize();
     if (!running) {
@@ -519,6 +526,7 @@ export const createLattice = (canvas: HTMLCanvasElement, host: HTMLElement, play
       running = false;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      io.disconnect();
       document.removeEventListener("visibilitychange", sync);
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerleave", onLeave);

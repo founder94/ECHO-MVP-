@@ -106,6 +106,10 @@ export const StoryView = () => {
       if (text.trim()) {
         saveDraft({ text, lines: lines ?? undefined });
         setSaved(true);
+      } else {
+        // 글을 모두 지우면 저장된 임시 글도 지운다 — 다시 열었을 때 지운 글이 되살아나지 않게(Codex 검수 P2).
+        // (입력할 때마다 saved 는 false 가 되므로 그 값으로 가르지 않는다.)
+        clearDraft();
       }
     }, 400);
     return () => window.clearTimeout(t);
