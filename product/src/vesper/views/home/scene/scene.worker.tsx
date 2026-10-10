@@ -135,15 +135,23 @@ const start = async (message: Extract<SceneMessage, { type: "init" }>) => {
   );
   setRunning(message.running);
   if (!message.running) drawOnce();
+  // 준비되는 동안 온 마지막 크기·상태·재생·그리기를 이제 반영한다(페이지는 이미 보냈다고 여긴다).
+  for (const type of REPLAY_ORDER) {
+    const queued = early.get(type);
+    if (queued) apply(queued);
+  }
+  // 모아 둔 「멈춤」이 막 시작한 재생을 끊었으면 한 장도 없을 수 있다: 멈춤이면 지금 상태로 한 장(재생 중이면 아무것도 안 함).
+  if (early.size) drawOnce();
+  early.clear();
 };
 
-self.onmessage = (event: MessageEvent<SceneMessage>) => {
-  const message = event.data;
-  if (message.type === "init") {
-    start(message).catch(() => reply({ type: "error" }));
-    return;
-  }
-  if (!store || !root) return;
+// 2026-10-10(Codex P2 4236844168): `root.configure()` 를 기다리는 동안 온 메시지를 버리면 마지막 intro·멈춤
+// 상태가 영영 오지 않을 수 있다. 종류마다 마지막 것만 모아 두었다가 준비되면 이 순서로 보낸다.
+const early = new Map<SceneMessage["type"], SceneMessage>();
+const REPLAY_ORDER: SceneMessage["type"][] = ["resize", "state", "run", "frame"];
+
+const apply = (message: SceneMessage) => {
+  if (!store) return;
   if (message.type === "state") {
     syncTimeline(message.progress, message.target);
     introValue.set(message.intro);
@@ -156,6 +164,19 @@ self.onmessage = (event: MessageEvent<SceneMessage>) => {
   } else if (message.type === "resize") {
     void resize(message);
   }
+};
+
+self.onmessage = (event: MessageEvent<SceneMessage>) => {
+  const message = event.data;
+  if (message.type === "init") {
+    start(message).catch(() => reply({ type: "error" }));
+    return;
+  }
+  if (!store || !root) {
+    early.set(message.type, message);
+    return;
+  }
+  apply(message);
 };
 
 /**

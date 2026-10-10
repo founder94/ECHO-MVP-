@@ -231,6 +231,11 @@ export const MobileNav = ({ items, tagline }: MobileNavProps) => {
       const lenis = useScroll.getState().lenis;
       const element = hash ? document.getElementById(hash) : null;
       if (hash && !element) return;
+      // 2026-10-10(Codex P2 4236844170): 기본 이동을 막았으니 주소의 #도 직접 맞춘다. 「홈」은 #을 지우고
+      // #how 는 #how 로 — 브라우저가 링크를 따라갈 때처럼 한 칸을 쌓는다(뒤로 가기·공유 주소가 화면과 맞게).
+      const base = `${window.location.pathname}${window.location.search}`;
+      const next = hash ? `${base}#${hash}` : base;
+      if (`${base}${window.location.hash}` !== next) window.history.pushState(window.history.state, "", next);
       // 2026-10-09(Codex 17차 재검): 요소를 넘기면 Lenis 가 CSS scroll-margin-top(머리글 높이)을 스스로 빼는데
       // 여기서 anchorOffset 까지 또 빼서 휴대폰 메뉴 → #how 가 80px 덜 내려갔다(실측 156 → 기대 76). 숫자로 넘겨 한 번만 뺀다.
       const top = element ? Math.max(0, element.getBoundingClientRect().top + window.scrollY - anchorOffset()) : 0;
