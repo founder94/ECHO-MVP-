@@ -66,3 +66,14 @@ test('memoryQuestion: a real recall of a remembered-person preference is still r
  for(const t of ['작은 것도 기억해 주는 친구가 좋다고 내가 말했지?','기억하는 사람이 좋다고 제가 예전에 말했나요?']) assert.equal(H.memoryQuestion(t),true,t);
  for(const t of ['뭐든 잘 기억하는 사람이 좋아요','작은 것도 기억해 주는 친구가 좋아요','기억하는 사람이 좋아요?']) assert.equal(H.memoryQuestion(t),false,t);
 });
+test('Codex da55d9c P1: 차례 번호 없는 물린 해석(바꿔 말한 글)이 있으면 원문 통째로 지금 기억·다음 AI 입력에 되살리지 않음 · 번호 있으면 기존 규칙',()=>{
+  const U=ID.user;const row=st=>({user_id:U,request_id:'s1',action:'agent_session',status:'applied',created_at:'2026-10-01T00:00:00Z',updated_at:'2026-10-01T00:00:00Z',applied_revision:3,response_payload:{state:st}});
+  for(const withTurn of [true,false]){const it={note:'매일 연락을 자주 주고받는 관계가 편하다',status:'RETRACTED',source_type:'AI_EXTRACTED'};if(withTurn)it.turn=1;
+    const st={goal:'friend',turns:[{n:1,user:'매일 연락하는 게 좋아요',kind:'answer'}],slots:{contact:{items:[it]}}};
+    assert.equal(H.recallRows([row(st)],U,'매일 연락','current','s1').evidence.length,0,`turn=${withTurn}`);
+    assert.equal(H.allowedRecent(st,5).length,0,`allowedRecent turn=${withTurn}`);}
+  // 확인된 직접 말은 그대로 찾는다(닫는 범위는 원문 통째 대신 쓰기만)
+  const st={goal:'friend',turns:[{n:1,user:'매운 음식을 싫어해요',kind:'answer'},{n:2,user:'매일 연락하는 게 좋아요',kind:'answer'}],slots:{a:{items:[{note:'매운 음식 싫어함',quote:'매운 음식을 싫어해요',turn:1,status:'CONFIRMED',source_type:'USER_DIRECT',confirmed_at:'2026-10-01T00:00:00Z'}]},b:{items:[{note:'매일 연락을 자주 주고받는 관계가 편하다',status:'RETRACTED',source_type:'AI_EXTRACTED'}]}}};
+  assert.equal(JSON.stringify(H.recallRows([row(st)],U,'매운 음식','current','s1').evidence.map(e=>e.quote)),JSON.stringify(['매운 음식을 싫어해요']));
+  assert.equal(JSON.stringify(H.allowedRecent(st,5).map(t=>t.user)),JSON.stringify(['매운 음식을 싫어해요']));
+});

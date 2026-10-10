@@ -61,6 +61,7 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
     // 지금 대화(currentId)도 같은 규칙: 다른 대화가 그 칸을 더 뒤에 다시 확정·물렸으면 이 대화의 그 칸 줄은 지금 값이 아니다.
     const stale = new Set(intent === "current" ? Object.entries(st.slots ?? {}).flatMap(([key, slot]) => { const last = latestSlot.get(key); return last && last.from !== row ? (slot.items ?? []).filter(i => last.at > itemAt(i, row)) : []; }) : []);
     const all = items(st);
+    const orphanDenied = all.some(i => !num(i.turn) && (i.status === "RETRACTED" || i.status === "DISPUTED" || i.status === "SUPERSEDED"));
     for (const turn of st.turns) {
       if (!num(turn.n) || !turn.user || CONTROL.has(turn.kind) || PRIVATE.test(turn.user)) continue;
       const linked = all.filter(i => i.turn === turn.n);
@@ -72,6 +73,8 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
       // 다른 대화의 말은 확정된 사용자 직접 말만(원문 통째 대신 쓰기 · 미확정 0). 다른 대화가 더 뒤에 정한 칸의 줄이면 원문 통째로도 되살리지 않는다.
       if ((other || linked.some(i => stale.has(i))) && !userItems.length) continue;
       if (intent === "current" && !userItems.length && deniedTurn(st, turn)) continue;
+      // 2026-10-10 Codex P1(da55d9c): 물린 해석에 차례 번호(turn)가 없으면(옛·손상 기록) 어느 원문과 짝인지 알 수 없다 → 그 대화의 원문 통째 대신 쓰기는 하지 않는다(닫힌 쪽으로).
+      if (intent === "current" && !userItems.length && orphanDenied) continue;
       const entries = userItems.length ? userItems.map(i => ({ i, quote: i.quote! })) : [{ i: null, quote: turn.fix_text || turn.user }];
       const seen = new Set<string>();
       for (const { i, quote } of entries) {
@@ -138,4 +141,9 @@ export function withheld(st: State, text: string): boolean {
   const blocked = [...(st.forgotten ?? []), ...(st.forgotten_traits ?? []), ...(st.disputed ?? []), ...items(st).filter(i => i.status && i.status !== "CONFIRMED").map(i => i.note ?? "")];
   return blocked.some(t => has(text, t));
 }
-export function allowedRecent(st: State, count: number): Turn[] { return st.turns.filter(t => !forgotten(st, t) && !t.superseded && !withheld(st, t.user) && !deniedTurn(st, t)).slice(-count); }
+export function allowedRecent(st: State, count: number): Turn[] {
+  // 차례 번호 없는 물린 해석이 있으면(옛·손상 기록) 확인된 직접 말이 없는 턴은 다음 AI 입력에서도 뺀다(recallRows 와 같은 규칙).
+  const orphan = items(st).some(i => !num(i.turn) && (i.status === "RETRACTED" || i.status === "DISPUTED" || i.status === "SUPERSEDED"));
+  const confirmedHere = (t: Turn) => items(st).some(i => i.turn === t.n && i.status === "CONFIRMED" && direct(i));
+  return st.turns.filter(t => !forgotten(st, t) && !t.superseded && !withheld(st, t.user) && !deniedTurn(st, t) && !(orphan && !confirmedHere(t))).slice(-count);
+}
