@@ -400,11 +400,17 @@ function applyMaterialConfig(material: any) {
   material.needsUpdate = true;
 }
 
+// 확인용 문맥은 바로 돌려준다(동시 WebGL 문맥 수가 적은 기기 — scene-host.tsx 와 같은 방식).
 const canWebGL = () => {
-  try { const c = document.createElement("canvas"); return !!c.getContext("webgl2"); } catch { return false; }
+  try {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) return false;
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return true;
+  } catch { return false; }
 };
 
-export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; onReady?: () => void }): FxHandle | null {
+export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; onReady?: () => void; onFail?: () => void }): FxHandle | null {
   if (!canWebGL()) return null; // 이 셰이더는 WebGL2(uint · 비트 연산) 전용
   let renderer: THREE.WebGLRenderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch { return null; }
@@ -508,20 +514,28 @@ export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: 
   };
 
   const still = opts.play === "still";
-  let raf = 0, running = false, inView = true, readyFired = false;
+  let raf = 0, running = false, inView = true, readyFired = false, lost = false;
+  // GPU 가 문맥을 잃으면 그리기를 멈추고 실패 길(onFail → 은은한 빛)로.
+  const onContextLost = (e: Event) => {
+    e.preventDefault();
+    if (lost) return;
+    lost = true; running = false; cancelAnimationFrame(raf);
+    opts.onFail?.();
+  };
+  canvas.addEventListener("webglcontextlost", onContextLost);
   const frame = () => {
     raf = requestAnimationFrame(frame);
     step(false);
     if (!readyFired) { readyFired = true; opts.onReady?.(); }
   };
   const sync = () => {
-    const want = !still && !document.hidden && inView;
+    const want = !lost && !still && !document.hidden && inView;
     if (want && !running) { running = true; last = performance.now() / 1000; raf = requestAnimationFrame(frame); }
     else if (!want && running) { running = false; cancelAnimationFrame(raf); }
   };
   const io = new IntersectionObserver((es) => { inView = es.some((e) => e.isIntersecting); sync(); });
   io.observe(host);
-  const ro = new ResizeObserver(() => { resize(); if (!running) step(true); });
+  const ro = new ResizeObserver(() => { resize(); if (!running && !lost) step(true); });
   ro.observe(host);
   if (!still) {
     host.addEventListener("pointermove", onMove, { passive: true });
@@ -537,6 +551,7 @@ export function createGlass(canvas: HTMLCanvasElement, host: HTMLElement, opts: 
       cancelAnimationFrame(raf);
       io.disconnect(); ro.disconnect();
       document.removeEventListener("visibilitychange", sync);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerleave", onLeave);
       for (const c of cards) { c.material.dispose(); c.geo.dispose(); c.fbo.dispose(); }

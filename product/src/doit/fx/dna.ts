@@ -101,7 +101,7 @@ const DNA_FRAG = `
           gl_FragColor = vec4(vColor * uBrightness, vFade * a * uOpacity * uAppear);
         }`;
 
-export function createDna(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; progress?: { max: number; seconds: number } }): FxHandle | null {
+export function createDna(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; progress?: { max: number; seconds: number }; onFail?: () => void }): FxHandle | null {
   return createHouse(canvas, host, {
     bgColor: CONFIG.bgColor, flameColor: CONFIG.flameColor, flameColor2: CONFIG.flameColor2, flameAmt: CONFIG.flameAmt,
     atmoColor: CONFIG.atmoColor, atmoCount: CONFIG.atmoCount, atmoSize: CONFIG.atmoSize, atmoSpeed: CONFIG.atmoSpeed, atmoAlpha: 0.6,
@@ -158,5 +158,5 @@ export function createDna(canvas: HTMLCanvasElement, host: HTMLElement, opts: { 
       },
       dispose: () => { geometry.dispose(); material.dispose(); },
     };
-  }, { play: opts.play, progress: opts.progress, interactive: true });
+  }, { play: opts.play, progress: opts.progress, interactive: true, onFail: opts.onFail });
 }

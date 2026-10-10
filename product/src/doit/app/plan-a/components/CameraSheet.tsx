@@ -7,6 +7,9 @@ const MAX_CAPTURE_PIXELS = 12 * 1024 * 1024; // 12MP 카메라 상한
 
 type CameraState = "idle" | "starting" | "live" | "correcting" | "saving";
 
+// 켜져 있던 카메라가 끊김(다른 앱이 가져감 · 화면 끔 · 앱 전환) → 대기로 돌아가 다시 켜게 한다.
+const CAMERA_STOPPED_TEXT = "카메라가 멈췄어요. 다시 켜 주세요.";
+
 function cameraErrorText(code: string): string {
   switch (code) {
     case "CAMERA_PERMISSION_DENIED":
@@ -43,13 +46,31 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
   const capturedBlobRef = useRef<Blob | null>(null);
   const capturedUrlRef = useRef<string | null>(null);
   const savingRef = useRef(false);
+  const stateRef = useRef<CameraState>("idle");
+  stateRef.current = cameraState;
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const controller = new CameraController(video, MAX_CAPTURE_PIXELS);
     cameraRef.current = controller;
+    controller.onInterrupted = () => {
+      setCameraError(CAMERA_STOPPED_TEXT);
+      setCameraState((s) => (s === "live" || s === "starting" ? "idle" : s));
+    };
+    // 탭·앱이 뒤로 가면 카메라를 끈다(아이폰·갤럭시는 화면이 숨으면 영상이 멈춘 채 검은 화면으로 남는다).
+    const onVisibility = () => {
+      if (!document.hidden) return;
+      const s = stateRef.current;
+      if (s !== "live" && s !== "starting") return;
+      controller.close();
+      setCameraError(CAMERA_STOPPED_TEXT);
+      setCameraState("idle");
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      controller.onInterrupted = null;
       controller.close();
       if (cameraRef.current === controller) cameraRef.current = null;
     };
@@ -82,7 +103,8 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
       setCameraState("live");
     } catch (e) {
       const code = e instanceof CameraError ? e.code : "CAMERA_OPEN_FAILED";
-      setCameraError(cameraErrorText(code));
+      // 켜는 중에 끊김(화면 숨김·트랙 끝남)이면 CAMERA_CANCELLED — 「멈췄어요」로 안내한다.
+      setCameraError(code === "CAMERA_CANCELLED" ? CAMERA_STOPPED_TEXT : cameraErrorText(code));
       setCameraState("idle");
     }
   }, []);
@@ -99,6 +121,7 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
       setCapturedUrl(url);
       setRotation(0);
       setBrightness(1);
+      setCameraError(null);
       setCameraState("correcting");
       cam.close();
     } catch (e) {
@@ -138,7 +161,10 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
       className="fixed inset-0 z-50 flex flex-col"
       style={{ backgroundColor: colors.bg }}
     >
-      <div className="flex items-center justify-between px-5 py-4">
+      <div
+        className="flex items-center justify-between px-5 py-4"
+        style={{ paddingTop: "calc(16px + env(safe-area-inset-top, 0px))" }}
+      >
         <span style={{ fontSize: 14, color: colors.text, fontFamily: serif }}>
           {slotLabel}
         </span>
@@ -281,7 +307,20 @@ export function CameraSheet({ slotLabel, onClose, onConfirm }: Props) {
         </div>
       )}
 
-      <div className="flex gap-2 px-5 py-4">
+      {cameraError && cameraState !== "idle" && (
+        <p
+          role="alert"
+          className="px-5 pt-3"
+          style={{ fontSize: 13, lineHeight: 1.6, color: colors.danger }}
+        >
+          {cameraError}
+        </p>
+      )}
+
+      <div
+        className="flex gap-2 px-5 py-4"
+        style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))" }}
+      >
         {cameraState === "live" && (
           <button
             type="button"

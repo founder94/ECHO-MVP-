@@ -1475,5 +1475,7 @@ export class DandelionScene {
     this.composer.dispose();
     this.renderTarget.dispose();
     this.renderer.dispose();
+    // 문맥까지 바로 돌려준다(동시 WebGL 문맥 수가 적은 갤럭시 A 등 — 화면을 오가며 쌓이지 않게).
+    this.renderer.forceContextLoss();
   }
 }

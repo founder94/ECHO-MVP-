@@ -164,6 +164,9 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
     let loaded = false;
     let loadFailed = false; // [통합] 모형 404·끊김·깨짐 → 은은한 빛으로(투명 칸 + GPU 계속 돌기 0)
     const fail = () => { if (!disposed) loadFailed = true; };
+    // 느린 망에서 모형이 끝내 안 오면(15초) 실패와 같게 → 반복 멈춤 + 은은한 빛(빈 칸이 계속 GPU 를 쓰지 않게)
+    const LOAD_TIMEOUT_MS = 15_000;
+    const loadTimer = setTimeout(() => { if (!loaded) fail(); }, LOAD_TIMEOUT_MS);
     const ENTRY_DUR = 1.9;
     const ENTRY_START_Y = -6.5;
     const res = () => { const { w, h } = size(); return new THREE.Vector2(w * dpr, h * dpr); };
@@ -407,13 +410,13 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
     /* planet — [통합] 압축 푼 같은 모형을 우리 주소에서 */
     const gltfLoader = new GLTFLoader();
     gltfLoader.load(`${ASSET}/planet-lights.glb`, (lights) => {
-      if (disposed) return;
+      if (disposed || loadFailed) return; // 시간 넘김 뒤 늦게 온 모형은 쓰지 않는다
       const lmesh = firstMesh(lights.scene);
       const lmat = lmesh?.material as THREE.MeshStandardMaterial | undefined;
       const nightTex = lmat?.map ?? null;
       if (nightTex) disposables.push(nightTex);
       gltfLoader.load(`${ASSET}/planet.glb`, (gltf) => {
-        if (disposed) return;
+        if (disposed || loadFailed) return;
         const mesh = firstMesh(gltf.scene);
         if (!mesh) { fail(); return; }
         mesh.geometry.computeBoundingSphere();
@@ -439,6 +442,7 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
         cloudGroup.visible = true;
         entryActive = true; entryT = 0;
         loaded = true;
+        clearTimeout(loadTimer);
       }, undefined, fail);
     }, undefined, fail);
 
@@ -466,7 +470,7 @@ export function createPlanet(canvas: HTMLCanvasElement, host: HTMLElement, opts:
         if (glowMesh) glowMesh.quaternion.copy(camera.quaternion);
       },
       resize: (w, h) => { for (const u of resUniforms) u.value.set(w * dpr, h * dpr); },
-      dispose: () => { disposed = true; for (const d of disposables) d.dispose(); },
+      dispose: () => { disposed = true; clearTimeout(loadTimer); for (const d of disposables) d.dispose(); },
     };
   }, { play: opts.play, interactive: false, onReady: opts.onReady, onFail: opts.onFail });
 }

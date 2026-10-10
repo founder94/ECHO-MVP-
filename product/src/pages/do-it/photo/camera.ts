@@ -40,6 +40,8 @@ export class CameraController {
   private generation = 0;
   private ready = false;
   private capturing = false;
+  /** 열려 있던 카메라가 밖에서 끊겼을 때(다른 앱이 카메라를 가져감 · 권한 회수 · 기기 분리) 한 번 부른다. */
+  onInterrupted: (() => void) | null = null;
 
   constructor(video: HTMLVideoElement, maxPixels: number, environment = browserEnvironment()) {
     if (!Number.isSafeInteger(maxPixels) || maxPixels < 1) throw new RangeError('INVALID_PIXEL_LIMIT');
@@ -55,9 +57,17 @@ export class CameraController {
     if (!this.environment.secure || !devices?.getUserMedia) throw new CameraError('CAMERA_UNAVAILABLE');
     let acquired: MediaStream | null = null;
     try {
-      acquired = await devices.getUserMedia({ audio: false, video: { facingMode: { ideal: facingMode } } });
+      // 2026-10-10 갤럭시 A·아이폰: 해상도를 말하지 않으면 640×480 으로 열리는 기기가 있다 → 1920×1440(4:3)을 바라되 강제하지 않는다.
+      acquired = await devices.getUserMedia({ audio: false, video: { facingMode: { ideal: facingMode }, width: { ideal: 1920 }, height: { ideal: 1440 } } });
       if (generation !== this.generation) throw new CameraError('CAMERA_CANCELLED');
       this.stream = acquired;
+      acquired.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          if (generation !== this.generation) return;
+          this.close();
+          this.onInterrupted?.();
+        };
+      });
       this.video.muted = true;
       this.video.playsInline = true;
       this.video.srcObject = acquired;
@@ -119,7 +129,7 @@ export class CameraController {
   close(): void {
     this.generation += 1;
     this.ready = false;
-    this.stream?.getTracks().forEach((track) => track.stop());
+    this.stream?.getTracks().forEach((track) => { track.onended = null; track.stop(); });
     this.stream = null;
     this.video.srcObject = null;
   }

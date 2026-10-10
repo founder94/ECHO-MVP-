@@ -3,6 +3,10 @@ export const MAX_ALBUM_BYTES = 20 * 1024 * 1024;
 export const MAX_UPLOAD_PHOTO_BYTES = 5 * 1024 * 1024;
 const MAX_DECODED_PIXELS = 60_000_000;
 const MAX_OUTPUT_EDGE = 2400;
+// 2026-10-10 갤럭시 2억·1억8백만 화소 사진: 전체를 풀기 전에 파일 머리에서 가로·세로를 읽어 먼저 거른다(탭이 죽지 않게).
+// 머리 상한 = 휴대폰 최대 화소(2억). 풀면서 줄이기(resize)를 못 쓰는 브라우저에서 휴대폰이 전체를 그대로 풀 때는 2천5백만까지만.
+const MAX_HEADER_PIXELS = 200_000_000;
+const MAX_TOUCH_FULL_DECODE_PIXELS = 25_000_000;
 
 export class RecentPhotoError extends Error {
   constructor(message: string) { super(message); this.name = "RecentPhotoError"; }
@@ -14,11 +18,67 @@ export type ExifCaptureDate =
   | { kind: "date"; original: string; offset: string | null };
 export type RecentPhotoCheck = { kind: "recent" | "needs-confirmation" };
 export interface PreparedAlbumPhoto { blob: Blob; dateCheck: RecentPhotoCheck; }
+export interface PhotoSize { width: number; height: number; }
+
+const tooLarge = (label: string) => new RecentPhotoError(`사진 해상도가 너무 커요. ${label} 이하의 사진을 선택해 주세요.`);
 
 export function detectPhotoType(bytes: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if (bytes.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((v, i) => bytes[i] === v)) return "image/png";
   if (bytes.length >= 12 && String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" && String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP") return "image/webp";
+  return null;
+}
+
+/**
+ * 그림을 풀지 않고 파일 머리에서 가로·세로만 읽는다(JPEG SOFn · PNG IHDR · WebP VP8/VP8L/VP8X).
+ * 못 읽으면 null — 그때는 예전처럼 푼 뒤에 크기를 본다. JPEG 는 EXIF 회전 전(센서 방향) 크기다.
+ */
+export function readPhotoSize(bytes: Uint8Array): PhotoSize | null {
+  const type = detectPhotoType(bytes);
+  const size = (width: number, height: number): PhotoSize | null => (width > 0 && height > 0 ? { width, height } : null);
+  const be32 = (p: number) => ((bytes[p] << 24) >>> 0) + (bytes[p + 1] << 16) + (bytes[p + 2] << 8) + bytes[p + 3];
+  const le24 = (p: number) => bytes[p] | (bytes[p + 1] << 8) | (bytes[p + 2] << 16);
+  if (type === "image/png") {
+    if (bytes.length < 24 || String.fromCharCode(...bytes.subarray(12, 16)) !== "IHDR") return null;
+    return size(be32(16), be32(20));
+  }
+  if (type === "image/webp") {
+    if (bytes.length < 16) return null;
+    const chunk = String.fromCharCode(...bytes.subarray(12, 16));
+    if (chunk === "VP8 ") {
+      if (bytes.length < 30 || bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return null;
+      return size((bytes[26] | (bytes[27] << 8)) & 0x3fff, (bytes[28] | (bytes[29] << 8)) & 0x3fff);
+    }
+    if (chunk === "VP8L") {
+      if (bytes.length < 25 || bytes[20] !== 0x2f) return null;
+      const bits = (bytes[21] | (bytes[22] << 8) | (bytes[23] << 16) | (bytes[24] << 24)) >>> 0;
+      return size((bits & 0x3fff) + 1, ((bits >>> 14) & 0x3fff) + 1);
+    }
+    if (chunk === "VP8X") {
+      if (bytes.length < 30) return null;
+      return size(le24(24) + 1, le24(27) + 1);
+    }
+    return null;
+  }
+  if (type !== "image/jpeg") return null;
+  let pos = 2;
+  while (pos + 1 < bytes.length) {
+    if (bytes[pos++] !== 0xff) return null;
+    while (pos < bytes.length && bytes[pos] === 0xff) pos++;
+    if (pos >= bytes.length) return null;
+    const marker = bytes[pos++];
+    if (marker === 0xda || marker === 0xd9) return null;
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (pos + 2 > bytes.length) return null;
+    const length = (bytes[pos] << 8) | bytes[pos + 1];
+    if (length < 2) return null;
+    // SOF0~SOF15(C4 허프만 표·C8 예약·CC 산술 표 제외): 정밀도(1) · 세로(2) · 가로(2)
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (length < 7 || pos + 7 > bytes.length) return null;
+      return size((bytes[pos + 5] << 8) | bytes[pos + 6], (bytes[pos + 3] << 8) | bytes[pos + 4]);
+    }
+    pos += length;
+  }
   return null;
 }
 
@@ -120,13 +180,45 @@ export function assessCaptureDate(metadata: ExifCaptureDate, now = new Date()): 
   return { kind: "recent" };
 }
 
-async function decodePhoto(blob: Blob): Promise<{ image: ImageBitmap | HTMLImageElement; width: number; height: number; close: () => void }> {
+// 휴대폰(굵은 손가락 포인터)인지 — 이 파일은 다른 모듈을 불러오지 않는다(검사가 파일 하나만 실행).
+const isTouchPhone = () => {
+  try { return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true; } catch { return false; }
+};
+
+// 풀면서 줄이기(createImageBitmap resizeWidth)를 실제로 지키는 브라우저인지 2×2 그림으로 한 번만 확인한다.
+let resizeSupport: Promise<boolean> | null = null;
+function supportsDecodeResize(): Promise<boolean> {
+  if (!resizeSupport) {
+    resizeSupport = (async () => {
+      try {
+        if (typeof createImageBitmap !== "function" || typeof ImageData !== "function") return false;
+        const probe = await createImageBitmap(new ImageData(2, 2), { resizeWidth: 1, resizeHeight: 1 });
+        const ok = probe.width === 1 && probe.height === 1;
+        probe.close();
+        return ok;
+      } catch { return false; }
+    })();
+  }
+  return resizeSupport;
+}
+
+async function decodePhoto(blob: Blob, size: PhotoSize | null): Promise<{ image: ImageBitmap | HTMLImageElement; width: number; height: number; close: () => void }> {
+  // 전체를 그대로 풀 때의 상한(휴대폰은 더 낮게) — 머리에서 읽은 크기로 풀기 전에 막는다.
+  const fullLimit = isTouchPhone() ? MAX_TOUCH_FULL_DECODE_PIXELS : MAX_DECODED_PIXELS;
+  const fullLabel = isTouchPhone() ? "2천5백만 화소" : "6천만 화소";
+  const pixels = size ? size.width * size.height : 0;
   if (typeof createImageBitmap === "function") {
+    // 긴 변이 저장 크기보다 크면 푸는 순간 줄인다(가로만 지정 = 비율 유지 · EXIF 회전이 있어도 찌그러지지 않음).
+    const shrink = size && Math.max(size.width, size.height) > MAX_OUTPUT_EDGE && await supportsDecodeResize();
+    if (!shrink && pixels > fullLimit) throw tooLarge(fullLabel);
     try {
-      const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+      const bitmap = await createImageBitmap(blob, shrink && size
+        ? { imageOrientation: "from-image", resizeWidth: Math.max(1, Math.round(size.width * MAX_OUTPUT_EDGE / Math.max(size.width, size.height))), resizeQuality: "high" }
+        : { imageOrientation: "from-image" });
       return { image: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
     } catch { /* Older browsers may still decode this format with an image element. */ }
   }
+  if (pixels > fullLimit) throw tooLarge(fullLabel);
   const url = URL.createObjectURL(blob);
   const image = new Image();
   try {
@@ -139,11 +231,11 @@ async function decodePhoto(blob: Blob): Promise<{ image: ImageBitmap | HTMLImage
   } catch { URL.revokeObjectURL(url); throw new RecentPhotoError("이 사진을 열 수 없어요. 다른 JPG, PNG, WebP 사진을 선택해 주세요."); }
 }
 
-export async function normalizeAlbumPhoto(blob: Blob): Promise<Blob> {
-  const decoded = await decodePhoto(blob);
+export async function normalizeAlbumPhoto(blob: Blob, size: PhotoSize | null = null): Promise<Blob> {
+  const decoded = await decodePhoto(blob, size);
   try {
     if (!decoded.width || !decoded.height || decoded.width * decoded.height > MAX_DECODED_PIXELS) {
-      throw new RecentPhotoError("사진 해상도가 너무 커요. 6천만 화소 이하의 사진을 선택해 주세요.");
+      throw tooLarge("6천만 화소");
     }
     const ratio = Math.min(1, MAX_OUTPUT_EDGE / Math.max(decoded.width, decoded.height));
     const canvas = document.createElement("canvas");
@@ -163,7 +255,7 @@ export async function normalizeAlbumPhoto(blob: Blob): Promise<Blob> {
 export async function prepareAlbumPhoto(
   file: Blob,
   now = new Date(),
-  normalize: (blob: Blob) => Promise<Blob> = normalizeAlbumPhoto,
+  normalize: (blob: Blob, size: PhotoSize | null) => Promise<Blob> = normalizeAlbumPhoto,
 ): Promise<PreparedAlbumPhoto> {
   if (file.size < 1 || file.size > MAX_ALBUM_BYTES) throw new RecentPhotoError("20MB 이하의 사진을 선택해 주세요.");
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -171,8 +263,11 @@ export async function prepareAlbumPhoto(
   if (!type || (file.type && file.type !== type && !(type === "image/jpeg" && file.type === "image/jpg"))) {
     throw new RecentPhotoError("JPG, PNG, WebP 사진만 올릴 수 있어요. HEIC 사진은 JPG로 바꾼 뒤 선택해 주세요.");
   }
+  // 그림을 풀기 전에 머리의 가로·세로로 먼저 거른다(2억 화소 넘음 = 풀지 않음).
+  const size = readPhotoSize(bytes);
+  if (size && size.width * size.height > MAX_HEADER_PIXELS) throw tooLarge("2억 화소");
   const dateCheck = assessCaptureDate(type === "image/jpeg" ? readJpegCaptureDate(bytes) : { kind: "missing" }, now);
-  const blob = await normalize(file);
+  const blob = await normalize(file, size);
   if (blob.type !== "image/jpeg" || blob.size < 1 || blob.size > MAX_UPLOAD_PHOTO_BYTES) throw new RecentPhotoError("사진을 5MB 이하 JPG로 준비하지 못했어요. 다른 사진을 선택해 주세요.");
   return { blob, dateCheck };
 }

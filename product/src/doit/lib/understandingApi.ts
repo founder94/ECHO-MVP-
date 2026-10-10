@@ -8,23 +8,41 @@ export class UnderstandingError extends Error {
   constructor(code: string, message: string) { super(message); this.code = code; }
 }
 
+// 2026-10-10 휴대폰 망이 끊긴 채 응답이 안 오면 「보내는 중」이 영원히 돌았다 → 함수마다 시간 상한(넘으면 요청을 끊고 TIMEOUT · 화면의 다시 시도).
+// 상한은 서버가 스스로 쓰는 시간보다 길게: 대화(doit-understanding) 요청 예산 50초 · 에이전트 AI 기한 60초(+재시도) · 연결·계정은 짧은 조회/저장.
+type ServerFunction = 'doit-understanding' | 'doit-connect' | 'doit-account' | 'doit-agent';
+export const FUNCTION_TIMEOUT_MS: Record<ServerFunction, number> = {
+  'doit-understanding': 60_000,
+  'doit-connect': 30_000,
+  'doit-account': 30_000,
+  'doit-agent': 90_000,
+};
+
+// 기기가 오프라인이면 일반 실패 문구 대신 연결 확인 안내(대화·연결·사진 공통 문구).
+export const OFFLINE_MESSAGE = '인터넷 연결을 확인해 주세요.';
+export const isOffline = (): boolean => typeof navigator !== 'undefined' && navigator.onLine === false;
+export const offlineAware = (message: string): string => (isOffline() ? OFFLINE_MESSAGE : message);
+
 export async function understandingRequest<T>(body: Record<string, unknown>, expectedUserId?: string): Promise<T> {
   return serverFunctionRequest<T>('doit-understanding', body, expectedUserId);
 }
 
 // 서버 함수 호출 공통: 로그인 확인 → 호출 → 오류 코드·안내 문장 꺼내기 → 그 사이 계정이 바뀌지 않았는지 다시 확인.
 // doit-understanding(대화)·doit-connect(연결)가 같은 길을 쓴다.
-export async function serverFunctionRequest<T>(fn: 'doit-understanding' | 'doit-connect' | 'doit-account' | 'doit-agent', body: Record<string, unknown>, expectedUserId?: string): Promise<T> {
+export async function serverFunctionRequest<T>(fn: ServerFunction, body: Record<string, unknown>, expectedUserId?: string): Promise<T> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !session) throw new UnderstandingError('UNAUTHORIZED', '로그인한 뒤 이어서 저장해 주세요.');
   if (expectedUserId && session.user.id !== expectedUserId) throw new UnderstandingError('UNAUTHORIZED', '계정이 바뀌었어요. 현재 계정에서 다시 시도해 주세요.');
-  const { data, error } = await supabase.functions.invoke(fn, { body, headers: { Authorization: `Bearer ${session.access_token}` } });
+  const { data, error } = await supabase.functions.invoke(fn, { body, headers: { Authorization: `Bearer ${session.access_token}` }, timeout: FUNCTION_TIMEOUT_MS[fn] });
   if (error) {
     let detail: { code?: string; error?: string } = {};
     if (error.context instanceof Response) {
       try { detail = await error.context.clone().json(); } catch { /* 일반 오류로 표시 */ }
     }
-    throw new UnderstandingError(detail.code ?? 'NETWORK_ERROR', detail.error ?? '저장 결과를 확인하지 못했어요. 입력을 유지했으니 다시 시도해 주세요.');
+    // 시간 상한으로 끊긴 요청(SDK 가 AbortError 를 감싸 줌) = TIMEOUT. 같은 요청 id 로 다시 보내면 서버가 한 번만 처리한다.
+    const timedOut = (error.context as { name?: string } | undefined)?.name === 'AbortError';
+    const fallback = '저장 결과를 확인하지 못했어요. 입력을 유지했으니 다시 시도해 주세요.';
+    throw new UnderstandingError(detail.code ?? (timedOut ? 'TIMEOUT' : 'NETWORK_ERROR'), detail.error ?? offlineAware(fallback));
   }
   if (data?.ok !== true) throw new UnderstandingError(data?.code ?? 'ERROR', data?.error ?? '요청을 처리하지 못했어요.');
   const { data: current, error: currentError } = await supabase.auth.getSession();

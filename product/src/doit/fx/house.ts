@@ -142,10 +142,14 @@ export type HouseOptions = {
   onFail?: () => void;
 };
 
+// 확인용 문맥은 바로 돌려준다(갤럭시 A 등은 동시에 쥘 수 있는 WebGL 문맥 수가 적다 — scene-host.tsx 와 같은 방식).
 const canWebGL = () => {
   try {
     const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+    const gl = c.getContext("webgl2") ?? c.getContext("webgl");
+    if (!gl) return false;
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return true;
   } catch {
     return false;
   }
@@ -399,6 +403,16 @@ export function createHouse(
       cancelAnimationFrame(raf);
     }
   };
+  // GPU 가 문맥을 잃으면(저사양 기기 메모리 부족 · 오래 뒤로 가 있던 탭) 그리기를 멈추고 실패 길(onFail → 은은한 빛)로.
+  const onContextLost = (e: Event) => {
+    e.preventDefault();
+    if (halted) return;
+    halted = true;
+    running = false;
+    cancelAnimationFrame(raf);
+    opts.onFail?.();
+  };
+  canvas.addEventListener("webglcontextlost", onContextLost);
   const io = new IntersectionObserver((entries) => { inView = entries.some((e) => e.isIntersecting); sync(); });
   io.observe(host);
   const ro = new ResizeObserver(() => { resize(); if (!running && !halted && (!impl.ready || impl.ready())) { update(); draw(); } });
@@ -419,6 +433,7 @@ export function createHouse(
       io.disconnect();
       ro.disconnect();
       document.removeEventListener("visibilitychange", sync);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerdown", onMove);
       host.removeEventListener("pointerleave", onOut);

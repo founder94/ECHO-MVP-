@@ -20,6 +20,15 @@ import { MAX_UPLOAD_PHOTO_BYTES, prepareAlbumPhoto, RecentPhotoError, type Prepa
 import { PHOTO_AI_CHECK_ENABLED, PHOTO_BASE_COUNT, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, isExtraSlot, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
 
 const MAX_PHOTO_BYTES = MAX_UPLOAD_PHOTO_BYTES;
+
+// 2026-10-10 갤럭시 「고효율 사진」(HEIF)이 켜져 있으면 jpeg/png/webp 만 받는 선택 창에 사진이 아예 안 보였다 →
+//   안드로이드에서는 HEIC 도 보이게 하고, 고른 뒤 「HEIC 사진은 JPG로 바꾼 뒤 선택해 주세요」 안내(recentPhoto)로 보낸다.
+//   아이폰은 HEIC 를 받는다고 적으면 JPG 로 바꿔 주지 않고 HEIC 그대로 넘긴다 → 아이폰·아이패드는 예전 그대로(자동 JPG 변환 유지).
+const isAppleTouch = () =>
+  typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+const ALBUM_ACCEPT = isAppleTouch() ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,image/heic,image/heif";
+// 오프라인이면 일반 실패 문구 대신 연결 확인 안내(대화·연결 화면과 같은 문구).
+const offlineAware = (message: string) => (typeof navigator !== "undefined" && navigator.onLine === false ? "인터넷 연결을 확인해 주세요." : message);
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
 
 function PhotoDialog({ title, busy, onClose, children }: { title: string; busy?: boolean; onClose: () => void; children: ReactNode }) {
@@ -130,7 +139,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
       setRestoreState("ready");
     } catch {
       if (!mountedRef.current || version !== loadVersionRef.current) return;
-      setRestoreError("기존 사진을 불러오지 못했어요. 다시 시도해 주세요.");
+      setRestoreError(offlineAware("기존 사진을 불러오지 못했어요. 다시 시도해 주세요."));
       setRestoreState("error");
     }
   }, [userId]);
@@ -240,7 +249,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         refresh();
       } catch (error) {
         if (mountedRef.current) {
-          setSlotErrors((prev) => ({ ...prev, [slot]: "사진을 저장하지 못했어요. 기존 사진은 다시 불러와 확인할 수 있어요." }));
+          setSlotErrors((prev) => ({ ...prev, [slot]: offlineAware("사진을 저장하지 못했어요. 기존 사진은 다시 불러와 확인할 수 있어요.") }));
           refresh();
         }
         throw error;
@@ -462,7 +471,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
           </p>
         </motion.div>
 
-        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="앨범 사진 선택" className="hidden" onChange={(event) => {
+        <input ref={fileInputRef} type="file" accept={ALBUM_ACCEPT} aria-label="앨범 사진 선택" className="hidden" onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
           if (file) void prepareSelectedFile(file);

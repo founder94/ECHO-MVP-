@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { UnderstandingError } from '@/doit/lib/understandingApi';
+import { UnderstandingError, offlineAware } from '@/doit/lib/understandingApi';
 import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, reportSubmission, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
 import ZzaritMoment from './ZzaritMoment';
@@ -13,6 +13,8 @@ import MeetStep from './MeetStep';
 // 상대 정보는 서버가 조건을 확인한 뒤에만 내려 준다. 화면은 받은 것만 그린다.
 // v1.2: 첫 답이 공개의 방아쇠라, 처음 답하기 전에 무엇이 상대에게 보이는지 보여 주고 동의를 받는다(서버도 다시 확인).
 const REFRESH_MS = 30_000;
+// 앱·탭으로 돌아옴 · 인터넷 다시 연결 = 한 번 새로 읽기. 둘이 겹쳐 오거나(갤럭시·아이폰 복귀) 방금 읽었으면 건너뛴다.
+const RESUME_GAP_MS = 2_000;
 
 type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; matches: MyMatch[]; consented: boolean };
 
@@ -25,18 +27,34 @@ export default function ConnectionMatches({ userId, focusId = null }: { userId: 
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [safetyNote, setSafetyNote] = useState<string | null>(null); // 서버가 저장했다고 답한 차단·신고만
   const seq = useRef(0);
+  const inFlight = useRef(false); // 읽는 중(돌아옴·다시 연결 때 겹친 요청 0)
+  const lastRun = useRef(0);
 
   const refresh = useCallback(async () => {
     const mine = ++seq.current;
+    inFlight.current = true;
+    lastRun.current = Date.now();
     try {
       const { matches, consented } = await fetchMyMatches(userId);
       if (mine === seq.current) setLoad({ kind: 'ready', matches, consented });
     } catch {
       if (mine !== seq.current) return;
-      // 불러오기 실패에 저장 실패 문구를 쓰지 않는다(2026-09-30 QA 브라우저 검사 20)
-      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: '연결 목록을 불러오지 못했어요. 다시 확인해 볼게요.' });
+      // 불러오기 실패에 저장 실패 문구를 쓰지 않는다(2026-09-30 QA 브라우저 검사 20) · 오프라인이면 연결 확인 안내
+      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: offlineAware('연결 목록을 불러오지 못했어요. 다시 확인해 볼게요.') });
+    } finally {
+      if (mine === seq.current) inFlight.current = false;
     }
   }, [userId]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState !== 'visible' || inFlight.current || Date.now() - lastRun.current < RESUME_GAP_MS) return;
+      void refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
+    return () => { document.removeEventListener('visibilitychange', resume); window.removeEventListener('online', resume); };
+  }, [refresh]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -52,7 +70,7 @@ export default function ConnectionMatches({ userId, focusId = null }: { userId: 
   const hasOpen = load.kind === 'ready' && load.matches.some(m => m.status === 'open');
   useEffect(() => {
     if (!hasOpen) return;
-    const timer = setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, REFRESH_MS);
+    const timer = setInterval(() => { if (document.visibilityState === 'visible' && !inFlight.current) void refresh(); }, REFRESH_MS);
     return () => clearInterval(timer);
   }, [hasOpen, refresh]);
 
