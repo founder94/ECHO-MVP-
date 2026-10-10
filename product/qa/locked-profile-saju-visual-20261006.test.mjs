@@ -1,4 +1,4 @@
-// 2026-10-06 대표: 추가 사진 65/35 · 스토리 자물쇠 · KEY 몇 개 안내 · 사주 그림 화면 · 홈 사주/타로 그림 문. 가짜 데이터 · 서버·AI·KEY 차감 호출 0.
+// 2026-10-06 대표: 추가 사진 · 스토리 자물쇠 · KEY 몇 개 안내 · 사주 그림 화면 · 홈 사주/타로 그림 문. 2026-10-10 대표 승인: 사진 전체 35% 막 · 후킹 4가지 · 스토리 12 · 추가 사진 8. 가짜 데이터 · 서버·AI·KEY 차감 호출 0.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
@@ -16,28 +16,33 @@ function load(rel, deps = {}) {
   return module.exports;
 }
 
-test('KEY 값은 한 곳(unlockPrices): 스토리 30 · 추가 사진 20 · 아직 실제로 열리지 않음', () => {
+test('KEY 값은 한 곳(unlockPrices): 대표 승인 2026-10-10 스토리 12 · 추가 사진 8 · 아직 실제로 열리지 않음', () => {
   const m = load('src/doit/lib/unlockPrices.ts');
-  assert.equal(m.UNLOCK_KEY_COST.story, 30);
-  assert.equal(m.UNLOCK_KEY_COST.extraPhoto, 20);
+  assert.equal(m.UNLOCK_KEY_COST.story, 12);
+  assert.equal(m.UNLOCK_KEY_COST.extraPhoto, 8);
   assert.equal(m.UNLOCK_LIVE, false);
-  // Codex PR #141 b198296 P1: 대표 확인 전에는 화면에 숫자 0
-  assert.equal(m.UNLOCK_PRICES_APPROVED, false);
-  assert.equal(m.keyCostBadge('story'), 'KEY');
-  assert.equal(m.keyCostBadge('extraPhoto'), 'KEY');
-  assert.doesNotMatch(m.unlockLabel('story'), /\d/);
-  assert.doesNotMatch(m.unlockLabel('extraPhoto'), /\d/);
+  // 대표 승인(2026-10-10) 뒤에만 숫자 표시 — 표시는 keyCostBadge·unlockLabel 한 곳
+  assert.equal(m.UNLOCK_PRICES_APPROVED, true);
+  assert.equal(m.keyCostBadge('story'), 'KEY 12');
+  assert.equal(m.keyCostBadge('extraPhoto'), 'KEY 8');
+  assert.equal(m.unlockLabel('story'), 'KEY 12개로 열기');
+  assert.equal(m.unlockLabel('extraPhoto'), 'KEY 8개로 열기');
+  // 맛보기(후킹 ③): 한 사람당 한 장 · 맛본 칸은 선명
+  assert.equal(m.FREE_TASTE_PER_PERSON, 1);
+  assert.equal(m.canTaste([]), true);
+  assert.equal(m.canTaste([5]), false);
+  assert.equal(m.viewerSees(5, { isOwner: false, unlocked: false, baseCount: 5, tasted: true }), 'full');
   assert.equal(m.viewerSees(5, { isOwner: false, unlocked: false, baseCount: 5 }), 'faded');
   assert.equal(m.viewerSees(4, { isOwner: false, unlocked: false, baseCount: 5 }), 'full');
   assert.equal(m.viewerSees(5, { isOwner: true, unlocked: false, baseCount: 5 }), 'full');
   assert.equal(m.viewerSees(5, { isOwner: false, unlocked: true, baseCount: 5 }), 'full');
 });
 
-test('Codex P1: 값이 정해지기 전에는 화면 파일이 KEY 개수를 직접 쓰지 않는다(표시는 keyCostBadge·unlockLabel 한 곳)', () => {
+test('Codex P1: 화면 파일은 KEY 개수를 직접 쓰지 않는다(표시는 keyCostBadge·unlockLabel 한 곳 · 승인 스위치를 따름)', () => {
   for (const f of ['src/doit/components/feature/LockedProfileParts.tsx', 'src/doit/pages/do-it/key/page.tsx', 'src/doit/components/feature/ProfileAsOthersSee.tsx', 'src/doit/app/plan-a/screens/PhotoCapture.tsx']) {
     const s = read(f).replace(/^\s*\/\/.*$/gm, '');
     assert.ok(!s.includes('UNLOCK_KEY_COST'), f);
-    assert.ok(!/KEY\s*\{?\s*(?:20|30)\b/.test(s) && !/(?:20|30)\s*개로 열/.test(s), f);
+    assert.ok(!/KEY\s*\{?\s*(?:8|12|20|30)\b/.test(s) && !/(?:8|12|20|30)\s*개로 열/.test(s), f);
   }
 });
 
@@ -47,22 +52,28 @@ test('잠긴 조각: KEY 를 빼는 코드·서버 호출이 없다(준비 중 �
     assert.ok(!/deductKeys|useKeyWallet|functions\.invoke|\.insert\(|\.update\(|fetch\(/.test(s), f);
   }
   const p = read('src/doit/components/feature/LockedProfileParts.tsx');
-  assert.ok(p.includes('EXTRA_PHOTO_VISIBLE_PERCENT'), '65% 는 정책 값에서 온다');
+  assert.ok(p.includes('EXTRA_PHOTO_FADE_PERCENT / 100'), '막 세기 35% 는 정책 값에서 온다');
+  assert.ok(p.includes('{line && <p className="doit-faded-teaser">{line}</p>}'), '한 줄 힌트는 사진 올린 사람이 적었을 때만(지어낸 문장 0)');
+  assert.ok(p.includes('맛보기로 선명하게 보기') && p.includes('맛보기는 한 사람당 한 장이에요.'));
   assert.ok(p.includes('<Lock') && p.includes('doit-story-lock-btn'), '자물쇠가 스토리 버튼 안에');
   assert.ok(p.includes('KEY도 쓰지 않아요') && p.includes('아직 KEY를 쓰지 않아요'), '준비 중 정직 안내');
   assert.ok(!/놓치면|마지막 기회|서두르/.test(p.replace(/^\s*\/\/.*$/gm, '')), '불안 자극 문구 금지(주석 제외)');
 });
 
-test('페이드 CSS: 위 65%는 그대로, 경계 아래부터 흐림 · 전역 변경 0', () => {
+test('페이드 CSS: 사진 전체에 35% 막(흐림 + 같은 세기의 어두운 막) · 위아래 나누기 0 · 전역 변경 0', () => {
   const c = read('src/doit/components/feature/locked-profile.css');
-  assert.ok(c.includes('var(--doit-visible)') && c.includes('blur('));
+  assert.ok(c.includes('.doit-faded--veiled>img{filter:blur(calc(var(--doit-fade) * 10px))'));
+  assert.ok(c.includes('.doit-faded-veil{position:absolute;inset:0;pointer-events:none;background:rgb(10 12 18/var(--doit-fade))}'));
+  assert.ok(!/--doit-visible|mask-image/.test(c), '예전 위·아래 나누기 0');
   assert.ok(!/(^|\})\s*(body|:root|html)\s*[,{]/.test(c));
 });
 
 test('사진 화면: 추가 사진 칸은 대표 사진으로 못 고르고, 위쪽만 보인다고 먼저 알린다', () => {
   const s = read('src/doit/app/plan-a/screens/PhotoCapture.tsx');
   assert.ok(s.includes('savedPhoto && !isExtraSlot(index) &&'));
-  assert.ok(s.includes('상대에겐 위 {EXTRA_PHOTO_VISIBLE_PERCENT}%만'));
+  assert.ok(s.includes('🔒 상대에겐 살짝 흐리게 · 한 장은 맛보기'), '올리는 사람에게 먼저 알림(후킹 ④)');
+  assert.ok(s.includes('흐리게 보이는 게 싫으면 추가 사진은 올리지 않아도 돼요.'), '원치 않으면 빠져나갈 길');
+  assert.ok(!s.includes('EXTRA_PHOTO_VISIBLE_PERCENT') && !s.includes('위쪽만'));
   assert.ok(s.includes('기본 {savedList.filter((p) => !isExtraSlot(p.slot)).length} / {PHOTO_BASE_COUNT}장'));
 });
 
@@ -77,12 +88,14 @@ test('2단계 DB 초안은 drafts 에만(PENDING) · migrations 에 없다', () 
   const mig = readdirSync(path.join(root, 'supabase/migrations')).join('\n');
   assert.ok(!/extra_photos_story_keys/.test(mig));
   const sql = read('supabase/drafts/PENDING_20261006_extra_photos_story_keys.sql');
-  assert.ok(sql.includes("('story_unlock', 30") && sql.includes("('extra_photo_unlock', 20"), '앱 값과 같다');
+  assert.ok(sql.includes("('story_unlock', 12") && sql.includes("('extra_photo_unlock', 8"), '앱 값과 같다');
+  assert.ok(sql.includes("add column if not exists teaser text check (teaser is null or char_length(teaser) between 1 and 30)"), '한 줄 힌트 칸은 초안만');
+  assert.ok(sql.includes("doit_unlocks_taste_once on public.doit_unlocks (viewer_id, owner_id) where kind = 'taste'"), '맛보기 한 사람당 한 장 = 서버 기록 초안');
   // Codex PR #141 09be174: 기본 키에 photo_slot 을 넣으면 NOT NULL 이 되어 스토리(칸 없음)를 못 넣는다 → 줄 id 키 + 종류별 부분 고유 색인
   const unlocks = sql.slice(sql.indexOf('create table if not exists public.doit_unlocks'));
   assert.doesNotMatch(unlocks.slice(0, unlocks.indexOf(');')), /primary key \(/, '복합 기본 키 0');
   assert.match(unlocks, /id uuid primary key default gen_random_uuid\(\)/);
-  assert.match(unlocks, /check \(\(kind = 'story' and photo_slot is null\) or \(kind = 'extra_photo' and photo_slot is not null\)\)/);
+  assert.match(unlocks, /check \(\(kind = 'story' and photo_slot is null\) or \(kind in \('extra_photo','taste'\) and photo_slot is not null\)\)/);
   assert.match(unlocks, /create unique index if not exists doit_unlocks_story_once on public\.doit_unlocks \(viewer_id, owner_id\) where kind = 'story';/);
   assert.match(unlocks, /create unique index if not exists doit_unlocks_photo_once on public\.doit_unlocks \(viewer_id, owner_id, photo_slot\) where kind = 'extra_photo';/);
 });
@@ -123,6 +136,7 @@ test('Codex P1: 계정이 바뀌면 앞 계정 사진이 한 장도 보이지 �
     '@/doit/lib/photoStorage': { restorePhotos: (uid) => new Promise((res) => { pending[uid] = res; }) },
     '@/doit/lib/photoPolicy': { PHOTO_BASE_COUNT: 5, isExtraSlot: (s) => s >= 5 },
     '@/doit/components/feature/LockedProfileParts': { FadedExtraPhoto: 'FadedExtraPhoto', StoryLockButton: 'StoryLockButton' },
+    '@/doit/lib/unlockPrices': { canTaste: (s) => s.length < 1 },
     './locked-profile.css': {},
   };
   const module = { exports: {} };
@@ -179,4 +193,21 @@ test('Codex P1: 계정이 바뀌면 앞 계정 사진이 한 장도 보이지 �
   pending.C([{ photoId: 'c1', slot: 0, url: 'https://x/C2.jpg', isPrimary: true }]);
   await new Promise((r) => setTimeout(r, 0));
   assert.deepEqual(srcs(render('C')), ['https://x/C2.jpg']);
+
+  // 대표 2026-10-10 후킹 ③ 맛보기: 추가 사진 한 장을 맛보기로 선명하게 → 그다음은 맛보기 끝 · 계정이 바뀌면 다시 처음부터
+  const faded = (n, out = []) => { if (!n || typeof n !== 'object') return out; if (Array.isArray(n)) { n.forEach((x) => faded(x, out)); return out; } if (n.t === 'FadedExtraPhoto') out.push(n); faded(n.p?.children, out); return out; };
+  render('D');
+  pending.D([{ photoId: 'd0', slot: 0, url: 'https://x/D0.jpg', isPrimary: true }, { photoId: 'd5', slot: 5, url: 'https://x/D5.jpg', isPrimary: false }]);
+  await new Promise((r) => setTimeout(r, 0));
+  let fx = faded(render('D'));
+  assert.equal(fx.length, 1, '추가 사진 1장은 막을 쓴 조각으로');
+  assert.equal(fx[0].p.tasted, false); assert.equal(fx[0].p.canTaste, true);
+  fx[0].p.onTaste();
+  fx = faded(render('D'));
+  assert.equal(fx[0].p.tasted, true, '맛본 칸은 선명'); assert.equal(fx[0].p.canTaste, false, '한 사람당 한 장');
+  render('E');
+  pending.E([{ photoId: 'e5', slot: 5, url: 'https://x/E5.jpg', isPrimary: false }]);
+  await new Promise((r) => setTimeout(r, 0));
+  fx = faded(render('E'));
+  assert.equal(fx[0].p.tasted, false, '다른 계정에는 맛보기 기록이 넘어가지 않음'); assert.equal(fx[0].p.canTaste, true);
 });

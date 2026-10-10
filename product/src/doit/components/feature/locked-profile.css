@@ -1,12 +1,17 @@
 /* 잠긴 프로필 조각(추가 사진·스토리) — 이 클래스들 아래로만. 전역(body·:root) 변경 0. */
 .doit-faded{position:relative;overflow:hidden;border-radius:14px;aspect-ratio:3/4;background:#15181e}
 .doit-faded>img{display:block;width:100%;height:100%;object-fit:cover}
-/* 아래 35%: 같은 사진을 흐리게 덮고, 경계는 부드럽게 녹인다(잠재적 페이드). */
-.doit-faded-veil{position:absolute;inset:0;pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,transparent calc(var(--doit-visible) - 8%),#000 calc(var(--doit-visible) + 4%));mask-image:linear-gradient(to bottom,transparent calc(var(--doit-visible) - 8%),#000 calc(var(--doit-visible) + 4%))}
-.doit-faded-veil img{width:100%;height:100%;object-fit:cover;filter:blur(22px) brightness(.62) saturate(.8);transform:scale(1.15)}
-.doit-faded-veil::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent calc(var(--doit-visible) - 6%),rgb(255 255 255/.14) var(--doit-visible),rgb(10 12 18/.38))}
+/* 추가 사진(2026-10-10 대표 「사진 전체 35% 막」): 사진 전체를 은은하게 흐리고(막 세기 × 10px = 3.5px · 장면·분위기는 보임) 같은 세기의 어두운 막을 덮는다. */
+.doit-faded--veiled>img{filter:blur(calc(var(--doit-fade) * 10px)) saturate(.9);transform:scale(1.04)}
+.doit-faded-veil{position:absolute;inset:0;pointer-events:none;background:rgb(10 12 18/var(--doit-fade))}
+.doit-faded-teaser{position:absolute;left:8px;right:8px;top:50%;transform:translateY(-50%);margin:0;color:#fff;font-size:12px;font-weight:700;line-height:1.5;text-align:center;word-break:keep-all;text-shadow:0 1px 6px rgb(0 0 0/.55)}
+.doit-faded-tasted{position:absolute;left:8px;top:8px;padding:3px 8px;border-radius:999px;background:rgb(12 15 20/.6);color:#fff;font-size:10.5px;font-weight:700}
 .doit-faded-lock{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:6px 11px;border:1px solid rgb(255 255 255/.75);border-radius:999px;background:rgb(12 15 20/.55);color:#fff;font-size:11.5px;font-weight:700;white-space:nowrap;cursor:pointer;backdrop-filter:blur(6px)}
-.doit-unlock-hint{position:absolute;left:8px;right:8px;bottom:50px;margin:0;padding:7px 9px;border-radius:10px;background:rgb(12 15 20/.82);color:#fff;font-size:11px;font-weight:600;line-height:1.5;text-align:center;word-break:keep-all}
+.doit-unlock-hint{position:absolute;inset:6px 6px 50px;display:flex;flex-direction:column;justify-content:center;gap:4px;margin:0;padding:7px 8px;border-radius:10px;background:rgb(12 15 20/.82);color:#fff;font-size:11px;font-weight:600;line-height:1.45;text-align:center;word-break:keep-all;overflow:auto}
+.doit-unlock-hint p{margin:0}
+.doit-faded-taste{width:100%;min-height:32px;padding:4px 6px;line-height:1.3;border:1px solid rgb(255 255 255/.75);border-radius:999px;background:transparent;color:#fff;font-size:11px;font-weight:700;cursor:pointer}
+.doit-faded-taste:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.doit-faded-taste-used{opacity:.85}
 .doit-story-lock{margin-top:14px}
 .doit-story-lock-btn{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:10px 14px;border:1px solid rgb(255 255 255/.75);border-radius:16px;background:rgb(255 255 255/.08);color:#fff;text-align:left;cursor:pointer}
 .doit-story-lock-icon{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:50%;background:rgb(255 255 255/.16)}
@@ -23,4 +28,6 @@
 .doit-as-others-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .doit-as-others-grid .doit-faded-lock{font-size:11px;padding:5px 10px;min-height:32px}
 .doit-as-others-grid .doit-unlock-hint{font-size:10px;bottom:44px}
+.doit-as-others-grid .doit-faded-taste{font-size:10px;min-height:30px}
+.doit-as-others-grid .doit-faded-teaser{font-size:11px}
 .doit-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

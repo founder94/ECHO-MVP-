@@ -17,7 +17,7 @@ import {
 } from "@/doit/lib/photoStorage";
 
 import { MAX_UPLOAD_PHOTO_BYTES, prepareAlbumPhoto, RecentPhotoError, type PreparedAlbumPhoto } from "@/doit/lib/recentPhoto";
-import { EXTRA_PHOTO_VISIBLE_PERCENT, PHOTO_AI_CHECK_ENABLED, PHOTO_BASE_COUNT, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, isExtraSlot, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
+import { PHOTO_AI_CHECK_ENABLED, PHOTO_BASE_COUNT, PHOTO_SLOTS, PHOTO_REQUIRED_COUNT, isExtraSlot, VERDICT_LABEL, photoSetComplete, requestPhotoCheck, requiredFilledCount, type PhotoCheck } from "@/doit/lib/photoPolicy";
 
 const MAX_PHOTO_BYTES = MAX_UPLOAD_PHOTO_BYTES;
 type PhotoTarget = { slot: number; mode: "capture" | "replace" };
@@ -479,8 +479,8 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
               <div className="relative flex flex-col overflow-hidden rounded-2xl" style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.7)" }}>
                 <button type="button" disabled={saveBusy || primaryBusy} onClick={() => openSourceChoice(index, mode)} aria-label={`${slot.label} ${preview ? "바꾸기" : "추가하기"}`} className="relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-3 overflow-hidden text-center disabled:cursor-wait">
                   {preview ? <img src={preview} alt={slot.label} className="absolute inset-0 h-full w-full object-cover" /> : <><ImagePlus size={25} color="#b7bfca" /><span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>{slot.label}</span><span style={{ fontSize: 10, color: colors.textMuted }}>{slot.hint}</span></>}
-                  {/* 추가 사진 칸: 다른 사람에게는 위쪽 65%만 보인다는 것을 올리는 사람이 먼저 알게(2026-10-06 대표 1단계). */}
-                  {isExtraSlot(index) && <span className="absolute inset-x-0 bottom-0 px-2 py-1.5 text-left" style={{ background: "linear-gradient(to top, rgba(10,12,16,.78), rgba(10,12,16,0))", color: "#fff", fontSize: 10, fontWeight: 700 }}>🔒 상대에겐 위 {EXTRA_PHOTO_VISIBLE_PERCENT}%만</span>}
+                  {/* 추가 사진 칸: 다른 사람에게는 사진 전체가 살짝 흐리게(35% 막) 보인다는 것을 올리는 사람이 먼저 알게(2026-10-10 대표 승인 후킹 ④). */}
+                  {isExtraSlot(index) && <span className="absolute inset-x-0 bottom-0 px-2 py-1.5 text-left" style={{ background: "linear-gradient(to top, rgba(10,12,16,.78), rgba(10,12,16,0))", color: "#fff", fontSize: 10, fontWeight: 700 }}>🔒 상대에겐 살짝 흐리게 · 한 장은 맛보기</span>}
                   {isPrimary && <span className="absolute left-2 top-2 rounded-full px-2 py-1" style={{ background: "#e5e8ed", color: "#171a20", fontSize: 10, fontWeight: 600 }}>대표</span>}
                   {savedPhoto && checks[index] && <span className="absolute right-2 top-2 rounded-full px-2 py-1" style={{ background: checks[index] === "pending" ? "#2a2f3a" : checks[index].verdict === "ok" ? "#1f3b2a" : checks[index].verdict === "rejected" ? "#4a1f1f" : "#3b331f", color: "#e5e8ed", fontSize: 10, fontWeight: 600 }}>{checks[index] === "pending" ? "AI 확인 중" : VERDICT_LABEL[checks[index].verdict]}</span>}
                   {busy && <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 " style={{ background: "rgba(255,255,255,.28)", backdropFilter: "blur(6px)" }} role="status"><Loader2 size={20} color="#fff" className="animate-spin" /><span style={{ color: "#fff", fontSize: 11 }}>사진 준비·저장 중</span></span>}
@@ -508,7 +508,7 @@ function PhotoCaptureSession({ userId, onNext, onBack }: Props) {
         >
           <Star size={14} color={colors.accent} className="mt-0.5 shrink-0" />
           <p style={{ color: colors.textFaint, fontSize: 12, lineHeight: 1.6 }}>
-            별표는 대표 사진이에요. 기본 사진은 다섯 장이고, 마지막 「추가 사진」은 상대에게 위쪽만 보이고 아래는 흐리게 가려져요(상대가 KEY로 열 수 있게 할 예정 · 준비 중). 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
+            별표는 대표 사진이에요. 기본 사진은 다섯 장이고, 마지막 「추가 사진」은 상대에게 사진 전체가 살짝 흐리게 보여요(한 장은 맛보기로 선명하게 · 나머지는 KEY로 선명하게 볼 수 있게 할 예정 · 준비 중). 흐리게 보이는 게 싫으면 추가 사진은 올리지 않아도 돼요. 다 채우지 않아도 다음으로 넘어갈 수 있어요. 연결을 받으려면 필수 세 장과 대표 사진 한 장이 있어야 해요. 나중에 프로필에서 채워도 돼요.
             {PHOTO_AI_CHECK_ENABLED ? " AI가 사람·종류·화면 재촬영 여부를 확인해요. 본인 여부와 실제 촬영일은 AI가 확인하지 못해요." : " 사진은 AI가 따로 판별하지 않아요. 본인 여부와 실제 촬영일도 확인하지 않아요."}
           </p>
         </div>
