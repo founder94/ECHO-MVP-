@@ -12,14 +12,23 @@ export type UnlockKind = keyof typeof UNLOCK_KEY_COST;
 // 서버 KEY 원장 연결 전까지 false. true 로 바꾸는 것은 원장·결제가 운영에 올라간 뒤(대표 승인).
 export const UNLOCK_LIVE = false;
 
+// Codex PR #141 b198296 P1: 대표가 값을 확인하기 전에는 화면에 숫자를 내보내지 않는다(아직 정하지 않은 값을 약속처럼 보이지 않게).
+// 대표가 값을 확정하면 이 줄만 true 로 바꾼다(값은 위 UNLOCK_KEY_COST 한 곳).
+export const UNLOCK_PRICES_APPROVED = false;
+
+// 화면에 보이는 짧은 표시: 값이 정해졌으면 「KEY 30」, 아니면 「KEY」.
+export function keyCostBadge(kind: UnlockKind): string {
+  return UNLOCK_PRICES_APPROVED ? `KEY ${UNLOCK_KEY_COST[kind]}` : "KEY";
+}
+
 export function unlockLabel(kind: UnlockKind): string {
-  return `KEY ${UNLOCK_KEY_COST[kind]}개로 열기`;
+  return UNLOCK_PRICES_APPROVED ? `KEY ${UNLOCK_KEY_COST[kind]}개로 열기` : "KEY로 열기(필요한 개수는 정하는 중)";
 }
 
 // 다른 사람이 볼 때 무엇이 잠기는지 한 곳에서 정한다(화면마다 다르게 판단하지 않게).
 // - 기본 5칸: 그대로 보인다.
 // - 추가 사진: 위쪽 65%만, 아래 35%는 흐리게(내가 연 경우만 전부).
-// - 스토리: 버튼 안에 자물쇠, 누르면 「KEY 30개로 열려요」.
+// - 스토리: 버튼 안에 자물쇠, 누르면 KEY 로 열린다는 안내(개수는 값이 정해진 뒤에만).
 export function viewerSees(slot: number, opts: { isOwner: boolean; unlocked: boolean; baseCount: number }): "full" | "faded" {
   if (opts.isOwner || opts.unlocked) return "full";
   return slot >= opts.baseCount ? "faded" : "full";

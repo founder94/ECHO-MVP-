@@ -25,7 +25,7 @@ begin
 
   -- 30일 지난 기록 삭제(day = 'YYYY-MM-DD' UTC 문자열 → 같은 모양끼리 글자 비교로 날짜 순서가 맞다)
   delete from public.openai_rate_limits
-   where day < to_char((v_now at time zone 'utc')::date - 30, 'YYYY-MM-DD');
+   where day <= to_char((v_now at time zone 'utc')::date - 30, 'YYYY-MM-DD');
 
   insert into public.openai_rate_limits (session_id, day, ip, call_count, last_call_at)
   values (p_session_id, p_day, p_ip, 0, null)

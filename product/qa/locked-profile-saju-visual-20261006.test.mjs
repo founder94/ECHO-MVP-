@@ -21,11 +21,24 @@ test('KEY 값은 한 곳(unlockPrices): 스토리 30 · 추가 사진 20 · 아�
   assert.equal(m.UNLOCK_KEY_COST.story, 30);
   assert.equal(m.UNLOCK_KEY_COST.extraPhoto, 20);
   assert.equal(m.UNLOCK_LIVE, false);
-  assert.equal(m.unlockLabel('story'), 'KEY 30개로 열기');
+  // Codex PR #141 b198296 P1: 대표 확인 전에는 화면에 숫자 0
+  assert.equal(m.UNLOCK_PRICES_APPROVED, false);
+  assert.equal(m.keyCostBadge('story'), 'KEY');
+  assert.equal(m.keyCostBadge('extraPhoto'), 'KEY');
+  assert.doesNotMatch(m.unlockLabel('story'), /\d/);
+  assert.doesNotMatch(m.unlockLabel('extraPhoto'), /\d/);
   assert.equal(m.viewerSees(5, { isOwner: false, unlocked: false, baseCount: 5 }), 'faded');
   assert.equal(m.viewerSees(4, { isOwner: false, unlocked: false, baseCount: 5 }), 'full');
   assert.equal(m.viewerSees(5, { isOwner: true, unlocked: false, baseCount: 5 }), 'full');
   assert.equal(m.viewerSees(5, { isOwner: false, unlocked: true, baseCount: 5 }), 'full');
+});
+
+test('Codex P1: 값이 정해지기 전에는 화면 파일이 KEY 개수를 직접 쓰지 않는다(표시는 keyCostBadge·unlockLabel 한 곳)', () => {
+  for (const f of ['src/doit/components/feature/LockedProfileParts.tsx', 'src/doit/pages/do-it/key/page.tsx', 'src/doit/components/feature/ProfileAsOthersSee.tsx', 'src/doit/app/plan-a/screens/PhotoCapture.tsx']) {
+    const s = read(f).replace(/^\s*\/\/.*$/gm, '');
+    assert.ok(!s.includes('UNLOCK_KEY_COST'), f);
+    assert.ok(!/KEY\s*\{?\s*(?:20|30)\b/.test(s) && !/(?:20|30)\s*개로 열/.test(s), f);
+  }
 });
 
 test('잠긴 조각: KEY 를 빼는 코드·서버 호출이 없다(준비 중 안내만)', () => {

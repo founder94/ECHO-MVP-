@@ -4,7 +4,7 @@ import MobileLayout from "@/doit/components/feature/MobileLayout";
 import Card from "@/doit/components/base/Card";
 import Badge from "@/doit/components/base/Badge";
 import { useKeyWallet } from "@/doit/hooks/useKeyWallet";
-import { UNLOCK_KEY_COST } from "@/doit/lib/unlockPrices";
+import { keyCostBadge } from "@/doit/lib/unlockPrices";
 import {
   keyPackages,
   keyPolicy,
@@ -73,10 +73,10 @@ export default function Key() {
         <Card padding="md" className="mb-4">
           <h3 className="mb-2 text-sm font-semibold text-foreground-800">KEY로 열 수 있는 것</h3>
           <ul className="space-y-1 text-xs leading-relaxed text-foreground-600">
-            <li>🔒 상대의 스토리(하루 이야기) · KEY {UNLOCK_KEY_COST.story}개</li>
-            <li>🔒 상대의 추가 사진 1장(흐린 아랫부분까지) · KEY {UNLOCK_KEY_COST.extraPhoto}개</li>
+            <li>🔒 상대의 스토리(하루 이야기) · {keyCostBadge("story")}</li>
+            <li>🔒 상대의 추가 사진 1장(흐린 아랫부분까지) · {keyCostBadge("extraPhoto")}</li>
           </ul>
-          <p className="mt-2 text-[11px] text-foreground-400">준비 중이에요. 열리기 전까지 KEY를 쓰지 않아요.</p>
+          <p className="mt-2 text-[11px] text-foreground-400">준비 중이에요. 필요한 KEY 개수는 정하는 중이고, 열리기 전까지 KEY를 쓰지 않아요.</p>
         </Card>
 
         {/* Validity notice */}
