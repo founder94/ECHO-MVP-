@@ -2,7 +2,7 @@
 // GetLayers 3D Scenes 「Onyx Cubes」 원본(onyx-cubes.html) 그대로 — 2026-10-09 대표 「이것도 추가로 · 효과들 코드 준 대로 그대로」.
 // 바꾼 것: CDN importmap(three 0.170 · cannon-es 0.20.0) → 번들 three 0.186 + cannon-es 0.20.0 · 제어판·localStorage 제거 ·
 // 캔버스는 이 구간(section) 크기 · 보일 때만 그림 · 움직임 줄이기/이용 안내 열림이면 한 장만. 글은 아직 없음(대표: 효과 자리 먼저).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import * as CANNON from "cannon-es";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -23,6 +23,8 @@ const CONFIG = {
 export const OnyxSection = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLElement>(null);
+  // 2026-10-10 Codex P2(4236722006): WebGL 을 못 쓰면 빈 화면 한 장이 남지 않게 이 장식 구간을 접는다(글·버튼 없음 · 다른 구간 그대로).
+  const [noGL, setNoGL] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -31,7 +33,7 @@ export const OnyxSection = () => {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    } catch { return; }
+    } catch { setNoGL(true); return; }
     const size = () => ({ w: host.clientWidth || 1, h: host.clientHeight || 1 });
     let { w, h } = size();
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -295,6 +297,7 @@ export const OnyxSection = () => {
     };
   }, []);
 
+  if (noGL) return null;
   return (
     <section ref={hostRef} id="onyx" aria-label="Onyx Cubes" className="relative h-lvh w-full overflow-hidden bg-[#eef0f3]">
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full touch-pan-y" />

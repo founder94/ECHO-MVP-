@@ -1,7 +1,7 @@
 "use client";
 // GetLayers 3D Scenes 「Solaris」 원본(solaris.html) 그대로 — 2026-10-08 대표 「색도 글씨체도 3D 효과도 코드대로」.
 // 바꾼 것: CDN importmap → 번들 three · 제어판·localStorage 제거 · 화면에 보일 때만 그림 · 위에 ECHO 문구.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -33,6 +33,8 @@ const hexToVec3 = (hex: string) => {
 export const SolarisSection = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLElement>(null);
+  // 2026-10-10 Codex P2(4236722006): WebGL 을 못 쓰면 빈 화면 한 장이 남지 않게 이 장식 구간을 접는다(글·버튼 없음 · 다른 구간 그대로).
+  const [noGL, setNoGL] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,7 +43,7 @@ export const SolarisSection = () => {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    } catch { return; }
+    } catch { setNoGL(true); return; }
     const size = () => ({ w: host.clientWidth, h: host.clientHeight });
     let { w, h } = size();
     renderer.setSize(w, h);
@@ -165,6 +167,7 @@ export const SolarisSection = () => {
     };
   }, []);
 
+  if (noGL) return null;
   return (
     <section ref={hostRef} id="solaris" aria-label="Solaris" className="relative h-lvh w-full overflow-hidden bg-black text-white">
       <canvas ref={canvasRef} aria-hidden className="absolute inset-0 block h-full w-full" />
