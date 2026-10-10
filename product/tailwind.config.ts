@@ -6,13 +6,37 @@ export default {
   ],
   theme: {
     extend: {
+      // ── 2026-10-08 GetLayers 「Vesper」 토큰(원본 globals.css @theme inline → v3 · 대표 「색·글씨체·3D 효과 코드 그대로」) ──
+      boxShadow: { signal: 'var(--glow-signal)', chalk: 'var(--glow-chalk)', glass: 'var(--glass-panel)' },
+      blur: { glass: 'var(--glass-blur)' },
+      borderRadius: { card: '0.875rem' },
+      fontSize: {
+        'hud-2xs': '0.625rem', 'hud-xs': '0.6875rem', 'hud-sm': '0.75rem', 'hud-md': '0.8125rem',
+        menu: 'var(--menu-link-size)', 'hud-title': 'clamp(1.875rem, 5.4vw, 4.9rem)', 'card-value': 'clamp(1.5rem, 2vw, 2rem)',
+        'outro-title': 'clamp(2.25rem, 5vw, 4.5rem)', wordmark: '1.125rem', stat: 'clamp(1.25rem, 1.6vw, 1.625rem)',
+        body: 'clamp(0.9375rem, 1.05vw, 1.0625rem)', 'body-sm': '0.875rem', 'faq-question': 'clamp(1.0625rem, 1.25vw, 1.25rem)',
+      },
+      lineHeight: { title: '0.98', body: '1.6' },
+      letterSpacing: { hud: 'var(--hud-tracking)', brand: 'var(--brand-tracking)', title: '-0.022em', body: 'var(--body-tracking)', indicator: 'var(--indicator-tracking)' },
+      spacing: {
+        'hud-x': '3.5rem', 'hud-y': '1.875rem', 'hud-x-sm': '1.75rem', 'hud-y-sm': '1.5rem', 'hud-gap': '1.5rem', 'hud-inline': '0.625rem', 'hud-tight': '0.375rem',
+        bracket: '1.375rem', 'bracket-inset': '1.125rem', dot: '0.375rem', 'title-kerning': '0.04em',
+        'loader-x': '2rem', 'loader-y': '1.5rem', loader: '0.875rem', 'loader-inline': '0.875rem', 'loader-width': 'min(22.5rem, 70vw)',
+        card: '1rem', 'card-x': '1.25rem', 'card-y': '1.125rem', 'meta-card': '13.5rem', meta: '15rem',
+        section: '5rem', 'section-sm': '2rem', 'cta-x': '1.5rem', 'cta-y': '0.8125rem',
+      },
+      maxWidth: { 'hud-section': 'var(--hud-section-width)', 'hud-copy': 'var(--hud-copy-width)', content: 'var(--content-width)', 'content-copy': 'var(--content-copy-width)' },
       fontFamily: {
-        dot: ['Doto', 'monospace'],
-        heading: ['Doto', 'monospace'],
-        body: ['Noto Sans KR', 'sans-serif'],
-        sans: ['Noto Sans KR', 'sans-serif'],
+        general: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        tag: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        'hud-mono': ['Jua', 'Pretendard', 'ui-monospace', 'monospace'],
+        heading: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        body: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Jua', 'Pretendard', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
+        void: 'var(--void)', chalk: 'var(--chalk)', signal: 'var(--signal)', surface: 'var(--surface)', 'surface-raised': 'var(--surface-raised)',
         background: {
           50: 'oklch(var(--background-50) / <alpha-value>)',
           100: 'oklch(var(--background-100) / <alpha-value>)',

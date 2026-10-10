@@ -93,7 +93,7 @@ export default function DoItIntroFrame({
     style: {
       position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden',
       boxSizing: 'border-box', lineHeight: 1.5,
-      fontFamily: 'ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+      fontFamily: '"Jua", "Pretendard", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
       background: 'radial-gradient(120% 120% at 50% 45%, #08070C 0%, #060509 58%, #040308 100%)',
     },
   },
@@ -141,7 +141,7 @@ export default function DoItIntroFrame({
       role: 'progressbar', 'aria-label': 'DO IT 시작 화면',
       'aria-valuemin': 1, 'aria-valuemax': 100, 'aria-valuenow': shown,
       style: {
-        textAlign: 'left', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+        textAlign: 'left', fontWeight: 400, fontVariantNumeric: 'tabular-nums',
         lineHeight: 1, whiteSpace: 'nowrap', color: numberColor(progress),
         fontSize: 'clamp(52px, 14vw, 110px)', letterSpacing: '-0.03em',
         // 메탈 실버 글자: 금속 반사 띠를 글자에 입히고, 진행될수록 빛이 옆으로 흐르며 밝아진다.

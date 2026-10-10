@@ -957,3 +957,127 @@ Codex 명세(id 20261003-1) 원문은 Codex 작업 공간 커밋(`8dcd8ee`)에�
 - 26.27 Codex 지적(리뷰 5403378401 · b5d227c P1 4175329388): 도구가 돈 뒤 세션 저장이 겹쳐 진(STATE_CHANGED) 실행은 행을 failed/STATE_CHANGED 로 바꿔 TOOL_STARTED 표시가 지워지고, 앱이 같은 요청 id 로 다시 보내면 다시 잡혀 후보 준비 쓰기가 한 번 더 돌던 결함 → 도구가 돈 실행의 실패는 failed/TOOL_UNCERTAIN(다시 잡지 않음 · 같은 id = 409 RUN_UNCERTAIN), 도구 없이 끝난 실행만 STATE_CHANGED(다시 잡기 가능). 앱은 STATE_CHANGED·RUN_UNCERTAIN 에서 요청 id 를 내려놓음 → 다음 누름 = 새 요청(영구 409 아님). §26.25 「같은 요청 id 의 도구 실행 최대 1번」이 이 경로에서도 성립. 기존 검사(5400766764)를 새 계약으로 갱신 · 재현 1(수정 전 실패 → 통과) · 앱 1.
 - 26.28 Codex 명세(댓글 5974645036 · 32a9f51): §23.5 식별번호 보호의 누락 형식 보완 — 13자리 식별번호의 뒷자리 첫 숫자를 1~4(주민등록번호)에서 1~8(외국인등록번호 5~8 포함)로. Agent `PRIVATE_DATA`(저장·모델 전송 차단)와 라우터 `rrn` 가림 둘 다 앞뒤 숫자 경계 추가(14자리 이상 숫자의 일부 · 뒷자리 9·0 주문번호는 그대로). 붙여 쓴 13자리가 우연히 Luhn 에 맞으면 카드 규칙이 먼저 전체를 가림(card 로 셈 · 전체 가림은 같음). 안내 문구·화면 정책·다른 개인정보 규칙 변경 0 · 체크섬 정책 도입 0. 재현 2(수정 전 실패 → 통과 · 합성 값 · 모의 검사).
 - 26.29 Codex 지적(리뷰 5403505890 · dca215f P1 4175444139): 하이픈 앞뒤 띄어쓰기 식별번호(「900101 - 5123456」) 미차단·미가림 → 식별번호 구분 = 띄어쓰기 0~3칸 + 하이픈 0~1개 + 띄어쓰기 0~3칸(Agent `PRIVATE_DATA` · 라우터 `rrn` 같이). 같은 계열 반복을 끝내려 라우터는 가리기 전에 전각 숫자 → 보통 숫자 · 하이픈·대시 꼴(‐‑‒–—―−－) → `-` · 전각 공백 → 공백으로 맞춘 뒤 모든 규칙(카드·전화·식별번호)을 적용(모델에 보내는 글만 · 저장 원문 0). Agent 쪽 식별번호 규칙도 전각 숫자·대시 꼴을 직접 인식. 멀리 떨어진(4칸 이상) 숫자는 묶지 않음. 재현 2(수정 전 실패 → 통과 · 합성 값).
+
+## 27. 홈페이지 = GetLayers 원본 그대로(PR #151 · 2026-10-08) — Codex 검수(검수 SHA 7ba500f · verdict FAIL · 댓글 6070866691) 대응
+- 대표 결정(2026-10-08 대화 원문): 「내가 보내준 코드 그대로 다 써 · 거기에 글만 넣어 · 색도 글씨체도 3D 효과도 코드대로」 「온보딩은 유지」 「미리보기 동영상」. 2026-10-05 홈페이지 잠금(4장·지구 그림·보라 0) 해제.
+- 검수 SHA 7ba500f 의 자체 층 구조(`brand-home/layers/**` · clocks/FrameGate/registry/SceneHost · 파랑 recolor)는 위 지시로 전부 삭제 → Codex C02(registry `in` 상속 키)·C03(clocks 복귀 불가) 대상 코드 없음. 같은 경계는 Vesper 원본 `frame-gate.tsx`·`scene-host.tsx` 가 원본 로직으로 맡음(이 PR 은 원본을 고치지 않음).
+- 지적 2(원본 대비 생략): 새 SHA 는 Vesper 3막·후처리·워커, Solaris·Lattice 의 CONFIG·색·bloom·click zoom·raycast flare 원본 그대로. 생략 = Next 라우트·문의 API·SEO/봇·쿠키·법무 화면·제어판·localStorage(외부 저장·개인정보 입력 0).
+- 지적 1(모바일 앱): 대표 지시 원문은 홈페이지(휴대폰 폭 포함). 앱 화면 교체는 로그인·정정·KEY·서버 규칙이 걸린 별도 결정 → 대표 판단 요청(이 PR 범위 밖).
+- 지적 3(옛 메뉴 Escape/Back): 옛 메뉴·SceneLayer 는 미사용(파일 보존 · 삭제 승인 대기). 메뉴 = Vesper 원본 mobile-nav(초점 가두기·Escape·초점 복귀).
+- 검사: type-check 0 · lint 0 · node --test 1369(fail 0 · todo 5) · brand/app 빌드 exit 0 · 로컬 Playwright(SwiftShader) 휴대폰·PC 캡처+동영상 pageerror 0. 실기기 = 확인 불가(QA 게시 #179 뒤 대표).
+- 대표 결정 대기: 모바일 앱 교체 여부 · GetLayers 라이선스 범위 · 옛 파일 삭제 · 조각 크기(gzip 249KB+290KB · 허용 600KB 초과 여부) · echo-qa 병합.
+
+### 27.1 Codex 자동 검수(75c7295 · 리뷰 5464769025) 3건 수정(2026-10-09)
+- P1 `hydrate-near.tsx`: 원본은 Next 서버 HTML 을 hydrate 하는 전제라 `use(gateFor(id))` 가 render 중 대상 요소를 못 찾으면 바로 열림 → CSR 인 우리 앱에서는 아래 5블록(Solaris·격자·설치·이야기·바닥글)이 첫 화면에서 한꺼번에 마운트돼 WebGL 2장면을 즉시 생성. 수정: 닫힌 동안 한 화면 높이 자리표(`data-hydrate-near` · 같은 id 가 없으면 그 id)를 두고 효과에서 문을 열면 블록을 그림. 로컬 검증: 첫 화면 캔버스 0 · 자리표 5 → 내려가면 마운트 · 중복 id 0 · `#making` 앵커 이동 OK.
+- P2 움직임 줄이기 · P2 이용 안내 열림: `lib/scene/page-motion.ts`(`prefers-reduced-motion` + `html.echo-guide-open`) 를 원본 FrameGate(invalidate 0) · 워커 shouldRun · Solaris · Lattice 루프(한 장만 그리고 멈춤)에 연결. 로컬 검증(PC·휴대폰): 보통 = 움직임, 움직임 줄이기 = 정지, 이용 안내 열림 = 정지 → 닫으면 재개.
+- 원본 파일 수정 범위: hydrate-near(문 방식) · frame-gate 1줄 · scene-host 1줄. 그 외 원본 그대로.
+
+### 27.2 Codex 3차(f64517b · 리뷰 5464914384) P2 2건 + 같은 결의 보강(2026-10-09)
+- Solaris: 멈춤으로 시작하면 첫 장이 등장(intro) 0 이라 입자 불투명도 0(빈 화면) → 멈춤 장은 `introStart` 를 등장 끝으로. 격자도 같은 이유(fade-in 0 → iAlpha 0) 보강.
+- 워커(휴대폰): `running:false` 로 시작하면 첫 장조차 없음 → 멈춤 시작 시 6초(로더 막 + 구슬 등장) 동안 보통 속도로 그린 뒤 정지. 페이지는 멈춤 중에도 탭이 보이고 덮이기 전이면 상태(스크롤·등장/퇴장)가 바뀔 때 `frame` 한 장(새 메시지). 원본 FrameGate 도 같은 규칙(상태 바뀔 때만 invalidate).
+- 로컬 검증(휴대폰 390 · PC 1440 · 움직임 줄이기 켬): 첫 화면·은하·Solaris·격자 모두 보통 설정과 같은 무게(JPEG 바이트 어림)로 그려지고 두 캡처 동일(정지) · 스크롤하면 장면이 따라 바뀜 · pageerror 0.
+
+### 27.3 Codex 4차(66256e6 · 리뷰 5465023242) P2 2건(2026-10-09)
+- 워커 6초 자리 잡기 루프 → 제거. 멈춤 중에는 한 장만: 등장(intro)은 `lib/scene/intro.ts` 가 멈춤이면 끝 상태(1)로, 워커의 멈춤 장은 시계를 지난 장보다 1초 이상 뒤로 건너뛴다(카메라·포인터 따라가기가 `min(1, delta×k)` 라 큰 delta 한 번이면 자리에 선다 — 원인: delta 0 으로는 등장 전 먼 카메라에 작은 구슬이 남았음).
+- 멈춤 중 크기 변경(회전) 뒤 버퍼가 지워지는데 다시 그리지 않음 → `resize` 뒤 멈춤이면 한 장.
+- 로컬 검증(휴대폰 390 워커 · 움직임 줄이기 켠 채 로드): 첫 화면 13.0K = 보통 13.0K · 정지 · 은하 21.0K · Solaris 20.7K · 격자 12.0K · pageerror 0.
+
+### 27.4 Codex 5차(2a94bc8 · 리뷰 5465153280) P2 1건(2026-10-09) — 자동 왕복 5회째(한도)
+- Solaris·격자: 멈춤 중 크기 변경(회전)으로 버퍼가 지워져도 `stillDrawn` 이 true 라 다시 그리지 않음 → `resize` 끝에서 guard 해제(다음 프레임에 한 장).
+- 로컬 검증(휴대폰 390 · 움직임 줄이기 · Solaris 로 스크롤 → 가로 844×390 → 세로 복귀): 무게 20.7K → 22.4K(가로) → 20.7K · pageerror 0.
+- 왕복 5회 도달: 이후 지적은 대표에게 한 번에 보고.
+
+### 27.5 Codex 6차(19f01bc · 리뷰 5465257165) P2 2건 — 왕복 한도 뒤 처리(2026-10-09)
+- ① `shims/next-navigation.ts` usePathname 이 해시를 붙여 휴대폰 메뉴 「홈」이 같은 페이지를 다른 페이지로 봄(맨 위로 안 올라감) — **내 대체 모듈 버그**라 고침: usePathname 은 Next 처럼 해시 없이, 해시로 굴러가는 원본 로직(scroll-layout)은 그 자리에서만 해시를 붙임. 로컬 검증(PC·휴대폰): 「이야기」→ FAQ 로, 「홈」→ 맨 위(y 0).
+- ② 태블릿에서 메뉴를 연 채 회전해 1024px 을 넘으면 메뉴·토글이 숨겨진 채 스크롤 잠김(원본 Vesper mobile-nav 그대로) — 원본 코드 수정은 대표 결정(「코드 그대로」 지시) → 보고 항목.
+- 자동 왕복 5회 한도 도달: 재검수 요청 없이 대표 보고.
+
+## 28. 홈페이지 대표 피드백 반영(2026-10-09 · 실기기 캡처 6장 · 「구매한 홈페이지가 먼저 · 기존 홈페이지는 다 삭제」)
+- 대표 말(원문 요지): 로더 비 효과 본 적 없음 / 뇌와 글이 겹침 / Solaris 로 내려갈 때 선 끊김 / 설치 카드 뒤 3D 안 보임 → 삭제, 그 효과는 히어로로, DO IT 3D(제작 영상) 삭제, 이야기·바닥 카드도 삭제 / 홈페이지를 먼저 살리고 거기에 글만 레이아웃으로 / 기존 홈페이지는 다 삭제.
+- 해석(명시): 「다섯번째 효과를 히어로페이지에」 = 설치 카드 뒤에 있던 Einstein–Rosen 격자를 첫 화면 배경으로. 「여섯번째·일곱번째도 마찬가지」 = 이야기 9장면 카드·그 아래 카드(대표 인사말) 삭제. 바닥글은 법적 고지(사업자·약관·개인정보) 때문에 유지 → 대표가 「바닥글도 빼」 하면 그때 뺀다.
+- 한 것: 로더 StarFall 제거 · 뇌 장면 휴대폰 글 뒤 어두운 막 · Solaris 위·아래 검정 gradient · 격자 → `hero/hero-lattice.tsx`(fixed · screen 합성 · 세기 0.55 · hero 와 같은 시계 구간) · FinancialSection·FaqSection·LatticeSection·BrandFilm 제거 · `public/brand/film/*`·`hero-earth.webp`·SceneLayer·DotText 삭제 · brand-home.css 는 이용 안내 설치 한 줄만 · 메뉴 홈·이야기 · 바닥글 ECHO 묶음 = 감정의 이유 · 웹 설치하기(앱 주소).
+- 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 문구 6종 표시 · 삭제 문구 4종 미표시 · pageerror 0.
+- 삭제 승인 근거: 대표 2026-10-09 「기존에 있던 홈페이지는 다 삭제 처리해」 「doit3d효과 만든건 삭제해」.
+
+## 29. 홈페이지 Onyx Cubes 추가(2026-10-09 · 대표 「이것도 추가로 훅킹 박고 같이 넣고 · 효과들 코드 준 대로 그대로 · 우선 효과들부터 자리 잡고 미리 보고 · 그다음에 글자」)
+- 대표 말(원문 요지): onyx-cubes.zip 도 홈페이지에 그대로 넣어라 / 기존 홈페이지는 생각하지 마라 / 효과 자리부터 잡고 미리보기 먼저 띄우고 설명해라 / 글은 그다음, 구매한 홈페이지의 영어 글 칸 안에만 똑같이.
+- 해석(명시): ① Onyx 는 네 번째 3D 효과로 Solaris 다음 한 화면(원본 흰 카드 자리) ② 이번 푸시에는 Onyx 에 글 0 ③ 지금까지 넣은 글은 이미 구매한 홈페이지의 글 칸(히어로·은하·뇌·바닥글)에만 있고 새 칸은 만들지 않았다.
+- 한 것: `cannon-es 0.20.0`(원본 importmap 과 같은 판) 설치 · `sections/onyx-section.tsx` 원본 이식(CONFIG·물리·포인터·조명 그대로 · CDN/localStorage 제거 · 보일 때만 · 멈춤이면 한 장) · `scroll-stage.tsx` Solaris 다음 `<HydrateNear id="onyx">` · 검사 `qa/design-v2-20261004.test.mjs`(순서 · 원본 색/수치 · cannon-es · 멈춤 한 장).
+- 검사: type-check 0 · lint 0 · node --test fail 0 · brand/app 빌드 exit 0(.map 0 · 앱에 3D 0) · 로컬 Playwright 휴대폰·PC 캡처 9장씩 + 휴대폰 동영상 · pageerror 0.
+- 승인 범위 밖(대표 결정 대기): 태블릿 회전 메뉴(원본 코드) · 홈페이지 조각 크기(약 996KB · 허용 600KB 초과) · 바닥글 유지 · 병합.
+
+## 30. 홈페이지 글 = 구매한 코드 원본 그대로(2026-10-09 · 대표 「기존 홈페이지 우선 삭제 · 내가 준 코드만 · 효과들 코드대로 · 글씨는 내가 준 코드 원본 그대로 우선」)
+- 대표가 본 화면(실기기 캡처 · 「01 / INTO THE DESIGN」 제작 영상): 07:11 게시본(d433a41)에 남아 있던 옛 홈페이지 조각. f9d9613 게시(07:48)에서 이미 삭제됐고 실제 주소 묶음에 `INTO THE DESIGN` 0건 확인.
+- 해석(명시): ① 화면 글은 모두 구매한 Vesper 원본 영어 글로(히어로·은하·뇌·메뉴·CTA·바닥글·로더·상태 줄) ② Solaris·Onyx 원본에는 글이 없으니 글 0 ③ 승인 문구(copy.ts)는 보관만, 다음 단계 「글 넣기」 재료 ④ 남긴 것: 로고 DO IT(회사 로고) · 맨 아래 사업자 정보·약관·개인정보(법적 고지). 대표가 빼라 하면 뺀다.
+- 한 것: `data/mocks/home.ts` 원본 파일 그대로 · hero/galaxy/brain 글 상수 원본 · site-header/mobile-nav 메뉴 Home·Services·Works·About + Contact Us(/#contact) · send-request 「Send Request」(/#contact) · site-footer 원본(「Let's talk.」 + 원본 연락 폼 = 서버 없음·보내지 않음 · 「이용 안내」 버튼 제거) + 법적 고지 줄 · Solaris 글 덧판 제거.
+- 앱 시작 링크(모바일로 시작하기)는 이번 화면에 없음 — 다음 단계(글 넣기)에서 원본 CTA 칸에 넣는다.
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 캡처 + 휴대폰 동영상 · 원본 글 표시 · 한글 승인 문구 미표시 · pageerror 0.
+
+## 31. 홈페이지 = 구매한 Vesper 원본 페이지 전부 그대로(2026-10-09 · 대표 vesper.zip 재전송 + 「이거 봐 페이지도 올라오고 · 우선 똑같이 퍼온다」)
+- 대표가 다시 준 vesper.zip 은 10/8 원본과 파일 단위로 동일(diff 0). 동봉된 설명서(단일 HTML 재현 프롬프트)에 흰 카드 「A living interface」·FAQ 카드·별 줄기 로더가 원본 구성으로 적혀 있음.
+- 해석(명시): 10/9 오전 「설치 카드·이야기 카드 삭제」는 옛 ECHO 홈페이지 조각을 뺀 것이고, 이번 지시는 **구매한 원본의 페이지(흰 카드 2장·별 줄기 로더)까지 그대로** 되살리라는 것. 대표가 준 3D 장면(격자=첫 화면 배경 · Solaris · Onyx)은 그대로 두고 FAQ 와 바닥글 사이에 둔다.
+- 한 것: `financial-section.tsx` 원본 글·사진(`/vesper/assets/sections/financial.png`) · `faq-section.tsx` 원본 FAQ 4문항(homeFaq) · 로더 StarFall 복원 · `scroll-stage.tsx` 닫는 구간 = 원본(흰 카드 outro → FAQ) + Solaris + Onyx + 바닥글 · home.tsx 에 faq 전달.
+- 순서: 첫 화면(구슬 + 격자) → 은하 → 뇌 → 흰 카드(뇌 퇴장) → FAQ 카드 → Solaris → Onyx → 바닥글(Let's talk. + 법적 고지).
+- 남긴 것: 로고 DO IT · 법적 고지 줄 · 휴대폰 뇌 장면 어두운 막 · Solaris 위아래 검정 녹임(대표 10/9 지적 반영분).
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0 · 로컬 Playwright 휴대폰·PC 11장씩 + 휴대폰 동영상 · pageerror 0.
+
+## 32. Codex 6~10차 지적 일괄 수정(2026-10-09 · PR #151)
+- 7차(f9d9613) P2 격자 누름: host 가 pointer-events-none 이라 닿지 않음 → window 에서 받고 배경이 보일 때만.
+- 8차(7fda8b7) P1 Onyx `touch-none` 이 휴대폰 세로 스크롤을 막음 → `touch-pan-y`, 육면체를 잡은 동안만 touchmove preventDefault. P2 구간 밖 포인터 이동 무시(잡고 있을 때만 예외).
+- 9차(42a44ba) P1 `/#contact` 대상 없음(원본 Vesper 도 footer id=site-footer 라 같은 버그) → footer id="contact"(HydrateNear 자리표 id 는 site-footer 그대로).
+- 10차(39ca6cf) P2 별 줄기(StarFall) 움직임 줄이기 미적용 → pageMotionPaused 면 한 장. P2 옛 지구 그림 선읽기: index.html 의 preload 는 앱 사이트 랜딩이 쓰므로 유지(공유 html), 인트로의 런타임 선읽기는 앱 사이트에서만. P2 문서 언어: 홈페이지 열려 있는 동안 lang=en, 법적 고지 줄 lang=ko(한글 글 넣을 때 되돌림).
+- 6차(대표 댓글 6077064641 · Codex 제안 diff) 메뉴 열린 채 1024px 이상으로 넓어지면 닫힘 · 숨은 토글에 초점 주지 않음 — 원본 mobile-nav 의 최소 수정.
+- 실제 주소 데스크톱 검사(39ca6cf · 1440×800 · Playwright SwiftShader): 전체 높이 9216 · 가로 넘침 0 · 흰 카드 h636/op1 · FAQ h612/op1(첫 항목 열림 · 둘째 클릭 시 전환) · 바닥글 h744 · 원본 글 표시 · Name/Email 입력칸 있음(action 없음 = 보내지 않음) · 메뉴·CTA 목적지 원본과 동일 · pageerror 0 · General Sans 400/500·Mulish 로드 확인, 300(Light) 은 그 실행에서 요청이 한 번 끊김(파일은 200 응답 확인 · 재검사 예정).
+- 로컬 1440·1280 캡처 11장씩 + 실제 주소 1440 전체 스크롤 영상. 1920·움직임 줄이기 실행은 스크립트 오류로 중단 → 재실행 중(미실행으로 둠).
+- 모바일은 「대표 별도 디자인 수령 후 진행」.
+
+## 33. 홈페이지 최신 채택안 적용(2026-10-09 · 대표 「ECHO 홈페이지 — 최신 채택안 추가 지시」: Vesper 기반 모바일 우선 · 데스크톱+모바일 공통)
+- 작업 위치: 브랜치 `claude/home-vesper-20261008`(PR #151) · 기준 커밋 1ce8595(원본 Vesper 재현본 = 비교 기준, 보존) → 이 적용본.
+- 문구(원문 그대로): 제목 「당신이 잠든 사이」 · 설명 「ECHO Agent와 함께 나에게 맞는 만남을 알아가는 온라인 자만추.」 · 선택권 안내 「관계의 시작은 서로가 선택합니다.」 · 주요 버튼 「ECHO 시작하기」(= 앱 주소 + /doit/start-journey, 확인된 기존 진입 경로) · 보조 버튼 「어떻게 만나나요?」(= #how). 그 밖의 설명·FAQ 는 이용 안내(승인 문장)에서만 가져옴. 템플릿 숫자(91k 등)·고객 로고·후기·가격 0.
+- 데스크톱(≥1024): 원본 Vesper 문서·시간표(200lvh 트랙 셋·고정 겹 그림·흰 카드 outro)는 그대로, 원본 글 칸에만 ECHO 문구. 흰 카드 = 「어떻게 만나나요?」(id=how) + 승인 브랜드 그림(이야기 09). 한글 제목 행간 1.15 · 본문 1.55 · 단어 단위 줄바꿈.
+- 모바일(<1024, `views/home/mobile-stage.tsx`): ① 첫 화면(제목·설명·선택권·꼬리표·두 버튼 한 화면 · min-height 라 가로 휴대폰에서 세로로 늘어남) ② 이용 방법 카드(이용 안내 「처음이라면」 + 다섯 순서) ③ 150lvh 브랜드 구간(구체 → 은하 · 장면 시계 0→2 · 글은 sticky) + ECHO Agent 소개 ④ 서로의 선택 카드 ⑤ FAQ + 「JUST TRY.」 시작 버튼 + 이용 안내 + 바닥글. 원본 트랙·뇌 장면·고정 겹 그림은 모바일에서 쓰지 않음. 장면 캔버스·로더는 한 벌(경계 넘어도 재생성 0).
+- 글씨: 영문 General Sans 300/400/500 · Mulish(원본 파일), 한글은 프로젝트 승인 한글 폰트 Pretendard 300/400/500(index.css 가 이미 받음 · Tailwind font-general/tag 대체 사슬) — 브라우저에서 두 폰트 모두 로드 확인(document.fonts.check). 모바일 제목 clamp(36px, 9vw, 52px)/300 · 본문 16px/400 · 보조 13px · 버튼 16px/500 · 터치 48px · 여백 24px(360 이하 20px).
+- 링크: 브랜드 홈은 `/do-it/landing` 에 살아서 "/#how" 는 인트로(/)로 되돌아갔음(모의 검사에서 발견) → 같은 페이지 앵커는 해시만(#top·#how·#faq) + 휴대폰 메뉴 samePage 판정 보강.
+- 자료 미확보: 실제 ECHO 앱 화면 캡처(승인본 없음) → ② 카드는 글만. 받으면 넣는다.
+- 바닥글 연락 폼(보내지 않는 stub) 제거 → 마지막 시작 버튼 + 이용 안내(성공 메시지 0).
+- 검사: type-check 0 · lint 0 · node --test 1363건 fail 0 · brand/app 빌드 exit 0(.map 0 · 역할 누출 검사) · Playwright 모의: 휴대폰 390(영상)·360·430·가로 844×390·움직임 줄이기·글자 확대(루트 20px)·중간 위치(#faq) 새로고침 · 데스크톱 1440 — 결과는 완료 보고 표.
+- 모바일 실기기(아이폰) 검사: 미실행(모의 브라우저와 구분).
+
+## 34. Codex 11·12차 지적 반영(2026-10-09 · PR #151)
+- 11차(1ce8595): 바닥글 자리표 `HydrateNear id="contact"` · 메뉴 대상(#top·#how·#faq) · `deferred-mount` 재마운트 시 줄 초기화.
+- 12차(b133e1d): P1 `hydrate-near` 보류 중인 문은 자리표가 내려가면 버림(경계 전환 뒤 새 자리표가 다시 관찰됨) · P2 로고 링크 `#top`(「/」는 인트로로 되돌아감) · P2 `scroll-to` 50ms 뒤 대상 다시 찾기(가로 휴대폰 `#how` 오프셋 원인) · P2 격자(HeroLattice)는 장면과 함께 한 벌(경계 전환 시 재생성 0).
+- 실제 주소(b133e1d · 휴대폰 390): 첫 화면 제목·설명·두 버튼 동시 표시 · 보조 버튼 → #how · 카드·FAQ·바닥글 표시 · Pretendard·General Sans 로드 · 오류 0. 데스크톱 1440 실제 주소 검사는 모의 브라우저 시간 초과로 중단(로컬 1440 은 PASS) → 다음 게시 뒤 재실행.
+
+## 35. 홈페이지·모바일 최종 디자인 수정 — 주아체 전면 + 투명 구성(2026-10-09 · 대표 「[ECHO 홈페이지·모바일 최종 디자인 수정 / 대표 승인]」 · PR #151)
+- 작업 위치: 브랜치 `claude/home-vesper-20261008`(PR #151 · 기준 echo-qa) · 게시 대상: 승인된 QA 두 곳만(echo-brand-qa · echo-app-qa · 운영 0 · 새 대상 0).
+- 글꼴(1): 주아체(Jua · Google Fonts · 400 하나). 저장소 안 `public/fonts/jua/`(npm `@fontsource/jua@5.3.0` woff2 조각 88개 + OFL 1.1 LICENSE.txt) · 선언 `src/fonts/jua.css`(unicode-range) → `src/index.css` 가 받아 홈페이지·앱 공통. 외부 글꼴 CDN·구글 글꼴 링크 0(index.html 의 Pacifico·Gowun·Mulish/Onest·Fraunces 묶음 링크 제거 · 아이콘 글꼴만 유지). Pretendard 는 주아체에 없는 글자(특수기호)용 2순위로만 남김(CDN 1줄, 기존).
+- 글꼴(2) 적용: 홈페이지 = vesper.css 변수 3개(`--font-onest/--font-general-sans/--font-mulish`) → 'Jua' · Tailwind `font-general/display/tag/heading/body/sans/hud-mono` → Jua 우선 · General Sans @font-face·파일 3개 삭제 · `font-light/medium` 클래스 → `font-normal`(12곳). 앱 = `--font-heading/--font-body/--font-label`(index.css) · `--echo-font`(파스텔 화면 !important 한 벌) · doit.css(Fraunces·Gothic A1·Instrument Sans·JetBrains Mono·Archivo Black) · doit-type.css(고운바탕·고운돋움 → 400) · core-conversation/product-brand/asleep-connections(명조 제목) · saju.css·guide.css·back-button·corner-menu·brand-hero·brand-sections(Pretendard 1순위 → Jua) · 플랜A 인라인(theme.ts `serif/sans`, 'Do Hyeon' 2파일, fortune cardArt SERIF, photo/grade/hero 페이지). 가짜 굵기·기울임 0 = `html { font-synthesis: none }`(index.css) + `html.vesper`. 로고·아이콘(리믹스아이콘·font-awesome·타로 카드 그림 글자)은 제외.
+- 투명 구성(2·3): 흰 카드 3개(데스크톱 「어떻게 만나나요?」·FAQ · 모바일 ②④ CARD_FACE) 제거 → 밝은 글자 + 얇은 윗줄(white/15) + 여백 · 옅은 글자 그림자(`.vesper-soft`)만. 큰 검은 판·강한 유리 블러 0. 데스크톱 「어떻게」는 고정 높이 44.167vw·절대 배치를 버리고 2열 격자(제목+[01][02] / 사진)로 내용 높이. FAQ 는 투명 아코디언(white/20 줄 · 흰 + 표시 · 옅은 빛 hover `LIGHT_ROW` · 펼치면 아래가 밀림). 「서로가 선택합니다」 본문은 승인 문장을 글자 그대로 문장 단위로만 나눔(`splitSentences`).
+- 버튼(4): 「ECHO 시작하기」(SendRequest) 흰 채움(SOLID_CTA) → 투명 + 밝은 글자 + 얇은 외곽선(GHOST, hover/press 옅은 빛 · focus 링 · min-h 48px 유지). 화살표 칸 = 외곽선만, 아이콘 SVG 는 흰 배경 `<rect>` 만 뺀 사본(`send-icon-light.svg` · 밝은 선). FAQ 별표도 밝은 사본. 머리글·바닥글 버튼은 이미 GHOST.
+- 3D·효과(6): 장면 순서(첫 화면·은하·뇌·어떻게·FAQ·Solaris·Onyx·바닥글 / 모바일 ①~⑤)·시간표·연출(CARD_REVEAL·MASK·LETTER·WORD) 그대로. 앱(7): 파스텔 바탕·흐름 그대로, 글꼴만.
+- 검사: type-check 0 · lint 0 · node --test(갱신: brand-home·design-v2(+2 잠금)·human-ux·ux-writing 글꼴 단언) · brand/app 빌드 exit 0(.map 0 · 역할 누출 0 · dist 안 구글 글꼴 0 · Jua woff2 88 + LICENSE) · Playwright 모의(아래 §35 표) · 실기기(아이폰) = 확인 불가(없음).
+- 모바일 디자인 원본·승인 근거(대표 「[ECHO 홈페이지·모바일 최종 완성 지시]」 §5 요구): 홈페이지 모바일(B)의 확정 원본 = 대표 글 지시 「ECHO 홈페이지 — 최신 채택안 추가 지시」(2026-10-09 · ①~⑤ 세로 구성 · 본 문서 §33) + 이번 「최종 디자인 수정 / 대표 승인」(주아체·투명). 별도 모바일 시안 파일(이미지·ZIP)은 이 저장소·대화에서 받은 것이 없다(AI Studio/Superconscious·Clarix·Auralis·New Era 자료 없음 · 파스텔 대화 미리보기는 글꼴 비교용). 따라서 새 템플릿 선택은 보류하고, 확인된 현재 모바일 구성에 글꼴·투명화·배치만 적용했다. 실제 모바일 서비스(C)의 원본 = 승인 파스텔 화면(§「2026-10-04 대표 디자인 교체」 · echo-ui.css) — 글꼴만 교체.
+- 로고·아이콘·캔버스 글자: 캔버스 글자(fillText) 0 · SVG 로고(DO IT 워드마크)·리믹스아이콘·타로 카드 그림 그대로. `TarotCardArt.tsx` 의 명조 상수는 쓰이지 않는 선언(변경 0).
+- 가독성 보정(모의 검사 뒤 보강): 은하 띠(장면 시계 2 이후 화면 세로 가운데에 고정된 밝은 띠)가 FAQ 줄·본문을 지날 때 흰 글자가 묻혔다(가로 844×390 FAQ 캡처) → 글 덩어리 뒤에 경계 없는 낮은 농도(38%) 타원 그라데이션(`.vesper-veil::before` · 판·블러 0)만 추가. 띠의 가장 밝은 심(수십 px)은 그 순간 읽기 어려울 수 있음 — 띠는 승인 효과라 밝기를 줄이지 않았다(남은 문제로 보고). 404 안내의 경로 글씨(font-mono)도 주아체로.
+- 대표 추가 지시(2026-10-09): 별도 모바일 디자인은 추후 확정 원본 + 구현 명세와 함께 전달 → 그전까지 새 모바일 디자인을 임의로 만들거나 후보 템플릿으로 교체하지 않는다. 현재 승인된 홈페이지 PC·모바일(①~⑤) 수정·검수만 계속.
+
+## 36. Codex 13·14차 지적 반영(2026-10-09 · PR #151)
+- 13차(406316d · Codex 봇 P1): 데스크톱 `#how` 가 문(HydrateNear) 안 블록에만 있어 처음 로드에서 메뉴·보조 버튼의 #how 이동이 실패 → 바깥 틀(항상 마운트) id=how · 블록·자리표 id=financial. verify-desktop 에 「맨 위에서 머리글 어떻게 만나나요? 클릭 → #how 도착」 검사 추가.
+- 14차(대표 전달 Codex 독립 검수 · b1f0b19 기준 남은 FAIL 4건): P1 Onyx `touchmove preventDefault`(잡은 동안) 가 실제 세로 제스처를 막음 → touchmove 차단 제거(touch-pan-y 만 · pointercancel 로 잡기 풀림). P2 격자 window pointerdown 이 CTA·메뉴·안내 창·움직임 줄이기·격자 밖 누름까지 줌 시작 → 대상 필터(a/button/input/dialog/aria-modal · 열린 창 · 격자 사각형 밖 · pageMotionPaused) 추가. P2 Onyx setNDC 가 덮인 메뉴 위 pointermove 도 받음 → 대상이 구간 요소일 때만 안쪽 · 밖이면 ndc(0,0) 카메라 중립. P2 hydrate-near dispose 가 onEngaged 대기 콜백을 안 지움 → onEngaged 가 취소 함수를 돌려주고 dispose 가 함께 해제.
+- 잠금 테스트 추가(design-v2) · type-check 0 · lint 0.
+- 대표 추가 지시(2026-10-09 · 공식 D 심볼 그림 첨부 「심볼은 왼쪽 윗상단에 배치해」): 홈페이지 머리글(PC·휴대폰)과 열린 메뉴의 맨 왼쪽에 공식 심볼(저장소의 투명 표시판 `/brand/doit-symbol-intro.webp` · 못 읽으면 공식 원본) → 이어서 DO IT 워드마크. 심볼 형태 재디자인 0. 앱 머리글은 이미 같은 심볼(과거 승인).
+- 15차(대표 전달 Codex 독립 검수 · 9138d3b 기준): Onyx 터치 4/4 · 덮인 메뉴 5/5 · HydrateNear 3/3 · 앵커 위치 3/3 PASS. 남은 L06(첫 화면을 막 벗어난 직후 한 프레임 전 `visible` 로 줌 시작) → onDown 이 `heroOpacity(sceneTimeline.getProgress())` 로 지금 진행률 판단(00c114b). P2 정합: echo-ui·mobile-polish·visual-parity·guide·app-corner-menu·app-back-button 의 요청 굵기 500~800 → 400(실제 글꼴면은 이미 Jua 400 · 가짜 굵기 0 확인됨) · DoItIntroFrame 글꼴 Jua. 가운데점·이모지는 대체 글꼴(정상).
+- 앵커 도착 지점(9138d3b): 모의 검사에서 #how 제목이 고정 머리글 밑에 숨음 → scroll-to `anchorOffset()`(머리글 아래 + 8px) · 메뉴 Lenis offset · CSS scroll-margin-top.
+
+## 37. 홈페이지 장면별 글 분배(2026-10-09 · 대표 「[홈페이지 수정사항 — 최신 정정 반영]」 · PR #151)
+- 받은 자료: vesper.zip(이전 두 번과 바이트 동일 · md5 f64d1215…) + Vesper 단일 HTML 명세. 「첨부 MP4(글 배치 설명 영상)」는 이번 메시지에 첨부되지 않음(업로드 폴더의 MP4·MOV 는 10/4·10/5 파일). 구현 기준 = 원본 코드·ZIP(현재 이식본 그대로) · 글 배치만 변경.
+- 대표 장면 목록 ↔ 실제 Vesper 장면 대응(자의적 판단 · 영상 미수령): 1 첫 화면 = 구체(orb)+격자 첫 화면 · 2 회전 카드 = 은하 장면의 세 칸(원본 네 칸 자리) · 3 입자 구체 = 첫 화면 구체(안정된 뒤 한 줄) · 4 영상 페이지 셋 = 뇌 장면(① 이야기) → 「어떻게」 블록(② 확인·정정 · 사진 그대로) → 새 「직접 선택」 블록(③) · 5 공간 비행·전환 = 은하 돌입·Solaris·Onyx(글 0) · 6 마지막 = 바닥글(JUST TRY. + 짧은 설명 + 「모바일 시작하기」 → 기존 ECHO 진입 주소 `appUrl(START_PATH)` = QA https://echo-app-qa.netlify.app/doit/start-journey · 운영은 빌드 환경값).
+- 첫 화면에서 뺀 것: 긴 설명(heroDesc)·선택권 안내 자리·꼬리표 3개·「ECHO 시작하기」 큰 버튼·「어떻게 만나나요?」 보조 버튼. 남긴 것: 로고(머리글 D 심볼 + DO IT)·「당신이 잠든 사이」·작은 스크롤 안내(「아래로 스크롤」 + 흐르는 세로선 · 움직임 줄이기면 정지). 구체 한 줄 「관계의 시작은 서로가 선택합니다.」는 인트로(2.9초) 뒤 왼쪽 아래(구체 중심 밖).
+- 회전 카드 세 문장(대표 원문) · 영상 페이지 설명 줄은 이용 안내 승인 문장 그대로(talk 본문 1·2문장 / check 본문 1·3문장 / choice hint 두 문장) — 글자 변경 0(테스트가 원문 포함을 확인).
+- 모바일 순서: ① 첫 화면 → ② 연출(구체→은하) 위 세 문장 → ③ 페이지 셋 → ④ FAQ → ⑤ 바닥글. 이용 순서 다섯 줄 목록·「서로가 선택합니다」 긴 본문·글머리 4줄은 제거(한 페이지에 쌓지 않음 · FAQ 에 승인 문장 그대로 남아 있음).
+- 버튼 글 「ECHO 시작하기」 → 「모바일 시작하기」(머리글·메뉴·바닥글 공통 · 주소 동일). 앱·서버 변경 0.
+- 비교 자료: 원본 복원 커밋(39ca6cf) 빌드와 수정본을 같은 장면(1440 · 390)에서 캡처 · 전체 흐름 영상.
+- 16차(대표 전달 Codex 독립 검수 · c82bd7a 기준): Hero L01+L06 2/2 · guide/corner/back 요청 400 PASS. 남은 B03 = mobile-polish.css 굵기 토큰(--echo-fw-body 500 · strong/title 700)이 var() 로 덮음 → 400(894cea1). 메뉴 열기/닫기 40px → 44px(size-[2.75rem]) · DoItIntroFrame 진행 숫자 700 → 400 · LandingHero 800 → 400. 테스트: 토큰·인라인 굵기·44px 잠금(소스 검사 + 앱 실제 계산값은 verify-app-font 의 computed family/synthesis 로 확인).
+- 17차(Codex 자동 검수 · 54cb565 · 리뷰 스레드 P1 4233172136 · P2 4233172143): P1 휴대폰 첫 페이지 블록이 문(HydrateNear)이 열린 뒤 #how 를 잃음 → `PageBlock id="how"`. P2 앵커 이동을 브라우저 scrollTo 로 하면 Lenis 내부 목표가 옛 값으로 남아 다시 켜질 때 덮어씀 → Lenis 가 있으면 `lenis.scrollTo(top, { force: true })`.
+  - 추가로 찾은 원인 2건(모의 검사 실측): ① PC 움직임 줄이기에서 메뉴 「어떻게 만나나요?」가 문서 끝(9084)까지 지나침 — 앱 전역 `html { scroll-behavior: smooth }`(index.css)로 브라우저의 해시 부드러운 이동이 Lenis 와 겹침(스크립트 이동 0회 계측 · scroll-behavior auto 변형만 5531 정상) → `html.vesper { scroll-behavior: auto; overflow-anchor: none }`. ② 휴대폰 메뉴 이동이 80px 덜 내려감(156) — Lenis 가 요소 목표에서 CSS scroll-margin-top 을 스스로 빼는데 메뉴가 anchorOffset 도 한 번 더 뺌 → 숫자 목표로 넘김(76).
+  - 검사(로컬 모의 · Chromium): PC 1440 움직임 줄이기 3/3 + 보통 1/1 → #how 머리글 아래 69px · 휴대폰 390 메뉴 보통·줄이기 → 76px(머리글 68 + 8) · 휴대폰 390/가로 오류 0 · type-check 0 · lint 0 · 전체 테스트 1374(통과 1369 · 실패 0 · todo 5). 실기기 = 확인 불가.

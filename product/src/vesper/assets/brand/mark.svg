@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Vesper's logomark: the eight-ray star from the wordmark (public/assets/hero/logo.svg),
+       rays thickened so it still reads at 16 px, on the void ground (the void token). -->
+  <defs>
+    <radialGradient id="g" cx="72%" cy="20%" r="90%">
+      <stop offset="0" stop-color="#2b1653"/>
+      <stop offset="1" stop-color="#170a2b"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)"/>
+  <g stroke="#fdfdfd" stroke-width="4.2" stroke-linecap="butt">
+    <path d="M32 12V52M12 32H52"/>
+    <path d="M17.5 17.5L46.5 46.5M46.5 17.5L17.5 46.5"/>
+  </g>
+</svg>

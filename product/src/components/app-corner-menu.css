@@ -4,16 +4,16 @@
 .echo-corner-button:active{scale:.94;background:rgb(255 255 255/.26)}
 .echo-corner-button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .echo-corner-backdrop{position:fixed;inset:0;z-index:68;background:rgb(10 14 18/.18)}
-.echo-corner-panel{position:fixed;top:calc(env(safe-area-inset-top) + 60px);right:calc(env(safe-area-inset-right) + 12px);z-index:69;width:min(288px,calc(100vw - 24px));max-height:calc(100dvh - env(safe-area-inset-top) - 76px);overflow:auto;border-radius:20px;background:linear-gradient(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%);box-shadow:0 12px 36px rgb(20 30 30/.28);font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
+.echo-corner-panel{position:fixed;top:calc(env(safe-area-inset-top) + 60px);right:calc(env(safe-area-inset-right) + 12px);z-index:69;width:min(288px,calc(100vw - 24px));max-height:calc(100dvh - env(safe-area-inset-top) - 76px);overflow:auto;border-radius:20px;background:linear-gradient(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%);box-shadow:0 12px 36px rgb(20 30 30/.28);font-family:'Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:#fff}
 .echo-corner-panel *{color:#fff;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgb(40 50 40/.28)}
 .echo-corner-caption{margin:0;padding:14px 18px 8px;font-size:12px;letter-spacing:.12em;opacity:.9}
 .echo-corner-item{display:block;padding:12px 18px;border-top:1px solid rgb(255 255 255/.35);text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s ease}
 .echo-corner-item:active{background:rgb(255 255 255/.18)}
 .echo-corner-item:focus-visible{outline:2px solid #fff;outline-offset:-4px}
-.echo-corner-label{display:block;font-size:15px;font-weight:600}
+.echo-corner-label{display:block;font-size:15px;font-weight:400}
 .echo-corner-desc{display:block;margin-top:2px;font-size:12px;opacity:.92}
 .echo-corner-account{padding:12px 18px 16px;border-top:1px solid rgb(255 255 255/.35)}
-.echo-corner-session{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;border-radius:999px;border:1px solid rgb(255 255 255/.7);background:rgb(255 255 255/.12);font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:scale .18s ease,background-color .18s ease}
+.echo-corner-session{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;border-radius:999px;border:1px solid rgb(255 255 255/.7);background:rgb(255 255 255/.12);font:inherit;font-size:14px;font-weight:400;text-decoration:none;cursor:pointer;transition:scale .18s ease,background-color .18s ease}
 .echo-corner-session:active:not(:disabled){scale:.97;background:rgb(255 255 255/.24)}
 .echo-corner-session:disabled{opacity:.7;cursor:default}
 .echo-corner-error{margin:10px 0 0;font-size:12px}
