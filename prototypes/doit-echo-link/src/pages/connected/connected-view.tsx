@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { ErlPlay } from "@fx/erl/erl-engine";
 import { pageUrl, publicUrl } from "@shared/paths";
@@ -16,16 +16,20 @@ const pending = (s: ConnectionStatus): Exclude<ConnectionStatus, "mutual_confirm
  * 효과를 보기 위한 기다림은 없다: 글과 버튼은 처음부터 보이고 바로 누를 수 있다.
  */
 export const ConnectedView = () => {
-  const state = useMemo(readConnectionState, []);
+  const [state] = useState(readConnectionState);
   const [notice, setNotice] = useState(false);
 
-  // 재생 방식: 이 연결의 첫 진입만 'live'. 다시 들어오면·움직임 줄이기면 'still'. 처음 그릴 때 한 번 정한다.
-  const play = useMemo<ErlPlay>(() => {
+  // 재생 방식: 이 연결의 첫 진입만 'live'. 다시 들어오면·움직임 줄이기면 'still'. 처음 그릴 때 한 번 정한다(읽기만).
+  // 「봤음」 기록은 그린 뒤(effect)에 남긴다 — 렌더 중 저장소를 바꾸면 StrictMode 의 버려지는 첫 렌더가 기록해
+  // 실제 화면이 늘 'still' 로 시작하던 문제(Codex P2 4235802701).
+  const [play] = useState<ErlPlay>(() => {
     if (state.status !== "mutual_confirmed" || !state.connectionId) return "still";
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const first = !introAlreadyPlayed(state.connectionId);
-    markIntroPlayed(state.connectionId); // 이번 진입으로 '봤음' — 새로고침·뒤로가기로 다시 와도 반복하지 않는다
-    return first && !reduced ? "live" : "still";
+    return !introAlreadyPlayed(state.connectionId) && !reduced ? "live" : "still";
+  });
+  useEffect(() => {
+    // 이번 진입으로 '봤음' — 새로고침·뒤로가기로 다시 와도 반복하지 않는다
+    if (state.status === "mutual_confirmed" && state.connectionId) markIntroPlayed(state.connectionId);
   }, [state]);
 
   const confirmed = state.status === "mutual_confirmed";
