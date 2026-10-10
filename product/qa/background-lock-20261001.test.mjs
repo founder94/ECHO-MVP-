@@ -1,3 +1,4 @@
+// 2026-10-10 대표 「모바일웹 = Flora」로 바탕 값이 Flora 밤 들판으로 바뀜(아래 네 검사). 상태 토큰·화면별 새 바탕 0 검사는 그대로.
 // 2026-10-01 대표 「ECHO MOBILE BACKGROUND FINAL LOCK」 검사 · 2026-10-05 대표 「배경색부터 내가 보낸 사진 똑같이」로 색 값만 새 기준 시안 실측값으로 바뀜.
 // - 모든 파스텔 모바일 화면 = pastel-bg.css 한 벌(화면별 새 바탕 0).
 // - 색 흐름: 위 Aqua/Cyan + Pastel Blue → 가운데 Mint/Green + Aqua → 아래 Soft Yellow → Coral/Peach. 갈색·올리브 0.
@@ -16,51 +17,49 @@ const BG = 'src/doit/components/feature/pastel-bg.css';
 const STATES = 'src/doit/components/feature/pastel-states.css';
 const bg = strip(read(BG));
 
-const hsl = (hex) => {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
-  let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
-  return { h: (h * 60 + 360) % 360, s: d ? d / (1 - Math.abs(2 * l - 1)) : 0, l };
-};
-const rows = [...bg.matchAll(/linear-gradient\(90deg,([^)]*\)[^)]*\)[^)]*\)[^)]*\)[^)]*\))/g)].map((m) => m[1].match(/#[0-9a-f]{6}/g));
+// 2026-10-10 대표 「기존 모바일디자인 데이터에서 지워 … Flora 코드·시안 그대로」: 파스텔 띠(11줄 × 5색 · 흐림 40px)와 시안 그림 바탕을 지웠다.
+// 바탕 한 벌 원칙은 그대로 — 이제 그 한 벌은 Flora 「Kindle」 밤 들판(움직이는 캔버스 하나 + 같은 땅색 #010b24).
+const FLORA_GROUND = '#010b24';
+const lum = (hex) => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
 
-test('바탕은 한 벌: 띠 11줄 × 5색 · 흐림 40px 아래', () => {
-  assert.equal(rows.length, 11);
-  for (const r of rows) assert.equal(r.length, 5);
-  assert.match(bg, /filter:blur\(40px\) saturate\(var\(--echo-pastel-sat,1\)\) brightness\(var\(--echo-pastel-light,1\)\);/);
+test('바탕은 한 벌: Flora 밤 들판 캔버스 하나(앱 뿌리에서 한 번) + 같은 땅색 · 옛 파스텔 띠·흐림 0', () => {
+  assert.equal((bg.match(/linear-gradient\(90deg/g) ?? []).length, 0, '파스텔 띠 0');
+  assert.doesNotMatch(bg, /blur\(40px\)/, '띠 흐림 0');
+  assert.ok(bg.includes(`--pastel-underlay:${FLORA_GROUND}`));
+  const app = read('src/doit/DoitApp.tsx');
+  assert.equal((app.match(/<FloraBackdrop \/>/g) ?? []).length, 1, '캔버스는 앱 뿌리에서 한 번');
+  const flora = strip(read('src/doit/components/feature/flora-theme.css'));
+  assert.match(flora, /\.doit-flora-backdrop\{position:fixed;inset:0;/);
 });
 
-test('색 흐름(2026-10-05 새 기준 시안 실측): 위 시안·아쿠아 · 왼쪽 민트→노랑→피치 · 오른쪽 하늘→연보라→분홍 · 맨 아래 피치·분홍', () => {
-  const H = (r, c) => hsl(rows[r][c]);
-  // 위 두 줄: 청록~하늘(165°~200°)
-  for (const c of rows.slice(0, 2).flat().map(hsl)) assert.ok(c.h >= 165 && c.h <= 200, `위 색상 ${c.h.toFixed(0)}°`);
-  // 왼쪽 칸: 민트(위) → 노랑(30%) → 피치·주황(아래)
-  assert.ok(H(0, 0).h >= 160 && H(0, 0).h <= 200, '왼쪽 위 민트·아쿠아');
-  assert.ok(H(3, 0).h >= 35 && H(3, 0).h <= 60, '왼쪽 30% 노랑');
-  for (let r = 6; r < 11; r++) assert.ok(H(r, 0).h <= 35, `왼쪽 아래 피치 ${H(r, 0).h.toFixed(0)}°`);
-  // 오른쪽 칸: 하늘(위) → 연보라(40~50%) → 분홍(아래) — 예전의 청록·올리브·갈색 0
-  assert.ok(H(2, 4).h >= 190 && H(2, 4).h <= 215, '오른쪽 20% 하늘');
-  assert.ok(H(4, 4).h >= 215 && H(4, 4).h <= 300, `오른쪽 40% 연보라 ${H(4, 4).h.toFixed(0)}°`);
-  for (let r = 6; r < 11; r++) assert.ok(H(r, 4).h >= 330 || H(r, 4).h <= 15, `오른쪽 아래 분홍 ${H(r, 4).h.toFixed(0)}°`);
-  // 아래 따뜻한 칸은 밝고(명도 ≥ 70%) 탁하지 않다 — 갈색·흙색 0
-  for (const c of rows.slice(7).flat().map(hsl)) { assert.ok(c.l >= 0.7, `명도 ${(c.l * 100).toFixed(0)}%`); assert.ok(c.s >= 0.5, `채도 ${(c.s * 100).toFixed(0)}%`); }
+test('색 흐름(Flora 원본 --scene-field-*): 땅 #010b24 → 깊은 남색 → 파랑 → 빛 #9fc2ff · 어두운 쪽부터 밝아진다', () => {
+  const fb = read('src/doit/flora/FloraBackdrop.tsx');
+  const field = fb.match(/const FIELD: BackdropTokens = \{ ground: "(#[0-9a-f]{6})", deep: "(#[0-9a-f]{6})", mid: "(#[0-9a-f]{6})", hot: "(#[0-9a-f]{6})", light: "(#[0-9a-f]{6})" \};/);
+  assert.ok(field, 'FIELD 토큰');
+  const [, ground, deep, mid, hot, light] = field;
+  assert.equal(ground, FLORA_GROUND);
+  assert.equal(light, '#9fc2ff');
+  const L = [ground, deep, mid, hot, light].map(lum);
+  for (let i = 1; i < L.length; i++) assert.ok(L[i] > L[i - 1], `밝기 순서 ${i}`);
 });
 
-test('띠 경계가 보이지 않게: 위아래 이웃 띠의 같은 칸 색 차이가 흐림으로 섞이는 범위 안', () => {
-  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  for (let i = 1; i < rows.length; i++) for (let c = 0; c < 5; c++) {
-    const a = rgb(rows[i - 1][c]), b = rgb(rows[i][c]);
-    const dist = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-    assert.ok(dist <= 125, `띠 ${i - 1}→${i} 칸 ${c} 차이 ${dist.toFixed(0)}`);
+test('옛 파스텔 바탕 그림·리본 그림 0: 파일도 참조도 없다(사주·타로 시작 그림만 남김)', () => {
+  const gone = ['public/doit/bg/echo-mobile-bg.webp', 'public/doit/echo-ribbon.webp', ...['ribbon-01', 'ribbon-02', 'ribbon-03', 'candidate-gallery', 'wait-avatars', 'wait-ribbons', 'zzarit-current', 'key-glass'].map((n) => `public/doit/art/${n}.webp`)];
+  for (const f of gone) assert.throws(() => statSync(f), f);
+  const walk = (d) => readdirSync(d).flatMap((n) => { const p = path.join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
+  for (const f of walk('src').filter((f) => /\.(tsx?|css)$/.test(f))) {
+    const code = strip(read(f)).replace(/^\s*\/\/.*$/gm, '');
+    assert.doesNotMatch(code, /echo-mobile-bg\.webp|echo-ribbon\.webp|\/doit\/art\/(ribbon-0\d|candidate-gallery|wait-avatars|wait-ribbons|zzarit-current|key-glass)\.webp/, f);
   }
+  statSync('public/doit/art/saju-start.webp'); statSync('public/doit/art/tarot-start.webp');
 });
 
-test('스크롤 바탕(밑깔림) 세 곳이 같은 줄기 · 첫 색 = 앱 첫 바탕색(#5fd6d6)', () => {
-  const under = '#5fd6d6 0%,#9fe2e0 14%,#c8e1c8 26%,#e6d6c0 40%,#eab7ae 55%,#f0ae9f 70%,#f5ae93 85%,#f8a493 100%';
-  assert.ok(bg.includes(`--pastel-underlay:linear-gradient(180deg,${under})`));
-  assert.ok(read('src/components/route-fallback.css').includes(`linear-gradient(180deg,${under})`));
-  assert.ok(read('src/doit/doit.css').includes(`linear-gradient(180deg, ${under.replaceAll(',', ', ')})`));
-  assert.match(read('src/lib/themeColor.ts'), /APP_PASTEL = '#5fd6d6'/);
+test('스크롤 바탕(밑깔림) 네 곳이 같은 땅색 = 앱 첫 바탕색(#010b24)', () => {
+  assert.ok(bg.includes(`--pastel-underlay:${FLORA_GROUND}`));
+  assert.ok(read('src/components/route-fallback.css').includes(`.echo-route-fallback--pastel{background:${FLORA_GROUND}`));
+  assert.match(read('src/doit/doit.css'), new RegExp(`background:\\s*${FLORA_GROUND};`));
+  assert.match(read('src/lib/themeColor.ts'), new RegExp(`APP_PASTEL = '${FLORA_GROUND}'`));
+  assert.match(read('vite.config.ts'), new RegExp(`APP_START_COLOR = "${FLORA_GROUND}"`));
 });
 
 test('상태 변화 = 밝기·채도·움직임 토큰만(색·바탕 교체 0)', () => {

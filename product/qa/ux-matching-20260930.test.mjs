@@ -33,10 +33,12 @@ test('대기: 「선택을 보냈어요」(2026-10-04) · 상대가 관심 있�
   const Z = read('src/doit/components/feature/ZzaritMoment.tsx');
   assert.match(CAND, /if \(out\.status === 'mutual'\) \{/);
   assert.match(CAND, /if \(typeof out\.match_id === 'string'\) \{ if \(claimZzarit\(out\.match_id\)\) setMutual\(\{ matchId: out\.match_id \}\); else onOpened\(out\.match_id\); \}/);
-  // 2026-10-04 대표 「찌릿」: 문구 = 「찌릿! 텔레파시가 통했어요」 · 「서로 대화를 원했어요.」 · 다음 = 「다음 단계 보기」(실제 다음 단계 = 첫 질문)
-  assert.match(Z, /title: '찌릿! 텔레파시가 통했어요'/);
-  assert.match(Z, /body: '두 분 모두 대화를 원했어요\.'/); // 2026-10-05 디자인 기준 §6 ⑨
-  assert.match(Z, /next: '다음 단계 보기'/);
+  // 2026-10-04 대표 「찌릿」 · 2026-10-09 「추가 효과 배치」 §2 확정 문구(2026-10-10 적용): 작은 줄 「찌릿! 텔레파시가 통했어요」 ·
+  //   후킹 「서로의 선택이, / 하나의 대화로.」 · 「두 분 모두 연결을 선택했어요.」 · 다음 = 「첫 대화 시작하기」(실제 다음 단계 = 첫 질문)
+  assert.match(Z, /eyebrow: '찌릿! 텔레파시가 통했어요'/);
+  assert.match(Z, /title: \['서로의 선택이,', '하나의 대화로\.'\]/);
+  assert.match(Z, /body: '두 분 모두 연결을 선택했어요\.'/);
+  assert.match(Z, /next: '첫 대화 시작하기'/);
   assert.doesNotMatch(CAND + Z, /축하|🎉|!!\s*<\/|요!!/);
   assert.doesNotMatch(Z, /nickname|photo_url|partner|\bbio\b/, 'ZZARIT 에도 상대 정보 0');
   assert.doesNotMatch(CAND, /nickname|photo_url|partner|\bbio\b/, '보상 화면에도 상대 정보 0');

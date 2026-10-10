@@ -38,9 +38,9 @@ export const surfaces = {
 } as const;
 
 // 2026-10-09 대표 승인: 앱 사용자 글은 주아체(Jua) 하나. 이름은 옛 호출부를 그대로 두려고 유지.
-export const serif = '"Jua", "Pretendard", system-ui, sans-serif';
+export const serif = '"Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif';
 
-export const sans = '"Jua", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+export const sans = '"Chakra Petch", "Jua", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 
 export type GradeTone =
   | "violet"

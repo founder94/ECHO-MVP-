@@ -27,9 +27,10 @@ interface Preview {
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; preview: Preview };
 
 // 2026-09-26 대표 「FINAL HUMAN UX」 §23·§41: 연결 0건인 지금 「AI가 먼저 만나봅니다」는 앞서가는 말 → 제품 훅(나는 말한다 · 찾는 건 ECHO가)으로. 히어로 문구는 그대로.
-const HEADLINE = <>나는 말하고,<br />찾는 건 ECHO가.</>;
-// 2026-09-30: 후보·서로 골랐어요 화면 위에 「지금은 준비 중」이 같이 서 있어 어긋났다 → 어느 상태에서나 맞는 한 줄.
-const SUBLINE = '내가 한 말을 바탕으로, 이어질 만한 사람을 ECHO가 먼저 살펴봐요.';
+// 2026-10-10 대표 「모바일웹 전부 최종 후킹」: 연결 화면 = 마지막 장면 확정 후킹(2026-10-09) 「서로 선택하면, 연결이 시작됩니다.」 · 설명 그대로.
+//   예전 제품 훅(나는 말하고, 찾는 건 ECHO가)은 설명 앞줄로 남긴다.
+const HEADLINE = <>서로 선택하면,<br />연결이 시작됩니다.</>;
+const SUBLINE = '만나고 싶은 사람을 살펴보세요. 두 사람이 서로 선택했을 때 연결됩니다. 나는 말하고, 찾는 건 ECHO가 해요.';
 
 // FI-018: 연결 서버가 준 대화 준비(Agent 공통 계약) 칸 이름 — 답 개수가 아니라 ECHO 가 확인한 이야기로 본다.
 const CONVERSATION_LABEL = 'ECHO와 대화';

@@ -110,6 +110,8 @@ export default function Understanding() {
       <div className="doit-understanding-page">
         <section className="doit-understanding-intro doit-understanding-intro--compact">
           <h2 className="doit-product-title">ECHO가 아는 나</h2>
+          {/* 2026-10-10 대표 「모바일웹 전부 최종 후킹」: 확인·수정 장면 확정 후킹(2026-10-09) */}
+          <p className="echo-flora-hook-sub">내 뜻과 다르면, 바로 고칠 수 있어요. 당신이 직접 들려준 이야기가 이해와 추천의 기준이 됩니다.</p>
           <p className="doit-product-description">확인한 것 · 짐작 · 고친 것 · 아니라고 한 것을 나눠서 보여 드려요. 줄마다 지울 수 있어요.</p>
         </section>
         {!A_STRUCTURE_SERVER_ENABLED ? (

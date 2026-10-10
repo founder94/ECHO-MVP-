@@ -1,4 +1,5 @@
 import GuideHint from '@/components/guide/GuideHint';
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 리본 그림 → Flora 민들레
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Mic, Plus, RotateCcw, Send, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -263,7 +264,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
   //   대화 방식(글/말) + 말투(기본 = 편한 존댓말)를 고르면 창이 닫히고, 같은 화면에서 그 선택으로 대화를 시작한다. 새 페이지 이동 0.
   if (!session) return <section className="echo-dialogue echo-dialogue--pastel echo-chat" aria-busy={!!busy}>
     {header}
-    <img className="echo-chat-art" src="/doit/art/ribbon-01.webp" alt="" aria-hidden="true" width="940" height="410" decoding="async" />
+    <div className="echo-ref-hero echo-chat-hero" aria-hidden="true"><FloraBloom /></div>
     <p className="echo-eyebrow">만나기 전에</p>
     {/* v2.4: 이 기기의 세션 목적을 먼저 보인다(계정에 마지막으로 저장된 목적이 다른 기기 것일 수 있다). */}
     {/* 2026-10-05 시안 일치: 목적은 작은 칩 · 제목은 따로(목적 문장과 제목이 한 문장처럼 붙어 읽히던 것) — 글은 그대로 */}
@@ -375,7 +376,7 @@ export default function AgentConversation({ userId, firstAnswer, purposeLabel = 
     {voiceUi && canSpeak() && lastAi && !speaking && <button type="button" className="echo-text-button" disabled={!!busy || talk.listening} onClick={() => { unlockSpeech(); say(lastAi); }}>다시 듣기</button>}
     {/* 2026-10-04 모바일 기준 디자인 4번(정정·확인): 다 들은 뒤 첫 화면은 「이렇게 이해했는데, 맞나요?」 하나. 정리·다음 행동은 확인한 뒤에. */}
     {done && profile && <AgentProfileCheck userId={userId} session={session} onSession={setSession} onConfirmed={setProfileOk} onCrisis={(line, stale) => { showSafety(line, stale ? null : session); if (stale) void reloadRound(); }} />}
-    {done && (profileOk || !profile) && <img className="echo-chat-art" src="/doit/art/ribbon-03.webp" alt="" aria-hidden="true" width="970" height="410" decoding="async" />}
+    {done && (profileOk || !profile) && <div className="echo-ref-hero echo-chat-hero" aria-hidden="true"><FloraBloom /></div>}
     {done && (profileOk || !profile) && <section className="echo-done">
       <p className="echo-done-mark"><Check size={18} /> 이번 대화를 정리했어요.</p>
       <p className="echo-done-lead">{session.closing ?? '말해 준 내용을 정리해 뒀어요.'}</p>

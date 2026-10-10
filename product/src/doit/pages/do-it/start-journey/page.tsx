@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import FloraBloom from "@/doit/flora/FloraBloom"; // 2026-10-10 대표 「모바일웹 = Flora」: 파스텔 유리 리본 그림 → Flora 민들레 장면
 import '@/doit/components/feature/start-ref.css';
 import '@/doit/components/feature/ref-parity.css';
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -599,7 +600,7 @@ export default function StartJourney() {
     const hasExistingProfile = Boolean(readyProfile && [readyProfile.nickname, readyProfile.intro, readyProfile.region, readyProfile.lifeRhythm].some((value) => value?.trim()));
     const viewOrBuildProfile = () => hasExistingProfile ? navigate("/doit/profile") : goProfile();
     // 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목 · 주요 버튼 하나
-    return <section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="/doit/echo-ribbon.webp" alt="" width="480" height="345" decoding="async" /></div><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
+    return <section className="echo-dialogue echo-dialogue--pastel echo-hub"><div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><FloraBloom /></div><p className="echo-eyebrow">무엇부터 할까요</p><h1>오늘은<br />무엇부터 할까요?</h1>
       <p className="echo-lead">{introPending ? "다섯 가지 대화를 마쳤어요. AI가 내 말로 쓴 소개부터 확인해요." : talkDone ? hasExistingProfile ? "다섯 가지 대화를 마쳤어요. 저장한 프로필을 확인해 보세요." : "다섯 가지 대화를 마쳤어요. 이제 사진과 소개를 채우면 돼요." : answered > 0 ? `다섯 가지 대화 중 ${answered}개를 했어요. 이어서 하면 돼요.` : "다섯 가지 대화부터 시작해요. 사진과 소개는 그다음에 채워도 돼요."}</p>
       {/* 2026-09-25 대표 MASTER §10 순서: 대화를 마쳤고 AI 소개를 아직 안 골랐으면 「소개 확인」이 큰 버튼(대화 끝 화면에서 확인), 고른 뒤에는 사진. */}
       {talkDone && introPending ? <><button className="echo-primary" onClick={goTalk}>AI가 쓴 소개 확인하기</button><button className="echo-text-button" onClick={viewOrBuildProfile}>{hasExistingProfile ? "내 프로필 보기" : "사진과 소개 직접 채우기"}</button></>

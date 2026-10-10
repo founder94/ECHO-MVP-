@@ -21,6 +21,8 @@ Codex 의 장점을 쓴다: 긴 문서를 한 번에 읽고 기준끼리 맞춰 
 우선순위: 최신 대표 직접 지시·승인 → 최신 LOCK → 결정 문서 → 과거 문서. 충돌하면 임의로 정하지 말고 「대표 확인 필요」로 적는다.
 - `product/docs/server-gap/DECISIONS_AND_APPROVALS_*.md` — 결정·승인 기록(§번호로 인용). 특히 §22(오늘 범위표·차단 요인) · §21~§25(AI 제공사·실행 기록·예산)
 - `product/docs/ECHO_RELEASE_VALIDATION_STRUCTURE_FINAL_LOCK_2026-09-28.md` — 출시 검증 LOCK
+- `product/docs/HOMEPAGE_WEB_FINAL_LOCK_2026-10-10.md` — **홈페이지(웹) 완성 LOCK**: 디자인·문구 변경 제안 금지 · 실제 결함만 지적(§7)
+- `product/docs/MOBILE_WEB_FLORA_PLAN_2026-10-10.md` — 모바일웹(ECHO 앱) Flora 전면 적용 계획 · 화면별 후킹 · Codex 검수 초점(§7)
 - `product/docs/COMPANY_PRODUCT_CONTRACT.md` — 회사·제품 계약
 - `product/docs/server-gap/*_CONTRACT_*.md` · `CORE_STRUCTURE_HANDOFF_*.md` — 흐름·안전·프로필 계약
 - `docs/failure-intelligence/*` — 실패 기록·계약(재발 방지 근거) · `MODEL_ROUTER_PLAN_*.md`
@@ -61,3 +63,9 @@ Codex 의 장점을 쓴다: 긴 문서를 한 번에 읽고 기준끼리 맞춰 
 - Claude 는 명세(§4) 또는 검수 지적(§5)을 받으면 구현 → 같은 계열 자체 점검 → 검사 → push → 인계 댓글(마지막 줄 `@codex review`).
 - Codex 결과가 PASS 면 대표에게 완료만 보고. 승인이 필요하면 대표에게. 안전 한도 15회.
 - 대표 지시 · 승인 범위를 넘는 확장은 하지 않는다. 오늘 마감 지시도 민감 변경의 포괄 승인이 아니다.
+
+## 7. 잠금과 지금 진행 중인 일(2026-10-10 대표 지시)
+- **홈페이지(웹) = 완성 LOCK.** 배치·색·글꼴·문구·효과를 바꾸자는 제안은 하지 않는다. 재현되는 결함(깨짐·잘림·겹침·링크·접근성·보안·성능)만 재현 코드와 함께 지적한다 — Claude 가 고친다. 근거: `product/docs/HOMEPAGE_WEB_FINAL_LOCK_2026-10-10.md`.
+- **모바일웹(ECHO 앱) = Flora 로 전면 교체 중.** 지금 저장소의 파스텔 앱은 예전 기준이다(오늘 대표 지시로 Flora 가 대체). 화면 기능·서버 판단은 그대로 두고 겉모습만 바꾼다. 근거: `product/docs/MOBILE_WEB_FLORA_PLAN_2026-10-10.md`.
+- Codex 의 장점을 여기에 쓴다: ① 겉모습 교체가 **서버가 확인한 상태만 보여 주는 규칙**(상호 선택 전 연결 표시 0 · 정정·거절 반영)을 깨지 않는지 ② 버튼·입력·뒤로가기·새로고침 회귀 ③ 글자 대비·잘림(360/390/430) ④ 금지 낱말·가격 숫자·확정되지 않은 수치 0. 디자인 취향 의견은 적지 않는다.
+

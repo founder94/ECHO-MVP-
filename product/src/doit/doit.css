@@ -1,3 +1,4 @@
+@import "../fonts/chakra-petch.css"; /* 2026-10-10 대표 승인: 영어·숫자 = Chakra Petch(앱 화면 전용 · 홈페이지 0) */
 /* 글꼴은 index.html 에서 뒤에서 받는다(2026-09-23). 여기서 @import 하면 구글 폰트가 막힐 때 화면 조각 전체가 멈춘다. */
 
 /*
@@ -13,9 +14,9 @@
   --dark: #222422;
   --signal: #FF5A1F;
 
-  --font-heading: "Jua", "Pretendard", system-ui, sans-serif;
-  --font-body: "Jua", "Pretendard", system-ui, sans-serif;
-  --font-label: "Jua", "Pretendard", system-ui, sans-serif;
+  --font-heading: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
+  --font-body: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
+  --font-label: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
 
   --background-50: 0.99 0.005 80;
   --background-100: 0.97 0.01 80;
@@ -87,7 +88,7 @@
   /* A의 html, body 규칙을 뿌리 요소로 옮김 */
   background: var(--ink);
   color: var(--paper);
-  font-family: "Jua", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   min-height: 100dvh;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
@@ -110,7 +111,7 @@
 .doit-root .font-heading { font-family: var(--font-heading); }
 .doit-root .font-body { font-family: var(--font-body); }
 .doit-root .font-label { font-family: var(--font-label); }
-.doit-root .font-sans { font-family: "Jua", "Pretendard", system-ui, sans-serif; }
+.doit-root .font-sans { font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif; }
 
 .doit-root .skip-link {
   position: absolute;
@@ -120,28 +121,28 @@
   background: var(--signal);
   color: var(--ink);
   padding: 12px 20px;
-  font-family: "Jua", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   font-size: 12px;
   text-transform: uppercase;
 }
 .doit-root .skip-link:focus { left: 12px; top: 12px; }
 
 .doit-root .type-display {
-  font-family: "Jua", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   letter-spacing: -0.06em;
   line-height: 0.82;
   text-transform: uppercase;
 }
 
 .doit-root .type-mono {
-  font-family: "Jua", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .doit-root .type-label {
-  font-family: "Jua", "Pretendard", system-ui, sans-serif;
+  font-family: "Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif;
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -233,7 +234,7 @@
   50% { opacity: 0.95; }
 }
 .doit-root .animate-glow { animation: do-it-glow 5s ease-in-out infinite; }
-/* 2026-09-26 대표 「검정은 히어로만」: 파스텔 화면을 담은 뿌리는 뿌리 바탕도 파스텔 첫 줄기로(화면이 바뀌는 순간·짧은 화면 아래 검정 0). 관리자 화면은 그대로. */
+/* 2026-10-10 대표 「모바일웹 = Flora · 기존 파스텔 지움」: 앱 화면 뿌리 바탕 = Flora 밤 들판의 땅색(#010b24). 캔버스(FloraBackdrop)가 뜨기 전·못 그릴 때도 같은 색. */
 .doit-root:has(.doit-app-pastel, .echo-dialogue--pastel) {
-  background: linear-gradient(180deg, #5fd6d6 0%, #9fe2e0 14%, #c8e1c8 26%, #e6d6c0 40%, #eab7ae 55%, #f0ae9f 70%, #f5ae93 85%, #f8a493 100%);
+  background: #010b24;
 }

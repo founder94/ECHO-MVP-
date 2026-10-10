@@ -74,7 +74,8 @@ test('화면 약속: 앱 빌드에서만 켬 · 말투 3종(기본 편한 존댓
   const choice = src('src/doit/components/feature/agent-choice.css');
   for (const sel of choice.replace(/\/\*[\s\S]*?\*\//g, '').match(/[^{}]+(?=\{)/g).map((x) => x.trim()).filter((x) => !x.startsWith('@'))) for (const part of sel.split(',')) assert.match(part.trim(), /^\.echo-choice-layer( |$)/, `선택창 밖 규칙: ${part}`);
   assert.ok(!/body|:root|html/.test(choice.replace(/\/\*[\s\S]*?\*\//g, '')), '전역 규칙 0');
-  const css = choice + chatRef + src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css');
+  // 2026-10-10 대표 「모바일웹 = Flora」: 대화 머리 그림(민들레)의 자리 규칙은 공통 Flora 층(flora-theme.css)에 있다.
+  const css = choice + chatRef + src('src/doit/components/feature/core-conversation.css') + src('src/doit/components/feature/metal-silver.css') + src('src/doit/components/feature/doit-type.css') + src('src/doit/components/feature/flora-theme.css');
   const classes = [...new Set([...ui.matchAll(/className=["{]['"]?([^"'}]+)/g)].flatMap((m) => m[1].split(/\s+/)).filter((c) => c.startsWith('echo-')))];
   const unknown = classes.filter((c) => !css.includes(`.${c}`));
   assert.deepEqual(unknown, [], `기존 CSS 에 없는 클래스: ${unknown.join(',')}`);

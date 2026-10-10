@@ -1,0 +1,110 @@
+/* ECHO 모바일웹 = Flora(2026-10-10 대표 「기존 모바일 디자인 지우고 Flora 코드·시안 그대로 · 무조건 맞춘다」).
+   이 파일은 앱 화면의 겉모습 층 맨 마지막이다(DoitApp 에서 가장 늦게 불러온다). 화면 기능·서버 판단·문구 구조는 건드리지 않는다.
+   - 바탕: 파스텔 그림·색 띠 → Flora 「Kindle」 밤 들판(FloraBackdrop 캔버스 · 못 그리면 #010b24).
+   - 판: 흰 6% 유리 + 1px 안쪽 실선(rgb 255 .10~.16) + 4px 흐림 · 모서리 4px(Flora rounded-panel).
+   - 주요 버튼: 흰 판 + 잉크 글자(#050b14) · 누르면 라임(#bbfc9e). 라임은 버튼·화살표·작은 강조에만(대표 규칙).
+   - 글자: 제목 흰색 #fff · 설명 #F2F4F8 · 보조 #DCE3ED(대표 2026-10-09) · 영어·숫자 Chakra Petch / 한글 주아체(대표 2026-10-10).
+   - 사람 냄새 나는 글(대표 2026-10-10 「AI 스럽지 않게」): 낱말 단위 줄바꿈 · 제목은 줄 길이를 고르게 · 본문 줄 간격 넉넉히 ·
+     가짜 굵기·외곽선·그라데이션 글자·과한 그림자 0 · 영어 꼬리표만 대문자+자간(Flora 라벨), 한글은 그대로. */
+
+/* ── 바탕 ───────────────────────────────────────── */
+.doit-root{font-synthesis:none;background:#010b24;--flora-night:#010b24;--flora-lime:#bbfc9e;--flora-ink:#050b14;--flora-body:#f2f4f8;--flora-sub:#dce3ed}
+.doit-flora-backdrop{position:fixed;inset:0;width:100vw;height:100lvh;z-index:0;display:block;pointer-events:none;background:#010b24}
+.doit-flora-stage{position:relative;z-index:1;min-height:100dvh}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){--pastel-underlay:transparent;background:transparent!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel)::before,
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel)::after{display:none!important}
+:root:root:root .doit-root .doit-product.doit-app-pastel,.doit-app-pastel .doit-profile-review{background:transparent!important}
+
+/* ── 토큰 ───────────────────────────────────────── */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){
+  --echo-font:'Chakra Petch','Jua','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',system-ui,sans-serif;
+  --echo-glass:rgb(255 255 255/.06);
+  --echo-glass-strong:rgb(255 255 255/.12);
+  --echo-glass-press:rgb(255 255 255/.18);
+  --echo-line:rgb(255 255 255/.16);
+  --echo-cta-ink:#050b14;
+  --echo-text:#fff;
+  --app-surface-border:rgb(255 255 255/.16);
+  -webkit-text-stroke:0;
+  color:#fff;
+}
+:root:root:root .doit-root ::selection{background:#bbfc9e;color:#050b14}
+
+/* ── 글자(사람 냄새) ─────────────────────────────── */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(h1,h2,h3,.doit-product-title,.echo-question){color:#fff!important;text-wrap:balance;word-break:keep-all;letter-spacing:-.01em;line-height:1.36;text-shadow:none;-webkit-text-stroke:0!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(p,li,dd,blockquote):not(:is(button,a,[role="button"],[role="alert"],[class*="error"]) *){color:var(--flora-body)!important;line-height:1.62;text-wrap:pretty;word-break:keep-all;text-shadow:none}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(small,time,.echo-fine,.echo-context,.doit-product-footnote,.doit-understanding-source,.doit-understanding-entry-meta,.doit-understanding-entry-date,.doit-menu-desc,.doit-menu-caption,.doit-product-description){color:var(--flora-sub)!important;line-height:1.55;word-break:keep-all}
+/* 영어 꼬리표(Flora 라벨): 대문자 + 자간. 한글은 대소문자가 없어 그대로 보인다. */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-product-kicker,.doit-profile-section-label,.doit-profile-review-brand,.doit-asleep-label){text-transform:uppercase;letter-spacing:.08em;color:var(--flora-sub)!important}
+
+/* ── 판(유리) ───────────────────────────────────── */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-profile-card,.doit-asleep-card,.doit-understanding-notice,.doit-settings-panel,.doit-settings-note,.doit-install,.doit-profile-photos-empty,.doit-profile-photo-manage,[class*="-card"]:not(img):not(.rounded-full)){
+  background:rgb(255 255 255/.06)!important;border-color:transparent!important;box-shadow:inset 0 0 0 1px rgb(255 255 255/.12)!important;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border-radius:4px!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([class*="rounded-lg"],[class*="rounded-xl"],[class*="rounded-2xl"],[class*="rounded-3xl"]):not(img):not(video){border-radius:4px!important}
+
+/* ── 버튼 ───────────────────────────────────────── */
+:root:root:root .doit-root .echo-glass-btn{--glass-film:rgb(255 255 255/.06);--glass-film-strong:rgb(255 255 255/.12);--glass-film-press:rgb(255 255 255/.18);--glass-line:rgb(255 255 255/.16);
+  border-radius:4px!important;text-shadow:none;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+:root:root:root .doit-root .echo-glass-btn:focus-visible{outline:2px solid #bbfc9e}
+/* 주요 버튼 = Flora 「plate」: 흰 판 · 잉크 글자 · 누르는 동안 라임 */
+:root:root:root .doit-root :is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary){
+  background:#fff!important;border:0!important;color:#050b14!important;-webkit-text-fill-color:#050b14;border-radius:4px!important;box-shadow:none!important;text-shadow:none}
+:root:root:root .doit-root :is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary) *{color:#050b14!important;-webkit-text-fill-color:#050b14}
+:root:root:root .doit-root :is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary):not(:disabled):is(:active,:focus-visible){background:#bbfc9e!important}
+@media (hover:hover){:root:root:root .doit-root :is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary):not(:disabled):hover{background:#bbfc9e!important}}
+:root:root:root .doit-root :is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary):focus-visible{outline:2px solid #bbfc9e;outline-offset:3px}
+/* 보조·선택 버튼 = 유리 + 안쪽 실선 */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-secondary,.doit-product-action--secondary,.echo-choice-confirm.is-secondary,.echo-reactions button,.echo-choice-option,.doit-understanding-filters button,.doit-restart-pill,.echo-restart-pill){
+  background:rgb(255 255 255/.06)!important;border:0!important;box-shadow:inset 0 0 0 1px rgb(255 255 255/.16)!important;color:#fff!important;border-radius:4px!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is([aria-pressed="true"],[aria-checked="true"],.is-selected){background:rgb(255 255 255/.12)!important;border:0!important;box-shadow:inset 0 0 0 1px #bbfc9e!important;color:#fff!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.doit-understanding-filters,.echo-choice-options) :is([aria-pressed="true"],[aria-checked="true"])::before{color:#bbfc9e}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(button,a,[role="button"],summary):not(:disabled):active:not(:is(.echo-glass-btn--primary,.echo-primary,.doit-product-action:not(.doit-product-action--secondary),.echo-choice-confirm:not(.is-secondary),.legal-page-primary)){background-color:rgb(255 255 255/.18)!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-text-button,.doit-understanding-text-link,.legal-page-text-button){color:#fff!important;text-decoration-color:#bbfc9e}
+
+/* ── 입력 ───────────────────────────────────────── */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,select){
+  background:rgb(255 255 255/.06)!important;border:0!important;box-shadow:inset 0 0 0 1px rgb(255 255 255/.16)!important;color:#fff!important;caret-color:#bbfc9e;border-radius:4px!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(input,textarea)::placeholder{color:rgb(255 255 255/.62)!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(input,textarea,select):focus-visible{outline:0;box-shadow:inset 0 0 0 1px #bbfc9e!important}
+
+/* ── 위·아래 띠, 메뉴 ───────────────────────────── */
+:root:root:root .doit-app-pastel .doit-product-topbar,:root:root:root .doit-root .doit-product-topbar{background:rgb(1 11 36/.55)!important;border-color:rgb(255 255 255/.10)!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+:root:root:root .doit-root .doit-product-nav{background:rgb(1 11 36/.9)!important;box-shadow:inset 0 1px 0 rgb(255 255 255/.10)!important;border-color:transparent!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+:root:root:root .doit-root .doit-product-nav a{color:rgb(255 255 255/.8)!important}
+:root:root:root .doit-root .doit-product-nav a[aria-current="page"]{color:#fff!important;box-shadow:inset 0 2px 0 #bbfc9e}
+:root:root:root .doit-root .doit-product-nav a[aria-current="page"]::before{display:none!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel,:root:root:root .echo-corner-panel{background:rgb(3 5 10/.95)!important;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);border:0!important;box-shadow:inset 0 0 0 1px rgb(255 255 255/.16)!important;border-radius:4px!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel *,:root:root:root .echo-corner-panel *{text-shadow:none!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-item{border-top:1px solid rgb(255 255 255/.12)}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .doit-menu-panel .doit-menu-icon{border:0;box-shadow:inset 0 0 0 1px rgb(255 255 255/.16);color:#bbfc9e!important}
+
+/* ── Flora 장면 색(원본 globals.css Tier 2 · 장면이 만들어질 때 읽는다) ── */
+.doit-root{--scene-backdrop:#010b24;--scene-foreground:#fff;--scene-fluff:#fff;--scene-fluff-edge:#9fd0fe;--scene-fluff-young:#ffd79a;--scene-seed-body:#c8b189;--scene-seed-core:#6b4a28;--scene-stem:#63a65e;--scene-glow:#ffa724;--scene-pollen:#c8e9fe;--scene-petal-light:#bcd8ff;--scene-petal-deep:#3a63d6;--scene-bloom-stem:#7d9c8e;--scene-iris-lime:#bbfc9e;--scene-iris-sky:#9fd0fe;--accent:#bbfc9e}
+/* 민들레 그림 칸: 원본처럼 밤 들판 위에 「screen」으로 겹친다(장면의 검은 바탕은 들판을 바꾸지 않고 입자 빛만 더해진다). */
+/* 원본 장면은 화면 한 장 크기로 짜여 있다(밝기·입자 크기가 화면 높이 기준). 그래서 캔버스는 화면 높이로 그리고, 그림 칸이 가운데만 잘라 보여 준다. */
+.echo-ref-hero .doit-flora-bloom{position:absolute;left:0;top:50%;width:100%;height:100svh;transform:translateY(-50%);display:block;mix-blend-mode:screen}
+:root:root:root .doit-root .echo-ref-hero{height:clamp(240px,66vw,300px);overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 18%,#000 80%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 18%,#000 80%,transparent 100%)}
+:root:root:root .doit-root .echo-ref-hero.echo-ref-hero--home{height:clamp(240px,66vw,300px)}
+:root:root:root .doit-root .echo-ref-hero.echo-chat-hero{position:relative;height:clamp(180px,48vw,240px);margin:0 0 8px}
+.echo-ref-hero .echo-ref-wordmark{font-family:'Chakra Petch','Jua',sans-serif;font-weight:500;letter-spacing:.08em;text-shadow:none}
+
+/* ── 서로 선택 확인 → 첫 대화(Lattice) ── */
+.echo-zzarit .echo-zzarit-eyebrow{margin:0 0 6px;font-size:14px;color:#bbfc9e!important;letter-spacing:.02em}
+.echo-zzarit .echo-zzarit-title{font-size:clamp(26px,7.4vw,32px);line-height:1.3;color:#fff!important;text-wrap:balance}
+.doit-erl-stage{position:relative;align-self:stretch;width:calc(100% + 32px);max-width:none;flex:none;height:clamp(220px,60vw,300px);margin:14px -16px 18px;background:#000;overflow:hidden;border-radius:4px}
+.doit-erl-canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+.doit-erl-fallback{position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 50%,rgb(88 120 255/.18),transparent 70%)}
+:root:root:root .doit-root .echo-flora-arrow{display:inline-block;margin-left:6px;color:inherit}
+:root:root:root .doit-root :is(.echo-primary,.doit-product-action:not(.doit-product-action--secondary)):is(:hover,:active,:focus-visible) .echo-flora-arrow{transform:translateX(3px)}
+
+/* ── 후킹 줄(대표 확정 문구) ── */
+:root:root:root .doit-root .echo-flora-hook{margin:0 0 6px;font-size:clamp(24px,6.8vw,28px);line-height:1.32;color:#fff!important;text-wrap:balance;word-break:keep-all;letter-spacing:-.01em}
+:root:root:root .doit-root .echo-flora-hook-sub{margin:0 0 14px;font-size:15px;line-height:1.6;color:#dce3ed!important;text-wrap:pretty;word-break:keep-all}
+
+/* 영어·숫자(Chakra Petch)는 500 — 주아체(한 굵기)와 획 두께가 맞는다. 주아체는 가짜 굵기 없이 그대로(font-synthesis:none). */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :not(i):not([class^="ri-"]):not([class*=" ri-"]):not([class*="fa-"]){font-weight:500!important}
+/* 대화 화면: ECHO 표시는 Flora 빛(흰색→#9fc2ff), 말풍선은 4px 모서리 */
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) .echo-question-card.echo-bubble--echo::before{background:radial-gradient(circle at 42% 38%,#fff 0,#dce8ff 38%,#9fc2ff 72%,#3c64c8 100%)!important;box-shadow:0 0 0 1px rgb(255 255 255/.28),0 0 18px rgb(159 194 255/.55)!important}
+:root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel) :is(.echo-bubble,.echo-bubble--me,.echo-question-card){border-radius:4px!important}

@@ -31,9 +31,10 @@ test('겹치는 파일 0: 대화·첫 질문·메뉴 파일은 PR #138 담당이
   assert.match(src('src/components/app-back-button.css'), /\.doit-back-pill\{position:absolute;/, '뒤로 알약은 제목을 가리지 않게');
 });
 
-test('홈·무엇부터·프로필: 유리 리본 · 가운데 제목 · 글은 그대로', () => {
+test('홈·무엇부터·프로필: Flora 민들레(예전 유리 리본 자리) · 가운데 제목 · 글은 그대로', () => {
   const home = src('src/doit/pages/do-it/home/page.tsx');
-  assert.match(home, /<div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><img src="\/doit\/echo-ribbon\.webp" alt=""/);
+  // 2026-10-10 대표 「모바일웹 = Flora」: 유리 리본 그림 → Flora 민들레(FloraBloom). 자리·글은 그대로.
+  assert.match(home, /<div className="echo-ref-hero echo-ref-hero--home" aria-hidden="true"><FloraBloom \/><\/div>/);
   for (const t of ['DO IT · 만나기 전에', '잘못 알아들었으면 바로 고쳐 주세요.']) assert.ok(home.includes(t), t);
   const profile = src('src/doit/pages/do-it/profile/page.tsx');
   for (const t of ['MY OWN WORDS', 'DO IT · PROFILE', '연결 준비</span>', '내 프로필</h2>']) assert.ok(profile.includes(t), t);
@@ -50,15 +51,11 @@ test('Codex PR #131 P2: 목적 고르기 화면의 질문·설명 글은 QA 그�
   assert.doesNotMatch(ps, /같이 하고 싶은\n\s*<br \/>\n\s*일이 있나요/);
 });
 
-test('대표 배경 그림(「이거면되?」): 모든 파스텔 화면 바탕 = 시안 배경 그림 한 장 · 흐림 0 · 덮개는 그 위', async () => {
-  const { statSync } = await import('node:fs');
+test('바탕(2026-10-10 대표 「모바일웹 = Flora」 · 예전 「이거면되?」 그림 대체): 그림 0 · 흐림 0 · 덮개 0 · Flora 땅색 한 색', () => {
   const bg = src('src/doit/components/feature/pastel-bg.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  const after = bg.match(/:is\(\.echo-dialogue\.echo-dialogue--pastel,\.doit-app-pastel\)::after\{(z-index:-1;[^}]*)\}/)?.[1] ?? '';
-  assert.match(after, /background:linear-gradient\(rgb\(9 10 12\/var\(--echo-pastel-veil\)\),rgb\(9 10 12\/var\(--echo-pastel-veil\)\)\),url\(\/doit\/bg\/echo-mobile-bg\.webp\) center top\/cover no-repeat;/);
-  assert.doesNotMatch(after, /blur|animation/);
-  assert.equal((bg.match(/echo-mobile-bg\.webp/g) ?? []).length, 1, '바탕 그림은 한 곳에서만');
-  const size = statSync(new URL('../public/doit/bg/echo-mobile-bg.webp', import.meta.url)).size;
-  assert.ok(size > 5000 && size < 120000, `그림 크기 ${size}`);
+  assert.doesNotMatch(bg, /url\(|::after|::before|blur|animation/);
+  assert.match(bg, /--pastel-underlay:#010b24;--echo-pastel-veil:0;/);
+  assert.throws(() => readFileSync(new URL('../public/doit/bg/echo-mobile-bg.webp', import.meta.url)), '옛 시안 바탕 그림 파일 삭제');
 });
 
 test('대표 「키랑 다 같이」: 윗줄 KEY 알약 — 금빛 열쇠 + KEY · 숫자·잔액·차감 0 · 누르면 이용 안내 KEY', () => {
@@ -92,19 +89,23 @@ test('Codex 4183640424 · 대표 「글은 완성」: 가입 안내·첫 질문 
   assert.ok(src('src/doit/components/feature/AgentConversation.tsx').includes('<p className="echo-rescue-lead">보기를 준비하지 못했어요. 직접 적거나 이번 질문을 넘길 수 있어요.</p>'));
 });
 
-test('Codex P2(4183198245): #131 모양 파일(brand-parity)의 판 = 흰 글자 4.5:1 이상(바탕 그림 가장 밝은 점 위 · 흐림 전 최악 경우) · ref-parity 는 #138 의 공통 유리 토큰', () => {
+// 2026-10-10 Flora: 바탕이 밝은 파스텔 그림 → 어두운 Flora 밤 들판으로 바뀌어 「가장 밝은 점」 기준을 다시 잡았다.
+// 실측(390×844 · 소프트웨어 그래픽 · 6장면): 바탕 밝기 99.9% 지점 0.0197(흰 글자 15.07:1). 검사는 그보다 밝은 Flora 「mid」(#0a2a7a, 0.031)를 최악 경우로 쓴다.
+test('Codex P2(4183198245): #131 모양 파일(brand-parity)의 판 = 흰 글자 4.5:1 이상(Flora 바탕 최악 경우 #0a2a7a 위) · 판은 Flora 유리(흰 6%)', () => {
   const css = src('src/doit/components/feature/brand-parity.css').replace(/\/\*[\s\S]*?\*\//g, '');
   const L = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
-  const bg = [247, 253, 183];
-  // 흰 막(rgb 255 255 255/…)은 청록 판 안의 입력 줄에만 쓴다(§7) — 판 위에 겹친 색이라 따로 재지 않고, 그 판 색을 잰다
-  const fills = [...css.matchAll(/background:rgb\((\d+) (\d+) (\d+)\/(\.\d+)\)!important/g)].map((m) => [[+m[1], +m[2], +m[3]], +m[4]]).filter(([c]) => c.join() !== '255,255,255');
-  assert.match(css, /\.echo-prep-panel :is\(input,textarea\)\{[^}]*background:rgb\(255 255 255\/\.10\)!important/, '흰 막은 판 안 입력 줄에만');
-  assert.equal((css.match(/background:rgb\(255 255 255\//g) ?? []).length, 1, '판 안 입력 줄뿐');
-  assert.ok(fills.length >= 1);
-  for (const [c, a] of fills) { const mix = c.map((v, i) => v * a + bg[i] * (1 - a)); const ratio = 1.05 / (L(mix) + 0.05); assert.ok(ratio >= 4.5, `rgb(${c}/${a}) = ${ratio.toFixed(2)}:1`); }
+  const bg = [10, 42, 122];
+  const fills = [...css.matchAll(/background:rgb\((\d+) (\d+) (\d+)\/(\.\d+)\)!important/g)].map((m) => [[+m[1], +m[2], +m[3]], +m[4]]);
+  assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(255 255 255\/\.06\)!important/, 'Flora 유리 판');
+  assert.match(css, /\.echo-prep-panel :is\(input,textarea\)\{[^}]*background:rgb\(255 255 255\/\.10\)!important/, '판 안 입력 줄');
+  assert.ok(fills.length >= 2);
+  // 입력 줄은 판 위에 겹친다 — 판을 먼저 섞고 그 위에 입력 줄을 섞은 최악 경우까지 잰다
+  const over = (base, [c, a]) => c.map((v, i) => v * a + base[i] * (1 - a));
+  const panel = over(bg, fills.find(([, a]) => a === 0.06));
+  for (const f of fills) for (const base of [bg, panel]) { const mix = over(base, f); const ratio = 1.05 / (L(mix) + 0.05); assert.ok(ratio >= 4.5, `rgb(${f[0]}/${f[1]}) = ${ratio.toFixed(2)}:1`); }
 });
 
-test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리 판(4.5:1) · 얇은 유리 입력 줄 · 입력 항목·글 그대로', () => {
+test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · Flora 유리 판(4.5:1) · 얇은 유리 입력 줄 · 입력 항목·글 그대로', () => {
   const pb = src('src/doit/app/plan-a/screens/ProfileBuild.tsx');
   assert.match(pb, /className="echo-prep flex flex-col min-h-screen"/);
   assert.equal((pb.match(/echo-prep-panel/g) ?? []).length, 3);
@@ -115,7 +116,7 @@ test('Codex 5993217604 ③: 프로필 준비 = 가운데 제목 · 청록 유리
   assert.match(src('src/doit/components/feature/TopBar.tsx'), /import "\.\/brand-parity\.css";/);
   assert.match(src('src/doit/pages/do-it/start-journey/page.tsx'), /ProfileBuild/);
   assert.match(css, /\.echo-prep \.echo-prep-head\{text-align:center\}/);
-  assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(14 60 70\/\.70\)!important/);
+  assert.match(css, /\.echo-prep \.echo-prep-panel\{background:rgb\(255 255 255\/\.06\)!important/); // 2026-10-10 Flora 유리(예전 청록 70%)
 });
 
 test('대표 「DO IT = 회사 · ECHO = 모바일 웹」: 윗줄 = D 심볼 + ECHO 글자(DO IT 글자 0) · 화면 제목은 화면 읽기용', () => {

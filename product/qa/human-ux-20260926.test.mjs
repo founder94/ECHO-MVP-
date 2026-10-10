@@ -62,23 +62,25 @@ test('숨김: Just Try·KEY·등급·공간·월드·방·알림·예전 A/B 흐
 });
 
 // 2026-09-28 「FINAL MASTER」 §13: 햄버거는 모든 제품 화면 공통 오른쪽 위 하나(AppCornerMenu) · 같은 불투명 파스텔 판 · 항목에 「앱 설치」.
-test('햄버거: 유리 판(검정 0) · 메뉴는 대화·나의 이해·앱 설치·설정', () => {
+// 2026-10-10 대표 「모바일웹 = Flora」: 메뉴 판 = Flora 밤 판(rgb(3 5 10/.95) · 불투명에 가깝게 · 뒤 글자 비침 0) + 얇은 선.
+test('햄버거: Flora 밤 판(뒤 글자 비침 0) · 메뉴는 대화·나의 이해·앱 설치·설정', () => {
   const top = read('src/doit/components/feature/TopBar.tsx');
   const menu = read('src/components/AppCornerMenu.tsx');
   const css = read('src/components/app-corner-menu.css');
   assert.match(menu, /createPortal\(/, "머리줄 흐림 밖으로 옮겨 그린다(겹친 흐림 방지)");
-  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\)/);
+  assert.match(css, /\.echo-corner-panel\{position:fixed;top:calc\(env\(safe-area-inset-top\) \+ 60px\);right:calc\(env\(safe-area-inset-right\) \+ 12px\);[^}]*background:rgb\(3 5 10\/\.95\)/);
   assert.doesNotMatch(top, /bg-background-50|hover:bg-background/);
   for (const t of ['ECHO와 이야기하기', '나의 이해', '앱 설치', '설정']) assert.ok(menu.includes(`label: '${t}'`), t);
   const ui = read('src/doit/components/feature/echo-ui.css');
   // 2026-09-26 「FINAL CLOSEOUT」 §1: 햄버거만 예외 — 불투명 그라데이션 · 흐림 0(뒤 글자 비침 0) · 글자 흰색만 · 2026-10-05 색은 새 시안의 연기빛 유리(불투명판)로(Codex PR #131 P2)
-  assert.match(ui, /\.doit-menu-panel\{background:linear-gradient\(165deg,#3b5862 0%,#2e434b 45%,#3f4250 100%\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
+  assert.match(ui, /\.doit-menu-panel\{background:rgb\(3 5 10\/\.95\);opacity:1;-webkit-backdrop-filter:none;backdrop-filter:none;/);
   assert.match(ui, /\.doit-menu-panel \*\{color:#fff!important;/);
 });
 
-test('ECHO UI 한 벌: 글꼴 주아체(Jua) 하나(2026-10-09) · 굵기 4단계(800/700/700/600 — 주아체는 400 하나라 font-synthesis:none 으로 가짜 굵기 0) · 가는 글자 0 · 흐린 글자 흰색 · 검정 채움 → 유리 · 누른 상태도 흰 막', () => {
+// 2026-10-10 대표: 한글 주아체 + 영어·숫자 Chakra Petch · 판 = Flora 유리(흰 6%) · 주요 버튼 글자 = Flora 잉크(#050b14) · 메뉴 판 = Flora 밤 판.
+test('ECHO UI 한 벌: 글꼴 Chakra Petch(영어·숫자) + 주아체(한글) · 굵기 4단계(800/700/700/600 — 주아체는 400 하나라 font-synthesis:none 으로 가짜 굵기 0) · 가는 글자 0 · 흐린 글자 흰색 · 검정 채움 → 유리 · 누른 상태도 흰 막', () => {
   const ui = read('src/doit/components/feature/echo-ui.css').replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.match(ui, /--echo-font:'Jua','Pretendard'/);
+  assert.match(ui, /--echo-font:'Chakra Petch','Jua','Pretendard'/);
   assert.match(ui, /:not\(i\)[^{]*\{font-family:var\(--echo-font\)!important;-webkit-text-stroke:0!important\}/);
   // 2026-10-09 주아체(400 하나): 요청 굵기도 400 으로 정합(Codex 15차 P2) — 500~800 요청 0.
   assert.match(ui, /font-weight:400!important/);
@@ -86,8 +88,9 @@ test('ECHO UI 한 벌: 글꼴 주아체(Jua) 하나(2026-10-09) · 굵기 4단�
   assert.match(ui, /\[class\*=" bg-background-"\][^{]*\{background-color:var\(--echo-glass\)!important/);
   assert.match(ui, /:not\(:disabled\):active\{background-color:var\(--echo-glass-press\)!important\}/);
   // 2026-10-04 대표 디자인 교체 · 2026-10-05 「사진 똑같이」 = 시안의 짙은 연기빛 유리 판(--echo-glass)과 흰 주요 버튼의 청록 글자(--echo-cta-ink)만 예외 — 검정·회색 0
-  assert.doesNotMatch(ui.replace('--echo-glass:rgb(30 42 48/.50)', '').replace('--echo-cta-ink:#0f4a4a', ''), /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정·짙은 색 0');
-  assert.match(ui, /--echo-glass:rgb\(30 42 48\/\.50\)/, '판 = 시안의 연기빛 유리(파스텔이 비침)');
+  assert.doesNotMatch(ui.replace('--echo-cta-ink:#050b14', ''), /#0[0-9a-f]{5}\b|#1[0-9a-f]{5}\b|rgb\(0 0 0|rgba\(0,\s*0,\s*0/i, '검정 채움 0(Flora 잉크 · 메뉴 밤 판만 예외)');
+  assert.match(ui, /--echo-glass:rgb\(255 255 255\/\.06\)/, '판 = Flora 유리(흰 6% · 바탕이 비침)');
+  assert.match(ui, /--echo-cta-ink:#050b14/);
   for (const f of ['src/doit/components/feature/core-conversation.css', 'src/doit/components/feature/app-pastel.css']) assert.match(read(f), /@import "\.\/echo-ui\.css";/, f);
   for (const f of ['src/pages/login/page.tsx', 'src/pages/signup/page.tsx', 'src/pages/legal/LegalDocument.tsx', 'src/pages/legal/consent/page.tsx']) assert.match(read(f), /doit-app-pastel/, `${f} 파스텔`);
   assert.doesNotMatch(read('src/doit/app/plan-a/screens/PhotoCapture.tsx'), /#242832|#11141a|rgba\(0,0,0,\.78\)|bg-black\/65|#090b10/, '사진 창 검정 0');

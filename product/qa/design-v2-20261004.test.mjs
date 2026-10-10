@@ -219,7 +219,7 @@ test('모바일 시안 7 선택 대기: 익명 두 노드 + 점선(움직임 0) 
   assert.match(Z, /export function WaitingMark\(\)/);
   assert.match(C, /\? <><WaitingMark \/><p className="doit-connect-note echo-waiting">/, '대기 후보에만');
   const css = read('src/doit/components/feature/zzarit.css');
-  assert.match(css, /\.echo-wait-link\{[^}]*border-top:2px dashed/);
+  assert.match(css, /\.echo-wait-link\{[^}]*border-top:1px dashed #bbfc9e/); // 2026-10-10 Flora: 연두 점선(1px)
   assert.doesNotMatch(css.match(/\.echo-wait[^{]*\{[^}]*\}/g).join(''), /animation/, '대기 표시는 움직임 0');
 });
 
@@ -238,10 +238,12 @@ test('모바일 시안 3 Agent 대화: 직전 내 답 = 오른쪽 말풍선 · �
   assert.ok(css.indexOf('.echo-bubble--me') > 0 && css.indexOf('.echo-bubble--me') < css.indexOf('/* ── 2026-09-24 대화 화면 파스텔 배경'), '파스텔 배경 규칙 구역 밖');
 });
 
-test('시작 흐름 공통 주요 버튼(PrimaryButton · .echo-primary-button)도 흰 바탕 + 깊은 청록 글자 · Codex PR #123', () => {
+test('시작 흐름 공통 주요 버튼(PrimaryButton · .echo-primary-button)도 흰 바탕 + 짙은 글자 · 누르면 Flora 연두 · Codex PR #123', () => {
   const ui = read('src/doit/components/feature/echo-ui.css');
+  // 2026-10-10 대표 「모바일웹 = Flora」: 흰 판 + 짙은 글자(--echo-cta-ink #050b14) · 누름 = Flora 연두(#bbfc9e)
   assert.match(ui, /\.echo-primary-button\{background:#fff!important;border:1px solid #fff!important;color:var\(--echo-cta-ink\)!important/);
-  assert.match(ui, /\.echo-primary-button:not\(:disabled\):active\{background:#e3f3f1!important\}/);
+  assert.match(ui, /\.echo-primary-button:not\(:disabled\):active\{background:#bbfc9e!important\}/);
+  assert.match(ui, /--echo-cta-ink:#050b14/);
   assert.doesNotMatch(ui, /\.echo-primary-button\{background:var\(--echo-glass-strong\)/, '예전 흰 막 주요 버튼 0');
 });
 
@@ -265,7 +267,15 @@ test('바닥글: ECHO · 회사 두 묶음 · 맨 아래 법적 고지(사업자
 });
 
 // 2026-10-09 대표 「ECHO 홈페이지·모바일 최종 디자인 수정 / 대표 승인」: 주아체(Jua) 전면 적용 + 흰 카드·흰 버튼 바탕 0(투명 구성) + 3D·효과 그대로.
-test('글꼴 = 주아체(Jua) 하나(400): 저장소 안 파일(OFL) · 홈페이지·앱 공통 선언 · 가짜 굵기 0 · 옛 글꼴 선언 0 · 구글 글꼴 링크 0', () => {
+// 2026-10-10 대표 「한글은 주아체, 영어·숫자만 Chakra Petch」(앱): 앱 화면은 'Chakra Petch','Jua' 순 — Chakra Petch 에 한글이 없어 한글은 저절로 주아체.
+//   홈페이지(잠금)·공통 index.css/tailwind 는 주아체 그대로.
+test('글꼴 = 한글 주아체(Jua 400) · 앱 영어·숫자 Chakra Petch(400/500): 저장소 안 파일(OFL) · 가짜 굵기 0 · 옛 글꼴 선언 0 · 구글 글꼴 링크 0', () => {
+  const cp = read('src/fonts/chakra-petch.css');
+  assert.equal((cp.match(/@font-face/g) ?? []).length, 2);
+  assert.match(cp, /unicode-range:[^;]*U\+0000-00FF/, '라틴 범위만(한글은 주아체로)');
+  assert.doesNotMatch(cp, /https?:\/\//, '외부 글꼴 CDN 0');
+  for (const f of ['LICENSE.txt', 'chakra-petch-latin-400-normal.woff2', 'chakra-petch-latin-500-normal.woff2']) assert.ok(existsSync(`public/fonts/chakra-petch/${f}`), f);
+  assert.match(read('src/doit/doit.css'), /^@import "\.\.\/fonts\/chakra-petch\.css";/m);
   const jua = read('src/fonts/jua.css');
   assert.ok((jua.match(/@font-face/g) ?? []).length >= 80, '유니코드 범위 조각 @font-face(한글 전부)');
   assert.match(jua, /font-family: 'Jua';\n\s*font-style: normal;\n\s*font-display: swap;\n\s*font-weight: 400;\n\s*src: url\('\/fonts\/jua\/jua-[\w-]+-400-normal\.woff2'\) format\('woff2'\);/);
@@ -284,9 +294,11 @@ test('글꼴 = 주아체(Jua) 하나(400): 저장소 안 파일(OFL) · 홈페�
   for (const f of ['src/doit/doit.css', 'src/doit/components/feature/doit-type.css', 'src/doit/components/feature/core-conversation.css', 'src/doit/components/feature/product-brand.css', 'src/doit/components/feature/asleep-connections.css', 'src/doit/app/plan-a/screens/saju.css', 'src/components/guide/guide.css', 'src/components/app-back-button.css', 'src/components/app-corner-menu.css']) {
     assert.doesNotMatch(strip(read(f)), /Gowun|Fraunces|Instrument Sans|Archivo Black|JetBrains Mono|Noto Serif KR|Gothic A1|Do Hyeon/, `${f}: 옛 글꼴 0`);
     assert.match(read(f), /Jua/, `${f}: Jua`);
+    // 이용 안내(guide.css)는 잠긴 홈페이지와 함께 쓰므로 주아체 그대로
+    if (f !== 'src/components/guide/guide.css') assert.doesNotMatch(strip(read(f)), /(?<!'Chakra Petch',)'Jua'/, `${f}: 앱 글꼴은 Chakra Petch 다음 Jua`);
   }
-  assert.match(read('src/doit/components/feature/echo-ui.css'), /--echo-font:'Jua','Pretendard'/, '파스텔 앱 화면(!important 한 벌) = Jua');
-  assert.match(read('src/doit/app/plan-a/theme.ts'), /export const serif = '"Jua", "Pretendard", system-ui, sans-serif';/, '플랜A 화면 인라인 글꼴 = Jua');
+  assert.match(read('src/doit/components/feature/echo-ui.css'), /--echo-font:'Chakra Petch','Jua','Pretendard'/, '앱 화면(!important 한 벌) = Chakra Petch + Jua');
+  assert.match(read('src/doit/app/plan-a/theme.ts'), /export const serif = '"Chakra Petch", "Jua", "Pretendard", system-ui, sans-serif';/, '플랜A 화면 인라인 글꼴 = Chakra Petch + Jua');
   assert.match(read('src/pages/do-it/fortune/cardArt.ts'), /export const SERIF = '"Jua", "Pretendard"/);
   for (const f of ['src/doit/app/plan-a/screens/LandingHero.tsx', 'src/doit/app/plan-a/components/PrimaryButton.tsx']) assert.doesNotMatch(read(f), /Do Hyeon/, f);
   for (const f of ['src/pages/do-it/photo/page.tsx', 'src/pages/do-it/grade/page.tsx', 'src/pages/do-it/hero/page.tsx']) assert.doesNotMatch(read(f), /Noto Serif KR|fontFamily: "'Pretendard'/, f);

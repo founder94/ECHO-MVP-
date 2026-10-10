@@ -1,32 +1,15 @@
-/* 찌릿(2026-10-04). .echo-zzarit 아래로만 — 전역·배경·다른 화면 0. 유리 판은 기존 .doit-mutual 그대로.
-   0~.15s 두 익명 노드 → .15~.9s 노드 사이 청록·흰색 전류 한 번(0.75초) → 연결선은 은은하게 남고 정지. 반복·빠른 번쩍임 0.
-   움직임은 opacity·transform 만. 움직임 줄이기 = 정적인 연결선 + 같은 문구. */
+/* 찌릿(2026-10-04) · 2026-10-10 대표 「모바일웹 = Flora · Lattice 효과」. .echo-zzarit 아래로만 — 전역·배경·다른 화면 0.
+   찌릿 화면: 위 글(찌릿! · 후킹 · 설명) / 가운데 Einstein–Rosen Lattice(src/doit/flora/LatticeStage.tsx · 자리 규칙은 flora-theme.css) / 아래 버튼.
+   예전 두 익명 노드 사이 청록·흰색 전류(0.75초)는 Lattice 로 바뀌어 지웠다(되돌리기 = echo-qa 6b3d381).
+   선택 대기(WaitingMark): 익명 노드 둘 + 점선(아직 이어지지 않음) · 움직임 0 · 상대 정보 0. */
 .echo-zzarit{position:relative;overflow:hidden;isolation:isolate;text-align:center;display:grid;justify-items:center;gap:0}
-.echo-zzarit-mark{position:relative;width:100%;max-width:280px;height:96px;margin:4px 0 16px;display:flex;align-items:center;justify-content:space-between}
-.echo-zzarit-node{flex:none;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;color:#fff;
-  background:radial-gradient(circle at 35% 30%,#ffffff66,#ffffff14 60%),rgb(12 74 82/.32);border:1.5px solid rgb(255 255 255/.7);box-shadow:0 0 0 6px rgb(255 255 255/.08),0 8px 24px rgb(4 40 48/.25)}
-.echo-zzarit-node svg{width:40px;height:40px;opacity:.92}
-.echo-zzarit-link{position:relative;flex:1;height:2px;margin:0 6px;background:rgb(255 255 255/.45);border-radius:2px;overflow:visible}
-.echo-zzarit-current{position:absolute;inset:-3px 0;border-radius:4px;transform-origin:left center;
-  background:linear-gradient(90deg,transparent,#7ff3e6 30%,#ffffff 50%,#7ff3e6 70%,transparent);filter:drop-shadow(0 0 6px #9ff7ee);
-  opacity:0;animation:echo-zz-current .75s cubic-bezier(.3,.6,.2,1) .15s both}
+.echo-zzarit-mark{position:relative;width:100%;display:flex;align-items:center;justify-content:space-between}
+.echo-zzarit-node{flex:none;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:rgb(255 255 255/.7);
+  background:rgb(255 255 255/.06);box-shadow:inset 0 0 0 1px rgb(255 255 255/.16)}
+.echo-zzarit-node svg{width:34px;height:34px;opacity:.92}
 .echo-zzarit-title{margin:0 0 6px}
 .echo-zzarit-cta{justify-self:stretch;scroll-margin-bottom:calc(112px + env(safe-area-inset-bottom))}
 /* 내 연결 안에서 열릴 때 카드 안의 카드(이중 판) 0 — 바깥 연결 판은 비우고 찌릿 판 하나만 */
 .doit-match[data-state="zzarit"]{background:none!important;border:0!important;padding:0!important;box-shadow:none!important}
-@keyframes echo-zz-current{0%{opacity:0;transform:scaleX(0)}35%{opacity:1}70%{opacity:1;transform:scaleX(1)}100%{opacity:.45;transform:scaleX(1)}}
-@media(prefers-reduced-motion:reduce){
-  .echo-zzarit-current{animation:none;opacity:.45;transform:none}
-}
-.echo-wait-mark{margin:8px auto 12px;height:84px;max-width:240px}
-.echo-wait-mark .echo-zzarit-node{width:64px;height:64px}
-.echo-wait-mark .echo-zzarit-node svg{width:34px;height:34px}
-.echo-wait-link{flex:1;height:0;margin:0 8px;border-top:2px dashed rgb(255 255 255/.55)}
-
-/* 2026-10-04 대표 「디자인 이미지들을 적재적소에 그냥 교체」: 찌릿·대기 그림 = 대표가 보낸 「모바일 최종 디자인 기준」 7·8번 그림(익명 유리 두 사람 · 상대 정보 0).
-   익명 노드는 같은 자리에 투명하게 남겨(배치·검사 그대로) 그림 위 사람 자리와 겹치게 하고, 전류(.echo-zzarit-current)는 그림 위로 한 번 지나간다. */
-.echo-zzarit-mark{max-width:320px;height:auto;aspect-ratio:266/170;margin:0 0 14px;padding:0 6%;border-radius:22px;background:url(/doit/art/zzarit-current.webp) center/cover no-repeat;-webkit-mask-image:radial-gradient(closest-side,#000 78%,transparent);mask-image:radial-gradient(closest-side,#000 78%,transparent)}
-.echo-zzarit-mark .echo-zzarit-node{opacity:0}
-.echo-zzarit-mark .echo-zzarit-link{background:transparent}
-.echo-wait-mark{max-width:300px;height:auto;aspect-ratio:262/170;margin:8px auto 12px;background-image:url(/doit/art/wait-avatars.webp)}
-.echo-wait-mark .echo-wait-link{border-top-color:transparent}
+.echo-wait-mark{max-width:300px;height:84px;margin:8px auto 12px}
+.echo-wait-link{flex:1;height:0;margin:0 8px;border-top:1px dashed #bbfc9e}
