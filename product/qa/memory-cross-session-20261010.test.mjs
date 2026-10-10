@@ -6,7 +6,7 @@ const mod = { exports: {} };
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../supabase/functions/doit-agent/history-retrieval.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { module: mod, exports: mod.exports, Date, JSON, String, Number, Object, Array, Set, Map, Error });
 const H = mod.exports;
 const U = 'user-1';
-const row = (id, at, goal, turns, slots, extra = {}) => ({ user_id: U, request_id: id, action: 'agent_session', status: 'applied', created_at: at, applied_revision: 1, response_payload: { state: { goal, turns, slots, ...extra } } });
+const row = (id, at, goal, turns, slots, extra = {}, updated = at) => ({ user_id: U, request_id: id, action: 'agent_session', status: 'applied', created_at: at, updated_at: updated, applied_revision: 1, response_payload: { state: { goal, turns, slots, ...extra } } });
 const said = (n, user) => ({ n, user, kind: 'answer' });
 const item = (turn, quote, status = 'CONFIRMED', source_type = 'USER_DIRECT', note = quote) => ({ turn, quote, note, status, source_type });
 const quotes = (r) => r.evidence.map((e) => e.quote);
@@ -81,4 +81,39 @@ test('Codex P1(4237121057): 뒤 대화에서 같은 칸의 해석을 바꿔 말�
   // 다른 칸은 그대로 찾는다(칸 계보만)
   const other = row('sess-p1c', '2026-09-02T00:00:00Z', 'friend', [said(1, '매일 산책을 해요')], { routine: { items: [item(1, '매일 산책을 해요')] } });
   assert.ok(quotes(H.recallRows([A3, other, later], U, '매일 산책', 'current', 'sess-p1b')).includes('매일 산책을 해요'));
+});
+
+// 2026-10-10 Codex 메모(6096082668) 최소 회귀 묶음: 늦은 정정 · 늦은 삭제 · 옛 지금 대화 · 읽지 못한 기록
+test('앞 대화에서 더 늦게 고친 값이 이긴다(대화 시작 시각이 아니라 확정 시각)', () => {
+  const Aold = row('sess-la', '2026-09-01T00:00:00Z', 'friend', [said(1, '저녁엔 산책을 해요'), said(2, '요즘은 저녁에 요가를 해요')], { evening: { items: [item(1, '저녁엔 산책을 해요', 'SUPERSEDED'), { ...item(2, '요즘은 저녁에 요가를 해요', 'CONFIRMED', 'USER_CORRECTED'), confirmed_at: '2026-10-08T00:00:00Z' }] } }, {}, '2026-10-08T00:00:00Z');
+  const Bmid = row('sess-lb', '2026-10-01T00:00:00Z', 'friend', [said(1, '저녁엔 헬스장에 가요')], { evening: { items: [{ ...item(1, '저녁엔 헬스장에 가요'), confirmed_at: '2026-10-01T00:00:00Z' }] } });
+  const C = row('sess-lc', '2026-10-09T00:00:00Z', 'friend', [said(1, '안녕하세요')], {});
+  const q = quotes(H.recallRows([Aold, Bmid, C], U, '저녁 요가 헬스장', 'current', 'sess-lc'));
+  assert.ok(q.includes('요즘은 저녁에 요가를 해요'), JSON.stringify(q));
+  assert.ok(!q.includes('저녁엔 헬스장에 가요'));
+});
+test('앞 대화에서 더 늦게 지운 말은 뒤 대화의 같은 말도 지금 값에서 뺀다(저장 시각)', () => {
+  const Adel = row('sess-da', '2026-09-01T00:00:00Z', 'friend', [said(1, '반가워요')], {}, { forgotten: ['헬스장'] }, '2026-10-08T00:00:00Z');
+  const Bmid = row('sess-db', '2026-10-01T00:00:00Z', 'friend', [said(1, '저녁엔 헬스장에 가요')], { evening: { items: [{ ...item(1, '저녁엔 헬스장에 가요'), confirmed_at: '2026-10-01T00:00:00Z' }] } });
+  const C = row('sess-dc', '2026-10-09T00:00:00Z', 'friend', [said(1, '안녕하세요')], {});
+  assert.ok(!quotes(H.recallRows([Adel, Bmid, C], U, '헬스장', 'current', 'sess-dc')).includes('저녁엔 헬스장에 가요'));
+});
+test('옛 대화를 지금 대화로 열어도 뒤 대화가 다시 확정한 칸은 뒤의 값만 지금 값', () => {
+  const Aold = row('sess-oa', '2026-09-01T00:00:00Z', 'friend', [said(1, '주말엔 등산을 가요')], { weekend: { items: [{ ...item(1, '주말엔 등산을 가요'), confirmed_at: '2026-09-01T00:00:00Z' }] } });
+  const Bnew = row('sess-ob', '2026-10-01T00:00:00Z', 'friend', [said(1, '주말엔 집에서 쉬어요')], { weekend: { items: [{ ...item(1, '주말엔 집에서 쉬어요', 'CONFIRMED', 'USER_CORRECTED'), confirmed_at: '2026-10-01T00:00:00Z' }] } });
+  const r = H.recallRows([Aold, Bnew], U, '주말', 'current', 'sess-oa');
+  assert.ok(quotes(r).includes('주말엔 집에서 쉬어요'), JSON.stringify(r));
+  assert.ok(!quotes(r).includes('주말엔 등산을 가요'));
+});
+test('지금 기억: 읽기 한도 밖에 기록이 남으면 「없음·전부 확인」이 아니라 일부만 확인(PARTIAL · complete=false)', async () => {
+  const cur = row('sess-now2', '2026-10-09T00:00:00Z', 'friend', [said(1, '안녕하세요')], {});
+  const filler = Array.from({ length: 520 }, (_, k) => row(`sess-f${k}`, new Date(Date.UTC(2026, 8, 1) + (k + 1) * 60000).toISOString(), 'romance', [said(1, '날씨가 좋네요')], {}));
+  const far = row('sess-far', '2026-08-01T00:00:00Z', 'friend', [said(1, '바닷가 마을에서 살고 싶어요')], { home: { items: [item(1, '바닷가 마을에서 살고 싶어요')] } });
+  const db = (rows) => ({ from: () => { const f = []; let asc = true; let rg = null; const c = { select: () => c, eq: (k, v) => { f.push((r) => r[k] === v); return c; }, order: (_k, o) => { asc = o?.ascending !== false; return c; }, range: (a, b) => { rg = [a, b]; return c; },
+    then: (res) => { let d = rows.filter((r) => f.every((x) => x(r))).sort((a, b) => (a.created_at < b.created_at ? -1 : 1) * (asc ? 1 : -1)); if (rg) d = d.slice(rg[0], rg[1] + 1); return Promise.resolve({ data: d, error: null }).then(res); } }; return c; } });
+  const r = await H.readRecall(db([cur, ...filler, far]), U, '바닷가 마을', 'current', 'sess-now2');
+  assert.equal(r.complete, false, JSON.stringify(r)); assert.equal(r.status, 'PARTIAL'); assert.equal(r.next, null);
+  // 한도 안이면 그대로 찾는다
+  const ok = await H.readRecall(db([cur, ...filler.slice(0, 10), far]), U, '바닷가 마을', 'current', 'sess-now2');
+  assert.ok(quotes(ok).includes('바닷가 마을에서 살고 싶어요')); assert.equal(ok.complete, true);
 });
