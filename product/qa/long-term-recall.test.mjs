@@ -77,3 +77,8 @@ test('Codex da55d9c P1: 차례 번호 없는 물린 해석(바꿔 말한 글)이
   assert.equal(JSON.stringify(H.recallRows([row(st)],U,'매운 음식','current','s1').evidence.map(e=>e.quote)),JSON.stringify(['매운 음식을 싫어해요']));
   assert.equal(JSON.stringify(H.allowedRecent(st,5).map(t=>t.user)),JSON.stringify(['매운 음식을 싫어해요']));
 });
+test('Codex 9차(bda0054) P1: 저번·그때·어제·아까로 묻는 지난 말도 기억 찾기 · 보통 물음은 아님',()=>{
+  for(const q of ['저번에 내가 뭐라고 했더라?','그때 제가 뭐라고 말했죠?','어제 내가 정한 목표가 뭐였지?','아까 제가 뭐라고 했죠?']) assert.equal(H.memoryQuestion(q),true,q);
+  for(const q of ['저번에 갔던 카페 좋았어요.','어제 뭐 했어요?','그때가 제일 좋았어요.','뭐든 잘 기억하는 사람이 좋아요']) assert.equal(H.memoryQuestion(q),false,q);
+  assert.equal(H.memoryIntent('저번에 내가 뭐라고 했더라?'),'history'); assert.equal(H.memoryIntent('아까 제가 뭐라고 했죠?'),'current');
+});
