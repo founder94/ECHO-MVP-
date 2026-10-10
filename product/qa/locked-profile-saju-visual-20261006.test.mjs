@@ -46,6 +46,17 @@ test('Codex P1: 화면 파일은 KEY 개수를 직접 쓰지 않는다(표시는
   }
 });
 
+test('Codex PR #157 1b953cc P2: KEY 화면 문구가 승인 값·사진 전체 막과 맞다(「아랫부분」·승인 뒤 「정하는 중」 0)', () => {
+  const k = read('src/doit/pages/do-it/key/page.tsx');
+  assert.ok(!k.includes('아랫부분') && !k.includes('아래까지'), '사진 전체 막과 어긋나는 문구 0');
+  assert.ok(k.includes('{UNLOCK_PRICES_APPROVED ? "준비 중이에요. 열리기 전까지 KEY를 쓰지 않아요. 추가 사진은 한 사람당 한 장을 맛보기로 볼 수 있어요." : '), '승인 뒤에는 「정하는 중」 0');
+  assert.ok(k.includes('상대의 추가 사진 1장을 선명하게(사진 전체가 살짝 흐리게 보여요)'));
+  for (const f of ['src/doit/components/feature/LockedProfileParts.tsx', 'src/doit/components/feature/ProfileAsOthersSee.tsx', 'src/doit/app/plan-a/screens/PhotoCapture.tsx', 'src/doit/pages/do-it/key/page.tsx']) {
+    const s = read(f).replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+    assert.ok(!/위쪽만|아랫부분|아래까지|위 65|아래 35/.test(s), f);
+  }
+});
+
 test('잠긴 조각: KEY 를 빼는 코드·서버 호출이 없다(준비 중 안내만)', () => {
   for (const f of ['src/doit/components/feature/LockedProfileParts.tsx', 'src/doit/components/feature/ProfileAsOthersSee.tsx']) {
     const s = read(f);
