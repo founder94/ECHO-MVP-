@@ -5,7 +5,7 @@ interface FPSOverlayProps {
   onComplete: () => void;
 }
 
-const CROSSHAIR_LINES = 4;
+
 const VACUUM_PARTICLE_COUNT = 120;
 
 interface Particle {

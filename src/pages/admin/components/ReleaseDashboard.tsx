@@ -12,7 +12,7 @@ const C = {
 };
 
 // ── DESIGN TEAM EDIT ZONE ─────────────────────────────
-const REFRESH_INTERVAL = 30000; // 30s
+ // 30s
 // ───────────────────────────────────────────────────────
 
 interface DeploymentInfo {

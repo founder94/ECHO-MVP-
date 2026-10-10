@@ -233,7 +233,7 @@ test('모바일 시안 8 찌릿: 연결 카드 안 이중 판 0 · 「다음 단
 test('모바일 시안 3 Agent 대화: 직전 내 답 = 오른쪽 말풍선 · 질문 = ECHO 말풍선 · 글은 서버가 준 그대로', () => {
   const A = read('src/doit/components/feature/AgentConversation.tsx');
   assert.match(A, /<p className="echo-bubble echo-bubble--me"><span className="echo-sr">내가 한 말: <\/span>\{myAnswers\.at\(-1\)\}<\/p>/);
-  assert.match(A, /<div className="echo-question-card echo-bubble--echo">\s*<p className="echo-question">\{question\}<\/p>/);
+  assert.match(A, /<div className="echo-question-card echo-bubble--echo">\s*<p className="echo-question"(?: data-testid="agent-question")?>\{question\}<\/p>/); // 2026-10-09 E2E 용 data-testid 허용(글은 서버가 준 그대로)
   const css = read('src/doit/components/feature/core-conversation.css');
   assert.ok(css.indexOf('.echo-bubble--me') > 0 && css.indexOf('.echo-bubble--me') < css.indexOf('/* ── 2026-09-24 대화 화면 파스텔 배경'), '파스텔 배경 규칙 구역 밖');
 });

@@ -93,7 +93,7 @@ export function denyInterpretation(t: string): RefCorrection | null {
   return null;
 }
 /** 영수증(고정 문장 · AI 0): 사주·카드보다 사용자 말이 먼저. */
-export const denyReceipt = (s: RefSeed, text: string) => `${s.kind === "card" ? "카드보다" : "사주보다"} 당신 말이 맞아요. 「${text}」${/[가-힣]$/.test(text) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) !== 8 ? "으로" : "로"} 기억할게요.`;
+export const denyReceipt = (s: RefSeed, text: string) => `${s.kind === "card" ? "카드보다" : "사주보다"} 당신 말이 맞아요. 「${text}」${/[가-힣]$/.test(text) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) && ((text.charCodeAt(text.length - 1) - 0xac00) % 28) !== 8 ? "으로" : "로"} 이해했어요.`; // 2026-10-09 저장 전이라 「기억할게요」 금지 — 남기는 건 [반영할게요] 뒤(agent_self_note)
 
 export const REF_SYSTEM = `너는 ECHO 야. 사용자가 사주나 타로 결과를 본 뒤 편하게 이야기하는 자리야. 다음 JSON 하나만 출력해. 다른 설명은 붙이지 마.
 {"reply": "1~3문장 · 사용자가 방금 한 말에 짧게 공감하거나 요약하거나 생각거리를 하나 건넨다", "question": "allow_question 이 true 일 때만 지금 이야기에 맞는 짧은 질문 한 문장 · 아니면 빈 문자열"}

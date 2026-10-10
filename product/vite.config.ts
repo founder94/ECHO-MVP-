@@ -1,14 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
-import { rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import AutoImport from "unplugin-auto-import/vite";
 import { brandOriginProblem } from "./scripts/brand-origin-guard.mjs";
-// import { readdyJsxRuntimeProxyPlugin } from "./vite.jsx-runtime-proxy";
 
 const base = process.env.BASE_PATH || "/";
 const isPreview = process.env.IS_PREVIEW ? true : false;
-//const proxyPlugins = isPreview ? [readdyJsxRuntimeProxyPlugin()] : [];
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, "");
@@ -120,11 +119,25 @@ export default defineConfig(({ mode }) => {
     },
     // 브랜드 빌드의 _redirects: 제품 경로는 서버에서 바로 앱 주소로 보낸다(화면 로드 전).
     writeBundle(options: { dir?: string }) {
+      if (options.dir) {
+        // Keep the common security policy in every role. Authorize only exact
+        // build-owned inline bootstrap bytes, never all inline JavaScript.
+        const builtHtml = readFileSync(resolve(options.dir, "index.html"), "utf8");
+        const hashes = [...builtHtml.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+          .filter((m) => m[1].trim())
+          .map((m) => `'sha256-${createHash("sha256").update(m[1]).digest("base64")}'`);
+        let headers = readFileSync(resolve(import.meta.dirname, "public/_headers"), "utf8");
+        if (hashes.length) headers = headers.replace("script-src 'self'", `script-src 'self' ${[...new Set(hashes)].join(" ")}`);
+        if (siteRole === "admin") {
+          headers = headers.replace(/Referrer-Policy: [^\n]+/, "Referrer-Policy: no-referrer")
+            .trimEnd() + "\n  X-Robots-Tag: noindex, nofollow\n  Cache-Control: no-store\n";
+        }
+        writeFileSync(resolve(options.dir, "_headers"), headers);
+      }
       // 관리자 빌드: 모든 경로 = 관리자 화면 하나 · 검색 제외 · 다른 사이트 안에 넣기 금지. 앱·브랜드용 공용 파일(설치 설정·앱 아이콘·브랜드 그림)은 빼낸다.
       if (siteRole === "admin" && options.dir) {
         for (const extra of ["manifest.webmanifest", "pwa", "brand"]) rmSync(resolve(options.dir, extra), { recursive: true, force: true });
         writeFileSync(resolve(options.dir, "_redirects"), "/*    /index.html   200\n");
-        writeFileSync(resolve(options.dir, "_headers"), ["/*", "  X-Frame-Options: DENY", "  X-Content-Type-Options: nosniff", "  Referrer-Policy: no-referrer", "  X-Robots-Tag: noindex, nofollow", "  Cache-Control: no-store", ""].join("\n"));
         return;
       }
       if (siteRole !== "brand" || !options.dir) return;
@@ -147,7 +160,6 @@ export default defineConfig(({ mode }) => {
     __READDY_AI_DOMAIN__: JSON.stringify(process.env.READDY_AI_DOMAIN || ""),
   },
   plugins: [
-    // ...proxyPlugins,
     siteRolePlugin,
     react(),
     AutoImport({

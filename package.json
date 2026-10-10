@@ -1,9 +1,7 @@
 {
   "dependencies": {
-    "@stripe/react-stripe-js": "4.0.2",
     "@supabase/supabase-js": "2.57.4",
     "@types/three": "0.169.0",
-    "firebase": "12.0.0",
     "gsap": "3.12.5",
     "i18next": "25.4.1",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -11,7 +9,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^15.6.0",
-    "react-router-dom": "^7.6.3",
+    "react-router-dom": "7.18.3",
     "recharts": "3.2.0",
     "three": "0.179.1"
   },
@@ -26,14 +24,14 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
     "jiti": "^2.6.1",
-    "postcss": "^8.5.6",
+    "postcss": "8.5.28",
     "source-map": "^0.7.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "unplugin-auto-import": "^19.3.0",
     "vite": "^8.0.1",
-    "vitest": "^3.2.7"
+    "vitest": "4.1.11"
   },
   "name": "react",
   "private": true,
@@ -43,8 +41,23 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
-    "test": "vitest run"
+    "test": "vitest run src",
+    "postinstall": "node tools/security/patch-braces.cjs .",
+    "prebuild": "node tools/security/patch-braces.cjs .",
+    "pretest": "node tools/security/patch-braces.cjs ."
   },
   "type": "module",
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "overrides": {
+    "brace-expansion@1": "1.1.21",
+    "brace-expansion@5": "5.0.12",
+    "braces": "3.0.3",
+    "browserslist": "4.28.7",
+    "js-yaml": "4.3.2",
+    "nanoid@3": "3.3.18",
+    "postcss": "$postcss",
+    "source-map-js": "1.2.2",
+    "baseline-browser-mapping": "2.11.0",
+    "postcss-selector-parser": "7.1.6"
+  }
 }

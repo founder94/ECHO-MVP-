@@ -19,8 +19,7 @@ const SHEET_URLS: Record<string, string> = {
   pentacles: "/doit/tarot/tarot-pentacles.webp",
 };
 
-const SERIF =
-  '"Noto Serif KR", "Nanum Myeongjo", Georgia, serif';
+
 
 // 스프라이트 시트에서 카드 한 장의 영역을 계산하는 준비된 헬퍼.
 // cols/rows는 해당 시트의 그리드 크기, col/row는 카드의 좌표(0-based).
@@ -34,16 +33,7 @@ export function spriteStyle(card: TarotCard): CSSProperties {
   };
 }
 
-function suitLabel(sheet: TarotCard["sheet"]) {
-  if (sheet === "majorA" || sheet === "majorB") {
-    return "MAJOR ARCANA";
-  }
 
-  if (sheet === "wands") return "WANDS";
-  if (sheet === "cups") return "CUPS";
-  if (sheet === "swords") return "SWORDS";
-  return "PENTACLES";
-}
 
 export function TarotCardBack({
   index = 0,

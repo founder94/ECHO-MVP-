@@ -63,13 +63,7 @@ function normalizePath(rawPath: string): string {
 }
 
 // UTM 정규화: 소문자, [a-z0-9_.-] 만, 길이 제한(128)
-function sanitizeUtm(value: string | null | undefined): string {
-  if (!value) return "";
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9_.-]/g, "")
-    .slice(0, 128);
-}
+
 
 type EventShape =
   | { kind: "click"; key: string }

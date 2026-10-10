@@ -1,6 +1,9 @@
 // ADMIN WEB 서버(admin-web) — 대표·운영자 전용 읽기 서버. 2026-09-28 대표 「ADMIN WEB FINAL BUILD ORDER」.
 // 보안: 화면 숨김이 아니라 여기서 막는다 — 로그인 토큰 진위(getUser) → profiles.role = 'admin' 확인(서비스 권한으로 다시 읽음) → 아니면 403, 자료 0.
 // 이 함수는 어떤 표에도 쓰지 않는다(insert·update·delete 0). 비밀값·키 값은 응답에 넣지 않는다.
+import { readJsonObject, RequestProblem } from "../_shared/read-json-limited.ts";
+import { browserOriginAllowed, browserCorsHeaders } from "../_shared/browser-cors.ts";
+import { durableRateDecision, makeLocalLimiter } from "../_shared/durable-rate-limit.ts";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { AGENT_VERSION, type AgentState } from "../doit-agent/agent.ts";
 import * as L from "./logic.ts";
@@ -10,17 +13,13 @@ type Json = Record<string, unknown>;
 export const ADMIN_WEB_VERSION = "admin-web-v1.0.0";
 const ACTIONS = new Set(["overview", "users", "sessions", "session", "safety", "sources"]);
 const BODY_MAX_BYTES = 8 * 1024;
+const adminRateLimited = makeLocalLimiter(10);
 const PAGE = 1000;
 const ROW_CAP = 20_000; // 한 번에 읽는 줄 상한(넘으면 truncated 로 알린다 — 숫자를 지어내지 않는다)
 
 const ALLOWED_ORIGINS = (Deno.env.get("ADMIN_ALLOWED_ORIGINS") ?? Deno.env.get("CORS_ALLOWED_ORIGINS") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const corsHeaders = (origin: string | null): Record<string, string> => ({
-  "Access-Control-Allow-Origin": origin && (ALLOWED_ORIGINS.includes(origin) || LOCAL.test(origin)) ? origin : ALLOWED_ORIGINS[0] ?? "null",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Vary": "Origin",
-});
+const corsHeaders = (origin: string | null): Record<string, string> => browserCorsHeaders(origin, ALLOWED_ORIGINS);
+
 const json = (data: unknown, status = 200, origin: string | null = null) =>
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders(origin), "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const fail = (code: string, message: string, status: number, origin: string | null) => json({ ok: false, code, message }, status, origin);
@@ -72,6 +71,7 @@ async function googleEnabled(url: string, anon: string): Promise<boolean | null>
 
 export async function handle(req: Request, env: { url: string; anon: string; service: string }, clients?: { user: Db; admin: Db }): Promise<Response> {
   const origin = req.headers.get("Origin");
+  if (!browserOriginAllowed(origin, ALLOWED_ORIGINS)) return fail("FORBIDDEN", "허용되지 않은 요청이에요.", 403, origin);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(origin) });
   if (req.method !== "POST") return fail("BAD_REQUEST", "잘못된 요청이에요.", 405, origin);
   if (Number(req.headers.get("content-length") ?? 0) > BODY_MAX_BYTES) return fail("TOO_LARGE", "요청이 너무 커요.", 413, origin);
@@ -86,8 +86,16 @@ export async function handle(req: Request, env: { url: string; anon: string; ser
   const { data: me, error: meError } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
   if (meError) return fail("ADMIN_CHECK_FAILED", "관리자 확인을 하지 못했어요.", 500, origin);
   if (!me || String((me as { role?: unknown }).role) !== "admin") return fail("FORBIDDEN", "관리자 권한이 없어요.", 403, origin);
+  const rate = await durableRateDecision(admin, user.id, "admin", Deno.env.get("ECHO_DURABLE_RATE_LIMIT_ENABLED") === "true");
+  if (rate === "unavailable") return fail("ERROR", "요청 제한을 확인하지 못했어요.", 503, origin);
+  if (rate === "limited" || (rate === "disabled" && adminRateLimited(user.id))) return fail("RATE_LIMITED", "잠시 후 다시 시도해 주세요.", 429, origin);
 
-  const body = (await req.json().catch(() => null)) as Json | null;
+  let body: Json;
+  try { body = await readJsonObject(req, BODY_MAX_BYTES); }
+  catch (error) {
+    if (error instanceof RequestProblem) return fail(error.code, error.message, error.status, origin);
+    return fail("BAD_REQUEST", "요청을 읽지 못했어요.", 400, origin);
+  }
   const action = typeof body?.action === "string" ? body.action : "";
   if (!ACTIONS.has(action)) return fail("BAD_REQUEST", "알 수 없는 요청이에요.", 400, origin);
   const period: L.Period = L.PERIODS.includes(body?.period as L.Period) ? body!.period as L.Period : "today";

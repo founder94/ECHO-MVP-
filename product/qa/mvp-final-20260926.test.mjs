@@ -6,12 +6,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { AGENT_DEP, AGENT_DEP_URL } from './agent-deps.mjs';
 
 const root = new URL('../', import.meta.url).pathname;
 const read = (p) => readFileSync(path.join(root, p), 'utf8');
 const walk = (d) => readdirSync(path.join(root, d)).flatMap((f) => { const p = `${d}/${f}`; return statSync(path.join(root, p)).isDirectory() ? walk(p) : /\.(tsx?|css)$/.test(f) ? [p] : []; });
 const load = async (rel, name) => {
-  const js = ts.transpileModule(read(rel), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const js = ts.transpileModule(read(rel), { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText.replace(AGENT_DEP, AGENT_DEP_URL);
   const file = path.join(mkdtempSync(path.join(tmpdir(), name)), `${name}.mjs`); writeFileSync(file, js); return import(pathToFileURL(file).href);
 };
 

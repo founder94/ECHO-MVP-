@@ -2,10 +2,7 @@ import {
   useCallback,
   useState,
 } from "react";
-import {
-  generateConversationStep,
-  type ConversationStep,
-} from "@/doit/lib/openai";
+import { generateConversationStep } from "@/doit/lib/openai";
 
 export type Reaction =
   | "agree"

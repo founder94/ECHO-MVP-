@@ -67,7 +67,10 @@ test('움직임은 Flora 바탕 캔버스 하나 · 움직임 줄이기면 멈�
   assert.match(fb, /if \(reduced\) field\.render\(/, '움직임 줄이기 = 한 장만 그림');
   assert.match(fb, /if \(!reduced\) raf = requestAnimationFrame\(frame\);/);
   assert.match(read('src/doit/flora/scene/device.ts'), /export const sceneShouldFreeze = \(tier: DeviceTier\): boolean =>\s*prefersReducedMotion\(\)/, '민들레도 움직임 줄이기면 다 자란 한 장');
-  assert.match(read('src/doit/flora/FloraBloom.tsx'), /if \(sceneShouldFreeze\(tier\)\) \{ scene\.settle\(\); return; \}/);
+  const bloom = read('src/doit/flora/FloraBloom.tsx');
+  assert.match(bloom, /frozen = sceneShouldFreeze\(tier\);/);
+  assert.match(bloom, /if \(frozen\) \{ scene\.settle\(\); return; \}/);
+  assert.match(bloom, /scene\.resize\(\); if \(frozen\) scene\.settle\(\);/, '멈춘 한 장도 크기가 바뀌면 다시 그림');
   assert.match(css, /@import "\.\/pastel-bg\.css";/, '대화 화면이 바탕 한 벌을 불러온다');
 });
 

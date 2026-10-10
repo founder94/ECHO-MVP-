@@ -77,7 +77,7 @@ export interface AgentIntro { status: 'ready' | 'failed' | 'none'; text: string;
 export interface AgentRescue { options: string[]; symbols?: string[]; show: boolean; fallback: boolean } // symbols = 서버가 고른 생활형 심볼(보기와 같은 순서 · 빈 칸이면 점)
 // 2026-10-06 대표 「기억 영수증」: receipt = 서버가 정정을 저장한 뒤에만 주는 고정 문장(화면이 먼저 확정하지 않는다 · AI 0) · cite = 정정 직후 다음 질문 앞에 붙은 인용(서버가 붙임)
 export interface AgentReceipt { line: string; before: string[]; after: string[] }
-export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: AgentReceipt | null; cite?: string | null }
+export interface AgentTurn { kind: string; reply: string; question: string | null; saved: boolean; finish: boolean; after: boolean; receipt?: AgentReceipt | null; cite?: string | null; memory?: AgentMemory }
 // 「ECHO가 아는 나」 네 칸(서버 knownView). sensitive = 민감 주제(건강·성·금전 등)라 화면이 글자를 다시 적지 않는다(지우기는 가능).
 export interface KnownLine { key: string; text: string; quote: string | null; purpose: string | null; at: string | null; sensitive: boolean; from: string[]; origin: string }
 export interface AgentKnown { confirmed: KnownLine[]; guesses: KnownLine[]; corrected: KnownLine[]; rejected: KnownLine[]; confirmed_at: string | null; forgotten: number }
@@ -231,6 +231,38 @@ export async function agentTurn(userId: string, sessionId: string, text: string,
 // 2026-10-01 「잘 모르겠어요」 = 구조 요청(답 아님 · 저장 0). 서버가 지금 질문의 보기를 정해 돌려준다(이미 있으면 AI 호출 0).
 // 2026-10-06 대표 「기억 영수증 · ECHO가 아는 나」(모델 호출 0 · 서버가 상태를 바꾸고 저장한 뒤 돌려준다).
 //   agentConfirm = 「맞아요」(지금 보이는 AI 정리를 사용자 확인으로) · agentForget = 줄 하나 지우기(서버가 다시 만들지 않음) · agentSelfNote = 사주·타로 이어 대화에서 「프로필에도 반영」한 자기 문장
+export interface AgentMemory { intent?: 'current' | 'history'; status: 'FOUND' | 'NOT_FOUND' | 'PARTIAL' | 'READ_FAILED'; complete: boolean; notice: string; next: { offset: number; match: number } | null; evidence: { source_id: string; session_id: string; revision: number; turn: number; quote: string; validity: 'CURRENT_CONFIRMED' | 'UNCONFIRMED' | 'HISTORICAL_ONLY'; matching_promotion: false }[] }
+export async function agentRecall(userId: string, query: string, intent: 'current' | 'history' = 'history', cursor?: AgentMemory['next']): Promise<{ memory: AgentMemory; reply: string }> {
+  const result = await serverFunctionRequest<{ memory: AgentMemory; reply: string }>('doit-agent', { action: 'agent_recall', query, intent, ...(cursor ? { cursor } : {}) }, userId);
+  const m = result.memory;
+  if (typeof result.reply !== 'string' || !m || !['FOUND', 'NOT_FOUND', 'PARTIAL', 'READ_FAILED'].includes(m.status)
+    || typeof m.complete !== 'boolean' || (m.notice != null && typeof m.notice !== 'string')
+    || !Array.isArray(m.evidence) || !m.evidence.every(item => !!item && typeof item.source_id === 'string'
+      && typeof item.session_id === 'string' && Number.isSafeInteger(item.revision) && item.revision >= 0
+      && Number.isSafeInteger(item.turn) && item.turn >= 0 && typeof item.quote === 'string'
+      && ['CURRENT_CONFIRMED', 'UNCONFIRMED', 'HISTORICAL_ONLY'].includes(item.validity) && item.matching_promotion === false)
+    || (m.next != null && (!Number.isSafeInteger(m.next.offset) || m.next.offset < 0 || !Number.isSafeInteger(m.next.match) || m.next.match < 0))) {
+    throw new Error('INVALID_RESPONSE');
+  }
+  return result;
+}
+// Existing PR149 preview imports: adapt to current QA APIs without reviving its old server actions.
+export interface MemoryLine { id: string; text: string; hidden: boolean; can_forget: boolean }
+export interface MemoryView { confirmed: MemoryLine[]; guessed: MemoryLine[]; corrected: MemoryLine[]; rejected: MemoryLine[] }
+function memoryView(known: AgentKnown | null): MemoryView | null {
+  if (!known) return null;
+  const lines = (v: KnownLine[], canForget: boolean) => v.map(l => ({ id: l.key, text: l.sensitive ? '' : l.text, hidden: l.sensitive, can_forget: canForget }));
+  return { confirmed: lines(known.confirmed, true), guessed: lines(known.guesses, true), corrected: lines(known.corrected, true), rejected: lines(known.rejected, false) };
+}
+export async function agentMemory(userId: string): Promise<MemoryView | null> { return memoryView((await agentHome(userId)).known); }
+export async function agentMemoryForget(userId: string, key: string): Promise<MemoryView> {
+  const r = await agentForget(userId, key, rememberedSession(userId)); const m = memoryView(r.known);
+  if (!m) throw new Error('INVALID_RESPONSE'); return m;
+}
+export type FreeStatus = FreeTalkStatus;
+export async function agentFree(userId: string, history: RefLine[], text: string): Promise<FreeReply & { blocked: string | null; crisis: boolean }> {
+  const r = await agentFreeTalk(userId, history, text); return { ...r, blocked: r.guard, crisis: r.guard === 'crisis' };
+}
 export async function agentConfirm(userId: string, sessionId: string): Promise<AgentSession> {
   const r = await write<{ session: AgentSession }>(userId, { action: 'agent_confirm', sessionId });
   if (!validSession(r.session)) throw new Error('INVALID_RESPONSE');

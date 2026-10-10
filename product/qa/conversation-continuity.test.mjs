@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import vm from 'node:vm';
+import { loadShared } from './shared-loader.mjs';
 
 const USER = '11111111-1111-4111-8111-111111111111';
 const uuid = () => globalThis.crypto.randomUUID();
@@ -78,7 +79,7 @@ function loadServer(ai, state) {
     exports: {}, console: { log: (line) => state.logs.push(String(line)), error: () => {} },
     setTimeout, clearTimeout, AbortController, TextEncoder, crypto: globalThis.crypto, Request, Response, Headers, URL,
     Deno: { env: { get: (k) => ({ OPENAI_API_KEY: 'k', OPENAI_MODEL: 'm', SUPABASE_URL: 'http://db', SUPABASE_ANON_KEY: 'a', SUPABASE_SERVICE_ROLE_KEY: 's' })[k] ?? '' }, serve: (h) => { handler = h; } },
-    require: (name) => { if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
+    require: (name) => { if (name.startsWith('../_shared/')) return loadShared(name); if (name.startsWith('npm:@supabase/supabase-js')) return { createClient: () => fakeDb(state) }; throw new Error(`Unexpected dependency ${name}`); },
     fetch: async (_url, init) => {
       const body = JSON.parse(init.body);
       const stage = stageOf(body.messages[0].content);

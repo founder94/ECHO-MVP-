@@ -1,0 +1,45 @@
+name: Isolated browser E2E
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            product/package-lock.json
+      - name: Install root tooling
+        run: npm ci --no-audit --no-fund
+      - name: Install product tooling
+        working-directory: product
+        run: npm ci --no-audit --no-fund
+      - name: Install Chromium
+        working-directory: product
+        run: npx playwright install --with-deps chromium
+      - name: Check test and fixture types
+        working-directory: product
+        run: npx tsc -p tsconfig.e2e.json
+      - name: Test isolated app, brand and admin
+        working-directory: product
+        run: npm run test:e2e:ci
+      - name: Preserve synthetic reports and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-e2e-${{ github.run_attempt }}
+          path: |
+            product/playwright-report/
+            product/test-results/
+          retention-days: 10
