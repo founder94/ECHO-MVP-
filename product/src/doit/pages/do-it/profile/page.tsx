@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MobileLayout from "@/doit/components/feature/MobileLayout";
 import DoItSymbol from "@/components/DoItSymbol";
+import ProfileAsOthersSee from "@/doit/components/feature/ProfileAsOthersSee";
 import ProfilePhotoGallery from "@/doit/components/feature/ProfilePhotoGallery";
 import { useAuth } from "@/doit/hooks/useAuth";
 import { loadProfile, saveNickname, type LoadedProfile } from "@/doit/lib/profileSave";
@@ -108,6 +109,7 @@ export default function Profile() {
           <p className="doit-product-description">연결되면 상대에게 보이는 나예요.</p>
         </div>
         <ProfilePhotoGallery userId={!authLoading ? user?.id ?? null : null} onManage={() => navigate("/doit/start-journey?edit=photos")} />
+        <ProfileAsOthersSee userId={!authLoading ? user?.id ?? null : null} />
         <div className="doit-profile-card" aria-live="polite">
           <div className="doit-profile-card-head"><span className="doit-product-kicker">DO IT · PROFILE</span><DoItSymbol decorative /></div>
           <h3 className="doit-profile-name">

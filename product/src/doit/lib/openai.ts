@@ -123,6 +123,19 @@ export async function generateConversationStep(
   throw new Error("잠시 후 다시 시도해 주세요.");
 }
 
+// 사주 「ECHO의 이야기」(2026-10-06 대표 「사람냄새나게」) — 화면이 계산한 결과 두 가지(나를 뜻하는 글자·다섯 기운 개수)만 보낸다(생년월일·시간·성별 0).
+// 실패하면 화면은 규칙 해설을 그대로 두고 「지금은 이야기를 만들지 못했어요」만 알린다(가짜 이야기 0 · 저장 0).
+export interface SajuStory { story: string; closing: string }
+
+export async function generateSajuStory(facts: import("./saju/storyFacts").SajuStoryFacts): Promise<SajuStory> {
+  const content = await invokeChat({ type: "saju_reading", facts });
+  const parsed = extractJson<SajuStory>(content);
+  if (parsed && typeof parsed.story === "string" && parsed.story.trim() && typeof parsed.closing === "string") {
+    return { story: parsed.story.trim(), closing: parsed.closing.trim() };
+  }
+  throw new Error("잠시 후 다시 시도해 주세요.");
+}
+
 export interface TarotInterpretation {
   summary: string;
   tags: string[];
@@ -164,4 +177,5 @@ export async function generateTarotInterpretation(
     const kind = tarotErrorKind(e instanceof UnderstandingError ? e.code : undefined);
     throw new TarotError(kind, TAROT_ERROR[kind]);
   }
+
 }
