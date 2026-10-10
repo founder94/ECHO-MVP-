@@ -11,6 +11,8 @@ import type { UploadPort, UploadReceipt } from "@/pages/do-it/photo/photoDrafts"
 export const PHOTO_BUCKET = "profile-photos";
 export const PHOTO_SLOT_COUNT = 6;
 export const SIGNED_URL_EXPIRY_SECONDS = 300;
+// 사진 1장(5MB 이하) 올리기의 시간 상한 — 끊긴 휴대폰 망에서 「저장 중」이 영원히 돌지 않게(넘으면 TIMEOUT → 화면의 다시 시도).
+export const UPLOAD_TIMEOUT_MS = 30_000;
 
 // UI(0~5) ↔ DB(1~6) 슬롯 변환. 의미 라벨을 DB 값으로 쓰지 않는다.
 export function slotToDb(slot: number): number {
@@ -73,6 +75,33 @@ export function buildStoragePath(
   return `${userId}/${slotToDb(slot)}/${captureId}.jpg`;
 }
 
+// Storage 에 사진 올리기 — 시간 상한 + 취소 신호.
+// 이 SDK 의 upload 옵션은 취소 신호(signal)를 받지 않는다 → 요청 자체는 못 끊고, 기다림만 끝낸다(늦게 온 응답은 버린다).
+async function uploadObject(path: string, blob: Blob, signal?: AbortSignal): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new PhotoStorageError("SUPABASE_UNAVAILABLE");
+  if (signal?.aborted) throw new PhotoStorageError("UPLOAD_FAILED", "aborted");
+  const work = supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+  let onAbort: (() => void) | undefined;
+  const cancelled = signal
+    ? new Promise<never>((_, reject) => {
+        onAbort = () => reject(new PhotoStorageError("UPLOAD_FAILED", "aborted"));
+        signal.addEventListener("abort", onAbort, { once: true });
+      })
+    : null;
+  try {
+    const { error } = await withTimeout(cancelled ? Promise.race([work, cancelled]) : work, UPLOAD_TIMEOUT_MS, "uploadPhoto");
+    if (error) throw new PhotoStorageError("UPLOAD_FAILED", error.message);
+  } catch (error) {
+    if (error instanceof TimeoutError) throw new PhotoStorageError("TIMEOUT");
+    throw error;
+  } finally {
+    if (signal && onAbort) signal.removeEventListener("abort", onAbort);
+  }
+}
+
 // signed URL 생성 — 만료되며 DB에 저장하지 않는다.
 export async function signedUrlFor(path: string): Promise<string> {
   const supabase = getSupabase();
@@ -107,18 +136,9 @@ export class SupabasePhotoAdapter implements UploadPort {
 
     const path = buildStoragePath(this.userId, input.slot, input.captureId);
 
-    // 1) private bucket 업로드
+    // 1) private bucket 업로드(시간 상한 · 취소 신호 반영)
+    await uploadObject(path, input.blob, input.signal);
     if (input.signal.aborted) throw new PhotoStorageError("UPLOAD_FAILED", "aborted");
-    const { error: uploadError } = await supabase.storage
-      .from(PHOTO_BUCKET)
-      .upload(path, input.blob, {
-        contentType: "image/jpeg",
-        upsert: false,
-      });
-    if (input.signal.aborted) throw new PhotoStorageError("UPLOAD_FAILED", "aborted");
-    if (uploadError) {
-      throw new PhotoStorageError("UPLOAD_FAILED", uploadError.message);
-    }
 
     // 2) DB upsert (user_id+slot 기준). id/created_at은 DB 기본값 사용.
     const { data, error: dbError } = await supabase
@@ -275,12 +295,7 @@ export async function replacePhoto(
 
   const path = buildStoragePath(userId, slot, captureId);
 
-  const { error: uploadError } = await supabase.storage
-    .from(PHOTO_BUCKET)
-    .upload(path, blob, { contentType: "image/jpeg", upsert: false });
-  if (uploadError) {
-    throw new PhotoStorageError("UPLOAD_FAILED", uploadError.message);
-  }
+  await uploadObject(path, blob);
 
   const { data, error: dbError } = await supabase
     .from("profile_photos")

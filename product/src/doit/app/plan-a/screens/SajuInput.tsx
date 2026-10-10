@@ -64,7 +64,7 @@ export function SajuInput({
 
   return (
     <div
-      className="flex min-h-screen flex-col"
+      className="flex echo-min-h-svh flex-col"
       style={{
         backgroundColor: surfaces.page,
       }}
@@ -510,7 +510,7 @@ export function SajuInput({
       </div>
 
       <div
-        className="flex flex-col gap-3 px-6 py-6"
+        className="flex flex-col gap-3 px-6 pt-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))]"
         style={{
           borderTop: `1px solid ${colors.border}`,
         }}

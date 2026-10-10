@@ -2,12 +2,26 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { consumeReturnPath } from '@/lib/auth/returnPath';
+import { supabase } from '@/lib/supabase/client';
 
 // Google OAuth 콜백: SDK가 이 주소에서 시작한 PKCE verifier로 인증 코드를 교환한다.
 // 이 화면은 세션이 생기면 안전한 내부 경로로 돌려보내고, 취소·실패면 명시적으로 알린다.
 type Phase = 'waiting' | 'failed';
 
 const SESSION_WAIT_MS = 8000;
+
+// 2026-10-10 갤럭시·아이폰 호환: 홈 화면 앱이 Google 로그인을 브라우저(사파리·삼성 인터넷)로 넘기면,
+// 로그인을 시작한 곳의 확인값(PKCE verifier)이 돌아온 곳에 없어 코드 교환이 아예 시작되지 않는다.
+// 이때는 8초를 기다려 막연한 실패를 보이는 대신, 무엇을 하면 되는지 바로 알린다.
+const OTHER_WINDOW_TEXT = '로그인을 시작한 창과 다른 창으로 돌아왔어요. 앱(또는 처음 연 브라우저)으로 돌아가 다시 「Google로 시작하기」를 눌러 주세요.';
+
+function authCodeInUrl(): boolean {
+  try {
+    return Boolean(new URLSearchParams(window.location.search).get('code'));
+  } catch {
+    return false;
+  }
+}
 
 function oauthErrorFromUrl(): string | null {
   try {
@@ -39,6 +53,31 @@ export default function AuthCallbackPage() {
       setMessage('로그인 상태를 확인하지 못했어요. 다시 시도해 주세요.');
     }, SESSION_WAIT_MS);
     return () => clearTimeout(timer);
+  }, []);
+
+  // 확인값이 없어 코드 교환을 못 한 경우를 가린다. 코드는 여기서 다시 교환하지 않는다(SDK 가 처음 열릴 때 한 번만 한다).
+  // SDK 첫 준비(initialize)가 끝난 뒤: 세션이 있으면 성공 흐름 그대로. 세션이 없는데 주소에 code 가 남아 있으면
+  //  - 오류 없이 끝남 = SDK 가 확인값을 못 찾아 교환을 건너뜀
+  //  - 오류 코드 pkce_code_verifier_not_found = 교환하려다 확인값이 없음
+  // 둘 다 「다른 창」 안내. 그 밖의 오류는 지금처럼 전체 제한시간이 처리한다.
+  useEffect(() => {
+    if (!authCodeInUrl()) return;
+    let cancelled = false;
+    (async () => {
+      const init = await supabase.auth.initialize();
+      const { data } = await supabase.auth.getSession();
+      if (cancelled || handledRef.current || data.session || !authCodeInUrl()) return;
+      if (!init.error || init.error.code === 'pkce_code_verifier_not_found') {
+        handledRef.current = true;
+        setPhase('failed');
+        setMessage(OTHER_WINDOW_TEXT);
+      }
+    })().catch(() => {
+      /* 확인 실패는 전체 제한시간이 안전망 */
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

@@ -38,6 +38,7 @@ import {
   fetchActivePurposes,
   needsReselection,
 } from "@/doit/lib/purposes";
+import { useStepHistory } from "@/hooks/useStepHistory";
 
 // A구조(DO IT) 진입 흐름 오케스트레이터 — 사주·타로를 끼워 넣지 않는 본 과정.
 // 목적 선택 → 로그인 → ECHO 대화(서버 스위치 ON이면 프로필 상태와 무관하게 먼저) → 프로필 입력 → 사진 6장 → 프로필 확인.
@@ -55,6 +56,8 @@ import {
 // 로그인 전에도 목적을 고르므로 목적 읽기는 로그인 여부와 무관하게 실행한다.
 
 type Step = "purpose" | "consent" | "conversation-choice" | "profile-build" | "photo" | "profile-review";
+const STEPS: readonly Step[] = ["purpose", "consent", "conversation-choice", "profile-build", "photo", "profile-review"];
+const isStep = (value: string): value is Step => (STEPS as readonly string[]).includes(value);
 
 // 저장 실패 시 사용자에게 보여줄 고정 문구. 기술 오류 원문·Supabase 오류·테이블명은 노출하지 않는다.
 const SAVE_ERROR_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -100,6 +103,8 @@ export default function StartJourney() {
   const [savedPurposeId, setSavedPurposeId] = useState<string | null>(null);
 
   const [step, setStep] = useState<Step>("purpose");
+  // 2026-10-10 기기 호환: 화면 안 버튼으로 넘어간 단계는 ?step= 기록을 쌓아 휴대폰 「뒤로」가 직전 단계로 간다(복원·로그아웃이 정한 단계는 첫 칸).
+  const goStep = useStepHistory<Step>(step, setStep, isStep);
   // 대화 상태를 읽은 뒤에만 선택 화면을 그린다. 읽기 실패를 "새 대화"로 해석하지 않는다.
   const [agentChoice, setAgentChoice] = useState<AgentChoiceState>({ kind: "loading" });
   const [agentRetry, setAgentRetry] = useState(0);
@@ -388,7 +393,7 @@ export default function StartJourney() {
         return;
       }
     }
-    setStep("consent");
+    goStep("consent");
   };
 
   const handleProfileNext = async (draft: ProfileDraft) => {
@@ -426,7 +431,7 @@ export default function StartJourney() {
       navigate("/login", { state: { from: `${START_JOURNEY_PATH}${edit === "profile" || edit === "photos" ? `?edit=${edit}` : ""}` } });
       return;
     }
-    setStep("photo");
+    goStep("photo");
   };
 
   // 읽기 실패 시 — 빈 입력 화면으로 진행하지 않고 오류 화면을 보여 재시도를 유도한다.
@@ -434,7 +439,7 @@ export default function StartJourney() {
   if (loadState.kind === "error") {
     return (
       <div
-        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
+        className="doit-app-pastel flex flex-col items-center justify-center echo-min-h-svh px-6 text-center"
       >
         <p
           style={{ fontSize: 22, fontWeight: 600, color: "#f2f1ef" }}
@@ -474,7 +479,7 @@ export default function StartJourney() {
   if (loadState.kind === "loading") {
     return (
       <div
-        className="doit-app-pastel flex flex-col items-center justify-center min-h-screen px-6 text-center"
+        className="doit-app-pastel flex flex-col items-center justify-center echo-min-h-svh px-6 text-center"
       >
         <SymbolLoader size={150} label="내 프로필을 가져오고 있어요." />
         {slow && (
@@ -550,7 +555,7 @@ export default function StartJourney() {
           if (user) {
             // 이미 로그인 → 동의 완료 후 프로필 입력으로 바로 진행(재로그인 강제 안 함).
             if (A_STRUCTURE_SERVER_ENABLED) navigate("/doit/conversation?from=journey");
-            else setStep("profile-build");
+            else goStep("profile-build");
           } else {
             // 미로그인 → 목적 draft 보존 + 로그인으로 이동. 복귀 후 step은 DB/draft 기준 복원된다.
             if (selectedPurpose) {
@@ -592,7 +597,7 @@ export default function StartJourney() {
     const introPending = talkDone && agentSession?.intro?.status === "ready" && !agentSession.intro.used;
     const answered = agentSession ? Math.max(agentSession.progress.asked - 1, 0) : 0;
     const goTalk = () => navigate("/doit/conversation?from=journey");
-    const goProfile = () => setStep("profile-build");
+    const goProfile = () => goStep("profile-build");
     const hasExistingProfile = Boolean(readyProfile && [readyProfile.nickname, readyProfile.intro, readyProfile.region, readyProfile.lifeRhythm].some((value) => value?.trim()));
     const viewOrBuildProfile = () => hasExistingProfile ? navigate("/doit/profile") : goProfile();
     // 2026-10-05 대표 실기기 「승인 시안과 다름」: 시안 1번처럼 유리 리본 · 가운데 제목 · 주요 버튼 하나
@@ -614,7 +619,8 @@ export default function StartJourney() {
     return (
       <div className="doit-app-pastel">
         {A_STRUCTURE_SERVER_ENABLED && (
-          <div style={{ padding: "16px 24px 0" }}>
+          // 2026-10-10 기기 호환: 화면 맨 위 줄 — 설치 앱 상단(safe-area) 아래로(일반 브라우저는 0 이라 그대로)
+          <div style={{ padding: "calc(16px + env(safe-area-inset-top, 0px)) 24px 0" }}>
             <button type="button" className="echo-text-button" onClick={() => navigate("/doit/conversation")}>
               ← 질문으로 돌아가기
             </button>
@@ -640,8 +646,8 @@ export default function StartJourney() {
     return (
       <div className="doit-app-pastel"><PhotoCapture
         userId={user?.id ?? null}
-        onNext={() => setStep("profile-review")}
-        onBack={() => setStep("profile-build")}
+        onNext={() => goStep("profile-review")}
+        onBack={() => goStep("profile-build")}
       /></div>
     );
   }
@@ -649,11 +655,11 @@ export default function StartJourney() {
   return (
     <div className="doit-app-pastel"><ProfileReview
       userId={user?.id ?? null}
-      onEditPhotos={() => setStep("photo")}
+      onEditPhotos={() => goStep("photo")}
       purposeLabel={selectedPurpose?.label}
       profile={profile ?? initialDraft ?? undefined}
       onNext={() => navigate("/doit/connections")}
-      onEditProfile={() => setStep("profile-build")}
+      onEditProfile={() => goStep("profile-build")}
     /></div>
   );
 }

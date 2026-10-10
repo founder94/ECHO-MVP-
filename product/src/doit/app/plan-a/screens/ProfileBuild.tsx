@@ -187,7 +187,7 @@ export function ProfileBuild({
 
   return (
     <div
-      className="echo-prep flex flex-col min-h-screen" // 2026-10-05 승인 시안 모양(brand-parity.css §7) · 글·입력 항목·순서 그대로
+      className="echo-prep flex flex-col echo-min-h-svh" // 2026-10-05 승인 시안 모양(brand-parity.css §7) · 글·입력 항목·순서 그대로
       style={{
         backgroundColor: surfaces.page,
       }}
@@ -541,7 +541,7 @@ export function ProfileBuild({
       </div>
 
       <div
-        className="px-6 py-6"
+        className="px-6 pt-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))]"
         style={{
           borderTop: `1px solid ${colors.border}`,
         }}

@@ -54,15 +54,37 @@ export default function FloraBackdrop() {
     const onResize = () => {
       if (coarse && window.innerWidth === width) return; // 주소창이 접히고 펴질 때(높이만 바뀜)는 다시 만들지 않는다
       width = window.innerWidth;
+      if (lost) return;
       field.resize();
       if (reduced) field.render(clock, 0, 0, 0, 0, 1);
     };
     window.addEventListener("resize", onResize);
     if (!reduced && !coarse) window.addEventListener("pointermove", onMove, { passive: true });
 
+    // GPU 가 문맥을 잃으면(저사양 기기 · 오래 뒤로 가 있던 앱) 캔버스를 숨겨 CSS 바탕만 남기고,
+    // 브라우저가 문맥을 돌려주면(webglcontextrestored) 같은 캔버스에 바탕을 다시 만든다.
+    let lost = false;
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      lost = true;
+      canvas.style.display = "none";
+    };
+    const onRestored = () => {
+      try {
+        field = new BackdropGradient({ canvas, tokens: FIELD, config: KINDLE });
+      } catch {
+        return; // 다시 만들지 못하면 CSS 바탕 그대로
+      }
+      lost = false;
+      canvas.style.display = "";
+      field.render(clock, body.x, body.y, 0, 0, 1);
+    };
+    canvas.addEventListener("webglcontextlost", onLost);
+    canvas.addEventListener("webglcontextrestored", onRestored);
+
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
-      if (document.hidden) { last = now; return; }
+      if (document.hidden || lost) { last = now; return; }
       if (budget > 0 && now - drawn < budget - 4) return;
       drawn = now;
       const ms = Math.min(Math.max(now - last, 4.167), 50);
@@ -81,6 +103,8 @@ export default function FloraBackdrop() {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
       field.dispose();
     };
   }, []);

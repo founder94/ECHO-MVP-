@@ -130,7 +130,7 @@ const CURRENT_FRAG = `
     gl_FragColor = vec4(uColor * a, a);
   }`;
 
-export function createStorm(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; layout?: "single" | "pair"; progress?: { max: number; seconds: number } }): FxHandle | null {
+export function createStorm(canvas: HTMLCanvasElement, host: HTMLElement, opts: { play: FxPlay; layout?: "single" | "pair"; progress?: { max: number; seconds: number }; onFail?: () => void }): FxHandle | null {
   const pair = opts.layout === "pair";
   return createHouse(canvas, host, {
     bgColor: CONFIG.bgColor, flameColor: CONFIG.flameColor, flameColor2: CONFIG.flameColor2, flameAmt: CONFIG.flameAmt,
@@ -221,5 +221,5 @@ export function createStorm(canvas: HTMLCanvasElement, host: HTMLElement, opts: 
         currentMat?.dispose();
       },
     };
-  }, { play: opts.play, progress: opts.progress, interactive: true });
+  }, { play: opts.play, progress: opts.progress, interactive: true, onFail: opts.onFail });
 }

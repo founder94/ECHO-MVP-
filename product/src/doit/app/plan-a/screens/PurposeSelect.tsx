@@ -78,13 +78,14 @@ export function PurposeSelect({
 
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="flex flex-col echo-min-h-svh"
       style={{
         backgroundColor: surfaces.page,
       }}
     >
       <div className="flex-1 overflow-y-auto">
-        <div className="px-6 pt-8 pb-4">
+        {/* 2026-10-10 기기 호환: 설치 앱(iPhone 상태 표시줄·Android 가장자리까지)에서 첫 줄이 상단에 가리지 않게 위 여백 + safe-area(일반 브라우저는 0) */}
+        <div className="px-6 pt-[calc(2rem+env(safe-area-inset-top,0px))] pb-4">
           {/* 2026-10-04 대표 「ECHO · 모바일 최종 디자인 기준」 1번(시작): ECHO 글자 + 유리 리본(대표가 보낸 모션 디자인 시안의 리본을 잘라 씀) */}
           <div className="echo-ref-hero" aria-hidden="true"><span className="echo-ref-wordmark">ECHO</span><FloraBloom /><DoItSymbol3D size={112} className="echo-ref-symbol" /></div>
           <motion.div
@@ -403,7 +404,7 @@ export function PurposeSelect({
       </div>
 
       <div
-        className="px-6 py-6 shrink-0"
+        className="px-6 pt-6 pb-[calc(24px+env(safe-area-inset-bottom,0px))] shrink-0"
         style={{
           borderTop: `1px solid ${colors.border}`,
         }}

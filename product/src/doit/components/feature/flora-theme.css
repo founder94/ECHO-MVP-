@@ -12,7 +12,9 @@
 
 /* ── 바탕 ───────────────────────────────────────── */
 .doit-root{font-synthesis:none;background:#010b24;--flora-night:#010b24;--flora-lime:#bbfc9e;--flora-ink:#050b14;--flora-strong:rgba(255,255,255,.92);--flora-body:rgba(255,255,255,.88);--flora-panel:rgba(255,255,255,.9);--flora-nav:rgba(255,255,255,.8);--flora-sub:rgba(255,255,255,.7);--flora-muted:rgba(255,255,255,.62);--flora-rule:rgba(255,255,255,.12);--flora-glass:rgba(255,255,255,.06);--flora-glass-subtle:rgba(255,255,255,.05);--flora-hair:inset 0 0 0 1px rgba(255,255,255,.1);--flora-hair-strong:inset 0 0 0 1px rgba(255,255,255,.12);--flora-hair-edge:inset 0 0 0 1px rgba(255,255,255,.16);--flora-hair-accent:inset 0 0 0 1px #bbfc9e}
-.doit-flora-backdrop{position:fixed;inset:0;width:100vw;height:100lvh;z-index:0;display:block;pointer-events:none;background:#010b24}
+.doit-flora-backdrop{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block;pointer-events:none;background:#010b24}
+/* 2026-10-10 기기 호환: lvh 를 모르는 브라우저(옛 Samsung Internet·iOS 15 이하)는 100vh — 같은 칸 두 줄은 빌드가 앞줄을 지워서 @supports 로 나눈다. */
+@supports (height:100lvh){.doit-flora-backdrop{height:100lvh}}
 .doit-flora-stage{position:relative;z-index:1;min-height:100dvh}
 :root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel){--pastel-underlay:transparent;background:transparent!important}
 :root:root:root :is(.doit-app-pastel,.echo-dialogue.echo-dialogue--pastel)::before,

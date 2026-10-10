@@ -116,6 +116,8 @@ function componentHarness(overrides = {}, { followup = true, server = true, pend
       savePendingSelf: (_userId, next) => { store.pending = next; },
       clearPendingSelf: () => { store.pending = null; },
     },
+    // 2026-10-10 적던 말 지키기(sessionStorage)는 qa/compat-layout-20261010.test.mjs 가 따로 본다 — 여기서는 아무것도 하지 않는 대역.
+    '@/hooks/useDraftPersist': { draftKey: (...parts) => parts.join(':'), useDraftPersist: () => () => undefined },
     './core-conversation.css': {},
   };
   const compiled = ts.transpileModule(source.replaceAll('import.meta.env.VITE_ECHO_FOLLOWUP_ENABLED', JSON.stringify(String(followup))), {

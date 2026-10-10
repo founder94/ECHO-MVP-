@@ -10,6 +10,7 @@ import { A_STRUCTURE_SERVER_ENABLED, UnderstandingError, prepareUnderstandingReq
 import { createCoreConversation, questionBodyOf, type CoreDraftLine, type CoreInsight, type CoreQuestion, type CoreRecentTurn, type CoreRecord } from '@/doit/lib/coreConversation';
 import { draftToIntro } from '@/doit/lib/introDraft';
 import { TOPICS, blockedContentMessage, blockedContentReason, informativeAnswer } from '@/doit/lib/conversationRules';
+import { draftKey, useDraftPersist } from '@/hooks/useDraftPersist';
 import './core-conversation.css';
 
 interface Props {
@@ -117,6 +118,8 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
   // v16 답으로 저장하지 않은 방금 말(되묻기·문제제기·AI 에게 한 질문·지친 말). 사용자가 「이 말은 답으로 남길게요」로 되돌릴 수 있다(빠져나갈 문).
   const [unsaved, setUnsaved] = useState<{ text: string; answered: string | null } | null>(null);
   const [synth, setSynth] = useState<SynthState>(SYNTH_IDLE);
+  // 2026-10-10 기기 호환: 적던 말 지키기(사진·다른 앱을 연 사이 Android 가 탭을 내려놓아도 돌아오면 그대로) — 이 탭 sessionStorage · 사용자+회차별 · 보내기에 성공하면 지운다.
+  const clearDraft = useDraftPersist(draftKey('core', userId, roundStartedAt), draft, saved => setDraft(prev => (prev.trim() ? prev : saved)));
   const lock = useRef(false);
   const alive = useRef(true);
   const questionVersion = useRef(0);
@@ -333,7 +336,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       freshRecord.current = record.id;
       noAutoFor.current = result.question ? null : record.id;
       questionVersion.current += 1;
-      setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); setFirstOverride(null);
+      setRecords(previous => [record, ...previous.filter(r => r.id !== record.id)]); setActiveId(record.id); setDraft(''); clearDraft(); setFirstOverride(null);
       // 다음 질문 기능을 끈 빌드(VITE_ECHO_FOLLOWUP_ENABLED)면 받은 질문도 보이지 않는다.
       setFollowupQuestion(FOLLOWUP_ENABLED ? result.question : null);
       setPendingCorrection(null); setPause(null);
@@ -343,7 +346,7 @@ export default function CoreConversation({ userId, onContinue, initialMessage, a
       return;
     }
     // 답이 아닌 말: 저장 0 · 다섯 칸 0. 입력창은 비우고, 사용자가 원하면 「이 말은 답으로 남길게요」로 되돌린다.
-    setDraft('');
+    setDraft(''); clearDraft();
     const showQuestion = (next: CoreQuestion) => { if (active && next.sourceRecordId === active.id) { questionVersion.current += 1; setFollowupQuestion(next); } else replaceShown(next.text); };
     if (result.kind === 'correction' && !result.again) {
       // "그 뜻 아니야"만 왔다: 서버가 그 AI 문장을 거절로 저장했다(result.rejected). 어떤 뜻이었는지 한 번만 묻는다.

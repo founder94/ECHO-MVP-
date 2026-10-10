@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { UnderstandingError } from '@/doit/lib/understandingApi';
+import { UnderstandingError, offlineAware } from '@/doit/lib/understandingApi';
 import { ANSWER_MAX, MESSAGE_MAX, REPORT_REASONS, fetchMyMatches, giveConnectConsent, leaveMatch, reportSubmission, sendMatchAnswer, sendMatchMessage, sendOutcome, type MatchOutcome, type MyMatch, type OutcomeField, type ReportReason } from '@/doit/lib/connectApi';
 import { claimZzarit } from '@/doit/lib/zzarit';
+import { fitTextarea, keepInputVisible } from '@/lib/keyboard';
 import ZzaritMoment from './ZzaritMoment';
 import './connect.css';
 import './connect-ref.css';
@@ -13,6 +14,8 @@ import MeetStep from './MeetStep';
 // 상대 정보는 서버가 조건을 확인한 뒤에만 내려 준다. 화면은 받은 것만 그린다.
 // v1.2: 첫 답이 공개의 방아쇠라, 처음 답하기 전에 무엇이 상대에게 보이는지 보여 주고 동의를 받는다(서버도 다시 확인).
 const REFRESH_MS = 30_000;
+// 앱·탭으로 돌아옴 · 인터넷 다시 연결 = 한 번 새로 읽기. 둘이 겹쳐 오거나(갤럭시·아이폰 복귀) 방금 읽었으면 건너뛴다.
+const RESUME_GAP_MS = 2_000;
 
 type Load = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; matches: MyMatch[]; consented: boolean };
 
@@ -25,18 +28,34 @@ export default function ConnectionMatches({ userId, focusId = null }: { userId: 
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [safetyNote, setSafetyNote] = useState<string | null>(null); // 서버가 저장했다고 답한 차단·신고만
   const seq = useRef(0);
+  const inFlight = useRef(false); // 읽는 중(돌아옴·다시 연결 때 겹친 요청 0)
+  const lastRun = useRef(0);
 
   const refresh = useCallback(async () => {
     const mine = ++seq.current;
+    inFlight.current = true;
+    lastRun.current = Date.now();
     try {
       const { matches, consented } = await fetchMyMatches(userId);
       if (mine === seq.current) setLoad({ kind: 'ready', matches, consented });
     } catch {
       if (mine !== seq.current) return;
-      // 불러오기 실패에 저장 실패 문구를 쓰지 않는다(2026-09-30 QA 브라우저 검사 20)
-      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: '연결 목록을 불러오지 못했어요. 다시 확인해 볼게요.' });
+      // 불러오기 실패에 저장 실패 문구를 쓰지 않는다(2026-09-30 QA 브라우저 검사 20) · 오프라인이면 연결 확인 안내
+      setLoad(prev => prev.kind === 'ready' ? prev : { kind: 'error', message: offlineAware('연결 목록을 불러오지 못했어요. 다시 확인해 볼게요.') });
+    } finally {
+      if (mine === seq.current) inFlight.current = false;
     }
   }, [userId]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState !== 'visible' || inFlight.current || Date.now() - lastRun.current < RESUME_GAP_MS) return;
+      void refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
+    return () => { document.removeEventListener('visibilitychange', resume); window.removeEventListener('online', resume); };
+  }, [refresh]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -52,7 +71,7 @@ export default function ConnectionMatches({ userId, focusId = null }: { userId: 
   const hasOpen = load.kind === 'ready' && load.matches.some(m => m.status === 'open');
   useEffect(() => {
     if (!hasOpen) return;
-    const timer = setInterval(() => { if (document.visibilityState === 'visible') void refresh(); }, REFRESH_MS);
+    const timer = setInterval(() => { if (document.visibilityState === 'visible' && !inFlight.current) void refresh(); }, REFRESH_MS);
     return () => clearInterval(timer);
   }, [hasOpen, refresh]);
 
@@ -83,6 +102,9 @@ interface MatchCardProps {
 
 function MatchCard({ focused, match, userId, consented, onConsented, onConsentLost, onChanged, onSafety }: MatchCardProps) {
   const [draft, setDraft] = useState('');
+  // 2026-10-10 기기 호환: field-sizing 을 모르는 브라우저(iOS Safari 등)에서도 이야기 입력줄이 글 높이에 맞게 늘고, 보낸 뒤 비면 다시 줄어든다.
+  const messageRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => { fitTextarea(messageRef.current); }, [draft]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<false | 'menu' | 'report'>(false);
@@ -147,7 +169,8 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
   const stage = !match.my_answer ? 'ask' : !match.revealed ? 'wait' : 'talk';
 
   // 휴대폰 글자판이 입력칸을 가리지 않게: 입력칸을 누르면 화면 가운데로 올린다(글자판이 뜬 뒤 한 번 더).
-  const keepVisible = (el: HTMLElement) => { el.scrollIntoView({ block: 'center' }); window.visualViewport?.addEventListener('resize', () => el.scrollIntoView({ block: 'center' }), { once: true }); };
+  // 2026-10-10 기기 호환: 예전 한 번 듣기({once:true})는 글자판이 안 뜨면 남아 있다가 나중에 사라진 칸을 움직였다 → 1초·초점 빠짐에 지워지는 keepInputVisible.
+  const keepVisible = keepInputVisible;
 
   if (zzarit) return <article id={`match-${match.id}`} tabIndex={-1} className="doit-match" data-state="zzarit">
     <ZzaritMoment onStart={() => setZzarit(false)} />
@@ -197,7 +220,7 @@ function MatchCard({ focused, match, userId, consented, onConsented, onConsentLo
       </ol>
       <form className="doit-connect-form doit-match-send" onSubmit={e => void submit(e, 'message')}>
         <label className="doit-connect-label" htmlFor={`message-${match.id}`}>이어서 이야기하기</label>
-        <textarea id={`message-${match.id}`} className="doit-connect-input" rows={1} placeholder="편하게 이야기해 주세요." onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
+        <textarea ref={messageRef} id={`message-${match.id}`} className="doit-connect-input" rows={1} placeholder="편하게 이야기해 주세요." onFocus={e => keepVisible(e.currentTarget)} maxLength={max} value={draft} onChange={e => { setDraft(e.target.value); if (error) setError(null); }} />
         <button className="doit-product-action" type="submit" disabled={busy || !draft.trim()}>{busy ? '보내는 중' : '보내기'}<span aria-hidden="true">↗</span></button>
       </form>
       <p className="doit-connect-note">연락처·링크는 보낼 수 없어요. 새 이야기는 잠시 뒤 저절로 보이고, 바로 보려면 「새로 보기」를 눌러 주세요.</p>

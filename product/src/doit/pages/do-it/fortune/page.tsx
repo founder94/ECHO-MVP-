@@ -10,6 +10,7 @@ import { readSelectedCard } from "@/doit/app/plan-a/screens/FreeResult.parts";
 import { setContentSeed } from "@/doit/lib/contentSeed";
 import "@/doit/components/feature/app-pastel.css";
 import "./fortune-space.css";
+import { useStepHistory } from "@/hooks/useStepHistory";
 
 // 사주·타로 — 햄버거 메뉴에서 진입하는 별도 무료 재미 기능.
 // A구조의 필수 과정(목적 → 프로필 → 공간)과 분리되어 있으며,
@@ -30,6 +31,7 @@ function FortuneSpace({ children }: { children: ReactNode }) {
 
 type Mode = "saju" | "taro";
 type Step = "entry" | "input" | "result";
+const isStep = (value: string): value is Step => value === "entry" || value === "input" || value === "result";
 
 export default function Fortune() {
   const navigate = useNavigate();
@@ -48,6 +50,8 @@ export default function Fortune() {
     setMode(deepMode);
     setStep("input");
   }
+  // 2026-10-10 기기 호환: 고르기 → 입력 → 결과를 화면 안 버튼으로 넘어가면 ?step= 기록을 쌓아, 휴대폰 「뒤로」가 직전 단계로 간다(첫 칸에서는 예전처럼 나감).
+  const goStep = useStepHistory<Step>(step, setStep, isStep);
   const [sajuInput, setSajuInput] = useState<SajuCalcInput | null>(null);
 
   const exitToHome = () => navigate("/doit/home");
@@ -57,11 +61,11 @@ export default function Fortune() {
       <FortuneSpace><SajuTaroEntry
         onSaju={() => {
           setMode("saju");
-          setStep("input");
+          goStep("input");
         }}
         onTaro={() => {
           setMode("taro");
-          setStep("input");
+          goStep("input");
         }}
       /></FortuneSpace>
     );
@@ -70,12 +74,12 @@ export default function Fortune() {
   if (step === "input") {
     if (mode === "saju") {
       return (
-        <FortuneSpace><SajuInput initial={sajuInput} onNext={(input) => { setSajuInput(input); setStep("result"); }} onSwitchToTaro={() => setMode("taro")} /></FortuneSpace>
+        <FortuneSpace><SajuInput initial={sajuInput} onNext={(input) => { setSajuInput(input); goStep("result"); }} onSwitchToTaro={() => setMode("taro")} /></FortuneSpace>
       );
     }
     return (
       <FortuneSpace><TaroCardSelect
-        onNext={() => setStep("result")}
+        onNext={() => goStep("result")}
         onSwitchToSaju={() => setMode("saju")}
       /></FortuneSpace>
     );
@@ -83,7 +87,7 @@ export default function Fortune() {
 
   if (mode === "saju" && sajuInput) {
     // 2026-09-26 대표 MASTER §13~§15: 결과 종류(세 갈래 중 하나)만 이야기 거리로 넘긴다 — 생년월일·시간·명식은 넘기지 않는다.
-    return <FortuneSpace><SajuResult input={sajuInput} onEdit={() => setStep("input")} onExit={exitToHome} onTalk={(key) => { setContentSeed({ source: "SAJU", key }); navigate("/doit/conversation"); }} /></FortuneSpace>;
+    return <FortuneSpace><SajuResult input={sajuInput} onEdit={() => goStep("input")} onExit={exitToHome} onTalk={(key) => { setContentSeed({ source: "SAJU", key }); navigate("/doit/conversation"); }} /></FortuneSpace>;
   }
 
   return (
