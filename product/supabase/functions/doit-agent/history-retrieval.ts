@@ -16,7 +16,12 @@ const direct = (i: Item) => ["USER_DIRECT", "USER_CORRECTED", "USER_CONFIRMED"].
 const CONTROL = new Set(["help", "fatigue", "repair", "skip", "unsure", "stop", "blocked"]);
 const PRIVATE = /https?:\/\/|[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:01[016789][ -]?\d{3,4}[ -]?\d{4})/i;
 export const memoryIntent = (text: string): "history" | "current" => /처음|최초|예전|당시|이전|과거/u.test(text) ? "history" : "current";
-export const memoryQuestion = (text: string) => /뭐|무엇|얼마|어떤|알려|[?？]/u.test(text) && /기억(?:해|하|나|한|하는|해요|하고)|(?:처음|최초|예전|이전|현재|지금).*(?:말했|말한|정한|목표|결정)/u.test(text);
+// 2026-10-10 Codex P1(4236595815): 「뭐든 잘 기억하는 사람이 좋아요」 같은 보통 답(선호)이 기억 찾기로 빠져 저장되지 않았다 →
+//   실제로 묻거나 청하는 꼴(물음표 · 묻는 끝말 · 알려/말해 줘)일 때만, 그리고 「기억하는 사람·친구」처럼 상대를 그리는 말은 빼고.
+const ASKING = /[?？]\s*$|(?:나요|까요|었나|였나|었지|였지|던가|더라|했지|인가요|인지)\s*[.!~]?\s*$|알려\s*(?:줘|주세요|줄래|줄\s*수)|말해\s*(?:줘|주세요|줄래)/u;
+const MEMORY_ASK = /기억(?:해|하|나|한|하는|해요|하고)|(?:처음|최초|예전|이전|현재|지금).*(?:말했|말한|정한|목표|결정)/u;
+const DESCRIBES_OTHER = /기억(?:을\s*잘\s*)?(?:하는|해\s*주는|해주는)\s*(?:사람|친구|분|상대|사이)/u;
+export const memoryQuestion = (text: string) => ASKING.test(text.trim()) && MEMORY_ASK.test(text) && !DESCRIBES_OTHER.test(text);
 function words(query: string) { return [...new Set(query.normalize("NFKC").toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])].map(w => w.replace(/(?:였나요|인가요|이었나요|했나요|였는지|이었는지|했는지|의|은|는|이|가|을|를)$/u, "")).filter(w => w.length >= 2); }
 function forgotten(st: State, turn: Turn) { return items(st).some(i => i.turn === turn.n && i.status === "FORGOTTEN") || (st.forgotten ?? []).some(t => has(turn.user, t)) || (st.forgotten_traits ?? []).some(t => has(turn.user, t)); }
 // 2026-10-09 Codex P1: AI 가 바꿔 말한 해석(원문의 글자 조각이 아님)을 사용자가 「아니에요」로 물리면 글자 비교(withheld)로는 못 가린다 → 그 턴에 물린·고쳐진 해석이 있고 확인된 사용자 직접 말이 없으면 원문 통째로 다시 쓰지 않는다.
@@ -35,9 +40,13 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
     if (intent === "current" && row.request_id !== currentId) continue;
     const all = items(st);
     for (const turn of st.turns) {
-      if (!num(turn.n) || !turn.user || CONTROL.has(turn.kind) || forgotten(st, turn) || PRIVATE.test(turn.user)) continue;
+      if (!num(turn.n) || !turn.user || CONTROL.has(turn.kind) || PRIVATE.test(turn.user)) continue;
       const linked = all.filter(i => i.turn === turn.n);
-      const userItems = linked.filter(i => direct(i) && typeof i.quote === "string" && i.quote.length);
+      // 2026-10-10 Codex P2(4236595819): 한 턴에서 여러 줄이 나왔을 때 한 줄만 지워도 턴 전체를 건너뛰었다 → 지운 줄(FORGOTTEN · 지운 글자와 겹치는 원문)만 빼고
+      //   아직 확인된 다른 줄은 찾는다. 줄로 나뉘지 않은 원문 통째 대신 쓰기는 그 턴에 지운 것이 있으면 하지 않는다(지운 말이 원문으로 되살아나지 않게).
+      const gone = (q: string) => [...(st.forgotten ?? []), ...(st.forgotten_traits ?? [])].some(t => has(q, t));
+      const userItems = linked.filter(i => direct(i) && i.status !== "FORGOTTEN" && typeof i.quote === "string" && i.quote.length && !gone(i.quote));
+      if (!userItems.length && forgotten(st, turn)) continue;
       if (intent === "current" && !userItems.length && deniedTurn(st, turn)) continue;
       const entries = userItems.length ? userItems.map(i => ({ i, quote: i.quote! })) : [{ i: null, quote: turn.fix_text || turn.user }];
       const seen = new Set<string>();

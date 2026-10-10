@@ -44,3 +44,20 @@ test('30 self notes do not silently discard earliest when next save requested',a
 test('paging signals unread rows and excess matches instead of complete/no memory',()=>{
  const r=session(state('a'));r.response_payload.state.turns=Array.from({length:9},(_,i)=>({n:i+1,user:'회사가치 목표 '+i,kind:'answer'}));r.response_payload.state.slots={};const one=H.recallRows([r],ID.user,'회사가치','history',r.request_id,{rowMore:true});assert.equal(one.status,'PARTIAL');assert.equal(one.complete,false);assert.equal(one.next.match,6);const two=H.recallRows([r],ID.user,'회사가치','history',r.request_id,{match:6,rowMore:true});assert.equal(two.evidence.length,3);assert.equal(two.next.offset,1);
 });
+// 2026-10-10 Codex P1(4236595815): 실제로 묻거나 청할 때만 기억 찾기 — 「기억하는 사람」 같은 선호 답은 보통 답으로 저장
+test('memoryQuestion: preference answers about remembering are ordinary answers, real asks are recall',()=>{
+ for(const t of ['뭐든 잘 기억하는 사람이 좋아요','어떤 이야기도 기억하는 사람이 편해요','작은 것도 기억해 주는 친구가 좋아요','기억하는 사람이 좋아요?']) assert.equal(H.memoryQuestion(t),false,t);
+ for(const t of ['처음 정한 회사 가치 목표가 얼마였나요?','내가 예전에 뭐라고 말했는지 기억해?','지금 정한 목표 알려 주세요','제가 처음에 말한 목표가 뭐였지']) assert.equal(H.memoryQuestion(t),true,t);
+});
+// 2026-10-10 Codex P2(4236595819): 한 턴의 여러 줄 중 한 줄만 지워도 나머지 확인된 줄은 찾는다 · 지운 줄은 0
+test('recallRows: deleting one line of a multi-fact turn keeps the other confirmed line findable',()=>{
+ const st={goal:'friend',turns:[{n:1,user:'저는 주말마다 등산을 다니고 고양이 두 마리를 키워요',kind:'answer'}],slots:{a:{items:[{turn:1,quote:'주말마다 등산을 다니고',note:'주말 등산',status:'FORGOTTEN',source_type:'USER_DIRECT'},{turn:1,quote:'고양이 두 마리를 키워요',note:'고양이 두 마리',status:'CONFIRMED',source_type:'USER_DIRECT'}]}},forgotten:['주말 등산']};
+ const row={user_id:'u1',request_id:'s1',action:'agent_session',status:'applied',created_at:'2026-10-10T00:00:00Z',applied_revision:3,response_payload:{state:st}};
+ for(const intent of ['current','history']){
+  const cat=H.recallRows([row],'u1','고양이',intent,'s1');assert.ok(cat.evidence.some(e=>e.quote==='고양이 두 마리를 키워요'),intent);
+  const hike=H.recallRows([row],'u1','등산',intent,'s1');assert.equal(hike.evidence.length,0,`${intent}: 지운 줄 0`);
+ }
+ // 줄로 나뉘지 않은 원문은 그 턴에 지운 것이 있으면 통째로 쓰지 않는다
+ const raw=structuredClone(row);raw.response_payload.state.slots.a.items=[{turn:1,quote:'주말마다 등산을 다니고',note:'주말 등산',status:'FORGOTTEN',source_type:'USER_DIRECT'}];
+ assert.equal(H.recallRows([raw],'u1','고양이','history','s1').evidence.length,0);
+});
