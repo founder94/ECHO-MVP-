@@ -6,13 +6,20 @@ import { readFileSync } from 'node:fs';
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 test('SceneHost: 장면 오류는 장면 칸 안에서 막고 정지 이미지로 바꾼다(전역 오류 화면으로 올리지 않음)', () => {
+  const b = read('src/vesper/views/home/scene/scene-boundary.tsx');
+  assert.match(b, /class SceneBoundary extends Component/);
+  assert.match(b, /getDerivedStateFromError\(\)\s*\{\s*return \{ failed: true \}/);
+  assert.match(b, /this\.state\.failed \? <SceneStill \/> : this\.props\.children/);
   const s = read('src/vesper/views/home/scene/scene-host.tsx');
-  assert.match(s, /class SceneBoundary extends Component/);
-  assert.match(s, /getDerivedStateFromError\(\)\s*\{\s*return \{ failed: true \}/);
-  assert.match(s, /this\.state\.failed \? <SceneStill \/> : this\.props\.children/);
   assert.match(s, /<SceneBoundary>\s*<SceneCanvasLazy \/>\s*<\/SceneBoundary>/, '페이지 스레드 장면은 경계 안에서만');
   assert.match(s, /canMainThreadRender \?/, 'WebGL 이 없으면 처음부터 정지 이미지');
   assert.match(s, /getContext\("webgl2"\) \?\? probe\.getContext\("webgl"\)/);
+});
+
+test('장면 청크(SceneHostLazy) 자체 실패도 장면 칸에서 막는다 — 경계는 청크 밖(scroll-stage)에서 감싼다', () => {
+  const st = read('src/vesper/views/home/scroll-stage.tsx');
+  assert.match(st, /<SceneBoundary>\s*<SceneHostLazy \/>\s*<\/SceneBoundary>/);
+  assert.match(st, /import \{ SceneBoundary \} from "\.\/scene\/scene-boundary"/);
 });
 
 test('전역 ErrorBoundary 는 그대로 둔다(다른 오류는 예전처럼 잡는다)', () => {

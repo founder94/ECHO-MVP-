@@ -38,6 +38,7 @@ import { useRobot } from "@vesper/components/common/robot-view";
 import { useWindowWidth } from "@vesper/hooks/use-window-size";
 import { MobileStage } from "./mobile-stage";
 
+import { SceneBoundary } from "./scene/scene-boundary";
 import { SceneHostLazy } from "./scene/scene-host-lazy";
 import { SceneStill } from "./scene/scene-still";
 
@@ -175,7 +176,14 @@ export const ScrollStage = ({ loader, faq, footer }: ScrollStageProps) => {
   // 장면 캔버스·로더는 한 벌(경계를 넘어 크기가 바뀌어도 다시 만들지 않음). 문서(트랙·글·카드)만 데스크톱/모바일로 나뉜다.
   return (
     <>
-      {robot ? <SceneStill /> : <SceneHostLazy />}
+      {robot ? (
+        <SceneStill />
+      ) : (
+        // 장면 청크(SceneHostLazy) 자체가 못 내려받혀도 장면 칸만 정지 이미지로(Codex P1 4236660589).
+        <SceneBoundary>
+          <SceneHostLazy />
+        </SceneBoundary>
+      )}
       {!robot && <Loader copy={loader} onReady={handleReady} />}
       {/* 2026-10-09 대표: Einstein–Rosen 격자는 첫 화면의 배경 효과(구슬 장면 위 · 글 아래). 장면과 같이 한 벌(경계 넘어도 재생성 0 · Codex 12차). */}
       {!robot && <HeroLattice />}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SceneViewport } from "@vesper/components/common/scene-viewport";
 import { subscribeToTicker } from "@vesper/lib/animation/ticker";
@@ -10,6 +10,7 @@ import { pageMotionPaused } from "@vesper/lib/scene/page-motion";
 import { sceneTimeline } from "@vesper/lib/scene/timeline";
 import { getStableViewportHeight } from "@vesper/utils/stable-viewport";
 import { getParams } from "./adaptive";
+import { SceneBoundary } from "./scene-boundary";
 import { SceneCanvasLazy } from "./scene-canvas-lazy";
 import { SceneStill } from "./scene-still";
 import type { SceneMessage, SceneReply } from "./scene-protocol";
@@ -50,15 +51,6 @@ const canUseWebGL = (): boolean => {
   }
 };
 
-class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? <SceneStill /> : this.props.children;
-  }
-}
 
 /**
  * The widest viewport (the tablet tier, `adaptive.ts`) whose scene renders in
