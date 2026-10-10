@@ -4,7 +4,12 @@ test.describe('J01 brand actual role', () => {
   test.use({ baseURL: 'http://127.0.0.1:4174', authMode: 'anonymous' });
   test('homepage mobile entry points to the separate app; guide is available', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('link', { name: /모바일로 시작하기/ }).first()).toHaveAttribute('href', 'http://127.0.0.1:4173/doit/start-journey');
+    // 2026-10-09 대표 승인 홈페이지(PR #151): 첫 화면은 제목만 · 시작 버튼 「모바일 시작하기」는 메뉴와 맨 아래 · 이용 안내는 맨 아래.
+    await page.getByRole('button', { name: 'Open menu', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: /모바일 시작하기/ })).toHaveAttribute('href', 'http://127.0.0.1:4173/doit/start-journey');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.getByRole('button', { name: '이용 안내', exact: true }).first().click();
     await expect(page.getByRole('dialog', { name: '이용 안내' })).toBeVisible();
     await page.keyboard.press('Escape');
