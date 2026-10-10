@@ -1,4 +1,5 @@
 import { MAIN_ENTRY_PATH } from '@/lib/echo/appMode';
+import { saveRoundtripValue, takeRoundtripValue } from '@/lib/auth/roundtripStorage';
 
 // 로그인 후 돌아갈 "안전한 내부 경로"만 허용한다.
 // - 반드시 '/'로 시작, '//'(외부 도메인 우회)·스킴(':')·역슬래시·공백 금지
@@ -21,21 +22,12 @@ export function sanitizeReturnPath(path: unknown): string {
   return isSafeInternalPath(path) ? path : defaultReturnPath();
 }
 
-// OAuth는 외부 페이지를 거쳐 돌아오므로 돌아갈 경로를 브라우저 임시값에 보관한다(개인정보 아님).
+// OAuth는 외부 페이지를 거쳐 돌아오므로 돌아갈 경로를 브라우저에 잠깐 보관한다(개인정보 아님).
+// 다른 탭·브라우저 창으로 돌아와도 읽히게 localStorage + 10분 만료(roundtripStorage). 꺼낼 때도 다시 걸러 낸다.
 export function rememberReturnPath(path: unknown): void {
-  try {
-    sessionStorage.setItem(RETURN_PATH_KEY, sanitizeReturnPath(path));
-  } catch {
-    /* 저장 불가 시 기본 경로 */
-  }
+  saveRoundtripValue(RETURN_PATH_KEY, sanitizeReturnPath(path));
 }
 
 export function consumeReturnPath(): string {
-  try {
-    const value = sessionStorage.getItem(RETURN_PATH_KEY);
-    sessionStorage.removeItem(RETURN_PATH_KEY);
-    return sanitizeReturnPath(value);
-  } catch {
-    return defaultReturnPath();
-  }
+  return sanitizeReturnPath(takeRoundtripValue(RETURN_PATH_KEY));
 }

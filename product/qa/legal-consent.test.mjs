@@ -15,10 +15,12 @@ function loadTs(rel, extra = {}) {
   const module = { exports: {} };
   const requireStub = (name) => {
     if (name === './documents' || name === '@/lib/legal/documents') return loadTs('src/lib/legal/documents.ts');
+    // 2026-10-10: Google 왕복 임시값은 localStorage + 10분 만료(roundtripStorage)로 옮겼다(qa/compat-auth-20261010.test.mjs).
+    if (name === '@/lib/auth/roundtripStorage') return loadTs('src/lib/auth/roundtripStorage.ts');
     if (name in extra) return extra[name];
     throw new Error('Unexpected dependency ' + name);
   };
-  vm.runInNewContext(js, { module, exports: module.exports, require: requireStub, sessionStorage: globalThis.sessionStorage, console }, { filename: rel });
+  vm.runInNewContext(js, { module, exports: module.exports, require: requireStub, sessionStorage: globalThis.sessionStorage, localStorage: globalThis.localStorage, Date, JSON, console }, { filename: rel });
   return module.exports;
 }
 
@@ -32,6 +34,7 @@ const gate = loadTs('src/lib/legal/gatePaths.ts');
 
 test('필수 3개(약관·개인정보·만19세)가 전부 켜져야 계속할 수 있다; 마케팅은 선택', () => {
   globalThis.sessionStorage = fakeSessionStorage();
+  globalThis.localStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   assert.equal(c.requiredAllChecked(c.EMPTY_CONSENT), false);
   assert.equal(c.requiredAllChecked({ terms: true, privacy: true, age19: false, marketing: true }), false);
@@ -45,6 +48,7 @@ test('필수 3개(약관·개인정보·만19세)가 전부 켜져야 계속할 
 
 test('동의 메타데이터는 문서 버전과 같은 버전을 쓰고 비밀값을 담지 않는다', () => {
   globalThis.sessionStorage = fakeSessionStorage();
+  globalThis.localStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   const meta = c.consentMetadata({ terms: true, privacy: true, age19: true, marketing: true }, new Date('2026-09-21T10:00:00Z'));
   assert.deepEqual(plain(meta), { consent_version: docs.LEGAL_VERSION, consented_at: '2026-09-21T10:00:00.000Z', marketing_opt_in: true });
@@ -56,6 +60,7 @@ test('동의 메타데이터는 문서 버전과 같은 버전을 쓰고 비밀�
 
 test('Google 이동 전 임시 보관 → 돌아온 뒤 한 번만 꺼내지고, 다른 버전은 버린다', () => {
   globalThis.sessionStorage = fakeSessionStorage();
+  globalThis.localStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   c.rememberPendingConsent({ terms: true, privacy: true, age19: true, marketing: false });
   const first = c.consumePendingConsent();
@@ -82,6 +87,7 @@ function fakeSupabase(state) {
 
 test('서버 동의 상태: 현재 버전=ok, 다른 버전/없음=required, 조회 실패=unknown(막지 않음)', async () => {
   globalThis.sessionStorage = fakeSessionStorage();
+  globalThis.localStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   assert.equal(await c.fetchConsentStatus(fakeSupabase({ row: { consent_version: c.CONSENT_VERSION } }).client, 'u1'), 'ok');
   assert.equal(await c.fetchConsentStatus(fakeSupabase({ row: { consent_version: 'v0.9' } }).client, 'u1'), 'required');
@@ -92,6 +98,7 @@ test('서버 동의 상태: 현재 버전=ok, 다른 버전/없음=required, 조
 
 test('동의 저장: 행이 있으면 update, 없으면 insert, 중복(23505)이면 update 재시도, 실패는 문구로 돌려준다', async () => {
   globalThis.sessionStorage = fakeSessionStorage();
+  globalThis.localStorage = fakeSessionStorage();
   const c = loadTs('src/lib/legal/consent.ts');
   const meta = c.consentMetadata({ terms: true, privacy: true, age19: true, marketing: true });
 

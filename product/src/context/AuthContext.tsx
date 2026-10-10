@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, type Session, type User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { rememberReturnPath } from '@/lib/auth/returnPath';
 import { forgetTarotReadings } from '@/doit/lib/agentApi';
@@ -90,6 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 여기서 하지 않고, getSession 결과만으로 즉시 loading을 해제한다.
   useEffect(() => {
     let mounted = true;
+    // 2026-10-10 갤럭시·아이폰 호환: 홈 화면 앱을 오래 두었다 다시 열 때 연결이 아직 안 돼 세션 갱신이 실패하면
+    // getSession 이 { session: null, 다시 시도할 수 있는 네트워크 오류 } 를 준다. 이것을 로그아웃으로 보지 않고
+    // 불러오는 중으로 둔 채 SDK 의 다음 알림(TOKEN_REFRESHED·SIGNED_IN·SIGNED_OUT)을 기다린다. 오류가 없으면 예전과 같다.
+    let waitingForNetwork = false;
 
     supabase.auth
       .getSession()
@@ -100,6 +104,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('[AuthContext] getSession 실패:', result.error.code ?? result.error.name ?? 'UnknownError');
         }
         const session = result?.data?.session ?? null;
+        if (!session && isAuthRetryableFetchError(result.error)) {
+          waitingForNetwork = true;
+          return;
+        }
         setSession(session);
         setUser(session?.user ?? null);
       })
@@ -109,10 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        if (mounted && !waitingForNetwork) setLoading(false);
       });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // 「처음 세션 없음」 알림은 위 getSession 결과와 같은 내용이다. 처음 상태는 getSession 이 정한다
+      // (먼저 도착해 네트워크 대기를 로그아웃으로 덮지 않게). 세션이 있는 처음 알림은 예전처럼 바로 반영한다.
+      if (event === 'INITIAL_SESSION' && !newSession) return;
+      waitingForNetwork = false;
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
@@ -123,8 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // 연결이 돌아오면 바로 한 번 더 확인한다(SDK 자동 갱신 주기를 기다리지 않게). 성공하면 TOKEN_REFRESHED 가 온다.
+    const retryWhenOnline = () => {
+      if (waitingForNetwork) supabase.auth.getSession().catch(() => {});
+    };
+    window.addEventListener('online', retryWhenOnline);
+
     return () => {
       mounted = false;
+      window.removeEventListener('online', retryWhenOnline);
       subscription?.subscription?.unsubscribe();
     };
   }, []);
