@@ -224,7 +224,7 @@ export interface FlowCell { label: string; sub: string; pillar: Pillar; stemGod:
 const cellOf = (dayStem: number, p: Pillar, label: string, sub: string): FlowCell =>
   ({ label, sub, pillar: p, stemGod: tenGodOf(dayStem, p.stem), branchGod: tenGodOfBranch(dayStem, p.branch), stage: twelveStageOf(dayStem, p.branch) });
 
-/** 연운: from 년부터 n해(나이는 한국식 세는 나이가 아니라 만 나이 = 해 - 태어난 해) */
+/** 연운: from 년부터 n해. 칸 나이 = 해 - 태어난 해 = 그해 생일이 지난 뒤의 만 나이(생일 전에는 한 살 적다 — 화면에 그렇게 적는다) */
 export function yearlyFlow(dayStem: number, birthYear: number, from: number, n = 10): FlowCell[] {
   const out: FlowCell[] = [];
   for (let yy = from; yy < from + n; yy++) out.push(cellOf(dayStem, pillarOf(yy - 4), String(yy), `${yy - birthYear}세`));
@@ -232,10 +232,13 @@ export function yearlyFlow(dayStem: number, birthYear: number, from: number, n =
 }
 
 /** 월운: 그 해 절기 달(寅월=양력 2월 무렵 ~ 丑월=다음 해 1월 무렵) 12개 */
-/** 오늘이 월운 칸 줄(monthlyFlow)의 몇 해·몇 번째 칸인지 — 1월은 앞 해 줄의 丑월(마지막 칸). 절입(달마다 4~8일 무렵) 전 며칠은 한 칸 차이 날 수 있음 */
+/** 오늘이 월운 칸 줄(monthlyFlow)의 몇 해·몇 번째 칸인지 — 원국 월주와 같은 절입 기준(태양 황경).
+ *  달 = 지금 황경이 지난 절(寅=입춘 315°부터 30°씩) · 해 = 그해 입춘 전이면 앞 해(입춘 전 1월·2월 초는 앞 해 줄의 丑월 칸). */
 export function monthFlowNow(now: Date): { year: number; index: number } {
-  const m = now.getMonth();
-  return { year: m === 0 ? now.getFullYear() - 1 : now.getFullYear(), index: (m + 11) % 12 };
+  const ms = now.getTime();
+  const index = Math.floor(mod(solarLongitude(jdFromMs(ms)) - 315, 360) / 30); // 0 = 寅월 … 11 = 丑월
+  const y = now.getUTCFullYear();
+  return { year: ms < lichunOf(y) ? y - 1 : y, index };
 }
 
 export function monthlyFlow(dayStem: number, year: number): FlowCell[] {
