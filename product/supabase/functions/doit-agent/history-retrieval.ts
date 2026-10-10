@@ -46,8 +46,11 @@ export function recallRows(rows: Row[], userId: string, query: string, intent: "
   const when = (r: Row) => time(r.created_at) ?? "";
   // 지운 줄은 원문(quote)까지, 물린 해석(RETRACTED·DISPUTED)은 AI 해석(note)만 — 같은 대화 안의 가림은 아래 withheld 가 이미 한다.
   const negatives = intent === "current" ? scope.flatMap(r => { const st = r.response_payload!.state!; return [...(st.forgotten ?? []), ...(st.forgotten_traits ?? []), ...(st.disputed ?? []), ...items(st).flatMap(i => i.status === "FORGOTTEN" ? [i.note ?? "", i.quote ?? ""] : i.status === "RETRACTED" || i.status === "DISPUTED" ? [i.note ?? ""] : [])].filter(Boolean).map(t => ({ t, at: when(r), from: r })); }) : [];
+  // 2026-10-10 Codex P1(4237121057): 뒤 대화에서 그 칸의 해석을 물렸으면(RETRACTED·DISPUTED) 바꿔 말한 글이라 글자가 안 겹쳐도
+  //   앞 대화의 같은 칸은 지금 값이 아니다(칸 계보로 판단). 다시 확정한 칸(CONFIRMED 직접 말)도 같은 방식 — 가장 뒤 대화의 칸만 지금 값.
   const latestSlot = new Map<string, string>();
-  if (intent === "current") for (const r of scope) for (const [key, slot] of Object.entries(r.response_payload!.state!.slots ?? {})) if ((slot.items ?? []).some(i => i.status === "CONFIRMED" && direct(i)) && when(r) > (latestSlot.get(key) ?? "")) latestSlot.set(key, when(r));
+  const settles = (i: Item) => (i.status === "CONFIRMED" && direct(i)) || i.status === "RETRACTED" || i.status === "DISPUTED";
+  if (intent === "current") for (const r of scope) for (const [key, slot] of Object.entries(r.response_payload!.state!.slots ?? {})) if ((slot.items ?? []).some(settles) && when(r) > (latestSlot.get(key) ?? "")) latestSlot.set(key, when(r));
   for (const row of scope) {
     const st = row.response_payload?.state;
     if (!st || !Array.isArray(st.turns) || !num(row.applied_revision)) throw new Error("MEMORY_RECORD");

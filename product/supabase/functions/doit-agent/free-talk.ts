@@ -70,7 +70,9 @@ const BANNED = /(데이팅|소개팅|궁합|점술|심리치료|성격검사)/;
 export interface FreeReply { reply: string }
 // 2026-10-10 Codex P2(4236681722): 「~를 기억해 두면 도움이 돼요」 같은 보통 조언까지 기억 주장으로 보아 502 가 났다 →
 //   ECHO 가 사용자의 지난 말을 기억한다고 주장하는 꼴(1인칭 · 「기억해요·기억하고 있어요·기억해 뒀어요·기억하기로는」)만.
-const PAST_CLAIM = /(?:전에|예전에|처음에|지난번|아까).{0,24}(?:말했|말씀|하셨|했었|정했|기억)|(?:제가|저는|내가|나는)\s*(?:\S+\s*){0,3}?기억(?:하고|해|하는|하던|나)|기억(?:하고\s*있|해요|해\s*뒀|해\s*두었|하기로는)|you (?:previously|earlier|once) (?:said|told)|I remember/i;
+// 2026-10-10 Codex P2(4237121062): 꾸밈 없는 「기억해요」는 「오늘 느낀 편안함을 기억해요」 같은 권유에도 쓰인다 → 빼고,
+//   사용자가 했던 말을 가리키는 기억(「말씀하신 … 기억해요」 · 「그 얘기 기억하고 있어요」)만. 「기억해 두면·두세요」 권유는 기억 주장 아님.
+const PAST_CLAIM = /(?:전에|예전에|처음에|지난번|아까).{0,24}(?:말했|말씀|하셨|했었|정했|기억)|(?:제가|저는|내가|나는)\s*(?:\S+\s*){0,3}?기억(?:하고|해|하는|하던|나)|(?:말씀|말하신|말한|말했|얘기|이야기|하신|하셨|했던|적어\s*주신|알려\s*주신).{0,20}기억(?:해|하고|나)(?!\s*(?:두면|두세요|두시면|두어|둬|보세요|보면|주세요))|기억(?:하고\s*있|해\s*뒀|해\s*두었|하기로는)|you (?:previously|earlier|once) (?:said|told)|I remember/i;
 export function parseFree(raw: string, known?: KnownView): FreeReply | null {
   const o = parseJson(raw) as Record<string, unknown> | null;
   const reply = (typeof o?.reply === "string" ? o.reply : "").trim();

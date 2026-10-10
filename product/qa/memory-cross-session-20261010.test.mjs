@@ -71,3 +71,14 @@ test('readRecall(지금): 최근 대화 50개를 읽고, 지금 대화가 그 �
   assert.equal((await H.readRecall(db([cur], true), U, '카페', 'current', 'sess-now')).status, 'READ_FAILED');
   assert.equal((await H.readRecall(db([cur]), U, '카페', 'current', null)).status, 'NOT_FOUND');
 });
+
+test('Codex P1(4237121057): 뒤 대화에서 같은 칸의 해석을 바꿔 말한 글로 물려도(글자 안 겹침) 앞 대화 값은 지금 값이 아님', () => {
+  const A3 = row('sess-p1a', '2026-09-01T00:00:00Z', 'friend', [said(1, '매일 연락하는 게 좋아요')], { contact: { items: [item(1, '매일 연락하는 게 좋아요')] } });
+  const later = row('sess-p1b', '2026-09-30T00:00:00Z', 'friend', [said(1, '그건 좀 달라요')], { contact: { items: [item(1, '그건 좀 달라요', 'DISPUTED', 'AI_EXTRACTED', '매일 연락을 자주 주고받는 관계가 편하다')] } });
+  const r = H.recallRows([A3, later], U, '매일 연락', 'current', 'sess-p1b');
+  assert.ok(!quotes(r).includes('매일 연락하는 게 좋아요'), JSON.stringify(r));
+  assert.ok(quotes(H.recallRows([A3, later], U, '매일 연락', 'history', 'sess-p1b')).includes('매일 연락하는 게 좋아요'), '지난 기록으로는 남음');
+  // 다른 칸은 그대로 찾는다(칸 계보만)
+  const other = row('sess-p1c', '2026-09-02T00:00:00Z', 'friend', [said(1, '매일 산책을 해요')], { routine: { items: [item(1, '매일 산책을 해요')] } });
+  assert.ok(quotes(H.recallRows([A3, other, later], U, '매일 산책', 'current', 'sess-p1b')).includes('매일 산책을 해요'));
+});
