@@ -23,15 +23,20 @@ create policy doit_stories_owner_rw on public.doit_stories for all to authentica
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 
 -- 3) 누가 무엇을 열었는지(같은 것을 두 번 사지 않게 · 탈퇴 시 함께 삭제).
+-- 기본 키에 photo_slot 을 넣으면 PostgreSQL 이 그 칸을 NOT NULL 로 만들어 스토리(칸 없음)를 못 넣는다(Codex PR #141 09be174).
+-- → 줄마다 id 를 키로 두고, 「같은 것을 두 번」은 종류별 부분 고유 색인으로 막는다.
 create table if not exists public.doit_unlocks (
+  id uuid primary key default gen_random_uuid(),
   viewer_id uuid not null references auth.users(id) on delete cascade,
   owner_id uuid not null references auth.users(id) on delete cascade,
   kind text not null check (kind in ('story','extra_photo')),
   photo_slot int,
   request_id uuid not null unique,
   created_at timestamptz not null default now(),
-  primary key (viewer_id, owner_id, kind, photo_slot)
+  check ((kind = 'story' and photo_slot is null) or (kind = 'extra_photo' and photo_slot is not null))
 );
+create unique index if not exists doit_unlocks_story_once on public.doit_unlocks (viewer_id, owner_id) where kind = 'story';
+create unique index if not exists doit_unlocks_photo_once on public.doit_unlocks (viewer_id, owner_id, photo_slot) where kind = 'extra_photo';
 alter table public.doit_unlocks enable row level security;
 revoke all on public.doit_unlocks from anon, authenticated; -- 서버 함수만 쓴다
 

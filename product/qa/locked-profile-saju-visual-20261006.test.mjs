@@ -65,6 +65,13 @@ test('2단계 DB 초안은 drafts 에만(PENDING) · migrations 에 없다', () 
   assert.ok(!/extra_photos_story_keys/.test(mig));
   const sql = read('supabase/drafts/PENDING_20261006_extra_photos_story_keys.sql');
   assert.ok(sql.includes("('story_unlock', 30") && sql.includes("('extra_photo_unlock', 20"), '앱 값과 같다');
+  // Codex PR #141 09be174: 기본 키에 photo_slot 을 넣으면 NOT NULL 이 되어 스토리(칸 없음)를 못 넣는다 → 줄 id 키 + 종류별 부분 고유 색인
+  const unlocks = sql.slice(sql.indexOf('create table if not exists public.doit_unlocks'));
+  assert.doesNotMatch(unlocks.slice(0, unlocks.indexOf(');')), /primary key \(/, '복합 기본 키 0');
+  assert.match(unlocks, /id uuid primary key default gen_random_uuid\(\)/);
+  assert.match(unlocks, /check \(\(kind = 'story' and photo_slot is null\) or \(kind = 'extra_photo' and photo_slot is not null\)\)/);
+  assert.match(unlocks, /create unique index if not exists doit_unlocks_story_once on public\.doit_unlocks \(viewer_id, owner_id\) where kind = 'story';/);
+  assert.match(unlocks, /create unique index if not exists doit_unlocks_photo_once on public\.doit_unlocks \(viewer_id, owner_id, photo_slot\) where kind = 'extra_photo';/);
 });
 
 test('사주 결과: 기운 색 타일 · 다섯 기운 바퀴 · 장 번호 · 금지어 0', () => {
