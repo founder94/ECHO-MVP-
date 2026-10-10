@@ -126,7 +126,7 @@ jobs:
             if [ "$T" = qa ]; then [ "$(c zyyhhxyupizcqhxqnxuu dist/$r)" = 0 ] || { echo "FAIL $r QA 빌드에 운영 Supabase"; fail=1; }
             else [ "$(c mutniujeiyujhkobadkd dist/$r)" = 0 ] && [ "$(c netlify.app dist/$r)" = 0 ] || { echo "FAIL $r 운영 빌드에 QA 주소"; fail=1; }; fi
           done
-          if [ "$T" = qa ]; then [ -f dist/brand/spa.html ] && [ -f dist/brand/how/index.html ] && [ -f dist/brand/echo/index.html ] && grep -q 'spa.html' dist/brand/_redirects || { echo "FAIL QA 브랜드 홈페이지 얹기"; fail=1; }; fi
+          if [ "$T" = qa ]; then [ -f dist/brand/spa.html ] && [ -f dist/brand/how/index.html ] && [ -f dist/brand/echo/index.html ] && grep -q 'spa.html' dist/brand/_redirects && grep -q "worker-src 'self' blob:" dist/brand/_headers || { echo "FAIL QA 브랜드 홈페이지 얹기"; fail=1; }; fi
           [ "$(c doit-connect dist/brand)" = 0 ] && [ "$(c DoitApp dist/brand)" = 0 ] && [ "$(c admin-web dist/brand)" = 0 ] || { echo "FAIL 브랜드에 앱·관리자 코드"; fail=1; }
           [ "$(c admin-web dist/app)" = 0 ] || { echo "FAIL 앱에 관리자 코드"; fail=1; }
           [ "$(c DoitApp dist/admin)" = 0 ] && grep -q noindex dist/admin/index.html || { echo "FAIL 관리자 분리/검색 제외"; fail=1; }

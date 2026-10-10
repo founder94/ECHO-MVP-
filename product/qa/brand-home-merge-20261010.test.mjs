@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mergeBrandHome, mergeRedirects } from '../scripts/merge-brand-home.mjs';
+import { mergeBrandHome, mergeRedirects, relaxCspForHome } from '../scripts/merge-brand-home.mjs';
 
 const root = new URL('../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
@@ -68,4 +68,20 @@ test('홈페이지 앱 주소: 빌드 값이 있으면 QA 기본 주소가 묶�
   const src = read('prototypes/doit-echo-link/src/shared/echo-app.ts');
   assert.match(src, /FROM_BUILD \? FROM_BUILD\.replace\(\/\\\/\+\$\/, ""\) : DEFAULT_APP/);
   assert.doesNotMatch(src, /\|\| DEFAULT_APP/);
+});
+
+test('CSP: 홈페이지 Draco 풀기에 필요한 두 가지만 더함(worker blob · wasm) — 나머지 정책·글자 eval 금지 그대로', () => {
+  const real = read('product/public/_headers');
+  const out = relaxCspForHome(real);
+  const csp = out.match(/Content-Security-Policy:\s*(.*)/)[1];
+  assert.match(csp, /script-src 'self' https:\/\/www\.youtube\.com https:\/\/s\.ytimg\.com 'wasm-unsafe-eval'; worker-src 'self' blob:;/);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
+  assert.doesNotMatch(csp.replace("'wasm-unsafe-eval'", ''), /unsafe-eval/);
+  for (const keep of ["default-src 'self'", "frame-ancestors 'none'", "object-src 'none'", 'connect-src', 'upgrade-insecure-requests']) assert.ok(csp.includes(keep), keep);
+  assert.equal(out.replace(/Content-Security-Policy:.*/, ''), real.replace(/Content-Security-Policy:.*/, ''), 'CSP 줄 밖은 그대로');
+  assert.equal(relaxCspForHome(out), out, '두 번 돌려도 같음');
+  const { brand, home } = fixture();
+  writeFileSync(join(brand, '_headers'), real);
+  mergeBrandHome(brand, home);
+  assert.match(readFileSync(join(brand, '_headers'), 'utf8'), /worker-src 'self' blob:/);
 });

@@ -6,6 +6,8 @@
 //   제품 index.html 을 spa.html 로 옮기고, 마지막 「나머지 주소」 규칙만 spa.html 로 돌린다(Netlify 는 있는 파일을 먼저 내준다).
 // - 제품 경로 → 앱 주소 302 규칙(brand vite 설정이 만든 것)은 순서·목적지 그대로 맨 앞에 둔다.
 // - 예전 홈페이지 주소(/do-it/landing · /do-it/hero)는 새 홈페이지(/)로.
+// - 보안 정책(CSP)은 그대로 두고 홈페이지 3D 모델 압축 풀기(Draco)에 필요한 두 가지만 더한다(Codex #152 P2):
+//   worker-src 'self' blob: (풀기 일꾼을 blob 주소로 만듦) · script-src 'wasm-unsafe-eval'(WASM 번역만 허용 — 글자 eval 은 계속 금지).
 // - 같은 이름 파일이 겹치면 덮어쓰지 않고 멈춘다(어느 쪽이 사라졌는지 모르게 되는 일 0).
 //
 // 쓰는 법: node scripts/merge-brand-home.mjs <brand 빌드 폴더> <홈페이지 빌드 폴더>
@@ -39,6 +41,19 @@ export function mergeRedirects(text) {
   ].join('\n');
 }
 
+export function relaxCspForHome(text) {
+  return text.split('\n').map((line) => {
+    const m = line.match(/^(\s*Content-Security-Policy:\s*)(.*)$/);
+    if (!m) return line;
+    const parts = m[2].split(';').map((d) => d.trim()).filter(Boolean);
+    const script = parts.findIndex((d) => d.startsWith('script-src '));
+    if (script < 0) throw new Error('CSP 에 script-src 가 없음');
+    if (!parts[script].includes("'wasm-unsafe-eval'")) parts[script] += " 'wasm-unsafe-eval'";
+    if (!parts.some((d) => d.startsWith('worker-src '))) parts.splice(script + 1, 0, "worker-src 'self' blob:");
+    return `${m[1]}${parts.join('; ')}`;
+  }).join('\n');
+}
+
 export function mergeBrandHome(brandDir, homeDir) {
   const brandIndex = join(brandDir, 'index.html');
   const spa = join(brandDir, 'spa.html');
@@ -56,6 +71,8 @@ export function mergeBrandHome(brandDir, homeDir) {
   }
 
   const merged = mergeRedirects(readFileSync(redirects, 'utf8'));
+  const headersPath = join(brandDir, '_headers');
+  const headers = existsSync(headersPath) ? relaxCspForHome(readFileSync(headersPath, 'utf8')) : null;
   renameSync(brandIndex, spa);
   for (const rel of files) {
     const dest = join(brandDir, rel);
@@ -63,6 +80,7 @@ export function mergeBrandHome(brandDir, homeDir) {
     copyFileSync(join(homeDir, rel), dest);
   }
   writeFileSync(redirects, merged);
+  if (headers !== null) writeFileSync(headersPath, headers);
   return { copied: files.length };
 }
 
